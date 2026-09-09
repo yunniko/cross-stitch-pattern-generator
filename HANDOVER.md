@@ -7,18 +7,17 @@ no shared subdomain), per an explicit Owner choice on 2026-09-09.
 
 ## Current state
 
-M1–M6 built and verified (2026-09-09): upload → generate (in a Web
+M1–M7 built and verified (2026-09-09): upload → generate (in a Web
 Worker) → preview → download works end-to-end with a genuine
-region-aware, edge/importance-aware optimizer (OKLab k-means → ICM
-local smoothing weighted by a Sobel-based importance map → palette
-merge), both orientations and both render modes visually confirmed via
-a real headless browser against noisy synthetic photos — including one
-purpose-built to test detail preservation (a small real highlight
-inside a noisy dark region survives, while surrounding noise still
-gets cleaned up). All automated checks green (ESLint, `tsc`, production
-build, 53 Vitest unit tests, 2 Playwright e2e tests). Not yet done:
-M7-M9a (contour cleanup, diagnostics, centre markers/row-column
-numbering), M9's final polish.
+region-aware, edge/importance-aware, contour-cleaned-up optimizer
+(OKLab k-means → ICM local smoothing weighted by a Sobel-based
+importance map → component recoloring + diagonal-pinch fixes →
+palette merge), both orientations and both render modes visually
+confirmed via a real headless browser against noisy synthetic photos —
+including one purpose-built to test detail preservation. All automated
+checks green (ESLint, `tsc`, production build, 64 Vitest unit tests, 2
+Playwright e2e tests). Not yet done: M8-M9a (diagnostics/jaggy-banding
+metrics, centre markers/row-column numbering), M9's final polish.
 
 ## How things fit together
 
@@ -48,14 +47,21 @@ numbering), M9's final polish.
   `runMultiScaleOptimizer` (a coarse ICM pass then a fine one, both
   weighted by that importance — ties down confetti/orphan cells *and*
   protects genuinely important small details/real edges) →
+  `lib/contour-cleanup.ts`'s `recolorSmallComponents` (multi-cell moves
+  for small blobs the per-cell optimizer alone couldn't resolve) then
+  `fixDiagonalConnections` (2x2 diagonal-only pinches, invisible to
+  both 4-connected region analysis and 4-neighbor-only ICM energy) →
   `lib/palette-optimizer.ts`'s `mergeSimilarColors` (collapses
-  near-duplicate palette entries) → sorts the palette dark-to-light,
-  assigns symbols from `lib/symbols.ts` → `StitchPattern`.
-  `lib/render.ts`'s `renderPatternToCanvas` (pure `StitchPattern` →
-  `HTMLCanvasElement`) handles both the live preview and the
-  full-resolution download; `lib/regions.ts`'s connected-component
-  labeling is used both by the palette-merge decision and as a
-  diagnostic (`confettiRatio`), not yet surfaced in the UI (that's M8).
+  near-duplicate palette entries) → drops any now-unused palette entry
+  (see D9) → sorts the palette dark-to-light, assigns symbols from
+  `lib/symbols.ts` → `StitchPattern`. `lib/render.ts`'s
+  `renderPatternToCanvas` (pure `StitchPattern` → `HTMLCanvasElement`)
+  handles both the live preview and the full-resolution download;
+  `lib/regions.ts`'s connected-component labeling is used by both
+  `contour-cleanup.ts` and the palette-merge decision, and as a
+  diagnostic (`confettiRatio`) not yet surfaced in the UI (that's M8).
+  `lib/simulated-annealing.ts` exists, is tested, but isn't called from
+  `buildPattern` at all (D9) — available for a future opt-in surface.
   Every pure module (`downsample.ts` through `pattern.ts`, `regions.ts`,
   `local-optimizer.ts`, `palette-optimizer.ts`) takes/returns typed-array
   buffers (`PixelBuffer`/`CellColorBuffer`, both plain `{data, width,
@@ -365,6 +371,83 @@ chart where the highlight survives as its own distinct symbol cluster
 inside the iris while the surrounding noisy skin and iris regions still
 came out as coherent, low-confetti regions. Screenshot inspected
 directly, not just inferred from passing tests.
+
+**D9 — Phase C (M7) scoped down to its clearly-tractable subset; two
+real bugs found and fixed before calling it done (2026-09-09).** The
+Owner's spec's Phase C covers: diagonal-only-connection cleanup,
+one-cell hole/protrusion removal, jaggy run-length regularization,
+banding detection, multi-cell/component moves, and optional simulated
+annealing. Disposition:
+- **Built and wired into the default pipeline**: `lib/contour-
+  cleanup.ts`'s `fixDiagonalConnections` (2x2 diagonal-only pinches —
+  a real gap neither 4-connected region analysis nor 4-neighbor-only
+  ICM energy can see, since a diagonal touch never registers as a
+  "mismatch") and `recolorSmallComponents` (multi-cell moves: a small
+  connected component gets tried as a whole against each neighboring
+  color, using the same color-error-plus-boundary-cost accounting ICM
+  uses per-cell, just applied jointly — catches cases where moving any
+  *one* of the component's cells alone wouldn't help but moving all of
+  them together does).
+- **Not built as a separate pass — already covered**: one-cell hole/
+  protrusion removal. A hole (`AAA/ABA/AAA`) is exactly M5's original
+  orphan test case — all 4 neighbors of the odd cell already agree, so
+  ICM's smoothness term resolves it without a dedicated pass.
+- **Built, tested, deliberately NOT wired into the default pipeline**:
+  `lib/simulated-annealing.ts`. ICM + component recoloring + diagonal
+  fixes already produced clean, visually-verified results without it;
+  annealing adds real complexity (a temperature schedule to tune) for
+  a benefit that isn't demonstrated as needed yet. Scoped to boundary
+  cells only, per the spec's own suggestion, and seeded for
+  reproducibility. Available for a future opt-in UI surface or a
+  Phase D re-evaluation if diagnostics (M8) show it's actually needed.
+- **Deferred to M8, not dropped**: jaggy run-length regularization and
+  banding detection. Both require real contour/run-length extraction —
+  a bigger, less-clear-cut-value undertaking than the work already
+  done, and the Owner's own spec frames both as "tune experimentally,
+  not an obligatory formula" (lower confidence in the payoff than
+  confetti/orphan/edge-preservation, which had a clear mechanism and a
+  visually obvious before/after). M8's diagnostics work is a natural
+  place to at least *measure* jaggy-ness/banding even if not fully
+  automating the fix.
+
+**Bug 1 — a genuine O(components × cells) quadratic scan, not a
+theoretical risk.** `recolorSmallComponents`'s first draft rescanned
+the *entire* `labels` array once per component to collect that
+component's member cells. At the 1000-stitch/64-color worst case
+(previously ~13-22s end to end), this hung for 2+ minutes before being
+killed — caught only because re-running the standard perf check is a
+habit carried over from M5/M6, not because anything else would have
+surfaced it (all 63 unit tests passed fine at small scale). Fixed by
+building a `component id → member cells` index in one pass before the
+per-component loop, rather than inside it.
+
+**Bug 2 — a real correctness bug, found by looking at an actual
+screenshot, not by a failing test.** After adding `recolorSmallComponents`
+and `fixDiagonalConnections`, a real browser run's legend showed a color
+with "0 sts" — a symbol/swatch for a color no cell actually used. Root
+cause: those two passes can recolor away every last cell of some
+quantizer-assigned color, and `mergeSimilarColors`'s distance-threshold
+merge doesn't reliably catch a zero-count color unless it happens to
+be perceptually close to a survivor. Fixed by adding an explicit
+"drop any palette entry with zero cells" compaction step in
+`pattern.ts`, after all cleanup/merge passes, before symbol assignment
+— added a regression test (`pattern.spec.ts`) asserting this across
+several shapes/color-counts, not just the one case that happened to
+reproduce it. Worth remembering: passing unit tests didn't catch
+either bug here — the quadratic scan only bites at real production
+scale, and the zero-count legend row only became visible by actually
+looking at a rendered chart. Both reinforce Values → Quality's "done
+means verified: exercised end-to-end," not just "tests are green."
+
+**Performance, logged honestly again**: worst case (1000 stitches, 64
+colors) is now ~22s for `buildPattern` alone (was ~13.4s at the end of
+M5, before M6's multi-scale optimizer doubled the ICM cost and M7's
+contour-cleanup passes added their own — never separately re-measured
+after M6 alone). Still tractable (not hanging, unlike the pre-fix
+quadratic-scan state), still runs in a Web Worker with progress shown.
+Not optimized further now — same reasoning as M5/M6: no evidence real
+usage hits the *combination* of max stitches and max colors often
+enough to justify tuning against a synthetic worst-case benchmark.
 
 ## Owner action list
 

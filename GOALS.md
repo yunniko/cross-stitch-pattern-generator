@@ -158,11 +158,25 @@ change. Acceptance criterion 4 is amended accordingly:
       the surrounding noisy iris/skin regions still come out coherent.
       Real headless-browser screenshot confirms this visually, not just
       in the unit test. Full detail in HANDOVER.md D8.
-- [ ] M7 — Phase C: contour-quality cleanup as a distinct post-process
-      (diagonal-only-connection fixes, one-cell hole/protrusion removal,
-      jaggy run-length regularization, banding detection) + multi-cell/
-      component-level optimizer moves + optional simulated-annealing
-      pass.
+- [x] M7 — Phase C, scoped subset (per HANDOVER.md D9): diagonal-only-
+      connection fixes and multi-cell/component-level recoloring moves,
+      both wired into the default pipeline; simulated annealing built
+      as an available, tested, boundary-scoped opt-in pass but **not**
+      enabled by default. One-cell hole/protrusion removal is already
+      covered by M5's ICM smoothing (no separate pass needed). Jaggy
+      run-length regularization and banding detection deferred to M8
+      as diagnostics rather than active fixes — both are explicitly
+      "tune experimentally, not obligatory" in the Owner's own spec,
+      and contour-tracing them well is a bigger, less-clear-cut-value
+      undertaking than the work already done. ✔ 2026-09-09 — 64 unit
+      tests + 2 e2e green. Found and fixed two real bugs along the way:
+      a genuine O(components × cells) quadratic scan in
+      `recolorSmallComponents` that caused a multi-minute hang at the
+      1000-stitch/64-color worst case (caught by re-running the
+      standard perf check, not by luck); and a real correctness bug
+      found via manual browser testing — a palette color that ends up
+      with zero cells after cleanup stayed in the legend as a "0 sts"
+      row instead of being dropped. Full detail in HANDOVER.md D9.
 - [ ] M8 — Phase D: diagnostic quality metrics + debug-visualization
       mode, configurable energy weights, a golden-fixture regression
       suite (metric-tolerance-band assertions, not exact-pixel equality
@@ -183,6 +197,29 @@ change. Acceptance criterion 4 is amended accordingly:
       before/after comparison against the pre-amendment output), done.
 
 **Progress log** (newest first):
+- 2026-09-09 — M7 completed (Owner: "yes"). Scoped Phase C down to its
+  most tractable, clearly-valuable pieces rather than the full 34-
+  section spec: added `lib/contour-cleanup.ts` (diagonal-only-pinch
+  fixes; multi-cell component recoloring for small blobs the per-cell
+  ICM optimizer structurally can't reach) and `lib/simulated-
+  annealing.ts` (boundary-scoped, seeded, built and tested but not
+  wired into the default pipeline — see HANDOVER.md D9 for why).
+  Deferred jaggy-regularization and banding-detection to M8 as
+  diagnostics, matching the Owner's own framing of those as lower-
+  priority/experimental. Caught two real bugs before considering this
+  done: re-ran the standard worst-case perf check (habit from M5/M6,
+  not optional) and it hung for 2+ minutes instead of the expected
+  ~15-25s — traced to a real O(components × cells) rescan in
+  `recolorSmallComponents`, fixed by building the component→cells
+  index once instead of per-component. Separately, real browser
+  screenshots (not just passing tests) surfaced a "0 sts" legend row —
+  a palette color the cleanup passes had recolored away entirely
+  without the palette-merge step's distance threshold happening to
+  catch it — fixed by compacting zero-count palette entries as an
+  explicit final step. Added a regression test for the second bug
+  across multiple shapes/color-counts. 64 unit tests + 2 e2e green,
+  clean build/lint/typecheck, worst-case perf re-verified at ~22s
+  (up from M6's level, logged honestly in HANDOVER.md D9).
 - 2026-09-09 — M6 completed (Owner: "go ahead"). Added `lib/edge-map.ts`
   (Sobel gradient magnitude + per-cell importance, since no ML
   segmentation model is available) and extended the ICM local optimizer
