@@ -81,16 +81,17 @@ commitments):**
   "0" adjacently) at small print sizes.
 
 **Milestones**:
-- [ ] M1 — Project scaffold (Next.js/TS, matching portfolio conventions)
+- [x] M1 — Project scaffold (Next.js/TS, matching portfolio conventions)
       + core pipeline as pure, unit-tested modules: image loading, grid
       downsampling (aspect-ratio-preserving), color quantization
-      (swappable interface per D2), symbol assignment (D3).
-- [ ] M2 — Chart rendering: canvas-based renderer with the 1/5/10-stitch
+      (swappable interface per D2), symbol assignment (D3). ✔ 2026-09-09.
+- [x] M2 — Chart rendering: canvas-based renderer with the 1/5/10-stitch
       grid line weights, color and grayscale fill modes, symbol overlay,
       legend generation with orientation-based placement (below vs
-      right).
-- [ ] M3 — UI: upload, size controls (presets + custom), color-count
+      right). ✔ 2026-09-09.
+- [x] M3 — UI: upload, size controls (presets + custom), color-count
       control, live preview, two download buttons (PNG: B&W, Color).
+      ✔ 2026-09-09.
 - [ ] M4 — Domain-expert review (real cross-stitch chart conventions —
       grid marking conventions, symbol legibility at print size, whether
       the color-matching approach is sound for this craft) + fix any
@@ -100,6 +101,24 @@ commitments):**
       done.
 
 **Progress log** (newest first):
+- 2026-09-09 — M1–M3 built and verified in one session (bundled rather
+  than stopping at each individual boundary, since they're tightly
+  coupled and each depends on the last being in place to test against —
+  checking in now, at the first point with a real reviewable
+  deliverable, rather than after each internal step). Built: pure
+  pipeline modules (`lib/downsample.ts`, `lib/color.ts`,
+  `lib/quantize.ts`, `lib/symbols.ts`, `lib/pattern.ts`) with 24 passing
+  Vitest unit tests; canvas-based renderer (`lib/render.ts`) with the
+  1/5/10-stitch grid weights and orientation-aware legend; the upload/
+  controls/preview/download UI (`app/page.tsx`). Verified for real, not
+  just written: ESLint clean, `tsc --noEmit` clean, production build
+  clean, 2 Playwright e2e tests green (real upload → generate → both
+  downloads), plus a manual headless-Chromium pass that saved the actual
+  rendered UI and the actual downloaded PNGs to disk and visually
+  inspected them — confirmed for both a landscape fixture (legend below,
+  as specified) and a portrait fixture (legend to the right) that grid
+  lines, colors, symbols, and legend counts are all correct. Git repo
+  initialized, 5 commits. Next: M4's domain-expert review, then M5.
 - 2026-09-09 — Goal created. Owner confirmed standalone project (not
   svc-lab) via AskUserQuestion. Researched color-quantization approaches
   used by real image-to-cross-stitch tools (median cut, octree, k-means,

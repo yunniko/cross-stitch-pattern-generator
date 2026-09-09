@@ -7,13 +7,14 @@ no shared subdomain), per an explicit Owner choice on 2026-09-09.
 
 ## Current state
 
-Just started (2026-09-09). Goal written, algorithm research done,
-decisions D1–D3 logged in `GOALS.md`. Scaffold and pipeline not yet built.
+M1–M3 built and verified (2026-09-09): upload → generate → preview →
+download works end-to-end, both orientations (legend below/right) and
+both render modes (color/B&W) visually confirmed via a real headless
+browser. All automated checks green (ESLint, `tsc`, production build,
+24 Vitest unit tests, 2 Playwright e2e tests). Not yet done: M4's
+domain-expert review, M5's final polish pass.
 
 ## How things fit together
-
-(To be filled in as the scaffold lands — planned shape below, will be
-corrected to match reality once M1 is built.)
 
 - Next.js (App Router) + TypeScript + Tailwind, matching the rest of the
   Company's web projects (STANDARDS.md "minimize spread") — same stack as
@@ -26,6 +27,20 @@ corrected to match reality once M1 is built.)
   (see G-001's acceptance criterion 9) specifically because the Owner
   expects to swap the algorithm later — don't let rendering or UI code
   reach into quantization internals directly.
+- Pipeline shape: `lib/load-image.ts` (browser-only: File → `PixelBuffer`
+  via an offscreen canvas) → `lib/downsample.ts` (`PixelBuffer` → one
+  averaged RGB per stitch cell) → `lib/quantize.ts`'s `kMeansLabQuantizer`
+  (cell colors → palette + per-cell palette index) → `lib/pattern.ts`'s
+  `buildPattern` (orchestrates the above, sorts the palette light-to-dark,
+  assigns symbols from `lib/symbols.ts`) → `lib/render.ts`'s
+  `renderPatternToCanvas` (pure `StitchPattern` → `HTMLCanvasElement`,
+  used for both the live preview and the full-resolution download).
+  Every module up to and including `pattern.ts` takes a `PixelBuffer`
+  (a plain `{data, width, height}` shape), not the DOM's `ImageData`
+  class — same pattern as `image-object-splitter`'s `PixelBuffer`,
+  specifically so these stay unit-testable in plain Vitest/Node without
+  a jsdom/browser environment. Only `load-image.ts` and `render.ts`
+  (and the page itself) touch real DOM APIs.
 
 ## Decision record
 
@@ -98,6 +113,25 @@ per the D1 research
 Full list and ordering rationale land in the codebase (`lib/symbols.ts`)
 once M1 is built, referenced from here rather than duplicated.
 
+**D4 — Canvas size is adaptively clamped (`MAX_CANVAS_DIMENSION` in
+`lib/render.ts`), not left at a fixed cell size.** The Owner's own custom
+range goes up to 1000 stitches; at a naive fixed 24px/cell that's a
+24000px-wide canvas, which risks exceeding real browser canvas
+area/memory limits (verified this is a real, not theoretical, ceiling —
+Chrome/Firefox both fail well before that on large canvases). Cell size
+shrinks automatically so the longer side never exceeds 12000px, rather
+than the app silently failing or crashing on a large custom size.
+
+**D5 — `buildPattern` runs synchronously, deferred one tick via
+`setTimeout(0)` so the UI can paint "Generating…" first, not moved to a
+Web Worker.** K-means over up to 64 colors on a large grid (e.g. 1000×N
+cells) is real work, but this is a personal tool processing one image at
+a time, not a hot path — a full Web Worker setup is more engineering
+than the actual usage pattern justifies right now. Revisit only if real
+use turns up patterns large/slow enough to make the main thread stall
+noticeably (the deferred-paint trick only prevents a *frozen-before-it-
+starts* UI, not a slow generate).
+
 ## Owner action list
 
 None yet — no escalation-tier blockers so far (no deploy, no accounts,
@@ -105,10 +139,7 @@ no destructive actions).
 
 ## Next steps and open questions
 
-- Build M1: scaffold + pipeline modules (grid downsampling, Lab k-means
-  quantization, symbol assignment), all as pure/unit-testable functions
-  before any UI.
-- M4 will run a domain-expert review specifically on: (a) whether the
+- M4: run a domain-expert review specifically on: (a) whether the
   grid-line convention (every 5/10 stitches heavier) matches real Aida
   chart conventions as commonly published, (b) whether the Lab-distance
   approximation is a reasonable stand-in for CIEDE2000 given this is
@@ -119,3 +150,13 @@ no destructive actions).
   PNG is the simplest fit for a browser-rendered, print-at-home chart and
   needs no new dependency. Revisit if the Owner wants a paginated PDF for
   large patterns that don't fit one page well.
+- Tested the worst case for real (2026-09-09): a 1500×1000 synthetic
+  noise image at 1000 stitches / 64 colors took ~4.9s for `buildPattern`
+  alone (measured, not estimated) — noticeable but acceptable given the
+  "Generating…" indicator already covers it. Not yet measured: the
+  render/download step's own cost at that same size (D4's clamp keeps it
+  from crashing, but half a million-plus `fillText` calls could take a
+  few more seconds with no loading indicator on the download buttons
+  themselves — `handleGenerate` shows "Generating…" but `handleDownload`
+  doesn't show any busy state). Small, easy follow-up if it turns out to
+  matter in practice; not escalation-tier.
