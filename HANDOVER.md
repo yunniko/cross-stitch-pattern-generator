@@ -7,17 +7,23 @@ no shared subdomain), per an explicit Owner choice on 2026-09-09.
 
 ## Current state
 
-M1–M7 built and verified (2026-09-09): upload → generate (in a Web
+M1–M8 built and verified (2026-09-09): upload → generate (in a Web
 Worker) → preview → download works end-to-end with a genuine
 region-aware, edge/importance-aware, contour-cleaned-up optimizer
 (OKLab k-means → ICM local smoothing weighted by a Sobel-based
 importance map → component recoloring + diagonal-pinch fixes →
-palette merge), both orientations and both render modes visually
-confirmed via a real headless browser against noisy synthetic photos —
-including one purpose-built to test detail preservation. All automated
-checks green (ESLint, `tsc`, production build, 64 Vitest unit tests, 2
-Playwright e2e tests). Not yet done: M8-M9a (diagnostics/jaggy-banding
-metrics, centre markers/row-column numbering), M9's final polish.
+palette merge → palette recomputed from final cell membership),
+plus real diagnostic metrics and a golden-fixture regression suite.
+A second domain-expert review (against the actual new algorithm, not
+the pre-amendment one) found and this session fixed 4 provable
+correctness bugs and a real robustness gap — see D11, including two
+regressions my own first-attempt fixes caused and caught before
+shipping. Both orientations and both render modes visually confirmed
+via a real headless browser against noisy/low-contrast/detail-
+preservation synthetic photos. All automated checks green (ESLint,
+`tsc`, production build, 84 Vitest unit tests, 2 Playwright e2e
+tests). Not yet done: M9a (centre markers/row-column numbering), M9's
+final polish.
 
 ## How things fit together
 

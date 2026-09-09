@@ -177,14 +177,27 @@ change. Acceptance criterion 4 is amended accordingly:
       found via manual browser testing — a palette color that ends up
       with zero cells after cleanup stayed in the legend as a "0 sts"
       row instead of being dropped. Full detail in HANDOVER.md D9.
-- [ ] M8 — Phase D: diagnostic quality metrics + debug-visualization
-      mode, configurable energy weights, a golden-fixture regression
-      suite (metric-tolerance-band assertions, not exact-pixel equality
-      — see HANDOVER.md D6 rationale) covering every synthetic case the
-      Owner specified (orphan removal, important-detail preservation,
-      diagonal cleanup, palette-redundancy merging, edge preservation,
-      flat-area stability). Re-run the domain-expert review against the
-      *new* algorithm specifically.
+- [x] M8 — Phase D: diagnostic quality metrics + a golden-fixture
+      regression suite covering every synthetic case from the Owner's
+      spec (orphan removal, important-detail preservation, diagonal
+      cleanup, palette-redundancy merging, edge preservation, flat-area
+      stability — most already covered by earlier milestones' targeted
+      unit tests). Debug-visualization UI deliberately not built
+      (HANDOVER.md D10 — real scope-vs-value call, not an oversight).
+      Re-ran the domain-expert review against the new algorithm
+      specifically, as planned. ✔ 2026-09-09 — that review found 4
+      provable correctness bugs (a repulsive energy term, palette
+      colors never recomputed after optimization, a broken ICM
+      convergence guarantee, three inconsistent energy formulas across
+      passes) plus a real robustness gap (Sobel importance normalized
+      by a single max gradient, failing badly on both high-contrast and
+      low-contrast real photos) — see HANDOVER.md D11 for all of it,
+      including two near-misses where my *first* fix attempt was itself
+      a real, unverified regression, caught only by re-measuring actual
+      diagnostics/screenshots rather than trusting the math. 84 unit
+      tests + 2 e2e green after all fixes; confetti ratio on the
+      regression suite's noisy fixture ended up *better* than the
+      pre-fix baseline, not just recovered.
 - [ ] M9a — Deferred from the M4 domain-expert review (HANDOVER.md D7):
       centre markers (arrows/triangles at the grid edges marking the
       design's horizontal/vertical center, the conventional stitching
@@ -197,6 +210,43 @@ change. Acceptance criterion 4 is amended accordingly:
       before/after comparison against the pre-amendment output), done.
 
 **Progress log** (newest first):
+- 2026-09-09 — M8 completed (Owner: "continue"). Built `lib/diagnostics.ts`
+  (color/component counts, confetti ratio, compactness, reconstruction
+  error, edge-alignment score) and a golden-fixture regression suite
+  (`tests/unit/regression.spec.ts`). Documented the debug-viz/jaggy/
+  banding scope calls in HANDOVER.md D10. Re-ran the domain-expert
+  review against the actual new algorithm (not the pre-amendment one
+  M4 reviewed) — it found 4 provable bugs by direct calculation (a
+  repulsive/anti-ferromagnetic energy term above a specific edge
+  threshold; palette colors never recomputed after optimization
+  reassigns cells; an asymmetric energy term breaking ICM's
+  convergence guarantee; three inconsistent energy formulas across
+  local-optimizer/simulated-annealing/contour-cleanup that could undo
+  each other's work) plus a real robustness gap (Sobel importance
+  normalized by a single max gradient, failing on both high-contrast
+  and low-contrast real photos — confirmed via a controlled before/
+  after: median importance 0.46 across an entire low-contrast test
+  image pre-fix, 0.01 post-fix). Attempted a codex-cli critique
+  exchange on the energy redesign first (STANDARDS.md's own bar for an
+  "especially consequential finding") — the account was out of API
+  credits, confirmed as billing not auth, logged and proceeded on my
+  own analysis per the Company's own fallback policy. Verified the
+  review's central claim (the repulsive energy) by hand-calculation
+  before touching any code. Fixed A1/A2/A3/A6/A7/A8; deferred A5/A9/A10
+  with reasoning logged (HANDOVER.md D11). **Caught two real regressions
+  in my own fixes before calling this done**: a first attempt at fixing
+  the broken ICM energy passed every unit test but visually and
+  quantitatively made confetti worse (0.96% → 17.1% on a controlled
+  before/after using a git worktree at the pre-fix commit); a first
+  attempt at the Sobel-normalization fix did the same thing for the
+  same underlying reason (too aggressive a percentile). Both caught by
+  re-measuring real diagnostics/screenshots, not by trusting the math —
+  neither regression was visible in the test suite alone, which is why
+  a new regression-suite fixture using a *realistic* downsample ratio
+  was added (the existing one used a 1:1 ratio and missed both bugs).
+  Final state: 84 unit tests + 2 e2e green, confetti ratio on the
+  noisy-photo regression fixture ended up *better* than the pre-M8
+  baseline (0.18% vs ~1%), not just recovered from the regressions.
 - 2026-09-09 — M7 completed (Owner: "yes"). Scoped Phase C down to its
   most tractable, clearly-valuable pieces rather than the full 34-
   section spec: added `lib/contour-cleanup.ts` (diagonal-only-pinch
