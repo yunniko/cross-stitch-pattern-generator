@@ -2,6 +2,17 @@ import type { RGB } from "./types";
 
 export type Oklab = readonly [number, number, number];
 
+/** e.g. [255, 0, 128] -> "#ff0080" -- for handing an RGB color to an HTML/react-colorful color input. */
+export function rgbToHex([r, g, b]: RGB): string {
+  return `#${[r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** e.g. "#ff0080" -> [255, 0, 128] -- the inverse of `rgbToHex`. */
+export function hexToRgb(hex: string): RGB {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+}
+
 /** sRGB channel (0-255) to linear light (0-1). Exported for use anywhere pixel values must be averaged correctly (see HANDOVER.md D7). */
 export function srgbToLinear(c: number): number {
   const v = c / 255;

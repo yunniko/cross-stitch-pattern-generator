@@ -1278,6 +1278,90 @@ plain JSON. Nothing else about G-007 has started; this decision was
 locked in during planning specifically so M5 (save/load) doesn't need
 to re-litigate it mid-implementation.
 
+**D22 — G-007 (interactive pattern editor) built, verified, and
+deployed in one session (2026-09-09), all 6 milestones in sequence per
+the Owner's explicit instruction to proceed through all of them.**
+Full acceptance criteria and milestone list in GOALS.md's G-007 (now
+DONE) — this entry covers the build/architecture/verification detail
+rather than duplicating that.
+
+*Architecture, as planned in D21, held up without needing to change
+course*: the editor operates directly on the existing `StitchPattern`
+shape via small pure mutation functions (`lib/pattern-edit.ts`:
+`mergeColors`, `fillCluster`, `paintStitch`, `editColorRgb`, `addColor`,
+`compactUnusedColors`), each returning a new pattern rather than
+mutating in place. `fillCluster` reuses `lib/regions.ts`'s existing
+4-connected-component labeling unchanged — "cluster" in the editor is
+exactly the same concept the algorithm already uses internally, not a
+new one invented for this feature. `lib/use-undo-history.ts` is a
+generic snapshot-stack hook (capped at 50 steps) — push full state
+after every discrete edit, undo/redo just move a pointer; simpler and
+more robust than diffing given a full pattern snapshot is at most
+~1-2MB even at the largest supported grid.
+
+*A genuinely new color needs a name that doesn't disturb the rest of
+the palette.* `nameColors` (D17) recomputes greedy-globally across its
+*entire* input, which would risk renaming every other color just
+because one more was added via `+ Add color`. Added `nameNewColor`
+(`lib/color-names.ts`) instead: simple nearest-first search against the
+same reference list, explicitly excluding names already used in the
+palette it's joining. Existing colors' names are untouched by adding a
+new one.
+
+*Legend is real DOM, not canvas-drawn* — a deliberate split from how
+the static/printable chart renders its legend. Interactivity (native
+HTML5 drag-and-drop, click-to-select) needs real elements; a canvas has
+no sub-element hit-testing of its own. The picture itself is a new,
+separate rendering path (`renderEditableCanvas` / exported `drawChart`
+in `lib/render.ts`) that draws *only* the grid — no legend, header,
+markers, or numbers baked in — so drop-position-to-stitch hit-testing
+inside the editor is plain `floor(pixel / cellSize)` arithmetic with no
+gutters to account for, unlike the printable chart's layout.
+
+*Color picker*: `react-colorful` (the plan's leading candidate,
+confirmed at implementation time — tiny, zero dependencies, actively
+maintained, no separate CSS import needed).
+
+*Save/load*: `lib/pattern-serialize.ts` implements the Owner's chosen
+plain-JSON format — width/height/isLandscape/cellPalette (a plain
+number array, since `Uint8Array` doesn't round-trip usefully through
+`JSON.stringify`)/palette (rgb+symbol+name only; `count`/`index` are
+derived from `cellPalette` and recomputed on load, not stored).
+`deserializePattern` validates dimensions, array-length-vs-declared-size
+consistency, and in-range palette indices before accepting a file,
+throwing a descriptive error rather than producing a silently-broken
+pattern from a malformed/tampered one.
+
+*Small dedup done in passing while wiring the color picker*: `rgbToHex`
+existed as a private helper in both `render.ts` and (as `hexToRgb`)
+`color-names.ts` independently. Both now live once, exported, in
+`lib/color.ts`, and the two call sites import from there — noticed only
+because the editor needed both directions (hex↔RGB) itself for
+`react-colorful`, not a planned cleanup task.
+
+*Verification, matching the project's established rigor*: 10 new unit
+tests for the mutation functions (including a disconnected-same-color
+regions case, proving `fillCluster` genuinely respects 4-connectivity
+and doesn't just match by color), 5 for serialization (including 3
+rejection cases for malformed input), all passing on first run. A
+thorough real-browser walkthrough of the *entire* workflow in one pass
+(merge → cluster-fill → click-to-paint → recolor → add color → undo
+through every step → redo → download editable → download a final PNG
+from the editor) produced zero console errors and every intermediate
+state checked out exactly by stitch-count arithmetic (e.g. a merge
+transferring precisely 958 stitches, a cluster-fill transferring
+precisely 781) — not just "it didn't crash." Two of those flows
+(merge/undo/redo/save-reopen, and cluster-fill+paint-with-zero-errors)
+were then written up as permanent Playwright e2e tests
+(`tests/e2e/pattern-editor.spec.ts`) rather than left as one-off
+verification, so this workflow has real regression coverage going
+forward, not just a single session's manual confirmation. Perf-checked
+at the maximum supported 1000×1000/64-color grid: every mutation
+completes in well under a second (slowest, cluster-fill's connected-
+component labeling over 1,000,000 cells, ~200ms) — no separate
+optimization needed. Full regression pass: 111 unit tests + 4 e2e tests
+green, clean lint/typecheck/build, deployed and verified live.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

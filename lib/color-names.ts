@@ -1,5 +1,5 @@
 import { colornames as bestOfColorNames } from "color-name-list/bestof";
-import { oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
+import { hexToRgb, oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
 import type { RGB } from "./types";
 
 interface NamedColorEntry {
@@ -12,11 +12,6 @@ interface NamedColorEntry {
 // see HANDOVER.md D17 for why this and not a floss-brand dataset) converted
 // to OKLab once, since every subsequent call reuses the same reference set.
 let cachedEntries: NamedColorEntry[] | null = null;
-
-function hexToRgb(hex: string): RGB {
-  const n = parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
-}
 
 function getEntries(): NamedColorEntry[] {
   if (!cachedEntries) {
@@ -58,4 +53,33 @@ export function nameColors(colors: readonly RGB[]): string[] {
     assignedCount++;
   }
   return names;
+}
+
+/**
+ * Names a single color (e.g. one added by hand in the pattern editor)
+ * without touching any existing palette color's name — `nameColors`'
+ * greedy-global assignment recomputes across its *entire* input, which
+ * would risk reshuffling every other color's name just because one more
+ * was added. Simple nearest-first search, skipping any name already in
+ * `existingNames` so the new color doesn't collide with the palette it's
+ * joining (uniqueness across the same palette matters here the same way
+ * it does for `nameColors`; uniqueness against a *different* pattern's
+ * names still isn't guaranteed, same caveat as `nameColors`).
+ */
+export function nameNewColor(rgb: RGB, existingNames: readonly string[]): string {
+  const entries = getEntries();
+  const query = rgbToOklab(rgb);
+  const excluded = new Set(existingNames);
+
+  let best: string | null = null;
+  let bestDist = Infinity;
+  for (const entry of entries) {
+    if (excluded.has(entry.name)) continue;
+    const d = oklabDistanceSquared(query, entry.oklab);
+    if (d < bestDist) {
+      bestDist = d;
+      best = entry.name;
+    }
+  }
+  return best ?? "Custom";
 }

@@ -21,6 +21,8 @@ import {
 } from "@/lib/types";
 import { DEFAULT_AIDA_COUNT, STANDARD_AIDA_COUNTS, formatFinishedDimension, type SizeUnit } from "@/lib/finished-size";
 import type { GenerationMode } from "@/lib/pattern.worker";
+import { deserializePattern } from "@/lib/pattern-serialize";
+import PatternEditor from "./pattern-editor";
 
 const PREVIEW_TARGET_WIDTH_PX = 720;
 
@@ -39,7 +41,11 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editorPattern, setEditorPattern] = useState<StitchPattern | null>(null);
+  const [editorKey, setEditorKey] = useState(0);
+  const [openEditableError, setOpenEditableError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const openEditableInputRef = useRef<HTMLInputElement>(null);
 
   const longerSideStitches = sizePreset === "custom" ? customSize : SIZE_PRESETS[sizePreset];
 
@@ -118,6 +124,24 @@ export default function Home() {
     };
   }, [pattern, previewMode, aidaCount, sizeUnit]);
 
+  function openEditor(toEdit: StitchPattern) {
+    setEditorPattern(toEdit);
+    setEditorKey((k) => k + 1); // forces PatternEditor to remount with fresh undo history for this pattern
+  }
+
+  function handleOpenEditableFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setOpenEditableError(null);
+    file
+      .text()
+      .then((text) => {
+        openEditor(deserializePattern(text));
+      })
+      .catch((err) => setOpenEditableError(err instanceof Error ? err.message : "Couldn't open that file."));
+  }
+
   function handleDownload(mode: RenderMode | "realistic") {
     if (!pattern) return;
     setIsDownloading(true);
@@ -137,6 +161,21 @@ export default function Home() {
     }, 0);
   }
 
+  if (editorPattern) {
+    return (
+      <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
+        <main className="flex flex-1 w-full max-w-4xl flex-col gap-8 py-12 px-6">
+          <PatternEditor
+            key={editorKey}
+            pattern={editorPattern}
+            sourceFileName={sourceFileName}
+            onClose={() => setEditorPattern(null)}
+          />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex flex-1 w-full max-w-4xl flex-col gap-8 py-12 px-6">
@@ -151,9 +190,28 @@ export default function Home() {
         </header>
 
         <section className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-black dark:text-zinc-50" htmlFor="image-input">
-            1. Image
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-black dark:text-zinc-50" htmlFor="image-input">
+              1. Image
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => openEditableInputRef.current?.click()}
+                className="text-xs text-zinc-600 underline dark:text-zinc-400"
+              >
+                Open a saved editable pattern
+              </button>
+              <input
+                ref={openEditableInputRef}
+                type="file"
+                accept="application/json"
+                onChange={handleOpenEditableFile}
+                className="hidden"
+              />
+            </div>
+          </div>
+          {openEditableError && <p className="text-xs text-red-600 dark:text-red-400">{openEditableError}</p>}
           <input
             id="image-input"
             ref={fileInputRef}
@@ -367,6 +425,13 @@ export default function Home() {
                 className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
               >
                 {isDownloading ? "Preparing…" : "Download realistic preview PNG"}
+              </button>
+              <button
+                type="button"
+                onClick={() => pattern && openEditor(pattern)}
+                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]"
+              >
+                Edit
               </button>
             </div>
           </section>

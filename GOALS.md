@@ -11,7 +11,11 @@ svc-lab).
 
 ## Active goals
 
-### G-007 · Interactive pattern editor — ACTIVE
+_(none)_
+
+## Completed goals
+
+### G-007 · Interactive pattern editor — DONE (2026-09-09)
 - **What:** An in-browser editor for a generated pattern, entered either
   via an "Edit" button right after generation or by opening a
   previously-downloaded editable file. Shows the stitch grid and an
@@ -46,48 +50,54 @@ svc-lab).
   Stay 100% client-side, matching the rest of the app.
 
 **Milestones**:
-- [ ] M1 — Core edit-mutation functions (pure, unit-tested, no UI):
-      merge two colors, fill a cluster, paint a single stitch, edit a
-      color's RGB, add a new color (with symbol + name assignment that
-      doesn't reshuffle existing colors' names), all operating on the
-      existing `StitchPattern` shape. Undo/redo history stack (snapshot-
-      based) as its own tested module.
-- [ ] M2 — Editor UI shell: a new editor view/mode, DOM-based (not
-      canvas-drawn) interactive legend so native drag-and-drop works
-      normally, a grid-only canvas (no legend/header/markers baked in,
-      for simple click-to-cell hit-testing), undo/redo buttons wired to
-      M1's history stack, entered via an "Edit" button shown after
-      generation.
-- [ ] M3 — Interactive editing wired up for real: legend-to-legend
-      merge drag, legend-to-picture cluster-fill drag, active-color-
-      select + click-to-paint. Verified in a real browser for each
-      interaction, not just unit-tested.
-- [ ] M4 — Color editing & adding: integrate a real color-picker
-      component (`react-colorful` is the leading candidate — tiny, zero
-      dependencies, actively maintained; confirmed at implementation
-      time), wire it to the edit-color and add-color flows.
-- [ ] M5 — Save/load: the JSON editable format, a "Download editable"
-      button alongside the existing PNG downloads, and an "Open
-      editable pattern" entry point that reconstructs the pattern and
-      drops the user straight into the editor. Verified with a real
-      round-trip (download, then re-open the same file).
-- [ ] M6 — Polish and integration: zero-stitch-count colors (e.g. an
-      added-but-never-used color) are compacted away before the final
-      PNG exports from the editor, matching the existing invariant
-      elsewhere in the app (HANDOVER.md D9) — but stay visible inside
-      the editor itself, since adding a color before using it anywhere
-      is the normal workflow. Perf check at a large grid size. Full
-      regression pass. A real end-to-end browser run through the whole
-      workflow: generate → edit (merge + cluster-fill + paint + recolor
-      + add color) → download editable → reload the page → open that
-      file → keep editing → download final PNG.
+- [x] M1 — Core edit-mutation functions (`lib/pattern-edit.ts`: `mergeColors`,
+      `fillCluster`, `paintStitch`, `editColorRgb`, `addColor`,
+      `compactUnusedColors`) plus `lib/use-undo-history.ts` (snapshot-based
+      undo/redo hook) and `nameNewColor` (names one added color without
+      reshuffling existing names). ✔ 2026-09-09. 10 new unit tests, all
+      passing on first run.
+- [x] M2 — Editor UI shell (`app/pattern-editor.tsx`): DOM-based
+      interactive legend, a grid-only canvas (`lib/render.ts`'s new
+      `renderEditableCanvas`/exported `drawChart`), undo/redo buttons,
+      entered via an "Edit" button in `app/page.tsx` after generation.
+      ✔ 2026-09-09.
+- [x] M3 — Interactive editing wired up for real. ✔ 2026-09-09. Verified
+      in a real browser (not just unit-tested): merge drag (legend→legend),
+      cluster-fill drag (legend→picture, confirmed by exact stitch-count
+      arithmetic transferring between colors), and click-to-paint
+      (select + click) all worked correctly on the first full run, zero
+      console errors.
+- [x] M4 — `react-colorful` integrated (confirmed as planned: tiny, zero
+      dependencies) for both edit-color and add-color flows. ✔ 2026-09-09.
+      Verified live: recoloring an existing swatch and adding a new
+      "Grey" color (auto-named via the existing nearest-name matcher)
+      both worked correctly.
+- [x] M5 — JSON editable format (`lib/pattern-serialize.ts`, 5 unit
+      tests including malformed-input rejection), "Download editable"
+      button, "Open editable pattern" entry points (both after
+      generation and standalone on the initial screen, per the original
+      request). ✔ 2026-09-09. Verified with a real save → reload page →
+      reopen round-trip: state matched exactly.
+- [x] M6 — `compactUnusedColors` applied before final PNG exports from
+      the editor (zero-count colors stay visible during editing, as
+      intended). Perf checked at the max supported 1000×1000/64-color
+      grid: every mutation completes in well under a second (slowest,
+      cluster-fill's connected-component labeling, ~200ms). Full
+      regression pass (all 111 unit tests + 4 e2e tests, including 2 new
+      permanent editor e2e tests added to the suite, not just the
+      throwaway verification script). ✔ 2026-09-09. Real end-to-end
+      browser run through the complete workflow (generate → merge →
+      cluster-fill → paint → recolor → add color → undo/redo → download
+      editable → reload → reopen → download final PNG) — zero console
+      errors throughout.
 
 **Progress log** (newest first):
+- 2026-09-09 — All 6 milestones built and verified in one session
+  (Owner: "proceed through all milestones and make feature go live").
+  See HANDOVER.md D22 for the full build/verification record.
 - 2026-09-09 — Goal planned and milestones written. Editable-format
   decision (plain JSON, not PNG-with-embedded-data) made via
-  AskUserQuestion per the Owner's explicit choice. Not yet started.
-
-## Completed goals
+  AskUserQuestion per the Owner's explicit choice.
 
 ### G-006 · "Latest" / "Original" color-picking switch — DONE (2026-09-09)
 - **What:** A small toggle letting the Owner pick between the two color-

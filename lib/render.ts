@@ -1,4 +1,4 @@
-import { luminance } from "./color";
+import { luminance, rgbToHex } from "./color";
 import { DEFAULT_AIDA_COUNT, formatFinishedSize, type SizeUnit } from "./finished-size";
 import { buildTintedTextureSet } from "./stitch-texture";
 import type { PaletteColor, StitchPattern, RGB } from "./types";
@@ -73,10 +73,6 @@ function effectiveCellSize(width: number, height: number, requested: number): nu
   return Math.max(4, Math.min(requested, maxByCanvas));
 }
 
-function rgbToHex([r, g, b]: RGB): string {
-  return `#${[r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
-}
-
 function bwGray(rgb: RGB): number {
   const t = luminance(rgb) / 255;
   return Math.round(BW_MIN_GRAY + t * (BW_MAX_GRAY - BW_MIN_GRAY));
@@ -93,7 +89,7 @@ function symbolTextColor(mode: RenderMode, rgb: RGB): string {
   return luminance(rgb) > 140 ? "#000000" : "#ffffff";
 }
 
-function drawChart(ctx: CanvasRenderingContext2D, pattern: StitchPattern, mode: RenderMode, cellSize: number) {
+export function drawChart(ctx: CanvasRenderingContext2D, pattern: StitchPattern, mode: RenderMode, cellSize: number) {
   const { width, height, cellPalette, palette } = pattern;
   const drawSymbols = cellSize >= LEGIBILITY_FLOOR_PX;
 
@@ -318,6 +314,24 @@ export function legendCanvasExtent(pattern: StitchPattern, chartWidthPx: number,
   const rowsPerColumn = Math.max(1, Math.floor(chartHeightPx / LEGEND_ITEM_HEIGHT));
   const columns = Math.ceil(count / rowsPerColumn);
   return { extraWidth: MARKER_MARGIN + LEGEND_PADDING + columns * LEGEND_COLUMN_WIDTH, extraHeight: 0, belowChart };
+}
+
+/**
+ * Draws just the grid (fills, symbols, gridlines) with no legend, header,
+ * markers, or numbers, at exactly `width*cellSize x height*cellSize` -- for
+ * the interactive pattern editor, where the legend is a separate, real DOM
+ * list (so native drag-and-drop works) and click-to-cell hit-testing needs
+ * to be plain `floor(pixel / cellSize)` arithmetic with no gutters to
+ * account for.
+ */
+export function renderEditableCanvas(pattern: StitchPattern, cellSize: number): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = pattern.width * cellSize;
+  canvas.height = pattern.height * cellSize;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2D canvas context unavailable");
+  drawChart(ctx, pattern, "color", cellSize);
+  return canvas;
 }
 
 export function renderPatternToCanvas(
