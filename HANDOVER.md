@@ -908,12 +908,9 @@ full-resolution PNG. Both clearly show the real photo texture's
 shading and soft edges, correctly tinted per palette color, on the
 gray background.
 
-**Open item, not blocking:** the texture image's origin/license
-weren't stated when the Owner supplied it (a local Downloads-folder
-file). Per STANDARDS.md's asset-attribution rule this should be
-recorded once known — added to the Owner action list below rather
-than blocking the feature on it, since it's the Owner's own file, not
-a third-party source pulled in unilaterally.
+**Asset attribution:** the texture image (`public/stitch-texture.png`)
+is the Owner's own original drawing (confirmed 2026-09-09) — no
+third-party source, no license question.
 
 ## Owner action list
 
@@ -926,13 +923,6 @@ a third-party source pulled in unilaterally.
    standard practice of a real critique exchange for consequential
    decisions is unavailable project-wide until the account is topped
    up. Worth knowing if another project hits the same thing.
-
-2. **Record the stitch-texture image's source/license.**
-   `public/stitch-texture.png` (D15) came from the Owner's own
-   Downloads folder with no stated origin. Not blocking — it's the
-   Owner's own file — but STANDARDS.md's asset-attribution rule wants
-   this recorded once the Owner confirms where it came from (self-made,
-   a licensed stock asset, AI-generated, etc.).
 
 ## Next steps and open questions
 
