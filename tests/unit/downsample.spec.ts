@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { downsampleToGrid, gridDimensionsFor } from "@/lib/downsample";
+import { cellRgb } from "@/lib/types";
 import type { PixelBuffer, RGB } from "@/lib/types";
 
 function makeBuffer(width: number, height: number, colorAt: (x: number, y: number) => RGB, alphaAt?: (x: number, y: number) => number): PixelBuffer {
@@ -38,17 +39,20 @@ describe("downsampleToGrid", () => {
     // pure red then pure blue.
     const buffer = makeBuffer(4, 4, (x) => (x < 2 ? [255, 0, 0] : [0, 0, 255]));
     const cells = downsampleToGrid(buffer, 2, 1);
-    expect(cells).toEqual([
-      [255, 0, 0],
-      [0, 0, 255],
-    ]);
+    expect(cellRgb(cells, 0)).toEqual([255, 0, 0]);
+    expect(cellRgb(cells, 1)).toEqual([0, 0, 255]);
   });
 
-  it("blends colors within a single averaged cell", () => {
-    // 2x1 image, one red pixel and one blue pixel collapsed into 1 cell.
-    const buffer = makeBuffer(2, 1, (x) => (x === 0 ? [255, 0, 0] : [0, 0, 255]));
+  it("blends colors within a single averaged cell in linear light, not gamma-encoded sRGB", () => {
+    // A 50/50 black/white split should average to sRGB ~188, not the ~128
+    // a naive gamma-encoded average would give (HANDOVER.md D7).
+    const buffer = makeBuffer(2, 1, (x) => (x === 0 ? [0, 0, 0] : [255, 255, 255]));
     const cells = downsampleToGrid(buffer, 1, 1);
-    expect(cells[0]).toEqual([128, 0, 128]);
+    const [r, g, b] = cellRgb(cells, 0);
+    expect(r).toBeGreaterThanOrEqual(185);
+    expect(r).toBeLessThanOrEqual(191);
+    expect(g).toBe(r);
+    expect(b).toBe(r);
   });
 
   it("weights fully transparent pixels out of the average", () => {
@@ -59,6 +63,25 @@ describe("downsampleToGrid", () => {
       (x) => (x === 1 ? 0 : 255)
     );
     const cells = downsampleToGrid(buffer, 1, 1);
-    expect(cells[0]).toEqual([255, 0, 0]);
+    expect(cellRgb(cells, 0)).toEqual([255, 0, 0]);
+  });
+
+  it("falls back to a direct source sample, not black, for a cell no pixel binned into", () => {
+    // 8px-wide source upscaled to a 12-wide grid: nearest-cell binning
+    // (floor(x*12/8)) skips columns 2, 5, 8, 11 entirely — a real bug the
+    // domain-expert review found (HANDOVER.md D7). None of those cells
+    // should come out black; the source here is uniform green, so every
+    // fallback-sampled cell should read pure green too.
+    const buffer = makeBuffer(8, 1, () => [10, 200, 10]);
+    const cells = downsampleToGrid(buffer, 12, 1);
+    for (let i = 0; i < 12; i++) {
+      expect(cellRgb(cells, i)).toEqual([10, 200, 10]);
+    }
+  });
+
+  it("falls back to white, not black, for a cell whose only reachable source pixel is fully transparent", () => {
+    const buffer = makeBuffer(8, 1, () => [10, 200, 10], () => 0);
+    const cells = downsampleToGrid(buffer, 12, 1);
+    expect(cellRgb(cells, 2)).toEqual([255, 255, 255]);
   });
 });

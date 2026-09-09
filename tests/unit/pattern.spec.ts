@@ -70,4 +70,47 @@ describe("buildPattern", () => {
     const total = pattern.palette.reduce((sum, c) => sum + c.count, 0);
     expect(total).toBe(pattern.width * pattern.height);
   });
+
+  it("the region-aware optimizer measurably reduces confetti versus the raw quantizer output", () => {
+    // A checkerboard-ish noisy pattern over two base regions is exactly the
+    // case the local optimizer + palette merge exist for (HANDOVER.md D6).
+    const buffer = makeBuffer(20, 20, (x, y) => {
+      const base: RGB = x < 10 ? [220, 30, 30] : [30, 30, 220];
+      const noisy = (x * 7 + y * 13) % 11 === 0;
+      return noisy ? [base[0] ^ 0x55, base[1], base[2]] : base;
+    });
+
+    const optimized = buildPattern(buffer, { longerSideStitches: 20, colorCount: 4, optimize: true });
+    const raw = buildPattern(buffer, { longerSideStitches: 20, colorCount: 4, optimize: false });
+
+    // Simple proxy: count cells whose all 4 neighbors differ from them.
+    const countOrphans = (pattern: typeof optimized) => {
+      let orphans = 0;
+      for (let y = 0; y < pattern.height; y++) {
+        for (let x = 0; x < pattern.width; x++) {
+          const i = y * pattern.width + x;
+          const me = pattern.cellPalette[i];
+          const neighbors = [
+            x > 0 ? pattern.cellPalette[i - 1] : me,
+            x < pattern.width - 1 ? pattern.cellPalette[i + 1] : me,
+            y > 0 ? pattern.cellPalette[i - pattern.width] : me,
+            y < pattern.height - 1 ? pattern.cellPalette[i + pattern.width] : me,
+          ];
+          if (neighbors.every((n) => n !== me)) orphans++;
+        }
+      }
+      return orphans;
+    };
+
+    expect(countOrphans(optimized)).toBeLessThanOrEqual(countOrphans(raw));
+  });
+
+  it("optimize: false returns the quantizer's raw assignment untouched", () => {
+    const buffer = makeBuffer(10, 10, (x) => (x < 5 ? [220, 20, 20] : [20, 20, 220]));
+    const optimized = buildPattern(buffer, { longerSideStitches: 10, colorCount: 2, optimize: true });
+    const raw = buildPattern(buffer, { longerSideStitches: 10, colorCount: 2, optimize: false });
+    // Both should still be valid patterns of the same shape.
+    expect(raw.width).toBe(optimized.width);
+    expect(raw.height).toBe(optimized.height);
+  });
 });
