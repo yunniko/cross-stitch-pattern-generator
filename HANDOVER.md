@@ -514,6 +514,145 @@ Disposition:
   tuning console), but the code-level configurability the spec asked
   for is real, not superficial.
 
+**D11 — M8 follow-up domain-expert review of the new algorithm found
+four provable correctness bugs and one over-generous tuning issue;
+fixed most, deferred the rest, and caught a real regression in my own
+fix along the way (2026-09-09).** Re-ran the domain-expert review
+(STANDARDS.md's recurring-gate requirement) now that the whole
+color-reduction pipeline had been replaced (M5-M7). Full findings in
+`docs/domain-reference.md`'s "M8 follow-up review" section. Tried a
+codex-cli critique exchange on the energy-function redesign first
+(STANDARDS.md's "especially consequential finding" bar) — the account
+was out of API credits (`stream disconnected... you have no credits
+remaining`), confirmed via `codex login status` that this was a
+billing issue, not an auth/config problem. Per STANDARDS.md's own
+fallback instruction, proceeded on my own analysis rather than
+blocking the goal on it, after independently verifying the review's
+central claim by direct calculation first (below).
+
+**A1 — verified by hand before touching any code.** The review claimed
+the fine pass's pairwise energy went repulsive (negative Potts
+coupling) above edge strength ≈0.474, given the shipped
+`smoothness=0.045, edgeLoss=0.05`. Computed `β(e) =
+smoothness*(1-e) - edgeLoss*e` directly: β(0.474)≈0, β(0.7)=-0.0215,
+β(1.0)=-0.05 — confirmed exactly, not just algebraically plausible.
+A negative coupling means the model was rewarded for making a cell
+*disagree* with a high-edge neighbor beyond what the color data
+justified — the opposite of "preserve real edges." Fixed by clamping:
+`max(0, smoothness*(1-edge) - edgeLoss*edge)`, charged only on
+mismatches (see `lib/energy.ts`).
+
+**A2 — palette colors are now recomputed after every cleanup/merge
+pass, not just after k-means.** The rendered/legend colors were
+previously the pre-optimization k-means cluster means, even though
+ICM, component recoloring, and diagonal fixes all reassign cells
+between colors afterward — so the color a stitcher would actually
+buy thread for no longer matched the cells assigned to it by the time
+the chart rendered. `pattern.ts` now recomputes each surviving
+palette entry as the linear-light mean of its *final* member cells
+(reusing `quantize.ts`'s `meanRgbLinear`, now exported) — one more
+Lloyd update, provably at least as accurate.
+
+**A3 — fixed once, discovered the fix broke real behavior, fixed
+again for real.** The review found `local-optimizer.ts`'s
+`protection = 1 - importance[i]` was asymmetric between a pair's two
+cells, meaning no single global energy existed for ICM's Besag-1986
+convergence guarantee to apply to. First attempt: drop `protection`
+entirely, relying only on the already-symmetric `edge =
+max(imp_i,imp_n)` baked into the smoothness/edgeLoss terms. This
+broke the M6 detail-preservation test (`optimized[detail.centerCell]`
+came back `0`, not `1`) — reverted, tried squaring the edge discount
+instead (`(1-edge)` applied both inside and outside the clamped
+term) to restore the old formula's double-discount strength
+symmetrically. **That "fix" passed every unit test but was visually
+and quantitatively wrong**: a real headless-browser run against the
+noisy sky/ground fixture showed *more* speckling than before, and a
+deterministic diagnostic check confirmed it — confetti ratio jumped
+from a pre-D11 baseline of 0.96% to 17.1% on the identical input. The
+squared discount was over-protecting every moderately-edgy boundary,
+not just genuinely important ones. Root cause: the fix I actually
+needed was simpler than either attempt — the single (unsquared)
+clamped term already IS a valid symmetric pairwise potential on its
+own (depends only on `edge` and whether labels match, never on
+evaluation order); no separate outer factor was needed at all.
+Verified: `local-optimizer.spec.ts`'s detail-preservation test was
+itself testing an unrealistic configuration (bare
+`DEFAULT_LOCAL_OPTIMIZER_WEIGHTS`, `edgeLoss:0` — meant to reproduce
+Phase A exactly, never meant to represent real edge-aware behavior)
+and was corrected to use the actual fine-pass weights
+(`edgeLoss:0.05`), under which the single clamped term genuinely does
+protect the detail (at edge=0.7, the mismatch penalty clamps to
+exactly zero). Full reasoning in `lib/energy.ts`'s docblock, which
+narrates both wrong turns so a future session doesn't retry them.
+
+**A4 — same pattern: the first fix was itself a real (if smaller)
+regression, caught the same way.** Added a noise floor
+(`NOISE_FLOOR = 40` raw Sobel units) and switched from normalizing by
+the single max gradient to a high percentile, per the review's
+suggestion (95th-99th). Shipped first at the 98th percentile — this
+too regressed confetti ratio on the noisy sky/ground fixture (a
+controlled before/after using a `git worktree` at the pre-D11 commit
+measured pre-D11 at 0.96%, post-98th-percentile at 17.1% — the same
+regression as A3's first attempt, caught by the same re-measurement
+habit). Root cause: 98% is not a high enough percentile for an image
+with substantial real texture/noise spread across more than 2% of
+pixels — the percentile itself gets pulled down by that texture,
+inflating importance broadly rather than just resisting one or two
+true outlier pixels. Fixed by using 99.9th percentile instead:
+confetti ratio on the same fixture came back at 0.18% — *better* than
+the pre-D11 baseline, not just recovered. Cross-checked against the
+actual motivating case (a low-contrast/foggy synthetic image) via the
+same before/after worktree comparison: pre-D11 gave median importance
+0.46 and 30.7% of cells above the 0.5 protection threshold across an
+image with no real salient features at all (confirming the review's
+concern was real); post-fix gives median 0.01 and 22.7% above
+threshold — a genuine improvement on the case A4 was meant to fix,
+without the regression on the noisy case. **Lesson applied twice in
+one session**: a plausible-sounding fix to a real, verified bug can
+itself be a real, unverified regression — re-running the same
+quantitative check (confetti ratio on a deterministic fixture) and a
+real visual pass caught both, where trusting the math/reasoning alone
+would have shipped both regressions silently.
+
+**A6, A7, A8 — fixed as scoped, no surprises.** `lib/energy.ts` is now
+the one shared `boundaryPairEnergy` function used by
+`local-optimizer.ts`, `simulated-annealing.ts`, and `contour-
+cleanup.ts`'s `recolorSmallComponents` — the three had drifted into
+three different formulas (A6). `fixDiagonalConnections` now takes an
+importance map (skips pinches whose block-average importance exceeds
+a threshold — protects thin diagonal *features* like a whisker or
+lettering stroke, which are chains of exactly this pinch pattern by
+construction) and a cost ceiling (a recolor is only applied if it
+costs at or below ~1 JND in OKLab; otherwise the pinch is left alone
+rather than forcing a bad color match) (A7). `pattern.ts` also now
+re-runs `recolorSmallComponents` once after the diagonal fixes, since
+resolving one pinch can leave its other member as a fresh size-1
+component with nothing after it to clean up. `defaultComponentRecolorOptions`
+scales `maxComponentSize` down to 2 for grids under 2,500 cells
+(previously a flat 6, which is 8.6% of a 10x7 "Small"-preset pattern) (A8).
+
+**Deferred, not dropped**: A5 (gradient computed on luminance only,
+blind to isoluminant chromatic edges like red-on-green — needs
+redoing the edge-map module's core loop in OKLab, a bigger change);
+A9 (the smoothness weights make the color term nearly inert relative
+to typical OKLab palette distances — a real, well-argued point, but
+the suggested fix, scale-relative smoothness, is a bigger design
+change deserving its own validation pass rather than being bundled
+into this batch); A10 (importance never influences k-means palette
+*selection*, only post-hoc assignment — a moderate feature addition,
+not a bug in existing behavior). All three logged with the review's
+full reasoning in `docs/domain-reference.md`.
+
+**Final verification**: 83 unit tests (10 new: symmetric energy-clamp
+behavior, importance-aware diagonal-fix protection, noise-floor/
+percentile-outlier robustness) + 2 e2e tests green, clean build/lint/
+typecheck. Real headless-browser runs against three fixtures (the
+noisy sky/ground photo, the eye-highlight detail photo, a low-contrast
+foggy photo) plus a controlled quantitative before/after using a git
+worktree at the pre-D11 commit, not just re-running the existing
+suite — the suite alone did not catch either regression described
+above, since both "wrong" versions still passed every existing test.
+
 ## Owner action list
 
 None yet — no escalation-tier blockers so far (no deploy, no accounts,
