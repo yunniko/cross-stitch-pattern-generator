@@ -1,4 +1,5 @@
 import { linearToSrgb, oklabDistanceSquared, rgbToOklab, srgbToLinear, type Oklab } from "./color";
+import { mulberry32 } from "./prng";
 import { cellRgb, type CellColorBuffer, type RGB } from "./types";
 
 export interface QuantizeResult {
@@ -56,18 +57,6 @@ function kMeansPlusPlusSeeds(oklabColors: Oklab[], k: number, rng: () => number)
     seeds.push(oklabColors[chosen]);
   }
   return seeds;
-}
-
-/** Mulberry32 — small deterministic PRNG so quantization is reproducible for the same input. */
-function mulberry32(seed: number): () => number {
-  let a = seed;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }
 
 const MAX_ITERATIONS = 30;
