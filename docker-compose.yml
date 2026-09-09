@@ -11,4 +11,4 @@ services:
     environment:
       APP_URL: ${APP_URL:-http://localhost:3000}
     ports:
-      - "127.0.0.1:30130:3000"
+      - "127.0.0.1:30150:3000"
