@@ -1,10 +1,10 @@
 import { computeCellImportance, computeEdgeMagnitude } from "./edge-map";
 import { downsampleToGrid, gridDimensionsFor } from "./downsample";
 import { luminance } from "./color";
-import { fixDiagonalConnections, recolorSmallComponents } from "./contour-cleanup";
+import { defaultComponentRecolorOptions, fixDiagonalConnections, recolorSmallComponents } from "./contour-cleanup";
 import { runMultiScaleOptimizer, type MultiScaleWeights } from "./local-optimizer";
 import { mergeSimilarColors } from "./palette-optimizer";
-import { kMeansQuantizer, type ColorQuantizer } from "./quantize";
+import { kMeansQuantizer, meanRgbLinear, type ColorQuantizer } from "./quantize";
 import { symbolsFor } from "./symbols";
 import type { PaletteColor, PixelBuffer, StitchPattern } from "./types";
 
@@ -36,13 +36,19 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   if (shouldOptimize) {
     const edgeMagnitude = computeEdgeMagnitude(imageData);
     const importance = computeCellImportance(imageData, edgeMagnitude, gridWidth, gridHeight);
+    const componentRecolorOptions = defaultComponentRecolorOptions(cells.width * cells.height);
     optimized = runMultiScaleOptimizer(cells, quantized, rawPalette, importance, options.multiScaleWeights);
     // Contour cleanup (Phase C): fixes structural artifacts the per-cell
     // ICM pass above has no way to see -- a component-level move (recolor
     // a whole small blob at once) or a diagonal-only pinch (invisible to
     // 4-neighbor-only energy) that no single-cell change could resolve.
-    optimized = recolorSmallComponents(cells, optimized, rawPalette, importance);
-    optimized = fixDiagonalConnections(cells, optimized, rawPalette);
+    optimized = recolorSmallComponents(cells, optimized, rawPalette, importance, componentRecolorOptions);
+    optimized = fixDiagonalConnections(cells, optimized, rawPalette, importance);
+    // Diagonal fixes can leave a pinch's other member as a fresh size-1
+    // component with nothing after it to clean up -- a domain-expert review
+    // found this could regress confetti as the pipeline's last structural
+    // step (HANDOVER.md D11). One more component-recolor pass closes that gap.
+    optimized = recolorSmallComponents(cells, optimized, rawPalette, importance, componentRecolorOptions);
   }
   options.onProgress?.(0.8);
 
@@ -60,14 +66,27 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   usedIndices.forEach((oldIndex, newIndex) => {
     compactRemap[oldIndex] = newIndex;
   });
-  const compactPalette = usedIndices.map((i) => merged.palette[i]);
   const compactCellPaletteIndex = new Uint8Array(merged.cellPaletteIndex.length);
   for (let i = 0; i < merged.cellPaletteIndex.length; i++) {
     compactCellPaletteIndex[i] = compactRemap[merged.cellPaletteIndex[i]];
   }
 
-  const counts = new Array(compactPalette.length).fill(0);
+  const counts = new Array(usedIndices.length).fill(0);
   for (const index of compactCellPaletteIndex) counts[index]++;
+
+  // Recompute each palette color from its *final* member cells rather than
+  // reusing the pre-optimization k-means centroid. A domain-expert review
+  // (HANDOVER.md D11) found this was never done: ICM, component recoloring,
+  // and diagonal fixes all reassign cells between colors, so the k-means
+  // mean no longer reflects who's actually assigned to it by the time the
+  // chart is rendered. One more linear-light mean per color, using cells
+  // this pattern actually settled on, and it's provably at least as
+  // accurate (the definition of a Lloyd update).
+  const cellsByFinalIndex: number[][] = usedIndices.map(() => []);
+  for (let i = 0; i < compactCellPaletteIndex.length; i++) cellsByFinalIndex[compactCellPaletteIndex[i]].push(i);
+  const compactPalette = usedIndices.map((originalIndex, newIndex) =>
+    cellsByFinalIndex[newIndex].length > 0 ? meanRgbLinear(cells, cellsByFinalIndex[newIndex]) : merged.palette[originalIndex]
+  );
 
   // Sort dark-to-light for a legend that reads top-to-bottom the way a
   // gradient progression naturally would, then assign symbols in that order

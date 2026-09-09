@@ -14,7 +14,7 @@ export interface ColorQuantizer {
 }
 
 /** Mean of a cluster's member colors, averaged in linear light then re-encoded — see HANDOVER.md D7. */
-function meanRgbLinear(cells: CellColorBuffer, indices: number[]): RGB {
+export function meanRgbLinear(cells: CellColorBuffer, indices: number[]): RGB {
   let r = 0;
   let g = 0;
   let b = 0;

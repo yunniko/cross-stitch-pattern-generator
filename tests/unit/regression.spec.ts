@@ -84,6 +84,38 @@ describe("golden-fixture regression: noisy two-region photo", () => {
   });
 });
 
+describe("golden-fixture regression: noisy photo at a REALISTIC downsample ratio", () => {
+  // The other noisy-photo test above maps source pixels 1:1 to stitch
+  // cells (60x40 source -> 60 stitches). That's not how a real photo gets
+  // used -- and it's exactly why it didn't catch a real regression during
+  // development (HANDOVER.md D11 A4): a bad edge-importance normalization
+  // change (98th percentile, later fixed to 99.9th) sent this scenario's
+  // confetti ratio from ~1% to over 17%, while the 1:1-ratio test above
+  // stayed unaffected throughout. This fixture uses a real downsample
+  // ratio (240x160 source -> 100 stitches, 2.4x) specifically so this
+  // class of regression gets caught automatically going forward.
+  const buffer = makeBuffer(240, 160, (x, y) => {
+    const base: RGB = y < 90 ? [120 + x * 0.2, 160 + x * 0.15, 220] : [90 + x * 0.1, 130 - y * 0.1, 40];
+    const noise = pseudoNoise(x, y, 60);
+    return [
+      Math.max(0, Math.min(255, base[0] + noise)),
+      Math.max(0, Math.min(255, base[1] + noise)),
+      Math.max(0, Math.min(255, base[2] + noise)),
+    ];
+  });
+
+  it("keeps confetti ratio low at a real downsample ratio and a higher color count", () => {
+    const pattern = buildPattern(buffer, { longerSideStitches: 100, colorCount: 16 });
+    const cells = downsampleToGrid(buffer, pattern.width, pattern.height);
+    const diagnostics = computePatternDiagnostics(pattern, cells);
+
+    // Measured ~0.18% after the D11 fixes; ~1% pre-D11; the regressed
+    // version hit ~17%. 5% leaves real margin while still catching a
+    // regression of the same order of magnitude.
+    expect(diagnostics.confettiRatio).toBeLessThan(0.05);
+  });
+});
+
 describe("golden-fixture regression: flat area stability (Owner's spec section 33)", () => {
   it("a smooth gradient with only weak tonal variation doesn't fragment into many small components", () => {
     const width = 40;
