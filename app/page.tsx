@@ -19,16 +19,9 @@ import {
   type SizePresetId,
   type StitchPattern,
 } from "@/lib/types";
+import { AIDA_COUNT_FOR_ESTIMATE, formatFinishedDimension } from "@/lib/finished-size";
 
 const PREVIEW_TARGET_WIDTH_PX = 720;
-// Matches lib/render.ts's own AIDA_COUNT_FOR_ESTIMATE -- 14-count is the
-// most common general-purpose Aida count (docs/domain-reference.md §4).
-// A live estimate here (not just on the downloaded chart) surfaces the
-// "how big is this actually going to be" question before the user commits
-// to generating -- a domain-expert review flagged the size range's extremes
-// (10-1000 stitches) as producing either trivially small or multi-year
-// projects with no warning (HANDOVER.md D7 (d)).
-const AIDA_COUNT_FOR_ESTIMATE = 14;
 
 export default function Home() {
   const [pixelBuffer, setPixelBuffer] = useState<PixelBuffer | null>(null);
@@ -199,9 +192,9 @@ export default function Home() {
               />
             </label>
           </div>
+          {/* Live estimate surfaces the "how big is this" question before generating -- HANDOVER.md D7 (d). */}
           <p className="text-xs text-zinc-500">
-            ≈ {(longerSideStitches / AIDA_COUNT_FOR_ESTIMATE).toFixed(1)} in on the longer side at{" "}
-            {AIDA_COUNT_FOR_ESTIMATE}-count Aida
+            ≈ {formatFinishedDimension(longerSideStitches)} on the longer side at {AIDA_COUNT_FOR_ESTIMATE}-count Aida
           </p>
         </section>
 

@@ -1,4 +1,5 @@
 import { luminance } from "./color";
+import { AIDA_COUNT_FOR_ESTIMATE, formatFinishedSize } from "./finished-size";
 import { buildTintedTextureSet } from "./stitch-texture";
 import type { PaletteColor, StitchPattern, RGB } from "./types";
 
@@ -59,10 +60,6 @@ const BW_MAX_GRAY = 245;
 const MARKER_MARGIN = 16;
 const NUMBER_MARGIN = 20;
 const HEADER_HEIGHT = 26;
-// Finished-size estimate uses 14-count Aida — the most common count for a
-// general-purpose chart (docs/domain-reference.md §4); labeled as an
-// estimate, not a claim about the fabric the Owner will actually use.
-const AIDA_COUNT_FOR_ESTIMATE = 14;
 
 function effectiveCellSize(width: number, height: number, requested: number): number {
   const longerSide = Math.max(width, height);
@@ -196,9 +193,7 @@ function drawRowColumnNumbers(ctx: CanvasRenderingContext2D, width: number, heig
 
 /** Design size in stitches and an estimated finished size at a common Aida count — conventional on published charts (docs/domain-reference.md §1, §4). */
 function drawHeader(ctx: CanvasRenderingContext2D, pattern: StitchPattern, canvasWidth: number) {
-  const inWidth = pattern.width / AIDA_COUNT_FOR_ESTIMATE;
-  const inHeight = pattern.height / AIDA_COUNT_FOR_ESTIMATE;
-  const text = `${pattern.width} × ${pattern.height} stitches — approx. ${inWidth.toFixed(1)} × ${inHeight.toFixed(1)} in on ${AIDA_COUNT_FOR_ESTIMATE}-count Aida`;
+  const text = `${pattern.width} × ${pattern.height} stitches — approx. ${formatFinishedSize(pattern.width, pattern.height)} on ${AIDA_COUNT_FOR_ESTIMATE}-count Aida`;
 
   ctx.fillStyle = "#111111";
   ctx.font = `13px ${FONT_STACK}`;

@@ -912,6 +912,24 @@ gray background.
 is the Owner's own original drawing (confirmed 2026-09-09) — no
 third-party source, no license question.
 
+**D16 — Added centimeters to the finished-size estimate (2026-09-09).**
+Owner asked for cm alongside the existing inches-only estimate. Pulled
+the previously-duplicated `AIDA_COUNT_FOR_ESTIMATE` constant (it lived
+separately in both `app/page.tsx` and `lib/render.ts`, with a comment
+in each flagging the duplication) into a new shared `lib/finished-
+size.ts`, along with `stitchesToInches`/`stitchesToCm` and two format
+helpers (`formatFinishedDimension` for the single-value live UI
+readout, `formatFinishedSize` for the width×height chart header) —
+both call sites now share one conversion instead of drifting
+independently. This is also the project's first genuinely pure,
+DOM-free piece of size-estimate logic, so unlike `render.ts` it gets
+real unit coverage (`tests/unit/finished-size.spec.ts`, 4 tests).
+Verified: lint/typecheck/88 unit tests (84+4)/2 e2e/build all green,
+plus a real headless-browser check of both surfaces — live readout now
+reads "≈ 3.6 in / 9.1 cm on the longer side at 14-count Aida", chart
+header reads "50 × 31 stitches — approx. 3.6 × 2.2 in (9.1 × 5.6 cm) on
+14-count Aida".
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
