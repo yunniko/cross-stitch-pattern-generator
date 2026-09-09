@@ -2,9 +2,11 @@
 
 Template, numbering, and cross-project conventions live in
 `E:\CLAUDE\COMPANY\GOALS.md`. This is a **standalone project** (Owner
-decision, 2026-09-09) — not a svc-lab service: no deployment, no
-monetization, no public subdomain unless the Owner asks for that later.
-Standard OPERATIONS.md milestone check-in gates apply (not waived, unlike
+decision, 2026-09-09) — not a svc-lab service: no monetization. Deployed
+live at the Owner's direct instruction after M9 (see progress log below)
+to `cross-stitch.craftodejnice.cz`; see `HANDOVER.md` D13 and
+`COMPANY/INFRASTRUCTURE_DEPLOY.md` for the deploy record. Standard
+OPERATIONS.md milestone check-in gates apply (not waived, unlike
 svc-lab).
 
 ## Active goals
@@ -247,6 +249,29 @@ change. Acceptance criterion 4 is amended accordingly:
       done.**
 
 **Progress log** (newest first):
+- 2026-09-09 — Deployed live (Owner: "deploy to cross-stitch.craftodejnice.cz")
+  to `https://cross-stitch.craftodejnice.cz` on the shared Company VPS.
+  Repo visibility went public → private (Owner: "create private repo")
+  → public again (Owner, via AskUserQuestion: "Make the repo public
+  after all") once the private repo turned out to need server-side
+  credentials the shared host isn't set up for. Port 30150 (30130 was
+  already taken by an undocumented `pet-age-calculator-app-1`
+  container, found via a live `ss -tlnp`/`docker ps` check per
+  `INFRASTRUCTURE_DEPLOY.md`'s own "verify on the live host" rule).
+  `sudo julai-new-vhost` — the exact pre-authorized script — was
+  blocked once by the Claude Code auto-mode classifier despite being
+  charter-pre-authorized; retried with explicit Owner authorization
+  ("you can do it") and succeeded cleanly (vhost, TLS cert, reload).
+  Verified beyond a ping: every other container's uptime on the host
+  unchanged (no collision), and a real Playwright run against the live
+  HTTPS URL — upload, generate, both PNG downloads, zero console
+  errors — plus a manual visual review of the resulting screenshot
+  confirming grid/gutters/markers/legend all match local dev output.
+  Full narrative in `HANDOVER.md` D13; shared mechanics in
+  `COMPANY/INFRASTRUCTURE_DEPLOY.md`. G-001 is NOT yet moved to
+  Completed — OPERATIONS.md's definition of done requires explicit
+  Owner sign-off as its own step; asking for it now that the deploy
+  itself is fully verified.
 - 2026-09-09 — M9 completed (Owner: "go ahead"). Rewrote README.md to
   describe the actual pipeline and feature set. Final verification: a
   git worktree at the last pre-D6-rewrite commit let the *original*

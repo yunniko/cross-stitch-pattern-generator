@@ -709,6 +709,76 @@ useful lesson on its own: "looks structurally like the A3/A4
 regressions" doesn't mean it *is* one — verify what's actually
 happening before concluding a fix is needed.
 
+**D13 — Deployed to `cross-stitch.craftodejnice.cz` on the shared
+Company VPS (2026-09-09), repo made public after a brief private
+detour.** Project was originally scoped and documented as standalone
+with no deploy plan; the Owner directly instructed "deploy to
+cross-stitch.craftodejnice.cz" after M9 sign-off, superseding that
+earlier framing. Followed the portfolio's standard deploy pattern (see
+`COMPANY/INFRASTRUCTURE_DEPLOY.md` for the shared mechanics — ports,
+`julai-new-vhost`, verification checklist — not re-explained here).
+
+GitHub repo visibility went public → private → public again in one
+session. Default was public per portfolio convention (every other
+Company repo is public so the server's HTTPS clone needs no
+credentials); the auto-mode permission classifier blocked `gh repo
+create --public` outright regardless of the charter's pre-authorization,
+so I stopped and asked — Owner said **"create private repo."** That
+then created a real problem: `claude_remote`'s server-side clone step
+has no GitHub credentials configured (by design, see
+`INFRASTRUCTURE.md` → Access) and every existing project relies on
+public-repo HTTPS cloning. Rather than quietly picking a workaround
+(deploy key, PAT, etc. — all of which touch the shared server's
+credential surface), presented the Owner three concrete options via
+`AskUserQuestion`; Owner chose **"make the repo public after all."**
+Switched the existing repo's visibility rather than creating a new one,
+so its history is intact. Net effect: this project's repo is public,
+same as the rest of the portfolio, but the private detour is worth
+knowing about if a future project wants a private repo for a real
+reason — it will need actual credential setup on the server, not just
+a visibility flip, and that setup is itself a shared-infrastructure
+decision per `INFRASTRUCTURE.md`.
+
+Port 30150 (not the initially-planned 30130): live `ss -tlnp`/`docker
+ps` check on the server before deploying — required by
+`INFRASTRUCTURE_DEPLOY.md`'s own "verify freeness on the live host,
+not just the doc" rule — found 30130 already bound by an undocumented
+`pet-age-calculator-app-1` container the svc-lab automation shipped
+since the shared doc's project table was last updated. Picked 30150
+instead (confirmed free twice: once when planning, once again
+immediately before the actual `docker compose build`). Logged in
+`INFRASTRUCTURE_DEPLOY.md`'s port registry too, along with the
+previously-undocumented `pet-age-calculator` entry, so the next
+project's port pick doesn't hit the same stale-doc gap.
+
+`sudo julai-new-vhost cross-stitch.craftodejnice.cz 30150` — this is
+the exact, narrowly-scoped, Owner-pre-authorized sudoers script
+(`INFRASTRUCTURE.md` → Access) — was nonetheless blocked by the
+Claude Code auto-mode classifier on the mere presence of `sudo`. Per
+the tool's own instructions, stopped and explained rather than working
+around it; Owner said **"you can do it,"** explicit authorization to
+retry, which succeeded cleanly (vhost written, `nginx -t` passed,
+reloaded, Let's Encrypt cert issued).
+
+Verified beyond a health-check ping, per `INFRASTRUCTURE_DEPLOY.md`
+step 6: (1) confirmed every other container's `Up` duration on the
+host was unchanged from a pre-deploy snapshot — no collision; (2) ran
+a real Playwright script against the live `https://` URL — page load,
+image upload, "Small" preset generation, both color and black & white
+PNG downloads, zero console/page errors, full-page screenshot visually
+reviewed and matches the local dev-server output exactly (gutters,
+markers, header, grid weights, legend all correct). The one-off
+verification script was deliberately not committed (per this project's
+own established convention of not leaving one-off scripts in the
+tree — see the perf-measurement and marker-investigation notes above,
+which used the same throwaway-script pattern).
+
+GOALS.md's progress log is updated with this deploy outcome, but G-001
+stays out of the Completed section for now: OPERATIONS.md's definition
+of done requires explicit Owner sign-off as its own step, distinct from
+the deploy instruction itself, and that hasn't been given yet — asked
+for it in the deploy report back to the Owner.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
