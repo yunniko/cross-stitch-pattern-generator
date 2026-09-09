@@ -33,6 +33,32 @@ describe("computeEdgeMagnitude", () => {
     expect(atEdge).toBeGreaterThan(0.5);
     expect(farFromEdge).toBe(0);
   });
+
+  it("suppresses low-amplitude per-pixel noise instead of treating it as an edge (HANDOVER.md D11 A4)", () => {
+    // Deterministic +/-3-level dither pattern -- well below a real edge's
+    // Sobel response, but nonzero everywhere in a way a naive normalize-
+    // by-max would otherwise amplify into meaningful-looking "importance."
+    const buffer = makeBuffer(20, 20, (x, y) => {
+      const n = ((x * 7 + y * 13) % 5) - 2; // -2..2
+      return [128 + n, 128 + n, 128 + n];
+    });
+    const magnitude = computeEdgeMagnitude(buffer);
+    expect(Array.from(magnitude).every((m) => m === 0)).toBe(true);
+  });
+
+  it("a single strong outlier pixel doesn't crush a real edge toward zero (HANDOVER.md D11 A4)", () => {
+    // A real hard edge across most of the image, plus one isolated
+    // extremely bright "hot pixel" far from it. Normalizing by the single
+    // max (the hot pixel's huge gradient) would push the real edge's own
+    // normalized value down near zero; percentile normalization should not.
+    const buffer = makeBuffer(30, 30, (x, y) => {
+      if (x === 1 && y === 1) return [255, 0, 0]; // isolated outlier, far corner
+      return x < 15 ? [0, 0, 0] : [255, 255, 255]; // real hard edge at x=15
+    });
+    const magnitude = computeEdgeMagnitude(buffer);
+    const atRealEdge = magnitude[15 * 30 + 14];
+    expect(atRealEdge).toBeGreaterThan(0.5);
+  });
 });
 
 describe("computeCellImportance", () => {

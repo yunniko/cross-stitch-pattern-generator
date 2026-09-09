@@ -1,6 +1,25 @@
 import { luminance } from "./color";
 import type { PixelBuffer } from "./types";
 
+// Raw Sobel responses below this are treated as sensor/JPEG noise, not a
+// real edge -- i.i.d. pixel noise of a few 8-bit levels can produce Sobel
+// responses up to ~30-40 raw units even with no real structure present
+// (see docs/domain-reference.md §6.3). Without this floor, a flat, noisy
+// region (fog, overcast sky, a smooth gradient) inflates every cell's
+// importance and weakens confetti suppression exactly where it matters
+// most -- a real robustness gap a 2026-09-09 domain-expert review found,
+// not caught by the synthetic test images used while building this
+// (their strongest gradient is always the feature under test, so it
+// always normalizes to ~1.0 regardless of this floor). See HANDOVER.md D11.
+const NOISE_FLOOR = 40;
+// Normalizing by the single highest gradient in the image means one very
+// strong outlier (a JPEG block edge, a specular highlight, hard lettering)
+// crushes every other real edge toward a low value that never reaches the
+// importance-protection thresholds used elsewhere in the pipeline -- also
+// a real, not theoretical, failure mode per the same review. A high
+// percentile is far less sensitive to a handful of outlier pixels.
+const NORMALIZATION_PERCENTILE = 0.999;
+
 /**
  * Sobel gradient magnitude on source luminance, normalized to 0-1. No ML
  * segmentation/saliency model is available (Owner's spec section 4 allows
@@ -16,7 +35,6 @@ export function computeEdgeMagnitude(source: PixelBuffer): Float32Array {
   }
 
   const magnitude = new Float32Array(width * height);
-  let maxMagnitude = 0;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const xm1 = Math.max(0, x - 1);
@@ -37,13 +55,14 @@ export function computeEdgeMagnitude(source: PixelBuffer): Float32Array {
       const gy = bl + 2 * bc + br - (tl + 2 * tc + tr);
       const g = Math.sqrt(gx * gx + gy * gy);
 
-      magnitude[y * width + x] = g;
-      if (g > maxMagnitude) maxMagnitude = g;
+      magnitude[y * width + x] = g < NOISE_FLOOR ? 0 : g;
     }
   }
 
-  if (maxMagnitude > 0) {
-    for (let i = 0; i < magnitude.length; i++) magnitude[i] /= maxMagnitude;
+  const sorted = Float32Array.from(magnitude).sort();
+  const normalizer = sorted[Math.floor((sorted.length - 1) * NORMALIZATION_PERCENTILE)] || 1;
+  for (let i = 0; i < magnitude.length; i++) {
+    magnitude[i] = Math.min(1, magnitude[i] / normalizer);
   }
   return magnitude;
 }
