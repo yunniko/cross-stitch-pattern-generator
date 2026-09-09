@@ -1,0 +1,14 @@
+# No database -- this tool is fully stateless (all processing happens
+# client-side in the browser). See HANDOVER.md for why.
+services:
+  # Production-style app container -- opt in with:
+  #   docker compose --profile app up -d --build
+  # (dev flow is just `npm run dev`, no compose needed)
+  app:
+    profiles: ["app"]
+    build: .
+    restart: unless-stopped
+    environment:
+      APP_URL: ${APP_URL:-http://localhost:3000}
+    ports:
+      - "127.0.0.1:30130:3000"
