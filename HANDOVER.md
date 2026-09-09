@@ -7,12 +7,15 @@ no shared subdomain), per an explicit Owner choice on 2026-09-09.
 
 ## Current state
 
-M1–M3 built and verified (2026-09-09): upload → generate → preview →
-download works end-to-end, both orientations (legend below/right) and
-both render modes (color/B&W) visually confirmed via a real headless
-browser. All automated checks green (ESLint, `tsc`, production build,
-24 Vitest unit tests, 2 Playwright e2e tests). Not yet done: M4's
-domain-expert review, M5's final polish pass.
+M1–M5 built and verified (2026-09-09): upload → generate (in a Web
+Worker) → preview → download works end-to-end with a genuine
+region-aware optimizer (OKLab k-means + ICM local smoothing + palette
+merge), both orientations and both render modes visually confirmed via
+a real headless browser against a noisy synthetic photo (large coherent
+regions, no visible confetti). All automated checks green (ESLint,
+`tsc`, production build, 44 Vitest unit tests, 2 Playwright e2e tests).
+Not yet done: M6-M9a (edge/importance-awareness, contour cleanup,
+diagnostics, centre markers/row-column numbering), M9's final polish.
 
 ## How things fit together
 
@@ -20,27 +23,40 @@ domain-expert review, M5's final polish pass.
   Company's web projects (STANDARDS.md "minimize spread") — same stack as
   `image-object-splitter`, which is the closest precedent (client-side
   image processing, canvas work, no server round-trip, no database).
-- All image processing (grid downsampling, color quantization, symbol
-  assignment, chart rendering) runs client-side in the browser. No API
-  routes handle image bytes; nothing is ever uploaded anywhere.
+- All image processing runs client-side — inside a Web Worker
+  (`lib/pattern.worker.ts`), specifically, not the main thread, since
+  M5 added real iterative optimization heavy enough to matter (D6). No
+  API routes handle image bytes; nothing is ever uploaded anywhere.
 - The color-quantization step is isolated behind one module/interface
   (see G-001's acceptance criterion 9) specifically because the Owner
   expects to swap the algorithm later — don't let rendering or UI code
   reach into quantization internals directly.
 - Pipeline shape: `lib/load-image.ts` (browser-only: File → `PixelBuffer`
-  via an offscreen canvas) → `lib/downsample.ts` (`PixelBuffer` → one
-  averaged RGB per stitch cell) → `lib/quantize.ts`'s `kMeansLabQuantizer`
-  (cell colors → palette + per-cell palette index) → `lib/pattern.ts`'s
-  `buildPattern` (orchestrates the above, sorts the palette light-to-dark,
-  assigns symbols from `lib/symbols.ts`) → `lib/render.ts`'s
-  `renderPatternToCanvas` (pure `StitchPattern` → `HTMLCanvasElement`,
-  used for both the live preview and the full-resolution download).
-  Every module up to and including `pattern.ts` takes a `PixelBuffer`
-  (a plain `{data, width, height}` shape), not the DOM's `ImageData`
-  class — same pattern as `image-object-splitter`'s `PixelBuffer`,
-  specifically so these stay unit-testable in plain Vitest/Node without
-  a jsdom/browser environment. Only `load-image.ts` and `render.ts`
-  (and the page itself) touch real DOM APIs.
+  via an offscreen canvas) → `app/page.tsx` calls `lib/pattern-client.ts`'s
+  `runPatternJob`, which posts to `lib/pattern.worker.ts`, which calls
+  `lib/pattern.ts`'s `buildPattern` inside the worker. `buildPattern`
+  itself: `lib/downsample.ts` (`PixelBuffer` → one linear-light-averaged
+  RGB per stitch cell, as a `CellColorBuffer` typed-array buffer) →
+  `lib/quantize.ts`'s `kMeansQuantizer` (OKLab-space k-means → palette +
+  per-cell palette index) → `lib/local-optimizer.ts`'s
+  `runLocalOptimizer` (ICM smoothing pass — ties down confetti/orphan
+  cells) → `lib/palette-optimizer.ts`'s `mergeSimilarColors` (collapses
+  near-duplicate palette entries) → sorts the palette dark-to-light,
+  assigns symbols from `lib/symbols.ts` → `StitchPattern`.
+  `lib/render.ts`'s `renderPatternToCanvas` (pure `StitchPattern` →
+  `HTMLCanvasElement`) handles both the live preview and the
+  full-resolution download; `lib/regions.ts`'s connected-component
+  labeling is used both by the palette-merge decision and as a
+  diagnostic (`confettiRatio`), not yet surfaced in the UI (that's M8).
+  Every pure module (`downsample.ts` through `pattern.ts`, `regions.ts`,
+  `local-optimizer.ts`, `palette-optimizer.ts`) takes/returns typed-array
+  buffers (`PixelBuffer`/`CellColorBuffer`, both plain `{data, width,
+  height}` shapes, not the DOM's `ImageData` class) — same pattern as
+  `image-object-splitter`'s `PixelBuffer`, so these stay unit-testable in
+  plain Vitest/Node without a jsdom/browser environment, and cheap on GC
+  at up to 1,000,000 cells. Only `load-image.ts`, `render.ts`,
+  `pattern-client.ts`, `pattern.worker.ts`, and the page itself touch
+  real DOM/Worker APIs.
 
 ## Decision record
 
@@ -301,24 +317,36 @@ no destructive actions).
 
 ## Next steps and open questions
 
-- M4: run a domain-expert review specifically on: (a) whether the
-  grid-line convention (every 5/10 stitches heavier) matches real Aida
-  chart conventions as commonly published, (b) whether the Lab-distance
-  approximation is a reasonable stand-in for CIEDE2000 given this is
-  explicitly a "will change later" component, (c) symbol-set legibility
-  at typical print sizes. Log the outcome here per STANDARDS.md.
+- M6-M9a remain: edge/importance-map-aware optimization (Phase B),
+  contour cleanup + multi-cell moves + optional simulated annealing
+  (Phase C), diagnostics/metrics/debug-visualization/configurable
+  weights/golden-fixture tests + a re-run domain-expert review against
+  the *new* algorithm (Phase D), and the deferred centre-markers/
+  row-column-numbering rendering feature (M9a). See GOALS.md for the
+  full breakdown.
 - No decision yet on export format beyond PNG (raster chart image) — the
   Owner's brief only specified two *color* variants, not a file format;
   PNG is the simplest fit for a browser-rendered, print-at-home chart and
   needs no new dependency. Revisit if the Owner wants a paginated PDF for
   large patterns that don't fit one page well.
-- Tested the worst case for real (2026-09-09): a 1500×1000 synthetic
-  noise image at 1000 stitches / 64 colors took ~4.9s for `buildPattern`
-  alone (measured, not estimated) — noticeable but acceptable given the
-  "Generating…" indicator already covers it. Not yet measured: the
-  render/download step's own cost at that same size (D4's clamp keeps it
-  from crashing, but half a million-plus `fillText` calls could take a
-  few more seconds with no loading indicator on the download buttons
-  themselves — `handleGenerate` shows "Generating…" but `handleDownload`
-  doesn't show any busy state). Small, easy follow-up if it turns out to
-  matter in practice; not escalation-tier.
+- **Worst-case perf got slower with the new optimizer — logged honestly,
+  not yet a blocker.** The old simple pipeline took ~4.9s for a
+  1500×1000 synthetic image at 1000 stitches/64 colors (HANDOVER.md's
+  earlier D5 note). Re-measured after M5 (2026-09-09): the same case now
+  takes **~13.4s** for `buildPattern` alone — the ICM local optimizer's
+  extra passes (up to `MAX_PASSES = 8`, each re-evaluating all 64
+  palette candidates for up to 667,000 cells) are the real cost. This
+  now runs in a Web Worker (D6), so the page stays responsive and shows
+  live progress while it works, which is a meaningfully different UX
+  than the old main-thread-freeze risk — but 13s is still worth knowing
+  about honestly rather than quietly absorbing. Candidate future fixes,
+  not yet needed: lower `MAX_PASSES`, add a tighter early-convergence
+  check, or (per the original spec's own suggestion) restrict per-cell
+  candidates to neighbor colors + a few nearest palette entries instead
+  of the full palette. Not fixed now — no evidence yet that real usage
+  hits this worst case (1000 stitches *and* 64 colors *together*) often
+  enough to justify tuning against a synthetic benchmark.
+- The render/download step's own cost at large sizes is now covered by
+  a "Preparing…" busy state on the download buttons (fixed same session
+  as M5, `app/page.tsx`'s `handleDownload`) — previously this handler
+  had no loading indicator at all.

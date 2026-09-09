@@ -124,7 +124,7 @@ change. Acceptance criterion 4 is amended accordingly:
       Euclidean distance; CIEDE2000 isn't even a metric), and flagged
       missing centre markers/row-column numbering as the largest
       craft-usability gap (tracked as new milestone M9a, not dropped).
-- [ ] M5 — Region-aware optimizer, phase A (per HANDOVER.md D6): OKLab
+- [x] M5 — Region-aware optimizer, phase A (per HANDOVER.md D6): OKLab
       perceptual distance (supersedes D2's CIELAB), typed-array cell
       buffers, connected-component analysis, confetti/orphan penalties,
       palette-merge penalty, single-cell hill-climbing local optimizer
@@ -138,6 +138,13 @@ change. Acceptance criterion 4 is amended accordingly:
       B&W mode losing all color information, and confusable/duplicate
       symbols (domain-expert review, HANDOVER.md D7). Proves
       optimization helps at all before adding edge-awareness.
+      ✔ 2026-09-09 — 44 unit tests + 2 e2e tests green, clean
+      build/lint/typecheck. Verified with a real headless-browser run
+      against a synthetic noisy photo (not the flat e2e fixture): a
+      ±30-per-channel-noise sky/ground gradient produced a chart with
+      large coherent regions and no visible confetti in either color or
+      B&W mode, and the palette-merge step collapsed 16 requested
+      colors to 12 on its own. Full detail in HANDOVER.md D6.
 - [ ] M6 — Phase B: edge map + importance map (Sobel/gradient-magnitude
       proxy, no ML segmentation available) folded into the optimizer's
       energy as an edge-preservation term; coarse-to-fine multi-scale
@@ -167,6 +174,34 @@ change. Acceptance criterion 4 is amended accordingly:
       before/after comparison against the pre-amendment output), done.
 
 **Progress log** (newest first):
+- 2026-09-09 — M4 and M5 completed in one session. M4: domain-expert
+  review of the pre-amendment implementation (docs/domain-reference.md,
+  disposition in HANDOVER.md D7). Mid-review, the Owner sent a detailed
+  spec requesting the color-reduction step become a region-aware,
+  energy-optimized pipeline rather than independent per-cell nearest-
+  color quantization — logged as an amendment to acceptance criterion 4
+  and planned as milestones M5-M9a with the M4 review's still-relevant
+  findings folded in rather than re-reviewing from scratch. Ran a real
+  3-round codex-cli critique exchange before implementing (HANDOVER.md
+  D6): adopted Web Worker offload + typed-array buffers, found two real
+  bugs in the *existing* shipped code (per-cell `ctx.font`
+  reassignment, a sort/comment mismatch), resolved OKLab-vs-CIEDE2000/
+  energy-term-overlap/golden-test-strategy with my own logged reasoning
+  where the tool didn't engage further. M5: built OKLab-space k-means,
+  connected-component analysis, an ICM (Iterated Conditional Modes)
+  local optimizer with a Potts-model smoothness term, a palette-merge
+  step, and Web Worker offload with progress reporting — plus folded in
+  5 more real fixes the M4 domain-expert review had found (black cells
+  on upscale, gamma-space averaging, non-scaling grid/symbol sizes,
+  B&W color-info loss, confusable symbols). All verified for real: 44
+  Vitest unit tests (including a checkerboard-averages-to-sRGB-188
+  gamma test and a confetti-ratio-reduction integration test) + 2
+  Playwright e2e tests green, clean build/lint/typecheck, and a real
+  headless-browser run against a synthetic noisy photo showing large
+  coherent regions with no visible confetti in either render mode.
+  Deferred (not dropped): centre markers/row-column numbering as new
+  milestone M9a; Phase B (edge/importance-map) through Phase D
+  (diagnostics/contour-cleanup/annealing) remain as M6-M9.
 - 2026-09-09 — M1–M3 built and verified in one session (bundled rather
   than stopping at each individual boundary, since they're tightly
   coupled and each depends on the last being in place to test against —
