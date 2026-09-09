@@ -113,4 +113,33 @@ describe("buildPattern", () => {
     expect(raw.width).toBe(optimized.width);
     expect(raw.height).toBe(optimized.height);
   });
+
+  it("never leaves a legend entry for a color no cell actually uses", () => {
+    // A real bug found via manual browser testing: the contour-cleanup
+    // passes (recolorSmallComponents especially) can recolor away every
+    // last cell of some quantizer-assigned color without the palette-merge
+    // step's distance threshold happening to catch it, leaving a "0 sts"
+    // legend row. Run across several shapes/color-counts, since it depends
+    // on exactly how cleanup plays out, not one specific input.
+    const shapes: Array<(x: number, y: number) => RGB> = [
+      (x, y) => {
+        const base: RGB = x < 15 ? [220, 30, 30] : [30, 30, 220];
+        return (x * 7 + y * 13) % 9 === 0 ? [base[0] ^ 0x33, base[1], base[2]] : base;
+      },
+      (x, y) => {
+        const dx = x - 12;
+        const dy = y - 12;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        return dist < 6 ? [40, 40, 40] : [200, 170, 150];
+      },
+    ];
+    for (const colorAt of shapes) {
+      for (const colorCount of [2, 4, 8, 16]) {
+        const pattern = buildPattern(makeBuffer(25, 25, colorAt), { longerSideStitches: 25, colorCount });
+        for (const color of pattern.palette) {
+          expect(color.count).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
 });
