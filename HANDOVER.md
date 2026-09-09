@@ -244,6 +244,56 @@ right) — three real rounds, not a one-shot rubber stamp:
     which it explicitly will (D2/D6 both flag this as an
     expected-to-change component).
 
+**D7 — Domain-expert review (M4) findings and disposition (2026-09-09).**
+Full cited research in `docs/domain-reference.md`. The review predates
+D6's rewrite decision (it reviewed the pre-amendment simple quantizer)
+but most findings are about `downsample.ts`/`render.ts`/`symbols.ts`
+bugs and conventions that apply regardless of the quantization
+algorithm, so they're being folded into the M5 rewrite rather than
+re-reviewed from scratch later. Disposition:
+- **Fixed in M5** (real bugs, cheap, in files already being rewritten):
+  empty grid cells (zero source pixels mapped, e.g. when upscaling
+  past the source's own resolution) rendered pure black instead of
+  falling back sensibly; pixel/cluster-color averaging happened in
+  gamma-encoded sRGB instead of linear light (the standard correctness
+  rule — averaging encoded values darkens/mutes the result, worst on
+  high-contrast detail); grid-line weights and symbol font size were
+  absolute constants instead of scaling with `cellSize` (illegible at
+  large stitch counts); B&W mode flooded cells with full-luminance grey
+  (defeating the point of a B&W chart — clean printing, low ink,
+  highlightable) and its legend swatches carried zero color
+  information; the legend's "× N" wording doubled as symbol index 3;
+  the curated symbol set had genuinely confusable pairs beyond I/O
+  (6/G, 5/S, 2/Z, 8/B, 0/○, a near-duplicate ◆/♦) and wasn't ordered by
+  visual weight to match the light-to-dark palette order; the
+  `pattern.ts` comment already found by the codex exchange.
+- **Confirmed correct, no change** (validates D6 independently): Lloyd's
+  k-means algorithm requires squared Euclidean distance for its
+  convergence guarantee, and CIEDE2000 isn't even a metric (violates
+  the triangle inequality) — so Euclidean-distance-in-a-uniform-space
+  (OKLab, per D6) is the principled choice, not a compromise. The 1/5/10
+  grid-line convention is a real, if non-mainstream, choice (Stitch
+  Fiddle uses it by default; most published charts use a simpler
+  bold-every-10 only). Sorting the legend light-to-dark matches the
+  documented convention. Excluding I/O was correct, just incomplete.
+- **Deferred, tracked rather than dropped**: centre markers + edge row/
+  column numbering (flagged as the single largest craft-usability gap
+  at large stitch counts — real chart software prints both by default)
+  and a stitch-count/finished-size header are added as a new milestone
+  M9a below rather than folded into M5, since they're a rendering/
+  layout feature addition, not a bug in code M5 is already touching.
+  Also deferred: PDF pagination, cross-browser canvas-size-limit
+  verification, pinning an explicit font stack for the symbol glyphs,
+  a live "≈ X in at 14-ct" size-feasibility readout, and a warning when
+  many palette colors are used only a handful of times.
+- **Correction, not a code change**: GOALS.md's acceptance criterion 7
+  parenthetical claiming the grid weights mirror "standard Aida-fabric
+  count markings" is factually wrong — plain Aida has no woven count
+  markers at all; the gridded variants (Zweigart Easy Count, DMC Magic
+  Guide) mark every 10, never every 5. Wording fixed; grid behavior
+  unchanged (it's a real, defensible, if non-mainstream, choice — see
+  above).
+
 ## Owner action list
 
 None yet — no escalation-tier blockers so far (no deploy, no accounts,

@@ -36,7 +36,11 @@ svc-lab).
        symbol printed on top.
   7. The chart grid shows a line around every stitch cell; every 5th
      cross-stitch boundary is a heavier line; every 10th is heavier
-     still (standard Aida-fabric count markings).
+     still. (Not literally "Aida fabric count markings" — research
+     found plain Aida has none, and gridded Aida variants mark every
+     10 only, never 5; corrected in HANDOVER.md D7. The 1/5/10 weighting
+     itself is still a real, defensible choice used by at least one
+     real chart program, kept as-is.)
   8. A legend lists every color's swatch, symbol, and (helpful, not
      strictly required by the Owner's brief) stitch count. It's
      positioned **below** the chart when the source image is landscape
@@ -111,22 +115,29 @@ change. Acceptance criterion 4 is amended accordingly:
 - [x] M3 — UI: upload, size controls (presets + custom), color-count
       control, live preview, two download buttons (PNG: B&W, Color).
       ✔ 2026-09-09.
-- [ ] M4 — Domain-expert review of the pre-amendment implementation
-      (real cross-stitch chart conventions — grid marking conventions,
-      symbol legibility at print size) — launched 2026-09-09, running.
-      Its color-matching-specific findings feed into M5 below rather
-      than blocking on the now-superseded simple quantizer.
+- [x] M4 — Domain-expert review of the pre-amendment implementation.
+      ✔ 2026-09-09. Well-cited findings in `docs/domain-reference.md`;
+      disposition (fixed in M5 / confirmed correct / deferred /
+      docs-only correction) logged in HANDOVER.md D7. Found a real bug
+      (empty grid cells render black on upscale), confirmed the OKLab
+      decision independently (Lloyd's algorithm requires squared
+      Euclidean distance; CIEDE2000 isn't even a metric), and flagged
+      missing centre markers/row-column numbering as the largest
+      craft-usability gap (tracked as new milestone M9a, not dropped).
 - [ ] M5 — Region-aware optimizer, phase A (per HANDOVER.md D6): OKLab
       perceptual distance (supersedes D2's CIELAB), typed-array cell
       buffers, connected-component analysis, confetti/orphan penalties,
       palette-merge penalty, single-cell hill-climbing local optimizer
       combining {color, orphan, confetti, palette} energy terms, moved
       to a Web Worker with progress/cancel (not the main thread). Also
-      fixes two real bugs the codex critique found in the *existing*
-      code (per-cell `ctx.font` reassignment in `render.ts`; a
-      light-to-dark/dark-to-light comment/code mismatch in
-      `pattern.ts`) regardless of the rewrite. Proves optimization
-      helps at all before adding edge-awareness.
+      fixes real bugs found in the *existing* code, independent of the
+      rewrite itself: per-cell `ctx.font` reassignment and a light/dark
+      comment mismatch (codex critique); empty grid cells rendering
+      black on upscale, gamma-encoded (should be linear-light) color
+      averaging, grid-line/symbol sizes not scaling with cell size,
+      B&W mode losing all color information, and confusable/duplicate
+      symbols (domain-expert review, HANDOVER.md D7). Proves
+      optimization helps at all before adding edge-awareness.
 - [ ] M6 — Phase B: edge map + importance map (Sobel/gradient-magnitude
       proxy, no ML segmentation available) folded into the optimizer's
       energy as an edge-preservation term; coarse-to-fine multi-scale
@@ -144,6 +155,13 @@ change. Acceptance criterion 4 is amended accordingly:
       diagonal cleanup, palette-redundancy merging, edge preservation,
       flat-area stability). Re-run the domain-expert review against the
       *new* algorithm specifically.
+- [ ] M9a — Deferred from the M4 domain-expert review (HANDOVER.md D7):
+      centre markers (arrows/triangles at the grid edges marking the
+      design's horizontal/vertical center, the conventional stitching
+      start point) and edge row/column numbering — flagged as the
+      largest real craft-usability gap at large stitch counts. Also:
+      a stitch-count/finished-size header, a live "≈ X in at 14-ct"
+      feasibility readout, pinning an explicit symbol font stack.
 - [ ] M9 — README/HANDOVER finalized, final end-to-end verification
       (real image through the whole flow, both downloads inspected,
       before/after comparison against the pre-amendment output), done.
