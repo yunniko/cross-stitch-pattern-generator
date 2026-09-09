@@ -1023,6 +1023,140 @@ the Web Worker path (`color-name-list` bundles correctly into
 `pattern.worker.ts`'s bundle, which was a real risk worth checking
 given it's a new dependency added to that code path).
 
+**D18 — Fixed a real k-means algorithmic flaw (small, perceptually-distinct
+regions structurally invisible until a much higher colorCount than they
+should need) after three independently-designed attempts were tried,
+measured, and rejected first (2026-09-09).** Owner-reported symptom: a
+photo of a gray cat with yellow eyes produced an all-gray palette at low
+colorCount; more grays kept getting added as colorCount rose, and yellow
+only appeared past some threshold, by which point several of those grays
+looked near-redundant to a human. Investigated thoroughly before writing
+any code, per the Owner's explicit request.
+
+*Diagnosis* (unchanged by everything below): `lib/quantize.ts`'s
+`kMeansQuantizer` minimizes total population-weighted SSE. Splitting a
+large, continuously-shaded population (fur) into finer sub-shades reduces
+*total* SSE by more than isolating a tiny, tight, very-distant-in-OKLab
+outlier (an eye), until the large population's cheap splits run out of
+headroom — a known-class k-means pathology, not a downstream-stage bug
+(confirmed by reading every downstream pass: none of them can invent a
+color k-means never allocated).
+
+Codex-cli was unavailable for the planned critique exchange throughout —
+API credits exhausted (pre-existing, see Owner action list below); a
+ChatGPT-Pro-account login then rejected every model the MCP tool could
+name (7 tried, identical error, reads as a CLI/backend version mismatch,
+logged as its own Owner action item below); an anonymous ChatGPT web
+session also failed outright. Proceeded on independent analysis per
+STANDARDS.md's own documented fallback each time, exactly as already
+required for the M8 energy-function decision.
+
+**Three real attempts, each implemented, measured broadly, and rejected
+— not just tuned and shipped:**
+
+1. **Structured OKLab hue/lightness seeding lattice**, bootstrapping
+   k-means++ from a fixed, image-independent set of candidate points
+   snapped to real content. First sub-attempt (fixed lightness bands,
+   naive angle division) measurably did *nothing* at a larger canvas size
+   (a git-worktree comparison showed zero improvement) — root-caused to
+   the bands missing a real outlier's actual lightness entirely, since
+   OKLab lightness differences dominate squared distance more than a
+   modest chroma vector does. Second sub-attempt (golden-angle/golden-
+   ratio low-discrepancy placement, lattice density decoupled from k)
+   fixed that specific gap and looked good in testing — **shipped,
+   deployed, and reverted the same day** after the Owner's own real photo
+   showed "a bunch of other problems" beyond the narrow synthetic test
+   this session had used: real per-image quality regressions this
+   session's own testing hadn't caught. A genuine lesson, not just a
+   process footnote: verifying against one motivating synthetic case,
+   however thoroughly, is not the same as verifying against real usage.
+2. **Over-cluster then diversity-aware reselect**: cluster at k' >> k with
+   plain k-means, then reduce to k via farthest-point selection over the
+   candidates. A hard population floor (filtering "noise" candidates
+   before selection) reproduced the *exact* scale-dependence bug this
+   whole effort exists to fix — it filtered out the real minority region
+   at a large enough canvas size, caught by testing at three scales
+   before shipping anything. A sqrt-population-weighted version of the
+   same selection avoided that specific failure but measurably worsened
+   the project's own existing regression-suite fixtures (confetti up to
+   ~4x worse on noisy photos; a flat gradient and an edge-preservation
+   case that should stay simple both fragmented further than baseline) —
+   rejected before committing, once broad testing (not just the
+   motivating case) made the trade-off clear.
+3. **Lightness-dependent clustering-space compression** (a cosine "ease"
+   curve compressing OKLab distance near L≈0/L≈1, expanding it near
+   L≈0.5, applied only inside k-means' own seeding/Lloyd's loop via a
+   coordinate transform — never touching the shared `oklabDistanceSquared`
+   the downstream ICM/cleanup/merge stages rely on). Comprehensively
+   failed on every measured axis, *including the case it was specifically
+   designed to help*: a synthetic cat fixture with fur shading spanning
+   near-black to near-white got *worse* (needed a higher colorCount than
+   baseline, not lower), and the general regression-suite fixtures
+   degraded the same way attempt 2's did. Root cause, reasoned through
+   after the fact: compressing distance near the extremes of a roughly
+   uniform gradient doesn't shrink its *total* apparent variance under
+   this transform — it relocates it, expanding the (usually majority)
+   midtone portion's apparent spread, which if anything increases that
+   region's appetite for extra clusters rather than reducing it. Rejected
+   before committing.
+
+**The fix that shipped**, in `lib/quantize.ts` — a fourth, structurally
+different approach that finally cleared the bar on every axis tested:
+runs today's exact, unmodified single-stage k-means first (`initial`
+seeding/Lloyd's loop, byte-for-byte the pre-existing algorithm), then
+checks whether any resulting colors are similar enough to merge — reusing
+`palette-optimizer.ts`'s existing, tested `mergeSimilarColors`, but with
+a looser threshold (`REINVEST_MERGE_THRESHOLD = 0.012`, vs. that module's
+own `DEFAULT_MERGE_DISTANCE_SQUARED = 0.0004` tuned for late-pipeline
+near-duplicate cleanup) purpose-tuned by testing a range of values against
+both the motivating case and the full regression-suite fixture set,
+settling in the middle of a clear plateau rather than at its aggressive
+edge. Any slots freed by merging are reinvested one at a time into
+whichever cell is *currently* the single worst-represented in the entire
+image (`injectWorstFitClusters`) — the classic split/grow codebook-growth
+step from Linde-Buzo-Gray 1980 vector quantization, not an improvised
+mechanism: real reconstruction error, not a population or geometry proxy,
+decides what gets the freed budget, and a genuinely rare, saturated color
+is by construction the worst-served point once the rest of the palette
+has settled onto the dominant content. A short final Lloyd's convergence
+pass over the combined (merged + injected) centroid set lets everything
+resettle before the palette is finalized. Critically, **this only changes
+anything when real redundancy is actually found**: an image with no
+redundant colors takes the exact same code path as before this change
+existed (verified directly against a genuinely multi-hued fixture with no
+dominant majority) — unlike all three rejected attempts, which altered
+every image's clustering unconditionally.
+
+*Verification, broader than any single prior attempt's.* Tested against:
+the original motivating fixture (mid-range fur shading) at three canvas
+scales; a second, harder fixture (fur shading spanning near-black to
+near-white) at the same three scales; and all four of the project's own
+existing golden-fixture regression-suite scenarios (noisy two-region,
+realistic downsample ratio, flat-area stability, edge preservation) plus
+a fifth new one (a busy, genuinely multi-hued image with no dominant
+majority, specifically to catch the "unconditionally changes behavior"
+failure mode the earlier attempts had). Results, old baseline → fix:
+mid-shading firstK-with-outlier 9/9/11 → 4/4/4 (consistent across scale,
+unlike the rejected attempts); high-contrast firstK 10/15/8 → 7/7/7;
+flat-area and edge-preservation diagnostics **exactly unchanged** (800
+avg component size, 14 components, 0.3510 edge alignment — proof the
+mechanism correctly does nothing when nothing needs doing); noisy-two-
+region and realistic-downsample confetti ratios rose modestly (0.0121→
+0.0138, 0.0018→0.0094) but stayed well inside both tests' existing
+tolerance bands with real margin; busy-multi-hue diagnostics unchanged.
+2 new permanent unit tests added to `tests/unit/quantize.spec.ts`
+(reinvestment finds a real rare color; doesn't fabricate colors when
+none are redundant) alongside all 91 pre-existing tests passing
+unmodified. A real headless-browser run against the actual app UI with
+the same synthetic "gray cat, yellow eyes" PNG used throughout this
+investigation: colorCount 3, 4, and 5 all render both eyes cleanly in a
+single distinct yellow ("Indian Pale Ale"/"Old Gold" depending on exact
+shading), with clean, coherent, unfragmented gray regions — a
+meaningfully better and more consistent result than either shipped-then-
+reverted or discarded-before-shipping attempt produced on the same
+fixture. No performance regression (~29s either way on the project's own
+established gentle worst-case benchmark).
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
@@ -1034,6 +1168,21 @@ given it's a new dependency added to that code path).
    standard practice of a real critique exchange for consequential
    decisions is unavailable project-wide until the account is topped
    up. Worth knowing if another project hits the same thing.
+
+2. **codex-cli rejects every model when authenticated via a ChatGPT
+   account, even on a Pro plan.** Owner logged in via `codex login`
+   with a ChatGPT Pro account (2026-09-09) as a workaround for the API
+   credits issue above. Every model in the MCP tool's own enum —
+   `gpt-5.3-codex`, `gpt-5.2-codex`, `gpt-5.1-codex`, `gpt-5.1-codex-max`,
+   `gpt-5-codex`, `gpt-5`, `o4-mini` (7 tried) — was rejected with the
+   identical error `The '<model>' model is not supported when using
+   Codex with a ChatGPT account.` A Pro plan should have Codex CLI
+   access, so this reads as a CLI/backend version mismatch (the
+   installed `codex` v0.153.4 may have a stale model catalog for
+   ChatGPT-account auth) rather than a real entitlement gap — but
+   unconfirmed without checking against a current `codex` release.
+   Worth an Owner look if the critique-exchange workflow is wanted
+   working again before the API account's credits are topped up.
 
 ## Next steps and open questions
 

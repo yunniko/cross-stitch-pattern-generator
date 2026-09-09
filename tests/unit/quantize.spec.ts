@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { oklabDistanceSquared, rgbToOklab } from "@/lib/color";
 import { kMeansQuantizer } from "@/lib/quantize";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 
@@ -55,5 +56,44 @@ describe("kMeansQuantizer", () => {
     const { cellPaletteIndex, palette } = kMeansQuantizer.quantize(makeCells([[100, 100, 100]]), 5);
     expect(palette).toHaveLength(1);
     expect(cellPaletteIndex[0]).toBe(0);
+  });
+
+  it("reinvests redundant-gray palette slots into a real, rare, saturated minority color (HANDOVER.md D20)", () => {
+    // 190 cells of continuously-shaded gray "fur" + 10 cells of a tight,
+    // very-different yellow "eye" -- a plain population-weighted k-means
+    // run at this k never allocates a slot to the eye (verified against the
+    // pre-fix baseline via a git worktree comparison, see HANDOVER.md).
+    const grays: RGB[] = Array.from({ length: 190 }, (_, i) => {
+      const g = 90 + (i % 40);
+      return [g, g, g] as RGB;
+    });
+    const yellow: RGB[] = Array.from({ length: 10 }, () => [210, 190, 40] as RGB);
+    const cells = makeCells([...grays, ...yellow]);
+
+    const { palette } = kMeansQuantizer.quantize(cells, 4);
+    const yellowOklab = rgbToOklab([210, 190, 40]);
+    const hasYellow = palette.some((rgb) => oklabDistanceSquared(rgbToOklab(rgb), yellowOklab) < 0.01);
+    expect(hasYellow).toBe(true);
+  });
+
+  it("doesn't fabricate colors when every requested color is already genuinely distinct", () => {
+    // No redundancy to merge here -- the reinvestment mechanism should be a
+    // complete no-op, same as if it didn't exist.
+    const bands: RGB[] = [
+      [220, 30, 30],
+      [30, 160, 60],
+      [40, 90, 220],
+      [220, 200, 40],
+      [180, 60, 200],
+    ];
+    const cells = makeCells(bands.flatMap((c) => Array.from({ length: 20 }, () => c)));
+
+    const { palette } = kMeansQuantizer.quantize(cells, 5);
+    expect(palette).toHaveLength(5);
+    for (const band of bands) {
+      const bandOklab = rgbToOklab(band);
+      const closest = Math.min(...palette.map((rgb) => oklabDistanceSquared(rgbToOklab(rgb), bandOklab)));
+      expect(closest).toBeLessThan(0.001);
+    }
   });
 });

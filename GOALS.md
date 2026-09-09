@@ -15,6 +15,85 @@ _(none)_
 
 ## Completed goals
 
+### G-004 · Fix small-region color loss at low color counts — DONE (2026-09-09)
+- **What:** A real k-means algorithmic flaw where a small but
+  perceptually distinct region of the source photo (the Owner's example:
+  a gray cat's yellow eyes) could stay completely absent from the
+  palette until a much higher colorCount than it should need, with
+  several near-redundant gray shades added first.
+- **Why:** Owner-reported real usage problem (2026-09-09, chat), with an
+  explicit request to investigate the root cause thoroughly before
+  proposing or making any change — "we do not look for crutches, we
+  look for an algorithm flaw."
+- **Acceptance criteria:** A small, saturated, hue-distinct region
+  should reliably appear in the palette at a meaningfully lower
+  colorCount than before, consistently across canvas scales, without
+  measurably degrading the project's own existing regression-suite
+  fixtures (verified by real before/after measurement, not assumed).
+- **Constraints:** No server-side/native dependencies (100% client-side
+  unchanged); must stay deterministic; must not require re-verifying
+  the whole downstream optimizer/cleanup pipeline's own correctness.
+
+**Milestones**:
+- [x] M1 — Investigated the pipeline stage by stage to find the actual
+      root cause, discussion-only, no code changes. ✔ 2026-09-09.
+      Diagnosis: k-means' population-weighted SSE objective structurally
+      favors splitting a large, continuously-varying population over
+      isolating a small, tight, distant outlier until the large
+      population's cheap splits run out of headroom — a real, named-
+      class k-means pathology, not a downstream-stage bug. Six candidate
+      remedies researched with tradeoffs; a codex-cli critique exchange
+      was attempted multiple times across the session (API credits
+      exhausted; a ChatGPT-Pro-account login then rejected every
+      available model) and an anonymous ChatGPT web fallback also
+      failed — proceeded on independent analysis per STANDARDS.md's own
+      fallback policy throughout, logged in HANDOVER.md's Owner action
+      list.
+- [x] M2 — Implemented, measured, and either shipped or rejected four
+      structurally different remedies in turn, only keeping the one that
+      held up under broad testing. ✔ 2026-09-09.
+      1. Structured hue/lightness seeding lattice — shipped and
+         **deployed live**, then **reverted the same day** after the
+         Owner's own real photo showed broader quality problems this
+         session's own (narrower) testing hadn't caught.
+      2. Over-cluster + diversity-aware reselect — implemented,
+         measured against the project's own regression-suite fixtures
+         (not just the motivating case), found to measurably worsen
+         confetti/fragmentation on ordinary photos; rejected before
+         committing.
+      3. Lightness-dependent clustering-space compression — implemented,
+         measured, found to fail comprehensively, including making the
+         exact case it was designed for *worse*; rejected before
+         committing.
+      4. **Merge-then-reinvest** (shipped): run the existing, unmodified
+         k-means as today, merge genuinely redundant resulting colors
+         (looser threshold than the pipeline's existing late-stage
+         dedup), then reinvest each freed palette slot into whichever
+         cell is currently worst-represented by real reconstruction
+         error (the classic LBG 1980 vector-quantization split/grow
+         step) and re-converge. Only changes anything when real
+         redundancy is found — verified as a true no-op on a genuinely
+         multi-hued fixture with no dominant majority.
+      Final verification: old-baseline-to-fix improvement of firstK
+      9-11 → 4 (mid-range shading) and 10-15 → 7 (high-contrast
+      shading) across three canvas scales each; the project's own flat-
+      area and edge-preservation regression fixtures came out **exactly
+      unchanged**; the two noisy-photo fixtures' confetti ratios rose
+      modestly but stayed well inside their existing tolerance bands.
+      2 new permanent unit tests added; all 91 pre-existing tests pass
+      unmodified. A real headless-browser run against the actual app UI
+      with a purpose-built synthetic "gray cat, yellow eyes" image
+      confirmed colorCount 3-5 all render both eyes cleanly in one
+      distinct color with clean, unfragmented gray regions. No
+      performance regression. See HANDOVER.md D18 for the complete
+      investigation, all four attempts, and every verification step.
+
+**Progress log** (newest first):
+- 2026-09-09 — Fix shipped, deployed, and verified live, after three
+  earlier attempts were each tried, measured, and rejected in turn
+  (one of them briefly shipped and reverted the same day on Owner
+  feedback). See HANDOVER.md D18 for the complete record.
+
 ### G-003 · Centimeters + unique color names in the legend — DONE (2026-09-09)
 - **What:** Two small, related legend/estimate improvements: (1) show
   centimeters alongside inches in every finished-size estimate; (2) give
