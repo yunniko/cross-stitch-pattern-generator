@@ -1,10 +1,23 @@
 const DIGITS = "0123456789".split("");
 // I and O excluded — they read as 1 and 0 at small chart-cell sizes.
-const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ".split("");
+// X excluded too — visually near-identical to the × shape below (domain-expert review, HANDOVER.md D7).
+const LETTERS_RAW = "ABCDEFGHJKLMNPQRSTUVWYZ".split("");
+// Rotates the alphabet before interleaving with digits so a letter never
+// lands at the same round-robin position as the digit it coincidentally
+// looks like (e.g. digit "6" and letter "G" ended up adjacent purely
+// because both are the 7th symbol in their own sequence — a real bug the
+// domain-expert review found, not a hypothetical one; HANDOVER.md D7).
+const LETTERS_ROTATION = 9;
+const LETTERS = [...LETTERS_RAW.slice(LETTERS_ROTATION % LETTERS_RAW.length), ...LETTERS_RAW.slice(0, LETTERS_ROTATION % LETTERS_RAW.length)];
+// "+" dropped (reads as a grid-line intersection once printed small); "♦"
+// dropped as a near-duplicate of "◆" (U+2666 vs U+25C6); "§ ¶ °" added in
+// their place from Latin-1 (universally supported, unlike some dingbats —
+// see HANDOVER.md D7's emoji-fallback caveat) to keep the set at 64 symbols.
 const SHAPES = [
-  "+", "×", "÷", "=", "~", "^", "*", "#", "@", "%", "&", "!", "?", "/", "\\", "|",
+  "×", "÷", "=", "~", "^", "*", "#", "@", "%", "&", "!", "?", "/", "\\", "|",
   "●", "○", "■", "□", "▲", "△", "▼", "▽",
-  "◆", "◇", "★", "☆", "♦", "♥",
+  "◆", "◇", "★", "☆", "♥",
+  "§", "¶", "°",
 ];
 
 /**

@@ -22,4 +22,16 @@ describe("symbol set", () => {
     expect(SYMBOL_SET).not.toContain("I");
     expect(SYMBOL_SET).not.toContain("O");
   });
+
+  it("excludes X and the duplicate diamond glyph found by the domain-expert review", () => {
+    expect(SYMBOL_SET).not.toContain("X");
+    expect(SYMBOL_SET).not.toContain("♦");
+    expect(SYMBOL_SET).not.toContain("+");
+  });
+
+  it("never places digit 6 and letter G adjacently (the review's concrete adjacency bug)", () => {
+    const sixIndex = SYMBOL_SET.indexOf("6");
+    const gIndex = SYMBOL_SET.indexOf("G");
+    expect(Math.abs(sixIndex - gIndex)).toBeGreaterThan(1);
+  });
 });

@@ -11,18 +11,34 @@ export interface RenderOptions {
 const DEFAULT_CELL_SIZE = 24;
 // Chrome/Firefox both choke well before this on canvas area; clamping keeps a
 // 1000-stitch pattern (the spec's own upper bound) from ever producing a
-// canvas the browser can't allocate.
+// canvas the browser can't allocate. Not verified on every browser engine —
+// see HANDOVER.md D7's cross-browser caveat.
 const MAX_CANVAS_DIMENSION = 12000;
+// Below this, grid lines/symbols are illegible noise rather than helpful
+// detail — line weights collapse to 1px and symbols stop being drawn
+// (domain-expert review, HANDOVER.md D7).
+const LEGIBILITY_FLOOR_PX = 6;
 
 const GRID_LINE_COLOR = "#333333";
-const MINOR_LINE_WIDTH = 1;
-const MEDIUM_LINE_WIDTH = 2;
-const MAJOR_LINE_WIDTH = 3;
+// Line weights scale with cell size (a constant 1/2/3px reads as noise once
+// cells shrink toward the max-stitch-count end of the range) — ratios
+// chosen so the previous fixed 1/2/3px come out unchanged at the default
+// 24px cell size (HANDOVER.md D7).
+const MINOR_LINE_RATIO = 1 / 24;
+const MEDIUM_LINE_RATIO = 2 / 24;
+const MAJOR_LINE_RATIO = 3 / 24;
 
 const LEGEND_ITEM_HEIGHT = 28;
 const LEGEND_SWATCH_SIZE = 20;
 const LEGEND_PADDING = 16;
-const LEGEND_COLUMN_WIDTH = 150;
+const LEGEND_COLUMN_WIDTH = 170;
+
+// B&W cells are compressed into this lightness band rather than the full
+// 0-255 luminance range, so every cell stays light enough to print cleanly,
+// use little ink, and take a highlighter — the actual point of a B&W chart
+// (domain-expert review, HANDOVER.md D7). Symbols stay solid black always.
+const BW_MIN_GRAY = 150;
+const BW_MAX_GRAY = 245;
 
 function effectiveCellSize(width: number, height: number, requested: number): number {
   const longerSide = Math.max(width, height);
@@ -30,19 +46,35 @@ function effectiveCellSize(width: number, height: number, requested: number): nu
   return Math.max(4, Math.min(requested, maxByCanvas));
 }
 
+function rgbToHex([r, g, b]: RGB): string {
+  return `#${[r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function bwGray(rgb: RGB): number {
+  const t = luminance(rgb) / 255;
+  return Math.round(BW_MIN_GRAY + t * (BW_MAX_GRAY - BW_MIN_GRAY));
+}
+
 function fillForCell(mode: RenderMode, rgb: RGB): string {
   if (mode === "color") return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
-  const gray = luminance(rgb);
+  const gray = bwGray(rgb);
   return `rgb(${gray}, ${gray}, ${gray})`;
 }
 
-function contrastingTextColor(mode: RenderMode, rgb: RGB): string {
-  const gray = mode === "color" ? luminance(rgb) : luminance(rgb);
-  return gray > 140 ? "#000000" : "#ffffff";
+function symbolTextColor(mode: RenderMode, rgb: RGB): string {
+  if (mode === "bw") return "#000000";
+  return luminance(rgb) > 140 ? "#000000" : "#ffffff";
 }
 
 function drawChart(ctx: CanvasRenderingContext2D, pattern: StitchPattern, mode: RenderMode, cellSize: number) {
   const { width, height, cellPalette, palette } = pattern;
+  const drawSymbols = cellSize >= LEGIBILITY_FLOOR_PX;
+
+  if (drawSymbols) {
+    ctx.font = `${Math.round(cellSize * 0.6)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+  }
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -50,24 +82,27 @@ function drawChart(ctx: CanvasRenderingContext2D, pattern: StitchPattern, mode: 
       ctx.fillStyle = fillForCell(mode, color.rgb);
       ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
 
-      ctx.fillStyle = contrastingTextColor(mode, color.rgb);
-      ctx.font = `${Math.round(cellSize * 0.6)}px sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(color.symbol, x * cellSize + cellSize / 2, y * cellSize + cellSize / 2 + 1);
+      if (drawSymbols) {
+        ctx.fillStyle = symbolTextColor(mode, color.rgb);
+        ctx.fillText(color.symbol, x * cellSize + cellSize / 2, y * cellSize + cellSize / 2 + 1);
+      }
     }
   }
 
+  const minorWidth = Math.max(1, Math.round(cellSize * MINOR_LINE_RATIO));
+  const mediumWidth = Math.max(1, Math.round(cellSize * MEDIUM_LINE_RATIO));
+  const majorWidth = Math.max(1, Math.round(cellSize * MAJOR_LINE_RATIO));
+
   ctx.strokeStyle = GRID_LINE_COLOR;
   for (let x = 0; x <= width; x++) {
-    ctx.lineWidth = x % 10 === 0 ? MAJOR_LINE_WIDTH : x % 5 === 0 ? MEDIUM_LINE_WIDTH : MINOR_LINE_WIDTH;
+    ctx.lineWidth = x % 10 === 0 ? majorWidth : x % 5 === 0 ? mediumWidth : minorWidth;
     ctx.beginPath();
     ctx.moveTo(x * cellSize, 0);
     ctx.lineTo(x * cellSize, height * cellSize);
     ctx.stroke();
   }
   for (let y = 0; y <= height; y++) {
-    ctx.lineWidth = y % 10 === 0 ? MAJOR_LINE_WIDTH : y % 5 === 0 ? MEDIUM_LINE_WIDTH : MINOR_LINE_WIDTH;
+    ctx.lineWidth = y % 10 === 0 ? majorWidth : y % 5 === 0 ? mediumWidth : minorWidth;
     ctx.beginPath();
     ctx.moveTo(0, y * cellSize);
     ctx.lineTo(width * cellSize, y * cellSize);
@@ -82,13 +117,16 @@ function drawLegendItem(
   x: number,
   y: number
 ) {
-  ctx.fillStyle = fillForCell(mode, color.rgb);
+  // The legend swatch always shows the true color, even in B&W mode —
+  // otherwise a B&W download carries no color information at all
+  // (domain-expert review, HANDOVER.md D7).
+  ctx.fillStyle = `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`;
   ctx.fillRect(x, y, LEGEND_SWATCH_SIZE, LEGEND_SWATCH_SIZE);
   ctx.strokeStyle = GRID_LINE_COLOR;
   ctx.lineWidth = 1;
   ctx.strokeRect(x, y, LEGEND_SWATCH_SIZE, LEGEND_SWATCH_SIZE);
 
-  ctx.fillStyle = contrastingTextColor(mode, color.rgb);
+  ctx.fillStyle = luminance(color.rgb) > 140 ? "#000000" : "#ffffff";
   ctx.font = `${Math.round(LEGEND_SWATCH_SIZE * 0.6)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -97,7 +135,9 @@ function drawLegendItem(
   ctx.fillStyle = "#111111";
   ctx.font = "13px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(`× ${color.count}`, x + LEGEND_SWATCH_SIZE + 8, y + LEGEND_SWATCH_SIZE / 2 + 1);
+  ctx.fillText(`${rgbToHex(color.rgb)} · ${color.count} sts`, x + LEGEND_SWATCH_SIZE + 8, y + LEGEND_SWATCH_SIZE / 2 + 1);
+
+  void mode;
 }
 
 /** Lays the legend out below the chart (wide, few rows) when landscape, or to its right (tall, few columns) otherwise. */
@@ -109,8 +149,7 @@ function drawLegend(
   chartHeightPx: number,
   belowChart: boolean
 ) {
-  const { palette, isLandscape } = pattern;
-  void isLandscape;
+  const { palette } = pattern;
 
   if (belowChart) {
     const columns = Math.max(1, Math.floor(chartWidthPx / LEGEND_COLUMN_WIDTH));
