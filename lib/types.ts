@@ -12,6 +12,23 @@ export interface PixelBuffer {
   height: number;
 }
 
+/**
+ * One RGB triple per stitch cell, stored interleaved (`[r,g,b,r,g,b,...]`)
+ * rather than as an `RGB[]` array of tuples — avoids allocating up to a
+ * million small arrays/objects at the largest grid size, which otherwise
+ * dominates GC time in the optimizer (codex critique, HANDOVER.md D6).
+ */
+export interface CellColorBuffer {
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+}
+
+export function cellRgb(buffer: CellColorBuffer, cellIndex: number): RGB {
+  const o = cellIndex * 3;
+  return [buffer.data[o], buffer.data[o + 1], buffer.data[o + 2]];
+}
+
 export type SizePresetId = "small" | "medium" | "large" | "custom";
 
 export const SIZE_PRESETS: Record<Exclude<SizePresetId, "custom">, number> = {

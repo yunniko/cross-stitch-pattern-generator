@@ -1,72 +1,72 @@
 import type { RGB } from "./types";
 
-export type Lab = readonly [number, number, number];
+export type Oklab = readonly [number, number, number];
 
-function srgbToLinear(c: number): number {
+/** sRGB channel (0-255) to linear light (0-1). Exported for use anywhere pixel values must be averaged correctly (see HANDOVER.md D7). */
+export function srgbToLinear(c: number): number {
   const v = c / 255;
   return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
 }
 
-function linearToSrgb(v: number): number {
+/** Linear light (0-1) back to an sRGB channel (0-255, rounded and clamped). */
+export function linearToSrgb(v: number): number {
   const c = v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
   return Math.round(Math.min(1, Math.max(0, c)) * 255);
 }
 
-// D65 reference white, sRGB primaries.
-const XN = 0.95047;
-const YN = 1.0;
-const ZN = 1.08883;
-
-function labF(t: number): number {
-  const delta = 6 / 29;
-  return t > delta ** 3 ? Math.cbrt(t) : t / (3 * delta ** 2) + 4 / 29;
-}
-
-function labFInv(t: number): number {
-  const delta = 6 / 29;
-  return t > delta ? t ** 3 : 3 * delta ** 2 * (t - 4 / 29);
-}
-
-export function rgbToLab([r, g, b]: RGB): Lab {
+/**
+ * OKLab (Björn Ottosson, 2020) instead of CIELAB+CIEDE2000: by construction,
+ * plain Euclidean distance in OKLab already approximates perceptual
+ * difference well, whereas Euclidean CIELAB distance is known to diverge
+ * from perception (CIEDE2000 exists specifically to correct for that gap).
+ * Since this tool doesn't match to a real DMC/Anchor thread database — see
+ * HANDOVER.md D1's "deliberately not doing" note — there's no industry-
+ * convention reason to carry CIEDE2000's complexity. See HANDOVER.md D6.
+ */
+export function rgbToOklab([r, g, b]: RGB): Oklab {
   const rl = srgbToLinear(r);
   const gl = srgbToLinear(g);
   const bl = srgbToLinear(b);
 
-  const x = (0.4124564 * rl + 0.3575761 * gl + 0.1804375 * bl) / XN;
-  const y = (0.2126729 * rl + 0.7151522 * gl + 0.072175 * bl) / YN;
-  const z = (0.0193339 * rl + 0.119192 * gl + 0.9503041 * bl) / ZN;
+  const l = 0.4122214708 * rl + 0.5363325363 * gl + 0.0514459929 * bl;
+  const m = 0.2119034982 * rl + 0.6806995451 * gl + 0.1073969566 * bl;
+  const s = 0.0883024619 * rl + 0.2817188376 * gl + 0.6299787005 * bl;
 
-  const fx = labF(x);
-  const fy = labF(y);
-  const fz = labF(z);
+  const l_ = Math.cbrt(l);
+  const m_ = Math.cbrt(m);
+  const s_ = Math.cbrt(s);
 
-  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+  return [
+    0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_,
+    1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_,
+    0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_,
+  ];
 }
 
-export function labToRgb([L, a, b]: Lab): RGB {
-  const fy = (L + 16) / 116;
-  const fx = fy + a / 500;
-  const fz = fy - b / 200;
+export function oklabToRgb([L, a, b]: Oklab): RGB {
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.291485548 * b;
 
-  const x = labFInv(fx) * XN;
-  const y = labFInv(fy) * YN;
-  const z = labFInv(fz) * ZN;
+  const l = l_ ** 3;
+  const m = m_ ** 3;
+  const s = s_ ** 3;
 
-  const rl = 3.2404542 * x - 1.5371385 * y - 0.4985314 * z;
-  const gl = -0.969266 * x + 1.8760108 * y + 0.041556 * z;
-  const bl = 0.0556434 * x - 0.2040259 * y + 1.0572252 * z;
+  const rl = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  const gl = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  const bl = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
 
   return [linearToSrgb(rl), linearToSrgb(gl), linearToSrgb(bl)];
 }
 
-export function labDistanceSquared(a: Lab, b: Lab): number {
+export function oklabDistanceSquared(a: Oklab, b: Oklab): number {
   const dl = a[0] - b[0];
   const da = a[1] - b[1];
   const db = a[2] - b[2];
   return dl * dl + da * da + db * db;
 }
 
-/** Relative luminance (0-255 scale) used for the grayscale export. */
+/** Relative luminance (0-255 scale) used for the grayscale export — a display concern, unrelated to the perceptual clustering space above. */
 export function luminance([r, g, b]: RGB): number {
   return Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
 }

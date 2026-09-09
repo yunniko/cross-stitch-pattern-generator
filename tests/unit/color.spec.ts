@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { labDistanceSquared, labToRgb, luminance, rgbToLab } from "@/lib/color";
+import { oklabDistanceSquared, oklabToRgb, luminance, rgbToOklab } from "@/lib/color";
 import type { RGB } from "@/lib/types";
 
-describe("rgbToLab / labToRgb", () => {
+describe("rgbToOklab / oklabToRgb", () => {
   it("round-trips pure black and white exactly", () => {
-    expect(labToRgb(rgbToLab([0, 0, 0]))).toEqual([0, 0, 0]);
-    expect(labToRgb(rgbToLab([255, 255, 255]))).toEqual([255, 255, 255]);
+    expect(oklabToRgb(rgbToOklab([0, 0, 0]))).toEqual([0, 0, 0]);
+    expect(oklabToRgb(rgbToOklab([255, 255, 255]))).toEqual([255, 255, 255]);
   });
 
   it("round-trips arbitrary in-gamut colors within rounding error", () => {
@@ -16,7 +16,7 @@ describe("rgbToLab / labToRgb", () => {
       [128, 128, 128],
     ];
     for (const rgb of colors) {
-      const [r, g, b] = labToRgb(rgbToLab(rgb));
+      const [r, g, b] = oklabToRgb(rgbToOklab(rgb));
       expect(Math.abs(r - rgb[0])).toBeLessThanOrEqual(1);
       expect(Math.abs(g - rgb[1])).toBeLessThanOrEqual(1);
       expect(Math.abs(b - rgb[2])).toBeLessThanOrEqual(1);
@@ -24,10 +24,10 @@ describe("rgbToLab / labToRgb", () => {
   });
 
   it("places perceptually similar colors closer than very different ones", () => {
-    const red = rgbToLab([220, 20, 20]);
-    const nearRed = rgbToLab([200, 30, 25]);
-    const blue = rgbToLab([20, 20, 220]);
-    expect(labDistanceSquared(red, nearRed)).toBeLessThan(labDistanceSquared(red, blue));
+    const red = rgbToOklab([220, 20, 20]);
+    const nearRed = rgbToOklab([200, 30, 25]);
+    const blue = rgbToOklab([20, 20, 220]);
+    expect(oklabDistanceSquared(red, nearRed)).toBeLessThan(oklabDistanceSquared(red, blue));
   });
 });
 
