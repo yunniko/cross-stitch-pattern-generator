@@ -15,6 +15,41 @@ _(none)_
 
 ## Completed goals
 
+### G-002 · Realistic stitched-result preview — DONE (2026-09-09)
+- **What:** A third preview/download mode showing what the finished piece
+  would look like stitched: colored cross-stitch "X" marks on a simulated
+  fabric background, with a small white border. No grid lines, symbols,
+  legend, center markers, row/column numbers, or header — purely a look
+  preview, not another printable chart variant.
+- **Why:** Owner request (2026-09-09, chat) — wanted a quick visual sense
+  of the finished result alongside the two printable chart variants.
+  Owner follow-up ("just simple preview, nothing complex") ruled out
+  fabric-weave texture/shading that had been under consideration.
+- **Acceptance criteria:** Selectable as a third option alongside the
+  existing Color/Black & white preview toggle; renders actual palette
+  colors as X-shaped stitches on a flat fabric-toned background with a
+  small white border; downloadable as its own PNG; carries none of the
+  chart-mode decoration (grid, symbols, legend, markers, numbers,
+  header).
+- **Constraints:** None stated — kept deliberately simple per the
+  Owner's own steer.
+
+**Milestones**:
+- [x] M1 — `renderStitchPreviewToCanvas` in `lib/render.ts`; wired into
+      `app/page.tsx`'s preview toggle and download buttons. ✔ 2026-09-09.
+      Verified via lint/typecheck/build all clean, all 84 existing unit
+      tests + both e2e tests still green (no regression), and a real
+      headless-browser run: selected the new mode, screenshotted the
+      on-screen preview, and downloaded+inspected the full-resolution
+      PNG — both show correct colored X-stitches on the fabric
+      background with the white border, no chart decoration. See
+      `HANDOVER.md` D14.
+
+**Progress log** (newest first):
+- 2026-09-09 — Built and verified in one session (Owner request, one
+  round of steering: "just simple preview, nothing complex"). See
+  HANDOVER.md D14 for the design/verification detail.
+
 ### G-001 · Image → cross-stitch pattern generator — DONE (2026-09-09)
 - **What:** A client-side web tool that takes a user-uploaded image and
   produces a printable cross-stitch chart: the image is divided into a

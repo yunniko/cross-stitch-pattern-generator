@@ -1,9 +1,10 @@
 # Handover — cross-stitch-pattern-generator
 
-Read this before touching the project. Goal in `GOALS.md` (G-001).
+Read this before touching the project. Goals in `GOALS.md` (G-001, G-002).
 Company-wide standards in `E:\CLAUDE\COMPANY\`. This is a **standalone**
-project — not part of `svc-lab`'s portfolio (no deploy, no monetization,
-no shared subdomain), per an explicit Owner choice on 2026-09-09.
+project — not part of `svc-lab`'s portfolio (no monetization, no shared
+subdomain), per an explicit Owner choice on 2026-09-09. It IS deployed,
+at the Owner's direct later instruction — see D13.
 
 ## Current state
 
@@ -776,6 +777,50 @@ which used the same throwaway-script pattern).
 Owner signed off on completion the same day, after reviewing this
 deploy report; G-001 moved to GOALS.md's Completed section
 (2026-09-09).
+
+**D14 — Realistic stitched-result preview added (G-002, 2026-09-09).**
+Owner asked for a preview showing "the scheme colors and cross stitches
+placed on simulated canvas, with small white border and no symbols or
+legend etc." First pass considered adding a light fabric-weave texture
+(dots marking Aida holes at each cell corner) for extra realism; Owner
+immediately steered that down ("just simple preview, nothing complex"),
+so the shipped version is deliberately minimal: a flat fabric-toned
+(`#f0e9d8`) background, one colored "X" per cell (two crossing
+round-capped strokes, `STITCH_WIDTH_RATIO = 0.32` of the cell size,
+inset so the X sits inside its cell rather than touching neighbors),
+and a fixed 16px white border — no texture, shading, grid lines,
+symbols, legend, center markers, row/column numbers, or header.
+
+Implemented as a new standalone function,
+`renderStitchPreviewToCanvas` in `lib/render.ts`, rather than folding a
+third mode into `renderPatternToCanvas`/`drawChart`: the existing chart
+renderer's whole structure (gutters for markers/numbers, legend
+placement, header) doesn't apply here, and threading a "skip
+everything" mode through it would have made that function harder to
+read for no real benefit. Reuses `effectiveCellSize` (same max-canvas-
+dimension clamp as the chart renderer) and `downloadCanvasAsPng` — the
+only two pieces of `render.ts` that generalize cleanly across both
+"printable chart" and "look preview" use cases.
+
+Wired into `app/page.tsx` as a third option in the existing preview
+radio group ("Realistic preview") and a third download button
+("Download realistic preview PNG"); `previewMode`'s type widened from
+`RenderMode` to `RenderMode | "realistic"` rather than adding a
+parallel piece of state, since exactly one preview mode is ever active
+at a time regardless of which set it's drawn from.
+
+No unit test added for the new function — same standing convention as
+the rest of `render.ts` (DOM-canvas-dependent, not usefully unit-
+testable without a browser; verified via e2e + manual browser runs,
+per the M9a note in GOALS.md). Verified for real: ESLint clean, `tsc
+--noEmit` clean, production build clean, all 84 existing Vitest unit
+tests and both existing Playwright e2e tests still green (no
+regression from the new mode/type change), plus a real headless-
+browser run against the dev server — selected "Realistic preview",
+screenshotted the on-screen result, and downloaded the full-resolution
+PNG and inspected it directly. Both show correct colored X-stitches on
+the fabric background with the white border and none of the chart
+decoration.
 
 ## Owner action list
 

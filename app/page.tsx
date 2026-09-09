@@ -3,7 +3,12 @@
 import { useMemo, useRef, useState } from "react";
 import { loadImageAsPixelBuffer } from "@/lib/load-image";
 import { runPatternJob } from "@/lib/pattern-client";
-import { downloadCanvasAsPng, renderPatternToCanvas, type RenderMode } from "@/lib/render";
+import {
+  downloadCanvasAsPng,
+  renderPatternToCanvas,
+  renderStitchPreviewToCanvas,
+  type RenderMode,
+} from "@/lib/render";
 import {
   MAX_COLORS,
   MAX_STITCHES,
@@ -32,7 +37,7 @@ export default function Home() {
   const [customSize, setCustomSize] = useState(100);
   const [colorCount, setColorCount] = useState(16);
   const [pattern, setPattern] = useState<StitchPattern | null>(null);
-  const [previewMode, setPreviewMode] = useState<RenderMode>("color");
+  const [previewMode, setPreviewMode] = useState<RenderMode | "realistic">("color");
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -91,18 +96,21 @@ export default function Home() {
   const previewUrl = useMemo(() => {
     if (!pattern) return null;
     const previewCellSize = Math.max(2, Math.min(24, Math.floor(PREVIEW_TARGET_WIDTH_PX / pattern.width)));
-    const canvas = renderPatternToCanvas(pattern, previewMode, { cellSize: previewCellSize });
+    const canvas =
+      previewMode === "realistic"
+        ? renderStitchPreviewToCanvas(pattern, { cellSize: previewCellSize })
+        : renderPatternToCanvas(pattern, previewMode, { cellSize: previewCellSize });
     return canvas.toDataURL("image/png");
   }, [pattern, previewMode]);
 
-  function handleDownload(mode: RenderMode) {
+  function handleDownload(mode: RenderMode | "realistic") {
     if (!pattern) return;
     setIsDownloading(true);
     // Deferred so "Preparing..." actually paints first — rendering a large,
     // high-color chart to a full-resolution canvas is real synchronous work.
     setTimeout(() => {
       try {
-        const canvas = renderPatternToCanvas(pattern, mode);
+        const canvas = mode === "realistic" ? renderStitchPreviewToCanvas(pattern) : renderPatternToCanvas(pattern, mode);
         const base = sourceFileName?.replace(/\.[^.]+$/, "") ?? "cross-stitch-pattern";
         downloadCanvasAsPng(canvas, `${base}-${mode}.png`);
       } finally {
@@ -234,6 +242,15 @@ export default function Home() {
                   />
                   Black &amp; white
                 </label>
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="preview-mode"
+                    checked={previewMode === "realistic"}
+                    onChange={() => setPreviewMode("realistic")}
+                  />
+                  Realistic preview
+                </label>
               </div>
             </div>
 
@@ -262,6 +279,14 @@ export default function Home() {
                 className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
               >
                 {isDownloading ? "Preparing…" : "Download black & white PNG"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDownload("realistic")}
+                disabled={isDownloading}
+                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
+              >
+                {isDownloading ? "Preparing…" : "Download realistic preview PNG"}
               </button>
             </div>
           </section>
