@@ -21,24 +21,54 @@ const B: RGB = [20, 20, 220];
 const palette = [A, B];
 
 describe("fixDiagonalConnections", () => {
-  it("resolves a diagonal-only pinch (A B / B A) by recoloring exactly one cell", () => {
-    // Source colors match the assignment exactly, so every candidate fix
-    // costs the same -- just confirms the pinch itself gets resolved.
+  it("resolves a cheap diagonal-only pinch (colors close enough to be within the cost ceiling)", () => {
+    // Two nearly-identical colors: recoloring either one costs almost
+    // nothing, well under the default cost ceiling.
+    const nearA: RGB = [222, 22, 22];
+    const closePalette = [A, nearA];
+    const cells = makeCells(2, 2, (x, y) => (x === y ? A : nearA));
+    const assignment = Uint8Array.from([0, 1, 1, 0]); // A nearA / nearA A
+
+    const result = fixDiagonalConnections(cells, assignment, closePalette);
+
     // Resolving a 2x2-only pinch necessarily produces a 3-1 split (there's
     // no way to fix it by changing one cell that keeps a clean 2-2 split),
     // so the correct check is "no pinch remains," not "every cell matches
     // a neighbor" -- a lone corner cell against a 3-cell majority is a
     // completely normal, non-pinch boundary shape.
-    const cells = makeCells(2, 2, (x, y) => (x === y ? A : B));
-    const assignment = Uint8Array.from([0, 1, 1, 0]); // A B / B A
-
-    const result = fixDiagonalConnections(cells, assignment, palette);
-
     const isPinch = result[0] !== result[1] && result[2] === result[1] && result[3] === result[0];
     expect(isPinch).toBe(false);
     // Exactly one of the four cells should have changed.
     const changedCount = Array.from(assignment).filter((v, i) => v !== result[i]).length;
     expect(changedCount).toBe(1);
+  });
+
+  it("leaves an expensive pinch alone rather than force a bad color match (Owner's spec: don't chop a real thin diagonal feature)", () => {
+    // A and B are far apart in OKLab -- recoloring either cell costs far
+    // more than the default cost ceiling, so a domain-expert review found
+    // the pipeline was previously chopping/thickening every such pinch
+    // unconditionally, which destroys 1-cell-wide diagonal features (a
+    // whisker, a rope, a lettering stroke) that are chains of exactly this
+    // pattern by construction (HANDOVER.md D11).
+    const cells = makeCells(2, 2, (x, y) => (x === y ? A : B));
+    const assignment = Uint8Array.from([0, 1, 1, 0]); // A B / B A
+
+    const result = fixDiagonalConnections(cells, assignment, palette);
+
+    expect(Array.from(result)).toEqual(Array.from(assignment));
+  });
+
+  it("leaves a high-importance pinch alone regardless of cost", () => {
+    const cells = makeCells(2, 2, (x, y) => (x === y ? A : B));
+    const assignment = Uint8Array.from([0, 1, 1, 0]);
+    const importance = new Float32Array(4).fill(1);
+
+    const result = fixDiagonalConnections(cells, assignment, palette, importance, {
+      importanceProtectionThreshold: 0.5,
+      costCeiling: Infinity, // even with no cost limit, importance should still protect it
+    });
+
+    expect(Array.from(result)).toEqual(Array.from(assignment));
   });
 
   it("prefers the fix that best matches each changed cell's real source color", () => {

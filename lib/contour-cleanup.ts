@@ -1,6 +1,20 @@
+import { edgeBetweenCells } from "./edge-map";
+import { boundaryPairEnergy, type PairEnergyWeights } from "./energy";
 import { oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
 import { labelRegions } from "./regions";
 import { cellRgb, type CellColorBuffer, type RGB } from "./types";
+
+export interface DiagonalFixOptions {
+  /** Average importance of a 2x2 pinch block above which it's left alone -- protects thin diagonal *features* (a whisker, a rope, a lettering stroke), not just noise. */
+  importanceProtectionThreshold: number;
+  /** A recolor is only applied if its OKLab-squared-distance cost increase is at or below this; otherwise the pinch is left as-is rather than forcing a bad color match just to fix topology. */
+  costCeiling: number;
+}
+
+export const DEFAULT_DIAGONAL_FIX_OPTIONS: DiagonalFixOptions = {
+  importanceProtectionThreshold: 0.5,
+  costCeiling: 0.02, // ~1 JND in OKLab, see docs/domain-reference.md §6.1
+};
 
 /**
  * Fixes 2x2 diagonal-only color connections (Owner's spec section 14): two
@@ -11,11 +25,24 @@ import { cellRgb, type CellColorBuffer, type RGB } from "./types";
  * unfixed. For each such block, recolors whichever single cell is cheapest
  * (smallest OKLab color-error increase) to resolve the pinch, iterating a
  * few passes since fixing one can occasionally reveal another.
+ *
+ * Per a 2026-09-09 domain-expert review (HANDOVER.md D11), this pass used to
+ * have no importance awareness at all and always applied its cheapest fix
+ * unconditionally. That's wrong for a 1-cell-wide diagonal *feature* (an
+ * eyelash, a wire, a lettering stroke) — every such line is, by
+ * construction, a chain of 2x2 pinches, so it got chopped or thickened at
+ * every block along its length. Now: a pinch whose block-average importance
+ * exceeds `importanceProtectionThreshold` is left alone, and a recolor is
+ * only applied if it costs at or below `costCeiling` — otherwise "leave it
+ * alone" wins, matching how every other pass in the pipeline compares
+ * against the status quo.
  */
 export function fixDiagonalConnections(
   cells: CellColorBuffer,
   assignment: Uint8Array,
   palette: RGB[],
+  importance?: Float32Array,
+  options: DiagonalFixOptions = DEFAULT_DIAGONAL_FIX_OPTIONS,
   maxPasses = 4
 ): Uint8Array {
   const { width, height } = cells;
@@ -23,6 +50,7 @@ export function fixDiagonalConnections(
   const cellOklab = new Array<Oklab>(cellCount);
   for (let i = 0; i < cellCount; i++) cellOklab[i] = rgbToOklab(cellRgb(cells, i));
   const paletteOklab = palette.map(rgbToOklab);
+  const cellImportance = importance ?? new Float32Array(cellCount);
 
   const result = assignment.slice();
 
@@ -40,6 +68,9 @@ export function fixDiagonalConnections(
         const b = result[tr];
         const isDiagonalOnlyPinch = a !== b && result[bl] === b && result[br] === a;
         if (!isDiagonalOnlyPinch) continue;
+
+        const blockImportance = (cellImportance[tl] + cellImportance[tr] + cellImportance[bl] + cellImportance[br]) / 4;
+        if (blockImportance > options.importanceProtectionThreshold) continue;
 
         const candidates = [
           { cell: tl, newColor: b },
@@ -61,6 +92,8 @@ export function fixDiagonalConnections(
           }
         }
 
+        if (bestCost > options.costCeiling) continue; // leave the pinch alone rather than force a bad color match
+
         result[bestCandidate.cell] = bestCandidate.newColor;
         changed = true;
       }
@@ -72,11 +105,9 @@ export function fixDiagonalConnections(
   return result;
 }
 
-export interface ComponentRecolorOptions {
+export interface ComponentRecolorOptions extends PairEnergyWeights {
   /** Only components at or below this size are eligible to be recolored as a whole. */
   maxComponentSize: number;
-  /** Same meaning as the local optimizer's smoothness weight -- how much a boundary cell-pair costs. */
-  smoothness: number;
   /** Average importance above which a component is left alone even if recoloring would reduce energy. */
   importanceProtectionThreshold: number;
 }
@@ -84,8 +115,21 @@ export interface ComponentRecolorOptions {
 export const DEFAULT_COMPONENT_RECOLOR_OPTIONS: ComponentRecolorOptions = {
   maxComponentSize: 6,
   smoothness: 0.045,
+  edgeLoss: 0.05,
   importanceProtectionThreshold: 0.5,
 };
+
+/**
+ * `maxComponentSize: 6` is a reasonable cap at a typical grid size, but a
+ * domain-expert review (2026-09-09, HANDOVER.md D11) pointed out it's an
+ * absolute constant on a grid whose area varies four orders of magnitude
+ * (MIN_STITCHES=10 to MAX_STITCHES=1000, i.e. ~70 to ~667,000 cells) -- 6
+ * cells is 8.6% of a 10x7 "Small"-preset pattern. Shrinks it for small grids
+ * rather than leaving one number to do both jobs badly.
+ */
+export function defaultComponentRecolorOptions(cellCount: number): ComponentRecolorOptions {
+  return { ...DEFAULT_COMPONENT_RECOLOR_OPTIONS, maxComponentSize: cellCount < 2500 ? 2 : 6 };
+}
 
 /**
  * Multi-cell moves (Owner's spec section 19): a small connected component
@@ -97,16 +141,24 @@ export const DEFAULT_COMPONENT_RECOLOR_OPTIONS: ComponentRecolorOptions = {
  * "leave it alone." Skips components whose average importance is high, so
  * a small real detail (protected by the local optimizer already) isn't
  * undone here either.
+ *
+ * The boundary cost now uses the same `boundaryPairEnergy` (edge-discounted)
+ * formula the local optimizer and simulated annealing use, rather than a
+ * flat per-mismatch charge -- a 2026-09-09 domain-expert review found the
+ * three passes had drifted into three different energy functions, meaning
+ * this pass could recolor away a component ICM had specifically protected
+ * near a real edge, since it had no way to see that edge (HANDOVER.md D11).
  */
 export function recolorSmallComponents(
   cells: CellColorBuffer,
   assignment: Uint8Array,
   palette: RGB[],
   importance?: Float32Array,
-  options: ComponentRecolorOptions = DEFAULT_COMPONENT_RECOLOR_OPTIONS
+  options?: ComponentRecolorOptions
 ): Uint8Array {
   const { width, height } = cells;
   const cellCount = width * height;
+  const resolvedOptions = options ?? defaultComponentRecolorOptions(cellCount);
   const cellOklab = new Array<Oklab>(cellCount);
   for (let i = 0; i < cellCount; i++) cellOklab[i] = rgbToOklab(cellRgb(cells, i));
   const paletteOklab = palette.map(rgbToOklab);
@@ -124,12 +176,12 @@ export function recolorSmallComponents(
   for (let i = 0; i < regions.labels.length; i++) cellsByComponent[regions.labels[i]].push(i);
 
   for (const component of regions.components) {
-    if (component.area > options.maxComponentSize) continue;
+    if (component.area > resolvedOptions.maxComponentSize) continue;
 
     const memberCells = cellsByComponent[component.id];
 
     const avgImportance = memberCells.reduce((sum, i) => sum + cellImportance[i], 0) / memberCells.length;
-    if (avgImportance > options.importanceProtectionThreshold) continue;
+    if (avgImportance > resolvedOptions.importanceProtectionThreshold) continue;
 
     // Boundary cell-pairs: (member cell, external neighbor cell) for every
     // orthogonal neighbor outside this component.
@@ -156,8 +208,9 @@ export function recolorSmallComponents(
       let colorError = 0;
       for (const i of memberCells) colorError += oklabDistanceSquared(cellOklab[i], paletteOklab[candidateColor]);
       let boundaryEnergy = 0;
-      for (const [, neighbor] of boundaryPairs) {
-        if (result[neighbor] !== candidateColor) boundaryEnergy += options.smoothness;
+      for (const [member, neighbor] of boundaryPairs) {
+        const edge = edgeBetweenCells(cellImportance, member, neighbor);
+        boundaryEnergy += boundaryPairEnergy(resolvedOptions, edge, result[neighbor] !== candidateColor);
       }
       return colorError + boundaryEnergy;
     }
