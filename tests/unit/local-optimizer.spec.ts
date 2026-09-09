@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { runLocalOptimizer } from "@/lib/local-optimizer";
-import type { CellColorBuffer, RGB } from "@/lib/types";
+import { computeCellImportance, computeEdgeMagnitude } from "@/lib/edge-map";
+import { downsampleToGrid } from "@/lib/downsample";
+import { runLocalOptimizer, runMultiScaleOptimizer } from "@/lib/local-optimizer";
+import type { CellColorBuffer, PixelBuffer, RGB } from "@/lib/types";
 
 function makeCells(width: number, height: number, colorAt: (x: number, y: number) => RGB): CellColorBuffer {
   const data = new Uint8ClampedArray(width * height * 3);
@@ -79,4 +81,81 @@ describe("runLocalOptimizer", () => {
 
     expect(optimized[12]).toBe(1);
   });
+
+  it("without an importance map, a real (not noise) small high-contrast source detail still gets smoothed away", () => {
+    // This documents Phase A's actual limitation (Owner's spec section 24)
+    // -- unlike the earlier orphan test, the source genuinely contains this
+    // detail; the point is that plain smoothing can't tell the difference.
+    const detail = makeSourceWithDot();
+    const cells = downsampleToGrid(detail.source, 5, 5);
+    const initial = new Uint8Array(25).fill(0);
+    initial[detail.centerCell] = 1;
+
+    const optimized = runLocalOptimizer(cells, initial, detail.palette);
+
+    expect(optimized[detail.centerCell]).toBe(0); // smoothed away to background
+  });
+
+  it("with a real importance map, that same genuine detail survives", () => {
+    const detail = makeSourceWithDot();
+    const cells = downsampleToGrid(detail.source, 5, 5);
+    const initial = new Uint8Array(25).fill(0);
+    initial[detail.centerCell] = 1;
+    const importance = computeCellImportance(detail.source, computeEdgeMagnitude(detail.source), 5, 5);
+
+    const optimized = runLocalOptimizer(cells, initial, detail.palette, importance);
+
+    expect(optimized[detail.centerCell]).toBe(1); // preserved
+  });
+
+  it("runMultiScaleOptimizer also preserves a genuine detail (its fine pass carries real edge-awareness)", () => {
+    const detail = makeSourceWithDot();
+    const cells = downsampleToGrid(detail.source, 5, 5);
+    const initial = new Uint8Array(25).fill(0);
+    initial[detail.centerCell] = 1;
+    const importance = computeCellImportance(detail.source, computeEdgeMagnitude(detail.source), 5, 5);
+
+    const optimized = runMultiScaleOptimizer(cells, initial, detail.palette, importance);
+
+    expect(optimized[detail.centerCell]).toBe(1);
+  });
+
+  it("runMultiScaleOptimizer still cleans up genuine confetti elsewhere in the same grid", () => {
+    const detail = makeSourceWithDot();
+    const cells = downsampleToGrid(detail.source, 5, 5);
+    const initial = new Uint8Array(25).fill(0);
+    initial[detail.centerCell] = 1;
+    initial[0] = 1; // spurious quantizer noise, unrelated to the real detail, in a flat corner
+    const importance = computeCellImportance(detail.source, computeEdgeMagnitude(detail.source), 5, 5);
+
+    const optimized = runMultiScaleOptimizer(cells, initial, detail.palette, importance);
+
+    expect(optimized[0]).toBe(0); // noise cleaned up
+    expect(optimized[detail.centerCell]).toBe(1); // real detail still preserved
+  });
 });
+
+/** A 3x3 mid-gray dot in the middle of a 15x15 light-gray field -- realistic enough (multiple source pixels per cell after downsampling to 5x5) that the dot's own cell captures both the dot and its surrounding contrast. */
+function makeSourceWithDot(): { source: PixelBuffer; palette: RGB[]; centerCell: number } {
+  const size = 15;
+  const center = Math.floor(size / 2);
+  const background: RGB = [200, 200, 200];
+  const dotColor: RGB = [140, 140, 140];
+  const data = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const isDot = Math.abs(x - center) <= 1 && Math.abs(y - center) <= 1;
+      const [r, g, b] = isDot ? dotColor : background;
+      const o = (y * size + x) * 4;
+      data[o] = r;
+      data[o + 1] = g;
+      data[o + 2] = b;
+      data[o + 3] = 255;
+    }
+  }
+  return {
+    source: { data, width: size, height: size },
+    palette: [background, dotColor],
+    centerCell: 2 * 5 + 2, // center of the 5x5 downsampled grid
+  };
+}

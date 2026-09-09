@@ -1,6 +1,7 @@
+import { computeCellImportance, computeEdgeMagnitude } from "./edge-map";
 import { downsampleToGrid, gridDimensionsFor } from "./downsample";
 import { luminance } from "./color";
-import { runLocalOptimizer, type LocalOptimizerWeights } from "./local-optimizer";
+import { runMultiScaleOptimizer, type MultiScaleWeights } from "./local-optimizer";
 import { mergeSimilarColors } from "./palette-optimizer";
 import { kMeansQuantizer, type ColorQuantizer } from "./quantize";
 import { symbolsFor } from "./symbols";
@@ -12,7 +13,7 @@ export interface BuildPatternOptions {
   quantizer?: ColorQuantizer;
   /** Set to skip the local optimizer/palette-merge passes — used by tests that want the raw quantizer output. */
   optimize?: boolean;
-  localOptimizerWeights?: LocalOptimizerWeights;
+  multiScaleWeights?: MultiScaleWeights;
   onProgress?: (fraction: number) => void;
 }
 
@@ -30,9 +31,12 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   options.onProgress?.(0.4);
 
   const shouldOptimize = options.optimize ?? true;
-  const optimized = shouldOptimize
-    ? runLocalOptimizer(cells, quantized, rawPalette, options.localOptimizerWeights)
-    : quantized;
+  let optimized = quantized;
+  if (shouldOptimize) {
+    const edgeMagnitude = computeEdgeMagnitude(imageData);
+    const importance = computeCellImportance(imageData, edgeMagnitude, gridWidth, gridHeight);
+    optimized = runMultiScaleOptimizer(cells, quantized, rawPalette, importance, options.multiScaleWeights);
+  }
   options.onProgress?.(0.8);
 
   const merged = shouldOptimize ? mergeSimilarColors(optimized, rawPalette) : { cellPaletteIndex: optimized, palette: rawPalette };
