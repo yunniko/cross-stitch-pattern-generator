@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadImageAsPixelBuffer } from "@/lib/load-image";
 import { runPatternJob } from "@/lib/pattern-client";
 import {
@@ -93,14 +93,29 @@ export default function Home() {
     }
   }
 
-  const previewUrl = useMemo(() => {
-    if (!pattern) return null;
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // The realistic-preview mode tints a shared texture image asynchronously
+  // (see lib/stitch-texture.ts), so this can no longer be a plain useMemo --
+  // an effect + state avoids racing an older render against a newer one if
+  // the pattern/mode changes again before a slow tint pass finishes.
+  useEffect(() => {
+    // No reset-to-null branch here: previewUrl going stale while pattern is
+    // null is harmless, since the <img> that reads it is only rendered
+    // inside the `{pattern && (...)}` block below.
+    if (!pattern) return;
+    let cancelled = false;
     const previewCellSize = Math.max(2, Math.min(24, Math.floor(PREVIEW_TARGET_WIDTH_PX / pattern.width)));
-    const canvas =
+    const canvasPromise =
       previewMode === "realistic"
         ? renderStitchPreviewToCanvas(pattern, { cellSize: previewCellSize })
-        : renderPatternToCanvas(pattern, previewMode, { cellSize: previewCellSize });
-    return canvas.toDataURL("image/png");
+        : Promise.resolve(renderPatternToCanvas(pattern, previewMode, { cellSize: previewCellSize }));
+    canvasPromise.then((canvas) => {
+      if (!cancelled) setPreviewUrl(canvas.toDataURL("image/png"));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [pattern, previewMode]);
 
   function handleDownload(mode: RenderMode | "realistic") {
@@ -108,9 +123,9 @@ export default function Home() {
     setIsDownloading(true);
     // Deferred so "Preparing..." actually paints first — rendering a large,
     // high-color chart to a full-resolution canvas is real synchronous work.
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
-        const canvas = mode === "realistic" ? renderStitchPreviewToCanvas(pattern) : renderPatternToCanvas(pattern, mode);
+        const canvas = mode === "realistic" ? await renderStitchPreviewToCanvas(pattern) : renderPatternToCanvas(pattern, mode);
         const base = sourceFileName?.replace(/\.[^.]+$/, "") ?? "cross-stitch-pattern";
         downloadCanvasAsPng(canvas, `${base}-${mode}.png`);
       } finally {

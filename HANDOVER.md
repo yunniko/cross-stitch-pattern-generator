@@ -845,6 +845,76 @@ green, fresh screenshot + full-res download inspected): the crosses
 now fill most of each cell, with only small fabric-colored diamonds
 showing between them.
 
+**D15 — Realistic preview rebuilt around a real tinted photo-texture,
+replacing the drawn "X" (2026-09-09).** Owner supplied an actual
+cross-stitch photo/render (`C:\Users\Hengenvaara\Downloads\cross2.png`,
+100×100, 16-bit RGBA with real alpha/soft edges and visible thread
+shading) and asked for the preview to use *that* image per stitch,
+tinted to each cell's palette color while keeping its own transparency
+and shading, on a 50%-gray canvas background — a materially more
+realistic result than a programmatically drawn "X" can produce.
+
+Copied the file as-is (no re-encoding) to `public/stitch-texture.png`
+— a single, obviously-named swappable asset, per the Owner's own note
+that it may be replaced later; nothing else in the code references the
+image by anything but that one path. New module
+`lib/stitch-texture.ts`: `loadTextureImage()` loads and caches the
+`<img>` once (module-level singleton promise, not reloaded per
+render); `tintTexture()` draws it into a small (`TEXTURE_SAMPLE_SIZE =
+64`) offscreen canvas — deliberately downsampled from the source's
+100×100, per the Owner's "the single cross picture can be scaled
+down," since `drawImage` rescales to `cellSize` regardless and the
+larger source resolution buys nothing at any on-screen or print cell
+size — then recolors every pixel by multiplying each channel by that
+pixel's own **luminance** (via the existing `color.ts` `luminance`
+formula, not an assumed-grayscale `R` channel read, so this still
+works correctly if the texture is swapped for something that isn't
+exactly grayscale) and leaving alpha untouched. This is what preserves
+the "keep the shading and transparency, but recolor" behavior the
+Owner asked for: bright/highlighted pixels tint close to the full
+target color, shadowed pixels tint dark, and the soft edge falloff
+(alpha) is unchanged.
+
+Tinted variants are cached per palette color index
+(`buildTintedTextureSet`, a `Map<number, HTMLCanvasElement>`) rather
+than re-tinting per cell — at most `colorCount` (≤64) tint passes per
+render regardless of stitch count, then one cheap `ctx.drawImage` per
+cell reusing the matching cached canvas.
+
+This made `renderStitchPreviewToCanvas` genuinely asynchronous (image
+loading + `Map` build can't be synchronous) for the first time — every
+other `render.ts` function stays synchronous. Propagated up
+`app/page.tsx`: `previewUrl` changed from a `useMemo` to
+`useState` + `useEffect` (awaits whichever render promise applies,
+guarded with a `cancelled` flag so an in-flight tint pass from a
+since-superseded pattern/mode can't clobber a newer one), and
+`handleDownload`'s inner `setTimeout` callback is now `async` and
+`await`s the realistic-mode branch. `renderPatternToCanvas` (Color/B&W)
+is unchanged and stays synchronous — only the realistic path needed
+this.
+
+Background color changed from the earlier cream `FABRIC_COLOR`
+(`#f0e9d8`) to a flat 50% gray (`#808080`), per the Owner's explicit
+ask — the white border is unchanged. The old inset/stroke-width/X-path
+drawing code (D14's two follow-ups) is fully replaced, not layered on
+top of.
+
+Verified for real: ESLint clean, `tsc --noEmit` clean, production
+build clean, all 84 unit tests + both e2e tests still green (no
+regression from the sync→async change), and a fresh headless-browser
+run against the dev server with console/page-error capture (empty) —
+screenshotted the on-screen preview and downloaded+inspected the
+full-resolution PNG. Both clearly show the real photo texture's
+shading and soft edges, correctly tinted per palette color, on the
+gray background.
+
+**Open item, not blocking:** the texture image's origin/license
+weren't stated when the Owner supplied it (a local Downloads-folder
+file). Per STANDARDS.md's asset-attribution rule this should be
+recorded once known — added to the Owner action list below rather
+than blocking the feature on it, since it's the Owner's own file, not
+a third-party source pulled in unilaterally.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
@@ -856,6 +926,13 @@ showing between them.
    standard practice of a real critique exchange for consequential
    decisions is unavailable project-wide until the account is topped
    up. Worth knowing if another project hits the same thing.
+
+2. **Record the stitch-texture image's source/license.**
+   `public/stitch-texture.png` (D15) came from the Owner's own
+   Downloads folder with no stated origin. Not blocking — it's the
+   Owner's own file — but STANDARDS.md's asset-attribution rule wants
+   this recorded once the Owner confirms where it came from (self-made,
+   a licensed stock asset, AI-generated, etc.).
 
 ## Next steps and open questions
 

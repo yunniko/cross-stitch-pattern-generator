@@ -1,4 +1,5 @@
 import { luminance } from "./color";
+import { buildTintedTextureSet } from "./stitch-texture";
 import type { PaletteColor, StitchPattern, RGB } from "./types";
 
 export type RenderMode = "color" | "bw";
@@ -336,33 +337,34 @@ export function renderPatternToCanvas(
   return canvas;
 }
 
-// Simulated-canvas preview constants -- deliberately minimal (flat fabric
-// tone + colored stitches + a plain border, no weave texture/shading): this
-// is a "what will this look like stitched" preview, not another printable
-// chart variant, so it carries none of drawChart's grid/symbol/legend/marker
+// Simulated-canvas preview constants -- deliberately minimal (flat gray
+// background + a tinted photo-texture stitch + a plain border): this is a
+// "what will this look like stitched" preview, not another printable chart
+// variant, so it carries none of drawChart's grid/symbol/legend/marker
 // machinery.
-const FABRIC_COLOR = "#f0e9d8";
-const STITCH_WIDTH_RATIO = 0.4;
+const PREVIEW_CANVAS_COLOR = "#808080"; // 50% gray, per Owner request
 const PREVIEW_BORDER = 16;
 
 /**
- * Renders the pattern as a simple simulated finished piece: each cell drawn
- * as a colored "X" cross-stitch on a flat fabric-toned background, with a
- * small white border. No grid lines, symbols, legend, markers, or numbers --
- * this is a look-and-feel preview, not a stitchable chart.
+ * Renders the pattern as a simulated finished piece: each cell drawn as the
+ * shared stitch-texture image (see `stitch-texture.ts`) tinted to that
+ * cell's palette color -- preserving the texture's own shading and soft
+ * alpha edges -- on a flat 50%-gray background, with a small white border.
+ * No grid lines, symbols, legend, markers, or numbers -- this is a
+ * look-and-feel preview, not a stitchable chart.
  */
-export function renderStitchPreviewToCanvas(
+export async function renderStitchPreviewToCanvas(
   pattern: StitchPattern,
   options: RenderOptions = {}
-): HTMLCanvasElement {
+): Promise<HTMLCanvasElement> {
   const { width, height, cellPalette, palette } = pattern;
   const cellSize = effectiveCellSize(width, height, options.cellSize ?? DEFAULT_CELL_SIZE);
-  const fabricWidthPx = width * cellSize;
-  const fabricHeightPx = height * cellSize;
+  const areaWidthPx = width * cellSize;
+  const areaHeightPx = height * cellSize;
 
   const canvas = document.createElement("canvas");
-  canvas.width = fabricWidthPx + PREVIEW_BORDER * 2;
-  canvas.height = fabricHeightPx + PREVIEW_BORDER * 2;
+  canvas.width = areaWidthPx + PREVIEW_BORDER * 2;
+  canvas.height = areaHeightPx + PREVIEW_BORDER * 2;
 
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("2D canvas context unavailable");
@@ -373,35 +375,14 @@ export function renderStitchPreviewToCanvas(
   ctx.save();
   ctx.translate(PREVIEW_BORDER, PREVIEW_BORDER);
 
-  ctx.fillStyle = FABRIC_COLOR;
-  ctx.fillRect(0, 0, fabricWidthPx, fabricHeightPx);
+  ctx.fillStyle = PREVIEW_CANVAS_COLOR;
+  ctx.fillRect(0, 0, areaWidthPx, areaHeightPx);
 
-  const strokeWidth = Math.max(1, cellSize * STITCH_WIDTH_RATIO);
-  // No inset: each "X" reaches its cell's corners exactly, so adjacent
-  // cells' stitches meet corner-to-corner with no gap between them --
-  // matches how adjoining full cross-stitches actually share fabric holes.
-  const inset = 0;
-  ctx.lineCap = "round";
-  ctx.lineWidth = strokeWidth;
-
+  const textures = await buildTintedTextureSet(palette);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const color = palette[cellPalette[y * width + x]];
-      ctx.strokeStyle = `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`;
-      const left = x * cellSize + inset;
-      const right = (x + 1) * cellSize - inset;
-      const top = y * cellSize + inset;
-      const bottom = (y + 1) * cellSize - inset;
-
-      ctx.beginPath();
-      ctx.moveTo(left, top);
-      ctx.lineTo(right, bottom);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(right, top);
-      ctx.lineTo(left, bottom);
-      ctx.stroke();
+      const tinted = textures.get(cellPalette[y * width + x]);
+      ctx.drawImage(tinted, x * cellSize, y * cellSize, cellSize, cellSize);
     }
   }
 
