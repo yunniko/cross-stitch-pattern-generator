@@ -342,7 +342,7 @@ export function renderPatternToCanvas(
 // chart variant, so it carries none of drawChart's grid/symbol/legend/marker
 // machinery.
 const FABRIC_COLOR = "#f0e9d8";
-const STITCH_WIDTH_RATIO = 0.32;
+const STITCH_WIDTH_RATIO = 0.16;
 const PREVIEW_BORDER = 16;
 
 /**
@@ -377,7 +377,10 @@ export function renderStitchPreviewToCanvas(
   ctx.fillRect(0, 0, fabricWidthPx, fabricHeightPx);
 
   const strokeWidth = Math.max(1, cellSize * STITCH_WIDTH_RATIO);
-  const inset = strokeWidth * 0.6;
+  // No inset: each "X" reaches its cell's corners exactly, so adjacent
+  // cells' stitches meet corner-to-corner with no gap between them --
+  // matches how adjoining full cross-stitches actually share fabric holes.
+  const inset = 0;
   ctx.lineCap = "round";
   ctx.lineWidth = strokeWidth;
 

@@ -822,6 +822,18 @@ PNG and inspected it directly. Both show correct colored X-stitches on
 the fabric background with the white border and none of the chart
 decoration.
 
+**D14 follow-up (same day):** Owner asked for the crosses to be "twice
+smaller and have no padding between them." Halved `STITCH_WIDTH_RATIO`
+(0.32 → 0.16) and dropped the per-cell `inset` to 0 (was
+`strokeWidth * 0.6`), so each "X" now reaches its cell's corners
+exactly and adjoining cells' stitches meet corner-to-corner with no
+gap — closer to how real adjoining full cross-stitches share fabric
+holes, and it reads as a continuous woven lattice rather than a grid
+of separated marks. Re-verified: lint/typecheck/build/84 unit tests/2
+e2e all still green, plus a fresh headless-browser screenshot and
+full-resolution download inspection confirming the tighter, thinner
+result at both preview and full-res scale.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
