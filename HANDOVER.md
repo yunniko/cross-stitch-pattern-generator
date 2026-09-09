@@ -661,8 +661,15 @@ above, since both "wrong" versions still passed every existing test.
 
 ## Owner action list
 
-None yet — no escalation-tier blockers so far (no deploy, no accounts,
-no destructive actions).
+1. **codex-cli is out of API credits.** Hit `stream disconnected...
+   you have no credits remaining` during M8's energy-redesign critique
+   exchange (2026-09-09); `codex login status` confirms this is a
+   billing issue, not an auth/config problem. Not a blocker — proceeded
+   on independent analysis per STANDARDS.md's own fallback instruction,
+   verified the finding by hand-calculation first — but the Company's
+   standard practice of a real critique exchange for consequential
+   decisions is unavailable project-wide until the account is topped
+   up. Worth knowing if another project hits the same thing.
 
 ## Next steps and open questions
 
