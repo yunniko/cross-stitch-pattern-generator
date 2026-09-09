@@ -449,6 +449,71 @@ Not optimized further now — same reasoning as M5/M6: no evidence real
 usage hits the *combination* of max stitches and max colors often
 enough to justify tuning against a synthetic worst-case benchmark.
 
+**D10 — Phase D (M8) scope: real diagnostics + a golden-fixture suite;
+debug visualization and full jaggy/banding metrics deliberately not
+built (2026-09-09).** The Owner's spec section 28 lists diagnostic
+metrics and section 29 asks for developer/debug views (source, initial
+downscale, initial quantization, final pattern, importance map, edge
+map, component map, confetti map, jaggy warnings, modified-cells map).
+Disposition:
+- **Built**: `lib/diagnostics.ts` computes color/component counts,
+  single/two-cell component counts, average/median component size,
+  confetti ratio, a boundary-cell-pair count (thread-change proxy),
+  average compactness (perimeter²/area — see below), average
+  reconstruction error (OKLab distance from each cell's true source
+  color), and an edge-alignment score (do pattern boundaries actually
+  coincide with real source edges, per `lib/edge-map.ts`'s importance).
+  All of it is computed from data the pipeline already produces —
+  `lib/regions.ts` gained a `perimeter` field (computed for free during
+  the flood-fill labeling pass it already does) specifically to support
+  the compactness metric.
+- **Compactness substitutes for the spec's jaggy run-length metric,
+  not built separately.** Full jaggy detection needs contour
+  extraction (tracing a region's boundary as an ordered sequence of
+  edges, then measuring run-length regularity along diagonal
+  segments) — a materially bigger undertaking than anything else in
+  Phase D, and the spec's own section 13 already frames the exact
+  formula as "not obligatory, tune experimentally." Perimeter²/area is
+  a real, well-known shape-quality metric (isoperimetric ratio) that
+  responds to the same underlying problem — a ragged/fractal boundary
+  inflates perimeter relative to area exactly the way a jaggy one
+  does — so it's a genuine substitute, not a decorative stand-in, just
+  a coarser one that can't distinguish "jaggy" from "genuinely
+  complex shape." Banding detection (parallel stepped boundaries) has
+  no substitute at all — not built, honestly logged as not done rather
+  than faked with an unrelated metric.
+- **Golden-fixture regression suite built as metric-tolerance-band
+  assertions** (`tests/unit/regression.spec.ts`), per D6's own
+  golden-test-strategy decision — exact-pixel/palette-index equality
+  would break on every deliberate weight tuning and give no signal
+  about whether a change made quality better or worse. Covers the
+  flat-area-stability and edge-preservation synthetic cases from the
+  Owner's spec section 33 that weren't already covered by earlier
+  milestones' more targeted unit tests (orphan removal, important-
+  detail preservation, diagonal-pinch cleanup, and palette-redundancy
+  merging were already tested in M5-M7).
+- **Debug-visualization UI not built — deferred, not dropped.** The
+  underlying data mostly already exists (importance map, confetti
+  ratio, component labels) and could back a debug view later, but a
+  multi-canvas developer-facing panel (source/downscale/quantization/
+  final/importance/edge/component/confetti/jaggy/modified-cells views)
+  is a substantial UI feature aimed at a different audience than this
+  tool's actual end user (someone wanting a chart, not debugging the
+  algorithm). No Owner request for it beyond the original spec's own
+  section 29; building it now would be scope growth without a
+  concrete need driving it. If a future session or the Owner wants
+  this, `lib/diagnostics.ts` and the existing importance/region data
+  are the right foundation to build it from.
+- **Configurable weights**: already satisfied architecturally, not
+  newly built in M8 — every energy term and threshold across
+  `local-optimizer.ts`, `palette-optimizer.ts`, `contour-cleanup.ts`,
+  and `simulated-annealing.ts` has been a named, exported, overridable
+  constant with a documented default since the module was written
+  (M5-M7), per the spec's own "don't hardcode weights" instruction.
+  No UI exposes them (out of scope — this is an end-user tool, not a
+  tuning console), but the code-level configurability the spec asked
+  for is real, not superficial.
+
 ## Owner action list
 
 None yet — no escalation-tier blockers so far (no deploy, no accounts,
