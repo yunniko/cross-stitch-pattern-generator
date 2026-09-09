@@ -15,6 +15,35 @@ _(none)_
 
 ## Completed goals
 
+### G-005 · Selectable fabric count + inch/cm switcher — DONE (2026-09-09)
+- **What:** A small dropdown to choose the Aida fabric count used for the
+  finished-size estimate (was hardcoded to 14-count), and a switcher to
+  pick inches or centimeters instead of always showing both.
+- **Why:** Owner request (2026-09-09, chat), with an explicit ask to
+  research what real Aida counts exist rather than guessing at options.
+- **Acceptance criteria:** A compact selector offering real, standard
+  Aida counts; a unit switcher showing one unit at a time; both the live
+  readout and the downloaded chart's header reflect the current
+  selection.
+- **Constraints:** None stated; kept both controls compact per the
+  Owner's "small collapsed menu" framing.
+
+**Milestones**:
+- [x] M1 — Researched real Aida counts (3 independent sources, converging
+      on 11/14/16/18 as the standard range) before building anything.
+      ✔ 2026-09-09.
+- [x] M2 — `lib/finished-size.ts` parameterized by count and unit
+      (`STANDARD_AIDA_COUNTS`, `SizeUnit`); UI selector + toggle in
+      `app/page.tsx`; threaded through to the downloaded chart's header
+      via `RenderOptions`. ✔ 2026-09-09. 95 unit tests + 2 e2e green,
+      verified via a real headless-browser run (DOM class inspection,
+      not just a screenshot, since the small toggle was genuinely hard
+      to read visually) that both controls affect the live readout and
+      the downloaded chart correctly. See HANDOVER.md D19.
+
+**Progress log** (newest first):
+- 2026-09-09 — Built and verified in one session. See HANDOVER.md D19.
+
 ### G-004 · Fix small-region color loss at low color counts — DONE (2026-09-09)
 - **What:** A real k-means algorithmic flaw where a small but
   perceptually distinct region of the source photo (the Owner's example:

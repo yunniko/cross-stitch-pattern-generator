@@ -19,7 +19,7 @@ import {
   type SizePresetId,
   type StitchPattern,
 } from "@/lib/types";
-import { AIDA_COUNT_FOR_ESTIMATE, formatFinishedDimension } from "@/lib/finished-size";
+import { DEFAULT_AIDA_COUNT, STANDARD_AIDA_COUNTS, formatFinishedDimension, type SizeUnit } from "@/lib/finished-size";
 
 const PREVIEW_TARGET_WIDTH_PX = 720;
 
@@ -28,6 +28,8 @@ export default function Home() {
   const [sourceFileName, setSourceFileName] = useState<string | null>(null);
   const [sizePreset, setSizePreset] = useState<SizePresetId>("medium");
   const [customSize, setCustomSize] = useState(100);
+  const [aidaCount, setAidaCount] = useState<number>(DEFAULT_AIDA_COUNT);
+  const [sizeUnit, setSizeUnit] = useState<SizeUnit>("in");
   const [colorCount, setColorCount] = useState(16);
   const [pattern, setPattern] = useState<StitchPattern | null>(null);
   const [previewMode, setPreviewMode] = useState<RenderMode | "realistic">("color");
@@ -102,14 +104,16 @@ export default function Home() {
     const canvasPromise =
       previewMode === "realistic"
         ? renderStitchPreviewToCanvas(pattern, { cellSize: previewCellSize })
-        : Promise.resolve(renderPatternToCanvas(pattern, previewMode, { cellSize: previewCellSize }));
+        : Promise.resolve(
+            renderPatternToCanvas(pattern, previewMode, { cellSize: previewCellSize, aidaCount, sizeUnit })
+          );
     canvasPromise.then((canvas) => {
       if (!cancelled) setPreviewUrl(canvas.toDataURL("image/png"));
     });
     return () => {
       cancelled = true;
     };
-  }, [pattern, previewMode]);
+  }, [pattern, previewMode, aidaCount, sizeUnit]);
 
   function handleDownload(mode: RenderMode | "realistic") {
     if (!pattern) return;
@@ -118,7 +122,10 @@ export default function Home() {
     // high-color chart to a full-resolution canvas is real synchronous work.
     setTimeout(async () => {
       try {
-        const canvas = mode === "realistic" ? await renderStitchPreviewToCanvas(pattern) : renderPatternToCanvas(pattern, mode);
+        const canvas =
+          mode === "realistic"
+            ? await renderStitchPreviewToCanvas(pattern)
+            : renderPatternToCanvas(pattern, mode, { aidaCount, sizeUnit });
         const base = sourceFileName?.replace(/\.[^.]+$/, "") ?? "cross-stitch-pattern";
         downloadCanvasAsPng(canvas, `${base}-${mode}.png`);
       } finally {
@@ -192,9 +199,41 @@ export default function Home() {
               />
             </label>
           </div>
+          <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-700 dark:text-zinc-300">
+            <label className="flex items-center gap-1.5">
+              Fabric count:
+              <select
+                value={aidaCount}
+                onChange={(e) => setAidaCount(Number(e.target.value))}
+                className="rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              >
+                {STANDARD_AIDA_COUNTS.map((count) => (
+                  <option key={count} value={count}>
+                    {count}-count
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex items-center overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
+              {(["in", "cm"] as const).map((unit) => (
+                <button
+                  key={unit}
+                  type="button"
+                  onClick={() => setSizeUnit(unit)}
+                  className={`px-2 py-0.5 text-sm transition-colors ${
+                    sizeUnit === unit
+                      ? "bg-foreground text-background"
+                      : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+                  }`}
+                >
+                  {unit}
+                </button>
+              ))}
+            </div>
+          </div>
           {/* Live estimate surfaces the "how big is this" question before generating -- HANDOVER.md D7 (d). */}
           <p className="text-xs text-zinc-500">
-            ≈ {formatFinishedDimension(longerSideStitches)} on the longer side at {AIDA_COUNT_FOR_ESTIMATE}-count Aida
+            ≈ {formatFinishedDimension(longerSideStitches, aidaCount, sizeUnit)} on the longer side at {aidaCount}-count Aida
           </p>
         </section>
 

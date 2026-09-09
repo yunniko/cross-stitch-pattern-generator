@@ -1157,6 +1157,53 @@ reverted or discarded-before-shipping attempt produced on the same
 fixture. No performance regression (~29s either way on the project's own
 established gentle worst-case benchmark).
 
+**D19 — Selectable fabric count and a single-unit in/cm switcher, replacing
+the fixed 14-count/both-units display (2026-09-09).** Owner asked for a
+"small collapsed menu" to choose the Aida count (researching what sizes
+actually exist first) and an inch/cm switcher. Researched real Aida
+counts via web search rather than guessing (three independent guides —
+LoveCrafts, Stitched Modern/needlework-tips-and-techniques.com,
+crossstitchcalc.com, retrieved 2026-09-09 — converge on the same core
+set): 11, 14, 16, and 18-count as the standard, widely-available range
+(11 = beginner/open-weave, 14 = the default "most patterns assume,"
+16/18 = progressively finer detail); deliberately excluded 28-count
+"over 2" evenweave, since it isn't a plain stitches-per-inch fabric in
+the same sense and would need an "over 1 vs over 2" model this app
+doesn't have.
+
+`lib/finished-size.ts`'s `AIDA_COUNT_FOR_ESTIMATE` constant is now
+`DEFAULT_AIDA_COUNT` (still 14, unchanged default) plus an exported
+`STANDARD_AIDA_COUNTS = [11, 14, 16, 18]` list the UI selector reads
+from directly — adding a count later is a one-line change, not a UI
+rewrite. Every size-formatting function now takes `aidaCount` as a
+required parameter instead of reading the module constant, and a new
+`SizeUnit = "in" | "cm"` parameter replaces the old combined "X in / Y
+cm" string with a single-unit result — the Owner's "switcher" framing
+implied picking one, not showing both.
+
+`app/page.tsx` gained a `<select>` (the "collapsed menu," literally —
+a native select is closed until interacted with) for fabric count next
+to the existing size controls, and a small two-button segmented toggle
+for in/cm, both defaulting to today's prior behavior (14-count, inches)
+so existing users see no change unless they touch the new controls.
+Both are threaded through to `renderPatternToCanvas`'s `RenderOptions`
+(`aidaCount`, `sizeUnit`) so the downloaded chart's header matches
+whatever the live UI was showing at generation time, not just the live
+readout. `renderStitchPreviewToCanvas` is unaffected (no header to
+update).
+
+Verified for real: ESLint clean, `tsc --noEmit` clean, production build
+clean, all 95 unit tests (93 + 2 new for the count-and-unit
+parameterization, `tests/unit/finished-size.spec.ts` updated for the
+new signatures) + both e2e tests green, and a real headless-browser
+run — switched fabric count to 11 and unit to cm, confirmed via direct
+DOM class inspection (not just a screenshot, which at reduced
+resolution was genuinely hard to read correctly at this control's
+small size) that the toggle's active-state styling and the live
+readout both reflected the switch correctly (11.5 cm, matching
+50 stitches ÷ 11 × 2.54), then downloaded a chart and confirmed its
+header read "approx. 11.5 × 7.2 cm on 11-count Aida."
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

@@ -1,5 +1,5 @@
 import { luminance } from "./color";
-import { AIDA_COUNT_FOR_ESTIMATE, formatFinishedSize } from "./finished-size";
+import { DEFAULT_AIDA_COUNT, formatFinishedSize, type SizeUnit } from "./finished-size";
 import { buildTintedTextureSet } from "./stitch-texture";
 import type { PaletteColor, StitchPattern, RGB } from "./types";
 
@@ -8,6 +8,10 @@ export type RenderMode = "color" | "bw";
 export interface RenderOptions {
   /** Preferred pixel size of one stitch cell before the max-canvas-size clamp applies. */
   cellSize?: number;
+  /** Fabric count used for the header's finished-size estimate (see lib/finished-size.ts). */
+  aidaCount?: number;
+  /** Unit for the header's finished-size estimate. */
+  sizeUnit?: SizeUnit;
 }
 
 const DEFAULT_CELL_SIZE = 24;
@@ -193,9 +197,15 @@ function drawRowColumnNumbers(ctx: CanvasRenderingContext2D, width: number, heig
   }
 }
 
-/** Design size in stitches and an estimated finished size at a common Aida count — conventional on published charts (docs/domain-reference.md §1, §4). */
-function drawHeader(ctx: CanvasRenderingContext2D, pattern: StitchPattern, canvasWidth: number) {
-  const text = `${pattern.width} × ${pattern.height} stitches — approx. ${formatFinishedSize(pattern.width, pattern.height)} on ${AIDA_COUNT_FOR_ESTIMATE}-count Aida`;
+/** Design size in stitches and an estimated finished size at the selected Aida count — conventional on published charts (docs/domain-reference.md §1, §4). */
+function drawHeader(
+  ctx: CanvasRenderingContext2D,
+  pattern: StitchPattern,
+  canvasWidth: number,
+  aidaCount: number,
+  sizeUnit: SizeUnit
+) {
+  const text = `${pattern.width} × ${pattern.height} stitches — approx. ${formatFinishedSize(pattern.width, pattern.height, aidaCount, sizeUnit)} on ${aidaCount}-count Aida`;
 
   ctx.fillStyle = "#111111";
   ctx.font = `13px ${FONT_STACK}`;
@@ -343,7 +353,7 @@ export function renderPatternToCanvas(
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  drawHeader(ctx, pattern, canvas.width);
+  drawHeader(ctx, pattern, canvas.width, options.aidaCount ?? DEFAULT_AIDA_COUNT, options.sizeUnit ?? "in");
 
   ctx.save();
   ctx.translate(leftGutter, HEADER_HEIGHT + topGutter);
