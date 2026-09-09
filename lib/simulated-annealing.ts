@@ -1,4 +1,5 @@
 import { edgeBetweenCells } from "./edge-map";
+import { boundaryPairEnergy } from "./energy";
 import { oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
 import { mulberry32 } from "./prng";
 import { DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, type LocalOptimizerWeights } from "./local-optimizer";
@@ -69,13 +70,9 @@ export function runSimulatedAnnealing(
     let boundaryEnergy = 0;
     for (const n of neighborsOf(i, width, height)) {
       const edge = edgeBetweenCells(cellImportance, i, n);
-      if (color !== assignment[n]) {
-        boundaryEnergy += options.weights.smoothness * (1 - edge);
-      } else {
-        boundaryEnergy += options.weights.edgeLoss * edge;
-      }
+      boundaryEnergy += boundaryPairEnergy(options.weights, edge, color !== assignment[n]);
     }
-    return options.weights.color * colorTerm + (1 - cellImportance[i]) * boundaryEnergy;
+    return options.weights.color * colorTerm + boundaryEnergy;
   }
 
   let temperature = options.initialTemperature;

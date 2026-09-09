@@ -96,14 +96,26 @@ describe("runLocalOptimizer", () => {
     expect(optimized[detail.centerCell]).toBe(0); // smoothed away to background
   });
 
-  it("with a real importance map, that same genuine detail survives", () => {
+  it("with a real importance map AND a nonzero edgeLoss weight, that same genuine detail survives", () => {
+    // edgeLoss must be nonzero to test this meaningfully -- DEFAULT_LOCAL_OPTIMIZER_WEIGHTS'
+    // edgeLoss:0 exists to reproduce Phase A exactly (see its own docstring)
+    // and was never meant to represent real edge-aware behavior on its own;
+    // the pipeline always runs the fine pass with edgeLoss:0.05 in practice
+    // (DEFAULT_MULTI_SCALE_WEIGHTS.fine). At edge=0.7 here, that's enough to
+    // clamp the mismatch penalty to zero entirely (weights.smoothness*(1-0.7)
+    // - weights.edgeLoss*0.7 = 0.0135 - 0.035 < 0, clamped to 0) -- a boundary
+    // this edge-justified costs nothing, so the cell's own true color wins.
     const detail = makeSourceWithDot();
     const cells = downsampleToGrid(detail.source, 5, 5);
     const initial = new Uint8Array(25).fill(0);
     initial[detail.centerCell] = 1;
     const importance = computeCellImportance(detail.source, computeEdgeMagnitude(detail.source), 5, 5);
 
-    const optimized = runLocalOptimizer(cells, initial, detail.palette, importance);
+    const optimized = runLocalOptimizer(cells, initial, detail.palette, importance, {
+      color: 1,
+      smoothness: 0.045,
+      edgeLoss: 0.05,
+    });
 
     expect(optimized[detail.centerCell]).toBe(1); // preserved
   });

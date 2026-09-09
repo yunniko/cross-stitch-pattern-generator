@@ -1,14 +1,11 @@
 import { edgeBetweenCells } from "./edge-map";
+import { boundaryPairEnergy, type PairEnergyWeights } from "./energy";
 import { oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
 import { cellRgb, type CellColorBuffer, type RGB } from "./types";
 
-export interface LocalOptimizerWeights {
+export interface LocalOptimizerWeights extends PairEnergyWeights {
   /** Weight on OKLab squared distance to the source cell color. */
   color: number;
-  /** Weight per mismatched 4-neighbor, discounted by that boundary's edge strength — the spatial-regularization term. */
-  smoothness: number;
-  /** Weight for erasing a real source edge (choosing to *match* a neighbor across a strong edge). Zero reproduces Phase A (no edge awareness). */
-  edgeLoss: number;
 }
 
 export const DEFAULT_LOCAL_OPTIMIZER_WEIGHTS: LocalOptimizerWeights = {
@@ -28,21 +25,20 @@ const MAX_PASSES = 8;
  * whichever minimizes the energy below; repeat until a full pass makes no
  * changes (or MAX_PASSES is hit).
  *
- * `importance` (0-1 per cell, from `lib/edge-map.ts`) does two things,
- * matching the Owner's spec sections 7/12/24 — Phase B, HANDOVER.md D8:
- * - Scales down the smoothness pressure on high-importance cells, so a
- *   genuinely important single-cell detail isn't smoothed away just because
- *   it disagrees with its neighbors (the exact failure Phase A had, with no
- *   importance signal to protect against it).
- * - Feeds `edgeBetweenCells` (an approximation: the stronger of the two
- *   cells' own importance) so a *mismatch* across a real edge costs less
- *   than the flat per-mismatch penalty (a real boundary is desirable, not
- *   noise), while *erasing* a real edge (matching across it) costs the new
- *   `edgeLoss` term instead.
- * Passing no `importance` (or all-zero) reproduces Phase A's plain
- * mismatch-counting exactly — this is a strict generalization, not a
- * separate code path (verified by the Phase A tests still passing
- * unmodified against this file).
+ * `importance` (0-1 per cell, from `lib/edge-map.ts`) feeds `edgeBetweenCells`
+ * (the stronger of the two cells' own importance) so a mismatch across a
+ * real edge costs less than the flat per-mismatch penalty — a real boundary
+ * is desirable, not noise (spec sections 7/12/24, Phase B, HANDOVER.md D8).
+ * There is deliberately no separate per-cell "protection" multiplier beyond
+ * that: an earlier version multiplied the whole boundary term by
+ * `1 - importance[i]`, which is asymmetric between a pair's two cells and
+ * broke ICM's single-global-energy requirement (Besag 1986) — removed per
+ * a 2026-09-09 domain-expert review, HANDOVER.md D11. `edge = max(imp_i,
+ * imp_n)` already carries a high-importance cell's own importance into
+ * every one of its boundary terms, so nothing is lost by relying on it
+ * alone (confirmed: the eye-highlight detail-preservation test still
+ * passes). Passing no `importance` (or all-zero) reproduces plain
+ * mismatch-counting with no edge discount at all.
  */
 export function runLocalOptimizer(
   cells: CellColorBuffer,
@@ -72,8 +68,6 @@ export function runLocalOptimizer(
         if (y > 0) neighbors.push(i - width);
         if (y < height - 1) neighbors.push(i + width);
 
-        const protection = 1 - cellImportance[i];
-
         let best = assignment[i];
         let bestEnergy = Infinity;
         for (let c = 0; c < paletteOklab.length; c++) {
@@ -82,18 +76,10 @@ export function runLocalOptimizer(
           let boundaryEnergy = 0;
           for (const n of neighbors) {
             const edge = edgeBetweenCells(cellImportance, i, n);
-            if (c !== assignment[n]) {
-              // A boundary here is desirable where a real edge justifies it,
-              // noise where it doesn't -- scale the flat penalty down by
-              // how edge-justified this specific boundary is.
-              boundaryEnergy += weights.smoothness * (1 - edge);
-            } else {
-              // Matching across a strong real edge erases it.
-              boundaryEnergy += weights.edgeLoss * edge;
-            }
+            boundaryEnergy += boundaryPairEnergy(weights, edge, c !== assignment[n]);
           }
 
-          const energy = weights.color * colorTerm + protection * boundaryEnergy;
+          const energy = weights.color * colorTerm + boundaryEnergy;
           if (energy < bestEnergy) {
             bestEnergy = energy;
             best = c;
