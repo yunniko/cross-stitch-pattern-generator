@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { loadImageAsPixelBuffer } from "@/lib/load-image";
-import { buildPattern } from "@/lib/pattern";
+import { runPatternJob } from "@/lib/pattern-client";
 import { downloadCanvasAsPng, renderPatternToCanvas, type RenderMode } from "@/lib/render";
 import {
   MAX_COLORS,
@@ -26,6 +26,8 @@ export default function Home() {
   const [pattern, setPattern] = useState<StitchPattern | null>(null);
   const [previewMode, setPreviewMode] = useState<RenderMode>("color");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -45,7 +47,7 @@ export default function Home() {
     }
   }
 
-  function handleGenerate() {
+  async function handleGenerate() {
     if (!pixelBuffer) {
       setError("Upload an image first.");
       return;
@@ -60,19 +62,22 @@ export default function Home() {
     }
     setError(null);
     setIsProcessing(true);
-    // Deferred so the "Generating..." state actually paints before the
-    // synchronous k-means work (which can take a moment on large/high-color
-    // patterns) blocks the main thread.
-    setTimeout(() => {
-      try {
-        const result = buildPattern(pixelBuffer, { longerSideStitches, colorCount });
-        setPattern(result);
-      } catch {
-        setError("Couldn't generate a pattern from that image.");
-      } finally {
-        setIsProcessing(false);
-      }
-    }, 0);
+    setProgress(0);
+    try {
+      // Runs in a Web Worker so k-means/the local optimizer (real,
+      // sometimes multi-second work at large sizes) never blocks this tab.
+      const result = await runPatternJob({
+        imageData: pixelBuffer,
+        longerSideStitches,
+        colorCount,
+        onProgress: setProgress,
+      });
+      setPattern(result);
+    } catch {
+      setError("Couldn't generate a pattern from that image.");
+    } finally {
+      setIsProcessing(false);
+    }
   }
 
   const previewUrl = useMemo(() => {
@@ -84,9 +89,18 @@ export default function Home() {
 
   function handleDownload(mode: RenderMode) {
     if (!pattern) return;
-    const canvas = renderPatternToCanvas(pattern, mode);
-    const base = sourceFileName?.replace(/\.[^.]+$/, "") ?? "cross-stitch-pattern";
-    downloadCanvasAsPng(canvas, `${base}-${mode}.png`);
+    setIsDownloading(true);
+    // Deferred so "Preparing..." actually paints first — rendering a large,
+    // high-color chart to a full-resolution canvas is real synchronous work.
+    setTimeout(() => {
+      try {
+        const canvas = renderPatternToCanvas(pattern, mode);
+        const base = sourceFileName?.replace(/\.[^.]+$/, "") ?? "cross-stitch-pattern";
+        downloadCanvasAsPng(canvas, `${base}-${mode}.png`);
+      } finally {
+        setIsDownloading(false);
+      }
+    }, 0);
   }
 
   return (
@@ -178,7 +192,7 @@ export default function Home() {
             disabled={!pixelBuffer || isProcessing}
             className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-[#ccc]"
           >
-            {isProcessing ? "Generating…" : "Generate pattern"}
+            {isProcessing ? `Generating… ${Math.round(progress * 100)}%` : "Generate pattern"}
           </button>
           {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
         </section>
@@ -224,16 +238,18 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => handleDownload("color")}
-                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]"
+                disabled={isDownloading}
+                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
               >
-                Download color PNG
+                {isDownloading ? "Preparing…" : "Download color PNG"}
               </button>
               <button
                 type="button"
                 onClick={() => handleDownload("bw")}
-                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]"
+                disabled={isDownloading}
+                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
               >
-                Download black &amp; white PNG
+                {isDownloading ? "Preparing…" : "Download black & white PNG"}
               </button>
             </div>
           </section>
