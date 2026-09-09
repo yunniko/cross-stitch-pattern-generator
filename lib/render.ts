@@ -342,7 +342,7 @@ export function renderPatternToCanvas(
 // chart variant, so it carries none of drawChart's grid/symbol/legend/marker
 // machinery.
 const FABRIC_COLOR = "#f0e9d8";
-const STITCH_WIDTH_RATIO = 0.16;
+const STITCH_WIDTH_RATIO = 0.4;
 const PREVIEW_BORDER = 16;
 
 /**

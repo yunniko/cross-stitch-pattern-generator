@@ -834,6 +834,17 @@ e2e all still green, plus a fresh headless-browser screenshot and
 full-resolution download inspection confirming the tighter, thinner
 result at both preview and full-res scale.
 
+**D14 follow-up 2 (same day):** That made the strands too thin for the
+Owner's taste — asked for the stitches themselves wider, "filling much
+more of the given box without enlarging the box itself" (i.e. keep
+`cellSize` untouched, just make each X chunkier). Raised
+`STITCH_WIDTH_RATIO` from 0.16 to 0.4 — cell size and stitch count are
+unaffected, only the stroke width driving how much of each cell the X
+visually covers. Re-verified the same way (lint/typecheck/build/tests
+green, fresh screenshot + full-res download inspected): the crosses
+now fill most of each cell, with only small fabric-colored diamonds
+showing between them.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
