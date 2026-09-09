@@ -198,18 +198,45 @@ change. Acceptance criterion 4 is amended accordingly:
       tests + 2 e2e green after all fixes; confetti ratio on the
       regression suite's noisy fixture ended up *better* than the
       pre-fix baseline, not just recovered.
-- [ ] M9a — Deferred from the M4 domain-expert review (HANDOVER.md D7):
+- [x] M9a — Deferred from the M4 domain-expert review (HANDOVER.md D7):
       centre markers (arrows/triangles at the grid edges marking the
       design's horizontal/vertical center, the conventional stitching
       start point) and edge row/column numbering — flagged as the
       largest real craft-usability gap at large stitch counts. Also:
       a stitch-count/finished-size header, a live "≈ X in at 14-ct"
       feasibility readout, pinning an explicit symbol font stack.
+      ✔ 2026-09-09 — all built in `lib/render.ts` (HANDOVER.md D12).
+      Found and fixed a real double-counted-margin bug in my own first
+      layout draft before it shipped; chased what looked like a second
+      real bug (the right-edge marker appearing completely absent) all
+      the way to direct pixel-level verification before concluding it
+      was a screenshot-resolution artifact, not an actual defect — see
+      D12 for the full story. Verified at a small, fully-legible
+      pattern size where all four markers, both axes of numbering, and
+      the header are clearly visible together in one real screenshot.
+      84 unit tests + 2 e2e still green (no unit coverage for render.ts
+      itself — DOM-dependent, verified via e2e + manual browser runs
+      per the project's existing convention for that file).
 - [ ] M9 — README/HANDOVER finalized, final end-to-end verification
       (real image through the whole flow, both downloads inspected,
       before/after comparison against the pre-amendment output), done.
 
 **Progress log** (newest first):
+- 2026-09-09 — M9a completed (Owner: "go ahead"). Added centre-marker
+  triangles, row/column numbering, a stitch-count/finished-size header,
+  and a pinned font stack to `lib/render.ts`, plus a live finished-size
+  readout in the UI — closing the largest gap the M4 domain-expert
+  review found. Found and fixed a real bug in my own first draft (the
+  right/bottom gutter was being double-reserved on whichever side the
+  legend already attaches to). Also spent real effort chasing what
+  looked like a second bug — the right-edge marker appeared completely
+  missing from every screenshot — through a full fresh-server restart
+  and direct canvas pixel sampling before concluding it was genuinely
+  present, just too small (~10px) to distinguish from an adjacent
+  gridline of the same color at reduced screenshot resolution, not an
+  actual defect. Verified at a small pattern size where all four
+  markers, both number axes, and the header are clearly visible
+  together in one real screenshot. 84 unit tests + 2 e2e green.
 - 2026-09-09 — M8 completed (Owner: "continue"). Built `lib/diagnostics.ts`
   (color/component counts, confetti ratio, compactness, reconstruction
   error, edge-alignment score) and a golden-fixture regression suite

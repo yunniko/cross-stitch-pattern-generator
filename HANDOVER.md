@@ -7,23 +7,23 @@ no shared subdomain), per an explicit Owner choice on 2026-09-09.
 
 ## Current state
 
-M1–M8 built and verified (2026-09-09): upload → generate (in a Web
+M1–M9a built and verified (2026-09-09): upload → generate (in a Web
 Worker) → preview → download works end-to-end with a genuine
 region-aware, edge/importance-aware, contour-cleaned-up optimizer
 (OKLab k-means → ICM local smoothing weighted by a Sobel-based
 importance map → component recoloring + diagonal-pinch fixes →
 palette merge → palette recomputed from final cell membership),
-plus real diagnostic metrics and a golden-fixture regression suite.
-A second domain-expert review (against the actual new algorithm, not
-the pre-amendment one) found and this session fixed 4 provable
-correctness bugs and a real robustness gap — see D11, including two
-regressions my own first-attempt fixes caused and caught before
-shipping. Both orientations and both render modes visually confirmed
-via a real headless browser against noisy/low-contrast/detail-
-preservation synthetic photos. All automated checks green (ESLint,
-`tsc`, production build, 84 Vitest unit tests, 2 Playwright e2e
-tests). Not yet done: M9a (centre markers/row-column numbering), M9's
-final polish.
+plus real diagnostic metrics, a golden-fixture regression suite, and
+real chart-convention chrome (centre markers, row/column numbering, a
+size/finished-size header). A second domain-expert review (against the
+actual new algorithm) found and this session fixed 4 provable
+correctness bugs and a real robustness gap in the optimizer — see D11,
+including two regressions my own first-attempt fixes caused and caught
+before shipping. Both orientations and both render modes visually
+confirmed via a real headless browser against noisy/low-contrast/
+detail-preservation synthetic photos. All automated checks green
+(ESLint, `tsc`, production build, 84 Vitest unit tests, 2 Playwright
+e2e tests). Not yet done: M9's final polish pass.
 
 ## How things fit together
 
@@ -658,6 +658,56 @@ foggy photo) plus a controlled quantitative before/after using a git
 worktree at the pre-D11 commit, not just re-running the existing
 suite — the suite alone did not catch either regression described
 above, since both "wrong" versions still passed every existing test.
+
+**D12 — M9a: centre markers, row/column numbering, a size header, and
+a pinned font stack (2026-09-09).** The M4 domain-expert review flagged
+missing centre markers and edge numbering as the largest remaining
+craft-usability gap at large stitch counts (HANDOVER.md D7). Added to
+`lib/render.ts`: small inward-pointing triangle arrows at the midpoint
+of each of the four chart edges (marking the design's horizontal/
+vertical centre — the conventional stitching start point on a real
+chart); column numbers along the top and row numbers along the left at
+every major (10-stitch) gridline; a one-line header above the chart
+("`{w} × {h} stitches — approx. {in} × {in} in on 14-count Aida`");
+and a pinned `Arial, 'Segoe UI', sans-serif` font stack everywhere
+canvas text is drawn, replacing a bare `sans-serif` generic family
+(the domain review flagged a real, if unverified-in-session,
+emoji-fallback risk for some curated symbol glyphs on some platforms'
+fallback fonts). `app/page.tsx` also gained a live "≈ X in on the
+longer side at 14-count Aida" readout next to the size control, so the
+feasibility question (a 1000-stitch pattern is a 71-inch, multi-year
+project) is visible before generating, not just on the downloaded
+chart.
+
+Canvas layout was restructured to add left/top gutters (marker +
+numbers) and right/bottom gutters (marker only) around the existing
+chart+legend layout. Found and fixed a real bug in my own first draft
+before it shipped: the right/bottom gutter was being added
+*unconditionally* in addition to the space `legendCanvasExtent` already
+reserves on whichever side the legend attaches to (that gap doubles as
+the arrow marker's space on that side) — this would have produced a
+canvas with wasted duplicate margin on the legend's own side. Fixed by
+only adding the gutter on the side *opposite* the legend
+(`rightGutter = belowChart ? MARKER_MARGIN : 0`, and the mirror for
+`bottomGutter`).
+
+Also chased what looked like a second real bug — the right-edge marker
+appeared completely absent from every screenshot, confirmed via a
+fresh dev-server restart (ruling out stale hot-reload) and direct
+`getImageData` pixel sampling at multiple candidate coordinates before
+finding the actual explanation: the sampled row happened to sit
+*exactly* on a full-width major horizontal gridline (both drawn in the
+same dark gray), and the marker itself is only ~10px wide on a
+3600px-tall chart — genuinely present (confirmed by sampling a precise
+white gap immediately before it, then the marker's own dark pixels
+right at the canvas edge) but too small to distinguish from the
+adjacent gridline in a screenshot viewed at reduced display
+resolution. Re-verified at a smaller, more legible pattern size where
+all four markers, both axes of numbering, and the header are clearly
+visible together in one screenshot. Logged in full because it's a
+useful lesson on its own: "looks structurally like the A3/A4
+regressions" doesn't mean it *is* one — verify what's actually
+happening before concluding a fix is needed.
 
 ## Owner action list
 
