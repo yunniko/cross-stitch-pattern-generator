@@ -11,7 +11,81 @@ svc-lab).
 
 ## Active goals
 
-_(none)_
+### G-007 · Interactive pattern editor — ACTIVE
+- **What:** An in-browser editor for a generated pattern, entered either
+  via an "Edit" button right after generation or by opening a
+  previously-downloaded editable file. Shows the stitch grid and an
+  interactive legend side by side, with undo/redo.
+- **Why:** Owner request (2026-09-09, chat) — the generator gets a real
+  photo's colors close but not perfect, and the Owner wants to be able
+  to clean up/adjust the result by hand afterward rather than only
+  re-running generation with different settings.
+- **Acceptance criteria:**
+  1. Undo and redo buttons, working across every edit type below.
+  2. Dragging one legend color onto another merges them: the dragged
+     (source) color disappears from the legend, and every stitch that
+     had it now has the target color.
+  3. Dragging a legend color onto the picture fills the whole connected
+     region ("cluster" — same 4-connected concept `lib/regions.ts`
+     already uses internally) that was dropped onto with that color.
+  4. Selecting a color as "active" (click, not drag) and then clicking
+     any single stitch on the picture repaints just that one stitch.
+  5. An existing palette color's actual RGB can be edited via a real
+     color-picker widget (not a bare `<input type="color">`).
+  6. A brand-new color, not derived from the source photo, can be added
+     to the palette.
+  7. A "Download editable" option exists alongside the existing PNG
+     downloads (color/B&W/realistic), saving a plain JSON file with the
+     full pattern state; that file can be opened back into the editor
+     later, resuming editing (fresh undo history is fine — history
+     itself doesn't need to survive a save/load round-trip).
+- **Constraints:** Editable file format is plain JSON, not a PNG with
+  embedded data (Owner decision, 2026-09-09 — the PNG-hybrid option was
+  presented and explicitly not chosen, given the real added engineering
+  complexity of hand-writing custom PNG chunks for no functional gain).
+  Stay 100% client-side, matching the rest of the app.
+
+**Milestones**:
+- [ ] M1 — Core edit-mutation functions (pure, unit-tested, no UI):
+      merge two colors, fill a cluster, paint a single stitch, edit a
+      color's RGB, add a new color (with symbol + name assignment that
+      doesn't reshuffle existing colors' names), all operating on the
+      existing `StitchPattern` shape. Undo/redo history stack (snapshot-
+      based) as its own tested module.
+- [ ] M2 — Editor UI shell: a new editor view/mode, DOM-based (not
+      canvas-drawn) interactive legend so native drag-and-drop works
+      normally, a grid-only canvas (no legend/header/markers baked in,
+      for simple click-to-cell hit-testing), undo/redo buttons wired to
+      M1's history stack, entered via an "Edit" button shown after
+      generation.
+- [ ] M3 — Interactive editing wired up for real: legend-to-legend
+      merge drag, legend-to-picture cluster-fill drag, active-color-
+      select + click-to-paint. Verified in a real browser for each
+      interaction, not just unit-tested.
+- [ ] M4 — Color editing & adding: integrate a real color-picker
+      component (`react-colorful` is the leading candidate — tiny, zero
+      dependencies, actively maintained; confirmed at implementation
+      time), wire it to the edit-color and add-color flows.
+- [ ] M5 — Save/load: the JSON editable format, a "Download editable"
+      button alongside the existing PNG downloads, and an "Open
+      editable pattern" entry point that reconstructs the pattern and
+      drops the user straight into the editor. Verified with a real
+      round-trip (download, then re-open the same file).
+- [ ] M6 — Polish and integration: zero-stitch-count colors (e.g. an
+      added-but-never-used color) are compacted away before the final
+      PNG exports from the editor, matching the existing invariant
+      elsewhere in the app (HANDOVER.md D9) — but stay visible inside
+      the editor itself, since adding a color before using it anywhere
+      is the normal workflow. Perf check at a large grid size. Full
+      regression pass. A real end-to-end browser run through the whole
+      workflow: generate → edit (merge + cluster-fill + paint + recolor
+      + add color) → download editable → reload the page → open that
+      file → keep editing → download final PNG.
+
+**Progress log** (newest first):
+- 2026-09-09 — Goal planned and milestones written. Editable-format
+  decision (plain JSON, not PNG-with-embedded-data) made via
+  AskUserQuestion per the Owner's explicit choice. Not yet started.
 
 ## Completed goals
 

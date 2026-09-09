@@ -1257,6 +1257,27 @@ confirmed by checking a color count where the two are known to diverge
 before concluding anything, rather than assuming a bug from one data
 point.)
 
+**D21 — Planned G-007 (interactive pattern editor); editable file format
+decided as plain JSON, not PNG-with-embedded-data (2026-09-09).** Owner
+asked to plan (not yet build) a substantial new feature: an in-browser
+editor for a generated pattern (merge colors, fill a connected cluster,
+paint single stitches, edit/add colors, undo/redo, save/reopen an
+"editable" file). Full acceptance criteria and a 6-milestone breakdown
+written into GOALS.md's G-007 — see that entry rather than duplicating
+it here.
+
+One decision was made during planning, via `AskUserQuestion`, since it
+materially changes engineering scope rather than being a detail: the
+"editable" download is a plain JSON file capturing the pattern's full
+state (grid size, per-stitch palette indices, palette), not a PNG with
+the same data hidden in an embedded metadata chunk. The PNG-hybrid
+option was presented with its real tradeoff (one familiar, previewable
+file vs. needing a hand-built PNG chunk writer/parser, since browsers
+give no way to write custom PNG chunks from a canvas) — the Owner chose
+plain JSON. Nothing else about G-007 has started; this decision was
+locked in during planning specifically so M5 (save/load) doesn't need
+to re-litigate it mid-implementation.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
@@ -1319,3 +1340,24 @@ point.)
   a "Preparing…" busy state on the download buttons (fixed same session
   as M5, `app/page.tsx`'s `handleDownload`) — previously this handler
   had no loading indicator at all.
+
+## Independent review — 2026-09-09
+
+Owner requested a review of the hub's cross-stitch projects. One dedicated
+project was found and reviewed at `772f7ca`; the full findings, reproductions,
+priorities, improvement suggestions, and verification limits are in
+[`docs/reviews/2026-09-09-code-review.md`](docs/reviews/2026-09-09-code-review.md).
+No application fixes were made. The review found nine issues, led by an old
+generation result being displayed and downloaded under a replacement image's
+filename, spatial bias from whole-pixel resampling, an inconsistent palette
+error objective, and export/render failure handling. These findings remain
+open; the earlier completed-goal records do not imply they are resolved.
+
+Verification: 96 unit tests, lint, typecheck, and production build passed;
+both existing browser tests passed against the local production build.
+Additional controlled browser/core probes reproduced the reported edge cases.
+The original dev-server e2e invocation passed its assertions but hung during
+teardown and was interrupted. iOS, Docker builds, maximum canvas allocation,
+and deployment parity were not verified. The report also identifies stale
+current-state/next-step summaries above; historical decision entries were
+preserved.
