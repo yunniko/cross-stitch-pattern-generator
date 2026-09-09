@@ -145,10 +145,19 @@ change. Acceptance criterion 4 is amended accordingly:
       large coherent regions and no visible confetti in either color or
       B&W mode, and the palette-merge step collapsed 16 requested
       colors to 12 on its own. Full detail in HANDOVER.md D6.
-- [ ] M6 — Phase B: edge map + importance map (Sobel/gradient-magnitude
+- [x] M6 — Phase B: edge map + importance map (Sobel/gradient-magnitude
       proxy, no ML segmentation available) folded into the optimizer's
       energy as an edge-preservation term; coarse-to-fine multi-scale
-      pass ordering.
+      pass ordering. ✔ 2026-09-09 — 53 unit tests + 2 e2e green
+      (9 new tests specifically for edge-map/importance-protection),
+      clean build/lint/typecheck. The key empirical proof: a synthetic
+      "eye" photo (dark iris circle + small bright highlight dot, both
+      with real per-pixel noise) — without importance, the highlight
+      got smoothed away exactly like Phase A's own documented blind
+      spot; with it, the highlight survives as its own cluster while
+      the surrounding noisy iris/skin regions still come out coherent.
+      Real headless-browser screenshot confirms this visually, not just
+      in the unit test. Full detail in HANDOVER.md D8.
 - [ ] M7 — Phase C: contour-quality cleanup as a distinct post-process
       (diagonal-only-connection fixes, one-cell hole/protrusion removal,
       jaggy run-length regularization, banding detection) + multi-cell/
@@ -174,6 +183,24 @@ change. Acceptance criterion 4 is amended accordingly:
       before/after comparison against the pre-amendment output), done.
 
 **Progress log** (newest first):
+- 2026-09-09 — M6 completed (Owner: "go ahead"). Added `lib/edge-map.ts`
+  (Sobel gradient magnitude + per-cell importance, since no ML
+  segmentation model is available) and extended the ICM local optimizer
+  to weight its smoothness/edge-loss terms by that importance — a
+  strict generalization of Phase A (zero importance reproduces Phase
+  A's plain mismatch-counting exactly, verified by the Phase A tests
+  passing unmodified). Added `runMultiScaleOptimizer` (coarse pass with
+  high smoothness/low edge-fidelity, then a fine pass with full
+  edge-awareness) per the Owner's section 21. Empirically tuned the
+  detail-preservation test against real computed values rather than
+  guessing constants (a 1:1 source:grid mapping gave zero importance at
+  a lone dot's own cell, since Sobel gradients are computed from
+  neighbor pixels, not the center — realistic downsampling ratios where
+  a cell aggregates multiple source pixels don't have this issue;
+  logged as HANDOVER.md D8's caveat). 53 unit tests + 2 e2e green, and
+  a real headless-browser run against a synthetic "eye" photo (dark
+  iris + small bright highlight, both with real noise) confirmed the
+  highlight survives while surrounding noise still gets cleaned up.
 - 2026-09-09 — M4 and M5 completed in one session. M4: domain-expert
   review of the pre-amendment implementation (docs/domain-reference.md,
   disposition in HANDOVER.md D7). Mid-review, the Owner sent a detailed

@@ -7,15 +7,18 @@ no shared subdomain), per an explicit Owner choice on 2026-09-09.
 
 ## Current state
 
-M1–M5 built and verified (2026-09-09): upload → generate (in a Web
+M1–M6 built and verified (2026-09-09): upload → generate (in a Web
 Worker) → preview → download works end-to-end with a genuine
-region-aware optimizer (OKLab k-means + ICM local smoothing + palette
+region-aware, edge/importance-aware optimizer (OKLab k-means → ICM
+local smoothing weighted by a Sobel-based importance map → palette
 merge), both orientations and both render modes visually confirmed via
-a real headless browser against a noisy synthetic photo (large coherent
-regions, no visible confetti). All automated checks green (ESLint,
-`tsc`, production build, 44 Vitest unit tests, 2 Playwright e2e tests).
-Not yet done: M6-M9a (edge/importance-awareness, contour cleanup,
-diagnostics, centre markers/row-column numbering), M9's final polish.
+a real headless browser against noisy synthetic photos — including one
+purpose-built to test detail preservation (a small real highlight
+inside a noisy dark region survives, while surrounding noise still
+gets cleaned up). All automated checks green (ESLint, `tsc`, production
+build, 53 Vitest unit tests, 2 Playwright e2e tests). Not yet done:
+M7-M9a (contour cleanup, diagnostics, centre markers/row-column
+numbering), M9's final polish.
 
 ## How things fit together
 
@@ -38,9 +41,14 @@ diagnostics, centre markers/row-column numbering), M9's final polish.
   itself: `lib/downsample.ts` (`PixelBuffer` → one linear-light-averaged
   RGB per stitch cell, as a `CellColorBuffer` typed-array buffer) →
   `lib/quantize.ts`'s `kMeansQuantizer` (OKLab-space k-means → palette +
-  per-cell palette index) → `lib/local-optimizer.ts`'s
-  `runLocalOptimizer` (ICM smoothing pass — ties down confetti/orphan
-  cells) → `lib/palette-optimizer.ts`'s `mergeSimilarColors` (collapses
+  per-cell palette index) → in parallel, `lib/edge-map.ts` computes a
+  per-cell importance map straight from the original source `PixelBuffer`
+  (Sobel edge magnitude + internal luminance contrast, since no ML
+  segmentation model exists) → `lib/local-optimizer.ts`'s
+  `runMultiScaleOptimizer` (a coarse ICM pass then a fine one, both
+  weighted by that importance — ties down confetti/orphan cells *and*
+  protects genuinely important small details/real edges) →
+  `lib/palette-optimizer.ts`'s `mergeSimilarColors` (collapses
   near-duplicate palette entries) → sorts the palette dark-to-light,
   assigns symbols from `lib/symbols.ts` → `StitchPattern`.
   `lib/render.ts`'s `renderPatternToCanvas` (pure `StitchPattern` →
@@ -309,6 +317,54 @@ re-reviewed from scratch later. Disposition:
   Guide) mark every 10, never every 5. Wording fixed; grid behavior
   unchanged (it's a real, defensible, if non-mainstream, choice — see
   above).
+
+**D8 — Phase B (M6): edge/importance-map awareness added as a strict
+generalization of Phase A, not a separate code path (2026-09-09).**
+`lib/edge-map.ts` computes a Sobel gradient-magnitude map on the source
+image's luminance, then a per-cell importance value (0-1) combining the
+max edge magnitude found inside each cell with that cell's own internal
+luminance contrast — the Owner's spec section 4's fallback formula
+("edge strength + local contrast") when no ML segmentation/saliency
+model is available (there isn't one here). `lib/local-optimizer.ts`'s
+`runLocalOptimizer` now takes this importance and: (a) scales down the
+smoothness penalty on high-importance cells so they resist being pulled
+to match neighbors, and (b) treats a mismatch across a real edge as
+*desirable* (discounted penalty) while treating erasing a real edge
+(matching across it) as its own costed term (`edgeLoss`) — directly
+implementing spec sections 7/12/24. Critically, passing no importance
+(or an all-zero map) reproduces Phase A's plain per-mismatch penalty
+*exactly* — verified by every Phase A unit test passing unmodified
+against the new code, not just asserted. `runMultiScaleOptimizer` runs
+two passes (high-smoothness/low-edge-fidelity "coarse" pass, then the
+real edge-aware "fine" pass) per spec section 21's coarse-to-fine
+ordering — a weight-annealing approximation of multi-scale rather than
+a spatial resolution pyramid, since the stitch grid has no natural
+coarser level to work up from (it already *is* the target resolution).
+
+Empirical caveat found while writing the detail-preservation test: a
+naive 1:1 source-pixel-to-cell test scenario gave **zero** importance at
+a lone dot's own cell, because Sobel gradient at a point is computed
+from its *neighbors*, not the point itself — a single isolated bright
+pixel's own gradient is ~0 (its neighbors are all uniform background);
+the elevated gradient shows up in the pixels *around* it instead. This
+only matters when a cell maps to ~1 source pixel (no real downsampling
+happening); at realistic ratios (many source pixels per cell, the
+normal case for a real photo), a small real detail's own cell already
+contains both the detail and its surrounding transition, so both the
+max-edge and internal-contrast terms register normally on that same
+cell — confirmed by testing with a 15×15 source downsampled to a 5×5
+grid rather than a 1:1 mapping. Not a bug in the shipped code (nothing
+in the actual pipeline runs at a 1:1 ratio for a real photo), but
+worth knowing if this module is extended later.
+
+Verification: a synthetic "eye" test image (a dark circular iris with a
+small bright highlight dot, skin-tone background, real per-pixel noise
+added to both) — generated via a real headless-Chromium canvas, run
+through the actual app in a real browser, not simulated — produced a
+chart where the highlight survives as its own distinct symbol cluster
+inside the iris while the surrounding noisy skin and iris regions still
+came out as coherent, low-confetti regions. Screenshot inspected
+directly, not just inferred from passing tests.
 
 ## Owner action list
 
