@@ -15,6 +15,44 @@ _(none)_
 
 ## Completed goals
 
+### G-006 · "Latest" / "Original" color-picking switch — DONE (2026-09-09)
+- **What:** A small toggle letting the Owner pick between the two color-
+  quantization algorithms (the original single-stage k-means, and the
+  merge-then-reinvest fix from G-004), instead of only offering one.
+- **Why:** Owner observation (2026-09-09, chat): both algorithms have
+  real, opposite tradeoffs — "they both have their pros and cons" — so
+  forcing one as the only option throws away real user choice.
+- **Acceptance criteria:** A compact switch, defaulting to today's
+  behavior; both modes produce genuinely different, correct output
+  (not two labels on the same algorithm); works through the Web Worker
+  boundary pattern generation already runs behind.
+- **Constraints:** None stated; needed a serializable mode flag rather
+  than passing a `ColorQuantizer` object directly, since function-
+  bearing objects can't cross a `postMessage` structured-clone boundary.
+
+**Milestones**:
+- [x] M1 — `lib/quantize.ts` refactored so the pre-existing single-stage
+      algorithm is its own exported `plainKMeansQuantizer` (no behavior
+      change to the default `kMeansQuantizer` path, which now calls it
+      internally); `GenerationMode` threaded through
+      `pattern.worker.ts`/`pattern-client.ts` as a plain string; UI
+      toggle added next to the color-count slider. ✔ 2026-09-09. 96 unit
+      tests + 2 e2e green (1 new test confirming the two quantizers
+      genuinely diverge on a real box-averaged fixture — a flat list of
+      distinct cell values turned out too simple to show the difference
+      and had to be replaced). Verified via a real headless-browser run
+      with direct DOM inspection that the toggle's state actually
+      changes, and that "Original" mode at colorCount=3 produces zero
+      yellow on the gray-cat-yellow-eyes fixture while "Latest" mode had
+      already been shown finding it at the same count — a genuine
+      divergence, not just two identically-behaving labels. See
+      HANDOVER.md D20 for a coincidental identical-output data point at
+      a different color count that was checked and ruled a benign
+      convergence, not a bug.
+
+**Progress log** (newest first):
+- 2026-09-09 — Built and verified in one session. See HANDOVER.md D20.
+
 ### G-005 · Selectable fabric count + inch/cm switcher — DONE (2026-09-09)
 - **What:** A small dropdown to choose the Aida fabric count used for the
   finished-size estimate (was hardcoded to 14-count), and a switcher to

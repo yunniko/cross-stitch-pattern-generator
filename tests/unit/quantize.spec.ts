@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { oklabDistanceSquared, rgbToOklab } from "@/lib/color";
-import { kMeansQuantizer } from "@/lib/quantize";
+import { downsampleToGrid } from "@/lib/downsample";
+import { kMeansQuantizer, plainKMeansQuantizer } from "@/lib/quantize";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 
 function makeCells(colors: RGB[]): CellColorBuffer {
@@ -74,6 +75,46 @@ describe("kMeansQuantizer", () => {
     const yellowOklab = rgbToOklab([210, 190, 40]);
     const hasYellow = palette.some((rgb) => oklabDistanceSquared(rgbToOklab(rgb), yellowOklab) < 0.01);
     expect(hasYellow).toBe(true);
+  });
+
+  it("plainKMeansQuantizer (the 'Original' generation mode) genuinely differs from kMeansQuantizer ('Latest')", () => {
+    // A flat 1D list of distinct cell values (like the fixture above) turns
+    // out too small/simple to reproduce the population-imbalance effect --
+    // both quantizers find the outlier trivially at that scale. The real
+    // divergence needs the box-averaged 2D grid structure a real image
+    // produces (thousands of cells, continuous shading), matching exactly
+    // what the investigation's own git-worktree comparisons used
+    // (HANDOVER.md D18/D20): a shaded gray field with a small, tight,
+    // saturated outlier region, downsampled through the real pipeline.
+    const width = 120;
+    const height = 120;
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const inEye = (Math.abs(x - 20) <= 1 && Math.abs(y - 22) <= 1) || (Math.abs(x - 40) <= 1 && Math.abs(y - 22) <= 1);
+        const o = (y * width + x) * 4;
+        if (inEye) {
+          data[o] = 215;
+          data[o + 1] = 190;
+          data[o + 2] = 40;
+        } else {
+          const shade = Math.max(0, Math.min(255, 70 + (x / width) * 100 + Math.sin(x * 0.7 + y * 0.4) * 15));
+          data[o] = shade;
+          data[o + 1] = shade;
+          data[o + 2] = shade;
+        }
+        data[o + 3] = 255;
+      }
+    }
+    const cells = downsampleToGrid({ data, width, height }, width, height);
+    const yellowOklab = rgbToOklab([215, 190, 40]);
+    const hasYellow = (palette: RGB[]) => palette.some((rgb) => oklabDistanceSquared(rgbToOklab(rgb), yellowOklab) < 0.01);
+
+    // k=5: consistently found by kMeansQuantizer and consistently missed by
+    // plainKMeansQuantizer at this scale (measured during the D18/D20
+    // investigation -- old baseline needed k=9 here).
+    expect(hasYellow(plainKMeansQuantizer.quantize(cells, 5).palette)).toBe(false);
+    expect(hasYellow(kMeansQuantizer.quantize(cells, 5).palette)).toBe(true);
   });
 
   it("doesn't fabricate colors when every requested color is already genuinely distinct", () => {

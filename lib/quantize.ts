@@ -186,31 +186,27 @@ function injectWorstFitClusters(oklabColors: Oklab[], assignment: Uint8Array, ce
 }
 
 /**
- * K-means clustering in OKLab space (see HANDOVER.md D6 for why OKLab over
- * CIELAB+CIEDE2000). Squared Euclidean distance isn't a compromise here —
- * Lloyd's algorithm's centroid-update step is only valid under that exact
- * metric, and CIEDE2000 isn't even a metric (violates the triangle
- * inequality) — confirmed independently by the domain-expert review,
- * HANDOVER.md D7. Each cell has already been box-averaged (in linear light)
- * by `downsampleToGrid` before reaching here. The reported palette color is
- * the linear-light mean RGB of a cluster's members, not the OKLab centroid
- * converted back to RGB — avoids gamut round-trip artifacts and matches the
- * linear-light averaging rule used throughout (HANDOVER.md D7).
+ * Plain single-stage k-means in OKLab space (see HANDOVER.md D6 for why
+ * OKLab over CIELAB+CIEDE2000). Squared Euclidean distance isn't a
+ * compromise here — Lloyd's algorithm's centroid-update step is only valid
+ * under that exact metric, and CIEDE2000 isn't even a metric (violates the
+ * triangle inequality) — confirmed independently by the domain-expert
+ * review, HANDOVER.md D7. Each cell has already been box-averaged (in
+ * linear light) by `downsampleToGrid` before reaching here. The reported
+ * palette color is the linear-light mean RGB of a cluster's members, not
+ * the OKLab centroid converted back to RGB — avoids gamut round-trip
+ * artifacts and matches the linear-light averaging rule used throughout
+ * (HANDOVER.md D7).
  *
- * After the ordinary single-stage k-means pass (unchanged from before
- * D18/D19/D20 — see those for two earlier, reverted attempts at the
- * underlying problem), checks whether any of the resulting colors are
- * redundant enough to merge (`REINVEST_MERGE_THRESHOLD`, looser than
- * `palette-optimizer.ts`'s own late-pipeline dedup threshold) and, if so,
- * reinvests each freed slot into whichever cell is currently worst-served
- * (`injectWorstFitClusters`), then re-converges. This only changes anything
- * when real redundancy is actually found — an image with no redundant
- * colors (verified in testing against a genuinely multi-hued fixture with
- * no dominant majority) takes the exact same path as before this change,
- * unlike the two earlier attempts, which altered every image's clustering
- * unconditionally regardless of whether it needed it.
+ * This is "Original" in the app's generation-mode switch (HANDOVER.md D20):
+ * exactly the algorithm this project shipped with, before D18/D19/D20's
+ * investigation into small-region color loss. Kept available on purpose,
+ * not just as a fallback — it has a real, opposite trade-off from
+ * `kMeansQuantizer` below (simpler, more population-driven palettes; can
+ * miss a small distinct region at low color counts) that some source
+ * images and preferences suit better.
  */
-export const kMeansQuantizer: ColorQuantizer = {
+export const plainKMeansQuantizer: ColorQuantizer = {
   quantize(cells: CellColorBuffer, colorCount: number): QuantizeResult {
     const cellCount = cells.width * cells.height;
     const k = Math.max(1, Math.min(colorCount, cellCount));
@@ -218,11 +214,35 @@ export const kMeansQuantizer: ColorQuantizer = {
     for (let i = 0; i < cellCount; i++) oklabColors[i] = rgbToOklab(cellRgb(cells, i));
 
     const rng = mulberry32(0xc0ffee ^ cellCount ^ k);
-
     const initialSeeds = kMeansPlusPlusSeeds(oklabColors, k, rng);
     const initial = runLloyd(oklabColors, initialSeeds);
-    const initialResult = buildPaletteFromAssignment(cells, initial.centroids.length, initial.assignments);
+    return buildPaletteFromAssignment(cells, initial.centroids.length, initial.assignments);
+  },
+};
 
+/**
+ * "Latest" in the app's generation-mode switch (HANDOVER.md D20, the
+ * default): runs `plainKMeansQuantizer` first, then checks whether any of
+ * the resulting colors are redundant enough to merge
+ * (`REINVEST_MERGE_THRESHOLD`, looser than `palette-optimizer.ts`'s own
+ * late-pipeline dedup threshold) and, if so, reinvests each freed slot into
+ * whichever cell is currently worst-served (`injectWorstFitClusters`), then
+ * re-converges. This only changes anything when real redundancy is
+ * actually found — an image with no redundant colors (verified in testing
+ * against a genuinely multi-hued fixture with no dominant majority) takes
+ * the exact same path as the plain quantizer above, unlike two earlier,
+ * reverted attempts at this same underlying problem (HANDOVER.md D18/D19),
+ * which altered every image's clustering unconditionally regardless of
+ * whether it needed it. Real trade-off, not a strict improvement: measured
+ * confetti/complexity on some ordinary noisy photos rises modestly (still
+ * within the project's own regression-suite tolerance bands) in exchange
+ * for reliably surfacing a small, real, perceptually-distinct region much
+ * sooner — which is exactly why both modes stay selectable rather than one
+ * replacing the other outright.
+ */
+export const kMeansQuantizer: ColorQuantizer = {
+  quantize(cells: CellColorBuffer, colorCount: number): QuantizeResult {
+    const initialResult = plainKMeansQuantizer.quantize(cells, colorCount);
     if (initialResult.palette.length < 3) {
       // Nothing meaningful to redistribute (k=1/2, or the image only has a
       // couple of real distinct colors) -- skip straight to the plain result.
@@ -234,6 +254,10 @@ export const kMeansQuantizer: ColorQuantizer = {
     if (freedSlots <= 0) {
       return initialResult;
     }
+
+    const cellCount = cells.width * cells.height;
+    const oklabColors = new Array<Oklab>(cellCount);
+    for (let i = 0; i < cellCount; i++) oklabColors[i] = rgbToOklab(cellRgb(cells, i));
 
     const mergedOklab = merged.palette.map(rgbToOklab);
     const injected = injectWorstFitClusters(oklabColors, merged.cellPaletteIndex, mergedOklab, freedSlots);

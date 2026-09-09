@@ -20,6 +20,7 @@ import {
   type StitchPattern,
 } from "@/lib/types";
 import { DEFAULT_AIDA_COUNT, STANDARD_AIDA_COUNTS, formatFinishedDimension, type SizeUnit } from "@/lib/finished-size";
+import type { GenerationMode } from "@/lib/pattern.worker";
 
 const PREVIEW_TARGET_WIDTH_PX = 720;
 
@@ -31,6 +32,7 @@ export default function Home() {
   const [aidaCount, setAidaCount] = useState<number>(DEFAULT_AIDA_COUNT);
   const [sizeUnit, setSizeUnit] = useState<SizeUnit>("in");
   const [colorCount, setColorCount] = useState(16);
+  const [generationMode, setGenerationMode] = useState<GenerationMode>("latest");
   const [pattern, setPattern] = useState<StitchPattern | null>(null);
   const [previewMode, setPreviewMode] = useState<RenderMode | "realistic">("color");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -78,6 +80,7 @@ export default function Home() {
         imageData: pixelBuffer,
         longerSideStitches,
         colorCount,
+        generationMode,
         onProgress: setProgress,
       });
       setPattern(result);
@@ -250,6 +253,36 @@ export default function Home() {
             onChange={(e) => setColorCount(Number(e.target.value))}
             className="max-w-sm"
           />
+
+          <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+            Color picking:
+            <div className="flex items-center overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
+              {(
+                [
+                  { mode: "latest", label: "Latest" },
+                  { mode: "original", label: "Original" },
+                ] as const
+              ).map(({ mode, label }) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setGenerationMode(mode)}
+                  className={`px-2 py-0.5 text-sm transition-colors ${
+                    generationMode === mode
+                      ? "bg-foreground text-background"
+                      : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-zinc-500">
+            {generationMode === "latest"
+              ? "Latest: better at keeping small, distinct details (like eyes) at low color counts — occasionally a touch busier on noisy photos."
+              : "Original: simpler, sometimes cleaner-looking results — can miss a small distinct detail until you raise the color count."}
+          </p>
         </section>
 
         <section>

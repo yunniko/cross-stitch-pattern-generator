@@ -1,5 +1,9 @@
 import { buildPattern } from "./pattern";
+import { kMeansQuantizer, plainKMeansQuantizer } from "./quantize";
 import type { PixelBuffer, StitchPattern } from "./types";
+
+/** "original" = the algorithm this project shipped with; "latest" = the reinvestment-based fix (HANDOVER.md D20). */
+export type GenerationMode = "original" | "latest";
 
 export interface StartMessage {
   type: "start";
@@ -7,6 +11,7 @@ export interface StartMessage {
   imageData: PixelBuffer;
   longerSideStitches: number;
   colorCount: number;
+  generationMode?: GenerationMode;
 }
 
 export type WorkerRequest = StartMessage;
@@ -34,6 +39,7 @@ self.onmessage = (event) => {
     const pattern = buildPattern(msg.imageData, {
       longerSideStitches: msg.longerSideStitches,
       colorCount: msg.colorCount,
+      quantizer: msg.generationMode === "original" ? plainKMeansQuantizer : kMeansQuantizer,
       onProgress: (fraction) => self.postMessage({ type: "progress", jobId: msg.jobId, fraction }),
     });
     self.postMessage({ type: "done", jobId: msg.jobId, pattern });

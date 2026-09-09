@@ -1204,6 +1204,59 @@ readout both reflected the switch correctly (11.5 cm, matching
 50 stitches ÷ 11 × 2.54), then downloaded a chart and confirmed its
 header read "approx. 11.5 × 7.2 cm on 11-count Aida."
 
+**D20 — Exposed both color-picking algorithms as a user-facing "Latest" /
+"Original" switch, instead of keeping only one (2026-09-09).** After
+D18's investigation shipped the merge-then-reinvest fix, the Owner
+pointed out both the old and new algorithms have real, opposite
+tradeoffs (the old one is simpler/more population-driven and can miss a
+small distinct region at low color counts; the new one surfaces small
+regions reliably but occasionally reads as a touch busier on noisy
+photos) and asked for a switch rather than a single "correct" choice.
+
+`lib/quantize.ts` refactored (no behavior change to the default path):
+`plainKMeansQuantizer` is now its own exported `ColorQuantizer` — the
+single-stage k-means algorithm exactly as it existed before D18,
+extracted rather than left as an unreachable internal step — and
+`kMeansQuantizer` (unchanged name, still the default) now calls it
+directly instead of duplicating its body, then layers the merge/
+reinvest logic on top. Since pattern generation runs inside a Web
+Worker (`lib/pattern.worker.ts`) and a `ColorQuantizer` is a function-
+bearing object that can't cross a `postMessage` structured-clone
+boundary, the mode is threaded through as a plain string instead: a new
+`GenerationMode = "original" | "latest"` type, an optional
+`generationMode` field on `StartMessage`/`RunPatternJobOptions`, and the
+worker's own `onmessage` handler picks `plainKMeansQuantizer` vs.
+`kMeansQuantizer` before calling `buildPattern` (which already accepted
+a swappable `quantizer` option from the start — see the "isolated
+behind one module/interface" note in this doc's architecture section).
+
+`app/page.tsx` gained a small segmented toggle next to the color-count
+slider, defaulting to "Latest" (today's behavior, unchanged for anyone
+who doesn't touch it) with a one-line caption describing each mode's
+real tradeoff rather than implying one is simply better.
+
+Verified for real: ESLint clean, `tsc --noEmit` clean, production build
+clean, all 96 unit tests (95 + 1 new: `plainKMeansQuantizer` and
+`kMeansQuantizer` genuinely diverge on a real 2D box-averaged fixture,
+not just a flat list of distinct cell values, which turned out too
+small/simple to reproduce the effect and had to be replaced mid-
+writing — a small instance of the same "verify before trusting a
+synthetic fixture" lesson this whole investigation kept surfacing) +
+both e2e tests green. Real headless-browser run against the actual app
+UI with the gray-cat-yellow-eyes fixture: confirmed via direct DOM
+class inspection that the toggle's active state actually changes on
+click (not just a visual assumption), then at colorCount=3 confirmed
+"Original" mode renders zero yellow (pure 3-shade gray) while "Latest"
+mode at the same colorCount had already been shown finding it in
+earlier verification — a real, working divergence between the two
+modes, not just two labels on identical behavior. (An earlier check at
+colorCount=5 showed both modes producing byte-identical output for this
+specific fixture — a real, benign coincidence at that particular
+color count/fixture combination, not a sign the switch doesn't work;
+confirmed by checking a color count where the two are known to diverge
+before concluding anything, rather than assuming a bug from one data
+point.)
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
