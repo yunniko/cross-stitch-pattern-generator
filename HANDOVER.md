@@ -1023,6 +1023,143 @@ the Web Worker path (`color-name-list` bundles correctly into
 `pattern.worker.ts`'s bundle, which was a real risk worth checking
 given it's a new dependency added to that code path).
 
+**D18 — Fixed a real k-means algorithmic flaw: small, perceptually-distinct
+regions could be structurally invisible until a much higher colorCount
+than they should need (2026-09-09).** Owner-reported symptom: a photo of
+a gray cat with yellow eyes produced an all-gray palette at low
+colorCount; more grays kept getting added as colorCount rose, and
+yellow only appeared past some threshold, by which point several of
+those grays looked near-redundant to a human. Investigated thoroughly
+before writing any code, per the Owner's explicit request — see the
+investigation trail below before the fix itself.
+
+*Diagnosis.* `lib/quantize.ts`'s `kMeansQuantizer` is a standard
+Lloyd's-algorithm k-means with k-means++ seeding — it minimizes total
+population-weighted SSE (`Σ population × variance-removed` per split,
+roughly). Splitting a large, continuously-shaded population (fur) into
+finer sub-shades reduces *total* SSE by more than isolating a tiny,
+tight, very-distant-in-OKLab outlier (an eye), until the large
+population's cheap splits run out of headroom — a known-class k-means
+pathology (implicit bias toward clusters of comparable size/variance
+contribution, not toward a distribution's real, unevenly-sized natural
+modes), not a bug in any downstream stage. The downstream ICM
+optimizer/component-recoloring/diagonal-fix/palette-merge passes
+(`local-optimizer.ts`, `contour-cleanup.ts`, `palette-optimizer.ts`)
+only ever reassign cells among whichever palette k-means already
+produced — none of them can invent a color k-means never allocated, so
+none of them could be the actual root cause, confirmed by reading each
+one rather than assumed.
+
+*Codex-cli unavailable for the planned critique exchange, twice over —
+logged honestly rather than skipped silently.* STANDARDS.md calls for
+a real critique exchange on a decision this consequential. First
+attempt: same billing exhaustion already on the Owner action list
+below ("no credits remaining"). Owner then logged into `codex-cli` via
+a ChatGPT Pro account instead of the API-key account — every model
+name in the MCP tool's own enum (`gpt-5.3-codex` through `o4-mini`,
+7 tried) was rejected with the identical "not supported when using
+Codex with a ChatGPT account" error, indicating a CLI/backend version
+mismatch rather than a real entitlement gap (a Pro plan should have
+Codex access). An anonymous (logged-out) ChatGPT web session was also
+tried as a fallback and failed outright ("Unable to connect", even
+after retry) — anonymous sessions appear too rate-limited for a prompt
+this size. Proceeded on independent analysis per STANDARDS.md's own
+documented fallback, exactly as the Owner action list item below
+already required noting for the M8 energy-function decision.
+
+*Design, iteration 1 (real, caught, not shipped as first written).*
+First approach: a lattice of exactly `colorCount` fixed points spread
+across OKLab hue and lightness (achromatic points half the budget,
+hue-direction points the other half via naive `2*pi*i/n` angle
+division across 3 fixed lightness bands), each snapped to whichever
+real image cell is nearest, deduplicated by which cell was matched
+(so a photo with no real yellow just collapses those lattice points
+onto real grays instead of forcing fake hue diversity), then handed to
+`kMeansPlusPlusSeeds` (generalized to accept multiple bootstrap seeds)
+to fill any remaining budget via its existing D²-weighted growth. This
+looked plausible and passed its own first unit test (a small synthetic
+gray+yellow fixture) — **but a real before/after measurement at a
+larger canvas size (a git worktree checked out at the pre-fix commit,
+run against an identical scaled-up fixture) showed no improvement at
+all over the unfixed baseline (both needed colorCount=9 before yellow
+appeared).** Root-caused by hand-computing the actual OKLab coordinates
+involved: the fixed 3-lightness-band scheme put hue-direction lattice
+points nowhere near a real yellow's actual lightness (L≈0.8, well
+outside the 0.35/0.5/0.65 bands used), and OKLab lightness differences
+dominate squared distance more than a modest chroma vector does — so a
+same-lightness *neutral gray* cell was consistently "nearer" to each
+lattice point than the correctly-hued-but-wrong-lightness real yellow
+was. This is the same category of lesson as D11's two self-caught
+regressions: a plausible-sounding fix is not verified until measured
+for real, at more than one scale, against the actual pre-fix baseline.
+
+*Design, iteration 2 (shipped).* Two changes: (1) hue-direction lattice
+points now use two independent low-discrepancy sequences — the golden
+angle for hue, the golden-ratio conjugate for lightness — instead of a
+fixed grid, so lightness and hue coverage both improve smoothly
+regardless of how many points are available, with no permanent blind
+band; (2) the lattice size is now a fixed, generous constant
+(`LATTICE_SIZE = 64`) *independent of the requested colorCount*, since
+coverage quality depends on point density, not on k — tying lattice
+size to k gave the coarsest, least-reliable lattice exactly when a low
+colorCount made structured seeding matter most. Since a 64-point
+lattice can produce more distinct real-cell candidates than a small
+requested k needs, added `farthestPointSelect` (greedy max-min-distance
+selection, i.e. k-means++'s own D²-growth idea run over the small
+deduplicated candidate pool instead of raw pixels) to reduce down to
+`k` while keeping the selection diversity-aware rather than "whichever
+came first in lattice order." New module: `lib/structured-seeds.ts`
+(`generateLatticePoints`, `buildStructuredSeeds`). `kMeansPlusPlusSeeds`
+in `quantize.ts` now accepts an `initialSeeds` parameter to bootstrap
+from (defaults to today's single-random-seed behavior when empty, so
+every other caller/test is unaffected).
+
+*Verification, at the same rigor as the diagnosis.* All 91 pre-existing
+tests pass unmodified (they assert properties — determinism, valid
+indices, dark-to-light ordering, non-empty palette entries — not exact
+palette values, so a seeding change was never expected to break them;
+confirmed rather than assumed). New `tests/unit/structured-seeds.spec.ts`
+(6 tests): fixed lattice size regardless of k; hue/lightness spread
+covers most of each range; a genuinely near-grayscale image collapses
+to a short, low-chroma seed list (no forced fake hue diversity); a
+rare, tight outlier color is found even among far more numerous cells.
+A real git-worktree before/after comparison against the pre-fix commit,
+run at three canvas scales (eye at ~0.5%, ~0.125%, and ~0.045% of total
+area) on a synthetic "shaded gray field + two small saturated yellow
+regions" fixture: old code needed colorCount 9, 9, and 11 respectively
+before yellow appeared (getting *worse* as the outlier's population
+share shrank, exactly as the diagnosis predicted); new code needs
+colorCount 3 at *all three scales* — the fix makes finding a real
+outlier population-share-independent, not just "somewhat better." A
+real headless-browser run against the actual app UI with a purpose-
+built synthetic "gray cat, yellow eyes" PNG (radial-shaded gray field,
+two small saturated circular eyes) confirmed the same result visually:
+colorCount 2-3 stay all-gray (an honest, expected limit — at that
+few colors there genuinely isn't budget to spare on a rare hue without
+sacrificing basic light/dark structure), colorCount 4 produces a clean
+4-color palette with both eyes rendered in a single distinct yellow
+("Indian Pale Ale," 71 sts) alongside 3 gray shades — down from the old
+baseline's colorCount 9-11 for the same fixture family.
+
+*A performance false alarm, run down before concluding anything.* An
+early worst-case timing check (1500×1000 source, 1000 stitches, 64
+colors, aggressive synthetic per-pixel noise) showed `buildPattern`
+taking ~97s — a seemingly serious regression from the ~13-22s the
+Owner action list already documents. Root-caused via per-stage timing
+instrumentation *before* assuming the new seeding was at fault: the
+cost was entirely in `runMultiScaleOptimizer` (the pre-existing, wholly
+unmodified ICM optimizer) hitting its full `MAX_PASSES=8` without
+early convergence — and the identical test against the pre-fix
+worktree took ~84s on the same harsh synthetic buffer, confirming this
+was a property of that adversarial noise pattern, not a regression from
+this change. A gentler, more photo-realistic buffer (mild noise, two
+base regions, matching the regression suite's own fixture style) gave
+28.98s (old) vs. 29.44s (new) — within measurement noise. No
+performance regression from this fix; separately worth knowing that the
+documented "~13-22s worst case" understates cost for sufficiently
+adversarial-noise images, which is a pre-existing property of the ICM
+optimizer, not something this change touched or is in scope to fix.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
@@ -1034,6 +1171,21 @@ given it's a new dependency added to that code path).
    standard practice of a real critique exchange for consequential
    decisions is unavailable project-wide until the account is topped
    up. Worth knowing if another project hits the same thing.
+
+2. **codex-cli rejects every model when authenticated via a ChatGPT
+   account, even on a Pro plan.** Owner logged in via `codex login`
+   with a ChatGPT Pro account (2026-09-09) as a workaround for the API
+   credits issue above. Every model in the MCP tool's own enum —
+   `gpt-5.3-codex`, `gpt-5.2-codex`, `gpt-5.1-codex`, `gpt-5.1-codex-max`,
+   `gpt-5-codex`, `gpt-5`, `o4-mini` (7 tried) — was rejected with the
+   identical error `The '<model>' model is not supported when using
+   Codex with a ChatGPT account.` A Pro plan should have Codex CLI
+   access, so this reads as a CLI/backend version mismatch (the
+   installed `codex` v0.153.4 may have a stale model catalog for
+   ChatGPT-account auth) rather than a real entitlement gap — but
+   unconfirmed without checking against a current `codex` release.
+   Worth an Owner look if the critique-exchange workflow is wanted
+   working again before the API account's credits are topped up.
 
 ## Next steps and open questions
 

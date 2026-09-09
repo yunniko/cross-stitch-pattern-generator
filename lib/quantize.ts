@@ -1,5 +1,6 @@
 import { linearToSrgb, oklabDistanceSquared, rgbToOklab, srgbToLinear, type Oklab } from "./color";
 import { mulberry32 } from "./prng";
+import { buildStructuredSeeds } from "./structured-seeds";
 import { cellRgb, type CellColorBuffer, type RGB } from "./types";
 
 export interface QuantizeResult {
@@ -28,18 +29,37 @@ export function meanRgbLinear(cells: CellColorBuffer, indices: number[]): RGB {
   return [linearToSrgb(r / n), linearToSrgb(g / n), linearToSrgb(b / n)];
 }
 
-/** Deterministic k-means++ seeding: spreads initial centroids apart instead of picking randomly. */
-function kMeansPlusPlusSeeds(oklabColors: Oklab[], k: number, rng: () => number): Oklab[] {
-  const seeds: Oklab[] = [oklabColors[Math.floor(rng() * oklabColors.length)]];
+/**
+ * Deterministic k-means++ seeding: spreads initial centroids apart instead
+ * of picking randomly. `initialSeeds` (see `structured-seeds.ts`) bootstraps
+ * the process from a fixed set of real, hue-diverse cells found in this
+ * image before the usual D^2-weighted random growth fills any remaining
+ * slots -- this is the fix for a real k-means pathology (HANDOVER.md D18):
+ * without it, a small but perceptually distinct region (a handful of pixels
+ * far away in OKLab from everything else) can lose every seed draw to a
+ * large, continuously-varying region for many values of k, simply because
+ * seed-draw probability is weighted by population, not distinctness.
+ */
+function kMeansPlusPlusSeeds(
+  oklabColors: Oklab[],
+  k: number,
+  rng: () => number,
+  initialSeeds: Oklab[] = []
+): Oklab[] {
+  const seeds: Oklab[] =
+    initialSeeds.length > 0 ? initialSeeds.slice(0, k) : [oklabColors[Math.floor(rng() * oklabColors.length)]];
   const distSq = new Float64Array(oklabColors.length).fill(Infinity);
+  for (const seed of seeds) {
+    for (let i = 0; i < oklabColors.length; i++) {
+      const d = oklabDistanceSquared(oklabColors[i], seed);
+      if (d < distSq[i]) distSq[i] = d;
+    }
+  }
 
   while (seeds.length < k) {
     let total = 0;
-    for (let i = 0; i < oklabColors.length; i++) {
-      const d = oklabDistanceSquared(oklabColors[i], seeds[seeds.length - 1]);
-      if (d < distSq[i]) distSq[i] = d;
-      total += distSq[i];
-    }
+    for (let i = 0; i < oklabColors.length; i++) total += distSq[i];
+
     if (total === 0) {
       // All remaining points coincide with an existing seed; pad with duplicates.
       seeds.push(oklabColors[Math.floor(rng() * oklabColors.length)]);
@@ -55,6 +75,10 @@ function kMeansPlusPlusSeeds(oklabColors: Oklab[], k: number, rng: () => number)
       }
     }
     seeds.push(oklabColors[chosen]);
+    for (let i = 0; i < oklabColors.length; i++) {
+      const d = oklabDistanceSquared(oklabColors[i], oklabColors[chosen]);
+      if (d < distSq[i]) distSq[i] = d;
+    }
   }
   return seeds;
 }
@@ -82,8 +106,9 @@ export const kMeansQuantizer: ColorQuantizer = {
     for (let i = 0; i < cellCount; i++) oklabColors[i] = rgbToOklab(cellRgb(cells, i));
 
     const rng = mulberry32(0xc0ffee ^ cellCount ^ k);
+    const structuredSeeds = buildStructuredSeeds(oklabColors, k);
 
-    let centroids = kMeansPlusPlusSeeds(oklabColors, k, rng);
+    let centroids = kMeansPlusPlusSeeds(oklabColors, k, rng, structuredSeeds);
     const assignments = new Uint8Array(cellCount);
 
     for (let iter = 0; iter < MAX_ITERATIONS; iter++) {

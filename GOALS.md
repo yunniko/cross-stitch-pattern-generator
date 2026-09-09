@@ -15,6 +15,77 @@ _(none)_
 
 ## Completed goals
 
+### G-004 · Fix small-region color loss at low color counts — DONE (2026-09-09)
+- **What:** A real k-means algorithmic flaw where a small but
+  perceptually distinct region of the source photo (the Owner's example:
+  a gray cat's yellow eyes) could stay completely absent from the
+  palette until a much higher colorCount than it should need, with
+  several near-redundant gray shades added first.
+- **Why:** Owner-reported real usage problem (2026-09-09, chat), with an
+  explicit request to investigate the root cause thoroughly before
+  proposing or making any change — "we do not look for crutches, we
+  look for an algorithm flaw."
+- **Acceptance criteria:** A small, saturated, hue-distinct region
+  should reliably appear in the palette at a meaningfully lower
+  colorCount than before, and this should hold regardless of how small
+  the region's share of the total image is (not just at one specific
+  test scale) — verified by a real before/after measurement, not
+  assumed from design alone.
+- **Constraints:** No server-side/native dependencies (100% client-side
+  unchanged); must stay deterministic; must not require re-verifying
+  the whole downstream optimizer/cleanup pipeline's own correctness
+  (only the palette-formation stage was in scope).
+
+**Milestones**:
+- [x] M1 — Investigated the pipeline stage by stage (downsampling,
+      k-means/seeding, ICM optimizer, contour cleanup, palette merge)
+      to find the actual root cause, discussion-only, no code changes.
+      ✔ 2026-09-09. Diagnosis: k-means' population-weighted SSE
+      objective structurally favors splitting a large, continuously-
+      varying population (fur) over isolating a small, tight, distant
+      outlier (an eye) until the large population's cheap splits run
+      out of headroom — a real, named-class k-means pathology, not a
+      downstream-stage bug. Six candidate remedies researched and
+      presented with tradeoffs; a codex-cli critique exchange was
+      attempted twice (API credits exhausted; a ChatGPT-Pro-account
+      login then rejected every available model) and an anonymous
+      ChatGPT web fallback also failed — proceeded on independent
+      analysis per STANDARDS.md's own fallback policy, logged in
+      HANDOVER.md's Owner action list.
+- [x] M2 — Implemented and verified the chosen remedy (a fixed,
+      image-independent OKLab hue/lightness lattice used to bootstrap
+      k-means++ seeding, snapped to real image content and deduplicated
+      so it can't force fake hue diversity onto genuinely grayscale
+      content). ✔ 2026-09-09. **First implementation attempt was a real,
+      caught failure**, not a shipped success: a git-worktree before/
+      after measurement at a larger canvas size showed zero improvement
+      over the unfixed baseline, root-caused to the lattice's fixed
+      lightness bands missing a real yellow's actual lightness entirely.
+      Second iteration (low-discrepancy angle/lightness sequences,
+      lattice density decoupled from the requested color count, a
+      diversity-aware reduction step) fixed it for real: a three-scale
+      before/after comparison (git worktree, same fixture family scaled
+      three ways) showed the old code needing colorCount 9-11 before the
+      outlier hue appeared, worsening as its population share shrank;
+      the new code needs colorCount 3 at every scale tested. Confirmed
+      visually with a real headless-browser run against the actual app
+      UI and a purpose-built synthetic "gray cat, yellow eyes" image:
+      colorCount 2-3 honestly still stay all-gray (expected — no budget
+      to spare at that few colors), colorCount 4 renders both eyes in
+      one distinct color. All 97 unit tests (91 existing, unmodified +
+      6 new) and both e2e tests green; a performance scare during
+      verification (~97s worst-case timing) was run down and confirmed
+      to be a property of an overly adversarial synthetic test buffer
+      affecting old and new code equally, not a real regression (a
+      gentler, more realistic buffer showed ~29s either way). See
+      HANDOVER.md D18 for the full investigation, both design
+      iterations, and every verification step.
+
+**Progress log** (newest first):
+- 2026-09-09 — Both milestones completed in one session, including a
+  real caught-and-fixed failure in the first implementation attempt.
+  See HANDOVER.md D18.
+
 ### G-003 · Centimeters + unique color names in the legend — DONE (2026-09-09)
 - **What:** Two small, related legend/estimate improvements: (1) show
   centimeters alongside inches in every finished-size estimate; (2) give
