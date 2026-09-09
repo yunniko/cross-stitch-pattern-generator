@@ -11,7 +11,11 @@ svc-lab).
 
 ## Active goals
 
-### G-001 · Image → cross-stitch pattern generator — ACTIVE
+_(none)_
+
+## Completed goals
+
+### G-001 · Image → cross-stitch pattern generator — DONE (2026-09-09)
 - **What:** A client-side web tool that takes a user-uploaded image and
   produces a printable cross-stitch chart: the image is divided into a
   grid of stitches at a chosen size, reduced to a chosen number of
@@ -244,11 +248,13 @@ change. Acceptance criterion 4 is amended accordingly:
       not unmet: full jaggy/banding detection, weighted-k-means
       palette selection, a debug-visualization UI — all logged with
       reasoning in HANDOVER.md D10/D11 as legitimate scope calls, not
-      gaps in what was asked for. **Awaiting Owner sign-off before
-      moving this goal to Completed, per OPERATIONS.md's definition of
-      done.**
+      gaps in what was asked for. Owner signed off 2026-09-09 after the
+      production deploy's live verification — see progress log.
 
 **Progress log** (newest first):
+- 2026-09-09 — Owner signed off; G-001 moved to Completed per
+  OPERATIONS.md's definition of done (all acceptance criteria met,
+  verified live in production, README/HANDOVER current).
 - 2026-09-09 — Deployed live (Owner: "deploy to cross-stitch.craftodejnice.cz")
   to `https://cross-stitch.craftodejnice.cz` on the shared Company VPS.
   Repo visibility went public → private (Owner: "create private repo")

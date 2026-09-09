@@ -773,11 +773,9 @@ own established convention of not leaving one-off scripts in the
 tree — see the perf-measurement and marker-investigation notes above,
 which used the same throwaway-script pattern).
 
-GOALS.md's progress log is updated with this deploy outcome, but G-001
-stays out of the Completed section for now: OPERATIONS.md's definition
-of done requires explicit Owner sign-off as its own step, distinct from
-the deploy instruction itself, and that hasn't been given yet — asked
-for it in the deploy report back to the Owner.
+Owner signed off on completion the same day, after reviewing this
+deploy report; G-001 moved to GOALS.md's Completed section
+(2026-09-09).
 
 ## Owner action list
 
