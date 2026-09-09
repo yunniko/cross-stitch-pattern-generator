@@ -217,11 +217,50 @@ change. Acceptance criterion 4 is amended accordingly:
       84 unit tests + 2 e2e still green (no unit coverage for render.ts
       itself — DOM-dependent, verified via e2e + manual browser runs
       per the project's existing convention for that file).
-- [ ] M9 — README/HANDOVER finalized, final end-to-end verification
+- [x] M9 — README/HANDOVER finalized, final end-to-end verification
       (real image through the whole flow, both downloads inspected,
-      before/after comparison against the pre-amendment output), done.
+      before/after comparison against the pre-amendment output).
+      ✔ 2026-09-09 — README rewritten to describe the actual pipeline
+      and full feature set (was still the M1-era "in development"
+      stub). Ran a synthetic photo (silhouette + sky + ground + a
+      small highlight, with real per-pixel noise) through both the
+      *original* pre-amendment implementation (checked out into a
+      `git worktree` at commit `72ac5bd`, the last commit before D6's
+      rewrite) and the current one, side by side, both color and B&W
+      downloads. The difference is stark and unambiguous: the original
+      shows heavy checkerboard-style confetti across the sky and
+      especially the ground (near-random alternation between two
+      colors on flat regions); the current version shows large,
+      coherent color regions with the highlight detail still preserved
+      as its own distinct cluster, plus the M9a chart chrome (centre
+      markers, row/column numbers, header) all rendering correctly
+      together. All automated checks green (ESLint, `tsc`, production
+      build, 84 Vitest unit tests, 2 Playwright e2e tests).
+      **Acceptance criteria met**: all of G-001's original criteria
+      (1-8) plus the amended criterion 4 (region-aware optimization,
+      not independent per-cell quantization). Deliberately deferred,
+      not unmet: full jaggy/banding detection, weighted-k-means
+      palette selection, a debug-visualization UI — all logged with
+      reasoning in HANDOVER.md D10/D11 as legitimate scope calls, not
+      gaps in what was asked for. **Awaiting Owner sign-off before
+      moving this goal to Completed, per OPERATIONS.md's definition of
+      done.**
 
 **Progress log** (newest first):
+- 2026-09-09 — M9 completed (Owner: "go ahead"). Rewrote README.md to
+  describe the actual pipeline and feature set. Final verification: a
+  git worktree at the last pre-D6-rewrite commit let the *original*
+  simple k-means implementation and the current one process the exact
+  same synthetic photo side by side. The difference is stark: the
+  original's sky and ground are heavily speckled with confetti (near-
+  random 2-color alternation in what should be flat regions); the
+  current version shows large coherent regions with a small real
+  highlight detail still preserved, plus all of M9a's chart chrome
+  rendering correctly. All acceptance criteria (original 1-8 plus the
+  amended region-aware criterion 4) are met; deferred items (jaggy/
+  banding, weighted-k-means, debug-viz) are logged scope decisions, not
+  gaps. 84 unit tests + 2 e2e green, clean build/lint/typecheck.
+  Flagging for Owner sign-off before moving G-001 to Completed.
 - 2026-09-09 — M9a completed (Owner: "go ahead"). Added centre-marker
   triangles, row/column numbering, a stitch-count/finished-size header,
   and a pinned font stack to `lib/render.ts`, plus a live finished-size
