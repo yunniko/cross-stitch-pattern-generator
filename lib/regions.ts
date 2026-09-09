@@ -2,6 +2,8 @@ export interface ComponentStats {
   id: number;
   paletteIndex: number;
   area: number;
+  /** Count of cell edges bordering either the grid boundary or a differently-colored cell. */
+  perimeter: number;
   minX: number;
   minY: number;
   maxX: number;
@@ -17,8 +19,8 @@ export interface RegionMap {
 /**
  * 4-connected-component labeling over a per-cell palette-index grid (the
  * Owner's spec, section 6: "Diagonal touching alone doesn't count as a
- * connected cluster"). Used both for diagnostics (confetti ratio) and to
- * decide which colors are candidates for palette merging.
+ * connected cluster"). Used for diagnostics (confetti ratio, compactness)
+ * and to decide which colors are candidates for palette merging.
  */
 export function labelRegions(cellPalette: Uint8Array, width: number, height: number): RegionMap {
   const labels = new Int32Array(width * height).fill(-1);
@@ -32,7 +34,16 @@ export function labelRegions(cellPalette: Uint8Array, width: number, height: num
     const id = components.length;
     const startX = start % width;
     const startY = Math.floor(start / width);
-    const stats: ComponentStats = { id, paletteIndex, area: 0, minX: startX, minY: startY, maxX: startX, maxY: startY };
+    const stats: ComponentStats = {
+      id,
+      paletteIndex,
+      area: 0,
+      perimeter: 0,
+      minX: startX,
+      minY: startY,
+      maxX: startX,
+      maxY: startY,
+    };
 
     labels[start] = id;
     stack.push(start);
@@ -47,19 +58,30 @@ export function labelRegions(cellPalette: Uint8Array, width: number, height: num
       if (y < stats.minY) stats.minY = y;
       if (y > stats.maxY) stats.maxY = y;
 
-      if (x > 0 && labels[cell - 1] === -1 && cellPalette[cell - 1] === paletteIndex) {
+      if (x === 0 || cellPalette[cell - 1] !== paletteIndex) {
+        stats.perimeter++;
+      } else if (labels[cell - 1] === -1) {
         labels[cell - 1] = id;
         stack.push(cell - 1);
       }
-      if (x < width - 1 && labels[cell + 1] === -1 && cellPalette[cell + 1] === paletteIndex) {
+
+      if (x === width - 1 || cellPalette[cell + 1] !== paletteIndex) {
+        stats.perimeter++;
+      } else if (labels[cell + 1] === -1) {
         labels[cell + 1] = id;
         stack.push(cell + 1);
       }
-      if (y > 0 && labels[cell - width] === -1 && cellPalette[cell - width] === paletteIndex) {
+
+      if (y === 0 || cellPalette[cell - width] !== paletteIndex) {
+        stats.perimeter++;
+      } else if (labels[cell - width] === -1) {
         labels[cell - width] = id;
         stack.push(cell - width);
       }
-      if (y < height - 1 && labels[cell + width] === -1 && cellPalette[cell + width] === paletteIndex) {
+
+      if (y === height - 1 || cellPalette[cell + width] !== paletteIndex) {
+        stats.perimeter++;
+      } else if (labels[cell + width] === -1) {
         labels[cell + width] = id;
         stack.push(cell + width);
       }

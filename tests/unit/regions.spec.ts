@@ -39,6 +39,33 @@ describe("labelRegions", () => {
     expect(orphan.minY).toBe(1);
     expect(orphan.maxY).toBe(1);
   });
+
+  it("gives a single interior cell a perimeter of 4 (all 4 sides border a different color)", () => {
+    const cellPalette = Uint8Array.from([0, 0, 0, 0, 1, 0, 0, 0, 0]);
+    const { components } = labelRegions(cellPalette, 3, 3);
+    const orphan = components.find((c) => c.area === 1)!;
+    expect(orphan.perimeter).toBe(4);
+  });
+
+  it("counts the grid boundary itself as part of the perimeter", () => {
+    // A single color filling the whole 3x3 grid: every one of its 9 cells'
+    // edges either touches another same-color cell (not perimeter) or the
+    // grid boundary (is perimeter) -- total perimeter equals the shape's
+    // outer edge count, 12 (a 3x3 square).
+    const cellPalette = new Uint8Array(9).fill(0);
+    const { components } = labelRegions(cellPalette, 3, 3);
+    expect(components[0].perimeter).toBe(12);
+  });
+
+  it("gives a compact 2x2 block a smaller perimeter than 4 separate single cells of the same total area", () => {
+    // A A       A B
+    // A A  vs.  B A   (checkerboard: 4 separate 1-cell components)
+    const compact = labelRegions(Uint8Array.from([0, 0, 0, 0]), 2, 2);
+    const scattered = labelRegions(Uint8Array.from([0, 1, 1, 0]), 2, 2);
+    expect(compact.components[0].perimeter).toBeLessThan(
+      scattered.components.reduce((sum, c) => sum + c.perimeter, 0)
+    );
+  });
 });
 
 describe("confettiRatio", () => {
