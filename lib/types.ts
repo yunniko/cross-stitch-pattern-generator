@@ -47,6 +47,8 @@ export interface PaletteColor {
   index: number;
   rgb: RGB;
   symbol: string;
+  /** Nearest name from a brand-neutral reference list; unique within one pattern's palette. */
+  name: string;
   /** Number of stitches using this color. */
   count: number;
 }

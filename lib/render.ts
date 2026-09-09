@@ -39,7 +39,9 @@ const MINOR_LINE_RATIO = 1 / 24;
 const MEDIUM_LINE_RATIO = 2 / 24;
 const MAJOR_LINE_RATIO = 3 / 24;
 
-const LEGEND_ITEM_HEIGHT = 28;
+// Tall enough for two text lines (name, then hex/count) next to the swatch —
+// was 28px/one line before names were added.
+const LEGEND_ITEM_HEIGHT = 40;
 const LEGEND_SWATCH_SIZE = 20;
 const LEGEND_PADDING = 16;
 const LEGEND_COLUMN_WIDTH = 170;
@@ -203,6 +205,20 @@ function drawHeader(ctx: CanvasRenderingContext2D, pattern: StitchPattern, canva
   void canvasWidth;
 }
 
+/** Shortens text with a trailing ellipsis if it doesn't fit maxWidth in the context's current font -- names from the reference list have no fixed length cap. */
+function truncateToWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let low = 0;
+  let high = text.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    const candidate = `${text.slice(0, mid)}…`;
+    if (ctx.measureText(candidate).width <= maxWidth) low = mid;
+    else high = mid - 1;
+  }
+  return low > 0 ? `${text.slice(0, low)}…` : "…";
+}
+
 function drawLegendItem(
   ctx: CanvasRenderingContext2D,
   color: PaletteColor,
@@ -225,10 +241,18 @@ function drawLegendItem(
   ctx.textBaseline = "middle";
   ctx.fillText(color.symbol, x + LEGEND_SWATCH_SIZE / 2, y + LEGEND_SWATCH_SIZE / 2 + 1);
 
+  const textX = x + LEGEND_SWATCH_SIZE + 8;
+  const maxTextWidth = LEGEND_COLUMN_WIDTH - LEGEND_SWATCH_SIZE - 12;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+
   ctx.fillStyle = "#111111";
   ctx.font = `13px ${FONT_STACK}`;
-  ctx.textAlign = "left";
-  ctx.fillText(`${rgbToHex(color.rgb)} · ${color.count} sts`, x + LEGEND_SWATCH_SIZE + 8, y + LEGEND_SWATCH_SIZE / 2 + 1);
+  ctx.fillText(truncateToWidth(ctx, color.name, maxTextWidth), textX, y + LEGEND_SWATCH_SIZE / 2 + 1);
+
+  ctx.fillStyle = "#666666";
+  ctx.font = `11px ${FONT_STACK}`;
+  ctx.fillText(`${rgbToHex(color.rgb)} · ${color.count} sts`, textX, y + LEGEND_SWATCH_SIZE + 10);
 
   void mode;
 }

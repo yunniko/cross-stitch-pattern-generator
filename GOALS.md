@@ -15,6 +15,56 @@ _(none)_
 
 ## Completed goals
 
+### G-003 · Centimeters + unique color names in the legend — DONE (2026-09-09)
+- **What:** Two small, related legend/estimate improvements: (1) show
+  centimeters alongside inches in every finished-size estimate; (2) give
+  each legend swatch a human-readable color name, unique within one
+  chart, without locking the app to a single floss brand's naming.
+- **Why:** Owner request (2026-09-09, chat). For (2), the Owner
+  explicitly asked for real research into available libraries first
+  rather than just picking a floss brand, and named uniqueness within
+  one chart as a hard requirement.
+- **Acceptance criteria:**
+  1. Both the live UI size readout and the downloaded chart header show
+     cm alongside inches.
+  2. Every legend swatch shows a name, in addition to its existing hex
+     code and stitch count.
+  3. No two colors in the same generated palette ever share a name.
+  4. The naming source is brand-neutral (not tied to one floss company)
+     unless a genuinely unified, cross-brand system was found to exist.
+- **Constraints:** Must stay 100% client-side (no new network calls) —
+  matches the rest of the app's "nothing leaves the browser" design.
+
+**Milestones**:
+- [x] M1 — Centimeters added via a new shared `lib/finished-size.ts`
+      (replacing a previously-duplicated constant in `app/page.tsx` and
+      `lib/render.ts`). ✔ 2026-09-09. 4 new unit tests (pure logic, unlike
+      the rest of `render.ts`). See HANDOVER.md D16.
+- [x] M2 — Researched color-naming libraries (forked research pass, real
+      web search with cited, dated sources) before implementing, per the
+      Owner's explicit ask. Found no genuine unified/brand-neutral floss
+      color system exists — every DMC/Anchor/etc. dataset online is an
+      unlicensed, community-estimated approximation, not an open
+      standard. Chose `color-name-list`'s MIT-licensed `/bestof` export
+      (~4,959 names, brand-neutral, actively maintained) instead.
+      Implemented `lib/color-names.ts`: nearest-name matching via the
+      pipeline's existing OKLab perceptual distance, with a
+      greedy-global-nearest-first assignment across all (color, name)
+      pairs so uniqueness is guaranteed by construction, not a
+      best-effort check. ✔ 2026-09-09. 3 new unit tests including an
+      identical-input-colors case that directly exercises the collision-
+      handling path. Verified with a real headless-browser run
+      generating an actual photo-derived 32-color pattern — legend
+      showed distinct names (e.g. "Atlantis", "Frappé au Chocolat",
+      "Komodo Dragon") for all 19 resulting palette colors, correctly
+      laid out, zero console errors including from the Web Worker
+      bundle path. See HANDOVER.md D17.
+
+**Progress log** (newest first):
+- 2026-09-09 — Both milestones built, verified, and shipped in one
+  session. See HANDOVER.md D16/D17 for full research/design/
+  verification detail.
+
 ### G-002 · Realistic stitched-result preview — DONE (2026-09-09)
 - **What:** A third preview/download mode showing what the finished piece
   would look like stitched: colored cross-stitch "X" marks on a simulated

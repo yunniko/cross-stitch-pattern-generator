@@ -930,6 +930,99 @@ reads "≈ 3.6 in / 9.1 cm on the longer side at 14-count Aida", chart
 header reads "50 × 31 stitches — approx. 3.6 × 2.2 in (9.1 × 5.6 cm) on
 14-count Aida".
 
+**D17 — Added human-readable, unique color names to the legend
+(2026-09-09), after real research into what's actually available.**
+Owner wanted names shown per legend swatch but explicitly did not want
+to lock the app to one floss company's naming; asked me to research
+real options first rather than just picking DMC. Researched via a
+forked research pass (real web search, not assumed knowledge, verified
+license/maintenance status live): the two live options are (a) generic
+brand-neutral color-name datasets, or (b) floss-brand color data.
+**Conclusion on (b): no genuine unified, brand-neutral floss-naming
+system exists, official or open-source.** DMC publishes no official
+RGB/name dataset at all; every "DMC color" dataset found online is an
+unlicensed, community-*estimated* approximation (one repo's own data
+file is literally named `est_dmc_hex.txt`); DMC↔Anchor↔Sullivan's/etc.
+conversion charts are all hobbyist blog tables or commercial products,
+not licensed reusable data, and there's no standards body behind any
+of them. DMC is the de facto reference other brands convert against by
+convention, not a neutral standard. Given that, and that this app's
+palette colors are arbitrary k-means centroids from a photo (not real
+purchasable thread), attaching a "DMC 3713"-style code would imply a
+precision the tool doesn't back — not done, flagged as a separate
+Owner decision if wanted later (real trademark/licensing exposure,
+shouldn't be picked unilaterally).
+
+Went with (a): [`color-name-list`](https://github.com/meodai/color-names)
+(MIT, actively maintained, v14.49.0), specifically its `/bestof`
+curated export (~4,959 names) — brand-neutral by construction, static
+JSON bundled at build time (zero added network calls, matching this
+app's "nothing leaves the browser" architecture), no license/
+attribution burden beyond MIT's own (satisfied by keeping the
+dependency's own LICENSE in `node_modules`/`package.json`, no extra UI
+notice needed for MIT). Ruled out alternatives from the same research
+pass: `ntc.js` (CC BY 2.5, requires attribution, and blends in a
+commercial paint brand's names); `color-namer` (unmaintained since
+2019, bundles Pantone by default); Pantone itself (proprietary, paid,
+not appropriate for a free client-side tool).
+
+**New module `lib/color-names.ts`** (`nameColors(colors): string[]`):
+matches each color to its nearest name using the pipeline's *existing*
+OKLab perceptual distance (`lib/color.ts`'s `rgbToOklab`/
+`oklabDistanceSquared`) rather than introducing the ecosystem's usual
+`nearest-color` package, which uses naive RGB-Euclidean distance — one
+consistent perceptual metric across the whole codebase beats a second,
+less accurate one for ~15 lines of reusable logic.
+
+**Uniqueness (the Owner's explicit ask — "color names should be unique
+on one chart")**: implemented as a *greedy global-nearest-first
+assignment*, not per-color independent nearest-lookup. Every
+(color, reference-name) pair is scored by OKLab distance and sorted
+ascending; pairs are claimed in that order, skipping a pair if either
+side is already taken. This guarantees no two colors in one generated
+palette ever get the same name — if two colors would naturally both
+match "Cerulean", the closer one gets it and the other falls through
+to its next-nearest still-available name — while still giving the
+overall best achievable set of matches (closest pairs claim first,
+globally, not just locally per color). At ≤64 palette colors against
+~4,959 reference names this is ~317K pairs to sort per pattern, well
+under a second, with no perceptible slowdown observed during
+verification. Names are only guaranteed unique *within one call*
+(i.e. within one pattern's palette) — not stable/unique across
+separate pattern generations, which was never asked for.
+
+Wired into `lib/pattern.ts` right where symbols are already assigned
+(same final, post-optimization RGB values), added `name: string` to
+`PaletteColor` (`lib/types.ts`), and `lib/render.ts`'s
+`drawLegendItem` now shows the name as the primary line with the hex
+code + stitch count as a smaller secondary line below (`LEGEND_ITEM_
+HEIGHT` grown from 28 to 40px to fit both lines). Added
+`truncateToWidth` (binary-search ellipsis truncation against
+`ctx.measureText`) since reference names have no fixed length cap (up
+to 28 characters in the bestof list) — untested in practice with a
+real overflowing name during verification, but a defensive necessity
+given the list isn't under this project's control.
+
+Added real unit coverage for the new pure logic
+(`tests/unit/color-names.spec.ts`, 3 tests): every color gets a
+non-empty name; **identical input colors still get distinct names**
+(directly exercises the collision-handling path, not just the happy
+path); a full 64-color palette stays fully unique. `tests/unit/
+diagnostics.spec.ts`'s `makePattern` helper updated with a `name`
+field to keep constructing valid `PaletteColor` objects.
+
+Verified for real: ESLint clean, `tsc --noEmit` clean, production
+build clean, all 91 unit tests (88 + 3 new) + both e2e tests green,
+and a real headless-browser run generating an actual 100×63/32-color
+pattern from the photo pipeline (not a synthetic fixture) — the
+downloaded chart's legend showed 19 real palette colors, every name
+visually distinct (e.g. "Atlantis", "Night Market", "Stellar",
+"Frappé au Chocolat", "Komodo Dragon"), correctly laid out with hex/
+count on the line below, and zero console/page errors including from
+the Web Worker path (`color-name-list` bundles correctly into
+`pattern.worker.ts`'s bundle, which was a real risk worth checking
+given it's a new dependency added to that code path).
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

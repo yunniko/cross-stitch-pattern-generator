@@ -21,6 +21,7 @@ function makePattern(width: number, height: number, cellPalette: number[], palet
     index: i,
     rgb,
     symbol: String(i),
+    name: String(i),
     count: cellPalette.filter((c) => c === i).length,
   }));
   return { width, height, cellPalette: Uint8Array.from(cellPalette), palette: paletteColors, isLandscape: width >= height };

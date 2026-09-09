@@ -1,6 +1,7 @@
 import { computeCellImportance, computeEdgeMagnitude } from "./edge-map";
 import { downsampleToGrid, gridDimensionsFor } from "./downsample";
 import { luminance } from "./color";
+import { nameColors } from "./color-names";
 import { defaultComponentRecolorOptions, fixDiagonalConnections, recolorSmallComponents } from "./contour-cleanup";
 import { runMultiScaleOptimizer, type MultiScaleWeights } from "./local-optimizer";
 import { mergeSimilarColors } from "./palette-optimizer";
@@ -96,6 +97,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     .sort((a, b) => a.luminance - b.luminance);
 
   const symbols = symbolsFor(compactPalette.length);
+  const names = nameColors(order.map((entry) => entry.rgb));
   const remap = new Uint8Array(compactPalette.length);
   const palette: PaletteColor[] = order.map((entry, newIndex) => {
     remap[entry.originalIndex] = newIndex;
@@ -103,6 +105,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
       index: newIndex,
       rgb: entry.rgb,
       symbol: symbols[newIndex],
+      name: names[newIndex],
       count: counts[entry.originalIndex],
     };
   });
