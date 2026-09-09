@@ -132,6 +132,118 @@ use turns up patterns large/slow enough to make the main thread stall
 noticeably (the deferred-paint trick only prevents a *frozen-before-it-
 starts* UI, not a slow generate).
 
+**D6 — Color-reduction pipeline replaced with a region-aware, energy-
+optimized approach, superseding D2's plain k-means+nearest-color
+(2026-09-09).** The Owner sent a detailed spec (in-session, not a file
+kept in the repo) requesting the pipeline stop optimizing independent
+per-cell color accuracy and instead optimize for a genuinely good
+*stitchable pattern*: coherent color regions, minimal "confetti"
+(isolated stitches), preserved silhouette/important edges, a
+rationalized palette, and clean contours — accepting a small loss in
+raw per-cell color accuracy when it meaningfully improves the pattern as
+a whole. Full spec highlights: perceptual color distance in OKLab or
+CIELAB+CIEDE2000; an edge/importance map (Sobel/gradient-magnitude
+proxy, since no ML segmentation is available) so cell-averaging and
+optimization don't blur across strong source edges and simplify
+low-importance regions more aggressively; 4-connected-component analysis
+per color with per-component stats; a multi-term energy function
+(color error, orphan/confetti penalties weighted down by importance,
+region-compactness penalty, palette-size penalty encouraging merging of
+perceptually-close low-value colors, edge-preservation penalty,
+thread-change-friendliness) with configurable weights; single-cell
+hill-climbing local optimization, then multi-cell/component-level moves,
+then optional simulated annealing; a later contour-cleanup pass
+(diagonal-only-connection fixes, one-cell hole/protrusion removal,
+jaggy run-length regularization, banding detection); multi-scale
+coarse-to-fine ordering; diagnostic quality metrics and a debug-
+visualization mode; explicit separation into independently-testable
+modules; synthetic tests per behavior. Explicitly rejects Floyd-Steinberg
+dithering as a default (it recreates exactly the confetti problem being
+solved).
+
+**Codex-cli critique exchange** (per STANDARDS.md's cross-model-
+verification requirement for architecture decisions worth getting
+right) — three real rounds, not a one-shot rubber stamp:
+- Round 1 asked for a critique of my proposed phasing (A: core
+  optimizer with color/orphan/confetti/palette energy only; B: add
+  edge/importance; C: contour cleanup + multi-cell moves + annealing;
+  D: diagnostics/tests). Codex read the actual code (cited real line
+  numbers) and pushed back concretely rather than validating everything:
+  - **Adopted without argument**: freeze `buildPattern`'s external
+    contract and swap internals behind it rather than a big-bang
+    rewrite of UI+engine+renderer together; move the optimizer's heavy
+    compute into a Web Worker with cancellation/progress messages
+    instead of the existing `setTimeout(0)` paint trick (justified now
+    that we're adding real iterative optimization, unlike the old
+    one-shot k-means); store cell colors as interleaved typed-array
+    buffers (`Uint8Array`/`Float32Array`) instead of `RGB[]` tuple
+    arrays, to avoid GC/memory pressure at up to 1,000,000 cells; use
+    transferable objects (`postMessage(buf, [buf])`) for worker hops.
+  - **Two real bugs found in the *existing, already-shipped* code**,
+    unrelated to the rewrite itself, fixed alongside it: (1)
+    `lib/render.ts`'s `drawChart` reassigns `ctx.font` on every single
+    cell draw call even though it's the same value for the whole
+    render at a given cell size — wasteful, hoisted outside the loop;
+    (2) `lib/pattern.ts`'s sort comment claimed "light-to-dark" while
+    the actual `.sort()` (and the passing unit test asserting ascending
+    luminance) both implement dark-to-light — the code and test agree
+    with each other, only the comment was wrong; fixed the comment,
+    not the logic.
+  - **Pushback I made and Codex confirmed rather than conceding
+    wholesale**: Codex's "don't over-engineer a plugin system" warning
+    was about not building a dynamic plugin-registry/strategy-pattern
+    indirection layer, not an objection to the Owner's explicit request
+    for separately-testable pure modules/functions per energy term —
+    which is this Company's own standing testing convention anyway
+    (STANDARDS.md: business logic in pure, unit-testable modules).
+    Resolution: keep the Owner's module separation as plain files/
+    functions, each independently unit-tested; don't add a registry/
+    dispatch abstraction around composing them.
+- Rounds 2-3 pushed for direct numbered answers on tractability,
+  OKLab-vs-CIEDE2000, energy-term overlap, and golden-image test
+  strategy; the tool kept returning good infra-level detail (worker
+  message shapes: `start`/`progress`/`done`/`error`/`cancel` keyed by
+  `jobId`; `createImageBitmap` instead of the dataURL round-trip in
+  `load-image.ts`) but didn't engage with those specific numbered
+  questions even when re-asked directly. Rather than keep spending
+  rounds on a tool that had already given its real signal, resolved the
+  remaining questions with my own judgment, logged here so the
+  reasoning is auditable:
+  - **OKLab over CIELAB+CIEDE2000.** OKLab is constructed so Euclidean
+    distance in that space already approximates perceptual difference
+    well, unlike CIELAB where Euclidean distance is known to diverge
+    from true perceptual difference (that gap is exactly why CIEDE2000
+    exists — a complex, empirically-tuned correction). Since this
+    project deliberately does not match to a real DMC/Anchor thread
+    database (D1's own "deliberately not doing" note — colors are the
+    tool's own extracted palette), there's no industry-convention
+    reason to carry CIEDE2000's complexity; OKLab gets most of the
+    perceptual-accuracy benefit for much less implementation risk. This
+    supersedes D2's CIELAB choice; `lib/color.ts`'s Lab functions are
+    being replaced, not kept alongside, per Values → Quality ("no dead
+    files accumulating").
+  - **Energy-term overlap resolution.** Orphan penalty (component-size
+    based, global per connected component) and confetti penalty
+    (local sliding-window color-change density) target related but
+    genuinely different failure modes — a fine-but-coherent striped
+    region scores high on local confetti density without containing
+    any tiny orphan components, so they aren't redundant — but both
+    can fire on the literal single-isolated-cell case. Resolution:
+    normalize each penalty to a comparable ~0-1 range before weighting
+    (rather than combining raw unbounded counts) so a single speck
+    doesn't get double-crushed by stacking, and keep palette-size
+    penalty purely global/non-spatial so it only interacts with the
+    other two indirectly (merging colors reduces confetti/orphan
+    opportunities — a desirable synergy, not a redundancy).
+  - **Golden-image regression tests: tolerance-band metric assertions,
+    not exact pixel/palette-index equality.** Exact-equality fixtures
+    break on every deliberate weight tuning and give no signal about
+    whether a change made quality better or worse — metric-tolerance
+    assertions (confetti ratio, component-size histogram, etc., staying
+    within bounds) stay meaningful while the algorithm keeps evolving,
+    which it explicitly will (D2/D6 both flag this as an
+    expected-to-change component).
+
 ## Owner action list
 
 None yet — no escalation-tier blockers so far (no deploy, no accounts,

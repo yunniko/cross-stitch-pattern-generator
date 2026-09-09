@@ -80,6 +80,25 @@ commitments):**
   ≤ 64 — avoiding easily-confused pairs (e.g. not assigning both "O" and
   "0" adjacently) at small print sizes.
 
+**Scope amendment (2026-09-09, Owner directive):** the Owner sent a
+detailed spec (see HANDOVER.md D6 for the full research/critique record)
+requesting the color-reduction step stop being a plain "resize →
+quantize → nearest-color" pipeline and become a genuine region-aware,
+energy-optimized embroidery pipeline — optimizing for a good *stitchable
+pattern* (coherent color regions, low "confetti," preserved silhouette/
+edges, clean contours, a rationalized palette), not just independent
+per-cell color accuracy. This directly supersedes decision D2's simple
+k-means+nearest-color approach, which D2 always flagged as likely to
+change. Acceptance criterion 4 is amended accordingly:
+
+- 4 (amended). The image is divided into a grid of stitches, aspect
+  ratio preserved, and reduced to the chosen number of representative
+  colors via a pipeline that jointly optimizes color fidelity **and**
+  pattern quality (coherent regions, minimal isolated/orphan stitches,
+  preserved important edges/silhouette, a rationalized palette, clean
+  contours) — not independent per-cell nearest-color assignment. Full
+  algorithm design in HANDOVER.md D6.
+
 **Milestones**:
 - [x] M1 — Project scaffold (Next.js/TS, matching portfolio conventions)
       + core pipeline as pure, unit-tested modules: image loading, grid
@@ -92,13 +111,42 @@ commitments):**
 - [x] M3 — UI: upload, size controls (presets + custom), color-count
       control, live preview, two download buttons (PNG: B&W, Color).
       ✔ 2026-09-09.
-- [ ] M4 — Domain-expert review (real cross-stitch chart conventions —
-      grid marking conventions, symbol legibility at print size, whether
-      the color-matching approach is sound for this craft) + fix any
-      findings; automated tests (Vitest unit + Playwright e2e) green.
-- [ ] M5 — README/HANDOVER finalized, final end-to-end verification
-      (real image through the whole flow, both downloads inspected),
-      done.
+- [ ] M4 — Domain-expert review of the pre-amendment implementation
+      (real cross-stitch chart conventions — grid marking conventions,
+      symbol legibility at print size) — launched 2026-09-09, running.
+      Its color-matching-specific findings feed into M5 below rather
+      than blocking on the now-superseded simple quantizer.
+- [ ] M5 — Region-aware optimizer, phase A (per HANDOVER.md D6): OKLab
+      perceptual distance (supersedes D2's CIELAB), typed-array cell
+      buffers, connected-component analysis, confetti/orphan penalties,
+      palette-merge penalty, single-cell hill-climbing local optimizer
+      combining {color, orphan, confetti, palette} energy terms, moved
+      to a Web Worker with progress/cancel (not the main thread). Also
+      fixes two real bugs the codex critique found in the *existing*
+      code (per-cell `ctx.font` reassignment in `render.ts`; a
+      light-to-dark/dark-to-light comment/code mismatch in
+      `pattern.ts`) regardless of the rewrite. Proves optimization
+      helps at all before adding edge-awareness.
+- [ ] M6 — Phase B: edge map + importance map (Sobel/gradient-magnitude
+      proxy, no ML segmentation available) folded into the optimizer's
+      energy as an edge-preservation term; coarse-to-fine multi-scale
+      pass ordering.
+- [ ] M7 — Phase C: contour-quality cleanup as a distinct post-process
+      (diagonal-only-connection fixes, one-cell hole/protrusion removal,
+      jaggy run-length regularization, banding detection) + multi-cell/
+      component-level optimizer moves + optional simulated-annealing
+      pass.
+- [ ] M8 — Phase D: diagnostic quality metrics + debug-visualization
+      mode, configurable energy weights, a golden-fixture regression
+      suite (metric-tolerance-band assertions, not exact-pixel equality
+      — see HANDOVER.md D6 rationale) covering every synthetic case the
+      Owner specified (orphan removal, important-detail preservation,
+      diagonal cleanup, palette-redundancy merging, edge preservation,
+      flat-area stability). Re-run the domain-expert review against the
+      *new* algorithm specifically.
+- [ ] M9 — README/HANDOVER finalized, final end-to-end verification
+      (real image through the whole flow, both downloads inspected,
+      before/after comparison against the pre-amendment output), done.
 
 **Progress log** (newest first):
 - 2026-09-09 — M1–M3 built and verified in one session (bundled rather
