@@ -1,4 +1,4 @@
-import { linearToSrgb, oklabDistanceSquared, rgbToOklab, srgbToLinear, type Oklab } from "./color";
+import { oklabDistanceSquared, oklabToRgb, rgbToOklab, type Oklab } from "./color";
 import { mergeSimilarColors } from "./palette-optimizer";
 import { mulberry32 } from "./prng";
 import { cellRgb, type CellColorBuffer, type RGB } from "./types";
@@ -14,19 +14,41 @@ export interface ColorQuantizer {
   quantize(cells: CellColorBuffer, colorCount: number): QuantizeResult;
 }
 
-/** Mean of a cluster's member colors, averaged in linear light then re-encoded — see HANDOVER.md D7. */
-export function meanRgbLinear(cells: CellColorBuffer, indices: number[]): RGB {
-  let r = 0;
-  let g = 0;
+/**
+ * Mean of a cluster's member colors *in OKLab space*, converted back to RGB
+ * (with gamut clamping via `oklabToRgb`) -- the correct Lloyd-update
+ * centroid for the squared-OKLab-distance objective assignment and ICM/
+ * contour-cleanup optimization actually use throughout this pipeline.
+ *
+ * A linear-RGB mean (this function's predecessor, `meanRgbLinear`) does NOT
+ * minimize squared OKLab error for a given membership -- a mean only
+ * minimizes squared error in the coordinate system it's computed in, and
+ * linear RGB isn't that system here. A domain-expert review (HANDOVER.md
+ * D11) had flagged the *need* to recompute post-optimization, but the
+ * recompute itself still used a linear-RGB mean, leaving the same
+ * inconsistency; the code-review that caught this (2026-09-09, finding 3)
+ * reproduced it directly: on a 100x60 grayscale ramp through the default
+ * two-color pipeline, recomputing the same final memberships in OKLab
+ * reduced mean squared OKLab error by ~6.9% without moving a single stitch,
+ * and on a simple 50/50 black/white cluster the reduction was ~26% (0.337 ->
+ * 0.250). Linear-light averaging remains the correct approach for the
+ * *spatial downsample* (`downsampleToGrid`) -- that's a genuinely different
+ * operation (reconstructing what a printed cell's average appearance would
+ * be) from *this* one (finding the representative color that best serves the
+ * clustering objective already in effect).
+ */
+export function meanRgbOklab(cells: CellColorBuffer, indices: number[]): RGB {
+  let l = 0;
+  let a = 0;
   let b = 0;
   for (const i of indices) {
-    const [cr, cg, cb] = cellRgb(cells, i);
-    r += srgbToLinear(cr);
-    g += srgbToLinear(cg);
-    b += srgbToLinear(cb);
+    const [ol, oa, ob] = rgbToOklab(cellRgb(cells, i));
+    l += ol;
+    a += oa;
+    b += ob;
   }
   const n = indices.length || 1;
-  return [linearToSrgb(r / n), linearToSrgb(g / n), linearToSrgb(b / n)];
+  return oklabToRgb([l / n, a / n, b / n]);
 }
 
 /** Deterministic k-means++ seeding: spreads initial centroids apart instead of picking randomly. */
@@ -106,20 +128,27 @@ function runLloyd(oklabColors: Oklab[], initialCentroids: Oklab[]): { centroids:
   return { centroids, assignments };
 }
 
+/**
+ * Builds the final RGB palette straight from `runLloyd`'s own converged
+ * OKLab centroids -- each one already *is* the exact OKLab mean of the
+ * cells assigned to it (that's what makes a centroid step a real Lloyd
+ * update), so converting it to RGB (via `oklabToRgb`, gamut-clamped) is the
+ * correct representative color, not a second, differently-computed mean
+ * over the same membership (code-review 2026-09-09, finding 3).
+ */
 function buildPaletteFromAssignment(
-  cells: CellColorBuffer,
-  centroidCount: number,
+  centroids: Oklab[],
   assignments: Uint8Array
 ): { cellPaletteIndex: Uint8Array; palette: RGB[] } {
-  const indicesByCluster: number[][] = Array.from({ length: centroidCount }, () => []);
-  for (let i = 0; i < assignments.length; i++) indicesByCluster[assignments[i]].push(i);
+  const counts = new Array(centroids.length).fill(0);
+  for (const c of assignments) counts[c]++;
 
-  const remap = new Int16Array(centroidCount).fill(-1);
+  const remap = new Int16Array(centroids.length).fill(-1);
   const palette: RGB[] = [];
-  indicesByCluster.forEach((indices, c) => {
-    if (indices.length === 0) return;
+  centroids.forEach((centroid, c) => {
+    if (counts[c] === 0) return;
     remap[c] = palette.length;
-    palette.push(meanRgbLinear(cells, indices));
+    palette.push(oklabToRgb(centroid));
   });
 
   const cellPaletteIndex = new Uint8Array(assignments.length);
@@ -216,7 +245,7 @@ export const plainKMeansQuantizer: ColorQuantizer = {
     const rng = mulberry32(0xc0ffee ^ cellCount ^ k);
     const initialSeeds = kMeansPlusPlusSeeds(oklabColors, k, rng);
     const initial = runLloyd(oklabColors, initialSeeds);
-    return buildPaletteFromAssignment(cells, initial.centroids.length, initial.assignments);
+    return buildPaletteFromAssignment(initial.centroids, initial.assignments);
   },
 };
 
@@ -262,6 +291,6 @@ export const kMeansQuantizer: ColorQuantizer = {
     const mergedOklab = merged.palette.map(rgbToOklab);
     const injected = injectWorstFitClusters(oklabColors, merged.cellPaletteIndex, mergedOklab, freedSlots);
     const refined = runLloyd(oklabColors, injected.centroids);
-    return buildPaletteFromAssignment(cells, refined.centroids.length, refined.assignments);
+    return buildPaletteFromAssignment(refined.centroids, refined.assignments);
   },
 };

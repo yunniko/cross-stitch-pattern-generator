@@ -213,13 +213,57 @@ svc-lab).
       doesn't measurably degrade confetti/edge-preservation/flat-area
       quality on the existing broader test corpus, not just the one
       motivating reproduction.
-- [ ] M4 — Finding 3 (palette-objective consistency, P2): investigate
-      and decide on one consistent objective for palette-color
-      recomputation (OKLab-space centroid vs. documented linear-RGB
-      aesthetic choice), fix or correct the inaccurate in-code claim
-      accordingly, revalidate both generation modes on varied images.
-      Codex-cli critique exchange before implementing, given this
-      changes every generated pattern's actual colors.
+- [x] M4 — Finding 3 (palette-objective consistency, P2). Chose the
+      OKLab-centroid objective, not the "document the linear-RGB
+      brightness bias as a deliberate aesthetic choice" alternative the
+      review also offered: assignment throughout this pipeline (k-means,
+      ICM, contour cleanup) is *already* driven by squared OKLab
+      distance, and the project's own established rationale for OKLab
+      (HANDOVER.md D6/D7) explicitly argues centroid computation must
+      match the assignment metric for a real Lloyd update — keeping a
+      linear-RGB mean would mean contradicting the project's own stated
+      design philosophy, not honoring a considered trade-off. Found the
+      same inconsistency in *two* places, not just the one the review
+      cited: `lib/quantize.ts`'s `buildPaletteFromAssignment` (used by
+      both quantizers) was discarding `runLloyd`'s own already-converged
+      OKLab centroids and recomputing a *separate* linear-RGB mean over
+      the same final membership — fixed by having it convert the
+      existing centroids straight to RGB via the already-defined (but,
+      until now, never actually called anywhere) `oklabToRgb`, which
+      also handles gamut clamping. `lib/pattern.ts`'s post-optimization
+      recompute (the review's own cited line) needed a genuine new mean
+      instead (ICM/contour-cleanup reassign cells with no centroid
+      tracked for that final membership) — added `meanRgbOklab`
+      (replacing the removed `meanRgbLinear`, no longer used anywhere)
+      and fixed the specific incorrect comment claiming the old
+      recompute was "provably at least as accurate." Linear-light
+      averaging is untouched for the actual spatial downsample
+      (`downsampleToGrid`) — a genuinely different operation this
+      finding doesn't apply to. Attempted a codex-cli critique exchange
+      before implementing per STANDARDS.md; hit the same pre-existing,
+      already-logged ChatGPT-account model-rejection issue as M3,
+      proceeded on independent analysis. ✔ 2026-09-10. Verified against
+      the review's own two worked examples directly: a new unit test
+      reproducing their exact 100×60 grayscale-ramp repro gets the exact
+      palette they reported for the OKLab recompute ([58,58,58] and
+      [189,189,189], not the old [71,71,71]/[194,194,194]) — confirmed
+      with a real, throwaway script before writing the permanent test,
+      not assumed from the math alone; another test confirms the 50/50
+      black/white cluster's OKLab mean is a genuinely different gray
+      from the linear-RGB mean (not just re-deriving the same value two
+      ways). 164 unit tests green — including the full existing
+      regression/quantizer suite passing *unmodified* (none of those
+      tests assert exact RGB values, only OKLab-distance thresholds and
+      clustering behavior, which this change doesn't touch), confirming
+      no measurable quality regression on the project's own broader test
+      corpus, not just the one motivating reproduction. 10 e2e tests
+      green, clean lint/tsc/build. Real-browser generation against the
+      actual fixture image showed coherent, visually normal color
+      regions with zero console errors — both generation modes
+      (`plainKMeansQuantizer`/"Original" and `kMeansQuantizer`/"Latest")
+      go through the same fixed `buildPaletteFromAssignment`, so no
+      separate per-mode revalidation was needed beyond the shared test
+      suite already covering both.
 - [ ] M5 — Findings 6, 7, 8 (remaining P2 reliability gaps): stitch-
       texture failure becomes recoverable (clears its rejected cache,
       shows a visible error, offers retry) instead of permanently
@@ -234,6 +278,10 @@ svc-lab).
       decision-record entry summarizing what changed and why.
 
 **Progress log** (newest first):
+- 2026-09-10 — M4 completed and verified (finding 3). Found the same
+  linear-RGB/OKLab inconsistency in a second place the review didn't
+  cite (`quantize.ts`'s own `buildPaletteFromAssignment`), not just the
+  one it did.
 - 2026-09-10 — M3 completed and verified (finding 2). Caught and fixed
   a real bug in my own first implementation via real-browser worst-case
   testing (a too-small requested cell size made the new area-weighted

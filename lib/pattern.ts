@@ -5,7 +5,7 @@ import { nameColors } from "./color-names";
 import { defaultComponentRecolorOptions, fixDiagonalConnections, recolorSmallComponents } from "./contour-cleanup";
 import { runMultiScaleOptimizer, type MultiScaleWeights } from "./local-optimizer";
 import { mergeSimilarColors } from "./palette-optimizer";
-import { kMeansQuantizer, meanRgbLinear, type ColorQuantizer } from "./quantize";
+import { kMeansQuantizer, meanRgbOklab, type ColorQuantizer } from "./quantize";
 import { symbolsFor } from "./symbols";
 import type { PaletteColor, PixelBuffer, StitchPattern } from "./types";
 
@@ -80,13 +80,18 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   // (HANDOVER.md D11) found this was never done: ICM, component recoloring,
   // and diagonal fixes all reassign cells between colors, so the k-means
   // mean no longer reflects who's actually assigned to it by the time the
-  // chart is rendered. One more linear-light mean per color, using cells
-  // this pattern actually settled on, and it's provably at least as
-  // accurate (the definition of a Lloyd update).
+  // chart is rendered. Averaged in OKLab space (not a linear-RGB mean) --
+  // assignment throughout this pipeline (k-means, ICM, contour cleanup) is
+  // all driven by squared OKLab distance, and a mean only minimizes squared
+  // error in the coordinate system it's computed in; a linear-RGB mean of
+  // the same membership is a genuinely different, less accurate color by
+  // that metric, not just a stylistic difference (code-review 2026-09-09,
+  // finding 3 -- the previous version of this comment claimed the linear-RGB
+  // recompute was "provably at least as accurate," which wasn't true).
   const cellsByFinalIndex: number[][] = usedIndices.map(() => []);
   for (let i = 0; i < compactCellPaletteIndex.length; i++) cellsByFinalIndex[compactCellPaletteIndex[i]].push(i);
   const compactPalette = usedIndices.map((originalIndex, newIndex) =>
-    cellsByFinalIndex[newIndex].length > 0 ? meanRgbLinear(cells, cellsByFinalIndex[newIndex]) : merged.palette[originalIndex]
+    cellsByFinalIndex[newIndex].length > 0 ? meanRgbOklab(cells, cellsByFinalIndex[newIndex]) : merged.palette[originalIndex]
   );
 
   // Sort dark-to-light for a legend that reads top-to-bottom the way a

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { oklabDistanceSquared, rgbToOklab } from "@/lib/color";
 import { downsampleToGrid } from "@/lib/downsample";
-import { kMeansQuantizer, plainKMeansQuantizer } from "@/lib/quantize";
+import { kMeansQuantizer, meanRgbOklab, plainKMeansQuantizer } from "@/lib/quantize";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 
 function makeCells(colors: RGB[]): CellColorBuffer {
@@ -13,6 +13,31 @@ function makeCells(colors: RGB[]): CellColorBuffer {
   });
   return { data, width: colors.length, height: 1 };
 }
+
+describe("meanRgbOklab", () => {
+  it("averages a 50/50 black/white cluster to a different, genuinely-OKLab-mean gray, not the linear-RGB mean", () => {
+    // The review's other worked example (code-review 2026-09-09, finding 3):
+    // a simple 50/50 black/white cluster gives a lower squared-OKLab error
+    // at the OKLab mean than at the linear-RGB mean (0.250 vs 0.337) --
+    // meaning the two means are genuinely different grays, not the same
+    // value computed two ways.
+    const cells = makeCells([
+      [0, 0, 0],
+      [255, 255, 255],
+    ]);
+    const [r, g, b] = meanRgbOklab(cells, [0, 1]);
+    expect(g).toBe(r);
+    expect(b).toBe(r);
+    // The linear-RGB mean of pure black/white is sRGB ~188 (HANDOVER.md D7's
+    // own gamma-correctness rule) -- the OKLab mean must differ from that.
+    expect(r).not.toBe(188);
+  });
+
+  it("returns the exact single color for a single-member cluster", () => {
+    const cells = makeCells([[123, 45, 67]]);
+    expect(meanRgbOklab(cells, [0])).toEqual([123, 45, 67]);
+  });
+});
 
 describe("kMeansQuantizer", () => {
   it("recovers two well-separated colors exactly", () => {
@@ -115,6 +140,33 @@ describe("kMeansQuantizer", () => {
     // investigation -- old baseline needed k=9 here).
     expect(hasYellow(plainKMeansQuantizer.quantize(cells, 5).palette)).toBe(false);
     expect(hasYellow(kMeansQuantizer.quantize(cells, 5).palette)).toBe(true);
+  });
+
+  it("recomputes the reported palette color as the OKLab centroid, not a linear-RGB mean (code-review 2026-09-09, finding 3)", () => {
+    // The review's own exact repro: a 100x60 grayscale ramp through the
+    // default two-color pipeline. The old linear-RGB-mean recompute gave
+    // [71,71,71] and [194,194,194]; recomputing the same final memberships
+    // in OKLab space (the metric assignment actually uses throughout this
+    // pipeline) gives [58,58,58] and [189,189,189] -- a real, measurable
+    // difference (not just a rounding nudge), matching the review's own
+    // reported values exactly.
+    const width = 100;
+    const height = 60;
+    const data = new Uint8ClampedArray(width * height * 3);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const v = Math.round((x / (width - 1)) * 255);
+        const o = (y * width + x) * 3;
+        data[o] = v;
+        data[o + 1] = v;
+        data[o + 2] = v;
+      }
+    }
+    const cells: CellColorBuffer = { data, width, height };
+    const { palette } = plainKMeansQuantizer.quantize(cells, 2);
+    const sorted = [...palette].sort((a, b) => a[0] - b[0]);
+    expect(sorted[0]).toEqual([58, 58, 58]);
+    expect(sorted[1]).toEqual([189, 189, 189]);
   });
 
   it("doesn't fabricate colors when every requested color is already genuinely distinct", () => {
