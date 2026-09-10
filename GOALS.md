@@ -108,14 +108,48 @@ svc-lab).
       300-DPI page sizes while everything else scaled — caught because
       a test using a synthetic DPI to get clean round numbers came back
       with cell counts that didn't match hand-calculated expectations.
-- [ ] M2 — Extend `lib/render.ts`'s chart-drawing so a page can render
-      an arbitrary rectangular sub-region of the pattern using **global**
-      coordinates for grid-line weight (every 5th/10th line) and
-      row/column number labels (a page starting at stitch 70 must still
-      label 70, 80, 90…, not restart at 0), plus a visual treatment for
-      cells inside an overlap band shared with an adjacent page.
-      Reuses the existing per-cell fill/symbol logic rather than
-      duplicating it.
+- [x] M2 — `lib/render.ts`'s `drawChart` now takes an optional `region`
+      (defaults to the whole pattern, so every existing caller is
+      byte-for-byte unaffected) and draws that rectangular fragment
+      using the pattern's own **global** coordinates for grid-line
+      weight and cell position — a page starting at stitch 70 still
+      lands its major gridlines correctly rather than restarting the
+      1/5/10 pattern from its own edge. New `lib/a4-render.ts`:
+      `renderA4GridPage` renders one full A4-page canvas by calling
+      `drawChart` for the actual grid (no duplicated cell/symbol/color
+      logic, per requirement 15), then draws page-specific chrome on
+      top: a "Page X/N — Row R, Column C" caption, global-coordinate
+      numbers along the page's own top/left edges (labeling 70, 80,
+      90… on a page that starts at 70, never restarting at 0), and a
+      tinted, rotated-"OVERLAP"-labeled band on whichever edges border
+      an adjacent page. ✔ 2026-09-10.
+      **Caught and fixed a real design gap before it reached later
+      milestones**: M1's page-capacity math assumed the *entire*
+      printable area (page size minus margin) goes to cells, but the
+      caption and coordinate-number gutters this milestone needed also
+      have to fit inside that same margin box — otherwise they'd either
+      overflow the requested 10-15mm margin or eat into the grid itself.
+      Went back and added `CAPTION_HEIGHT_MM`/`NUMBER_GUTTER_MM`
+      reservations to `calculateA4Layout` (plus new `gridOriginXPx`/
+      `gridOriginYPx` fields so the renderer never recomputes that
+      offset independently), updated M1's unit tests for the corrected
+      (smaller) page capacities, and added a new test asserting the
+      grid-plus-margin never exceeds the physical page. 6 new unit
+      tests for the one pure piece of the renderer
+      (`overlapSidesForPage`); the drawing itself has no unit tests, by
+      the same established convention as the rest of `render.ts`
+      (canvas/DOM-dependent, verified via real rendering instead).
+      Verified with a real browser: a temporary scratch route (deleted
+      before committing — `git status` confirmed clean) rendered actual
+      A4 pages for a synthetic multi-color pattern and confirmed, at
+      full print resolution: the caption and both coordinate-number
+      axes read correctly, page 2's column numbers continue globally
+      (90, 100, 110… not restarting at 0), and the overlap tint +
+      rotated "OVERLAP" label appear correctly mirrored on page 1's
+      trailing edge and page 2's leading edge for the same shared
+      stitches. 139 unit tests + 5 e2e tests green, clean lint/tsc/
+      build — confirmed the existing single-PNG export is
+      byte-for-byte unaffected.
 - [ ] M3 — `lib/a4-export.ts`: orchestrates rendering one page canvas
       at a time (never one giant canvas), converts each to a PNG, adds
       the one legend page, and (only when there's more than one page)
@@ -141,10 +175,13 @@ svc-lab).
       the ZIP, unzip and visually inspect the actual PNGs.
 
 **Progress log** (newest first):
+- 2026-09-10 — M2 completed and verified. Real-browser verification via
+  a temporary scratch route (deleted before committing). Owner
+  confirmed continuing straight through G-009's remaining milestones
+  before switching to the queued code-review work.
 - 2026-09-10 — M1 completed and verified (lint/tsc/vitest all clean,
-  132 unit tests total). Stopping here for the standard milestone
-  check-in per OPERATIONS.md before starting M2 (canvas/rendering
-  work).
+  132 unit tests total). Stopped for a milestone check-in; Owner
+  confirmed continuing G-009 to completion before the code-review work.
 - 2026-09-10 — Goal created from the Owner's detailed written spec.
   Two scope questions resolved via `AskUserQuestion`: A4 export applies
   to Color/B&W modes in both the main results screen and the editor

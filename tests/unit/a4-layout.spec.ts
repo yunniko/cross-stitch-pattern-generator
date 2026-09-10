@@ -23,13 +23,14 @@ describe("mmToPx / a4PageSizePx", () => {
 });
 
 describe("calculateA4Layout", () => {
-  // cellSizeMm=1 -> cellSizePx=10 at TEST_DPI; marginMm=70 -> marginPx=700.
-  // Portrait page is 2100x2970px at this DPI, so printable width/height are
-  // 700x1570px -> exactly 70 cells across, 157 cells down (rounds to 150).
-  // Orientation is pinned to portrait throughout so these tests isolate one
-  // axis's splitting behavior instead of also exercising auto-orientation
-  // (covered separately below).
-  const columnLayoutOptions = { cellSizeMm: 1, marginMm: 70, dpi: TEST_DPI, orientation: "portrait" } as const;
+  // cellSizeMm=1 -> cellSizePx=10 at TEST_DPI; marginMm=67 -> marginPx=670.
+  // Portrait page is 2100x2970px at this DPI; after also reserving the
+  // caption/number-gutter chrome (see CAPTION_HEIGHT_MM/NUMBER_GUTTER_MM),
+  // the printable grid area works out to exactly 70 cells across, 149 cells
+  // down (rounds to 140). Orientation is pinned to portrait throughout so
+  // these tests isolate one axis's splitting behavior instead of also
+  // exercising auto-orientation (covered separately below).
+  const columnLayoutOptions = { cellSizeMm: 1, marginMm: 67, dpi: TEST_DPI, orientation: "portrait" } as const;
 
   it("matches the Owner's own worked example with no overlap: 0-70, 70-140, 140-180", () => {
     const layout = calculateA4Layout(180, 10, { ...columnLayoutOptions, overlapCells: 0 });
@@ -55,10 +56,10 @@ describe("calculateA4Layout", () => {
   });
 
   it("rounds cells-per-page down to the nearest 10 (73 fit -> use 70)", () => {
-    // Portrait page is 2100px wide at TEST_DPI; marginMm=68.5 -> marginPx=685
-    // each side, leaving 730px printable -> floor(730/10)=73 cells, which
-    // rounds down to 70.
-    const layout = calculateA4Layout(1000, 10, { cellSizeMm: 1, marginMm: 68.5, dpi: TEST_DPI, orientation: "portrait", overlapCells: 0 });
+    // Portrait page is 2100px wide at TEST_DPI; marginMm=65.5 -> marginPx=655
+    // each side, minus the 60px number-gutter reserved on the left, leaves
+    // 730px printable -> floor(730/10)=73 cells, which rounds down to 70.
+    const layout = calculateA4Layout(1000, 10, { cellSizeMm: 1, marginMm: 65.5, dpi: TEST_DPI, orientation: "portrait", overlapCells: 0 });
     expect(layout.cellsPerPageX).toBe(70);
   });
 
@@ -82,14 +83,14 @@ describe("calculateA4Layout", () => {
   });
 
   it("splits into 2 pages vertically only when height exceeds capacity but width doesn't", () => {
-    // cellsPerPageY at these options is 150 (see columnLayoutOptions comment).
+    // cellsPerPageY at these options is 140 (see columnLayoutOptions comment).
     const layout = calculateA4Layout(10, 200, { ...columnLayoutOptions, overlapCells: 0 });
     expect(layout.rows).toBe(2);
     expect(layout.columns).toBe(1);
     const ranges = layout.pages.map((p) => [p.startY, p.endY]);
     expect(ranges).toEqual([
-      [0, 150],
-      [150, 200],
+      [0, 140],
+      [140, 200],
     ]);
   });
 
@@ -155,5 +156,14 @@ describe("calculateA4Layout", () => {
     const layout = calculateA4Layout(10, 10);
     expect(layout.cellSizePx).toBe(mmToPx(DEFAULT_CELL_SIZE_MM));
     expect(layout.marginPx).toBe(mmToPx(DEFAULT_MARGIN_MM));
+  });
+
+  it("reserves grid origin space beyond the margin for the caption and coordinate-number gutters", () => {
+    const layout = calculateA4Layout(10, 10, { marginMm: 10 });
+    expect(layout.gridOriginXPx).toBeGreaterThan(layout.marginPx);
+    expect(layout.gridOriginYPx).toBeGreaterThan(layout.gridOriginXPx);
+    // The grid plus its trailing margin must never exceed the physical page.
+    expect(layout.gridOriginXPx + layout.cellsPerPageX * layout.cellSizePx + layout.marginPx).toBeLessThanOrEqual(layout.pageWidthPx);
+    expect(layout.gridOriginYPx + layout.cellsPerPageY * layout.cellSizePx + layout.marginPx).toBeLessThanOrEqual(layout.pageHeightPx);
   });
 });

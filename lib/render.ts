@@ -23,7 +23,7 @@ const MAX_CANVAS_DIMENSION = 12000;
 // Below this, grid lines/symbols are illegible noise rather than helpful
 // detail — line weights collapse to 1px and symbols stop being drawn
 // (domain-expert review, HANDOVER.md D7).
-const LEGIBILITY_FLOOR_PX = 6;
+export const LEGIBILITY_FLOOR_PX = 6;
 
 // A pinned system font stack instead of bare "sans-serif" — the domain-expert
 // review flagged a real (if unverified in this session) emoji-fallback risk
@@ -32,9 +32,9 @@ const LEGIBILITY_FLOOR_PX = 6;
 // plain glyph every other symbol uses). Arial/Segoe UI are both installed by
 // default on the large majority of desktop platforms this runs on and don't
 // substitute emoji presentations for these code points. See HANDOVER.md D12.
-const FONT_STACK = "Arial, 'Segoe UI', sans-serif";
+export const FONT_STACK = "Arial, 'Segoe UI', sans-serif";
 
-const GRID_LINE_COLOR = "#333333";
+export const GRID_LINE_COLOR = "#333333";
 // Line weights scale with cell size (a constant 1/2/3px reads as noise once
 // cells shrink toward the max-stitch-count end of the range) — ratios
 // chosen so the previous fixed 1/2/3px come out unchanged at the default
@@ -89,8 +89,35 @@ function symbolTextColor(mode: RenderMode, rgb: RGB): string {
   return luminance(rgb) > 140 ? "#000000" : "#ffffff";
 }
 
-export function drawChart(ctx: CanvasRenderingContext2D, pattern: StitchPattern, mode: RenderMode, cellSize: number) {
+/** A rectangular range of the pattern's own global stitch coordinates, end-exclusive. */
+export interface ChartRegion {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/**
+ * Draws the grid (fills, symbols, gridlines) for `region` of `pattern` --
+ * defaults to the whole pattern, so every existing caller is unaffected.
+ * Grid-line weight (every 5th/10th heavier) and cell positions are always
+ * computed from the pattern's own **global** coordinates, not local to the
+ * region -- so a region starting at, say, stitch 70 still draws its major
+ * gridline at the correct spot rather than restarting the 1/5/10 pattern
+ * from its own edge. This is what lets `lib/a4-export.ts` render a single
+ * A4 page's fragment of a much larger pattern using this exact function,
+ * with no separate cell/symbol/color drawing logic (Owner's spec,
+ * requirement 15).
+ */
+export function drawChart(
+  ctx: CanvasRenderingContext2D,
+  pattern: StitchPattern,
+  mode: RenderMode,
+  cellSize: number,
+  region?: ChartRegion
+) {
   const { width, height, cellPalette, palette } = pattern;
+  const { x0, y0, x1, y1 } = region ?? { x0: 0, y0: 0, x1: width, y1: height };
   const drawSymbols = cellSize >= LEGIBILITY_FLOOR_PX;
 
   if (drawSymbols) {
@@ -99,15 +126,17 @@ export function drawChart(ctx: CanvasRenderingContext2D, pattern: StitchPattern,
     ctx.textBaseline = "middle";
   }
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
       const color = palette[cellPalette[y * width + x]];
+      const localX = (x - x0) * cellSize;
+      const localY = (y - y0) * cellSize;
       ctx.fillStyle = fillForCell(mode, color.rgb);
-      ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+      ctx.fillRect(localX, localY, cellSize, cellSize);
 
       if (drawSymbols) {
         ctx.fillStyle = symbolTextColor(mode, color.rgb);
-        ctx.fillText(color.symbol, x * cellSize + cellSize / 2, y * cellSize + cellSize / 2 + 1);
+        ctx.fillText(color.symbol, localX + cellSize / 2, localY + cellSize / 2 + 1);
       }
     }
   }
@@ -117,18 +146,18 @@ export function drawChart(ctx: CanvasRenderingContext2D, pattern: StitchPattern,
   const majorWidth = Math.max(1, Math.round(cellSize * MAJOR_LINE_RATIO));
 
   ctx.strokeStyle = GRID_LINE_COLOR;
-  for (let x = 0; x <= width; x++) {
+  for (let x = x0; x <= x1; x++) {
     ctx.lineWidth = x % 10 === 0 ? majorWidth : x % 5 === 0 ? mediumWidth : minorWidth;
     ctx.beginPath();
-    ctx.moveTo(x * cellSize, 0);
-    ctx.lineTo(x * cellSize, height * cellSize);
+    ctx.moveTo((x - x0) * cellSize, 0);
+    ctx.lineTo((x - x0) * cellSize, (y1 - y0) * cellSize);
     ctx.stroke();
   }
-  for (let y = 0; y <= height; y++) {
+  for (let y = y0; y <= y1; y++) {
     ctx.lineWidth = y % 10 === 0 ? majorWidth : y % 5 === 0 ? mediumWidth : minorWidth;
     ctx.beginPath();
-    ctx.moveTo(0, y * cellSize);
-    ctx.lineTo(width * cellSize, y * cellSize);
+    ctx.moveTo(0, (y - y0) * cellSize);
+    ctx.lineTo((x1 - x0) * cellSize, (y - y0) * cellSize);
     ctx.stroke();
   }
 }

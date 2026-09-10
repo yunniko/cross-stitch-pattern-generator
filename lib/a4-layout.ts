@@ -18,6 +18,15 @@ const A4_HEIGHT_MM = 297;
 export const DEFAULT_MARGIN_MM = 12;
 export const DEFAULT_CELL_SIZE_MM = 2.75;
 
+// Space reserved *inside* the margin box for this page's own chrome -- the
+// "Page X/N, Row R, Column C" caption (top) and the global coordinate
+// numbers (top strip for columns, left strip for rows). These have to come
+// out of the printable area before it's divided into cells, or the caption/
+// numbers would either overflow the requested margin or eat into the grid
+// itself. Sized to stay legibly readable when printed, not tied to cell size.
+export const CAPTION_HEIGHT_MM = 8;
+export const NUMBER_GUTTER_MM = 6;
+
 export type PageOrientation = "portrait" | "landscape";
 export type OverlapCells = 0 | 5 | 10;
 
@@ -66,6 +75,9 @@ export interface A4Layout {
   /** Cells that fit across/down one page's printable area, before clipping to the pattern's own size. */
   cellsPerPageX: number;
   cellsPerPageY: number;
+  /** Pixel offset from a page canvas's top-left corner to where its grid actually starts (past the margin, caption, and coordinate-number gutters). */
+  gridOriginXPx: number;
+  gridOriginYPx: number;
 }
 
 export interface A4LayoutOptions {
@@ -114,8 +126,13 @@ function layoutForOrientation(
   dpi: number
 ): A4Layout {
   const { width: pageWidthPx, height: pageHeightPx } = a4PageSizePx(orientation, dpi);
-  const printableWidthPx = pageWidthPx - 2 * marginPx;
-  const printableHeightPx = pageHeightPx - 2 * marginPx;
+  const captionHeightPx = mmToPx(CAPTION_HEIGHT_MM, dpi);
+  const numberGutterPx = mmToPx(NUMBER_GUTTER_MM, dpi);
+  const gridOriginXPx = marginPx + numberGutterPx;
+  const gridOriginYPx = marginPx + captionHeightPx + numberGutterPx;
+
+  const printableWidthPx = pageWidthPx - marginPx - gridOriginXPx;
+  const printableHeightPx = pageHeightPx - marginPx - gridOriginYPx;
 
   const cellsPerPageX = cellsPerPageFor(printableWidthPx, cellSizePx);
   const cellsPerPageY = cellsPerPageFor(printableHeightPx, cellSizePx);
@@ -149,6 +166,8 @@ function layoutForOrientation(
     overlapCells,
     cellsPerPageX,
     cellsPerPageY,
+    gridOriginXPx,
+    gridOriginYPx,
   };
 }
 
