@@ -59,7 +59,7 @@ test("the Highlight tool dims non-selected colors as a pure view overlay -- no u
   await generateSmallPattern(page);
 
   await page.getByRole("button", { name: "Highlight" }).click();
-  const legendRows = page.locator("div[draggable='true']");
+  const legendRows = page.locator('[data-testid="legend-color-row"]');
   const stsTextBefore = await legendRows.nth(0).textContent();
 
   const canvas = page.getByRole("main").locator("canvas");

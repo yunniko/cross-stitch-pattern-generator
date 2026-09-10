@@ -21,6 +21,7 @@ import { generateA4Export, downloadBlob } from "@/lib/a4-export";
 import { calculateA4Layout, type OverlapCells } from "@/lib/a4-layout";
 import { useUndoHistory } from "@/lib/use-undo-history";
 import {
+  EMPTY_CELL,
   MAX_COLORS,
   MAX_STITCHES,
   MIN_COLORS,
@@ -1122,6 +1123,26 @@ export default function Workspace() {
             select it (Brush), then click or drag across the picture to paint. Double-click a name to rename it.
           </p>
 
+          {pattern && (
+            <div
+              draggable
+              onDragStart={(e) => e.dataTransfer.setData("text/plain", String(EMPTY_CELL))}
+              onClick={() => setActiveColorIndex(activeColorIndex === EMPTY_CELL ? null : EMPTY_CELL)}
+              title="No stitch -- marks cells that shouldn't be stitched at all. Never appears in the legend or exports' stitch counts."
+              className={`flex cursor-pointer items-center gap-2 rounded border px-2 py-1 text-sm transition-colors ${
+                activeColorIndex === EMPTY_CELL
+                  ? "border-foreground bg-black/[.04] dark:bg-white/[.08]"
+                  : "border-transparent hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+              }`}
+            >
+              <span
+                className="h-5 w-5 shrink-0 rounded border border-zinc-400 bg-[repeating-conic-gradient(#9ca3af_0_25%,transparent_0_50%)] bg-[length:8px_8px] dark:border-zinc-600"
+                aria-hidden
+              />
+              <span className="flex-1 text-zinc-500 dark:text-zinc-400">Empty (no stitch)</span>
+            </div>
+          )}
+
           {pattern &&
             [...pattern.palette]
               .sort((a, b) => b.count - a.count)
@@ -1129,6 +1150,7 @@ export default function Workspace() {
                 <div
                   key={color.index}
                   draggable
+                  data-testid="legend-color-row"
                   onDragStart={(e) => e.dataTransfer.setData("text/plain", String(color.index))}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleLegendDrop(color.index)}

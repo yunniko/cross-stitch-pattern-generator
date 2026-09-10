@@ -314,12 +314,76 @@ svc-lab).
       distortion or jump — the specific "doesn't visually jump"
       acceptance criterion this milestone was written against, not just
       a passing pixel-diff test.
-- [ ] M5 — Empty-stitch ("no stitch") pseudo-color: paintable via the
-      Brush/fill-cluster tools like any real color, but a reserved
-      sentinel value excluded from the legend, stitch counts, and every
-      render/export path (color/B&W/realistic PNG, A4 pages) — rendered
-      as blank in all of them. Threaded through `lib/pattern-edit.ts`'s
-      merge/paint/fill/compact operations and `lib/pattern-serialize.ts`.
+- [x] M5 — Empty-stitch ("no stitch") pseudo-color. New `lib/types.ts`
+      `EMPTY_CELL = 255`: a `cellPalette` sentinel fixed at the
+      `Uint8Array` max (comfortably above `MAX_COLORS=64`, so it can
+      never collide with a real palette index), deliberately *not* a
+      `PaletteColor` — it never gets a legend entry. Reused the existing
+      `activeColorIndex`/Brush/fill-cluster machinery unchanged (neither
+      cares what a palette index *means*) by adding a fixed, always-
+      first "Empty (no stitch)" row to the Colors dock (a checkerboard
+      swatch, no stitch count shown) that sets `activeColorIndex =
+      EMPTY_CELL` on click and is drag-fillable onto the picture exactly
+      like a real color.
+
+      Auditing every function that touches raw `cellPalette` values
+      found two real, would-have-shipped bugs, not just theoretical
+      ones: `mergeColors` and `compactUnusedColors` both remap palette
+      indices through a fixed-size `Int16Array` sized to the *real*
+      palette length — reading `remap[255]` is out-of-bounds on a
+      typed array (returns `undefined`, not a thrown error), which
+      would have silently corrupted every empty cell into color index 0
+      the next time either ran. Fixed both by passing `EMPTY_CELL`
+      through untouched instead of remapping it; `recomputeCounts`
+      fixed the same way (skip it instead of incrementing
+      `counts[255]`). `shiftPattern` (Move) and `resizeCanvas` needed no
+      changes at all — neither looks at what a `cellPalette` value
+      *means*, so empty cells already moved/persisted through them
+      correctly. `pattern-serialize.ts`'s validation updated to accept
+      `EMPTY_CELL` as a valid index without needing a matching palette
+      entry, and to exclude it from the loaded counts.
+
+      Rendering: `drawChart` (color/B&W) and the new `drawChartOutline`
+      (Grid+photo) both render an `EMPTY_CELL` cell as plain white with
+      no symbol; `renderNavigatorPixels` does the same instead of
+      crashing on `palette[255]` being `undefined`;
+      `renderStitchPreviewToCanvas` (Realistic) skips the per-cell
+      texture-tint draw, leaving the plain canvas-color fill already
+      painted underneath showing through — all four render/export paths
+      fixed at their one shared root rather than the download/A4 paths
+      needing separate handling, since they all route through
+      `drawChart`. `drawHighlightOverlay` needed no change — an empty
+      cell is simply never in the highlighted set, so it dims like
+      everything else, which is harmless.
+
+      **Found and fixed a real e2e regression from this same change,
+      not assumed harmless**: adding the "Empty" swatch as a `draggable`
+      `div` in the Colors dock broke two *existing* tests
+      (`editing.spec.ts`, `move-highlight.spec.ts`) that located legend
+      rows via the generic `div[draggable='true']` selector — Empty
+      became `.nth(0)`, silently shifting every other index. Fixed by
+      giving real color rows a stable `data-testid="legend-color-row"`
+      and updating every affected test (four files) to select on that
+      instead of the now-ambiguous generic selector, rather than papering
+      over it with a one-off `.nth(1)` workaround in just the two
+      failing tests. ✔ 2026-09-10.
+
+      198 unit tests (+9: paint/fill/merge/compact/shift/resize all
+      round-tripping `EMPTY_CELL` correctly, a `pattern-serialize`
+      round-trip, and a `renderNavigatorPixels` crash-guard test) green.
+      25 e2e tests (+3, `tests/e2e/empty-stitch.spec.ts`: painting empty
+      doesn't touch the legend/counts, an empty cell reads as opaque
+      white via direct canvas pixel inspection in both Color and B&W,
+      and Grid+photo mode handles an empty cell with zero console
+      errors). Clean `tsc`/`eslint`/`npm run build`. Verified live in a
+      real browser beyond the automated suite: painted one stitch empty
+      and fill-cluster-filled an entire connected region empty via drag,
+      confirmed both render as clean blank white with correct grid
+      lines in Color mode, confirmed the same region shows blank in
+      Realistic preview (the plain fabric-color fill showing through,
+      not a crash or leftover texture) — and confirmed the "16 colors"
+      header count and every real color's own stitch count stayed
+      exactly unchanged throughout.
 - [ ] M6 — Full regression pass (unit + e2e + lint/tsc/build) across
       every mode/tool/dock, real-browser re-verification of each
       acceptance-criteria item above, HANDOVER.md write-up, and an
@@ -328,6 +392,15 @@ svc-lab).
       going live, not just an automated-green deploy).
 
 **Progress log** (newest first):
+- 2026-09-10 — M5 completed and verified: the EMPTY_CELL empty-stitch
+  sentinel, threaded through every cellPalette-touching function and
+  every render/export path. Auditing every such function found two
+  real bugs (mergeColors and compactUnusedColors would have silently
+  corrupted empty cells into color 0 via an out-of-bounds typed-array
+  remap) -- fixed before they could ship, not found by accident later.
+  Also caught and fixed a real e2e regression the new Colors-dock
+  swatch caused in two already-passing tests, via a stable
+  data-testid rather than a one-off index workaround.
 - 2026-09-10 — M4 completed and verified: canvas resize (crop and/or
   expand any edge in one operation), reusing the existing "+ Add color"
   path for a new expand-fill color and its MAX_COLORS cap. Verified

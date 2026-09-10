@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, shiftPattern } from "@/lib/pattern-edit";
-import { MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
+import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {
   const counts = new Array(colors.length).fill(0);
@@ -324,5 +324,66 @@ describe("resizeCanvas", () => {
     expect(resized.palette).toHaveLength(2); // color 0 stays in the palette
     expect(resized.palette[0].count).toBe(0);
     expect(resized.palette[1].count).toBe(1);
+  });
+});
+
+describe("EMPTY_CELL (the empty-stitch pseudo-color, G-012 M5)", () => {
+  it("paintStitch can paint a cell empty, and it isn't counted against any real color", () => {
+    const pattern = makePattern(2, 1, [0, 1], [
+      [1, 1, 1],
+      [2, 2, 2],
+    ]);
+    const painted = paintStitch(pattern, 0, EMPTY_CELL);
+    expect(Array.from(painted.cellPalette)).toEqual([EMPTY_CELL, 1]);
+    expect(painted.palette[0].count).toBe(0);
+    expect(painted.palette[1].count).toBe(1);
+  });
+
+  it("fillCluster can fill a connected region as empty", () => {
+    // 3x1, all one color -> fill the whole (single) region empty.
+    const pattern = makePattern(3, 1, [0, 0, 0], [[1, 1, 1]]);
+    const filled = fillCluster(pattern, 1, EMPTY_CELL);
+    expect(Array.from(filled.cellPalette)).toEqual([EMPTY_CELL, EMPTY_CELL, EMPTY_CELL]);
+    expect(filled.palette[0].count).toBe(0);
+  });
+
+  it("mergeColors leaves empty cells untouched and doesn't corrupt them via the palette-index remap", () => {
+    // 3x1: [empty, color0, color1] -- merging color0 into color1 must not
+    // disturb the empty cell, and must not silently turn it into color 0
+    // via an out-of-bounds remap read (the bug this test guards against).
+    const pattern = makePattern(3, 1, [EMPTY_CELL, 0, 1], [
+      [1, 1, 1],
+      [2, 2, 2],
+    ]);
+    const merged = mergeColors(pattern, 0, 1);
+    expect(Array.from(merged.cellPalette)).toEqual([EMPTY_CELL, 0, 0]); // color1 remapped to index 0 after color0's removal
+  });
+
+  it("compactUnusedColors leaves empty cells untouched and doesn't corrupt them via the palette-index remap", () => {
+    const pattern = makePattern(3, 1, [EMPTY_CELL, 1, 1], [
+      [1, 1, 1], // unused -- will be compacted away
+      [2, 2, 2],
+    ]);
+    const compacted = compactUnusedColors(pattern);
+    expect(compacted.palette).toHaveLength(1);
+    expect(Array.from(compacted.cellPalette)).toEqual([EMPTY_CELL, 0, 0]);
+  });
+
+  it("shiftPattern (Move) carries empty cells through a wrap-around shift unchanged", () => {
+    const pattern = makePattern(3, 1, [EMPTY_CELL, 0, 1], [
+      [1, 1, 1],
+      [2, 2, 2],
+    ]);
+    const shifted = shiftPattern(pattern, 1, 0);
+    expect(Array.from(shifted.cellPalette)).toEqual([1, EMPTY_CELL, 0]);
+  });
+
+  it("resizeCanvas carries empty cells through a crop/expand unchanged", () => {
+    const pattern = makePattern(3, 1, [EMPTY_CELL, 0, 1], [
+      [1, 1, 1],
+      [2, 2, 2],
+    ]);
+    const resized = resizeCanvas(pattern, { left: 0, right: 1, top: 0, bottom: 0 }, [9, 9, 9]);
+    expect(Array.from(resized.cellPalette)).toEqual([EMPTY_CELL, 0, 1, 2]); // new cell is the real fill color, not empty
   });
 });

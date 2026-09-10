@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
-import { MAX_STITCHES, type PaletteColor, type StitchPattern } from "@/lib/types";
+import { EMPTY_CELL, MAX_STITCHES, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 function makePattern(): StitchPattern {
   const palette: PaletteColor[] = [
@@ -119,5 +119,23 @@ describe("pattern-serialize", () => {
     });
     const restored = deserializePattern(bad);
     expect(restored.sourceImage).toBeUndefined();
+  });
+
+  it("round-trips an EMPTY_CELL stitch without rejecting the file (G-012 M5)", () => {
+    const pattern = { ...makePattern(), cellPalette: Uint8Array.from([EMPTY_CELL, 1, 1, 0]) };
+    const restored = deserializePattern(serializePattern(pattern));
+    expect(Array.from(restored.cellPalette)).toEqual([EMPTY_CELL, 1, 1, 0]);
+    // EMPTY_CELL cells aren't counted against any real color.
+    expect(restored.palette.map((c) => c.count)).toEqual([1, 2]);
+  });
+
+  it("still rejects a genuinely out-of-range index that isn't EMPTY_CELL", () => {
+    const bad = JSON.stringify({
+      width: 1,
+      height: 1,
+      cellPalette: [200], // not EMPTY_CELL (255), and out of this 1-color palette's range
+      palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }],
+    });
+    expect(() => deserializePattern(bad)).toThrow();
   });
 });

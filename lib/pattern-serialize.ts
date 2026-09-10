@@ -1,4 +1,4 @@
-import { MAX_STITCHES, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern } from "./types";
+import { EMPTY_CELL, MAX_STITCHES, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern } from "./types";
 
 // Plain JSON, not a PNG with embedded data (Owner decision, 2026-09-09,
 // HANDOVER.md D21) -- simplest reliable format, at the cost of not being
@@ -66,13 +66,15 @@ export function deserializePattern(json: string): StitchPattern {
     throw new Error("That file has no color palette.");
   }
   for (const index of d.cellPalette) {
-    if (typeof index !== "number" || index < 0 || index >= d.palette.length) {
+    if (typeof index !== "number" || (index !== EMPTY_CELL && (index < 0 || index >= d.palette.length))) {
       throw new Error("That file references a color that isn't in its own palette.");
     }
   }
 
   const counts = new Array(d.palette.length).fill(0);
-  for (const index of d.cellPalette) counts[index]++;
+  for (const index of d.cellPalette) {
+    if (index !== EMPTY_CELL) counts[index]++;
+  }
 
   const palette: PaletteColor[] = d.palette.map((c, i) => ({
     index: i,

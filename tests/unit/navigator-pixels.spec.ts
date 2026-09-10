@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderNavigatorPixels } from "@/lib/render";
-import type { PaletteColor, StitchPattern } from "@/lib/types";
+import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 function makePattern(): StitchPattern {
   const palette: PaletteColor[] = [
@@ -22,5 +22,11 @@ describe("renderNavigatorPixels", () => {
     expect(pixels.length).toBe(2 * 1 * 4);
     expect(Array.from(pixels.slice(0, 4))).toEqual([255, 0, 0, 255]);
     expect(Array.from(pixels.slice(4, 8))).toEqual([0, 0, 255, 255]);
+  });
+
+  it("renders an EMPTY_CELL stitch as opaque white, not a crash from an out-of-range palette lookup (G-012 M5)", () => {
+    const pattern = { ...makePattern(), cellPalette: Uint8Array.from([EMPTY_CELL, 1]) };
+    const pixels = renderNavigatorPixels(pattern);
+    expect(Array.from(pixels.slice(0, 4))).toEqual([255, 255, 255, 255]);
   });
 });

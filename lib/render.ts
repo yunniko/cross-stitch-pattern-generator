@@ -1,7 +1,7 @@
 import { luminance, rgbToHex } from "./color";
 import { DEFAULT_AIDA_COUNT, formatFinishedSize, type SizeUnit } from "./finished-size";
 import { buildTintedTextureSet } from "./stitch-texture";
-import type { PaletteColor, StitchPattern, RGB } from "./types";
+import { EMPTY_CELL, type PaletteColor, type StitchPattern, type RGB } from "./types";
 
 export type RenderMode = "color" | "bw";
 
@@ -150,7 +150,10 @@ export function renderNavigatorPixels(pattern: StitchPattern): Uint8ClampedArray
   const { cellPalette, palette } = pattern;
   const data = new Uint8ClampedArray(cellPalette.length * 4);
   for (let i = 0; i < cellPalette.length; i++) {
-    const [r, g, b] = palette[cellPalette[i]].rgb;
+    const paletteIndex = cellPalette[i];
+    // The empty-stitch sentinel has no palette entry -- render it as blank
+    // white, same as every other render/export path (G-012 M5).
+    const [r, g, b] = paletteIndex === EMPTY_CELL ? [255, 255, 255] : palette[paletteIndex].rgb;
     const o = i * 4;
     data[o] = r;
     data[o + 1] = g;
@@ -179,9 +182,19 @@ export function drawChart(
 
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
-      const color = palette[cellPalette[y * width + x]];
+      const paletteIndex = cellPalette[y * width + x];
       const localX = (x - x0) * cellSize;
       const localY = (y - y0) * cellSize;
+
+      // The empty-stitch sentinel (G-012 M5) has no palette entry -- render
+      // it as plain blank/white, not "the first color by accident."
+      if (paletteIndex === EMPTY_CELL) {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(localX, localY, cellSize, cellSize);
+        continue;
+      }
+
+      const color = palette[paletteIndex];
       ctx.fillStyle = fillForCell(mode, color.rgb);
       ctx.fillRect(localX, localY, cellSize, cellSize);
 
@@ -243,7 +256,9 @@ export function drawChartOutline(ctx: CanvasRenderingContext2D, pattern: StitchP
 
     for (let y = y0; y < y1; y++) {
       for (let x = x0; x < x1; x++) {
-        const color = palette[cellPalette[y * width + x]];
+        const paletteIndex = cellPalette[y * width + x];
+        if (paletteIndex === EMPTY_CELL) continue; // nothing to label -- no palette entry, no stitch
+        const color = palette[paletteIndex];
         const localX = (x - x0) * cellSize + cellSize / 2;
         const localY = (y - y0) * cellSize + cellSize / 2 + 1;
         ctx.strokeText(color.symbol, localX, localY);
@@ -636,7 +651,11 @@ export async function renderStitchPreviewToCanvas(
   const textures = await buildTintedTextureSet(palette);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const tinted = textures.get(cellPalette[y * width + x]);
+      const paletteIndex = cellPalette[y * width + x];
+      // The empty-stitch sentinel has no texture to tint -- leave the plain
+      // canvas-color fill already painted above showing through (G-012 M5).
+      if (paletteIndex === EMPTY_CELL) continue;
+      const tinted = textures.get(paletteIndex);
       ctx.drawImage(tinted, x * cellSize, y * cellSize, cellSize, cellSize);
     }
   }

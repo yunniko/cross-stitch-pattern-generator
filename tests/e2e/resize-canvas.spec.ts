@@ -15,7 +15,7 @@ test("expanding the canvas adds a new fill color and is a single undoable step (
   await generateSmallPattern(page);
   await expect(page.getByText(/50 × \d+ stitches/)).toBeVisible();
 
-  const legendRows = page.locator("div[draggable='true']");
+  const legendRows = page.locator('[data-testid="legend-color-row"]');
   const initialCount = await legendRows.count();
 
   await page.getByRole("button", { name: "Resize canvas…" }).click();

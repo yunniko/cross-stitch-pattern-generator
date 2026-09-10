@@ -42,6 +42,17 @@ export const MAX_STITCHES = 1000;
 export const MIN_COLORS = 2;
 export const MAX_COLORS = 64;
 
+/**
+ * The "empty stitch" sentinel (G-012 M5): a `cellPalette` value meaning
+ * "nothing stitched here" -- for marking cells on a non-square photo that
+ * shouldn't be stitched at all. Deliberately *not* a `PaletteColor` in
+ * `palette` -- it never appears in the legend, never counts toward stitch
+ * totals, and renders as blank in every mode/export. Fixed at the
+ * `Uint8Array` max (255), comfortably above `MAX_COLORS` (64), so it can
+ * never collide with a real palette index.
+ */
+export const EMPTY_CELL = 255;
+
 export interface PaletteColor {
   /** Index into the palette array; also the index stored per cell. */
   index: number;

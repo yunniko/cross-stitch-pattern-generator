@@ -14,7 +14,7 @@ async function generateSmallPattern(page: import("@playwright/test").Page) {
 test("generate, merge two colors, undo/redo, download editable, and reopen it", async ({ page }) => {
   await generateSmallPattern(page);
 
-  const legendRows = page.locator("div[draggable='true']");
+  const legendRows = page.locator('[data-testid="legend-color-row"]');
   const canvas = page.getByRole("main").locator("canvas");
   await expect(canvas).toBeVisible();
   const initialCount = await legendRows.count();
@@ -87,7 +87,7 @@ test("cluster-fill drag and click-to-paint both change the pattern without error
 
   await generateSmallPattern(page);
 
-  const legendRows = page.locator("div[draggable='true']");
+  const legendRows = page.locator('[data-testid="legend-color-row"]');
   const canvas = page.getByRole("main").locator("canvas");
   await canvas.scrollIntoViewIfNeeded();
 
@@ -109,7 +109,7 @@ test("cluster-fill drag and click-to-paint both change the pattern without error
 test("brush stroke paints multiple stitches as a single undo step", async ({ page }) => {
   await generateSmallPattern(page);
 
-  const legendRows = page.locator("div[draggable='true']");
+  const legendRows = page.locator('[data-testid="legend-color-row"]');
   const canvas = page.getByRole("main").locator("canvas");
   await canvas.scrollIntoViewIfNeeded();
   const box = await canvas.boundingBox();

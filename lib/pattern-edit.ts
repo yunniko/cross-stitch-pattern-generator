@@ -1,11 +1,19 @@
 import { nameNewColor } from "./color-names";
 import { labelRegions } from "./regions";
 import { SYMBOL_SET } from "./symbols";
-import { MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "./types";
+import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "./types";
 
+// `EMPTY_CELL` (255) is never counted against any real palette color and
+// must never be run through a palette-index remap (an out-of-bounds typed-
+// array read returns `undefined`, which would silently corrupt it to 0 when
+// stored back into a `Uint8Array`) -- every function below that touches
+// `cellPalette` values needs to pass it through untouched instead.
 function recomputeCounts(cellPalette: Uint8Array, paletteLength: number): number[] {
   const counts = new Array(paletteLength).fill(0);
-  for (const index of cellPalette) counts[index]++;
+  for (const index of cellPalette) {
+    if (index === EMPTY_CELL) continue;
+    counts[index]++;
+  }
   return counts;
 }
 
@@ -42,7 +50,10 @@ export function mergeColors(pattern: StitchPattern, sourceIndex: number, targetI
     remap[color.index] = newIndex;
   });
   const remappedCellPalette = new Uint8Array(cellPalette.length);
-  for (let i = 0; i < cellPalette.length; i++) remappedCellPalette[i] = remap[cellPalette[i]];
+  for (let i = 0; i < cellPalette.length; i++) {
+    const value = cellPalette[i];
+    remappedCellPalette[i] = value === EMPTY_CELL ? EMPTY_CELL : remap[value];
+  }
 
   return withCounts(pattern, remappedCellPalette, survivingPalette);
 }
@@ -232,7 +243,10 @@ export function compactUnusedColors(pattern: StitchPattern): StitchPattern {
   });
 
   const cellPalette = new Uint8Array(pattern.cellPalette.length);
-  for (let i = 0; i < cellPalette.length; i++) cellPalette[i] = remap[pattern.cellPalette[i]];
+  for (let i = 0; i < cellPalette.length; i++) {
+    const value = pattern.cellPalette[i];
+    cellPalette[i] = value === EMPTY_CELL ? EMPTY_CELL : remap[value];
+  }
 
   const palette = usedIndices.map((oldIndex, newIndex) => ({ ...pattern.palette[oldIndex], index: newIndex }));
   return { ...pattern, cellPalette, palette };
