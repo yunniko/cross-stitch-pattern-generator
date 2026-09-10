@@ -1,7 +1,13 @@
 import { test, expect } from "@playwright/test";
 import path from "node:path";
+import { readFile } from "node:fs/promises";
 
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
+
+async function pngWidth(filePath: string): Promise<number> {
+  const buf = await readFile(filePath);
+  return buf.readUInt32BE(16);
+}
 
 test("upload an image, generate a pattern, preview it, and download both variants", async ({ page }) => {
   await page.goto("/");
@@ -47,6 +53,30 @@ test("the image input is disabled while a pattern is generating, so a mid-genera
 
   await expect(page.getByAltText("Cross-stitch pattern preview")).toBeVisible({ timeout: 15_000 });
   await expect(imageInput).toBeEnabled();
+});
+
+test("a small chart's header is never clipped, even at the minimum custom size (code-review 2026-09-09, finding 5)", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
+  await page.getByRole("radio", { name: "Custom" }).check();
+  await page.getByRole("spinbutton").fill("10");
+
+  await page.getByRole("button", { name: "Generate pattern" }).click();
+  await expect(page.getByAltText("Cross-stitch pattern preview")).toBeVisible({ timeout: 15_000 });
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download color PNG" }).click(),
+  ]);
+  const savedPath = test.info().outputPath("small-chart.png");
+  await download.saveAs(savedPath);
+
+  // The original bug: a 10x6 chart's canvas was only ~292px wide, clipping
+  // the finished-size header text partway through. The fix widens the
+  // canvas to fit the header when it would otherwise be narrower than the
+  // chart+legend -- comfortably above that old clipped width confirms it.
+  expect(await pngWidth(savedPath)).toBeGreaterThan(320);
 });
 
 test("rejects a custom size outside the 10-1000 range without crashing", async ({ page }) => {

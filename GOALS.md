@@ -109,11 +109,55 @@ svc-lab).
       exactly-correct 75×150 result matching the portrait image's own
       aspect ratio, with zero console errors. 144 unit tests + 8 e2e
       tests green, clean lint/tsc/build.
-- [ ] M2 — Findings 4 + 5 (chart layout/size budgeting, P2): a real
-      total-output-area budget (not just the stitch-grid dimension)
-      with a clear, catchable failure instead of a silent multi-hundred-
-      MB allocation attempt; `drawHeader` actually uses `canvasWidth`
-      so small-chart headers stop clipping.
+- [x] M2 — Findings 4 + 5 (chart layout/size budgeting, P2).
+      `lib/render.ts`: new `findChartLayout` (pure, no DOM dependency --
+      the actual safety-critical arithmetic is directly unit-tested, not
+      only reachable through a browser like the rest of this file)
+      searches cell sizes down to a floor of 4px for the largest one at
+      which the *complete* chart -- grid, header, legend, margins,
+      marker/number gutters together, not just the stitch grid the old
+      `MAX_CANVAS_DIMENSION` clamp covered -- fits within a real total-
+      area budget (40 million pixels) and a per-dimension budget
+      (8000px), returning `null` if none fits; a thin DOM-dependent
+      wrapper (`computeChartLayout`) measures the header text width
+      (fixing finding 5 -- `drawHeader` used to receive but discard
+      `canvasWidth`) and throws a new, clearly-worded `ChartTooLargeError`
+      pointing the user at "Export as A4 pages" (G-009) as the real
+      alternative for an oversized pattern, instead of silently
+      attempting the allocation. `lib/load-image.ts`: decoding an
+      uploaded photo now caps at 4000px on the longer side before ever
+      creating a pixel buffer -- every image gets box-downsampled to at
+      most 1000 stitches regardless of source resolution (`lib/
+      downsample.ts`), so decoding a much higher-resolution phone/camera
+      photo at full size wasted memory for no accuracy benefit, a second
+      part of finding 4's own cited risk. `lib/pattern-serialize.ts`:
+      `deserializePattern` now also rejects dimensions past
+      `MAX_STITCHES` -- found while designing this milestone, not part
+      of the review's own literal repro: generation itself already
+      enforces this range, but a hand-edited or corrupted "editable"
+      JSON file reaches rendering without going through that check at
+      all, meaning the new render-layer budget was, until this, the
+      *only* line of defense against an oversized pattern reaching
+      export. `app/page.tsx` and `app/pattern-editor.tsx`: both download
+      handlers gained a `catch` (there wasn't one before -- a thrown
+      error would have surfaced as nothing but a silent unhandled
+      rejection) and a dedicated `downloadError` state shown right next
+      to the download buttons, not the far-away generate-time `error`.
+      ✔ 2026-09-10. 7 new unit tests for `findChartLayout` (including
+      confirming the app's own largest supported case, 1000×1000
+      stitches/64 colors, still renders with legible symbols --
+      `cellSize >= 6` -- despite the new, stricter area budget, and that
+      an artificially oversized pattern correctly returns `null` instead
+      of a huge layout) + 2 for the new dimension check in
+      `deserializePattern`. 1 new permanent e2e test reproducing the
+      review's own exact finding-5 repro (custom size 10, a 10×6 chart)
+      and confirming the downloaded PNG's width is comfortably past the
+      old clipped width. 157 unit tests + 10 e2e tests green, clean
+      lint/tsc/build. Verified live in a real browser: reproduced the
+      review's exact repro (upload, Custom size 10, generate, download
+      color PNG) and visually confirmed the full header text — "10 × 6
+      stitches — approx. 0.7 × 0.4 in on 14-count Aida" — renders
+      completely, not clipped, with zero console errors.
 - [ ] M3 — Finding 2 (resampling bias, P2): area-weighted box-filter
       downsampling replacing whole-pixel binning, keeping the existing
       linear-light averaging. Codex-cli critique exchange on the
@@ -140,9 +184,12 @@ svc-lab).
       decision-record entry summarizing what changed and why.
 
 **Progress log** (newest first):
-- 2026-09-10 — M1 completed and verified (findings 1 + 9). Pausing here
-  to take up a new Owner request (whole-pattern naming driving download
-  filenames) before continuing to M2.
+- 2026-09-10 — M2 completed and verified (findings 4 + 5), plus an
+  additional dimension-validation gap found while designing it (bounding
+  `deserializePattern`'s own accepted dimensions, not just render-time).
+- 2026-09-10 — M1 completed and verified (findings 1 + 9). Paused after
+  M1 to take up a new Owner request (whole-pattern naming driving
+  download filenames, shipped as G-011) before continuing to M2.
 - 2026-09-10 — Goal created from `docs/reviews/2026-09-09-code-review.md`.
   Scope confirmed via `AskUserQuestion`: the 9 numbered findings only,
   not the review's separate "questionable decisions" list. Milestones

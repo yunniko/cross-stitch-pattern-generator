@@ -1,5 +1,13 @@
 import type { PixelBuffer } from "./types";
 
+// Every image gets box-downsampled to at most 1000 stitch cells on its
+// longer side (see lib/downsample.ts) regardless of source resolution, so
+// decoding a high-megapixel phone/camera photo at its full native size
+// (unbounded before this) wastes memory for no accuracy benefit -- capping
+// the decode itself well above anything downstream ever needs avoids that
+// spike (code-review 2026-09-09, finding 4).
+const MAX_DECODE_DIMENSION_PX = 4000;
+
 /**
  * Decodes an uploaded file into a `PixelBuffer` via an offscreen canvas.
  * Thin browser-only wrapper — kept out of the pure pipeline modules so those
@@ -20,11 +28,15 @@ export async function loadImageAsPixelBuffer(file: File): Promise<PixelBuffer> {
     img.src = dataUrl;
   });
 
+  const scale = Math.min(1, MAX_DECODE_DIMENSION_PX / Math.max(image.naturalWidth, image.naturalHeight));
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
   const canvas = document.createElement("canvas");
-  canvas.width = image.naturalWidth;
-  canvas.height = image.naturalHeight;
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("2D canvas context unavailable");
-  ctx.drawImage(image, 0, 0);
-  return ctx.getImageData(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(image, 0, 0, width, height);
+  return ctx.getImageData(0, 0, width, height);
 }

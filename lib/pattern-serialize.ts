@@ -1,4 +1,4 @@
-import type { PaletteColor, RGB, StitchPattern } from "./types";
+import { MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "./types";
 
 // Plain JSON, not a PNG with embedded data (Owner decision, 2026-09-09,
 // HANDOVER.md D21) -- simplest reliable format, at the cost of not being
@@ -45,6 +45,14 @@ export function deserializePattern(json: string): StitchPattern {
 
   if (typeof d.width !== "number" || typeof d.height !== "number" || d.width <= 0 || d.height <= 0) {
     throw new Error("That file's dimensions are missing or invalid.");
+  }
+  // Generation itself already enforces this range (app/page.tsx), but a
+  // hand-edited or corrupted file reaches this function without going
+  // through that check -- without this, an oversized file could still slip
+  // through to rendering/export, which has its own budget but shouldn't be
+  // the only line of defense (code-review 2026-09-09, finding 4).
+  if (d.width > MAX_STITCHES || d.height > MAX_STITCHES) {
+    throw new Error(`That file's dimensions (${d.width}×${d.height}) exceed the maximum supported size of ${MAX_STITCHES} stitches per side.`);
   }
   if (!Array.isArray(d.cellPalette) || d.cellPalette.length !== d.width * d.height) {
     throw new Error("That file's stitch data doesn't match its stated dimensions.");

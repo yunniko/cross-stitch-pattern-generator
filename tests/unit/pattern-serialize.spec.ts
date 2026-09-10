@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
-import type { PaletteColor, StitchPattern } from "@/lib/types";
+import { MAX_STITCHES, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 function makePattern(): StitchPattern {
   const palette: PaletteColor[] = [
@@ -65,5 +65,26 @@ describe("pattern-serialize", () => {
   it("rejects an empty palette", () => {
     const bad = JSON.stringify({ width: 1, height: 1, cellPalette: [0], palette: [] });
     expect(() => deserializePattern(bad)).toThrow();
+  });
+
+  it("rejects dimensions exceeding MAX_STITCHES, even though the file's own cellPalette is internally consistent", () => {
+    const oversized = MAX_STITCHES + 1;
+    const bad = JSON.stringify({
+      width: oversized,
+      height: 1,
+      cellPalette: new Array(oversized).fill(0),
+      palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }],
+    });
+    expect(() => deserializePattern(bad)).toThrow(/exceed the maximum/);
+  });
+
+  it("accepts dimensions exactly at MAX_STITCHES", () => {
+    const bad = JSON.stringify({
+      width: MAX_STITCHES,
+      height: 1,
+      cellPalette: new Array(MAX_STITCHES).fill(0),
+      palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }],
+    });
+    expect(() => deserializePattern(bad)).not.toThrow();
   });
 });

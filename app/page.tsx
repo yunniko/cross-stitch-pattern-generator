@@ -48,6 +48,7 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [a4Mode, setA4Mode] = useState<RenderMode>("color");
   const [a4Overlap, setA4Overlap] = useState<OverlapCells>(5);
   const [isExportingA4, setIsExportingA4] = useState(false);
@@ -176,6 +177,7 @@ export default function Home() {
   function handleDownload(mode: RenderMode | "realistic") {
     if (!pattern) return;
     setIsDownloading(true);
+    setDownloadError(null);
     // Deferred so "Preparing..." actually paints first — rendering a large,
     // high-color chart to a full-resolution canvas is real synchronous work.
     setTimeout(async () => {
@@ -187,6 +189,8 @@ export default function Home() {
         const base = pattern.name ?? "cross-stitch-pattern";
         const suffix = mode === "realistic" ? "preview" : mode;
         downloadCanvasAsPng(canvas, `${base}_${suffix}.png`);
+      } catch (err) {
+        setDownloadError(err instanceof Error ? err.message : "Couldn't render that download.");
       } finally {
         setIsDownloading(false);
       }
@@ -476,6 +480,7 @@ export default function Home() {
                 Edit
               </button>
             </div>
+            {downloadError && <p className="text-sm text-red-600 dark:text-red-400">{downloadError}</p>}
 
             <div className="flex flex-wrap items-center gap-3 rounded border border-zinc-300 p-3 dark:border-zinc-700">
               <span className="text-sm font-medium text-black dark:text-zinc-50">Export as A4 pages</span>

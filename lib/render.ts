@@ -20,6 +20,36 @@ const DEFAULT_CELL_SIZE = 24;
 // canvas the browser can't allocate. Not verified on every browser engine —
 // see HANDOVER.md D7's cross-browser caveat.
 const MAX_CANVAS_DIMENSION = 12000;
+
+// Budgets for the *complete* printable chart -- grid plus header, legend,
+// margins, and center-marker/number gutters -- not just the stitch grid
+// itself. The old clamp (MAX_CANVAS_DIMENSION above) only bounded the grid;
+// a supported 1000x1000/1-color pattern could still request a ~12,238x12,078
+// canvas (~148 million pixels, ~564 MiB as one RGBA surface) once that chrome
+// was added on top, with no check at all on total area (code-review
+// 2026-09-09, finding 4). These numbers aren't a published spec value -- no
+// browser guarantees a canvas-size ceiling -- chosen so the app's own
+// existing max-supported case (1000x1000 stitches, 64 colors) still renders
+// with symbols legible (cellSize stays above LEGIBILITY_FLOOR_PX), while
+// still catching and refusing anything that would balloon further, rather
+// than silently attempting a huge allocation. Deliberately not verified
+// against iOS Safari's much stricter real-world limits (MDN cites ~4096px
+// per side) -- this project doesn't state mobile/iOS support as a
+// requirement; the fix here is "fail with a clear, catchable error instead
+// of an unbounded allocation attempt," not "succeed on every device."
+const MAX_CHART_DIMENSION_PX = 8000;
+const MAX_CHART_AREA_PX = 40_000_000;
+const MIN_CHART_CELL_SIZE_PX = 4;
+
+/** Thrown when no cell size -- down to the legibility/practical floor -- keeps the complete chart within the size budgets above. */
+export class ChartTooLargeError extends Error {
+  constructor() {
+    super(
+      'This pattern is too large to render as a single image in your browser. Try a smaller pattern size, fewer colors, or use "Export as A4 pages" instead, which renders one printable page at a time.'
+    );
+    this.name = "ChartTooLargeError";
+  }
+}
 // Below this, grid lines/symbols are illegible noise rather than helpful
 // detail — line weights collapse to 1px and symbols stop being drawn
 // (domain-expert review, HANDOVER.md D7).
@@ -222,22 +252,19 @@ function drawRowColumnNumbers(ctx: CanvasRenderingContext2D, width: number, heig
   }
 }
 
-/** Design size in stitches and an estimated finished size at the selected Aida count — conventional on published charts (docs/domain-reference.md §1, §4). */
-function drawHeader(
-  ctx: CanvasRenderingContext2D,
-  pattern: StitchPattern,
-  canvasWidth: number,
-  aidaCount: number,
-  sizeUnit: SizeUnit
-) {
-  const text = `${pattern.width} × ${pattern.height} stitches — approx. ${formatFinishedSize(pattern.width, pattern.height, aidaCount, sizeUnit)} on ${aidaCount}-count Aida`;
+const HEADER_FONT = `13px ${FONT_STACK}`;
 
+function headerText(pattern: StitchPattern, aidaCount: number, sizeUnit: SizeUnit): string {
+  return `${pattern.width} × ${pattern.height} stitches — approx. ${formatFinishedSize(pattern.width, pattern.height, aidaCount, sizeUnit)} on ${aidaCount}-count Aida`;
+}
+
+/** Design size in stitches and an estimated finished size at the selected Aida count — conventional on published charts (docs/domain-reference.md §1, §4). The canvas is always sized wide enough to fit this beforehand (see computeChartLayout) -- no wrapping/clipping needed here. */
+function drawHeader(ctx: CanvasRenderingContext2D, pattern: StitchPattern, aidaCount: number, sizeUnit: SizeUnit) {
   ctx.fillStyle = "#111111";
-  ctx.font = `13px ${FONT_STACK}`;
+  ctx.font = HEADER_FONT;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(text, LEGEND_PADDING, HEADER_HEIGHT / 2);
-  void canvasWidth;
+  ctx.fillText(headerText(pattern, aidaCount, sizeUnit), LEGEND_PADDING, HEADER_HEIGHT / 2);
 }
 
 /** Shortens text with a trailing ellipsis if it doesn't fit maxWidth in the context's current font -- names from the reference list have no fixed length cap. */
@@ -363,32 +390,85 @@ export function renderEditableCanvas(pattern: StitchPattern, cellSize: number): 
   return canvas;
 }
 
+export interface ChartLayout {
+  cellSize: number;
+  chartWidthPx: number;
+  chartHeightPx: number;
+  belowChart: boolean;
+  leftGutter: number;
+  topGutter: number;
+  canvasWidth: number;
+  canvasHeight: number;
+}
+
+/**
+ * Finds the largest cell size (down to `MIN_CHART_CELL_SIZE_PX`) at which the
+ * *complete* chart -- grid, header, legend, margins, and marker/number
+ * gutters together -- fits within `MAX_CHART_DIMENSION_PX`/`MAX_CHART_AREA_PX`.
+ * `headerWidthPx` is measured by the caller (needs a canvas context); this
+ * function itself has no DOM dependency, so the actual safety-critical
+ * arithmetic is directly unit-testable rather than only reachable through a
+ * browser (unlike the rest of this file). Returns `null` if no cell size fits.
+ */
+export function findChartLayout(pattern: StitchPattern, requestedCellSize: number, headerWidthPx: number): ChartLayout | null {
+  const startingCellSize = Math.min(requestedCellSize, Math.floor(MAX_CHART_DIMENSION_PX / Math.max(pattern.width, pattern.height)));
+
+  for (let cellSize = startingCellSize; cellSize >= MIN_CHART_CELL_SIZE_PX; cellSize--) {
+    const chartWidthPx = pattern.width * cellSize;
+    const chartHeightPx = pattern.height * cellSize;
+    const { extraWidth, extraHeight, belowChart } = legendCanvasExtent(pattern, chartWidthPx, chartHeightPx);
+
+    // Left/top gutters hold the centre-marker arrow plus row/column numbers;
+    // right/bottom gutters hold just the arrow (numbers only run along the
+    // top and left, per the same convention real chart software uses).
+    // Whichever side the legend attaches to already reserves a MARKER_MARGIN
+    // gap before it starts (see legendCanvasExtent) -- that gap doubles as
+    // the arrow marker's space on that side, so only the *other* side needs
+    // its own gutter added here, or the canvas ends up with duplicated,
+    // wasted margin.
+    const leftGutter = MARKER_MARGIN + NUMBER_MARGIN;
+    const topGutter = MARKER_MARGIN + NUMBER_MARGIN;
+    const rightGutter = belowChart ? MARKER_MARGIN : 0;
+    const bottomGutter = belowChart ? 0 : MARKER_MARGIN;
+
+    // Widening for the header text here is finding 5's fix -- drawHeader
+    // used to receive but discard the canvas width it would have needed to
+    // avoid clipping a short/small chart's header.
+    const canvasWidth = Math.max(leftGutter + chartWidthPx + rightGutter + extraWidth, headerWidthPx);
+    const canvasHeight = HEADER_HEIGHT + topGutter + chartHeightPx + bottomGutter + extraHeight;
+
+    if (canvasWidth <= MAX_CHART_DIMENSION_PX && canvasHeight <= MAX_CHART_DIMENSION_PX && canvasWidth * canvasHeight <= MAX_CHART_AREA_PX) {
+      return { cellSize, chartWidthPx, chartHeightPx, belowChart, leftGutter, topGutter, canvasWidth, canvasHeight };
+    }
+  }
+
+  return null;
+}
+
+function computeChartLayout(pattern: StitchPattern, requestedCellSize: number, aidaCount: number, sizeUnit: SizeUnit): ChartLayout {
+  const measureCtx = document.createElement("canvas").getContext("2d");
+  if (!measureCtx) throw new Error("2D canvas context unavailable");
+  measureCtx.font = HEADER_FONT;
+  const headerWidthPx = measureCtx.measureText(headerText(pattern, aidaCount, sizeUnit)).width + LEGEND_PADDING * 2;
+
+  const layout = findChartLayout(pattern, requestedCellSize, headerWidthPx);
+  if (!layout) throw new ChartTooLargeError();
+  return layout;
+}
+
 export function renderPatternToCanvas(
   pattern: StitchPattern,
   mode: RenderMode,
   options: RenderOptions = {}
 ): HTMLCanvasElement {
-  const cellSize = effectiveCellSize(pattern.width, pattern.height, options.cellSize ?? DEFAULT_CELL_SIZE);
-  const chartWidthPx = pattern.width * cellSize;
-  const chartHeightPx = pattern.height * cellSize;
-  const { extraWidth, extraHeight, belowChart } = legendCanvasExtent(pattern, chartWidthPx, chartHeightPx);
-
-  // Left/top gutters hold the centre-marker arrow plus row/column numbers;
-  // right/bottom gutters hold just the arrow (numbers only run along the
-  // top and left, per the same convention real chart software uses).
-  // Whichever side the legend attaches to already reserves a MARKER_MARGIN
-  // gap before it starts (see legendCanvasExtent) -- that gap doubles as
-  // the arrow marker's space on that side, so only the *other* side needs
-  // its own gutter added here, or the canvas ends up with duplicated,
-  // wasted margin.
-  const leftGutter = MARKER_MARGIN + NUMBER_MARGIN;
-  const topGutter = MARKER_MARGIN + NUMBER_MARGIN;
-  const rightGutter = belowChart ? MARKER_MARGIN : 0;
-  const bottomGutter = belowChart ? 0 : MARKER_MARGIN;
+  const aidaCount = options.aidaCount ?? DEFAULT_AIDA_COUNT;
+  const sizeUnit = options.sizeUnit ?? "in";
+  const layout = computeChartLayout(pattern, options.cellSize ?? DEFAULT_CELL_SIZE, aidaCount, sizeUnit);
+  const { cellSize, chartWidthPx, chartHeightPx, belowChart, leftGutter, topGutter, canvasWidth, canvasHeight } = layout;
 
   const canvas = document.createElement("canvas");
-  canvas.width = leftGutter + chartWidthPx + rightGutter + extraWidth;
-  canvas.height = HEADER_HEIGHT + topGutter + chartHeightPx + bottomGutter + extraHeight;
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
 
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("2D canvas context unavailable");
@@ -396,7 +476,7 @@ export function renderPatternToCanvas(
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  drawHeader(ctx, pattern, canvas.width, options.aidaCount ?? DEFAULT_AIDA_COUNT, options.sizeUnit ?? "in");
+  drawHeader(ctx, pattern, aidaCount, sizeUnit);
 
   ctx.save();
   ctx.translate(leftGutter, HEADER_HEIGHT + topGutter);

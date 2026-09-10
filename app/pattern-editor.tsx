@@ -53,6 +53,7 @@ export default function PatternEditor({ pattern, onClose }: PatternEditorProps) 
     [history.state.width, history.state.height, a4Overlap]
   );
   const [openError, setOpenError] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -211,12 +212,15 @@ export default function PatternEditor({ pattern, onClose }: PatternEditorProps) 
 
   function handleDownloadFinal(mode: "color" | "bw" | "realistic") {
     setIsDownloading(true);
+    setDownloadError(null);
     setTimeout(async () => {
       try {
         const compacted = compactUnusedColors(history.state);
         const canvas = mode === "realistic" ? await renderStitchPreviewToCanvas(compacted) : renderPatternToCanvas(compacted, mode);
         const suffix = mode === "realistic" ? "preview" : mode;
         downloadCanvasAsPng(canvas, `${baseFileName()}_${suffix}.png`);
+      } catch (err) {
+        setDownloadError(err instanceof Error ? err.message : "Couldn't render that download.");
       } finally {
         setIsDownloading(false);
       }
@@ -456,6 +460,7 @@ export default function PatternEditor({ pattern, onClose }: PatternEditorProps) 
           Download editable
         </button>
       </div>
+      {downloadError && <p className="text-sm text-red-600 dark:text-red-400">{downloadError}</p>}
 
       <div className="flex flex-wrap items-center gap-3 rounded border border-zinc-300 p-3 dark:border-zinc-700">
         <span className="text-sm font-medium text-black dark:text-zinc-50">Export as A4 pages</span>
