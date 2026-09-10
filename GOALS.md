@@ -183,10 +183,22 @@ svc-lab).
       canvas/DOM-dependent, verified this way rather than by unit test,
       the same established convention as the rest of `render.ts`),
       clean lint/tsc/build.
-- [ ] M4 — UI: "Export as A4 pages" control (plus an overlap selector,
-      0/5/10, default 5) next to the existing Color/Black & White PNG
-      download buttons in both `app/page.tsx` and
-      `app/pattern-editor.tsx`.
+- [x] M4 — UI: a small "Export as A4 pages" section (mode toggle —
+      Color/B&W, no "realistic" per the confirmed scope — an overlap
+      selector defaulting to 5, and an "Export ZIP" button) added below
+      the existing download-buttons row in both `app/page.tsx` and
+      `app/pattern-editor.tsx`. The editor's version runs
+      `compactUnusedColors` first, matching its existing final-PNG
+      downloads. ✔ 2026-09-10. Verified live end-to-end with the real
+      app (not synthetic data): uploaded the real fixture image,
+      generated an actual pattern, clicked "Export ZIP" from the main
+      results screen — downloaded, unzipped, and confirmed a correct
+      single-grid-page + legend-page ZIP for a real generated pattern.
+      Then opened the editor, switched to B&W mode, exported again, and
+      confirmed the downloaded ZIP's grid page correctly rendered in
+      grayscale. Full regression pass: 139 unit tests, 5 e2e tests,
+      clean lint/tsc/build — the existing single-PNG/editable-JSON
+      flows are unaffected.
 - [ ] M5 — Nice-to-haves, attempted but explicitly droppable if they
       turn out costlier than their value (per the Owner's own "if
       architecture allows"/"desirable" framing): the pre-download page-
@@ -202,6 +214,9 @@ svc-lab).
       the ZIP, unzip and visually inspect the actual PNGs.
 
 **Progress log** (newest first):
+- 2026-09-10 — M4 completed and verified live in both the main results
+  screen and the editor, using a real generated pattern end-to-end
+  (not synthetic test data).
 - 2026-09-10 — M3 completed and verified: real ZIP download, unzipped
   and inspected (filenames, resolution, coordinate continuity, overlap
   markers, legend page all correct).

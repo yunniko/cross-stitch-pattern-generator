@@ -5,7 +5,9 @@ import { HexColorPicker } from "react-colorful";
 import { hexToRgb, rgbToHex } from "@/lib/color";
 import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor } from "@/lib/pattern-edit";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
-import { downloadCanvasAsPng, drawChart, renderPatternToCanvas, renderStitchPreviewToCanvas } from "@/lib/render";
+import { downloadCanvasAsPng, drawChart, renderPatternToCanvas, renderStitchPreviewToCanvas, type RenderMode } from "@/lib/render";
+import { generateA4Export, downloadBlob } from "@/lib/a4-export";
+import type { OverlapCells } from "@/lib/a4-layout";
 import { useUndoHistory } from "@/lib/use-undo-history";
 import type { StitchPattern } from "@/lib/types";
 
@@ -43,6 +45,9 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
   const [addingColor, setAddingColor] = useState(false);
   const [addColorDraftHex, setAddColorDraftHex] = useState("#808080");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [a4Mode, setA4Mode] = useState<RenderMode>("color");
+  const [a4Overlap, setA4Overlap] = useState<OverlapCells>(5);
+  const [isExportingA4, setIsExportingA4] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
   const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -193,6 +198,19 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
         downloadCanvasAsPng(canvas, `${baseFileName()}-${mode}.png`);
       } finally {
         setIsDownloading(false);
+      }
+    }, 0);
+  }
+
+  function handleExportA4Pages() {
+    setIsExportingA4(true);
+    setTimeout(async () => {
+      try {
+        const compacted = compactUnusedColors(history.state);
+        const result = await generateA4Export(compacted, a4Mode, { overlapCells: a4Overlap });
+        downloadBlob(result.blob, result.filename);
+      } finally {
+        setIsExportingA4(false);
       }
     }, 0);
   }
@@ -399,6 +417,44 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
           className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]"
         >
           Download editable
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 rounded border border-zinc-300 p-3 dark:border-zinc-700">
+        <span className="text-sm font-medium text-black dark:text-zinc-50">Export as A4 pages</span>
+        <div className="flex items-center overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
+          {(["color", "bw"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setA4Mode(mode)}
+              className={`px-2 py-0.5 text-sm transition-colors ${
+                a4Mode === mode ? "bg-foreground text-background" : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+              }`}
+            >
+              {mode === "color" ? "Color" : "B&W"}
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300">
+          Overlap:
+          <select
+            value={a4Overlap}
+            onChange={(e) => setA4Overlap(Number(e.target.value) as OverlapCells)}
+            className="rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <option value={0}>0</option>
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={handleExportA4Pages}
+          disabled={isExportingA4}
+          className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
+        >
+          {isExportingA4 ? "Preparing…" : "Export ZIP"}
         </button>
       </div>
     </div>
