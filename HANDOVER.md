@@ -1467,9 +1467,16 @@ grayscale-mapping logic, and a decision on scope (editor's DOM legend
 only, vs. also the static/printable chart's canvas-drawn
 `drawLegendItem`) would need to be made first.
 
-Not yet pushed or deployed — this project's standard milestone
-check-in gate applies (unlike svc-lab); awaiting explicit Owner
-confirmation before shipping, same as every prior goal here.
+Pushed (`4ec00c8`) and redeployed the same session (Owner: "push and
+deploy now") using `COMPANY/INFRASTRUCTURE_DEPLOY.md`'s standard
+redeploy recipe (`git fetch` + `git pull` + `docker compose --profile
+app up -d --build`, run from the project's own repo directory on the
+shared VPS). Verified beyond a ping: a `docker ps` before/after
+comparison showed only this project's own container restarting, every
+other site's container uptime unchanged; a real browser run against
+the live HTTPS URL confirmed generation, the editor, the sorted legend,
+and the updated instructional hint text all render correctly with zero
+console errors.
 
 ## Owner action list
 

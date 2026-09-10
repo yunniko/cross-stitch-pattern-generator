@@ -94,14 +94,20 @@ _(none)_
       confirmed descending by stitch count in the live UI.
 
 **Progress log** (newest first):
+- 2026-09-10 — Pushed (`4ec00c8`) and deployed to
+  `https://cross-stitch.craftodejnice.cz` (Owner: "push and deploy
+  now") per `COMPANY/INFRASTRUCTURE_DEPLOY.md`'s standard redeploy
+  recipe. Verified beyond a ping: every other container's uptime on the
+  host unchanged (`docker ps` before/after — only this project's own
+  container restarted), and a real browser run against the live HTTPS
+  URL confirmed generation, the Edit flow, the sorted legend, and the
+  updated hint text all work with zero console errors.
 - 2026-09-10 — All 4 milestones built and verified in one session.
   Owner sent the batch as one message, then two mid-turn clarifications:
   "for grayscale make both gs and color boxes on legend" (resolving an
   ambiguity in the original grayscale-legend ask), immediately followed
   by "actually don't touch gs legend for now" (dropping that item from
-  scope entirely before any code was written for it). Not yet pushed/
-  deployed — awaiting Owner confirmation, per this project's standard
-  milestone check-in gate (not waived, unlike svc-lab).
+  scope entirely before any code was written for it).
 
 ### G-007 · Interactive pattern editor — DONE (2026-09-09)
 - **What:** An in-browser editor for a generated pattern, entered either
