@@ -111,6 +111,14 @@ export default function Workspace() {
   // this same stack, so it undoes/redoes like any other edit (G-012). ---
   const history = useUndoHistory<StitchPattern | null>(null);
   const pattern = history.state;
+  // Latest pattern, readable from the native (non-React) wheel listener
+  // below without needing to re-attach it on every edit. Synced via an
+  // effect, not a direct assignment during render -- this project's lint
+  // config (react-hooks/refs) flags ref writes during render.
+  const patternRef = useRef<StitchPattern | null>(null);
+  useEffect(() => {
+    patternRef.current = pattern;
+  }, [pattern]);
 
   // --- Image window view mode + brush/legend state (the Colors dock) ---
   const [viewMode, setViewMode] = useState<ViewMode>("color");
@@ -412,9 +420,29 @@ export default function Workspace() {
     }
   }
 
-  function zoomBy(factor: number) {
+  const zoomBy = useCallback((factor: number) => {
     setZoomLevel((z) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z * factor)));
-  }
+  }, []);
+
+  // A *native* (non-React) listener, deliberately not React's own `onWheel`
+  // prop: React attaches wheel/touch handlers as passive by default (a
+  // long-standing, documented choice -- see facebook/react#14856), which
+  // makes `e.preventDefault()` inside a React `onWheel` handler a silent
+  // no-op on real hardware wheel/trackpad input. Without this, scrolling
+  // the wheel over the Image window would zoom *and* natively scroll the
+  // container at the same time -- exactly the "scaling and panning
+  // interfere with each other" symptom this fixes.
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    function onWheel(e: WheelEvent) {
+      if (!patternRef.current) return;
+      e.preventDefault();
+      zoomBy(e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
+    }
+    scroller.addEventListener("wheel", onWheel, { passive: false });
+    return () => scroller.removeEventListener("wheel", onWheel);
+  }, [zoomBy]);
 
   function handleCanvasPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
@@ -505,12 +533,6 @@ export default function Workspace() {
     if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
       canvasRef.current.releasePointerCapture(e.pointerId);
     }
-  }
-
-  function handleImageWindowWheel(e: React.WheelEvent<HTMLDivElement>) {
-    if (!pattern) return;
-    e.preventDefault();
-    zoomBy(e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
   }
 
   function handleCanvasDrop(e: React.DragEvent<HTMLCanvasElement>) {
@@ -912,8 +934,15 @@ export default function Workspace() {
 
           <div
             ref={scrollerRef}
-            onWheel={handleImageWindowWheel}
-            className="flex flex-1 items-center justify-center overflow-auto p-4"
+            // `grid place-items-center`, not `flex items-center
+            // justify-center` -- flexbox's "unsafe" centering makes the
+            // overflow that pokes out the *start* edge (top/left)
+            // unreachable by scrolling once the zoomed content is bigger
+            // than the container (scrollTop/scrollLeft can't go negative),
+            // while the end edge (bottom/right) stays reachable normally.
+            // That's exactly "can't pan to the top when zoomed in" -- CSS
+            // Grid's centering is scroll-safe in both directions instead.
+            className="grid flex-1 place-items-center overflow-auto p-4"
           >
             {!pattern && sourceImageMeta && (
               // eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize

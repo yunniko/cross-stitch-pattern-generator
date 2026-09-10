@@ -1880,6 +1880,56 @@ downloaded color PNG measured 349px wide, comfortably past the old
 project runs after every deploy that touches rendering — with zero
 console errors. G-012 moved to GOALS.md's Completed section.
 
+**D30 — Two real pan/zoom bugs found and fixed after deploy, from
+Owner real-world use (2026-09-10).** Owner report: "something is wrong
+with scaling and panning... on zoom up you cannot pan to the top."
+Both bugs were pre-existing since G-012 M2 and missed by that
+milestone's own testing — full detail in GOALS.md's G-012 progress
+log; the two things worth remembering if you touch pan/zoom again:
+
+1. **Never center an `overflow-auto` scroll container with
+   `flex items-center justify-content-center`.** Flexbox's default
+   ("unsafe") centering makes the browser unable to scroll to whatever
+   part of an oversized child pokes out the container's *start* edge
+   (top/left) — `scrollTop`/`scrollLeft` silently can't go low enough
+   to reach it, while the *end* edge (bottom/right) stays reachable via
+   normal scrolling. This reads exactly like "can't pan to the top" and
+   is easy to miss in testing since panning toward the bottom/right
+   works fine. **Fix: use `grid place-items-center` instead** — CSS
+   Grid's centering is scroll-safe in both directions. Applies to any
+   future scrollable, centered container in this app (or others sharing
+   this component pattern).
+2. **React's `onWheel` (and `onTouchStart`/`onTouchMove`) are attached
+   as passive listeners by default** (facebook/react#14856) — calling
+   `e.preventDefault()` inside a React `onWheel` handler is a silent
+   no-op on real hardware wheel/trackpad input (confirmed by dispatching
+   a real `WheelEvent` and checking `event.defaultPrevented`: `false`
+   via React's prop, `true` via a native listener). This means any
+   React `onWheel` handler that needs to block the browser's own
+   scroll/zoom behavior **must** be attached as a native
+   `addEventListener("wheel", fn, { passive: false })` inside a
+   `useEffect`, not as the JSX `onWheel` prop. Without this, wheel-zoom
+   silently also natively scrolled the container at the same time,
+   fighting the zoom.
+
+Neither bug was caught by G-012 M2's own e2e tests at the time, because
+those tests asserted only "scroll position changed by *some* amount"
+and used synthetic (non-trusted) event dispatch respectively — both
+weak enough to pass despite the real defects. Two new permanent e2e
+tests close that gap (`tests/e2e/navigation.spec.ts`): one explicitly
+scrolls to `(0, 0)` after zooming and asserts the canvas's *true*
+top-left is what's shown, and one dispatches a real
+`page.mouse.wheel()` (Playwright's genuinely-trusted wheel input, unlike
+a plain `dispatchEvent`) and asserts scroll position is unchanged while
+zoom level is. If you add more zoom/pan interaction later, prefer this
+"actually reaches the true edge" / "actually a trusted event" style of
+assertion over a bare "did it change at all" check.
+
+198 unit tests + 27 e2e tests green, clean `tsc`/`eslint`/`npm run
+build`. Redeployed to `https://cross-stitch.craftodejnice.cz` following
+the standard recipe; `docker ps` before/after confirmed only this
+project's container restarted.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

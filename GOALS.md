@@ -423,6 +423,43 @@ _No goals currently active._
       today.
 
 **Progress log** (newest first):
+- 2026-09-10 — Post-deploy bug fix (Owner report: "something is wrong
+  with scaling and panning... on zoom up you cannot pan to the top").
+  Found and fixed two real, distinct bugs in the Image window's pan/
+  zoom, both pre-existing since M2 and missed by that milestone's own
+  testing:
+  1. The scroller div used `flex items-center justify-center` with
+     `overflow-auto` — a well-known CSS trap where centering an
+     overflowing flex child makes the browser unable to scroll to
+     whatever pokes out the *start* edge (top/left): `scrollTop`/
+     `scrollLeft` silently can't reach the true top-left once zoomed-in
+     content exceeds the viewport, while the bottom/right stayed
+     reachable normally (explaining the asymmetric "can't reach the
+     top" report exactly). Root-caused by confirming the container's
+     actual `scrollTop`/canvas position live, not guessed from the
+     symptom alone. Fixed by switching to `grid place-items-center`,
+     whose centering is scroll-safe in both directions — verified live
+     that `scrollTop=0` now shows the canvas's *true* top edge (not an
+     already-centered, unreachable-past-that-point view).
+  2. Wheel-zoom's `e.preventDefault()` was silently a no-op on genuine
+     hardware input: React attaches `onWheel` as a passive listener by
+     default (a documented, long-standing React limitation —
+     facebook/react#14856), so real wheel/trackpad input would zoom
+     *and* natively scroll the container at the same time, fighting
+     each other — confirmed by dispatching a real `WheelEvent` and
+     reading back `event.defaultPrevented` (`false` before the fix,
+     `true` after). Fixed by replacing the React `onWheel` prop with a
+     native `addEventListener("wheel", handler, { passive: false })`
+     effect, the standard workaround for this exact class of problem.
+  Both fixes verified live (canvas top-left genuinely reachable via
+  Pan after zooming; a dispatched wheel event now shows
+  `defaultPrevented: true` and no longer moves `scrollTop`/`scrollLeft`
+  alongside the zoom) and with 2 new permanent e2e tests
+  (`tests/e2e/navigation.spec.ts`: scrolling to (0,0) after zooming in
+  actually reaches the canvas's true top-left, and wheel-zoom changes
+  zoom level without also changing scroll position). 198 unit tests +
+  27 e2e tests green, clean `tsc`/`eslint`/`npm run build`. Redeployed
+  to `https://cross-stitch.craftodejnice.cz` (see HANDOVER.md D30).
 - 2026-09-10 — Deployed to production
   (`https://cross-stitch.craftodejnice.cz`) and goal marked DONE.
   Redeployed following the standard recipe (`git fetch`/`git pull`
