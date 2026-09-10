@@ -11,7 +11,145 @@ svc-lab).
 
 ## Active goals
 
-_(none)_
+### G-009 · Export as A4 pages — ACTIVE
+- **What:** A second export mode alongside the existing single-PNG
+  download: split a large printable chart into multiple print-ready A4
+  page images, each covering a rectangular fragment of the pattern at a
+  fixed, legible physical cell size, with global (not per-page) stitch
+  coordinates, a small configurable overlap between adjacent pages, and
+  a bundled ZIP download when there's more than one page.
+- **Why:** Owner request (2026-09-10, chat, sent as a detailed written
+  spec) — the existing single PNG works for on-screen viewing, but a
+  physically large pattern printed at home either becomes illegibly
+  small to fit one sheet, or needs to be printed across multiple pages
+  by hand with no help lining them up.
+- **Acceptance criteria** (from the Owner's own spec, numbered to match):
+  1. Each page has real A4 proportions (portrait or landscape); the
+     orientation that fits more cells per page is chosen automatically.
+     Margins ~10-15mm; all sizing computed for 300 DPI print output.
+  2. The chart is never shrunk arbitrarily to fit one page — cell size
+     targets ~2.5-3mm printed. If it doesn't fit, add more pages
+     instead of shrinking cells.
+  3. The pattern splits into rectangular page fragments, preferably on
+     boundaries that are multiples of 10 stitches (e.g. 73 cells fit →
+     use 70, not 73). The last page in a row/column may hold fewer
+     cells than the others.
+  4. Every page shows **global** pattern coordinates (page 2 continues
+     from where page 1 left off, e.g. X 70-140, not restarting at 0),
+     labeled at least every 10 cells.
+  5. Grid lines: thin per-cell, thicker every 10 cells, both weights
+     staying visually distinguishable after printing.
+  6. A configurable overlap between adjacent pages (0 / 5 / 10 cells,
+     default 5) with the repeated cells visually marked (background
+     tint, dashed border, and/or an "OVERLAP" label) so the user knows
+     not to double-count them when assembling pages.
+  7. Each page shows "Page X / N" and "Row X, Column Y".
+  8. *(Nice-to-have, per the Owner's own spec)* A small overview
+     mini-map showing the whole pattern, the page grid, and the current
+     page highlighted.
+  9. The existing single-PNG export is untouched; "Export A4 pages"
+     is a new, separate option alongside it — confirmed via
+     `AskUserQuestion` (2026-09-10) to apply to the Color and Black &
+     White chart modes, in both places the existing download buttons
+     already appear (the main results screen and inside the editor) —
+     not to the "realistic preview" mode, which has no grid/symbols to
+     paginate.
+  10. More than one page bundles into a single ZIP download
+      (`pattern_A4_pages.zip`); files inside named clearly by row/column
+      (e.g. `pattern_r01_c01.png`).
+  11. Each page PNG is rendered directly at its full print resolution
+      (~2480×3508px portrait / ~3508×2480px landscape at 300 DPI) — no
+      small-then-upscaled images.
+  12. Pages are rendered one at a time directly from the pattern model
+      (not by generating one giant canvas and cropping it), so memory
+      use doesn't scale with total page count on very large patterns.
+  13. The page-layout math lives in its own pure function
+      (`calculateA4Layout`), separate from any canvas/UI code, returning
+      the page grid, each page's stitch range, and the overlap in
+      effect.
+  14. *(Nice-to-have, per the Owner's own spec, "if the architecture
+      allows")* Before downloading, show a summary ("3 × 4 pages, 12
+      pages total") and a small layout preview.
+  15. One legend page is included in the export set (confirmed via
+      `AskUserQuestion`, 2026-09-10) — the grid pages themselves carry
+      no legend, so the printed set is self-contained without needing
+      the separately-downloaded full PNG.
+- **Constraints:** Must not break or change the existing single-PNG
+  export in any way. Must reuse the existing chart-cell/symbol/color
+  drawing logic (`lib/render.ts`'s `drawChart`) rather than duplicating
+  it. 100% client-side, matching the rest of the app — ZIP bundling via
+  `jszip` (MIT), already used elsewhere in the portfolio
+  (`epub-metadata-fixer`, `image-object-splitter`) per STANDARDS.md's
+  "minimize spread" rule, not a new library choice. The Owner's own
+  spec lists an explicit test matrix to verify against (see M6).
+
+**Milestones**:
+- [x] M1 — `lib/a4-layout.ts`: pure `calculateA4Layout(patternWidth,
+      patternHeight, options)` plus the 300 DPI/A4-dimension/margin/
+      cell-size-in-mm constants (default margin 12mm, default cell size
+      2.75mm — midpoints of the Owner's stated ranges). Auto-orientation
+      picks whichever of portrait/landscape yields fewer total pages;
+      an explicit `orientation` option can also force one (the Owner's
+      spec lists "support portrait and landscape" as its own
+      requirement, separate from the auto-select one). Page boundaries
+      round down to the nearest multiple of 10 stitches where that
+      doesn't waste a page (per the Owner's own 73→70 example); the
+      last page in a row/column takes whatever remains. ✔ 2026-09-10.
+      18 new unit tests, covering the Owner's own worked examples
+      (0-70/70-140/140-180; the 65-135 overlap-5 example) plus every
+      case from the Owner's own enumerated test matrix that's
+      expressible at this pure-math layer (smaller-than-one-page,
+      exactly-one-page, 2-pages-each-axis, both-axes-multi-page,
+      non-multiple-of-10 dimensions, overlap 0/5, a 1000×1000 pattern,
+      auto-orientation both ways). Found and fixed a real bug during
+      test-writing, not after: the `dpi` option was applied to
+      margin/cell-size conversion but never forwarded into the A4 page
+      pixel dimensions themselves, so a non-default DPI silently kept
+      300-DPI page sizes while everything else scaled — caught because
+      a test using a synthetic DPI to get clean round numbers came back
+      with cell counts that didn't match hand-calculated expectations.
+- [ ] M2 — Extend `lib/render.ts`'s chart-drawing so a page can render
+      an arbitrary rectangular sub-region of the pattern using **global**
+      coordinates for grid-line weight (every 5th/10th line) and
+      row/column number labels (a page starting at stitch 70 must still
+      label 70, 80, 90…, not restart at 0), plus a visual treatment for
+      cells inside an overlap band shared with an adjacent page.
+      Reuses the existing per-cell fill/symbol logic rather than
+      duplicating it.
+- [ ] M3 — `lib/a4-export.ts`: orchestrates rendering one page canvas
+      at a time (never one giant canvas), converts each to a PNG, adds
+      the one legend page, and (only when there's more than one page)
+      bundles everything into `pattern_A4_pages.zip` via `jszip`;
+      downloads a single PNG directly when the whole pattern fits one
+      page.
+- [ ] M4 — UI: "Export as A4 pages" control (plus an overlap selector,
+      0/5/10, default 5) next to the existing Color/Black & White PNG
+      download buttons in both `app/page.tsx` and
+      `app/pattern-editor.tsx`.
+- [ ] M5 — Nice-to-haves, attempted but explicitly droppable if they
+      turn out costlier than their value (per the Owner's own "if
+      architecture allows"/"desirable" framing): the pre-download page-
+      count summary + layout preview, and the small overview mini-map.
+- [ ] M6 — Verification against the Owner's own enumerated test matrix
+      (pattern smaller than one page; exactly one page; 2 pages
+      horizontally; 2 pages vertically; multiple pages on both axes;
+      pattern dimensions not a multiple of 10; overlap 0; overlap 5;
+      a very large pattern; portrait; landscape) plus an explicit
+      adjacent-page coordinate/overlap continuity check (no one-cell
+      offset). New permanent e2e test for the A4 export flow. Real
+      browser verification: generate a real multi-page pattern, download
+      the ZIP, unzip and visually inspect the actual PNGs.
+
+**Progress log** (newest first):
+- 2026-09-10 — M1 completed and verified (lint/tsc/vitest all clean,
+  132 unit tests total). Stopping here for the standard milestone
+  check-in per OPERATIONS.md before starting M2 (canvas/rendering
+  work).
+- 2026-09-10 — Goal created from the Owner's detailed written spec.
+  Two scope questions resolved via `AskUserQuestion`: A4 export applies
+  to Color/B&W modes in both the main results screen and the editor
+  (not the realistic preview); one dedicated legend page is included in
+  the export set. Milestones planned.
 
 ## Completed goals
 
