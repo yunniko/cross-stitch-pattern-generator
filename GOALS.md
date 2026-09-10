@@ -11,7 +11,38 @@ svc-lab).
 
 ## Active goals
 
-_No goals currently active._
+### G-017 · DMC-only color editor + Full range/DMC switcher — ACTIVE
+- **What:** Editing an existing palette color in a `dmcMode` pattern is
+  restricted to real DMC swatches (matching G-016's "+ Add"). A
+  free-form pattern's color editor gains a "Full range | DMC" switcher
+  so any single color can still be snapped to a real thread.
+- **Why:** Owner request (2026-09-10): "Edit color in DMC mode should
+  allow only DMC swatches. For non-dmc colors should be switcher - full
+  range or DMC."
+- **Acceptance criteria:** Opening the color editor on a `dmcMode`
+  pattern shows only a DMC swatch picker, no hex wheel. Opening it on a
+  free-form pattern shows a switcher defaulting to the existing hex
+  picker, with a DMC option that renames the color to match the chosen
+  thread. Picking a DMC color for one color in a free-form pattern does
+  not flip the pattern's own `dmcMode`.
+- **Constraints:** None beyond keeping "+ Add"'s existing DMC-mode
+  behavior (G-016) unchanged.
+
+**Milestones:**
+- [x] M1 — `editColorToDmc` (sets rgb + renames to "CODE - Name");
+      unit tested.
+- [x] M2 — UI: DMC-only editor for `dmcMode` patterns, Full range/DMC
+      switcher for free-form patterns; live-browser verified both paths.
+- [ ] M3 — Full regression suite, commit, and (pending Owner go-ahead)
+      production deploy.
+
+**Progress log** (newest first):
+- 2026-09-10 — M1-M2 complete. Full detail in HANDOVER.md D36. Verified:
+  255 unit tests, clean `tsc`/`eslint`/`npm run build`, live dev-server
+  check of both the DMC-mode-forced editor and the free-form switcher
+  (searched, picked DMC 304, confirmed only the target color renamed and
+  `dmcMode` stayed unset), zero console errors. Not yet committed, not
+  deployed. Continuing to M3 next.
 
 ## Completed goals
 

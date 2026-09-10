@@ -2260,6 +2260,51 @@ standard recipe (`INFRASTRUCTURE_DEPLOY.md`):
   verified now," not read as retroactive sign-off that e2e coverage is
   unnecessary.
 
+**D36 — G-017: color editor gets the same DMC-only restriction as "+ Add",
+plus a Full range/DMC switcher for free-form patterns (2026-09-10).**
+Owner request: "Edit color in DMC mode should allow only DMC swatches.
+For non-dmc colors should be switcher - full range or DMC."
+
+- **`lib/pattern-edit.ts`'s new `editColorToDmc(pattern, paletteIndex,
+  dmcCode)`** sets the color's rgb *and* renames it `"CODE - Name"` to
+  match -- a deliberate difference from `editColorRgb`, which leaves the
+  name alone for an arbitrary hex edit (that function's own comment:
+  "a manual recolor shouldn't silently rename the swatch out from under
+  the user"). Picking a *specific named* DMC thread is a different kind
+  of edit than nudging a hex value, so renaming to match is the correct
+  behavior here, not an inconsistency. Does not touch `pattern.dmcMode`
+  -- that flag means "every color in this palette is DMC" (G-016, set
+  only by `applyDmcPalette` at generation time); converting one color in
+  an otherwise free-form palette doesn't convert the whole pattern.
+- **UI** (`app/workspace.tsx`'s color-editor panel): a `dmcMode` pattern
+  shows only the DMC swatch picker (same searchable-by-code-or-name grid
+  as "+ Add", G-016) with no switcher -- consistent with "+ Add" already
+  being DMC-only there. A free-form pattern gets a "Full range | DMC"
+  switcher above the picker (defaulting to "Full range", i.e. today's
+  `HexColorPicker`), so any single color can still be snapped to a real
+  buyable thread without converting the whole pattern to DMC mode. Both
+  pickers commit immediately on click (no separate "Done" step), matching
+  the DMC swatch/symbol pickers' established convention elsewhere in
+  this app; only the hex-picker path keeps an explicit "Done" button
+  (color selection there is a continuous drag, not a discrete pick).
+- **Two independent filter states** (`editDmcFilter` for the editor,
+  `addDmcFilter` for "+ Add") share one small `filterDmcColors(query)`
+  helper rather than duplicating the filter logic, but stay separate
+  states/memos since both pickers can in principle be open at once
+  (nothing currently prevents opening "+ Add" and a color's editor
+  simultaneously -- a pre-existing quirk, not something this change
+  introduced or was asked to fix).
+- **Verified**: 255 unit tests (251 + 4 new `editColorToDmc` tests),
+  clean `tsc`/`eslint`/`npm run build`. Live dev-server check: in a
+  free-form ("Latest" mode) pattern, opened the editor, confirmed the
+  switcher defaults to "Full range," switched to "DMC," searched "red,"
+  picked DMC 304, and confirmed only that one color renamed to
+  "304 - Red - Medium" while the other color's name was untouched; in a
+  DMC-mode pattern, confirmed the editor shows only the DMC picker (no
+  switcher, no hex wheel) with the same "This pattern is in DMC mode"
+  messaging "+ Add" already uses. Zero console errors. Not yet
+  committed, not deployed.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

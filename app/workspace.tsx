@@ -5,8 +5,8 @@ import { HexColorPicker } from "react-colorful";
 import { hexToRgb, rgbToHex } from "@/lib/color";
 import { decodeSourceImage, loadImageAsPixelBuffer } from "@/lib/load-image";
 import { cancelPatternJob, runPatternJob } from "@/lib/pattern-client";
-import { addColor, addDmcColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, setColorSymbol, shiftPattern } from "@/lib/pattern-edit";
-import { DMC_COLORS } from "@/lib/dmc-colors";
+import { addColor, addDmcColor, compactUnusedColors, editColorRgb, editColorToDmc, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, setColorSymbol, shiftPattern } from "@/lib/pattern-edit";
+import { DMC_COLORS, type DmcColor } from "@/lib/dmc-colors";
 import { SYMBOL_SET } from "@/lib/symbols";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
 import {
@@ -85,6 +85,13 @@ function cellIndexFromEvent(
   const y = Math.floor(((e.clientY - rect.top) * scaleY) / cellSize);
   if (x < 0 || x >= width || y < 0 || y >= height) return null;
   return y * width + x;
+}
+
+/** Filters the 454-color DMC line by code or name substring (case-insensitive) -- shared by "+ Add" and the color editor's DMC picker (G-016/G-017). */
+function filterDmcColors(query: string): readonly DmcColor[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return DMC_COLORS;
+  return DMC_COLORS.filter((c) => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
 }
 
 export default function Workspace() {
@@ -173,6 +180,13 @@ export default function Workspace() {
   const [activeColorIndex, setActiveColorIndex] = useState<number | null>(null);
   const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null);
   const [editingDraftHex, setEditingDraftHex] = useState("#000000");
+  // "Full range" (arbitrary hex) vs "DMC" (real thread swatches) for the
+  // color-editor panel (G-017). Forced to "dmc" and hidden entirely for a
+  // dmcMode pattern; a free-form pattern gets the switcher so any single
+  // color can still be snapped to a real thread without converting the
+  // whole palette.
+  const [editColorMode, setEditColorMode] = useState<"full" | "dmc">("full");
+  const [editDmcFilter, setEditDmcFilter] = useState("");
   const [addingColor, setAddingColor] = useState(false);
   const [addColorDraftHex, setAddColorDraftHex] = useState("#808080");
   const [addDmcFilter, setAddDmcFilter] = useState("");
@@ -226,14 +240,13 @@ export default function Workspace() {
     [pattern, a4Overlap]
   );
 
-  // "+ Add" in a dmcMode pattern (G-016) picks from the real DMC line
-  // instead of an arbitrary hex color -- filtered by code or name so 454
-  // swatches stay browsable.
-  const filteredDmcColors = useMemo(() => {
-    const q = addDmcFilter.trim().toLowerCase();
-    if (!q) return DMC_COLORS;
-    return DMC_COLORS.filter((c) => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
-  }, [addDmcFilter]);
+  // "+ Add" in a dmcMode pattern (G-016), and the "DMC" side of the color
+  // editor's switcher (G-017), both pick from the real DMC line instead of
+  // an arbitrary hex color -- filtered by code or name so 454 swatches stay
+  // browsable. Two independent filter strings/memos since both pickers can
+  // be open (and searched) at the same time.
+  const filteredDmcColors = useMemo(() => filterDmcColors(addDmcFilter), [addDmcFilter]);
+  const filteredEditDmcColors = useMemo(() => filterDmcColors(editDmcFilter), [editDmcFilter]);
 
   // Re-syncs the draft only when the committed name actually changes (undo/
   // redo, regenerate, or opening a different file) -- not on every
@@ -625,6 +638,16 @@ export default function Workspace() {
     if (!pattern) return;
     setEditingColorIndex(paletteIndex);
     setEditingDraftHex(rgbToHex(pattern.palette[paletteIndex].rgb));
+    // A dmcMode pattern is DMC-only, no switcher; a free-form pattern
+    // defaults to "Full range" but can switch to DMC for this one color.
+    setEditColorMode(pattern.dmcMode ? "dmc" : "full");
+    setEditDmcFilter("");
+  }
+
+  function commitEditDmcColor(code: string) {
+    if (editingColorIndex === null || !pattern) return;
+    history.set(editColorToDmc(pattern, editingColorIndex, code));
+    setEditingColorIndex(null);
   }
 
   function commitColorEdit() {
@@ -1422,11 +1445,66 @@ export default function Workspace() {
 
           {editingColorIndex !== null && (
             <div className="flex flex-col gap-2 rounded border border-zinc-300 p-3 dark:border-zinc-700">
-              <HexColorPicker color={editingDraftHex} onChange={setEditingDraftHex} />
+              {pattern?.dmcMode ? (
+                <p className="text-xs text-zinc-500">This pattern is in DMC mode -- pick a real DMC thread color.</p>
+              ) : (
+                <div className="flex items-center overflow-hidden self-start rounded border border-zinc-300 dark:border-zinc-700">
+                  {(
+                    [
+                      { mode: "full" as const, label: "Full range" },
+                      { mode: "dmc" as const, label: "DMC" },
+                    ]
+                  ).map(({ mode, label }) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setEditColorMode(mode)}
+                      className={`px-2 py-0.5 text-sm transition-colors ${
+                        editColorMode === mode ? "bg-foreground text-background" : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {editColorMode === "dmc" ? (
+                <>
+                  <input
+                    type="text"
+                    value={editDmcFilter}
+                    onChange={(e) => setEditDmcFilter(e.target.value)}
+                    placeholder="Search by code or name…"
+                    autoFocus
+                    className="rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  />
+                  <div className="grid max-h-64 grid-cols-10 gap-1 overflow-y-auto">
+                    {filteredEditDmcColors.map((dmc) => (
+                      <button
+                        key={dmc.code}
+                        type="button"
+                        onClick={() => commitEditDmcColor(dmc.code)}
+                        title={`${dmc.code} - ${dmc.name}`}
+                        style={{ backgroundColor: rgbToHex(dmc.rgb) }}
+                        className="h-7 w-7 shrink-0 rounded border border-zinc-400 dark:border-zinc-600"
+                      />
+                    ))}
+                    {filteredEditDmcColors.length === 0 && (
+                      <p className="col-span-10 text-xs text-zinc-500">No DMC colors match that search.</p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <HexColorPicker color={editingDraftHex} onChange={setEditingDraftHex} />
+              )}
+
               <div className="flex gap-2">
-                <button type="button" onClick={commitColorEdit} className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background">
-                  Done
-                </button>
+                {editColorMode === "full" && (
+                  <button type="button" onClick={commitColorEdit} className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background">
+                    Done
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setEditingColorIndex(null)}

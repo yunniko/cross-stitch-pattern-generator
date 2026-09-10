@@ -193,6 +193,25 @@ export function editColorRgb(pattern: StitchPattern, paletteIndex: number, rgb: 
 }
 
 /**
+ * Changes an existing palette color to a specific real DMC thread by code
+ * (G-017), renaming it `"CODE - Name"` to match -- unlike `editColorRgb`,
+ * which deliberately leaves the name alone for an arbitrary hex edit,
+ * picking a named DMC thread is picking a specific identity, so the name
+ * should follow it. Does not touch `dmcMode`: that flag means "every color
+ * in this palette is DMC" (set only by `applyDmcPalette` at generation
+ * time) -- converting a single color in an otherwise free-form palette
+ * doesn't make the whole pattern a DMC one.
+ */
+export function editColorToDmc(pattern: StitchPattern, paletteIndex: number, dmcCode: string): StitchPattern {
+  const dmc = DMC_COLORS.find((c) => c.code === dmcCode);
+  if (!dmc) throw new Error(`"${dmcCode}" isn't a recognized DMC color code.`);
+  const palette = pattern.palette.map((color, i) =>
+    i === paletteIndex ? { ...color, rgb: dmc.rgb, name: `${dmc.code} - ${dmc.name}` } : color
+  );
+  return { ...pattern, palette };
+}
+
+/**
  * Adds a brand-new color not derived from the source photo at all, starting
  * with zero stitches (nothing uses it until the user paints or cluster-
  * fills with it) -- unlike generation, where a zero-count color would be a

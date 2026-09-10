@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addColor, addDmcColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, setColorSymbol, shiftPattern } from "@/lib/pattern-edit";
+import { addColor, addDmcColor, compactUnusedColors, editColorRgb, editColorToDmc, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, setColorSymbol, shiftPattern } from "@/lib/pattern-edit";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {
@@ -90,6 +90,35 @@ describe("editColorRgb", () => {
     expect(edited.palette[0].rgb).toEqual([255, 255, 255]);
     expect(edited.palette[0].symbol).toBe(pattern.palette[0].symbol);
     expect(edited.palette[0].name).toBe(pattern.palette[0].name);
+  });
+});
+
+describe("editColorToDmc", () => {
+  it("changes the target color's rgb and renames it 'CODE - Name' to match", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    const edited = editColorToDmc(pattern, 0, "310"); // Black
+    expect(edited.palette[0].rgb).toEqual([0, 0, 0]);
+    expect(edited.palette[0].name).toBe("310 - Black");
+  });
+
+  it("leaves the symbol and other colors untouched", () => {
+    const pattern = makePattern(1, 2, [0, 1], [
+      [10, 10, 10],
+      [20, 20, 20],
+    ]);
+    const edited = editColorToDmc(pattern, 0, "310");
+    expect(edited.palette[0].symbol).toBe(pattern.palette[0].symbol);
+    expect(edited.palette[1]).toEqual(pattern.palette[1]);
+  });
+
+  it("does not set dmcMode -- converting one color doesn't make the whole pattern DMC", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    expect(editColorToDmc(pattern, 0, "310").dmcMode).toBeUndefined();
+  });
+
+  it("rejects a code that isn't a real DMC color", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    expect(() => editColorToDmc(pattern, 0, "NOT-A-REAL-CODE")).toThrow();
   });
 });
 
