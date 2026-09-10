@@ -51,6 +51,17 @@ describe("findChartLayout", () => {
     expect(layout!.cellSize).toBeGreaterThanOrEqual(6);
   });
 
+  it("falls back to the minimum cell size, not null, when the requested size is already below it", () => {
+    // A real regression caught live: the on-screen preview requests a tiny
+    // cellSize (2px) to keep large patterns' thumbnails compact. A request
+    // below MIN_CHART_CELL_SIZE_PX must still succeed at the floor, matching
+    // the old effectiveCellSize's own Math.max(4, ...) clamp -- not be
+    // treated as an already-empty search range that fails immediately.
+    const layout = findChartLayout(makePattern(1000, 1000, 64), 2, TYPICAL_HEADER_WIDTH_PX);
+    expect(layout).not.toBeNull();
+    expect(layout!.cellSize).toBeGreaterThanOrEqual(4);
+  });
+
   it("returns null when even the minimum cell size can't fit the budget", () => {
     // A pattern far past anything the app's own UI would ever generate --
     // this is the case that should now fail clearly instead of attempting a

@@ -158,11 +158,61 @@ svc-lab).
       color PNG) and visually confirmed the full header text — "10 × 6
       stitches — approx. 0.7 × 0.4 in on 14-count Aida" — renders
       completely, not clipped, with zero console errors.
-- [ ] M3 — Finding 2 (resampling bias, P2): area-weighted box-filter
-      downsampling replacing whole-pixel binning, keeping the existing
-      linear-light averaging. Codex-cli critique exchange on the
-      approach before implementing; broad regression-suite
-      revalidation after.
+- [x] M3 — Finding 2 (resampling bias, P2). `lib/downsample.ts`'s
+      `downsampleToGrid` rewritten from source-pixel-driven whole-pixel
+      binning (`floor(x*gridWidth/srcWidth)` assigning each source pixel
+      wholly to one destination cell — correct only at integral scale
+      ratios) to destination-cell-driven area-weighted averaging: each
+      destination cell's exact source-space rectangle is computed, and
+      every source pixel it overlaps contributes proportionally to its
+      fractional area overlap (the standard box-filter resampling
+      algorithm) — the same rectangle-overlap logic naturally handles
+      both downsampling (the common case) and upsampling (a source
+      photo smaller than the requested stitch count) with no separate
+      code path, so the old nearest-neighbor gap-filling fallback
+      (needed only because center-point binning could skip cells
+      entirely on upscale) is no longer reachable and was removed — a
+      destination cell now only falls back to white when its *entire*
+      overlapped region is fully transparent, a direct, more correct
+      generalization of the old single-point transparency check. Linear-
+      light averaging and alpha-weighting are both unchanged. Attempted
+      a codex-cli critique exchange before implementing per STANDARDS.md
+      (this touches the core algorithm every generated pattern goes
+      through) — hit the same pre-existing, already-logged issue
+      (HANDOVER.md's Owner action list: codex-cli rejects every model
+      when authenticated via a ChatGPT account), tried two different
+      models, both failed identically; proceeded on independent analysis
+      per STANDARDS.md's own fallback policy, verifying the design by
+      hand against the review's own worked example before writing any
+      code. ✔ 2026-09-10. **Found and fixed a real bug in my own first
+      implementation, caught by real-browser worst-case testing, not
+      assumed correct from the design alone**: the new area-weighted
+      search's starting cell size wasn't clamped up to its own floor, so
+      a caller requesting a cell size *smaller* than the floor (the live
+      on-screen preview intentionally requests a tiny cell size to keep
+      a 1000-stitch pattern's thumbnail compact) made the search space
+      empty and threw `ChartTooLargeError` immediately — reproduced live
+      by generating at the app's actual maximum settings (custom size
+      1000, 64 colors), which crashed the preview outright. Fixed by
+      clamping the search's starting point up to the floor (matching
+      the pre-G-010 code's own `Math.max(4, ...)` clamp semantics), then
+      reproduced the exact same max-settings scenario again and
+      confirmed a clean "1000 × 625 stitches, 22 colors" preview with
+      zero console errors, and a full-resolution color PNG download
+      (7052×4509px, ~31.8M pixels, comfortably inside M2's own budget).
+      3 new unit tests directly reproducing the review's own worked
+      example (a 3-pixel black/white/black stripe correctly downsamples
+      to *identical* gray-156 in both cells, not the old asymmetric
+      gray-188-then-black), a reflection-symmetry case, and a regression
+      test for the cell-size-floor bug just found. 161 unit tests (all
+      8 pre-existing `downsample.spec.ts` tests, including the old
+      upscale-gap-filling case, pass unmodified against the rewritten
+      function) + 10 e2e tests green, clean lint/tsc/build — including
+      the project's own full golden-fixture regression suite
+      (`regression.spec.ts`), confirming this core-algorithm change
+      doesn't measurably degrade confetti/edge-preservation/flat-area
+      quality on the existing broader test corpus, not just the one
+      motivating reproduction.
 - [ ] M4 — Finding 3 (palette-objective consistency, P2): investigate
       and decide on one consistent objective for palette-color
       recomputation (OKLab-space centroid vs. documented linear-RGB
@@ -184,6 +234,10 @@ svc-lab).
       decision-record entry summarizing what changed and why.
 
 **Progress log** (newest first):
+- 2026-09-10 — M3 completed and verified (finding 2). Caught and fixed
+  a real bug in my own first implementation via real-browser worst-case
+  testing (a too-small requested cell size made the new area-weighted
+  search fail immediately) before considering this done.
 - 2026-09-10 — M2 completed and verified (findings 4 + 5), plus an
   additional dimension-validation gap found while designing it (bounding
   `deserializePattern`'s own accepted dimensions, not just render-time).

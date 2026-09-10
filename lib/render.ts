@@ -411,7 +411,15 @@ export interface ChartLayout {
  * browser (unlike the rest of this file). Returns `null` if no cell size fits.
  */
 export function findChartLayout(pattern: StitchPattern, requestedCellSize: number, headerWidthPx: number): ChartLayout | null {
-  const startingCellSize = Math.min(requestedCellSize, Math.floor(MAX_CHART_DIMENSION_PX / Math.max(pattern.width, pattern.height)));
+  // Clamped up to the floor even when the caller asked for something smaller
+  // (e.g. a live on-screen preview's own small thumbnail sizing) -- a
+  // request below the floor should fall back to the floor, matching the old
+  // effectiveCellSize's own Math.max(4, ...) clamp, not be treated as an
+  // empty search range that immediately fails.
+  const startingCellSize = Math.max(
+    MIN_CHART_CELL_SIZE_PX,
+    Math.min(requestedCellSize, Math.floor(MAX_CHART_DIMENSION_PX / Math.max(pattern.width, pattern.height)))
+  );
 
   for (let cellSize = startingCellSize; cellSize >= MIN_CHART_CELL_SIZE_PX; cellSize--) {
     const chartWidthPx = pattern.width * cellSize;

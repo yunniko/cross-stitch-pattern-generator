@@ -84,4 +84,50 @@ describe("downsampleToGrid", () => {
     const cells = downsampleToGrid(buffer, 12, 1);
     expect(cellRgb(cells, 2)).toEqual([255, 255, 255]);
   });
+
+  it("area-weights a nonintegral-ratio downsample instead of whole-pixel binning (code-review 2026-09-09, finding 2)", () => {
+    // The review's own repro: a symmetric 3-pixel black/white/black stripe
+    // downsampled to 2 cells. Whole-pixel binning (the old bug) produced
+    // gray-188 then black-0 -- asymmetric, even though the source is
+    // perfectly symmetric. True area-weighted averaging gives cell 0 one
+    // full black pixel + half the white pixel, and cell 1 the other half of
+    // the white pixel + one full black pixel -- by symmetry, both cells
+    // must come out identical, at the linear-light average of 2/3 black +
+    // 1/3 white = sRGB 156 (verified by hand: linear avg 1/3 -> sRGB ~156).
+    const buffer = makeBuffer(3, 1, (x) => (x === 1 ? [255, 255, 255] : [0, 0, 0]));
+    const cells = downsampleToGrid(buffer, 2, 1);
+    const cell0 = cellRgb(cells, 0);
+    const cell1 = cellRgb(cells, 1);
+    expect(cell0).toEqual(cell1);
+    expect(cell0[0]).toBeGreaterThanOrEqual(154);
+    expect(cell0[0]).toBeLessThanOrEqual(158);
+  });
+
+  it("preserves reflection symmetry at a nonintegral ratio (5 source pixels -> 3 cells)", () => {
+    // A palindromic source (reflecting left-to-right leaves it unchanged)
+    // must downsample to a palindromic result -- whole-pixel binning has no
+    // reason to respect this, but area-weighted averaging must, since the
+    // overlap geometry itself is symmetric.
+    const colors: RGB[] = [
+      [10, 20, 30],
+      [200, 50, 90],
+      [128, 128, 128],
+      [200, 50, 90],
+      [10, 20, 30],
+    ];
+    const buffer = makeBuffer(5, 1, (x) => colors[x]);
+    const cells = downsampleToGrid(buffer, 3, 1);
+    expect(cellRgb(cells, 0)).toEqual(cellRgb(cells, 2));
+  });
+
+  it("matches the old whole-pixel-binning result at an integral scale ratio (no regression for the common case)", () => {
+    // At an exact integral ratio, every destination cell's rectangle aligns
+    // exactly with a whole number of source pixels -- area-weighted and
+    // whole-pixel-binned averaging must agree exactly here.
+    const buffer = makeBuffer(4, 2, (x, y) => [x * 60, y * 60, 0]);
+    const cells = downsampleToGrid(buffer, 2, 1);
+    // Cell 0 covers source columns 0-1 (both rows averaged in linear light).
+    expect(cellRgb(cells, 0)[0]).toBeGreaterThan(0);
+    expect(cellRgb(cells, 1)[0]).toBeGreaterThan(cellRgb(cells, 0)[0]);
+  });
 });
