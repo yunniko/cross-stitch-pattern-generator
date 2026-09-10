@@ -53,6 +53,40 @@ export interface PaletteColor {
   count: number;
 }
 
+/**
+ * The originally-uploaded photo, kept alongside the generated grid so the
+ * editor can show it as reference underneath the symbol grid (G-012's
+ * "Grid + photo" render mode) and so the Move tool can reposition the grid
+ * relative to it. `dataUrl` is the file's own original bytes (untouched,
+ * not re-encoded) -- deliberately not just the capped-resolution decode
+ * `loadImageAsPixelBuffer` uses internally for generation, so reopening a
+ * saved pattern shows the photo at its real original quality. Embedding
+ * this in saved files was a deliberate Owner tradeoff (2026-09-10,
+ * GOALS.md G-012): saved editable JSON files get much larger in exchange
+ * for the photo/Move-tool workflow surviving a close-and-reopen.
+ */
+export interface SourceImageRef {
+  dataUrl: string;
+  naturalWidth: number;
+  naturalHeight: number;
+  /**
+   * Source-image pixels per stitch cell, fixed at generation/regenerate
+   * time (derived from whatever `longerSideStitches` produced the current
+   * grid) -- NOT recomputed on crop/expand/Move, so those operations only
+   * need to adjust `offsetX`/`offsetY`, not this scale.
+   */
+  cellSizePx: number;
+  /**
+   * Stitch-cell-space offset of the photo's top-left pixel relative to
+   * grid cell (0,0). Starts at (0,0) -- generation's own downsample is
+   * always 1:1-aligned -- and is only ever changed by the Move tool or by
+   * a canvas crop/expand (which must shift it by the same amount so the
+   * photo doesn't visually jump).
+   */
+  offsetX: number;
+  offsetY: number;
+}
+
 export interface StitchPattern {
   width: number;
   height: number;
@@ -69,4 +103,6 @@ export interface StitchPattern {
    * it as required.
    */
   name?: string;
+  /** Absent for patterns generated/opened before G-012, or opened from a pre-G-012 save file -- the photo-underlay mode and Move tool are simply unavailable then. */
+  sourceImage?: SourceImageRef;
 }

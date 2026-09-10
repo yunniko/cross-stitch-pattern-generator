@@ -1,9 +1,11 @@
-import { MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "./types";
+import { MAX_STITCHES, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern } from "./types";
 
 // Plain JSON, not a PNG with embedded data (Owner decision, 2026-09-09,
 // HANDOVER.md D21) -- simplest reliable format, at the cost of not being
-// previewable as an image on its own.
-const FORMAT_VERSION = 1;
+// previewable as an image on its own. Bumped to 2 for G-012's embedded
+// sourceImage (Owner decision, 2026-09-10) -- old files still open fine,
+// they just parse with no sourceImage (see deserializePattern).
+const FORMAT_VERSION = 2;
 
 export interface SerializedPattern {
   formatVersion: number;
@@ -15,6 +17,8 @@ export interface SerializedPattern {
   palette: Array<{ rgb: RGB; symbol: string; name: string }>;
   /** Optional so files saved before this field existed still parse (see deserializePattern's fallback). */
   name?: string;
+  /** Absent on files saved before G-012, or when the pattern has no associated photo. */
+  sourceImage?: SourceImageRef;
 }
 
 /** `count`/`index` are left out -- both are derived from `cellPalette` and recomputed on load, not stored. */
@@ -27,6 +31,7 @@ export function serializePattern(pattern: StitchPattern): string {
     cellPalette: Array.from(pattern.cellPalette),
     palette: pattern.palette.map((c) => ({ rgb: c.rgb, symbol: c.symbol, name: c.name })),
     name: pattern.name,
+    sourceImage: pattern.sourceImage,
   };
   return JSON.stringify(data);
 }
@@ -84,5 +89,29 @@ export function deserializePattern(json: string): StitchPattern {
     cellPalette: Uint8Array.from(d.cellPalette),
     palette,
     name: typeof d.name === "string" && d.name.trim() !== "" ? d.name : undefined,
+    sourceImage: isValidSourceImageRef(d.sourceImage) ? d.sourceImage : undefined,
   };
+}
+
+// Loose validation rather than throwing: an absent/malformed sourceImage
+// just means the photo-underlay mode and Move tool are unavailable for this
+// pattern, not that the whole file is unopenable -- the grid/palette are
+// still perfectly valid without it.
+function isValidSourceImageRef(value: unknown): value is SourceImageRef {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Partial<SourceImageRef>;
+  return (
+    typeof v.dataUrl === "string" &&
+    v.dataUrl.startsWith("data:") &&
+    typeof v.naturalWidth === "number" &&
+    v.naturalWidth > 0 &&
+    typeof v.naturalHeight === "number" &&
+    v.naturalHeight > 0 &&
+    typeof v.cellSizePx === "number" &&
+    v.cellSizePx > 0 &&
+    typeof v.offsetX === "number" &&
+    Number.isFinite(v.offsetX) &&
+    typeof v.offsetY === "number" &&
+    Number.isFinite(v.offsetY)
+  );
 }

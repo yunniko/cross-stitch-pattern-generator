@@ -12,16 +12,16 @@ async function pngWidth(filePath: string): Promise<number> {
 test("upload an image, generate a pattern, preview it, and download both variants", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expect(page.getByText("Loaded: sample.png")).toBeVisible();
 
   await page.getByRole("radio", { name: /Small/ }).check();
 
   await page.getByRole("button", { name: "Generate pattern" }).click();
 
-  const preview = page.getByAltText("Cross-stitch pattern preview");
-  await expect(preview).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("heading", { name: /50 × \d+ stitches, \d+ colors/ })).toBeVisible();
+  const canvas = page.locator("canvas");
+  await expect(canvas).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/50 × \d+ stitches, \d+ colors/)).toBeVisible();
 
   const [colorDownload] = await Promise.all([
     page.waitForEvent("download"),
@@ -30,7 +30,7 @@ test("upload an image, generate a pattern, preview it, and download both variant
   expect(colorDownload.suggestedFilename()).toBe("sample_color.png");
 
   await page.getByRole("radio", { name: "Black & white" }).check();
-  await expect(preview).toBeVisible();
+  await expect(canvas).toBeVisible();
 
   const [bwDownload] = await Promise.all([
     page.waitForEvent("download"),
@@ -42,28 +42,28 @@ test("upload an image, generate a pattern, preview it, and download both variant
 test("the image input is disabled while a pattern is generating, so a mid-generation image swap can't happen (code-review 2026-09-09, finding 1)", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Large/ }).check();
 
-  const imageInput = page.getByLabel("1. Image");
+  const imageInput = page.getByLabel("Image");
   await expect(imageInput).toBeEnabled();
 
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(imageInput).toBeDisabled();
 
-  await expect(page.getByAltText("Cross-stitch pattern preview")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
   await expect(imageInput).toBeEnabled();
 });
 
 test("a small chart's header is never clipped, even at the minimum custom size (code-review 2026-09-09, finding 5)", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: "Custom" }).check();
   await page.getByRole("spinbutton").fill("10");
 
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByAltText("Cross-stitch pattern preview")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
 
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -82,7 +82,7 @@ test("a small chart's header is never clipped, even at the minimum custom size (
 test("rejects a custom size outside the 10-1000 range without crashing", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: "Custom" }).check();
   await page.getByRole("spinbutton").fill("5000");
 
@@ -97,7 +97,7 @@ test("rejects a fractional custom size instead of crashing inside generation (co
 
   await page.goto("/");
 
-  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: "Custom" }).check();
   await page.getByRole("spinbutton").fill("10.5");
 
@@ -109,6 +109,6 @@ test("rejects a fractional custom size instead of crashing inside generation (co
   // the size). It should instead be rejected up front with the same
   // size-validation message a plainly out-of-range value gets.
   await expect(page.getByText(/Pattern size must be a whole number/)).toBeVisible();
-  await expect(page.getByAltText("Cross-stitch pattern preview")).not.toBeVisible();
+  await expect(page.locator("canvas")).not.toBeVisible();
   expect(errors).toEqual([]);
 });

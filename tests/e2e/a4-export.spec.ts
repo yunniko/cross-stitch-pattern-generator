@@ -9,14 +9,14 @@ async function readZipEntryNames(downloadPath: string): Promise<string[]> {
   return Object.keys(zip.files).sort();
 }
 
-test("main results screen: export as A4 pages downloads a ZIP with grid page(s) plus a legend page", async ({ page }) => {
+test("export as A4 pages downloads a ZIP with grid page(s) plus a legend page", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByAltText("Cross-stitch pattern preview")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
 
-  await expect(page.getByText(/pages total \(incl\. legend\)/)).toBeVisible();
+  await expect(page.getByText(/total \(incl\. legend\)/)).toBeVisible();
 
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -31,13 +31,12 @@ test("main results screen: export as A4 pages downloads a ZIP with grid page(s) 
   expect(entries.some((name) => /^sample_r\d{2}_c\d{2}\.png$/.test(name))).toBe(true);
 });
 
-test("editor: export as A4 pages works in B&W mode after switching modes", async ({ page }) => {
+test("export as A4 pages works in B&W mode", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByAltText("Cross-stitch pattern preview")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: "B&W", exact: true }).click();
 

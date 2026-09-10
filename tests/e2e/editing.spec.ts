@@ -3,14 +3,17 @@ import path from "node:path";
 
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
 
-test("editor: generate, merge two colors, undo/redo, download editable, and reopen it", async ({ page }) => {
+async function generateSmallPattern(page: import("@playwright/test").Page) {
   await page.goto("/");
-  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByAltText("Cross-stitch pattern preview")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
+}
 
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
+test("generate, merge two colors, undo/redo, download editable, and reopen it", async ({ page }) => {
+  await generateSmallPattern(page);
+
   const legendRows = page.locator("div[draggable='true']");
   const canvas = page.locator("canvas");
   await expect(canvas).toBeVisible();
@@ -37,20 +40,15 @@ test("editor: generate, merge two colors, undo/redo, download editable, and reop
 
   await page.goto("/");
   const fileChooserPromise = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "Open a saved editable pattern" }).click();
+  await page.getByRole("button", { name: "Open editable pattern" }).click();
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles(savedPath);
   await expect(page.locator("canvas")).toBeVisible();
   await expect(legendRows).toHaveCount(initialCount - 1);
 });
 
-test("editor: renaming the pattern changes every download's filename", async ({ page }) => {
-  await page.goto("/");
-  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByAltText("Cross-stitch pattern preview")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
+test("renaming the pattern changes every download's filename", async ({ page }) => {
+  await generateSmallPattern(page);
 
   const nameInput = page.getByLabel("Pattern name");
   await expect(nameInput).toHaveValue("sample");
@@ -80,25 +78,25 @@ test("editor: renaming the pattern changes every download's filename", async ({ 
   await expect(nameInput).toHaveValue("sample");
 });
 
-test("editor: cluster-fill drag and click-to-paint both change the pattern without errors", async ({ page }) => {
+test("cluster-fill drag and click-to-paint both change the pattern without errors", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(m.text());
   });
 
-  await page.goto("/");
-  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByAltText("Cross-stitch pattern preview")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await generateSmallPattern(page);
 
   const legendRows = page.locator("div[draggable='true']");
   const canvas = page.locator("canvas");
+  await canvas.scrollIntoViewIfNeeded();
 
-  // Cluster-fill: drag a legend color onto the picture.
-  await legendRows.nth(0).dragTo(canvas, { targetPosition: { x: 10, y: 10 } });
+  // Cluster-fill: drag a legend color onto the picture. Center of the
+  // canvas, not a corner -- the app shell's Image window sits inside a
+  // flex layout with chrome above/below/beside it, and a target near an
+  // edge is more exposed to a few pixels of layout drift between when
+  // Playwright measures the drop target and when the drag actually lands.
+  await legendRows.nth(0).dragTo(canvas);
 
   // Click-to-paint: select a color, then click one stitch.
   await legendRows.nth(1).click();
@@ -108,13 +106,8 @@ test("editor: cluster-fill drag and click-to-paint both change the pattern witho
   expect(errors).toEqual([]);
 });
 
-test("editor: brush stroke paints multiple stitches as a single undo step", async ({ page }) => {
-  await page.goto("/");
-  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByAltText("Cross-stitch pattern preview")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
+test("brush stroke paints multiple stitches as a single undo step", async ({ page }) => {
+  await generateSmallPattern(page);
 
   const legendRows = page.locator("div[draggable='true']");
   const canvas = page.locator("canvas");
@@ -136,4 +129,17 @@ test("editor: brush stroke paints multiple stitches as a single undo step", asyn
   await expect(undoButton).toBeEnabled();
   await undoButton.click();
   await expect(undoButton).toBeDisabled();
+});
+
+test("regenerating (a processing-param change) is undoable like any other edit (G-012)", async ({ page }) => {
+  await generateSmallPattern(page);
+  await expect(page.getByText(/50 × \d+ stitches/)).toBeVisible();
+
+  await page.getByRole("radio", { name: "Custom" }).check();
+  await page.getByRole("spinbutton").fill("30");
+  await page.getByRole("button", { name: "Regenerate" }).click();
+  await expect(page.getByText(/30 × \d+ stitches/)).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText(/50 × \d+ stitches/)).toBeVisible();
 });

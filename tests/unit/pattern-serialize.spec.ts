@@ -87,4 +87,37 @@ describe("pattern-serialize", () => {
     });
     expect(() => deserializePattern(bad)).not.toThrow();
   });
+
+  it("round-trips an embedded sourceImage (G-012)", () => {
+    const pattern = {
+      ...makePattern(),
+      sourceImage: {
+        dataUrl: "data:image/png;base64,AAAA",
+        naturalWidth: 800,
+        naturalHeight: 600,
+        cellSizePx: 8,
+        offsetX: 0,
+        offsetY: 0,
+      },
+    };
+    const restored = deserializePattern(serializePattern(pattern));
+    expect(restored.sourceImage).toEqual(pattern.sourceImage);
+  });
+
+  it("leaves sourceImage undefined for a file saved before G-012", () => {
+    const restored = deserializePattern(serializePattern(makePattern()));
+    expect(restored.sourceImage).toBeUndefined();
+  });
+
+  it("ignores a malformed sourceImage rather than rejecting the whole file", () => {
+    const bad = JSON.stringify({
+      width: 1,
+      height: 1,
+      cellPalette: [0],
+      palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }],
+      sourceImage: { dataUrl: "not-a-data-url", naturalWidth: 10, naturalHeight: 10, cellSizePx: 1, offsetX: 0, offsetY: 0 },
+    });
+    const restored = deserializePattern(bad);
+    expect(restored.sourceImage).toBeUndefined();
+  });
 });

@@ -101,25 +101,77 @@ svc-lab).
   to "lighter" without asking first if it turns out to be awkward.
 
 **Milestones**:
-- [ ] M1 — Data model + unified app shell. `StitchPattern` gains an
-      optional `sourceImage` (original uploaded file's bytes as a data
-      URL — not re-encoded — plus its natural width/height and the
-      stitch-to-pixel scale fixed at generation/regenerate time) and a
-      `sourceOffset` (stitch-cell-space x/y). `lib/pattern-serialize.ts`
-      persists both. New single-page app shell (replacing `page.tsx`'s
-      linear sections and `pattern-editor.tsx`'s standalone-editor
-      framing) with the four docks' static layout and today's existing
-      functionality relocated into it: image upload shows the raw photo
-      immediately in the Image window "as is" before any generation;
-      Processing-params dock hosts size/color-count/algorithm/fabric-
-      count and Generate/Regenerate; Colors dock hosts the existing
-      legend (select/merge/recolor/rename); existing Brush behavior
-      works in the Image window. Regenerate pushes onto the same undo
-      stack as edits. No pan/zoom/new tools/new render modes/canvas
-      resize/empty-stitch yet — this milestone is the shell + data
-      model + today's functionality relocated into it, verified to
-      still work end-to-end (upload → generate → paint/merge/rename →
-      download) inside the new shell before anything new is layered on.
+- [x] M1 — Data model + unified app shell. `lib/types.ts` gained
+      `SourceImageRef` (`dataUrl` — the original uploaded file's own
+      bytes, not re-encoded; `naturalWidth`/`naturalHeight`; `cellSizePx`
+      — source pixels per stitch cell, fixed at generation/regenerate
+      time; `offsetX`/`offsetY` — stitch-cell-space, folded into
+      `sourceImage` itself rather than a separate top-level field, since
+      one optional object is simpler to carry through every existing
+      spread-based mutation than two) and `StitchPattern.sourceImage?`.
+      `lib/load-image.ts` refactored so decoding is shared between a
+      fresh upload (`loadImageAsPixelBuffer`) and reopening a saved
+      pattern's embedded photo (new `decodeSourceImage`), both now also
+      returning the original (uncapped) bytes/resolution alongside the
+      generation-ready `PixelBuffer`. `lib/pattern-serialize.ts` bumped
+      to format version 2 and persists `sourceImage` (loosely validated
+      on load — a missing/malformed one just means the photo-underlay
+      mode and Move tool are unavailable for that file, not a load
+      failure). New `app/workspace.tsx` (replacing `app/page.tsx`'s
+      linear sections and the now-deleted `app/pattern-editor.tsx`'s
+      standalone-editor framing) is the single unified app shell: a top
+      bar (name, Undo/Redo, Open/Download editable), a left Tools dock
+      (Brush — Pan/Zoom/Move/Highlight arrive in M2/M3), a center Image
+      window (raw photo shown "as is" before generation, then the
+      existing live-editable color/B&W canvas or the async realistic
+      preview) with a Processing-params dock beneath it (image upload,
+      size/fabric-count/color-count/algorithm, Generate/Regenerate), a
+      right Colors dock (today's legend: select/merge/recolor/rename/add),
+      and a bottom Export dock (color/B&W/realistic PNG, A4 pages).
+      Regenerate now pushes onto the same undo/redo stack as any other
+      edit (a real behavior change, not just relocated UI) — except the
+      very *first* Generate, which establishes the undo baseline instead
+      of itself being undoable back into a "no pattern yet" state,
+      matching every other editor's Ctrl+Z convention. `app/page.tsx` is
+      now a 3-line wrapper around `Workspace`. ✔ 2026-09-10.
+
+      Two real bugs found and fixed during verification, not assumed
+      correct from the code alone: (1) the first implementation made
+      *every* Generate — including the first — push onto history via
+      `history.set`, so a single Undo after one edit didn't fully
+      disable the Undo button (an e2e test caught this); fixed by using
+      `history.reset` specifically for the first Generate. (2) the
+      Playwright drag-and-drop e2e test (dragging a legend color onto
+      the canvas) was flaky at Playwright's default 1280×720 viewport —
+      root-caused live (not just retried until it passed) to the app
+      shell's docked chrome leaving too little vertical room at that
+      size, exposing a real Playwright drag/scroll-into-view edge case
+      that intermittently dropped the pointer over the header instead of
+      the canvas; fixed by giving the e2e suite a realistic desktop
+      viewport (1440×900) in `playwright.config.ts`, matching this
+      shell's own stated desktop-class scope, not by papering over the
+      symptom with `force: true`.
+
+      173 unit tests (+3 for `sourceImage` round-trip/malformed-handling
+      in `pattern-serialize.spec.ts`) green. 12 e2e tests green —
+      `generate-pattern.spec.ts` and `a4-export.spec.ts` updated for the
+      new unlabeled-"Image" input and single-screen flow (no more
+      separate "Edit" click), `pattern-editor.spec.ts` replaced by
+      `editing.spec.ts` (same coverage, no "click Edit first" step) plus
+      one new test confirming regenerate-undo. Clean `tsc`/`eslint`/
+      `npm run build`. Verified live in a real browser beyond the
+      automated suite: generated a pattern, downloaded the editable JSON
+      and confirmed it embeds `sourceImage` (`dataUrl` starts
+      `data:image/png;base64,...`, correct natural 160×100 dimensions,
+      `cellSizePx: 1.6` matching 160÷100 stitches, `offsetX`/`offsetY: 0`
+      as generation always is initially) — then, in a *fresh* page load
+      (no prior upload), reopened that saved file and confirmed the
+      canvas renders immediately, the button reads "Regenerate" (not
+      disabled), and clicking it actually regenerates cleanly
+      ("100 × 63 stitches, 16 colors", zero console errors) — proving
+      the embedded photo round-trips all the way through a real
+      close-and-reopen, the specific new capability M1 exists to enable
+      for later milestones.
 - [ ] M2 — Image window navigation + Preview/navigator dock + the
       three render modes. Pan (drag) and zoom (wheel/pinch, plus a Zoom
       tool) in the Image window, decoupled from render mode. Navigator
@@ -149,6 +201,11 @@ svc-lab).
       going live, not just an automated-green deploy).
 
 **Progress log** (newest first):
+- 2026-09-10 — M1 completed and verified: data model (`SourceImageRef`)
+  + the unified `app/workspace.tsx` app shell, today's functionality
+  fully relocated into it. Found and fixed two real bugs via e2e/live
+  verification (a regenerate-undo baseline bug, and a viewport-size-
+  dependent Playwright drag flake root-caused rather than retried away).
 - 2026-09-10 — Goal created from the Owner's chat request. Scope
   clarified via `AskUserQuestion`: one unified workspace (not a
   separate upload page), source photo embedded in saved files, and
