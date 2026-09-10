@@ -32,8 +32,9 @@ import {
   type SizePresetId,
   type StitchPattern,
 } from "@/lib/types";
-import { DEFAULT_AIDA_COUNT, STANDARD_AIDA_COUNTS, formatFinishedDimension, type SizeUnit } from "@/lib/finished-size";
+import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, STANDARD_AIDA_COUNTS, formatFinishedDimension, type SizeUnit } from "@/lib/finished-size";
 import { formatSkeinEstimate } from "@/lib/floss-estimate";
+import { loadSavedProject, loadWorkspaceOptions, saveProject, saveWorkspaceOptions } from "@/lib/workspace-storage";
 import type { GenerationMode } from "@/lib/pattern.worker";
 
 // The Image window's target on-screen width for its live-editable (color/bw)
@@ -98,8 +99,13 @@ export default function Workspace() {
   const sourceRevisionRef = useRef(0);
   const [sizePreset, setSizePreset] = useState<SizePresetId>("medium");
   const [customSize, setCustomSize] = useState(100);
+  // Defaults here match lib/workspace-storage.ts's own DEFAULT_OPTIONS --
+  // this is what renders before the mount effect below loads whatever was
+  // actually persisted (or confirms there's nothing to load).
   const [aidaCount, setAidaCount] = useState<number>(DEFAULT_AIDA_COUNT);
-  const [sizeUnit, setSizeUnit] = useState<SizeUnit>("in");
+  const [sizeUnit, setSizeUnit] = useState<SizeUnit>(DEFAULT_SIZE_UNIT);
+  const [authorName, setAuthorName] = useState("");
+  const [showOptionsPanel, setShowOptionsPanel] = useState(false);
   const [colorCount, setColorCount] = useState(16);
   const [generationMode, setGenerationMode] = useState<GenerationMode>("latest");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -120,6 +126,42 @@ export default function Workspace() {
   const patternRef = useRef<StitchPattern | null>(null);
   useEffect(() => {
     patternRef.current = pattern;
+  }, [pattern]);
+
+  // --- Persisted workspace options + auto-saved project (G-015) ---
+  // Gated on a ref (not just "run once on mount") so the save effects below
+  // can tell whether the initial load has actually completed yet -- without
+  // this, they'd fire on the very first render (before restoring anything)
+  // and immediately overwrite/clear whatever was already saved.
+  const workspaceRestoredRef = useRef(false);
+  useEffect(() => {
+    queueMicrotask(() => {
+      const options = loadWorkspaceOptions();
+      setAidaCount(options.aidaCount);
+      setSizeUnit(options.sizeUnit);
+      setAuthorName(options.authorName);
+
+      const saved = loadSavedProject();
+      if (saved) {
+        loadPatternIntoWorkspace(saved, saved.name ?? "cross-stitch-pattern");
+      }
+      workspaceRestoredRef.current = true;
+    });
+    // Deliberately mount-only -- loadPatternIntoWorkspace's identity changes
+    // every render, but re-running this restore whenever it changes would
+    // defeat the point (it must fire exactly once, before the save effects
+    // below start reacting to state changes).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!workspaceRestoredRef.current) return;
+    saveWorkspaceOptions({ aidaCount, sizeUnit, authorName });
+  }, [aidaCount, sizeUnit, authorName]);
+
+  useEffect(() => {
+    if (!workspaceRestoredRef.current) return;
+    saveProject(pattern);
   }, [pattern]);
 
   // --- Image window view mode + brush/legend state (the Colors dock) ---
@@ -625,6 +667,45 @@ export default function Workspace() {
     URL.revokeObjectURL(url);
   }
 
+  /**
+   * Shared by "Open editable pattern" and the on-mount auto-restore (G-015)
+   * -- both need to land a freshly-loaded `StitchPattern` into every piece
+   * of state that depends on it, including re-decoding an embedded source
+   * photo so Regenerate/Move/photo-underlay keep working (G-012).
+   */
+  async function loadPatternIntoWorkspace(loaded: StitchPattern, fallbackName: string) {
+    const withName = { ...loaded, name: loaded.name ?? fallbackName };
+    history.reset(withName);
+    setActiveColorIndex(null);
+    setZoomLevel(1);
+    setHighlightedColorIndices(new Set());
+    setShowResizePanel(false);
+    cancelPatternJob();
+    ++sourceRevisionRef.current;
+    if (withName.sourceImage) {
+      // Re-decode the embedded photo so Regenerate keeps working after
+      // reopening a save, not just the photo-underlay/Move tool (G-012).
+      try {
+        const decoded = await decodeSourceImage(withName.sourceImage.dataUrl);
+        setPixelBuffer(decoded.pixelBuffer);
+        setSourceImageMeta({
+          dataUrl: decoded.originalDataUrl,
+          naturalWidth: decoded.naturalWidth,
+          naturalHeight: decoded.naturalHeight,
+        });
+        setSourceFileName(fallbackName);
+      } catch {
+        // The grid/palette are still perfectly valid without this --
+        // only Regenerate/Move/photo-underlay become unavailable.
+        setPixelBuffer(null);
+        setSourceImageMeta(null);
+      }
+    } else {
+      setPixelBuffer(null);
+      setSourceImageMeta(null);
+    }
+  }
+
   function handleOpenFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -635,36 +716,7 @@ export default function Workspace() {
       .then(async (text) => {
         const loaded = deserializePattern(text);
         const fallbackName = file.name.replace(/\.[^.]+$/, "").replace(/[-_]editable$/, "");
-        const withName = { ...loaded, name: loaded.name ?? fallbackName };
-        history.reset(withName);
-        setActiveColorIndex(null);
-        setZoomLevel(1);
-        setHighlightedColorIndices(new Set());
-        setShowResizePanel(false);
-        cancelPatternJob();
-        ++sourceRevisionRef.current;
-        if (withName.sourceImage) {
-          // Re-decode the embedded photo so Regenerate keeps working after
-          // reopening a save, not just the photo-underlay/Move tool (G-012).
-          try {
-            const decoded = await decodeSourceImage(withName.sourceImage.dataUrl);
-            setPixelBuffer(decoded.pixelBuffer);
-            setSourceImageMeta({
-              dataUrl: decoded.originalDataUrl,
-              naturalWidth: decoded.naturalWidth,
-              naturalHeight: decoded.naturalHeight,
-            });
-            setSourceFileName(fallbackName);
-          } catch {
-            // The grid/palette are still perfectly valid without this --
-            // only Regenerate/Move/photo-underlay become unavailable.
-            setPixelBuffer(null);
-            setSourceImageMeta(null);
-          }
-        } else {
-          setPixelBuffer(null);
-          setSourceImageMeta(null);
-        }
+        await loadPatternIntoWorkspace(loaded, fallbackName);
       })
       .catch((err) => setOpenError(err instanceof Error ? err.message : "Couldn't open that file."));
   }
@@ -679,7 +731,7 @@ export default function Workspace() {
         const canvas =
           mode === "realistic"
             ? await renderStitchPreviewToCanvas(compacted)
-            : renderPatternToCanvas(compacted, mode, { aidaCount, sizeUnit });
+            : renderPatternToCanvas(compacted, mode, { aidaCount, sizeUnit, authorName });
         const suffix = mode === "realistic" ? "preview" : mode;
         await downloadCanvasAsPng(canvas, `${baseFileName()}_${suffix}.png`);
       } catch (err) {
@@ -772,6 +824,13 @@ export default function Workspace() {
           <input ref={openEditableInputRef} type="file" accept="application/json" onChange={handleOpenFile} className="hidden" />
           <button
             type="button"
+            onClick={() => setShowOptionsPanel((v) => !v)}
+            className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]"
+          >
+            Options…
+          </button>
+          <button
+            type="button"
             onClick={openResizePanel}
             disabled={!pattern}
             className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
@@ -789,6 +848,61 @@ export default function Workspace() {
         </div>
       </header>
       {openError && <p className="border-b border-red-300 bg-red-50 px-4 py-1 text-xs text-red-600 dark:border-red-800 dark:bg-red-950 dark:text-red-400">{openError}</p>}
+
+      {showOptionsPanel && (
+        <div className="flex flex-wrap items-center gap-4 border-b border-zinc-300 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+          <span className="text-sm font-medium">Options</span>
+          <label className="flex items-center gap-1.5 text-sm">
+            Fabric count
+            <select
+              value={aidaCount}
+              onChange={(e) => setAidaCount(Number(e.target.value))}
+              className="rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            >
+              {STANDARD_AIDA_COUNTS.map((count) => (
+                <option key={count} value={count}>
+                  {count}-count
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-center gap-1.5 text-sm">
+            Unit
+            <div className="flex items-center overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
+              {(["in", "cm"] as const).map((unit) => (
+                <button
+                  key={unit}
+                  type="button"
+                  onClick={() => setSizeUnit(unit)}
+                  className={`px-2 py-0.5 text-sm transition-colors ${
+                    sizeUnit === unit ? "bg-foreground text-background" : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+                  }`}
+                >
+                  {unit}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="flex items-center gap-1.5 text-sm">
+            Author name
+            <input
+              type="text"
+              value={authorName}
+              onChange={(e) => setAuthorName(e.target.value)}
+              placeholder="(shown on exported charts)"
+              className="w-56 rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </label>
+          <span className="text-xs text-zinc-500">Saved automatically in this browser.</span>
+          <button
+            type="button"
+            onClick={() => setShowOptionsPanel(false)}
+            className="ml-auto rounded-full border border-zinc-300 px-4 py-1.5 text-sm font-medium dark:border-zinc-700"
+          >
+            Close
+          </button>
+        </div>
+      )}
 
       {showResizePanel && pattern && (
         <div className="flex flex-wrap items-center gap-4 border-b border-zinc-300 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
@@ -1045,39 +1159,8 @@ export default function Workspace() {
                 </label>
               </div>
               <p className="text-xs text-zinc-500">
-                ≈ {formatFinishedDimension(longerSideStitches, aidaCount, sizeUnit)} on the longer side at {aidaCount}-count Aida
+                ≈ {formatFinishedDimension(longerSideStitches, aidaCount, sizeUnit)} on the longer side at {aidaCount}-count Aida (change fabric count/unit in Options)
               </p>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Fabric count</span>
-              <div className="flex items-center gap-2 text-sm">
-                <select
-                  value={aidaCount}
-                  onChange={(e) => setAidaCount(Number(e.target.value))}
-                  className="rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                >
-                  {STANDARD_AIDA_COUNTS.map((count) => (
-                    <option key={count} value={count}>
-                      {count}-count
-                    </option>
-                  ))}
-                </select>
-                <div className="flex items-center overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
-                  {(["in", "cm"] as const).map((unit) => (
-                    <button
-                      key={unit}
-                      type="button"
-                      onClick={() => setSizeUnit(unit)}
-                      className={`px-2 py-0.5 text-sm transition-colors ${
-                        sizeUnit === unit ? "bg-foreground text-background" : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
-                      }`}
-                    >
-                      {unit}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
 
             <div className="flex flex-col gap-1">

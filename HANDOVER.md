@@ -2036,6 +2036,86 @@ colors and want to be able to edit symbol assignment." Two changes:
   changed *both* colors' symbols, never producing a duplicate). Zero
   console errors.
 
+**D33 — G-015: fabric count/unit + author name moved to a persisted
+"Options" panel; project auto-save/restore added (2026-09-10).** Owner
+request: "move inches/cm and canvas size somewhere to options and store
+values in local storage... also add to options author name... opened
+project should be stored and restored too on page reload... the size
+estimate on png should be written according to the option." ("Canvas
+size" here means the fabric/Aida count selector -- "canvas" is common
+needlework terminology for the fabric itself -- not the stitch-grid
+dimensions, which stay a per-generation parameter in the Processing
+params dock, not a cross-session preference.)
+
+- **New `lib/workspace-storage.ts`** holds all localStorage read/write
+  logic, isolated from `app/workspace.tsx`: `loadWorkspaceOptions`/
+  `saveWorkspaceOptions` for `{ aidaCount, sizeUnit, authorName }`, and
+  `loadSavedProject`/`saveProject` reusing the existing
+  `serializePattern`/`deserializePattern` (the same format "Download
+  editable"/"Open editable pattern" already use) rather than inventing a
+  second format. Every function is best-effort: `typeof window ===
+  "undefined"` guards SSR/this app's static prerendering, and a
+  try/catch around every localStorage call means a disabled/full store
+  (private browsing, or a large embedded source photo pushing past the
+  typical 5-10MB/origin quota) silently degrades to "nothing persists"
+  rather than throwing mid-edit. 8 unit tests, using a tiny in-memory
+  `localStorage` stub assigned to a synthetic `window` rather than
+  pulling in jsdom for the whole project (this suite's existing
+  convention -- DOM-touching code is otherwise verified live, not
+  unit-tested; this module's actual logic was worth the small stub
+  since it's pure read/write/fallback behavior, not a DOM API surface).
+- **Default unit changed from "in" to "cm"** (Owner: "cm is default
+  anyways") -- new `DEFAULT_SIZE_UNIT` in `lib/finished-size.ts`, used
+  everywhere the old bare `"in"` literal was (`app/workspace.tsx`'s
+  initial state, `lib/render.ts`'s `renderPatternToCanvas` fallback).
+- **UI**: the "Fabric count" select and "in/cm" toggle moved out of the
+  Processing params dock into a new "Options…" panel (mirroring the
+  existing "Resize canvas…" button+panel pattern), joined by a new
+  "Author name" text field. The Processing dock's finished-size readout
+  stays in place (still useful there) with a pointer to Options for
+  changing the values.
+- **Project auto-save/restore**: `handleOpenFile`'s full restore
+  sequence (re-decoding an embedded source photo so Regenerate/Move
+  keep working, per G-012) was extracted into `loadPatternIntoWorkspace`
+  so a new mount-time effect can reuse it verbatim for auto-restored
+  projects, instead of duplicating that logic. A `workspaceRestoredRef`
+  gates the save effects (options and project) so they can't fire
+  before the initial restore completes -- without it, the very first
+  render's default state would immediately overwrite/clear whatever was
+  actually saved, a real race worth naming since it's easy to introduce
+  by adding a save-on-change effect before the restore-on-mount one.
+- **Author name threaded into the exported chart's header**
+  (`lib/render.ts`'s `headerText`/`RenderOptions`): appended as
+  "— Designed by \<name\>" when non-blank, omitted entirely otherwise.
+  Scoped to the single-PNG chart export only, not the A4 export pages
+  (which currently have no equivalent header at all) -- a deliberate
+  scope cut, not an oversight; extending A4 pages the same way is a
+  reasonable future ask but wasn't part of this request.
+- **A React-hooks lint wrinkle worth remembering**: this project's
+  `eslint-config-next` includes the newer `react-hooks/set-state-in-
+  effect` rule, which hard-errors on synchronous `setState` calls
+  directly in an effect body -- including a completely ordinary
+  "restore from localStorage on mount" effect. Wrapping the body in
+  `queueMicrotask(() => { ...setState calls... })` satisfies the rule
+  (the setState calls are no longer directly in the effect's top-level
+  statement list) without changing behavior, and was simpler than
+  restructuring this as a `useSyncExternalStore`-based store, which
+  doesn't cleanly fit anyway once the restore also needs to trigger the
+  multi-step, partly-async `loadPatternIntoWorkspace` procedure.
+- **Verified**: 232 unit tests (221 + 8 `workspace-storage` + 3
+  `headerText`), clean `tsc`/`eslint`/`npm run build`. Live dev-server
+  checks: (1) cleared localStorage, confirmed a fresh visit defaults to
+  cm; (2) opened Options, changed fabric count to 18-count, unit to in,
+  and set an author name, confirmed all three round-tripped through
+  `localStorage` and were restored correctly after a hard reload; (3)
+  generated a pattern, confirmed it was auto-saved, reloaded the page,
+  and confirmed the exact pattern (name, dimensions, colors, and the
+  "Regenerate" button/re-decoded source photo) came back automatically.
+  The header-text/unit-following behavior itself is covered by the new
+  `headerText` unit tests rather than an actual file download, per this
+  project's browser-automation download-permission rule -- not yet
+  visually confirmed in a real downloaded PNG.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

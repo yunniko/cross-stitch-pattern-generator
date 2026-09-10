@@ -11,6 +11,48 @@ svc-lab).
 
 ## Active goals
 
+### G-015 · Persisted Options panel + project auto-save/restore — ACTIVE
+- **What:** Move fabric count and the in/cm unit toggle into a new
+  "Options" panel, add an author-name field there too, and persist all
+  three in localStorage. Auto-save the currently-open project and
+  restore it automatically on page reload. The exported PNG's finished-
+  size estimate must reflect whichever unit is set in Options.
+- **Why:** Owner request (2026-09-10) — these are cross-session
+  preferences, not per-generation parameters, and losing in-progress
+  work on an accidental reload is a real usability gap.
+- **Acceptance criteria:** A fresh visit defaults to cm. Changing fabric
+  count/unit/author name in Options and reloading the page restores the
+  same values. Generating or editing a pattern and reloading the page
+  restores that exact pattern (including being able to Regenerate from
+  its source photo, if any). The single-PNG chart export's header shows
+  the finished-size estimate in the currently-selected unit and, when
+  set, an author credit.
+- **Constraints:** None beyond the general per-browser nature of
+  localStorage (not synced across devices/browsers -- not asked for).
+
+**Milestones:**
+- [x] M1 — `lib/workspace-storage.ts`: localStorage read/write for
+      options and the auto-saved project, best-effort or SSR; unit
+      tested.
+- [x] M2 — UI: "Options…" panel (fabric count, unit, author name)
+      replacing the old inline controls; default unit changed to cm.
+- [x] M3 — Auto-restore on mount (options + project) and auto-save on
+      change, without the two racing; author name threaded into the
+      exported PNG header. Unit tested (headerText) and live-browser
+      verified (persistence round-trip, project restore).
+- [ ] M4 — Full regression suite, commit, and (pending Owner go-ahead)
+      production deploy.
+
+**Progress log** (newest first):
+- 2026-09-10 — M1-M3 complete. Full detail in HANDOVER.md D33. Verified:
+  232 unit tests, clean `tsc`/`eslint`/`npm run build`, live dev-server
+  checks of default-unit, options round-trip, and project auto-restore
+  (including source-photo re-decode/Regenerate). The header's unit-
+  following behavior is unit-tested rather than confirmed via an actual
+  downloaded PNG (browser-automation download-permission rule) -- worth
+  a quick manual glance at a real export before/at deploy. Not yet
+  committed, not deployed. Continuing to M4 next.
+
 ### G-014 · Expanded symbol set + editable symbol assignment — ACTIVE
 - **What:** Grow the available chart-symbol pool past the original 64
   (raising `MAX_COLORS` to match), and let the user manually change which

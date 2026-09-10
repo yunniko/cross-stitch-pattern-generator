@@ -14,6 +14,9 @@ export type AidaCount = (typeof STANDARD_AIDA_COUNTS)[number];
 export const DEFAULT_AIDA_COUNT: AidaCount = 14;
 
 export type SizeUnit = "in" | "cm";
+// Owner decision (2026-09-10, G-015): cm is the default unit -- most of
+// this app's audience (and its .cz deployment domain) uses metric.
+export const DEFAULT_SIZE_UNIT: SizeUnit = "cm";
 const CM_PER_INCH = 2.54;
 
 export function stitchesToInches(stitches: number, aidaCount: number): number {

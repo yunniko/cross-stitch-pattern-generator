@@ -1,5 +1,5 @@
 import { luminance, rgbToHex } from "./color";
-import { DEFAULT_AIDA_COUNT, formatFinishedSize, type SizeUnit } from "./finished-size";
+import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, formatFinishedSize, type SizeUnit } from "./finished-size";
 import { formatSkeinEstimate } from "./floss-estimate";
 import { buildTintedTextureSet } from "./stitch-texture";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern, type RGB } from "./types";
@@ -13,6 +13,8 @@ export interface RenderOptions {
   aidaCount?: number;
   /** Unit for the header's finished-size estimate. */
   sizeUnit?: SizeUnit;
+  /** Shown in the header as "Designed by <name>" when non-blank (G-015). */
+  authorName?: string;
 }
 
 const DEFAULT_CELL_SIZE = 24;
@@ -365,17 +367,19 @@ function drawRowColumnNumbers(ctx: CanvasRenderingContext2D, width: number, heig
 
 const HEADER_FONT = `13px ${FONT_STACK}`;
 
-function headerText(pattern: StitchPattern, aidaCount: number, sizeUnit: SizeUnit): string {
-  return `${pattern.width} × ${pattern.height} stitches — approx. ${formatFinishedSize(pattern.width, pattern.height, aidaCount, sizeUnit)} on ${aidaCount}-count Aida`;
+/** Exported for unit testing -- the exported-PNG header text (also used to size its canvas), verified without needing a real canvas/DOM. */
+export function headerText(pattern: StitchPattern, aidaCount: number, sizeUnit: SizeUnit, authorName?: string): string {
+  const base = `${pattern.width} × ${pattern.height} stitches — approx. ${formatFinishedSize(pattern.width, pattern.height, aidaCount, sizeUnit)} on ${aidaCount}-count Aida`;
+  return authorName?.trim() ? `${base} — Designed by ${authorName.trim()}` : base;
 }
 
 /** Design size in stitches and an estimated finished size at the selected Aida count — conventional on published charts (docs/domain-reference.md §1, §4). The canvas is always sized wide enough to fit this beforehand (see computeChartLayout) -- no wrapping/clipping needed here. */
-function drawHeader(ctx: CanvasRenderingContext2D, pattern: StitchPattern, aidaCount: number, sizeUnit: SizeUnit) {
+function drawHeader(ctx: CanvasRenderingContext2D, pattern: StitchPattern, aidaCount: number, sizeUnit: SizeUnit, authorName?: string) {
   ctx.fillStyle = "#111111";
   ctx.font = HEADER_FONT;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(headerText(pattern, aidaCount, sizeUnit), LEGEND_PADDING, HEADER_HEIGHT / 2);
+  ctx.fillText(headerText(pattern, aidaCount, sizeUnit, authorName), LEGEND_PADDING, HEADER_HEIGHT / 2);
 }
 
 /** Shortens text with a trailing ellipsis if it doesn't fit maxWidth in the context's current font -- names from the reference list have no fixed length cap. */
@@ -569,11 +573,11 @@ export function findChartLayout(pattern: StitchPattern, requestedCellSize: numbe
   return null;
 }
 
-function computeChartLayout(pattern: StitchPattern, requestedCellSize: number, aidaCount: number, sizeUnit: SizeUnit): ChartLayout {
+function computeChartLayout(pattern: StitchPattern, requestedCellSize: number, aidaCount: number, sizeUnit: SizeUnit, authorName?: string): ChartLayout {
   const measureCtx = document.createElement("canvas").getContext("2d");
   if (!measureCtx) throw new Error("2D canvas context unavailable");
   measureCtx.font = HEADER_FONT;
-  const headerWidthPx = measureCtx.measureText(headerText(pattern, aidaCount, sizeUnit)).width + LEGEND_PADDING * 2;
+  const headerWidthPx = measureCtx.measureText(headerText(pattern, aidaCount, sizeUnit, authorName)).width + LEGEND_PADDING * 2;
 
   const layout = findChartLayout(pattern, requestedCellSize, headerWidthPx);
   if (!layout) throw new ChartTooLargeError();
@@ -586,8 +590,9 @@ export function renderPatternToCanvas(
   options: RenderOptions = {}
 ): HTMLCanvasElement {
   const aidaCount = options.aidaCount ?? DEFAULT_AIDA_COUNT;
-  const sizeUnit = options.sizeUnit ?? "in";
-  const layout = computeChartLayout(pattern, options.cellSize ?? DEFAULT_CELL_SIZE, aidaCount, sizeUnit);
+  const sizeUnit = options.sizeUnit ?? DEFAULT_SIZE_UNIT;
+  const authorName = options.authorName;
+  const layout = computeChartLayout(pattern, options.cellSize ?? DEFAULT_CELL_SIZE, aidaCount, sizeUnit, authorName);
   const { cellSize, chartWidthPx, chartHeightPx, belowChart, leftGutter, topGutter, canvasWidth, canvasHeight } = layout;
 
   const canvas = document.createElement("canvas");
@@ -600,7 +605,7 @@ export function renderPatternToCanvas(
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  drawHeader(ctx, pattern, aidaCount, sizeUnit);
+  drawHeader(ctx, pattern, aidaCount, sizeUnit, authorName);
 
   ctx.save();
   ctx.translate(leftGutter, HEADER_HEIGHT + topGutter);
