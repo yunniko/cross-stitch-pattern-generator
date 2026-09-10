@@ -5,7 +5,8 @@ import { HexColorPicker } from "react-colorful";
 import { hexToRgb, rgbToHex } from "@/lib/color";
 import { decodeSourceImage, loadImageAsPixelBuffer } from "@/lib/load-image";
 import { cancelPatternJob, runPatternJob } from "@/lib/pattern-client";
-import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, setColorSymbol, shiftPattern } from "@/lib/pattern-edit";
+import { addColor, addDmcColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, setColorSymbol, shiftPattern } from "@/lib/pattern-edit";
+import { DMC_COLORS } from "@/lib/dmc-colors";
 import { SYMBOL_SET } from "@/lib/symbols";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
 import {
@@ -174,6 +175,7 @@ export default function Workspace() {
   const [editingDraftHex, setEditingDraftHex] = useState("#000000");
   const [addingColor, setAddingColor] = useState(false);
   const [addColorDraftHex, setAddColorDraftHex] = useState("#808080");
+  const [addDmcFilter, setAddDmcFilter] = useState("");
   const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [editingSymbolIndex, setEditingSymbolIndex] = useState<number | null>(null);
@@ -223,6 +225,15 @@ export default function Workspace() {
     () => (pattern ? calculateA4Layout(pattern.width, pattern.height, { overlapCells: a4Overlap }) : null),
     [pattern, a4Overlap]
   );
+
+  // "+ Add" in a dmcMode pattern (G-016) picks from the real DMC line
+  // instead of an arbitrary hex color -- filtered by code or name so 454
+  // swatches stay browsable.
+  const filteredDmcColors = useMemo(() => {
+    const q = addDmcFilter.trim().toLowerCase();
+    if (!q) return DMC_COLORS;
+    return DMC_COLORS.filter((c) => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
+  }, [addDmcFilter]);
 
   // Re-syncs the draft only when the committed name actually changes (undo/
   // redo, regenerate, or opening a different file) -- not on every
@@ -628,6 +639,13 @@ export default function Workspace() {
     setAddingColor(false);
   }
 
+  function commitAddDmcColor(code: string) {
+    if (!pattern) return;
+    history.set(addDmcColor(pattern, code));
+    setAddingColor(false);
+    setAddDmcFilter("");
+  }
+
   function startRename(paletteIndex: number, currentName: string) {
     setRenameDraft(currentName);
     setRenamingIndex(paletteIndex);
@@ -748,7 +766,13 @@ export default function Workspace() {
     setTimeout(async () => {
       try {
         const compacted = compactUnusedColors(pattern);
-        const result = await generateA4Export(compacted, a4Mode, { overlapCells: a4Overlap, baseName: baseFileName() });
+        const result = await generateA4Export(compacted, a4Mode, {
+          overlapCells: a4Overlap,
+          baseName: baseFileName(),
+          aidaCount,
+          sizeUnit,
+          authorName,
+        });
         downloadBlob(result.blob, result.filename);
       } finally {
         setIsExportingA4(false);
@@ -1237,6 +1261,7 @@ export default function Workspace() {
               type="button"
               onClick={() => {
                 setAddColorDraftHex("#808080");
+                setAddDmcFilter("");
                 setAddingColor(true);
               }}
               disabled={!pattern}
@@ -1413,7 +1438,41 @@ export default function Workspace() {
             </div>
           )}
 
-          {addingColor && (
+          {addingColor && pattern?.dmcMode && (
+            <div className="flex flex-col gap-2 rounded border border-zinc-300 p-3 dark:border-zinc-700">
+              <p className="text-xs text-zinc-500">This pattern is in DMC mode -- pick a real DMC thread color.</p>
+              <input
+                type="text"
+                value={addDmcFilter}
+                onChange={(e) => setAddDmcFilter(e.target.value)}
+                placeholder="Search by code or name…"
+                autoFocus
+                className="rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              />
+              <div className="grid max-h-64 grid-cols-10 gap-1 overflow-y-auto">
+                {filteredDmcColors.map((dmc) => (
+                  <button
+                    key={dmc.code}
+                    type="button"
+                    onClick={() => commitAddDmcColor(dmc.code)}
+                    title={`${dmc.code} - ${dmc.name}`}
+                    style={{ backgroundColor: rgbToHex(dmc.rgb) }}
+                    className="h-7 w-7 shrink-0 rounded border border-zinc-400 dark:border-zinc-600"
+                  />
+                ))}
+                {filteredDmcColors.length === 0 && <p className="col-span-10 text-xs text-zinc-500">No DMC colors match that search.</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddingColor(false)}
+                className="self-start rounded-full border border-zinc-300 px-4 py-1.5 text-sm font-medium dark:border-zinc-700"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {addingColor && !pattern?.dmcMode && (
             <div className="flex flex-col gap-2 rounded border border-zinc-300 p-3 dark:border-zinc-700">
               <HexColorPicker color={addColorDraftHex} onChange={setAddColorDraftHex} />
               <div className="flex gap-2">
@@ -1491,7 +1550,7 @@ export default function Workspace() {
           </label>
           {a4LayoutPreview && (
             <span className="text-xs text-zinc-500">
-              {a4LayoutPreview.columns} × {a4LayoutPreview.rows} pages — {a4LayoutPreview.pages.length + 1} total (incl. legend)
+              {a4LayoutPreview.columns} × {a4LayoutPreview.rows} pages — {a4LayoutPreview.pages.length + 2}+ total (incl. simple + extended legend)
             </span>
           )}
           <button

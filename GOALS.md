@@ -11,6 +11,45 @@ svc-lab).
 
 ## Active goals
 
+### G-016 · A4 extended legend page + persisted DMC mode — ACTIVE
+- **What:** A4 export gains a second, more detailed legend page set
+  (title, a details table, and a full "Color key" table with a DMC-code
+  column when applicable) alongside the existing compact legend. DMC
+  mode becomes a persisted property of the pattern itself, and "+ Add"
+  in a DMC-mode pattern is restricted to real DMC swatches.
+- **Why:** Owner request (2026-09-10), refined across follow-up messages
+  as the design was clarified (notably: DMC-mode detection must come
+  from the saved pattern data, not the transient UI mode selector or
+  re-parsing color names).
+- **Acceptance criteria:** "Export as A4 pages" produces the existing
+  simple legend page unchanged, plus one or more new extended-legend
+  pages with the specified title format, details table rows, and
+  Color-key table columns (Color # only in DMC mode). A DMC-mode pattern
+  restricts "+ Add" to a real DMC color picker. `dmcMode` round-trips
+  through save/reopen.
+- **Constraints:** None beyond keeping the simple legend page intact.
+
+**Milestones:**
+- [x] M1 — `dmcMode` added to `StitchPattern`, set by `applyDmcPalette`,
+      round-tripped through serialization; unit tested.
+- [x] M2 — `addDmcColor` + DMC-restricted "+ Add" swatch picker UI for
+      `dmcMode` patterns; unit tested.
+- [x] M3 — `renderA4InfoPages` (title, details table, paginated color-key
+      table) wired into the A4 export ZIP alongside the simple legend;
+      unit tested (pure logic) and live-browser verified via real
+      downloaded exports in both DMC and non-DMC mode.
+- [ ] M4 — Full regression suite, commit, and (pending Owner go-ahead)
+      production deploy.
+
+**Progress log** (newest first):
+- 2026-09-10 — M1-M3 complete. Full detail in HANDOVER.md D34. Verified:
+  251 unit tests, clean `tsc`/`eslint`/`npm run build`, and (with Owner
+  approval for the one-time download) real exported ZIPs inspected for
+  both DMC and Latest mode, confirming the title/details table/paginated
+  color-key table all render correctly and the DMC-only column/row are
+  correctly present/absent. Not yet committed, not deployed. Continuing
+  to M4 next.
+
 ### G-015 · Persisted Options panel + project auto-save/restore — ACTIVE
 - **What:** Move fabric count and the in/cm unit toggle into a new
   "Options" panel, add an author-name field there too, and persist all

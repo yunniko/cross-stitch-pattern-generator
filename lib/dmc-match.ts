@@ -42,7 +42,11 @@ export function nearestDmcColor(rgb: RGB): DmcColor {
  * fall. Merging is expected, not a bug: DMC's 454-color line is coarser
  * than a free-form k-means palette (up to MAX_COLORS), so some of the generator's
  * finer distinctions collapse onto the same real thread -- which is the
- * whole point (fewer, actually-buyable colors).
+ * whole point (fewer, actually-buyable colors). Also sets the returned
+ * pattern's `dmcMode` flag (G-016) so downstream code (A4 export, the
+ * "+ Add" color picker) can tell a DMC pattern apart reliably, without
+ * re-parsing color names or depending on the UI's own transient mode
+ * selector.
  */
 export function applyDmcPalette(pattern: StitchPattern): StitchPattern {
   if (pattern.palette.length === 0) return pattern;
@@ -88,5 +92,5 @@ export function applyDmcPalette(pattern: StitchPattern): StitchPattern {
     cellPalette[i] = finalIndexByMergedIndex[oldToMergedIndex[pattern.cellPalette[i]]];
   }
 
-  return { ...pattern, cellPalette, palette };
+  return { ...pattern, cellPalette, palette, dmcMode: true };
 }

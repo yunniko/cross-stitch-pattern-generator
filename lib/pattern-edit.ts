@@ -1,4 +1,5 @@
 import { nameNewColor } from "./color-names";
+import { DMC_COLORS } from "./dmc-colors";
 import { labelRegions } from "./regions";
 import { SYMBOL_SET } from "./symbols";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "./types";
@@ -209,6 +210,37 @@ export function addColor(pattern: StitchPattern, rgb: RGB): StitchPattern {
 
   const name = nameNewColor(rgb, pattern.palette.map((c) => c.name));
   const newColor: PaletteColor = { index: pattern.palette.length, rgb, symbol, name, count: 0 };
+
+  return { ...pattern, palette: [...pattern.palette, newColor] };
+}
+
+/**
+ * Adds a brand-new color from the real DMC line, by code (G-016) -- the
+ * "+ Add" counterpart to `addColor` for a `dmcMode` pattern, where every
+ * color must stay a real, buyable thread rather than an arbitrary RGB.
+ * Named `"CODE - Name"` like every other color `applyDmcPalette` produces,
+ * so the two stay indistinguishable in the legend. Starts at zero stitches,
+ * same as `addColor`.
+ */
+export function addDmcColor(pattern: StitchPattern, dmcCode: string): StitchPattern {
+  if (pattern.palette.length >= MAX_COLORS) {
+    throw new Error(`Cannot add another color -- already at the maximum of ${MAX_COLORS}.`);
+  }
+
+  const dmc = DMC_COLORS.find((c) => c.code === dmcCode);
+  if (!dmc) throw new Error(`"${dmcCode}" isn't a recognized DMC color code.`);
+
+  const usedSymbols = new Set(pattern.palette.map((c) => c.symbol));
+  const symbol = SYMBOL_SET.find((s) => !usedSymbols.has(s));
+  if (!symbol) throw new Error("No unused symbol available.");
+
+  const newColor: PaletteColor = {
+    index: pattern.palette.length,
+    rgb: dmc.rgb,
+    symbol,
+    name: `${dmc.code} - ${dmc.name}`,
+    count: 0,
+  };
 
   return { ...pattern, palette: [...pattern.palette, newColor] };
 }

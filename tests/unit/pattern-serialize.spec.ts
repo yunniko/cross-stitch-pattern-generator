@@ -121,6 +121,17 @@ describe("pattern-serialize", () => {
     expect(restored.sourceImage).toBeUndefined();
   });
 
+  it("round-trips dmcMode: true (G-016)", () => {
+    const pattern = { ...makePattern(), dmcMode: true };
+    const restored = deserializePattern(serializePattern(pattern));
+    expect(restored.dmcMode).toBe(true);
+  });
+
+  it("leaves dmcMode undefined for a file saved before G-016", () => {
+    const restored = deserializePattern(serializePattern(makePattern()));
+    expect(restored.dmcMode).toBeUndefined();
+  });
+
   it("round-trips an EMPTY_CELL stitch without rejecting the file (G-012 M5)", () => {
     const pattern = { ...makePattern(), cellPalette: Uint8Array.from([EMPTY_CELL, 1, 1, 0]) };
     const restored = deserializePattern(serializePattern(pattern));

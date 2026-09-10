@@ -2116,6 +2116,80 @@ params dock, not a cross-session preference.)
   project's browser-automation download-permission rule -- not yet
   visually confirmed in a real downloaded PNG.
 
+**D34 — G-016: A4 export gets an extended legend page; DMC mode becomes
+persisted pattern data, gating a DMC-only "+ Add" (2026-09-10).** Owner
+request, refined across several follow-up messages as the design
+crystallized -- notably a correction ("DMC mode I mean that pattern
+palette should contain DMC indices... DMC mode should be a part of
+saved file") that changed the detection mechanism mid-implementation,
+before any of the affected code had been written, so no rework was
+needed.
+
+- **`StitchPattern` gains `dmcMode?: boolean`** (`lib/types.ts`), set by
+  `applyDmcPalette` (`lib/dmc-match.ts`) whenever a pattern is generated
+  in DMC mode, and persisted through `serializePattern`/
+  `deserializePattern` (`lib/pattern-serialize.ts`, format version bumped
+  2->3). This replaced an earlier design that inferred "is this pattern
+  DMC" by pattern-matching color names against `DMC_COLORS` at
+  export/UI time -- the Owner's correction is more robust: it survives
+  a reopened/restored pattern and can't be fooled by a coincidental
+  color rename, and every existing spread-based pattern-edit function
+  (`lib/pattern-edit.ts`) already carries it through automatically since
+  they all spread `...pattern` as their base.
+- **"+ Add" restricted to real DMC swatches in a `dmcMode` pattern**
+  (G-016, `lib/pattern-edit.ts`'s new `addDmcColor`): looks up an exact
+  DMC code from `DMC_COLORS` and names the new color `"CODE - Name"`,
+  same MAX_COLORS cap as `addColor`. `app/workspace.tsx`'s "+ Add" panel
+  now branches on `pattern.dmcMode`: a searchable (by code or name)
+  swatch grid over all 454 DMC colors instead of the free-form
+  `HexColorPicker`, committing immediately on click (matching G-014's
+  symbol-picker UX) rather than needing a separate confirm step.
+- **A4 export gets a new "extended legend" page set**
+  (`lib/a4-render.ts`'s `renderA4InfoPages`, wired into
+  `lib/a4-export.ts`'s `generateA4Export`), alongside -- not replacing --
+  the existing compact swatch-grid legend (`renderA4LegendPage`), per the
+  Owner's explicit "simple legend should remain as well." Page 1 leads
+  with a title (`infoPageTitle`: "PATTERN_NAME by AUTHOR_NAME", falling
+  back in each direction when either is missing, down to a bare "Cross
+  stitch pattern"), then a details table (stitch count, finished size in
+  both units -- primary from Options, secondary in parens -- fabric
+  count, a "Thread: DMC" row shown only when `dmcMode`, and color
+  count), then a full "Color key" table: one row per color with a
+  swatch+symbol, the DMC code as its own column when `dmcMode` (split
+  from the stored `"CODE - Name"` via `splitDmcName`, cosmetic only --
+  detection itself always reads `pattern.dmcMode`), the color name,
+  stitch count, and skein count (`estimateSkeins`).
+- **Genuinely paginated, not a fixed single canvas.** A one-row-per-color
+  table with this much detail per row can outgrow a single A4 page well
+  within `MAX_COLORS` (100) -- at ~25-31 rows/page depending on whether
+  it's page 1 (competing with the title/details block) or a
+  continuation page, exceeding one page needs only ~26+ colors. Verified
+  live: a 36-color DMC pattern produced 2 extended-legend pages with a
+  repeated "Color key (continued)" header and table header row, correct
+  "Page X / Y" footers, and the split exactly matching the computed
+  per-page row budget.
+- **Verified**: 251 unit tests (232 + 19 new: `infoPageTitle`,
+  `splitDmcName`, `buildDetailRows`, `computeKeyColumns` in
+  `a4-render.spec.ts`; `addDmcColor` and `dmcMode` round-tripping in
+  `pattern-edit.spec.ts`/`pattern-serialize.spec.ts`/`dmc-match.spec.ts`)
+  -- the pagination/canvas-drawing logic itself isn't unit-testable in
+  this project's plain-Node Vitest environment (no jsdom/canvas), so it
+  was verified live instead: generated a 100x100/40-color pattern in
+  both DMC and Latest mode, tested the DMC "+ Add" swatch picker
+  (search-filtered, added DMC 310 Black, confirmed it appeared in the
+  Colors dock -- correctly absent from the export since it had zero
+  stitches, `compactUnusedColors`' existing pre-export behavior working
+  as always), then **downloaded and inspected the actual exported ZIPs**
+  (Owner-approved one-time download, per this project's browser-
+  automation permission rule) for both modes side by side: the DMC
+  export showed the "Thread: DMC" row, the "Color #" column, and
+  correctly split codes/names; the Latest-mode export correctly omitted
+  both; the simple legend page was unchanged in either. Clean
+  `tsc`/`eslint`/`npm run build`, zero console errors. The two
+  verification ZIPs and their extracted PNGs were deleted afterward
+  (including from the Owner's own Downloads folder) as session-created
+  test artifacts, not left behind.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

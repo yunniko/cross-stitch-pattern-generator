@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { overlapSidesForPage } from "@/lib/a4-render";
+import { buildDetailRows, computeKeyColumns, infoPageTitle, overlapSidesForPage, splitDmcName } from "@/lib/a4-render";
 import { calculateA4Layout } from "@/lib/a4-layout";
+import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
+
+function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {
+  const counts = new Array(colors.length).fill(0);
+  for (const i of cellPalette) counts[i]++;
+  const palette: PaletteColor[] = colors.map((rgb, i) => ({
+    index: i,
+    rgb,
+    symbol: String(i),
+    name: `Color ${i}`,
+    count: counts[i],
+  }));
+  return { width, height, cellPalette: Uint8Array.from(cellPalette), palette, isLandscape: width >= height };
+}
 
 describe("overlapSidesForPage", () => {
   it("marks no sides when overlap is 0, regardless of position", () => {
@@ -53,5 +67,88 @@ describe("overlapSidesForPage", () => {
     const lastRowPage = layout.pages.find((p) => p.row === layout.rows - 1)!;
     expect(overlapSidesForPage(firstRowPage, layout)).toMatchObject({ top: false, bottom: true });
     expect(overlapSidesForPage(lastRowPage, layout)).toMatchObject({ top: true, bottom: false });
+  });
+});
+
+describe("infoPageTitle (G-016)", () => {
+  it("combines pattern name and author when both are present", () => {
+    expect(infoPageTitle("My Cat", "Julie")).toBe("My Cat by Julie");
+  });
+
+  it("falls back to a generic name when only the author is given", () => {
+    expect(infoPageTitle(undefined, "Julie")).toBe("Cross stitch pattern by Julie");
+    expect(infoPageTitle("   ", "Julie")).toBe("Cross stitch pattern by Julie");
+  });
+
+  it("uses just the pattern name when there's no author", () => {
+    expect(infoPageTitle("My Cat", "")).toBe("My Cat");
+    expect(infoPageTitle("My Cat", "   ")).toBe("My Cat");
+  });
+
+  it("falls back to a fully generic title when neither is given", () => {
+    expect(infoPageTitle(undefined, "")).toBe("Cross stitch pattern");
+    expect(infoPageTitle("  ", "  ")).toBe("Cross stitch pattern");
+  });
+});
+
+describe("splitDmcName (G-016)", () => {
+  it("splits a 'CODE - Name' string into its parts", () => {
+    expect(splitDmcName("310 - Black")).toEqual({ code: "310", name: "Black" });
+  });
+
+  it("only splits on the first ' - ', since a DMC name can itself contain one", () => {
+    expect(splitDmcName("347 - Salmon - Very Dark")).toEqual({ code: "347", name: "Salmon - Very Dark" });
+  });
+
+  it("returns the whole string as the name, with an empty code, when there's no separator", () => {
+    expect(splitDmcName("Not DMC formatted")).toEqual({ code: "", name: "Not DMC formatted" });
+  });
+});
+
+describe("buildDetailRows (G-016)", () => {
+  it("includes stitch count, finished size (both units), fabric, and color count, but no Thread row for a non-DMC pattern", () => {
+    const pattern = makePattern(140, 140, [0], [[0, 0, 0]]);
+    const rows = buildDetailRows(pattern, 14, "in");
+    const byLabel = Object.fromEntries(rows);
+    expect(byLabel["Stitch count"]).toBe("140 × 140 (19600 total)");
+    expect(byLabel["Finished size"]).toContain("10.0 in");
+    expect(byLabel["Finished size"]).toContain("25.4 cm");
+    expect(byLabel["Fabric"]).toBe("14-count Aida");
+    expect(byLabel["Thread"]).toBeUndefined();
+    expect(byLabel["Color count"]).toBe("1 colors");
+  });
+
+  it("shows the secondary unit as cm-in-parens when the primary unit is cm, and vice versa", () => {
+    const pattern = makePattern(140, 140, [0], [[0, 0, 0]]);
+    const inFirst = buildDetailRows(pattern, 14, "in").find(([label]) => label === "Finished size")![1];
+    const cmFirst = buildDetailRows(pattern, 14, "cm").find(([label]) => label === "Finished size")![1];
+    expect(inFirst.indexOf("in")).toBeLessThan(inFirst.indexOf("cm"));
+    expect(cmFirst.indexOf("cm")).toBeLessThan(cmFirst.indexOf("in"));
+  });
+
+  it("includes a 'Thread: DMC' row only when the pattern is dmcMode", () => {
+    const pattern = { ...makePattern(10, 10, [0], [[0, 0, 0]]), dmcMode: true };
+    const rows = buildDetailRows(pattern, 14, "in");
+    expect(Object.fromEntries(rows)["Thread"]).toBe("DMC");
+  });
+});
+
+describe("computeKeyColumns (G-016)", () => {
+  it("omits the code column entirely (zero width) when not DMC mode", () => {
+    const cols = computeKeyColumns(2000, false);
+    expect(cols.codeW).toBe(0);
+  });
+
+  it("reserves real width for the code column in DMC mode", () => {
+    const cols = computeKeyColumns(2000, true);
+    expect(cols.codeW).toBeGreaterThan(0);
+  });
+
+  it("never lets columns exceed the printable width", () => {
+    for (const isDmc of [true, false]) {
+      const printableWidthPx = 2200;
+      const cols = computeKeyColumns(printableWidthPx, isDmc);
+      expect(cols.totalWidth).toBeLessThanOrEqual(printableWidthPx + 1); // rounding
+    }
   });
 });

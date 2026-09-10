@@ -1,8 +1,10 @@
 import { luminance, rgbToHex } from "./color";
 import type { A4Layout, PageRange } from "./a4-layout";
 import { mmToPx } from "./a4-layout";
+import { formatFinishedSize, type SizeUnit } from "./finished-size";
+import { estimateSkeins } from "./floss-estimate";
 import { drawChart, FONT_STACK, GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX, truncateToWidth, type RenderMode } from "./render";
-import type { StitchPattern } from "./types";
+import type { PaletteColor, StitchPattern } from "./types";
 
 // Physical text sizes for print, independent of cell size (unlike the
 // on-screen single-PNG chart, where number/label font sizes scale with
@@ -242,4 +244,348 @@ export function renderA4LegendPage(pattern: StitchPattern, layout: A4Layout): HT
   });
 
   return canvas;
+}
+
+// --- Extended legend / info page(s) (G-016) ---
+//
+// A separate page set from renderA4LegendPage above (which stays, per the
+// Owner's explicit "simple legend should remain as well") -- this one leads
+// with a title and a details table (stitch count, finished size, fabric,
+// thread, color count), then a full "Color key" table with one row per
+// color (symbol swatch, DMC code when the pattern is `dmcMode`, name,
+// stitch count, skein count). Unlike the simple legend's swatch grid, a
+// one-row-per-color table with this much per-row detail can outgrow a
+// single A4 page well within MAX_COLORS (100) -- e.g. at ~25 rows/page,
+// exceeding it needs only 26+ colors -- so this is genuinely paginated,
+// not a single fixed canvas.
+
+const INFO_TITLE_FONT_MM = 6;
+const INFO_LABEL_FONT_MM = 3.4;
+const INFO_ROW_HEIGHT_MM = 7.5;
+const INFO_LABEL_COLUMN_MM = 42;
+const INFO_SECTION_GAP_MM = 6;
+
+const KEY_TITLE_FONT_MM = 5;
+const KEY_HEADER_FONT_MM = 3;
+const KEY_NAME_FONT_MM = 3.2;
+const KEY_ROW_HEIGHT_MM = 8;
+const KEY_HEADER_ROW_HEIGHT_MM = 6.5;
+
+/**
+ * Splits a `dmcMode` pattern's `"CODE - Name"` color name back into its
+ * parts for display -- purely cosmetic (which column shows what); whether
+ * the pattern *is* DMC mode is decided once from `pattern.dmcMode` (set by
+ * `applyDmcPalette`), never re-derived by parsing names here.
+ */
+export function splitDmcName(fullName: string): { code: string; name: string } {
+  const idx = fullName.indexOf(" - ");
+  if (idx === -1) return { code: "", name: fullName };
+  return { code: fullName.slice(0, idx), name: fullName.slice(idx + 3) };
+}
+
+/**
+ * "PATTERN_NAME by AUTHOR_NAME", falling back in each direction when
+ * either is missing (Owner spec, 2026-09-10) -- never blank.
+ */
+export function infoPageTitle(patternName: string | undefined, authorName: string): string {
+  const name = patternName?.trim();
+  const author = authorName.trim();
+  if (name && author) return `${name} by ${author}`;
+  if (author) return `Cross stitch pattern by ${author}`;
+  if (name) return name;
+  return "Cross stitch pattern";
+}
+
+export function buildDetailRows(pattern: StitchPattern, aidaCount: number, sizeUnit: SizeUnit): Array<[string, string]> {
+  const secondaryUnit: SizeUnit = sizeUnit === "in" ? "cm" : "in";
+  const finishedPrimary = formatFinishedSize(pattern.width, pattern.height, aidaCount, sizeUnit);
+  const finishedSecondary = formatFinishedSize(pattern.width, pattern.height, aidaCount, secondaryUnit);
+
+  const rows: Array<[string, string]> = [
+    ["Stitch count", `${pattern.width} × ${pattern.height} (${pattern.width * pattern.height} total)`],
+    ["Finished size", `${finishedPrimary} (${finishedSecondary})`],
+    ["Fabric", `${aidaCount}-count Aida`],
+  ];
+  if (pattern.dmcMode) rows.push(["Thread", "DMC"]);
+  rows.push(["Color count", `${pattern.palette.length} colors`]);
+  return rows;
+}
+
+/** Two-column label/value table with a full grid (outer border + row/column rules) -- the details block at the top of page 1. */
+function drawDetailsTable(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, rows: Array<[string, string]>): number {
+  const rowHeightPx = mmToPx(INFO_ROW_HEIGHT_MM);
+  const labelColWidthPx = mmToPx(INFO_LABEL_COLUMN_MM);
+  const labelFontPx = mmToPx(INFO_LABEL_FONT_MM);
+  const totalHeight = rows.length * rowHeightPx;
+
+  rows.forEach(([label, value], i) => {
+    const rowTop = y + i * rowHeightPx;
+    const midY = rowTop + rowHeightPx / 2;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#555555";
+    ctx.font = `${labelFontPx}px ${FONT_STACK}`;
+    ctx.fillText(label, x + mmToPx(2), midY);
+    ctx.fillStyle = "#111111";
+    ctx.font = `bold ${labelFontPx}px ${FONT_STACK}`;
+    ctx.fillText(value, x + labelColWidthPx + mmToPx(2), midY);
+  });
+
+  ctx.strokeStyle = GRID_LINE_COLOR;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, width, totalHeight);
+  ctx.beginPath();
+  ctx.moveTo(x + labelColWidthPx, y);
+  ctx.lineTo(x + labelColWidthPx, y + totalHeight);
+  ctx.stroke();
+  for (let i = 1; i < rows.length; i++) {
+    const ly = y + i * rowHeightPx;
+    ctx.beginPath();
+    ctx.moveTo(x, ly);
+    ctx.lineTo(x + width, ly);
+    ctx.stroke();
+  }
+
+  return y + totalHeight;
+}
+
+export interface KeyColumns {
+  symbolX: number;
+  symbolW: number;
+  codeX: number;
+  codeW: number;
+  nameX: number;
+  nameW: number;
+  stitchX: number;
+  stitchW: number;
+  skeinX: number;
+  skeinW: number;
+  totalWidth: number;
+}
+
+export function computeKeyColumns(printableWidthPx: number, isDmc: boolean): KeyColumns {
+  const symbolW = mmToPx(12);
+  const codeW = isDmc ? mmToPx(18) : 0;
+  const stitchW = mmToPx(28);
+  const skeinW = mmToPx(28);
+  const nameW = Math.max(mmToPx(30), printableWidthPx - symbolW - codeW - stitchW - skeinW);
+
+  let x = 0;
+  const symbolX = x;
+  x += symbolW;
+  const codeX = x;
+  x += codeW;
+  const nameX = x;
+  x += nameW;
+  const stitchX = x;
+  x += stitchW;
+  const skeinX = x;
+  x += skeinW;
+
+  return { symbolX, symbolW, codeX, codeW, nameX, nameW, stitchX, stitchW, skeinX, skeinW, totalWidth: x };
+}
+
+/** Draws the "Color key" table's header row plus as many `colors` rows as given, with a full grid, starting at `(x, yStart)`. Returns the y just past the drawn block. */
+function drawKeyTableBlock(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  yStart: number,
+  cols: KeyColumns,
+  isDmc: boolean,
+  colors: readonly PaletteColor[],
+  aidaCount: number
+): number {
+  const headerHeightPx = mmToPx(KEY_HEADER_ROW_HEIGHT_MM);
+  const rowHeightPx = mmToPx(KEY_ROW_HEIGHT_MM);
+  const headerFontPx = mmToPx(KEY_HEADER_FONT_MM);
+  const totalHeight = headerHeightPx + colors.length * rowHeightPx;
+
+  // Header row background + text.
+  ctx.fillStyle = "#f0f0f0";
+  ctx.fillRect(x, yStart, cols.totalWidth, headerHeightPx);
+  ctx.fillStyle = "#111111";
+  ctx.font = `bold ${headerFontPx}px ${FONT_STACK}`;
+  ctx.textBaseline = "middle";
+  const headerMidY = yStart + headerHeightPx / 2;
+  ctx.textAlign = "center";
+  ctx.fillText("Symbol", x + cols.symbolX + cols.symbolW / 2, headerMidY);
+  if (isDmc) ctx.fillText("Color #", x + cols.codeX + cols.codeW / 2, headerMidY);
+  ctx.textAlign = "left";
+  ctx.fillText("Color name", x + cols.nameX + mmToPx(1.5), headerMidY);
+  ctx.textAlign = "center";
+  ctx.fillText("Stitch count", x + cols.stitchX + cols.stitchW / 2, headerMidY);
+  ctx.fillText("Skein count", x + cols.skeinX + cols.skeinW / 2, headerMidY);
+
+  // Data rows.
+  colors.forEach((color, i) => {
+    const rowTop = yStart + headerHeightPx + i * rowHeightPx;
+    const midY = rowTop + rowHeightPx / 2;
+
+    const swatchSize = Math.min(cols.symbolW - mmToPx(2), rowHeightPx - mmToPx(2));
+    const swatchX = x + cols.symbolX + (cols.symbolW - swatchSize) / 2;
+    const swatchY = rowTop + (rowHeightPx - swatchSize) / 2;
+    ctx.fillStyle = `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`;
+    ctx.fillRect(swatchX, swatchY, swatchSize, swatchSize);
+    ctx.strokeStyle = GRID_LINE_COLOR;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(swatchX, swatchY, swatchSize, swatchSize);
+    ctx.fillStyle = luminance(color.rgb) > 140 ? "#000000" : "#ffffff";
+    ctx.font = `${Math.round(swatchSize * 0.55)}px ${FONT_STACK}`;
+    ctx.textAlign = "center";
+    ctx.fillText(color.symbol, swatchX + swatchSize / 2, midY + 1);
+
+    const { code, name } = isDmc ? splitDmcName(color.name) : { code: "", name: color.name };
+
+    if (isDmc) {
+      ctx.fillStyle = "#111111";
+      ctx.font = `${headerFontPx}px ${FONT_STACK}`;
+      ctx.textAlign = "center";
+      ctx.fillText(code, x + cols.codeX + cols.codeW / 2, midY);
+    }
+
+    ctx.fillStyle = "#111111";
+    ctx.font = `${mmToPx(KEY_NAME_FONT_MM)}px ${FONT_STACK}`;
+    ctx.textAlign = "left";
+    ctx.fillText(truncateToWidth(ctx, name, cols.nameW - mmToPx(3)), x + cols.nameX + mmToPx(1.5), midY);
+
+    ctx.font = `${headerFontPx}px ${FONT_STACK}`;
+    ctx.textAlign = "center";
+    ctx.fillText(String(color.count), x + cols.stitchX + cols.stitchW / 2, midY);
+    ctx.fillText(String(estimateSkeins(color.count, aidaCount)), x + cols.skeinX + cols.skeinW / 2, midY);
+  });
+
+  // Grid lines: outer rect, header/body divider (part of the row lines
+  // below), per-row horizontal rules, and per-column vertical rules.
+  ctx.strokeStyle = GRID_LINE_COLOR;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, yStart, cols.totalWidth, totalHeight);
+  for (let i = 0; i <= colors.length; i++) {
+    const ly = yStart + headerHeightPx + i * rowHeightPx;
+    ctx.beginPath();
+    ctx.moveTo(x, ly);
+    ctx.lineTo(x + cols.totalWidth, ly);
+    ctx.stroke();
+  }
+  const columnXs = [cols.symbolX, ...(isDmc ? [cols.codeX] : []), cols.nameX, cols.stitchX, cols.skeinX];
+  for (const colX of columnXs) {
+    if (colX === 0) continue; // left edge already drawn by the outer rect
+    ctx.beginPath();
+    ctx.moveTo(x + colX, yStart);
+    ctx.lineTo(x + colX, yStart + totalHeight);
+    ctx.stroke();
+  }
+
+  return yStart + totalHeight;
+}
+
+function drawPageFooter(ctx: CanvasRenderingContext2D, layout: A4Layout, pageIndex: number, totalPages: number) {
+  if (totalPages <= 1) return;
+  const fontPx = mmToPx(OVERLAP_LABEL_FONT_MM);
+  ctx.fillStyle = "#888888";
+  ctx.font = `${fontPx}px ${FONT_STACK}`;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "bottom";
+  ctx.fillText(`Page ${pageIndex} / ${totalPages}`, layout.pageWidthPx - layout.marginPx, layout.pageHeightPx - layout.marginPx * 0.5);
+}
+
+export interface A4InfoPageOptions {
+  authorName: string;
+  aidaCount: number;
+  sizeUnit: SizeUnit;
+}
+
+/**
+ * Renders the extended legend / info page(s) (G-016): a title, a details
+ * table (stitch count, finished size in both units, fabric, thread when
+ * `dmcMode`, color count), and a full "Color key" table with one row per
+ * palette color -- paginated across as many A4 pages as the color count
+ * needs, continuing with a repeated table header on each extra page.
+ * Returned alongside (not instead of) `renderA4LegendPage`'s compact
+ * swatch-grid legend, per the Owner's explicit "simple legend should
+ * remain as well."
+ */
+export function renderA4InfoPages(pattern: StitchPattern, layout: A4Layout, options: A4InfoPageOptions): HTMLCanvasElement[] {
+  const isDmc = pattern.dmcMode === true;
+  const printableWidthPx = layout.pageWidthPx - 2 * layout.marginPx;
+  const printableHeightPx = layout.pageHeightPx - 2 * layout.marginPx;
+
+  const title = infoPageTitle(pattern.name, options.authorName);
+  const detailRows = buildDetailRows(pattern, options.aidaCount, options.sizeUnit);
+  const cols = computeKeyColumns(printableWidthPx, isDmc);
+
+  const titleFontPx = mmToPx(INFO_TITLE_FONT_MM);
+  const gapPx = mmToPx(INFO_SECTION_GAP_MM);
+  const detailsTableHeightPx = detailRows.length * mmToPx(INFO_ROW_HEIGHT_MM);
+  const keyTitleFontPx = mmToPx(KEY_TITLE_FONT_MM);
+  const keyHeaderHeightPx = mmToPx(KEY_HEADER_ROW_HEIGHT_MM);
+  const keyRowHeightPx = mmToPx(KEY_ROW_HEIGHT_MM);
+
+  const page1FixedHeightPx = titleFontPx * 1.8 + gapPx + detailsTableHeightPx + gapPx + keyTitleFontPx * 1.6 + keyHeaderHeightPx;
+  const continuationFixedHeightPx = mmToPx(CAPTION_FONT_MM) * 1.8 + keyHeaderHeightPx;
+
+  const rowsOnPage1 = Math.max(1, Math.floor((printableHeightPx - page1FixedHeightPx) / keyRowHeightPx));
+  const rowsPerContinuationPage = Math.max(1, Math.floor((printableHeightPx - continuationFixedHeightPx) / keyRowHeightPx));
+
+  const totalColors = pattern.palette.length;
+  const remainingAfterPage1 = Math.max(0, totalColors - rowsOnPage1);
+  const continuationPageCount = remainingAfterPage1 === 0 ? 0 : Math.ceil(remainingAfterPage1 / rowsPerContinuationPage);
+  const totalPages = 1 + continuationPageCount;
+
+  function newCanvas(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+    const canvas = document.createElement("canvas");
+    canvas.width = layout.pageWidthPx;
+    canvas.height = layout.pageHeightPx;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("2D canvas context unavailable");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    return { canvas, ctx };
+  }
+
+  const pages: HTMLCanvasElement[] = [];
+
+  const { canvas: page1, ctx: ctx1 } = newCanvas();
+  let y = layout.marginPx;
+  ctx1.fillStyle = "#111111";
+  ctx1.font = `bold ${titleFontPx}px ${FONT_STACK}`;
+  ctx1.textAlign = "left";
+  ctx1.textBaseline = "top";
+  ctx1.fillText(title, layout.marginPx, y);
+  y += titleFontPx * 1.8 + gapPx;
+
+  y = drawDetailsTable(ctx1, layout.marginPx, y, printableWidthPx, detailRows);
+  y += gapPx;
+
+  ctx1.fillStyle = "#111111";
+  ctx1.font = `bold ${keyTitleFontPx}px ${FONT_STACK}`;
+  ctx1.textAlign = "left";
+  ctx1.textBaseline = "top";
+  ctx1.fillText("Color key", layout.marginPx, y);
+  y += keyTitleFontPx * 1.6;
+
+  const rowsOnPage1Actual = Math.min(rowsOnPage1, totalColors);
+  drawKeyTableBlock(ctx1, layout.marginPx, y, cols, isDmc, pattern.palette.slice(0, rowsOnPage1Actual), options.aidaCount);
+  drawPageFooter(ctx1, layout, 1, totalPages);
+  pages.push(page1);
+
+  let consumed = rowsOnPage1Actual;
+  for (let p = 0; p < continuationPageCount; p++) {
+    const { canvas, ctx } = newCanvas();
+    let cy = layout.marginPx;
+    ctx.fillStyle = "#111111";
+    ctx.font = `bold ${mmToPx(CAPTION_FONT_MM)}px ${FONT_STACK}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText("Color key (continued)", layout.marginPx, cy);
+    cy += mmToPx(CAPTION_FONT_MM) * 1.8;
+
+    const rowsHere = Math.min(rowsPerContinuationPage, totalColors - consumed);
+    drawKeyTableBlock(ctx, layout.marginPx, cy, cols, isDmc, pattern.palette.slice(consumed, consumed + rowsHere), options.aidaCount);
+    consumed += rowsHere;
+
+    drawPageFooter(ctx, layout, p + 2, totalPages);
+    pages.push(canvas);
+  }
+
+  return pages;
 }

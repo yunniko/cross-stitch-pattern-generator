@@ -122,4 +122,16 @@ export interface StitchPattern {
   name?: string;
   /** Absent for patterns generated/opened before G-012, or opened from a pre-G-012 save file -- the photo-underlay mode and Move tool are simply unavailable then. */
   sourceImage?: SourceImageRef;
+  /**
+   * True when every color in `palette` is a real DMC thread (G-013's
+   * "dmc" generation mode; set by `applyDmcPalette`), persisted on the
+   * pattern itself rather than inferred from the UI's transient mode
+   * selector or by pattern-matching color names -- so a reopened/restored
+   * pattern, or one whose colors were merged/edited since generation,
+   * still reports its true state. Absent/false for every other pattern.
+   * Drives whether "+ Add" restricts new colors to real DMC swatches
+   * (G-016) and whether A4 exports show a "Color number"/"Thread: DMC"
+   * section.
+   */
+  dmcMode?: boolean;
 }

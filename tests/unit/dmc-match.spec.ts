@@ -52,6 +52,11 @@ describe("applyDmcPalette", () => {
     expect(names).toEqual(["310 - Black", "B5200 - Snow White"]);
   });
 
+  it("sets dmcMode: true on the returned pattern (G-016)", () => {
+    const pattern = makePattern(1, 1, [0], [[0, 0, 0]]);
+    expect(applyDmcPalette(pattern).dmcMode).toBe(true);
+  });
+
   it("merges two clusters that snap to the same DMC color into one palette entry with combined counts", () => {
     // Two very-slightly-different near-blacks that both snap to DMC 310.
     const pattern = makePattern(3, 1, [0, 0, 1], [

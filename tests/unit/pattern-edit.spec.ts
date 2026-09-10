@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, setColorSymbol, shiftPattern } from "@/lib/pattern-edit";
+import { addColor, addDmcColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, setColorSymbol, shiftPattern } from "@/lib/pattern-edit";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {
@@ -108,6 +108,30 @@ describe("addColor", () => {
     const colors: RGB[] = Array.from({ length: MAX_COLORS }, (_, i) => [i, i, i] as RGB);
     const pattern = makePattern(MAX_COLORS, 1, colors.map((_, i) => i), colors);
     expect(() => addColor(pattern, [1, 2, 3])).toThrow();
+  });
+});
+
+describe("addDmcColor", () => {
+  it("appends a new zero-count color with the real DMC rgb and a 'CODE - Name' name", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    const withNew = addDmcColor(pattern, "310"); // Black
+    expect(withNew.palette).toHaveLength(2);
+    const added = withNew.palette[1];
+    expect(added.count).toBe(0);
+    expect(added.rgb).toEqual([0, 0, 0]);
+    expect(added.name).toBe("310 - Black");
+    expect(added.symbol).not.toBe(withNew.palette[0].symbol);
+  });
+
+  it("rejects a code that isn't a real DMC color", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    expect(() => addDmcColor(pattern, "NOT-A-REAL-CODE")).toThrow();
+  });
+
+  it("refuses to add a color past MAX_COLORS", () => {
+    const colors: RGB[] = Array.from({ length: MAX_COLORS }, (_, i) => [i, i, i] as RGB);
+    const pattern = makePattern(MAX_COLORS, 1, colors.map((_, i) => i), colors);
+    expect(() => addDmcColor(pattern, "310")).toThrow();
   });
 });
 
