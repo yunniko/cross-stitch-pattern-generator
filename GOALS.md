@@ -384,14 +384,48 @@ svc-lab).
       not a crash or leftover texture) — and confirmed the "16 colors"
       header count and every real color's own stitch count stayed
       exactly unchanged throughout.
-- [ ] M6 — Full regression pass (unit + e2e + lint/tsc/build) across
-      every mode/tool/dock, real-browser re-verification of each
-      acceptance-criteria item above, HANDOVER.md write-up, and an
-      Owner check-in before deploying (this goal changes enough of the
-      app's shape that it's worth a dedicated visual sign-off before
-      going live, not just an automated-green deploy).
+- [x] M6 — Full regression pass + real-browser re-verification +
+      HANDOVER.md write-up. ✔ 2026-09-10. Final consolidated run (not
+      just each milestone's own): 198 unit tests (22→23 files across
+      the goal), 25 e2e tests (12→25 across the goal), clean
+      `tsc --noEmit`, clean `eslint .`, clean `npm run build`. Beyond
+      that, a full manual integration walkthrough in a real browser
+      exercised every acceptance-criteria item *together* in one
+      continuous session — not just each one in isolation per
+      milestone — using genuine mouse/pointer input throughout: upload
+      → generate → rename → merge two colors → brush-paint a stitch
+      (real mouse drag) → empty-paint a stitch → Move the design (real
+      mouse drag) → Highlight a color → cycle all four render modes
+      (Color/B&W/Realistic/Grid+photo) → zoom in → expand the canvas
+      with a new fill color → download the editable JSON → reload the
+      page fresh → reopen that save → confirm Regenerate is available
+      and works → download all three PNG variants → export the A4 ZIP.
+      Zero console errors throughout. (One non-issue surfaced and
+      ruled out along the way: an earlier verification pass used
+      synthetic `PointerEvent`s dispatched via plain `dispatchEvent`
+      to script some of the walkthrough faster, which threw
+      `NotFoundError: Failed to execute 'setPointerCapture'` — traced
+      via the browser's own error overlay call stack directly to that
+      synthetic-event helper, confirmed *not* reproducible with actual
+      OS-level mouse input (redone with a real drag, and already
+      proven by all 25 passing Playwright tests exercising the same
+      code paths with genuine input) — a testing-harness artifact, not
+      an app defect.) Added HANDOVER.md D28, a full cross-milestone
+      architecture and decision summary (including a "decisions worth
+      knowing if you touch this again" list and the e2e viewport/
+      selector gotchas this goal's own testing ran into), and rewrote
+      HANDOVER.md's "Current state" section, stale since the project's
+      very first milestones, to actually describe the app as it exists
+      today.
 
 **Progress log** (newest first):
+- 2026-09-10 — M6 completed: full regression green (198 unit + 25 e2e,
+  clean tsc/eslint/build) plus a full manual real-browser integration
+  walkthrough exercising every feature together in one session with
+  genuine input, zero console errors. Ruled out one synthetic-testing
+  artifact (a setPointerCapture error from scripted PointerEvents,
+  confirmed not reproducible with real mouse input). Added HANDOVER.md
+  D28 and rewrote its long-stale "Current state" section.
 - 2026-09-10 — M5 completed and verified: the EMPTY_CELL empty-stitch
   sentinel, threaded through every cellPalette-touching function and
   every render/export path. Auditing every such function found two

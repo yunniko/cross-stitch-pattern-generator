@@ -8,23 +8,40 @@ at the Owner's direct later instruction — see D13.
 
 ## Current state
 
-M1–M9a built and verified (2026-09-09): upload → generate (in a Web
-Worker) → preview → download works end-to-end with a genuine
-region-aware, edge/importance-aware, contour-cleaned-up optimizer
-(OKLab k-means → ICM local smoothing weighted by a Sobel-based
-importance map → component recoloring + diagonal-pinch fixes →
-palette merge → palette recomputed from final cell membership),
-plus real diagnostic metrics, a golden-fixture regression suite, and
-real chart-convention chrome (centre markers, row/column numbering, a
-size/finished-size header). A second domain-expert review (against the
-actual new algorithm) found and this session fixed 4 provable
-correctness bugs and a real robustness gap in the optimizer — see D11,
-including two regressions my own first-attempt fixes caused and caught
-before shipping. Both orientations and both render modes visually
-confirmed via a real headless browser against noisy/low-contrast/
-detail-preservation synthetic photos. All automated checks green
-(ESLint, `tsc`, production build, 84 Vitest unit tests, 2 Playwright
-e2e tests). Not yet done: M9's final polish pass.
+**As of G-012 (2026-09-10)**, the app is one continuous docked
+"application" workspace (`app/workspace.tsx`), not the earlier separate
+upload-page/editor-page split: pick an image (shown as-is immediately)
+→ a Processing-params dock (size/fabric-count/color-count/algorithm,
+Generate/Regenerate) → generation runs in a Web Worker → the Image
+window shows the result live in one of four modes (Color+symbols,
+Black & white, Realistic stitch-texture preview, or Grid+symbols over
+the original photo at reduced opacity) with pan (drag or the Pan tool),
+zoom (wheel or the Zoom tool — genuinely re-renders at higher
+resolution, not a CSS stretch, so symbols stay legible when zoomed into
+a dense pattern), and a Preview/navigator dock showing the whole
+pattern at true 1px-per-stitch scale. A Tools dock offers Brush (paint/
+drag-paint), Pan, Zoom, Move (repositions the whole design — and its
+photo underlay — within a fixed canvas via a cyclic wrap-around shift),
+and Highlight (dims every color except the ones selected, a pure view
+overlay). The Colors dock supports merge (drag-onto-drag), recolor,
+rename, adding a new color, and a fixed "Empty (no stitch)" pseudo-
+color usable like any other for marking cells that shouldn't be
+stitched at all — excluded from the legend, counts, and every render/
+export path. The canvas itself can be resized (cropped and/or expanded
+on any edge in one operation, with a color-picker prompt for newly-
+exposed cells). Regenerating and every edit push onto one shared undo/
+redo stack, except the very first Generate, which establishes the
+baseline. Downloads: color/B&W/realistic-preview PNG, paginated A4-page
+ZIP export, and an editable JSON save that embeds the original source
+photo so Move/Regenerate/photo-underlay keep working after a close-and-
+reopen. The core generation pipeline itself (OKLab k-means → ICM local
+smoothing → contour cleanup → palette merge/recompute) is unchanged
+since earlier goals — see D6–D12 for that history. All 9 findings from
+the 2026-09-09 code review are fixed (G-010). All automated checks
+green: 198 Vitest unit tests, 25 Playwright e2e tests, clean ESLint/
+`tsc`/production build. Deployed at
+`https://cross-stitch.craftodejnice.cz` (redeploy for G-012 pending
+Owner sign-off — see G-012's own GOALS.md entry and D28 below).
 
 ## How things fit together
 
@@ -1759,6 +1776,91 @@ confirmed the complete header text — "10 × 6 stitches — approx. 0.7 ×
 the same check M2 first did against the dev server, now repeated
 against the actual deployed artifact. G-010 moved to GOALS.md's
 Completed section.
+
+**D28 — G-012 (editor as the primary application shell) built and
+verified across all 5 milestones (2026-09-10).** Owner request: turn
+the editor into an application-like docked workspace instead of the
+upload-page → editor-page split. Full milestone-by-milestone detail
+(what was built, how each was verified, every bug caught along the
+way) lives in GOALS.md's own G-012 entry — this is the cross-milestone
+architecture and decision summary.
+
+*Architecture.* `app/page.tsx` is now a 3-line wrapper around the new
+`app/workspace.tsx`, which absorbed and replaced both the old linear
+upload/generate page and the standalone `pattern-editor.tsx` (deleted).
+One `useUndoHistory<StitchPattern | null>` drives the whole document —
+`null` before the first Generate, then every edit (paint, merge,
+rename, Move, resize, and Regenerate itself) pushes a snapshot onto the
+same stack. `StitchPattern` gained an optional `sourceImage`
+(`SourceImageRef`: the original photo's own bytes as a data URL, its
+natural resolution, a fixed stitch-to-pixel scale, and a cell-space
+alignment offset) so the Image window's new "Grid + photo" mode and the
+Move tool have something to work from; `lib/pattern-serialize.ts`
+persists it (format version bumped to 2, old files still open with no
+`sourceImage` — Move/photo-underlay simply unavailable for those).
+
+*Decisions worth knowing if you touch this again:*
+- **Embedding the photo in saved files was a deliberate size-for-
+  capability tradeoff** (Owner decision, 2026-09-10, confirmed via
+  `AskUserQuestion` before building): editable JSON saves are now much
+  larger in exchange for Move/Regenerate/photo-underlay surviving a
+  close-and-reopen. Don't "fix" this by stripping it back out without
+  asking first.
+- **Move is a cyclic (wrap-around) shift, not a fill-with-empty one.**
+  Chosen because the empty-stitch concept (M5) didn't exist yet when
+  Move was built (M3), and wrapping never destroys already-stitched
+  content — a user who doesn't want the wrapped part can crop it away
+  with M4's resize. Not revisited after M5 shipped; still wraps today.
+- **Zoom actually re-renders at a higher resolution, not a CSS
+  transform.** The first implementation just scaled the same low-res
+  canvas up, which meant a dense pattern's symbols (below the 6px
+  legibility floor at the Image window's default size) could never
+  become readable no matter how far you zoomed — found and fixed before
+  shipping M2, bounded by a canvas-size budget matching the export
+  path's own so 4x zoom on the largest supported pattern can't request
+  a runaway allocation.
+- **`EMPTY_CELL` is a fixed `255` sentinel, never a `PaletteColor`.**
+  Every function that touches raw `cellPalette` values needed auditing
+  when M5 added it — `mergeColors` and `compactUnusedColors` both
+  remap palette indices through a fixed-size typed array, and an out-
+  of-bounds read on one silently returns `undefined` rather than
+  throwing, which would have corrupted every empty cell into color
+  index 0 the first time either ran on a pattern containing one. Fixed
+  by passing `EMPTY_CELL` through untouched in both, plus
+  `recomputeCounts`. If you add another `cellPalette`-touching function
+  later, check whether it needs the same treatment.
+- **Highlight doesn't work in Realistic-preview mode**, a deliberate
+  scope trim, not an oversight — that mode is a separate async, off-
+  canvas render pipeline (a canvas turned into a static `<img>`), and
+  reworking it to accept a live dimming overlay wasn't worth it for one
+  secondary tool. Revisit if the Owner asks for it specifically.
+- **Canvas resize's expand-fill is a real color the user picks**
+  (Owner decision, 2026-09-10), not the empty-stitch pseudo-color —
+  reuses the existing "+ Add color" path (and its `MAX_COLORS` cap) if
+  the picked RGB doesn't already exist in the palette.
+
+*Testing gotcha for future e2e work*: the app shell's docked chrome
+needs more vertical room than Playwright's 1280×720 default — a
+canvas drag-and-drop test was flaky at that size (the drop target
+ended up scrolled partly under fixed chrome above it) until
+`playwright.config.ts` was given a 1440×900 viewport. Keep that
+viewport if you add more e2e coverage here. Also: the Navigator dock
+added a second `<canvas>` to the page, so e2e locators must scope to
+`page.getByRole("main").locator("canvas")`, not a bare `canvas`
+selector; and the Colors dock's "Empty (no stitch)" row is `draggable`
+like a real color row, so legend-row locators use
+`[data-testid="legend-color-row"]`, not a generic
+`div[draggable='true']` selector, to exclude it.
+
+198 unit tests + 25 e2e tests green (up from 173/12 before this goal),
+clean `tsc`/`eslint`/`npm run build` after every milestone and once
+more at the end. Beyond the automated suite, a full manual integration
+walkthrough in a real browser (upload → generate → rename → merge →
+brush-paint → empty-paint → Move → Highlight → cycle all 4 render
+modes → zoom → resize → download editable → fresh reload → reopen →
+Regenerate → all 3 PNG downloads → A4 ZIP export) produced zero
+console errors end to end, confirming every feature still works
+correctly *together*, not just in isolation per milestone.
 
 ## Owner action list
 
