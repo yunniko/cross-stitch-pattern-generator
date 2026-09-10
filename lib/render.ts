@@ -241,7 +241,7 @@ function drawHeader(
 }
 
 /** Shortens text with a trailing ellipsis if it doesn't fit maxWidth in the context's current font -- names from the reference list have no fixed length cap. */
-function truncateToWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+export function truncateToWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
   if (ctx.measureText(text).width <= maxWidth) return text;
   let low = 0;
   let high = text.length;

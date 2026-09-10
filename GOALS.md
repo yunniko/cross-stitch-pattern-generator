@@ -150,12 +150,39 @@ svc-lab).
       stitches. 139 unit tests + 5 e2e tests green, clean lint/tsc/
       build — confirmed the existing single-PNG export is
       byte-for-byte unaffected.
-- [ ] M3 — `lib/a4-export.ts`: orchestrates rendering one page canvas
-      at a time (never one giant canvas), converts each to a PNG, adds
-      the one legend page, and (only when there's more than one page)
-      bundles everything into `pattern_A4_pages.zip` via `jszip`;
-      downloads a single PNG directly when the whole pattern fits one
-      page.
+- [x] M3 — `lib/a4-export.ts`: `generateA4Export(pattern, mode, options)`
+      renders each grid page one at a time via M2's `renderA4GridPage`
+      (never one giant canvas), converts each to a PNG blob, adds the
+      one legend page (`renderA4LegendPage`, new in `lib/a4-render.ts`
+      — reuses the same swatch/symbol/name/hex/count layout as the
+      existing single-PNG legend, but at print-legible physical sizes
+      rather than the on-screen pixel constants `render.ts`'s own
+      legend uses), and bundles everything into
+      `pattern_A4_pages.zip` via `jszip` (already used elsewhere in the
+      portfolio — `epub-metadata-fixer`, `image-object-splitter` — no
+      new library choice). Always zips rather than conditionally
+      skipping it for a single-page pattern: since the legend page is
+      always included per the Owner's own confirmed choice, the export
+      set is never actually just one page in practice, so the
+      single-PNG-direct-download branch requirement 10 implies would
+      never trigger — left out rather than shipped as dead code.
+      ✔ 2026-09-10. Verified with a real browser (temporary scratch
+      route, deleted before committing): ran the full export against a
+      64-color synthetic pattern, downloaded the actual ZIP, unzipped
+      it, and confirmed — filenames matched the spec exactly
+      (`pattern_r01_c01.png`, `pattern_r01_c02.png`,
+      `pattern_legend.png`); every PNG measured exactly 3508×2480px
+      (full landscape-A4 print resolution at 300 DPI, no upscaling);
+      page 2's coordinate numbers correctly continued the global range
+      (90→140) rather than restarting; the overlap tint and rotated
+      "OVERLAP" label appeared correctly mirrored on page 1's trailing
+      edge and page 2's leading edge; the legend page listed all 64
+      colors with correct swatches, symbols, truncated names, hex
+      codes, and counts, comfortably within one page. 139 unit tests
+      (unchanged — the orchestration and legend-page rendering are
+      canvas/DOM-dependent, verified this way rather than by unit test,
+      the same established convention as the rest of `render.ts`),
+      clean lint/tsc/build.
 - [ ] M4 — UI: "Export as A4 pages" control (plus an overlap selector,
       0/5/10, default 5) next to the existing Color/Black & White PNG
       download buttons in both `app/page.tsx` and
@@ -175,6 +202,9 @@ svc-lab).
       the ZIP, unzip and visually inspect the actual PNGs.
 
 **Progress log** (newest first):
+- 2026-09-10 — M3 completed and verified: real ZIP download, unzipped
+  and inspected (filenames, resolution, coordinate continuity, overlap
+  markers, legend page all correct).
 - 2026-09-10 — M2 completed and verified. Real-browser verification via
   a temporary scratch route (deleted before committing). Owner
   confirmed continuing straight through G-009's remaining milestones

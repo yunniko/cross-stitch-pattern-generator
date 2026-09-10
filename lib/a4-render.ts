@@ -1,6 +1,7 @@
+import { luminance, rgbToHex } from "./color";
 import type { A4Layout, PageRange } from "./a4-layout";
 import { mmToPx } from "./a4-layout";
-import { drawChart, FONT_STACK, GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX, type RenderMode } from "./render";
+import { drawChart, FONT_STACK, GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX, truncateToWidth, type RenderMode } from "./render";
 import type { StitchPattern } from "./types";
 
 // Physical text sizes for print, independent of cell size (unlike the
@@ -160,6 +161,85 @@ export function renderA4GridPage(
   drawGlobalCoordinateNumbers(ctx, page, layout);
 
   ctx.restore();
+
+  return canvas;
+}
+
+// Sizes for the standalone legend page -- independent of the grid pages'
+// own gutter constants, since this page has no chart/coordinate chrome to
+// share space with, just a title and a swatch grid.
+const LEGEND_TITLE_FONT_MM = 6;
+const LEGEND_SWATCH_MM = 6;
+const LEGEND_ROW_HEIGHT_MM = 9;
+const LEGEND_COLUMN_WIDTH_MM = 45;
+const LEGEND_NAME_FONT_MM = 3.2;
+const LEGEND_DETAIL_FONT_MM = 2.6;
+
+/**
+ * Renders one standalone A4 page listing every palette color's swatch,
+ * symbol, name, hex code, and stitch count -- included once per export
+ * (Owner's choice, confirmed via AskUserQuestion 2026-09-10) so the printed
+ * page set is self-contained without needing the separately-downloaded
+ * full-chart PNG for reference. The grid pages themselves carry no legend.
+ */
+export function renderA4LegendPage(pattern: StitchPattern, layout: A4Layout): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = layout.pageWidthPx;
+  canvas.height = layout.pageHeightPx;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2D canvas context unavailable");
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const titleFontPx = mmToPx(LEGEND_TITLE_FONT_MM);
+  ctx.fillStyle = "#111111";
+  ctx.font = `bold ${titleFontPx}px ${FONT_STACK}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText("Legend", layout.marginPx, layout.marginPx);
+
+  const swatchPx = mmToPx(LEGEND_SWATCH_MM);
+  const rowHeightPx = mmToPx(LEGEND_ROW_HEIGHT_MM);
+  const columnWidthPx = mmToPx(LEGEND_COLUMN_WIDTH_MM);
+  const nameFontPx = mmToPx(LEGEND_NAME_FONT_MM);
+  const detailFontPx = mmToPx(LEGEND_DETAIL_FONT_MM);
+
+  const gridTop = layout.marginPx + titleFontPx * 1.8;
+  const printableWidthPx = layout.pageWidthPx - 2 * layout.marginPx;
+  const columns = Math.max(1, Math.floor(printableWidthPx / columnWidthPx));
+
+  pattern.palette.forEach((color, i) => {
+    const col = i % columns;
+    const row = Math.floor(i / columns);
+    const x = layout.marginPx + col * columnWidthPx;
+    const y = gridTop + row * rowHeightPx;
+
+    ctx.fillStyle = `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`;
+    ctx.fillRect(x, y, swatchPx, swatchPx);
+    ctx.strokeStyle = GRID_LINE_COLOR;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, swatchPx, swatchPx);
+
+    ctx.fillStyle = luminance(color.rgb) > 140 ? "#000000" : "#ffffff";
+    ctx.font = `${Math.round(swatchPx * 0.6)}px ${FONT_STACK}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(color.symbol, x + swatchPx / 2, y + swatchPx / 2 + 1);
+
+    const textX = x + swatchPx + mmToPx(2);
+    const maxTextWidth = columnWidthPx - swatchPx - mmToPx(4);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    ctx.fillStyle = "#111111";
+    ctx.font = `${nameFontPx}px ${FONT_STACK}`;
+    ctx.fillText(truncateToWidth(ctx, color.name, maxTextWidth), textX, y + swatchPx / 2 - detailFontPx * 0.6);
+
+    ctx.fillStyle = "#666666";
+    ctx.font = `${detailFontPx}px ${FONT_STACK}`;
+    ctx.fillText(`${rgbToHex(color.rgb)} · ${color.count} sts`, textX, y + swatchPx / 2 + nameFontPx * 0.6);
+  });
 
   return canvas;
 }
