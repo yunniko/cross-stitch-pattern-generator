@@ -11,7 +11,151 @@ svc-lab).
 
 ## Active goals
 
-_No goals currently active._
+### G-012 · Editor as the primary application shell — ACTIVE
+- **What:** Rebuild the app around one persistent, docked, "application"
+  workspace (not today's two-screen upload-page → editor-page flow):
+  an Image window with pan/zoom, a Colors dock, a Preview/navigator
+  dock (true 1px-per-stitch overview), a Tools dock (Pan, Zoom, Move,
+  Brush, Highlight), and a Processing-params dock (size, color count,
+  algorithm, fabric count — replacing today's numbered page sections).
+  Three Image-window render modes: **Color+symbols** (today's color
+  chart), **Realistic** (today's stitch-texture preview), and a new
+  **Grid+symbols-with-photo** mode showing the symbol grid over the
+  original source photo at reduced opacity for reference. New tools:
+  **Move** (repositions the grid's content within a fixed canvas —
+  photo underlay moves with it) and **Highlight** (select one or more
+  palette colors, highlight every matching stitch in the Image
+  window). Canvas resize: crop and expand on any edge, with
+  newly-exposed cells filled with a color the user picks at
+  expand-time (Owner decision, 2026-09-10). A new "empty stitch"
+  concept — an eraser-like pseudo-color, paintable like any other but
+  excluded from the legend, stitch counts, and every render/export
+  mode, for marking cells on a non-square photo that shouldn't be
+  stitched at all. Regenerating (a processing-param change) is an
+  undoable/redoable step in the same history as every other edit —
+  not a state reset. Color merging behaves exactly as it does today
+  (drag a color onto another).
+- **Why:** Owner request (2026-09-10, chat): "we need to make editor a
+  primary feature. It should look like application more than a page,"
+  citing all of the above as the concrete shape of that.
+- **Acceptance criteria** (Owner's own spec plus 3 design decisions
+  confirmed via `AskUserQuestion`, 2026-09-10, recorded here since they
+  materially shape the data model):
+  1. One continuous docked workspace from the moment an image is
+     picked — no separate initial upload page. Processing params
+     (today's page.tsx steps 1–3) move into a dock; "Generate"/
+     "Regenerate" lives there too.
+  2. Image window: pan (drag) and zoom (wheel/pinch + zoom tool),
+     independent of the three render modes.
+  3. Preview/navigator dock: a small, non-interactive true-scale
+     (1 stitch = 1 physical pixel) overview of the whole pattern, so
+     scale/position is never lost while zoomed into the main window.
+  4. Colors dock: today's legend (click to select for Brush, drag to
+     merge, double-click to rename, click swatch to recolor) plus
+     multi-select for the Highlight tool.
+  5. Tools dock: Pan, Zoom (scale), Move, Brush (paint one/drag-paint,
+     today's behavior), Highlight. Fill-by-region (drag a color onto
+     the image) and merge-by-drag-onto-legend both stay as they are
+     today, not demoted to a dock button.
+  6. Three render modes, selectable at any time: Color+symbols,
+     Realistic (stitch texture), Grid+symbols-with-photo (symbol grid
+     over the original photo at reduced opacity — requires the source
+     photo to stay associated with the pattern).
+  7. Move tool: drag repositions the grid's stitch content within a
+     fixed-size canvas (cells shifted off one edge become empty/
+     undefined there, matching what scrolls into view on the other
+     edge is whatever the photo/underlying data actually holds); the
+     source photo's on-canvas alignment moves identically, keeping the
+     photo-underlay mode and any future regenerate-from-current-photo
+     flow correctly aligned.
+  8. Highlight tool: selecting one or more palette colors visually
+     distinguishes (e.g. outlines/dims everything else) every stitch
+     using those colors, in any render mode, without altering the
+     pattern.
+  9. Canvas resize: crop (remove cells from any edge) and expand (add
+     cells to any edge, filled with a user-chosen color, per the Owner's
+     2026-09-10 decision) — both undoable, both keep the photo-underlay
+     alignment correct (cropping/expanding shifts the stored photo
+     offset by the same amount so the photo doesn't visually jump).
+  10. Empty-stitch tool: paints cells as "no stitch" — excluded from
+      the legend, from stitch counts, and rendered as blank in every
+      mode (color/B&W/realistic/A4 pages), not as a real palette color.
+  11. Regenerating (changing a processing param and re-running
+      generation) pushes onto the same undo/redo stack as every other
+      edit, rather than discarding history.
+  12. The source photo persists inside the saved "editable" JSON file
+      (Owner decision, 2026-09-10: embed it, even though this makes
+      save files much larger), so Move and the photo-underlay mode
+      keep working after closing and reopening a save. Files saved
+      before this feature (no embedded photo) still open — those two
+      capabilities are simply unavailable until a photo is supplied.
+- **Constraints:** This replaces `app/page.tsx`'s linear layout and
+  merges `app/pattern-editor.tsx` into the new shell — expect most of
+  both files' current UI structure and their existing e2e tests'
+  literal selectors to change; behavior (not literal markup) is what's
+  being preserved/extended. Verify each milestone the way this project
+  always does: real reproduction/exercise of the new behavior in an
+  actual browser, not just "looks right" from the code. `StitchPattern`
+  gaining an optional embedded source photo is a real, deliberate save-
+  file-size increase the Owner already accepted — don't walk it back
+  to "lighter" without asking first if it turns out to be awkward.
+
+**Milestones**:
+- [ ] M1 — Data model + unified app shell. `StitchPattern` gains an
+      optional `sourceImage` (original uploaded file's bytes as a data
+      URL — not re-encoded — plus its natural width/height and the
+      stitch-to-pixel scale fixed at generation/regenerate time) and a
+      `sourceOffset` (stitch-cell-space x/y). `lib/pattern-serialize.ts`
+      persists both. New single-page app shell (replacing `page.tsx`'s
+      linear sections and `pattern-editor.tsx`'s standalone-editor
+      framing) with the four docks' static layout and today's existing
+      functionality relocated into it: image upload shows the raw photo
+      immediately in the Image window "as is" before any generation;
+      Processing-params dock hosts size/color-count/algorithm/fabric-
+      count and Generate/Regenerate; Colors dock hosts the existing
+      legend (select/merge/recolor/rename); existing Brush behavior
+      works in the Image window. Regenerate pushes onto the same undo
+      stack as edits. No pan/zoom/new tools/new render modes/canvas
+      resize/empty-stitch yet — this milestone is the shell + data
+      model + today's functionality relocated into it, verified to
+      still work end-to-end (upload → generate → paint/merge/rename →
+      download) inside the new shell before anything new is layered on.
+- [ ] M2 — Image window navigation + Preview/navigator dock + the
+      three render modes. Pan (drag) and zoom (wheel/pinch, plus a Zoom
+      tool) in the Image window, decoupled from render mode. Navigator
+      dock renders the whole pattern at a true 1px-per-stitch scale.
+      Grid+symbols-with-photo mode added alongside today's Color/
+      Realistic modes, using the stored `sourceImage`/`sourceOffset`.
+- [ ] M3 — Move and Highlight tools. Move drags the grid's stitch
+      content (and the photo underlay in lock-step) within the fixed
+      canvas. Highlight supports multi-color selection from the Colors
+      dock and visually distinguishes those stitches in any render
+      mode without mutating the pattern.
+- [ ] M4 — Canvas resize (crop/expand on any edge), undoable, with a
+      color-picker prompt for newly-exposed cells on expand and correct
+      photo-offset adjustment on both crop and expand so the photo
+      underlay doesn't visually jump.
+- [ ] M5 — Empty-stitch ("no stitch") pseudo-color: paintable via the
+      Brush/fill-cluster tools like any real color, but a reserved
+      sentinel value excluded from the legend, stitch counts, and every
+      render/export path (color/B&W/realistic PNG, A4 pages) — rendered
+      as blank in all of them. Threaded through `lib/pattern-edit.ts`'s
+      merge/paint/fill/compact operations and `lib/pattern-serialize.ts`.
+- [ ] M6 — Full regression pass (unit + e2e + lint/tsc/build) across
+      every mode/tool/dock, real-browser re-verification of each
+      acceptance-criteria item above, HANDOVER.md write-up, and an
+      Owner check-in before deploying (this goal changes enough of the
+      app's shape that it's worth a dedicated visual sign-off before
+      going live, not just an automated-green deploy).
+
+**Progress log** (newest first):
+- 2026-09-10 — Goal created from the Owner's chat request. Scope
+  clarified via `AskUserQuestion`: one unified workspace (not a
+  separate upload page), source photo embedded in saved files, and
+  user-chosen fill color for canvas-expand — all recorded above.
+  Milestones planned after reading the current `page.tsx`/
+  `pattern-editor.tsx`/`types.ts`/`render.ts`/`pattern-serialize.ts`/
+  `pattern-edit.ts` implementations to ground the data-model design.
 
 ## Completed goals
 
