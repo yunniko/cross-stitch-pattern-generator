@@ -5,7 +5,28 @@ import { HexColorPicker } from "react-colorful";
 import { hexToRgb, rgbToHex } from "@/lib/color";
 import { decodeSourceImage, loadImageAsPixelBuffer } from "@/lib/load-image";
 import { cancelPatternJob, runPatternJob } from "@/lib/pattern-client";
-import { addColor, addDmcColor, compactUnusedColors, editColorRgb, editColorToDmc, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, setColorSymbol, shiftPattern } from "@/lib/pattern-edit";
+import {
+  addColor,
+  addDmcColor,
+  compactUnusedColors,
+  compositeSelectionPreview,
+  editColorRgb,
+  editColorToDmc,
+  fillCluster,
+  fillClusterDiagonal,
+  flipSelectionHorizontal,
+  flipSelectionVertical,
+  liftSelection,
+  mergeColors,
+  mergeSelection,
+  moveSelection,
+  paintStitch,
+  renameColor,
+  renamePattern,
+  resizeCanvas,
+  setColorSymbol,
+  shiftPattern,
+} from "@/lib/pattern-edit";
 import { DMC_COLORS, type DmcColor } from "@/lib/dmc-colors";
 import { SYMBOL_SET } from "@/lib/symbols";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
@@ -29,6 +50,8 @@ import {
   MIN_COLORS,
   MIN_STITCHES,
   SIZE_PRESETS,
+  type CellRect,
+  type FloatingSelection,
   type PixelBuffer,
   type SizePresetId,
   type StitchPattern,
@@ -63,7 +86,7 @@ const MAX_ZOOM = 4;
 const ZOOM_STEP = 1.4;
 
 type ViewMode = RenderMode | "realistic" | "photo";
-type Tool = "brush" | "pan" | "zoom" | "move" | "highlight";
+type Tool = "brush" | "pan" | "zoom" | "move" | "highlight" | "select" | "fill";
 
 interface SourceImageMeta {
   dataUrl: string;
@@ -85,6 +108,43 @@ function cellIndexFromEvent(
   const y = Math.floor(((e.clientY - rect.top) * scaleY) / cellSize);
   if (x < 0 || x >= width || y < 0 || y >= height) return null;
   return y * width + x;
+}
+
+/** Same idea as `cellIndexFromEvent`, but clamped to the grid's own bounds instead of returning null outside it -- for drag-based interactions (drawing/moving a selection) where the pointer legitimately drifts past the canvas edge mid-drag and the gesture should still track smoothly rather than stalling. */
+function clampedCellFromEvent(
+  e: { clientX: number; clientY: number },
+  canvas: HTMLCanvasElement,
+  cellSize: number,
+  width: number,
+  height: number
+): { x: number; y: number } {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = Math.floor(((e.clientX - rect.left) * scaleX) / cellSize);
+  const y = Math.floor(((e.clientY - rect.top) * scaleY) / cellSize);
+  return { x: Math.max(0, Math.min(width - 1, x)), y: Math.max(0, Math.min(height - 1, y)) };
+}
+
+function rectFromCorners(x0: number, y0: number, x1: number, y1: number): CellRect {
+  const x = Math.min(x0, x1);
+  const y = Math.min(y0, y1);
+  return { x, y, width: Math.abs(x1 - x0) + 1, height: Math.abs(y1 - y0) + 1 };
+}
+
+function pointInRect(x: number, y: number, rect: CellRect): boolean {
+  return x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height;
+}
+
+/** A dashed rectangle outline marking the current/in-progress selection, in a color distinct from the chart's own grid lines. */
+function drawSelectionOutline(ctx: CanvasRenderingContext2D, rect: CellRect, cellSize: number) {
+  if (rect.width <= 0 || rect.height <= 0) return;
+  ctx.save();
+  ctx.strokeStyle = "#2563eb";
+  ctx.lineWidth = Math.max(2, Math.round(cellSize * 0.12));
+  ctx.setLineDash([Math.max(4, cellSize * 0.5), Math.max(4, cellSize * 0.5)]);
+  ctx.strokeRect(rect.x * cellSize, rect.y * cellSize, rect.width * cellSize, rect.height * cellSize);
+  ctx.restore();
 }
 
 /** Filters the 454-color DMC line by code or name substring (case-insensitive) -- shared by "+ Add" and the color editor's DMC picker (G-016/G-017). */
@@ -203,6 +263,22 @@ export default function Workspace() {
   const panRef = useRef<{ pointerId: number; startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null);
   const moveRef = useRef<{ pointerId: number; basePattern: StitchPattern; startX: number; startY: number; lastDx: number; lastDy: number } | null>(null);
 
+  // --- Rectangle Select tool (G-018) ---
+  // `selection` is the committed floating piece (drives the normal
+  // re-render path below); `selectDragRef` tracks an in-progress drag
+  // (drawing a brand-new rectangle, or moving the current selection) the
+  // same ref-based way panRef/moveRef do, so dragging doesn't push a
+  // React re-render on every pointermove. Nothing here is pushed to
+  // `history` until the selection is merged (deselected) -- an entire
+  // select/move/flip session collapses into one undo step, same as Move.
+  const [selection, setSelection] = useState<FloatingSelection | null>(null);
+  const [clipboard, setClipboard] = useState<FloatingSelection | null>(null);
+  const selectDragRef = useRef<
+    | { pointerId: number; mode: "drawing"; basePattern: StitchPattern; startX: number; startY: number; rect: CellRect }
+    | { pointerId: number; mode: "moving"; basePattern: StitchPattern; selection: FloatingSelection; startX: number; startY: number; lastDx: number; lastDy: number }
+    | null
+  >(null);
+
   // Highlight tool: colors selected here get dimmed-out contrast against
   // everything else in the Image window (drawHighlightOverlay) -- a pure
   // view concern, never mutates the pattern.
@@ -286,24 +362,35 @@ export default function Workspace() {
 
   const drawCurrentView = useCallback(
     (ctx: CanvasRenderingContext2D, p: StitchPattern) => {
-      if (viewMode === "photo" && p.sourceImage) {
+      // A committed selection (G-018) is composited in for display only --
+      // never mutates `p`/history. Skipped while a drag is actively
+      // repositioning it: the pointer-move handler draws its own
+      // more-current live preview instead (selectDragRef is a ref, so
+      // reading it here doesn't need to be a dependency).
+      const displayPattern = activeTool === "select" && selection && !selectDragRef.current ? compositeSelectionPreview(p, selection) : p;
+
+      if (viewMode === "photo" && displayPattern.sourceImage) {
         const cached = photoImageRef.current;
-        if (cached && cached.dataUrl === p.sourceImage.dataUrl) {
-          const { naturalWidth, naturalHeight, cellSizePx, offsetX, offsetY } = p.sourceImage;
+        if (cached && cached.dataUrl === displayPattern.sourceImage.dataUrl) {
+          const { naturalWidth, naturalHeight, cellSizePx, offsetX, offsetY } = displayPattern.sourceImage;
           const scale = cellSize / cellSizePx;
           ctx.globalAlpha = PHOTO_UNDERLAY_ALPHA;
           ctx.drawImage(cached.img, offsetX * cellSize, offsetY * cellSize, naturalWidth * scale, naturalHeight * scale);
           ctx.globalAlpha = 1;
         }
-        drawChartOutline(ctx, p, cellSize);
+        drawChartOutline(ctx, displayPattern, cellSize);
       } else {
         // viewMode is "color" | "bw" here -- "realistic" is handled by its own
         // async, non-interactive effect below, and "photo" is handled above.
-        drawChart(ctx, p, viewMode as RenderMode, cellSize);
+        drawChart(ctx, displayPattern, viewMode as RenderMode, cellSize);
       }
 
       if (activeTool === "highlight" && highlightedColorIndices.size > 0) {
-        drawHighlightOverlay(ctx, p, cellSize, highlightedColorIndices);
+        drawHighlightOverlay(ctx, displayPattern, cellSize, highlightedColorIndices);
+      }
+
+      if (activeTool === "select" && selection && !selectDragRef.current) {
+        drawSelectionOutline(ctx, selection, cellSize);
       }
     },
     // photoImageVersion isn't read directly but its change means
@@ -311,7 +398,7 @@ export default function Workspace() {
     // callback (and the effect below re-running it) needs to be recreated
     // then, or the redraw would use a stale closure and never show it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [viewMode, cellSize, photoImageVersion, activeTool, highlightedColorIndices]
+    [viewMode, cellSize, photoImageVersion, activeTool, highlightedColorIndices, selection]
   );
 
   // --- Image window: live editable canvas for color/bw/photo ---
@@ -414,6 +501,7 @@ export default function Workspace() {
       setActiveColorIndex(null);
       setZoomLevel(1);
       setHighlightedColorIndices(new Set());
+      setSelection(null);
       setShowResizePanel(false);
     } catch {
       if (sourceRevisionRef.current !== myRevision) return;
@@ -465,6 +553,13 @@ export default function Workspace() {
               }
             : undefined,
       };
+      // Any in-progress selection references coordinates/cells from the
+      // pattern being replaced -- stale (and possibly out-of-bounds) the
+      // instant a new one lands, so it's discarded rather than merged
+      // (there's nothing correct left to merge it into).
+      setSelection(null);
+      selectDragRef.current = null;
+
       if (pattern) {
         // A true regenerate (params changed on an already-generated
         // pattern) is just another undoable step, same stack as any edit
@@ -513,6 +608,76 @@ export default function Workspace() {
     return () => scroller.removeEventListener("wheel", onWheel);
   }, [zoomBy]);
 
+  // --- Rectangle Select tool helpers (G-018) ---
+
+  /** Redraws the canvas for the current in-progress select-tool drag (drawing a new rectangle, or moving the current selection) -- called from both pointerdown (for instant feedback) and pointermove. */
+  function redrawSelectionDrag() {
+    const drag = selectDragRef.current;
+    const canvas = canvasRef.current;
+    if (!drag || !canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    if (drag.mode === "drawing") {
+      drawCurrentView(ctx, drag.basePattern);
+      drawSelectionOutline(ctx, drag.rect, cellSize);
+    } else {
+      const moved = moveSelection(drag.selection, drag.lastDx, drag.lastDy);
+      drawCurrentView(ctx, compositeSelectionPreview(drag.basePattern, moved));
+      drawSelectionOutline(ctx, moved, cellSize);
+    }
+  }
+
+  /** Commits the current floating selection into the pattern/history and clears selection state -- the "as soon as selection is reset, the editable piece merges into picture" step. No-op if there's nothing selected. */
+  function mergeCurrentSelection() {
+    if (!selection || !pattern) return;
+    history.set(mergeSelection(pattern, selection));
+    setSelection(null);
+  }
+
+  /** Tools-dock button handler: switching away from Select merges whatever's currently floating first, exactly like clicking outside it on the canvas would. */
+  function switchTool(tool: Tool) {
+    if (activeTool === "select" && tool !== "select") mergeCurrentSelection();
+    setActiveTool(tool);
+  }
+
+  function commitCopySelection() {
+    if (!selection) return;
+    setClipboard(selection);
+  }
+
+  function commitPasteSelection() {
+    if (!clipboard || !pattern) return;
+    mergeCurrentSelection(); // don't silently discard whatever's currently floating
+    // Offset from the copy's own original spot so a paste is visibly a new
+    // piece, not indistinguishable from the (untouched) copy source.
+    const pasted = moveSelection({ ...clipboard, originRect: undefined }, 3, 3);
+    setSelection(pasted);
+  }
+
+  function commitFlipSelectionHorizontal() {
+    if (!selection) return;
+    setSelection(flipSelectionHorizontal(selection));
+  }
+
+  function commitFlipSelectionVertical() {
+    if (!selection) return;
+    setSelection(flipSelectionVertical(selection));
+  }
+
+  // Escape deselects (merges) the current selection -- the explicit,
+  // discoverable-by-convention counterpart to the Deselect button, and to
+  // clicking outside the selection on the canvas.
+  useEffect(() => {
+    if (activeTool !== "select") return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") mergeCurrentSelection();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTool, selection, pattern]);
+
   function handleCanvasPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
     if (!canvas || !pattern) return;
@@ -533,6 +698,33 @@ export default function Workspace() {
     if (activeTool === "move") {
       moveRef.current = { pointerId: e.pointerId, basePattern: pattern, startX: e.clientX, startY: e.clientY, lastDx: 0, lastDy: 0 };
       canvas.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    if (activeTool === "select") {
+      const { x: cx, y: cy } = clampedCellFromEvent(e, canvas, cellSize, pattern.width, pattern.height);
+      if (selection && pointInRect(cx, cy, selection)) {
+        selectDragRef.current = { pointerId: e.pointerId, mode: "moving", basePattern: pattern, selection, startX: cx, startY: cy, lastDx: 0, lastDy: 0 };
+      } else {
+        // Clicking outside the current selection commits it first, then starts drawing a new one.
+        let workingPattern = pattern;
+        if (selection) {
+          workingPattern = mergeSelection(pattern, selection);
+          history.set(workingPattern);
+          setSelection(null);
+        }
+        selectDragRef.current = { pointerId: e.pointerId, mode: "drawing", basePattern: workingPattern, startX: cx, startY: cy, rect: { x: cx, y: cy, width: 1, height: 1 } };
+      }
+      canvas.setPointerCapture(e.pointerId);
+      redrawSelectionDrag();
+      return;
+    }
+
+    if (activeTool === "fill") {
+      if (activeColorIndex === null) return;
+      const cellIndex = cellIndexFromEvent(e, canvas, cellSize, pattern.width, pattern.height);
+      if (cellIndex === null) return;
+      history.set(fillClusterDiagonal(pattern, cellIndex, activeColorIndex));
       return;
     }
 
@@ -565,6 +757,26 @@ export default function Workspace() {
       return;
     }
 
+    if (selectDragRef.current && selectDragRef.current.pointerId === e.pointerId) {
+      const canvas = canvasRef.current;
+      if (!canvas || !pattern) return;
+      const { x: cx, y: cy } = clampedCellFromEvent(e, canvas, cellSize, pattern.width, pattern.height);
+      const drag = selectDragRef.current;
+      if (drag.mode === "drawing") {
+        const rect = rectFromCorners(drag.startX, drag.startY, cx, cy);
+        if (rect.x === drag.rect.x && rect.y === drag.rect.y && rect.width === drag.rect.width && rect.height === drag.rect.height) return;
+        drag.rect = rect;
+      } else {
+        const dx = cx - drag.startX;
+        const dy = cy - drag.startY;
+        if (dx === drag.lastDx && dy === drag.lastDy) return;
+        drag.lastDx = dx;
+        drag.lastDy = dy;
+      }
+      redrawSelectionDrag();
+      return;
+    }
+
     if (!strokeRef.current || activeColorIndex === null || !pattern) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -590,6 +802,16 @@ export default function Workspace() {
       if (move.lastDx !== 0 || move.lastDy !== 0) {
         history.set(shiftPattern(move.basePattern, move.lastDx, move.lastDy));
       }
+      if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
+        canvasRef.current.releasePointerCapture(e.pointerId);
+      }
+      return;
+    }
+
+    if (selectDragRef.current && selectDragRef.current.pointerId === e.pointerId) {
+      const drag = selectDragRef.current;
+      selectDragRef.current = null;
+      setSelection(drag.mode === "drawing" ? liftSelection(drag.basePattern, drag.rect) : moveSelection(drag.selection, drag.lastDx, drag.lastDy));
       if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
         canvasRef.current.releasePointerCapture(e.pointerId);
       }
@@ -720,6 +942,7 @@ export default function Workspace() {
     setActiveColorIndex(null);
     setZoomLevel(1);
     setHighlightedColorIndices(new Set());
+    setSelection(null);
     setShowResizePanel(false);
     cancelPatternJob();
     ++sourceRevisionRef.current;
@@ -951,6 +1174,57 @@ export default function Workspace() {
         </div>
       )}
 
+      {activeTool === "select" && pattern && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-zinc-300 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+          <span className="text-sm font-medium">Selection</span>
+          <span className="text-xs text-zinc-500">
+            {selection ? "Drag inside it to move, or drag elsewhere to start a new selection." : "Drag a rectangle on the Image window to select it."}
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={commitCopySelection}
+              disabled={!selection}
+              className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
+            >
+              Copy
+            </button>
+            <button
+              type="button"
+              onClick={commitPasteSelection}
+              disabled={!clipboard}
+              className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
+            >
+              Paste
+            </button>
+            <button
+              type="button"
+              onClick={commitFlipSelectionHorizontal}
+              disabled={!selection}
+              className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
+            >
+              Flip horizontal
+            </button>
+            <button
+              type="button"
+              onClick={commitFlipSelectionVertical}
+              disabled={!selection}
+              className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
+            >
+              Flip vertical
+            </button>
+            <button
+              type="button"
+              onClick={mergeCurrentSelection}
+              disabled={!selection}
+              className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
+            >
+              Deselect
+            </button>
+          </div>
+        </div>
+      )}
+
       {showResizePanel && pattern && (
         <div className="flex flex-wrap items-center gap-4 border-b border-zinc-300 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
           <span className="text-sm font-medium">Resize canvas</span>
@@ -1015,13 +1289,19 @@ export default function Workspace() {
               { tool: "pan" as const, label: "Pan", title: "Drag the Image window to scroll it" },
               { tool: "zoom" as const, label: "Zoom", title: "Click to zoom in, Shift-click to zoom out (wheel always zooms too)" },
               { tool: "move" as const, label: "Move", title: "Drag to reposition the whole design (and its photo underlay) within the canvas" },
+              { tool: "select" as const, label: "Select", title: "Drag a rectangle to select it -- then copy/paste/move/flip it before it merges back into the picture" },
+              {
+                tool: "fill" as const,
+                label: "Fill",
+                title: "Click a color in the Colors dock, then click a cell to flood-fill its same-colored region (diagonal touching counts as connected)",
+              },
               { tool: "highlight" as const, label: "Highlight", title: "Click colors in the Colors dock to dim everything else" },
             ]
           ).map(({ tool, label, title }) => (
             <button
               key={tool}
               type="button"
-              onClick={() => setActiveTool(tool)}
+              onClick={() => switchTool(tool)}
               disabled={!pattern}
               title={title}
               className={`flex h-10 w-10 items-center justify-center rounded border text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 ${
@@ -1135,7 +1415,13 @@ export default function Workspace() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleCanvasDrop}
                 className={`touch-none border border-zinc-300 dark:border-zinc-700 ${
-                  activeTool === "pan" ? "cursor-grab active:cursor-grabbing" : activeTool === "zoom" ? "cursor-zoom-in" : activeColorIndex !== null ? "cursor-crosshair" : ""
+                  activeTool === "pan"
+                    ? "cursor-grab active:cursor-grabbing"
+                    : activeTool === "zoom"
+                      ? "cursor-zoom-in"
+                      : activeTool === "select" || activeTool === "fill" || activeColorIndex !== null
+                        ? "cursor-crosshair"
+                        : ""
                 }`}
               />
             )}

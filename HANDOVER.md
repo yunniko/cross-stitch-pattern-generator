@@ -2315,6 +2315,102 @@ verified against production: generated a Latest-mode pattern and
 confirmed the color editor's "Full range | DMC" switcher renders, zero
 console errors. Goal DONE — see GOALS.md's G-017 entry.
 
+**D37 — G-018: Rectangle Select tool (copy/paste/move/flip) and a
+diagonal-connectivity Fill tool (2026-09-10).** Owner request: "Editor
+mode should have rectangle select tool. With selected piece there should
+be available such operations as (copy, paste, move, flip horizontal,
+flip vertical) As soon as selection is reset, the editable piece merges
+into picture. empty cells rewrite color cells the same way as other
+colors do. Also fill tool. Cells of the same color adjacent by diagonal
+count as adjacent and filled by fill tool." The single largest feature
+added this session -- two new Tools-dock tools plus a floating-selection
+data model.
+
+- **`FloatingSelection`** (`lib/types.ts`): a lifted snapshot of cells
+  (`width`x`height`, `EMPTY_CELL` included) that can be repositioned and
+  flipped independently of the pattern before being written back
+  permanently. `originRect` (set when lifted straight off the canvas,
+  left unset for a Paste) is the area to clear to `EMPTY_CELL` at that
+  moment -- the mechanism distinguishing "Move" (vacates its source) from
+  "Copy" (doesn't) and "Paste" (nothing to vacate, since it came from the
+  clipboard).
+- **New pure functions in `lib/pattern-edit.ts`**: `liftSelection` (snapshot
+  + clamp to bounds), `moveSelection` (position only), `flipSelection
+  Horizontal`/`flipSelectionVertical` (mirror cells in place),
+  `compositeSelectionPreview` (render-only overlay, stale counts --
+  never pushed to history), and `mergeSelection` (the real commit: clears
+  `originRect` to `EMPTY_CELL` first, then stamps the selection's cells
+  at their current position, overwriting **everything** there --
+  including writing `EMPTY_CELL` values from the selection verbatim, per
+  the Owner's explicit "empty cells rewrite color cells the same way as
+  other colors do." Never treated as transparent).
+- **Nothing touches `history` during an active selection** -- only the
+  final `mergeSelection` result is pushed. An entire select → move →
+  flip → (repeat) session collapses into one undo step, matching how the
+  pre-existing Move tool already only commits on pointer-up. Verified
+  live: Undo after a Fill-tool click cleanly reverted just that one fill
+  in a single step.
+- **UI** (`app/workspace.tsx`): "Select" and "Fill" added to the Tools
+  dock. Select tool interaction mirrors the existing Pan/Move tools'
+  established ref-based drag pattern (`selectDragRef`, not React state,
+  so dragging doesn't force a re-render every pointermove) with two
+  drag modes: "drawing" a brand-new rectangle (starts when the pointer
+  goes down outside any current selection -- which first silently
+  merges whatever was already floating, matching "starting a new
+  selection commits the old one" as the single consistent rule used
+  everywhere a new floating piece is created) and "moving" the existing
+  one (starts when the pointer goes down inside it). A small toolbar
+  panel (Copy/Paste/Flip horizontal/Flip vertical/Deselect) appears
+  while Select is active; Escape also deselects. Switching to a
+  *different* tool auto-merges first (`switchTool` wraps every
+  Tools-dock button's `onClick`), so a floating selection can never be
+  silently abandoned/lost by clicking away.
+- **Paste offsets by (+3, +3) cells from the clipboard's original copy
+  location** rather than landing exactly on top of it -- pasting back
+  onto unchanged content would otherwise be visually indistinguishable
+  from nothing happening (the source is untouched, since Copy is
+  non-destructive) until the user drags it. An explicit design choice,
+  not called out in the spec; easy to change if the Owner wants
+  different placement.
+- **Fill tool**: `lib/regions.ts`'s new `floodFillDiagonal` (8-connected:
+  diagonal touching counts) backs `lib/pattern-edit.ts`'s
+  `fillClusterDiagonal`, deliberately kept **separate** from the
+  existing `labelRegions`/`fillCluster` (4-connected, per the original
+  spec: "diagonal touching alone doesn't count") that the drag-a-color-
+  onto-the-picture interaction still uses unchanged. Two different
+  tools, two different connectivity rules, on purpose -- not a
+  regression of the earlier one.
+- **A stale selection is discarded (never merged) whenever the
+  underlying pattern is replaced out from under it** -- Regenerate,
+  Open editable pattern, and loading a brand-new source photo all clear
+  `selection`/`selectDragRef` before landing the new pattern, since the
+  selection's coordinates/cells would otherwise reference data that may
+  no longer even be in-bounds.
+- **Verified**: 274 unit tests (255 + 19 new: `floodFillDiagonal` in
+  `regions.spec.ts`; `fillClusterDiagonal`, `liftSelection`,
+  `moveSelection`, `flipSelectionHorizontal/Vertical`,
+  `compositeSelectionPreview`, `mergeSelection` in `pattern-edit.spec.ts`),
+  clean `tsc`/`eslint`/`npm run build`. Live dev-server verification
+  (the canvas-drag/composite-render logic isn't unit-testable in this
+  project's plain-Node Vitest environment): generated a 4-quadrant test
+  pattern, dragged a rectangle selection, dragged it to a new location,
+  deselected, and confirmed via direct canvas pixel sampling
+  (`getImageData`) that the origin correctly became `EMPTY_CELL` (shown
+  as the "no stitch" texture) and the destination was correctly
+  overwritten; copied a second selection, deselected (a no-op round-
+  trip), pasted it (confirmed the +3/+3 offset), flipped it vertically
+  and confirmed via pixel sampling that the flip actually mirrored the
+  cells (not just a no-op); painted a diagonal-only checkerboord pair,
+  switched to Fill, and confirmed clicking one cell filled both
+  diagonally-connected cells while leaving the orthogonally-adjacent
+  differently-colored cells untouched; confirmed Undo reverts a Fill
+  click as a single step. Zero console errors throughout. **One
+  methodology note for future live-canvas testing**: sampling the exact
+  center pixel of a cell via `getImageData` can land on the stitch-
+  texture overlay's highlight dot instead of the base fill color --
+  sample at a corner offset (e.g. `(cx + 0.15, cy + 0.15)` in cell
+  units) instead.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

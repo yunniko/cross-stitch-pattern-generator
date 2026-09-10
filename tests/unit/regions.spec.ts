@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { confettiRatio, labelRegions } from "@/lib/regions";
+import { confettiRatio, floodFillDiagonal, labelRegions } from "@/lib/regions";
 
 describe("labelRegions", () => {
   it("gives every cell in a uniform grid the same label", () => {
@@ -80,5 +80,39 @@ describe("confettiRatio", () => {
     const cellPalette = Uint8Array.from([0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0]);
     const regions = labelRegions(cellPalette, 4, 4);
     expect(confettiRatio(regions, 1)).toBe(1);
+  });
+});
+
+describe("floodFillDiagonal (G-018 Fill tool)", () => {
+  it("merges diagonally-touching same-color cells, unlike labelRegions' 4-connectivity", () => {
+    // A B
+    // B A
+    const cellPalette = Uint8Array.from([0, 1, 1, 0]);
+    const filled = floodFillDiagonal(cellPalette, 2, 2, 0);
+    expect(filled.sort()).toEqual([0, 3]);
+  });
+
+  it("still merges orthogonally-adjacent same-color cells", () => {
+    const cellPalette = Uint8Array.from([0, 0, 1, 0, 0, 1]);
+    const filled = floodFillDiagonal(cellPalette, 3, 2, 0);
+    expect(filled.sort()).toEqual([0, 1, 3, 4]);
+  });
+
+  it("does not cross into a differently-colored cell", () => {
+    const cellPalette = Uint8Array.from([0, 0, 1, 1]);
+    const filled = floodFillDiagonal(cellPalette, 2, 2, 0);
+    expect(filled.sort()).toEqual([0, 1]);
+  });
+
+  it("returns just the start cell when all 8 neighbors differ", () => {
+    const cellPalette = Uint8Array.from([1, 1, 1, 1, 0, 1, 1, 1, 1]);
+    const filled = floodFillDiagonal(cellPalette, 3, 3, 4);
+    expect(filled).toEqual([4]);
+  });
+
+  it("treats EMPTY_CELL (255) as an ordinary fillable value, not special-cased", () => {
+    const cellPalette = Uint8Array.from([255, 255, 1, 255]);
+    const filled = floodFillDiagonal(cellPalette, 2, 2, 0);
+    expect(filled.sort()).toEqual([0, 1, 3]);
   });
 });

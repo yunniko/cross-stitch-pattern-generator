@@ -1,8 +1,8 @@
 import { nameNewColor } from "./color-names";
 import { DMC_COLORS } from "./dmc-colors";
-import { labelRegions } from "./regions";
+import { floodFillDiagonal, labelRegions } from "./regions";
 import { SYMBOL_SET } from "./symbols";
-import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "./types";
+import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type CellRect, type FloatingSelection, type PaletteColor, type RGB, type StitchPattern } from "./types";
 
 // `EMPTY_CELL` (255) is never counted against any real palette color and
 // must never be run through a palette-index remap (an out-of-bounds typed-
@@ -74,6 +74,22 @@ export function fillCluster(pattern: StitchPattern, cellIndex: number, paletteIn
     if (regions.labels[i] === targetLabel) cellPalette[i] = paletteIndex;
   }
 
+  return withCounts(pattern, cellPalette, pattern.palette);
+}
+
+/**
+ * The dedicated Fill tool's fill (G-018) -- fills every cell 8-connected
+ * to `cellIndex` (diagonal touching *does* count) that shares its current
+ * color with `paletteIndex`. Deliberately more permissive than
+ * `fillCluster` above, which stays 4-connected for its own drag-and-drop
+ * use case per the original spec; this is a separate, newer tool with its
+ * own connectivity rule (Owner request, 2026-09-10), not a change to that
+ * one.
+ */
+export function fillClusterDiagonal(pattern: StitchPattern, cellIndex: number, paletteIndex: number): StitchPattern {
+  const matches = floodFillDiagonal(pattern.cellPalette, pattern.width, pattern.height, cellIndex);
+  const cellPalette = pattern.cellPalette.slice();
+  for (const cell of matches) cellPalette[cell] = paletteIndex;
   return withCounts(pattern, cellPalette, pattern.palette);
 }
 
@@ -321,4 +337,108 @@ export function compactUnusedColors(pattern: StitchPattern): StitchPattern {
 
   const palette = usedIndices.map((oldIndex, newIndex) => ({ ...pattern.palette[oldIndex], index: newIndex }));
   return { ...pattern, cellPalette, palette };
+}
+
+// --- Rectangle Select tool (G-018) ---
+//
+// A `FloatingSelection` is a lifted snapshot of cells that can be moved and
+// flipped independently of the pattern before being written back
+// permanently on deselect ("merge"). Nothing here touches `history`/undo
+// directly -- the workspace only pushes the *final* merged pattern, so an
+// entire select/move/flip session collapses into one undo step, matching
+// how the existing Move tool already only commits on pointer-up.
+
+function clampRectToBounds(rect: CellRect, width: number, height: number): CellRect {
+  const x0 = Math.max(0, Math.min(rect.x, width));
+  const y0 = Math.max(0, Math.min(rect.y, height));
+  const x1 = Math.max(0, Math.min(rect.x + rect.width, width));
+  const y1 = Math.max(0, Math.min(rect.y + rect.height, height));
+  return { x: x0, y: y0, width: Math.max(0, x1 - x0), height: Math.max(0, y1 - y0) };
+}
+
+/** Snapshots `rect`'s cells (clamped to the pattern's own bounds) into a new floating selection, with `originRect` set so a later merge vacates this spot -- the "lift" step of a fresh drag-select. */
+export function liftSelection(pattern: StitchPattern, rect: CellRect): FloatingSelection {
+  const clamped = clampRectToBounds(rect, pattern.width, pattern.height);
+  const cells = new Uint8Array(clamped.width * clamped.height);
+  for (let ly = 0; ly < clamped.height; ly++) {
+    const srcRowStart = (clamped.y + ly) * pattern.width + clamped.x;
+    cells.set(pattern.cellPalette.subarray(srcRowStart, srcRowStart + clamped.width), ly * clamped.width);
+  }
+  return { x: clamped.x, y: clamped.y, width: clamped.width, height: clamped.height, cells, originRect: clamped };
+}
+
+/** Repositions a floating selection by `(dx, dy)` -- pure data, no pattern involved (used for both the live drag preview and the final commit once a move finishes). */
+export function moveSelection(selection: FloatingSelection, dx: number, dy: number): FloatingSelection {
+  return { ...selection, x: selection.x + dx, y: selection.y + dy };
+}
+
+function flipCells(cells: Uint8Array, width: number, height: number, axis: "horizontal" | "vertical"): Uint8Array {
+  const flipped = new Uint8Array(cells.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const srcX = axis === "horizontal" ? width - 1 - x : x;
+      const srcY = axis === "vertical" ? height - 1 - y : y;
+      flipped[y * width + x] = cells[srcY * width + srcX];
+    }
+  }
+  return flipped;
+}
+
+/** Mirrors a floating selection's cells left-right, in place -- position/size/originRect are untouched. */
+export function flipSelectionHorizontal(selection: FloatingSelection): FloatingSelection {
+  return { ...selection, cells: flipCells(selection.cells, selection.width, selection.height, "horizontal") };
+}
+
+/** Mirrors a floating selection's cells top-bottom, in place -- position/size/originRect are untouched. */
+export function flipSelectionVertical(selection: FloatingSelection): FloatingSelection {
+  return { ...selection, cells: flipCells(selection.cells, selection.width, selection.height, "vertical") };
+}
+
+function stampSelection(cellPalette: Uint8Array, width: number, height: number, selection: FloatingSelection): void {
+  for (let ly = 0; ly < selection.height; ly++) {
+    const py = selection.y + ly;
+    if (py < 0 || py >= height) continue;
+    for (let lx = 0; lx < selection.width; lx++) {
+      const px = selection.x + lx;
+      if (px < 0 || px >= width) continue;
+      cellPalette[py * width + px] = selection.cells[ly * selection.width + lx];
+    }
+  }
+}
+
+/**
+ * Renders a floating selection composited onto `pattern` for *preview
+ * only* -- palette `count`/`index` are left stale, since this is never
+ * pushed to history, only drawn. Used while a selection exists/is being
+ * dragged so the Image window shows where it would land.
+ */
+export function compositeSelectionPreview(pattern: StitchPattern, selection: FloatingSelection): StitchPattern {
+  const cellPalette = pattern.cellPalette.slice();
+  stampSelection(cellPalette, pattern.width, pattern.height, selection);
+  return { ...pattern, cellPalette };
+}
+
+/**
+ * Permanently applies a floating selection to `pattern` (the "deselect"
+ * step, per the Owner's spec: "as soon as selection is reset, the
+ * editable piece merges into picture") -- clears `originRect` to
+ * `EMPTY_CELL` first (vacating wherever the piece was lifted from, if
+ * anywhere), then stamps the selection's cells at its current position,
+ * overwriting whatever is there. `EMPTY_CELL` values inside the selection
+ * overwrite just like any real color ("empty cells rewrite color cells
+ * the same way as other colors do") -- never treated as transparent.
+ */
+export function mergeSelection(pattern: StitchPattern, selection: FloatingSelection): StitchPattern {
+  const cellPalette = pattern.cellPalette.slice();
+  if (selection.originRect) {
+    const { x, y, width, height } = selection.originRect;
+    for (let ly = 0; ly < height; ly++) {
+      const py = y + ly;
+      if (py < 0 || py >= pattern.height) continue;
+      const rowStart = py * pattern.width + x;
+      cellPalette.fill(EMPTY_CELL, rowStart, rowStart + Math.min(width, pattern.width - x));
+    }
+  }
+  stampSelection(cellPalette, pattern.width, pattern.height, selection);
+  return withCounts(pattern, cellPalette, pattern.palette);
 }

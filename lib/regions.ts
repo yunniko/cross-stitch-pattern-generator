@@ -93,6 +93,48 @@ export function labelRegions(cellPalette: Uint8Array, width: number, height: num
   return { labels, components };
 }
 
+/**
+ * 8-connected flood fill (diagonal touching *does* count as adjacent) --
+ * returns every cell index reachable from `start` through cells sharing
+ * `start`'s own palette index. Deliberately the opposite connectivity rule
+ * from `labelRegions` above: that one is 4-connected per the original
+ * spec ("diagonal touching alone doesn't count") and drives diagnostics/
+ * palette-merge decisions, which stay unchanged. This one is only for the
+ * dedicated Fill tool (G-018, Owner request 2026-09-10: "cells of the same
+ * color adjacent by diagonal count as adjacent and filled by fill tool") --
+ * a distinct, newer tool with its own, deliberately more permissive rule,
+ * not a correction to the existing one.
+ */
+export function floodFillDiagonal(cellPalette: Uint8Array, width: number, height: number, start: number): number[] {
+  const targetValue = cellPalette[start];
+  const visited = new Uint8Array(cellPalette.length);
+  const stack = [start];
+  visited[start] = 1;
+  const result: number[] = [];
+
+  while (stack.length > 0) {
+    const cell = stack.pop() as number;
+    result.push(cell);
+    const x = cell % width;
+    const y = Math.floor(cell / width);
+
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+        const neighbor = ny * width + nx;
+        if (visited[neighbor] || cellPalette[neighbor] !== targetValue) continue;
+        visited[neighbor] = 1;
+        stack.push(neighbor);
+      }
+    }
+  }
+
+  return result;
+}
+
 /** Fraction of cells belonging to a component of size <= maxOrphanSize — the diagnostic the domain research calls "confetti ratio." */
 export function confettiRatio(regions: RegionMap, maxOrphanSize = 2): number {
   const totalCells = regions.labels.length;

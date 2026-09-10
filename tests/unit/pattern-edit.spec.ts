@@ -1,6 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { addColor, addDmcColor, compactUnusedColors, editColorRgb, editColorToDmc, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, setColorSymbol, shiftPattern } from "@/lib/pattern-edit";
-import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
+import {
+  addColor,
+  addDmcColor,
+  compactUnusedColors,
+  compositeSelectionPreview,
+  editColorRgb,
+  editColorToDmc,
+  fillCluster,
+  fillClusterDiagonal,
+  flipSelectionHorizontal,
+  flipSelectionVertical,
+  liftSelection,
+  mergeColors,
+  mergeSelection,
+  moveSelection,
+  paintStitch,
+  renameColor,
+  renamePattern,
+  resizeCanvas,
+  setColorSymbol,
+  shiftPattern,
+} from "@/lib/pattern-edit";
+import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type FloatingSelection, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {
   const counts = new Array(colors.length).fill(0);
@@ -480,5 +501,172 @@ describe("EMPTY_CELL (the empty-stitch pseudo-color, G-012 M5)", () => {
     ]);
     const resized = resizeCanvas(pattern, { left: 0, right: 1, top: 0, bottom: 0 }, [9, 9, 9]);
     expect(Array.from(resized.cellPalette)).toEqual([EMPTY_CELL, 0, 1, 2]); // new cell is the real fill color, not empty
+  });
+});
+
+describe("fillClusterDiagonal (G-018 Fill tool)", () => {
+  it("fills a diagonally-connected region that fillCluster (4-connected) would treat as separate", () => {
+    // 0 1
+    // 1 0
+    const pattern = makePattern(2, 2, [0, 1, 1, 0], [
+      [10, 10, 10],
+      [20, 20, 20],
+    ]);
+    const filled = fillClusterDiagonal(pattern, 0, 1);
+    // Both diagonal 0-cells (index 0 and 3) become color 1.
+    expect(Array.from(filled.cellPalette)).toEqual([1, 1, 1, 1]);
+  });
+
+  it("does not spill into a differently-colored cell", () => {
+    const pattern = makePattern(2, 2, [0, 0, 1, 1], [
+      [10, 10, 10],
+      [20, 20, 20],
+    ]);
+    const filled = fillClusterDiagonal(pattern, 0, 1);
+    expect(Array.from(filled.cellPalette)).toEqual([1, 1, 1, 1]);
+  });
+
+  it("recomputes stitch counts for the affected colors", () => {
+    const pattern = makePattern(2, 2, [0, 1, 1, 0], [
+      [10, 10, 10],
+      [20, 20, 20],
+    ]);
+    const filled = fillClusterDiagonal(pattern, 0, 1);
+    expect(filled.palette[0].count).toBe(0);
+    expect(filled.palette[1].count).toBe(4);
+  });
+});
+
+describe("Rectangle Select tool (G-018): liftSelection / moveSelection / flip*", () => {
+  function makeGridPattern(): StitchPattern {
+    // A B C
+    // D E F
+    return makePattern(3, 2, [0, 1, 2, 3, 4, 5], [
+      [0, 0, 0],
+      [1, 1, 1],
+      [2, 2, 2],
+      [3, 3, 3],
+      [4, 4, 4],
+      [5, 5, 5],
+    ]);
+  }
+
+  it("lifts a rectangle's cells and sets originRect to the same (clamped) area", () => {
+    const pattern = makeGridPattern();
+    const sel = liftSelection(pattern, { x: 1, y: 0, width: 2, height: 2 });
+    expect(sel.x).toBe(1);
+    expect(sel.y).toBe(0);
+    expect(sel.width).toBe(2);
+    expect(sel.height).toBe(2);
+    expect(Array.from(sel.cells)).toEqual([1, 2, 4, 5]); // B C / E F
+    expect(sel.originRect).toEqual({ x: 1, y: 0, width: 2, height: 2 });
+  });
+
+  it("clamps a rectangle that extends past the pattern's own bounds", () => {
+    const pattern = makeGridPattern();
+    const sel = liftSelection(pattern, { x: 2, y: 0, width: 5, height: 5 });
+    expect(sel).toMatchObject({ x: 2, y: 0, width: 1, height: 2 });
+    expect(Array.from(sel.cells)).toEqual([2, 5]); // C / F
+  });
+
+  it("moveSelection only changes position, not size/cells/originRect", () => {
+    const pattern = makeGridPattern();
+    const sel = liftSelection(pattern, { x: 0, y: 0, width: 2, height: 1 });
+    const moved = moveSelection(sel, 1, 1);
+    expect(moved.x).toBe(1);
+    expect(moved.y).toBe(1);
+    expect(moved.cells).toEqual(sel.cells);
+    expect(moved.originRect).toEqual(sel.originRect);
+  });
+
+  it("flipSelectionHorizontal mirrors cells left-right without moving the selection", () => {
+    const pattern = makeGridPattern();
+    const sel = liftSelection(pattern, { x: 0, y: 0, width: 3, height: 1 }); // A B C
+    const flipped = flipSelectionHorizontal(sel);
+    expect(Array.from(flipped.cells)).toEqual([2, 1, 0]); // C B A
+    expect(flipped.x).toBe(sel.x);
+    expect(flipped.y).toBe(sel.y);
+  });
+
+  it("flipSelectionVertical mirrors cells top-bottom", () => {
+    const pattern = makeGridPattern();
+    const sel = liftSelection(pattern, { x: 0, y: 0, width: 1, height: 2 }); // A / D
+    const flipped = flipSelectionVertical(sel);
+    expect(Array.from(flipped.cells)).toEqual([3, 0]); // D / A
+  });
+});
+
+describe("compositeSelectionPreview (G-018)", () => {
+  it("overlays the selection's cells at its current position, leaving everything else untouched", () => {
+    const pattern = makeGridPattern();
+    const sel = liftSelection(pattern, { x: 0, y: 0, width: 1, height: 1 }); // just A
+    const moved = moveSelection(sel, 2, 1); // move A's copy on top of F
+    const preview = compositeSelectionPreview(pattern, moved);
+    expect(Array.from(preview.cellPalette)).toEqual([0, 1, 2, 3, 4, 0]); // F replaced by A's value (0)
+    // The base pattern itself is untouched (preview is a new object).
+    expect(Array.from(pattern.cellPalette)).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
+  function makeGridPattern(): StitchPattern {
+    return makePattern(3, 2, [0, 1, 2, 3, 4, 5], [
+      [0, 0, 0],
+      [1, 1, 1],
+      [2, 2, 2],
+      [3, 3, 3],
+      [4, 4, 4],
+      [5, 5, 5],
+    ]);
+  }
+});
+
+describe("mergeSelection (G-018)", () => {
+  function makeGridPattern(): StitchPattern {
+    return makePattern(3, 2, [0, 1, 2, 3, 4, 5], [
+      [0, 0, 0],
+      [1, 1, 1],
+      [2, 2, 2],
+      [3, 3, 3],
+      [4, 4, 4],
+      [5, 5, 5],
+    ]);
+  }
+
+  it("moving a selection vacates its originRect to EMPTY_CELL and stamps the destination", () => {
+    const pattern = makeGridPattern();
+    const sel = liftSelection(pattern, { x: 0, y: 0, width: 1, height: 1 }); // just A (value 0)
+    const moved = moveSelection(sel, 2, 1); // move onto F's spot
+    const merged = mergeSelection(pattern, moved);
+    // A's original spot (index 0) is now empty; F's spot (index 5) now holds A's value (0).
+    expect(Array.from(merged.cellPalette)).toEqual([EMPTY_CELL, 1, 2, 3, 4, 0]);
+  });
+
+  it("an unmoved selection round-trips back to the same content (safe no-op)", () => {
+    const pattern = makeGridPattern();
+    const sel = liftSelection(pattern, { x: 1, y: 0, width: 2, height: 1 }); // B C
+    const merged = mergeSelection(pattern, sel);
+    expect(Array.from(merged.cellPalette)).toEqual(Array.from(pattern.cellPalette));
+  });
+
+  it("a pasted selection (no originRect) never clears anything -- purely additive", () => {
+    const pattern = makeGridPattern();
+    const clipboard: FloatingSelection = { x: 2, y: 1, width: 1, height: 1, cells: Uint8Array.from([0]) }; // paste A's value onto F's spot, no originRect
+    const merged = mergeSelection(pattern, clipboard);
+    expect(Array.from(merged.cellPalette)).toEqual([0, 1, 2, 3, 4, 0]); // only F's spot changed
+  });
+
+  it("EMPTY_CELL values inside the selection overwrite the destination just like any real color", () => {
+    const pattern = makeGridPattern();
+    const sel: FloatingSelection = { x: 2, y: 0, width: 1, height: 1, cells: Uint8Array.from([EMPTY_CELL]) };
+    const merged = mergeSelection(pattern, sel);
+    expect(Array.from(merged.cellPalette)).toEqual([0, 1, EMPTY_CELL, 3, 4, 5]);
+  });
+
+  it("recomputes stitch counts after a merge", () => {
+    const pattern = makeGridPattern();
+    const sel = liftSelection(pattern, { x: 0, y: 0, width: 1, height: 1 });
+    const moved = moveSelection(sel, 2, 1);
+    const merged = mergeSelection(pattern, moved);
+    expect(merged.palette[0].count).toBe(1); // A's color now only at F's old spot
+    expect(merged.palette[5].count).toBe(0); // F's color is gone entirely
   });
 });

@@ -11,7 +11,48 @@ svc-lab).
 
 ## Active goals
 
-_No goals currently active._
+### G-018 · Rectangle Select tool + diagonal-connectivity Fill tool — ACTIVE
+- **What:** A Rectangle Select tool in the Tools dock: drag to select a
+  region, then Copy/Paste/Move/Flip horizontal/Flip vertical it before it
+  merges permanently into the pattern on deselect. A separate Fill tool
+  that flood-fills using 8-connectivity (diagonal touching counts as
+  adjacent), distinct from the existing drag-and-drop fill's
+  4-connectivity.
+- **Why:** Owner request (2026-09-10): rectangle select with copy/paste/
+  move/flip, empty cells overwriting like any other color on merge, and
+  a diagonal-aware fill tool.
+- **Acceptance criteria:** Dragging a rectangle creates a movable/
+  flippable floating selection; Copy/Paste/Flip work as described;
+  deselecting (switching tools, clicking outside, Escape, or the
+  Deselect button) writes the selection into the pattern at its current
+  position, overwriting every cell there including with `EMPTY_CELL`
+  values; the vacated source of a moved selection becomes empty. The
+  Fill tool fills every cell reachable through same-colored cells
+  connected edge- or corner-wise.
+- **Constraints:** The existing drag-and-drop fill (4-connected, per the
+  original spec) must stay unchanged -- the new Fill tool is additive,
+  not a replacement.
+
+**Milestones:**
+- [x] M1 — `FloatingSelection` type + pure lib functions (lift/move/flip/
+      composite/merge) in `lib/pattern-edit.ts`; `floodFillDiagonal` +
+      `fillClusterDiagonal`; unit tested.
+- [x] M2 — UI: Select and Fill tools in the Tools dock, selection
+      toolbar panel, drag-based move/draw interaction, auto-merge on
+      tool switch; live-browser verified (drag/move/copy/paste/flip via
+      direct canvas pixel sampling, diagonal fill via a checkerboard
+      test, undo integrity).
+- [ ] M3 — Full regression suite, commit, and (pending Owner go-ahead)
+      production deploy.
+
+**Progress log** (newest first):
+- 2026-09-10 — M1-M2 complete. Full detail in HANDOVER.md D37. Verified:
+  274 unit tests, clean `tsc`/`eslint`/`npm run build`, thorough live
+  dev-server verification (select/move/copy/paste/flip-vertical all
+  confirmed via `getImageData` pixel sampling -- not just visual
+  screenshots -- plus a diagonal-adjacency checkerboard test for the
+  Fill tool and an Undo-integrity check), zero console errors. Not yet
+  committed, not deployed. Continuing to M3 next.
 
 ## Completed goals
 

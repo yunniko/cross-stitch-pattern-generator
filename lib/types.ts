@@ -135,3 +135,31 @@ export interface StitchPattern {
    */
   dmcMode?: boolean;
 }
+
+/** An axis-aligned, half-open (end-exclusive) rectangle in stitch-cell coordinates. */
+export interface CellRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * The Rectangle Select tool's "floating piece" (G-018): a lifted snapshot
+ * of `width`x`height` cells (row-major, same palette-index scheme as
+ * `StitchPattern.cellPalette`, `EMPTY_CELL` included) that can be moved and
+ * flipped independently of the underlying pattern before being written
+ * back permanently on deselect. `originRect` is the area to clear to
+ * `EMPTY_CELL` at that moment -- set for a piece lifted straight from the
+ * canvas (a "move" should vacate where it came from), left `undefined` for
+ * one created by Paste (which has no source location to vacate, since it
+ * came from the clipboard, not a live selection).
+ */
+export interface FloatingSelection {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  cells: Uint8Array;
+  originRect?: CellRect;
+}
