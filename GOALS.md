@@ -264,20 +264,57 @@ svc-lab).
       go through the same fixed `buildPaletteFromAssignment`, so no
       separate per-mode revalidation was needed beyond the shared test
       suite already covering both.
-- [ ] M5 — Findings 6, 7, 8 (remaining P2 reliability gaps): stitch-
-      texture failure becomes recoverable (clears its rejected cache,
-      shows a visible error, offers retry) instead of permanently
-      broken until reload; PNG download encoding is awaited and a
-      `null`-blob failure is caught and surfaced instead of silently
-      producing nothing; the custom stitch-size field rejects
-      fractional/non-finite input at the UI boundary with the existing
-      range-error message, instead of crashing inside generation.
+- [x] M5 — Findings 6, 7, 8 (remaining P2 reliability gaps). Finding 6:
+      `stitch-texture.ts`'s `loadTextureImage` now clears its cached
+      promise in `img.onerror` (previously the rejected promise itself
+      stayed cached forever, so a single transient texture-load failure
+      permanently broke the live preview until a full page reload) —
+      `app/page.tsx`'s preview effect gained `previewError`/
+      `previewRetryToken` state, a `.catch()` on the render chain, and a
+      visible error banner with a Retry button. Finding 7:
+      `downloadCanvasAsPng` (`lib/render.ts`) now returns `Promise<void>`
+      and rejects on a `null`-blob instead of resolving silently with no
+      file produced — both download call sites (`app/page.tsx` and
+      `app/pattern-editor.tsx`) now `await` it so a canvas-encoding
+      failure surfaces instead of vanishing. Finding 8: the custom
+      stitch-size field now rejects non-integer input
+      (`!Number.isInteger(longerSideStitches)`) at the UI boundary with
+      an improved message ("Pattern size must be a whole number between
+      X and Y stitches" — deliberately reworded from the plain range
+      message, since a fractional in-range value like 10.5 needed its
+      own explanation for why it's still rejected); `gridDimensionsFor`
+      (`lib/downsample.ts`) also now rounds `longerSideStitches` itself,
+      not just the derived shorter side, as defense-in-depth for the
+      other callers reaching this pure function directly. Fixed the
+      same `react-hooks/set-state-in-effect` violation this session hit
+      once already in G-011 by moving `setPreviewError(null)` out of the
+      synchronous effect body into the async `.then()` success callback.
+      ✔ 2026-09-10. Verified by reproducing each original repro: a
+      thrown texture load followed by a successful retry (new
+      `tests/unit/stitch-texture.spec.ts`, 4 tests, `FakeImage` mock
+      confirms the old "rejection cached forever" bug is gone and a
+      successful load is still cached, so no unnecessary re-fetching);
+      a fractional custom size (10.5) rejected up front instead of
+      reaching `buildPattern` and crashing with `RangeError: Invalid
+      array length` (updated + 1 new e2e test in
+      `generate-pattern.spec.ts`, confirming zero `pageerror` events);
+      `gridDimensionsFor` rounding confirmed for both the primary and
+      derived side (2 new tests in `downsample.spec.ts`). 170 unit tests
+      green (full existing suite unmodified except the one deliberately
+      reworded e2e assertion), 11 e2e tests green, clean
+      `tsc`/`eslint`/`npm run build`. Real-browser check on the dev
+      server confirmed the fractional-input rejection message and the
+      realistic-preview happy path both work with zero console errors.
 - [ ] M6 — Full regression pass across everything touched (unit + e2e
       + lint/tsc/build), a real-browser re-verification of each
       original repro scenario from the review, and a HANDOVER.md
       decision-record entry summarizing what changed and why.
 
 **Progress log** (newest first):
+- 2026-09-10 — M5 completed and verified (findings 6, 7, 8). Reused the
+  same "adjust state during render" fix pattern from G-011 to clear a
+  second `react-hooks/set-state-in-effect` violation found while adding
+  the preview-error/retry UI.
 - 2026-09-10 — M4 completed and verified (finding 3). Found the same
   linear-RGB/OKLab inconsistency in a second place the review didn't
   cite (`quantize.ts`'s own `buildPaletteFromAssignment`), not just the

@@ -218,7 +218,7 @@ export default function PatternEditor({ pattern, onClose }: PatternEditorProps) 
         const compacted = compactUnusedColors(history.state);
         const canvas = mode === "realistic" ? await renderStitchPreviewToCanvas(compacted) : renderPatternToCanvas(compacted, mode);
         const suffix = mode === "realistic" ? "preview" : mode;
-        downloadCanvasAsPng(canvas, `${baseFileName()}_${suffix}.png`);
+        await downloadCanvasAsPng(canvas, `${baseFileName()}_${suffix}.png`);
       } catch (err) {
         setDownloadError(err instanceof Error ? err.message : "Couldn't render that download.");
       } finally {

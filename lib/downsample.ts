@@ -6,20 +6,30 @@ export interface GridDimensions {
   height: number;
 }
 
-/** Grid dimensions for a source image, given the stitch count on its longer side. */
+/**
+ * Grid dimensions for a source image, given the stitch count on its longer
+ * side. Rounds `longerSideStitches` itself, not just the derived shorter
+ * side -- a non-integer value (the UI's own number input accepts decimals
+ * like 10.5, and this is a public function other callers could reach too)
+ * used to flow straight through as the primary dimension, reaching typed-
+ * array allocations downstream that throw `RangeError: Invalid array
+ * length` for a non-integer length, surfacing to the user as a misleading
+ * "Couldn't generate a pattern from that image" (code-review 2026-09-09,
+ * finding 8). The UI also validates this before ever calling here; this is
+ * the pipeline's own defense, not the only one.
+ */
 export function gridDimensionsFor(
   sourceWidth: number,
   sourceHeight: number,
   longerSideStitches: number
 ): GridDimensions {
+  const longerSide = Math.max(1, Math.round(longerSideStitches));
   if (sourceWidth >= sourceHeight) {
-    const width = longerSideStitches;
-    const height = Math.max(1, Math.round((longerSideStitches * sourceHeight) / sourceWidth));
-    return { width, height };
+    const height = Math.max(1, Math.round((longerSide * sourceHeight) / sourceWidth));
+    return { width: longerSide, height };
   }
-  const height = longerSideStitches;
-  const width = Math.max(1, Math.round((longerSideStitches * sourceWidth) / sourceHeight));
-  return { width, height };
+  const width = Math.max(1, Math.round((longerSide * sourceWidth) / sourceHeight));
+  return { width, height: longerSide };
 }
 
 /**

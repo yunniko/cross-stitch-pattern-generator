@@ -550,14 +550,29 @@ export async function renderStitchPreviewToCanvas(
   return canvas;
 }
 
-export function downloadCanvasAsPng(canvas: HTMLCanvasElement, filename: string) {
-  canvas.toBlob((blob) => {
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, "image/png");
+/**
+ * Returns a promise that resolves only after encoding actually succeeds and
+ * the download has been initiated, and rejects on a `null` blob -- a real,
+ * documented `toBlob` failure case (MDN). The previous fire-and-forget
+ * version returned immediately regardless of outcome, so a caller's
+ * "Preparing..." state cleared before encoding even finished, and a `null`
+ * blob silently produced no file and no error (code-review 2026-09-09,
+ * finding 7).
+ */
+export function downloadCanvasAsPng(canvas: HTMLCanvasElement, filename: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("Couldn't encode the image for download. Try a smaller pattern size."));
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+      resolve();
+    }, "image/png");
+  });
 }

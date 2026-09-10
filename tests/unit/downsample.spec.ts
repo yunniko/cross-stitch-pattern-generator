@@ -31,6 +31,24 @@ describe("gridDimensionsFor", () => {
   it("treats a square image as width === height", () => {
     expect(gridDimensionsFor(300, 300, 60)).toEqual({ width: 60, height: 60 });
   });
+
+  it("rounds a fractional longerSideStitches to an integer, on the primary side too (code-review 2026-09-09, finding 8)", () => {
+    // The old bug: only the *derived* shorter side was rounded; the primary
+    // (longer) side was used exactly as given, so a fractional value like
+    // 10.5 flowed straight through as a real dimension -- reaching typed-
+    // array allocations downstream that throw for a non-integer length.
+    const result = gridDimensionsFor(200, 100, 10.5);
+    expect(Number.isInteger(result.width)).toBe(true);
+    expect(Number.isInteger(result.height)).toBe(true);
+  });
+
+  it("never returns a non-integer dimension for any finite input", () => {
+    for (const stitches of [10.1, 10.9, 99.99, 500.5]) {
+      const result = gridDimensionsFor(160, 90, stitches);
+      expect(Number.isInteger(result.width)).toBe(true);
+      expect(Number.isInteger(result.height)).toBe(true);
+    }
+  });
 });
 
 describe("downsampleToGrid", () => {

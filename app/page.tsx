@@ -91,8 +91,8 @@ export default function Home() {
       setError("Upload an image first.");
       return;
     }
-    if (longerSideStitches < MIN_STITCHES || longerSideStitches > MAX_STITCHES) {
-      setError(`Pattern size must be between ${MIN_STITCHES} and ${MAX_STITCHES} stitches.`);
+    if (!Number.isInteger(longerSideStitches) || longerSideStitches < MIN_STITCHES || longerSideStitches > MAX_STITCHES) {
+      setError(`Pattern size must be a whole number between ${MIN_STITCHES} and ${MAX_STITCHES} stitches.`);
       return;
     }
     if (colorCount < MIN_COLORS || colorCount > MAX_COLORS) {
@@ -128,6 +128,8 @@ export default function Home() {
   }
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewRetryToken, setPreviewRetryToken] = useState(0);
 
   // The realistic-preview mode tints a shared texture image asynchronously
   // (see lib/stitch-texture.ts), so this can no longer be a plain useMemo --
@@ -146,13 +148,25 @@ export default function Home() {
         : Promise.resolve(
             renderPatternToCanvas(pattern, previewMode, { cellSize: previewCellSize, aidaCount, sizeUnit })
           );
-    canvasPromise.then((canvas) => {
-      if (!cancelled) setPreviewUrl(canvas.toDataURL("image/png"));
-    });
+    canvasPromise
+      .then((canvas) => {
+        if (cancelled) return;
+        setPreviewError(null);
+        setPreviewUrl(canvas.toDataURL("image/png"));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        // The old preview is for a different mode/pattern by this point --
+        // showing it would silently look like a working "Realistic preview"
+        // that's actually the last successful chart render (code-review
+        // 2026-09-09, finding 6).
+        setPreviewUrl(null);
+        setPreviewError(err instanceof Error ? err.message : "Couldn't render this preview.");
+      });
     return () => {
       cancelled = true;
     };
-  }, [pattern, previewMode, aidaCount, sizeUnit]);
+  }, [pattern, previewMode, aidaCount, sizeUnit, previewRetryToken]);
 
   function openEditor(toEdit: StitchPattern) {
     setEditorPattern(toEdit);
@@ -188,7 +202,7 @@ export default function Home() {
             : renderPatternToCanvas(pattern, mode, { aidaCount, sizeUnit });
         const base = pattern.name ?? "cross-stitch-pattern";
         const suffix = mode === "realistic" ? "preview" : mode;
-        downloadCanvasAsPng(canvas, `${base}_${suffix}.png`);
+        await downloadCanvasAsPng(canvas, `${base}_${suffix}.png`);
       } catch (err) {
         setDownloadError(err instanceof Error ? err.message : "Couldn't render that download.");
       } finally {
@@ -445,6 +459,18 @@ export default function Home() {
                 alt="Cross-stitch pattern preview"
                 className="max-w-full border border-zinc-300 dark:border-zinc-700"
               />
+            )}
+            {previewError && (
+              <div className="flex items-center gap-3 rounded border border-red-300 p-3 text-sm text-red-600 dark:border-red-800 dark:text-red-400">
+                <span>{previewError}</span>
+                <button
+                  type="button"
+                  onClick={() => setPreviewRetryToken((t) => t + 1)}
+                  className="rounded-full border border-red-300 px-3 py-1 text-xs font-medium hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950"
+                >
+                  Retry
+                </button>
+              </div>
             )}
 
             <div className="flex gap-3">

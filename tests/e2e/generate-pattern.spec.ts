@@ -88,5 +88,27 @@ test("rejects a custom size outside the 10-1000 range without crashing", async (
 
   await page.getByRole("button", { name: "Generate pattern" }).click();
 
-  await expect(page.getByText(/Pattern size must be between/)).toBeVisible();
+  await expect(page.getByText(/Pattern size must be a whole number/)).toBeVisible();
+});
+
+test("rejects a fractional custom size instead of crashing inside generation (code-review 2026-09-09, finding 8)", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+
+  await page.goto("/");
+
+  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
+  await page.getByRole("radio", { name: "Custom" }).check();
+  await page.getByRole("spinbutton").fill("10.5");
+
+  await page.getByRole("button", { name: "Generate pattern" }).click();
+
+  // The old bug: this reached buildPattern and crashed with
+  // "RangeError: Invalid array length", surfaced as a misleading
+  // "Couldn't generate a pattern from that image" (blaming the image, not
+  // the size). It should instead be rejected up front with the same
+  // size-validation message a plainly out-of-range value gets.
+  await expect(page.getByText(/Pattern size must be a whole number/)).toBeVisible();
+  await expect(page.getByAltText("Cross-stitch pattern preview")).not.toBeVisible();
+  expect(errors).toEqual([]);
 });

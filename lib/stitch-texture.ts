@@ -19,7 +19,14 @@ function loadTextureImage(): Promise<HTMLImageElement> {
     cachedImage = new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error(`Failed to load stitch texture at ${TEXTURE_URL}`));
+      img.onerror = () => {
+        // Clear the cache on failure so a later call retries the load fresh,
+        // rather than permanently returning this same rejected promise --
+        // without this, one blocked/failed request broke "Realistic preview"
+        // until a full page reload (code-review 2026-09-09, finding 6).
+        cachedImage = null;
+        reject(new Error(`Failed to load stitch texture at ${TEXTURE_URL}`));
+      };
       img.src = TEXTURE_URL;
     });
   }
