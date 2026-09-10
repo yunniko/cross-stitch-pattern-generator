@@ -255,6 +255,38 @@ export function drawChartOutline(ctx: CanvasRenderingContext2D, pattern: StitchP
   drawGridLines(ctx, x0, y0, x1, y1, cellSize);
 }
 
+// A dark "spotlight" mask over everything *not* highlighted reads more
+// clearly at a glance than brightening the matches themselves would --
+// works the same regardless of which colors/how many are underneath.
+const HIGHLIGHT_MASK_ALPHA = 0.6;
+
+/**
+ * The Highlight tool (G-012): dims every stitch whose color isn't in
+ * `highlightedIndices`, making the selected color(s) visually pop by
+ * contrast, without altering the pattern itself -- draw this over
+ * whatever `drawCurrentView` already rendered (color/B&W/photo), it's a
+ * pure overlay. Deliberately not available for the async "Realistic
+ * preview" mode -- that mode already isn't live/interactive the way the
+ * others are, and retrofitting it to accept an overlay would mean
+ * reworking its whole async, off-canvas render path for one secondary
+ * tool.
+ */
+export function drawHighlightOverlay(
+  ctx: CanvasRenderingContext2D,
+  pattern: StitchPattern,
+  cellSize: number,
+  highlightedIndices: ReadonlySet<number>
+) {
+  const { width, height, cellPalette } = pattern;
+  ctx.fillStyle = `rgba(0, 0, 0, ${HIGHLIGHT_MASK_ALPHA})`;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (highlightedIndices.has(cellPalette[y * width + x])) continue;
+      ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+    }
+  }
+}
+
 /** Small inward-pointing triangles at the midpoint of each chart edge, marking the design's horizontal/vertical center — the conventional stitching start point on a real chart. */
 function drawCenterMarkers(ctx: CanvasRenderingContext2D, chartWidthPx: number, chartHeightPx: number) {
   const size = MARKER_MARGIN * 0.6;

@@ -72,6 +72,40 @@ export function paintStitch(pattern: StitchPattern, cellIndex: number, paletteIn
   return withCounts(pattern, cellPalette, pattern.palette);
 }
 
+/**
+ * The Move tool (G-012): repositions the grid's stitch content by
+ * `(dx, dy)` whole stitch cells within the *same* fixed canvas size, and
+ * moves the photo underlay's stored alignment offset by the identical
+ * amount so the two stay locked together. A cyclic (wrap-around) shift,
+ * not a fill-with-empty one -- deliberately chosen over needing an
+ * "empty cell" concept that doesn't exist until G-012's own M5, and
+ * because wrapping never destroys already-stitched content (a user who
+ * doesn't want the wrapped-around part can crop it away once M4's canvas
+ * resize exists). Every color's stitch count is unaffected by relocating
+ * cells, so — unlike every other edit in this file — this deliberately
+ * does *not* go through `withCounts`.
+ */
+export function shiftPattern(pattern: StitchPattern, dx: number, dy: number): StitchPattern {
+  const { width, height, cellPalette, sourceImage } = pattern;
+  if (dx === 0 && dy === 0) return pattern;
+
+  const shifted = new Uint8Array(cellPalette.length);
+  for (let y = 0; y < height; y++) {
+    const srcY = ((((y - dy) % height) + height) % height) * width;
+    const destY = y * width;
+    for (let x = 0; x < width; x++) {
+      const srcX = (((x - dx) % width) + width) % width;
+      shifted[destY + x] = cellPalette[srcY + srcX];
+    }
+  }
+
+  return {
+    ...pattern,
+    cellPalette: shifted,
+    sourceImage: sourceImage ? { ...sourceImage, offsetX: sourceImage.offsetX + dx, offsetY: sourceImage.offsetY + dy } : undefined,
+  };
+}
+
 /** Changes an existing palette color's actual RGB. Symbol and name are left as-is -- a manual recolor shouldn't silently rename the swatch out from under the user. */
 export function editColorRgb(pattern: StitchPattern, paletteIndex: number, rgb: RGB): StitchPattern {
   const palette = pattern.palette.map((color, i) => (i === paletteIndex ? { ...color, rgb } : color));

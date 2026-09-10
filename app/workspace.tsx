@@ -5,12 +5,13 @@ import { HexColorPicker } from "react-colorful";
 import { hexToRgb, rgbToHex } from "@/lib/color";
 import { decodeSourceImage, loadImageAsPixelBuffer } from "@/lib/load-image";
 import { cancelPatternJob, runPatternJob } from "@/lib/pattern-client";
-import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern } from "@/lib/pattern-edit";
+import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, shiftPattern } from "@/lib/pattern-edit";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
 import {
   downloadCanvasAsPng,
   drawChart,
   drawChartOutline,
+  drawHighlightOverlay,
   renderNavigatorPixels,
   renderPatternToCanvas,
   renderStitchPreviewToCanvas,
@@ -57,7 +58,7 @@ const MAX_ZOOM = 4;
 const ZOOM_STEP = 1.4;
 
 type ViewMode = RenderMode | "realistic" | "photo";
-type Tool = "brush" | "pan" | "zoom";
+type Tool = "brush" | "pan" | "zoom" | "move" | "highlight";
 
 interface SourceImageMeta {
   dataUrl: string;
@@ -130,6 +131,12 @@ export default function Workspace() {
   const [zoomLevel, setZoomLevel] = useState(1);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const panRef = useRef<{ pointerId: number; startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null);
+  const moveRef = useRef<{ pointerId: number; basePattern: StitchPattern; startX: number; startY: number; lastDx: number; lastDy: number } | null>(null);
+
+  // Highlight tool: colors selected here get dimmed-out contrast against
+  // everything else in the Image window (drawHighlightOverlay) -- a pure
+  // view concern, never mutates the pattern.
+  const [highlightedColorIndices, setHighlightedColorIndices] = useState<ReadonlySet<number>>(new Set());
 
   // The decoded photo image for "Grid + photo" mode, cached by its data URL
   // so switching modes back and forth doesn't re-decode every time. A ref
@@ -210,13 +217,17 @@ export default function Workspace() {
         // async, non-interactive effect below, and "photo" is handled above.
         drawChart(ctx, p, viewMode as RenderMode, cellSize);
       }
+
+      if (activeTool === "highlight" && highlightedColorIndices.size > 0) {
+        drawHighlightOverlay(ctx, p, cellSize, highlightedColorIndices);
+      }
     },
     // photoImageVersion isn't read directly but its change means
     // photoImageRef.current now points at a newly-loaded image -- this
     // callback (and the effect below re-running it) needs to be recreated
     // then, or the redraw would use a stale closure and never show it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [viewMode, cellSize, photoImageVersion]
+    [viewMode, cellSize, photoImageVersion, activeTool, highlightedColorIndices]
   );
 
   // --- Image window: live editable canvas for color/bw/photo ---
@@ -318,6 +329,7 @@ export default function Workspace() {
       history.reset(null);
       setActiveColorIndex(null);
       setZoomLevel(1);
+      setHighlightedColorIndices(new Set());
     } catch {
       if (sourceRevisionRef.current !== myRevision) return;
       setGenError("Couldn't read that image. Try a different file (JPEG, PNG, or WebP).");
@@ -413,7 +425,13 @@ export default function Workspace() {
       return;
     }
 
-    if (activeColorIndex === null) return;
+    if (activeTool === "move") {
+      moveRef.current = { pointerId: e.pointerId, basePattern: pattern, startX: e.clientX, startY: e.clientY, lastDx: 0, lastDy: 0 };
+      canvas.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    if (activeTool === "highlight" || activeColorIndex === null) return;
     const cellIndex = cellIndexFromEvent(e, canvas, cellSize, pattern.width, pattern.height);
     if (cellIndex === null) return;
     const painted = paintStitch(pattern, cellIndex, activeColorIndex);
@@ -431,6 +449,17 @@ export default function Workspace() {
       return;
     }
 
+    if (moveRef.current && moveRef.current.pointerId === e.pointerId) {
+      const move = moveRef.current;
+      const dx = Math.round((e.clientX - move.startX) / cellSize);
+      const dy = Math.round((e.clientY - move.startY) / cellSize);
+      if (dx === move.lastDx && dy === move.lastDy) return;
+      move.lastDx = dx;
+      move.lastDy = dy;
+      redrawWith(shiftPattern(move.basePattern, dx, dy));
+      return;
+    }
+
     if (!strokeRef.current || activeColorIndex === null || !pattern) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -444,6 +473,18 @@ export default function Workspace() {
   function handleCanvasPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
     if (panRef.current && panRef.current.pointerId === e.pointerId) {
       panRef.current = null;
+      if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
+        canvasRef.current.releasePointerCapture(e.pointerId);
+      }
+      return;
+    }
+
+    if (moveRef.current && moveRef.current.pointerId === e.pointerId) {
+      const move = moveRef.current;
+      moveRef.current = null;
+      if (move.lastDx !== 0 || move.lastDy !== 0) {
+        history.set(shiftPattern(move.basePattern, move.lastDx, move.lastDy));
+      }
       if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
         canvasRef.current.releasePointerCapture(e.pointerId);
       }
@@ -486,6 +527,11 @@ export default function Workspace() {
       if (sourceIndex === targetIndex) return;
       history.set(mergeColors(pattern, sourceIndex, targetIndex));
       if (activeColorIndex === sourceIndex) setActiveColorIndex(null);
+      // A merge remaps every palette index above the removed source, so any
+      // previously-highlighted indices could now point at the wrong colors
+      // entirely -- clearing outright (rather than trying to remap the set)
+      // is the safe choice here.
+      if (highlightedColorIndices.size > 0) setHighlightedColorIndices(new Set());
     };
   }
 
@@ -554,6 +600,7 @@ export default function Workspace() {
         history.reset(withName);
         setActiveColorIndex(null);
         setZoomLevel(1);
+        setHighlightedColorIndices(new Set());
         cancelPatternJob();
         ++sourceRevisionRef.current;
         if (withName.sourceImage) {
@@ -687,6 +734,8 @@ export default function Workspace() {
               { tool: "brush" as const, label: "Brush", title: "Paint the selected color -- click a color in the Colors dock first" },
               { tool: "pan" as const, label: "Pan", title: "Drag the Image window to scroll it" },
               { tool: "zoom" as const, label: "Zoom", title: "Click to zoom in, Shift-click to zoom out (wheel always zooms too)" },
+              { tool: "move" as const, label: "Move", title: "Drag to reposition the whole design (and its photo underlay) within the canvas" },
+              { tool: "highlight" as const, label: "Highlight", title: "Click colors in the Colors dock to dim everything else" },
             ]
           ).map(({ tool, label, title }) => (
             <button
@@ -996,11 +1045,26 @@ export default function Workspace() {
                   onDragStart={(e) => e.dataTransfer.setData("text/plain", String(color.index))}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleLegendDrop(color.index)}
-                  onClick={() => setActiveColorIndex(activeColorIndex === color.index ? null : color.index)}
+                  onClick={() => {
+                    if (activeTool === "highlight") {
+                      setHighlightedColorIndices((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(color.index)) next.delete(color.index);
+                        else next.add(color.index);
+                        return next;
+                      });
+                    } else {
+                      setActiveColorIndex(activeColorIndex === color.index ? null : color.index);
+                    }
+                  }}
                   className={`flex cursor-pointer items-center gap-2 rounded border px-2 py-1 text-sm transition-colors ${
-                    activeColorIndex === color.index
-                      ? "border-foreground bg-black/[.04] dark:bg-white/[.08]"
-                      : "border-transparent hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+                    activeTool === "highlight"
+                      ? highlightedColorIndices.has(color.index)
+                        ? "border-amber-500 bg-amber-500/10"
+                        : "border-transparent hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+                      : activeColorIndex === color.index
+                        ? "border-foreground bg-black/[.04] dark:bg-white/[.08]"
+                        : "border-transparent hover:bg-black/[.04] dark:hover:bg-white/[.08]"
                   }`}
                 >
                   <button

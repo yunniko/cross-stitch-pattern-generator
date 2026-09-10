@@ -224,11 +224,51 @@ svc-lab).
       "canvas")` usages updated to `page.getByRole("main").locator(
       "canvas")` since the Navigator dock's own canvas made the bare
       selector ambiguous. Clean `tsc`/`eslint`/`npm run build`.
-- [ ] M3 — Move and Highlight tools. Move drags the grid's stitch
-      content (and the photo underlay in lock-step) within the fixed
-      canvas. Highlight supports multi-color selection from the Colors
-      dock and visually distinguishes those stitches in any render
-      mode without mutating the pattern.
+- [x] M3 — Move and Highlight tools. New `lib/pattern-edit.ts`
+      `shiftPattern(pattern, dx, dy)`: a *cyclic* (wrap-around) shift of
+      the stitch grid, not a fill-with-empty one — a deliberate choice
+      over needing an "empty cell" concept that doesn't exist until M5,
+      and wrapping never destroys already-stitched content (a user who
+      doesn't want the wrapped part can crop it away once M4 exists).
+      The photo underlay's `offsetX`/`offsetY` move by the identical
+      amount so it stays locked to the grid. Move tool: drag on the
+      Image window live-previews the shift (same drag-then-commit-on-
+      pointer-up pattern as Brush strokes) and commits as a single undo
+      step; a drag that doesn't cross a full stitch cell commits nothing
+      (no-op, no spurious history entry). Highlight tool: clicking
+      colors in the Colors dock toggles them in/out of a
+      `highlightedColorIndices` set (amber-bordered in the dock, distinct
+      from Brush's own selection styling); `lib/render.ts` gained
+      `drawHighlightOverlay` — dims (60% black) every stitch *not* in
+      the set, drawn on top of whatever `drawCurrentView` already
+      rendered, so it works in Color/B&W/Grid+photo alike without
+      touching the pattern. Deliberately **not** wired into Realistic-
+      preview mode — that mode is already a separate async, non-
+      interactive render pipeline (a canvas turned into a static
+      `<img>`), and reworking it to accept a live overlay wasn't worth
+      it for one secondary tool; a reasoned scope trim, not an
+      oversight. A merge (drag-color-onto-color) now also clears
+      `highlightedColorIndices` outright, since merging remaps every
+      palette index above the removed color and a stale highlighted
+      index could silently point at the wrong color afterward. ✔
+      2026-09-10.
+
+      180 unit tests (+6 for `shiftPattern`: 1D and 2D wrap-around,
+      zero-shift no-op, stitch counts unaffected, photo offset moving
+      with the shift, and an absent `sourceImage` staying absent) green.
+      19 e2e tests (+3, `tests/e2e/move-highlight.spec.ts`: a Move drag
+      committing as one undoable step verified via actual pixel
+      comparison at a fixed canvas coordinate before/after/after-undo, a
+      too-small Move drag correctly committing nothing, and Highlight
+      toggling verified to change canvas pixels while leaving the undo
+      stack and the color's own stitch count untouched). Clean
+      `tsc`/`eslint`/`npm run build`. Verified live in a real browser
+      beyond the automated suite: Highlight against the actual fixture
+      image clearly dimmed every color except the selected one (a real
+      "spotlight" effect, not just a pixel-diff pass); Move visibly
+      wrapped the design's quadrants across the canvas edges exactly as
+      designed, undoing cleanly back to the original layout, zero
+      console errors either way.
 - [ ] M4 — Canvas resize (crop/expand on any edge), undoable, with a
       color-picker prompt for newly-exposed cells on expand and correct
       photo-offset adjustment on both crop and expand so the photo
@@ -247,6 +287,14 @@ svc-lab).
       going live, not just an automated-green deploy).
 
 **Progress log** (newest first):
+- 2026-09-10 — M3 completed and verified: Move (cyclic wrap-around
+  shift, locked to the photo underlay's offset) and Highlight (dims
+  every non-selected color, pure view overlay, no pattern mutation)
+  tools. Highlight deliberately not wired into Realistic-preview mode
+  -- a reasoned scope trim given that mode's separate async render
+  pipeline, not an oversight. Verified live: Highlight clearly spotlit
+  one color against a dimmed rest; Move visibly wrapped the design's
+  quadrants across canvas edges and undid cleanly.
 - 2026-09-10 — M2 completed and verified: Pan/Zoom tools, the
   Navigator dock, and "Grid + photo" mode. Found and fixed a real
   design flaw before calling it done: the first zoom implementation

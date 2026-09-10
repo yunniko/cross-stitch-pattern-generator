@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern } from "@/lib/pattern-edit";
+import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, shiftPattern } from "@/lib/pattern-edit";
 import { MAX_COLORS, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {
@@ -171,5 +171,65 @@ describe("compactUnusedColors", () => {
       [20, 20, 20],
     ]);
     expect(compactUnusedColors(pattern)).toBe(pattern);
+  });
+});
+
+describe("shiftPattern", () => {
+  it("cyclically wraps stitch content by (dx, dy) instead of leaving gaps", () => {
+    // 3x1: [A, B, C] shifted right by 1 -> [C, A, B].
+    const pattern = makePattern(3, 1, [0, 1, 2], [
+      [255, 0, 0],
+      [0, 255, 0],
+      [0, 0, 255],
+    ]);
+    const shifted = shiftPattern(pattern, 1, 0);
+    expect(Array.from(shifted.cellPalette)).toEqual([2, 0, 1]);
+  });
+
+  it("wraps in both axes at once", () => {
+    // 2x2: [[0,1],[2,3]] shifted by (1,1) -> [[3,2],[1,0]].
+    const pattern = makePattern(2, 2, [0, 1, 2, 3], [
+      [10, 10, 10],
+      [20, 20, 20],
+      [30, 30, 30],
+      [40, 40, 40],
+    ]);
+    const shifted = shiftPattern(pattern, 1, 1);
+    expect(Array.from(shifted.cellPalette)).toEqual([3, 2, 1, 0]);
+  });
+
+  it("is a no-op for a zero shift", () => {
+    const pattern = makePattern(2, 1, [0, 1], [
+      [10, 10, 10],
+      [20, 20, 20],
+    ]);
+    expect(shiftPattern(pattern, 0, 0)).toBe(pattern);
+  });
+
+  it("preserves every color's stitch count -- only positions move", () => {
+    const pattern = makePattern(3, 2, [0, 0, 1, 1, 1, 0], [
+      [10, 10, 10],
+      [20, 20, 20],
+    ]);
+    const shifted = shiftPattern(pattern, 2, -1);
+    expect(shifted.palette.map((c) => c.count)).toEqual(pattern.palette.map((c) => c.count));
+  });
+
+  it("moves the source photo's offset by the same amount, keeping it locked to the grid", () => {
+    const base = makePattern(2, 1, [0, 1], [
+      [10, 10, 10],
+      [20, 20, 20],
+    ]);
+    const pattern = { ...base, sourceImage: { dataUrl: "data:image/png;base64,AA", naturalWidth: 20, naturalHeight: 10, cellSizePx: 10, offsetX: 3, offsetY: -2 } };
+    const shifted = shiftPattern(pattern, 1, 4);
+    expect(shifted.sourceImage).toEqual({ ...pattern.sourceImage, offsetX: 4, offsetY: 2 });
+  });
+
+  it("leaves an absent sourceImage absent after a shift", () => {
+    const pattern = makePattern(2, 1, [0, 1], [
+      [10, 10, 10],
+      [20, 20, 20],
+    ]);
+    expect(shiftPattern(pattern, 1, 0).sourceImage).toBeUndefined();
   });
 });
