@@ -11,7 +11,11 @@ svc-lab).
 
 ## Active goals
 
-### G-009 · Export as A4 pages — ACTIVE
+_(none)_
+
+## Completed goals
+
+### G-009 · Export as A4 pages — DONE (2026-09-10)
 - **What:** A second export mode alongside the existing single-PNG
   download: split a large printable chart into multiple print-ready A4
   page images, each covering a rectangular fragment of the pattern at a
@@ -249,11 +253,19 @@ svc-lab).
       manual spot-checks needed beyond that combined coverage.
 
 **Progress log** (newest first):
+- 2026-09-10 — Owner signed off; G-009 moved to Completed. Pushed
+  (`2d88480`) and deployed to `https://cross-stitch.craftodejnice.cz`
+  per `COMPANY/INFRASTRUCTURE_DEPLOY.md`'s standard redeploy recipe.
+  Verified beyond a ping: `docker ps` before/after showed only this
+  project's own container restarting, every other site's uptime
+  unchanged; a real browser run against the live HTTPS URL generated a
+  pattern, confirmed the "1 × 1 pages — 2 pages total (incl. legend)"
+  preview rendered correctly, clicked "Export ZIP," downloaded the
+  actual ZIP, unzipped and confirmed its contents — zero console
+  errors throughout.
 - 2026-09-10 — M6 completed: all 11 of the Owner's own test-matrix
   cases confirmed already covered by M1's unit tests; 2 new permanent
-  e2e tests added for the export flow itself. All 6 milestones now
-  done — feature not yet pushed/deployed, awaiting Owner confirmation
-  per this project's standard milestone check-in gate.
+  e2e tests added for the export flow itself. All 6 milestones done.
 - 2026-09-10 — M5 completed: built the pre-download summary + layout
   preview (verified live), deliberately skipped the per-page mini-map
   with reasoning logged in HANDOVER.md.
@@ -275,8 +287,6 @@ svc-lab).
   to Color/B&W modes in both the main results screen and the editor
   (not the realistic preview); one dedicated legend page is included in
   the export set. Milestones planned.
-
-## Completed goals
 
 ### G-008 · Editor brush tool, legend sort, and rename — DONE (2026-09-10)
 - **What:** Three editor refinements on top of G-007: (1) painting by

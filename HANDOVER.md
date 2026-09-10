@@ -1541,9 +1541,14 @@ coordinate continuity across pages, overlap tint/label placement on
 both sides of a shared boundary, legend page contents, exact print
 resolution with no upscaling).
 
-Not yet pushed or deployed — this project's standard milestone
-check-in gate applies; awaiting explicit Owner confirmation before
-shipping, same as every prior goal here.
+Pushed (`2d88480`) and deployed the same session (Owner: "push and
+deploy now") using `COMPANY/INFRASTRUCTURE_DEPLOY.md`'s standard
+redeploy recipe. Verified beyond a ping: `docker ps` before/after
+showed only this project's own container restarting, every other
+site's uptime unchanged; a real browser run against the live HTTPS URL
+generated a pattern, confirmed the pre-download layout preview, then
+downloaded and unzipped the actual ZIP from production — zero console
+errors.
 
 ## Owner action list
 
