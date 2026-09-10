@@ -1478,6 +1478,73 @@ the live HTTPS URL confirmed generation, the editor, the sorted legend,
 and the updated instructional hint text all render correctly with zero
 console errors.
 
+**D24 — G-009 (Export as A4 pages) built and verified across all 6
+milestones (2026-09-10).** Full acceptance criteria and milestone
+breakdown in GOALS.md's G-009. This entry summarizes the architecture
+and the two design corrections/scope calls made along the way, rather
+than repeating the milestone-by-milestone detail already logged there.
+
+*Architecture*: three new modules, cleanly separated per the Owner's
+own requirement 13 (splitting logic isolated from rendering/UI).
+`lib/a4-layout.ts` — pure `calculateA4Layout`, no canvas or DOM, fully
+unit-tested (19 tests, including every case from the Owner's own
+enumerated test matrix). `lib/a4-render.ts` — `renderA4GridPage` (reuses
+`lib/render.ts`'s `drawChart`, now region-aware, for every cell/symbol/
+color pixel) plus `renderA4LegendPage` (a fresh, print-scaled legend
+renderer — the existing on-screen legend's pixel constants aren't
+legible at 300 DPI, so this isn't the same code, just the same visual
+idea). `lib/a4-export.ts` — orchestrates rendering pages one at a time
+and bundling into a ZIP via `jszip` (already used elsewhere in the
+portfolio: `epub-metadata-fixer`, `image-object-splitter`).
+
+*Two real design corrections found and fixed during the build, not
+after*: (1) M1's initial page-capacity math assumed the whole printable
+area (page minus margin) goes to cells, but M2's caption and
+coordinate-number gutters also needed space inside that same margin
+box — fixed by adding `CAPTION_HEIGHT_MM`/`NUMBER_GUTTER_MM`
+reservations to `calculateA4Layout` before M2 was built on top of it,
+plus new `gridOriginXPx`/`gridOriginYPx` fields so the renderer never
+recomputes that offset independently. (2) a `dpi` option was being
+applied to margin/cell-size conversion but never forwarded into the A4
+page's own pixel dimensions — caught by a unit test using a synthetic
+DPI to get clean round numbers, which came back not matching hand
+calculations.
+
+*One deliberate scope trim, logged rather than silently dropped*: the
+Owner's spec explicitly marked the per-page mini-map (requirement 8)
+and the pre-download preview (requirement 14) as optional
+("desirable"/"if architecture allows"). Built 14 (a live-updating page-
+count summary + tiny layout-grid icon before export, in both `app/
+page.tsx` and the editor). Did not build 8 — it would need to occupy
+the same top-right header space the coordinate numbers from M2 already
+use, and reworking that shared layout risked the now-verified page
+rendering for a feature the Owner's own spec didn't require. Same
+treatment G-001's skipped debug-visualization UI got in D10.
+
+*Two scope questions resolved via `AskUserQuestion` before building
+anything* (recorded in GOALS.md's G-009 progress log): the export
+applies to Color/B&W modes only (not the "realistic preview," which
+has no grid/symbols to paginate), in both the main results screen and
+the editor; one dedicated legend page is included in the export set
+rather than omitted or repeated on every page.
+
+*Verification*: 139 unit tests (19 new for `calculateA4Layout`, 6 for
+`overlapSidesForPage`) + 7 e2e tests (2 new, exercising the actual
+download-and-unzip flow via `jszip` inside the test, not just checking
+a download fired) — all green, clean lint/tsc/build. Real-browser
+verification at every milestone, not deferred to the end: a temporary
+scratch route (deleted before each commit — `git status` confirmed
+clean each time) for M2/M3's synthetic-pattern checks, then the actual
+running app with the real fixture image for M4/M5 — unzipping and
+visually inspecting the resulting PNGs each time (page captions, global
+coordinate continuity across pages, overlap tint/label placement on
+both sides of a shared boundary, legend page contents, exact print
+resolution with no upscaling).
+
+Not yet pushed or deployed — this project's standard milestone
+check-in gate applies; awaiting explicit Owner confirmation before
+shipping, same as every prior goal here.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

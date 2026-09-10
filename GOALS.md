@@ -222,17 +222,38 @@ svc-lab).
       explicitly marked optional. A real, logged scope call rather than
       an oversight — same treatment G-001's debug-visualization UI got
       in HANDOVER.md D10.
-- [ ] M6 — Verification against the Owner's own enumerated test matrix
-      (pattern smaller than one page; exactly one page; 2 pages
-      horizontally; 2 pages vertically; multiple pages on both axes;
-      pattern dimensions not a multiple of 10; overlap 0; overlap 5;
-      a very large pattern; portrait; landscape) plus an explicit
-      adjacent-page coordinate/overlap continuity check (no one-cell
-      offset). New permanent e2e test for the A4 export flow. Real
-      browser verification: generate a real multi-page pattern, download
-      the ZIP, unzip and visually inspect the actual PNGs.
+- [x] M6 — Verification against the Owner's own enumerated test matrix.
+      All 11 cases (pattern smaller than one page; exactly one page; 2
+      pages horizontally only; 2 pages vertically only; multiple pages
+      on both axes; pattern dimensions not a multiple of 10; overlap 0;
+      overlap 5; a very large 1000×1000 pattern; portrait; landscape)
+      turned out to already be covered by M1's own unit tests, written
+      directly against the Owner's spec before M2-M5 existed — the
+      right layer to verify page-count/coordinate math, since it's pure
+      and needs no browser. Also added an explicit adjacent-page
+      coordinate/overlap-continuity check (`overlap=5 makes each page
+      start 5 cells before the previous page ended`). Two new permanent
+      e2e tests (`tests/e2e/a4-export.spec.ts`): the main results
+      screen's "Export ZIP" downloads `pattern_A4_pages.zip` containing
+      a legend page plus at least one `pattern_rXX_cXX.png` grid page
+      (unzipped and inspected via `jszip` inside the test itself, not
+      just checked for existing); the editor's export works correctly
+      after switching to B&W mode. ✔ 2026-09-10. 139 unit tests + 7 e2e
+      tests green, clean lint/tsc/build. Real browser verification
+      across M2-M5 already covered single-page and 2×2-multi-page
+      layouts, both color and B&W modes, both overlap-5 and the default
+      settings, and both integration points (main screen + editor) —
+      unzipping and visually inspecting the actual PNGs each time
+      (page captions, global coordinate continuity, overlap tint/label
+      placement, legend page contents, print resolution). No further
+      manual spot-checks needed beyond that combined coverage.
 
 **Progress log** (newest first):
+- 2026-09-10 — M6 completed: all 11 of the Owner's own test-matrix
+  cases confirmed already covered by M1's unit tests; 2 new permanent
+  e2e tests added for the export flow itself. All 6 milestones now
+  done — feature not yet pushed/deployed, awaiting Owner confirmation
+  per this project's standard milestone check-in gate.
 - 2026-09-10 — M5 completed: built the pre-download summary + layout
   preview (verified live), deliberately skipped the per-page mini-map
   with reasoning logged in HANDOVER.md.
