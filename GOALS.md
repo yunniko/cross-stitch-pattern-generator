@@ -11,7 +11,11 @@ svc-lab).
 
 ## Active goals
 
-### G-017 · DMC-only color editor + Full range/DMC switcher — ACTIVE
+_No goals currently active._
+
+## Completed goals
+
+### G-017 · DMC-only color editor + Full range/DMC switcher — DONE (2026-09-11)
 - **What:** Editing an existing palette color in a `dmcMode` pattern is
   restricted to real DMC swatches (matching G-016's "+ Add"). A
   free-form pattern's color editor gains a "Full range | DMC" switcher
@@ -33,18 +37,26 @@ svc-lab).
       unit tested.
 - [x] M2 — UI: DMC-only editor for `dmcMode` patterns, Full range/DMC
       switcher for free-form patterns; live-browser verified both paths.
-- [ ] M3 — Full regression suite, commit, and (pending Owner go-ahead)
-      production deploy.
+- [x] M3 — Full regression suite, commit, and production deploy.
 
 **Progress log** (newest first):
+- 2026-09-11 — M3 complete, goal DONE. Deployed (Owner: "deploy,
+  please") following the standard recipe: `git push`, then on the VPS
+  `git fetch origin`/`git pull`/`docker compose --profile app up -d
+  --build`. `docker ps` before/after confirmed only this project's
+  container restarted (`Up 20 seconds` after vs. `Up 40 minutes`
+  before); 4 other sites on the shared host spot-checked at 200.
+  Live-verified against production: generated a Latest-mode pattern and
+  confirmed the color editor's "Full range | DMC" switcher appears,
+  zero console errors. (The DMC-mode-forced editor path was already
+  covered live against the dev server in the same session, per the
+  entry below.)
 - 2026-09-10 — M1-M2 complete. Full detail in HANDOVER.md D36. Verified:
   255 unit tests, clean `tsc`/`eslint`/`npm run build`, live dev-server
   check of both the DMC-mode-forced editor and the free-form switcher
   (searched, picked DMC 304, confirmed only the target color renamed and
   `dmcMode` stayed unset), zero console errors. Not yet committed, not
   deployed. Continuing to M3 next.
-
-## Completed goals
 
 ### G-016 · A4 extended legend page + persisted DMC mode — DONE (2026-09-11)
 - **What:** A4 export gains a second, more detailed legend page set

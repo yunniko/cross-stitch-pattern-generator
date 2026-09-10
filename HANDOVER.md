@@ -2305,6 +2305,16 @@ For non-dmc colors should be switcher - full range or DMC."
   messaging "+ Add" already uses. Zero console errors. Not yet
   committed, not deployed.
 
+**G-017 deployed (2026-09-11).** Owner: "deploy, please." Same recipe as
+D35: `git push`, then on the VPS `git fetch origin`/`git pull`/
+`docker compose --profile app up -d --build`. `docker ps` before/after
+confirmed only `cross-stitch-pattern-generator-app-1` restarted (`Up 20
+seconds` after vs. `Up 40 minutes` before); `meet.app.julienika.cz`,
+`craftale.eu`, and `arfid.julienika.cz` spot-checked at 200. Live-
+verified against production: generated a Latest-mode pattern and
+confirmed the color editor's "Full range | DMC" switcher renders, zero
+console errors. Goal DONE — see GOALS.md's G-017 entry.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
