@@ -1,7 +1,7 @@
 import { nameNewColor } from "./color-names";
 import { labelRegions } from "./regions";
 import { SYMBOL_SET } from "./symbols";
-import { MAX_COLORS, type PaletteColor, type RGB, type StitchPattern } from "./types";
+import { MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "./types";
 
 function recomputeCounts(cellPalette: Uint8Array, paletteLength: number): number[] {
   const counts = new Array(paletteLength).fill(0);
@@ -103,6 +103,74 @@ export function shiftPattern(pattern: StitchPattern, dx: number, dy: number): St
     ...pattern,
     cellPalette: shifted,
     sourceImage: sourceImage ? { ...sourceImage, offsetX: sourceImage.offsetX + dx, offsetY: sourceImage.offsetY + dy } : undefined,
+  };
+}
+
+/** Signed per-edge cell counts for `resizeCanvas` -- positive expands that edge, negative crops it, 0 leaves it alone. */
+export interface CanvasResizeDelta {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+/**
+ * Canvas resize (G-012 M4): crops and/or expands any combination of edges
+ * in one operation, since a crop on one side and an expand on another
+ * (e.g. squaring up a portrait photo) is a completely ordinary thing to
+ * want in one step. Expansion fills newly-exposed cells with `fillRgb`
+ * (Owner decision, 2026-09-10: a real color the user picks, not the
+ * empty/no-stitch pseudo-color) -- reusing an existing palette entry with
+ * that exact RGB if one exists, otherwise adding a new one via the same
+ * `addColor` path the Colors dock's own "+ Add" button uses (so it's
+ * capped at `MAX_COLORS` the same way). The photo underlay's stored
+ * offset shifts by exactly the left/top deltas so it stays visually
+ * anchored in place rather than jumping when the canvas's own origin
+ * moves (only left/top affect the origin -- expanding/cropping the
+ * right or bottom edge never does).
+ */
+export function resizeCanvas(pattern: StitchPattern, delta: CanvasResizeDelta, fillRgb: RGB): StitchPattern {
+  const { left, right, top, bottom } = delta;
+  const newWidth = pattern.width + left + right;
+  const newHeight = pattern.height + top + bottom;
+  if (newWidth < 1 || newHeight < 1) {
+    throw new Error("Can't crop away the entire pattern.");
+  }
+  if (newWidth > MAX_STITCHES || newHeight > MAX_STITCHES) {
+    throw new Error(`The resized pattern (${newWidth}×${newHeight}) would exceed the maximum supported size of ${MAX_STITCHES} stitches per side.`);
+  }
+
+  const isExpanding = left > 0 || right > 0 || top > 0 || bottom > 0;
+  let withFillColor = pattern;
+  let fillIndex = -1;
+  if (isExpanding) {
+    fillIndex = pattern.palette.findIndex((c) => c.rgb[0] === fillRgb[0] && c.rgb[1] === fillRgb[1] && c.rgb[2] === fillRgb[2]);
+    if (fillIndex === -1) {
+      withFillColor = addColor(pattern, fillRgb); // throws at MAX_COLORS, same cap as "+ Add"
+      fillIndex = withFillColor.palette.length - 1;
+    }
+  }
+
+  const cellPalette = new Uint8Array(newWidth * newHeight);
+  for (let ny = 0; ny < newHeight; ny++) {
+    const oy = ny - top;
+    const inRowBounds = oy >= 0 && oy < pattern.height;
+    for (let nx = 0; nx < newWidth; nx++) {
+      const ox = nx - left;
+      cellPalette[ny * newWidth + nx] =
+        inRowBounds && ox >= 0 && ox < pattern.width ? pattern.cellPalette[oy * pattern.width + ox] : fillIndex;
+    }
+  }
+
+  const resized = withCounts(withFillColor, cellPalette, withFillColor.palette);
+  return {
+    ...resized,
+    width: newWidth,
+    height: newHeight,
+    isLandscape: newWidth >= newHeight,
+    sourceImage: pattern.sourceImage
+      ? { ...pattern.sourceImage, offsetX: pattern.sourceImage.offsetX + left, offsetY: pattern.sourceImage.offsetY + top }
+      : undefined,
   };
 }
 

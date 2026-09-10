@@ -5,7 +5,7 @@ import { HexColorPicker } from "react-colorful";
 import { hexToRgb, rgbToHex } from "@/lib/color";
 import { decodeSourceImage, loadImageAsPixelBuffer } from "@/lib/load-image";
 import { cancelPatternJob, runPatternJob } from "@/lib/pattern-client";
-import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, shiftPattern } from "@/lib/pattern-edit";
+import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, shiftPattern } from "@/lib/pattern-edit";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
 import {
   downloadCanvasAsPng,
@@ -158,6 +158,12 @@ export default function Workspace() {
   const [isExportingA4, setIsExportingA4] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const openEditableInputRef = useRef<HTMLInputElement>(null);
+
+  // --- Canvas resize (M4): crop/expand any edge in one panel ---
+  const [showResizePanel, setShowResizePanel] = useState(false);
+  const [resizeDelta, setResizeDelta] = useState({ left: 0, right: 0, top: 0, bottom: 0 });
+  const [resizeFillHex, setResizeFillHex] = useState("#ffffff");
+  const [resizeError, setResizeError] = useState<string | null>(null);
 
   const a4LayoutPreview = useMemo(
     () => (pattern ? calculateA4Layout(pattern.width, pattern.height, { overlapCells: a4Overlap }) : null),
@@ -330,6 +336,7 @@ export default function Workspace() {
       setActiveColorIndex(null);
       setZoomLevel(1);
       setHighlightedColorIndices(new Set());
+      setShowResizePanel(false);
     } catch {
       if (sourceRevisionRef.current !== myRevision) return;
       setGenError("Couldn't read that image. Try a different file (JPEG, PNG, or WebP).");
@@ -601,6 +608,7 @@ export default function Workspace() {
         setActiveColorIndex(null);
         setZoomLevel(1);
         setHighlightedColorIndices(new Set());
+        setShowResizePanel(false);
         cancelPatternJob();
         ++sourceRevisionRef.current;
         if (withName.sourceImage) {
@@ -664,6 +672,23 @@ export default function Workspace() {
     }, 0);
   }
 
+  function openResizePanel() {
+    setResizeDelta({ left: 0, right: 0, top: 0, bottom: 0 });
+    setResizeFillHex("#ffffff");
+    setResizeError(null);
+    setShowResizePanel(true);
+  }
+
+  function handleApplyResize() {
+    if (!pattern) return;
+    try {
+      history.set(resizeCanvas(pattern, resizeDelta, hexToRgb(resizeFillHex)));
+      setShowResizePanel(false);
+    } catch (err) {
+      setResizeError(err instanceof Error ? err.message : "Couldn't resize the canvas.");
+    }
+  }
+
   const hasSourcePhoto = pixelBuffer !== null || sourceImageMeta !== null;
 
   return (
@@ -715,6 +740,14 @@ export default function Workspace() {
           <input ref={openEditableInputRef} type="file" accept="application/json" onChange={handleOpenFile} className="hidden" />
           <button
             type="button"
+            onClick={openResizePanel}
+            disabled={!pattern}
+            className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
+          >
+            Resize canvas…
+          </button>
+          <button
+            type="button"
             onClick={handleDownloadEditable}
             disabled={!pattern}
             className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
@@ -724,6 +757,60 @@ export default function Workspace() {
         </div>
       </header>
       {openError && <p className="border-b border-red-300 bg-red-50 px-4 py-1 text-xs text-red-600 dark:border-red-800 dark:bg-red-950 dark:text-red-400">{openError}</p>}
+
+      {showResizePanel && pattern && (
+        <div className="flex flex-wrap items-center gap-4 border-b border-zinc-300 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+          <span className="text-sm font-medium">Resize canvas</span>
+          {(
+            [
+              { key: "top" as const, label: "Top" },
+              { key: "bottom" as const, label: "Bottom" },
+              { key: "left" as const, label: "Left" },
+              { key: "right" as const, label: "Right" },
+            ]
+          ).map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-1.5 text-sm">
+              {label}
+              <input
+                type="number"
+                value={resizeDelta[key]}
+                onChange={(e) => setResizeDelta((prev) => ({ ...prev, [key]: Number(e.target.value) || 0 }))}
+                className="w-16 rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              />
+            </label>
+          ))}
+          <span className="text-xs text-zinc-500">(positive expands, negative crops)</span>
+          {(resizeDelta.left > 0 || resizeDelta.right > 0 || resizeDelta.top > 0 || resizeDelta.bottom > 0) && (
+            <label className="flex items-center gap-1.5 text-sm">
+              Fill color
+              <input
+                type="color"
+                value={resizeFillHex}
+                onChange={(e) => setResizeFillHex(e.target.value)}
+                className="h-6 w-8 rounded border border-zinc-300 dark:border-zinc-700"
+              />
+            </label>
+          )}
+          <span className="text-xs text-zinc-500">
+            → {pattern.width + resizeDelta.left + resizeDelta.right} × {pattern.height + resizeDelta.top + resizeDelta.bottom} stitches
+          </span>
+          <button
+            type="button"
+            onClick={handleApplyResize}
+            className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background"
+          >
+            Apply
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowResizePanel(false)}
+            className="rounded-full border border-zinc-300 px-4 py-1.5 text-sm font-medium dark:border-zinc-700"
+          >
+            Cancel
+          </button>
+          {resizeError && <p className="w-full text-sm text-red-600 dark:text-red-400">{resizeError}</p>}
+        </div>
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Tools dock (left) */}

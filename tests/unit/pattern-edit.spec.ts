@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, shiftPattern } from "@/lib/pattern-edit";
-import { MAX_COLORS, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
+import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, shiftPattern } from "@/lib/pattern-edit";
+import { MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {
   const counts = new Array(colors.length).fill(0);
@@ -231,5 +231,98 @@ describe("shiftPattern", () => {
       [20, 20, 20],
     ]);
     expect(shiftPattern(pattern, 1, 0).sourceImage).toBeUndefined();
+  });
+});
+
+describe("resizeCanvas", () => {
+  it("crops an edge, dropping the cells on that side and shrinking the grid", () => {
+    // 3x1: [A, B, C] cropped by 1 on the left -> 2x1: [B, C].
+    const pattern = makePattern(3, 1, [0, 1, 2], [
+      [255, 0, 0],
+      [0, 255, 0],
+      [0, 0, 255],
+    ]);
+    const resized = resizeCanvas(pattern, { left: -1, right: 0, top: 0, bottom: 0 }, [0, 0, 0]);
+    expect(resized.width).toBe(2);
+    expect(resized.height).toBe(1);
+    expect(Array.from(resized.cellPalette)).toEqual([1, 2]);
+  });
+
+  it("expands an edge, filling new cells with the given color (reusing an existing palette entry if it matches)", () => {
+    const pattern = makePattern(2, 1, [0, 1], [
+      [255, 0, 0],
+      [0, 255, 0],
+    ]);
+    const resized = resizeCanvas(pattern, { left: 1, right: 0, top: 0, bottom: 0 }, [255, 0, 0]);
+    expect(resized.width).toBe(3);
+    // New cell reuses color 0 (exact RGB match) rather than adding a duplicate.
+    expect(resized.palette).toHaveLength(2);
+    expect(Array.from(resized.cellPalette)).toEqual([0, 0, 1]);
+  });
+
+  it("adds a brand-new palette color when the fill doesn't match any existing one", () => {
+    const pattern = makePattern(2, 1, [0, 1], [
+      [255, 0, 0],
+      [0, 255, 0],
+    ]);
+    const resized = resizeCanvas(pattern, { left: 0, right: 1, top: 0, bottom: 0 }, [10, 20, 30]);
+    expect(resized.palette).toHaveLength(3);
+    expect(resized.palette[2].rgb).toEqual([10, 20, 30]);
+    expect(Array.from(resized.cellPalette)).toEqual([0, 1, 2]);
+  });
+
+  it("expands on multiple edges and crops another in the same call", () => {
+    // 2x2 -> expand 1 on the right, crop 1 off the top -> 3x1, keeping only the original bottom row plus a new column.
+    const pattern = makePattern(2, 2, [0, 1, 2, 3], [
+      [1, 1, 1],
+      [2, 2, 2],
+      [3, 3, 3],
+      [4, 4, 4],
+    ]);
+    const resized = resizeCanvas(pattern, { left: 0, right: 1, top: -1, bottom: 0 }, [9, 9, 9]);
+    expect(resized.width).toBe(3);
+    expect(resized.height).toBe(1);
+    expect(Array.from(resized.cellPalette)).toEqual([2, 3, 4]); // old row 1 ([2,3]) plus the new fill color (index 4)
+  });
+
+  it("moves the photo underlay's offset by the left/top deltas only", () => {
+    const base = makePattern(2, 2, [0, 1, 1, 0], [
+      [1, 1, 1],
+      [2, 2, 2],
+    ]);
+    const pattern = { ...base, sourceImage: { dataUrl: "data:image/png;base64,AA", naturalWidth: 20, naturalHeight: 20, cellSizePx: 10, offsetX: 0, offsetY: 0 } };
+    const resized = resizeCanvas(pattern, { left: 2, right: 3, top: -1, bottom: 4 }, [5, 5, 5]);
+    expect(resized.sourceImage?.offsetX).toBe(2);
+    expect(resized.sourceImage?.offsetY).toBe(-1);
+  });
+
+  it("rejects cropping away the entire pattern", () => {
+    const pattern = makePattern(2, 1, [0, 1], [
+      [1, 1, 1],
+      [2, 2, 2],
+    ]);
+    expect(() => resizeCanvas(pattern, { left: -2, right: 0, top: 0, bottom: 0 }, [0, 0, 0])).toThrow(/entire pattern/);
+  });
+
+  it("rejects a resize that would exceed MAX_STITCHES", () => {
+    const pattern = makePattern(1, 1, [0], [[1, 1, 1]]);
+    expect(() => resizeCanvas(pattern, { left: 0, right: MAX_STITCHES, top: 0, bottom: 0 }, [0, 0, 0])).toThrow(/exceed the maximum/);
+  });
+
+  it("rejects expanding past MAX_COLORS when the fill color is new", () => {
+    const colors: RGB[] = Array.from({ length: MAX_COLORS }, (_, i) => [i, i, i]);
+    const pattern = makePattern(MAX_COLORS, 1, colors.map((_, i) => i), colors);
+    expect(() => resizeCanvas(pattern, { left: 0, right: 1, top: 0, bottom: 0 }, [250, 250, 250])).toThrow(/maximum/);
+  });
+
+  it("recomputes stitch counts after a crop -- a color entirely cropped away drops to zero, not removed from the palette", () => {
+    const pattern = makePattern(2, 1, [0, 1], [
+      [1, 1, 1],
+      [2, 2, 2],
+    ]);
+    const resized = resizeCanvas(pattern, { left: -1, right: 0, top: 0, bottom: 0 }, [0, 0, 0]);
+    expect(resized.palette).toHaveLength(2); // color 0 stays in the palette
+    expect(resized.palette[0].count).toBe(0);
+    expect(resized.palette[1].count).toBe(1);
   });
 });

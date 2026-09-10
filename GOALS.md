@@ -269,10 +269,51 @@ svc-lab).
       wrapped the design's quadrants across the canvas edges exactly as
       designed, undoing cleanly back to the original layout, zero
       console errors either way.
-- [ ] M4 — Canvas resize (crop/expand on any edge), undoable, with a
-      color-picker prompt for newly-exposed cells on expand and correct
-      photo-offset adjustment on both crop and expand so the photo
-      underlay doesn't visually jump.
+- [x] M4 — Canvas resize (crop/expand on any edge), undoable. New
+      `lib/pattern-edit.ts` `resizeCanvas(pattern, {left,right,top,
+      bottom}, fillRgb)`: one function handles crop and expand on any
+      combination of edges at once (a signed per-edge delta — negative
+      crops, positive expands — since squaring up a portrait photo by
+      cropping one side while expanding another is an entirely ordinary
+      single operation, not two separate ones). Expansion fills new
+      cells with `fillRgb`, reusing an existing palette entry with that
+      exact RGB if one exists, otherwise adding a new one through the
+      same `addColor` path (and its `MAX_COLORS` cap) the Colors dock's
+      own "+ Add" button already uses. The photo underlay's stored
+      offset shifts by exactly the left/top deltas (right/bottom never
+      affect the grid's own origin) so it stays visually anchored rather
+      than jumping. New top-bar "Resize canvas…" button opens an inline
+      panel: four signed number inputs (Top/Bottom/Left/Right), a live
+      "→ W × H stitches" preview, a native color-picker fill swatch
+      shown only when at least one edge is actually expanding, Apply
+      (wrapped in try/catch surfacing `resizeCanvas`'s own validation
+      errors — over-cropping to zero/negative size, or exceeding
+      `MAX_STITCHES`/`MAX_COLORS` — as a visible message instead of a
+      crash) and Cancel. Applying is a single `history.set`, so it
+      undoes/redoes like any other edit. ✔ 2026-09-10.
+
+      189 unit tests (+9 for `resizeCanvas`: plain crop, plain expand
+      reusing an existing color, expand adding a genuinely new color,
+      combined expand-one-edge-crop-another in one call, photo offset
+      moving by left/top only, rejecting an over-crop, rejecting past
+      `MAX_STITCHES`, rejecting past `MAX_COLORS`, and counts correctly
+      recomputing — including a color entirely cropped away dropping to
+      zero rather than vanishing from the palette) green. 22 e2e tests
+      (+3, `tests/e2e/resize-canvas.spec.ts`: expand adds a color and
+      undoes in one step, crop needs no fill color at all — the swatch
+      only appears once an edge is actually expanding, and over-cropping
+      shows the validation error instead of crashing with zero
+      `pageerror` events). Clean `tsc`/`eslint`/`npm run build`.
+      Verified live in a real browser beyond the automated suite: in
+      "Grid + photo" mode, expanding the left edge by 20 stitches with a
+      yellow fill correctly added a new "Yellow, 1260 sts" legend entry
+      (exactly 20×63), widened the canvas to 120×63, and — the specific
+      thing this milestone exists to get right — the original photo
+      stayed perfectly aligned with its own grid content, visibly
+      shifted right by exactly the 20-stitch expansion with zero
+      distortion or jump — the specific "doesn't visually jump"
+      acceptance criterion this milestone was written against, not just
+      a passing pixel-diff test.
 - [ ] M5 — Empty-stitch ("no stitch") pseudo-color: paintable via the
       Brush/fill-cluster tools like any real color, but a reserved
       sentinel value excluded from the legend, stitch counts, and every
@@ -287,6 +328,12 @@ svc-lab).
       going live, not just an automated-green deploy).
 
 **Progress log** (newest first):
+- 2026-09-10 — M4 completed and verified: canvas resize (crop and/or
+  expand any edge in one operation), reusing the existing "+ Add color"
+  path for a new expand-fill color and its MAX_COLORS cap. Verified
+  live in Grid + photo mode that the photo underlay stays correctly
+  anchored (shifts with the grid, doesn't jump) after expanding an
+  edge -- the specific thing this milestone exists to get right.
 - 2026-09-10 — M3 completed and verified: Move (cyclic wrap-around
   shift, locked to the photo underlay's offset) and Highlight (dims
   every non-selected color, pure view overlay, no pattern mutation)
