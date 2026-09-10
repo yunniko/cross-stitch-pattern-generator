@@ -2411,6 +2411,19 @@ data model.
   sample at a corner offset (e.g. `(cx + 0.15, cy + 0.15)` in cell
   units) instead.
 
+**G-018 deployed (2026-09-11).** Owner: "deploy, please." Same recipe as
+D35/D36: `git push`, then on the VPS `git fetch origin`/`git pull`/
+`docker compose --profile app up -d --build`. `docker ps` before/after
+confirmed only `cross-stitch-pattern-generator-app-1` restarted (`Up 12
+seconds` after vs. `Up 47 minutes` before); `meet.app.julienika.cz`,
+`craftale.eu`, and `arfid.julienika.cz` spot-checked at 200. Live-
+verified against production using the same `getImageData` pixel-check
+methodology as the dev-server verification (not just a visual glance):
+dragged a selection in a 4-quadrant test pattern, moved it, deselected,
+and confirmed the origin read back as `EMPTY_CELL` and the destination
+read back as the moved color. Zero console errors. Goal DONE — see
+GOALS.md's G-018 entry.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

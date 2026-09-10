@@ -11,7 +11,11 @@ svc-lab).
 
 ## Active goals
 
-### G-018 · Rectangle Select tool + diagonal-connectivity Fill tool — ACTIVE
+_No goals currently active._
+
+## Completed goals
+
+### G-018 · Rectangle Select tool + diagonal-connectivity Fill tool — DONE (2026-09-11)
 - **What:** A Rectangle Select tool in the Tools dock: drag to select a
   region, then Copy/Paste/Move/Flip horizontal/Flip vertical it before it
   merges permanently into the pattern on deselect. A separate Fill tool
@@ -42,10 +46,22 @@ svc-lab).
       tool switch; live-browser verified (drag/move/copy/paste/flip via
       direct canvas pixel sampling, diagonal fill via a checkerboard
       test, undo integrity).
-- [ ] M3 — Full regression suite, commit, and (pending Owner go-ahead)
-      production deploy.
+- [x] M3 — Full regression suite, commit, and production deploy.
 
 **Progress log** (newest first):
+- 2026-09-11 — M3 complete, goal DONE. Deployed (Owner: "deploy,
+  please") following the standard recipe: `git push`, then on the VPS
+  `git fetch origin`/`git pull`/`docker compose --profile app up -d
+  --build`. `docker ps` before/after confirmed only this project's
+  container restarted (`Up 12 seconds` after vs. `Up 47 minutes`
+  before); `meet.app.julienika.cz`, `craftale.eu`, and
+  `arfid.julienika.cz` spot-checked at 200. Live-verified against
+  production with a real `getImageData` pixel check (not just a visual
+  glance): dragged a selection in a 4-quadrant test pattern, moved it,
+  deselected, and confirmed the origin read as `EMPTY_CELL` (white) and
+  the destination read as the moved color -- the same check already run
+  against the dev server, now repeated against the live site. Zero
+  console errors.
 - 2026-09-10 — M1-M2 complete. Full detail in HANDOVER.md D37. Verified:
   274 unit tests, clean `tsc`/`eslint`/`npm run build`, thorough live
   dev-server verification (select/move/copy/paste/flip-vertical all
@@ -53,8 +69,6 @@ svc-lab).
   screenshots -- plus a diagonal-adjacency checkerboard test for the
   Fill tool and an Undo-integrity check), zero console errors. Not yet
   committed, not deployed. Continuing to M3 next.
-
-## Completed goals
 
 ### G-017 · DMC-only color editor + Full range/DMC switcher — DONE (2026-09-11)
 - **What:** Editing an existing palette color in a `dmcMode` pattern is
