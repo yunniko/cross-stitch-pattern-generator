@@ -75,13 +75,40 @@ svc-lab).
   used for a similarly core-algorithm change.
 
 **Milestones**:
-- [ ] M1 — Findings 1 + 9 (source/job ownership, P1): a source revision
-      counter in `app/page.tsx` gates every state update from an image
-      decode or a generation result to the selection that started it;
-      the file input is disabled while an image is decoding or a
-      pattern is generating; `lib/pattern-client.ts`'s
-      `cancelPatternJob` actually rejects the superseded job's pending
-      promise instead of leaving it hanging.
+- [x] M1 — Findings 1 + 9 (source/job ownership, P1). `lib/pattern-
+      client.ts`'s `cancelPatternJob` now rejects the superseded job's
+      pending promise (`PatternJobCancelledError`) instead of leaving
+      it hanging on a terminated worker that will never post another
+      message. `app/page.tsx`: a `sourceRevisionRef` counter, bumped on
+      every new file selection, gates every async continuation (image
+      decode, generation result) to the selection that started it;
+      selecting a new file now actively cancels any in-flight
+      generation (rather than letting it complete and silently
+      misattribute its result); a failed image read no longer wipes an
+      existing valid pattern (only replaces state once the *new* image
+      is confirmed valid); the file input and "Generate pattern" button
+      are disabled while an image is decoding or a pattern is
+      generating, so the UI itself can't trigger the race, not just the
+      state logic underneath it. ✔ 2026-09-10.
+      5 new unit tests (`tests/unit/pattern-client.spec.ts`, a mocked
+      Worker) directly verifying the promise-rejection fix, including
+      that a stale worker message delivered *after* cancellation is
+      correctly ignored. 1 new e2e test confirming the file input is
+      disabled throughout generation. Real-browser stress test (a
+      throwaway script, deleted after): force-swapped the selected
+      image mid-generation via `setInputFiles` (which bypasses the
+      `disabled` attribute, unlike a simulated click — testing the
+      underlying state logic, not just the UI guard) while generating a
+      Large/150-stitch landscape pattern, immediately swapping to an
+      80×160 portrait fixture. Confirmed: the stale job was silently
+      cancelled (no scary error shown to the user, since a different
+      image being selected is an intentional supersession, not a
+      failure); the UI correctly required an explicit new "Generate"
+      click for the new image rather than auto-continuing with
+      possibly-stale settings; that second generation produced the
+      exactly-correct 75×150 result matching the portrait image's own
+      aspect ratio, with zero console errors. 144 unit tests + 8 e2e
+      tests green, clean lint/tsc/build.
 - [ ] M2 — Findings 4 + 5 (chart layout/size budgeting, P2): a real
       total-output-area budget (not just the stitch-grid dimension)
       with a clear, catchable failure instead of a silent multi-hundred-
@@ -113,6 +140,9 @@ svc-lab).
       decision-record entry summarizing what changed and why.
 
 **Progress log** (newest first):
+- 2026-09-10 — M1 completed and verified (findings 1 + 9). Pausing here
+  to take up a new Owner request (whole-pattern naming driving download
+  filenames) before continuing to M2.
 - 2026-09-10 — Goal created from `docs/reviews/2026-09-09-code-review.md`.
   Scope confirmed via `AskUserQuestion`: the 9 numbered findings only,
   not the review's separate "questionable decisions" list. Milestones

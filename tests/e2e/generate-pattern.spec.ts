@@ -33,6 +33,22 @@ test("upload an image, generate a pattern, preview it, and download both variant
   expect(bwDownload.suggestedFilename()).toBe("sample-bw.png");
 });
 
+test("the image input is disabled while a pattern is generating, so a mid-generation image swap can't happen (code-review 2026-09-09, finding 1)", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
+  await page.getByRole("radio", { name: /Large/ }).check();
+
+  const imageInput = page.getByLabel("1. Image");
+  await expect(imageInput).toBeEnabled();
+
+  await page.getByRole("button", { name: "Generate pattern" }).click();
+  await expect(imageInput).toBeDisabled();
+
+  await expect(page.getByAltText("Cross-stitch pattern preview")).toBeVisible({ timeout: 15_000 });
+  await expect(imageInput).toBeEnabled();
+});
+
 test("rejects a custom size outside the 10-1000 range without crashing", async ({ page }) => {
   await page.goto("/");
 

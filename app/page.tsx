@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { loadImageAsPixelBuffer } from "@/lib/load-image";
-import { runPatternJob } from "@/lib/pattern-client";
+import { cancelPatternJob, runPatternJob } from "@/lib/pattern-client";
 import {
   downloadCanvasAsPng,
   renderPatternToCanvas,
@@ -31,6 +31,12 @@ const PREVIEW_TARGET_WIDTH_PX = 720;
 export default function Home() {
   const [pixelBuffer, setPixelBuffer] = useState<PixelBuffer | null>(null);
   const [sourceFileName, setSourceFileName] = useState<string | null>(null);
+  const [isLoadingImage, setIsLoadingImage] = useState(false);
+  // Bumped on every new file selection; every async continuation (an image
+  // decode or a generation result) checks this before applying its result,
+  // so a slower, now-superseded selection or job can never clobber state a
+  // newer one already established (code-review 2026-09-09, finding 1).
+  const sourceRevisionRef = useRef(0);
   const [sizePreset, setSizePreset] = useState<SizePresetId>("medium");
   const [customSize, setCustomSize] = useState(100);
   const [aidaCount, setAidaCount] = useState<number>(DEFAULT_AIDA_COUNT);
@@ -61,14 +67,21 @@ export default function Home() {
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    const myRevision = ++sourceRevisionRef.current;
+    cancelPatternJob(); // any in-flight generation was for a now-superseded image
     setError(null);
-    setPattern(null);
+    setIsLoadingImage(true);
     try {
       const buffer = await loadImageAsPixelBuffer(file);
+      if (sourceRevisionRef.current !== myRevision) return; // a newer selection has since started
       setPixelBuffer(buffer);
       setSourceFileName(file.name);
+      setPattern(null); // only clear once the new image is actually valid -- a failed replacement shouldn't wipe a good existing pattern
     } catch {
+      if (sourceRevisionRef.current !== myRevision) return;
       setError("Couldn't read that image. Try a different file (JPEG, PNG, or WebP).");
+    } finally {
+      if (sourceRevisionRef.current === myRevision) setIsLoadingImage(false);
     }
   }
 
@@ -85,6 +98,7 @@ export default function Home() {
       setError(`Color count must be between ${MIN_COLORS} and ${MAX_COLORS}.`);
       return;
     }
+    const myRevision = sourceRevisionRef.current;
     setError(null);
     setIsProcessing(true);
     setProgress(0);
@@ -98,9 +112,15 @@ export default function Home() {
         generationMode,
         onProgress: setProgress,
       });
+      if (sourceRevisionRef.current !== myRevision) return; // a different image was selected meanwhile
       setPattern(result);
     } catch {
-      setError("Couldn't generate a pattern from that image.");
+      // A different image being selected mid-generation cancels this job
+      // (see handleFileChange) -- that's an intentional supersession, not a
+      // failure worth surfacing, so only show the error if still relevant.
+      if (sourceRevisionRef.current === myRevision) {
+        setError("Couldn't generate a pattern from that image.");
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -240,8 +260,10 @@ export default function Home() {
             type="file"
             accept="image/jpeg,image/png,image/webp"
             onChange={handleFileChange}
+            disabled={isLoadingImage || isProcessing}
             className="text-sm"
           />
+          {isLoadingImage && <p className="text-xs text-zinc-500">Reading image…</p>}
           {sourceFileName && (
             <p className="text-xs text-zinc-500">Loaded: {sourceFileName}</p>
           )}
@@ -369,7 +391,7 @@ export default function Home() {
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={!pixelBuffer || isProcessing}
+            disabled={!pixelBuffer || isProcessing || isLoadingImage}
             className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-[#ccc]"
           >
             {isProcessing ? `Generating… ${Math.round(progress * 100)}%` : "Generate pattern"}
