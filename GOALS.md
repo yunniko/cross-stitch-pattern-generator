@@ -11,7 +11,112 @@ svc-lab).
 
 ## Active goals
 
-_(none)_
+### G-010 · Fix code-review findings — ACTIVE
+- **What:** Fix the 9 numbered findings from
+  `docs/reviews/2026-09-09-code-review.md` (1 P1, 7 P2, 1 P3) — real,
+  reproduced bugs in job/source ownership, export reliability, and a
+  gap between the color-reduction algorithm's stated objective and its
+  implementation. The review's separate "Questionable decisions and
+  improvements" list (7 broader, more open-ended items) is explicitly
+  out of scope for this goal per Owner confirmation (2026-09-10,
+  `AskUserQuestion`) — one of those seven, paginated printing, is
+  already resolved by G-009.
+- **Why:** Standing Owner instruction ("after the editor is done, fix
+  problems of review"), given once G-007/G-008 (the editor) were done,
+  reaffirmed after G-009 ("G-009 first, then code review fixes").
+- **Acceptance criteria** (the review's own 9 findings, in its own
+  suggested repair order):
+  1. **P1** — A completed generation job can attach the previous
+     image's chart to the newly-selected filename (no source/job
+     revision identity; `handleGenerate` applies a result
+     unconditionally even if a different image was selected meanwhile).
+  9. **P3** — Cancelling/superseding a worker job leaves the old job's
+     promise pending forever instead of rejecting it (the review says
+     to fix this alongside #1, since #1's fix needs it).
+  4. **P2** — The canvas size limit only covers the stitch grid, not
+     the complete chart (header/legend/margins) or its actual memory
+     footprint; a supported 1000×1000/1-color pattern requests a
+     ~564 MiB single-image allocation with no budget check or graceful
+     failure.
+  5. **P2** — `drawHeader` receives but discards `canvasWidth`, so a
+     small chart's header text can be clipped in both preview and
+     download.
+  2. **P2** — `lib/downsample.ts`'s resize is whole-pixel binning, not
+     an area-weighted box filter — introduces measurable spatial bias
+     at non-integral scale ratios (reproduced: a symmetric 3-pixel
+     black/white/black stripe resizes asymmetrically).
+  3. **P2** — Palette recomputation uses a linear-RGB mean while
+     assignment/diagnostics measure squared OKLab distance — the two
+     aren't the same objective, so the linear-RGB mean isn't a true
+     Lloyd-update centroid for the distance actually being minimized;
+     an in-code comment claiming a "guaranteed accuracy improvement" is
+     incorrect as a result.
+  6. **P2** — A failed stitch-texture request caches its rejected
+     promise forever, permanently breaking "Realistic preview" until a
+     full page reload, with no visible error.
+  7. **P2** — `downloadCanvasAsPng`'s `toBlob` callback is fire-and-
+     forget: `isDownloading` clears before encoding finishes, and a
+     `null` blob (a real, documented `toBlob` failure case) silently
+     produces no file and no error.
+  8. **P2** — The custom stitch-size field accepts fractional values
+     (e.g. 10.5) that pass the min/max check but crash inside
+     `buildPattern` with `RangeError: Invalid array length`, surfaced
+     to the user as a misleading "Couldn't generate a pattern from that
+     image" (image-blaming) error.
+- **Constraints:** Each fix should be verified the way this project
+  always verifies non-trivial changes — real reproduction of the
+  original bug, a fix, and re-verification that the specific reported
+  symptom is actually gone, not just "looks right." Findings 2 and 3
+  touch the core color-reduction algorithm every generated pattern
+  goes through; per STANDARDS.md, run a codex-cli critique exchange on
+  the proposed fix before implementing, and revalidate against the
+  project's own regression-fixture suite (not just the review's
+  motivating reproduction), matching the rigor G-004's k-means fix
+  used for a similarly core-algorithm change.
+
+**Milestones**:
+- [ ] M1 — Findings 1 + 9 (source/job ownership, P1): a source revision
+      counter in `app/page.tsx` gates every state update from an image
+      decode or a generation result to the selection that started it;
+      the file input is disabled while an image is decoding or a
+      pattern is generating; `lib/pattern-client.ts`'s
+      `cancelPatternJob` actually rejects the superseded job's pending
+      promise instead of leaving it hanging.
+- [ ] M2 — Findings 4 + 5 (chart layout/size budgeting, P2): a real
+      total-output-area budget (not just the stitch-grid dimension)
+      with a clear, catchable failure instead of a silent multi-hundred-
+      MB allocation attempt; `drawHeader` actually uses `canvasWidth`
+      so small-chart headers stop clipping.
+- [ ] M3 — Finding 2 (resampling bias, P2): area-weighted box-filter
+      downsampling replacing whole-pixel binning, keeping the existing
+      linear-light averaging. Codex-cli critique exchange on the
+      approach before implementing; broad regression-suite
+      revalidation after.
+- [ ] M4 — Finding 3 (palette-objective consistency, P2): investigate
+      and decide on one consistent objective for palette-color
+      recomputation (OKLab-space centroid vs. documented linear-RGB
+      aesthetic choice), fix or correct the inaccurate in-code claim
+      accordingly, revalidate both generation modes on varied images.
+      Codex-cli critique exchange before implementing, given this
+      changes every generated pattern's actual colors.
+- [ ] M5 — Findings 6, 7, 8 (remaining P2 reliability gaps): stitch-
+      texture failure becomes recoverable (clears its rejected cache,
+      shows a visible error, offers retry) instead of permanently
+      broken until reload; PNG download encoding is awaited and a
+      `null`-blob failure is caught and surfaced instead of silently
+      producing nothing; the custom stitch-size field rejects
+      fractional/non-finite input at the UI boundary with the existing
+      range-error message, instead of crashing inside generation.
+- [ ] M6 — Full regression pass across everything touched (unit + e2e
+      + lint/tsc/build), a real-browser re-verification of each
+      original repro scenario from the review, and a HANDOVER.md
+      decision-record entry summarizing what changed and why.
+
+**Progress log** (newest first):
+- 2026-09-10 — Goal created from `docs/reviews/2026-09-09-code-review.md`.
+  Scope confirmed via `AskUserQuestion`: the 9 numbered findings only,
+  not the review's separate "questionable decisions" list. Milestones
+  planned in the review's own suggested repair order.
 
 ## Completed goals
 
