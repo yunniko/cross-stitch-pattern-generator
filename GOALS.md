@@ -11,7 +11,11 @@ svc-lab).
 
 ## Active goals
 
-### G-012 · Editor as the primary application shell — ACTIVE
+_No goals currently active._
+
+## Completed goals
+
+### G-012 · Editor as the primary application shell — DONE (2026-09-10)
 - **What:** Rebuild the app around one persistent, docked, "application"
   workspace (not today's two-screen upload-page → editor-page flow):
   an Image window with pan/zoom, a Colors dock, a Preview/navigator
@@ -419,6 +423,17 @@ svc-lab).
       today.
 
 **Progress log** (newest first):
+- 2026-09-10 — Deployed to production
+  (`https://cross-stitch.craftodejnice.cz`) and goal marked DONE.
+  Redeployed following the standard recipe (`git fetch`/`git pull`
+  10b0a95→aadfec5, `docker compose --profile app up -d --build`);
+  `docker ps` before/after showed only this project's own container
+  restarting, every other container on the shared host unaffected, and
+  a spot-check of 6 other sites all returned 200. Verified live against
+  the actual production URL, not just the dev server: generated a
+  10×6 pattern, confirmed finding 5's header-clip fix still holds
+  (downloaded color PNG measured 349px wide, well past the old ~292px
+  clipped width), zero console errors.
 - 2026-09-10 — M6 completed: full regression green (198 unit + 25 e2e,
   clean tsc/eslint/build) plus a full manual real-browser integration
   walkthrough exercising every feature together in one session with
@@ -468,8 +483,6 @@ svc-lab).
   Milestones planned after reading the current `page.tsx`/
   `pattern-editor.tsx`/`types.ts`/`render.ts`/`pattern-serialize.ts`/
   `pattern-edit.ts` implementations to ground the data-model design.
-
-## Completed goals
 
 ### G-011 · Editable pattern name driving all download filenames — DONE (2026-09-10)
 - **What:** A pattern-level name (distinct from the existing per-color

@@ -40,8 +40,8 @@ since earlier goals — see D6–D12 for that history. All 9 findings from
 the 2026-09-09 code review are fixed (G-010). All automated checks
 green: 198 Vitest unit tests, 25 Playwright e2e tests, clean ESLint/
 `tsc`/production build. Deployed at
-`https://cross-stitch.craftodejnice.cz` (redeploy for G-012 pending
-Owner sign-off — see G-012's own GOALS.md entry and D28 below).
+`https://cross-stitch.craftodejnice.cz`, including G-012 — see G-012's
+own GOALS.md entry and D28/D29 below.
 
 ## How things fit together
 
@@ -1861,6 +1861,24 @@ modes → zoom → resize → download editable → fresh reload → reopen →
 Regenerate → all 3 PNG downloads → A4 ZIP export) produced zero
 console errors end to end, confirming every feature still works
 correctly *together*, not just in isolation per milestone.
+
+**D29 — G-012 deployed; goal DONE (2026-09-10).** Redeployed following
+`INFRASTRUCTURE_DEPLOY.md`'s standard recipe: `git fetch` then
+`git pull` (`10b0a95` → `aadfec5`, fast-forward, the full G-012 file
+set) and `docker compose --profile app up -d --build` on the server.
+Verified beyond a health-check ping: `docker ps` before/after showed
+only `cross-stitch-pattern-generator-app-1` restarting, every other
+container on the shared host unaffected; a spot-check of 6 other sites
+(`julienika.cz`, `meet.app.julienika.cz`, `craftale.eu`,
+`crochet.app.craftodejnice.cz`, `arfid.julienika.cz`,
+`fractions.svc.julienika.cz`) all still returned 200. Then, against
+the actual production URL rather than just the dev server: uploaded
+the fixture, generated a Custom-size-10 pattern in the new app shell,
+and re-confirmed finding 5's header-clip fix still holds there (the
+downloaded color PNG measured 349px wide, comfortably past the old
+~292px clipped width) — the same specific regression check this
+project runs after every deploy that touches rendering — with zero
+console errors. G-012 moved to GOALS.md's Completed section.
 
 ## Owner action list
 
