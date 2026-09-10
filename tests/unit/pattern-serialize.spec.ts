@@ -32,6 +32,22 @@ describe("pattern-serialize", () => {
     expect(restored.palette.map((c) => c.count)).toEqual(pattern.palette.map((c) => c.count));
   });
 
+  it("round-trips the pattern's own name", () => {
+    const pattern = { ...makePattern(), name: "My Cat" };
+    const restored = deserializePattern(serializePattern(pattern));
+    expect(restored.name).toBe("My Cat");
+  });
+
+  it("leaves name undefined for a file saved before this field existed", () => {
+    const bad = JSON.stringify({
+      width: 1,
+      height: 1,
+      cellPalette: [0],
+      palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }],
+    });
+    expect(deserializePattern(bad).name).toBeUndefined();
+  });
+
   it("rejects invalid JSON", () => {
     expect(() => deserializePattern("not json")).toThrow();
   });

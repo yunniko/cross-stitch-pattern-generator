@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import { hexToRgb, rgbToHex } from "@/lib/color";
-import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor } from "@/lib/pattern-edit";
+import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern } from "@/lib/pattern-edit";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
 import { downloadCanvasAsPng, drawChart, renderPatternToCanvas, renderStitchPreviewToCanvas, type RenderMode } from "@/lib/render";
 import { generateA4Export, downloadBlob } from "@/lib/a4-export";
@@ -17,7 +17,6 @@ const EDITOR_MIN_CELL_SIZE = 6;
 
 interface PatternEditorProps {
   pattern: StitchPattern;
-  sourceFileName: string | null;
   onClose: () => void;
 }
 
@@ -37,7 +36,7 @@ function cellIndexFromEvent(
   return y * width + x;
 }
 
-export default function PatternEditor({ pattern, sourceFileName, onClose }: PatternEditorProps) {
+export default function PatternEditor({ pattern, onClose }: PatternEditorProps) {
   const history = useUndoHistory(pattern);
   const [activeColorIndex, setActiveColorIndex] = useState<number | null>(null);
   const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null);
@@ -45,6 +44,7 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
   const [addingColor, setAddingColor] = useState(false);
   const [addColorDraftHex, setAddColorDraftHex] = useState("#808080");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [nameDraft, setNameDraft] = useState(history.state.name ?? "cross-stitch-pattern");
   const [a4Mode, setA4Mode] = useState<RenderMode>("color");
   const [a4Overlap, setA4Overlap] = useState<OverlapCells>(5);
   const [isExportingA4, setIsExportingA4] = useState(false);
@@ -61,6 +61,17 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
 
   const { width, height } = history.state;
   const cellSize = Math.max(EDITOR_MIN_CELL_SIZE, Math.min(EDITOR_MAX_CELL_SIZE, Math.floor(EDITOR_TARGET_WIDTH_PX / Math.max(width, height))));
+
+  // Re-syncs the draft only when the committed name actually changes (undo/
+  // redo, or opening a different file) -- not on every keystroke, since the
+  // draft itself is what the input is bound to while typing. Adjusting state
+  // during render (React's own recommended pattern for this) rather than in
+  // an effect, which would cause an extra, avoidable render pass.
+  const [lastCommittedName, setLastCommittedName] = useState(history.state.name);
+  if (history.state.name !== lastCommittedName) {
+    setLastCommittedName(history.state.name);
+    setNameDraft(history.state.name ?? "cross-stitch-pattern");
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -164,7 +175,11 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
   }
 
   function baseFileName(): string {
-    return sourceFileName?.replace(/\.[^.]+$/, "") ?? "cross-stitch-pattern";
+    return history.state.name ?? "cross-stitch-pattern";
+  }
+
+  function commitNameChange() {
+    history.set(renamePattern(history.state, nameDraft));
   }
 
   function handleDownloadEditable() {
@@ -173,7 +188,7 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${baseFileName()}-editable.json`;
+    link.download = `${baseFileName()}_editable.json`;
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -187,7 +202,8 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
       .text()
       .then((text) => {
         const loaded = deserializePattern(text);
-        history.reset(loaded);
+        const fallbackName = file.name.replace(/\.[^.]+$/, "").replace(/[-_]editable$/, "");
+        history.reset({ ...loaded, name: loaded.name ?? fallbackName });
         setActiveColorIndex(null);
       })
       .catch((err) => setOpenError(err instanceof Error ? err.message : "Couldn't open that file."));
@@ -199,7 +215,8 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
       try {
         const compacted = compactUnusedColors(history.state);
         const canvas = mode === "realistic" ? await renderStitchPreviewToCanvas(compacted) : renderPatternToCanvas(compacted, mode);
-        downloadCanvasAsPng(canvas, `${baseFileName()}-${mode}.png`);
+        const suffix = mode === "realistic" ? "preview" : mode;
+        downloadCanvasAsPng(canvas, `${baseFileName()}_${suffix}.png`);
       } finally {
         setIsDownloading(false);
       }
@@ -211,7 +228,7 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
     setTimeout(async () => {
       try {
         const compacted = compactUnusedColors(history.state);
-        const result = await generateA4Export(compacted, a4Mode, { overlapCells: a4Overlap });
+        const result = await generateA4Export(compacted, a4Mode, { overlapCells: a4Overlap, baseName: baseFileName() });
         downloadBlob(result.blob, result.filename);
       } finally {
         setIsExportingA4(false);
@@ -221,8 +238,24 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-black dark:text-zinc-50">Editor</h2>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h2 className="shrink-0 text-lg font-semibold text-black dark:text-zinc-50">Editor</h2>
+          <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+            Name:
+            <input
+              type="text"
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={commitNameChange}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
+              className="w-40 rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              aria-label="Pattern name"
+            />
+          </label>
+        </div>
         <button
           type="button"
           onClick={onClose}

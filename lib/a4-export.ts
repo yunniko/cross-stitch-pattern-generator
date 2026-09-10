@@ -4,6 +4,11 @@ import { renderA4GridPage, renderA4LegendPage } from "./a4-render";
 import type { RenderMode } from "./render";
 import type { StitchPattern } from "./types";
 
+export interface A4ExportOptions extends A4LayoutOptions {
+  /** Drives every filename in the export -- both the ZIP itself and its internal pages. Defaults to "pattern". */
+  baseName?: string;
+}
+
 export interface A4ExportResult {
   blob: Blob;
   filename: string;
@@ -35,9 +40,10 @@ function pad2(n: number): string {
 export async function generateA4Export(
   pattern: StitchPattern,
   mode: RenderMode,
-  options: A4LayoutOptions = {}
+  options: A4ExportOptions = {}
 ): Promise<A4ExportResult> {
-  const layout = calculateA4Layout(pattern.width, pattern.height, options);
+  const { baseName = "pattern", ...layoutOptions } = options;
+  const layout = calculateA4Layout(pattern.width, pattern.height, layoutOptions);
   const totalGridPages = layout.pages.length;
 
   const zip = new JSZip();
@@ -45,15 +51,16 @@ export async function generateA4Export(
     const page = layout.pages[i];
     const canvas = renderA4GridPage(pattern, mode, layout, page, i, totalGridPages);
     const blob = await canvasToPngBlob(canvas);
-    zip.file(`pattern_r${pad2(page.row + 1)}_c${pad2(page.column + 1)}.png`, blob);
+    zip.file(`${baseName}_r${pad2(page.row + 1)}_c${pad2(page.column + 1)}.png`, blob);
   }
 
   const legendCanvas = renderA4LegendPage(pattern, layout);
   const legendBlob = await canvasToPngBlob(legendCanvas);
-  zip.file("pattern_legend.png", legendBlob);
+  zip.file(`${baseName}_legend.png`, legendBlob);
 
   const zipBlob = await zip.generateAsync({ type: "blob" });
-  return { blob: zipBlob, filename: "pattern_A4_pages.zip", pageCount: totalGridPages + 1 };
+  const modeLabel = mode === "bw" ? "bw" : "color";
+  return { blob: zipBlob, filename: `${baseName}_A4_${modeLabel}.zip`, pageCount: totalGridPages + 1 };
 }
 
 export function downloadBlob(blob: Blob, filename: string) {

@@ -113,7 +113,7 @@ export default function Home() {
         onProgress: setProgress,
       });
       if (sourceRevisionRef.current !== myRevision) return; // a different image was selected meanwhile
-      setPattern(result);
+      setPattern({ ...result, name: sourceFileName?.replace(/\.[^.]+$/, "") ?? "cross-stitch-pattern" });
     } catch {
       // A different image being selected mid-generation cancels this job
       // (see handleFileChange) -- that's an intentional supersession, not a
@@ -166,7 +166,9 @@ export default function Home() {
     file
       .text()
       .then((text) => {
-        openEditor(deserializePattern(text));
+        const loaded = deserializePattern(text);
+        const fallbackName = file.name.replace(/\.[^.]+$/, "").replace(/[-_]editable$/, "");
+        openEditor({ ...loaded, name: loaded.name ?? fallbackName });
       })
       .catch((err) => setOpenEditableError(err instanceof Error ? err.message : "Couldn't open that file."));
   }
@@ -182,8 +184,9 @@ export default function Home() {
           mode === "realistic"
             ? await renderStitchPreviewToCanvas(pattern)
             : renderPatternToCanvas(pattern, mode, { aidaCount, sizeUnit });
-        const base = sourceFileName?.replace(/\.[^.]+$/, "") ?? "cross-stitch-pattern";
-        downloadCanvasAsPng(canvas, `${base}-${mode}.png`);
+        const base = pattern.name ?? "cross-stitch-pattern";
+        const suffix = mode === "realistic" ? "preview" : mode;
+        downloadCanvasAsPng(canvas, `${base}_${suffix}.png`);
       } finally {
         setIsDownloading(false);
       }
@@ -195,7 +198,7 @@ export default function Home() {
     setIsExportingA4(true);
     setTimeout(async () => {
       try {
-        const result = await generateA4Export(pattern, a4Mode, { overlapCells: a4Overlap });
+        const result = await generateA4Export(pattern, a4Mode, { overlapCells: a4Overlap, baseName: pattern.name ?? "cross-stitch-pattern" });
         downloadBlob(result.blob, result.filename);
       } finally {
         setIsExportingA4(false);
@@ -207,12 +210,7 @@ export default function Home() {
     return (
       <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
         <main className="flex flex-1 w-full max-w-4xl flex-col gap-8 py-12 px-6">
-          <PatternEditor
-            key={editorKey}
-            pattern={editorPattern}
-            sourceFileName={sourceFileName}
-            onClose={() => setEditorPattern(null)}
-          />
+          <PatternEditor key={editorKey} pattern={editorPattern} onClose={() => setEditorPattern(null)} />
         </main>
       </div>
     );

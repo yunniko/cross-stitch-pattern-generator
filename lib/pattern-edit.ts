@@ -108,6 +108,13 @@ export function renameColor(pattern: StitchPattern, paletteIndex: number, name: 
   return { ...pattern, palette };
 }
 
+/** Renames the pattern itself -- distinct from `renameColor`, which renames one palette entry. Drives every downloadable's filename. */
+export function renamePattern(pattern: StitchPattern, name: string): StitchPattern {
+  const trimmed = name.trim();
+  if (trimmed === "") return pattern;
+  return { ...pattern, name: trimmed };
+}
+
 /**
  * Drops any palette color with zero stitches -- run before a final PNG
  * export from the editor (not during editing itself, where a just-added,

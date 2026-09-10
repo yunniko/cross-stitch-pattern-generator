@@ -21,7 +21,7 @@ test("upload an image, generate a pattern, preview it, and download both variant
     page.waitForEvent("download"),
     page.getByRole("button", { name: "Download color PNG" }).click(),
   ]);
-  expect(colorDownload.suggestedFilename()).toBe("sample-color.png");
+  expect(colorDownload.suggestedFilename()).toBe("sample_color.png");
 
   await page.getByRole("radio", { name: "Black & white" }).check();
   await expect(preview).toBeVisible();
@@ -30,7 +30,7 @@ test("upload an image, generate a pattern, preview it, and download both variant
     page.waitForEvent("download"),
     page.getByRole("button", { name: "Download black & white PNG" }).click(),
   ]);
-  expect(bwDownload.suggestedFilename()).toBe("sample-bw.png");
+  expect(bwDownload.suggestedFilename()).toBe("sample_bw.png");
 });
 
 test("the image input is disabled while a pattern is generating, so a mid-generation image swap can't happen (code-review 2026-09-09, finding 1)", async ({ page }) => {

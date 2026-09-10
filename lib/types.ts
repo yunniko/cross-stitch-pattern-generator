@@ -61,4 +61,12 @@ export interface StitchPattern {
   palette: PaletteColor[];
   /** True when the source image is wider than it is tall. */
   isLandscape: boolean;
+  /**
+   * User-facing name driving every downloadable filename -- optional so
+   * every existing spread-based mutation (`lib/pattern-edit.ts`) carries it
+   * through automatically. Set once at generation/open time; UI call sites
+   * should fall back to a sensible default when absent rather than treating
+   * it as required.
+   */
+  name?: string;
 }

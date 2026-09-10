@@ -13,6 +13,8 @@ export interface SerializedPattern {
   /** Row-major, one index per cell -- a plain array, since Uint8Array doesn't round-trip through JSON.stringify usefully. */
   cellPalette: number[];
   palette: Array<{ rgb: RGB; symbol: string; name: string }>;
+  /** Optional so files saved before this field existed still parse (see deserializePattern's fallback). */
+  name?: string;
 }
 
 /** `count`/`index` are left out -- both are derived from `cellPalette` and recomputed on load, not stored. */
@@ -24,6 +26,7 @@ export function serializePattern(pattern: StitchPattern): string {
     isLandscape: pattern.isLandscape,
     cellPalette: Array.from(pattern.cellPalette),
     palette: pattern.palette.map((c) => ({ rgb: c.rgb, symbol: c.symbol, name: c.name })),
+    name: pattern.name,
   };
   return JSON.stringify(data);
 }
@@ -72,5 +75,6 @@ export function deserializePattern(json: string): StitchPattern {
     isLandscape: d.isLandscape ?? d.width >= d.height,
     cellPalette: Uint8Array.from(d.cellPalette),
     palette,
+    name: typeof d.name === "string" && d.name.trim() !== "" ? d.name : undefined,
   };
 }

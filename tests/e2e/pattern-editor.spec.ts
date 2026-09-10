@@ -44,6 +44,42 @@ test("editor: generate, merge two colors, undo/redo, download editable, and reop
   await expect(legendRows).toHaveCount(initialCount - 1);
 });
 
+test("editor: renaming the pattern changes every download's filename", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
+  await page.getByRole("radio", { name: /Small/ }).check();
+  await page.getByRole("button", { name: "Generate pattern" }).click();
+  await expect(page.getByAltText("Cross-stitch pattern preview")).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+
+  const nameInput = page.getByLabel("Pattern name");
+  await expect(nameInput).toHaveValue("sample");
+  await nameInput.fill("My Cat");
+  await nameInput.blur();
+
+  const [colorDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download color PNG" }).click(),
+  ]);
+  expect(colorDownload.suggestedFilename()).toBe("My Cat_color.png");
+
+  const [realisticDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download realistic preview PNG" }).click(),
+  ]);
+  expect(realisticDownload.suggestedFilename()).toBe("My Cat_preview.png");
+
+  const [editableDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download editable" }).click(),
+  ]);
+  expect(editableDownload.suggestedFilename()).toBe("My Cat_editable.json");
+
+  // Renaming is a normal, undoable history step, like every other edit.
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(nameInput).toHaveValue("sample");
+});
+
 test("editor: cluster-fill drag and click-to-paint both change the pattern without errors", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));

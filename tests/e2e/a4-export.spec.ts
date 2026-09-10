@@ -22,13 +22,13 @@ test("main results screen: export as A4 pages downloads a ZIP with grid page(s) 
     page.waitForEvent("download"),
     page.getByRole("button", { name: "Export ZIP" }).click(),
   ]);
-  expect(download.suggestedFilename()).toBe("pattern_A4_pages.zip");
+  expect(download.suggestedFilename()).toBe("sample_A4_color.zip");
 
   const downloadPath = await download.path();
   expect(downloadPath).not.toBeNull();
   const entries = await readZipEntryNames(downloadPath!);
-  expect(entries).toContain("pattern_legend.png");
-  expect(entries.some((name) => /^pattern_r\d{2}_c\d{2}\.png$/.test(name))).toBe(true);
+  expect(entries).toContain("sample_legend.png");
+  expect(entries.some((name) => /^sample_r\d{2}_c\d{2}\.png$/.test(name))).toBe(true);
 });
 
 test("editor: export as A4 pages works in B&W mode after switching modes", async ({ page }) => {
@@ -45,10 +45,10 @@ test("editor: export as A4 pages works in B&W mode after switching modes", async
     page.waitForEvent("download"),
     page.getByRole("button", { name: "Export ZIP" }).click(),
   ]);
-  expect(download.suggestedFilename()).toBe("pattern_A4_pages.zip");
+  expect(download.suggestedFilename()).toBe("sample_A4_bw.zip");
 
   const downloadPath = await download.path();
   expect(downloadPath).not.toBeNull();
   const entries = await readZipEntryNames(downloadPath!);
-  expect(entries).toContain("pattern_legend.png");
+  expect(entries).toContain("sample_legend.png");
 });
