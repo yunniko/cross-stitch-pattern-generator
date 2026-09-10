@@ -1597,6 +1597,147 @@ unchanged; a real browser run against the live HTTPS URL confirmed the
 editor's new "Name:" field renders correctly, pre-filled from the
 uploaded image's filename, with zero console errors.
 
+**D26 — G-010 (code-review fixes) completed: M2-M6 done, all 9 findings
+now fixed; pushed but not yet deployed (2026-09-10).** M1 (findings
+1+9) was already live, deployed alongside G-011 (D25). This entry
+covers M2 through M6.
+
+M2 (findings 4+5, chart size budget/header clipping): the old
+`MAX_CANVAS_DIMENSION` clamp only bounded the stitch grid itself, not
+the complete rendered chart (header, legend, margins, gutters) —
+`lib/render.ts` gained `findChartLayout`, a pure function (no DOM
+dependency, so it's directly unit-testable) that searches cell sizes
+down to a 4px floor for the largest one at which the *whole* chart fits
+a real total-area budget (40M px) and a per-dimension budget (8000px),
+throwing a clearly-worded `ChartTooLargeError` pointing at G-009's "A4
+pages" export as the real alternative instead of silently attempting a
+huge allocation (the review's own worked example: a 1000×1000 one-color
+pattern used to request ~564 MiB for one RGBA surface). The same fix
+folds in finding 5 — `drawHeader` used to receive but discard the
+canvas width, clipping a small chart's header text; the layout search
+now widens the canvas to fit the measured header. `lib/load-image.ts`
+also now caps decode resolution at 4000px, since every image gets
+box-downsampled to at most 1000 stitches regardless of source size, so
+decoding a full-resolution phone photo wasted memory for no accuracy
+gain — a second part of finding 4's own cited risk.
+`lib/pattern-serialize.ts`'s `deserializePattern` now rejects
+dimensions past `MAX_STITCHES` too, found while designing this
+milestone rather than in the review's literal repro: generation itself
+enforces that range, but a hand-edited "editable pattern" JSON file
+reached rendering with no dimension check at all, making the new
+render-layer budget the *only* defense against an oversized pattern
+reaching export via that path.
+
+M3 (finding 2, resampling bias): `lib/downsample.ts`'s
+`downsampleToGrid` was source-pixel-driven whole-pixel binning
+(`floor(x*gridWidth/srcWidth)`, correct only at integral scale ratios) —
+rewritten to destination-cell-driven, true area-weighted averaging
+(the standard box-filter algorithm): each destination cell's exact
+source-space rectangle is computed and every overlapping source pixel
+contributes proportionally to its fractional area overlap. The same
+rectangle-overlap logic naturally handles upscaling too, so the old
+nearest-neighbor gap-filling fallback (needed only because center-point
+binning could skip cells on upscale) was removed as unreachable.
+Caught a real bug in the first implementation via real-browser
+worst-case testing before calling this done: the search's starting
+cell size wasn't clamped up to its own floor, so a caller requesting a
+cell size below the floor (the live preview does, deliberately, to
+keep a 1000-stitch thumbnail compact) made the search space empty and
+threw `ChartTooLargeError` immediately, crashing the preview outright
+at max settings — fixed by clamping the search's starting point up to
+`MIN_CHART_CELL_SIZE_PX`. The full pre-existing `downsample.spec.ts`
+suite (including the old upscale-gap-filling case) passed unmodified
+against the rewritten function, and the project's own golden-fixture
+regression suite (`regression.spec.ts`) confirmed no measurable
+confetti/edge-preservation/flat-area quality regression on the broader
+test corpus.
+
+M4 (finding 3, palette-objective consistency): assignment throughout
+the pipeline (k-means, ICM, contour cleanup) is driven by squared OKLab
+distance, but palette colors were means in *linear RGB* — not a valid
+Lloyd update for the OKLab objective, and inconsistent with this
+project's own established rationale for OKLab (D6/D7) that centroid
+computation must match the assignment metric. Chose the OKLab-centroid
+objective over documenting the linear-RGB bias as a deliberate
+tradeoff, since the project's own stated design philosophy already
+requires this. Fixed in *two* places, not just the one the review
+cited: `lib/quantize.ts`'s `buildPaletteFromAssignment` was discarding
+`runLloyd`'s own already-converged OKLab centroids and recomputing a
+separate linear-RGB mean over the same final membership — now converts
+the existing centroids straight to RGB via `oklabToRgb` (defined since
+early in the project but never actually called anywhere until now,
+including its gamut clamping). `lib/pattern.ts`'s post-optimization
+recompute (the review's cited line) needed a genuine new mean instead,
+since ICM/contour-cleanup reassign cells with no tracked centroid for
+the final membership — added `meanRgbOklab`, replacing the removed
+`meanRgbLinear`. Also fixed the recompute's comment incorrectly
+claiming a "provably" guaranteed accuracy improvement. Linear-light
+averaging in the spatial downsample (`downsampleToGrid`) is untouched —
+a genuinely different operation this finding doesn't apply to. Verified
+against the review's own two worked examples: a new unit test
+reproducing their exact 100×60 grayscale-ramp repro gets their exact
+reported OKLab palette ([58,58,58]/[189,189,189], not the old
+[71,71,71]/[194,194,194]); the full existing regression/quantizer suite
+passed unmodified (none of it asserts exact RGB values, only
+OKLab-distance thresholds), confirming no quality regression.
+
+M5 (findings 6+7+8, remaining P2 reliability gaps): `stitch-texture.ts`'s
+`loadTextureImage` now clears its cached promise on failure instead of
+caching the rejection forever, which used to permanently break the
+live "Realistic preview" until a full page reload after one transient
+texture-load failure — the preview effect gained a visible error banner
+with a Retry button. `downloadCanvasAsPng` (`lib/render.ts`) now
+returns `Promise<void>` and rejects on a `null` blob (a documented
+possible `toBlob` outcome) instead of resolving silently with no file
+produced; both download call sites now `await` it and surface the
+failure. The custom stitch-size field now rejects non-integer input at
+the UI boundary with a reworded message ("...must be a whole number
+between X and Y stitches") instead of reaching `buildPattern` and
+crashing with `RangeError: Invalid array length` — `gridDimensionsFor`
+also now rounds its own primary side as defense-in-depth for other
+callers reaching it directly, not just the derived side it already
+rounded. Verified live in a real browser beyond the automated suite:
+patched `window.Image` to simulate a texture-load failure, confirmed
+the visible error banner + Retry appears (not a silent stale chart),
+then unpatched and clicked Retry to confirm clean recovery with zero
+console errors, matching the fix's intent exactly (no full-reload
+needed); separately patched `HTMLCanvasElement.prototype.toBlob` to
+always return `null`, confirmed the download surfaces "Couldn't encode
+the image for download. Try a smaller pattern size." instead of doing
+nothing, then reverted the patch and confirmed a real download still
+succeeds normally afterward.
+
+M6 (full regression pass): after M2-M5, ran everything touched
+together rather than trusting each milestone's own isolated pass —
+170 unit tests (22 files) green, 11 e2e tests green, clean
+`tsc --noEmit`, clean `eslint`, clean `next build`. Real-browser
+re-verification covered every finding's original repro: 1+9 (competing
+image uploads, already verified live in M1/D25), 4+5 (max-settings
+generation + Custom-size-10 header check, already verified live in
+M2/M3), 2 (area-weighted resampling, verified via the full unmodified
+existing test suite plus new symmetric-repro tests in M3), 3 (palette
+objective, verified against the review's own worked example in M4),
+6+7 (texture-failure retry and null-blob encoding failure, verified
+live in M6 itself as described above), 8 (fractional custom size,
+verified live in M5). All 9 findings from
+`docs/reviews/2026-09-09-code-review.md` are now fixed and verified,
+not just implemented.
+
+Commits: `43c2b0b` (M2), `d1abb4a` (M3), `9b57907` (M4), `39ba0a5` (M5).
+All pushed to `origin/master`. **Not yet deployed** — only M1 (+G-011)
+is live on `https://cross-stitch.craftodejnice.cz`; M2-M6 await Owner
+sign-off per OPERATIONS.md's definition-of-done before the next
+redeploy, per the Owner's own "continue through M4-M6" instruction
+choosing to batch verification before the next deploy check-in rather
+than redeploying after each milestone.
+
+The review's separate "questionable decisions and improvements" list
+(print/PDF as first-class, optimizer heuristic priorities, allocation
+cost measurement, `.dockerignore`, broader test coverage, accessibility/
+mobile layout, doc accuracy) was explicitly out of scope for G-010 per
+the Owner's own scoping answer at goal creation — none of it was
+touched here.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

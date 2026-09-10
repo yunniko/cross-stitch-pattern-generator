@@ -305,12 +305,39 @@ svc-lab).
       `tsc`/`eslint`/`npm run build`. Real-browser check on the dev
       server confirmed the fractional-input rejection message and the
       realistic-preview happy path both work with zero console errors.
-- [ ] M6 — Full regression pass across everything touched (unit + e2e
-      + lint/tsc/build), a real-browser re-verification of each
-      original repro scenario from the review, and a HANDOVER.md
-      decision-record entry summarizing what changed and why.
+- [x] M6 — Full regression pass + real-browser re-verification of every
+      finding + HANDOVER.md write-up. ✔ 2026-09-10. Full suite run
+      together (not just per-milestone): 170 unit tests (22 files)
+      green, 11 e2e tests green, clean `tsc --noEmit`, clean `eslint .`,
+      clean `npm run build`. Findings 6 and 7 hadn't yet had a dedicated
+      real-browser check (unlike 1-5, 8, 9, each already verified live
+      during their own milestone) — closed that gap here: patched
+      `window.Image` on the live dev server to simulate a texture-load
+      failure, confirmed the visible error banner + Retry button appear
+      (not a silent stale chart, the old bug), then unpatched and
+      clicked Retry to confirm clean recovery with zero console errors
+      and no page reload needed; separately patched
+      `HTMLCanvasElement.prototype.toBlob` to always return `null`,
+      confirmed the download surfaces "Couldn't encode the image for
+      download. Try a smaller pattern size." instead of silently
+      producing nothing (the old bug), then reverted the patch and
+      confirmed a real download still succeeds normally afterward. All
+      9 findings from `docs/reviews/2026-09-09-code-review.md` are now
+      fixed and live-verified, not just implemented. Added HANDOVER.md
+      D26, a full decision-record entry for M2-M6 (D25 already covered
+      M1). Confirmed via `git status` that M2-M5's commits
+      (`43c2b0b`/`d1abb4a`/`9b57907`/`39ba0a5`) are all pushed to
+      `origin/master` but **not yet deployed** — only M1+G-011 are live
+      on `https://cross-stitch.craftodejnice.cz`. Per OPERATIONS.md's
+      milestone check-in gate, G-010 stays ACTIVE (not moved to
+      Completed) pending Owner sign-off and a deploy decision.
 
 **Progress log** (newest first):
+- 2026-09-10 — M6 completed: full regression pass green, live-verified
+  findings 6+7 (the two that hadn't had a dedicated real-browser check
+  yet) via console patching on the dev server, wrote HANDOVER.md D26.
+  All 9 findings fixed and verified. G-010 stays ACTIVE pending Owner
+  sign-off and a deploy decision for M2-M6 (pushed, not yet live).
 - 2026-09-10 — M5 completed and verified (findings 6, 7, 8). Reused the
   same "adjust state during render" fix pattern from G-011 to clear a
   second `react-hooks/set-state-in-effect` violation found while adding
