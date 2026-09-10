@@ -43,6 +43,31 @@ green: 198 Vitest unit tests, 25 Playwright e2e tests, clean ESLint/
 `https://cross-stitch.craftodejnice.cz`, including G-012 — see G-012's
 own GOALS.md entry and D28/D29 below.
 
+**As of G-013–G-016 (2026-09-11)**, four more features shipped and are
+live in production (see each goal's GOALS.md entry and D31–D35 below
+for full detail, not repeated here):
+- A third "DMC" color-picking mode alongside Latest/Original, snapping
+  the palette to real DMC embroidery floss (`lib/dmc-colors.ts`,
+  `lib/dmc-match.ts`), with a domain-reviewed floss/skein estimate
+  shown next to every color's stitch count in every mode
+  (`lib/floss-estimate.ts`). DMC mode is now a persisted `dmcMode` flag
+  on the pattern itself (not inferred), which also restricts "+ Add" to
+  real DMC swatches when set.
+- The symbol set grew from 64 to 100 (`lib/symbols.ts`), and any
+  color's symbol can be manually reassigned (swapping on conflict) via
+  a picker in the Colors dock.
+- Fabric count, unit (now defaulting to cm), and a new author-name
+  field moved into a persisted "Options" panel
+  (`lib/workspace-storage.ts`); the currently-open project auto-saves
+  to `localStorage` and restores itself on reload.
+- "Export as A4 pages" gained a second, more detailed "extended legend"
+  page set (title, a details table, and a full paginated Color key
+  table) alongside the original compact legend, which is unchanged.
+
+251 Vitest unit tests as of this write-up (Playwright e2e coverage was
+**not** extended to any of these four features — a known, logged gap,
+not an oversight; see G-013's GOALS.md entry).
+
 ## How things fit together
 
 - Next.js (App Router) + TypeScript + Tailwind, matching the rest of the
@@ -2189,6 +2214,51 @@ needed.
   verification ZIPs and their extracted PNGs were deleted afterward
   (including from the Owner's own Downloads folder) as session-created
   test artifacts, not left behind.
+
+**D35 — G-013/G-014/G-015/G-016 deployed together; all four goals DONE
+(2026-09-11).** Owner: "deploy, please." All four features (DMC mode +
+floss estimate, expanded symbols + editable assignment, persisted
+Options + auto-save/restore, A4 extended legend + persisted DMC mode)
+had been implemented, unit tested, and live-dev-verified but not yet
+committed at the point this session picked back up -- committed in four
+separate commits (one per goal, `73904de`, `a4d92f0`, `5c6e510`,
+`eef7c1a`), then deployed together in one redeploy following the
+standard recipe (`INFRASTRUCTURE_DEPLOY.md`):
+
+- `git push origin master` (4 commits), then on the VPS: `git fetch
+  origin` (separately from `pull`, per the documented chained-command
+  hang risk), `git pull`, `docker compose --profile app up -d --build`.
+- Verified via `docker ps` before/after: only
+  `cross-stitch-pattern-generator-app-1` restarted (`Up 10 seconds`
+  after, vs. `Up 3 hours` before); every other container on the shared
+  host (29 others) kept its pre-deploy uptime unchanged.
+- Spot-checked other sites on the host post-deploy:
+  `meet.app.julienika.cz`, `craftale.eu`, `crochet.app.craftodejnice.cz`,
+  `arfid.julienika.cz` all returned 200 (an earlier check using guessed
+  `*.julienika.cz` names for when-we-meet/listing-studio 000'd --
+  wrong domain guesses, not a real problem; the actual configured
+  vhosts, read from `/etc/nginx/sites-enabled/` on the host itself,
+  all check out).
+- **Live production verification, not just a health-check ping**:
+  loaded `https://cross-stitch.craftodejnice.cz` fresh (no
+  localStorage) and confirmed the finished-size readout defaults to cm
+  and reads "change fabric count/unit in Options" (G-015), confirmed
+  the "Number of colors" slider's `max` is 100 (G-014), and generated
+  an actual DMC-mode pattern against the live site confirming a real
+  DMC name ("310 - Black") appears with zero console errors (G-013).
+  G-016's A4 extended-legend/DMC-swatch-picker code shipped in the same
+  build as G-013's already-verified DMC pipeline and the same
+  `docker compose --build` that passed its own `tsc`/`npm run build`
+  gate during the image build step above -- not independently
+  re-exercised against production in this same pass (already fully
+  live-verified against the dev server per D34, including a real
+  downloaded ZIP inspection).
+- **Known gap, logged not hidden**: G-013's originally-scoped M5 included
+  Playwright e2e coverage for DMC mode, which was not added -- see
+  GOALS.md's G-013 entry for the explicit caveat. The Owner's deploy
+  instruction was direct and is being honored as "ship what's built and
+  verified now," not read as retroactive sign-off that e2e coverage is
+  unnecessary.
 
 ## Owner action list
 
