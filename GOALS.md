@@ -459,7 +459,11 @@ _No goals currently active._
   actually reaches the canvas's true top-left, and wheel-zoom changes
   zoom level without also changing scroll position). 198 unit tests +
   27 e2e tests green, clean `tsc`/`eslint`/`npm run build`. Redeployed
-  to `https://cross-stitch.craftodejnice.cz` (see HANDOVER.md D30).
+  to `https://cross-stitch.craftodejnice.cz` (`docker ps` before/after
+  confirmed only this project's container restarted, 6 other sites on
+  the host all still returned 200) and re-verified both fixes directly
+  against the live production URL, not just the dev server — see
+  HANDOVER.md D30.
 - 2026-09-10 — Deployed to production
   (`https://cross-stitch.craftodejnice.cz`) and goal marked DONE.
   Redeployed following the standard recipe (`git fetch`/`git pull`
