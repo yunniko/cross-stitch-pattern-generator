@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch } from "@/lib/pattern-edit";
+import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor } from "@/lib/pattern-edit";
 import { MAX_COLORS, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {
@@ -108,6 +108,25 @@ describe("addColor", () => {
     const colors: RGB[] = Array.from({ length: MAX_COLORS }, (_, i) => [i, i, i] as RGB);
     const pattern = makePattern(MAX_COLORS, 1, colors.map((_, i) => i), colors);
     expect(() => addColor(pattern, [1, 2, 3])).toThrow();
+  });
+});
+
+describe("renameColor", () => {
+  it("renames only the target color", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    const renamed = renameColor(pattern, 0, "Pebble");
+    expect(renamed.palette[0].name).toBe("Pebble");
+  });
+
+  it("trims surrounding whitespace", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    const renamed = renameColor(pattern, 0, "  Pebble  ");
+    expect(renamed.palette[0].name).toBe("Pebble");
+  });
+
+  it("is a no-op for a blank name", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    expect(renameColor(pattern, 0, "   ")).toBe(pattern);
   });
 });
 

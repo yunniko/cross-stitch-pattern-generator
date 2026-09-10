@@ -15,6 +15,94 @@ _(none)_
 
 ## Completed goals
 
+### G-008 · Editor brush tool, legend sort, and rename — DONE (2026-09-10)
+- **What:** Three editor refinements on top of G-007: (1) painting by
+  click OR click-and-drag stroke, not click-only; (2) legend sorted by
+  stitch count instead of raw palette order; (3) colors renameable
+  in-editor.
+- **Why:** Owner request (2026-09-10, chat) after using the G-007
+  editor for real: single-click painting was too slow for larger
+  regions, an unsorted legend made the most-used colors hard to find,
+  and the generated names (from `color-name-list`'s "bestof" list, see
+  G-003) are sometimes more creative than obvious (e.g. "Salmon Glow",
+  "Root Beer") — the Owner asked whether a coarser/more "obvious"
+  naming library exists (e.g. "pink"/"dark pink" for two similar
+  colors) as an alternative, with an explicit fallback: "if there is
+  not such ways, just make colors renameable in edit mode." The Owner
+  separately asked to also show a grayscale swatch alongside the color
+  swatch for grayscale-derived patterns, then retracted that ask mid-
+  session ("actually don't touch gs legend for now") — dropped from
+  scope.
+- **Acceptance criteria:**
+  1. Selecting a color and dragging across the picture paints every
+     cell the cursor passes over, not just the one it started on; a
+     plain click still paints exactly one stitch as before.
+  2. A whole stroke undoes/redoes as a single history step, not one
+     step per cell crossed.
+  3. The legend lists colors sorted by stitch count (most-used first),
+     without changing the underlying palette order that drag-and-drop
+     payloads (`color.index`) depend on.
+  4. Every legend color's name can be edited by the user in the editor.
+- **Constraints:** No server-side dependency; researched before
+  building a rename feature, per the Owner's own framing ("if there is
+  not such ways") — only build it once no suitable naming library is
+  confirmed to exist.
+
+**Milestones**:
+- [x] M1 — Researched `color-name-lists` (the plural npm package
+      surfaced as a candidate) and its constituent datasets
+      (`wikipedia-color-names`, `color-standards-and-color-nomenclature`
+      — a 1912 Ridgway digitization, `farbnamen`, `nombres-de-colores`,
+      etc.). None of them solve the actual problem: the Owner's ask is
+      for *relative* naming — two similar colors in one specific
+      palette getting paired names like "pink"/"dark pink" — which
+      requires comparing colors within the current palette, not just
+      looking each one up independently in a bigger or smaller fixed
+      dictionary (any dictionary, however coarse, names colors
+      independently and can't guarantee a coherent pair like that; it
+      might just as easily produce two different, unrelated names, or
+      the same name for both). No dataset does this. Concluded: build
+      the rename feature instead, per the Owner's own fallback
+      instruction. ✔ 2026-09-10.
+- [x] M2 — `lib/pattern-edit.ts`: `renameColor(pattern, paletteIndex,
+      name)` — trims and no-ops on blank input. 3 new unit tests.
+      `app/pattern-editor.tsx`: double-click a legend name to edit it
+      inline (input auto-focused, commits on blur/Enter, cancels on
+      Escape). ✔ 2026-09-10.
+- [x] M3 — Legend sorted by stitch count descending for display only
+      (a `.sort()` on a copy of `history.state.palette`; drag-and-drop
+      and click-to-select still key off each color's own stable
+      `.index`, unaffected by display order). ✔ 2026-09-10.
+- [x] M4 — Brush tool: replaced the canvas's single `onClick` handler
+      with `onPointerDown`/`onPointerMove`/`onPointerUp` (+
+      `onPointerCancel`) using pointer capture. During an active stroke,
+      each newly-entered cell is painted into a local (non-undo-tracked)
+      working copy of the pattern and the canvas is redrawn directly
+      from it for live feedback; the whole stroke commits to undo
+      history as one `history.set()` call on pointer-up — so a long
+      drag doesn't flood the 50-entry undo stack, and a plain click
+      (down+up, no move) still behaves exactly like the old
+      single-stitch click. ✔ 2026-09-10. 1 new permanent e2e test
+      (multi-cell drag stroke, then confirms a single Undo reverts the
+      whole stroke and disables the Undo button again). All 114 unit
+      tests + 5 e2e tests green; lint/`tsc`/production build all clean.
+      Verified live in a real browser (not just Playwright): a 2-cell
+      drag stroke raised the painted color's count by exactly 2, one
+      Undo click reverted both cells and disabled the Undo button;
+      double-click rename ("Lagoon" → "Dark Teal") worked and was
+      itself a normal undoable history step; legend order was
+      confirmed descending by stitch count in the live UI.
+
+**Progress log** (newest first):
+- 2026-09-10 — All 4 milestones built and verified in one session.
+  Owner sent the batch as one message, then two mid-turn clarifications:
+  "for grayscale make both gs and color boxes on legend" (resolving an
+  ambiguity in the original grayscale-legend ask), immediately followed
+  by "actually don't touch gs legend for now" (dropping that item from
+  scope entirely before any code was written for it). Not yet pushed/
+  deployed — awaiting Owner confirmation, per this project's standard
+  milestone check-in gate (not waived, unlike svc-lab).
+
 ### G-007 · Interactive pattern editor — DONE (2026-09-09)
 - **What:** An in-browser editor for a generated pattern, entered either
   via an "Edit" button right after generation or by opening a

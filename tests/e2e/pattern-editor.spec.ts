@@ -71,3 +71,33 @@ test("editor: cluster-fill drag and click-to-paint both change the pattern witho
 
   expect(errors).toEqual([]);
 });
+
+test("editor: brush stroke paints multiple stitches as a single undo step", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("1. Image").setInputFiles(FIXTURE);
+  await page.getByRole("radio", { name: /Small/ }).check();
+  await page.getByRole("button", { name: "Generate pattern" }).click();
+  await expect(page.getByAltText("Cross-stitch pattern preview")).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+
+  const legendRows = page.locator("div[draggable='true']");
+  const canvas = page.locator("canvas");
+  await canvas.scrollIntoViewIfNeeded();
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("canvas not visible");
+
+  await legendRows.nth(0).click(); // select the first legend color as active
+
+  // Drag a stroke across several cells.
+  await page.mouse.move(box.x + 5, box.y + 5);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 25, box.y + 5, { steps: 4 });
+  await page.mouse.move(box.x + 45, box.y + 5, { steps: 4 });
+  await page.mouse.up();
+
+  // A single undo should revert the whole stroke at once.
+  const undoButton = page.getByRole("button", { name: "Undo" });
+  await expect(undoButton).toBeEnabled();
+  await undoButton.click();
+  await expect(undoButton).toBeDisabled();
+});

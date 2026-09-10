@@ -100,6 +100,14 @@ export function addColor(pattern: StitchPattern, rgb: RGB): StitchPattern {
   return { ...pattern, palette: [...pattern.palette, newColor] };
 }
 
+/** Renames an existing palette color. No validation beyond non-empty -- duplicate/blank names are the user's own call. */
+export function renameColor(pattern: StitchPattern, paletteIndex: number, name: string): StitchPattern {
+  const trimmed = name.trim();
+  if (trimmed === "") return pattern;
+  const palette = pattern.palette.map((color, i) => (i === paletteIndex ? { ...color, name: trimmed } : color));
+  return { ...pattern, palette };
+}
+
 /**
  * Drops any palette color with zero stitches -- run before a final PNG
  * export from the editor (not during editing itself, where a just-added,

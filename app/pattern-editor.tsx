@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import { hexToRgb, rgbToHex } from "@/lib/color";
-import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch } from "@/lib/pattern-edit";
+import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor } from "@/lib/pattern-edit";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
 import { downloadCanvasAsPng, drawChart, renderPatternToCanvas, renderStitchPreviewToCanvas } from "@/lib/render";
 import { useUndoHistory } from "@/lib/use-undo-history";
@@ -44,8 +44,11 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
   const [addColorDraftHex, setAddColorDraftHex] = useState("#808080");
   const [isDownloading, setIsDownloading] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
+  const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const openFileInputRef = useRef<HTMLInputElement>(null);
+  const strokeRef = useRef<{ pattern: StitchPattern; lastCell: number | null } | null>(null);
 
   const { width, height } = history.state;
   const cellSize = Math.max(EDITOR_MIN_CELL_SIZE, Math.min(EDITOR_MAX_CELL_SIZE, Math.floor(EDITOR_TARGET_WIDTH_PX / Math.max(width, height))));
@@ -60,13 +63,44 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
     drawChart(ctx, history.state, "color", cellSize);
   }, [history.state, width, height, cellSize]);
 
-  function handleCanvasClick(e: React.MouseEvent<HTMLCanvasElement>) {
+  function redrawWith(p: StitchPattern) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    drawChart(ctx, p, "color", cellSize);
+  }
+
+  function handleCanvasPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     if (activeColorIndex === null) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const cellIndex = cellIndexFromEvent(e, canvas, cellSize, width, height);
     if (cellIndex === null) return;
-    history.set(paintStitch(history.state, cellIndex, activeColorIndex));
+    const painted = paintStitch(history.state, cellIndex, activeColorIndex);
+    strokeRef.current = { pattern: painted, lastCell: cellIndex };
+    redrawWith(painted);
+    canvas.setPointerCapture(e.pointerId);
+  }
+
+  function handleCanvasPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!strokeRef.current || activeColorIndex === null) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const cellIndex = cellIndexFromEvent(e, canvas, cellSize, width, height);
+    if (cellIndex === null || cellIndex === strokeRef.current.lastCell) return;
+    const painted = paintStitch(strokeRef.current.pattern, cellIndex, activeColorIndex);
+    strokeRef.current = { pattern: painted, lastCell: cellIndex };
+    redrawWith(painted);
+  }
+
+  function handleCanvasPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!strokeRef.current) return;
+    history.set(strokeRef.current.pattern);
+    strokeRef.current = null;
+    if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
+      canvasRef.current.releasePointerCapture(e.pointerId);
+    }
   }
 
   function handleCanvasDrop(e: React.DragEvent<HTMLCanvasElement>) {
@@ -106,6 +140,18 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
   function commitAddColor() {
     history.set(addColor(history.state, hexToRgb(addColorDraftHex)));
     setAddingColor(false);
+  }
+
+  function startRename(paletteIndex: number, currentName: string) {
+    setRenameDraft(currentName);
+    setRenamingIndex(paletteIndex);
+  }
+
+  function commitRename() {
+    if (renamingIndex !== null) {
+      history.set(renameColor(history.state, renamingIndex, renameDraft));
+    }
+    setRenamingIndex(null);
   }
 
   function baseFileName(): string {
@@ -204,48 +250,77 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
 
       <p className="text-xs text-zinc-500">
         Drag a color onto another to merge them. Drag a color onto the picture to fill that region. Click a color to
-        select it, then click a stitch to repaint just that one.
+        select it, then click or drag across the picture to paint with it. Double-click a name to rename it.
       </p>
 
       <div className="flex flex-wrap items-start gap-6">
         <canvas
           ref={canvasRef}
-          onClick={handleCanvasClick}
+          onPointerDown={handleCanvasPointerDown}
+          onPointerMove={handleCanvasPointerMove}
+          onPointerUp={handleCanvasPointerUp}
+          onPointerCancel={handleCanvasPointerUp}
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleCanvasDrop}
-          className={`border border-zinc-300 dark:border-zinc-700 ${activeColorIndex !== null ? "cursor-crosshair" : ""}`}
+          className={`touch-none border border-zinc-300 dark:border-zinc-700 ${activeColorIndex !== null ? "cursor-crosshair" : ""}`}
         />
 
         <div className="flex min-w-[220px] flex-col gap-1">
-          {history.state.palette.map((color) => (
-            <div
-              key={color.index}
-              draggable
-              onDragStart={(e) => e.dataTransfer.setData("text/plain", String(color.index))}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={handleLegendDrop(color.index)}
-              onClick={() => setActiveColorIndex(activeColorIndex === color.index ? null : color.index)}
-              className={`flex cursor-pointer items-center gap-2 rounded border px-2 py-1 text-sm transition-colors ${
-                activeColorIndex === color.index
-                  ? "border-foreground bg-black/[.04] dark:bg-white/[.08]"
-                  : "border-transparent hover:bg-black/[.04] dark:hover:bg-white/[.08]"
-              }`}
-            >
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openColorEditor(color.index);
-                }}
-                style={{ backgroundColor: rgbToHex(color.rgb) }}
-                className="h-5 w-5 shrink-0 rounded border border-zinc-400 dark:border-zinc-600"
-                aria-label={`Edit ${color.name}`}
-              />
-              <span className="w-4 shrink-0 text-center">{color.symbol}</span>
-              <span className="flex-1 truncate">{color.name}</span>
-              <span className="shrink-0 text-xs text-zinc-500">{color.count} sts</span>
-            </div>
-          ))}
+          {[...history.state.palette]
+            .sort((a, b) => b.count - a.count)
+            .map((color) => (
+              <div
+                key={color.index}
+                draggable
+                onDragStart={(e) => e.dataTransfer.setData("text/plain", String(color.index))}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleLegendDrop(color.index)}
+                onClick={() => setActiveColorIndex(activeColorIndex === color.index ? null : color.index)}
+                className={`flex cursor-pointer items-center gap-2 rounded border px-2 py-1 text-sm transition-colors ${
+                  activeColorIndex === color.index
+                    ? "border-foreground bg-black/[.04] dark:bg-white/[.08]"
+                    : "border-transparent hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openColorEditor(color.index);
+                  }}
+                  style={{ backgroundColor: rgbToHex(color.rgb) }}
+                  className="h-5 w-5 shrink-0 rounded border border-zinc-400 dark:border-zinc-600"
+                  aria-label={`Edit ${color.name}`}
+                />
+                <span className="w-4 shrink-0 text-center">{color.symbol}</span>
+                {renamingIndex === color.index ? (
+                  <input
+                    autoFocus
+                    value={renameDraft}
+                    onChange={(e) => setRenameDraft(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={commitRename}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                      if (e.key === "Escape") setRenamingIndex(null);
+                    }}
+                    className="w-0 min-w-0 flex-1 rounded border border-zinc-400 bg-transparent px-1 dark:border-zinc-600"
+                  />
+                ) : (
+                  <span
+                    className="flex-1 truncate"
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      startRename(color.index, color.name);
+                    }}
+                    title="Double-click to rename"
+                  >
+                    {color.name}
+                  </span>
+                )}
+                <span className="shrink-0 text-xs text-zinc-500">{color.count} sts</span>
+              </div>
+            ))}
         </div>
       </div>
 

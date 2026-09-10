@@ -1362,6 +1362,115 @@ component labeling over 1,000,000 cells, ~200ms) — no separate
 optimization needed. Full regression pass: 111 unit tests + 4 e2e tests
 green, clean lint/typecheck/build, deployed and verified live.
 
+**D23 — G-008 built and verified (2026-09-10): brush-stroke painting,
+legend sorted by stitch count, color renaming; coarser-naming library
+research concluded negative.** Full acceptance criteria and milestones
+in GOALS.md's G-008 (now DONE) — this entry covers the design and
+research reasoning.
+
+*Color-naming research (M1) concluded no library solves the actual
+ask.* The Owner's request was for names like "pink"/"dark pink" for two
+similar colors *in one specific generated palette* — a genuinely
+*relative* naming problem (compare colors within the current palette,
+then name accordingly), not a lookup problem. Checked
+`color-name-lists` (the plural npm package, MIT, 3.33.2, actively
+maintained by the same author as the already-integrated singular
+`color-name-list`) — it bundles `wikipedia-color-names`,
+`color-standards-and-color-nomenclature` (a public-domain digitization
+of Ridgway's 1912 nomenclature, not ISCC-NBS as an initial web search
+summary suggested), several non-English name lists, and others. Every
+one of them is a fixed dictionary: even the coarsest fixed dictionary
+still names each color independently, so it can't guarantee two similar
+palette colors end up as a coherent "X"/"dark X" pair — it might just as
+easily produce two unrelated names, or collide on the same name. Building
+a real relative-naming algorithm (group palette colors by hue family,
+then apply light/dark modifiers based on *relative* lightness within
+each group) was considered but is a materially bigger, riskier
+undertaking than what was actually asked for, and the Owner had already
+given an explicit fallback for exactly this outcome — so implemented
+that fallback (manual rename) instead, not the bigger unrequested
+feature.
+
+*Rename (M2)*: `renameColor(pattern, paletteIndex, name)` mirrors
+`editColorRgb`'s shape (D22) — trims whitespace, no-ops on a blank
+name, otherwise a plain palette-array update. UI: double-click a legend
+name to turn it into an inline, auto-focused `<input>` (commits on
+blur/Enter, cancels on Escape) rather than a separate always-visible
+edit button — kept the legend row's existing layout untouched, and
+double-click-to-rename is a discoverable-enough, common convention (file
+managers, browser tabs).
+
+*Sort (M3)*: display-only. The legend renders `[...palette].sort((a, b)
+=> b.count - a.count)` — a sorted **copy** — while every interaction
+(drag payloads, click-to-select) still keys off each color's own stable
+`color.index`, never the sorted array's position. The underlying
+`pattern.palette` order is untouched, so nothing about serialization
+(D21) or merge/fill/paint's index-based logic needed to change.
+
+*Brush tool (M4) — the one genuine design decision this batch needed.*
+The naive approach (call `history.set(paintStitch(...))` on every
+`pointermove`) would flood the 50-entry undo stack (D22) after one long
+stroke, and — worse — would mean "Undo" only reverts the *last cell*
+of a stroke, not the whole stroke, which doesn't match what a user
+means by "undo" after painting with a brush. Instead: pointer-down
+starts a stroke by branching a local working copy of the pattern (not
+pushed to history yet); each `pointermove` into a newly-entered cell
+extends that working copy and redraws the canvas directly from it
+(bypassing the `history.state`-driven redraw effect); `pointerup`
+commits the *final* accumulated pattern as a single `history.set()`
+call. A plain click (`pointerdown` immediately followed by `pointerup`,
+no intervening move) naturally reduces to exactly the old single-stitch
+click behavior — no special-casing needed. Used the Pointer Events API
+with `setPointerCapture`/`releasePointerCapture` (not separate
+mouse-event handlers) so a stroke that leaves the canvas bounds while
+the button is held keeps receiving move/up events correctly instead of
+silently ending the moment the cursor crosses the canvas edge.
+
+*A real test-script bug caught during verification, not an app bug*:
+the first e2e attempt at the brush-stroke test failed because
+`canvas.boundingBox()` was read before scrolling the canvas into view —
+Playwright's synthetic mouse coordinates landed above the viewport
+(`box.y` was negative), so the "stroke" hit nothing. Confirmed via a
+throwaway debug script reproducing the exact failure, then fixed by
+calling `scrollIntoViewIfNeeded()` first — both the throwaway script and
+the permanent e2e test needed the same one-line fix. Not an app defect;
+logged here only because it's exactly the kind of test-vs-app
+distinction this project's process cares about getting right rather
+than assuming.
+
+*Verification*: 3 new unit tests for `renameColor` (rename, trim,
+blank-is-no-op) — 114 unit tests total, all passing. 1 new permanent
+e2e test (`pattern-editor.spec.ts`): a multi-cell drag stroke, then
+confirms a single Undo reverts the whole stroke and disables the Undo
+button again — 5 e2e tests total, all passing against a local
+production build. Lint/`tsc --noEmit`/production build all clean. Live
+real-browser walkthrough (not just Playwright): generated a pattern,
+selected a color, dragged a 2-cell stroke across the picture (count
+rose from 148 to 150 sts for the painted color), clicked Undo once and
+confirmed the count returned to 148 with the Undo button disabling
+again (proving the whole stroke undoes as one step, not two), then
+double-clicked a legend name ("Lagoon" → "Dark Teal") and confirmed the
+rename applied and was itself a normal, undoable history entry. Legend
+order was visually confirmed descending by stitch count throughout.
+
+*Scope change mid-session, before any code was written for it*: the
+Owner's original batch request included "for grayscale image make
+legend grayscale aswell," clarified mid-turn to "for grayscale make
+both gs and color boxes on legend" (show both a grayscale and a true-
+color swatch per legend row for grayscale-derived patterns), then
+retracted before implementation began: "actually don't touch gs legend
+for now." No code, tests, or design work exists for this item — it is
+simply out of scope for G-008, not deferred to a later milestone within
+it. If revisited later, the natural starting point is still
+`bwGray()`/`BW_MIN_GRAY`/`BW_MAX_GRAY` in `lib/render.ts` for the
+grayscale-mapping logic, and a decision on scope (editor's DOM legend
+only, vs. also the static/printable chart's canvas-drawn
+`drawLegendItem`) would need to be made first.
+
+Not yet pushed or deployed — this project's standard milestone
+check-in gate applies (unlike svc-lab); awaiting explicit Owner
+confirmation before shipping, same as every prior goal here.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
