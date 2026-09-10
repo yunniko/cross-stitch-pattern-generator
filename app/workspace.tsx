@@ -1,13 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import { hexToRgb, rgbToHex } from "@/lib/color";
 import { decodeSourceImage, loadImageAsPixelBuffer } from "@/lib/load-image";
 import { cancelPatternJob, runPatternJob } from "@/lib/pattern-client";
 import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern } from "@/lib/pattern-edit";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
-import { downloadCanvasAsPng, drawChart, renderPatternToCanvas, renderStitchPreviewToCanvas, type RenderMode } from "@/lib/render";
+import {
+  downloadCanvasAsPng,
+  drawChart,
+  drawChartOutline,
+  renderNavigatorPixels,
+  renderPatternToCanvas,
+  renderStitchPreviewToCanvas,
+  type RenderMode,
+} from "@/lib/render";
 import { generateA4Export, downloadBlob } from "@/lib/a4-export";
 import { calculateA4Layout, type OverlapCells } from "@/lib/a4-layout";
 import { useUndoHistory } from "@/lib/use-undo-history";
@@ -32,8 +40,24 @@ import type { GenerationMode } from "@/lib/pattern.worker";
 const IMAGE_WINDOW_TARGET_WIDTH_PX = 720;
 const IMAGE_WINDOW_MAX_CELL_SIZE = 28;
 const IMAGE_WINDOW_MIN_CELL_SIZE = 4;
+// Caps the *zoomed-in* editor canvas's total pixel dimensions -- matches
+// lib/render.ts's own MAX_CHART_DIMENSION_PX budget for the export path, so
+// zooming in on the largest supported pattern can't request a runaway
+// canvas allocation the browser can't make.
+const IMAGE_WINDOW_MAX_ZOOMED_CANVAS_PX = 8000;
 
-type ViewMode = RenderMode | "realistic";
+// The Preview/navigator dock's bounded box -- big enough to be useful, small
+// enough to stay a "where am I" glance, not a second full preview. Its own
+// canvas renders at *true* 1px-per-stitch scale (G-012's own spec) inside
+// this box, scrolling internally via overflow if the pattern is larger.
+const NAVIGATOR_MAX_SIZE_PX = 180;
+
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 4;
+const ZOOM_STEP = 1.4;
+
+type ViewMode = RenderMode | "realistic" | "photo";
+type Tool = "brush" | "pan" | "zoom";
 
 interface SourceImageMeta {
   dataUrl: string;
@@ -101,6 +125,21 @@ export default function Workspace() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const strokeRef = useRef<{ pattern: StitchPattern; lastCell: number | null } | null>(null);
 
+  // --- Tools dock: active tool + pan/zoom (M2) ---
+  const [activeTool, setActiveTool] = useState<Tool>("brush");
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const panRef = useRef<{ pointerId: number; startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null);
+
+  // The decoded photo image for "Grid + photo" mode, cached by its data URL
+  // so switching modes back and forth doesn't re-decode every time. A ref
+  // (not state) since the Image element itself isn't rendered -- only drawn
+  // into the canvas -- but photoImageVersion (state) forces a redraw once a
+  // new one finishes loading.
+  const photoImageRef = useRef<{ dataUrl: string; img: HTMLImageElement } | null>(null);
+  const [photoImageVersion, setPhotoImageVersion] = useState(0);
+  const navigatorCanvasRef = useRef<HTMLCanvasElement>(null);
+
   // --- Name, open/save, downloads, A4 export ---
   const [nameDraft, setNameDraft] = useState("cross-stitch-pattern");
   const [lastCommittedName, setLastCommittedName] = useState<string | undefined>(undefined);
@@ -129,14 +168,58 @@ export default function Workspace() {
     setNameDraft(pattern?.name ?? "cross-stitch-pattern");
   }
 
-  const cellSize = pattern
+  const baseCellSize = pattern
     ? Math.max(
         IMAGE_WINDOW_MIN_CELL_SIZE,
         Math.min(IMAGE_WINDOW_MAX_CELL_SIZE, Math.floor(IMAGE_WINDOW_TARGET_WIDTH_PX / Math.max(pattern.width, pattern.height)))
       )
     : IMAGE_WINDOW_MAX_CELL_SIZE;
+  // Zoom actually re-renders at a higher resolution (not a CSS scale of the
+  // same low-res canvas) -- otherwise a large pattern's small base cell size
+  // (down to 4px, below drawChart's own symbol-legibility floor) would still
+  // never show symbols no matter how far in you zoom, defeating the whole
+  // point of zooming in on a dense chart to read it. Bounded by the same
+  // total-canvas-dimension budget the export path already established
+  // (`MAX_CHART_DIMENSION_PX` in lib/render.ts) so 4x zoom on the largest
+  // supported pattern can't request a runaway canvas allocation.
+  const cellSize = pattern
+    ? Math.min(Math.round(baseCellSize * zoomLevel), Math.floor(IMAGE_WINDOW_MAX_ZOOMED_CANVAS_PX / Math.max(pattern.width, pattern.height)))
+    : baseCellSize;
 
-  // --- Image window: live editable canvas for color/bw ---
+  // The photo underlay is drawn at reduced opacity so the (always full-
+  // opacity, white-haloed) symbol grid on top of it stays the primary
+  // readable layer -- an onion-skin-style reference, not a second download
+  // mode, which is why this stays entirely inside the workspace rather than
+  // becoming a `RenderMode` the export/A4 paths also need to understand.
+  const PHOTO_UNDERLAY_ALPHA = 0.55;
+
+  const drawCurrentView = useCallback(
+    (ctx: CanvasRenderingContext2D, p: StitchPattern) => {
+      if (viewMode === "photo" && p.sourceImage) {
+        const cached = photoImageRef.current;
+        if (cached && cached.dataUrl === p.sourceImage.dataUrl) {
+          const { naturalWidth, naturalHeight, cellSizePx, offsetX, offsetY } = p.sourceImage;
+          const scale = cellSize / cellSizePx;
+          ctx.globalAlpha = PHOTO_UNDERLAY_ALPHA;
+          ctx.drawImage(cached.img, offsetX * cellSize, offsetY * cellSize, naturalWidth * scale, naturalHeight * scale);
+          ctx.globalAlpha = 1;
+        }
+        drawChartOutline(ctx, p, cellSize);
+      } else {
+        // viewMode is "color" | "bw" here -- "realistic" is handled by its own
+        // async, non-interactive effect below, and "photo" is handled above.
+        drawChart(ctx, p, viewMode as RenderMode, cellSize);
+      }
+    },
+    // photoImageVersion isn't read directly but its change means
+    // photoImageRef.current now points at a newly-loaded image -- this
+    // callback (and the effect below re-running it) needs to be recreated
+    // then, or the redraw would use a stale closure and never show it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [viewMode, cellSize, photoImageVersion]
+  );
+
+  // --- Image window: live editable canvas for color/bw/photo ---
   useEffect(() => {
     if (viewMode === "realistic") return;
     const canvas = canvasRef.current;
@@ -145,8 +228,44 @@ export default function Workspace() {
     canvas.height = pattern.height * cellSize;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    drawChart(ctx, pattern, viewMode, cellSize);
-  }, [pattern, viewMode, cellSize]);
+    drawCurrentView(ctx, pattern);
+  }, [pattern, viewMode, cellSize, photoImageVersion, drawCurrentView]);
+
+  // Decodes the pattern's embedded photo once per unique data URL, for
+  // "Grid + photo" mode -- lazy (only while that mode is selected) so
+  // patterns/sessions that never use it never pay for the decode.
+  useEffect(() => {
+    if (viewMode !== "photo" || !pattern?.sourceImage) return;
+    const sourceImage = pattern.sourceImage;
+    if (photoImageRef.current?.dataUrl === sourceImage.dataUrl) return;
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => {
+      if (cancelled) return;
+      photoImageRef.current = { dataUrl: sourceImage.dataUrl, img };
+      setPhotoImageVersion((v) => v + 1);
+    };
+    img.src = sourceImage.dataUrl;
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode, pattern?.sourceImage]);
+
+  // --- Preview/navigator dock: the whole pattern at true 1px-per-stitch scale ---
+  useEffect(() => {
+    const canvas = navigatorCanvasRef.current;
+    if (!canvas || !pattern) return;
+    canvas.width = pattern.width;
+    canvas.height = pattern.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    // Cast needed: Uint8ClampedArray's ArrayBufferLike-vs-ArrayBuffer generic
+    // mismatch between TS's typed-array and DOM lib definitions -- the
+    // runtime array is always a plain ArrayBuffer (`new Uint8ClampedArray(n)`
+    // never produces a SharedArrayBuffer-backed one).
+    const pixels = renderNavigatorPixels(pattern) as unknown as Uint8ClampedArray<ArrayBuffer>;
+    ctx.putImageData(new ImageData(pixels, pattern.width, pattern.height), 0, 0);
+  }, [pattern]);
 
   function redrawWith(p: StitchPattern) {
     if (viewMode === "realistic") return;
@@ -154,7 +273,7 @@ export default function Workspace() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    drawChart(ctx, p, viewMode, cellSize);
+    drawCurrentView(ctx, p);
   }
 
   // --- Image window: async non-interactive realistic preview ---
@@ -198,6 +317,7 @@ export default function Workspace() {
       // shown "as is" in the Image window until Generate is pressed.
       history.reset(null);
       setActiveColorIndex(null);
+      setZoomLevel(1);
     } catch {
       if (sourceRevisionRef.current !== myRevision) return;
       setGenError("Couldn't read that image. Try a different file (JPEG, PNG, or WebP).");
@@ -272,10 +392,28 @@ export default function Workspace() {
     }
   }
 
+  function zoomBy(factor: number) {
+    setZoomLevel((z) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z * factor)));
+  }
+
   function handleCanvasPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (activeColorIndex === null || !pattern) return;
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !pattern) return;
+
+    if (activeTool === "pan") {
+      const scroller = scrollerRef.current;
+      if (!scroller) return;
+      panRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, scrollLeft: scroller.scrollLeft, scrollTop: scroller.scrollTop };
+      canvas.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    if (activeTool === "zoom") {
+      zoomBy(e.shiftKey || e.altKey ? 1 / ZOOM_STEP : ZOOM_STEP);
+      return;
+    }
+
+    if (activeColorIndex === null) return;
     const cellIndex = cellIndexFromEvent(e, canvas, cellSize, pattern.width, pattern.height);
     if (cellIndex === null) return;
     const painted = paintStitch(pattern, cellIndex, activeColorIndex);
@@ -285,6 +423,14 @@ export default function Workspace() {
   }
 
   function handleCanvasPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (panRef.current && panRef.current.pointerId === e.pointerId) {
+      const scroller = scrollerRef.current;
+      if (!scroller) return;
+      scroller.scrollLeft = panRef.current.scrollLeft - (e.clientX - panRef.current.startX);
+      scroller.scrollTop = panRef.current.scrollTop - (e.clientY - panRef.current.startY);
+      return;
+    }
+
     if (!strokeRef.current || activeColorIndex === null || !pattern) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -296,12 +442,26 @@ export default function Workspace() {
   }
 
   function handleCanvasPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (panRef.current && panRef.current.pointerId === e.pointerId) {
+      panRef.current = null;
+      if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
+        canvasRef.current.releasePointerCapture(e.pointerId);
+      }
+      return;
+    }
+
     if (!strokeRef.current) return;
     history.set(strokeRef.current.pattern);
     strokeRef.current = null;
     if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
       canvasRef.current.releasePointerCapture(e.pointerId);
     }
+  }
+
+  function handleImageWindowWheel(e: React.WheelEvent<HTMLDivElement>) {
+    if (!pattern) return;
+    e.preventDefault();
+    zoomBy(e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
   }
 
   function handleCanvasDrop(e: React.DragEvent<HTMLCanvasElement>) {
@@ -393,6 +553,7 @@ export default function Workspace() {
         const withName = { ...loaded, name: loaded.name ?? fallbackName };
         history.reset(withName);
         setActiveColorIndex(null);
+        setZoomLevel(1);
         cancelPatternJob();
         ++sourceRevisionRef.current;
         if (withName.sourceImage) {
@@ -421,7 +582,7 @@ export default function Workspace() {
       .catch((err) => setOpenError(err instanceof Error ? err.message : "Couldn't open that file."));
   }
 
-  function handleDownload(mode: ViewMode) {
+  function handleDownload(mode: RenderMode | "realistic") {
     if (!pattern) return;
     setIsDownloading(true);
     setDownloadError(null);
@@ -521,19 +682,26 @@ export default function Workspace() {
         {/* Tools dock (left) */}
         <aside className="flex w-16 shrink-0 flex-col items-center gap-2 border-r border-zinc-300 bg-white py-3 dark:border-zinc-800 dark:bg-zinc-900">
           <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">Tools</span>
-          <button
-            type="button"
-            onClick={() => setActiveColorIndex(null)}
-            disabled={!pattern}
-            title="Brush is active whenever a color is selected in the Colors dock"
-            className={`flex h-10 w-10 items-center justify-center rounded border text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 ${
-              activeColorIndex !== null
-                ? "border-foreground bg-black/[.06] dark:bg-white/[.1]"
-                : "border-zinc-300 dark:border-zinc-700"
-            }`}
-          >
-            Brush
-          </button>
+          {(
+            [
+              { tool: "brush" as const, label: "Brush", title: "Paint the selected color -- click a color in the Colors dock first" },
+              { tool: "pan" as const, label: "Pan", title: "Drag the Image window to scroll it" },
+              { tool: "zoom" as const, label: "Zoom", title: "Click to zoom in, Shift-click to zoom out (wheel always zooms too)" },
+            ]
+          ).map(({ tool, label, title }) => (
+            <button
+              key={tool}
+              type="button"
+              onClick={() => setActiveTool(tool)}
+              disabled={!pattern}
+              title={title}
+              className={`flex h-10 w-10 items-center justify-center rounded border text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 ${
+                activeTool === tool ? "border-foreground bg-black/[.06] dark:bg-white/[.1]" : "border-zinc-300 dark:border-zinc-700"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </aside>
 
         {/* Center: Image window + Processing-params dock */}
@@ -543,7 +711,7 @@ export default function Workspace() {
               {pattern ? `${pattern.width} × ${pattern.height} stitches, ${pattern.palette.length} colors` : "No pattern yet"}
             </span>
             {pattern && (
-              <div className="ml-auto flex gap-3 text-sm">
+              <div className="ml-auto flex items-center gap-3 text-sm">
                 <label className="flex items-center gap-1.5">
                   <input type="radio" name="view-mode" checked={viewMode === "color"} onChange={() => setViewMode("color")} />
                   Color
@@ -561,11 +729,55 @@ export default function Workspace() {
                   />
                   Realistic preview
                 </label>
+                <label
+                  className={`flex items-center gap-1.5 ${!pattern.sourceImage ? "opacity-50" : ""}`}
+                  title={pattern.sourceImage ? undefined : "No source photo is associated with this pattern"}
+                >
+                  <input
+                    type="radio"
+                    name="view-mode"
+                    checked={viewMode === "photo"}
+                    disabled={!pattern.sourceImage}
+                    onChange={() => setViewMode("photo")}
+                  />
+                  Grid + photo
+                </label>
+                <div className="ml-2 flex items-center gap-1 border-l border-zinc-300 pl-3 dark:border-zinc-700">
+                  <button
+                    type="button"
+                    onClick={() => zoomBy(1 / ZOOM_STEP)}
+                    className="rounded border border-zinc-300 px-2 py-0.5 text-sm hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]"
+                    aria-label="Zoom out"
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setZoomLevel(1)}
+                    className="min-w-[3.5rem] rounded border border-zinc-300 px-2 py-0.5 text-center text-xs hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]"
+                    aria-label="Reset zoom to 100%"
+                    title="Reset zoom to 100%"
+                  >
+                    {Math.round(zoomLevel * 100)}%
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => zoomBy(ZOOM_STEP)}
+                    className="rounded border border-zinc-300 px-2 py-0.5 text-sm hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]"
+                    aria-label="Zoom in"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
-          <div className="flex flex-1 items-center justify-center overflow-auto p-4">
+          <div
+            ref={scrollerRef}
+            onWheel={handleImageWindowWheel}
+            className="flex flex-1 items-center justify-center overflow-auto p-4"
+          >
             {!pattern && sourceImageMeta && (
               // eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize
               <img
@@ -586,7 +798,9 @@ export default function Workspace() {
                 onPointerCancel={handleCanvasPointerUp}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleCanvasDrop}
-                className={`touch-none border border-zinc-300 dark:border-zinc-700 ${activeColorIndex !== null ? "cursor-crosshair" : ""}`}
+                className={`touch-none border border-zinc-300 dark:border-zinc-700 ${
+                  activeTool === "pan" ? "cursor-grab active:cursor-grabbing" : activeTool === "zoom" ? "cursor-zoom-in" : activeColorIndex !== null ? "cursor-crosshair" : ""
+                }`}
               />
             )}
             {pattern && viewMode === "realistic" && realisticPreviewUrl && (
@@ -594,7 +808,7 @@ export default function Workspace() {
               <img
                 src={realisticPreviewUrl}
                 alt="Cross-stitch pattern preview"
-                className="max-h-full max-w-full border border-zinc-300 dark:border-zinc-700"
+                className="border border-zinc-300 dark:border-zinc-700"
               />
             )}
             {pattern && viewMode === "realistic" && previewError && (
@@ -739,6 +953,20 @@ export default function Workspace() {
 
         {/* Colors dock (right) */}
         <aside className="flex w-64 shrink-0 flex-col gap-2 overflow-y-auto border-l border-zinc-300 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+          {pattern && (
+            <div className="flex flex-col gap-1 border-b border-zinc-300 pb-2 dark:border-zinc-800">
+              <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Navigator</span>
+              <div
+                className="overflow-auto rounded border border-zinc-300 dark:border-zinc-700"
+                style={{ maxWidth: NAVIGATOR_MAX_SIZE_PX, maxHeight: NAVIGATOR_MAX_SIZE_PX }}
+              >
+                <canvas ref={navigatorCanvasRef} style={{ imageRendering: "pixelated" }} className="block" />
+              </div>
+              <p className="text-[11px] text-zinc-500">
+                {pattern.width} × {pattern.height} px, true scale
+              </p>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Colors</span>
             <button

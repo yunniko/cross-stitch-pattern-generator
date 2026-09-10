@@ -19,7 +19,7 @@ test("upload an image, generate a pattern, preview it, and download both variant
 
   await page.getByRole("button", { name: "Generate pattern" }).click();
 
-  const canvas = page.locator("canvas");
+  const canvas = page.getByRole("main").locator("canvas");
   await expect(canvas).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/50 × \d+ stitches, \d+ colors/)).toBeVisible();
 
@@ -51,7 +51,7 @@ test("the image input is disabled while a pattern is generating, so a mid-genera
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(imageInput).toBeDisabled();
 
-  await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
   await expect(imageInput).toBeEnabled();
 });
 
@@ -63,7 +63,7 @@ test("a small chart's header is never clipped, even at the minimum custom size (
   await page.getByRole("spinbutton").fill("10");
 
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
 
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -109,6 +109,6 @@ test("rejects a fractional custom size instead of crashing inside generation (co
   // the size). It should instead be rejected up front with the same
   // size-validation message a plainly out-of-range value gets.
   await expect(page.getByText(/Pattern size must be a whole number/)).toBeVisible();
-  await expect(page.locator("canvas")).not.toBeVisible();
+  await expect(page.getByRole("main").locator("canvas")).not.toBeVisible();
   expect(errors).toEqual([]);
 });

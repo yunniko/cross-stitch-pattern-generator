@@ -139,6 +139,27 @@ export interface ChartRegion {
  * with no separate cell/symbol/color drawing logic (Owner's spec,
  * requirement 15).
  */
+/**
+ * One RGBA byte quadruple per cell, true scale (1 cell = 1 pixel, no grid
+ * lines or symbols -- illegible at that size anyway) -- feeds the
+ * Preview/navigator dock's `ImageData` directly (G-012). A pure function,
+ * not a DOM-drawing one, so the actual pixel derivation is unit-testable
+ * without a canvas.
+ */
+export function renderNavigatorPixels(pattern: StitchPattern): Uint8ClampedArray {
+  const { cellPalette, palette } = pattern;
+  const data = new Uint8ClampedArray(cellPalette.length * 4);
+  for (let i = 0; i < cellPalette.length; i++) {
+    const [r, g, b] = palette[cellPalette[i]].rgb;
+    const o = i * 4;
+    data[o] = r;
+    data[o + 1] = g;
+    data[o + 2] = b;
+    data[o + 3] = 255;
+  }
+  return data;
+}
+
 export function drawChart(
   ctx: CanvasRenderingContext2D,
   pattern: StitchPattern,
@@ -171,6 +192,11 @@ export function drawChart(
     }
   }
 
+  drawGridLines(ctx, x0, y0, x1, y1, cellSize);
+}
+
+/** Shared by `drawChart` and `drawChartOutline` -- gridline weight (every 5th/10th heavier) and spacing, independent of what (if anything) is drawn underneath. */
+function drawGridLines(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, cellSize: number) {
   const minorWidth = Math.max(1, Math.round(cellSize * MINOR_LINE_RATIO));
   const mediumWidth = Math.max(1, Math.round(cellSize * MEDIUM_LINE_RATIO));
   const majorWidth = Math.max(1, Math.round(cellSize * MAJOR_LINE_RATIO));
@@ -190,6 +216,43 @@ export function drawChart(
     ctx.lineTo((x1 - x0) * cellSize, (y - y0) * cellSize);
     ctx.stroke();
   }
+}
+
+/**
+ * Draws only gridlines and symbols -- no cell fill -- so a photo drawn
+ * underneath on the same canvas stays visible (G-012's "Grid + photo"
+ * Image window mode, a reference view for checking symbol placement
+ * against the real photo detail; not a download/export mode, so this
+ * deliberately stays out of `RenderMode`/`renderPatternToCanvas`). Symbols
+ * get a white halo (stroke before fill) since the photo underneath can be
+ * any color, unlike `drawChart`'s luminance-based text color choice which
+ * only has its own flat fill color to contrast against.
+ */
+export function drawChartOutline(ctx: CanvasRenderingContext2D, pattern: StitchPattern, cellSize: number, region?: ChartRegion) {
+  const { width, height, cellPalette, palette } = pattern;
+  const { x0, y0, x1, y1 } = region ?? { x0: 0, y0: 0, x1: width, y1: height };
+  const drawSymbols = cellSize >= LEGIBILITY_FLOOR_PX;
+
+  if (drawSymbols) {
+    ctx.font = `${Math.round(cellSize * 0.6)}px ${FONT_STACK}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineWidth = Math.max(1, Math.round(cellSize * 0.12));
+    ctx.strokeStyle = "#ffffff";
+    ctx.fillStyle = "#111111";
+
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const color = palette[cellPalette[y * width + x]];
+        const localX = (x - x0) * cellSize + cellSize / 2;
+        const localY = (y - y0) * cellSize + cellSize / 2 + 1;
+        ctx.strokeText(color.symbol, localX, localY);
+        ctx.fillText(color.symbol, localX, localY);
+      }
+    }
+  }
+
+  drawGridLines(ctx, x0, y0, x1, y1, cellSize);
 }
 
 /** Small inward-pointing triangles at the midpoint of each chart edge, marking the design's horizontal/vertical center — the conventional stitching start point on a real chart. */

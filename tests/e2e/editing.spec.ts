@@ -8,14 +8,14 @@ async function generateSmallPattern(page: import("@playwright/test").Page) {
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
 }
 
 test("generate, merge two colors, undo/redo, download editable, and reopen it", async ({ page }) => {
   await generateSmallPattern(page);
 
   const legendRows = page.locator("div[draggable='true']");
-  const canvas = page.locator("canvas");
+  const canvas = page.getByRole("main").locator("canvas");
   await expect(canvas).toBeVisible();
   const initialCount = await legendRows.count();
   expect(initialCount).toBeGreaterThan(1);
@@ -43,7 +43,7 @@ test("generate, merge two colors, undo/redo, download editable, and reopen it", 
   await page.getByRole("button", { name: "Open editable pattern" }).click();
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles(savedPath);
-  await expect(page.locator("canvas")).toBeVisible();
+  await expect(page.getByRole("main").locator("canvas")).toBeVisible();
   await expect(legendRows).toHaveCount(initialCount - 1);
 });
 
@@ -88,7 +88,7 @@ test("cluster-fill drag and click-to-paint both change the pattern without error
   await generateSmallPattern(page);
 
   const legendRows = page.locator("div[draggable='true']");
-  const canvas = page.locator("canvas");
+  const canvas = page.getByRole("main").locator("canvas");
   await canvas.scrollIntoViewIfNeeded();
 
   // Cluster-fill: drag a legend color onto the picture. Center of the
@@ -110,7 +110,7 @@ test("brush stroke paints multiple stitches as a single undo step", async ({ pag
   await generateSmallPattern(page);
 
   const legendRows = page.locator("div[draggable='true']");
-  const canvas = page.locator("canvas");
+  const canvas = page.getByRole("main").locator("canvas");
   await canvas.scrollIntoViewIfNeeded();
   const box = await canvas.boundingBox();
   if (!box) throw new Error("canvas not visible");

@@ -14,7 +14,7 @@ test("export as A4 pages downloads a ZIP with grid page(s) plus a legend page", 
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
 
   await expect(page.getByText(/total \(incl\. legend\)/)).toBeVisible();
 
@@ -36,7 +36,7 @@ test("export as A4 pages works in B&W mode", async ({ page }) => {
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: "B&W", exact: true }).click();
 

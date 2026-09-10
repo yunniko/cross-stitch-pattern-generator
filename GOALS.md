@@ -172,12 +172,58 @@ svc-lab).
       the embedded photo round-trips all the way through a real
       close-and-reopen, the specific new capability M1 exists to enable
       for later milestones.
-- [ ] M2 — Image window navigation + Preview/navigator dock + the
-      three render modes. Pan (drag) and zoom (wheel/pinch, plus a Zoom
-      tool) in the Image window, decoupled from render mode. Navigator
-      dock renders the whole pattern at a true 1px-per-stitch scale.
-      Grid+symbols-with-photo mode added alongside today's Color/
-      Realistic modes, using the stored `sourceImage`/`sourceOffset`.
+- [x] M2 — Image window navigation + Preview/navigator dock + the
+      "Grid + photo" render mode. Tools dock gained Pan and Zoom
+      alongside Brush (`activeTool` state); Pan drags to scroll the
+      Image window's own scroll container instead of painting; Zoom
+      click-zooms in (Shift/Alt-click zooms out, 1.4x per step, 25%-400%
+      range), plus wheel always zooms and a mode-bar readout doubles as
+      a "reset to 100%" button. `lib/render.ts` gained
+      `renderNavigatorPixels` (one opaque RGBA pixel per cell, pure/
+      unit-tested) feeding the new Navigator dock — a bounded
+      (180×180px) box showing the whole pattern via `ImageData` at
+      *true* 1px-per-stitch scale, per the Owner's own spec, not scaled
+      to fit. `lib/render.ts` also gained `drawChartOutline` (gridlines
+      + white-haloed symbols only, no cell fill, sharing a
+      `drawGridLines` helper extracted from `drawChart`) for the new
+      "Grid + photo" mode: the stored `sourceImage` photo is drawn first
+      at reduced opacity (0.55 — an onion-skin reference, not a literal
+      spec requirement, since the request didn't say which layer should
+      be dimmed) using its `cellSizePx`/`offsetX`/`offsetY` for scale and
+      alignment, then the outline is drawn on top at full opacity; the
+      radio is disabled with an explanatory title when a pattern has no
+      `sourceImage` (pre-G-012 opens). This mode stays a workspace-only
+      concept, not a `RenderMode` — no export/A4 path needs to
+      understand it. ✔ 2026-09-10.
+
+      **Found and fixed a real design flaw before calling this done, not
+      assumed correct from the implementation alone**: the first zoom
+      implementation only CSS-scaled the already-rendered canvas (same
+      low resolution, just stretched) — for any pattern whose base cell
+      size falls below the 6px symbol-legibility floor (any pattern with
+      more than ~120 stitches on its longer side, given the Image
+      window's own sizing), that meant zooming in could *never* reveal
+      symbols, defeating the actual point of zooming in on a dense
+      chart to read it. Caught by reasoning through what zoom needs to
+      accomplish, then confirmed live (a 400-stitch pattern showed no
+      symbols at any CSS zoom level). Fixed by making `cellSize` itself
+      zoom-dependent (`baseCellSize * zoomLevel`, actually re-rendering
+      at higher resolution), bounded by a per-dimension canvas budget
+      (`IMAGE_WINDOW_MAX_ZOOMED_CANVAS_PX`, matching the existing
+      `MAX_CHART_DIMENSION_PX` export budget) so 4x zoom on the largest
+      supported pattern can't request a runaway canvas. Re-verified
+      live: the same 400-stitch pattern showed clear, legible symbols
+      once zoomed to ~274%, with correct pan/scroll and zero console
+      errors.
+
+      174 unit tests (+1 for `renderNavigatorPixels`) green. 16 e2e
+      tests (+4 new, `tests/e2e/navigation.spec.ts`: navigator true-
+      scale rendering, zoom changing on-screen size without touching
+      pattern dimensions, Pan scrolling instead of painting, and Grid +
+      photo rendering without errors) — all existing `page.locator(
+      "canvas")` usages updated to `page.getByRole("main").locator(
+      "canvas")` since the Navigator dock's own canvas made the bare
+      selector ambiguous. Clean `tsc`/`eslint`/`npm run build`.
 - [ ] M3 — Move and Highlight tools. Move drags the grid's stitch
       content (and the photo underlay in lock-step) within the fixed
       canvas. Highlight supports multi-color selection from the Colors
@@ -201,6 +247,13 @@ svc-lab).
       going live, not just an automated-green deploy).
 
 **Progress log** (newest first):
+- 2026-09-10 — M2 completed and verified: Pan/Zoom tools, the
+  Navigator dock, and "Grid + photo" mode. Found and fixed a real
+  design flaw before calling it done: the first zoom implementation
+  only CSS-scaled the same low-resolution canvas, so symbols could
+  never appear when zooming into a dense pattern -- fixed by making
+  zoom actually re-render at higher resolution (bounded to avoid a
+  runaway canvas), verified live on a 400-stitch pattern.
 - 2026-09-10 — M1 completed and verified: data model (`SourceImageRef`)
   + the unified `app/workspace.tsx` app shell, today's functionality
   fully relocated into it. Found and fixed two real bugs via e2e/live
