@@ -1550,6 +1550,53 @@ generated a pattern, confirmed the pre-download layout preview, then
 downloaded and unzipped the actual ZIP from production — zero console
 errors.
 
+**D25 — G-010 started (code-review fixes); M1 (findings 1+9) done;
+interrupted mid-goal by G-011 (2026-09-10).** Full detail in GOALS.md's
+G-010 (still active) and G-011 (now DONE) entries — this note is just
+the narrative thread connecting them, since they shipped in the same
+push.
+
+`lib/pattern-client.ts`'s `cancelPatternJob` now rejects a superseded
+job's pending promise (`PatternJobCancelledError`) instead of leaving
+it hanging on a terminated worker that will never post another
+message — the actual mechanism that made finding 1's fix possible.
+`app/page.tsx` gates every async continuation (image decode, generation
+result) behind a `sourceRevisionRef` counter bumped on every new file
+selection, and selecting a new file now actively cancels any in-flight
+generation rather than letting it complete and silently misattribute
+its result to the wrong filename. Verified past the point of trusting
+the fix on paper: a throwaway script force-swapped the selected image
+mid-generation via `setInputFiles` (which bypasses the new `disabled`
+attribute, unlike a simulated click, so this tested the underlying
+state logic rather than just the UI guard) while generating a Large/
+150-stitch pattern, confirming the stale job was silently cancelled (no
+scary error, since a new image being selected is an intentional
+supersession) and the subsequent explicit re-generation for the new
+image produced the exactly-correct result with zero console errors.
+
+Mid-M1, the Owner sent a new, unrelated feature request (an editable
+pattern name driving every download's filename) — built and shipped as
+G-011 in the same session before returning to G-010's remaining
+findings (M2-M6: chart layout/size budgeting, resampling bias, palette-
+objective consistency, and the remaining P2 reliability gaps). See
+G-011's own GOALS.md entry for that feature's full design record —
+notably, `StitchPattern` gained an optional `name?: string` field
+specifically so every existing spread-based palette mutation in
+`lib/pattern-edit.ts` carries it through automatically, and the editor's
+name-input draft syncs to external changes (undo/redo, reopening a
+different file) via React's own recommended "adjust state during
+render" pattern rather than an effect, which the project's lint config
+correctly flags as an avoidable extra render pass for this case.
+
+Pushed (`8f96c83` for G-010 M1, `21bd67d` for G-011) and deployed
+together in one redeploy (Owner: "deploy now" for G-011, after which
+G-010 M1 rode along in the same push since it was already committed).
+Verified beyond a ping: `docker ps` before/after showed only this
+project's own container restarting, every other site's uptime
+unchanged; a real browser run against the live HTTPS URL confirmed the
+editor's new "Name:" field renders correctly, pre-filled from the
+uploaded image's filename, with zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

@@ -11,77 +11,6 @@ svc-lab).
 
 ## Active goals
 
-### G-011 · Editable pattern name driving all download filenames — ACTIVE
-- **What:** A pattern-level name (distinct from the existing per-color
-  names, G-008), editable in the editor, that every downloadable
-  filename is built from — replacing the current source-image-filename-
-  derived naming.
-- **Why:** Owner request (2026-09-10, chat, sent mid-G-010): download
-  filenames should reflect a name the user actually chose, not just the
-  originally-uploaded image's own filename.
-- **Acceptance criteria** (Owner's own spec):
-  1. The editor lets the user change the pattern's name.
-  2. Every downloadable filename is built from this name:
-     - full-scheme PNGs: `Name_color.png` / `Name_bw.png`
-     - the realistic preview PNG: `Name_preview.png`
-     - the A4 export ZIP: `Name_A4_color.zip` / `Name_A4_bw.zip`
-       (normalized to consistent "A4" capitalization — the Owner's own
-       message mixed "A4"/"a4" between the two examples)
-- **Constraints:** Not asked, but a natural consistency extension of
-  "every downloadable": the "Download editable" JSON and the A4 ZIP's
-  own internal per-page/legend filenames also switch to the `Name_`
-  prefix scheme, rather than leaving those on the old hyphenated
-  `pattern-` prefix while everything else changes. The name defaults to
-  the uploaded image's own filename (today's behavior) until the user
-  renames it in the editor; renaming is editor-scoped like every other
-  in-editor edit — it doesn't write back to the main results screen's
-  own pattern state, matching how merges/recolors/etc. already work.
-
-**Milestones**:
-- [x] M1 — Core + editor. `name?: string` added to `StitchPattern`
-      (optional, so every existing spread-based mutation in
-      `lib/pattern-edit.ts` carries it through automatically — no call-
-      site changes needed there). `renamePattern` pure function
-      mirroring `renameColor`. `lib/pattern-serialize.ts` persists the
-      name (round-trips through save/reopen; absent on older files
-      falls back to `undefined`, handled by the caller). Editor UI: a
-      "Name:" text field next to the "Editor" heading, committing to
-      undo history on blur/Enter (an undoable step, like every other
-      edit) — synced back to the draft input via React's own recommended
-      "adjust state during render" pattern (not an effect, which the
-      project's lint config flags as an avoidable extra render pass) so
-      undo/redo and reopening a different file correctly update the
-      displayed name. Every editor download (color/B&W/realistic PNG,
-      editable JSON, A4 ZIP — via a new `baseName` option on
-      `generateA4Export`, also renaming the ZIP's own internal per-page
-      and legend files) switched to the new `Name_<kind>` scheme. The
-      now-unused `sourceFileName` prop removed from `PatternEditor`.
-      ✔ 2026-09-10.
-- [x] M2 — Main results screen + verification. Generation initializes
-      `pattern.name` from the uploaded image's filename; opening a saved
-      editable file (in either the main screen or the editor) falls back
-      to *that file's own* name when the loaded pattern has none stored
-      (pre-feature files). Every main-screen download switched to the
-      same naming scheme. ✔ 2026-09-10. 5 new unit tests (`renamePattern`
-      behavior + a serialize/deserialize round-trip of `name`, plus a
-      pre-feature-file fallback case) — 149 unit tests total. Existing
-      e2e filename assertions updated to the new scheme (`sample-color.png`
-      → `sample_color.png`, etc.); 1 new permanent e2e test exercising
-      the rename UI itself and asserting the resulting color/preview/
-      editable download filenames, plus confirming a rename undoes
-      cleanly like any other edit. 9 e2e tests total, all green,
-      clean lint/tsc/build. Verified live against the real running app
-      (not just synthetic fixtures): renamed a real generated pattern's
-      "sample" to "My Cat" in the editor, downloaded the color PNG
-      (`My Cat_color.png`) and the A4 ZIP (`My Cat_A4_color.zip`),
-      unzipped it, and confirmed the internal files were also correctly
-      named `My Cat_r01_c01.png`/`My Cat_legend.png`.
-
-**Progress log** (newest first):
-- 2026-09-10 — Both milestones built and verified in one session.
-- 2026-09-10 — Goal created from the Owner's chat message (sent mid-
-  G-010, after M1). Milestones planned.
-
 ### G-010 · Fix code-review findings — ACTIVE
 - **What:** Fix the 9 numbered findings from
   `docs/reviews/2026-09-09-code-review.md` (1 P1, 7 P2, 1 P3) — real,
@@ -220,6 +149,86 @@ svc-lab).
   planned in the review's own suggested repair order.
 
 ## Completed goals
+
+### G-011 · Editable pattern name driving all download filenames — DONE (2026-09-10)
+- **What:** A pattern-level name (distinct from the existing per-color
+  names, G-008), editable in the editor, that every downloadable
+  filename is built from — replacing the current source-image-filename-
+  derived naming.
+- **Why:** Owner request (2026-09-10, chat, sent mid-G-010): download
+  filenames should reflect a name the user actually chose, not just the
+  originally-uploaded image's own filename.
+- **Acceptance criteria** (Owner's own spec):
+  1. The editor lets the user change the pattern's name.
+  2. Every downloadable filename is built from this name:
+     - full-scheme PNGs: `Name_color.png` / `Name_bw.png`
+     - the realistic preview PNG: `Name_preview.png`
+     - the A4 export ZIP: `Name_A4_color.zip` / `Name_A4_bw.zip`
+       (normalized to consistent "A4" capitalization — the Owner's own
+       message mixed "A4"/"a4" between the two examples)
+- **Constraints:** Not asked, but a natural consistency extension of
+  "every downloadable": the "Download editable" JSON and the A4 ZIP's
+  own internal per-page/legend filenames also switch to the `Name_`
+  prefix scheme, rather than leaving those on the old hyphenated
+  `pattern-` prefix while everything else changes. The name defaults to
+  the uploaded image's own filename (today's behavior) until the user
+  renames it in the editor; renaming is editor-scoped like every other
+  in-editor edit — it doesn't write back to the main results screen's
+  own pattern state, matching how merges/recolors/etc. already work.
+
+**Milestones**:
+- [x] M1 — Core + editor. `name?: string` added to `StitchPattern`
+      (optional, so every existing spread-based mutation in
+      `lib/pattern-edit.ts` carries it through automatically — no call-
+      site changes needed there). `renamePattern` pure function
+      mirroring `renameColor`. `lib/pattern-serialize.ts` persists the
+      name (round-trips through save/reopen; absent on older files
+      falls back to `undefined`, handled by the caller). Editor UI: a
+      "Name:" text field next to the "Editor" heading, committing to
+      undo history on blur/Enter (an undoable step, like every other
+      edit) — synced back to the draft input via React's own recommended
+      "adjust state during render" pattern (not an effect, which the
+      project's lint config flags as an avoidable extra render pass) so
+      undo/redo and reopening a different file correctly update the
+      displayed name. Every editor download (color/B&W/realistic PNG,
+      editable JSON, A4 ZIP — via a new `baseName` option on
+      `generateA4Export`, also renaming the ZIP's own internal per-page
+      and legend files) switched to the new `Name_<kind>` scheme. The
+      now-unused `sourceFileName` prop removed from `PatternEditor`.
+      ✔ 2026-09-10.
+- [x] M2 — Main results screen + verification. Generation initializes
+      `pattern.name` from the uploaded image's filename; opening a saved
+      editable file (in either the main screen or the editor) falls back
+      to *that file's own* name when the loaded pattern has none stored
+      (pre-feature files). Every main-screen download switched to the
+      same naming scheme. ✔ 2026-09-10. 5 new unit tests (`renamePattern`
+      behavior + a serialize/deserialize round-trip of `name`, plus a
+      pre-feature-file fallback case) — 149 unit tests total. Existing
+      e2e filename assertions updated to the new scheme (`sample-color.png`
+      → `sample_color.png`, etc.); 1 new permanent e2e test exercising
+      the rename UI itself and asserting the resulting color/preview/
+      editable download filenames, plus confirming a rename undoes
+      cleanly like any other edit. 9 e2e tests total, all green,
+      clean lint/tsc/build. Verified live against the real running app
+      (not just synthetic fixtures): renamed a real generated pattern's
+      "sample" to "My Cat" in the editor, downloaded the color PNG
+      (`My Cat_color.png`) and the A4 ZIP (`My Cat_A4_color.zip`),
+      unzipped it, and confirmed the internal files were also correctly
+      named `My Cat_r01_c01.png`/`My Cat_legend.png`.
+
+**Progress log** (newest first):
+- 2026-09-10 — Owner signed off; G-011 moved to Completed. Pushed
+  (`21bd67d`, bundled with G-010's own M1 commit) and deployed to
+  `https://cross-stitch.craftodejnice.cz` per
+  `COMPANY/INFRASTRUCTURE_DEPLOY.md`'s standard redeploy recipe.
+  Verified beyond a ping: `docker ps` before/after showed only this
+  project's own container restarting, every other site's uptime
+  unchanged; a real browser run against the live HTTPS URL confirmed
+  the editor's "Name:" field renders and is pre-filled from the
+  uploaded image's filename, with zero console errors.
+- 2026-09-10 — Both milestones built and verified in one session.
+- 2026-09-10 — Goal created from the Owner's chat message (sent mid-
+  G-010, after M1). Milestones planned.
 
 ### G-009 · Export as A4 pages — DONE (2026-09-10)
 - **What:** A second export mode alongside the existing single-PNG
