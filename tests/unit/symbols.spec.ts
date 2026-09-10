@@ -8,6 +8,10 @@ describe("symbol set", () => {
     expect(new Set(SYMBOL_SET).size).toBe(SYMBOL_SET.length);
   });
 
+  it("provides 100 symbols (G-014's extended tier, up from the original 64)", () => {
+    expect(SYMBOL_SET.length).toBe(100);
+  });
+
   it("symbolsFor returns exactly the requested count, taken from the start of the set", () => {
     const five = symbolsFor(5);
     expect(five).toHaveLength(5);
@@ -27,6 +31,13 @@ describe("symbol set", () => {
     expect(SYMBOL_SET).not.toContain("X");
     expect(SYMBOL_SET).not.toContain("♦");
     expect(SYMBOL_SET).not.toContain("+");
+  });
+
+  it("excludes extended-tier glyphs that read as an existing letter/digit or vanish at small sizes", () => {
+    expect(SYMBOL_SET).not.toContain("¢"); // reads as letter "C" with a stroke
+    expect(SYMBOL_SET).not.toContain("†");
+    expect(SYMBOL_SET).not.toContain("‡"); // thin marks that blur toward "|" at small cell sizes
+    expect(SYMBOL_SET).not.toContain("¬");
   });
 
   it("never places digit 6 and letter G adjacently (the review's concrete adjacency bug)", () => {

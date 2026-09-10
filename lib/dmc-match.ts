@@ -40,7 +40,7 @@ export function nearestDmcColor(rgb: RGB): DmcColor {
  * clustering algorithm -- DMC is a constraint on which colors the final
  * palette may use, not a different way of choosing where color boundaries
  * fall. Merging is expected, not a bug: DMC's 454-color line is coarser
- * than a 64-color free-form k-means palette, so some of the generator's
+ * than a free-form k-means palette (up to MAX_COLORS), so some of the generator's
  * finer distinctions collapse onto the same real thread -- which is the
  * whole point (fewer, actually-buyable colors).
  */

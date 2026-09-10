@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { nameColors } from "@/lib/color-names";
-import type { RGB } from "@/lib/types";
+import { MAX_COLORS, type RGB } from "@/lib/types";
 
 describe("nameColors", () => {
   it("gives every distinct color a non-empty name", () => {
@@ -30,9 +30,9 @@ describe("nameColors", () => {
     expect(new Set(names).size).toBe(colors.length);
   });
 
-  it("keeps names unique across a full 64-color palette", () => {
-    const colors: RGB[] = Array.from({ length: 64 }, (_, i) => {
-      const t = i / 63;
+  it("keeps names unique across a full MAX_COLORS-color palette", () => {
+    const colors: RGB[] = Array.from({ length: MAX_COLORS }, (_, i) => {
+      const t = i / (MAX_COLORS - 1);
       return [Math.round(255 * t), Math.round(255 * (1 - t)), Math.round(128 + 100 * Math.sin(i))] as RGB;
     });
     const names = nameColors(colors);

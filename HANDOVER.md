@@ -1997,6 +1997,45 @@ underestimating.
   against a production deploy or with Playwright e2e coverage — see Next
   steps.
 
+**D32 — G-014: symbol set expanded 64 → 100, plus manual symbol
+reassignment (2026-09-10).** Owner request: "we need more symbols for
+colors and want to be able to edit symbol assignment." Two changes:
+
+- **`MAX_COLORS` raised from 64 to 100** (`lib/types.ts`), and
+  `lib/symbols.ts`'s `SYMBOL_SET` grown to match by appending a 36-glyph
+  "extended tier" onto the existing `SHAPES` array (base 64 unchanged).
+  Owner-confirmed scope (asked via clarifying question rather than
+  guessed, since it changes a real product constraint): ~100 colors,
+  single-glyph symbols only (no two-character codes). Extended-tier
+  glyphs drawn from the same widely-supported Unicode blocks the base 64
+  already uses (Latin-1 Supplement, Arrows, Geometric Shapes,
+  Miscellaneous Symbols) and vetted against the same two failure modes
+  the original domain-expert review (D7) found: reading as an existing
+  letter/digit (dropped `¢` — a "C" with a stroke) and vanishing at small
+  chart-cell sizes (dropped `†`/`‡`/`¬` — thin marks that blur toward `|`
+  at ~7px). Not re-litigated to D7's full exhaustive standard — see
+  below for the deliberate compensating control.
+- **Manual symbol reassignment** (`lib/pattern-edit.ts`'s
+  `setColorSymbol`): click a color's symbol in the Colors dock to open a
+  grid of all 100 symbols; picking one already used by another color
+  **swaps** the two colors' symbols rather than blocking (Owner-confirmed
+  choice, matching how renaming/recoloring in this app already always
+  succeed rather than dead-ending) — this is also the explicit
+  compensating control for the extended tier not getting the same
+  exhaustive confusability review as the base 64: whatever an individual
+  pattern's automatic assignment gets wrong, the user can fix directly,
+  rather than needing another domain-expert pass before shipping.
+- **Verified**: 221 unit tests (215 + 4 `setColorSymbol` + 2 symbol-set-
+  size/exclusion tests), clean `tsc`/`eslint`/`npm run build`. Live
+  dev-server check: generated a 150×150-stitch, 100-color pattern from a
+  synthetic hue/lightness gradient (to actually exercise the extended
+  tier, not just the base 64), confirmed via canvas zoom (384%) that
+  extended glyphs (¥, £, arrows, ⊕, ✦, ◀, etc.) render crisp and
+  distinct in both the chart canvas and the DOM legend, and confirmed
+  the symbol picker's swap behavior live (clicking an in-use symbol
+  changed *both* colors' symbols, never producing a duplicate). Zero
+  console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

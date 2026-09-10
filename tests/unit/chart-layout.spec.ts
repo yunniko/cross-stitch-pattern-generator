@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { findChartLayout } from "@/lib/render";
-import type { PaletteColor, StitchPattern } from "@/lib/types";
+import { MAX_COLORS, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 // Only width/height/isLandscape/palette.length matter to findChartLayout and
 // the legendCanvasExtent it calls -- cellPalette itself is never read.
@@ -31,8 +31,8 @@ describe("findChartLayout", () => {
     expect(layout!.canvasWidth).toBeGreaterThanOrEqual(340);
   });
 
-  it("shrinks the cell size for the app's own largest supported case (1000x1000, 64 colors) rather than exceeding the area/dimension budget", () => {
-    const layout = findChartLayout(makePattern(1000, 1000, 64), 24, TYPICAL_HEADER_WIDTH_PX);
+  it("shrinks the cell size for the app's own largest supported case (1000x1000, MAX_COLORS colors) rather than exceeding the area/dimension budget", () => {
+    const layout = findChartLayout(makePattern(1000, 1000, MAX_COLORS), 24, TYPICAL_HEADER_WIDTH_PX);
     expect(layout).not.toBeNull();
     expect(layout!.cellSize).toBeLessThan(24);
     expect(layout!.canvasWidth).toBeLessThanOrEqual(8000);
@@ -46,7 +46,7 @@ describe("findChartLayout", () => {
     // The fix should still leave the largest *supported* pattern usable, not
     // just safe -- this is the case that got harder to satisfy once an area
     // budget was added on top of the pre-existing per-dimension one.
-    const layout = findChartLayout(makePattern(1000, 1000, 64), 24, TYPICAL_HEADER_WIDTH_PX);
+    const layout = findChartLayout(makePattern(1000, 1000, MAX_COLORS), 24, TYPICAL_HEADER_WIDTH_PX);
     expect(layout).not.toBeNull();
     expect(layout!.cellSize).toBeGreaterThanOrEqual(6);
   });
@@ -57,7 +57,7 @@ describe("findChartLayout", () => {
     // below MIN_CHART_CELL_SIZE_PX must still succeed at the floor, matching
     // the old effectiveCellSize's own Math.max(4, ...) clamp -- not be
     // treated as an already-empty search range that fails immediately.
-    const layout = findChartLayout(makePattern(1000, 1000, 64), 2, TYPICAL_HEADER_WIDTH_PX);
+    const layout = findChartLayout(makePattern(1000, 1000, MAX_COLORS), 2, TYPICAL_HEADER_WIDTH_PX);
     expect(layout).not.toBeNull();
     expect(layout!.cellSize).toBeGreaterThanOrEqual(4);
   });
@@ -66,7 +66,7 @@ describe("findChartLayout", () => {
     // A pattern far past anything the app's own UI would ever generate --
     // this is the case that should now fail clearly instead of attempting a
     // huge allocation.
-    const layout = findChartLayout(makePattern(50000, 50000, 64), 24, TYPICAL_HEADER_WIDTH_PX);
+    const layout = findChartLayout(makePattern(50000, 50000, MAX_COLORS), 24, TYPICAL_HEADER_WIDTH_PX);
     expect(layout).toBeNull();
   });
 
@@ -74,7 +74,7 @@ describe("findChartLayout", () => {
     for (const [w, h, colors] of [
       [50, 50, 4],
       [200, 100, 32],
-      [1000, 500, 64],
+      [1000, 500, MAX_COLORS],
       [500, 1000, 2],
     ] as const) {
       const layout = findChartLayout(makePattern(w, h, colors), 24, TYPICAL_HEADER_WIDTH_PX);

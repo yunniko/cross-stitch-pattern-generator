@@ -11,6 +11,46 @@ svc-lab).
 
 ## Active goals
 
+### G-014 · Expanded symbol set + editable symbol assignment — ACTIVE
+- **What:** Grow the available chart-symbol pool past the original 64
+  (raising `MAX_COLORS` to match), and let the user manually change which
+  symbol is assigned to a given palette color.
+- **Why:** Owner request (2026-09-10): "we need more symbols for colors
+  and want to be able to edit symbol assignment."
+- **Acceptance criteria:** The palette/color-count cap is raised to a
+  larger number than 64 with a matching number of distinct, legible
+  symbols available. Clicking a color's symbol in the Colors dock lets
+  the user pick any symbol for it; picking one already in use elsewhere
+  swaps the two colors' symbols rather than erroring. No regressions to
+  existing generation modes or exports.
+- **Constraints:** Symbols stay single Unicode glyphs (no two-character
+  codes) — Owner-confirmed via clarifying question, 2026-09-10.
+
+**Milestones:**
+- [x] M1 — Expand `SYMBOL_SET`/`MAX_COLORS`; unit tested for size,
+      dedup, and the known confusability exclusions.
+- [x] M2 — `setColorSymbol` swap-on-conflict edit function; unit tested.
+- [x] M3 — UI: clickable symbol picker in the Colors dock; live-browser
+      verified (100-color pattern, extended-tier glyphs legible in both
+      canvas and DOM legend, swap behavior confirmed).
+- [ ] M4 — Full regression suite, commit, and (pending Owner go-ahead)
+      production deploy.
+
+**Progress log** (newest first):
+- 2026-09-10 — M1-M3 complete. `MAX_COLORS` 64→100 (`lib/types.ts`);
+  `lib/symbols.ts`'s `SYMBOL_SET` grown with a 36-glyph extended tier
+  from the same Unicode blocks the base 64 already uses, avoiding the
+  same two failure modes the original domain-expert review (HANDOVER.md
+  D7) found (letter/digit lookalikes, thin marks that vanish small).
+  `lib/pattern-edit.ts`'s `setColorSymbol` always succeeds by swapping
+  rather than blocking (Owner-confirmed). UI: symbol in the Colors dock
+  is now a button opening a 100-symbol picker grid. Verified: 221 unit
+  tests, clean `tsc`/`eslint`/`npm run build`, live dev-server check
+  with a synthetic 150×150/100-color pattern confirming legible
+  rendering and correct swap behavior, zero console errors. Full detail
+  in HANDOVER.md D32. Not yet committed, not deployed. Continuing to M4
+  next.
+
 ### G-013 · DMC color-picking mode + floss-amount estimate — ACTIVE
 - **What:** A third `generationMode` ("DMC") alongside the existing
   "Latest"/"Original", constraining the generated palette to real,

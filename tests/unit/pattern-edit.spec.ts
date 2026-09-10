@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, shiftPattern } from "@/lib/pattern-edit";
+import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, setColorSymbol, shiftPattern } from "@/lib/pattern-edit";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {
@@ -127,6 +127,48 @@ describe("renameColor", () => {
   it("is a no-op for a blank name", () => {
     const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
     expect(renameColor(pattern, 0, "   ")).toBe(pattern);
+  });
+});
+
+describe("setColorSymbol", () => {
+  it("assigns the symbol when it isn't used by any other color", () => {
+    const pattern = makePattern(1, 2, [0, 1], [
+      [10, 10, 10],
+      [20, 20, 20],
+    ]);
+    const result = setColorSymbol(pattern, 0, "★");
+    expect(result.palette[0].symbol).toBe("★");
+    expect(result.palette[1].symbol).toBe("1"); // untouched
+  });
+
+  it("swaps symbols with whichever color currently holds the requested one, never producing a duplicate", () => {
+    const pattern = makePattern(1, 2, [0, 1], [
+      [10, 10, 10],
+      [20, 20, 20],
+    ]);
+    // Color 1 already owns symbol "1" -- asking color 0 to take it must
+    // give color 0 "1" and hand color 1 color 0's old symbol ("0") back,
+    // rather than leaving two colors both named "1".
+    const result = setColorSymbol(pattern, 0, "1");
+    expect(result.palette[0].symbol).toBe("1");
+    expect(result.palette[1].symbol).toBe("0");
+    expect(new Set(result.palette.map((c) => c.symbol)).size).toBe(2);
+  });
+
+  it("is a no-op when the color already has the requested symbol", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    expect(setColorSymbol(pattern, 0, "0")).toBe(pattern);
+  });
+
+  it("leaves every other color's rgb/name/count untouched", () => {
+    const pattern = makePattern(1, 2, [0, 1], [
+      [10, 10, 10],
+      [20, 20, 20],
+    ]);
+    const result = setColorSymbol(pattern, 0, "★");
+    expect(result.palette[0].rgb).toEqual([10, 10, 10]);
+    expect(result.palette[0].name).toBe("Color 0");
+    expect(result.palette[1]).toEqual(pattern.palette[1]);
   });
 });
 

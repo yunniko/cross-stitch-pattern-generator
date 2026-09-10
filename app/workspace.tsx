@@ -5,7 +5,8 @@ import { HexColorPicker } from "react-colorful";
 import { hexToRgb, rgbToHex } from "@/lib/color";
 import { decodeSourceImage, loadImageAsPixelBuffer } from "@/lib/load-image";
 import { cancelPatternJob, runPatternJob } from "@/lib/pattern-client";
-import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, shiftPattern } from "@/lib/pattern-edit";
+import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, setColorSymbol, shiftPattern } from "@/lib/pattern-edit";
+import { SYMBOL_SET } from "@/lib/symbols";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
 import {
   downloadCanvasAsPng,
@@ -133,6 +134,7 @@ export default function Workspace() {
   const [addColorDraftHex, setAddColorDraftHex] = useState("#808080");
   const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
+  const [editingSymbolIndex, setEditingSymbolIndex] = useState<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const strokeRef = useRef<{ pattern: StitchPattern; lastCell: number | null } | null>(null);
 
@@ -594,6 +596,12 @@ export default function Workspace() {
       history.set(renameColor(pattern, renamingIndex, renameDraft));
     }
     setRenamingIndex(null);
+  }
+
+  function pickSymbol(symbol: string) {
+    if (editingSymbolIndex === null || !pattern) return;
+    history.set(setColorSymbol(pattern, editingSymbolIndex, symbol));
+    setEditingSymbolIndex(null);
   }
 
   function baseFileName(): string {
@@ -1222,7 +1230,19 @@ export default function Workspace() {
                     className="h-5 w-5 shrink-0 rounded border border-zinc-400 dark:border-zinc-600"
                     aria-label={`Edit ${color.name}`}
                   />
-                  <span className="w-4 shrink-0 text-center">{color.symbol}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingSymbolIndex(editingSymbolIndex === color.index ? null : color.index);
+                    }}
+                    className={`w-5 shrink-0 rounded text-center hover:bg-black/[.08] dark:hover:bg-white/[.12] ${
+                      editingSymbolIndex === color.index ? "bg-black/[.08] dark:bg-white/[.12]" : ""
+                    }`}
+                    title="Click to change this color's symbol"
+                  >
+                    {color.symbol}
+                  </button>
                   {renamingIndex === color.index ? (
                     <input
                       autoFocus
@@ -1253,6 +1273,44 @@ export default function Workspace() {
                   </span>
                 </div>
               ))}
+
+          {editingSymbolIndex !== null && pattern && (
+            <div className="flex flex-col gap-2 rounded border border-zinc-300 p-3 dark:border-zinc-700">
+              <p className="text-xs text-zinc-500">
+                Picking a symbol already used by another color swaps the two colors&apos; symbols.
+              </p>
+              <div className="grid grid-cols-10 gap-1">
+                {SYMBOL_SET.map((symbol) => {
+                  const holder = pattern.palette.find((c) => c.symbol === symbol);
+                  const isCurrent = holder?.index === editingSymbolIndex;
+                  return (
+                    <button
+                      key={symbol}
+                      type="button"
+                      onClick={() => pickSymbol(symbol)}
+                      title={holder && !isCurrent ? `Swap with ${holder.name}` : undefined}
+                      className={`flex h-7 w-7 items-center justify-center rounded border text-sm ${
+                        isCurrent
+                          ? "border-foreground bg-black/[.08] dark:bg-white/[.12]"
+                          : holder
+                            ? "border-dashed border-zinc-400 dark:border-zinc-600"
+                            : "border-zinc-300 hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]"
+                      }`}
+                    >
+                      {symbol}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingSymbolIndex(null)}
+                className="self-start rounded-full border border-zinc-300 px-4 py-1.5 text-sm font-medium dark:border-zinc-700"
+              >
+                Close
+              </button>
+            </div>
+          )}
 
           {editingColorIndex !== null && (
             <div className="flex flex-col gap-2 rounded border border-zinc-300 p-3 dark:border-zinc-700">

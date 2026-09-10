@@ -213,6 +213,26 @@ export function addColor(pattern: StitchPattern, rgb: RGB): StitchPattern {
   return { ...pattern, palette: [...pattern.palette, newColor] };
 }
 
+/**
+ * Assigns `symbol` to the palette entry at `paletteIndex` (G-014). If
+ * another color already has that symbol, the two colors trade symbols
+ * (Owner decision, 2026-09-10: always succeeds, matching how renaming and
+ * recoloring never dead-end) -- this never produces a duplicate symbol in
+ * the palette, so callers don't need to pre-filter already-used symbols.
+ */
+export function setColorSymbol(pattern: StitchPattern, paletteIndex: number, symbol: string): StitchPattern {
+  const currentHolderIndex = pattern.palette.findIndex((c) => c.symbol === symbol);
+  if (currentHolderIndex === paletteIndex) return pattern;
+
+  const previousSymbol = pattern.palette[paletteIndex].symbol;
+  const palette = pattern.palette.map((color, i) => {
+    if (i === paletteIndex) return { ...color, symbol };
+    if (i === currentHolderIndex) return { ...color, symbol: previousSymbol };
+    return color;
+  });
+  return { ...pattern, palette };
+}
+
 /** Renames an existing palette color. No validation beyond non-empty -- duplicate/blank names are the user's own call. */
 export function renameColor(pattern: StitchPattern, paletteIndex: number, name: string): StitchPattern {
   const trimmed = name.trim();

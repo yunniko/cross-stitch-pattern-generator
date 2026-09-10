@@ -40,7 +40,13 @@ export const SIZE_PRESETS: Record<Exclude<SizePresetId, "custom">, number> = {
 export const MIN_STITCHES = 10;
 export const MAX_STITCHES = 1000;
 export const MIN_COLORS = 2;
-export const MAX_COLORS = 64;
+// Tied to SYMBOL_SET.length (lib/symbols.ts) -- every palette color needs
+// its own symbol, so this can never exceed however many distinct symbols
+// exist. Raised from 64 to 100 (2026-09-10, Owner request) alongside a
+// larger symbol set and the ability to manually reassign/swap a color's
+// symbol, which is the escape valve for whatever the automatic assignment
+// gets wrong for a given palette.
+export const MAX_COLORS = 100;
 
 /**
  * The "empty stitch" sentinel (G-012 M5): a `cellPalette` value meaning
@@ -48,7 +54,7 @@ export const MAX_COLORS = 64;
  * shouldn't be stitched at all. Deliberately *not* a `PaletteColor` in
  * `palette` -- it never appears in the legend, never counts toward stitch
  * totals, and renders as blank in every mode/export. Fixed at the
- * `Uint8Array` max (255), comfortably above `MAX_COLORS` (64), so it can
+ * `Uint8Array` max (255), comfortably above `MAX_COLORS` (100), so it can
  * never collide with a real palette index.
  */
 export const EMPTY_CELL = 255;
