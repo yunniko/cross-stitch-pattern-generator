@@ -1724,12 +1724,12 @@ verified live in M5). All 9 findings from
 not just implemented.
 
 Commits: `43c2b0b` (M2), `d1abb4a` (M3), `9b57907` (M4), `39ba0a5` (M5).
-All pushed to `origin/master`. **Not yet deployed** — only M1 (+G-011)
-is live on `https://cross-stitch.craftodejnice.cz`; M2-M6 await Owner
-sign-off per OPERATIONS.md's definition-of-done before the next
-redeploy, per the Owner's own "continue through M4-M6" instruction
-choosing to batch verification before the next deploy check-in rather
-than redeploying after each milestone.
+All pushed to `origin/master`. At M6, still not deployed — only M1
+(+G-011) was live; M2-M6 awaited Owner sign-off per OPERATIONS.md's
+definition-of-done before the next redeploy, per the Owner's own
+"continue through M4-M6" instruction choosing to batch verification
+before the next deploy check-in rather than redeploying after each
+milestone. Deployed immediately after, same session — see below.
 
 The review's separate "questionable decisions and improvements" list
 (print/PDF as first-class, optimizer heuristic priorities, allocation
@@ -1737,6 +1737,28 @@ cost measurement, `.dockerignore`, broader test coverage, accessibility/
 mobile layout, doc accuracy) was explicitly out of scope for G-010 per
 the Owner's own scoping answer at goal creation — none of it was
 touched here.
+
+**D27 — G-010 deployed; goal DONE (2026-09-10).** Owner sign-off at the
+M6 check-in: shown that M2-M6 fixed all remaining findings and were
+pushed but not live, chose "Deploy now." Redeployed following
+`INFRASTRUCTURE_DEPLOY.md`'s standard redeploy recipe: `git fetch`
+(split from `pull` per that doc's own documented hang risk) then
+`git pull` (`21bd67d` → `10b0a95`, fast-forward, the exact file set
+M2-M6 touched) and `docker compose --profile app up -d --build` on the
+server. Verified beyond a health-check ping: `docker ps` before/after
+showed only `cross-stitch-pattern-generator-app-1` restarting, every
+other container's uptime on the shared host unchanged; a spot-check of
+9 other sites on the host (`julienika.cz`, `meet.app.julienika.cz`,
+`craftale.eu`, `crochet.app.craftodejnice.cz`, `arfid.julienika.cz`,
+and three `*.svc.julienika.cz` services) all still returned 200. Then,
+rather than just re-running the automated e2e suite, re-reproduced
+finding 5's exact original repro directly against the live production
+URL (upload the fixture, Custom size 10, generate) and visually
+confirmed the complete header text — "10 × 6 stitches — approx. 0.7 ×
+0.4 in on 14-count Aida" — renders uncut, with zero console errors,
+the same check M2 first did against the dev server, now repeated
+against the actual deployed artifact. G-010 moved to GOALS.md's
+Completed section.
 
 ## Owner action list
 
