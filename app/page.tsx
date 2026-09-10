@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { loadImageAsPixelBuffer } from "@/lib/load-image";
 import { runPatternJob } from "@/lib/pattern-client";
 import {
@@ -10,7 +10,7 @@ import {
   type RenderMode,
 } from "@/lib/render";
 import { generateA4Export, downloadBlob } from "@/lib/a4-export";
-import type { OverlapCells } from "@/lib/a4-layout";
+import { calculateA4Layout, type OverlapCells } from "@/lib/a4-layout";
 import {
   MAX_COLORS,
   MAX_STITCHES,
@@ -45,6 +45,10 @@ export default function Home() {
   const [a4Mode, setA4Mode] = useState<RenderMode>("color");
   const [a4Overlap, setA4Overlap] = useState<OverlapCells>(5);
   const [isExportingA4, setIsExportingA4] = useState(false);
+  const a4LayoutPreview = useMemo(
+    () => (pattern ? calculateA4Layout(pattern.width, pattern.height, { overlapCells: a4Overlap }) : null),
+    [pattern, a4Overlap]
+  );
   const [error, setError] = useState<string | null>(null);
   const [editorPattern, setEditorPattern] = useState<StitchPattern | null>(null);
   const [editorKey, setEditorKey] = useState(0);
@@ -483,6 +487,22 @@ export default function Home() {
                   <option value={10}>10</option>
                 </select>
               </label>
+              {a4LayoutPreview && (
+                <div className="flex items-center gap-2 text-xs text-zinc-500">
+                  <span>
+                    {a4LayoutPreview.columns} × {a4LayoutPreview.rows} pages — {a4LayoutPreview.pages.length + 1} pages total
+                    (incl. legend)
+                  </span>
+                  <div
+                    className="grid gap-[1px] border border-zinc-400 p-[1px] dark:border-zinc-600"
+                    style={{ gridTemplateColumns: `repeat(${a4LayoutPreview.columns}, 8px)` }}
+                  >
+                    {a4LayoutPreview.pages.map((p) => (
+                      <div key={`${p.row}-${p.column}`} className="h-2 w-2 bg-zinc-300 dark:bg-zinc-600" />
+                    ))}
+                  </div>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={handleExportA4Pages}

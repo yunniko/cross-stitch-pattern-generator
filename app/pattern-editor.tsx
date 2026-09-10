@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import { hexToRgb, rgbToHex } from "@/lib/color";
 import { addColor, compactUnusedColors, editColorRgb, fillCluster, mergeColors, paintStitch, renameColor } from "@/lib/pattern-edit";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
 import { downloadCanvasAsPng, drawChart, renderPatternToCanvas, renderStitchPreviewToCanvas, type RenderMode } from "@/lib/render";
 import { generateA4Export, downloadBlob } from "@/lib/a4-export";
-import type { OverlapCells } from "@/lib/a4-layout";
+import { calculateA4Layout, type OverlapCells } from "@/lib/a4-layout";
 import { useUndoHistory } from "@/lib/use-undo-history";
 import type { StitchPattern } from "@/lib/types";
 
@@ -48,6 +48,10 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
   const [a4Mode, setA4Mode] = useState<RenderMode>("color");
   const [a4Overlap, setA4Overlap] = useState<OverlapCells>(5);
   const [isExportingA4, setIsExportingA4] = useState(false);
+  const a4LayoutPreview = useMemo(
+    () => calculateA4Layout(history.state.width, history.state.height, { overlapCells: a4Overlap }),
+    [history.state.width, history.state.height, a4Overlap]
+  );
   const [openError, setOpenError] = useState<string | null>(null);
   const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -448,6 +452,20 @@ export default function PatternEditor({ pattern, sourceFileName, onClose }: Patt
             <option value={10}>10</option>
           </select>
         </label>
+        <div className="flex items-center gap-2 text-xs text-zinc-500">
+          <span>
+            {a4LayoutPreview.columns} × {a4LayoutPreview.rows} pages — {a4LayoutPreview.pages.length + 1} pages total (incl.
+            legend)
+          </span>
+          <div
+            className="grid gap-[1px] border border-zinc-400 p-[1px] dark:border-zinc-600"
+            style={{ gridTemplateColumns: `repeat(${a4LayoutPreview.columns}, 8px)` }}
+          >
+            {a4LayoutPreview.pages.map((p) => (
+              <div key={`${p.row}-${p.column}`} className="h-2 w-2 bg-zinc-300 dark:bg-zinc-600" />
+            ))}
+          </div>
+        </div>
         <button
           type="button"
           onClick={handleExportA4Pages}

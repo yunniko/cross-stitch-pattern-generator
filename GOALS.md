@@ -199,10 +199,29 @@ svc-lab).
       grayscale. Full regression pass: 139 unit tests, 5 e2e tests,
       clean lint/tsc/build — the existing single-PNG/editable-JSON
       flows are unaffected.
-- [ ] M5 — Nice-to-haves, attempted but explicitly droppable if they
-      turn out costlier than their value (per the Owner's own "if
-      architecture allows"/"desirable" framing): the pre-download page-
-      count summary + layout preview, and the small overview mini-map.
+- [x] M5 — Nice-to-haves, per the Owner's own "if architecture allows"/
+      "desirable" framing. Built the pre-download summary + layout
+      preview (requirement 14): both `app/page.tsx` and
+      `app/pattern-editor.tsx` now show "{columns} × {rows} pages —
+      {total} pages total (incl. legend)" plus a tiny CSS grid of
+      squares (one per page) next to the "Export ZIP" button,
+      recomputed reactively (`calculateA4Layout` is a cheap pure
+      function) whenever the pattern or overlap setting changes.
+      ✔ 2026-09-10, verified live: generated a real 150-stitch pattern,
+      confirmed the preview correctly read "2 × 2 pages — 5 pages total
+      (incl. legend)" with a matching 2×2 grid icon in both the main
+      results screen and the editor.
+      **Deliberately did not build the per-page mini-map** (requirement
+      8 — showing the whole pattern + page grid + current-page
+      highlight on *each printed page*): while designing where it would
+      go, found it would need to sit in the same top-right corner where
+      the rightmost column-coordinate numbers already render (both
+      need the header/gutter strip built in M2), and reworking that
+      shared space without risking the now-verified M2/M3 page
+      rendering wasn't worth it for a feature the Owner's own spec
+      explicitly marked optional. A real, logged scope call rather than
+      an oversight — same treatment G-001's debug-visualization UI got
+      in HANDOVER.md D10.
 - [ ] M6 — Verification against the Owner's own enumerated test matrix
       (pattern smaller than one page; exactly one page; 2 pages
       horizontally; 2 pages vertically; multiple pages on both axes;
@@ -214,6 +233,9 @@ svc-lab).
       the ZIP, unzip and visually inspect the actual PNGs.
 
 **Progress log** (newest first):
+- 2026-09-10 — M5 completed: built the pre-download summary + layout
+  preview (verified live), deliberately skipped the per-page mini-map
+  with reasoning logged in HANDOVER.md.
 - 2026-09-10 — M4 completed and verified live in both the main results
   screen and the editor, using a real generated pattern end-to-end
   (not synthetic test data).
