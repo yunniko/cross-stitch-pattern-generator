@@ -1,9 +1,16 @@
+import { applyDmcPalette } from "./dmc-match";
 import { buildPattern } from "./pattern";
 import { kMeansQuantizer, plainKMeansQuantizer } from "./quantize";
 import type { PixelBuffer, StitchPattern } from "./types";
 
-/** "original" = the algorithm this project shipped with; "latest" = the reinvestment-based fix (HANDOVER.md D20). */
-export type GenerationMode = "original" | "latest";
+/**
+ * "original" = the algorithm this project shipped with; "latest" = the
+ * reinvestment-based fix (HANDOVER.md D20); "dmc" = "latest"'s own
+ * clustering/optimization, with the finished palette then snapped to the
+ * nearest real DMC thread colors (G-013) -- a palette constraint applied
+ * after generation, not a fourth clustering algorithm.
+ */
+export type GenerationMode = "original" | "latest" | "dmc";
 
 export interface StartMessage {
   type: "start";
@@ -42,7 +49,8 @@ self.onmessage = (event) => {
       quantizer: msg.generationMode === "original" ? plainKMeansQuantizer : kMeansQuantizer,
       onProgress: (fraction) => self.postMessage({ type: "progress", jobId: msg.jobId, fraction }),
     });
-    self.postMessage({ type: "done", jobId: msg.jobId, pattern });
+    const finalPattern = msg.generationMode === "dmc" ? applyDmcPalette(pattern) : pattern;
+    self.postMessage({ type: "done", jobId: msg.jobId, pattern: finalPattern });
   } catch (err) {
     self.postMessage({ type: "error", jobId: msg.jobId, message: err instanceof Error ? err.message : "Unknown error" });
   }

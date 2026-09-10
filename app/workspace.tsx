@@ -32,6 +32,7 @@ import {
   type StitchPattern,
 } from "@/lib/types";
 import { DEFAULT_AIDA_COUNT, STANDARD_AIDA_COUNTS, formatFinishedDimension, type SizeUnit } from "@/lib/finished-size";
+import { formatSkeinEstimate } from "@/lib/floss-estimate";
 import type { GenerationMode } from "@/lib/pattern.worker";
 
 // The Image window's target on-screen width for its live-editable (color/bw)
@@ -1087,13 +1088,19 @@ export default function Workspace() {
               <div className="flex items-center overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
                 {(
                   [
-                    { mode: "latest", label: "Latest" },
-                    { mode: "original", label: "Original" },
+                    { mode: "latest", label: "Latest", title: "The current color-picking algorithm" },
+                    { mode: "original", label: "Original", title: "The algorithm this project first shipped with" },
+                    {
+                      mode: "dmc",
+                      label: "DMC",
+                      title: "Snaps the palette to real, buyable DMC thread colors (G-013) -- colors are named \"code - name\" and similar shades may merge into one",
+                    },
                   ] as const
-                ).map(({ mode, label }) => (
+                ).map(({ mode, label, title }) => (
                   <button
                     key={mode}
                     type="button"
+                    title={title}
                     onClick={() => setGenerationMode(mode)}
                     className={`px-2 py-0.5 text-sm transition-colors ${
                       generationMode === mode ? "bg-foreground text-background" : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
@@ -1241,7 +1248,9 @@ export default function Workspace() {
                       {color.name}
                     </span>
                   )}
-                  <span className="shrink-0 text-xs text-zinc-500">{color.count} sts</span>
+                  <span className="shrink-0 text-xs text-zinc-500" title="Estimated floss needed, biased to overestimate -- see docs/domain-reference.md">
+                    {color.count} sts · {formatSkeinEstimate(color.count, aidaCount)}
+                  </span>
                 </div>
               ))}
 

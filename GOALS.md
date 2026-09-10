@@ -11,7 +11,65 @@ svc-lab).
 
 ## Active goals
 
-_No goals currently active._
+### G-013 · DMC color-picking mode + floss-amount estimate — ACTIVE
+- **What:** A third `generationMode` ("DMC") alongside the existing
+  "Latest"/"Original", constraining the generated palette to real,
+  buyable DMC embroidery floss colors, with each palette color named
+  `"CODE - name"` (e.g. "310 - Black"). Alongside each color's existing
+  stitch count, show an estimated floss amount needed to stitch it,
+  deliberately biased toward overestimating.
+- **Why:** Owner request (2026-09-10) — lets a stitcher shop for real,
+  purchasable thread directly from the generated pattern instead of an
+  arbitrary free-form palette, and estimate how much floss to buy without
+  running short mid-project.
+- **Acceptance criteria:** Selecting "DMC" mode and generating a pattern
+  produces a palette where every color name matches `"CODE - name"`
+  against a real DMC color; visually similar generated colors that map to
+  the same DMC thread merge into one palette entry. Each color's legend
+  entry (in the UI, and in exported PNG/A4 legends) shows a floss-amount
+  estimate that never under-estimates in the formula's own worst
+  documented case. No regressions to "Latest"/"Original" modes.
+- **Constraints:** No paid/licensed dataset — use an open-source DMC
+  color reference with a checkable license (STANDARDS.md, VALUES.md
+  "Integrity of work"). Floss-amount formula must come from a real,
+  cited derivation per STANDARDS.md's "Domain depth" section, not a
+  guessed number.
+
+**Milestones:**
+- [x] M1 — Source and verify an open-source DMC color dataset; document
+      its provenance and license.
+- [x] M2 — DMC-matching core: nearest-real-color snapping + palette
+      merge/rename, applied as a post-process on an already-generated
+      pattern; unit tested.
+- [x] M3 — Floss-amount estimation formula, domain-expert-reviewed and
+      documented, biased toward overestimating; unit tested.
+- [x] M4 — UI wiring: DMC mode button, floss estimate shown in the
+      Colors dock and in exported PNG/A4 legends; live-browser verified
+      against the dev server.
+- [ ] M5 — e2e test coverage, full regression suite, commit, and
+      (pending Owner go-ahead) production deploy.
+
+**Progress log** (newest first):
+- 2026-09-10 — M1-M4 complete. Dataset: `lib/dmc-colors.ts` (454 DMC
+  colors), re-derived from `sharlagelfand/dmc`'s MIT-licensed `floss`
+  data since that package only ships an R-binary format; provenance and
+  licensing reasoning in `docs/dmc-colors-provenance.md`. Matching:
+  `lib/dmc-match.ts`'s `applyDmcPalette()`, a pure post-process on the
+  existing "latest" pipeline's output (OKLab nearest-color, per D6/D7),
+  wired into `lib/pattern.worker.ts`; 10 unit tests. Floss formula:
+  `lib/floss-estimate.ts`, researched by the `domain-expert` subagent
+  (`docs/domain-reference-floss-estimate.md`) — corrected a common ~3x community error
+  (skein length is per 6-strand bundle, not per usable strand) and
+  chose a deliberately generous K=2.0 overhead factor per the Owner's
+  "estimate larger amount than smaller" instruction; 7 unit tests. UI:
+  third "DMC" toggle button in `app/workspace.tsx`; floss estimate shown
+  alongside stitch counts in the Colors dock and threaded through
+  `lib/render.ts`'s exported-legend rendering. Verified: 215 unit tests,
+  clean `tsc`/`eslint`/`npm run build`, and a live dev-server browser
+  check (4-color test image, DMC mode, confirmed real DMC names like
+  "347 - Salmon - Very Dark" and correct skein estimates, zero console
+  errors). Not yet committed to git, no e2e tests yet, not deployed —
+  full detail in HANDOVER.md D31. Continuing to M5 next.
 
 ## Completed goals
 

@@ -1,5 +1,6 @@
 import { luminance, rgbToHex } from "./color";
 import { DEFAULT_AIDA_COUNT, formatFinishedSize, type SizeUnit } from "./finished-size";
+import { formatSkeinEstimate } from "./floss-estimate";
 import { buildTintedTextureSet } from "./stitch-texture";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern, type RGB } from "./types";
 
@@ -396,7 +397,8 @@ function drawLegendItem(
   color: PaletteColor,
   mode: RenderMode,
   x: number,
-  y: number
+  y: number,
+  aidaCount: number
 ) {
   // The legend swatch always shows the true color, even in B&W mode —
   // otherwise a B&W download carries no color information at all
@@ -424,7 +426,8 @@ function drawLegendItem(
 
   ctx.fillStyle = "#666666";
   ctx.font = `11px ${FONT_STACK}`;
-  ctx.fillText(`${rgbToHex(color.rgb)} · ${color.count} sts`, textX, y + LEGEND_SWATCH_SIZE + 10);
+  const metaText = `${rgbToHex(color.rgb)} · ${color.count} sts · ${formatSkeinEstimate(color.count, aidaCount)}`;
+  ctx.fillText(truncateToWidth(ctx, metaText, maxTextWidth), textX, y + LEGEND_SWATCH_SIZE + 10);
 
   void mode;
 }
@@ -436,7 +439,8 @@ function drawLegend(
   mode: RenderMode,
   chartWidthPx: number,
   chartHeightPx: number,
-  belowChart: boolean
+  belowChart: boolean,
+  aidaCount: number
 ) {
   const { palette } = pattern;
 
@@ -450,7 +454,8 @@ function drawLegend(
         color,
         mode,
         LEGEND_PADDING + col * LEGEND_COLUMN_WIDTH,
-        chartHeightPx + MARKER_MARGIN + LEGEND_PADDING + row * LEGEND_ITEM_HEIGHT
+        chartHeightPx + MARKER_MARGIN + LEGEND_PADDING + row * LEGEND_ITEM_HEIGHT,
+        aidaCount
       );
     });
   } else {
@@ -463,7 +468,8 @@ function drawLegend(
         color,
         mode,
         chartWidthPx + MARKER_MARGIN + LEGEND_PADDING + col * LEGEND_COLUMN_WIDTH,
-        row * LEGEND_ITEM_HEIGHT
+        row * LEGEND_ITEM_HEIGHT,
+        aidaCount
       );
     });
   }
@@ -599,7 +605,7 @@ export function renderPatternToCanvas(
   ctx.save();
   ctx.translate(leftGutter, HEADER_HEIGHT + topGutter);
   drawChart(ctx, pattern, mode, cellSize);
-  drawLegend(ctx, pattern, mode, chartWidthPx, chartHeightPx, belowChart);
+  drawLegend(ctx, pattern, mode, chartWidthPx, chartHeightPx, belowChart, aidaCount);
   drawCenterMarkers(ctx, chartWidthPx, chartHeightPx);
   drawRowColumnNumbers(ctx, pattern.width, pattern.height, cellSize);
   ctx.restore();

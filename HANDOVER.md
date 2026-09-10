@@ -1930,6 +1930,73 @@ build`. Redeployed to `https://cross-stitch.craftodejnice.cz` following
 the standard recipe; `docker ps` before/after confirmed only this
 project's container restarted.
 
+**D31 — G-013: DMC color-picking mode + floss-amount estimate added
+(2026-09-10).** Owner request: a third `generationMode` (alongside
+`latest`/`original`) that snaps the generated palette to real, buyable
+DMC embroidery floss colors, named `"CODE - name"`, plus an estimated
+floss amount per color biased toward overestimating rather than
+underestimating.
+
+- **Data**: `lib/dmc-colors.ts` (454-entry `DMC_COLORS` table) is a
+  from-scratch re-derivation of `sharlagelfand/dmc`'s MIT-licensed
+  `floss` dataset — that package's own data is R-binary-only, so this
+  project reimplemented its documented cleaning script in Python against
+  the same raw input and spot-checked the result against known reference
+  colors (310 = Black, B5200 = Snow White). Full provenance, licensing
+  reasoning (Feist/factual-data doctrine for the unlicensed upstream this
+  derives from), and regeneration instructions in
+  `docs/dmc-colors-provenance.md`.
+- **Design: DMC matching is a pure post-process, not a new clustering
+  algorithm.** `lib/dmc-match.ts`'s `applyDmcPalette()` runs *after* the
+  normal "latest" pipeline (`buildPattern`) has already produced a
+  finished `StitchPattern`, and only snaps each resulting palette color
+  to its nearest real DMC thread (by OKLab distance — the same metric
+  every other color decision in this pipeline uses, D6/D7), merging any
+  two clusters that land on the same DMC code. This keeps the well-tested
+  core generation pipeline (`lib/pattern.ts`) completely untouched and
+  isolates all DMC-specific risk to one new, independently unit-tested
+  function (`tests/unit/dmc-match.spec.ts`, 10 tests). Wired into
+  `lib/pattern.worker.ts`: `generationMode: "dmc"` runs `applyDmcPalette`
+  on the worker's output before posting it back.
+- **Floss-amount formula, domain-expert-reviewed**
+  (`lib/floss-estimate.ts`): per STANDARDS.md's "Domain depth" section,
+  the `domain-expert` subagent researched real-world DMC thread
+  consumption (full findings in `docs/domain-reference-floss-estimate.md`,
+  a separate file from the existing `docs/domain-reference.md` since they
+  cover unrelated domains) and found —
+  and corrected — a genuine, widely-repeated community error: a DMC
+  skein is 8m *of the 6-strand bundle* (4800 strand-cm), not 800cm of
+  usable 1-strand thread, so naively dividing skein length by per-stitch
+  path length overestimates stitches-per-skein by ~3x. The final formula
+  is `stitches x strands(N) x 2(sqrt(2)+1) x 2.54 x K / N / 4800` skeins
+  (rounded up, minimum 1), where `N` is Aida count, `strands(N)` follows
+  the mainstream convention (3 at 11-count, 2 at 14/16/18-count), and
+  `K=2.0` is a deliberately generous overhead multiplier — a real
+  skein-exhaustion experiment (Lord Libidan) implies ~1.5x for clean
+  contiguous stitching, but this app's photo-derived patterns are often
+  scattered "confetti," which costs more in travel/tie-offs, and the
+  Owner explicitly asked to err toward overestimating. 7 unit tests in
+  `tests/unit/floss-estimate.spec.ts`, including an exact-formula
+  boundary check at 14-count (1369/1370 stitches).
+- **UI**: a third "DMC" button added next to Latest/Original in
+  `app/workspace.tsx`'s mode toggle (each button now has a `title`
+  tooltip, since none existed before and DMC's behavior — colors may
+  merge — isn't self-explanatory). The Colors dock's per-color row and
+  the exported PNG/A4 legend (`lib/render.ts`'s `drawLegendItem`, now
+  taking `aidaCount`) both show `"N sts · M skeins"`; the legend's meta
+  line is now passed through the existing `truncateToWidth` helper too,
+  since the added text made unbounded overflow into the next legend
+  column a real risk it wasn't before.
+- **Verified**: 215 unit tests (198 + 10 dmc-match + 7 floss-estimate),
+  clean `tsc`/`eslint`/`npm run build`. Live-browser check against the
+  dev server: uploaded a 4-flat-color test image, selected DMC mode,
+  generated, and confirmed the Colors dock showed real DMC-formatted
+  names (`"347 - Salmon - Very Dark"`, `"825 - Blue - Dark"`,
+  `"702 - Kelly Green"`, `"444 - Lemon - Dark"`) each with a stitch count
+  and skein estimate, with zero console errors. Not yet re-verified
+  against a production deploy or with Playwright e2e coverage — see Next
+  steps.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
@@ -1992,6 +2059,16 @@ project's container restarted.
   a "Preparing…" busy state on the download buttons (fixed same session
   as M5, `app/page.tsx`'s `handleDownload`) — previously this handler
   had no loading indicator at all.
+- **G-013 (DMC mode + floss estimate, D31) still needs**: Playwright e2e
+  coverage (generate with DMC mode selected, assert "CODE - Name"
+  formatted legend entries and skein estimates appear, no console
+  errors); a real download/visual check of the exported PNG and A4
+  legend text (verified only by code reading + the shared
+  `formatSkeinEstimate`/`truncateToWidth` helpers already being unit
+  tested, not by opening an actual exported file); and a production
+  deploy following the standard recipe once the Owner confirms this
+  feature is ready to ship. Not yet committed to git as of this write-up
+  — see the file list at the top of this D31 entry.
 
 ## Independent review — 2026-09-09
 
