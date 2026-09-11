@@ -3442,6 +3442,139 @@ production: selected XXL and regenerated the existing `prod-preview-
 test` pattern (250x250 stitches, page/skein counts updated correctly),
 zero console errors.
 
+**D48 — G-022 M5 design critique (contour refinement): a real objective
+exists, but M5 is a staged research effort, not one milestone
+(2026-09-11, `codex:codex-rescue`, new thread, read-only/diagnosis-only,
+no files changed).** Put the milestone's own open design questions to
+Codex per STANDARDS.md's important-decision protocol before writing any
+code, since GOALS.md's own M5 entry already flagged it "highest risk,
+most open-ended." Full critique grounded in the actual code (`lib/
+pattern.ts`, `lib/regions.ts`, `lib/contour-cleanup.ts`, `lib/pair-edge-
+evidence.ts`, `tests/unit/shape-fixtures.ts`) and this project's
+documented history (D11, D18, D42-D45). Findings, engaged on the merits
+rather than accepted wholesale:
+
+1. **Formalization**: "balanced digital-straight-line sequences" (an
+   equal-length window should have step proportions matching its local
+   direction -- `HVHVHVHV` paces a 45-degree run more consistently than
+   `HHHHVVVV` despite identical endpoints/step counts) is a real,
+   citable digital-geometry concept (Monteil), but explicitly *not* a
+   universal curve rule -- smooth curves can legitimately produce
+   non-balanced local words, so a naive "equalize all runs" penalty
+   would reject correct digitizations. Decomposed into four concerns:
+   placement (near the true interface), pacing (step proportions match
+   local direction over short windows), changing tangent (expected
+   proportions vary along the interface), discontinuities (the
+   smoothness model terminates at real corners/junctions). Explicitly
+   warns against penalizing curvature from individual stitch edges
+   directly (every staircase is right-angle turns; that would prefer a
+   big corner over a good diagonal) and against confusing arc-length
+   reparameterization with real refinement. Flags a genuine unsolved
+   sub-problem: `pair-edge-evidence.ts` gives per-pair magnitudes, not
+   an ordered source contour with a common-location tangent -- and for
+   shading-derived (no-physical-edge) boundaries there may be nothing to
+   estimate a tangent from at all; an equal-color-cost interface is
+   offered as one testable hypothesis, not a supplied answer.
+2. **Architecture**: recommends discrete multi-cell "shared-boundary
+   proposals" (extract boundary chains -- a new transient representation
+   `regions.ts`'s `labelRegions` doesn't currently provide -- propose
+   coordinated changes to several cells at once, score against an
+   explicit objective before accepting) over either a higher-order ICM
+   term alone (doesn't remove the single-cell-move barrier that lets a
+   whole beneficial section go unmoved because no individual cell move
+   improves energy -- the review's own Finding 2) or continuous-then-
+   rasterize (can reverse on rasterization; independent contours can
+   conflict). Confirms higher-order terms don't inherently violate ICM's
+   Besag-1986 requirement (strict improvement + retention on ties on a
+   finite state space is sufficient; pairwise-only isn't required) --
+   but names six concrete new correctness traps specific to multi-cell
+   moves that D11's existing lesson doesn't cover by itself (partial-
+   window counting, stale-state delta summation, double-counting a
+   shared boundary from each side, per-proposal tangent refits not
+   modeled in the objective, double-discounting on top of
+   `boundaryPairEnergy`'s existing discount, and a proposal gaming its
+   own score by removing troublesome samples) -- each needs its own
+   targeted test, not just "test broadly." **Confirms the "passes
+   fighting" risk explicitly applies**: recommends M5 run after existing
+   structural cleanup (component recolor/diagonal fix) and palette
+   merging, before final palette recompute, with no unchanged cleanup
+   pass running after it; also flags that ICM's own 8-pass cap means the
+   existing pipeline was never a proof of one converged objective to
+   begin with, and that G-020 M5 (post-DMC fine pass, still not started)
+   must respect M5's objective/constraints or the two milestones'
+   ordering needs revisiting.
+3. **Preservation**: reframes corners/thin-features/junctions as
+   *admissibility constraints* on the feasible labeling set, not just
+   large energy weights -- "freeze" (don't move, don't yet improve) as
+   an honest first-version capability boundary. Names the existing
+   diagonal-pinch protection's real scope limit (2x2-block-specific,
+   doesn't generally protect thin regions from a new, unrelated pass)
+   and that M3 deliberately left the old per-cell importance signal
+   unchanged, so leaning on it alone for M5 would reintroduce exactly
+   the weaknesses M3 fixed. Gives a concrete junction-corruption
+   scenario worth having as its own fixture: a single-cell change can
+   split a 4-way junction into two 3-way junctions (a real local
+   structural corruption) while whole-image IoU barely moves and even
+   global region-adjacency can stay unchanged if the affected regions
+   already touch elsewhere -- meaning this needs a dedicated local
+   embedded-interface-structure comparison, not a strengthened version
+   of any existing shape metric.
+4. **New metric needed**: proposes a concrete, calibratable "step-
+   discrepancy" metric before any refinement code -- for a boundary
+   window of w edges, D = (actual vertical steps) - w x (source arc's
+   locally-matched vertical-advance proportion); reports RMS and a high
+   percentile of |D|/w at several window lengths. Worked by hand against
+   the two motivating step sequences (HVHVHVHV → zero; HHHHVVVV → -2..2)
+   as a sanity check. Explicit caution: a good staircase need not score
+   zero, so the metric's own passing range must be calibrated against
+   known-correct digitizations first, not assumed. Also names concrete,
+   specific gaps in the *existing* `shape-fixtures.ts` harness this
+   milestone would need to close regardless (its `predictedMask`
+   collapses every palette color to foreground/background, hiding
+   internal/third-region damage; `boundaryDistances` returns zero when
+   either boundary is empty -- a known D43-documented caveat; fixtures
+   are effectively 1:1 source:grid only; a real coordinate-convention
+   mismatch between how the source is generated and how `trueMask` is
+   sampled needs reconciling for any placement-sensitive metric).
+5. **Most likely first-implementation regression**: treating genuine
+   small-scale structure (a real corner, whisker, or junction branch) as
+   staircase "error" and smoothing it toward a locally-fitted tangent --
+   circles, average pacing, and even confetti could all look improved
+   while real detail is actually destroyed, since a locally-plausible
+   fit doesn't know it's crossing a feature boundary. Proposes the
+   cheapest possible early check before building any general optimizer:
+   hand-author roughly a dozen tiny patches (uneven diagonals/curves
+   paired with L-corners, notches, one-cell lines/bridges, junctions,
+   noisy boundaries), enumerate a small set of legal one-cell-band
+   alternatives with the *true* labels outside held fixed, and rank them
+   under the existing energy, the proposed pacing score, and their
+   combination -- first using known/hand-supplied source tangents
+   (isolates whether the *objective* itself is right), then the actual
+   estimated guidance (isolates whether the *estimator* is the problem).
+   Only after that would a 3-way baseline comparison (unchanged /
+   coordinated moves with the old objective / coordinated moves with the
+   new pacing term) separate gains from escaping single-cell minima
+   (a real, distinct win on its own) from gains specifically attributable
+   to better step sequencing.
+
+**Response, on the merits**: no rebuttal -- the critique's reasoning is
+internally consistent, grounded in the actual files and this project's
+own documented failure modes (D11, D18), and its caution matches this
+project's own repeated experience of "looked correct in isolation, only
+caught by broad testing" (D18) and "looked correct on paper, caused a
+measured regression" (D11). Concretely, this means **M5 as originally
+scoped in GOALS.md is not sized correctly as a single milestone** -- the
+critique's own recommended order (build + calibrate a new pacing metric
+against known digitizations; extend the shape-fixture harness's several
+named gaps; build boundary-chain extraction; run a small hand-authored
+candidate-ranking experiment with known-then-estimated guidance before
+any general optimizer; only then build the actual multi-cell move
+mechanism with admissibility constraints and an independent full-state
+energy evaluator test; a broad D45-style sweep before adopting any
+parameter; pipeline-placement and G-020 M5 coordination) is itself a
+multi-milestone sequence. GOALS.md's G-022 M5 entry is being restructured
+into that sequence rather than attempted as one undifferentiated step.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

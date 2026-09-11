@@ -160,15 +160,87 @@ work," restated with this project's acceptance-criteria/risk framing):
   change out from under it. **Medium risk** -- direct precedent in this
   project's own weight-tuning history (D18/REINVEST_MERGE_THRESHOLD).
 - [ ] M5 — A genuine contour-refinement pass for pixel-art stair-step
-  quality (extract shared region boundaries, adjust stair-step placement/
-  pacing within a narrow band to follow the source contour's changing
-  tangent, preserve intentional corners/thin features and consistent
-  multi-region junctions). **Highest risk, most open-ended** -- new
-  capability, not a bug fix, no precedent in this codebase; plan this
-  milestone's own acceptance criteria separately once M1-M4's measured
-  effect is in hand, rather than committing to a specific design now.
+  quality. **Highest risk, most open-ended** -- confirmed by a codex-cli
+  design critique (HANDOVER.md D48) to be a staged research effort, not
+  one milestone; restructured below into sub-steps M5.1-M5.6, each its
+  own checkpoint. No pipeline code changes until M5.4 finds the
+  objective actually works on hand-authored cases with known-correct
+  guidance -- everything before that is measurement/validation
+  infrastructure, deliberately, per the critique's own recommended
+  order and this project's D18/D11 precedent for not trusting an
+  approach that "looks correct in isolation."
+  - [ ] M5.1 — Build the step-discrepancy pacing metric (critique
+    section 4: `D = actual_vertical_steps - w * matched_source_arc's_
+    local_vertical_proportion` over short boundary windows) and
+    calibrate its "good staircase" range against digitizations of known
+    analytic shapes (straight lines at several angles/phases, circular
+    arcs) at several grid phases -- *not* assumed to be zero. No
+    pipeline wiring; a standalone, directly-tested module.
+  - [ ] M5.2 — Extend `tests/unit/shape-fixtures.ts` to close the
+    critique's five named gaps: a per-region (not fg/bg-collapsed) mask
+    comparison so internal/third-region damage is visible;
+    `boundaryDistances`' empty-boundary-returns-zero caveat (D43); a
+    larger-source/fractional-downsample fixture variant, not just ~1:1;
+    reconciled source-generation vs. `trueMask` sampling coordinates for
+    any placement-sensitive metric; a real one-cell-line preservation
+    test (the existing diagonal-band test isn't one). Plus a new
+    dedicated junction-corruption fixture (critique section 3: four
+    regions meeting at one grid vertex, asserting the same local
+    embedded interface structure/branch count afterward, not just
+    whole-image IoU or global region-adjacency, which the critique shows
+    can both stay misleadingly unchanged through a real junction split).
+  - [ ] M5.3 — Boundary-chain extraction: a new transient representation
+    (shared interfaces along cell edges, incident region ids, junction
+    vertices) on top of `regions.ts`'s `labelRegions` output --
+    `StitchPattern` itself stays unchanged (one palette index per cell,
+    same as every other milestone/G-024's own constraint).
+  - [ ] M5.4 — The critique's recommended cheapest-early-check: hand-
+    author ~12 tiny patches (uneven diagonals/curves paired with
+    L-corners, notches, one-cell lines/bridges, junctions, noisy
+    boundaries), enumerate legal one-cell-band alternatives with true
+    outside labels fixed, and rank them under the existing energy, the
+    M5.1 pacing score, and their combination -- first with hand-supplied
+    known source tangents (tests whether the *objective* is right),
+    then with actual estimated guidance (tests whether the *estimator*
+    is the problem, separately). **Checkpoint: only continue to M5.5 if
+    a stable parameter range improves the positive cases while
+    preserving the negative (corner/feature/junction) ones** -- if not,
+    the honest outcome is documenting why and stopping here, the same
+    kind of legitimate negative result D18/M4 already established this
+    project accepts.
+  - [ ] M5.5 — The actual multi-cell move mechanism ("shared-boundary
+    proposals" over M5.3's boundary chains, admissibility-constrained by
+    M5.2's corner/feature/junction fixtures, `freeze` as the v1
+    safety boundary for corners/thin features/junctions rather than
+    attempting to improve them yet) plus an independent full-state
+    energy evaluator test in `energy.spec.ts` checking real production
+    move deltas against full recomputation (critique section 2's six
+    named new correctness traps -- partial-window counting, stale-state
+    delta summation, double-counted shared boundaries, unmodeled
+    per-proposal tangent refits, double-discounting on top of
+    `boundaryPairEnergy`, and score-gaming by removing troublesome
+    samples -- each needs its own targeted test). Pipeline placement:
+    after existing structural cleanup and palette merging, before final
+    palette recompute, with no unchanged cleanup pass running after it
+    (critique's explicit "passes fighting" warning); coordinate with
+    G-020's still-unstarted M5 (post-DMC fine pass) rather than letting
+    the two land in a conflicting order.
+  - [ ] M5.6 — 3-way comparison (unchanged pipeline / coordinated moves
+    with the old objective / coordinated moves with the new pacing term)
+    to separate gains from escaping single-cell minima from gains
+    specifically attributable to better step sequencing, then a full
+    D45-style broad sweep (existing golden fixtures, realistic noise/
+    downsampling, several palette sizes, both quantizers, the D18
+    detail fixture, final DMC output) before adopting any parameter.
+    Full verification, GOALS.md/HANDOVER.md documentation, deploy.
 
 **Progress log** (newest first):
+- 2026-09-11 — M5 design critique obtained (codex-cli, new thread, per
+  Owner: "proceed m5"). Restructured M5 into sub-steps M5.1-M5.6 above
+  per the critique's finding that this milestone is a staged research
+  effort, not one step. No production code changed yet -- M5.1 (the
+  pacing metric) is the natural next sub-step. See HANDOVER.md D48 for
+  the full critique and response.
 - 2026-09-11 — M4 deployed (Owner: "deploy"). Container isolation
   confirmed (only cross-stitch-pattern-generator-app-1 restarted, `Up 58
   minutes` -> `Up 8 seconds`; all 28 other containers unchanged), other
