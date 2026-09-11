@@ -135,6 +135,11 @@ svc-lab).
   to `runPatternJob`.
 
 **Progress log** (newest first):
+- 2026-09-11 — Deployed (Owner: "deploy"). `docker ps` before/after
+  confirmed only the cross-stitch container restarted; 3 other sites
+  spot-checked at 200. Live-verified against production itself: clicked
+  Original + DMC on the deployed page and confirmed the legend shows real
+  DMC-coded names, zero console errors.
 - 2026-09-11 — Both milestones complete. Verified: 279 unit tests
   unaffected (no unit test covered the UI enum directly; `dmcMode`-driven
   behavior tests in `a4-render.spec.ts`/`dmc-match.spec.ts` are keyed off

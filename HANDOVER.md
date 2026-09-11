@@ -2722,7 +2722,21 @@ latest and original modes work with full palette or dmc palette."
   fail identically without G-021's changes. Logged in the Owner action
   list below rather than investigated further, since it's unrelated to
   this goal.
-- Not yet deployed -- see GOALS.md's G-021 entry.
+- **Deployed (2026-09-11).** Owner: "deploy". Standard recipe: `git push`
+  then on the VPS `git fetch origin`/`git pull`/`docker compose --profile
+  app up -d --build`. `docker ps` before/after confirmed isolation: only
+  the cross-stitch container restarted (`Up 19 minutes` -> `Up 8
+  seconds`); all 28 other containers on the shared host unchanged (one
+  new container, `hydroponic-nutrient-calculator-app-1`, had appeared
+  between snapshots -- an unrelated svc-lab deploy, not touched here).
+  Spot-checked `meet.app.julienika.cz`, `craftale.eu`, and
+  `arfid.julienika.cz` at HTTP 200, plus the target site at 200. Live
+  verification against production itself (not just the dev server):
+  clicked the real Original + DMC buttons and Regenerate via the deployed
+  page's own DOM, confirmed the legend shows real DMC-coded names ("347 -
+  Salmon - Very Dark", "825 - Blue - Dark") -- the previously-impossible
+  combination, now live -- with zero console messages. Goal DONE -- see
+  GOALS.md's G-021 entry.
 
 ## Owner action list
 
