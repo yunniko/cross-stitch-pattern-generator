@@ -984,6 +984,11 @@ milestone's own result justifies continuing):
   energy machinery (not M5's separate work) was the actual dependency.
 
 **Progress log** (newest first):
+- 2026-09-11 — Deployed (Owner: "deploy"). Container isolation
+  confirmed, other sites healthy, live production test of the real
+  behavior change (DMC mode on a close-color circle) -- legend correctly
+  showed real DMC threads "318 - Steel Gray Light"/"414 - Steel Gray
+  Dark", zero console errors.
 - 2026-09-11 — M5 complete, **goal DONE** (Owner: "resume g-020").
   `lib/dmc-match.ts`'s `applyDmcPalette` gained an optional `reoptimize`
   context (`{ cells, importance?, weights?, pairEvidence? }`); when

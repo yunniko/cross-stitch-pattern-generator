@@ -4185,6 +4185,24 @@ contour work -- was ever the real dependency.
   ment`), so this is a genuine behavior change for anyone using DMC mode
   and needs its own explicit "deploy" before going live.
 
+**Deployed (2026-09-11).** Owner: "deploy." Standard recipe: `git
+push`/VPS `git fetch`+`git pull`/`docker compose --profile app up -d
+--build`. `docker ps` before/after confirmed isolation: only
+`cross-stitch-pattern-generator-app-1` restarted (`Up 2 hours` -> `Up
+13 seconds`); the only other uptime deltas were two unrelated
+containers' counters advancing by their own natural 1-hour tick between
+snapshots, not a restart. Spot-checked `meet.app.julienika.cz`,
+`craftale.eu`, and `arfid.julienika.cz` at HTTP 200, plus the target
+site at 200. Live verification directly on production, specifically
+exercising the real behavior change (DMC mode, not a generic smoke
+test): uploaded a genuine close-color circle PNG ([150,150,150] vs
+[172,172,172], the same M2 Finding 2 regime this milestone's own
+positive-control fixture used), selected DMC palette mode, generated --
+legend correctly showed real DMC threads "318 - Steel Gray Light"
+(7198 sts) and "414 - Steel Gray Dark" (2802 sts), matching the exact
+nearest-DMC pair measured during development, no zero-count entries,
+zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
