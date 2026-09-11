@@ -7,6 +7,17 @@ import { cellRgb, type CellColorBuffer } from "./types";
 // edge/contrast map already flags as real content is left untouched here too.
 const IMPORTANCE_PROTECTION_THRESHOLD = 0.5;
 
+// Ridge-detection noise floor (HANDOVER.md D51) -- calibrated directly
+// against measured data, the same methodology as edge-map.ts's own
+// NOISE_FLOOR: on regression.spec.ts's amplitude-50 noisy golden fixture,
+// the worst-case (max, not just typical) ridge strength measured across a
+// whole flat noisy region was 0.0225; on a close-color soft-gradient
+// fixture (shape-regression.spec.ts's diagonal stroke) the worst case was
+// 0.0007. A genuine 1-cell-wide line's own ridge strength measured ~0.40
+// -- roughly 18x the noisy-region ceiling and ~600x the gradient ceiling,
+// a wide, comfortable separation, not a knife-edge fit to either number.
+const RIDGE_STRENGTH_FLOOR = 0.05;
+
 /**
  * Denoises the box-downsampled cell grid for the quantizer's eyes only
  * (2026-09-11 review, HANDOVER.md D41/G-020 M4) -- a 3x3 vector-medoid
@@ -59,6 +70,68 @@ const IMPORTANCE_PROTECTION_THRESHOLD = 0.5;
  * a cell at or above `IMPORTANCE_PROTECTION_THRESHOLD` is left exactly as
  * it is, full stop -- no filtering, no exception.
  *
+ * **Second, independent protection: ridge detection (HANDOVER.md D50/D51,
+ * found investigating a real production gap).** `importance` alone turned
+ * out not to be enough: a Sobel gradient (a first-derivative, step-edge
+ * detector) responds to a *ridge* -- a genuinely 1-cell-wide line with
+ * background on both sides -- with a measured, provably exact cancellation
+ * (the gradient contribution from crossing into background on one side
+ * exactly cancels the opposite-side crossing), so a straight 1-cell-wide
+ * line's own importance can be *exactly* 0.0, receiving no protection at
+ * all despite being genuine content.
+ *
+ * A below-threshold-importance cell about to be replaced by the majority
+ * medoid is now given one more chance via `ridgeStrength`: a discrete
+ * second-difference (the same well-established family as a Laplacian/
+ * ridge detector, complementary to Sobel's first-derivative step-edge
+ * response by design) computed along each of the 4 principal cell-grid
+ * directions (horizontal, vertical, both diagonals) as the squared OKLab
+ * distance from the cell's own color to the midpoint of its two opposite
+ * neighbors along that direction, taking the max across directions. A
+ * true ridge scores large (its opposite neighbors are both background,
+ * far from the cell's own color); a cell lying on a smooth gradient
+ * scores near zero (it sits close to the interpolated midpoint of its
+ * neighbors, almost by definition of "smooth"); i.i.d. per-cell noise
+ * scores small and boundedly (a fixed linear combination of independent
+ * samples, not a search over many candidate pairs).
+ *
+ * A first attempted design searched for the closest same-colored neighbor
+ * within the window directly (no ridge gate) and required two such
+ * neighbors to agree -- rejected after broad testing (this project's own
+ * D18 discipline: a change that looks correct on the motivating case
+ * needs testing against the existing suites before being trusted)
+ * revealed the real flaw: searching for the *minimum* pairwise distance
+ * among several candidates is an extreme-value statistic, systematically
+ * biased toward small values even under pure noise (measured directly:
+ * realistic photo noise's own typical minimum pairwise distance in a 3x3
+ * window, ~0.00004, was comparable to or smaller than a genuine line-
+ * neighbor's true distance, ~0.00007 -- no threshold could cleanly
+ * separate them across *every* below-threshold-importance cell). A single
+ * fixed second-difference along specific directions doesn't have that
+ * search-induced bias, and measured directly gives a wide, comfortable
+ * margin instead: a true ridge's strength (~0.40) is ~18x the worst
+ * noisy-region value measured (~0.0225) and ~600x the worst close-color-
+ * gradient value measured (~0.0007) -- not a knife-edge fit to either
+ * number.
+ *
+ * Ridge strength alone still can't distinguish a genuine 2+-cell-long thin
+ * *feature* from a genuinely *isolated* single-cell outlier -- both are
+ * "different from the local average" by construction, which is exactly
+ * `denoiseForQuantization`'s original target case and must still be
+ * caught. `hasMatchingAlly` closes that gap: only a ridge-flagged cell
+ * that *also* has an actual same-colored neighbor (continuing the
+ * feature) is protected; a true isolated outlier has no such neighbor and
+ * still gets replaced as before. Reusing a tight absolute distance here
+ * (rejected earlier when applied to *every* low-importance cell) is safe
+ * now because it only runs on the rare, pre-filtered set of cells that
+ * already passed the ridge gate -- the extreme-value/multiple-comparisons
+ * problem needs a large candidate pool to bite, and ridge-flagged cells
+ * in a real noisy region are a ~1-in-hundreds event per the calibration
+ * above, not the general case. Verified: a one-cell-wide axial line's
+ * survival through quantization went from 0% to effectively complete,
+ * the original isolated-outlier test case still passes, and the full
+ * existing regression/shape-regression suites pass unmodified.
+ *
  * **Scope: quantizer input only.** The returned buffer is passed only to
  * `ColorQuantizer.quantize`; every other pipeline stage (the local
  * optimizer's per-cell color-error term, the final palette-color recompute
@@ -67,6 +140,52 @@ const IMPORTANCE_PROTECTION_THRESHOLD = 0.5;
  * cell should belong to*, without ever changing what color is actually
  * reported for it.
  */
+// A cell can score high on ridgeStrength for two very different reasons: a
+// genuine 2+-cell-long thin FEATURE (has a same-colored neighbor continuing
+// it), or a genuinely ISOLATED single-cell outlier (denoiseForQuantization's
+// original, still-valid target case -- no matching neighbor at all, just
+// different from everything around it). Ridge strength alone can't tell
+// these apart; ALLY_MATCH_DISTANCE_SQUARED requires an actual same-color
+// neighbor before treating a ridge-flagged cell as protected content.
+// Reusing a tight absolute threshold is safe here specifically because it's
+// only evaluated on the rare subset of cells that already pass the ridge
+// gate (for pure per-cell noise, reaching that gate at all is already a
+// ~1-in-hundreds event per the calibration above) -- the extreme-value/
+// multiple-comparisons problem that broke an earlier, ungated version of
+// this same idea (HANDOVER.md D51 A2) doesn't apply once the candidate
+// pool is this small and already pre-selected for genuine local contrast.
+const ALLY_MATCH_DISTANCE_SQUARED = 0.0005;
+
+function hasMatchingAlly(oklabColors: readonly Oklab[], window: readonly number[], i: number): boolean {
+  return window.some((w) => w !== i && oklabDistanceSquared(oklabColors[i], oklabColors[w]) <= ALLY_MATCH_DISTANCE_SQUARED);
+}
+
+const RIDGE_DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
+  [1, 0],
+  [0, 1],
+  [1, 1],
+  [1, -1],
+];
+
+/** Max second-difference (squared OKLab distance from the cell's own color to the midpoint of its two opposite neighbors) over the 4 principal directions -- see `denoiseForQuantization`'s docstring for the full rationale. */
+function ridgeStrength(oklabColors: readonly Oklab[], width: number, height: number, x: number, y: number): number {
+  const i = y * width + x;
+  let maxRidge = 0;
+  for (const [dx, dy] of RIDGE_DIRECTIONS) {
+    const nx1 = x - dx;
+    const ny1 = y - dy;
+    const nx2 = x + dx;
+    const ny2 = y + dy;
+    if (nx1 < 0 || nx1 >= width || ny1 < 0 || ny1 >= height || nx2 < 0 || nx2 >= width || ny2 < 0 || ny2 >= height) continue;
+    const neg = oklabColors[ny1 * width + nx1];
+    const pos = oklabColors[ny2 * width + nx2];
+    const midpoint: Oklab = [(neg[0] + pos[0]) / 2, (neg[1] + pos[1]) / 2, (neg[2] + pos[2]) / 2];
+    const ridge = oklabDistanceSquared(oklabColors[i], midpoint);
+    if (ridge > maxRidge) maxRidge = ridge;
+  }
+  return maxRidge;
+}
+
 export function denoiseForQuantization(cells: CellColorBuffer, importance?: Float32Array): CellColorBuffer {
   const { width, height } = cells;
   const cellCount = width * height;
@@ -95,6 +214,14 @@ export function denoiseForQuantization(cells: CellColorBuffer, importance?: Floa
           if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
           window.push(ny * width + nx);
         }
+      }
+
+      // A genuine 2+-cell-long thin feature: strong local second-difference
+      // structure (not noise/gradient) AND an actual same-colored neighbor
+      // continuing it (not an isolated single-cell outlier -- see
+      // `hasMatchingAlly`'s docstring above for why both checks are needed).
+      if (ridgeStrength(oklabColors, width, height, x, y) > RIDGE_STRENGTH_FLOOR && hasMatchingAlly(oklabColors, window, i)) {
+        continue;
       }
 
       let bestIndex = i;

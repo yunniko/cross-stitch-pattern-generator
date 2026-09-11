@@ -89,16 +89,16 @@ describe("gap 3: a genuine fractional-downsample shape fixture, not just ~1:1", 
 });
 
 describe("gap 5: a real one-cell-line preservation test (the existing diagonal-band fixture is ~3.6 stitches wide, not one)", () => {
-  // A real, reproduced finding (HANDOVER.md D49), not a threshold picked to
-  // pass: measured directly across sizes (30/60) and colorCounts (2/3/4),
-  // a genuinely one-cell-wide DIAGONAL staircase line survives perfectly
-  // (100%) every time, but a one-cell-wide AXIAL (straight vertical/
-  // horizontal) line of the same width is completely erased (0% survival)
-  // by today's already-deployed default pipeline, every time. Both lines
-  // have an identical 2-matching/6-mismatching 8-neighbor ratio, so this
-  // isn't explained by boundary-length alone -- documented here as today's
-  // real, honest baseline (golden-fixture philosophy: measure first, don't
-  // assume), not smoothed over into a passing-either-way assertion.
+  // Originally a real, reproduced finding (HANDOVER.md D49): a genuinely
+  // one-cell-wide DIAGONAL staircase line survived perfectly (100%) but a
+  // one-cell-wide AXIAL (straight vertical/horizontal) line of the same
+  // width was completely erased (0% survival) by the default pipeline.
+  // Root-caused to `denoiseForQuantization`'s medoid filter (HANDOVER.md
+  // D50) and fixed with a coherent-support check (HANDOVER.md D51) --
+  // both cases now survive intact; thresholds below reflect the fixed,
+  // measured behavior, tightened from the original "KNOWN GAP" version of
+  // this test the same way other G-022 thresholds tighten as real fixes
+  // land (see shape-regression.spec.ts's own precedent).
   const size = 30;
   const bg: RGB = [220, 210, 200];
   const line: RGB = [30, 30, 30];
@@ -125,16 +125,10 @@ describe("gap 5: a real one-cell-line preservation test (the existing diagonal-b
     expect(survivalRate(regionAt, 3)).toBeGreaterThan(0.9);
   });
 
-  it("KNOWN GAP: a one-cell-wide axial line is completely erased under today's default pipeline (documented baseline for M5.5, not yet fixed)", () => {
+  it("a one-cell-wide axial line survives essentially intact (fixed -- HANDOVER.md D51; was 0% before)", () => {
     const lineColumn = 14;
     const regionAt = (nx: number) => (Math.floor(nx * size) === lineColumn ? 1 : 0);
-    // Asserting today's real (poor) measured behavior, not an aspiration --
-    // this test should start FAILING (in a good way) once a future
-    // milestone (M5.5's thin-feature admissibility constraints, or a
-    // dedicated fix) actually preserves this case; at that point tighten
-    // this assertion the same way shape-regression.spec.ts's own
-    // thresholds get tightened as G-022 lands real improvements.
-    expect(survivalRate(regionAt, 3)).toBeLessThan(0.1);
+    expect(survivalRate(regionAt, 3)).toBeGreaterThan(0.9);
   });
 });
 

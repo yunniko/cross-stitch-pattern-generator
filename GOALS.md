@@ -235,7 +235,27 @@ work," restated with this project's acceptance-criteria/risk framing):
     Full verification, GOALS.md/HANDOVER.md documentation, deploy.
 
 **Progress log** (newest first):
-- 2026-09-11 — D49's axial-line-erasure finding investigated (Owner:
+- 2026-09-11 — D49/D50's axial-line-erasure bug fixed (Owner: "fix
+  please"). `lib/denoise.ts`'s `denoiseForQuantization` now distinguishes
+  a genuine thin feature from an isolated noise speckle via a ridge-
+  strength check (a discrete second-difference, complementary to Sobel's
+  step-edge response) plus a same-colored-neighbor confirmation. Two
+  earlier attempts (a fixed absolute "near-duplicate" distance, then a
+  self-relative version of the same idea) were rejected after broad
+  testing broke the close-color shape fixture and increased confetti on
+  the existing noisy-photo golden fixture -- both failed for the same
+  underlying reason (searching for the closest match among candidates is
+  an extreme-value statistic biased toward small values even under pure
+  noise), which the landed fix avoids by using a single fixed linear
+  combination instead of a search. Verified: full unit suite passes
+  unmodified (339/339), the original isolated-outlier test still passes,
+  clean `tsc`/`eslint`/`npm run build`, e2e (27/27), and a live dev-
+  server test with a real 200x200 PNG containing a genuine 1-pixel line
+  (not a synthetic fixture) -- survived at exactly its true stitch count,
+  visually confirmed unbroken, zero console errors. See HANDOVER.md D51
+  for the full iteration history. Not yet deployed -- awaiting Owner's
+  next explicit "deploy".
+- 2026-09-11 — D49/D50's axial-line-erasure finding investigated (Owner:
   "investigate the finding"; diagnosis only, no production code
   changed). Root cause has two distinct parts: (1) `denoiseForQuantiza-
   tion`'s importance-gated medoid filter erases a 1-cell line's true

@@ -3744,6 +3744,81 @@ confirmed mechanisms, not one:
   (a natural fit, since M5.5 already needs real thin-feature protection
   for its own purposes), or defer further.
 
+**D51 — D50's axial-line erasure fixed at the root: `denoiseForQuantization`
+now distinguishes a genuine thin feature from an isolated noise speckle
+(2026-09-11, Owner: "fix please").** Addressed mechanism 1 (the denoise
+filter's medoid erasing a low-importance line before quantization ever
+sees it) directly in `lib/denoise.ts`; mechanism 2 (ICM's scan-order
+divergence) turned out to be a downstream *symptom* of mechanism 1, not
+an independent bug -- once quantization stops being poisoned, ICM does
+not independently re-break a correctly-seeded line (verified directly:
+bypassing denoise entirely made the fixture survive 100% through both
+quantization and ICM).
+
+Two iterations were needed, each rejected by broad testing before
+landing on the third (this project's own D18 discipline in direct
+action, not just cited):
+
+1. **First attempt**: protect a below-importance cell if it has *any*
+   other window member within a fixed absolute "near-duplicate" distance
+   (reusing `palette-optimizer.ts`'s own merge tolerance). Broke
+   `shape-regression.spec.ts`'s close-color diagonal stroke (IoU
+   0.79->0.65) and increased confetti on the existing noisy-photo golden
+   fixture. Root cause: a fixed absolute tolerance is either too loose
+   for a close-color image (the *entire* fg/bg separation can be smaller
+   than the tolerance) or too tight for a high-contrast one.
+2. **Second attempt**: same idea, but with the two comparison ratios
+   made *relative* to each cell's own distance to the chosen majority
+   color (self-calibrating per window). Reduced but did not eliminate
+   the regression. Direct measurement exposed the real flaw: realistic
+   photo noise's own typical *minimum* pairwise distance within a 3x3
+   window (measured median ~0.00004 on the noisy golden fixture) is
+   comparable to or smaller than a genuine line-neighbor's true distance
+   (measured ~0.00007) -- searching for the closest match among several
+   candidates is an extreme-value statistic, systematically biased
+   toward small values even under pure noise, so no threshold on that
+   search could cleanly separate the two cases.
+3. **Landed fix**: a discrete second-difference ("ridge strength" --
+   the same well-established family as a Laplacian/ridge detector,
+   deliberately complementary to Sobel's first-derivative step-edge
+   response, not a competing ad-hoc heuristic) computed along each of
+   the 4 principal cell-grid directions as the squared OKLab distance
+   from a cell's own color to the midpoint of its two opposite
+   neighbors, taking the max across directions. Unlike a search-based
+   minimum, a single fixed linear combination isn't extreme-value-biased
+   and measured with a wide, comfortable separation: true ridge strength
+   (~0.40) is ~18x the worst noisy-region value measured (~0.0225) and
+   ~600x the worst close-color-gradient value measured (~0.0007).
+   Ridge strength alone still can't tell a genuine 2+-cell feature from
+   a genuinely *isolated* single-cell outlier (both score high -- an
+   isolated outlier's opposite-neighbor-pairs are also far from it, by
+   definition), so a below-threshold cell is only protected when it
+   *also* has an actual same-colored neighbor (`hasMatchingAlly`, a
+   tight absolute distance check) -- safe to use as a fixed absolute
+   threshold here specifically because it only runs on the rare,
+   ridge-pre-filtered subset of cells, not every low-importance cell
+   uniformly, so the extreme-value/multiple-comparisons problem that
+   broke attempts 1-2 doesn't have a large enough candidate pool to bite.
+- **Verified**: full unit suite passes unmodified (339/339: 334 existing
+  + the `shape-fixtures-m5.2.spec.ts` axial-line test tightened from its
+  "KNOWN GAP" assertion to `>0.9` survival, now measuring 100%), the
+  original isolated-single-cell-outlier test in `denoise.spec.ts` (the
+  function's original purpose) still passes, clean `tsc`/`eslint`/`npm
+  run build`, full e2e suite (27/27, one unrelated flaky Pan-tool retry
+  that passed on its second attempt). Live dev-server verification: a
+  real 200x200 PNG with a genuine 1-pixel-wide vertical line, generated
+  at 100 stitches (a real 2:1 downsample, not a synthetic 1:1 test
+  fixture) -- the line survived as its own palette entry at exactly 100
+  stitches (the true cell count), visually confirmed as a continuous
+  unbroken column in the rendered chart, zero console errors.
+- **Not addressed**: G-023's separately-flagged ICM scan-order/
+  parallelism question remains open (informational only here, since
+  mechanism 2 turned out not to need its own fix); the horizontal-line
+  partial-survival spot check from D50 was pre-fix data and hasn't been
+  re-measured post-fix, though the fix's mechanism (ridge + matching-
+  ally, orientation-agnostic by construction) should apply identically
+  regardless of line orientation.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
