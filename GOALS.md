@@ -11,7 +11,7 @@ svc-lab).
 
 ## Active goals
 
-### G-022 · Fix rectangular-boundary bias found by the cluster-boundary review — DRAFT (2026-09-11)
+### G-022 · Fix rectangular-boundary bias found by the cluster-boundary review — ACTIVE (2026-09-11)
 - **What:** Address the 5 findings in `docs/reviews/2026-09-11-cluster-
   boundary-review.md` (reviewed checkout `e3589f2`): the pipeline has a
   built-in preference for horizontal/vertical boundaries over diagonals
@@ -46,6 +46,17 @@ svc-lab).
   algorithm, no existing precedent in this codebase) that its own
   acceptance criteria should be planned separately once M1-M4 land and
   their real-world effect is measured, rather than committed to now.
+- **Cross-goal ordering (Owner decision, 2026-09-11):** G-020's remaining
+  M5 ("re-run the fine local-optimizer pass after DMC-mode snaps
+  colors") calls the exact same shared machinery this goal's M2-M4
+  redesign (`local-optimizer.ts`, `energy.ts`'s `boundaryPairEnergy`,
+  `edge-map.ts`'s importance signal). Doing G-020 M5 first would mean
+  verifying it against today's energy function, then needing a re-check
+  once M2-M4 change that function anyway -- so G-022 M2-M4 run **before
+  G-020 M5** to verify it once, against the final energy function.
+  G-020 M5 resumes after G-022 M4 lands; G-022 M1 (independent of DMC
+  mode) still runs first regardless, since M2-M4's own testing needs a
+  quantization stage that isn't itself a confound.
 
 **Milestones** (mapped from the review's own "Recommended order of
 work," restated with this project's acceptance-criteria/risk framing):
@@ -98,6 +109,9 @@ work," restated with this project's acceptance-criteria/risk framing):
   effect is in hand, rather than committing to a specific design now.
 
 **Progress log** (newest first):
+- 2026-09-11 — Owner decision: G-022 M2-M4 run before G-020's remaining
+  M5 (see "Cross-goal ordering" above). Goal promoted from DRAFT to
+  ACTIVE. Starting M1 next.
 - 2026-09-11 — Plan drafted from `docs/reviews/2026-09-11-cluster-
   boundary-review.md` per Owner request. All 5 findings independently
   re-verified against the current code (see Why) before planning against
@@ -153,9 +167,15 @@ work," restated with this project's acceptance-criteria/risk framing):
   colors to the coarser 454-color DMC gamut, since the smoothness/color
   trade-off ICM originally solved was computed against the pre-snap
   continuous colors, not the thread palette actually shipped in the
-  chart.
+  chart. **Sequenced after G-022 M2-M4** (Owner decision, 2026-09-11) --
+  this milestone calls the exact shared energy/importance machinery
+  G-022 M2-M4 are about to redesign; see G-022's own entry for the
+  reasoning. Paused here until G-022 M4 lands.
 
 **Progress log** (newest first):
+- 2026-09-11 — Owner decision: sequence G-022 M2-M4 before this
+  milestone (see G-022's "Cross-goal ordering" note). M5 paused, no
+  other change.
 - 2026-09-11 — M4 deployed and fully verified (Owner: "deploy M4").
   Container-level deploy succeeded immediately, but a shared-
   infrastructure incident (host nginx down since before this deploy
