@@ -3996,6 +3996,95 @@ this one's work.
   nothing in default behavior changed, so there's nothing for a deploy
   to change.
 
+**D55 — G-022 M5.6: broad sweep concludes contourRefinement is NOT
+adopted -- a legitimate, well-evidenced negative result completing
+G-022's M5 investigation (2026-09-11, Owner: "continue with m5.6").**
+
+- **Scope honesty first**: the milestone's own planned "3-way
+  comparison" (unchanged / coordinated-moves-old-objective /
+  coordinated-moves-new-objective, meant to separate gains from escaping
+  ICM's single-cell minima from gains attributable to better sequencing)
+  could not be run as literally specified, because M5.5's own disclosed
+  scope reduction (D54) built one mechanism (a `pacingBias` term inside
+  the existing single-cell ICM decision), not two coordinated-multi-cell
+  variants to compare. Recorded as a real gap in what M5.6 could
+  measure, not silently substituted with something that looked similar.
+  What M5.6 actually ran instead: a broad 2-way sweep (`contourRefine-
+  ment` off vs. on, at its shipped default options) across the same
+  fixture classes D45 established as this project's own "broad enough to
+  trust" bar.
+- **Swept**: `regression.spec.ts`'s golden fixtures (noisy-two-region at
+  colorCounts 4/8/16, the realistic-downsample-ratio fixture) against
+  both quantizers (`kMeansQuantizer`/"Latest" and `plainKMeansQuantizer`/
+  "Original"); `shape-regression.spec.ts`'s full shape set at both
+  moderate and close-color contrast; the D18 gray-cat-eyes detail
+  fixture; the D44 same-luminance-different-hue fixture.
+- **Detail preservation, unaffected**: byte-identical `hasYellow`/patch-
+  survival results on D18 and D44 with the pass enabled -- no regression
+  there, at least.
+- **Shape fidelity, negligible effect**: identical IoU/boundary-distance
+  at moderate contrast (expected -- M2's Finding 2 predicts color
+  dominates there regardless); in the close-color regime, where M5.5's
+  own hand-crafted fixture showed a real, measured improvement, the
+  effect on REAL shape fixtures was negligible (up to +0.0006 IoU on the
+  close-color circle, nothing on the close-color diagonal stroke) --
+  the earlier positive result does not generalize from a deliberately
+  hand-crafted local anomaly to naturally-occurring shape boundaries.
+- **Confetti, consistently and sometimes severely worse**: every single
+  golden-fixture configuration tested showed higher confetti with the
+  pass enabled -- e.g. 0.0008->0.0075 (~9x) and 0.0008->0.0121 (~15x) at
+  different quantizer/colorCount combinations, with reconstruction error
+  essentially unchanged (this is fragmentation, not a color-fidelity
+  trade-off).
+- **Checked whether this was tunable, per this project's own D18
+  "stable range, not a knife-edge" discipline, rather than accepting the
+  first negative number as final**: raising `discrepancyThreshold` from
+  the shipped default (0.45) to 0.7 or higher does eliminate the
+  confetti regression on the noisy golden fixture -- but the *same*
+  raised threshold also eliminates M5.5's own hand-crafted "badly paced
+  diagonal" positive case entirely (measured: before/after RMS
+  discrepancy become numerically identical at 0.7 and 0.9, versus a real
+  improvement at the shipped default 0.45). There is no threshold value
+  in the range tested that captures the intended benefit without the
+  regression -- not a calibration problem to keep tuning, a structural
+  one.
+- **Root cause, diagnosed but not fixed**: real photographic noise
+  produces boundaries that are locally irregular without being
+  *systematically* mis-paced, and the self-referential wide/narrow-
+  window trigger (necessary in the first place because a real photo has
+  no known true curve to compare against, per M5.5's own design) cannot
+  distinguish "genuine systematic mis-pacing" from "ordinary boundary
+  noise" using only the boundary's own raw, un-smoothed local geometry.
+  A future attempt might need to smooth/denoise the discrepancy signal
+  itself before triggering (the same "filter before squaring" lesson
+  M3's own noise-calibration bug taught, HANDOVER.md D44), require
+  sustained discrepancy across multiple passes before acting, or build
+  the critique's originally-preferred fuller multi-cell mechanism, which
+  might be more robust by construction (scoring whole chain segments
+  jointly rather than reacting to one local window at a time).
+- **Disposition**: `lib/contour-refinement.ts`, `lib/boundary-chains.ts`,
+  and `tests/unit/contour-pacing.ts` are all kept -- real, working,
+  well-tested infrastructure, and M5.4's own diagnosis (existing energy
+  is genuinely blind to step-pacing quality) still stands independent of
+  this specific mechanism's outcome. `contourRefinement` stays opt-in,
+  default false. The negative result itself is locked into a permanent
+  regression test (`contour-refinement.spec.ts`'s own new describe
+  block) specifically so a future session considering flipping the
+  default doesn't have to re-run this sweep from scratch to rediscover
+  the same regression.
+- **This completes G-022's full milestone list** (M1-M5, M5 itself via
+  its own M5.1-M5.6 sub-steps). Per OPERATIONS.md's definition of done,
+  this is reported to the Owner for sign-off, not moved to "Completed
+  goals" unilaterally. G-020's own paused M5 (the post-DMC fine pass,
+  sequenced to wait for G-022 M2-M4's energy-function changes to land)
+  can now resume regardless of how the Owner resolves M5's own adopt/
+  keep-opt-in status, since G-020 M5 only depended on M2-M4's shared
+  energy machinery, not on M5's own separate contour-refinement work.
+- **Verified**: 358 unit tests (357 + 1 new locked-in finding), clean
+  `tsc`/`eslint`/`npm run build`. No production code changed this
+  sub-step (investigation only) -- no e2e re-run needed, no deploy
+  (nothing in default behavior to deploy).
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

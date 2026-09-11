@@ -12,6 +12,8 @@ import { labelRegions } from "@/lib/regions";
 import { oklabDistanceSquared, rgbToOklab } from "@/lib/color";
 import { computeCellImportance, computeEdgeMagnitude } from "@/lib/edge-map";
 import { downsampleToGrid, gridDimensionsFor } from "@/lib/downsample";
+import { buildPattern } from "@/lib/pattern";
+import { computePatternDiagnostics } from "@/lib/diagnostics";
 import { straightLineHeight, stepDiscrepancies, summarizeDiscrepancies, traceStaircase } from "./contour-pacing";
 import { makeFourQuadrantJunctionBuffer, makeMultiRegionBuffer } from "./shape-fixtures";
 import { cellRgb, type CellColorBuffer, type RGB } from "@/lib/types";
@@ -254,5 +256,57 @@ describe("runContourRefinement: behavioral effect on a badly-paced boundary", ()
     expect(afterChains.junctions.length).toBeGreaterThan(0);
     const afterRegionIds = new Set(afterChains.junctions.flatMap((j) => j.regionIds));
     expect(afterRegionIds.size).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("M5.6 finding, locked in (HANDOVER.md D55): NOT adopted as default -- realistic photo noise triggers a real confetti regression", () => {
+  // A broad sweep (golden fixtures, both quantizers, several color counts,
+  // shape-fidelity fixtures, the D18/D44 detail-preservation fixtures)
+  // found: at the default discrepancyThreshold (0.45, the only value that
+  // catches M5.4/M5.5's own hand-crafted "badly paced" positive case at
+  // all), every single golden-fixture configuration tested showed WORSE
+  // (sometimes much worse -- up to 15x) confetti with contourRefinement
+  // enabled, while shape-fidelity and detail-preservation gains were
+  // negligible-to-none. Raising the threshold enough to avoid the
+  // regression (0.7+) also completely eliminates the positive effect on
+  // the hand-crafted case (before/after become numerically identical) --
+  // there is no stable middle ground. Root cause (not yet fixed): real
+  // photographic noise creates locally irregular, not systematically
+  // mis-paced, boundaries, and the self-referential wide/narrow window
+  // trigger cannot distinguish "genuine systematic mis-pacing" from
+  // "ordinary boundary noise" using only the boundary's own un-smoothed
+  // local geometry. This test locks in the measured regression so a
+  // future session considering flipping the default doesn't need to
+  // re-discover it.
+  it("contourRefinement at its default options measurably increases confetti on the existing noisy-two-region golden fixture", () => {
+    function pseudoNoise(x: number, y: number, amplitude: number): number {
+      const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+      return (n - Math.floor(n) - 0.5) * amplitude;
+    }
+    const width = 60;
+    const height = 40;
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const base: RGB = x < 30 ? [200, 150, 100] : [80, 120, 90];
+        const noise = pseudoNoise(x, y, 50);
+        const o = (y * width + x) * 4;
+        data[o] = Math.max(0, Math.min(255, base[0] + noise));
+        data[o + 1] = Math.max(0, Math.min(255, base[1] + noise));
+        data[o + 2] = Math.max(0, Math.min(255, base[2] + noise));
+        data[o + 3] = 255;
+      }
+    }
+    const buffer = { data, width, height };
+
+    function confettiFor(contourRefinement: boolean): number {
+      const pattern = buildPattern(buffer, { longerSideStitches: 60, colorCount: 16, contourRefinement });
+      const cells = downsampleToGrid(buffer, pattern.width, pattern.height);
+      return computePatternDiagnostics(pattern, cells).confettiRatio;
+    }
+
+    const withoutRefinement = confettiFor(false);
+    const withRefinement = confettiFor(true);
+    expect(withRefinement).toBeGreaterThan(withoutRefinement * 2); // measured: ~6x (0.0013 -> 0.0075) at k=16
   });
 });

@@ -159,7 +159,7 @@ work," restated with this project's acceptance-criteria/risk framing):
   boundary-length metric would mean tuning against a metric about to
   change out from under it. **Medium risk** -- direct precedent in this
   project's own weight-tuning history (D18/REINVEST_MERGE_THRESHOLD).
-- [ ] M5 — A genuine contour-refinement pass for pixel-art stair-step
+- [x] M5 — A genuine contour-refinement pass for pixel-art stair-step
   quality. **Highest risk, most open-ended** -- confirmed by a codex-cli
   design critique (HANDOVER.md D48) to be a staged research effort, not
   one milestone; restructured below into sub-steps M5.1-M5.6, each its
@@ -168,7 +168,16 @@ work," restated with this project's acceptance-criteria/risk framing):
   guidance -- everything before that is measurement/validation
   infrastructure, deliberately, per the critique's own recommended
   order and this project's D18/D11 precedent for not trusting an
-  approach that "looks correct in isolation."
+  approach that "looks correct in isolation." **Concluded 2026-09-11**:
+  the diagnosis (existing energy is blind to step-pacing quality) is
+  real and confirmed (M5.4); a working implementation was built and
+  fully tested (M5.5); but M5.6's broad sweep found it does not survive
+  contact with realistic photographic noise -- a real, measured confetti
+  regression with no stable parameter range that avoids it while
+  keeping the benefit. **Not adopted as default** -- stays available,
+  opt-in, off by default, with the negative result locked in as a
+  permanent regression test. See HANDOVER.md D48/D52-D55 for the full
+  6-sub-step account.
   - [x] M5.1 — Build the step-discrepancy pacing metric (critique
     section 4: `D = actual_vertical_steps - w * matched_source_arc's_
     local_vertical_proportion` over short boundary windows) and
@@ -225,16 +234,72 @@ work," restated with this project's acceptance-criteria/risk framing):
     (critique's explicit "passes fighting" warning); coordinate with
     G-020's still-unstarted M5 (post-DMC fine pass) rather than letting
     the two land in a conflicting order.
-  - [ ] M5.6 — 3-way comparison (unchanged pipeline / coordinated moves
-    with the old objective / coordinated moves with the new pacing term)
-    to separate gains from escaping single-cell minima from gains
-    specifically attributable to better step sequencing, then a full
-    D45-style broad sweep (existing golden fixtures, realistic noise/
-    downsampling, several palette sizes, both quantizers, the D18
-    detail fixture, final DMC output) before adopting any parameter.
-    Full verification, GOALS.md/HANDOVER.md documentation, deploy.
+  - [x] M5.6 — Broad D45-style sweep before adopting any parameter.
+    **Concluded NOT ADOPTED** -- see the progress log entry and
+    HANDOVER.md D55 for the full evidence. The literal "3-way
+    comparison" as originally planned (unchanged / coordinated-moves-
+    old-objective / coordinated-moves-new-objective) could not be run as
+    such, since M5.5's own disclosed scope reduction (HANDOVER.md D54)
+    built one mechanism, not two coordinated-move variants -- an honest
+    gap in what M5.6 could measure, not silently papered over.
+
+**Goal-level status (2026-09-11): all milestones (M1-M5) complete.**
+M1-M4 shipped and deployed with measured, real improvements (D42-D45).
+M5 (contour refinement) was investigated as thoroughly as this project's
+own D18/D11 methodology calls for -- a real critique exchange, a working
+implementation, and a broad validation sweep -- and concluded with a
+legitimate, well-evidenced negative result: not adopted as default,
+kept as opt-in infrastructure. Per OPERATIONS.md's definition of done,
+this awaits explicit Owner sign-off before moving to "Completed goals";
+not moved there unilaterally. G-020's own paused M5 (the post-DMC fine
+pass) can now resume, per the cross-goal ordering decision above.
 
 **Progress log** (newest first):
+- 2026-09-11 — M5.6 complete (Owner: "continue with m5.6").
+  **CONCLUSION: contourRefinement is NOT adopted as default behavior --
+  a legitimate, well-evidenced negative result.** Swept the existing
+  golden-fixture suite (both quantizers, colorCounts 4/8/16, the
+  realistic-downsample-ratio fixture), the shape-regression suite
+  (moderate and close-color contrast, all 5 shapes), the D18 gray-cat
+  detail fixture, and the D44 same-luminance-different-hue fixture, each
+  with `contourRefinement` off vs. on at its default options.
+  **Detail preservation**: byte-identical results on both D18 and D44 --
+  no regression there. **Shape fidelity**: identical at moderate
+  contrast (expected, per M2's Finding 2); negligible-to-zero change in
+  the close-color regime on REAL shape fixtures (up to +0.0006 IoU,
+  nothing like the improvement measured on M5.5's own hand-crafted
+  fixture). **Confetti on the golden fixtures**: consistently and
+  sometimes severely WORSE in every single configuration tested -- e.g.
+  0.0008->0.0075 (~9x) and 0.0008->0.0121 (~15x) at different
+  quantizer/colorCount combinations. Checked whether this was tunable
+  (this project's own D18 "stable range" discipline): raising
+  `discrepancyThreshold` from 0.45 to 0.7+ does eliminate the confetti
+  regression, but ALSO eliminates the entire measured benefit on M5.5's
+  own hand-crafted "badly paced diagonal" positive case (before/after
+  become numerically identical) -- there is no stable threshold that
+  captures the intended benefit without the regression. Root cause
+  (diagnosed, not yet fixed): real photographic noise creates locally
+  irregular, not systematically mis-paced, boundaries, and the self-
+  referential wide/narrow-window trigger (necessary because a real
+  photo has no known true curve, per M5.5's own design) cannot tell
+  "genuine systematic mis-pacing" apart from "ordinary boundary noise"
+  using only the boundary's own un-smoothed local geometry.
+  **Disposition**: `lib/contour-refinement.ts` and its tests are kept
+  (real, working, well-tested infrastructure -- the underlying
+  diagnosis from M5.4 that pacing quality matters and existing energy
+  is blind to it still stands), `contourRefinement` stays opt-in and
+  defaults to false; the negative result itself is locked in as a
+  permanent regression test (`contour-refinement.spec.ts`) so a future
+  session considering flipping the default doesn't need to re-discover
+  it. `lib/boundary-chains.ts` and `tests/unit/contour-pacing.ts` remain
+  valuable, reusable, well-tested primitives regardless of this specific
+  mechanism's outcome. Verified: 358 unit tests (357 + 1 new locked-in
+  finding), clean `tsc`/`eslint`/`npm run build`. No production code
+  changed this sub-step (investigation only) -- no e2e re-run needed, no
+  deploy (nothing in default behavior to deploy). This completes G-022's
+  full milestone list (M1-M5, with M5's own M5.1-M5.6 sub-steps) --
+  see the goal-level note below for the overall conclusion and what's
+  next.
 - 2026-09-11 — M5.5 complete (Owner: "continue"). New `lib/contour-
   refinement.ts`, wired into `pattern.ts` as a **strictly opt-in**
   option (`contourRefinement: false` by default) -- M5.6's broad D45-
