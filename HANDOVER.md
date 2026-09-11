@@ -4594,6 +4594,34 @@ unused-variable cleanup), full `npx vitest run` 418/418 passing (42
 files, no regressions), `npm run build` clean. No e2e run needed —
 still no `buildPattern`/`pattern.ts` wiring; that's M4.
 
+**D62 — G-022 signed off and moved to Completed goals; a real G-024 ID
+collision found and fixed along the way (2026-09-12, Owner: "mark 22
+complete and proceed to m4").**
+
+Per OPERATIONS.md's definition of done, moved G-022's full entry
+(683 lines — M1-M5, all previously completed/deployed, M5 concluding
+with a documented negative result) from "Active goals" to right after
+"Completed goals" via a Node script rather than manual `Edit` (same
+approach as G-020's own earlier move, to avoid transcription risk on a
+block this size). Header changed `ACTIVE (2026-09-11)` →
+`DONE (2026-09-11, Owner sign-off 2026-09-12)`; a new progress-log
+entry documents the sign-off itself.
+
+While locating G-022's boundaries in `GOALS.md`, found a real, pre-
+existing data-integrity bug unrelated to this session's own work: a
+**second, distinct goal was also numbered G-024** — "Additional export
+option: Pattern Keeper-compatible PDF" (DRAFT, created 2026-09-12 in a
+different session, not started) — colliding with this session's own
+G-024 (Crisp Edges, ACTIVE, heavily in progress). Fixed by renumbering
+the not-yet-started Pattern Keeper goal to **G-026** (the next free
+slot after G-025) rather than touching Crisp Edges' own number, since
+Crisp Edges has extensive in-progress cross-references (this
+`HANDOVER.md`'s own D57-D61 entries, code comments in `lib/crisp-edge-
+evidence.ts`/`lib/crisp-unary-cost.ts`/`lib/weighted-quantize.ts`,
+several `tests/unit/crisp-*` files) that renumbering it would have
+required updating everywhere, while the Pattern Keeper goal had none
+yet. No content changed beyond the header's own goal number.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

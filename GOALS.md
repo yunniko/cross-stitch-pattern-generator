@@ -11,7 +11,451 @@ svc-lab).
 
 ## Active goals
 
-### G-022 · Fix rectangular-boundary bias found by the cluster-boundary review — ACTIVE (2026-09-11)
+### G-024 · Crisp edges mode (preserve hard color boundaries instead of averaging them) — ACTIVE (2026-09-11)
+- **What:** An optional `edgeMode: "standard" | "crisp"` generation mode.
+  Standard stays today's exact behavior (backward-compatible default).
+  Crisp keeps two confidently-distinct source-side colors at a hard
+  boundary as a staircase of those two colors, instead of quantizing the
+  cell's single averaged color (which can land on or near a third,
+  unrelated palette entry — a manufactured gray/purple that no amount of
+  downstream edge-awareness can recover, since the information is
+  destroyed at the downsample step, before any optimizer ever runs).
+  Full design in `docs/reviews/2026-09-11-crisp-edges-implementation-
+  recommendations.md` (Codex, read/design-only, no files changed) —
+  this entry is the milestone plan derived from it, not a duplicate of
+  its content.
+- **Why:** Owner-directed scope (per the report's own "Owner intent and
+  scope" section). Reproduced directly before planning against it (this
+  project's standing practice) rather than trusting the report's numbers
+  on faith: a 64x64 opaque black/white split at `x=30`, downsampled to a
+  16x16 grid at 3 requested colors, produces exactly the reported result
+  — column 7 downsamples to RGB(188,188,188), and the final pattern
+  carries 112 black / 16 gray / 128 white stitches. The gray is
+  manufactured by linear-light averaging of a hard boundary, not a real
+  third color, an artifact, or noise; changing the averaging color space
+  would only produce a *different* wrong gray, not fix the underlying
+  problem (verified in `lib/downsample.ts`: alpha-weighted fractional-
+  coverage linear-light averaging is exactly as the report describes,
+  confirming its analysis is grounded in the current code, not stale).
+- **Acceptance criteria:** The report's own section 9 fixture table (12
+  scenarios: the black/white split with and without a genuine gray
+  region elsewhere, red/blue with no unsupported purple, equal-luminance
+  different-hue boundaries, diagonals/circles/ellipses with existing
+  shape metrics, fractional resampling ratios, smooth gradients and real
+  three-color regions, noise/JPEG-artifact negative controls, transparency/
+  upscale, finalization/merging/DMC mapping, Standard-mode/legacy-file
+  exact-equivalence, and the full generate/cancel/save/reload/export
+  lifecycle). Average reconstruction error is explicitly *not* a success
+  metric here (a crisp choice can legitimately score worse against an
+  averaged reference) — report that trade-off honestly rather than
+  hiding it behind a metric that penalizes the feature for working.
+- **Constraints:** Two broad regions only for this scope — no thin-line/
+  stroke/centerline/backstitch work (explicitly deferred, a different,
+  larger problem the earlier review already flagged separately). One
+  palette color per stitch, existing editing/export workflow unchanged.
+  **Sequencing**: the report explicitly says to coordinate with, not
+  bundle into, G-022's M5 and G-020's M5 — reuse their shared boundary-
+  energy/importance interfaces once they land rather than duplicating or
+  racing them. Both concluded 2026-09-11 (G-022 M5 with a negative
+  result, opt-in; G-020 M5 shipped and deployed) -- this goal is
+  unblocked and now ACTIVE.
+
+**Milestones** (from the report's own suggested sequence, section 10 —
+restructured into this project's usual milestone/check-in shape):
+- [x] M1 — Formalize the reproduction as permanent regression fixtures
+  (the black/white gray-band case above, plus a real-gray-elsewhere
+  control) and inventory exactly which current G-022/G-020 machinery
+  Crisp mode must build on vs. leave untouched, before writing any new
+  production code.
+- [x] M2 — Prototype the source-side evidence extractor in isolation
+  (bounded typed-array storage, up to two representative colors per
+  candidate boundary cell, fractional coverage, within-mode spread,
+  spatial/orientation evidence, confidence score) against hard-edge,
+  smooth-gradient, and noisy-control fixtures together — calibrate
+  confidence thresholds broadly, not off one attractive example (this
+  project's own D18 lesson). No wiring into `buildPattern` yet.
+- [x] M3 — Weighted palette training (generalize `ColorQuantizer`'s
+  seeding/update/merge-reinvestment scoring to accept coverage-weighted
+  evidence without double-counting a split cell's influence) plus a new
+  shared assignment-cost interface implementing the report's mode-aware
+  unary cost (Section 6) — the core "stop scoring against the blend"
+  fix, since keeping two colors but minimizing distance to their average
+  (or the sum of both squared distances) provably still prefers a blend
+  (report's derivation, independently re-checkable).
+- [ ] M4 — Full pipeline integration per the report's Section 7 table:
+  denoising, initial assignment, coarse/fine ICM, small-component
+  recoloring, diagonal cleanup, palette merge/remap, and final palette
+  color estimation (replacing the unconditional `meanRgbOklab` call on
+  raw averaged cells for crisp cells specifically) all made mode-aware
+  and consistent, plus DMC-mode mapping of the selected source-side
+  colors. This is the milestone most likely to hide a "new sampler,
+  old pass overwrites it" regression — verify each stage individually,
+  not just the end-to-end result.
+- [ ] M5 — UI + persistence: `edgeMode` through
+  `pattern.worker.ts`/`pattern-client.ts`'s existing cancellable job
+  boundary, a Standard/Crisp control in `app/workspace.tsx`, and
+  persistence in `types.ts`/`pattern-serialize.ts`/`workspace-storage.ts`
+  with missing/legacy values defaulting to Standard. Generate/Regenerate
+  semantics only — switching the setting must never silently regenerate
+  or overwrite manual edits.
+- [ ] M6 — Calibration and acceptance testing against the report's full
+  Section 9 fixture matrix, benchmarking (time/memory vs. Standard on
+  representative and large grids), and delivery: before/after magnified
+  images at identical scale with the source shown alongside, documented
+  known limitations and remaining manual-correction cases.
+
+**Progress log** (newest first):
+- 2026-09-12 — M3 complete. Built both halves standalone (no
+  `buildPattern` wiring yet -- that's M4), per the Codex critique's
+  synthesis: `lib/weighted-quantize.ts` (weighted k-means training --
+  `weightedQuantize`/`weightedKMeansQuantize`, generalizing
+  `quantize.ts`'s seeding/Lloyd/reinvestment to accept coverage-
+  weighted samples, with cell-first reinvestment ranking) and
+  `lib/crisp-unary-cost.ts` (the mode-aware unary cost + admissible-
+  label-set construction, Section 6's core fix). Verified byte-for-
+  byte Standard-compatibility directly (not assumed) -- caught and
+  fixed a real bug along the way where the RNG seed depended on raw
+  sample-record count instead of distinct cell count, which would have
+  silently reshuffled unrelated cells' quantization whenever a nearby
+  cell's evidence happened to be split into 2 samples. Calibrated a
+  provisional `beta=0.15` via a real (not fabricated) side-switch
+  experiment -- explicitly documented as provisional pending M4's real
+  passes. Composition-tested both halves together end-to-end on M1's
+  genuine-gray-elsewhere fixture: recovers real black/white/gray
+  palette entries and correct admissible label sets at the real
+  boundary (a test-scope bug of my own, not an implementation bug, was
+  caught and fixed along the way -- the fixture has TWO real
+  boundaries, black/white and white/gray, and an assertion that didn't
+  account for that produced a false failure). Full story in
+  HANDOVER.md D60 (the critique + a real M2 coverage bug it surfaced,
+  fixed first) and D61 (M3's actual build). Verified: 418/418 tests
+  passing (42 files), clean `tsc`/`eslint`/`npm run build`. No e2e run
+  needed. Starting M4 next (full pipeline integration) once the Owner
+  checks in.
+- 2026-09-11/12 — Before starting M3, sent the planned design (weighted
+  palette training + mode-aware unary cost) to Codex for critique per
+  this project's standard practice. It found a real bug in M2's own
+  `coverage` calculation (a binary pixel-center test instead of a true
+  fractional cell-overlap, corrupting coverage for any pixel straddling
+  a cell boundary) — verified directly, fixed at the root, and locked
+  into a permanent regression test. Also surfaced and honestly recorded
+  a real "known gap": a sufficiently steep smooth gradient reaches two
+  real modes and scores false-positive high confidence (~0.94) — a
+  structural formula limitation, not a threshold issue, that must be
+  addressed before M4 wires confidence into real pipeline decisions.
+  The critique otherwise confirmed M3's two-half design is sound and
+  gave concrete resolutions to every open design question. Full story
+  in HANDOVER.md D59. Verified: 381/381 tests passing, clean
+  `tsc`/`eslint`/`npm run build`. Starting M3's actual build (weighted
+  k-means generalization + mode-aware unary cost module) next.
+- 2026-09-11 — M2 complete (Owner: "and then continue", given while
+  checking M1's deploy status). New `lib/crisp-edge-evidence.ts`:
+  `extractBoundaryEvidence(source, gridWidth, gridHeight, cellX, cellY,
+  options)` fits a weighted two-mode split on source pixels in an
+  EXPANDED neighborhood (cell footprint plus a margin fraction each
+  side) using `downsampleToGrid`'s own exact fractional-coverage/alpha-
+  weighting formula (reused, not reinvented, so evidence stays
+  consistent with what actually got averaged), via deterministic
+  farthest-point-seeded weighted 2-means (no randomness, matching this
+  project's general preference for reproducible algorithms) in OKLab.
+  Confidence is `colorConfidence x spatialConfidence`:
+  `colorConfidence = separation / (separation + maxWithinModeSpread)`
+  (a real color separation should dominate each mode's own internal
+  spread) and `spatialConfidence = min(1, spatialSeparation / 0.5)`
+  (the two color groups' spatial centroids should actually be apart,
+  not interleaved). Coverage is computed restricted to the cell's own
+  footprint per the report's own instruction, separately from the
+  expanded neighborhood used for mode-fitting. Deliberately NOT yet the
+  report's required bounded typed-array storage — this prototype
+  returns one object per queried cell for testability; that storage
+  format is deferred to M4's actual pipeline wiring.
+  Calibrated `tests/unit/crisp-edge-evidence.spec.ts` (11 tests) against
+  hard-edge (black/white, red/blue, equal-luminance-different-hue, and
+  a hard edge with realistic per-pixel noise on both sides), smooth-
+  gradient, and noise/texture (flat+noise, fine checkerboard) fixtures
+  together, per the report's own "calibrate broadly" instruction and
+  this project's D18 discipline. Measured: hardEdge confidence 1.0000
+  vs gradient/noise 0.0000 — but investigated *why* before trusting
+  that number: for the gradient and flat-noise fixtures, weighted
+  2-means itself finds only a single mode (its two centroids land
+  within `minModeSeparation` of each other), so confidence 0 comes from
+  the prototype's degenerate-split gate, not from the graduated
+  color/spatial formula. Of the three negative-control classes, only
+  the checkerboard fixture actually reaches two real modes and gets
+  rejected BY the graduated formula — there `colorConfidence` is at its
+  own maximum (each mode is a single discrete color, spread 0) and
+  `spatialConfidence` alone correctly rejects it (the two colors'
+  spatial centroids coincide since they're uniformly interleaved) —
+  confirming the spatial-coherence factor does real, necessary work,
+  not just redundant work the separation gate would have done anyway.
+  Added a dedicated noisy-hard-edge fixture specifically because none
+  of the original three fixture classes exercised `colorConfidence`'s
+  spread term with a nonzero value on both sides (every other fixture
+  in the file has exactly two flat colors, i.e. spread 0) — a real
+  photo's edges carry noise, so this is the case that actually matters
+  for M4. It passes (confidence > 0.6, spread confirmed nonzero).
+  Verified: `tsc --noEmit` clean, `eslint` clean (one `prefer-const`
+  fix), full `vitest run` 379/379 passing (38 files, no regressions),
+  `npm run build` clean. No production code changed (`lib/pattern.ts`
+  does not yet import this module), no e2e run needed. See HANDOVER.md
+  D58 for the full design rationale. Starting M3 next (weighted palette
+  training + the mode-aware unary cost) once the Owner checks in.
+- 2026-09-11 — M1 complete (Owner: "yes please" -- unblocked once G-022
+  M5/G-020 M5 both concluded). New `tests/unit/crisp-edges-fixtures.ts`
+  + `crisp-edges-regression.spec.ts`, reproducing the report's own
+  Section 9 fixtures #1-#2 exactly: the headline black/white split
+  (matches the report's own claimed numbers precisely: column 7 ->
+  RGB(188,188,188), pattern -> 112/16/128 black/gray/white stitches) and
+  a genuine-gray-elsewhere control, which surfaced a clean, concrete,
+  numeric demonstration of the actual problem: today's pipeline produces
+  two DIFFERENT, unrelated grays (a genuine 128,128,128 region entry and
+  a separate manufactured 184,184,184 "transition" entry at the
+  boundary) with nothing distinguishing "real content" from "averaging
+  artifact." Also completed the inventory half of M1 -- a code-grounded
+  table of what Crisp mode builds on vs. leaves untouched, verified
+  against the current tree (not the report's own stale snapshot --
+  `boundary-chains.ts`/`contour-refinement.ts` postdate the report and
+  are confirmed orthogonal, no coordination needed). See HANDOVER.md D57
+  for the full inventory. Verified: 368 unit tests (365 + 3 new), clean
+  `tsc`/`eslint`/`npm run build`. No production code changed, no e2e
+  run needed. Starting M2 next (the source-side evidence extractor
+  prototype) once the Owner checks in.
+- 2026-09-11 — Plan drafted from `docs/reviews/2026-09-11-crisp-edges-
+  implementation-recommendations.md` per Owner request ("read new report
+  from codex and plan what to do next"). Verified the report's central
+  claim by direct reproduction (see Why) and spot-checked its code
+  references (`downsampleToGrid`, `meanRgbOklab`, `ColorQuantizer`'s
+  interface shape, every named file) against the current tree — all
+  accurate, not stale. Not started; stays DRAFT behind G-022 M5/G-020 M5
+  per the existing listed-order convention until the Owner says
+  otherwise.
+
+### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT (2026-09-11)
+- **What:** Move the compute-heavy stage of the pattern pipeline (k-means
+  in OKLab + the ICM/Potts local optimizer, `lib/quantize.ts` +
+  `lib/local-optimizer.ts`) out of the browser and into a separate Rust
+  HTTP service (Axum + `rayon`), called server-to-server from Next.js.
+  Backlog item -- Owner explicitly parked this as "maybe one day," not
+  scheduled. Do not start without an explicit Owner go-ahead.
+- **Why:** The pipeline's worst-case latency is real (HANDOVER.md
+  performance history, though the figures disagree with each other --
+  ~13.4s, ~22s, and 9.5s recorded at different sizes/settings, meaning
+  there's no solid current baseline yet). Originally scoped as "turn the
+  app into a desktop app," narrowed across the conversation to "keep it a
+  website, move the heavy compute server-side, use Rust" once the Owner
+  confirmed browser-only processing isn't a hard requirement.
+- **Acceptance criteria:** Not yet set for the full migration -- per the
+  critique exchange below, M1's own acceptance criteria (a defined
+  latency target) must exist before M2+ are even attempted, since
+  whether this goal is needed at all depends on M1's result.
+- **Constraints:** Sequencing is load-bearing, not optional -- see the
+  critique exchange below. Do not jump straight to M3 (building the
+  service) without M1 (and, if M1 misses target, M2) first. If Rust is
+  ultimately adopted, the TS implementation becomes a frozen migration
+  oracle, not a second permanently-maintained implementation.
+
+**Codex critique exchange (2026-09-11, `codex-rescue`, read-only/
+diagnosis-only, no files changed)** -- put the originally-proposed
+architecture (sidecar Rust service, only the downsampled color grid sent
+to the server, `rayon` for parallelism) to Codex for a real critique per
+STANDARDS.md's "important decision" protocol, not a rubber-stamp
+second opinion. Its findings, verified rather than taken on faith:
+- **The 13.4s baseline is stale and internally inconsistent** with later
+  HANDOVER.md entries (~22s at the same 1000-stitch/64-color case, 9.5s
+  at 300-stitch/24-color) -- no real current baseline exists yet.
+- **The "just a small abstracted grid, not the photo" framing was
+  wrong.** `longerSideStitches` sets the *longer* dimension, so a
+  1000-stitch pattern is up to ~667,000 cells, not ~1,000. The optimizer
+  also needs the Sobel-derived importance map and directional pair-
+  evidence computed from the *original* image, not just downsampled
+  color -- recomputing them server-side from the grid alone would be an
+  algorithm change, not a faithful port. Total payload at typical max
+  settings: ~15-23MB, and a downsampled RGB grid at that resolution is
+  itself a reconstructible low-resolution image. Corrected framing: the
+  server receives "a reduced-resolution image and derived features," not
+  an anonymized abstraction -- the README/HANDOVER's current "your photo
+  never leaves your browser" claim would need updating if this is built.
+- **A genuine, independently-verified algorithmic finding, language-
+  agnostic:** the current energy function's Potts-style boundary term
+  (`lib/energy.ts`) means only a cell's unary-best color plus its
+  neighbors' current labels can ever be the ICM optimum -- any candidate
+  matching none of the neighbors is provably dominated (re-derived and
+  confirmed correct, not taken on faith). Cuts the per-cell candidate
+  scan from up to 100 to ~9, in whichever language this runs. Worth
+  doing regardless of the Rust/sidecar question.
+- **Naive per-cell `rayon` parallelism would silently change ICM's
+  result** (it updates assignments in scan order within a pass; later
+  cells see earlier updates from the same pass). A four-color
+  checkerboard scheduling scheme (partitioning on `(x mod 2, y mod 2)`)
+  is the correct way to parallelize this specific 8-neighbor stencil
+  without changing which local optimum it converges to -- flagged as a
+  later optimization, not part of an initial port.
+- **Two evolving implementations of the same algorithm is a real risk.**
+  If Rust is adopted, it should become the authoritative implementation;
+  TS gets frozen as a migration oracle (compared against identical
+  serialized inputs/intermediate outputs, not just the existing
+  regression suite, which checks diagnostic tolerance bands rather than
+  exact port equivalence) and eventually retired from production use,
+  not maintained indefinitely alongside Rust.
+- **Concrete service-engineering guidance for if/when M3 happens:**
+  versioned binary payload (not JSON) with protocol/algorithm versions
+  separated; an explicit Next.js Route Handler rather than a Server
+  Action (whose default body-size limit is smaller than even the
+  RGB-only portion of this payload); CPU work kept off Axum/Tokio's
+  async executor via a bounded worker pool, not unrestricted
+  `spawn_blocking`; one end-to-end deadline with cooperative cancellation
+  checkpoints in the kernel; a bounded admission queue that fails fast
+  under overload; the Rust container reachable only over the internal
+  Docker network, never a published host port (consistent with
+  `INFRASTRUCTURE.md`'s existing safety invariant); and real
+  observability (per-stage timings, queue time, algorithm version,
+  cancellation/failure counts, no logging of image buffers/derived
+  feature arrays).
+- **Overall verdict: the bottleneck is real and worth investigating, but
+  doesn't yet justify the full Rust sidecar architecture** -- the
+  smallest responsible first step is a current baseline plus an
+  equivalence-tested optimization spike in TypeScript, deciding on real
+  numbers whether Rust is even needed. No rebuttal was raised against
+  this critique -- its central technical claim was independently
+  re-derived and confirmed correct, and its corrections (stale baseline,
+  payload/privacy framing) were factual, not matters of judgment to
+  contest.
+
+**Milestones** (M2-M4 conditional -- do not start until the prior
+milestone's own result justifies continuing):
+- [ ] M1 — Re-establish a real current baseline (both generation modes,
+  several sizes, the historical worst case) since existing numbers
+  disagree with each other; set a concrete user-facing latency target
+  before judging anything against it. Implement the candidate-set
+  reduction (neighbor labels + unary-best color only, ~9 candidates
+  instead of up to 100) and the identified loop waste (rebuilt neighbor
+  objects, repeated fixed edge calculations per candidate, recomputed
+  color distances across passes) in TypeScript. Validate against the
+  existing regression suite plus real rendered-pattern spot checks (the
+  suite alone checks tolerance bands, not exact preservation).
+- [ ] M2 (only if M1 misses the latency target) — Port just the
+  optimizer/quantization kernel to a standalone Rust library with a
+  benchmark harness (no service yet). Compare single-threaded native and
+  single-threaded WASM against the identical frozen TS revision on
+  identical inputs before deciding anything about parallelism or
+  deployment shape.
+- [ ] M3 (only if M2's numbers justify a production build) — Build the
+  Axum sidecar per the engineering guidance above; Rust becomes
+  authoritative, TS frozen as oracle. Deploy per
+  `COMPANY/INFRASTRUCTURE_DEPLOY.md` conventions (internal-network-only,
+  no published host port).
+- [ ] M4 — Side-by-side validation against real patterns, a domain-expert
+  re-review of any numerically-changed behavior, corrected privacy
+  framing in README/HANDOVER, then retire the TS engine to oracle-only
+  status.
+
+**Progress log** (newest first):
+- 2026-09-11 — Goal created as backlog/DRAFT per Owner request ("write it
+  as a backlog goal (maybe one day)") after a full architecture
+  discussion (desktop app -> server-side -> Rust sidecar) and a real
+  Codex critique exchange (see above). Not started; no Owner go-ahead to
+  begin M1.
+
+### G-026 · Additional export option: Pattern Keeper-compatible PDF — DRAFT (2026-09-12)
+- **What:** A new export option, additive to the existing "Export as A4
+  pages" ZIP (PNG-per-page), that produces a single PDF chart readable by
+  the Pattern Keeper app (a cross-stitch progress-tracking app the Owner
+  uses) -- real embedded-font vector text per stitch symbol in a precise
+  grid, not a rasterized image, plus a real-text thread legend.
+- **Why:** Researched Pattern Keeper's actual import requirements
+  (2026-09-11 session; sources below) because the Owner currently
+  composes pattern files by hand in Affinity Designer to get them into
+  Pattern Keeper. Two findings drive this goal:
+  1. **Pattern Keeper doesn't take a plain "text grid" file** -- it
+     imports PDF and overlays a detected grid on it, then reads whatever
+     is under that grid. For a chart to be correctly read (not just
+     visually present), the symbols must be real, embedded, standard-
+     encoded vector text in a consistent row/column grid -- Pattern
+     Keeper's own help page states plainly that a chart built without
+     proper encodings "will not be searchable in Pattern Keeper." The
+     app's existing A4 export is 100% raster PNG (`a4-export.ts`), the
+     opposite of what's needed -- it would only be importable via Pattern
+     Keeper's lesser photo/paper-chart path, losing symbol search and
+     auto legend-parsing.
+  2. **Hand-composing this in Affinity Designer is fragile at real
+     pattern sizes** and has two silent failure modes: converting symbol
+     text to curves, or a PDF export setting that rasterizes/doesn't
+     embed the font -- either one destroys the character encoding Pattern
+     Keeper needs, with no visual difference on screen. Since the app
+     already holds the pattern as structured grid/symbol/color data (not
+     pixels), generating the PDF directly from that data avoids both
+     failure modes and guarantees pixel-exact grid-cell alignment that's
+     impractical to hand-place at thousands of cells.
+  Good news found during research: `lib/symbols.ts`'s existing symbol set
+  is already standard Unicode codepoints from common blocks (Latin-1,
+  Geometric Shapes, Arrows, Dingbats) -- exactly what Pattern Keeper
+  wants, not a custom remapped dingbat font. No symbol-set change needed.
+- **Acceptance criteria:**
+  - A new export option produces one PDF (not a ZIP) with the stitch
+    grid rendered as real, individually selectable vector text per cell
+    (verified with the "select a symbol as text in a standard PDF
+    viewer" test Pattern Keeper's own community recommends), using the
+    existing symbol set and an embedded font that covers it, paginated
+    consistently with the existing A4 grid layout (same page-to-page
+    row/column size consistency Pattern Keeper's grid-detection
+    requires).
+  - The legend (thread code/name/symbol/stitch count) is real text, not
+    an image, on the same or an adjacent page.
+  - The existing PNG/ZIP export keeps working unmodified -- this is
+    additive, not a replacement.
+  - **A real sample pattern is actually test-imported into Pattern
+    Keeper** (not just self-checked against the "select as text" test)
+    before this goal is called done -- everything known about Pattern
+    Keeper's requirements so far comes from its own help pages and
+    third-party summaries, not from testing against the real app, and
+    the goal shouldn't be marked complete on unverified assumptions
+    about how it behaves.
+- **Constraints:** Pick one embedded TTF/OTF font covering every Unicode
+  block the existing symbol set uses, with a checkable open license
+  (STANDARDS.md "Integrity of work" -- record provenance/license the same
+  way `docs/dmc-colors-provenance.md` did for the DMC dataset). No
+  Pattern Keeper account/paid tier assumed beyond whatever access the
+  Owner already has for M4's real-import test.
+- **Sources** (retrieved 2026-09-11, full detail in this goal's creating
+  conversation): patternkeeper.app's own `/help/inputting-grids/`,
+  `/help/importing-a-chart/`, `/help/exporting-charts-from-pcstitch/`,
+  `/help/exporting-charts-from-winstitch-macstitch/`; stitchmate.app's
+  cross-stitch-pattern-PDF-quality guide (summarized via search only --
+  direct fetch returned HTTP 403).
+
+**Milestones:**
+- [ ] M1 — Spike: choose and license-check a Unicode font covering the
+  full existing symbol set (Latin-1 Supplement, Geometric Shapes, Arrows,
+  Miscellaneous Symbols, Dingbats blocks); prototype a minimal single-page
+  PDF (via a PDF library capable of real embedded-font text, e.g.
+  `pdf-lib`) with a handful of real symbols drawn as vector text plus
+  vector gridlines; self-verify the "select as text in a standard PDF
+  viewer" test before building anything further.
+- [ ] M2 — Build the real exporter: a new PDF-generation path reusing the
+  existing A4 pagination/layout logic (`lib/a4-layout.ts`) but rendering
+  each page as real vector text + vector gridlines instead of canvas-to-
+  PNG, plus a real-text legend page (reusing the existing extended-legend
+  content: title, details table, color-key table). Unit-tested wherever
+  the logic is pure.
+- [ ] M3 — UI wiring: add the new export option in the app alongside the
+  existing "Export as A4 pages" (e.g. "Export as PDF (Pattern Keeper
+  compatible)"). Live-browser verified, including the select-as-text
+  check against every symbol actually used in a real generated pattern
+  (not just M1's handful).
+- [ ] M4 — Real-world verification: actually import a real exported
+  sample into Pattern Keeper and confirm grid auto-detection and legend
+  parsing succeed as expected; fix anything the real app reveals that
+  the documentation didn't. Full regression suite, commit, deploy.
+
+**Progress log** (newest first):
+- 2026-09-12 — Goal created per Owner request ("write as a next goal:
+  additional export options - pdf with pattern keeper compatible grid"),
+  built on the Pattern Keeper research done in the prior day's session.
+  Not started.
+
+## Completed goals
+
+### G-022 · Fix rectangular-boundary bias found by the cluster-boundary review — DONE (2026-09-11, Owner sign-off 2026-09-12)
 - **What:** Address the 5 findings in `docs/reviews/2026-09-11-cluster-
   boundary-review.md` (reviewed checkout `e3589f2`): the pipeline has a
   built-in preference for horizontal/vertical boundaries over diagonals
@@ -255,6 +699,11 @@ not moved there unilaterally. G-020's own paused M5 (the post-DMC fine
 pass) can now resume, per the cross-goal ordering decision above.
 
 **Progress log** (newest first):
+- 2026-09-12 — Owner sign-off ("mark 22 complete"): moved to Completed
+  goals. All milestones (M1-M5) were completed and deployed as of
+  2026-09-11 (M5 concluding with a documented negative result --
+  contourRefinement not adopted as default, kept opt-in); no further
+  work was outstanding beyond this sign-off itself.
 - 2026-09-11 — Deployed (Owner: "deploy if it i not yet"). The VPS had
   fallen 5 commits behind (still on `fb449ec`, the XL/XXL-presets
   commit) -- this deploy carries D51's axial-line denoise fix plus all
@@ -693,450 +1142,6 @@ pass) can now resume, per the cross-goal ordering decision above.
   re-verified against the current code (see Why) before planning against
   them. Not started -- awaiting Owner direction on whether/where to
   start relative to G-020's remaining M5.
-
-### G-024 · Crisp edges mode (preserve hard color boundaries instead of averaging them) — ACTIVE (2026-09-11)
-- **What:** An optional `edgeMode: "standard" | "crisp"` generation mode.
-  Standard stays today's exact behavior (backward-compatible default).
-  Crisp keeps two confidently-distinct source-side colors at a hard
-  boundary as a staircase of those two colors, instead of quantizing the
-  cell's single averaged color (which can land on or near a third,
-  unrelated palette entry — a manufactured gray/purple that no amount of
-  downstream edge-awareness can recover, since the information is
-  destroyed at the downsample step, before any optimizer ever runs).
-  Full design in `docs/reviews/2026-09-11-crisp-edges-implementation-
-  recommendations.md` (Codex, read/design-only, no files changed) —
-  this entry is the milestone plan derived from it, not a duplicate of
-  its content.
-- **Why:** Owner-directed scope (per the report's own "Owner intent and
-  scope" section). Reproduced directly before planning against it (this
-  project's standing practice) rather than trusting the report's numbers
-  on faith: a 64x64 opaque black/white split at `x=30`, downsampled to a
-  16x16 grid at 3 requested colors, produces exactly the reported result
-  — column 7 downsamples to RGB(188,188,188), and the final pattern
-  carries 112 black / 16 gray / 128 white stitches. The gray is
-  manufactured by linear-light averaging of a hard boundary, not a real
-  third color, an artifact, or noise; changing the averaging color space
-  would only produce a *different* wrong gray, not fix the underlying
-  problem (verified in `lib/downsample.ts`: alpha-weighted fractional-
-  coverage linear-light averaging is exactly as the report describes,
-  confirming its analysis is grounded in the current code, not stale).
-- **Acceptance criteria:** The report's own section 9 fixture table (12
-  scenarios: the black/white split with and without a genuine gray
-  region elsewhere, red/blue with no unsupported purple, equal-luminance
-  different-hue boundaries, diagonals/circles/ellipses with existing
-  shape metrics, fractional resampling ratios, smooth gradients and real
-  three-color regions, noise/JPEG-artifact negative controls, transparency/
-  upscale, finalization/merging/DMC mapping, Standard-mode/legacy-file
-  exact-equivalence, and the full generate/cancel/save/reload/export
-  lifecycle). Average reconstruction error is explicitly *not* a success
-  metric here (a crisp choice can legitimately score worse against an
-  averaged reference) — report that trade-off honestly rather than
-  hiding it behind a metric that penalizes the feature for working.
-- **Constraints:** Two broad regions only for this scope — no thin-line/
-  stroke/centerline/backstitch work (explicitly deferred, a different,
-  larger problem the earlier review already flagged separately). One
-  palette color per stitch, existing editing/export workflow unchanged.
-  **Sequencing**: the report explicitly says to coordinate with, not
-  bundle into, G-022's M5 and G-020's M5 — reuse their shared boundary-
-  energy/importance interfaces once they land rather than duplicating or
-  racing them. Both concluded 2026-09-11 (G-022 M5 with a negative
-  result, opt-in; G-020 M5 shipped and deployed) -- this goal is
-  unblocked and now ACTIVE.
-
-**Milestones** (from the report's own suggested sequence, section 10 —
-restructured into this project's usual milestone/check-in shape):
-- [x] M1 — Formalize the reproduction as permanent regression fixtures
-  (the black/white gray-band case above, plus a real-gray-elsewhere
-  control) and inventory exactly which current G-022/G-020 machinery
-  Crisp mode must build on vs. leave untouched, before writing any new
-  production code.
-- [x] M2 — Prototype the source-side evidence extractor in isolation
-  (bounded typed-array storage, up to two representative colors per
-  candidate boundary cell, fractional coverage, within-mode spread,
-  spatial/orientation evidence, confidence score) against hard-edge,
-  smooth-gradient, and noisy-control fixtures together — calibrate
-  confidence thresholds broadly, not off one attractive example (this
-  project's own D18 lesson). No wiring into `buildPattern` yet.
-- [x] M3 — Weighted palette training (generalize `ColorQuantizer`'s
-  seeding/update/merge-reinvestment scoring to accept coverage-weighted
-  evidence without double-counting a split cell's influence) plus a new
-  shared assignment-cost interface implementing the report's mode-aware
-  unary cost (Section 6) — the core "stop scoring against the blend"
-  fix, since keeping two colors but minimizing distance to their average
-  (or the sum of both squared distances) provably still prefers a blend
-  (report's derivation, independently re-checkable).
-- [ ] M4 — Full pipeline integration per the report's Section 7 table:
-  denoising, initial assignment, coarse/fine ICM, small-component
-  recoloring, diagonal cleanup, palette merge/remap, and final palette
-  color estimation (replacing the unconditional `meanRgbOklab` call on
-  raw averaged cells for crisp cells specifically) all made mode-aware
-  and consistent, plus DMC-mode mapping of the selected source-side
-  colors. This is the milestone most likely to hide a "new sampler,
-  old pass overwrites it" regression — verify each stage individually,
-  not just the end-to-end result.
-- [ ] M5 — UI + persistence: `edgeMode` through
-  `pattern.worker.ts`/`pattern-client.ts`'s existing cancellable job
-  boundary, a Standard/Crisp control in `app/workspace.tsx`, and
-  persistence in `types.ts`/`pattern-serialize.ts`/`workspace-storage.ts`
-  with missing/legacy values defaulting to Standard. Generate/Regenerate
-  semantics only — switching the setting must never silently regenerate
-  or overwrite manual edits.
-- [ ] M6 — Calibration and acceptance testing against the report's full
-  Section 9 fixture matrix, benchmarking (time/memory vs. Standard on
-  representative and large grids), and delivery: before/after magnified
-  images at identical scale with the source shown alongside, documented
-  known limitations and remaining manual-correction cases.
-
-**Progress log** (newest first):
-- 2026-09-12 — M3 complete. Built both halves standalone (no
-  `buildPattern` wiring yet -- that's M4), per the Codex critique's
-  synthesis: `lib/weighted-quantize.ts` (weighted k-means training --
-  `weightedQuantize`/`weightedKMeansQuantize`, generalizing
-  `quantize.ts`'s seeding/Lloyd/reinvestment to accept coverage-
-  weighted samples, with cell-first reinvestment ranking) and
-  `lib/crisp-unary-cost.ts` (the mode-aware unary cost + admissible-
-  label-set construction, Section 6's core fix). Verified byte-for-
-  byte Standard-compatibility directly (not assumed) -- caught and
-  fixed a real bug along the way where the RNG seed depended on raw
-  sample-record count instead of distinct cell count, which would have
-  silently reshuffled unrelated cells' quantization whenever a nearby
-  cell's evidence happened to be split into 2 samples. Calibrated a
-  provisional `beta=0.15` via a real (not fabricated) side-switch
-  experiment -- explicitly documented as provisional pending M4's real
-  passes. Composition-tested both halves together end-to-end on M1's
-  genuine-gray-elsewhere fixture: recovers real black/white/gray
-  palette entries and correct admissible label sets at the real
-  boundary (a test-scope bug of my own, not an implementation bug, was
-  caught and fixed along the way -- the fixture has TWO real
-  boundaries, black/white and white/gray, and an assertion that didn't
-  account for that produced a false failure). Full story in
-  HANDOVER.md D60 (the critique + a real M2 coverage bug it surfaced,
-  fixed first) and D61 (M3's actual build). Verified: 418/418 tests
-  passing (42 files), clean `tsc`/`eslint`/`npm run build`. No e2e run
-  needed. Starting M4 next (full pipeline integration) once the Owner
-  checks in.
-- 2026-09-11/12 — Before starting M3, sent the planned design (weighted
-  palette training + mode-aware unary cost) to Codex for critique per
-  this project's standard practice. It found a real bug in M2's own
-  `coverage` calculation (a binary pixel-center test instead of a true
-  fractional cell-overlap, corrupting coverage for any pixel straddling
-  a cell boundary) — verified directly, fixed at the root, and locked
-  into a permanent regression test. Also surfaced and honestly recorded
-  a real "known gap": a sufficiently steep smooth gradient reaches two
-  real modes and scores false-positive high confidence (~0.94) — a
-  structural formula limitation, not a threshold issue, that must be
-  addressed before M4 wires confidence into real pipeline decisions.
-  The critique otherwise confirmed M3's two-half design is sound and
-  gave concrete resolutions to every open design question. Full story
-  in HANDOVER.md D59. Verified: 381/381 tests passing, clean
-  `tsc`/`eslint`/`npm run build`. Starting M3's actual build (weighted
-  k-means generalization + mode-aware unary cost module) next.
-- 2026-09-11 — M2 complete (Owner: "and then continue", given while
-  checking M1's deploy status). New `lib/crisp-edge-evidence.ts`:
-  `extractBoundaryEvidence(source, gridWidth, gridHeight, cellX, cellY,
-  options)` fits a weighted two-mode split on source pixels in an
-  EXPANDED neighborhood (cell footprint plus a margin fraction each
-  side) using `downsampleToGrid`'s own exact fractional-coverage/alpha-
-  weighting formula (reused, not reinvented, so evidence stays
-  consistent with what actually got averaged), via deterministic
-  farthest-point-seeded weighted 2-means (no randomness, matching this
-  project's general preference for reproducible algorithms) in OKLab.
-  Confidence is `colorConfidence x spatialConfidence`:
-  `colorConfidence = separation / (separation + maxWithinModeSpread)`
-  (a real color separation should dominate each mode's own internal
-  spread) and `spatialConfidence = min(1, spatialSeparation / 0.5)`
-  (the two color groups' spatial centroids should actually be apart,
-  not interleaved). Coverage is computed restricted to the cell's own
-  footprint per the report's own instruction, separately from the
-  expanded neighborhood used for mode-fitting. Deliberately NOT yet the
-  report's required bounded typed-array storage — this prototype
-  returns one object per queried cell for testability; that storage
-  format is deferred to M4's actual pipeline wiring.
-  Calibrated `tests/unit/crisp-edge-evidence.spec.ts` (11 tests) against
-  hard-edge (black/white, red/blue, equal-luminance-different-hue, and
-  a hard edge with realistic per-pixel noise on both sides), smooth-
-  gradient, and noise/texture (flat+noise, fine checkerboard) fixtures
-  together, per the report's own "calibrate broadly" instruction and
-  this project's D18 discipline. Measured: hardEdge confidence 1.0000
-  vs gradient/noise 0.0000 — but investigated *why* before trusting
-  that number: for the gradient and flat-noise fixtures, weighted
-  2-means itself finds only a single mode (its two centroids land
-  within `minModeSeparation` of each other), so confidence 0 comes from
-  the prototype's degenerate-split gate, not from the graduated
-  color/spatial formula. Of the three negative-control classes, only
-  the checkerboard fixture actually reaches two real modes and gets
-  rejected BY the graduated formula — there `colorConfidence` is at its
-  own maximum (each mode is a single discrete color, spread 0) and
-  `spatialConfidence` alone correctly rejects it (the two colors'
-  spatial centroids coincide since they're uniformly interleaved) —
-  confirming the spatial-coherence factor does real, necessary work,
-  not just redundant work the separation gate would have done anyway.
-  Added a dedicated noisy-hard-edge fixture specifically because none
-  of the original three fixture classes exercised `colorConfidence`'s
-  spread term with a nonzero value on both sides (every other fixture
-  in the file has exactly two flat colors, i.e. spread 0) — a real
-  photo's edges carry noise, so this is the case that actually matters
-  for M4. It passes (confidence > 0.6, spread confirmed nonzero).
-  Verified: `tsc --noEmit` clean, `eslint` clean (one `prefer-const`
-  fix), full `vitest run` 379/379 passing (38 files, no regressions),
-  `npm run build` clean. No production code changed (`lib/pattern.ts`
-  does not yet import this module), no e2e run needed. See HANDOVER.md
-  D58 for the full design rationale. Starting M3 next (weighted palette
-  training + the mode-aware unary cost) once the Owner checks in.
-- 2026-09-11 — M1 complete (Owner: "yes please" -- unblocked once G-022
-  M5/G-020 M5 both concluded). New `tests/unit/crisp-edges-fixtures.ts`
-  + `crisp-edges-regression.spec.ts`, reproducing the report's own
-  Section 9 fixtures #1-#2 exactly: the headline black/white split
-  (matches the report's own claimed numbers precisely: column 7 ->
-  RGB(188,188,188), pattern -> 112/16/128 black/gray/white stitches) and
-  a genuine-gray-elsewhere control, which surfaced a clean, concrete,
-  numeric demonstration of the actual problem: today's pipeline produces
-  two DIFFERENT, unrelated grays (a genuine 128,128,128 region entry and
-  a separate manufactured 184,184,184 "transition" entry at the
-  boundary) with nothing distinguishing "real content" from "averaging
-  artifact." Also completed the inventory half of M1 -- a code-grounded
-  table of what Crisp mode builds on vs. leaves untouched, verified
-  against the current tree (not the report's own stale snapshot --
-  `boundary-chains.ts`/`contour-refinement.ts` postdate the report and
-  are confirmed orthogonal, no coordination needed). See HANDOVER.md D57
-  for the full inventory. Verified: 368 unit tests (365 + 3 new), clean
-  `tsc`/`eslint`/`npm run build`. No production code changed, no e2e
-  run needed. Starting M2 next (the source-side evidence extractor
-  prototype) once the Owner checks in.
-- 2026-09-11 — Plan drafted from `docs/reviews/2026-09-11-crisp-edges-
-  implementation-recommendations.md` per Owner request ("read new report
-  from codex and plan what to do next"). Verified the report's central
-  claim by direct reproduction (see Why) and spot-checked its code
-  references (`downsampleToGrid`, `meanRgbOklab`, `ColorQuantizer`'s
-  interface shape, every named file) against the current tree — all
-  accurate, not stale. Not started; stays DRAFT behind G-022 M5/G-020 M5
-  per the existing listed-order convention until the Owner says
-  otherwise.
-
-### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT (2026-09-11)
-- **What:** Move the compute-heavy stage of the pattern pipeline (k-means
-  in OKLab + the ICM/Potts local optimizer, `lib/quantize.ts` +
-  `lib/local-optimizer.ts`) out of the browser and into a separate Rust
-  HTTP service (Axum + `rayon`), called server-to-server from Next.js.
-  Backlog item -- Owner explicitly parked this as "maybe one day," not
-  scheduled. Do not start without an explicit Owner go-ahead.
-- **Why:** The pipeline's worst-case latency is real (HANDOVER.md
-  performance history, though the figures disagree with each other --
-  ~13.4s, ~22s, and 9.5s recorded at different sizes/settings, meaning
-  there's no solid current baseline yet). Originally scoped as "turn the
-  app into a desktop app," narrowed across the conversation to "keep it a
-  website, move the heavy compute server-side, use Rust" once the Owner
-  confirmed browser-only processing isn't a hard requirement.
-- **Acceptance criteria:** Not yet set for the full migration -- per the
-  critique exchange below, M1's own acceptance criteria (a defined
-  latency target) must exist before M2+ are even attempted, since
-  whether this goal is needed at all depends on M1's result.
-- **Constraints:** Sequencing is load-bearing, not optional -- see the
-  critique exchange below. Do not jump straight to M3 (building the
-  service) without M1 (and, if M1 misses target, M2) first. If Rust is
-  ultimately adopted, the TS implementation becomes a frozen migration
-  oracle, not a second permanently-maintained implementation.
-
-**Codex critique exchange (2026-09-11, `codex-rescue`, read-only/
-diagnosis-only, no files changed)** -- put the originally-proposed
-architecture (sidecar Rust service, only the downsampled color grid sent
-to the server, `rayon` for parallelism) to Codex for a real critique per
-STANDARDS.md's "important decision" protocol, not a rubber-stamp
-second opinion. Its findings, verified rather than taken on faith:
-- **The 13.4s baseline is stale and internally inconsistent** with later
-  HANDOVER.md entries (~22s at the same 1000-stitch/64-color case, 9.5s
-  at 300-stitch/24-color) -- no real current baseline exists yet.
-- **The "just a small abstracted grid, not the photo" framing was
-  wrong.** `longerSideStitches` sets the *longer* dimension, so a
-  1000-stitch pattern is up to ~667,000 cells, not ~1,000. The optimizer
-  also needs the Sobel-derived importance map and directional pair-
-  evidence computed from the *original* image, not just downsampled
-  color -- recomputing them server-side from the grid alone would be an
-  algorithm change, not a faithful port. Total payload at typical max
-  settings: ~15-23MB, and a downsampled RGB grid at that resolution is
-  itself a reconstructible low-resolution image. Corrected framing: the
-  server receives "a reduced-resolution image and derived features," not
-  an anonymized abstraction -- the README/HANDOVER's current "your photo
-  never leaves your browser" claim would need updating if this is built.
-- **A genuine, independently-verified algorithmic finding, language-
-  agnostic:** the current energy function's Potts-style boundary term
-  (`lib/energy.ts`) means only a cell's unary-best color plus its
-  neighbors' current labels can ever be the ICM optimum -- any candidate
-  matching none of the neighbors is provably dominated (re-derived and
-  confirmed correct, not taken on faith). Cuts the per-cell candidate
-  scan from up to 100 to ~9, in whichever language this runs. Worth
-  doing regardless of the Rust/sidecar question.
-- **Naive per-cell `rayon` parallelism would silently change ICM's
-  result** (it updates assignments in scan order within a pass; later
-  cells see earlier updates from the same pass). A four-color
-  checkerboard scheduling scheme (partitioning on `(x mod 2, y mod 2)`)
-  is the correct way to parallelize this specific 8-neighbor stencil
-  without changing which local optimum it converges to -- flagged as a
-  later optimization, not part of an initial port.
-- **Two evolving implementations of the same algorithm is a real risk.**
-  If Rust is adopted, it should become the authoritative implementation;
-  TS gets frozen as a migration oracle (compared against identical
-  serialized inputs/intermediate outputs, not just the existing
-  regression suite, which checks diagnostic tolerance bands rather than
-  exact port equivalence) and eventually retired from production use,
-  not maintained indefinitely alongside Rust.
-- **Concrete service-engineering guidance for if/when M3 happens:**
-  versioned binary payload (not JSON) with protocol/algorithm versions
-  separated; an explicit Next.js Route Handler rather than a Server
-  Action (whose default body-size limit is smaller than even the
-  RGB-only portion of this payload); CPU work kept off Axum/Tokio's
-  async executor via a bounded worker pool, not unrestricted
-  `spawn_blocking`; one end-to-end deadline with cooperative cancellation
-  checkpoints in the kernel; a bounded admission queue that fails fast
-  under overload; the Rust container reachable only over the internal
-  Docker network, never a published host port (consistent with
-  `INFRASTRUCTURE.md`'s existing safety invariant); and real
-  observability (per-stage timings, queue time, algorithm version,
-  cancellation/failure counts, no logging of image buffers/derived
-  feature arrays).
-- **Overall verdict: the bottleneck is real and worth investigating, but
-  doesn't yet justify the full Rust sidecar architecture** -- the
-  smallest responsible first step is a current baseline plus an
-  equivalence-tested optimization spike in TypeScript, deciding on real
-  numbers whether Rust is even needed. No rebuttal was raised against
-  this critique -- its central technical claim was independently
-  re-derived and confirmed correct, and its corrections (stale baseline,
-  payload/privacy framing) were factual, not matters of judgment to
-  contest.
-
-**Milestones** (M2-M4 conditional -- do not start until the prior
-milestone's own result justifies continuing):
-- [ ] M1 — Re-establish a real current baseline (both generation modes,
-  several sizes, the historical worst case) since existing numbers
-  disagree with each other; set a concrete user-facing latency target
-  before judging anything against it. Implement the candidate-set
-  reduction (neighbor labels + unary-best color only, ~9 candidates
-  instead of up to 100) and the identified loop waste (rebuilt neighbor
-  objects, repeated fixed edge calculations per candidate, recomputed
-  color distances across passes) in TypeScript. Validate against the
-  existing regression suite plus real rendered-pattern spot checks (the
-  suite alone checks tolerance bands, not exact preservation).
-- [ ] M2 (only if M1 misses the latency target) — Port just the
-  optimizer/quantization kernel to a standalone Rust library with a
-  benchmark harness (no service yet). Compare single-threaded native and
-  single-threaded WASM against the identical frozen TS revision on
-  identical inputs before deciding anything about parallelism or
-  deployment shape.
-- [ ] M3 (only if M2's numbers justify a production build) — Build the
-  Axum sidecar per the engineering guidance above; Rust becomes
-  authoritative, TS frozen as oracle. Deploy per
-  `COMPANY/INFRASTRUCTURE_DEPLOY.md` conventions (internal-network-only,
-  no published host port).
-- [ ] M4 — Side-by-side validation against real patterns, a domain-expert
-  re-review of any numerically-changed behavior, corrected privacy
-  framing in README/HANDOVER, then retire the TS engine to oracle-only
-  status.
-
-**Progress log** (newest first):
-- 2026-09-11 — Goal created as backlog/DRAFT per Owner request ("write it
-  as a backlog goal (maybe one day)") after a full architecture
-  discussion (desktop app -> server-side -> Rust sidecar) and a real
-  Codex critique exchange (see above). Not started; no Owner go-ahead to
-  begin M1.
-
-### G-024 · Additional export option: Pattern Keeper-compatible PDF — DRAFT (2026-09-12)
-- **What:** A new export option, additive to the existing "Export as A4
-  pages" ZIP (PNG-per-page), that produces a single PDF chart readable by
-  the Pattern Keeper app (a cross-stitch progress-tracking app the Owner
-  uses) -- real embedded-font vector text per stitch symbol in a precise
-  grid, not a rasterized image, plus a real-text thread legend.
-- **Why:** Researched Pattern Keeper's actual import requirements
-  (2026-09-11 session; sources below) because the Owner currently
-  composes pattern files by hand in Affinity Designer to get them into
-  Pattern Keeper. Two findings drive this goal:
-  1. **Pattern Keeper doesn't take a plain "text grid" file** -- it
-     imports PDF and overlays a detected grid on it, then reads whatever
-     is under that grid. For a chart to be correctly read (not just
-     visually present), the symbols must be real, embedded, standard-
-     encoded vector text in a consistent row/column grid -- Pattern
-     Keeper's own help page states plainly that a chart built without
-     proper encodings "will not be searchable in Pattern Keeper." The
-     app's existing A4 export is 100% raster PNG (`a4-export.ts`), the
-     opposite of what's needed -- it would only be importable via Pattern
-     Keeper's lesser photo/paper-chart path, losing symbol search and
-     auto legend-parsing.
-  2. **Hand-composing this in Affinity Designer is fragile at real
-     pattern sizes** and has two silent failure modes: converting symbol
-     text to curves, or a PDF export setting that rasterizes/doesn't
-     embed the font -- either one destroys the character encoding Pattern
-     Keeper needs, with no visual difference on screen. Since the app
-     already holds the pattern as structured grid/symbol/color data (not
-     pixels), generating the PDF directly from that data avoids both
-     failure modes and guarantees pixel-exact grid-cell alignment that's
-     impractical to hand-place at thousands of cells.
-  Good news found during research: `lib/symbols.ts`'s existing symbol set
-  is already standard Unicode codepoints from common blocks (Latin-1,
-  Geometric Shapes, Arrows, Dingbats) -- exactly what Pattern Keeper
-  wants, not a custom remapped dingbat font. No symbol-set change needed.
-- **Acceptance criteria:**
-  - A new export option produces one PDF (not a ZIP) with the stitch
-    grid rendered as real, individually selectable vector text per cell
-    (verified with the "select a symbol as text in a standard PDF
-    viewer" test Pattern Keeper's own community recommends), using the
-    existing symbol set and an embedded font that covers it, paginated
-    consistently with the existing A4 grid layout (same page-to-page
-    row/column size consistency Pattern Keeper's grid-detection
-    requires).
-  - The legend (thread code/name/symbol/stitch count) is real text, not
-    an image, on the same or an adjacent page.
-  - The existing PNG/ZIP export keeps working unmodified -- this is
-    additive, not a replacement.
-  - **A real sample pattern is actually test-imported into Pattern
-    Keeper** (not just self-checked against the "select as text" test)
-    before this goal is called done -- everything known about Pattern
-    Keeper's requirements so far comes from its own help pages and
-    third-party summaries, not from testing against the real app, and
-    the goal shouldn't be marked complete on unverified assumptions
-    about how it behaves.
-- **Constraints:** Pick one embedded TTF/OTF font covering every Unicode
-  block the existing symbol set uses, with a checkable open license
-  (STANDARDS.md "Integrity of work" -- record provenance/license the same
-  way `docs/dmc-colors-provenance.md` did for the DMC dataset). No
-  Pattern Keeper account/paid tier assumed beyond whatever access the
-  Owner already has for M4's real-import test.
-- **Sources** (retrieved 2026-09-11, full detail in this goal's creating
-  conversation): patternkeeper.app's own `/help/inputting-grids/`,
-  `/help/importing-a-chart/`, `/help/exporting-charts-from-pcstitch/`,
-  `/help/exporting-charts-from-winstitch-macstitch/`; stitchmate.app's
-  cross-stitch-pattern-PDF-quality guide (summarized via search only --
-  direct fetch returned HTTP 403).
-
-**Milestones:**
-- [ ] M1 — Spike: choose and license-check a Unicode font covering the
-  full existing symbol set (Latin-1 Supplement, Geometric Shapes, Arrows,
-  Miscellaneous Symbols, Dingbats blocks); prototype a minimal single-page
-  PDF (via a PDF library capable of real embedded-font text, e.g.
-  `pdf-lib`) with a handful of real symbols drawn as vector text plus
-  vector gridlines; self-verify the "select as text in a standard PDF
-  viewer" test before building anything further.
-- [ ] M2 — Build the real exporter: a new PDF-generation path reusing the
-  existing A4 pagination/layout logic (`lib/a4-layout.ts`) but rendering
-  each page as real vector text + vector gridlines instead of canvas-to-
-  PNG, plus a real-text legend page (reusing the existing extended-legend
-  content: title, details table, color-key table). Unit-tested wherever
-  the logic is pure.
-- [ ] M3 — UI wiring: add the new export option in the app alongside the
-  existing "Export as A4 pages" (e.g. "Export as PDF (Pattern Keeper
-  compatible)"). Live-browser verified, including the select-as-text
-  check against every symbol actually used in a real generated pattern
-  (not just M1's handful).
-- [ ] M4 — Real-world verification: actually import a real exported
-  sample into Pattern Keeper and confirm grid auto-detection and legend
-  parsing succeed as expected; fix anything the real app reveals that
-  the documentation didn't. Full regression suite, commit, deploy.
-
-**Progress log** (newest first):
-- 2026-09-12 — Goal created per Owner request ("write as a next goal:
-  additional export options - pdf with pattern keeper compatible grid"),
-  built on the Pattern Keeper research done in the prior day's session.
-  Not started.
-
-## Completed goals
 
 ### G-020 · Clustering-pipeline quality review follow-ups — DONE (2026-09-11)
 - **What:** Address the concrete findings from a domain-informed review of
