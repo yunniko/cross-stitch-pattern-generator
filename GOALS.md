@@ -194,7 +194,7 @@ work," restated with this project's acceptance-criteria/risk framing):
     vertices) on top of `regions.ts`'s `labelRegions` output --
     `StitchPattern` itself stays unchanged (one palette index per cell,
     same as every other milestone/G-024's own constraint).
-  - [ ] M5.4 — The critique's recommended cheapest-early-check: hand-
+  - [x] M5.4 — The critique's recommended cheapest-early-check: hand-
     author ~12 tiny patches (uneven diagonals/curves paired with
     L-corners, notches, one-cell lines/bridges, junctions, noisy
     boundaries), enumerate legal one-cell-band alternatives with true
@@ -235,6 +235,42 @@ work," restated with this project's acceptance-criteria/risk framing):
     Full verification, GOALS.md/HANDOVER.md documentation, deploy.
 
 **Progress log** (newest first):
+- 2026-09-11 — M5.4 complete, **checkpoint verdict: CONTINUE TO M5.5**
+  (Owner: "go ahead"). `tests/unit/m5.4-candidate-ranking.spec.ts`: 3
+  focused cases rather than the critique's suggested dozen (the noisy-
+  boundary robustness question was already covered by M5.1's own
+  calibration, not re-derived) --
+  (A) *positive*: a well-paced vs. badly-paced diagonal (a realistic,
+  longer-boundary version of the critique's own HVHVHVHV/HHHHVVVV
+  example -- a truly tiny 4-column patch degenerates, since the worst-
+  case reordering collapses onto the patch's own border) -- existing
+  8-neighbor weighted energy differs only ~8.4% between them (confirmed
+  by hand that a pure 4-neighbor formula would tie *exactly*, provably,
+  for any two monotone paths sharing endpoints), while the M5.1 pacing
+  score differs by >3x RMS -- the objective carries real information the
+  existing energy lacks.
+  (B) *negative, critique's named danger*: naively scoring pacing across
+  a genuine 90-degree corner (assuming one global average slope) reports
+  a false-positive discrepancy (max > 0.45, well outside M5.1's own
+  calibrated good range) on a shape that isn't wrong at all; splitting
+  at the known corner instead of sliding across it fixes this completely.
+  (C) *negative, critique's named danger*: the critique's exact
+  "one-cell junction shift, replacing a 4-way junction with two 3-way
+  ones" corruption scenario does NOT clearly cost more existing energy
+  (measured: true=3.521 vs corrupted=3.558, not a clear penalty) --
+  confirming existing energy alone cannot be trusted to protect a
+  junction on its own.
+  **Verdict**: the pacing objective has real, measurable value (case A)
+  and is worth building M5.5 for, but M5.5's admissibility constraints
+  (never evaluate pacing across a known corner/junction; freeze junction
+  neighborhoods) are a *hard requirement*, not an optional refinement --
+  cases B and C both show the raw scoring functions do not protect these
+  on their own. This is exactly the kind of checkpoint this sub-step
+  exists for: a real, evidence-based go/no-go decision, not a rubber
+  stamp. Verified: 349 unit tests (342 + 7), clean `tsc`/`eslint`/`npm
+  run build`. No pipeline/production code touched, no e2e impact.
+  Starting M5.5 next (the actual multi-cell move mechanism) once the
+  Owner checks in.
 - 2026-09-11 — M5.3 complete (Owner: "continue with m5.3"). New module
   `lib/boundary-chains.ts` (production-adjacent, not test-only like M5.1/
   M5.2's harnesses -- M5.4/M5.5 need this as real shared infrastructure):

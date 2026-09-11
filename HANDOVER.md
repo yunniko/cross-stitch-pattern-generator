@@ -3853,6 +3853,66 @@ infrastructure, not just a measurement tool.
   `npm run build`. Not wired into `pattern.ts` -- no behavior change, no
   e2e run needed.
 
+**D53 — G-022 M5.4: candidate-ranking checkpoint, verdict CONTINUE TO
+M5.5 with named conditions (2026-09-11, Owner: "go ahead").** The
+critique's own recommended "cheapest early check" before building any
+general optimizer -- test whether the pacing *objective* is sound using
+known ground truth, before ever estimating anything or building a real
+move mechanism. `tests/unit/m5.4-candidate-ranking.spec.ts`, 3 focused
+cases (not the critique's suggested dozen -- the noisy-boundary
+robustness question is already answered by M5.1's own calibration
+measurements, not worth re-deriving):
+
+- **Case A (positive)**: realized the critique's own `HVHVHVHV` vs
+  `HHHHVVVV` illustrative example as a genuine, non-degenerate test --
+  a truly tiny 4-column patch collapses the worst-case reordering onto
+  the patch's own border (traced through by hand before writing any
+  code), so the comparison instead embeds a locally-reordered 4-column
+  window inside a longer 16-column boundary, both variants identical
+  outside that window. Measured: the existing 8-neighbor weighted energy
+  differs only ~8.4% between well- and badly-paced (M2's diagonal-
+  adjacency terms introduce a small real sensitivity to pacing as a side
+  effect -- a pure 4-neighbor formula would tie *exactly*, provably, by
+  a telescoping-sum argument confirmed by hand), while the M5.1 pacing
+  score differs by more than 3x in RMS discrepancy. The objective
+  carries real information the existing energy only weakly, incidentally
+  reflects.
+- **Case B (negative, the critique's own named danger)**: scoring pacing
+  naively across a genuine 90-degree corner -- with no corner-awareness,
+  the only "expected" model left is the boundary's own global average
+  slope -- produces a large false-positive discrepancy (measured max >
+  0.45, well outside M5.1's calibrated good range) on a shape that is
+  completely correct, not badly paced at all. Splitting the measurement
+  at the known, supported corner instead of sliding a window across it
+  resolves this completely (flat segment measured max < 0.1). Confirms
+  the critique's "terminate the smoothness model at supported corners"
+  requirement is not optional -- it is the difference between a useful
+  metric and an actively misleading one.
+- **Case C (negative, the critique's own named danger)**: reproduced the
+  critique's exact concrete scenario -- a one-cell change replacing a
+  4-way junction with two 3-way junctions, introducing a new diagonal-
+  opposite-region adjacency (A touching D directly in
+  `makeFourQuadrantJunctionBuffer`'s own TL=A/TR=B/BR=D/BL=C layout).
+  Measured directly on real `buildPattern` output: existing energy
+  true=3.521 vs. corrupted=3.558 -- not a clear, reliable penalty.
+  Confirms existing energy alone cannot be trusted to protect a junction
+  from this exact corruption; only an explicit admissibility constraint
+  (freezing junction neighborhoods, per the critique's own recommendation
+  and M5.3's chain-termination-at-junctions design) can.
+- **Verdict, stated plainly**: continue to M5.5. The pacing objective is
+  real and worth the investment (case A). Its admissibility constraints
+  (never evaluate across a known corner or junction; freeze junction
+  neighborhoods) are a *hard requirement* for M5.5's design, not a
+  refinement to add later if time permits -- cases B and C both show the
+  raw scoring functions, on their own, actively fail or cannot be
+  trusted on exactly the cases the critique named as the highest-risk
+  failure modes. This is the genuine go/no-go this sub-step existed to
+  produce, per D18's own precedent that a legitimate negative or
+  qualified-positive result is reported honestly, not smoothed into an
+  unconditional green light.
+- **Verified**: 349 unit tests (342 + 7), clean `tsc`/`eslint`/`npm run
+  build`. No pipeline/production code touched, no e2e run needed.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
