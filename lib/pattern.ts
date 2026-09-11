@@ -1,4 +1,5 @@
 import { computeCellImportance, computeEdgeMagnitude } from "./edge-map";
+import { denoiseForQuantization } from "./denoise";
 import { downsampleToGrid, gridDimensionsFor } from "./downsample";
 import { luminance } from "./color";
 import { nameColors } from "./color-names";
@@ -40,8 +41,19 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   const edgeMagnitude = computeEdgeMagnitude(imageData);
   const importance = computeCellImportance(imageData, edgeMagnitude, gridWidth, gridHeight);
 
+  // Denoised copy for the quantizer's eyes only (HANDOVER.md D41/G-020 M4)
+  // -- every other stage below (ICM, contour cleanup, the final palette-
+  // color recompute) keeps using the true, unfiltered `cells`, so a
+  // cleaner signal informs *which cluster a cell belongs to* without ever
+  // changing what color is actually reported for it.
+  const quantizationCells = denoiseForQuantization(cells, importance);
+
   const quantizer = options.quantizer ?? kMeansQuantizer;
-  const { cellPaletteIndex: quantized, palette: rawPalette } = quantizer.quantize(cells, options.colorCount, importance);
+  const { cellPaletteIndex: quantized, palette: rawPalette } = quantizer.quantize(
+    quantizationCells,
+    options.colorCount,
+    importance
+  );
   options.onProgress?.(0.4);
 
   const shouldOptimize = options.optimize ?? true;

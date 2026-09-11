@@ -2751,6 +2751,122 @@ latest and original modes work with full palette or dmc palette."
   combination, now live -- with zero console messages. Goal DONE -- see
   GOALS.md's G-021 entry.
 
+**D41 — G-020 M4: noise-aware pre-filter added before quantization, a
+3x3 OKLab vector-medoid rather than a bilateral blend (2026-09-11).** The
+2026-09-11 review's finding: real photos still carry *residual*
+cell-to-cell noise surviving `downsampleToGrid`'s own box-averaging --
+each cell's average comes from a different, non-overlapping sample of
+source pixels, so a genuinely flat region (sky, skin, a wall) can still
+show small random OKLab variation cell-to-cell, especially at a high
+stitch count where each cell only averages a few source pixels. This is
+explicitly a *different* mechanism from what `docs/domain-reference.md`
+§5 already documents ("box-averaging... does not remove confetti created
+at the stitch level, where a cell's averaged colour lands in a different
+cluster than all its neighbours... only the first is addressed by
+box-averaging") -- that other mechanism remains the local optimizer's
+job, unchanged; this fix targets the *residual noise* box-averaging
+alone doesn't fully clean up, before it ever reaches the quantizer.
+
+- **codex-cli attempted, failed on the pre-existing known issue.**
+  Before implementing, ran the planned design past codex-cli for a
+  critique per STANDARDS.md's "important decision" guidance -- failed
+  with the exact same `'gpt-5.3-codex' model is not supported when using
+  Codex with a ChatGPT account` error already logged in this file's
+  Owner action list (item 2). Proceeded on independent analysis per
+  STANDARDS.md's own documented fallback.
+- **Design: a 3x3 vector-medoid filter in OKLab space, not a bilateral
+  blend, chosen specifically for having fewer failure modes.** For each
+  cell below the importance-protection threshold, replace it with
+  whichever cell in its own 3x3 window (itself included) has the
+  smallest total squared-OKLab distance to every other cell in that
+  window -- the neighborhood's single most "typical" real member, never a
+  fabricated blend. A bilateral filter (weighted average, the other
+  option this milestone's own GOALS.md wording named) was considered and
+  rejected in favor of the medoid: a blend nudges *every* low-importance
+  cell's color even when it already agrees with its neighbors, can
+  introduce a color absent from the real data, and needs two more tuned
+  parameters (spatial/range sigma) -- exactly the kind of extra knob that
+  made three earlier, independently-rejected "improve k-means" attempts
+  hard to reason about broadly (HANDOVER.md D18). The medoid has none of
+  that: zero tunable sigmas, provably a no-op on a cell that already
+  agrees with its neighborhood (self is checked first; ties keep it, see
+  `denoise.ts`'s own comment), and never produces a color not already
+  present in the real data -- confirmed directly by unit test
+  (`tests/unit/denoise.spec.ts`, "never fabricates a color absent from
+  the local neighborhood").
+- **Importance-gated, using the exact signal already computed earlier in
+  `pattern.ts` for M3 -- zero new plumbing needed.** Without this gate, a
+  single true 1-cell-wide detail (an eye, a highlight, a thin stroke)
+  surrounded by 8 background-colored neighbors would itself look like
+  "the outlier" to a naive filter and get silently overwritten before
+  quantization's own D18/D19/D20 reinvestment logic ever got a chance to
+  find it. `IMPORTANCE_PROTECTION_THRESHOLD = 0.5` reuses
+  `contour-cleanup.ts`'s own existing convention/value for this same
+  judgment call rather than inventing a new one.
+- **Scope: quantizer input only, not the whole pipeline.** The denoised
+  buffer is passed only to `ColorQuantizer.quantize`; the local
+  optimizer's per-cell color-error term, the final palette-color
+  recompute (`meanRgbOklab`), and all edge/importance computation
+  continue to use the true, unfiltered `cells` -- a cleaner signal informs
+  *which cluster a cell belongs to*, without ever changing what color is
+  actually reported for it. Both `plainKMeansQuantizer` ("Original") and
+  `kMeansQuantizer` ("Latest") benefit uniformly, since the filtering
+  happens in `pattern.ts` before either quantizer runs -- no change to
+  `quantize.ts` or its own interface was needed.
+- **Verified, with the honest full story, not just the win** (matching
+  D18's own reporting standard): measured against all 4 existing
+  golden-fixture regression scenarios (`regression.spec.ts`) plus the
+  D18 "gray cat, yellow eyes" motivating fixture, comparing `buildPattern`
+  with vs. without the filter (via `vi.spyOn` on `denoiseForQuantization`
+  in a throwaway comparison script, not committed):
+  - **Realistic downsample ratio (240x160 -> 100 stitches, 2.4x -- the
+    representative "real photo" case)**: componentCount 72 -> 57,
+    boundaryCellPairCount 903 -> 509 (~44% fewer thread-color changes),
+    averageCompactness 30.15 -> 26.70 (less jaggy), colorCount 12 -> 10
+    (2 fewer noise-driven wasted palette slots), confettiRatio unchanged
+    (0.00657 both) -- a clear win.
+  - **Edge preservation (a circle silhouette on a noisy background)**:
+    componentCount 14 -> 2, confettiRatio 0.0056 -> 0, boundaryCellPairCount
+    169 -> 76, edgeAlignmentScore 0.35 -> 0.56 (higher is better) --
+    the previously-requested 3rd color turns out to have been pure
+    noise-driven confetti, correctly collapsed away; the circle's own
+    silhouette is still preserved (`componentCount` stays `> 1`, the
+    fixture's own pass condition) and the flagged real edge aligns better,
+    not worse.
+  - **Flat-area stability**: boundaryCellPairCount 59 -> 49,
+    averageCompactness 26.73 -> 21.11, averageReconstructionError
+    0.000151 -> 0.000121 (all improvements); confettiRatio unchanged (0
+    both).
+  - **Noisy two-region at a 1:1 source-to-cell ratio (the one fixture
+    with NO real box-averaging at all -- atypical, since a real photo is
+    always downsampled by a meaningful ratio)**: a small regression --
+    componentCount 70 -> 73, confettiRatio 0.0142 -> 0.0158,
+    boundaryCellPairCount 662 -> 750 -- while averageReconstructionError
+    slightly improved (0.00211 -> 0.00205). Both confetti values stay
+    far under the fixture's own 0.1 tolerance bound. Plausible
+    explanation, not fully proven: with no box-averaging to begin with,
+    each "cell" here is one raw noisy pixel, so the medoid is denoising
+    the noisiest possible representation; the ICM pass afterward still
+    scores every cell against its true (still-noisy) color against a
+    *cleaner, more separated* palette than before, which can make raw
+    per-pixel noise more visible at final reconstruction even though the
+    palette itself is better. Judged an acceptable, well-understood,
+    narrow trade-off on an atypical fixture, not the kind of "looks fine
+    in isolation, breaks broadly" surprise D18's three rejected attempts
+    produced -- here the two *representative* fixtures both improved
+    clearly.
+  - **D18 motivating fixture (gray cat, yellow eyes, colorCount 5)**:
+    still finds the yellow eyes with vs. without the filter -- the
+    importance gate (real reasoning, not luck) protects them.
+  - 285 unit tests (279 + 6 new, `tests/unit/denoise.spec.ts`: no-op on a
+    uniform region, replaces a genuine outlier, importance protects a
+    real detail, never fabricates an absent color, doesn't blend across a
+    hard edge, absent/all-zero importance behaves identically), clean
+    `tsc`/`eslint`/`npm run build`, full e2e suite (27/27) unaffected.
+    Live dev-server check: uploaded a real 4-quadrant test photo,
+    generated a 100x63/16-color pattern cleanly, zero console messages.
+- Not yet deployed -- see GOALS.md's G-020 entry.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

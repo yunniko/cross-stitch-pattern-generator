@@ -51,7 +51,7 @@ svc-lab).
   reconstruction error alone, so a genuinely rare *artifact* (JPEG
   ringing, a stray specular highlight) doesn't compete equally with a
   genuinely rare *detail* for a freed palette slot.
-- [ ] M4 — Add a mild noise-aware pre-filter (e.g. bilateral or median) on
+- [x] M4 — Add a mild noise-aware pre-filter (e.g. bilateral or median) on
   the downsampled cell grid before quantization, to reduce sensor-noise/
   JPEG-driven over-segmentation without weakening real-edge protection
   (importance is derived from the original full-resolution image, not the
@@ -63,6 +63,35 @@ svc-lab).
   chart.
 
 **Progress log** (newest first):
+- 2026-09-11 — M4 complete: added `lib/denoise.ts`'s `denoiseForQuantization`
+  -- a 3x3 vector-medoid filter in OKLab space, gated by the same
+  `importance` signal (>0.5 protects a cell entirely) contour-cleanup
+  already uses, applied to a copy of the downsampled grid fed only to the
+  quantizer (every other stage keeps using the true unfiltered cells).
+  Chose a medoid over a bilateral/blend filter specifically because it
+  never fabricates a new color and provably does nothing to a cell that
+  already agrees with its neighborhood -- fewer tunable parameters than a
+  bilateral filter, which matters given three earlier "improve k-means"
+  attempts were rejected after looking good in isolation (HANDOVER.md
+  D18). codex-cli was attempted for a design critique first and failed on
+  the same known pre-existing ChatGPT-account/model issue (Owner action
+  list); proceeded on independent analysis per STANDARDS.md's documented
+  fallback. Measured honestly against all 4 existing golden-fixture
+  regression scenarios plus the D18 motivating fixture: clear
+  improvement on the two more realistic ones (a real 2.4x downsample
+  ratio: componentCount 72->57, boundaryCellPairCount 903->509, 2 fewer
+  wasted palette slots; the edge-preservation fixture: componentCount
+  14->2, confettiRatio 0.0056->0, edgeAlignmentScore 0.35->0.56) and a
+  small, still-comfortably-within-tolerance regression on the one
+  atypical 1:1-source-to-cell-ratio synthetic fixture (confettiRatio
+  0.0142->0.0158, both far under its 0.1 bound) that has no real box-
+  averaging to begin with, so isn't representative of actual photo usage.
+  D18's "gray cat, yellow eyes" fixture still finds the eyes. Verified:
+  285 tests (279 + 6 new direct unit tests of the medoid's own contract),
+  clean `tsc`/`eslint`/`npm run build`/full 27-test e2e suite, plus a
+  dev-server smoke test (uploaded a real 4-quadrant test photo, generated
+  cleanly, zero console errors). See HANDOVER.md D41 for the full
+  before/after numbers. Starting M5 next.
 - 2026-09-11 — M3 complete: `injectWorstFitClusters`' worst-fit ranking now
   scores each candidate cell as `distance * (1 + importance)` instead of
   raw distance alone, so a genuinely important rare detail can win a freed
