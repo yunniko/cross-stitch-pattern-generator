@@ -34,6 +34,36 @@ function pseudoNoise(x: number, y: number, amplitude: number): number {
   return (n - Math.floor(n) - 0.5) * amplitude;
 }
 
+describe("D63 regression: a cell with zero real in-cell weight (e.g. fully transparent) must never report confidence", () => {
+  it("a fully transparent target cell surrounded by a confident opaque boundary reports confidence 0, not a fabricated 50/50 split", () => {
+    // Found via a Codex critique during G-024 M4 planning: the wider
+    // NEIGHBORHOOD around a fully-transparent cell can still fit two real
+    // modes and score high color/spatial confidence, since confidence never
+    // itself consults `coverage` -- but a cell with literally zero real
+    // weighted samples of its OWN has no genuine evidence to support being
+    // treated as a boundary cell at all (matching downsampleToGrid's own
+    // "no pixel binned into this cell" transparency handling).
+    const width = 16;
+    const height = 16;
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const o = (y * width + x) * 4;
+        const inTargetCell = x >= 8 && x < 12 && y >= 8 && y < 12;
+        const v = x < 8 ? 0 : 255;
+        data[o] = v;
+        data[o + 1] = v;
+        data[o + 2] = v;
+        data[o + 3] = inTargetCell ? 0 : 255;
+      }
+    }
+    const source: PixelBuffer = { data, width, height };
+    const evidence = extractBoundaryEvidence(source, 4, 4, 2, 2);
+    expect(evidence.confidence).toBe(0);
+    expect(evidence.modes).toHaveLength(1);
+  });
+});
+
 describe("D59 regression: cell-footprint coverage must be an exact fractional overlap, not a pixel-center binary test", () => {
   it("a straddling boundary pixel contributes its real partial overlap to coverage, not all-or-nothing", () => {
     // 5px-wide source (3 rows so a nonzero neighborhoodMargin has room),
@@ -145,37 +175,44 @@ describe("smooth gradient: low confidence expected, despite two-means finding SO
   });
 });
 
-describe("KNOWN GAP (found during G-024 M3 planning via Codex critique, HANDOVER.md D59): a sufficiently steep smooth gradient reaches 2 modes and is NOT rejected", () => {
+describe("KNOWN GAP (found during G-024 M3 planning via Codex critique, HANDOVER.md D59; fixture corrected during G-024 M4 planning via a second Codex critique, HANDOVER.md D63): a sufficiently steep smooth gradient reaches 2 modes and is NOT rejected", () => {
   it("a gradient steep enough to fit two real color modes within one cell's neighborhood scores high confidence -- a genuine false positive, not yet fixed", () => {
     // The gentle 64-wide gradient tested above never reaches modes.length
     // 2 at all (it exits through the degenerate-split gate, confidence 0
-    // "for the wrong reason" -- see D58). A steeper gradient (period 16px,
-    // repeated across the image) DOES fit two real, spatially-separated
-    // color modes -- and gets scored with HIGH confidence, because a
-    // monotonic ramp sampled through a bounded local window genuinely
-    // produces low within-mode spread (colorConfidence high) AND real
-    // spatial separation between "low half" and "high half" of the ramp
-    // (spatialConfidence high) -- exactly the two signals the formula
-    // uses to detect a real hard edge, both legitimately present here for
-    // a reason that has nothing to do with a hard boundary. This is a
-    // real, structural limitation (the report's own Section 4 anticipated
-    // needing an explicit smooth-variation comparison beyond simple
-    // 2-cluster spatial fit, which this prototype does not yet have), not
-    // a calibration-constant issue -- locked in honestly rather than
-    // silently left untested, per this project's D18 practice. Must be
-    // addressed before M4 wires confidence into real admissibility
-        // decisions (a false positive here would stripe a smooth gradient).
+    // "for the wrong reason" -- see D58). A steeper ramp DOES fit two real,
+    // spatially-separated color modes -- and gets scored with HIGH
+    // confidence, because a monotonic ramp sampled through a bounded local
+    // window genuinely produces low within-mode spread (colorConfidence
+    // high) AND real spatial separation between "low half" and "high half"
+    // of the ramp (spatialConfidence high) -- exactly the two signals the
+    // formula uses to detect a real hard edge, both legitimately present
+    // here for a reason that has nothing to do with a hard boundary. This
+    // is a real, structural limitation (the report's own Section 4
+    // anticipated needing an explicit smooth-variation comparison beyond
+    // simple 2-cluster spatial fit, which this prototype does not yet
+    // have), not a calibration-constant issue.
+    //
+    // D63 CORRECTION: the originally-locked fixture used a REPEATING ramp
+    // (period 16px), and this exact test column's expanded neighborhood
+    // ([13,23)) crossed the ramp's own period-reset discontinuity at x=16
+    // -- a genuine sharp value jump, not a smooth-gradient artifact. A
+    // Codex critique caught this during G-024 M4 planning and verified
+    // directly that a NON-repeating ramp (rises 0->255 over x in [0,16),
+    // then clamps flat -- no reset anywhere) at a column safely inside the
+    // rising region, away from both the origin and the clamp edge, shows
+    // the identical structural gap (confidence ~0.91, independently
+    // reproduced here, matching the critique's own measured value exactly)
+    // -- confirming the underlying gap is real, while the ORIGINAL fixture
+    // did not cleanly isolate it.
     const width = 64;
     const height = 64;
-    const period = 16;
     const buffer = makeBuffer(width, height, (x) => {
-      const t = (x % period) / period;
-      const v = Math.round(255 * t);
+      const v = Math.min(255, Math.round((255 * x) / 16));
       return [v, v, v];
     });
-    const evidence = extractBoundaryEvidence(buffer, 16, 16, 4, 8);
+    const evidence = extractBoundaryEvidence(buffer, 16, 16, 1, 8); // source x:[4,8), safely inside the rising region
     expect(evidence.modes).toHaveLength(2); // confirms this fixture actually reaches the graduated formula, unlike the gentler gradient above
-    expect(evidence.confidence).toBeGreaterThan(0.9); // measured ~0.94 -- a real false positive, not a borderline case
+    expect(evidence.confidence).toBeGreaterThan(0.9); // measured ~0.91094 -- a real false positive, not a borderline case
   });
 });
 

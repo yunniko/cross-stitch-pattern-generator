@@ -82,15 +82,89 @@ restructured into this project's usual milestone/check-in shape):
   fix, since keeping two colors but minimizing distance to their average
   (or the sum of both squared distances) provably still prefers a blend
   (report's derivation, independently re-checkable).
-- [ ] M4 — Full pipeline integration per the report's Section 7 table:
-  denoising, initial assignment, coarse/fine ICM, small-component
-  recoloring, diagonal cleanup, palette merge/remap, and final palette
-  color estimation (replacing the unconditional `meanRgbOklab` call on
-  raw averaged cells for crisp cells specifically) all made mode-aware
-  and consistent, plus DMC-mode mapping of the selected source-side
-  colors. This is the milestone most likely to hide a "new sampler,
-  old pass overwrites it" regression — verify each stage individually,
-  not just the end-to-end result.
+- [ ] M4 — Full pipeline integration per the report's Section 7 table.
+  This is the milestone most likely to hide a "new sampler, old pass
+  overwrites it" regression — verify each stage individually, not just
+  the end-to-end result. Restructured into 9 sub-steps after a second
+  Codex critique (HANDOVER.md D63), which also caught two real bugs in
+  already-committed M2/M3 code (a flawed known-gap test fixture, and a
+  fully-transparent cell that could be reported as a confident
+  boundary) — both fixed and verified before this sub-step list was
+  finalized:
+  - [ ] M4.1 — Fix the D59/D63 detection gap for real: a smooth
+    gradient can reach the confidence formula's 2-mode fit and score
+    a false positive, and this is structural (mathematically, an
+    ideal ramp's colorConfidence caps at 12/13≈0.923, so it's not
+    literally unfixable by threshold alone, but real noisy/antialiased
+    cases overlap that boundary too much to trust a bare recalibration).
+    Planned fix: a weighted step-vs-affine model comparison over the
+    same collected samples (requires recovering the two modes' actual
+    spatial DIRECTION, which the extractor currently discards, keeping
+    only their scalar separation). Calibrated against a broad fixture
+    matrix (clean steps at multiple orientations; steps with noise/
+    antialiasing; non-repeating ramps at several slopes that explicitly
+    clear the 2-mode gate; transition-width sweeps; noise/checkerboard
+    negative controls at multiple phases; sRGB- and OKLab-generated
+    ramps; fractional/transparent/insufficient-sample edge cases) —
+    not one attractive example.
+  - [ ] M4.2 — The per-image evidence layer AND the shared assignment/
+    palette lifecycle contract: which cells get evaluated (a `pair-
+    edge-evidence.ts`-based pre-filter for cost, with its recall
+    validated against a full per-cell reference on small fixtures
+    before being trusted); a frozen per-cell accept/reject decision
+    shared by training and every downstream cost; the report's own
+    neighbor-agreement requirement (Section 4); preserving the
+    Original/Latest quantizer choice (`weightedQuantize` vs
+    `weightedKMeansQuantize`) and custom-`ColorQuantizer` interaction,
+    explicitly defined rather than silently ignored; a bounded
+    per-protected-cell representation (at most 2 supported labels/
+    costs/mode associations, not a retained `Map`/closure per stitch).
+  - [ ] M4.3 — Quantization + initialization: build the weighted
+    sample pool, run the chosen weighted quantizer, initialize each
+    protected cell to `argmin` of the actual unary cost (not "larger
+    coverage wins," which can pick the more expensive candidate once
+    palette-fit errors are unequal) against the returned RGB palette
+    converted back to OKLab.
+  - [ ] M4.4 — ICM integration (coarse + fine). Must resolve a real
+    weight-composition contract issue first: `buildUnaryCostEvaluator`
+    returns an unweighted standard cost but an already alpha-weighted
+    crisp cost — `weights.color` must not be applied uniformly to
+    both, or a crisp cell's cost double-scales. Also needs an explicit,
+    protected-cell-only tie-breaking convention (retain the current
+    admissible label on exact ties), since Standard's own existing
+    tie behavior (lowest-index wins) must stay unchanged.
+  - [ ] M4.5 — Contour-cleanup integration (`recolorSmallComponents`
+    x2, `fixDiagonalConnections`) using the same shared evaluator.
+    `contourRefinement` decision: **explicitly reject the `crisp +
+    contourRefinement` combination** rather than threading the shared
+    evaluator through it too — `contourRefinement` is already off-by-
+    default and not adopted (D55), and expanding this already-large
+    milestone further isn't worth it; a clear rejection, not silent
+    misbehavior. Same rule applies to `simulated-annealing.ts`.
+  - [ ] M4.6 — Palette-merge/remap handling. A real, verified gap:
+    `mergeSimilarColors`'s union-find remap does not guarantee the
+    merge winner is still each affected mode's actual nearest
+    surviving palette color (a concrete counterexample exists, D63).
+    Contract: apply the remap, rebuild mode associations against the
+    new palette, validate every protected cell's current assignment,
+    repair any now-inadmissible one via the same shared admissible-
+    selection rule, coalesce duplicate mappings keeping the minimum-
+    cost supporting mode.
+  - [ ] M4.7 — Final palette color recompute: each crisp cell
+    contributes its selected supporting mode at weight `alpha` (not
+    raw `cells[i]`, not coverage again), looked up against the
+    pre-recompute palette, followed by a bounded, explicitly-
+    terminated consistency check (fixed number of proposed updates,
+    accepting only validated states) per the report's Section 7.
+  - [ ] M4.8 — DMC-mode interaction: reuse the same palette-agnostic
+    unary formula; build mode mappings AFTER thread deduplication;
+    explicitly handle two modes colliding onto the same DMC thread
+    (record as a diagnosed limitation, never silently admit an
+    unrelated label or claim preservation that didn't happen); crisp-
+    aware handling must work even when `optimize: false` skips ICM.
+  - [ ] M4.9 — End-to-end regression consolidating M4.1-M4.8's own
+    stage tests against the real `buildPattern`, the M1 genuine-gray-
+    elsewhere fixture, and the report's Section 9 acceptance matrix.
 - [ ] M5 — UI + persistence: `edgeMode` through
   `pattern.worker.ts`/`pattern-client.ts`'s existing cancellable job
   boundary, a Standard/Crisp control in `app/workspace.tsx`, and
@@ -105,6 +179,34 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-12 — M4 planning (Owner: "proceed to m4"). Before writing
+  any pipeline-integration code, sent the full M4 plan to Codex for
+  critique (the detection gap from D59, plus a 9-sub-step pipeline-
+  integration breakdown mapped onto the real `buildPattern` code) --
+  matching G-022 M5's precedent for a milestone this size and
+  explicitly flagged as highest-risk. The critique found two real bugs
+  in already-committed code: (1) the D59 known-gap test's fixture
+  accidentally crossed a repeating ramp's own period-reset
+  discontinuity, so it didn't cleanly isolate the gap it claimed to --
+  verified directly and replaced with a clean non-repeating-ramp
+  fixture that reproduces the same real gap (confidence ~0.91,
+  independently matching the critique's own measurement); (2) a
+  genuinely new bug -- a fully transparent cell could be reported as a
+  confident boundary (confidence 1.0) because `coverage`'s zero-weight
+  fallback was independent of `confidence`'s own computation -- fixed
+  to return confidence 0 for a cell with no real in-cell data. Both
+  fixed and locked into permanent regression tests. M4 itself
+  restructured into 9 sub-steps (M4.1-M4.9, listed above) incorporating
+  the critique's concrete corrections: a shared assignment/palette
+  lifecycle contract moved earlier (M4.2), a real weight-composition
+  contract bug caught before it could ship (M4.4), a verified gap in
+  `mergeSimilarColors`' remap not preserving nearest-mode admissibility
+  (M4.6, with a concrete counterexample), and an explicit decision to
+  reject `crisp + contourRefinement` together rather than expand scope
+  further (M4.5). Full story in HANDOVER.md D63. Verified: 419/419
+  tests passing (42 files, +1 new), clean `tsc`/`eslint`/`npm run
+  build`. No e2e run needed (test-only). Starting M4.1 next (fixing
+  the detection gap for real).
 - 2026-09-12 — M3 complete. Built both halves standalone (no
   `buildPattern` wiring yet -- that's M4), per the Codex critique's
   synthesis: `lib/weighted-quantize.ts` (weighted k-means training --

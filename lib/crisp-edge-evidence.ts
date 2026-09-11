@@ -315,7 +315,33 @@ export function extractBoundaryEvidence(
 
   const spread = [0, 1].map((k) => (spreadWeight[k] > 0 ? spreadSum[k] / spreadWeight[k] : 0));
   const totalInCellWeight = inCellWeight[0] + inCellWeight[1];
-  const coverage = totalInCellWeight > 0 ? [inCellWeight[0] / totalInCellWeight, inCellWeight[1] / totalInCellWeight] : [0.5, 0.5];
+
+  if (totalInCellWeight <= 0) {
+    // The cell's OWN footprint contributed zero real weighted samples (e.g.
+    // fully transparent, matching `downsampleToGrid`'s own "no pixel binned
+    // into this cell" case) even though the wider NEIGHBORHOOD fit two real
+    // modes. Found via a Codex critique during G-024 M4 planning (HANDOVER.md
+    // D63): the fallback `coverage: [0.5, 0.5]` below existed only to avoid
+    // a division by zero, but confidence is computed independently of
+    // coverage -- so a cell with NO real color of its own could still be
+    // reported fully confident, fabricating support for a boundary the cell
+    // itself contributes no actual evidence for. A cell with no real
+    // in-cell data must never be treated as a confident boundary cell.
+    let sumL = 0;
+    let sumA = 0;
+    let sumB = 0;
+    let sumW = 0;
+    for (const s of samples) {
+      sumL += s.oklab[0] * s.weight;
+      sumA += s.oklab[1] * s.weight;
+      sumB += s.oklab[2] * s.weight;
+      sumW += s.weight;
+    }
+    const mean: Oklab = sumW > 0 ? [sumL / sumW, sumA / sumW, sumB / sumW] : [0, 0, 0];
+    return { modes: [mean], coverage: [1], spread: [0], spatialSeparation: 0, confidence: 0 };
+  }
+
+  const coverage = [inCellWeight[0] / totalInCellWeight, inCellWeight[1] / totalInCellWeight];
 
   const centroidPos: Array<[number, number]> = [0, 1].map((k) =>
     posWeight[k] > 0 ? [posSumX[k] / posWeight[k], posSumY[k] / posWeight[k]] : [0.5, 0.5]

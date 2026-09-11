@@ -4622,6 +4622,212 @@ several `tests/unit/crisp-*` files) that renumbering it would have
 required updating everywhere, while the Pattern Keeper goal had none
 yet. No content changed beyond the header's own goal number.
 
+**D63 — G-024 M4 planning: two real M2/M3 bugs found via a second Codex
+critique before writing any M4 code, both fixed; M4 restructured into
+9 sub-steps with concrete integration-contract decisions (2026-09-12,
+Owner: "proceed to m4").**
+
+Before implementing, sent the full M4 plan (both the still-open D59
+detection gap and a 9-sub-step pipeline-integration breakdown mapped
+onto the real `buildPattern` code) to Codex for critique, matching
+G-022 M5's precedent for a milestone this large and explicitly
+flagged as highest-risk in `GOALS.md`'s own text.
+
+**Bug 1 — the D59 "known gap" test didn't cleanly isolate the gap it
+claimed to.** The critique found that the locked-in fixture (a
+period-16px REPEATING ramp) had its test column's expanded
+neighborhood (`[13,23)`) crossing the ramp's own period-reset point at
+`x=16` — a genuine sharp value jump, not a smooth-gradient artifact,
+so that specific 0.94 confidence measurement didn't prove what D59
+claimed. Verified directly (not accepted on say-so): built a
+NON-repeating ramp (rises 0→255 over `x∈[0,16)`, then clamps flat, no
+reset anywhere) and measured confidence at columns safely inside the
+rising region — got 0.91094 and 0.91871, matching the critique's own
+independently-computed values exactly. **The underlying structural gap
+is real and survives correction**; only the original example fixture
+was flawed. Replaced the locked-in test with the clean non-repeating
+version (`tests/unit/crisp-edge-evidence.spec.ts`'s KNOWN GAP block).
+
+**Bug 2 — a genuinely new bug, not previously tested: a fully
+transparent cell can be reported as a confident boundary.**
+`extractBoundaryEvidence`'s zero-in-cell-weight fallback
+(`coverage: [0.5, 0.5]`) existed only to avoid a division by zero —
+but `confidence` is computed independently of `coverage`, so a cell
+whose OWN footprint contributes zero real weighted samples (e.g. fully
+transparent) could still inherit high confidence from its surrounding
+neighborhood's real hard edge, with entirely fabricated coverage.
+Verified directly: a fully-transparent target cell surrounded by an
+opaque black/white split returned confidence 1.0. Fixed: when
+`totalInCellWeight <= 0`, return confidence 0 and a single mode (the
+neighborhood's own mean) immediately — matching `downsampleToGrid`'s
+own transparency-handling philosophy (a cell with no real data of its
+own is never treated as a genuine boundary). Locked in as a permanent
+regression test.
+
+**The detection gap itself (Problem 1), refined:** the critique
+derived the exact theoretical ceiling for an ideal linear ramp —
+`colorConfidence = 12/13 ≈ 0.923` (separation = ‖Δ‖²/4, within-mode
+spread = ‖Δ‖²/48 for an optimal 2-means split of a uniform ramp) —
+which technically means a threshold ABOVE 0.923 COULD separate an
+ideal ramp from an ideal step (confidence 1.0), so my original claim
+that this was "impossible to fix by recalibration under any
+circumstances" was too strong. The practical problem remains real,
+though: noisy, antialiased, and sparsely-sampled real cases overlap
+that idealized boundary, so a bare threshold bump isn't a robust fix.
+**Recommended fix direction**: a weighted step-vs-affine model
+comparison using the SAME samples/weights already collected during
+fitting — compare a smooth explanation (`c(t) = a + bt` along the
+boundary-normal direction) against a boundary explanation (two
+constant colors with a narrow transition), accepting the boundary
+explanation only when it has a materially better residual, small
+residual relative to mode separation, and real support on both sides.
+Requires recovering the two modes' actual SPATIAL DIRECTION (currently
+`extractBoundaryEvidence` only returns their scalar separation
+distance, discarding direction — a needed addition). `lib/pair-edge-
+evidence.ts`'s existing tensor was considered and rejected as a direct
+source for this: it already averages away the spatial distribution
+before returning, so it can't supply the localized "where exactly does
+the value jump" signal this fix needs — though its underlying color-
+gradient machinery may still be reusable. **Not yet built** — this is
+now M4.1's own scope, with a full calibration fixture matrix specified
+(clean steps at multiple orientations, steps with noise/antialiasing,
+non-repeating ramps at several slopes that explicitly clear the
+existing 2-mode gate, transition-width sweeps, noise/checkerboard
+negative controls at multiple phases, sRGB-vs-OKLab-generated ramps
+so the fix isn't accidentally calibrated only against its own ideal
+negative model, fractional/transparent/insufficient-sample edge cases)
+— calibrated the same broad way as M2's own original tests, not off
+one example.
+
+**M4 restructured into 9 sub-steps** (kept the original count/shape,
+per the critique's own assessment that the breakdown "follows the real
+pipeline well," but with these concrete additions):
+
+- **M4.1** — Fix the detection gap for real (Problem 1 above) plus the
+  two bugs already fixed in this entry.
+- **M4.2** — Define the compact per-image evidence layer AND **the
+  shared assignment/palette lifecycle contract** (moved earlier in
+  scope, since sample construction, initialization, finalization, and
+  remapping all depend on it): which cells get evaluated (a `pair-
+  edge-evidence.ts`-based pre-filter is attractive for cost, but its
+  own windowing differs from the detector's — recall against a full
+  per-cell reference must be validated on small fixtures before
+  relying on it, kept permissive since correctness comes from the
+  classifier itself, not the filter); a frozen accept/reject decision
+  per cell shared by training and every downstream cost (no separate
+  threshold re-checks that could disagree after storage rounding); the
+  report's own neighbor-agreement requirement (Section 4: "check
+  confidence and side-color agreement in a local neighborhood" — not
+  yet implemented, independent per-cell classification only);
+  preserving the Original/Latest quantizer choice (`weightedQuantize`
+  vs `weightedKMeansQuantize` — calling the latter unconditionally
+  would silently turn "Original + Crisp" into "Latest + Crisp"), and
+  explicitly defining custom-`ColorQuantizer` interaction rather than
+  silently ignoring it; a bounded per-protected-cell representation
+  (at most 2 supported labels/costs/mode associations, not a `Map` +
+  closure retained per stitch).
+- **M4.3** — Quantization + initialization: build the weighted sample
+  pool, call the chosen weighted quantizer, then initialize each
+  protected cell to **`argmin` of the actual unary cost** (not just
+  "larger coverage wins," which the critique showed can pick the more
+  expensive candidate once palette-fit errors are unequal — a concrete
+  worked counterexample confirmed this), evaluated against the
+  **returned RGB palette converted back to OKLab** (not the internal
+  float centroids, which aren't necessarily authoritative after RGB
+  rounding or merging).
+- **M4.4** — ICM integration (both coarse/fine passes; mode-to-label
+  mappings can be shared across both since the palette is fixed
+  throughout, but the exact NUMERIC costs may need rebuilding if the
+  two passes' unary weights differ). **A real weight-composition
+  contract bug caught before it shipped**: `buildUnaryCostEvaluator`
+  returns an UNWEIGHTED standard distance but an ALREADY alpha-weighted
+  crisp cost — `local-optimizer.ts`'s own `weights.color * colorTerm`
+  multiplication must NOT be applied uniformly to both cases, or a
+  crisp cell's cost gets double-scaled. Resolved once in the shared
+  integration adapter, not per call site (the D11 lesson, applied
+  proactively). Tie-breaking also needs an explicit, protected-cell-
+  specific convention: `runLocalOptimizer`'s existing `bestEnergy =
+  Infinity` + ascending-label-order scan picks the lowest-index label
+  on an exact tie, which could silently erase a deliberate geometric
+  initialization the moment ICM runs — Standard's own existing tie
+  behavior must stay exactly as-is; only protected cells get a new,
+  documented convention (retain the current admissible label on exact
+  ties).
+- **M4.5** — Contour-cleanup integration (`recolorSmallComponents`,
+  `fixDiagonalConnections`, both calls) using the same shared
+  evaluator, PLUS a decision on `contourRefinement` compatibility
+  (see below).
+- **M4.6** — Palette-merge/remap handling. **A real, verified
+  correctness gap, not just a bookkeeping nicety**: `mergeSimilarColors`'s
+  union-find remap does NOT guarantee the merge winner is still each
+  affected mode's actual nearest surviving palette color. Critique's
+  concrete counterexample, checked against the real code: palette
+  grays 100/105/94/255; a mode at value 99 maps nearest to 100; 100
+  merges into 105 (squared OKLab distance 0.000309, under the 0.0004
+  threshold, 105 being more-used); but 94 survives and is actually
+  CLOSER to 100's original mode-99 (distance 0.000454 vs 105's larger
+  distance) — so the mechanical remap produces a technically-valid but
+  now-INADMISSIBLE assignment for that cell, and a naive "just
+  recompute the mapping fresh" wouldn't automatically fix an
+  already-assigned cell without an explicit validate-and-repair step.
+  **Contract**: apply the label remap, rebuild mode associations
+  against the changed palette, validate every protected cell's CURRENT
+  assignment, repair any now-inadmissible one via the same shared
+  admissible-selection rule (not a special-cased fallback), coalesce
+  duplicate mappings keeping the minimum-cost supporting mode.
+- **M4.7** — Final palette color recompute: use each crisp cell's
+  selected supporting mode at weight `alpha` (not raw `cells[i]`, not
+  coverage again — already specified in `crisp-unary-cost.ts`'s own
+  docs). Must look up support against the PRE-recompute palette (since
+  recomputing colors changes them), then run a bounded, explicitly-
+  terminated consistency check afterward (a fixed number of proposed
+  updates, accepting only validated states, never assuming alternating
+  recompute/remap must converge on its own) — the report's Section 7
+  explicitly calls for this bounded step, not a single blind pass.
+- **M4.8** — DMC-mode interaction: the unary formula itself is
+  palette-agnostic and reusable as-is; DMC needs new ORCHESTRATION
+  (build mode mappings AFTER thread-deduplication, repair any
+  resulting inadmissible labels, never recompute DMC's fixed RGB
+  afterward). Explicit handling required for two modes colliding onto
+  the SAME nearest DMC thread (record as an accepted, diagnosed
+  limitation of independent nearest-thread snapping — never silently
+  admit an unrelated label to compensate, and don't claim successful
+  boundary preservation when it isn't representable at the chosen
+  palette). Crisp-aware mapping/collision-accounting must not live
+  ONLY inside the optimize-gated `DmcReoptimizeContext` — it's needed
+  even when `optimize: false` skips ICM.
+- **M4.9** — End-to-end regression, consolidating what M4.1-M4.8 each
+  already stage-test individually (per the milestone's own explicit
+  "verify each stage individually" warning) against the real
+  `buildPattern`, the M1 genuine-gray-elsewhere fixture, and the
+  report's own Section 9 acceptance matrix.
+
+**`contourRefinement` interaction decided now, not deferred**: the
+critique confirmed D57's "orthogonal" characterization overstated
+actual independence — `runContourRefinementPass` scores against the
+raw averaged cell color with no crisp-admissibility awareness at all,
+so enabling both together today could silently overwrite a protected
+crisp choice. Two options: (a) thread the shared evaluator through it
+too during M4.5, or (b) explicitly reject the `crisp + contourRefinement`
+combination until support is built. Given `contourRefinement` is
+already off-by-default and NOT ADOPTED (D55), and M4 is already the
+largest milestone in this goal, **decision: option (b) for M4's
+scope** — explicitly refuse the combination (a clear error, not silent
+misbehavior) rather than expanding M4 further; a future milestone can
+revisit if `contourRefinement` is ever reconsidered. The same
+"honor the shared contract or explicitly reject" rule applies to
+`simulated-annealing.ts`, which stays outside production integration
+regardless.
+
+Full critique preserved in the Codex thread
+(`01a0929c-3bc6-7d32-9736-273adcc27cf2`) for reference.
+
+**Verified** (the two bug fixes only — M4's actual sub-steps are not
+yet built): `npx tsc --noEmit` clean, `npx eslint .` clean, full
+`npx vitest run` 419/419 passing (42 files, +1 new test), `npm run
+build` clean. No e2e run needed (test-only, no `pattern.ts` wiring
+yet). Starting M4.1 next (fixing the detection gap for real).
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
