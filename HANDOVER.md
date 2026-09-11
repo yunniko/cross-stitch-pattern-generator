@@ -3147,6 +3147,142 @@ check is deliberately basic; correctness rests on the unit suite
 (including the new exhaustive energy-consistency invariant) already run
 pre-deploy.
 
+**D44 — G-022 M3: directional per-pair color-structure-tensor edge
+evidence, implemented per a codex-cli design critique, with two real
+problems found and fixed along the way (2026-09-11).** Per the cluster-
+boundary review's Finding 3 (a per-cell scalar `edgeBetweenCells` has no
+directional information and is luminance-only, missing gradual-shading
+contours and same-luminance-different-hue color boundaries) and this
+goal's own acceptance criteria (a second opinion before implementing a
+change of this blast radius).
+
+**The critique's core recommendation, adopted**: a color structure
+tensor (Di Zenzo 1986, Weickert), not a plain grayscale directional
+gradient -- the critique showed a concrete example (RGB(200,80,80) and
+RGB(80,116,80) both round to this project's own `luminance()` = 106)
+proving grayscale gradients can't see this class of boundary no matter
+how directional they get. Also adopted: compute the tensor projection
+per specific cell-pair (windowed on that pair's own source-pixel
+midpoint), not per-cell + `max` (today's exact blind spot: a strong edge
+anywhere in a cell currently protects all its sides); and do **not**
+naively fuse this with endpoint OKLab color difference (correlated
+measurements of the same underlying change -- fusing them would recreate
+D11's three-formulas-drift bug in a new form). New module:
+`lib/pair-edge-evidence.ts`.
+
+- **Primitive**: per-pixel OKLab spatial derivatives (all 3 channels,
+  central difference), aggregated as `sum_c(grad_c . u)^2` over a small
+  window centered on each pair's own midpoint, mapped through a bounded
+  response `1 - exp(-s/2*tau^2)` (GrabCut's own contrast-sensitive
+  pairwise-weight form). Canonical storage: 4 slots per cell (east,
+  south, southeast, southwest, matching `energy.spec.ts`'s existing
+  canonical-pair convention); the other 4 directions resolve to the
+  owning neighbor's slot for the opposite direction.
+- **Isolated validation before any pipeline wiring** (the critique's own
+  explicit recommendation): fixture A (a same-luminance, different-hue
+  vertical split) confirms today's `computeCellImportance` reads ~0
+  everywhere there while the new evidence reads >0.9 crossing it and
+  <0.01 running parallel; fixture B (a gradual circular shading gradient
+  with zero added noise, below the old Sobel `NOISE_FLOOR`) confirms
+  `computeEdgeMagnitude` reads exactly 0 there while the tensor still
+  detects it, correctly oriented radially (radial evidence >5x its own
+  tangential reading at the same location); fixture C (a flat/noisy
+  control) confirms evidence stays low with no real structure present,
+  using the *same* calibration as A and B, not a separately-tuned one
+  (D11's own lesson: weak real structure must become detectable without
+  promoting weak noise wholesale).
+- **Wiring**: `runLocalOptimizer`, `runMultiScaleOptimizer`,
+  `runSimulatedAnnealing`, and `contour-cleanup.ts`'s
+  `recolorSmallComponents` each gained an optional `pairEvidence`
+  parameter, added *after* their existing `weights`/`options` parameter
+  (not inserted before it) specifically to avoid breaking any existing
+  positional call site -- when omitted, every function reproduces
+  today's exact `edgeBetweenCells`-based behavior, so no existing direct
+  unit test of these functions needed to change. `pattern.ts` computes
+  `pairEvidence` once (inside the `shouldOptimize` branch, since unlike
+  `importance` the quantizer itself doesn't need it) and threads it
+  through. Per-cell `importance` itself is completely untouched and
+  keeps gating every existing protection threshold.
+- **A real gap the critique caught in `contour-cleanup.ts`, fixed as
+  part of M2 not M3** (noted here since it's this same boundary-pair
+  code path): two 4-connected components touching only diagonally while
+  sharing a color previously had zero boundary-pair cost, even though
+  recoloring away from that shared color should cost something -- already
+  fixed by M2's 8-direction neighbor scan; M3 only added the `edge`
+  value's source, not this specific gap.
+
+**Two real problems found during implementation, not assumed away --
+both caught by actually running the full test suite, not just the
+isolated fixtures:**
+
+1. **Calibration gap: `tau` tuned against too-gentle a noise control.**
+   The first calibration pass (documented in an earlier draft of this
+   entry, since corrected) used a hand-picked amplitude-6 noise control
+   and found a clean plateau at `tau=0.01`. Wiring this into the real
+   pipeline **measurably regressed `regression.spec.ts`'s own golden-
+   fixture confetti ratios** -- e.g. the "noisy two-region photo"
+   fixture's confetti ratio rose from a passing value to 0.309 against a
+   0.1 threshold, and the "realistic downsample ratio" fixture rose to
+   0.119 against a 0.05 threshold. Root-caused before just raising `tau`
+   blindly: averaging *squared* per-pixel gradients over a window
+   stabilizes the *estimate* of noise's contribution but does not remove
+   it -- for i.i.d. noise, `E[(signal+noise)^2] ~= signal^2 +
+   noise_variance` however many samples are averaged, leaving a roughly
+   constant positive bias regardless of window size. This is precisely
+   the "filter before squaring" property the original codex critique had
+   named as a requirement (Q1's answer) -- underweighted in the first
+   implementation. Fixed by pre-smoothing each OKLab channel with a
+   separable box blur (`boxBlur`, `DEFAULT_BLUR_RADIUS = 2`) *before*
+   differentiating, which genuinely reduces the derivative's own noise
+   floor rather than just averaging noisy derivatives after the fact.
+   Recalibrated directly against `regression.spec.ts`'s own realistic
+   noise amplitude (50), not the gentler amplitude-6 stand-in: within-
+   region (noise-only) evidence dropped from ~0.98 (unusable -- nearly
+   indistinguishable from a real boundary's own 1.0) to ~0.083, a 12x
+   separation from a real boundary crossing, while the low-noise
+   fixtures A/B/C stayed effectively unchanged (`tau=0.01` itself never
+   needed to change once the actual noise-reduction mechanism was
+   fixed). Locked in as a permanent regression test, fixture D in
+   `pair-edge-evidence.spec.ts`, using the exact same noise recipe as
+   `regression.spec.ts`'s own fixture.
+2. **Performance: `Array.prototype.findIndex` with closures on ICM's
+   hottest path.** `getPairEdgeEvidence`'s first implementation resolved
+   a direction to its canonical slot via `CANONICAL_OFFSETS.findIndex(([odx,
+   ody]) => ...)`, called (twice, for the canonical and reverse-direction
+   cases) from inside `runLocalOptimizer`'s innermost per-palette-
+   candidate loop -- tens of millions of calls in a real `buildPattern`
+   run, each allocating a closure and linearly scanning a 4-element
+   array. Measured directly: a 300-stitch/24-color timing benchmark
+   (the same case M2's own D43 entry used) went from M2's own 8.67s to
+   **25.9s** -- a ~3x regression on top of M2's already-measured ~2x,
+   not the modest overhead M3 was expected to add. This is precisely the
+   anti-pattern the original design critique named and warned against:
+   "use arithmetic slot lookup, not per-pair maps or heap objects."
+   Fixed with a precomputed `Int8Array(9)` lookup table (indexed by
+   `(dy+1)*3+(dx+1)`, each entry packing the target slot and whether to
+   read it canonically or from the neighbor's reverse slot), built once
+   at module load -- no closures, no array scans, on the hot path.
+   Re-measured: the same benchmark now runs in **9.5s**, ~10% over M2
+   alone rather than ~3x.
+- **Verified**: 313 unit tests (292 + 21 new: `pair-edge-evidence.spec.ts`'s
+  9 tests across fixtures A-D, `energy.spec.ts`'s extension to the real
+  canonical accessor (2 more tests), `pattern.spec.ts`'s new full-pipeline
+  end-to-end detail-survival test), clean `tsc`/`eslint`/`npm run build`,
+  full e2e suite (27/27), and -- critically, given the two problems found
+  above -- every existing golden-fixture/shape-regression/local-optimizer/
+  contour-cleanup test passing completely unmodified once both fixes
+  landed, not merely "within a loosened tolerance." Live dev-server smoke
+  test: regenerate, zero console errors. The end-to-end fixture also
+  surfaced a secondary, unplanned benefit worth noting: on a small
+  same-luminance/different-hue patch over a noisy background, the patch
+  survives at its exact expected area (64 of 64 stitches) both with and
+  without M3 (color fidelity alone was already sufficient for this
+  particular contrast), but *without* M3 the palette carried a spurious
+  third near-duplicate background color (189 cells) that M3's cleaner
+  edge signal let the pipeline consolidate away -- a real quality
+  improvement beyond the specific blind spot M3 was built to fix, found
+  incidentally while verifying it. Not yet deployed.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

@@ -3,6 +3,7 @@ import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS } from "./energy";
 import { oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
 import { mulberry32 } from "./prng";
 import { DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, type LocalOptimizerWeights } from "./local-optimizer";
+import { getPairEdgeEvidence } from "./pair-edge-evidence";
 import { cellRgb, type CellColorBuffer, type RGB } from "./types";
 
 export interface SimulatedAnnealingOptions {
@@ -27,15 +28,19 @@ export const DEFAULT_ANNEALING_OPTIONS: SimulatedAnnealingOptions = {
  * Finding 1; HANDOVER.md D43/G-022 M2), matching `local-optimizer.ts`'s own
  * `runLocalOptimizer` so a boundary scores identically under either pass.
  */
-function weightedNeighborsOf(i: number, width: number, height: number): Array<{ n: number; weight: number }> {
+function weightedNeighborsOf(
+  i: number,
+  width: number,
+  height: number
+): Array<{ n: number; weight: number; dx: number; dy: number }> {
   const x = i % width;
   const y = Math.floor(i / width);
-  const result: Array<{ n: number; weight: number }> = [];
+  const result: Array<{ n: number; weight: number; dx: number; dy: number }> = [];
   for (const offset of WEIGHTED_NEIGHBOR_OFFSETS) {
     const nx = x + offset.dx;
     const ny = y + offset.dy;
     if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-    result.push({ n: ny * width + nx, weight: offset.weight });
+    result.push({ n: ny * width + nx, weight: offset.weight, dx: offset.dx, dy: offset.dy });
   }
   return result;
 }
@@ -66,7 +71,8 @@ export function runSimulatedAnnealing(
   initialAssignment: Uint8Array,
   palette: RGB[],
   importance?: Float32Array,
-  options: SimulatedAnnealingOptions = DEFAULT_ANNEALING_OPTIONS
+  options: SimulatedAnnealingOptions = DEFAULT_ANNEALING_OPTIONS,
+  pairEvidence?: Float32Array
 ): Uint8Array {
   const { width, height } = cells;
   const cellCount = width * height;
@@ -86,8 +92,8 @@ export function runSimulatedAnnealing(
   function energyAt(i: number, color: number): number {
     const colorTerm = oklabDistanceSquared(cellOklab[i], paletteOklab[color]);
     let boundaryEnergy = 0;
-    for (const { n, weight } of weightedNeighborsOf(i, width, height)) {
-      const edge = edgeBetweenCells(cellImportance, i, n);
+    for (const { n, weight, dx, dy } of weightedNeighborsOf(i, width, height)) {
+      const edge = pairEvidence ? getPairEdgeEvidence(pairEvidence, i, dx, dy, width) : edgeBetweenCells(cellImportance, i, n);
       boundaryEnergy += weight * boundaryPairEnergy(options.weights, edge, color !== assignment[n]);
     }
     return options.weights.color * colorTerm + boundaryEnergy;

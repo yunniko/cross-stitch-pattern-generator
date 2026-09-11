@@ -1,6 +1,7 @@
 import { edgeBetweenCells } from "./edge-map";
 import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS, type PairEnergyWeights } from "./energy";
 import { oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
+import { getPairEdgeEvidence } from "./pair-edge-evidence";
 import { labelRegions } from "./regions";
 import { cellRgb, type CellColorBuffer, type RGB } from "./types";
 
@@ -163,13 +164,21 @@ export function defaultComponentRecolorOptions(cellCount: number): ComponentReco
  * neighbor belonging to a different `regions` component id is a real
  * boundary pair, regardless of whether it currently happens to share a
  * color.
+ *
+ * `pairEvidence` (optional, HANDOVER.md D44/G-022 M3), when provided,
+ * replaces `edgeBetweenCells(importance, ...)` for each boundary pair's
+ * `edge` value with a directional color-structure-tensor reading specific
+ * to that pair -- same additive-parameter pattern as `local-
+ * optimizer.ts`/`simulated-annealing.ts`; omitting it reproduces today's
+ * exact behavior.
  */
 export function recolorSmallComponents(
   cells: CellColorBuffer,
   assignment: Uint8Array,
   palette: RGB[],
   importance?: Float32Array,
-  options?: ComponentRecolorOptions
+  options?: ComponentRecolorOptions,
+  pairEvidence?: Float32Array
 ): Uint8Array {
   const { width, height } = cells;
   const cellCount = width * height;
@@ -199,8 +208,9 @@ export function recolorSmallComponents(
     if (avgImportance > resolvedOptions.importanceProtectionThreshold) continue;
 
     // Boundary cell-pairs: (member cell, external neighbor cell, geometric
-    // weight) for every 8-connected neighbor outside this component.
-    const boundaryPairs: Array<[number, number, number]> = [];
+    // weight, direction) for every 8-connected neighbor outside this
+    // component.
+    const boundaryPairs: Array<[number, number, number, number, number]> = [];
     const neighborColors = new Set<number>();
     for (const i of memberCells) {
       const x = i % width;
@@ -211,7 +221,7 @@ export function recolorSmallComponents(
         if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
         const n = ny * width + nx;
         if (regions.labels[n] !== component.id) {
-          boundaryPairs.push([i, n, offset.weight]);
+          boundaryPairs.push([i, n, offset.weight, offset.dx, offset.dy]);
           neighborColors.add(result[n]);
         }
       }
@@ -222,8 +232,10 @@ export function recolorSmallComponents(
       let colorError = 0;
       for (const i of memberCells) colorError += oklabDistanceSquared(cellOklab[i], paletteOklab[candidateColor]);
       let boundaryEnergy = 0;
-      for (const [member, neighbor, weight] of boundaryPairs) {
-        const edge = edgeBetweenCells(cellImportance, member, neighbor);
+      for (const [member, neighbor, weight, dx, dy] of boundaryPairs) {
+        const edge = pairEvidence
+          ? getPairEdgeEvidence(pairEvidence, member, dx, dy, width)
+          : edgeBetweenCells(cellImportance, member, neighbor);
         boundaryEnergy += weight * boundaryPairEnergy(resolvedOptions, edge, result[neighbor] !== candidateColor);
       }
       return colorError + boundaryEnergy;

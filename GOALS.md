@@ -82,7 +82,7 @@ work," restated with this project's acceptance-criteria/risk framing):
   stays as-is (a separate, deliberate stitchability rule, not the
   smoothing energy). **High risk -- get a second opinion before
   implementing**, per the Why above.
-- [ ] M3 — Give edge evidence directional, per-neighbor-pair specificity,
+- [x] M3 — Give edge evidence directional, per-neighbor-pair specificity,
   via a color structure tensor. **Medium-high risk -- second opinion
   obtained (codex-cli, 2026-09-11, HANDOVER.md D44) and its plan adopted
   below**, since a naive grayscale directional-gradient approach (the
@@ -169,6 +169,44 @@ work," restated with this project's acceptance-criteria/risk framing):
   effect is in hand, rather than committing to a specific design now.
 
 **Progress log** (newest first):
+- 2026-09-11 — M3 complete. Implemented all 7 sub-steps: new
+  `lib/pair-edge-evidence.ts` (color structure tensor, canonical 4-slot
+  storage), isolated tests against 4 fixtures (A: same-luminance
+  different-hue chromatic split; B: gradual circular shading below the
+  old Sobel floor; C: flat/noisy control; D: realistic photo-noise
+  amplitude, added after catching a real regression -- see below),
+  extended `energy.spec.ts`'s exhaustive invariant to the real accessor,
+  additive optional wiring into `local-optimizer.ts`/`simulated-
+  annealing.ts`/`contour-cleanup.ts`/`pattern.ts`, and a full-pipeline
+  end-to-end detail-survival test in `pattern.spec.ts`.
+  Two real problems found and fixed during implementation, not assumed
+  away:
+  (1) **Calibration gap**: initial `tau` calibration used a gentle
+  amplitude-6 noise control, which measurably regressed
+  `regression.spec.ts`'s own golden-fixture confetti ratios once wired
+  into the real pipeline (caught by running the full suite, not just the
+  isolated fixtures). Root cause: averaging *squared* noisy gradients
+  over a window stabilizes the estimate of noise's contribution without
+  removing it. Fixed by pre-smoothing each OKLab channel (`boxBlur`,
+  radius 2) before differentiating -- recalibrated against this
+  project's own realistic noise amplitude (50, matching
+  `regression.spec.ts`) directly, not a gentler stand-in.
+  (2) **Performance**: a first working version used `Array.findIndex`
+  with closures for the canonical-slot lookup, called from inside ICM's
+  innermost per-candidate loop -- tens of millions of calls in a real
+  run. Took a 300-stitch/24-color benchmark from M2's own 8.67s to a
+  measured 25.9s. Replaced with a precomputed arithmetic lookup table (no
+  closures, no scans) -- exactly the pattern the codex critique had
+  explicitly warned to use -- bringing the same benchmark to 9.5s (~10%
+  over M2 alone, not ~3x).
+  Verified: 313 unit tests (292 + 21 new across `pair-edge-evidence.spec.ts`,
+  `energy.spec.ts`'s extension, and `pattern.spec.ts`'s new end-to-end
+  test), clean `tsc`/`eslint`/`npm run build`, full e2e (27/27), every
+  existing golden-fixture/shape-regression/local-optimizer/contour-
+  cleanup test passing unmodified after the fix. Live dev-server smoke
+  test: regenerate, zero console errors. See HANDOVER.md D44 for the
+  full trace, including the specific numbers at each stage. Not yet
+  deployed.
 - 2026-09-11 — M3 design critique obtained (codex-cli, new thread) and
   its plan adopted into M3's own sub-steps above (Owner: "implement the
   full approach but make a thorough plan first"). Starting sub-step 1

@@ -142,4 +142,41 @@ describe("buildPattern", () => {
       }
     }
   });
+
+  it("a small same-luminance, different-hue detail survives the full pipeline on a noisy background (HANDOVER.md D44/G-022 M3, end-to-end)", () => {
+    // The pair-edge-evidence primitive is already validated in isolation
+    // (pair-edge-evidence.spec.ts) -- this exercises the full buildPattern
+    // pipeline (quantization, denoise, ICM, contour cleanup) together,
+    // since a primitive-level pass alone doesn't guarantee every later
+    // stage jointly preserves the same detail. RGB(200,80,80) and
+    // RGB(80,116,80) both round to luminance() 106 -- a boundary today's
+    // per-cell importance scalar cannot see at all.
+    function pseudoNoise(x: number, y: number, amplitude: number): number {
+      const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+      return (n - Math.floor(n) - 0.5) * amplitude;
+    }
+    const width = 128;
+    const height = 128;
+    const bg: RGB = [80, 116, 80];
+    const patch: RGB = [200, 80, 80];
+    const buffer = makeBuffer(width, height, (x, y) => {
+      const inPatch = x >= 56 && x < 72 && y >= 56 && y < 72; // an 8x8-stitch patch at 64 stitches
+      const base = inPatch ? patch : bg;
+      const noise = pseudoNoise(x, y, 20);
+      return [
+        Math.max(0, Math.min(255, base[0] + noise)),
+        Math.max(0, Math.min(255, base[1] + noise)),
+        Math.max(0, Math.min(255, base[2] + noise)),
+      ];
+    });
+
+    const pattern = buildPattern(buffer, { longerSideStitches: 64, colorCount: 4 });
+    const patchColor = pattern.palette.find((p) => Math.abs(p.rgb[0] - 200) < 40 && Math.abs(p.rgb[1] - 80) < 40);
+    expect(patchColor).toBeDefined();
+    // The patch is exactly 8x8 = 64 stitches -- expect it to survive close
+    // to that exact area, not eroded away or overgrown by a handful of
+    // cells either direction.
+    expect(patchColor!.count).toBeGreaterThan(48);
+    expect(patchColor!.count).toBeLessThan(80);
+  });
 });

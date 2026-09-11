@@ -1,5 +1,6 @@
 import { edgeBetweenCells } from "./edge-map";
 import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS, type PairEnergyWeights } from "./energy";
+import { getPairEdgeEvidence } from "./pair-edge-evidence";
 import { oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
 import { cellRgb, type CellColorBuffer, type RGB } from "./types";
 
@@ -52,13 +53,25 @@ const MAX_PASSES = 8;
  * symmetric per-pair constant, unrelated to importance or evaluation order,
  * so every cell's local energy still equals the corresponding change in one
  * consistent global sum.
+ *
+ * `pairEvidence` (optional, from `lib/pair-edge-evidence.ts`'s
+ * `computePairEdgeEvidence`; HANDOVER.md D44/G-022 M3), when provided,
+ * replaces `edgeBetweenCells(importance, ...)` as the `edge` value fed to
+ * `boundaryPairEnergy` -- a directional, per-pair color-structure-tensor
+ * reading instead of a direction-blind per-cell scalar reused for every
+ * side of a cell. `importance` itself is untouched and still passed
+ * through unconditionally: this function doesn't use it for anything
+ * else, but callers/tests that omit `pairEvidence` still get today's
+ * exact `edgeBetweenCells`-based behavior, so no existing direct test of
+ * this function needed to change.
  */
 export function runLocalOptimizer(
   cells: CellColorBuffer,
   initialAssignment: Uint8Array,
   palette: RGB[],
   importance?: Float32Array,
-  weights: LocalOptimizerWeights = DEFAULT_LOCAL_OPTIMIZER_WEIGHTS
+  weights: LocalOptimizerWeights = DEFAULT_LOCAL_OPTIMIZER_WEIGHTS,
+  pairEvidence?: Float32Array
 ): Uint8Array {
   const { width, height } = cells;
   const cellCount = width * height;
@@ -75,12 +88,12 @@ export function runLocalOptimizer(
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const i = y * width + x;
-        const neighbors: Array<{ n: number; weight: number }> = [];
+        const neighbors: Array<{ n: number; weight: number; dx: number; dy: number }> = [];
         for (const offset of WEIGHTED_NEIGHBOR_OFFSETS) {
           const nx = x + offset.dx;
           const ny = y + offset.dy;
           if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-          neighbors.push({ n: ny * width + nx, weight: offset.weight });
+          neighbors.push({ n: ny * width + nx, weight: offset.weight, dx: offset.dx, dy: offset.dy });
         }
 
         let best = assignment[i];
@@ -89,8 +102,10 @@ export function runLocalOptimizer(
           const colorTerm = oklabDistanceSquared(cellOklab[i], paletteOklab[c]);
 
           let boundaryEnergy = 0;
-          for (const { n, weight } of neighbors) {
-            const edge = edgeBetweenCells(cellImportance, i, n);
+          for (const { n, weight, dx, dy } of neighbors) {
+            const edge = pairEvidence
+              ? getPairEdgeEvidence(pairEvidence, i, dx, dy, width)
+              : edgeBetweenCells(cellImportance, i, n);
             boundaryEnergy += weight * boundaryPairEnergy(weights, edge, c !== assignment[n]);
           }
 
@@ -138,8 +153,9 @@ export function runMultiScaleOptimizer(
   initialAssignment: Uint8Array,
   palette: RGB[],
   importance?: Float32Array,
-  weights: MultiScaleWeights = DEFAULT_MULTI_SCALE_WEIGHTS
+  weights: MultiScaleWeights = DEFAULT_MULTI_SCALE_WEIGHTS,
+  pairEvidence?: Float32Array
 ): Uint8Array {
-  const coarse = runLocalOptimizer(cells, initialAssignment, palette, importance, weights.coarse);
-  return runLocalOptimizer(cells, coarse, palette, importance, weights.fine);
+  const coarse = runLocalOptimizer(cells, initialAssignment, palette, importance, weights.coarse, pairEvidence);
+  return runLocalOptimizer(cells, coarse, palette, importance, weights.fine, pairEvidence);
 }

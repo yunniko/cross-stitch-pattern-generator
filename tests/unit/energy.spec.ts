@@ -6,6 +6,7 @@ import {
   WEIGHTED_NEIGHBOR_OFFSETS,
   type PairEnergyWeights,
 } from "@/lib/energy";
+import { computePairEdgeEvidence, getPairEdgeEvidence } from "@/lib/pair-edge-evidence";
 
 /**
  * Tests for the shared boundary-energy primitives, including the
@@ -171,5 +172,119 @@ describe("energy-consistency invariant: local single-cell delta matches global e
         expect(localDelta).toBeCloseTo(globalDelta, 10);
       }
     }
+  });
+});
+
+describe("energy-consistency invariant, repeated against the real pair-edge-evidence accessor (HANDOVER.md D44/G-022 M3)", () => {
+  // Same exhaustive check as above, but `edgeBetween` now uses
+  // `getPairEdgeEvidence` over *real* `computePairEdgeEvidence` output
+  // (from a small synthetic source image with genuine directional
+  // structure), not a hand-rolled `Math.max` helper that's trivially
+  // symmetric by construction. This validates the actual canonical-slot
+  // storage and reverse-direction lookup logic, not just the energy
+  // formula's own math.
+  const WEIGHTS: PairEnergyWeights = { smoothness: 0.045, edgeLoss: 0.05 };
+  const SIZE = 3;
+  const CELLS = SIZE * SIZE;
+  const colorCost = [
+    [0, 1.3],
+    [0.4, 0.9],
+    [1.1, 0.2],
+    [0.6, 0.6],
+    [0.15, 1.0],
+    [0.9, 0.05],
+    [0.3, 0.7],
+    [1.2, 0.1],
+    [0.5, 0.5],
+  ];
+
+  // A small, genuinely non-uniform source image (a diagonal-ish gradient
+  // plus a chromatic patch) -- real directional structure, not a
+  // hand-picked symmetric test value.
+  const srcSize = 12; // 3 stitches * 4 source px/stitch
+  const srcData = new Uint8ClampedArray(srcSize * srcSize * 4);
+  for (let y = 0; y < srcSize; y++) {
+    for (let x = 0; x < srcSize; x++) {
+      const o = (y * srcSize + x) * 4;
+      const inPatch = x > 7 && y < 4;
+      const [r, g, b] = inPatch ? [40, 200, 120] : [x * 15, y * 10, 100];
+      srcData[o] = r;
+      srcData[o + 1] = g;
+      srcData[o + 2] = b;
+      srcData[o + 3] = 255;
+    }
+  }
+  const pairEvidence = computePairEdgeEvidence({ data: srcData, width: srcSize, height: srcSize }, SIZE, SIZE);
+
+  function edgeBetween(i: number, j: number): number {
+    const x = i % SIZE;
+    const y = Math.floor(i / SIZE);
+    const jx = j % SIZE;
+    const jy = Math.floor(j / SIZE);
+    return getPairEdgeEvidence(pairEvidence, i, jx - x, jy - y, SIZE);
+  }
+
+  function canonicalPairs(): Array<{ i: number; j: number; weight: number }> {
+    const pairs: Array<{ i: number; j: number; weight: number }> = [];
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const i = y * SIZE + x;
+        for (const offset of WEIGHTED_NEIGHBOR_OFFSETS) {
+          if (offset.dy < 0 || (offset.dy === 0 && offset.dx < 0)) continue;
+          const nx = x + offset.dx;
+          const ny = y + offset.dy;
+          if (nx < 0 || nx >= SIZE || ny < 0 || ny >= SIZE) continue;
+          pairs.push({ i, j: ny * SIZE + nx, weight: offset.weight });
+        }
+      }
+    }
+    return pairs;
+  }
+
+  function globalEnergy(z: number[]): number {
+    let e = 0;
+    for (let i = 0; i < CELLS; i++) e += colorCost[i][z[i]];
+    for (const { i, j, weight } of canonicalPairs()) {
+      e += weight * boundaryPairEnergy(WEIGHTS, edgeBetween(i, j), z[i] !== z[j]);
+    }
+    return e;
+  }
+
+  function localEnergyAt(z: number[], i: number, candidate: number): number {
+    const x = i % SIZE;
+    const y = Math.floor(i / SIZE);
+    let e = colorCost[i][candidate];
+    for (const offset of WEIGHTED_NEIGHBOR_OFFSETS) {
+      const nx = x + offset.dx;
+      const ny = y + offset.dy;
+      if (nx < 0 || nx >= SIZE || ny < 0 || ny >= SIZE) continue;
+      const n = ny * SIZE + nx;
+      e += offset.weight * boundaryPairEnergy(WEIGHTS, edgeBetween(i, n), candidate !== z[n]);
+    }
+    return e;
+  }
+
+  it("holds exactly with real, non-uniform directional pair evidence, not just a symmetric-by-construction stand-in", () => {
+    for (let assignment = 0; assignment < 1 << CELLS; assignment++) {
+      const z = Array.from({ length: CELLS }, (_, i) => (assignment >> i) & 1);
+      const eBefore = globalEnergy(z);
+
+      for (let i = 0; i < CELLS; i++) {
+        const otherColor = z[i] === 0 ? 1 : 0;
+        const localDelta = localEnergyAt(z, i, otherColor) - localEnergyAt(z, i, z[i]);
+
+        const zAfter = z.slice();
+        zAfter[i] = otherColor;
+        const globalDelta = globalEnergy(zAfter) - eBefore;
+
+        expect(localDelta).toBeCloseTo(globalDelta, 10);
+      }
+    }
+  });
+
+  it("the pair-evidence data actually has real, non-trivial variation (not accidentally all-zero or all-equal, which would make the test above vacuous)", () => {
+    const values = new Set<number>();
+    for (const v of pairEvidence) values.add(Math.round(v * 1000));
+    expect(values.size).toBeGreaterThan(2);
   });
 });

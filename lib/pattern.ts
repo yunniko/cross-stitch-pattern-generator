@@ -5,6 +5,7 @@ import { luminance } from "./color";
 import { nameColors } from "./color-names";
 import { defaultComponentRecolorOptions, fixDiagonalConnections, recolorSmallComponents } from "./contour-cleanup";
 import { runMultiScaleOptimizer, type MultiScaleWeights } from "./local-optimizer";
+import { computePairEdgeEvidence } from "./pair-edge-evidence";
 import { mergeSimilarColors } from "./palette-optimizer";
 import { kMeansQuantizer, meanRgbOklab, type ColorQuantizer } from "./quantize";
 import { symbolsFor } from "./symbols";
@@ -59,19 +60,28 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   const shouldOptimize = options.optimize ?? true;
   let optimized = quantized;
   if (shouldOptimize) {
+    // Directional, per-pair color-structure-tensor edge evidence
+    // (HANDOVER.md D44/G-022 M3) -- computed once here (only needed by the
+    // optimizer/cleanup passes below, unlike `importance`, which the
+    // quantizer also needs), then threaded through as an additive,
+    // optional signal alongside `importance` itself. `importance` keeps
+    // gating every protection threshold below (contour-cleanup's two,
+    // already applied above for the quantizer); this new evidence only
+    // replaces `edgeBetweenCells` for the smoothing-energy `edge` term.
+    const pairEvidence = computePairEdgeEvidence(imageData, gridWidth, gridHeight);
     const componentRecolorOptions = defaultComponentRecolorOptions(cells.width * cells.height);
-    optimized = runMultiScaleOptimizer(cells, quantized, rawPalette, importance, options.multiScaleWeights);
+    optimized = runMultiScaleOptimizer(cells, quantized, rawPalette, importance, options.multiScaleWeights, pairEvidence);
     // Contour cleanup (Phase C): fixes structural artifacts the per-cell
     // ICM pass above has no way to see -- a component-level move (recolor
     // a whole small blob at once) or a diagonal-only pinch (invisible to
     // 4-neighbor-only energy) that no single-cell change could resolve.
-    optimized = recolorSmallComponents(cells, optimized, rawPalette, importance, componentRecolorOptions);
+    optimized = recolorSmallComponents(cells, optimized, rawPalette, importance, componentRecolorOptions, pairEvidence);
     optimized = fixDiagonalConnections(cells, optimized, rawPalette, importance);
     // Diagonal fixes can leave a pinch's other member as a fresh size-1
     // component with nothing after it to clean up -- a domain-expert review
     // found this could regress confetti as the pipeline's last structural
     // step (HANDOVER.md D11). One more component-recolor pass closes that gap.
-    optimized = recolorSmallComponents(cells, optimized, rawPalette, importance, componentRecolorOptions);
+    optimized = recolorSmallComponents(cells, optimized, rawPalette, importance, componentRecolorOptions, pairEvidence);
   }
   options.onProgress?.(0.8);
 
