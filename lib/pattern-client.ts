@@ -1,11 +1,12 @@
 import type { PixelBuffer, StitchPattern } from "./types";
-import type { GenerationMode, WorkerRequest, WorkerResponse } from "./pattern.worker";
+import type { GenerationMode, PaletteMode, WorkerRequest, WorkerResponse } from "./pattern.worker";
 
 export interface RunPatternJobOptions {
   imageData: PixelBuffer;
   longerSideStitches: number;
   colorCount: number;
   generationMode?: GenerationMode;
+  paletteMode?: PaletteMode;
   onProgress?: (fraction: number) => void;
 }
 
@@ -89,6 +90,7 @@ export function runPatternJob(options: RunPatternJobOptions): Promise<StitchPatt
       longerSideStitches: options.longerSideStitches,
       colorCount: options.colorCount,
       generationMode: options.generationMode,
+      paletteMode: options.paletteMode,
     };
     w.postMessage(request);
   });

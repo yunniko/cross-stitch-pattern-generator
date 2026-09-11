@@ -2664,6 +2664,66 @@ didn't regress anything observable in production; M3's actual scoring-
 formula behavior rests on its unit tests, same caveat as M2's deploy
 note. M4-M5 still to come.
 
+**D40 — G-021: DMC split into an independent palette mode, decoupled from
+the algorithm choice (2026-09-11).** Owner request, verbatim: "Make DMC
+separate type of mode (palette mode) instead of just a mode. And let
+latest and original modes work with full palette or dmc palette."
+
+- **Why this was possible without touching the pipeline itself**:
+  `applyDmcPalette` (G-013/D31) was already a pure post-process run
+  *after* `buildPattern` finished, regardless of which quantizer produced
+  the input -- the old three-way `GenerationMode` (`"original" | "latest"
+  | "dmc"`) enum in `pattern.worker.ts` was the only thing hard-coding
+  "DMC" to imply "Latest's clustering, always." Splitting it required no
+  change to `lib/pattern.ts`, `lib/quantize.ts`, or `lib/dmc-match.ts` at
+  all -- only the worker's message contract and the UI.
+- **`pattern.worker.ts`**: `GenerationMode` narrowed to `"original" |
+  "latest"` (the actual clustering choice); new, independent `PaletteMode
+  = "full" | "dmc"`. `StartMessage` gained an optional `paletteMode`
+  field; the `applyDmcPalette` call now checks `msg.paletteMode === "dmc"`
+  instead of `msg.generationMode === "dmc"`. `pattern-client.ts` threads
+  `paletteMode` through the same way as `generationMode`.
+- **`app/workspace.tsx`**: the single three-button toggle (Latest/
+  Original/DMC) became two independent toggle groups -- "Algorithm"
+  (Latest/Original) and "Palette" (Full range/DMC, reusing the exact
+  labels `editColorMode`'s existing full/DMC switcher already uses for
+  naming consistency) -- each its own `useState`, both passed to
+  `runPatternJob`. `StitchPattern.dmcMode` (set by `applyDmcPalette`
+  regardless of which algorithm ran) still drives every existing DMC-
+  aware UI behavior (the "+Add" DMC-only restriction, the color editor's
+  forced-DMC mode, A4 export's "Thread: DMC" row) completely unchanged,
+  since none of that ever depended on which algorithm produced the
+  pattern -- only on the final `dmcMode` flag.
+- **Verified**: 279 unit tests unaffected (no unit test exercised the
+  removed UI enum directly), clean `tsc`/`eslint`/`npm run build`. Live
+  dev-server check exercised all four Algorithm x Palette combinations by
+  clicking the real buttons and reading back DOM state (computed
+  `background-color` and legend text), not just visual screenshots --
+  see the methodology note below. Original+DMC (the previously-impossible
+  combination) and Latest+DMC both produced real DMC-coded legend names
+  ("347 - Salmon - Very Dark", "825 - Blue - Dark"); switching back to
+  Full range correctly reverted to synthetic names ("Cherry Crush",
+  "Fading Night"). Zero console errors across all four combinations.
+- **Methodology note: a `computer`-tool screenshot/zoom of this specific
+  small two-button toggle pair repeatedly appeared to show the wrong
+  button highlighted**, contradicting a direct DOM query
+  (`getComputedStyle(button).backgroundColor`) taken moments apart on the
+  same page state. The DOM-level check is authoritative (unambiguous
+  single-element query, cross-checked against `window.innerWidth` vs. the
+  screenshot's own pixel width to rule out a coordinate-scale
+  misreading) and is what this entry's verification claims rest on --
+  worth remembering that a *visual* read of a small, low-contrast toggle
+  in a screenshot is not always reliable and should be cross-checked
+  against actual DOM/computed-style state when the two disagree, rather
+  than trusting the screenshot by default.
+- **Found, not caused, a pre-existing e2e failure** while running the
+  full suite as part of this change's own verification --
+  `a4-export.spec.ts`'s ZIP-download test; confirmed via `git stash` to
+  fail identically without G-021's changes. Logged in the Owner action
+  list below rather than investigated further, since it's unrelated to
+  this goal.
+- Not yet deployed -- see GOALS.md's G-021 entry.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
@@ -2690,6 +2750,18 @@ note. M4-M5 still to come.
    unconfirmed without checking against a current `codex` release.
    Worth an Owner look if the critique-exchange workflow is wanted
    working again before the API account's credits are topped up.
+
+3. **Pre-existing e2e failure, found incidentally (2026-09-11), not yet
+   root-caused.** `tests/e2e/a4-export.spec.ts`'s "downloads a ZIP with
+   grid page(s) plus a legend page" test fails waiting for
+   `/total \(incl\. legend\)/` text to appear after generating a fresh
+   "Small" pattern from `fixtures/sample.png`. Confirmed via `git stash`
+   to fail identically with G-021's changes removed, so it predates this
+   session's work and isn't something introduced here -- but it was not
+   investigated further (out of scope for G-021), so root cause is
+   unknown. The adjacent "works in B&W mode" test in the same file
+   passes. Worth a look before next relying on the e2e suite as a full
+   regression gate.
 
 ## Next steps and open questions
 

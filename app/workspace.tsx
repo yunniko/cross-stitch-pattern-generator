@@ -59,7 +59,7 @@ import {
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, STANDARD_AIDA_COUNTS, formatFinishedDimension, type SizeUnit } from "@/lib/finished-size";
 import { formatSkeinEstimate } from "@/lib/floss-estimate";
 import { loadSavedProject, loadWorkspaceOptions, saveProject, saveWorkspaceOptions } from "@/lib/workspace-storage";
-import type { GenerationMode } from "@/lib/pattern.worker";
+import type { GenerationMode, PaletteMode } from "@/lib/pattern.worker";
 
 // The Image window's target on-screen width for its live-editable (color/bw)
 // canvas -- cell size is derived from this so a small pattern isn't a
@@ -176,6 +176,7 @@ export default function Workspace() {
   const [showOptionsPanel, setShowOptionsPanel] = useState(false);
   const [colorCount, setColorCount] = useState(16);
   const [generationMode, setGenerationMode] = useState<GenerationMode>("latest");
+  const [paletteMode, setPaletteMode] = useState<PaletteMode>("full");
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [genError, setGenError] = useState<string | null>(null);
@@ -534,6 +535,7 @@ export default function Workspace() {
         longerSideStitches,
         colorCount,
         generationMode,
+        paletteMode,
         onProgress: setProgress,
       });
       if (sourceRevisionRef.current !== myRevision) return; // a different image was selected meanwhile
@@ -1509,30 +1511,58 @@ export default function Workspace() {
                 onChange={(e) => setColorCount(Number(e.target.value))}
                 className="max-w-[200px]"
               />
-              <div className="flex items-center overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
-                {(
-                  [
-                    { mode: "latest", label: "Latest", title: "The current color-picking algorithm" },
-                    { mode: "original", label: "Original", title: "The algorithm this project first shipped with" },
-                    {
-                      mode: "dmc",
-                      label: "DMC",
-                      title: "Snaps the palette to real, buyable DMC thread colors (G-013) -- colors are named \"code - name\" and similar shades may merge into one",
-                    },
-                  ] as const
-                ).map(({ mode, label, title }) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    title={title}
-                    onClick={() => setGenerationMode(mode)}
-                    className={`px-2 py-0.5 text-sm transition-colors ${
-                      generationMode === mode ? "bg-foreground text-background" : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Algorithm</span>
+                  <div className="flex items-center overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
+                    {(
+                      [
+                        { mode: "latest", label: "Latest", title: "The current color-picking algorithm" },
+                        { mode: "original", label: "Original", title: "The algorithm this project first shipped with" },
+                      ] as const
+                    ).map(({ mode, label, title }) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        title={title}
+                        onClick={() => setGenerationMode(mode)}
+                        className={`px-2 py-0.5 text-sm transition-colors ${
+                          generationMode === mode ? "bg-foreground text-background" : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Palette</span>
+                  <div className="flex items-center overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
+                    {(
+                      [
+                        { mode: "full", label: "Full range", title: "Whatever colors the chosen algorithm finds" },
+                        {
+                          mode: "dmc",
+                          label: "DMC",
+                          title:
+                            'Snaps the palette to real, buyable DMC thread colors (G-013) -- colors are named "code - name" and similar shades may merge into one',
+                        },
+                      ] as const
+                    ).map(({ mode, label, title }) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        title={title}
+                        onClick={() => setPaletteMode(mode)}
+                        className={`px-2 py-0.5 text-sm transition-colors ${
+                          paletteMode === mode ? "bg-foreground text-background" : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 

@@ -100,6 +100,62 @@ svc-lab).
 
 ## Completed goals
 
+### G-021 · DMC as an independent palette mode, not a third algorithm — DONE (2026-09-11)
+- **What:** Owner request: "Make DMC separate type of mode (palette mode)
+  instead of just a mode. And let latest and original modes work with full
+  palette or dmc palette." Split the generation controls from a single
+  three-way "Latest / Original / DMC" switch into two independent axes: an
+  **Algorithm** choice (Latest / Original -- which clustering pipeline
+  runs) and a **Palette** choice (Full range / DMC -- whether the result
+  gets snapped to real DMC thread colors afterward), so any algorithm can
+  be combined with either palette.
+- **Why:** DMC-snapping (`applyDmcPalette`, G-013) was already
+  architecturally a post-process applied *after* whichever clustering
+  pipeline ran -- the old three-way UI enum just happened to hard-code
+  "DMC" to always mean "Latest's clustering, then snapped," making
+  "Original clustering + DMC palette" impossible even though nothing
+  about the underlying code required that coupling.
+- **Acceptance criteria:** All four Algorithm x Palette combinations
+  (Latest/Full, Latest/DMC, Original/Full, Original/DMC) produce a
+  correct pattern; `StitchPattern.dmcMode` and everything that reads it
+  (the "+Add" DMC restriction, the color editor's DMC-only mode, A4
+  export's "Thread: DMC" row) keep working unchanged, since none of that
+  depended on which algorithm produced the pattern.
+- **Constraints:** None stated.
+
+**Milestones:**
+- [x] M1 — Split `pattern.worker.ts`'s `GenerationMode` (now `"original" |
+  "latest"` only) from a new, independent `PaletteMode` (`"full" |
+  "dmc"`); threaded through `pattern-client.ts` and the worker's own
+  `applyDmcPalette` call (now gated on `paletteMode === "dmc"` instead of
+  `generationMode === "dmc"`).
+- [x] M2 — Replaced `workspace.tsx`'s single three-button toggle with two
+  adjacent toggle groups ("Algorithm": Latest/Original, "Palette": Full
+  range/DMC), each independently selectable; `handleGenerate` passes both
+  to `runPatternJob`.
+
+**Progress log** (newest first):
+- 2026-09-11 — Both milestones complete. Verified: 279 unit tests
+  unaffected (no unit test covered the UI enum directly; `dmcMode`-driven
+  behavior tests in `a4-render.spec.ts`/`dmc-match.spec.ts` are keyed off
+  `StitchPattern.dmcMode`, not the removed UI enum, so needed no changes),
+  clean `tsc`/`eslint`/`npm run build`. Live dev-server check exercised
+  all four Algorithm x Palette combinations directly (via DOM button
+  clicks and computed-style/content assertions, since a `computer`-tool
+  screenshot of this specific small toggle pair proved visually
+  unreliable to read -- see the note below): Original+DMC and Latest+DMC
+  both produced real DMC-coded legend names ("347 - Salmon - Very Dark",
+  "825 - Blue - Dark") -- Original+DMC being the exact previously-
+  impossible combination -- and switching back to Full range correctly
+  reverted to the synthetic color names ("Cherry Crush", "Fading Night").
+  Zero console errors across all four combinations.
+  **Pre-existing e2e failure noted, not caused by this change**: `tests/e2e/a4-export.spec.ts`'s
+  "downloads a ZIP with grid page(s) plus a legend page" test fails
+  waiting for `/total \(incl\. legend\)/` text, confirmed via `git stash`
+  to fail identically on the pre-change code -- a pre-existing issue,
+  logged in HANDOVER.md's Owner action list for a future session, not
+  addressed here since it's unrelated to this goal.
+
 ### G-019 · Transparent, frameless realistic preview — DONE (2026-09-11)
 - **What:** The "Realistic preview" render (both the live view and
   "Download realistic preview PNG") should have a fully transparent
