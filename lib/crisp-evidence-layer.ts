@@ -1,5 +1,11 @@
 import { extractBoundaryEvidence, DEFAULT_BOUNDARY_EVIDENCE_OPTIONS, type BoundaryEvidence, type BoundaryEvidenceOptions } from "./crisp-edge-evidence";
-import { buildAdmissibleLabelCosts, DEFAULT_CRISP_UNARY_COST_WEIGHTS, type AdmissibleLabelCost, type CrispUnaryCostWeights } from "./crisp-unary-cost";
+import {
+  buildAdmissibleLabelCosts,
+  pickBestAdmissibleLabel,
+  DEFAULT_CRISP_UNARY_COST_WEIGHTS,
+  type AdmissibleLabelCost,
+  type CrispUnaryCostWeights,
+} from "./crisp-unary-cost";
 import { oklabDistanceSquared, type Oklab } from "./color";
 import { getPairEdgeEvidence } from "./pair-edge-evidence";
 import { plainKMeansQuantizer, kMeansQuantizer, type ColorQuantizer } from "./quantize";
@@ -214,6 +220,46 @@ export function buildCrispAdmissibleCostMap(
   const result = new Map<number, Map<number, AdmissibleLabelCost>>();
   for (const [cellIndex, evidence] of evidenceLayer.evidenceByCell) {
     result.set(cellIndex, buildAdmissibleLabelCosts(evidence, paletteOklab, weights));
+  }
+  return result;
+}
+
+/**
+ * G-024 M4.6 (HANDOVER.md D69): repairs every protected cell's CURRENT
+ * assignment against a CHANGED palette (after `mergeSimilarColors`
+ * coalesces labels, or after a DMC snap replaces the whole palette,
+ * M4.8) -- a cell whose current label is still admissible under the new
+ * palette is left untouched; a cell whose label is no longer admissible
+ * is reassigned via the same `argmin`-unary-cost rule M4.3 uses for
+ * initial assignment (`pickBestAdmissibleLabel`).
+ *
+ * **Why this is necessary, not just a defensive nicety**: a mechanical
+ * union-find remap (`mergeSimilarColors`'s own approach) does NOT
+ * guarantee the merge winner is still each affected mode's actual
+ * NEAREST surviving palette color -- a Codex critique verified a concrete
+ * counterexample during M4 planning (palette grays 100/105/94/255: a
+ * mode at value 99 maps nearest to 100; 100 merges into 105, since
+ * 105 is more-used and within the merge threshold; but 94 survives and
+ * is actually CLOSER to the mode's true value than 105 is). The
+ * mechanical remap produces a technically-valid palette INDEX that is
+ * nonetheless now INADMISSIBLE for that cell's own evidence -- fresh
+ * mode-to-label mapping against the new palette (not a special case,
+ * just `buildAdmissibleLabelCosts` called again) is what actually
+ * catches this, and this function is what repairs it.
+ */
+export function repairCrispAssignments(
+  cellPaletteIndex: Uint8Array,
+  evidenceLayer: CrispEvidenceLayer,
+  paletteOklab: Oklab[],
+  weights: CrispUnaryCostWeights = DEFAULT_CRISP_UNARY_COST_WEIGHTS
+): Uint8Array {
+  const result = cellPaletteIndex.slice();
+  for (const [cellIndex, evidence] of evidenceLayer.evidenceByCell) {
+    const admissible = buildAdmissibleLabelCosts(evidence, paletteOklab, weights);
+    if (admissible.has(result[cellIndex])) continue; // still admissible under the new palette -- nothing to repair
+    const bestLabel = pickBestAdmissibleLabel(admissible);
+    if (bestLabel !== -1) result[cellIndex] = bestLabel;
+    // else: defensive only (see pickBestAdmissibleLabel's own doc comment) -- leave the cell's current label as-is rather than assign something arbitrary.
   }
   return result;
 }

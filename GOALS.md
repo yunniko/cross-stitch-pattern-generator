@@ -141,7 +141,7 @@ restructured into this project's usual milestone/check-in shape):
     default and not adopted (D55), and expanding this already-large
     milestone further isn't worth it; a clear rejection, not silent
     misbehavior. Same rule applies to `simulated-annealing.ts`.
-  - [ ] M4.6 — Palette-merge/remap handling. A real, verified gap:
+  - [x] M4.6 — Palette-merge/remap handling. A real, verified gap:
     `mergeSimilarColors`'s union-find remap does not guarantee the
     merge winner is still each affected mode's actual nearest
     surviving palette color (a concrete counterexample exists, D63).
@@ -179,6 +179,22 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-12 — M4.6 complete. New `repairCrispAssignments` (`lib/
+  crisp-evidence-layer.ts`): repairs a protected cell's assignment
+  whenever a palette change (merge, or later DMC snap) leaves its
+  current label technically valid but no longer admissible. Verified
+  the exact D63 counterexample end-to-end with REAL code, not a
+  paraphrase: confirmed the underlying numbers directly (palette grays
+  100/105/94/255, 100 merges into 105 since d=0.000309 clears the
+  merge threshold, but mode99 measures closer to 94 than to 105 after
+  the merge), ran the real `mergeSimilarColors` on that exact palette,
+  confirmed it mechanically remaps the affected cell to the now-
+  inadmissible 105, then confirmed `repairCrispAssignments` moves it
+  to 94 instead. Extracted `pickBestAdmissibleLabel` from M4.3's own
+  inline logic so both stages share one selection rule. Full story in
+  HANDOVER.md D69. Verified: 463/463 tests passing (48 files, +3 new),
+  clean `tsc`/`eslint`/`npm run build`. No e2e run needed. Continuing
+  to M4.7 (final palette color recompute) next.
 - 2026-09-12 — M4.5 complete. Extracted a shared helper first
   (`buildCrispAdmissibleCostMap`/`crispAwareCost` in `lib/crisp-
   evidence-layer.ts`) to avoid the map-building pattern drifting across

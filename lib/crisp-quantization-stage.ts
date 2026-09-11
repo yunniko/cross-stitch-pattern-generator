@@ -1,5 +1,5 @@
 import { oklabDistanceSquared, rgbToOklab } from "./color";
-import { buildAdmissibleLabelCosts, DEFAULT_CRISP_UNARY_COST_WEIGHTS, type CrispUnaryCostWeights } from "./crisp-unary-cost";
+import { buildAdmissibleLabelCosts, pickBestAdmissibleLabel, DEFAULT_CRISP_UNARY_COST_WEIGHTS, type CrispUnaryCostWeights } from "./crisp-unary-cost";
 import type { CrispEvidenceLayer, WeightedQuantizerFn } from "./crisp-evidence-layer";
 import { cellRgb, type CellColorBuffer, type RGB } from "./types";
 import type { WeightedColorSample } from "./weighted-quantize";
@@ -71,14 +71,7 @@ export function runCrispQuantizationStage(
     }
 
     const admissible = buildAdmissibleLabelCosts(evidence, paletteOklab, unaryWeights);
-    let bestLabel = -1;
-    let bestCost = Infinity;
-    for (const [label, entry] of admissible) {
-      if (entry.cost < bestCost) {
-        bestCost = entry.cost;
-        bestLabel = label;
-      }
-    }
+    let bestLabel = pickBestAdmissibleLabel(admissible);
 
     if (bestLabel === -1) {
       // Defensive only -- coverage sums to ~1 across a confident cell's

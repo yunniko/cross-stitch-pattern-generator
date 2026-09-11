@@ -173,3 +173,24 @@ export function buildUnaryCostEvaluator(
   const admissible = buildAdmissibleLabelCosts(evidence, paletteOklab, weights);
   return (label: number) => admissible.get(label)?.cost ?? Infinity;
 }
+
+/**
+ * `argmin` over an admissible-label-cost map -- returns -1 for an empty
+ * map (shouldn't happen given coverage sums to ~1 across a confident
+ * cell's modes, but never silently picks an arbitrary label if it does).
+ * The shared selection rule for "which admissible label should this cell
+ * use," reused by both M4.3's initial assignment and M4.6's post-merge/
+ * post-DMC-snap repair (HANDOVER.md D66/D69) -- one rule, not
+ * reimplemented at each call site.
+ */
+export function pickBestAdmissibleLabel(admissible: Map<number, AdmissibleLabelCost>): number {
+  let bestLabel = -1;
+  let bestCost = Infinity;
+  for (const [label, entry] of admissible) {
+    if (entry.cost < bestCost) {
+      bestCost = entry.cost;
+      bestLabel = label;
+    }
+  }
+  return bestLabel;
+}

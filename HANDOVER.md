@@ -5141,6 +5141,46 @@ site in `contour-cleanup.ts` was replaced by `crispAwareCost`), full
 clean, full e2e (27/27, no flakes). Continuing to M4.6 (palette-merge/
 remap handling) next.
 
+**D69 — G-024 M4.6: palette-merge/remap handling, reproducing and
+fixing the exact D63 counterexample with real code (2026-09-12, Owner:
+"continue without confirmation...").**
+
+Extracted `pickBestAdmissibleLabel` (the `argmin`-over-admissible-costs
+rule, `crisp-unary-cost.ts`) out of M4.3's own inline logic so M4.6
+reuses the exact same selection rule rather than a second
+implementation — `crisp-quantization-stage.ts` refactored to call it
+too, no behavior change (its own tests still pass unmodified).
+
+New `lib/crisp-evidence-layer.ts`, `repairCrispAssignments`: for every
+protected cell, checks whether its CURRENT label is still admissible
+under a (possibly changed) palette; if so, leaves it; if not,
+reassigns via `pickBestAdmissibleLabel` against the fresh admissible
+set. Generic over WHY the palette changed — reusable for both
+`mergeSimilarColors`' remap (this milestone) and the DMC snap (M4.8).
+
+**Verified the exact D63 counterexample end-to-end with real
+production code, not a paraphrase** — first confirmed the underlying
+numbers directly: palette grays 100/105/105/94/255, `d(100,105) =
+0.000309` (below `DEFAULT_MERGE_DISTANCE_SQUARED = 0.0004`, so they
+merge, 105 winning as more-used), and a mode at value 99 measures
+`d(mode99,100) = 0.0000125` (its pre-merge nearest label), but
+`d(mode99,94) = 0.0003156` versus `d(mode99,105) = 0.0004457` —
+mode 99 really is closer to 94 than to 105 after the merge. Built a
+test running the REAL `mergeSimilarColors` on exactly this palette
+(confirmed it merges 100 into 105 and mechanically remaps the affected
+cell to 105's new index, precisely as predicted), then ran
+`repairCrispAssignments` on the result and confirmed it moves that
+cell to 94's new index instead — the actual admissible, nearest
+surviving color — while leaving every non-crisp cell and every already-
+admissible crisp cell completely untouched.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full
+`npx vitest run` 463/463 passing (48 files, +3 new), `npm run build`
+clean. No e2e run needed — `repairCrispAssignments` is a new,
+standalone function; `crisp-quantization-stage.ts`'s refactor is
+behavior-preserving and already covered by its own existing tests.
+Continuing to M4.7 (final palette color recompute) next.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
