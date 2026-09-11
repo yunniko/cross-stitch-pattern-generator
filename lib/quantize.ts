@@ -275,18 +275,43 @@ export const plainKMeansQuantizer: ColorQuantizer = {
  * for reliably surfacing a small, real, perceptually-distinct region much
  * sooner — which is exactly why both modes stay selectable rather than one
  * replacing the other outright.
+ *
+ * `freedSlots` also recovers plain, ordinary Lloyd's-algorithm attrition
+ * (a k-means++ seed's Voronoi region going empty during refinement), not
+ * just slots `mergeSimilarColors` frees from genuine redundancy (2026-09-11
+ * review, HANDOVER.md D39/G-020 M2) -- comparing the merged survivor count
+ * against `targetK` (the actual requested/clamped color budget) rather
+ * than against `initialResult`'s own count means a color lost to bad-luck
+ * seeding gets the same reinvestment chance as one lost to a real
+ * redundancy merge, using the exact same, already-proven mechanism. This
+ * is provably safe against the "genuinely fewer distinct colors than k"
+ * case the collapse behavior above is *supposed* to produce (see
+ * `quantize.spec.ts`'s "collapses to the number of distinct colors... never
+ * producing empty entries" test): when every cell already sits exactly on
+ * its own centroid (zero reconstruction error everywhere, because there's
+ * truly nothing left to split), any speculative injected cluster attracts
+ * no cells away from its neighbor and comes back empty from `runLloyd`'s
+ * own reconvergence pass, so `buildPaletteFromAssignment` drops it again --
+ * the same self-correcting property that already makes `injectWorstFitClusters`
+ * safe to call unconditionally in the merge-triggered case below. Confirmed
+ * against a reproducible real-world case found by brute-force search over
+ * random distinct-color fixtures (25 cells / 13 distinct colors, k=5):
+ * before this fix, both `plainKMeansQuantizer` and `kMeansQuantizer`
+ * silently returned only 4 colors; after, `kMeansQuantizer` recovers the
+ * full 5 requested (`quantize.spec.ts`'s attrition-recovery test).
  */
 export const kMeansQuantizer: ColorQuantizer = {
   quantize(cells: CellColorBuffer, colorCount: number): QuantizeResult {
     const initialResult = plainKMeansQuantizer.quantize(cells, colorCount);
-    if (initialResult.palette.length < 3) {
+    const targetK = Math.min(colorCount, cells.width * cells.height);
+    if (targetK < 3) {
       // Nothing meaningful to redistribute (k=1/2, or the image only has a
       // couple of real distinct colors) -- skip straight to the plain result.
       return initialResult;
     }
 
     const merged = mergeSimilarColors(initialResult.cellPaletteIndex, initialResult.palette, REINVEST_MERGE_THRESHOLD);
-    const freedSlots = initialResult.palette.length - merged.palette.length;
+    const freedSlots = Math.max(0, targetK - merged.palette.length);
     if (freedSlots <= 0) {
       return initialResult;
     }

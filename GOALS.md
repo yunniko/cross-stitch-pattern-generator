@@ -39,7 +39,7 @@ svc-lab).
   RGB) and `color.ts`'s OKLab-vs-CIEDE2000 comment (claimed the tool
   "doesn't match to a real DMC/Anchor thread database," no longer true
   since G-013/D31).
-- [ ] M2 — Reinvest palette slots lost to ordinary Lloyd's-algorithm
+- [x] M2 — Reinvest palette slots lost to ordinary Lloyd's-algorithm
   cluster attrition (a k-means++ seed's Voronoi region going empty during
   refinement), not just slots freed by `mergeSimilarColors` finding
   redundant survivors — currently the former silently under-delivers the
@@ -63,6 +63,19 @@ svc-lab).
   chart.
 
 **Progress log** (newest first):
+- 2026-09-11 — M2 complete: `kMeansQuantizer` now compares its merged
+  survivor count against the actual requested/clamped color budget
+  (`targetK`), not just against slots `mergeSimilarColors` frees from
+  redundancy, so a color lost to ordinary Lloyd's-algorithm attrition gets
+  the same reinvestment chance via the existing `injectWorstFitClusters`.
+  Found a real, reproducible repro by brute-force search (25 cells / 13
+  distinct colors, k=5: both quantizers previously returned only 4 colors)
+  and added it as a permanent regression test. Verified: 275 tests (274 +
+  1 new), clean `tsc`/`eslint`/`npm run build`; confirmed the fix is
+  self-correcting for the genuine-scarcity case (doesn't fabricate colors
+  when k truly exceeds distinct colors) both by hand-tracing the algorithm
+  and by the pre-existing "collapses to distinct colors" test still
+  passing unmodified. Starting M3 next.
 - 2026-09-11 — M1 complete: fixed both stale doc comments (see commit).
   Goal created and M2-M5 planned per Owner's "one point at a time"
   request; clean `tsc` after M1. Starting M2 next.

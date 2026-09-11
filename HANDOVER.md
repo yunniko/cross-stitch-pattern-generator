@@ -2526,6 +2526,53 @@ time per Owner's request, each its own reviewed/tested/verified change
 with a milestone check-in before the next starts -- see GOALS.md's G-020
 entry.
 
+**M2 fixed (2026-09-11): `kMeansQuantizer` now recovers a color slot lost
+to plain Lloyd's-algorithm attrition, not only slots `mergeSimilarColors`
+finds from genuine redundancy.** Previously `freedSlots` was computed as
+`initialResult.palette.length - merged.palette.length` -- purely a measure
+of how much `mergeSimilarColors` shrank the *already-collapsed* initial
+result. If a k-means++ seed's Voronoi region went empty during Lloyd's own
+refinement (an ordinary, well-known k-means pathology, unrelated to the
+image genuinely having fewer distinct colors than requested -- that case
+is already correct and has its own passing test, "collapses to the number
+of distinct colors... never producing empty entries"), the dead slot's
+loss happened *before* `mergeSimilarColors` ever ran, so it was invisible
+to this formula and never reinvested, even though `injectWorstFitClusters`
+-- the exact mechanism needed to recover it -- already existed for the
+redundancy case. Fix: compare the merged survivor count against `targetK`
+(`Math.min(colorCount, cellCount)`, the actual requested/clamped color
+budget) instead of against `initialResult`'s own count, so both causes of
+shortfall reach the same reinvestment path. The early-exit guard was
+changed to match (`targetK < 3` rather than `initialResult.palette.length
+< 3`), so the "nothing meaningful to redistribute" skip is judged by the
+requested budget, not by how much attrition already happened to it.
+
+- **Provably safe against fabricating colors.** Hand-traced the "genuine
+  scarcity" case (all cells already sitting exactly on their own centroid,
+  zero reconstruction error everywhere): any speculatively-injected extra
+  cluster attracts no cell away from its neighbor (strict `<` comparison
+  never fires at distance 0), so it comes back with zero members from
+  `runLloyd`'s own reconvergence pass and `buildPaletteFromAssignment`
+  drops it again -- the same self-correcting property that already made
+  `injectWorstFitClusters` safe to call unconditionally in the
+  redundancy-triggered path. The pre-existing "collapses to distinct
+  colors" test (3 cells, 2 distinct, k=8 requested) passes unmodified,
+  confirming this in practice, not just by hand-trace.
+- **Found a real, reproducible repro, not just a hypothetical.**
+  Brute-forced random distinct-color fixtures (see the throwaway search
+  script used, not committed) until one reproduced the attrition case
+  naturally: 25 cells over 13 genuinely distinct colors, requesting k=5 --
+  both `plainKMeansQuantizer` and (before this fix) `kMeansQuantizer`
+  silently returned only 4 colors despite 13 real distinct colors being
+  available. Added as a permanent regression test
+  (`quantize.spec.ts`, "recovers a color count lost to ordinary
+  Lloyd's-algorithm attrition").
+- **Verified**: 275 unit tests (274 + 1 new), clean `tsc`/`eslint`/`npm
+  run build`. Not yet re-verified against a live browser run or deployed
+  -- this is an internal quantizer-quality fix with no UI surface of its
+  own; Owner may want a visual check on a real photo before the next
+  milestone, at their discretion.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

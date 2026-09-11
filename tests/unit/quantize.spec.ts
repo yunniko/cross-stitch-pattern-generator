@@ -169,6 +169,49 @@ describe("kMeansQuantizer", () => {
     expect(sorted[1]).toEqual([189, 189, 189]);
   });
 
+  it("recovers a color count lost to ordinary Lloyd's-algorithm attrition, not just merge-freed slots (HANDOVER.md D39/G-020 M2)", () => {
+    // Found by brute-force search over random distinct-color fixtures: 25
+    // cells over 13 genuinely distinct colors, requesting k=5 -- unlucky
+    // k-means++ seeding lets one seed's Voronoi region go empty during
+    // Lloyd's refinement, an ordinary k-means pathology unrelated to actual
+    // color scarcity (there are 13 real distinct colors available, not 4).
+    // Before the fix, both quantizers silently returned only 4 colors,
+    // since the reinvestment mechanism only triggered off
+    // mergeSimilarColors-detected redundancy, never off a plain shortfall
+    // against the requested count.
+    const colors: RGB[] = [
+      [248, 92, 254],
+      [155, 215, 67],
+      [155, 215, 67],
+      [193, 4, 185],
+      [193, 4, 185],
+      [193, 4, 185],
+      [193, 4, 49],
+      [193, 4, 49],
+      [193, 4, 49],
+      [175, 171, 234],
+      [97, 201, 147],
+      [78, 129, 22],
+      [78, 129, 22],
+      [78, 129, 22],
+      [179, 117, 189],
+      [179, 117, 189],
+      [114, 46, 36],
+      [246, 152, 215],
+      [246, 152, 215],
+      [246, 152, 215],
+      [190, 197, 220],
+      [28, 142, 99],
+      [28, 142, 99],
+      [90, 197, 28],
+      [90, 197, 28],
+    ];
+    const cells = makeCells(colors);
+
+    expect(plainKMeansQuantizer.quantize(cells, 5).palette).toHaveLength(4);
+    expect(kMeansQuantizer.quantize(cells, 5).palette).toHaveLength(5);
+  });
+
   it("doesn't fabricate colors when every requested color is already genuinely distinct", () => {
     // No redundancy to merge here -- the reinvestment mechanism should be a
     // complete no-op, same as if it didn't exist.
