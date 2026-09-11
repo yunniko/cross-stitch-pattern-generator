@@ -3134,6 +3134,19 @@ change doesn't regress any of the carefully-tuned existing behaviors
 (detail preservation, confetti suppression, stable boundaries). Live
 dev-server smoke test: regenerate, zero console errors. Not yet deployed.
 
+**Deployed (2026-09-11).** Owner: "deploy". Standard recipe: `git
+push`/VPS `git fetch`+`git pull`/`docker compose --profile app up -d
+--build`. `docker ps` before/after confirmed isolation: only the
+cross-stitch container restarted; all 28 other containers unchanged.
+Spot-checked `meet.app.julienika.cz`, `craftale.eu`, and
+`arfid.julienika.cz` at HTTP 200, plus the target site at 200. Live
+verification on production: Regenerate on the deployed page's own DOM,
+zero console messages. Same as M1's deploy note -- this is an internal
+optimizer-quality change with no UI surface of its own, so the deploy
+check is deliberately basic; correctness rests on the unit suite
+(including the new exhaustive energy-consistency invariant) already run
+pre-deploy.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

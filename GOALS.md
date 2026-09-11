@@ -109,6 +109,8 @@ work," restated with this project's acceptance-criteria/risk framing):
   effect is in hand, rather than committing to a specific design now.
 
 **Progress log** (newest first):
+- 2026-09-11 — M2 deployed (Owner: "deploy"). Container isolation
+  confirmed, other sites healthy, production regenerate clean.
 - 2026-09-11 — M2 complete. Got a codex-cli design critique first (via the
   newly-loaded `codex` plugin, which worked -- the direct MCP tool's
   ChatGPT-account/model issue didn't affect this path), responded to it on
