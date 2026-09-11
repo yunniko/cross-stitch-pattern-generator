@@ -2573,6 +2573,30 @@ requested budget, not by how much attrition already happened to it.
   own; Owner may want a visual check on a real photo before the next
   milestone, at their discretion.
 
+**G-020 M1+M2 deployed (2026-09-11).** Owner: "deploy". Standard recipe:
+`git push` (already done for both commits) then on the VPS `git fetch
+origin`/`git pull`/`docker compose --profile app up -d --build`. `docker
+ps` before/after confirmed isolation: only the cross-stitch container
+restarted (`Up 3 hours` -> `Up 8 seconds`); all 27 other containers on
+the shared host unchanged. Spot-checked `meet.app.julienika.cz`,
+`craftale.eu`, and `arfid.julienika.cz` at HTTP 200, plus the target
+site itself at 200. Since M1/M2 are internal quantizer-quality fixes
+with no UI surface of their own (the correctness proof is the unit
+suite, not a visual diff), live verification was a functional smoke
+test rather than a pixel-level check: loaded the production app,
+regenerated the existing checkerboard test pattern (2 real colors,
+`colorCount` slider at 16) and confirmed it still correctly reports
+exactly 2 colors rather than fabricating extras -- live corroboration,
+on the deployed bundle, of the exact safety property the M2 fix's
+hand-trace and its "collapses to distinct colors" unit test both argued
+for. Zero console messages of any kind (not just zero errors) on page
+load and after regenerating. The rare Lloyd-attrition case M2 actually
+fixes is not practically reproducible through a real file upload (it
+needs the pipeline's own downsample+seeding RNG to land on a specific
+unlucky draw, which is what the committed unit test pins down
+directly) -- that correctness rests on the unit-test repro, not this
+live check. M3-M5 still to come, one at a time per Owner's request.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
