@@ -60,7 +60,7 @@ svc-lab).
 
 **Milestones** (mapped from the review's own "Recommended order of
 work," restated with this project's acceptance-criteria/risk framing):
-- [ ] M1 — Fix `runLloyd`'s stale-assignment bug (return assignments that
+- [x] M1 — Fix `runLloyd`'s stale-assignment bug (return assignments that
   always match the returned centroids -- currently the last convergence-
   triggering centroid update can leave up to a meaningful fraction of
   cells assigned to a no-longer-nearest centroid, which the reviewer
@@ -109,6 +109,44 @@ work," restated with this project's acceptance-criteria/risk framing):
   effect is in hand, rather than committing to a specific design now.
 
 **Progress log** (newest first):
+- 2026-09-11 — M1 complete. Reproduced the bug directly before fixing it:
+  a soft-edged 60x60 grayscale circle fixture left 40-56 of 3600 cells
+  (depending on colorCount) assigned to a stale, no-longer-nearest
+  centroid -- confirming Finding 4 independently, matching the review's
+  own reported order of magnitude (100/3600). Fixed `runLloyd` with a
+  trailing nearest-centroid reassignment pass against the *final*
+  centroids (extracted the assignment step into a shared
+  `assignToNearestCentroid` helper, called once more after the loop) --
+  both `plainKMeansQuantizer` and `kMeansQuantizer`'s own internal second
+  `runLloyd` call inherit the fix automatically. Exported `runLloyd` for
+  direct testing (same rationale as `meanRgbOklab`/
+  `injectWorstFitClusters`): testing the exact invariant through the
+  public `quantize()` API alone would conflate it with an unrelated
+  effect (`buildPaletteFromAssignment`'s RGB rounding of the reported
+  palette can itself make a cell's *rounded* color no longer its exact
+  nearest, which is not this bug). Two new zero-tolerance unit tests
+  prove the invariant exactly (`assignedDist === trueNearestDist`, not
+  "close").
+  Also built the shape-quality regression suite:
+  `tests/unit/shape-fixtures.ts` (reusable measurement harness -- IoU +
+  symmetric mean/max boundary distance between predicted and true
+  region masks, general-purpose across any two-region shape, not
+  parametric per shape) and `tests/unit/shape-regression.spec.ts` (5
+  fixtures: circle, rotated ellipse, S-curve, diagonal stroke, rectangle
+  control). Measured real baselines before setting thresholds (not
+  aspirational): diagonal stroke is today's clear weakest case (IoU
+  0.72, well below every other shape's 0.93-0.98) -- a concrete,
+  reproducible target for G-022 M2's rotation-neutral fix to improve;
+  the rectangle control scores comparably to the curves at this fixture
+  scale (0.94), a real measured result, not the dramatic gap the
+  review's own more elaborate circle experiment found -- IoU averages
+  over a whole silhouette and dilutes a localized artifact the way the
+  reviewer's own targeted "flat top edge width" metric doesn't.
+  Verified: 292 unit tests (287 + 5 new), clean `tsc`/`eslint`/`npm run
+  build`, full e2e suite (27/27), dev-server smoke test (regenerate,
+  zero console errors). See HANDOVER.md D42 for the full trace and
+  measured numbers. Starting M2 next (after a codex-cli critique
+  attempt, per this goal's own acceptance criteria).
 - 2026-09-11 — Owner decision: G-022 M2-M4 run before G-020's remaining
   M5 (see "Cross-goal ordering" above). Goal promoted from DRAFT to
   ACTIVE. Starting M1 next.

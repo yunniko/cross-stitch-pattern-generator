@@ -93,24 +93,57 @@ function kMeansPlusPlusSeeds(oklabColors: Oklab[], k: number, rng: () => number)
 const MAX_ITERATIONS = 30;
 const CONVERGENCE_THRESHOLD_SQ = 0.0001;
 
-/** Standard Lloyd's-algorithm refinement to convergence from a given set of initial centroids. */
-function runLloyd(oklabColors: Oklab[], initialCentroids: Oklab[]): { centroids: Oklab[]; assignments: Uint8Array } {
+/** Nearest-centroid assignment for every point against a fixed set of centroids. */
+function assignToNearestCentroid(oklabColors: Oklab[], centroids: Oklab[], out: Uint8Array): void {
+  for (let i = 0; i < oklabColors.length; i++) {
+    let best = 0;
+    let bestDist = Infinity;
+    for (let c = 0; c < centroids.length; c++) {
+      const d = oklabDistanceSquared(oklabColors[i], centroids[c]);
+      if (d < bestDist) {
+        bestDist = d;
+        best = c;
+      }
+    }
+    out[i] = best;
+  }
+}
+
+/**
+ * Standard Lloyd's-algorithm refinement to convergence from a given set of
+ * initial centroids.
+ *
+ * A trailing `assignToNearestCentroid` call against the *final* centroids
+ * is required, not optional (2026-09-11 cluster-boundary review, Finding
+ * 4, HANDOVER.md D42/G-022 M1): the loop below assigns points to the
+ * centroids as they stood *before* that iteration's centroid-update step,
+ * then updates the centroids, then may `break` on convergence -- so
+ * without this trailing pass, the returned `assignments` reflect the
+ * *previous* iteration's centroids, not the ones actually returned
+ * alongside them. Reproduced directly: a soft-edged 60x60 grayscale
+ * circle fixture left 40-56 of 3600 cells (depending on `k`) assigned to
+ * a palette entry that was no longer their nearest one, even before RGB
+ * rounding -- the review's own reported case found 100/3600. The spatial
+ * optimizer downstream can only partially correct this, since its own
+ * boundary penalty resists exactly the kind of single-cell move needed to
+ * fix a stale assignment, turning a color-clustering inconsistency into a
+ * visible shape artifact (a flattened contour).
+ */
+// Exported only so the assignment/centroid consistency invariant can be
+// unit-tested directly against the exact OKLab centroids Lloyd's algorithm
+// itself converges on (same rationale as `meanRgbOklab`/
+// `injectWorstFitClusters` above) -- testing this invariant through the
+// public `quantize()` API alone would conflate it with an unrelated,
+// expected side effect: `buildPaletteFromAssignment`'s RGB rounding of the
+// reported palette can itself make a cell's *rounded* palette entry no
+// longer its exact nearest, which is not this bug and would make a
+// zero-tolerance test of the real invariant impossible from outside.
+export function runLloyd(oklabColors: Oklab[], initialCentroids: Oklab[]): { centroids: Oklab[]; assignments: Uint8Array } {
   let centroids = initialCentroids;
   const assignments = new Uint8Array(oklabColors.length);
 
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
-    for (let i = 0; i < oklabColors.length; i++) {
-      let best = 0;
-      let bestDist = Infinity;
-      for (let c = 0; c < centroids.length; c++) {
-        const d = oklabDistanceSquared(oklabColors[i], centroids[c]);
-        if (d < bestDist) {
-          bestDist = d;
-          best = c;
-        }
-      }
-      assignments[i] = best;
-    }
+    assignToNearestCentroid(oklabColors, centroids, assignments);
 
     const sums = centroids.map(() => [0, 0, 0]);
     const counts = new Array(centroids.length).fill(0);
@@ -133,6 +166,7 @@ function runLloyd(oklabColors: Oklab[], initialCentroids: Oklab[]): { centroids:
     if (maxShiftSq < CONVERGENCE_THRESHOLD_SQ) break;
   }
 
+  assignToNearestCentroid(oklabColors, centroids, assignments);
   return { centroids, assignments };
 }
 

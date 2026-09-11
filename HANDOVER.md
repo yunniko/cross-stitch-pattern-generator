@@ -2890,6 +2890,109 @@ alone doesn't fully clean up, before it ever reaches the quantizer.
   live site completed with zero console messages. G-020 M4 deploy now
   fully verified.
 
+**D42 — G-022 M1: fixed `runLloyd`'s stale-assignment bug + built the
+shape-quality regression suite (2026-09-11).** Per the cluster-boundary
+review's Finding 4 and its own recommended order of work (M1 first).
+
+- **Confirmed the bug independently before fixing it.** Wrote a
+  throwaway reproduction script (not committed): a soft-edged 60x60
+  grayscale circle -- the review's own reproduction fixture -- run
+  through both `plainKMeansQuantizer` and `kMeansQuantizer` at several
+  `colorCount` values. 40-56 of 3600 cells came back assigned to a
+  palette entry that was no longer their nearest one (even measuring
+  against `runLloyd`'s own OKLab centroids, before any RGB rounding),
+  consistently across nearly every `colorCount` tried. Same order of
+  magnitude as the review's own reported 100/3600, same root cause:
+  `runLloyd`'s loop assigns cells to the centroids *as they stood before*
+  that iteration's centroid-update step, then updates the centroids, then
+  may `break` on convergence -- so the returned `assignments` reflected
+  the *previous* iteration's centroids, not the ones returned alongside
+  them.
+- **Fix**: extracted the assignment step into a small shared
+  `assignToNearestCentroid(oklabColors, centroids, out)` helper, called
+  once more against the *final* `centroids` after the loop exits (whether
+  by convergence or hitting `MAX_ITERATIONS`). This is the textbook-
+  correct way to close this gap in Lloyd's algorithm -- guarantee the
+  last thing the function does is assign against exactly the centroids
+  it returns. Re-running the same reproduction script afterward still
+  showed some residual "mismatches," but those turned out to be a
+  different, unrelated, and entirely expected effect:
+  `buildPaletteFromAssignment`'s RGB rounding of the reported palette
+  color can itself make a cell's *rounded* palette entry no longer its
+  exact nearest (independent rounding of different centroids in
+  different directions) -- not a bug, an inherent consequence of 8-bit
+  RGB representation, and exactly why the review's own count was
+  explicitly measured "before RGB rounding."
+- **Testing approach**: exported `runLloyd` (same rationale as
+  `meanRgbOklab`/`injectWorstFitClusters`'s existing exports) so the
+  precise invariant -- assignments exactly match the nearest of the
+  *returned* centroids -- could be tested with **zero tolerance**,
+  against the real float OKLab centroids, sidestepping the RGB-rounding
+  confound entirely. Two new tests in `quantize.spec.ts`: the same
+  soft-edged-circle fixture across 6 `colorCount` values, plus a small
+  hand-picked case. Both assert `assignedDist === trueNearestDist`
+  exactly, not "close."
+- **Shape-quality regression suite**, per the review's own recommended
+  fixture list. New reusable harness, `tests/unit/shape-fixtures.ts` (not
+  a `.spec.ts` itself, so later milestones can import it rather than
+  re-deriving their own):
+  - `makeGradientShapeBuffer`: builds a source image from a signed-
+    distance function with a *soft* gradient transition band (not a hard
+    cut) -- Finding 2's most-vulnerable case (a small color-error cost to
+    move the boundary).
+  - `trueMask`/`predictedMask`: ground-truth vs. predicted foreground/
+    background masks at grid resolution -- predicted classification is by
+    OKLab nearest-match to the two known source colors, so it survives
+    palette merges/DMC snapping unaffected.
+  - `iou`: silhouette overlap.
+  - `boundaryDistances`: symmetric mean/max nearest-neighbor distance
+    between the two masks' boundary cells, in cell units -- deliberately
+    general-purpose (works identically for a circle, an ellipse, an
+    S-curve, a thin diagonal band, or a rectangle) rather than the
+    reviewer's own shape-specific "flat top edge width" metric, so one
+    harness covers every fixture with no shape-specific code. `max` is
+    included specifically because `mean` can dilute a single localized
+    flattening artifact across hundreds of otherwise-well-tracked
+    boundary cells elsewhere on the same shape -- a real limitation
+    discovered while calibrating these tests (see below).
+  - `tests/unit/shape-regression.spec.ts`: 5 fixtures (circle, rotated
+    ellipse, S-curve, diagonal stroke, rectangle control), thresholds set
+    from real measured baselines with tolerance margin -- same golden-
+    fixture philosophy as `regression.spec.ts`, not aspirational targets.
+- **Calibration honesty**: the first measurement pass used high-contrast
+  colors (a blue subject on tan) and a hard-ish edge -- every shape
+  scored 0.93-1.0 IoU, control and diagonal alike, showing no meaningful
+  gap. Reasoned through why: IoU averages over an entire silhouette, so
+  a boundary artifact confined to one small region (like the reviewer's
+  own 16-stitch flat top on an otherwise well-tracked circle) barely
+  moves the aggregate score when most of the boundary elsewhere is
+  fine -- unlike the reviewer's own targeted, local metric. Retried with
+  moderately-separated grays (squared OKLab distance in the same range
+  as Finding 2's own 0.0019 example) and a genuinely soft gradient band;
+  an even *closer* gray pair (~0.0027, closest attempted) made results
+  noisier and less interpretable, dominated by general merge/quantization
+  instability rather than the specific geometric bias -- settled on a
+  moderate gap (`[60,60,60]`/`[200,200,200]`, still soft-edged) that gave
+  stable, reproducible numbers. Real measured baselines at this setting:
+  circle IoU 0.95, ellipse 0.96, S-curve 0.98, rectangle 0.94, **diagonal
+  stroke 0.72** -- a genuine, reproducible signal that the diagonal case
+  is meaningfully worse than every other shape tried, consistent with
+  Finding 1's ~41%-more-cost-per-length claim, even though this
+  particular measurement setup didn't reproduce as dramatic a gap for the
+  rectangle-vs-curve comparison as the reviewer's own more elaborate
+  circle experiment did.
+- **Verified**: 292 unit tests (287 + 5 new), clean
+  `tsc`/`eslint`/`npm run build`, full e2e suite (27/27) unaffected
+  (this is an internal quantizer-correctness fix with no UI surface of
+  its own), live dev-server smoke test (regenerate, zero console
+  errors). Not yet deployed.
+- **Next**: M2 (rotation-neutral boundary energy) per this goal's own
+  acceptance criteria gets a codex-cli critique attempt first (now
+  potentially available again via the newly-loaded `codex` plugin,
+  distinct from the direct MCP tool that hit the known ChatGPT-account
+  issue) before implementation, given the shared-energy-function blast
+  radius and this project's D11 history with exactly this kind of change.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

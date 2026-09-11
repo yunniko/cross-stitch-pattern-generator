@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { oklabDistanceSquared, rgbToOklab } from "@/lib/color";
+import { oklabDistanceSquared, rgbToOklab, type Oklab } from "@/lib/color";
 import { downsampleToGrid } from "@/lib/downsample";
-import { injectWorstFitClusters, kMeansQuantizer, meanRgbOklab, plainKMeansQuantizer } from "@/lib/quantize";
+import { injectWorstFitClusters, kMeansQuantizer, meanRgbOklab, plainKMeansQuantizer, runLloyd } from "@/lib/quantize";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 
 function makeCells(colors: RGB[]): CellColorBuffer {
@@ -36,6 +36,71 @@ describe("meanRgbOklab", () => {
   it("returns the exact single color for a single-member cluster", () => {
     const cells = makeCells([[123, 45, 67]]);
     expect(meanRgbOklab(cells, [0])).toEqual([123, 45, 67]);
+  });
+});
+
+describe("runLloyd (2026-09-11 cluster-boundary review, Finding 4; HANDOVER.md D42/G-022 M1)", () => {
+  function assertAssignmentsMatchCentroids(oklabColors: Oklab[], result: { centroids: Oklab[]; assignments: Uint8Array }) {
+    for (let i = 0; i < oklabColors.length; i++) {
+      const assignedDist = oklabDistanceSquared(oklabColors[i], result.centroids[result.assignments[i]]);
+      let trueNearest = Infinity;
+      for (const c of result.centroids) trueNearest = Math.min(trueNearest, oklabDistanceSquared(oklabColors[i], c));
+      // Zero tolerance: this must be exact, not "close" -- that's the whole
+      // point of the fix (before it, entire cells could be off by more than
+      // floating-point noise, assigned to a centroid one full update stale).
+      expect(assignedDist).toBe(trueNearest);
+    }
+  }
+
+  it("returns assignments that exactly match the nearest of the returned (final) centroids -- a soft-edged circle fixture that reliably triggered the pre-fix bug", () => {
+    // The reviewer's own reproduction: a soft-edged grayscale circle at
+    // 60x60 left 100/3600 cells assigned to a palette entry that was no
+    // longer their nearest centroid, even before RGB rounding. Rebuilt
+    // here directly against `runLloyd`'s own OKLab centroids (not the
+    // rounded RGB palette `quantize()` reports) so the assertion is exact,
+    // not confounded by unrelated 8-bit rounding of the reported colors.
+    const width = 60;
+    const height = 60;
+    const colors: RGB[] = [];
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const dx = x - width / 2;
+        const dy = y - height / 2;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const radius = 20;
+        const soft = 6;
+        const t = Math.max(0, Math.min(1, (dist - (radius - soft)) / (2 * soft)));
+        const v = Math.round(40 + t * 180);
+        colors.push([v, v, v]);
+      }
+    }
+    const oklabColors = colors.map(rgbToOklab);
+
+    // Deterministic seeds (no need for k-means++ here -- this is testing
+    // Lloyd's own convergence/assignment consistency, not seeding quality):
+    // k evenly-spaced real data points.
+    for (const k of [4, 6, 8, 10, 12, 16]) {
+      const step = Math.floor(oklabColors.length / k);
+      const initialCentroids = Array.from({ length: k }, (_, i) => oklabColors[i * step]);
+      const result = runLloyd(oklabColors, initialCentroids);
+      assertAssignmentsMatchCentroids(oklabColors, result);
+    }
+  });
+
+  it("holds for a small, hand-picked case too, not just a large fixture", () => {
+    const colors: RGB[] = [
+      [10, 10, 10],
+      [50, 50, 50],
+      [90, 90, 90],
+      [130, 130, 130],
+      [170, 170, 170],
+      [210, 210, 210],
+      [250, 250, 250],
+    ];
+    const oklabColors = colors.map(rgbToOklab);
+    const initialCentroids = [oklabColors[0], oklabColors[3], oklabColors[6]];
+    const result = runLloyd(oklabColors, initialCentroids);
+    assertAssignmentsMatchCentroids(oklabColors, result);
   });
 });
 
