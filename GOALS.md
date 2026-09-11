@@ -82,17 +82,77 @@ work," restated with this project's acceptance-criteria/risk framing):
   stays as-is (a separate, deliberate stitchability rule, not the
   smoothing energy). **High risk -- get a second opinion before
   implementing**, per the Why above.
-- [ ] M3 — Give edge evidence directional, per-neighbor-pair specificity
-  (combining perceptual color difference with directional source
-  gradients at the stitch scale for that *specific* boundary) instead of
-  today's single per-cell scalar (`edge-map.ts`'s `computeCellImportance`
-  + `edgeBetweenCells`'s `max(imp_i, imp_j)`), which has no directional
-  information and is luminance-only with a hard noise floor (misses
-  gradual-shading contours and same-luminance color boundaries). Keep
-  small-detail importance (used for the existing protection thresholds
-  in contour-cleanup/denoise) conceptually separate from this new
-  per-pair "should a boundary run here" evidence, per the review's own
-  recommendation. **Medium-high risk -- second opinion recommended.**
+- [ ] M3 — Give edge evidence directional, per-neighbor-pair specificity,
+  via a color structure tensor. **Medium-high risk -- second opinion
+  obtained (codex-cli, 2026-09-11, HANDOVER.md D44) and its plan adopted
+  below**, since a naive grayscale directional-gradient approach (the
+  milestone's own original wording) can't see a boundary between two
+  different-hue, same-luminance colors any better than today's magnitude-
+  only detector -- the critique showed a concrete example
+  (RGB(200,80,80) vs RGB(80,116,80) both round to `luminance()` 106) and
+  recommended a full multichannel (OKLab) structure tensor (Di Zenzo
+  1986, Weickert) instead, explicitly **not** naively fused with endpoint
+  color difference (correlated measurements of the same thing -- forcing
+  them together would recreate D11's three-formulas-drift bug in a new
+  form). Sub-steps, each independently verified before the next:
+  1. **Primitive first, in isolation** -- `lib/pair-edge-evidence.ts`:
+     per-pixel OKLab spatial derivatives (central difference, all 3
+     channels, not just luminance); for each of the 4 canonical pair
+     directions (E/S/SE/SW) at each cell, aggregate `sum_c(grad_c . u)^2`
+     (`u` = the pair's unit direction) over a small window centered on
+     that *specific pair's* source-pixel midpoint (not a per-cell
+     computation reused via `max`, which is today's exact blind spot);
+     map through a bounded response `1 - exp(-s/2*tau^2)` (GrabCut's own
+     contrast-sensitive form); store canonically, 4 slots/cell (matching
+     `energy.spec.ts`'s existing canonical-pair convention), reverse
+     lookups resolve to the owning neighbor's slot.
+  2. **Direct unit tests of the primitive alone**, before any pipeline
+     wiring (matching the critique's own "start with an isolated
+     evidence-map probe" advice): (a) a same-luminance-under-this-
+     project's-`luminance()`, different-hue chromatic split -- assert
+     today's existing `computeEdgeMagnitude`/`computeCellImportance`
+     read zero there while the new tensor evidence reads high crossing
+     the split and near-zero parallel to it; (b) a gradual circular
+     shading gradient below the old Sobel `NOISE_FLOOR` -- assert the
+     tensor still detects it, oriented radially; (c) a flat/noisy control
+     -- assert evidence stays low almost everywhere with the *same*
+     calibration as (a)/(b), not a separately-tuned one (this is the
+     direct D11-lesson check: weak real structure must become detectable
+     without promoting weak noise wholesale).
+  3. **Calibrate `tau`** against fixtures (b) and (c) together, looking
+     for a stable plateau (D18's own methodology), not a single guessed
+     constant.
+  4. **Extend `energy.spec.ts`'s exhaustive energy-consistency invariant**
+     to exercise the actual new canonical storage/accessor (not its own
+     hand-rolled `max(imp_i,imp_j)` helper), confirming local/global
+     consistency still holds with real, non-uniform directional evidence.
+  5. **Wire into the pipeline as an additive, optional parameter**, not a
+     replacement: `runLocalOptimizer`, `runSimulatedAnnealing`, and
+     `recolorSmallComponents` each gain an optional `pairEvidence`
+     parameter, preferred over `edgeBetweenCells(importance, ...)` for
+     the boundary-energy term specifically when provided, falling back
+     to today's behavior when absent -- every existing direct unit test
+     of these functions (`local-optimizer.spec.ts`, `contour-
+     cleanup.spec.ts`) keeps working unmodified. `pattern.ts` computes
+     `pairEvidence` once (alongside `importance`, same lifetime) and
+     passes it through. Per-cell `importance` itself is untouched and
+     keeps gating every existing protection threshold (`contour-
+     cleanup.ts`'s two checks, `denoise.ts`, `quantize.ts`'s M3 worst-fit
+     boost) -- conceptually separate from this new per-pair evidence, per
+     the review's own explicit instruction.
+  6. **Precompute only, never inside ICM's per-candidate inner loop** --
+     canonical 4-`Float32`-slots-per-cell storage (~10.7MB at max grid
+     size, an accepted one-time cost), arithmetic slot lookup, no
+     per-pair maps/objects. Benchmark against M2's own recorded 300-
+     stitch/24-color timing baseline (4.25s/8.67s) and log the real
+     number, whatever it is.
+  7. **Full regression pass**: existing golden-fixture/shape-regression/
+     local-optimizer/contour-cleanup/energy suites must keep passing
+     unmodified; add one new end-to-end fixture demonstrating the same-
+     luminance-different-hue case is preserved through the *full*
+     pipeline, not just at the evidence-primitive level (a primitive-
+     level pass alone doesn't guarantee denoising/quantization/ICM
+     jointly preserve it).
 - [ ] M4 — Rebalance smoothing weights against measured color-error
   magnitudes (reassess `DEFAULT_MULTI_SCALE_WEIGHTS`'s coarse pass
   especially), done *after* M2/M3 land since retuning against today's
@@ -109,6 +169,10 @@ work," restated with this project's acceptance-criteria/risk framing):
   effect is in hand, rather than committing to a specific design now.
 
 **Progress log** (newest first):
+- 2026-09-11 — M3 design critique obtained (codex-cli, new thread) and
+  its plan adopted into M3's own sub-steps above (Owner: "implement the
+  full approach but make a thorough plan first"). Starting sub-step 1
+  (the standalone structure-tensor primitive) next.
 - 2026-09-11 — M2 deployed (Owner: "deploy"). Container isolation
   confirmed, other sites healthy, production regenerate clean.
 - 2026-09-11 — M2 complete. Got a codex-cli design critique first (via the
