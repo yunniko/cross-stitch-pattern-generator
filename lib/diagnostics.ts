@@ -15,12 +15,20 @@ export interface PatternDiagnostics {
   /** Total 4-adjacent cell-pairs with differing colors -- a proxy for how many thread changes stitching this pattern requires. */
   boundaryCellPairCount: number;
   /**
-   * Average `perimeter^2 / area` across components with area > 2 (the
-   * Owner's spec section 9's compactness formula). Substitutes for the
+   * Average `weightedPerimeter^2 / area` across components with area > 2
+   * (the Owner's spec section 9's compactness formula). Substitutes for the
    * spec's separate jaggy run-length metric, which needs full contour
    * extraction -- not implemented (see HANDOVER.md D10). A ragged/
    * fractal boundary inflates perimeter relative to area the same way a
    * jaggy one does, so this is a real, if coarser, stand-in.
+   *
+   * Uses `regions.ts`'s rotation-neutral `weightedPerimeter`, not the plain
+   * 4-connected `perimeter` (2026-09-11 cluster-boundary review, Finding 5;
+   * HANDOVER.md D43/G-022 M2): the old field shared the exact same
+   * directional bias as the smoothing energy it was meant to help catch --
+   * a boxier shape has a strictly smaller 4-connected perimeter than a
+   * staircased diagonal/curve of the same true area, so flattening a curve
+   * could make this diagnostic look *better*, not worse.
    */
   averageCompactness: number;
   /** Mean OKLab squared distance between each cell's true source color and its assigned palette color -- "how much accuracy did quantization/optimization cost." */
@@ -84,7 +92,8 @@ export function computePatternDiagnostics(
   const averageCompactness =
     compactComponents.length === 0
       ? 0
-      : compactComponents.reduce((sum, c) => sum + (c.perimeter * c.perimeter) / c.area, 0) / compactComponents.length;
+      : compactComponents.reduce((sum, c) => sum + (c.weightedPerimeter * c.weightedPerimeter) / c.area, 0) /
+        compactComponents.length;
 
   const paletteOklab = palette.map((c) => rgbToOklab(c.rgb));
   let reconstructionErrorSum = 0;

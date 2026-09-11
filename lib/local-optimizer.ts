@@ -1,5 +1,5 @@
 import { edgeBetweenCells } from "./edge-map";
-import { boundaryPairEnergy, type PairEnergyWeights } from "./energy";
+import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS, type PairEnergyWeights } from "./energy";
 import { oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
 import { cellRgb, type CellColorBuffer, type RGB } from "./types";
 
@@ -39,6 +39,19 @@ const MAX_PASSES = 8;
  * alone (confirmed: the eye-highlight detail-preservation test still
  * passes). Passing no `importance` (or all-zero) reproduces plain
  * mismatch-counting with no edge discount at all.
+ *
+ * Sums over `WEIGHTED_NEIGHBOR_OFFSETS`' full 8-connected neighborhood, not
+ * just the 4 orthogonal ones (2026-09-11 cluster-boundary review, Finding 1;
+ * HANDOVER.md D43/G-022 M2) -- each pair's raw `boundaryPairEnergy` result is
+ * multiplied by that offset's own geometric weight (already including the
+ * shared normalization constant), never by scaling just one term inside the
+ * energy formula, which a codex-cli critique confirmed would reproduce
+ * D11's old double-discount bug under a different name (moving the zero-
+ * cost crossover point and over-protecting diagonal boundaries). This keeps
+ * ICM's single-global-energy property intact: the weight is a fixed,
+ * symmetric per-pair constant, unrelated to importance or evaluation order,
+ * so every cell's local energy still equals the corresponding change in one
+ * consistent global sum.
  */
 export function runLocalOptimizer(
   cells: CellColorBuffer,
@@ -62,11 +75,13 @@ export function runLocalOptimizer(
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const i = y * width + x;
-        const neighbors: number[] = [];
-        if (x > 0) neighbors.push(i - 1);
-        if (x < width - 1) neighbors.push(i + 1);
-        if (y > 0) neighbors.push(i - width);
-        if (y < height - 1) neighbors.push(i + width);
+        const neighbors: Array<{ n: number; weight: number }> = [];
+        for (const offset of WEIGHTED_NEIGHBOR_OFFSETS) {
+          const nx = x + offset.dx;
+          const ny = y + offset.dy;
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+          neighbors.push({ n: ny * width + nx, weight: offset.weight });
+        }
 
         let best = assignment[i];
         let bestEnergy = Infinity;
@@ -74,9 +89,9 @@ export function runLocalOptimizer(
           const colorTerm = oklabDistanceSquared(cellOklab[i], paletteOklab[c]);
 
           let boundaryEnergy = 0;
-          for (const n of neighbors) {
+          for (const { n, weight } of neighbors) {
             const edge = edgeBetweenCells(cellImportance, i, n);
-            boundaryEnergy += boundaryPairEnergy(weights, edge, c !== assignment[n]);
+            boundaryEnergy += weight * boundaryPairEnergy(weights, edge, c !== assignment[n]);
           }
 
           const energy = weights.color * colorTerm + boundaryEnergy;

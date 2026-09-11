@@ -3006,6 +3006,134 @@ review's Finding 4 and its own recommended order of work (M1 first).
   issue) before implementation, given the shared-energy-function blast
   radius and this project's D11 history with exactly this kind of change.
 
+**D43 — G-022 M2: rotation-neutral (8-neighbor weighted) boundary energy,
+after a real codex-cli critique exchange (2026-09-11).** The direct MCP
+`codex-cli` tool still hit the known ChatGPT-account/model error (Owner
+action list item 2); the newly-loaded `codex` plugin's own runtime
+(`codex:codex-rescue`) worked, running as a ~7-minute background task
+that read the actual repo files (`energy.ts`, `local-optimizer.ts`,
+`simulated-annealing.ts`, `contour-cleanup.ts`, `regions.ts`,
+`diagnostics.ts`, this file's D11/D18 entries, and the review doc) before
+answering -- a real, grounded critique, not a generic tutorial.
+
+**The critique's five findings, and how each was resolved** (per
+STANDARDS.md: respond on the merits, concede/rebut/synthesize, don't
+accept or dismiss wholesale):
+
+1. **Angle-invariance is partial, not complete -- accepted as-is.**
+   1/sqrt(2)-weighted 8-neighbor smoothing equalizes a straight
+   boundary's cost at exactly 0 and 45 degrees, but the critique derived
+   (and this project's own new `energy.spec.ts` now verifies) a residual
+   ~8.24% bias at 22.5 degrees -- down from the old 4-neighbor-only
+   scheme's ~41.4%, not eliminated. A full Cauchy-Crofton-weighted
+   16-neighbor stencil (Boykov & Kolmogorov's own geodesics-via-graph-
+   cuts paper, which the review itself cited) would reduce this further
+   to ~2.8%, at roughly double this stencil's own cost (already double
+   the old 4-neighbor cost). Deliberately not adopted for M2 -- logged
+   here as a documented, well-understood future option if 8-neighbor
+   proves insufficient once real usage is measured, exactly matching the
+   review's own framing of 8-neighbor as "a practical starting point."
+2. **ICM global-energy-function safety -- confirmed, with an exact
+   implementation pattern to follow.** Multiplying `boundaryPairEnergy`'s
+   *entire* result by a fixed, symmetric per-pair geometric weight
+   preserves the property (the local update still equals the
+   corresponding change in one consistent global sum); the critique named
+   the exact anti-patterns to avoid (an asymmetric `1 - importance[i]`
+   outer factor -- literally D11's old bug; dividing by a per-cell
+   neighbor count, which makes border and interior cells score the same
+   pair differently). Verified directly: `energy.spec.ts`'s exhaustive
+   test enumerates all 2^9 binary assignments on a 3x3 grid with unequal
+   per-cell importance and confirms every single-cell flip's local energy
+   delta matches an independently, canonically-summed global delta --
+   4608 checks, all exact to floating-point tolerance.
+   - **A real gap the critique caught, not previously considered**:
+     `contour-cleanup.ts`'s `recolorSmallComponents` builds its boundary-
+     pair list by checking `regions.labels[n] !== component.id` -- two
+     4-connected components that touch only *diagonally* while currently
+     sharing the same color had zero pairs between them under the old
+     4-neighbor-only scan (nothing to find), even though recoloring the
+     component away from that shared color should cost something. Fixed
+     by the same 8-direction neighbor scan already needed for the
+     rotation-neutral fix -- no special-casing required, since a
+     diagonal neighbor with a different `regions` label is caught
+     automatically regardless of its current color.
+3. **The real double-discount risk -- identified precisely, implemented
+   to avoid it.** The dangerous near-miss isn't multiplying the *whole*
+   clamped potential (that's the correct pattern) -- it's weighting only
+   the `smoothness` term inside the formula, which shifts the zero-cost
+   crossover point and silently over-protects diagonal boundaries, the
+   same *qualitative* bug as D11's original regression under a different
+   name. Confirmed the implementation here uses the correct pattern
+   (`weight * boundaryPairEnergy(weights, edge, mismatched)`, touching no
+   internal term) in all three consumers.
+4. **`edgeBetweenCells` stays `max(imp_i, imp_j)`, unchanged, for M2.**
+   Confirmed by the critique's own dimensional analysis: `importance` is
+   a dimensionless per-cell score (edge magnitude + internal contrast),
+   not a per-distance derivative, so dividing by sqrt(2) for a diagonal
+   pair has no principled justification. Directional edge evidence
+   remains M3's job, as already planned.
+5. **Minimal experiment before committing to the constant -- done, with a
+   real result.** Measured the moderate-contrast M1 shape fixtures first
+   (unchanged, expected -- color fidelity already dominates decisively at
+   that contrast) and then, per the critique's own point that Finding 2's
+   bias only gets real leverage at *close* palette-color separation, a
+   second comparison at squared OKLab distance ~0.0027 (matching Finding
+   2's own 0.0019 example), via `git stash` before/after on the same
+   fixtures: diagonal-stroke IoU rose from 0.7510 to 0.8245 (colorCount
+   8) and 0.7751 to 0.8581 (colorCount 10); circle IoU improved at 3 of 4
+   tested color counts (one, k=4, showed a small, tolerance-covered
+   regression). Locked the diagonal-stroke gain in as a permanent
+   regression test (`shape-regression.spec.ts`) with a threshold strictly
+   between the measured old and new values, so it would fail if the fix
+   were ever reverted -- not just pass either way.
+
+**Also flagged, not yet acted on**: the critique noted `shape-
+fixtures.ts`'s `boundaryDistances` returns `{mean: 0, max: 0}` when
+either mask has no boundary cells at all, which could misleadingly
+reward a fully-erased shape. Checked: every existing shape-regression
+test already pairs a boundary-distance assertion with an IoU check
+(which would independently catch a fully-erased shape), so this isn't
+live today, but is worth remembering if a future test relies on boundary
+distance alone.
+
+**Implementation**: `lib/energy.ts` gained `WEIGHTED_NEIGHBOR_OFFSETS`
+(8 offsets, `DIAGONAL_WEIGHT = 1/sqrt(2)`, `GEOMETRIC_NORMALIZATION =
+1/(1+sqrt(2))` -- chosen so a straight axis-aligned boundary's total
+energy exactly matches what the old 4-neighbor-only formula already gave
+it, since the diagonal weight was chosen to equalize 0-degree and
+45-degree cost *before* this normalization, the same constant preserves
+both). `local-optimizer.ts`, `simulated-annealing.ts` (including its
+`boundaryCells` eligibility check and proposal-generation step, not just
+`energyAt`), and `contour-cleanup.ts`'s `recolorSmallComponents` all
+switched to the shared 8-connected weighted offsets. `regions.ts` gained
+a new `weightedPerimeter` `ComponentStats` field (pure geometric weights,
+no importance discount -- the critique explicitly warned against
+"accidentally turning compactness into edge-discounted optimization
+energy"), computed in the same flood-fill pass but never affecting label
+propagation (which stays 4-connected, unchanged -- a separate
+stitchability rule). `diagnostics.ts`'s `averageCompactness` now uses
+`weightedPerimeter` instead of the old `perimeter`, so it can finally
+detect the bias it exists to catch instead of sharing it.
+
+**Real, logged trade-off, not hidden**: ~2x slower on a timing
+benchmark (300 stitches/24 colors: 4.25s -> 8.67s, measured via
+`git stash` before/after), from roughly doubling ICM's per-cell neighbor
+count. Already runs in a Web Worker (D6), so this doesn't block the UI
+thread -- not a hard blocker, but a genuine, worth-tracking cost,
+consistent with this project's own established practice of logging perf
+changes honestly (see the earlier "Worst-case perf got slower with the
+new optimizer" entry in Next steps).
+
+**Verified**: 301 unit tests (292 + 9 new -- `energy.spec.ts`'s 7 tests
+including the exhaustive energy-consistency invariant and geometric
+angle-formula checks, plus 2 new close-color shape-fidelity regressions
+in `shape-regression.spec.ts`), clean `tsc`/`eslint`/`npm run build`,
+full e2e suite (27/27), and the existing golden-fixture/local-optimizer/
+contour-cleanup suites all pass completely unmodified -- confirming the
+change doesn't regress any of the carefully-tuned existing behaviors
+(detail preservation, confetti suppression, stable boundaries). Live
+dev-server smoke test: regenerate, zero console errors. Not yet deployed.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

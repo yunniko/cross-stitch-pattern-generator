@@ -72,7 +72,7 @@ work," restated with this project's acceptance-criteria/risk framing):
   risk**: an isolated, well-understood bug fix plus new test
   infrastructure; no weight-tuning involved. Lands first because M2-M4's
   own testing needs a quantization stage that isn't itself a confound.
-- [ ] M2 — Replace the four-direction-only boundary-length penalty
+- [x] M2 — Replace the four-direction-only boundary-length penalty
   (`local-optimizer.ts`, shared via `energy.ts`'s `boundaryPairEnergy`
   with `simulated-annealing.ts` and `contour-cleanup.ts`) with a
   rotation-neutral estimate -- a normalized weighted eight-neighbor term
@@ -109,6 +109,57 @@ work," restated with this project's acceptance-criteria/risk framing):
   effect is in hand, rather than committing to a specific design now.
 
 **Progress log** (newest first):
+- 2026-09-11 — M2 complete. Got a codex-cli design critique first (via the
+  newly-loaded `codex` plugin, which worked -- the direct MCP tool's
+  ChatGPT-account/model issue didn't affect this path), responded to it on
+  its merits rather than accepting or dismissing it wholesale: accepted
+  its core recommendation (normalized 8-neighbor weighting, diagonal
+  weight 1/sqrt(2), applied by multiplying the *whole* `boundaryPairEnergy`
+  result -- never scaling just one internal term, which the critique
+  showed reproduces D11's old double-discount bug under a different name),
+  accepted its finding that this only reduces the angular bias (~41% ->
+  ~8% at 22.5 degrees) rather than eliminating it (full Cauchy-Crofton
+  16-neighbor weighting would need ~2x this stencil's own cost for ~2.8%
+  residual -- logged as a documented future option, not adopted now), and
+  used its exact recommended tests (an exhaustive energy-consistency
+  invariant, a geometric angle-formula check). Implemented: `energy.ts`
+  gained `WEIGHTED_NEIGHBOR_OFFSETS`/`DIAGONAL_WEIGHT`/
+  `GEOMETRIC_NORMALIZATION`; `local-optimizer.ts`, `simulated-
+  annealing.ts`, and `contour-cleanup.ts`'s `recolorSmallComponents` all
+  switched from 4- to 8-connected weighted neighbors (the critique also
+  caught a real gap in the component-recolor case: two components that
+  touch only diagonally while sharing a color previously had zero
+  boundary cost even though recoloring away from that color should cost
+  something -- fixed by the same 8-direction scan). `regions.ts` gained a
+  new `weightedPerimeter` stat (geometric weights only, no importance
+  discount -- kept deliberately separate from the optimization energy per
+  the critique's own warning) that `diagnostics.ts`'s `averageCompactness`
+  now uses instead of the old 4-connected `perimeter`, so the diagnostic
+  can finally detect the bias it's meant to catch. `regions.ts`'s
+  component *labeling* stays 4-connected, unchanged (a separate
+  stitchability rule).
+  Measured honestly, not assumed: at the M1 shape-fixture suite's
+  moderate-contrast setting, results were essentially unchanged (color
+  fidelity already dominates decisively at that contrast regardless of
+  neighbor scheme -- expected, since Finding 2 is specific that the bias
+  only gets real leverage when palette colors are close). Built a second,
+  more sensitive comparison at close palette-color separation (squared
+  OKLab distance ~0.0027, matching Finding 2's own 0.0019 example) and
+  confirmed real, measured improvement via git-stash before/after:
+  diagonal stroke IoU 0.7510->0.8245 (k=8), 0.7751->0.8581 (k=10); circle
+  IoU improved at 3 of 4 tested color counts. Locked the diagonal-stroke
+  gain in as a permanent regression test with a threshold between the old
+  and new measured values (would fail if the fix were reverted). Real,
+  logged trade-off: ~2x slower (4.25s->8.67s on a 300-stitch/24-color
+  timing case) from doubling ICM's per-cell neighbor count -- runs in a
+  Web Worker already (D6), not a hard blocker, but a genuine cost.
+  Verified: 301 tests (292 + 9 new: 7 in a new `energy.spec.ts` including
+  the exhaustive 2^9-assignment energy-consistency invariant and the
+  geometric angle-formula checks, 2 new close-color shape-fidelity
+  regressions), clean `tsc`/`eslint`/`npm run build`, full e2e (27/27),
+  golden-fixture/local-optimizer/contour-cleanup suites all still passing
+  unmodified, dev-server smoke test clean. See HANDOVER.md D43 for the
+  full critique exchange and measured numbers. Starting M3 next.
 - 2026-09-11 — M1 deployed (Owner: "deploy"). Container isolation
   confirmed, other sites healthy, production regenerate clean (zero
   console errors). See HANDOVER.md for the full record.

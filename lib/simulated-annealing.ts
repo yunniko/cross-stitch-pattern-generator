@@ -1,5 +1,5 @@
 import { edgeBetweenCells } from "./edge-map";
-import { boundaryPairEnergy } from "./energy";
+import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS } from "./energy";
 import { oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
 import { mulberry32 } from "./prng";
 import { DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, type LocalOptimizerWeights } from "./local-optimizer";
@@ -22,15 +22,26 @@ export const DEFAULT_ANNEALING_OPTIONS: SimulatedAnnealingOptions = {
   weights: DEFAULT_LOCAL_OPTIMIZER_WEIGHTS,
 };
 
-function neighborsOf(i: number, width: number, height: number): number[] {
+/**
+ * 8-connected weighted neighbors (2026-09-11 cluster-boundary review,
+ * Finding 1; HANDOVER.md D43/G-022 M2), matching `local-optimizer.ts`'s own
+ * `runLocalOptimizer` so a boundary scores identically under either pass.
+ */
+function weightedNeighborsOf(i: number, width: number, height: number): Array<{ n: number; weight: number }> {
   const x = i % width;
   const y = Math.floor(i / width);
-  const n: number[] = [];
-  if (x > 0) n.push(i - 1);
-  if (x < width - 1) n.push(i + 1);
-  if (y > 0) n.push(i - width);
-  if (y < height - 1) n.push(i + width);
-  return n;
+  const result: Array<{ n: number; weight: number }> = [];
+  for (const offset of WEIGHTED_NEIGHBOR_OFFSETS) {
+    const nx = x + offset.dx;
+    const ny = y + offset.dy;
+    if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+    result.push({ n: ny * width + nx, weight: offset.weight });
+  }
+  return result;
+}
+
+function neighborsOf(i: number, width: number, height: number): number[] {
+  return weightedNeighborsOf(i, width, height).map(({ n }) => n);
 }
 
 /**
@@ -42,6 +53,13 @@ function neighborsOf(i: number, width: number, height: number): number[] {
  * boundaries") — perturbing interior cells of a settled region essentially
  * never helps and would multiply the cost for no benefit. Seeded (mulberry32)
  * so a run is reproducible.
+ *
+ * `boundaryCells` (eligibility for perturbation) and the proposal step
+ * (adopting a neighbor's current color) both use the same 8-connected
+ * `weightedNeighborsOf` as `energyAt` (HANDOVER.md D43/G-022 M2): a cell
+ * that only disagrees diagonally now carries real boundary energy too, so
+ * it must count as a boundary cell, and its diagonal neighbors are valid
+ * colors to propose adopting.
  */
 export function runSimulatedAnnealing(
   cells: CellColorBuffer,
@@ -68,9 +86,9 @@ export function runSimulatedAnnealing(
   function energyAt(i: number, color: number): number {
     const colorTerm = oklabDistanceSquared(cellOklab[i], paletteOklab[color]);
     let boundaryEnergy = 0;
-    for (const n of neighborsOf(i, width, height)) {
+    for (const { n, weight } of weightedNeighborsOf(i, width, height)) {
       const edge = edgeBetweenCells(cellImportance, i, n);
-      boundaryEnergy += boundaryPairEnergy(options.weights, edge, color !== assignment[n]);
+      boundaryEnergy += weight * boundaryPairEnergy(options.weights, edge, color !== assignment[n]);
     }
     return options.weights.color * colorTerm + boundaryEnergy;
   }

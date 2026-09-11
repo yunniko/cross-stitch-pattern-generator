@@ -1,9 +1,29 @@
+import { WEIGHTED_NEIGHBOR_OFFSETS } from "./energy";
+
 export interface ComponentStats {
   id: number;
   paletteIndex: number;
   area: number;
   /** Count of cell edges bordering either the grid boundary or a differently-colored cell. */
   perimeter: number;
+  /**
+   * Rotation-neutral perimeter (2026-09-11 cluster-boundary review, Finding
+   * 5; HANDOVER.md D43/G-022 M2): the same 8-connected `WEIGHTED_NEIGHBOR_
+   * OFFSETS` weights `lib/energy.ts` uses for the smoothing energy, applied
+   * here as a pure geometric measure (no importance/edge discount at all --
+   * a codex-cli design critique specifically warned against accidentally
+   * turning compactness into edge-discounted optimization energy). For a
+   * purely axis-aligned boundary this equals `perimeter` exactly (same
+   * normalization); a diagonal or curved boundary no longer gets an
+   * inflated count purely from the 4-connected staircase artifact the old
+   * `perimeter` field has no way to see past. `diagnostics.ts`'s
+   * `averageCompactness` uses this field, not `perimeter`, so it can
+   * actually detect the rectangular bias it exists to catch (previously it
+   * shared the exact same directional bias as the thing it was measuring).
+   * `perimeter` itself is unchanged and kept for callers relying on its
+   * existing (4-connected) meaning.
+   */
+  weightedPerimeter: number;
   minX: number;
   minY: number;
   maxX: number;
@@ -39,6 +59,7 @@ export function labelRegions(cellPalette: Uint8Array, width: number, height: num
       paletteIndex,
       area: 0,
       perimeter: 0,
+      weightedPerimeter: 0,
       minX: startX,
       minY: startY,
       maxX: startX,
@@ -57,6 +78,16 @@ export function labelRegions(cellPalette: Uint8Array, width: number, height: num
       if (x > stats.maxX) stats.maxX = x;
       if (y < stats.minY) stats.minY = y;
       if (y > stats.maxY) stats.maxY = y;
+
+      // Rotation-neutral perimeter: all 8 neighbors, geometric weight only
+      // (never affects label propagation, which stays 4-connected below).
+      for (const offset of WEIGHTED_NEIGHBOR_OFFSETS) {
+        const nx = x + offset.dx;
+        const ny = y + offset.dy;
+        if (nx < 0 || nx >= width || ny < 0 || ny >= height || cellPalette[ny * width + nx] !== paletteIndex) {
+          stats.weightedPerimeter += offset.weight;
+        }
+      }
 
       if (x === 0 || cellPalette[cell - 1] !== paletteIndex) {
         stats.perimeter++;

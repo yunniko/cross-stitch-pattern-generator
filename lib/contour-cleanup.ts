@@ -1,5 +1,5 @@
 import { edgeBetweenCells } from "./edge-map";
-import { boundaryPairEnergy, type PairEnergyWeights } from "./energy";
+import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS, type PairEnergyWeights } from "./energy";
 import { oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
 import { labelRegions } from "./regions";
 import { cellRgb, type CellColorBuffer, type RGB } from "./types";
@@ -148,6 +148,21 @@ export function defaultComponentRecolorOptions(cellCount: number): ComponentReco
  * three passes had drifted into three different energy functions, meaning
  * this pass could recolor away a component ICM had specifically protected
  * near a real edge, since it had no way to see that edge (HANDOVER.md D11).
+ *
+ * Boundary pairs now scan the full 8-connected neighborhood (2026-09-11
+ * cluster-boundary review, Finding 1; HANDOVER.md D43/G-022 M2), weighted
+ * the same way `local-optimizer.ts`/`simulated-annealing.ts` are, for the
+ * same rotation-neutrality reason -- plus a specific gap a codex-cli design
+ * critique flagged: two 4-connected components (`regions.ts`'s
+ * `labelRegions` stays 4-connected for *labeling*, a separate stitchability
+ * rule) can touch only diagonally while sharing the same current color, in
+ * which case that pair cost zero under the old 4-neighbor-only scan and was
+ * never considered at all -- but recoloring this component away from that
+ * shared color would make it a real boundary, a cost the old scan couldn't
+ * see. Scanning all 8 neighbors picks this up automatically: any diagonal
+ * neighbor belonging to a different `regions` component id is a real
+ * boundary pair, regardless of whether it currently happens to share a
+ * color.
  */
 export function recolorSmallComponents(
   cells: CellColorBuffer,
@@ -183,21 +198,20 @@ export function recolorSmallComponents(
     const avgImportance = memberCells.reduce((sum, i) => sum + cellImportance[i], 0) / memberCells.length;
     if (avgImportance > resolvedOptions.importanceProtectionThreshold) continue;
 
-    // Boundary cell-pairs: (member cell, external neighbor cell) for every
-    // orthogonal neighbor outside this component.
-    const boundaryPairs: Array<[number, number]> = [];
+    // Boundary cell-pairs: (member cell, external neighbor cell, geometric
+    // weight) for every 8-connected neighbor outside this component.
+    const boundaryPairs: Array<[number, number, number]> = [];
     const neighborColors = new Set<number>();
     for (const i of memberCells) {
       const x = i % width;
       const y = Math.floor(i / width);
-      const neighbors = [];
-      if (x > 0) neighbors.push(i - 1);
-      if (x < width - 1) neighbors.push(i + 1);
-      if (y > 0) neighbors.push(i - width);
-      if (y < height - 1) neighbors.push(i + width);
-      for (const n of neighbors) {
+      for (const offset of WEIGHTED_NEIGHBOR_OFFSETS) {
+        const nx = x + offset.dx;
+        const ny = y + offset.dy;
+        if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+        const n = ny * width + nx;
         if (regions.labels[n] !== component.id) {
-          boundaryPairs.push([i, n]);
+          boundaryPairs.push([i, n, offset.weight]);
           neighborColors.add(result[n]);
         }
       }
@@ -208,9 +222,9 @@ export function recolorSmallComponents(
       let colorError = 0;
       for (const i of memberCells) colorError += oklabDistanceSquared(cellOklab[i], paletteOklab[candidateColor]);
       let boundaryEnergy = 0;
-      for (const [member, neighbor] of boundaryPairs) {
+      for (const [member, neighbor, weight] of boundaryPairs) {
         const edge = edgeBetweenCells(cellImportance, member, neighbor);
-        boundaryEnergy += boundaryPairEnergy(resolvedOptions, edge, result[neighbor] !== candidateColor);
+        boundaryEnergy += weight * boundaryPairEnergy(resolvedOptions, edge, result[neighbor] !== candidateColor);
       }
       return colorError + boundaryEnergy;
     }

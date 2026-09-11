@@ -74,4 +74,38 @@ describe("shape-quality regression (soft-edged fixtures)", () => {
     expect(result.meanBoundaryDist).toBeLessThan(0.4);
     expect(result.maxBoundaryDist).toBeLessThan(2);
   });
+
+  describe("G-022 M2: rotation-neutral energy, verified in Finding 2's own sensitive regime", () => {
+    // The moderate-contrast fixtures above (gray 60 vs 200) don't move
+    // measurably between the 4-neighbor and 8-neighbor energy -- color
+    // fidelity dominates decisively at that contrast regardless of the
+    // neighbor scheme, so they're a poor place to look for M2's effect.
+    // Finding 2 is specific about *why*: the boundary-length penalty only
+    // gets a real say in the outcome when the palette colors on either side
+    // are close (a low color-error cost to move the boundary). These grays
+    // (squared OKLab distance ~0.0027, the same order of magnitude as
+    // Finding 2's own 0.0019 example) are deliberately chosen to land in
+    // that regime.
+    const closeFg: RGB = [150, 150, 150];
+    const closeBg: RGB = [172, 172, 172];
+
+    it("diagonal stroke, close colors: measurably better than the old 4-neighbor energy, not just within tolerance of it", () => {
+      // Measured directly (git stash comparison, not committed) before
+      // writing this threshold: old 4-neighbor code scores IoU 0.7510 here;
+      // the new 8-neighbor energy scores 0.8245. The 0.8 threshold sits
+      // between the two, so this test would fail if the rotation-neutral
+      // fix were ever reverted, not just pass either way.
+      const result = measureShapeFidelity(SIZE, SIZE, shapes.diagonalStroke, 0.1, closeFg, closeBg, 8);
+      expect(result.iou).toBeGreaterThan(0.8);
+    });
+
+    it("circle, close colors: stays at least as good as the old 4-neighbor energy", () => {
+      // Measured: old 0.7153, new 0.7429 at k=10 -- a smaller gain than the
+      // diagonal case (expected: a circle's boundary crosses every angle,
+      // not just 45 degrees, so the fix's benefit is diluted across the
+      // whole silhouette). Threshold reflects the new, real baseline.
+      const result = measureShapeFidelity(SIZE, SIZE, shapes.circle, 0.1, closeFg, closeBg, 10);
+      expect(result.iou).toBeGreaterThan(0.72);
+    });
+  });
 });
