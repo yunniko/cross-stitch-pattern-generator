@@ -3281,7 +3281,21 @@ isolated fixtures:**
   third near-duplicate background color (189 cells) that M3's cleaner
   edge signal let the pipeline consolidate away -- a real quality
   improvement beyond the specific blind spot M3 was built to fix, found
-  incidentally while verifying it. Not yet deployed.
+  incidentally while verifying it.
+
+**Deployed (2026-09-11).** Owner: "deploy". Standard recipe: `git
+push`/VPS `git fetch`+`git pull`/`docker compose --profile app up -d
+--build`. `docker ps` before/after confirmed isolation: only the
+cross-stitch container restarted (`Up 3 hours` -> `Up 13 seconds`); all
+28 other containers unchanged. Spot-checked `meet.app.julienika.cz`,
+`craftale.eu`, and `arfid.julienika.cz` at HTTP 200, plus the target
+site at 200. Live verification on production: Regenerate on the
+deployed page's own DOM (a small, existing test pattern, so not a
+timing benchmark), zero console messages. The real performance/
+calibration risk this milestone carried was already caught and fixed
+pre-deploy (see the two problems above, both resolved with permanent
+regression tests) rather than something this deploy check could
+usefully re-verify on its own.
 
 ## Owner action list
 

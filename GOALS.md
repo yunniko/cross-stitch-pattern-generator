@@ -169,6 +169,8 @@ work," restated with this project's acceptance-criteria/risk framing):
   effect is in hand, rather than committing to a specific design now.
 
 **Progress log** (newest first):
+- 2026-09-11 — M3 deployed (Owner: "deploy"). Container isolation
+  confirmed, other sites healthy, production regenerate clean.
 - 2026-09-11 — M3 complete. Implemented all 7 sub-steps: new
   `lib/pair-edge-evidence.ts` (color structure tensor, canonical 4-slot
   storage), isolated tests against 4 fixtures (A: same-luminance
