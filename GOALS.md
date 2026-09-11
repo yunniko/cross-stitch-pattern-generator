@@ -11,7 +11,11 @@ svc-lab).
 
 ## Active goals
 
-### G-019 · Transparent, frameless realistic preview — ACTIVE
+_No goals currently active._
+
+## Completed goals
+
+### G-019 · Transparent, frameless realistic preview — DONE (2026-09-11)
 - **What:** The "Realistic preview" render (both the live view and
   "Download realistic preview PNG") should have a fully transparent
   background instead of a flat 50% gray canvas fill, and no border/frame.
@@ -26,17 +30,25 @@ svc-lab).
 - [x] M1 — Remove the gray background fill and the white border/padding
       from `renderStitchPreviewToCanvas`; live-browser verified via
       direct pixel/alpha inspection (not just visual).
-- [ ] M2 — Commit and (pending Owner go-ahead) production deploy.
+- [x] M2 — Commit and production deploy.
 
 **Progress log** (newest first):
+- 2026-09-11 — M2 complete, goal DONE. Deployed (Owner: "deploy")
+  following the standard recipe: `git push`, then on the VPS `git fetch
+  origin`/`git pull`/`docker compose --profile app up -d --build`.
+  `docker ps` before/after confirmed only this project's container
+  restarted (`Up 13 seconds` after vs. `Up 33 minutes` before);
+  `meet.app.julienika.cz`, `craftale.eu`, and `arfid.julienika.cz`
+  spot-checked at 200. Live-verified against production with the same
+  `getImageData` decode-and-inspect check already run against the dev
+  server: an Empty cell reads back as `[0,0,0,0]`, the canvas has no
+  border padding. Zero console errors.
 - 2026-09-11 — M1 complete. Full detail in HANDOVER.md D38. Verified:
   274 unit tests still pass, clean `tsc`/`eslint`/`npm run build`, and a
   live dev-server check that decoded the actual rendered PNG and
   confirmed via `getImageData` that an Empty cell reads back as
   `[0,0,0,0]` (true transparency) and the canvas has no border padding.
   Not yet committed, not deployed. Continuing to M2 next.
-
-## Completed goals
 
 ### G-018 · Rectangle Select tool + diagonal-connectivity Fill tool — DONE (2026-09-11)
 - **What:** A Rectangle Select tool in the Tools dock: drag to select a

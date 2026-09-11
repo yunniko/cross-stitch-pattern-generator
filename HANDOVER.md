@@ -2455,6 +2455,24 @@ frame." `lib/render.ts`'s `renderStitchPreviewToCanvas`:
   `[0, 0, 0, 0]` (fully transparent), not any gray/white fill. Zero
   console errors.
 
+**G-019 deployed (2026-09-11).** Owner: "deploy". Standard recipe: `git
+push origin master` locally; on the VPS, `git fetch origin` then `git
+pull` (kept as separate commands, never chained) then `docker compose
+--profile app up -d --build`. `docker ps --format '{{.Names}}\t
+{{.Status}}'` before/after confirmed isolation: only the cross-stitch
+container restarted (`Up 33 minutes` -> `Up 13 seconds`); all ~28 other
+containers on the shared host unchanged. Spot-checked
+`meet.app.julienika.cz`, `craftale.eu`, and `arfid.julienika.cz` at HTTP
+200. Live-verified against the production URL with the same rigor as
+the dev-server check (not just a health-check ping or a visual
+screenshot): downloaded the realistic-preview PNG from production and
+decoded it back into a canvas, `getImageData` confirmed the canvas is
+exactly `700x700` (pattern size x cell size, no 16px border padding),
+a stitched cell reads fully opaque (`[186, 28, 28, 255]`), and a cell
+set to "Empty (no stitch)" reads back as `[0, 0, 0, 0]` -- true
+transparency, not a gray/white fill-through. Zero console errors. Goal
+DONE -- see GOALS.md's G-019 entry.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
