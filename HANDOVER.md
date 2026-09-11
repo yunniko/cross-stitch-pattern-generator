@@ -3360,8 +3360,19 @@ candidates rejected after broad testing (2026-09-11).**
   suite's existing looser `<0.1` bound on the same fixture which both old
   and new constants pass easily.
 - **Verified**: 318 unit tests (313 + 5 new), clean `tsc`/`eslint`/`npm
-  run build`, full e2e suite (27/27). Not yet deployed -- awaiting the
-  Owner's next explicit "deploy".
+  run build`, full e2e suite (27/27).
+
+**Deployed (2026-09-11).** Owner: "deploy". Standard recipe: `git
+push`/VPS `git fetch`+`git pull`/`docker compose --profile app up -d
+--build`. `docker ps` before/after confirmed isolation: only
+`cross-stitch-pattern-generator-app-1` restarted (`Up 58 minutes` ->
+`Up 8 seconds`); all 28 other containers unchanged. Spot-checked
+`meet.app.julienika.cz`, `craftale.eu`, and `arfid.julienika.cz` at HTTP
+200, plus the target site at 200. Live verification on production:
+Regenerate on the deployed page's existing `prod-preview-test` pattern
+(a 2-color checkerboard -- no color-error trade-off for the optimizer to
+act on, so an unchanged visual result was expected), zero console
+messages.
 
 ## Owner action list
 

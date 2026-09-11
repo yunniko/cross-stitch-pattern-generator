@@ -169,6 +169,12 @@ work," restated with this project's acceptance-criteria/risk framing):
   effect is in hand, rather than committing to a specific design now.
 
 **Progress log** (newest first):
+- 2026-09-11 — M4 deployed (Owner: "deploy"). Container isolation
+  confirmed (only cross-stitch-pattern-generator-app-1 restarted, `Up 58
+  minutes` -> `Up 8 seconds`; all 28 other containers unchanged), other
+  sites healthy (`meet.app.julienika.cz`, `craftale.eu`,
+  `arfid.julienika.cz` all HTTP 200), production regenerate on the
+  existing `prod-preview-test` pattern clean, zero console errors.
 - 2026-09-11 — M4 complete (Owner: "deploy, then do m4" -- deploy step
   confirmed nothing new to deploy since M3 was already live). Followed
   D18's "stable plateau, not a knife-edge" methodology: swept 7+ candidate
