@@ -11,6 +11,99 @@ svc-lab).
 
 ## Active goals
 
+### G-022 · Fix rectangular-boundary bias found by the cluster-boundary review — DRAFT (2026-09-11)
+- **What:** Address the 5 findings in `docs/reviews/2026-09-11-cluster-
+  boundary-review.md` (reviewed checkout `e3589f2`): the pipeline has a
+  built-in preference for horizontal/vertical boundaries over diagonals
+  and curves, has no working measure of pixel-art curve quality, and a
+  real k-means bug independently compounds the problem. Plan only, per
+  Owner's request ("make plan of fixes") -- not started.
+- **Why:** Independently re-verified all 5 findings against the current
+  code before planning against them (not taken on faith): the coarse/
+  fine-pass energy numbers in Finding 2 (0.18/0.09 against a squared-
+  OKLab palette distance of 0.0019) match `local-optimizer.ts`'s actual
+  `DEFAULT_MULTI_SCALE_WEIGHTS` exactly; `quantize.ts`'s `runLloyd`
+  (Finding 4) genuinely does return `assignments` computed against the
+  *pre-update* centroids whenever it breaks on convergence, a real,
+  independently-traceable bug, not a review artifact; `diagnostics.ts`'s
+  `averageCompactness` (Finding 5) does use the same 4-connected
+  perimeter definition as the optimizer's own boundary penalty, so it
+  structurally cannot detect the very rectangular bias it's meant to
+  guard against -- a boxier shape has a strictly smaller 4-connected
+  perimeter than a staircased diagonal/curve of the same true area, so
+  flattening a curve can make this diagnostic look *better*, not worse.
+- **Acceptance criteria:** Each milestone below is its own reviewed,
+  tested, Owner-checked-in change (OPERATIONS.md's standard cadence,
+  unwaived for this project). M2, M3, and M5 are substantially more
+  invasive than anything in G-020 and touch the same shared energy
+  function this project already redesigned once at real cost (D11, two
+  rejected formula iterations before the current one) -- those get a
+  codex-cli critique exchange and/or domain-expert review before
+  implementation, per STANDARDS.md's "important decision" guidance, not
+  just broad-fixture testing after the fact.
+- **Constraints:** None stated beyond the standard cadence. M5 in
+  particular is open-ended enough (a genuinely new contour-refinement
+  algorithm, no existing precedent in this codebase) that its own
+  acceptance criteria should be planned separately once M1-M4 land and
+  their real-world effect is measured, rather than committed to now.
+
+**Milestones** (mapped from the review's own "Recommended order of
+work," restated with this project's acceptance-criteria/risk framing):
+- [ ] M1 — Fix `runLloyd`'s stale-assignment bug (return assignments that
+  always match the returned centroids -- currently the last convergence-
+  triggering centroid update can leave up to a meaningful fraction of
+  cells assigned to a no-longer-nearest centroid, which the reviewer
+  measured as 100/3,600 cells in one reproduction) and build a shape-
+  quality regression fixture set (circles, rotated ellipses, S-curves,
+  diagonal strokes, and a deliberately-rectangular control), measuring
+  boundary displacement/silhouette overlap against ground truth -- not
+  just confetti ratio, which the existing suite already covers. **Low
+  risk**: an isolated, well-understood bug fix plus new test
+  infrastructure; no weight-tuning involved. Lands first because M2-M4's
+  own testing needs a quantization stage that isn't itself a confound.
+- [ ] M2 — Replace the four-direction-only boundary-length penalty
+  (`local-optimizer.ts`, shared via `energy.ts`'s `boundaryPairEnergy`
+  with `simulated-annealing.ts` and `contour-cleanup.ts`) with a
+  rotation-neutral estimate -- a normalized weighted eight-neighbor term
+  is the review's suggested starting point -- applied consistently
+  across optimization, contour cleanup, and `diagnostics.ts`'s
+  `averageCompactness`. `regions.ts`'s 4-connected component *labeling*
+  stays as-is (a separate, deliberate stitchability rule, not the
+  smoothing energy). **High risk -- get a second opinion before
+  implementing**, per the Why above.
+- [ ] M3 — Give edge evidence directional, per-neighbor-pair specificity
+  (combining perceptual color difference with directional source
+  gradients at the stitch scale for that *specific* boundary) instead of
+  today's single per-cell scalar (`edge-map.ts`'s `computeCellImportance`
+  + `edgeBetweenCells`'s `max(imp_i, imp_j)`), which has no directional
+  information and is luminance-only with a hard noise floor (misses
+  gradual-shading contours and same-luminance color boundaries). Keep
+  small-detail importance (used for the existing protection thresholds
+  in contour-cleanup/denoise) conceptually separate from this new
+  per-pair "should a boundary run here" evidence, per the review's own
+  recommendation. **Medium-high risk -- second opinion recommended.**
+- [ ] M4 — Rebalance smoothing weights against measured color-error
+  magnitudes (reassess `DEFAULT_MULTI_SCALE_WEIGHTS`'s coarse pass
+  especially), done *after* M2/M3 land since retuning against today's
+  boundary-length metric would mean tuning against a metric about to
+  change out from under it. **Medium risk** -- direct precedent in this
+  project's own weight-tuning history (D18/REINVEST_MERGE_THRESHOLD).
+- [ ] M5 — A genuine contour-refinement pass for pixel-art stair-step
+  quality (extract shared region boundaries, adjust stair-step placement/
+  pacing within a narrow band to follow the source contour's changing
+  tangent, preserve intentional corners/thin features and consistent
+  multi-region junctions). **Highest risk, most open-ended** -- new
+  capability, not a bug fix, no precedent in this codebase; plan this
+  milestone's own acceptance criteria separately once M1-M4's measured
+  effect is in hand, rather than committing to a specific design now.
+
+**Progress log** (newest first):
+- 2026-09-11 — Plan drafted from `docs/reviews/2026-09-11-cluster-
+  boundary-review.md` per Owner request. All 5 findings independently
+  re-verified against the current code (see Why) before planning against
+  them. Not started -- awaiting Owner direction on whether/where to
+  start relative to G-020's remaining M5.
+
 ### G-020 · Clustering-pipeline quality review follow-ups — ACTIVE (2026-09-11)
 - **What:** Address the concrete findings from a domain-informed review of
   the color-clustering/quantization pipeline (`lib/quantize.ts`,
@@ -63,6 +156,12 @@ svc-lab).
   chart.
 
 **Progress log** (newest first):
+- 2026-09-11 — M4 deployed and fully verified (Owner: "deploy M4").
+  Container-level deploy succeeded immediately, but a shared-
+  infrastructure incident (host nginx down since before this deploy
+  started -- see HANDOVER.md, unrelated root cause) blocked HTTP
+  verification until the Owner fixed it. Re-verified after: production
+  Regenerate completes with zero console messages.
 - 2026-09-11 — M4 complete: added `lib/denoise.ts`'s `denoiseForQuantization`
   -- a 3x3 vector-medoid filter in OKLab space, gated by the same
   `importance` signal (>0.5 protects a cell entirely) contour-cleanup

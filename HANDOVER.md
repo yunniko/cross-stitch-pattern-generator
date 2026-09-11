@@ -2865,7 +2865,30 @@ alone doesn't fully clean up, before it ever reaches the quantizer.
     `tsc`/`eslint`/`npm run build`, full e2e suite (27/27) unaffected.
     Live dev-server check: uploaded a real 4-quadrant test photo,
     generated a 100x63/16-color pattern cleanly, zero console messages.
-- Not yet deployed -- see GOALS.md's G-020 entry.
+- **Deployed to the container level (2026-09-11); end-to-end verification
+  blocked by an unrelated infrastructure incident.** Owner: "deploy M4".
+  `git push`/VPS `git fetch`+`git pull`/`docker compose --profile app up
+  -d --build` all completed normally; `docker ps` before/after confirmed
+  isolation (only the cross-stitch container restarted, `Up 58 minutes`
+  -> `Up 9 seconds`; all 28 other containers unchanged). But the
+  subsequent HTTP health check found `cross-stitch.craftodejnice.cz` --
+  and, on inspection, *every* site on the shared host -- returning
+  connection-refused. Root cause, confirmed via SSH: the host's nginx has
+  been in a `failed` state since 06:46:51 CEST that day (well before this
+  deploy started), because `server_names_hash_bucket_size` (commented
+  out in `/etc/nginx/nginx.conf`, using the compiled default) is too
+  small for a newly-added, unrelated vhost's hostname
+  (`hydroponic-nutrient-calculator.svc.julienika.cz`, 48 characters) --
+  `sudo -n nginx -t` confirms `[emerg] could not build server_names_hash`.
+  Not caused by this deploy, not fixable by this account (needs root;
+  handed to the Owner as an exact command list rather than attempted).
+  **Resolved same day**: Owner applied the fix (`server_names_hash_bucket_size
+  128;` uncommented in `nginx.conf`, `nginx -t` clean, `systemctl restart
+  nginx`); confirmed via `systemctl is-active nginx` -> `active` and all
+  4 spot-checked sites (including cross-stitch) back to HTTP 200. M4
+  itself then re-verified end-to-end on production: Regenerate on the
+  live site completed with zero console messages. G-020 M4 deploy now
+  fully verified.
 
 ## Owner action list
 
