@@ -3297,6 +3297,72 @@ pre-deploy (see the two problems above, both resolved with permanent
 regression tests) rather than something this deploy check could
 usefully re-verify on its own.
 
+**D45 — G-022 M4: coarse-pass `edgeLoss` rebalanced 0.01->0.015, other
+candidates rejected after broad testing (2026-09-11).**
+
+- **Context**: M4's stated task was to reassess `DEFAULT_MULTI_SCALE_
+  WEIGHTS` now that M2 (8-neighbor weighted energy) and M3 (directional
+  color-structure-tensor edge evidence) had both landed and changed what
+  the boundary-cost metric actually measures. Followed D18's "stable
+  plateau, not a knife-edge" methodology explicitly, since this project
+  has three prior weight-tuning attempts (D18's own REINVEST_MERGE_
+  THRESHOLD history) that looked correct in isolation and were only
+  caught as regressions once tested broadly.
+- **Method**: built a throwaway scratch spec (`tests/unit/_scratch-m4-
+  sweep.spec.ts`, deleted before finishing per this project's scratch-
+  file convention) sweeping candidate `MultiScaleWeights` values against
+  the existing golden-fixture suite (`regression.spec.ts`'s 4 fixtures)
+  and shape-regression suite's close-color diagonal/circle tests (the
+  most sensitive regime, per M2's own D43 finding).
+- **Round 1** (5 candidates: lower coarse smoothness, higher coarse
+  edgeLoss, both together, much-lower coarse smoothness): the *existing*
+  constants already scored best-or-tied on nearly every metric tried.
+  Lowering coarse smoothness in particular made the noisy-two-region
+  fixture's confetti ratio worse, not better -- the coarse pass's high
+  smoothness is doing real, load-bearing work establishing large-scale
+  region structure before the fine pass refines it (exactly the
+  coarse-to-fine design rationale already documented on
+  `runMultiScaleOptimizer`).
+- **Round 2** (7 more candidates): found one modest, real signal --
+  `coarse.edgeLoss` raised from 0.01 to 0.015 *alone* (fine pass
+  untouched) improved the noisy-two-region golden fixture's confetti
+  ratio from 0.0021 to 0.0013 at colorCount=8, with *zero* change to the
+  other 3 golden fixtures (realistic-ratio, flat-area, edge-preservation),
+  and only a negligible 0.4% dip on the close-color diagonal-stroke shape-
+  fidelity metric (IoU 0.7907->0.7876; the paired close-color circle
+  metric was exactly unchanged at 0.8086).
+- **Robustness check before adopting** (the step this project's own D18
+  history says not to skip): a single colorCount data point isn't enough
+  to distinguish a real effect from noise in a small fixture. Extended the
+  sweep to colorCount 4/6/8/12/16 on the same noisy-two-region fixture --
+  confetti ratio was never worse under the new weight and improved at 3
+  of 5 values tested (k=4: 0.0000->0.0000 tied; k=6: 0.0008->0.0000; k=8:
+  0.0021->0.0013; k=12: 0.0013->0.0013 tied; k=16: 0.0017->0.0008). Also
+  re-ran the historically-important D18 "gray cat, yellow eyes" fixture
+  (the project's own canonical detail-preservation regression case) at
+  colorCount 3/4/5/8 under both weight sets: the `hasYellow` result was
+  byte-identical at every single colorCount (false at k=3, true at
+  k=4/5/8) -- the change doesn't touch that fixture's protected detail at
+  all, in either direction.
+- **Decision**: adopted. This is a consistent, broadly-tested improvement
+  across a 5x range of colorCounts and 4 independent golden fixtures, at
+  a cost small enough (0.4% on one synthetic metric) to be within normal
+  measurement noise for a metric this project doesn't otherwise track a
+  tolerance band for. Changed `lib/local-optimizer.ts`'s
+  `DEFAULT_MULTI_SCALE_WEIGHTS.coarse.edgeLoss` from 0.01 to 0.015,
+  documented inline with a summary of the sweep and what was rejected.
+  Left `fine.edgeLoss` (0.05) and both `smoothness` values untouched --
+  no candidate that modified them beat the current constants.
+- **Locked in with a permanent test**: a new `it.each` describe block in
+  `regression.spec.ts` runs the noisy-two-region fixture at colorCount
+  4/6/8/12/16 and asserts confetti ratio stays at or below the pre-M4
+  measured values -- would fail if this change were reverted, unlike the
+  suite's existing looser `<0.1` bound on the same fixture which both old
+  and new constants pass easily.
+- **Verified**: 318 unit tests (313 + 5 new), clean `tsc`/`eslint`/`npm
+  run build`, full e2e suite (27/27). Not yet deployed -- awaiting the
+  Owner's next explicit "deploy".
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

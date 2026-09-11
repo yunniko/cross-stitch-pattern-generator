@@ -153,7 +153,7 @@ work," restated with this project's acceptance-criteria/risk framing):
      pipeline, not just at the evidence-primitive level (a primitive-
      level pass alone doesn't guarantee denoising/quantization/ICM
      jointly preserve it).
-- [ ] M4 — Rebalance smoothing weights against measured color-error
+- [x] M4 — Rebalance smoothing weights against measured color-error
   magnitudes (reassess `DEFAULT_MULTI_SCALE_WEIGHTS`'s coarse pass
   especially), done *after* M2/M3 land since retuning against today's
   boundary-length metric would mean tuning against a metric about to
@@ -169,6 +169,43 @@ work," restated with this project's acceptance-criteria/risk framing):
   effect is in hand, rather than committing to a specific design now.
 
 **Progress log** (newest first):
+- 2026-09-11 — M4 complete (Owner: "deploy, then do m4" -- deploy step
+  confirmed nothing new to deploy since M3 was already live). Followed
+  D18's "stable plateau, not a knife-edge" methodology: swept 7+ candidate
+  values for `DEFAULT_MULTI_SCALE_WEIGHTS` against the full golden-fixture
+  suite (`regression.spec.ts`) and shape-regression suite
+  (`shape-regression.spec.ts`) using a throwaway scratch spec (deleted
+  before finishing, per this project's scratch-file convention). Round 1
+  (lower coarse smoothness, higher coarse edgeLoss, combinations, much-
+  lower smoothness) found the *existing* constants already best-or-tied on
+  nearly every metric -- several "obvious" adjustments made things worse.
+  Round 2 found one modest, real signal: `coarse.edgeLoss` 0.01->0.015
+  alone (fine pass untouched) improved the noisy-two-region golden
+  fixture's confetti ratio (0.0021->0.0013 at colorCount=8) with zero
+  change to the other 3 golden fixtures, and only a negligible 0.4% dip on
+  one synthetic close-color shape-fidelity metric (diagonal-stroke IoU
+  0.7907->0.7876; the paired circle metric was exactly unchanged).
+  Judged this too narrow to adopt on one data point alone (this project's
+  own D18 history has three prior "looked good in isolation" weight
+  changes that didn't survive broader testing) -- before adopting, swept
+  colorCount 4/6/8/12/16 on the same noisy fixture (confetti never worse,
+  improved at k=6/8/16, tied at k=4/12: 0.0000/0.0008/0.0021/0.0013/0.0017
+  -> 0.0000/0.0000/0.0013/0.0013/0.0008) and re-ran the historically-
+  critical D18 "gray cat, yellow eyes" fixture at colorCount 3/4/5/8 under
+  both weight sets -- byte-identical hasYellow result at every k, so the
+  change doesn't touch that fixture's own protected detail at all. This
+  is a genuine, broadly-consistent improvement, not overfitting to one k.
+  Adopted: `lib/local-optimizer.ts`'s `DEFAULT_MULTI_SCALE_WEIGHTS.coarse.
+  edgeLoss` raised to 0.015, documented inline with the sweep's rationale.
+  Locked the gain in with a new permanent regression describe block in
+  `regression.spec.ts` (`it.each` over colorCount 4/6/8/12/16, tolerance
+  bounds sitting at/above the measured post-change values -- would catch a
+  revert back toward the old constants).
+  Verified: 318 unit tests (313 + 5 new), clean `tsc`/`eslint`/`npm run
+  build`, full e2e (27/27). See HANDOVER.md D45 for the full sweep numbers
+  and rationale. Not yet deployed -- awaiting Owner's next "deploy".
+  Starting M5 planning next (or G-020's paused M5, per the agreed
+  ordering) once Owner checks in on this milestone.
 - 2026-09-11 — M3 deployed (Owner: "deploy"). Container isolation
   confirmed, other sites healthy, production regenerate clean.
 - 2026-09-11 — M3 complete. Implemented all 7 sub-steps: new

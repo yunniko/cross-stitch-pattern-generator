@@ -136,8 +136,21 @@ export interface MultiScaleWeights {
   fine: LocalOptimizerWeights;
 }
 
+/**
+ * `coarse.edgeLoss` was raised from 0.01 to 0.015 per G-022 M4 (HANDOVER.md
+ * D45): a broad empirical sweep (golden-fixture suite, shape-regression
+ * suite, and the D18 gray-cat-eyes fixture, across colorCount 4-16) found
+ * this is a consistent, non-fluke improvement -- lower or equal confetti
+ * ratio at every colorCount tested on the noisy-two-region fixture, zero
+ * change to 3 of 4 golden fixtures and to the D18 fixture's own detail-
+ * survival result, at the cost of a negligible (0.4%) dip in one synthetic
+ * shape-fidelity metric. Other candidates tried (lower coarse smoothness,
+ * higher fine edgeLoss, combinations) either matched or underperformed
+ * these already-tuned constants -- see the M4 progress log for the full
+ * sweep results.
+ */
 export const DEFAULT_MULTI_SCALE_WEIGHTS: MultiScaleWeights = {
-  coarse: { color: 1, smoothness: 0.09, edgeLoss: 0.01 },
+  coarse: { color: 1, smoothness: 0.09, edgeLoss: 0.015 },
   fine: { color: 1, smoothness: 0.045, edgeLoss: 0.05 },
 };
 

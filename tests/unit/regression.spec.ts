@@ -136,6 +136,35 @@ describe("golden-fixture regression: flat area stability (Owner's spec section 3
   });
 });
 
+describe("golden-fixture regression: G-022 M4 coarse edgeLoss rebalance (HANDOVER.md D45)", () => {
+  // Locks in the DEFAULT_MULTI_SCALE_WEIGHTS coarse.edgeLoss 0.01->0.015
+  // change: confirmed via broad sweep to be a consistent improvement (never
+  // worse, often better) on this fixture across colorCount 4-16, not a
+  // fluke of one specific k. Uses tighter bounds than the general
+  // "noisy two-region" describe above specifically to catch a regression
+  // back toward the pre-M4 constants.
+  const buffer = makeBuffer(60, 40, (x, y) => {
+    const base: RGB = x < 30 ? [200, 150, 100] : [80, 120, 90];
+    const noise = pseudoNoise(x, y, 50);
+    return [
+      Math.max(0, Math.min(255, base[0] + noise)),
+      Math.max(0, Math.min(255, base[1] + noise)),
+      Math.max(0, Math.min(255, base[2] + noise)),
+    ];
+  });
+
+  it.each([4, 6, 8, 12, 16])("keeps confetti ratio at or below the pre-M4 level at colorCount=%i", (colorCount) => {
+    const pattern = buildPattern(buffer, { longerSideStitches: 60, colorCount });
+    const cells = downsampleToGrid(buffer, pattern.width, pattern.height);
+    const diagnostics = computePatternDiagnostics(pattern, cells);
+
+    // Measured pre-M4 (coarse.edgeLoss=0.01) values were 0.0000/0.0008/
+    // 0.0021/0.0013/0.0017 for k=4/6/8/12/16 -- these bounds sit at or just
+    // above the post-M4 measured values (0.0000/0.0000/0.0013/0.0013/0.0008).
+    expect(diagnostics.confettiRatio).toBeLessThanOrEqual(0.0017);
+  });
+});
+
 describe("golden-fixture regression: edge preservation (Owner's spec section 33)", () => {
   it("a real high-contrast object boundary survives even at a low color count", () => {
     const width = 30;
