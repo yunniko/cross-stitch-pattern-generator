@@ -3575,6 +3575,89 @@ parameter; pipeline-placement and G-020 M5 coordination) is itself a
 multi-milestone sequence. GOALS.md's G-022 M5 entry is being restructured
 into that sequence rather than attempted as one undifferentiated step.
 
+**D49 — G-022 M5.2: shape-fixture harness gaps closed, plus a genuinely
+important discovery about the already-deployed pipeline (2026-09-11).**
+Extended `tests/unit/shape-fixtures.ts` per the critique's 5 named gaps
+(HANDOVER.md D48 section 4) -- new, additive exports only, no existing
+`shape-regression.spec.ts` threshold touched or perturbed:
+
+1. `trueRegionId`/`predictedMultiClass`/`classAgreement` generalize the
+   existing `trueMask`/`predictedMask`/`iou` machinery from 2 classes to
+   N, so internal/third-region damage is visible instead of collapsed
+   away by an fg/bg-only comparison.
+2. `boundaryDistances` now returns a `degenerate: boolean` flag instead
+   of silently reporting a perfect 0/0 score when either mask's boundary
+   is empty (e.g. the whole grid collapsed to one class) -- a real
+   failure that used to look flawless.
+3. `measureShapeFidelityAtScale` decouples source size from
+   `longerSideStitches`, enabling a genuine fractional-downsample shape
+   fixture (`measureShapeFidelity` now just calls it with matching
+   sizes, verified identical output).
+4. `makeGradientShapeBufferCellCentered`/`makeMultiRegionBuffer`: new
+   cell-center-sampled source builders for fixtures where sub-cell
+   placement actually matters, since the *existing* `makeGradientShape-
+   Buffer` samples `x/width` while `trueMask` samples `(x+0.5)/gridW` --
+   a real, confirmed half-pixel mismatch. Left the existing function
+   as-is (every current threshold was measured and tuned against that
+   exact convention; IoU/boundary-distance are insensitive to it at
+   these fixtures' scale) rather than risk an unrelated threshold churn.
+5. A real one-cell-line preservation test -- see the finding below.
+
+Also built the junction-corruption fixture the critique specifically
+asked for (`makeFourQuadrantJunctionBuffer`, `ringClassSequence`,
+`cyclicDistinctSequence`, `cyclicAdjacentPairs`): four regions in cyclic
+quadrant order A,B,D,C (deliberately not alphabetical -- A/D and B/C are
+diagonal opposites and must never become adjacent), sampling a tight
+ring around the true junction point and checking the actual local cyclic
+adjacency structure survives, not just whole-image IoU or global region-
+adjacency (which the critique showed can both stay misleadingly
+unchanged through a real junction split). **Passes today** -- a
+regression guard for the current pipeline, and the acceptance test M5.5
+will need to keep passing later.
+
+**Significant finding, not assumed away**: building the one-cell-line
+fixture surfaced a real, reproducible, and non-obvious asymmetry in
+today's *already-deployed* default pipeline. Measured directly (sizes
+30/60, colorCounts 2/3/4, `tests/unit/shape-fixtures-m5.2.spec.ts`): a
+genuinely one-cell-wide **diagonal** staircase line survives essentially
+perfectly (100% of true line cells retained, every size/colorCount
+tried) -- but a one-cell-wide **axial** (straight vertical/horizontal)
+line of the identical width is **completely erased** (0% survival,
+every size/colorCount tried), even though both lines have the exact
+same 2-matching/6-mismatching 8-connected-neighbor ratio, so this isn't
+explained by boundary-length/energy alone (a quick hand calculation
+using `WEIGHTED_NEIGHBOR_OFFSETS`'s own weights shows the diagonal
+case's total weighted mismatch cost is actually *higher* than the
+axial case's, the opposite of what the survival results would predict
+from boundary energy alone). Root cause not yet investigated (out of
+scope for M5.2, which is measurement infrastructure, not a fix) --
+plausible candidates include `denoiseForQuantization`'s pre-quantization
+blur affecting a straight line's fixed column differently than a
+diagonal line's shifting one, or a "domino" effect where an axial
+line's per-row recoloring decision is identical at every row (so ICM's
+per-cell descent unanimously recolors the whole line in one pass) in a
+way a diagonal line's row-varying position doesn't reproduce. Documented
+as `tests/unit/shape-fixtures-m5.2.spec.ts`'s "KNOWN GAP" test, asserting
+today's real (poor) measured behavior rather than an aspiration --
+golden-fixture philosophy, same as `regression.spec.ts`/`shape-
+regression.spec.ts`: this test should start *failing* (in a good way)
+once something actually fixes it, at which point tighten the assertion
+the same way G-022's other milestones have tightened thresholds as real
+improvements landed.
+
+This is flagged prominently to the Owner (see chat) as a real production
+quality gap independent of M5's own timeline -- a photo with a genuine
+thin straight feature (a wire, an antenna, a seam, a single strand)
+is silently deleted by the shipped pipeline today, not just a
+theoretical M5.5 motivating example. Left as a documented, measured
+finding for the Owner to prioritize (fold into M5.5's thin-feature work,
+or investigate/fix independently) rather than assumed to be M5's problem
+to solve on its own schedule.
+
+**Verified**: 334 unit tests (325 + 9 new), clean `tsc`/`eslint`/`npm run
+build`. Test-infrastructure only -- no `lib/`/`app/` production code
+touched, no e2e impact, no deploy needed for this sub-step.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

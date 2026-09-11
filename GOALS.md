@@ -176,7 +176,7 @@ work," restated with this project's acceptance-criteria/risk framing):
     analytic shapes (straight lines at several angles/phases, circular
     arcs) at several grid phases -- *not* assumed to be zero. No
     pipeline wiring; a standalone, directly-tested module.
-  - [ ] M5.2 — Extend `tests/unit/shape-fixtures.ts` to close the
+  - [x] M5.2 — Extend `tests/unit/shape-fixtures.ts` to close the
     critique's five named gaps: a per-region (not fg/bg-collapsed) mask
     comparison so internal/third-region damage is visible;
     `boundaryDistances`' empty-boundary-returns-zero caveat (D43); a
@@ -235,6 +235,26 @@ work," restated with this project's acceptance-criteria/risk framing):
     Full verification, GOALS.md/HANDOVER.md documentation, deploy.
 
 **Progress log** (newest first):
+- 2026-09-11 — M5.2 complete (Owner: "proceed"). Extended `tests/unit/
+  shape-fixtures.ts` closing the critique's 5 named gaps (multi-class
+  region comparison, a `degenerate` flag on `boundaryDistances`, a
+  genuine fractional-downsample fixture, a cell-center-consistent source
+  builder for placement-sensitive fixtures, a real one-cell-line test)
+  plus the junction-corruption fixture it specifically asked for (four
+  regions in cyclic order A,B,D,C, ring-sampled local adjacency check --
+  passes today). **Important discovery, not assumed away**: the one-
+  cell-line fixture found a real, reproducible asymmetry in the already-
+  deployed pipeline -- a one-cell-wide diagonal line survives perfectly
+  (100%, every size/colorCount tested) but an axial one-cell-wide line
+  is completely erased (0%, every size/colorCount tested), despite
+  identical neighbor-mismatch ratios. Documented as a "KNOWN GAP" test
+  asserting today's real behavior (not an aspiration) and flagged to the
+  Owner as a production quality issue independent of M5's own timeline
+  -- see HANDOVER.md D49 for the full finding and root-cause candidates
+  (not yet investigated; out of scope for this measurement-infrastructure
+  sub-step). Verified: 334 unit tests (325 + 9 new), clean `tsc`/
+  `eslint`/`npm run build`. Test-infrastructure only, no deploy needed.
+  Starting M5.3 next (boundary-chain extraction) once the Owner checks in.
 - 2026-09-11 — M5.1 complete (Owner: "go with 5.1"). New standalone
   harness `tests/unit/contour-pacing.ts` (matching `shape-fixtures.ts`'s
   precedent -- a measurement tool, not yet wired into the pipeline):
