@@ -5181,6 +5181,52 @@ standalone function; `crisp-quantization-stage.ts`'s refactor is
 behavior-preserving and already covered by its own existing tests.
 Continuing to M4.7 (final palette color recompute) next.
 
+**D70 — G-024 M4.7: final palette color recompute, made mode-aware
+(2026-09-12, Owner: "continue without confirmation...").**
+
+New `lib/crisp-palette-finalization.ts`, `finalizeCrispPalette`: the
+crisp-aware replacement for `pattern.ts`'s existing `meanRgbOklab`-over-
+final-member-cells step. A crisp cell contributes its SELECTED
+SUPPORTING MODE color (looked up from `AdmissibleLabelCost.supportingMode`,
+bookkeeping M3 already tracks — nothing new to compute) at unit weight,
+instead of its raw averaged `cells[i]` color, which is still the
+original manufactured blend and would re-contaminate a correctly-
+selected label exactly as the report's Section 7 warns.
+
+**The bounded consistency check the report explicitly calls for**:
+recomputing colors can shift a mode's nearest label again (colors move
+slightly), which repairing (`repairCrispAssignments`, M4.6) can then
+change membership for, which changes the recomputed colors again — so
+after each recompute, every protected cell is re-validated and
+repaired against the NEW palette, for up to `MAX_FINALIZATION_ITERATIONS`
+(3) rounds, stopping early the moment a round needs no repairs (further
+rounds would reproduce the same colors from an unchanged assignment,
+pure waste not correctness). A fixed `for`-loop bound, never an
+unbounded fixed-point search assumed to converge on its own.
+
+**Verified Standard-compatibility directly**: an empty evidence layer
+reproduces `meanRgbOklab`'s own per-label output exactly (the non-crisp
+code path IS `meanRgbOklab`'s own formula, not a parallel
+reimplementation).
+
+**Verified the actual contamination fix with a constructed worked
+example**: a confident cell whose real evidence supports black, but
+whose own raw averaged color is a manufactured gray (140,140,140),
+sharing a label with an ordinary true-black cell — confirmed the final
+recomputed black stays dark (well under 50) and measurably closer to
+true black than to the contaminating gray, rather than being pulled
+toward ~72 (the midpoint an uncorrected mean would produce).
+
+**Composition-tested** the full chain — evidence layer → quantization
+→ coarse/fine ICM → finalization — on M1's real genuine-gray-elsewhere
+fixture: the final palette recovers near-pure black, white, AND the
+untouched genuine gray entry.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full
+`npx vitest run` 466/466 passing (49 files, +3 new), `npm run build`
+clean. No e2e run needed — new, standalone module. Continuing to M4.8
+(DMC-mode interaction) next.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

@@ -150,7 +150,7 @@ restructured into this project's usual milestone/check-in shape):
     repair any now-inadmissible one via the same shared admissible-
     selection rule, coalesce duplicate mappings keeping the minimum-
     cost supporting mode.
-  - [ ] M4.7 — Final palette color recompute: each crisp cell
+  - [x] M4.7 — Final palette color recompute: each crisp cell
     contributes its selected supporting mode at weight `alpha` (not
     raw `cells[i]`, not coverage again), looked up against the
     pre-recompute palette, followed by a bounded, explicitly-
@@ -179,6 +179,22 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-12 — M4.7 complete. New `lib/crisp-palette-finalization.ts`
+  (`finalizeCrispPalette`): the mode-aware replacement for `pattern.ts`'s
+  final `meanRgbOklab` recompute -- a crisp cell contributes its
+  selected supporting mode's color (unit weight) instead of its raw,
+  still-contaminated averaged color. Includes the report's own bounded
+  consistency check (recompute colors, repair now-inadmissible
+  assignments, repeat up to 3 rounds, stop early once a round needs no
+  repairs). Verified Standard-compatibility directly against
+  `meanRgbOklab`'s own output; verified the actual contamination fix
+  with a worked example (a manufactured-gray raw cell sharing a label
+  with a true-black cell -- final color stays dark, not pulled toward
+  the contaminating gray); composition-tested the full chain (evidence
+  -> quantization -> ICM -> finalization) on M1's real fixture. Full
+  story in HANDOVER.md D70. Verified: 466/466 tests passing (49 files,
+  +3 new), clean `tsc`/`eslint`/`npm run build`. No e2e run needed.
+  Continuing to M4.8 (DMC-mode interaction) next.
 - 2026-09-12 — M4.6 complete. New `repairCrispAssignments` (`lib/
   crisp-evidence-layer.ts`): repairs a protected cell's assignment
   whenever a palette change (merge, or later DMC snap) leaves its
