@@ -2645,6 +2645,25 @@ freed palette slot could go to noise instead of real content.
   deployed -- Owner may want to bundle with M4/M5 or deploy standalone, at
   their discretion.
 
+**G-020 M3 deployed (2026-09-11).** Owner: "deploy". Standard recipe:
+`git push` (already done) then on the VPS `git fetch origin`/`git
+pull`/`docker compose --profile app up -d --build`. `docker ps`
+before/after confirmed isolation: only the cross-stitch container
+restarted (`Up 18 minutes` -> `Up 8 seconds`); all 27 other containers
+on the shared host unchanged (one, `pet-age-calculator`, crossed from
+"Up 47 hours" to "Up 2 days" between the two snapshots -- a display-
+threshold artifact of elapsed real time, not a restart). Spot-checked
+`meet.app.julienika.cz`, `craftale.eu`, and `arfid.julienika.cz` at HTTP
+200, plus the target site at 200. Live smoke test against production:
+regenerated the existing checkerboard fixture (2 real colors,
+`colorCount` slider at 16) -- still correctly collapsed to exactly 2
+colors (the exact safety property M2/M3's hand-traces both argue for),
+zero console messages of any kind. This confirms the `pattern.ts`
+reorder (importance now computed unconditionally, before quantization)
+didn't regress anything observable in production; M3's actual scoring-
+formula behavior rests on its unit tests, same caveat as M2's deploy
+note. M4-M5 still to come.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
