@@ -2597,6 +2597,54 @@ unlucky draw, which is what the committed unit test pins down
 directly) -- that correctness rests on the unit-test repro, not this
 live check. M3-M5 still to come, one at a time per Owner's request.
 
+**M3 fixed (2026-09-11): `injectWorstFitClusters`' worst-fit search is now
+biased by per-cell `importance`, not raw OKLab reconstruction error alone.**
+Raw error can't distinguish a genuinely rare *detail* (a small logo, an eye)
+from a genuinely rare *artifact* (JPEG ringing, a stray specular highlight)
+-- both present identically as "one outlier cell with a large error," so a
+freed palette slot could go to noise instead of real content.
+
+- **Formula**: effective score is `distance * (1 + WORST_FIT_IMPORTANCE_BOOST
+  * importance)`, `WORST_FIT_IMPORTANCE_BOOST = 1.0` -- multiplicative, not
+  additive, so a maximally-important cell's score can at most double (never
+  manufacturing priority for a near-perfect fit, since importance x 0 error
+  is still 0), and an unimportant cell with a severe enough misfit can still
+  out-rank a moderately-important one. Consistent with `local-optimizer.ts`'s
+  own convention of *informing* energy terms with importance rather than
+  gating on it outright. An all-zero `importance` array reproduces the exact
+  pre-M3 ranking bit-for-bit (verified by a dedicated test, and by all
+  pre-existing tests passing unmodified with no importance argument passed).
+- **Plumbing**: `importance` wasn't available at quantization time before
+  this -- `pattern.ts` only computed it (via `computeEdgeMagnitude`/
+  `computeCellImportance`) *after* the quantizer ran, and only under
+  `optimize: true`. Both functions depend solely on the original image and
+  grid dimensions, never on the quantizer's own output, so moving the
+  computation earlier and making it unconditional changes none of the
+  computed values themselves. `ColorQuantizer.quantize` gained an optional
+  third `importance?: Float32Array` parameter; `plainKMeansQuantizer`
+  doesn't use it and simply declares fewer parameters than the interface
+  allows (valid TypeScript/JS -- callers can pass extra arguments an
+  implementation ignores).
+- **Testing approach**: exported `injectWorstFitClusters` specifically so
+  the scoring formula could be unit-tested directly against hand-chosen
+  OKLab points (same rationale as `meanRgbOklab`'s existing export) --
+  reproducing a specific "which of two comparably-bad-fit cells wins"
+  outcome through the full k-means/merge pipeline would mean fighting
+  Lloyd's-algorithm dynamics for a scenario that's really about this
+  formula alone, following this project's own established pattern of
+  testing pipeline internals directly only when the internal itself (not
+  just its emergent effect) is the thing under review.
+- **Verified**: 279 unit tests (275 + 4 new: raw-error-wins-without-
+  importance, importance-flips-a-close-call, importance-cannot-override-a-
+  large-error-gap, all-zero-importance-reproduces-old-ranking-on-a-larger-
+  set), clean `tsc`/`eslint`/`npm run build`. Live dev-server check:
+  regenerated the existing checkerboard test fixture (2 real colors,
+  `colorCount` slider at 16) after the pipeline reorder -- still correctly
+  collapsed to exactly 2 colors, zero console messages, confirming the
+  reordered `pattern.ts` doesn't regress the M2 safety property. Not yet
+  deployed -- Owner may want to bundle with M4/M5 or deploy standalone, at
+  their discretion.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

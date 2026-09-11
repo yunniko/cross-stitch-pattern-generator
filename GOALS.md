@@ -46,7 +46,7 @@ svc-lab).
   requested `colorCount` even when real distinct color material remains
   unclaimed elsewhere in the image, despite `injectWorstFitClusters`
   already existing to handle exactly this kind of shortfall.
-- [ ] M3 — Bias `injectWorstFitClusters`' worst-fit search by per-cell
+- [x] M3 — Bias `injectWorstFitClusters`' worst-fit search by per-cell
   `importance` (already computed for the optimizer stages), not raw OKLab
   reconstruction error alone, so a genuinely rare *artifact* (JPEG
   ringing, a stray specular highlight) doesn't compete equally with a
@@ -63,6 +63,24 @@ svc-lab).
   chart.
 
 **Progress log** (newest first):
+- 2026-09-11 — M3 complete: `injectWorstFitClusters`' worst-fit ranking now
+  scores each candidate cell as `distance * (1 + importance)` instead of
+  raw distance alone, so a genuinely important rare detail can win a freed
+  palette slot over a merely-larger-error artifact, without letting
+  importance manufacture priority for a near-perfect-fit cell (multiplied
+  against real error, not added). `importance` is now computed once,
+  unconditionally, before quantization in `pattern.ts` (previously only
+  computed under `optimize: true`, and only after quantization ran) and
+  threaded through the `ColorQuantizer` interface as an optional third
+  parameter; `plainKMeansQuantizer` ignores it (declares fewer params than
+  the interface allows, which TS permits). Verified: 279 tests (275 + 4
+  new, including exporting `injectWorstFitClusters` for direct testing of
+  the scoring formula against hand-chosen OKLab points, same rationale as
+  `meanRgbOklab`), clean `tsc`/`eslint`/`npm run build`, plus a dev-server
+  smoke test (regenerate on the existing checkerboard fixture still
+  correctly collapses to 2 colors, zero console errors) confirming the
+  reordered `pattern.ts` pipeline doesn't regress anything. Starting M4
+  next.
 - 2026-09-11 — M2 complete: `kMeansQuantizer` now compares its merged
   survivor count against the actual requested/clamped color budget
   (`targetK`), not just against slots `mergeSimilarColors` frees from

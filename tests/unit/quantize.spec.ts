@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { oklabDistanceSquared, rgbToOklab } from "@/lib/color";
 import { downsampleToGrid } from "@/lib/downsample";
-import { kMeansQuantizer, meanRgbOklab, plainKMeansQuantizer } from "@/lib/quantize";
+import { injectWorstFitClusters, kMeansQuantizer, meanRgbOklab, plainKMeansQuantizer } from "@/lib/quantize";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 
 function makeCells(colors: RGB[]): CellColorBuffer {
@@ -36,6 +36,72 @@ describe("meanRgbOklab", () => {
   it("returns the exact single color for a single-member cluster", () => {
     const cells = makeCells([[123, 45, 67]]);
     expect(meanRgbOklab(cells, [0])).toEqual([123, 45, 67]);
+  });
+});
+
+describe("injectWorstFitClusters (HANDOVER.md D39/G-020 M3: importance-weighted worst fit)", () => {
+  const centroid: [number, number, number] = [0, 0, 0];
+
+  it("without importance, picks the cell with strictly larger raw reconstruction error", () => {
+    // Artifact-like cell (L=0.1, dist^2=0.01) has more raw error than the
+    // detail-like cell (L=0.08, dist^2=0.0064) -- with all-zero importance
+    // the scoring formula reduces to exactly the old, importance-blind
+    // ranking, so the larger-error cell must win.
+    const oklabColors: [number, number, number][] = [
+      [0.1, 0, 0],
+      [0.08, 0, 0],
+    ];
+    const importance = new Float32Array([0, 0]);
+    const { centroids } = injectWorstFitClusters(oklabColors, new Uint8Array([0, 0]), [centroid], 1, importance);
+    expect(centroids[1]).toEqual(oklabColors[0]);
+  });
+
+  it("a maximally-important cell with smaller raw error can still win the freed slot", () => {
+    // Same two cells as above, but now the smaller-error cell (index 1) is
+    // marked maximally important (a real detail) and the larger-error one
+    // (index 0) is unimportant (an artifact). Effective scores:
+    // artifact = 0.01 * (1 + 1*0) = 0.01; detail = 0.0064 * (1 + 1*1) =
+    // 0.0128 -- the boost is exactly enough to flip the outcome here,
+    // without needing importance to override an arbitrarily large raw-error
+    // gap (see the next test).
+    const oklabColors: [number, number, number][] = [
+      [0.1, 0, 0],
+      [0.08, 0, 0],
+    ];
+    const importance = new Float32Array([0, 1]);
+    const { centroids } = injectWorstFitClusters(oklabColors, new Uint8Array([0, 0]), [centroid], 1, importance);
+    expect(centroids[1]).toEqual(oklabColors[1]);
+  });
+
+  it("importance can't manufacture priority for a cell that's already a near-perfect fit", () => {
+    // A maximally-important cell sitting almost exactly on its centroid
+    // (near-zero raw error) must not out-rank a genuinely large, unimportant
+    // error elsewhere -- the boost is multiplicative on real error, not an
+    // additive bonus that could win from zero.
+    const oklabColors: [number, number, number][] = [
+      [0.3, 0, 0], // large raw error, unimportant
+      [0.001, 0, 0], // near-zero raw error, maximally important
+    ];
+    const importance = new Float32Array([0, 1]);
+    const { centroids } = injectWorstFitClusters(oklabColors, new Uint8Array([0, 0]), [centroid], 1, importance);
+    expect(centroids[1]).toEqual(oklabColors[0]);
+  });
+
+  it("an all-zero importance array reproduces the exact pre-M3 ranking on a larger, realistic set", () => {
+    const oklabColors: [number, number, number][] = Array.from({ length: 30 }, (_, i) => [
+      Math.sin(i * 1.7) * 0.4,
+      Math.cos(i * 0.9) * 0.2,
+      Math.sin(i * 2.3) * 0.2,
+    ]);
+    const assignment = new Uint8Array(30);
+    const noImportance = new Float32Array(30);
+    const result = injectWorstFitClusters(oklabColors, assignment, [centroid], 3, noImportance);
+    expect(result.centroids).toHaveLength(4);
+    // Every injected centroid must be one of the original cell colors
+    // (worst-fit picks a real cell, never fabricates a point).
+    for (let c = 1; c < result.centroids.length; c++) {
+      expect(oklabColors.some((p) => p[0] === result.centroids[c][0] && p[1] === result.centroids[c][1])).toBe(true);
+    }
   });
 });
 

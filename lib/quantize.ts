@@ -11,7 +11,15 @@ export interface QuantizeResult {
 }
 
 export interface ColorQuantizer {
-  quantize(cells: CellColorBuffer, colorCount: number): QuantizeResult;
+  /**
+   * `importance` (0-1 per cell, row-major, from `lib/edge-map.ts`'s
+   * `computeCellImportance` -- same signal `local-optimizer.ts`/
+   * `contour-cleanup.ts` use) is optional and only consulted by quantizers
+   * that do reconstruction-error-driven reinvestment (`kMeansQuantizer`);
+   * `plainKMeansQuantizer` ignores it entirely, since JS/TS lets an
+   * implementation declare fewer parameters than the interface allows.
+   */
+  quantize(cells: CellColorBuffer, colorCount: number, importance?: Float32Array): QuantizeResult;
 }
 
 /**
@@ -169,6 +177,15 @@ function buildPaletteFromAssignment(
 // against the busy-multi-hue case in testing) isn't merged away.
 const REINVEST_MERGE_THRESHOLD = 0.012;
 
+// How much a cell's own `importance` (0-1) can boost its effective
+// reinvestment priority over raw reconstruction error alone: a
+// maximally-important cell's score is doubled (`d * (1 + 1.0*1)`), enough to
+// win a freed slot over a moderately-larger-error unimportant cell, but not
+// enough for a low-error "important" cell to leapfrog a genuinely
+// large-error one -- see `injectWorstFitClusters`'s own doc comment below
+// for why that asymmetry is the point, not a compromise.
+const WORST_FIT_IMPORTANCE_BOOST = 1.0;
+
 /**
  * Redistributes palette budget freed by merging redundant colors to
  * whichever cell is currently the single worst-represented in the whole
@@ -184,18 +201,50 @@ const REINVEST_MERGE_THRESHOLD = 0.012;
  * palette has settled onto the dominant content, so it gets first claim on
  * any freed slot without needing to out-compete a majority region's
  * population anywhere in the process.
+ *
+ * `importance` (0-1 per cell; an all-zero array reproduces the original,
+ * importance-blind ranking exactly) biases that ranking toward cells the
+ * rest of the pipeline already treats as real content, not noise -- a
+ * 2026-09-11 review (HANDOVER.md D39/G-020 M3) found raw reconstruction
+ * error alone can't tell a genuinely rare *detail* (a small logo, an eye)
+ * from a genuinely rare *artifact* (a JPEG ringing pixel, a stray specular
+ * highlight): both look identical to this function as "one outlier cell
+ * with a large error." The effective score is `distance * (1 +
+ * WORST_FIT_IMPORTANCE_BOOST * importance)` -- multiplicative, not
+ * additive, so importance can only ever amplify a *real* error, never
+ * manufacture priority for a cell that's already a near-perfect fit
+ * (importance x 0 error = 0 regardless of the boost). This deliberately
+ * doesn't let importance override a much larger raw error either: an
+ * unimportant cell with a severe misfit can still out-rank a merely
+ * moderately-important one, since the boost only doubles the score at
+ * most (`importance` is capped at 1) -- consistent with `local-
+ * optimizer.ts`'s own `edge = max(imp_i, imp_n)` convention of *informing*
+ * energy terms with importance rather than gating on it outright.
  */
-function injectWorstFitClusters(oklabColors: Oklab[], assignment: Uint8Array, centroids: Oklab[], slotsToAdd: number) {
+// Exported only so the importance-weighted ranking itself can be unit-
+// tested directly against hand-chosen OKLab points (same rationale as
+// `meanRgbOklab` above) -- reproducing a specific "which of two comparably-
+// bad-fit cells wins" outcome through the full k-means/merge pipeline would
+// require fighting Lloyd's-algorithm dynamics for a scenario that's really
+// about this scoring formula alone.
+export function injectWorstFitClusters(
+  oklabColors: Oklab[],
+  assignment: Uint8Array,
+  centroids: Oklab[],
+  slotsToAdd: number,
+  importance: Float32Array
+) {
   const nextAssignment = assignment.slice();
   let nextCentroids = centroids.slice();
 
   for (let slot = 0; slot < slotsToAdd; slot++) {
     let worstIndex = 0;
-    let worstDist = -1;
+    let worstScore = -1;
     for (let i = 0; i < oklabColors.length; i++) {
       const d = oklabDistanceSquared(oklabColors[i], nextCentroids[nextAssignment[i]]);
-      if (d > worstDist) {
-        worstDist = d;
+      const score = d * (1 + WORST_FIT_IMPORTANCE_BOOST * importance[i]);
+      if (score > worstScore) {
+        worstScore = score;
         worstIndex = i;
       }
     }
@@ -301,7 +350,7 @@ export const plainKMeansQuantizer: ColorQuantizer = {
  * full 5 requested (`quantize.spec.ts`'s attrition-recovery test).
  */
 export const kMeansQuantizer: ColorQuantizer = {
-  quantize(cells: CellColorBuffer, colorCount: number): QuantizeResult {
+  quantize(cells: CellColorBuffer, colorCount: number, importance?: Float32Array): QuantizeResult {
     const initialResult = plainKMeansQuantizer.quantize(cells, colorCount);
     const targetK = Math.min(colorCount, cells.width * cells.height);
     if (targetK < 3) {
@@ -319,9 +368,10 @@ export const kMeansQuantizer: ColorQuantizer = {
     const cellCount = cells.width * cells.height;
     const oklabColors = new Array<Oklab>(cellCount);
     for (let i = 0; i < cellCount; i++) oklabColors[i] = rgbToOklab(cellRgb(cells, i));
+    const cellImportance = importance ?? new Float32Array(cellCount);
 
     const mergedOklab = merged.palette.map(rgbToOklab);
-    const injected = injectWorstFitClusters(oklabColors, merged.cellPaletteIndex, mergedOklab, freedSlots);
+    const injected = injectWorstFitClusters(oklabColors, merged.cellPaletteIndex, mergedOklab, freedSlots, cellImportance);
     const refined = runLloyd(oklabColors, injected.centroids);
     return buildPaletteFromAssignment(refined.centroids, refined.assignments);
   },

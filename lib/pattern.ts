@@ -28,15 +28,25 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   options.onProgress?.(0.1);
   const cells = downsampleToGrid(imageData, gridWidth, gridHeight);
 
+  // Computed unconditionally (not just under `shouldOptimize`) and passed
+  // into the quantizer itself, not just the optimizer passes below: a
+  // 2026-09-11 review (HANDOVER.md D39/G-020 M3) found the quantizer's own
+  // worst-fit reinvestment (`kMeansQuantizer`) had no way to prefer a
+  // genuinely important rare detail over a rare artifact, since importance
+  // wasn't computed yet at quantization time. Both `computeEdgeMagnitude`
+  // and `computeCellImportance` depend only on the original image and grid
+  // dimensions, never on the quantizer's own output, so moving this earlier
+  // changes nothing about the values themselves.
+  const edgeMagnitude = computeEdgeMagnitude(imageData);
+  const importance = computeCellImportance(imageData, edgeMagnitude, gridWidth, gridHeight);
+
   const quantizer = options.quantizer ?? kMeansQuantizer;
-  const { cellPaletteIndex: quantized, palette: rawPalette } = quantizer.quantize(cells, options.colorCount);
+  const { cellPaletteIndex: quantized, palette: rawPalette } = quantizer.quantize(cells, options.colorCount, importance);
   options.onProgress?.(0.4);
 
   const shouldOptimize = options.optimize ?? true;
   let optimized = quantized;
   if (shouldOptimize) {
-    const edgeMagnitude = computeEdgeMagnitude(imageData);
-    const importance = computeCellImportance(imageData, edgeMagnitude, gridWidth, gridHeight);
     const componentRecolorOptions = defaultComponentRecolorOptions(cells.width * cells.height);
     optimized = runMultiScaleOptimizer(cells, quantized, rawPalette, importance, options.multiScaleWeights);
     // Contour cleanup (Phase C): fixes structural artifacts the per-cell
