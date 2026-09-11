@@ -2986,6 +2986,19 @@ review's Finding 4 and its own recommended order of work (M1 first).
   (this is an internal quantizer-correctness fix with no UI surface of
   its own), live dev-server smoke test (regenerate, zero console
   errors). Not yet deployed.
+- **Deployed (2026-09-11).** Owner: "deploy". Standard recipe: `git
+  push`/VPS `git fetch`+`git pull`/`docker compose --profile app up -d
+  --build`. `docker ps` before/after confirmed isolation: only the
+  cross-stitch container restarted (`Up 59 minutes` -> `Up 10 seconds`);
+  all 28 other containers unchanged. Spot-checked `meet.app.julienika.cz`,
+  `craftale.eu`, and `arfid.julienika.cz` at HTTP 200, plus the target
+  site at 200. Live verification on production: clicked Regenerate on
+  the deployed page's own DOM, zero console messages. This is an
+  internal quantizer-correctness fix with no UI surface of its own, so
+  the deploy check is deliberately basic (page loads, generates cleanly)
+  rather than trying to visually confirm the specific bug fix in
+  production -- that correctness rests on the zero-tolerance unit tests
+  already run pre-deploy.
 - **Next**: M2 (rotation-neutral boundary energy) per this goal's own
   acceptance criteria gets a codex-cli critique attempt first (now
   potentially available again via the newly-loaded `codex` plugin,

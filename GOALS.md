@@ -109,6 +109,9 @@ work," restated with this project's acceptance-criteria/risk framing):
   effect is in hand, rather than committing to a specific design now.
 
 **Progress log** (newest first):
+- 2026-09-11 — M1 deployed (Owner: "deploy"). Container isolation
+  confirmed, other sites healthy, production regenerate clean (zero
+  console errors). See HANDOVER.md for the full record.
 - 2026-09-11 — M1 complete. Reproduced the bug directly before fixing it:
   a soft-edged 60x60 grayscale circle fixture left 40-56 of 3600 cells
   (depending on colorCount) assigned to a stale, no-longer-nearest
