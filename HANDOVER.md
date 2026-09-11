@@ -5004,6 +5004,69 @@ black or white — never the unrelated gray label.
 clean. No e2e run needed — still test-only, no `pattern.ts` wiring.
 Continuing to M4.4 (ICM integration) next.
 
+**D67 — G-024 M4.4: ICM integration, both coarse and fine passes
+(2026-09-12, Owner: "continue without confirmation...").**
+
+`lib/local-optimizer.ts`'s `runLocalOptimizer` (and `runMultiScaleOptimizer`,
+threading it through both its coarse and fine calls) gained an optional
+`crispEvidenceLayer?: CrispEvidenceLayer` parameter — the **first
+already-live production file this feature has modified** (every prior
+G-024 module was new and standalone). A cell present in the layer
+searches only its admissible labels using the mode-aware unary cost;
+every other cell is completely unaffected.
+
+**The weight-composition bug D63 flagged before it could ship, resolved
+here**: admissible costs are precomputed once per call (the palette is
+fixed for every internal pass) via `buildAdmissibleLabelCosts(evidence,
+paletteOklab, { alpha: weights.color, beta: DEFAULT_CRISP_UNARY_COST_WEIGHTS.beta })`
+— `alpha` is DERIVED from this call's own `weights.color`, never a
+separate constant applied on top of it, so a crisp cell's
+already-alpha-weighted cost is never double-scaled the way naively
+reusing the Standard branch's `weights.color * colorTerm` multiplication
+would have done.
+
+**The tie-breaking convention D63 called for, implemented**: for a
+protected cell, the CURRENT label is evaluated first and wins any exact
+energy tie (only replaced by a strictly lower-energy alternative) —
+Standard cells are completely unaffected and keep today's exact
+`bestEnergy = Infinity` / ascending-label-order behavior. Verified with
+a dedicated test: a cell with genuinely tied unary cost (equal coverage
+on both sides) and symmetric neighbors keeps its current label rather
+than falling back to the lower-index alternative a naive scan would
+pick.
+
+**No closures in the hot loop** (this project's own D44 scar: an
+earlier `Array.findIndex`-with-closure pattern inside ICM's innermost
+per-candidate loop cost a real, measured 3x slowdown before being
+fixed): the boundary-energy computation is duplicated inline in both
+the Standard and Crisp branches rather than factored into a shared
+closure, even though the two branches are structurally similar —
+deliberate, given this project's own history with exactly this
+mistake.
+
+**Verified Standard-compatibility directly**: `runLocalOptimizer` is
+byte-identical with an omitted vs. an explicitly-empty
+`crispEvidenceLayer`, and a cell absent from a non-empty layer is
+unaffected by another cell's presence in it. **Verified admissibility
+is enforced even under adversarial pairwise pull**: a confident black/
+white cell surrounded entirely by gray neighbors (which would plausibly
+pull a Standard-mode cell toward gray) never gets assigned the gray
+label regardless. **Composition-tested** on M1's real fixture through
+both coarse and fine passes together.
+
+**Extra caution since this touches an already-live file**: ran the
+full e2e suite (27/27, no flakes) in addition to the usual unit/tsc/
+eslint/build checks, even though `crispEvidenceLayer` is `undefined`
+for every current caller (`pattern.ts` doesn't pass it yet) and should
+be provably inert — every prior M2-M4.3 module was new and standalone,
+so this is the first change in the feature with any real risk to
+today's live behavior.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full
+`npx vitest run` 454/454 passing (46 files, +5 new), `npm run build`
+clean, full e2e (27/27, no flakes). Continuing to M4.5 (contour-cleanup
+integration + the contourRefinement rejection decision) next.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

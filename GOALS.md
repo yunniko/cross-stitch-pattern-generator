@@ -125,7 +125,7 @@ restructured into this project's usual milestone/check-in shape):
     coverage wins," which can pick the more expensive candidate once
     palette-fit errors are unequal) against the returned RGB palette
     converted back to OKLab.
-  - [ ] M4.4 — ICM integration (coarse + fine). Must resolve a real
+  - [x] M4.4 — ICM integration (coarse + fine). Must resolve a real
     weight-composition contract issue first: `buildUnaryCostEvaluator`
     returns an unweighted standard cost but an already alpha-weighted
     crisp cost — `weights.color` must not be applied uniformly to
@@ -179,6 +179,22 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-12 — M4.4 complete: `lib/local-optimizer.ts`'s `runLocalOptimizer`/
+  `runMultiScaleOptimizer` gained an optional `crispEvidenceLayer`
+  parameter -- the FIRST already-live production file this feature has
+  touched. Resolved the D63-flagged weight-composition bug (`alpha`
+  derived from the caller's own `weights.color`, never applied twice)
+  and implemented the current-label-wins-ties convention for protected
+  cells, verified with a dedicated tied-cost test. Verified Standard-
+  compatibility directly (byte-identical with an omitted vs. empty
+  evidence layer) and admissibility even under adversarial pairwise
+  pull (a confident cell surrounded by gray neighbors never gets
+  recolored to gray). Ran the full e2e suite (27/27) in addition to
+  the usual checks, given this is the first change with any real risk
+  to today's live behavior. Full story in HANDOVER.md D67. Verified:
+  454/454 tests passing (46 files, +5 new), clean `tsc`/`eslint`/
+  `npm run build`, e2e 27/27. Continuing to M4.5 (contour-cleanup
+  integration) next.
 - 2026-09-12 — M4.3 complete. New `lib/crisp-quantization-stage.ts`
   (`runCrispQuantizationStage`): builds the weighted sample pool from
   M4.2's evidence layer, runs the caller's chosen weighted quantizer,

@@ -1,3 +1,5 @@
+import type { CrispEvidenceLayer } from "./crisp-evidence-layer";
+import { buildAdmissibleLabelCosts, DEFAULT_CRISP_UNARY_COST_WEIGHTS, type AdmissibleLabelCost } from "./crisp-unary-cost";
 import { edgeBetweenCells } from "./edge-map";
 import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS, type PairEnergyWeights } from "./energy";
 import { getPairEdgeEvidence } from "./pair-edge-evidence";
@@ -64,6 +66,34 @@ const MAX_PASSES = 8;
  * else, but callers/tests that omit `pairEvidence` still get today's
  * exact `edgeBetweenCells`-based behavior, so no existing direct test of
  * this function needed to change.
+ *
+ * `crispEvidenceLayer` (optional, G-024 M4.4, HANDOVER.md D67): a frozen
+ * `CrispEvidenceLayer` (`lib/crisp-evidence-layer.ts`, M4.2). A cell
+ * present in it is restricted to searching only its ADMISSIBLE labels
+ * (report Section 6/7: "labels with no supporting mode are inadmissible")
+ * using the mode-aware unary cost instead of the flat single-color
+ * distance -- every other cell keeps today's exact unweighted-distance
+ * search, byte-identical when `crispEvidenceLayer` is omitted or a
+ * particular cell has no entry in it. Admissible costs are precomputed
+ * ONCE per call (the palette is fixed for every pass below), bounded to
+ * confident cells only -- never a closure/Map retained per stitch beyond
+ * this function's own lifetime (`crisp-evidence-layer.ts`'s own
+ * documented bound). `alpha` is derived from THIS call's own
+ * `weights.color`, never a separately-set constant applied on top of it
+ * -- resolves a real weight-composition bug caught before it shipped
+ * (HANDOVER.md D63): `buildUnaryCostEvaluator`/`buildAdmissibleLabelCosts`
+ * already produce an alpha-WEIGHTED crisp cost, so multiplying by
+ * `weights.color` a second time (as the Standard branch does to its own
+ * raw, UNweighted `oklabDistanceSquared`) would double-scale it.
+ *
+ * Protected cells get their own, explicit tie-breaking convention: the
+ * CURRENT label is evaluated first and wins any exact tie (only replaced
+ * by a STRICTLY lower-energy alternative) -- Standard cells are
+ * unaffected and keep today's exact behavior (`bestEnergy = Infinity`,
+ * ascending label order, first candidate to reach the minimum wins).
+ * Without this, ICM's existing tie rule would silently erase a
+ * deliberate geometric initialization (M4.3) the moment two admissible
+ * labels happened to cost the same.
  */
 export function runLocalOptimizer(
   cells: CellColorBuffer,
@@ -71,7 +101,8 @@ export function runLocalOptimizer(
   palette: RGB[],
   importance?: Float32Array,
   weights: LocalOptimizerWeights = DEFAULT_LOCAL_OPTIMIZER_WEIGHTS,
-  pairEvidence?: Float32Array
+  pairEvidence?: Float32Array,
+  crispEvidenceLayer?: CrispEvidenceLayer
 ): Uint8Array {
   const { width, height } = cells;
   const cellCount = width * height;
@@ -79,6 +110,15 @@ export function runLocalOptimizer(
   for (let i = 0; i < cellCount; i++) cellOklab[i] = rgbToOklab(cellRgb(cells, i));
   const paletteOklab = palette.map(rgbToOklab);
   const cellImportance = importance ?? new Float32Array(cellCount);
+
+  const crispAdmissibleCosts = crispEvidenceLayer
+    ? new Map<number, Map<number, AdmissibleLabelCost>>(
+        Array.from(crispEvidenceLayer.evidenceByCell, ([cellIndex, evidence]) => [
+          cellIndex,
+          buildAdmissibleLabelCosts(evidence, paletteOklab, { alpha: weights.color, beta: DEFAULT_CRISP_UNARY_COST_WEIGHTS.beta }),
+        ])
+      )
+    : undefined;
 
   const assignment = initialAssignment.slice();
 
@@ -96,23 +136,45 @@ export function runLocalOptimizer(
           neighbors.push({ n: ny * width + nx, weight: offset.weight, dx: offset.dx, dy: offset.dy });
         }
 
+        const admissible = crispAdmissibleCosts?.get(i);
         let best = assignment[i];
         let bestEnergy = Infinity;
-        for (let c = 0; c < paletteOklab.length; c++) {
-          const colorTerm = oklabDistanceSquared(cellOklab[i], paletteOklab[c]);
 
-          let boundaryEnergy = 0;
-          for (const { n, weight, dx, dy } of neighbors) {
-            const edge = pairEvidence
-              ? getPairEdgeEvidence(pairEvidence, i, dx, dy, width)
-              : edgeBetweenCells(cellImportance, i, n);
-            boundaryEnergy += weight * boundaryPairEnergy(weights, edge, c !== assignment[n]);
+        if (admissible) {
+          // Current label first, so it wins any exact tie (see doc comment above).
+          const orderedCandidates: number[] = [best];
+          for (const c of admissible.keys()) {
+            if (c !== best) orderedCandidates.push(c);
           }
+          for (const c of orderedCandidates) {
+            const entry = admissible.get(c);
+            if (!entry) continue; // current label happened not to be admissible -- defensive only, see crisp-quantization-stage.ts
+            let boundaryEnergy = 0;
+            for (const { n, weight, dx, dy } of neighbors) {
+              const edge = pairEvidence ? getPairEdgeEvidence(pairEvidence, i, dx, dy, width) : edgeBetweenCells(cellImportance, i, n);
+              boundaryEnergy += weight * boundaryPairEnergy(weights, edge, c !== assignment[n]);
+            }
+            const energy = entry.cost + boundaryEnergy;
+            if (energy < bestEnergy) {
+              bestEnergy = energy;
+              best = c;
+            }
+          }
+        } else {
+          for (let c = 0; c < paletteOklab.length; c++) {
+            const colorTerm = oklabDistanceSquared(cellOklab[i], paletteOklab[c]);
 
-          const energy = weights.color * colorTerm + boundaryEnergy;
-          if (energy < bestEnergy) {
-            bestEnergy = energy;
-            best = c;
+            let boundaryEnergy = 0;
+            for (const { n, weight, dx, dy } of neighbors) {
+              const edge = pairEvidence ? getPairEdgeEvidence(pairEvidence, i, dx, dy, width) : edgeBetweenCells(cellImportance, i, n);
+              boundaryEnergy += weight * boundaryPairEnergy(weights, edge, c !== assignment[n]);
+            }
+
+            const energy = weights.color * colorTerm + boundaryEnergy;
+            if (energy < bestEnergy) {
+              bestEnergy = energy;
+              best = c;
+            }
           }
         }
 
@@ -167,8 +229,9 @@ export function runMultiScaleOptimizer(
   palette: RGB[],
   importance?: Float32Array,
   weights: MultiScaleWeights = DEFAULT_MULTI_SCALE_WEIGHTS,
-  pairEvidence?: Float32Array
+  pairEvidence?: Float32Array,
+  crispEvidenceLayer?: CrispEvidenceLayer
 ): Uint8Array {
-  const coarse = runLocalOptimizer(cells, initialAssignment, palette, importance, weights.coarse, pairEvidence);
-  return runLocalOptimizer(cells, coarse, palette, importance, weights.fine, pairEvidence);
+  const coarse = runLocalOptimizer(cells, initialAssignment, palette, importance, weights.coarse, pairEvidence, crispEvidenceLayer);
+  return runLocalOptimizer(cells, coarse, palette, importance, weights.fine, pairEvidence, crispEvidenceLayer);
 }
