@@ -720,6 +720,33 @@ milestone's own result justifies continuing):
 
 ## Completed goals
 
+### G-025 · XL (200) and XXL (250) pattern-size presets — DONE (2026-09-11)
+- **What:** Owner request: "add XL (200) and XXL (250) sizes." Extended
+  the Pattern size radio group (`app/workspace.tsx`) with two more
+  longer-side-stitch presets alongside the existing Small/Medium/Large.
+- **Why:** Owner-directed; both values are well within the existing
+  `MAX_STITCHES` = 1000 ceiling.
+- **Acceptance criteria:** New presets appear in the size selector,
+  generate correctly, and the finished-size/page-count estimates update
+  accordingly; no regression to existing presets or saved-project
+  compatibility.
+- **Constraints:** None stated.
+
+**Progress log** (newest first):
+- 2026-09-11 — Complete and deployed (Owner: "add XL (200) and XXL (250)
+  sizes, deploy and proceed m5"). `lib/types.ts`'s `SizePresetId`/
+  `SIZE_PRESETS` extended; added a new `SIZE_PRESET_LABELS` map since
+  "xl"/"xxl" aren't a plain capitalized word the way "small"/"medium"/
+  "large" are (the old `preset[0].toUpperCase() + preset.slice(1)` would
+  have rendered "Xl"/"Xxl"). `sizePreset` is ephemeral UI state, not
+  persisted, so no legacy-file compatibility concern. Verified: clean
+  `tsc`/`eslint`/`npm run build`, full unit (318/318) and e2e (27/27)
+  suites unaffected, live dev-server smoke test (XL, 200x125 stitches,
+  zero console errors). Deployed: container isolation confirmed (only
+  cross-stitch restarted), other sites healthy, live production
+  verification selecting XXL and regenerating (250x250 stitches, zero
+  console errors). See HANDOVER.md D47.
+
 ### G-021 · DMC as an independent palette mode, not a third algorithm — DONE (2026-09-11)
 - **What:** Owner request: "Make DMC separate type of mode (palette mode)
   instead of just a mode. And let latest and original modes work with full

@@ -3431,6 +3431,17 @@ e2e (27/27) suites unaffected, plus a live dev-server smoke test
 selecting XL and regenerating (200x125 stitches, page-count/finished-
 size estimate updated correctly, zero console errors).
 
+**Deployed (2026-09-11).** Owner: "deploy". Standard recipe: `git
+push`/VPS `git fetch`+`git pull`/`docker compose --profile app up -d
+--build`. `docker ps` before/after confirmed isolation: only
+`cross-stitch-pattern-generator-app-1` restarted (`Up 25 minutes` ->
+`Up 8 seconds`); every other container's uptime unchanged. Spot-checked
+`meet.app.julienika.cz`, `craftale.eu`, and `arfid.julienika.cz` at HTTP
+200, plus the target site at 200. Live verification directly on
+production: selected XXL and regenerated the existing `prod-preview-
+test` pattern (250x250 stitches, page/skein counts updated correctly),
+zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
