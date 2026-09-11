@@ -2424,6 +2424,37 @@ and confirmed the origin read back as `EMPTY_CELL` and the destination
 read back as the moved color. Zero console errors. Goal DONE — see
 GOALS.md's G-018 entry.
 
+**D38 — G-019: Realistic preview background made transparent, border
+removed (2026-09-11).** Owner request: "The realistic preview pattern
+should have transparent background instead of 50% gray canvas. And no
+frame." `lib/render.ts`'s `renderStitchPreviewToCanvas`:
+
+- Dropped `PREVIEW_CANVAS_COLOR` (`#808080`) and the white full-canvas
+  fill entirely -- the canvas is simply never filled before drawing
+  stitches, so both `EMPTY_CELL` cells and the tinted stitch-texture's
+  own soft alpha edges (see `lib/stitch-texture.ts` -- the source PNG
+  carries real per-pixel alpha, previously always composited against
+  the flat gray/white fills) now correctly show through as true
+  transparency instead of blending with a background color.
+- Dropped `PREVIEW_BORDER` (16px) and the canvas padding it added --
+  the canvas is now exactly `width*cellSize` x `height*cellSize`, no
+  frame margin on any side.
+- This is the same canvas used for both the live "Realistic preview"
+  view mode (via `canvas.toDataURL("image/png")` into an `<img>`) and
+  "Download realistic preview PNG" -- both get real alpha transparency
+  now, not just the on-screen view.
+- **Verified**: existing 274 unit tests still pass (this function isn't
+  itself unit-tested -- canvas/Image-dependent, consistent with this
+  project's convention of verifying such code live rather than in
+  Vitest), clean `tsc`/`eslint`/`npm run build`. Live dev-server check,
+  verified rigorously rather than just visually: decoded the live
+  preview's own data-URL PNG back into a canvas and read raw pixels via
+  `getImageData` -- confirmed the exported canvas is exactly
+  `width*cellSize` (no border padding), a stitched cell reads fully
+  opaque, and a cell manually set to "Empty (no stitch)" reads back as
+  `[0, 0, 0, 0]` (fully transparent), not any gray/white fill. Zero
+  console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

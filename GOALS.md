@@ -11,7 +11,30 @@ svc-lab).
 
 ## Active goals
 
-_No goals currently active._
+### G-019 · Transparent, frameless realistic preview — ACTIVE
+- **What:** The "Realistic preview" render (both the live view and
+  "Download realistic preview PNG") should have a fully transparent
+  background instead of a flat 50% gray canvas fill, and no border/frame.
+- **Why:** Owner request (2026-09-11).
+- **Acceptance criteria:** Both the on-screen realistic preview and the
+  downloaded PNG have a transparent background wherever there's no
+  stitch (or the stitch texture's own soft edges taper off), and no
+  border margin around the stitched area.
+- **Constraints:** None.
+
+**Milestones:**
+- [x] M1 — Remove the gray background fill and the white border/padding
+      from `renderStitchPreviewToCanvas`; live-browser verified via
+      direct pixel/alpha inspection (not just visual).
+- [ ] M2 — Commit and (pending Owner go-ahead) production deploy.
+
+**Progress log** (newest first):
+- 2026-09-11 — M1 complete. Full detail in HANDOVER.md D38. Verified:
+  274 unit tests still pass, clean `tsc`/`eslint`/`npm run build`, and a
+  live dev-server check that decoded the actual rendered PNG and
+  confirmed via `getImageData` that an Empty cell reads back as
+  `[0,0,0,0]` (true transparency) and the canvas has no border padding.
+  Not yet committed, not deployed. Continuing to M2 next.
 
 ## Completed goals
 

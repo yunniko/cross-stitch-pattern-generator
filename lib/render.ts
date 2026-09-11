@@ -618,21 +618,15 @@ export function renderPatternToCanvas(
   return canvas;
 }
 
-// Simulated-canvas preview constants -- deliberately minimal (flat gray
-// background + a tinted photo-texture stitch + a plain border): this is a
-// "what will this look like stitched" preview, not another printable chart
-// variant, so it carries none of drawChart's grid/symbol/legend/marker
-// machinery.
-const PREVIEW_CANVAS_COLOR = "#808080"; // 50% gray, per Owner request
-const PREVIEW_BORDER = 16;
-
 /**
  * Renders the pattern as a simulated finished piece: each cell drawn as the
  * shared stitch-texture image (see `stitch-texture.ts`) tinted to that
  * cell's palette color -- preserving the texture's own shading and soft
- * alpha edges -- on a flat 50%-gray background, with a small white border.
- * No grid lines, symbols, legend, markers, or numbers -- this is a
- * look-and-feel preview, not a stitchable chart.
+ * alpha edges -- on a fully transparent background, with no border/frame
+ * (Owner decision, 2026-09-11: lets the preview be dropped onto any
+ * background, on-page or in the downloaded PNG, without a gray/white box
+ * around it). No grid lines, symbols, legend, markers, or numbers -- this
+ * is a look-and-feel preview, not a stitchable chart.
  */
 export async function renderStitchPreviewToCanvas(
   pattern: StitchPattern,
@@ -644,34 +638,25 @@ export async function renderStitchPreviewToCanvas(
   const areaHeightPx = height * cellSize;
 
   const canvas = document.createElement("canvas");
-  canvas.width = areaWidthPx + PREVIEW_BORDER * 2;
-  canvas.height = areaHeightPx + PREVIEW_BORDER * 2;
+  canvas.width = areaWidthPx;
+  canvas.height = areaHeightPx;
 
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("2D canvas context unavailable");
-
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.save();
-  ctx.translate(PREVIEW_BORDER, PREVIEW_BORDER);
-
-  ctx.fillStyle = PREVIEW_CANVAS_COLOR;
-  ctx.fillRect(0, 0, areaWidthPx, areaHeightPx);
 
   const textures = await buildTintedTextureSet(palette);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const paletteIndex = cellPalette[y * width + x];
-      // The empty-stitch sentinel has no texture to tint -- leave the plain
-      // canvas-color fill already painted above showing through (G-012 M5).
+      // The empty-stitch sentinel has no texture to tint -- leave that cell
+      // fully transparent (the canvas's own default, since nothing fills
+      // the background anymore) rather than any solid color (G-012 M5).
       if (paletteIndex === EMPTY_CELL) continue;
       const tinted = textures.get(paletteIndex);
       ctx.drawImage(tinted, x * cellSize, y * cellSize, cellSize, cellSize);
     }
   }
 
-  ctx.restore();
   return canvas;
 }
 
