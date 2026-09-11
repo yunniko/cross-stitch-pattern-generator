@@ -175,35 +175,23 @@ describe("smooth gradient: low confidence expected, despite two-means finding SO
   });
 });
 
-describe("KNOWN GAP (found during G-024 M3 planning via Codex critique, HANDOVER.md D59; fixture corrected during G-024 M4 planning via a second Codex critique, HANDOVER.md D63): a sufficiently steep smooth gradient reaches 2 modes and is NOT rejected", () => {
-  it("a gradient steep enough to fit two real color modes within one cell's neighborhood scores high confidence -- a genuine false positive, not yet fixed", () => {
-    // The gentle 64-wide gradient tested above never reaches modes.length
-    // 2 at all (it exits through the degenerate-split gate, confidence 0
-    // "for the wrong reason" -- see D58). A steeper ramp DOES fit two real,
-    // spatially-separated color modes -- and gets scored with HIGH
-    // confidence, because a monotonic ramp sampled through a bounded local
-    // window genuinely produces low within-mode spread (colorConfidence
-    // high) AND real spatial separation between "low half" and "high half"
-    // of the ramp (spatialConfidence high) -- exactly the two signals the
-    // formula uses to detect a real hard edge, both legitimately present
-    // here for a reason that has nothing to do with a hard boundary. This
-    // is a real, structural limitation (the report's own Section 4
-    // anticipated needing an explicit smooth-variation comparison beyond
-    // simple 2-cluster spatial fit, which this prototype does not yet
-    // have), not a calibration-constant issue.
-    //
-    // D63 CORRECTION: the originally-locked fixture used a REPEATING ramp
-    // (period 16px), and this exact test column's expanded neighborhood
-    // ([13,23)) crossed the ramp's own period-reset discontinuity at x=16
-    // -- a genuine sharp value jump, not a smooth-gradient artifact. A
-    // Codex critique caught this during G-024 M4 planning and verified
-    // directly that a NON-repeating ramp (rises 0->255 over x in [0,16),
-    // then clamps flat -- no reset anywhere) at a column safely inside the
-    // rising region, away from both the origin and the clamp edge, shows
-    // the identical structural gap (confidence ~0.91, independently
-    // reproduced here, matching the critique's own measured value exactly)
-    // -- confirming the underlying gap is real, while the ORIGINAL fixture
-    // did not cleanly isolate it.
+describe("FIXED (G-024 M4.1, HANDOVER.md D64): a sufficiently steep smooth gradient reaches 2 modes and is now correctly rejected via edgeSharpness", () => {
+  it("a gradient steep enough to fit two real color modes within one cell's neighborhood now scores LOW confidence", () => {
+    // History: the gentle 64-wide gradient tested above never reaches
+    // modes.length 2 at all (exits through the degenerate-split gate,
+    // confidence 0 "for the wrong reason" -- D58). A steeper ramp DOES fit
+    // two real, spatially-separated color modes, and used to score HIGH
+    // confidence (D59; fixture corrected in D63; measured ~0.91) because a
+    // monotonic ramp genuinely produces low within-mode spread and real
+    // spatial separation -- exactly the two signals `colorConfidence`/
+    // `spatialConfidence` used, neither able to tell a ramp from a real
+    // edge on their own. M4.1 (D64) added a THIRD factor, `edgeSharpness`
+    // (a step-vs-affine model comparison over the same samples): a real
+    // edge's samples fit a step model far better than an affine line; a
+    // ramp's samples fit an affine line far better than a forced step --
+    // this exact fixture now measures confidence ~0.009 (edgeSharpness
+    // correctly near 0), fixing the gap without needing any change to the
+    // hard-edge fixtures above (still all high-confidence, unmodified).
     const width = 64;
     const height = 64;
     const buffer = makeBuffer(width, height, (x) => {
@@ -212,7 +200,8 @@ describe("KNOWN GAP (found during G-024 M3 planning via Codex critique, HANDOVER
     });
     const evidence = extractBoundaryEvidence(buffer, 16, 16, 1, 8); // source x:[4,8), safely inside the rising region
     expect(evidence.modes).toHaveLength(2); // confirms this fixture actually reaches the graduated formula, unlike the gentler gradient above
-    expect(evidence.confidence).toBeGreaterThan(0.9); // measured ~0.91094 -- a real false positive, not a borderline case
+    expect(evidence.edgeSharpness).toBeLessThan(0.2); // the new factor correctly identifies this as NOT a sharp transition
+    expect(evidence.confidence).toBeLessThan(0.1); // measured ~0.009 -- the false positive is fixed
   });
 });
 

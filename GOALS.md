@@ -91,7 +91,7 @@ restructured into this project's usual milestone/check-in shape):
   fully-transparent cell that could be reported as a confident
   boundary) — both fixed and verified before this sub-step list was
   finalized:
-  - [ ] M4.1 — Fix the D59/D63 detection gap for real: a smooth
+  - [x] M4.1 — Fix the D59/D63 detection gap for real: a smooth
     gradient can reach the confidence formula's 2-mode fit and score
     a false positive, and this is structural (mathematically, an
     ideal ramp's colorConfidence caps at 12/13≈0.923, so it's not
@@ -179,6 +179,27 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-12 — M4.1 complete (Owner: "proceed to m4"). Fixed the D59/
+  D63 detection gap for real: `lib/crisp-edge-evidence.ts` gained a
+  third confidence factor, `edgeSharpness`, comparing how well a
+  two-constant-color STEP model fits the samples (reusing the already-
+  computed `spread`) against a smooth AFFINE (linear ramp) model fit
+  fresh along the axis connecting the two modes' spatial centroids
+  (newly exposed as `boundaryDirection`). A real edge fits the step
+  model far better (sharpness -> 1); a ramp fits the affine model far
+  better (sharpness -> 0). Verified immediately: the D63-corrected
+  known-gap fixture's confidence dropped from ~0.91 to 0.009, while
+  every existing hard-edge fixture stayed unmodified. Calibrated
+  broadly (17 new tests): multiple orientations, noise, 5 different
+  ramp slopes, a transition-width sweep (1px-24px, confidence
+  degrading from high to low with a real gap between the extremes),
+  checkerboard at multiple phases, and -- specifically checking the
+  fix isn't overfit to its own ideal model -- an OKLab-linear ramp,
+  not just RGB-linear ones. Full story in HANDOVER.md D64. Verified:
+  436/436 tests passing (43 files, +17 new), clean `tsc`/`eslint`/
+  `npm run build`. No e2e run needed (test-only). Starting M4.2 next
+  (the per-image evidence layer + shared lifecycle contract) once the
+  Owner checks in.
 - 2026-09-12 — M4 planning (Owner: "proceed to m4"). Before writing
   any pipeline-integration code, sent the full M4 plan to Codex for
   critique (the detection gap from D59, plus a 9-sub-step pipeline-

@@ -4828,6 +4828,82 @@ yet built): `npx tsc --noEmit` clean, `npx eslint .` clean, full
 build` clean. No e2e run needed (test-only, no `pattern.ts` wiring
 yet). Starting M4.1 next (fixing the detection gap for real).
 
+**D64 — G-024 M4.1: the D59/D63 detection gap actually fixed, via a
+step-vs-affine model comparison (2026-09-12, Owner: "proceed to m4").**
+
+Implemented the fix direction D63's critique recommended: `lib/crisp-
+edge-evidence.ts` gained a third confidence factor, `edgeSharpness`,
+alongside the existing `colorConfidence`/`spatialConfidence`. For each
+candidate cell, `computeEdgeSharpness` compares two models fit to the
+SAME already-collected samples/weights, projected onto the axis
+connecting the two modes' spatial centroids (`t`):
+
+- **Step model** — the residual is exactly `spread` (mean squared
+  distance to each sample's own already-assigned 2-means centroid),
+  reused directly rather than recomputed, since that already IS the
+  best-fit two-constant-color model conditional on the existing
+  cluster assignment.
+- **Affine model** — a fresh per-OKLab-channel weighted linear
+  regression, `color(t) = a + b*t`.
+
+`edgeSharpness = affineResidual / (affineResidual + stepResidual)`: a
+real hard edge fits the step model far better than a line can (a line
+can't represent a discontinuity without large residual right at the
+jump), so `affineResidual` dominates and sharpness → 1. A smooth ramp
+fits the affine model far better than a forced 2-level approximation
+(the ramp genuinely IS affine), so `stepResidual` dominates and
+sharpness → 0. `confidence` is now the product of all three factors.
+
+Also exposed `boundaryDirection` (unit vector from mode 0's spatial
+centroid toward mode 1's, in the same normalized neighborhood
+coordinates as `spatialSeparation`) — needed internally to define the
+projection axis `t`, and per the critique's own note, useful for M4's
+later geometry-aware work since `spatialSeparation` alone discards
+which way the split runs.
+
+**Verified immediately, not assumed**: re-ran the exact D63-corrected
+known-gap fixture — confidence dropped from ~0.91 to **0.009**, and
+`edgeSharpness` alone reads ~0.01, correctly identifying the ramp as
+NOT a sharp transition. Converted that test from a "KNOWN GAP, not yet
+fixed" record into a "FIXED" regression test. Critically, **every
+existing hard-edge fixture still passes unmodified** — the fix doesn't
+trade real-edge detection away to kill the false positive.
+
+**Then calibrated broadly** (`tests/unit/crisp-edge-sharpness-
+calibration.spec.ts`, 17 tests, matching the critique's own recommended
+fixture matrix and this project's D18 discipline — not one attractive
+example):
+- Hard steps at multiple orientations (diagonal, horizontal, vertical)
+  — all stay confidently accepted, confirming the fix generalizes
+  beyond the one axis-aligned direction already tested.
+- A hard step with realistic per-pixel noise on both sides — stays
+  usefully accepted, not knocked down by the new factor.
+- Five different non-repeating ramp slopes (12-32px rise) that reach
+  the 2-mode gate — ALL rejected, not just the one slope that
+  originally motivated the fix.
+- A transition-WIDTH sweep (1px to 24px) — confidence starts high (a
+  1px transition, essentially a hard edge) and ends low (24px, a real
+  gradual ramp), with a real, substantial (>0.4) gap between the
+  extremes — shows the mechanism degrades sensibly across the range
+  rather than hiding a cliff or failing to discriminate at all.
+- A fine checkerboard at 4 different phase offsets — stays rejected
+  regardless of phase, not a cherry-picked one.
+- **An OKLab-linear ramp** (interpolated directly in OKLab space, the
+  affine model's own exact assumption), not just the RGB-linear ramps
+  used elsewhere — confirms the fix isn't accidentally calibrated only
+  against its own ideal negative model (the critique's specific
+  warning: "a linear sRGB ramp is not exactly affine in OKLab").
+- Degenerate cases (single-mode cells, the D63 transparent-cell case)
+  correctly report `edgeSharpness: 1`/`boundaryDirection: null`, no
+  crashes or NaN.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full
+`npx vitest run` 436/436 passing (43 files, +17 new), `npm run build`
+clean. No e2e run needed — still test-only, `lib/pattern.ts` does not
+import this module yet. Starting M4.2 next (the per-image evidence
+layer + shared assignment/palette lifecycle contract) once the Owner
+checks in.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

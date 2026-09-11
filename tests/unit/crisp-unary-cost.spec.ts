@@ -16,6 +16,8 @@ function makeEvidence(overrides: Partial<BoundaryEvidence> = {}): BoundaryEviden
     coverage: [0.7, 0.3],
     spread: [0, 0],
     spatialSeparation: 0.5,
+    boundaryDirection: [1, 0],
+    edgeSharpness: 1,
     confidence: 0.9,
     ...overrides,
   };
