@@ -3658,6 +3658,92 @@ to solve on its own schedule.
 build`. Test-infrastructure only -- no `lib/`/`app/` production code
 touched, no e2e impact, no deploy needed for this sub-step.
 
+**D50 — Root cause of D49's axial-line erasure finding, investigated
+(2026-09-11, Owner: "investigate the finding"; no production code
+changed -- this is diagnosis, a fix is a separate decision).** Traced
+the pipeline stage-by-stage (a scratch script, deleted after use, mirrors
+`pattern.ts`'s own sequence: downsample -> denoise -> quantize -> ICM ->
+cleanup -> merge) with the exact D49 fixture. Two distinct, separately-
+confirmed mechanisms, not one:
+
+1. **`denoiseForQuantization`'s importance-gated medoid filter erases
+   BOTH orientations similarly at the denoise step, for a well-founded
+   but here-mismatched reason.** Measured: an axial line's own Sobel-
+   based `importance` (`lib/edge-map.ts`) is **exactly 0.0000** -- not
+   approximately zero, but a precise cancellation. This is a real,
+   provable property of a Sobel (first-derivative) operator applied to a
+   *ridge* (a thin line, two-sided) rather than a *step* edge: at the
+   line's own pixel, the gradient contribution from crossing into
+   background on one side is equal and opposite to crossing into
+   background on the other side (confirmed by hand: `gx`/`gy`'s left/
+   right and top/bottom sums are identically balanced for a symmetric
+   1-cell line), so they cancel exactly. Since `denoiseForQuantization`
+   only protects cells with `importance > 0.5`, this 0.0-importance line
+   receives zero protection and its medoid computation proceeds: a 3x3
+   window centered on any line cell contains exactly 2 other line-
+   colored cells (its immediate same-orientation neighbors) and 6
+   background-colored cells (a 3-vs-6 split, true for BOTH an axial
+   line's up/down neighbors and a diagonal line's own diagonal
+   neighbors, by the same geometric argument) -- the medoid of a 3-vs-6
+   split is always a member of the majority (6-cell) group, so the
+   filter replaces the line's true color with background before
+   quantization ever sees it. Confirmed directly: quantizing the *real*
+   undenoised cells instead of the denoised ones raised the axial line's
+   survival from 0% to 100% through both quantization and ICM. This
+   mechanism is a real, well-founded design tension, not a coding
+   mistake: the filter's own importance-gating exists specifically to
+   protect "a true 1-cell-wide detail" (the docstring's own words), but
+   the importance signal it's gated on was built around step edges
+   (Owner's spec formula, `edge-map.ts`) and structurally cannot see a
+   thin ridge feature as important, regardless of how visually obvious
+   that ridge is to a human.
+2. **A second, distinct, and directional effect inside ICM itself is
+   what turns "damaged input" into "erased for axial but rescued for
+   diagonal."** Since `runMultiScaleOptimizer` scores its own unary
+   (color) term against the *true*, undenoised cell colors (not the
+   denoised quantizer input), it has a real chance to recover a cell
+   that quantization mis-seeded. Measured: for the diagonal line,
+   quantization (post-denoise) seeded only 2 of 60 true line cells
+   correctly, yet ICM alone brought that to 60/60 (complete recovery).
+   For the axial line, quantization seeded 33 of 60 correctly, yet ICM
+   alone *reduced* that to 21/60 (actively erasing more, not recovering)
+   -- opposite directions of drift from the same algorithm on
+   geometrically similar 1-cell chains. This points to ICM's strictly
+   sequential, raster-order (row-major) per-cell update as the
+   differentiator: within one pass, a cell can see an already-updated-
+   this-pass neighbor's new value (from an earlier row) alongside a
+   not-yet-updated neighbor's old value (from a later row), which can
+   let one early flip cascade down an entire scan-aligned chain within a
+   single pass -- plausible for a vertical line (whose defining
+   neighbor relationship, straight up/down, runs parallel to the row-to-
+   row scan direction) in a way that doesn't reproduce identically for a
+   diagonal chain. This specific cascading mechanism is a plausible,
+   evidence-consistent explanation, not independently proven line-by-
+   line through the ICM implementation -- flagged honestly as the
+   weaker-confidence half of this diagnosis. A horizontal-line spot
+   check (3 rows, cheap follow-up) found *partial* survival (21-30 of
+   60, i.e. 35-50%) rather than the vertical case's complete 0%,
+   consistent with "a real, severe, orientation-sensitive effect whose
+   exact severity varies by configuration," not "always exactly zero."
+- **Not yet decided**: whether/how to fix this. Two independently
+  actionable angles, given the two mechanisms above: (a) `denoise-
+  ForQuantization`'s protection gate could look for a real local
+  bimodal-minority pattern (e.g. "is this cell's color an outlier
+  against ALL 8 neighbors, or does it match a *coherent minority
+  subset* of them" -- distinguishing genuine sensor noise from a thin
+  real feature) instead of relying solely on a step-edge-oriented
+  importance scalar; (b) ICM's per-pass update order/scheduling could
+  be revisited for exactly this class of scan-aligned thin-chain
+  instability (the already-DRAFT G-023 Rust-sidecar goal's own codex
+  critique separately flagged a *different* motivation for checkerboard/
+  non-sequential ICM scheduling -- parallelism -- worth reading together
+  with this finding if either is pursued, since a non-raster-order
+  update scheme would likely also remove this specific cascading
+  effect). Left to the Owner to decide: fix as its own scoped bug fix
+  now, fold into G-022 M5.5's thin-feature admissibility-constraint work
+  (a natural fit, since M5.5 already needs real thin-feature protection
+  for its own purposes), or defer further.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

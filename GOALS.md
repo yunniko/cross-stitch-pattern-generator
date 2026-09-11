@@ -235,6 +235,23 @@ work," restated with this project's acceptance-criteria/risk framing):
     Full verification, GOALS.md/HANDOVER.md documentation, deploy.
 
 **Progress log** (newest first):
+- 2026-09-11 — D49's axial-line-erasure finding investigated (Owner:
+  "investigate the finding"; diagnosis only, no production code
+  changed). Root cause has two distinct parts: (1) `denoiseForQuantiza-
+  tion`'s importance-gated medoid filter erases a 1-cell line's true
+  color before quantization ever sees it, because a symmetric thin
+  line's Sobel-based importance measures out to exactly 0.0000 (a real,
+  provable step-edge-vs-ridge detector limitation, confirmed by
+  quantizing undenoised cells directly: survival went from 0% to 100%);
+  (2) ICM's own sequential raster-order updates then diverge by
+  orientation on top of that damaged input -- fully rescuing a diagonal
+  line (2/60 -> 60/60 through ICM alone) but actively worsening an axial
+  one (33/60 -> 21/60), plausibly a scan-order cascading effect for a
+  chain aligned with the row-major scan direction (moderate confidence,
+  not fully proven). See HANDOVER.md D50 for the full trace and two
+  independently-actionable fix angles. Not yet decided whether to fix
+  now, fold into M5.5's own thin-feature work, or defer further --
+  awaiting Owner direction.
 - 2026-09-11 — M5.2 complete (Owner: "proceed"). Extended `tests/unit/
   shape-fixtures.ts` closing the critique's 5 named gaps (multi-class
   region comparison, a `degenerate` flag on `boundaryDistances`, a
