@@ -208,7 +208,7 @@ work," restated with this project's acceptance-criteria/risk framing):
     the honest outcome is documenting why and stopping here, the same
     kind of legitimate negative result D18/M4 already established this
     project accepts.
-  - [ ] M5.5 — The actual multi-cell move mechanism ("shared-boundary
+  - [x] M5.5 — The actual multi-cell move mechanism ("shared-boundary
     proposals" over M5.3's boundary chains, admissibility-constrained by
     M5.2's corner/feature/junction fixtures, `freeze` as the v1
     safety boundary for corners/thin features/junctions rather than
@@ -235,6 +235,51 @@ work," restated with this project's acceptance-criteria/risk framing):
     Full verification, GOALS.md/HANDOVER.md documentation, deploy.
 
 **Progress log** (newest first):
+- 2026-09-11 — M5.5 complete (Owner: "continue"). New `lib/contour-
+  refinement.ts`, wired into `pattern.ts` as a **strictly opt-in**
+  option (`contourRefinement: false` by default) -- M5.6's broad D45-
+  style validation sweep hasn't happened yet, so this must not become
+  default pipeline behavior before that gate. Placed after structural
+  cleanup and palette merging, before final palette recompute, per the
+  critique's own "passes fighting" warning (no unchanged cleanup pass
+  runs after it).
+  **Disclosed scope reduction** from the critique's preferred design:
+  implements a per-cell `pacingBias` term added to the existing, already-
+  verified ICM per-cell decision (`local-optimizer.ts`'s own formula,
+  unchanged) rather than the critique's fuller "coordinated multi-cell
+  proposals" architecture -- a deliberate, logged trade-off (full
+  rationale in HANDOVER.md D54) given the remaining scope; M5.6's own
+  planned 3-way comparison still exists to measure what this simpler
+  design leaves on the table (escaping single-cell ICM minima).
+  **Tangent estimation** (the critique's own flagged "unresolved
+  source-interface estimation problem," since a real photo has no known
+  true curve): self-referential -- a chain position's expected local
+  pace is estimated from a wider window of the SAME chain, not an
+  external source. **Two real implementation bugs found and fixed while
+  building this** (not assumed away): (1) the wide window's own p*
+  estimate initially included the narrow window it was being compared
+  against, diluting the very anomaly it needed to detect -- fixed to an
+  annulus (wide-window-minus-narrow-window) estimate; (2) the bias
+  strength was initially scaled to the tiny raw discrepancy-excess
+  fraction (~0.001-0.01), utterly negligible next to any real color-term
+  difference -- rescaled to be comparable to `boundaryPairEnergy`'s own
+  typical magnitude. Verified directly: a high-contrast test fixture
+  correctly shows NO effect (color should dominate, and does); the same
+  construction in the close-color regime (matching M2's own Finding 2 --
+  "close" palette colors) shows real, measured pacing improvement.
+  Admissibility constraints (junction protection radius, importance
+  threshold, closed-loop exclusion) verified directly, plus an
+  independent full-state cost recomputation confirming the production
+  code's per-cell choice actually has the lower cost. Verified: 357 unit
+  tests (349 + 8: 6 in `contour-refinement.spec.ts`, 2 in `pattern.spec.ts`
+  confirming the option is byte-identical when omitted/false and runs
+  cleanly end-to-end when enabled), clean `tsc`/`eslint`/`npm run build`,
+  full e2e (27/27, no flakes) -- e2e unaffected since the option defaults
+  off and there's no UI control for it yet. See HANDOVER.md D54 for the
+  full account. Not deployed (opt-in, off by default -- nothing for a
+  deploy to change yet). Starting M5.6 next (the 3-way comparison and
+  broad D45-style sweep, the actual adopt/reject decision) once the
+  Owner checks in.
 - 2026-09-11 — M5.4 complete, **checkpoint verdict: CONTINUE TO M5.5**
   (Owner: "go ahead"). `tests/unit/m5.4-candidate-ranking.spec.ts`: 3
   focused cases rather than the critique's suggested dozen (the noisy-

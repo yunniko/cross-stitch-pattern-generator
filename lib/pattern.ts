@@ -9,6 +9,7 @@ import { computePairEdgeEvidence } from "./pair-edge-evidence";
 import { mergeSimilarColors } from "./palette-optimizer";
 import { kMeansQuantizer, meanRgbOklab, type ColorQuantizer } from "./quantize";
 import { symbolsFor } from "./symbols";
+import { runContourRefinement, DEFAULT_CONTOUR_REFINEMENT_OPTIONS, type ContourRefinementOptions } from "./contour-refinement";
 import type { PaletteColor, PixelBuffer, StitchPattern } from "./types";
 
 export interface BuildPatternOptions {
@@ -18,6 +19,15 @@ export interface BuildPatternOptions {
   /** Set to skip the local optimizer/palette-merge passes — used by tests that want the raw quantizer output. */
   optimize?: boolean;
   multiScaleWeights?: MultiScaleWeights;
+  /**
+   * G-022 M5.5's contour-pacing refinement pass (HANDOVER.md D48/D54).
+   * Deliberately opt-in, defaulting to off: M5.6's broad D45-style sweep
+   * across the existing golden-fixture/shape-regression suites hasn't
+   * happened yet, so this must not become default pipeline behavior
+   * before that gate. No effect when `optimize` is false.
+   */
+  contourRefinement?: boolean;
+  contourRefinementOptions?: ContourRefinementOptions;
   onProgress?: (fraction: number) => void;
 }
 
@@ -59,6 +69,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
 
   const shouldOptimize = options.optimize ?? true;
   let optimized = quantized;
+  let pairEvidence: Float32Array | undefined;
   if (shouldOptimize) {
     // Directional, per-pair color-structure-tensor edge evidence
     // (HANDOVER.md D44/G-022 M3) -- computed once here (only needed by the
@@ -68,7 +79,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     // gating every protection threshold below (contour-cleanup's two,
     // already applied above for the quantizer); this new evidence only
     // replaces `edgeBetweenCells` for the smoothing-energy `edge` term.
-    const pairEvidence = computePairEdgeEvidence(imageData, gridWidth, gridHeight);
+    pairEvidence = computePairEdgeEvidence(imageData, gridWidth, gridHeight);
     const componentRecolorOptions = defaultComponentRecolorOptions(cells.width * cells.height);
     optimized = runMultiScaleOptimizer(cells, quantized, rawPalette, importance, options.multiScaleWeights, pairEvidence);
     // Contour cleanup (Phase C): fixes structural artifacts the per-cell
@@ -86,6 +97,25 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   options.onProgress?.(0.8);
 
   const merged = shouldOptimize ? mergeSimilarColors(optimized, rawPalette) : { cellPaletteIndex: optimized, palette: rawPalette };
+
+  // G-022 M5.5 contour-pacing refinement (HANDOVER.md D48/D54) -- placed
+  // after structural cleanup and palette merging, before the final
+  // palette-color recompute below, per the critique's own explicit
+  // "passes fighting" warning: no unchanged cleanup pass runs after this
+  // one, so it doesn't get silently undone. Opt-in only (see
+  // `BuildPatternOptions.contourRefinement`'s own doc comment).
+  if (shouldOptimize && options.contourRefinement) {
+    merged.cellPaletteIndex = runContourRefinement(
+      cells,
+      merged.cellPaletteIndex,
+      merged.palette,
+      importance,
+      options.multiScaleWeights?.fine ?? { color: 1, smoothness: 0.045, edgeLoss: 0.05 },
+      1,
+      options.contourRefinementOptions ?? DEFAULT_CONTOUR_REFINEMENT_OPTIONS,
+      pairEvidence
+    );
+  }
 
   // Drop any palette entry no cell actually uses -- reachable whenever the
   // contour-cleanup passes above (recolorSmallComponents especially) end up

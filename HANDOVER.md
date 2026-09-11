@@ -3913,6 +3913,89 @@ measurements, not worth re-deriving):
 - **Verified**: 349 unit tests (342 + 7), clean `tsc`/`eslint`/`npm run
   build`. No pipeline/production code touched, no e2e run needed.
 
+**D54 — G-022 M5.5: the actual contour-pacing refinement pass, wired in
+as strictly opt-in (2026-09-11, Owner: "continue").** New `lib/contour-
+refinement.ts`; `pattern.ts` gained `contourRefinement?: boolean`
+(default false/off) and `contourRefinementOptions?`, placed in the
+pipeline after structural cleanup and palette merging, before the final
+palette-color recompute -- matching the critique's own explicit warning
+that an unchanged cleanup pass running afterward would silently undo
+this one's work.
+
+- **Disclosed scope reduction, not a silent one.** The critique's own
+  preferred architecture (HANDOVER.md D48 section 2) was discrete
+  "shared-boundary proposals, accepted as discrete multi-cell moves,"
+  specifically because it removes ICM's single-cell-move barrier (a
+  whole beneficial section can go unmoved because no individual cell's
+  move improves energy on its own). Implementing that fully -- proposal
+  generation, per-proposal admissibility/topology validation, retention
+  logic -- did not fit this milestone's remaining scope responsibly.
+  Landed instead: a `pacingBias` term added directly into the existing,
+  already-correctness-verified ICM per-cell decision (`local-
+  optimizer.ts`'s own `boundaryPairEnergy`/8-neighbor formula,
+  unchanged) -- a real, working capability, but one that only reaches
+  "better sequencing where a single-cell move can get there," not the
+  critique's additional "escape a single-cell-ICM local minimum"
+  benefit. M5.6's own already-planned 3-way comparison (unchanged /
+  coordinated-moves-old-objective / coordinated-moves-new-objective)
+  exists specifically to measure that gap, so it isn't being assumed
+  away -- if M5.6 finds the simpler design insufficient, a fuller
+  multi-cell mechanism is the natural M5.7.
+- **The unresolved "source-interface estimation problem"** (critique
+  section 1: `pair-edge-evidence.ts` gives per-pair magnitudes, not an
+  ordered source contour with a common-location tangent, and a real
+  photo has no known true curve to compare against, unlike M5.1's
+  synthetic calibration or M5.4's hand-supplied guidance) is resolved
+  here via **self-reference**: a chain position's expected local pace is
+  estimated from a *wider window of the same chain*, not any external
+  source signal. This grounds the estimate in the discrete boundary
+  geometry itself (the same family of techniques the critique's own
+  cited literature -- Monteil, Damiand/Dupas/Lachaud -- works with), and
+  sidesteps needing to solve pixel-level tangent estimation at all.
+- **Two real implementation bugs found and fixed while building this**,
+  not assumed correct on the first attempt (this project's own D18/D45/
+  D51 discipline applied again):
+  1. **Self-dilution**: the wide window's own p* estimate initially
+     included the narrow window being compared against it. Whenever the
+     anomaly being measured was a meaningful fraction of the wide
+     window's own size (verified directly: an 8-edge front-loaded
+     anomaly inside a 9-edge wide window), the estimate absorbed most of
+     the very anomaly it was supposed to detect, cutting the measured
+     discrepancy by more than half and causing zero cells to be flagged
+     on a fixture with an obvious, visually-inspectable pacing problem.
+     Fixed by computing the wide estimate as an annulus (wide window
+     with the narrow window excluded).
+  2. **Wrong bias scale**: bias strength was initially proportional to
+     the raw discrepancy-excess *fraction* (typically ~0.001-0.01 near
+     the flagging threshold) -- utterly negligible next to any real
+     color-term difference, so the mechanism never changed a single
+     cell in an end-to-end test despite `computePacingBias` correctly
+     flagging several. Rescaled to a magnitude comparable to
+     `boundaryPairEnergy`'s own typical output (matching `DEFAULT_
+     LOCAL_OPTIMIZER_WEIGHTS.smoothness`, 0.045), modulated mildly
+     (1x-2x) by severity rather than being *defined* by it.
+  3. A related, non-bug finding worth recording: an initial behavioral
+     test used high-contrast colors (dark vs. light) and correctly
+     showed *no* effect -- not a failure, but exactly what M2's own
+     Finding 2 predicts (a boundary-shape preference only gets a real
+     say when the color-error cost of moving it is small). Re-ran the
+     same construction in the close-color regime
+     (`shape-regression.spec.ts`'s own established `[150,150,150]`/
+     `[172,172,172]` fixture colors) and measured real, positive pacing
+     improvement (lower RMS discrepancy) with the overall shape intact.
+- **Admissibility, verified directly, not assumed**: no cell within
+  `junctionProtectionRadius` of a real junction is ever biased; no cell
+  at or above the importance-protection threshold is ever biased; closed
+  chains (a fully enclosed region) are never touched at all (v1 scope,
+  documented). An independent, freshly-written cost recomputation (not
+  reusing the production code path) confirms the actual per-cell choice
+  made by `runContourRefinementPass` truly has the lower combined cost.
+- **Verified**: 357 unit tests (349 + 8), clean `tsc`/`eslint`/`npm run
+  build`, full e2e (27/27, no flakes) -- unaffected since the option
+  defaults off and no UI control exists for it yet. Not deployed:
+  nothing in default behavior changed, so there's nothing for a deploy
+  to change.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

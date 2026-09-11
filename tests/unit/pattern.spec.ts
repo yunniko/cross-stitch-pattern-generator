@@ -179,4 +179,32 @@ describe("buildPattern", () => {
     expect(patchColor!.count).toBeGreaterThan(48);
     expect(patchColor!.count).toBeLessThan(80);
   });
+
+  it("G-022 M5.5 contour refinement is strictly opt-in: omitting it reproduces today's exact output (HANDOVER.md D54)", () => {
+    // M5.6's broad validation sweep hasn't happened yet -- this option
+    // must not change any existing behavior unless explicitly requested.
+    const buffer = makeBuffer(30, 30, (x, y) => {
+      const dx = x - 15;
+      const dy = y - 15;
+      return dx * dx + dy * dy < 100 ? [40, 40, 40] : [200, 190, 180];
+    });
+    const withoutOption = buildPattern(buffer, { longerSideStitches: 30, colorCount: 3 });
+    const withOptionOmittedFalse = buildPattern(buffer, { longerSideStitches: 30, colorCount: 3, contourRefinement: false });
+    expect(withOptionOmittedFalse.cellPalette).toEqual(withoutOption.cellPalette);
+    expect(withOptionOmittedFalse.palette).toEqual(withoutOption.palette);
+  });
+
+  it("G-022 M5.5 contour refinement runs end-to-end without error when explicitly enabled", () => {
+    const buffer = makeBuffer(40, 40, (x, y) => {
+      const dx = x - 20;
+      const dy = y - 20;
+      return dx * dx + dy * dy < 200 ? [150, 150, 150] : [172, 172, 172];
+    });
+    const pattern = buildPattern(buffer, { longerSideStitches: 40, colorCount: 3, contourRefinement: true });
+    expect(pattern.width).toBe(40);
+    expect(pattern.height).toBe(40);
+    for (const color of pattern.palette) expect(color.count).toBeGreaterThan(0);
+    const total = pattern.palette.reduce((sum, c) => sum + c.count, 0);
+    expect(total).toBe(40 * 40);
+  });
 });
