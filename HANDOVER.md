@@ -4251,6 +4251,100 @@ No production code changed this sub-step. **Verified**: 368 unit tests
 (test-only). Starting M2 next (the source-side evidence extractor
 prototype) once the Owner checks in.
 
+**D58 — G-024 M2: source-side boundary-evidence extractor prototype,
+calibrated against hard-edge/gradient/noise fixtures together
+(2026-09-11, Owner: "and then continue").**
+
+**Design** (`lib/crisp-edge-evidence.ts`,
+`extractBoundaryEvidence(source, gridWidth, gridHeight, cellX, cellY,
+options)`, not yet wired into `buildPattern`): fits a weighted 2-mode
+split on source pixels in an EXPANDED neighborhood (the cell's own
+footprint plus `neighborhoodMargin` extra on each side, default 0.75)
+using `downsampleToGrid`'s own exact fractional-coverage/alpha-
+weighting formula, reused rather than reimplemented so the evidence
+stays consistent with what actually got averaged into the cell.
+Two-means uses deterministic farthest-point seeding (seed0 = farthest
+sample from the weighted mean, seed1 = farthest from seed0), then
+standard weighted Lloyd iteration up to `maxLloydIterations` (default
+6) — matching this project's general preference for reproducible
+algorithms over random initialization (no run-to-run flakiness to
+chase down later). Coverage is computed restricted to the cell's own
+footprint (not the expanded neighborhood), per the report's own
+instruction, so a boundary cell's reported color-coverage split still
+means "how much of this cell" not "how much of the sampling
+neighborhood."
+
+**Confidence = `colorConfidence x spatialConfidence`**, two
+independent factors because the report separately warned about two
+different failure modes that a single score can't distinguish:
+- `colorConfidence = separation / (separation + maxWithinModeSpread)`
+  — a real hard boundary's two colors should be far apart relative to
+  each color's own internal noise; a smooth gradient's two "halves"
+  still carry real internal spread comparable to the split itself.
+- `spatialConfidence = min(1, spatialSeparation / 0.5)` — a real hard
+  boundary's two color groups should occupy visibly different regions
+  of the neighborhood; texture/noise can have well-separated colors
+  that are nevertheless spatially interleaved rather than split.
+
+If the two-means fit itself collapses to indistinguishable centroids
+(`separation < minModeSeparation`, default 0.02 — the same JND-based
+threshold convention as `contour-cleanup.ts`'s `costCeiling`), the
+function short-circuits to a single reported mode and confidence 0,
+never reaching the graduated formula at all.
+
+**Deliberate scope note**: this is NOT yet the report's required
+bounded typed-array storage (Section 3) — that's a pipeline-level
+concern (memory layout for every cell in a grid, not just queried
+ones) and is deferred to M4's actual wiring. This prototype returns
+one plain object per queried cell specifically so it stays easy to
+unit-test in isolation.
+
+**Calibration** (`tests/unit/crisp-edge-evidence.spec.ts`, 11 tests,
+against hard-edge, smooth-gradient, and noise/texture fixtures
+together — the report's own explicit instruction, and this project's
+D18 "stable range, not one attractive example" discipline, reused here
+a third time after M5.1 and M5.6): measured hardEdge confidence 1.0000
+vs gradient/flat-noise confidence 0.0000 each — a clean separation, but
+I checked *why* before writing it down as a success, per this
+project's standing practice of verifying a mechanism is doing the
+claimed work rather than trusting a good-looking number. Direct
+inspection (`modes.length`) showed the gradient and flat-noise
+fixtures never reach two modes in the first place — weighted 2-means'
+own two centroids land within `minModeSeparation` of each other on
+that data, so confidence 0 comes from the prototype's degenerate-split
+gate, not from the graduated `colorConfidence`/`spatialConfidence`
+formula actually scoring something low. Of this file's three original
+negative-control classes, only the checkerboard fixture reaches
+`modes.length === 2` and gets rejected BY the graduated formula: there
+`colorConfidence` sits at its own maximum (each mode is exactly one
+discrete color, so within-mode spread is 0), and `spatialConfidence`
+alone does the rejecting (`spatialSeparation` measured at 0.0000 — the
+two colors' spatial centroids coincide, since a checkerboard
+interleaves them uniformly rather than splitting them). This confirms
+the spatial-coherence factor is pulling real, necessary weight, not
+redundant weight the separation gate would have supplied anyway.
+
+That check also surfaced a real gap: none of the three original
+fixture classes exercised `colorConfidence`'s spread term with a
+nonzero value on *both* sides — every fixture in the file up to that
+point used exactly two flat, noise-free colors, so spread was always
+0 and `colorConfidence` was always trivially at its ceiling whenever
+two modes were found at all. A real photo's two sides of a hard edge
+carry camera/JPEG noise, so I added a dedicated fixture (a hard split
+with mild per-pixel noise on both sides) specifically to exercise this
+untested path before calling M2 done — it passes (confidence > 0.6,
+`Math.max(...spread) > 0` confirmed nonzero, so the fixture is actually
+testing what it claims to).
+
+**Verification**: `npx tsc --noEmit` clean (one fix needed along the
+way: `RGB.map()` widens to `number[]`, not `RGB` — rewrote as three
+explicit tuple elements instead of a type assertion). `npx eslint .`
+clean (one `prefer-const` fix: the 2-means `assignment` typed array is
+never reassigned, only its elements are mutated in place). Full
+`npx vitest run`: 379/379 passing across 38 files (no regressions in
+any other module). `npm run build` clean. No e2e run — test-only
+change, `lib/pattern.ts` does not import this module yet.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

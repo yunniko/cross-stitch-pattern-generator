@@ -750,7 +750,7 @@ restructured into this project's usual milestone/check-in shape):
   control) and inventory exactly which current G-022/G-020 machinery
   Crisp mode must build on vs. leave untouched, before writing any new
   production code.
-- [ ] M2 — Prototype the source-side evidence extractor in isolation
+- [x] M2 — Prototype the source-side evidence extractor in isolation
   (bounded typed-array storage, up to two representative colors per
   candidate boundary cell, fractional coverage, within-mode spread,
   spatial/orientation evidence, confidence score) against hard-edge,
@@ -788,6 +788,58 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-11 — M2 complete (Owner: "and then continue", given while
+  checking M1's deploy status). New `lib/crisp-edge-evidence.ts`:
+  `extractBoundaryEvidence(source, gridWidth, gridHeight, cellX, cellY,
+  options)` fits a weighted two-mode split on source pixels in an
+  EXPANDED neighborhood (cell footprint plus a margin fraction each
+  side) using `downsampleToGrid`'s own exact fractional-coverage/alpha-
+  weighting formula (reused, not reinvented, so evidence stays
+  consistent with what actually got averaged), via deterministic
+  farthest-point-seeded weighted 2-means (no randomness, matching this
+  project's general preference for reproducible algorithms) in OKLab.
+  Confidence is `colorConfidence x spatialConfidence`:
+  `colorConfidence = separation / (separation + maxWithinModeSpread)`
+  (a real color separation should dominate each mode's own internal
+  spread) and `spatialConfidence = min(1, spatialSeparation / 0.5)`
+  (the two color groups' spatial centroids should actually be apart,
+  not interleaved). Coverage is computed restricted to the cell's own
+  footprint per the report's own instruction, separately from the
+  expanded neighborhood used for mode-fitting. Deliberately NOT yet the
+  report's required bounded typed-array storage — this prototype
+  returns one object per queried cell for testability; that storage
+  format is deferred to M4's actual pipeline wiring.
+  Calibrated `tests/unit/crisp-edge-evidence.spec.ts` (11 tests) against
+  hard-edge (black/white, red/blue, equal-luminance-different-hue, and
+  a hard edge with realistic per-pixel noise on both sides), smooth-
+  gradient, and noise/texture (flat+noise, fine checkerboard) fixtures
+  together, per the report's own "calibrate broadly" instruction and
+  this project's D18 discipline. Measured: hardEdge confidence 1.0000
+  vs gradient/noise 0.0000 — but investigated *why* before trusting
+  that number: for the gradient and flat-noise fixtures, weighted
+  2-means itself finds only a single mode (its two centroids land
+  within `minModeSeparation` of each other), so confidence 0 comes from
+  the prototype's degenerate-split gate, not from the graduated
+  color/spatial formula. Of the three negative-control classes, only
+  the checkerboard fixture actually reaches two real modes and gets
+  rejected BY the graduated formula — there `colorConfidence` is at its
+  own maximum (each mode is a single discrete color, spread 0) and
+  `spatialConfidence` alone correctly rejects it (the two colors'
+  spatial centroids coincide since they're uniformly interleaved) —
+  confirming the spatial-coherence factor does real, necessary work,
+  not just redundant work the separation gate would have done anyway.
+  Added a dedicated noisy-hard-edge fixture specifically because none
+  of the original three fixture classes exercised `colorConfidence`'s
+  spread term with a nonzero value on both sides (every other fixture
+  in the file has exactly two flat colors, i.e. spread 0) — a real
+  photo's edges carry noise, so this is the case that actually matters
+  for M4. It passes (confidence > 0.6, spread confirmed nonzero).
+  Verified: `tsc --noEmit` clean, `eslint` clean (one `prefer-const`
+  fix), full `vitest run` 379/379 passing (38 files, no regressions),
+  `npm run build` clean. No production code changed (`lib/pattern.ts`
+  does not yet import this module), no e2e run needed. See HANDOVER.md
+  D58 for the full design rationale. Starting M3 next (weighted palette
+  training + the mode-aware unary cost) once the Owner checks in.
 - 2026-09-11 — M1 complete (Owner: "yes please" -- unblocked once G-022
   M5/G-020 M5 both concluded). New `tests/unit/crisp-edges-fixtures.ts`
   + `crisp-edges-regression.spec.ts`, reproducing the report's own
