@@ -3417,6 +3417,20 @@ report (2026-09-11).**
   duplicate its full technical content (data-structure field tables,
   the unary-cost derivation, the full 12-row acceptance-fixture matrix).
 
+**D47 — Added XL (200) and XXL (250) pattern-size presets (2026-09-11).**
+Owner request. `lib/types.ts`'s `SizePresetId`/`SIZE_PRESETS` extended
+(both already well within `MAX_STITCHES` = 1000); a new
+`SIZE_PRESET_LABELS` map added alongside them since "xl"/"xxl" aren't a
+plain capitalized word the way "small"/"medium"/"large" are --
+`app/workspace.tsx`'s old `preset[0].toUpperCase() + preset.slice(1)`
+would have rendered "Xl"/"Xxl" instead of "XL"/"XXL". `sizePreset` is
+ephemeral UI state (not persisted in `pattern-serialize.ts`/
+`workspace-storage.ts`), so no legacy-file compatibility concern.
+Verified: clean `tsc`/`eslint`/`npm run build`, full unit (318/318) and
+e2e (27/27) suites unaffected, plus a live dev-server smoke test
+selecting XL and regenerating (200x125 stitches, page-count/finished-
+size estimate updated correctly, zero console errors).
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

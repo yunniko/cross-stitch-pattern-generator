@@ -29,12 +29,24 @@ export function cellRgb(buffer: CellColorBuffer, cellIndex: number): RGB {
   return [buffer.data[o], buffer.data[o + 1], buffer.data[o + 2]];
 }
 
-export type SizePresetId = "small" | "medium" | "large" | "custom";
+export type SizePresetId = "small" | "medium" | "large" | "xl" | "xxl" | "custom";
 
 export const SIZE_PRESETS: Record<Exclude<SizePresetId, "custom">, number> = {
   small: 50,
   medium: 100,
   large: 150,
+  xl: 200,
+  xxl: 250,
+};
+
+// "xl"/"xxl" aren't a plain capitalized word, so they need an explicit label
+// rather than the small/medium/large presets' `preset[0].toUpperCase() + ...`.
+export const SIZE_PRESET_LABELS: Record<Exclude<SizePresetId, "custom">, string> = {
+  small: "Small",
+  medium: "Medium",
+  large: "Large",
+  xl: "XL",
+  xxl: "XXL",
 };
 
 export const MIN_STITCHES = 10;

@@ -50,6 +50,7 @@ import {
   MIN_COLORS,
   MIN_STITCHES,
   SIZE_PRESETS,
+  SIZE_PRESET_LABELS,
   type CellRect,
   type FloatingSelection,
   type PixelBuffer,
@@ -1471,10 +1472,10 @@ export default function Workspace() {
             <div className="flex flex-col gap-1">
               <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Pattern size (longer side)</span>
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                {(["small", "medium", "large"] as const).map((preset) => (
+                {(["small", "medium", "large", "xl", "xxl"] as const).map((preset) => (
                   <label key={preset} className="flex items-center gap-1">
                     <input type="radio" name="size-preset" checked={sizePreset === preset} onChange={() => setSizePreset(preset)} />
-                    {preset[0].toUpperCase() + preset.slice(1)} ({SIZE_PRESETS[preset]})
+                    {SIZE_PRESET_LABELS[preset]} ({SIZE_PRESETS[preset]})
                   </label>
                 ))}
                 <label className="flex items-center gap-1">
