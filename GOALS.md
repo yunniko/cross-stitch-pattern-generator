@@ -189,7 +189,7 @@ work," restated with this project's acceptance-criteria/risk framing):
     embedded interface structure/branch count afterward, not just
     whole-image IoU or global region-adjacency, which the critique shows
     can both stay misleadingly unchanged through a real junction split).
-  - [ ] M5.3 — Boundary-chain extraction: a new transient representation
+  - [x] M5.3 — Boundary-chain extraction: a new transient representation
     (shared interfaces along cell edges, incident region ids, junction
     vertices) on top of `regions.ts`'s `labelRegions` output --
     `StitchPattern` itself stays unchanged (one palette index per cell,
@@ -235,6 +235,31 @@ work," restated with this project's acceptance-criteria/risk framing):
     Full verification, GOALS.md/HANDOVER.md documentation, deploy.
 
 **Progress log** (newest first):
+- 2026-09-11 — M5.3 complete (Owner: "continue with m5.3"). New module
+  `lib/boundary-chains.ts` (production-adjacent, not test-only like M5.1/
+  M5.2's harnesses -- M5.4/M5.5 need this as real shared infrastructure):
+  `extractBoundaryChains(regions, width, height)` walks `regions.ts`'s
+  `labelRegions` output to find every grid-lattice boundary edge between
+  differently-labeled 4-connected cells, groups them into ordered chains
+  per region-pair, and detects junctions (interior lattice vertices where
+  3+ distinct region labels meet). Chains deliberately terminate at
+  junctions rather than crossing them, per the critique's own "freeze
+  junction neighborhoods" guidance -- a future consumer can treat a
+  chain's own endpoints as the safe boundary of what it's allowed to
+  touch without re-deriving junction adjacency separately. Handles closed
+  loops (one region fully enclosed by another, no junction anywhere along
+  the loop) and multiple disjoint chains for the same region pair.
+  `StitchPattern` itself is unchanged, same constraint as every other
+  G-022/G-024 milestone. Verified: 8 new unit tests (uniform grid/no
+  boundaries, a simple two-region split, a 4-way junction matching the
+  M5.2 fixture's own quadrant layout, a T-junction, a closed island loop,
+  two disjoint same-label islands, and an integration test against
+  *real* `buildPattern` + `labelRegions` output, not just hand-built
+  label arrays) -- 342 unit tests total (334 + 8), clean `tsc`/`eslint`/
+  `npm run build`. Not wired into `pattern.ts` -- no behavior change, no
+  e2e run needed for this sub-step. Starting M5.4 next (the hand-
+  authored candidate-ranking validation checkpoint) once the Owner
+  checks in.
 - 2026-09-11 — D49/D50's axial-line-erasure bug fixed (Owner: "fix
   please"). `lib/denoise.ts`'s `denoiseForQuantization` now distinguishes
   a genuine thin feature from an isolated noise speckle via a ridge-

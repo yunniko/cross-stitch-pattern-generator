@@ -3819,6 +3819,40 @@ action, not just cited):
   ally, orientation-agnostic by construction) should apply identically
   regardless of line orientation.
 
+**D52 — G-022 M5.3: boundary-chain extraction (2026-09-11, Owner:
+"continue with m5.3").** New `lib/boundary-chains.ts`, a genuine `lib/`
+module rather than a test-only harness (unlike M5.1's `contour-pacing.ts`
+and M5.2's `shape-fixtures.ts` extensions) since M5.4's candidate-ranking
+experiment and M5.5's move mechanism both need it as real shared
+infrastructure, not just a measurement tool.
+
+- **Design**: `extractBoundaryChains(regions, width, height)` treats the
+  cell grid as having `(width+1)x(height+1)` lattice vertices; a boundary
+  edge is the unit lattice segment between two 4-connected cells with
+  different labels. Edges are grouped by region-pair, then walked via
+  vertex adjacency into ordered chains.
+- **Junctions as chain terminators, not just annotations**: an interior
+  lattice vertex where 3+ distinct region labels meet among its 4
+  incident cells is a junction; a chain never walks *through* one. This
+  directly operationalizes the critique's own guidance ("freeze junction
+  neighborhoods... reject a proposal encountering a third region") --
+  M5.5 can treat a chain's own two endpoints as the safe limit of what
+  it's allowed to touch, without separately re-deriving junction
+  adjacency from the chain data.
+- **Closed loops handled explicitly**: a region fully enclosed by
+  another (no junction anywhere along the shared boundary) produces a
+  chain with `closed: true` and `startVertex === endVertex` rather than
+  crashing or silently truncating.
+- **`StitchPattern` unchanged** -- same constraint as every other G-022/
+  G-024 milestone; this is transient, derived-on-demand structure.
+- **Verified**: 8 new unit tests, including one against the *real*
+  `buildPattern` + `labelRegions` output on the M5.2 junction fixture
+  (not just hand-built label arrays) confirming the junction/chain
+  structure survives real denoising/ICM/contour-cleanup, not just a
+  clean synthetic label grid. 342 unit tests total, clean `tsc`/`eslint`/
+  `npm run build`. Not wired into `pattern.ts` -- no behavior change, no
+  e2e run needed.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
