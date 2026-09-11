@@ -58,8 +58,19 @@ interface WeightedSample {
   /** Position within the (expanded) sampling neighborhood, normalized to [0,1] on each axis. */
   nx: number;
   ny: number;
-  /** Whether this sample falls within the cell's own (unexpanded) footprint -- used for `coverage`, not for fitting the modes themselves. */
-  inCell: boolean;
+  /**
+   * This pixel's alpha-weighted overlap with the CELL's own (unexpanded)
+   * footprint specifically -- used for `coverage`, not for fitting the
+   * modes themselves (that uses `weight`, the overlap with the wider
+   * neighborhood). Computed independently of `weight`, not derived from it:
+   * a pixel that straddles the cell/neighborhood boundary has a real
+   * partial overlap with each box separately (the neighborhood box always
+   * contains the cell box, so `cellWeight <= weight`, but the two are
+   * otherwise unrelated fractions -- see the corrected-bug note on
+   * `collectWeightedSamples` for why a binary "is the center inside the
+   * cell" test does not recover this fraction).
+   */
+  cellWeight: number;
 }
 
 function overlap(a0: number, a1: number, b0: number, b1: number): number {
@@ -73,6 +84,26 @@ function overlap(a0: number, a1: number, b0: number, b1: number): number {
  * Section 3: "Use the same exact fractional source footprints and alpha
  * weighting as `downsampleToGrid`"). Verified directly against `lib/
  * downsample.ts`'s own inner loop, not assumed to match from memory.
+ *
+ * **Bug found and fixed during G-024 M3 planning (HANDOVER.md D59, via a
+ * Codex design critique that read this file directly rather than trusting
+ * it from the M2 summary):** `cellWeight` must be each pixel's own
+ * fractional overlap with the CELL's bounds specifically, computed the
+ * same way `weight` is computed against the neighborhood's bounds -- NOT
+ * a binary "does this pixel's CENTER fall inside the cell" test gating the
+ * neighborhood-relative `weight` (the original, buggy version). That
+ * binary version silently corrupted `coverage` for any pixel straddling a
+ * cell boundary -- i.e. for the exact boundary cells this whole module
+ * exists to describe correctly -- by either dropping a real partial
+ * overlap to zero (center just outside) or inflating it to the pixel's
+ * full neighborhood-relative weight (center just inside), rather than the
+ * true fractional cell-overlap in between. Reproduced directly before
+ * fixing: a 5-pixel-wide source (black at x<2) downsampled to 2 columns
+ * has a true 80%/20% black/white coverage split for cell 0 (its footprint
+ * is source x in [0, 2.5), so the white pixel at [2,3) contributes exactly
+ * half its weight) -- the buggy version returned 100%/0% because that
+ * pixel's center (x=2.5) landed exactly on the cell boundary and failed
+ * the binary test, discarding its real partial contribution entirely.
  */
 function collectWeightedSamples(
   source: PixelBuffer,
@@ -108,6 +139,7 @@ function collectWeightedSamples(
   for (let y = yFirst; y <= yLast; y++) {
     const yWeight = overlap(y, y + 1, nbYStart, nbYEnd);
     if (yWeight <= 0) continue;
+    const yCellWeight = overlap(y, y + 1, cellYStart, cellYEnd);
     for (let x = xFirst; x <= xLast; x++) {
       const xWeight = overlap(x, x + 1, nbXStart, nbXEnd);
       if (xWeight <= 0) continue;
@@ -115,6 +147,13 @@ function collectWeightedSamples(
       const alpha = data[pixelIndex + 3] / 255;
       const weight = xWeight * yWeight * alpha;
       if (weight <= 0) continue;
+
+      const xCellWeight = overlap(x, x + 1, cellXStart, cellXEnd);
+      // Independent fractional overlap with the CELL's own bounds -- see
+      // the doc comment above this function for why this must NOT be
+      // derived from `weight` (the neighborhood-relative value) via a
+      // binary center test.
+      const cellWeight = Math.max(0, xCellWeight) * Math.max(0, yCellWeight) * alpha;
 
       const oklab = rgbToOklab([data[pixelIndex], data[pixelIndex + 1], data[pixelIndex + 2]]);
       const px = x + 0.5;
@@ -124,7 +163,7 @@ function collectWeightedSamples(
         weight,
         nx: (px - nbXStart) / nbW,
         ny: (py - nbYStart) / nbH,
-        inCell: px >= cellXStart && px < cellXEnd && py >= cellYStart && py < cellYEnd,
+        cellWeight,
       });
     }
   }
@@ -271,7 +310,7 @@ export function extractBoundaryEvidence(
     posSumX[label] += s.nx * s.weight;
     posSumY[label] += s.ny * s.weight;
     posWeight[label] += s.weight;
-    if (s.inCell) inCellWeight[label] += s.weight;
+    inCellWeight[label] += s.cellWeight;
   }
 
   const spread = [0, 1].map((k) => (spreadWeight[k] > 0 ? spreadSum[k] / spreadWeight[k] : 0));

@@ -4345,6 +4345,115 @@ never reassigned, only its elements are mutated in place). Full
 any other module). `npm run build` clean. No e2e run — test-only
 change, `lib/pattern.ts` does not import this module yet.
 
+**D59 — G-024 M3 planning: a real M2 coverage bug found via Codex
+critique before any M3 code was written, fixed at the root, plus an
+honest new "known gap" in the confidence formula, found the same way
+(2026-09-11/12, Owner: "continue").**
+
+Before writing any M3 code, sent the planned two-half design (weighted
+palette training generalizing `lib/quantize.ts`'s k-means core; a
+shared mode-aware unary-cost/admissible-label-set module for M4's
+consumers) to Codex for critique, per this project's standard practice
+for a design "worth getting right" (STANDARDS.md) — same process as
+G-022 M5. The critique's most important finding wasn't about M3's own
+design at all: it flagged that M2's `extractBoundaryEvidence` "does not
+always return exact cell-footprint coverage," with a concrete
+derivation, and warned that "correct weighted training cannot
+compensate for incorrect coverage" — i.e. M3 would have been built on
+a broken foundation.
+
+**Verified the claim directly before trusting it** (this project's
+standing practice — Codex's output is advisory, checked like any tool
+output, not accepted on authority): reproduced the derivation's exact
+counterexample (a 5px-wide source, black for `x<2`, downsampled to 2
+columns — cell 0's true footprint is `[0, 2.5)`, so the boundary pixel
+at `[2,3)` should contribute exactly half its weight, giving a true
+80%/20% black/white coverage split). The actual bug: `collectWeightedSamples`
+computed `inCell` as a binary test of whether a pixel's CENTER fell
+inside the cell's own bounds, then gated that pixel's full
+NEIGHBORHOOD-relative weight (not a cell-relative one) on that binary
+result. Direct reproduction confirmed the predicted failure exactly:
+coverage came back `[0, 1]` (100%/0%) instead of the correct
+`[0.2, 0.8]` — the boundary pixel's center landed exactly on the cell
+edge (`x=2.5`) and got dropped entirely, discarding its real partial
+contribution. This isn't a rare exact-tie edge case either: with the
+real default `neighborhoodMargin=0.75`, ANY pixel straddling a cell
+boundary gets either over-counted (center inside → charged its full
+wider-neighborhood weight, not its true partial cell-overlap) or
+zeroed out (center outside → real partial overlap discarded) — exactly
+the boundary cells this whole module exists to describe correctly.
+
+**Fixed** by computing a genuinely independent `cellWeight` per pixel —
+the same fractional-overlap formula already used for the neighborhood's
+`weight`, applied against the CELL's own bounds instead — and summing
+that directly into `coverage`, with no binary gate at all. Re-ran the
+exact reproduction case: now returns `[0.2, 0.8]`, matching the true
+80%/20% split. Locked in as a permanent regression test
+(`tests/unit/crisp-edge-evidence.spec.ts`'s new "D59 regression"
+describe block) using the same counterexample.
+
+**Also surfaced, while re-examining the confidence formula's own test
+coverage in light of the critique's remark that "D58 explicitly records
+that its existing gradient control exits through the separation gate;
+it does not establish that the confidence formula rejects all smooth
+two-mode explanations"**: directly measured a range of gradient
+steepnesses to check. The original M2 gradient fixture (a gentle ramp
+across the full 64px width) never reaches `modes.length === 2` at all —
+confirmed in D58, so it exercises the wrong path. A steeper gradient
+(period 16px, repeated) DOES fit two real modes, and scores confidence
+~0.94 — a genuine false positive, not a calibration near-miss: measured
+across periods 64/32/16/8/4, confidence stays high (0.94–0.98) at
+periods 32 and 16, only dropping (0.03–0.13) once the local slope is
+steep enough to approximate an actual hard edge (period 8 or less).
+This is structural, not a threshold-tuning issue: a monotonic ramp
+sampled through a bounded local window genuinely produces both low
+within-mode spread (real color separation relative to spread) and real
+spatial separation between its "low half" and "high half" — the exact
+two signals the formula uses to detect a hard edge, both legitimately
+present for a reason that has nothing to do with a boundary. The
+design report's own Section 4 anticipated this ("A simple smooth color
+ramp can also be split into two clusters; clustering success alone is
+insufficient... Compare against a smooth-variation explanation or
+otherwise measure the transition's spatial sharpness") — M2's
+prototype doesn't yet have that additional check. Locked in as an
+explicit "KNOWN GAP" regression test (matching this project's D18/D45/
+D51/D57 practice of recording real, sometimes-negative measured
+behavior honestly rather than only testing cases that currently pass)
+rather than either silently shipping it or attempting a redesign of the
+detection formula mid-M3 (out of M3's own scope — weighted training and
+the mode-aware unary cost, not hardening the confident-boundary
+detector itself). **Must be addressed before M4 wires confidence into
+real admissibility decisions** — a false positive here would stripe a
+smooth gradient region.
+
+**Full critique read and synthesized** (not accepted wholesale — this
+project's standard practice of engaging a critique on its merits): the
+critique confirmed the two-half M3 design (weighted training / mode-
+aware unary cost) is sound and independently buildable ahead of M4's
+`buildPattern` wiring, and gave concrete, code-grounded resolutions for
+every open question raised in the request — including a corrected
+weighted-k-means formulation (each mode independently picks its own
+nearest training cluster, not scored against a blend — the same trap
+Section 6 warns about, avoided by construction if training treats each
+mode as its own point), a cell-first reinvestment policy that resolves
+the per-cell-vs-per-sample double-counting concern raised, a one-label-
+per-sample output contract with explicit parent-cell/mode association,
+guidance to keep `mapModesToLabels` simple (frozen nearest-mapping per
+optimization stage) unless a real fixture demonstrates the fragmentation
+failure mode it also confirmed is possible, and a concrete finite
+side-switch experiment design (small patches, exhaustively enumerable,
+varying coverage across specific values, both coarse/fine pass weights
+tested separately) to calibrate `alpha`/`beta` before shipping them —
+this becomes M3's own next work, detailed in the M3 progress-log entry
+once built. Full critique preserved in the Codex thread
+(`01a09273-7ab4-7f51-b363-9b8b9b232e9a`) for reference.
+
+**Verified**: the coverage-fix change plus its regression test plus the
+new known-gap test — `npx tsc --noEmit` clean, `npx eslint .` clean,
+full `npx vitest run` 381/381 passing (38 files), `npm run build`
+clean. No e2e run needed (test-only, `lib/pattern.ts` still does not
+import this module).
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

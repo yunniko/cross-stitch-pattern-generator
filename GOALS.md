@@ -788,6 +788,22 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-11/12 — Before starting M3, sent the planned design (weighted
+  palette training + mode-aware unary cost) to Codex for critique per
+  this project's standard practice. It found a real bug in M2's own
+  `coverage` calculation (a binary pixel-center test instead of a true
+  fractional cell-overlap, corrupting coverage for any pixel straddling
+  a cell boundary) — verified directly, fixed at the root, and locked
+  into a permanent regression test. Also surfaced and honestly recorded
+  a real "known gap": a sufficiently steep smooth gradient reaches two
+  real modes and scores false-positive high confidence (~0.94) — a
+  structural formula limitation, not a threshold issue, that must be
+  addressed before M4 wires confidence into real pipeline decisions.
+  The critique otherwise confirmed M3's two-half design is sound and
+  gave concrete resolutions to every open design question. Full story
+  in HANDOVER.md D59. Verified: 381/381 tests passing, clean
+  `tsc`/`eslint`/`npm run build`. Starting M3's actual build (weighted
+  k-means generalization + mode-aware unary cost module) next.
 - 2026-09-11 — M2 complete (Owner: "and then continue", given while
   checking M1's deploy status). New `lib/crisp-edge-evidence.ts`:
   `extractBoundaryEvidence(source, gridWidth, gridHeight, cellX, cellY,
@@ -995,6 +1011,103 @@ milestone's own result justifies continuing):
   discussion (desktop app -> server-side -> Rust sidecar) and a real
   Codex critique exchange (see above). Not started; no Owner go-ahead to
   begin M1.
+
+### G-024 · Additional export option: Pattern Keeper-compatible PDF — DRAFT (2026-09-12)
+- **What:** A new export option, additive to the existing "Export as A4
+  pages" ZIP (PNG-per-page), that produces a single PDF chart readable by
+  the Pattern Keeper app (a cross-stitch progress-tracking app the Owner
+  uses) -- real embedded-font vector text per stitch symbol in a precise
+  grid, not a rasterized image, plus a real-text thread legend.
+- **Why:** Researched Pattern Keeper's actual import requirements
+  (2026-09-11 session; sources below) because the Owner currently
+  composes pattern files by hand in Affinity Designer to get them into
+  Pattern Keeper. Two findings drive this goal:
+  1. **Pattern Keeper doesn't take a plain "text grid" file** -- it
+     imports PDF and overlays a detected grid on it, then reads whatever
+     is under that grid. For a chart to be correctly read (not just
+     visually present), the symbols must be real, embedded, standard-
+     encoded vector text in a consistent row/column grid -- Pattern
+     Keeper's own help page states plainly that a chart built without
+     proper encodings "will not be searchable in Pattern Keeper." The
+     app's existing A4 export is 100% raster PNG (`a4-export.ts`), the
+     opposite of what's needed -- it would only be importable via Pattern
+     Keeper's lesser photo/paper-chart path, losing symbol search and
+     auto legend-parsing.
+  2. **Hand-composing this in Affinity Designer is fragile at real
+     pattern sizes** and has two silent failure modes: converting symbol
+     text to curves, or a PDF export setting that rasterizes/doesn't
+     embed the font -- either one destroys the character encoding Pattern
+     Keeper needs, with no visual difference on screen. Since the app
+     already holds the pattern as structured grid/symbol/color data (not
+     pixels), generating the PDF directly from that data avoids both
+     failure modes and guarantees pixel-exact grid-cell alignment that's
+     impractical to hand-place at thousands of cells.
+  Good news found during research: `lib/symbols.ts`'s existing symbol set
+  is already standard Unicode codepoints from common blocks (Latin-1,
+  Geometric Shapes, Arrows, Dingbats) -- exactly what Pattern Keeper
+  wants, not a custom remapped dingbat font. No symbol-set change needed.
+- **Acceptance criteria:**
+  - A new export option produces one PDF (not a ZIP) with the stitch
+    grid rendered as real, individually selectable vector text per cell
+    (verified with the "select a symbol as text in a standard PDF
+    viewer" test Pattern Keeper's own community recommends), using the
+    existing symbol set and an embedded font that covers it, paginated
+    consistently with the existing A4 grid layout (same page-to-page
+    row/column size consistency Pattern Keeper's grid-detection
+    requires).
+  - The legend (thread code/name/symbol/stitch count) is real text, not
+    an image, on the same or an adjacent page.
+  - The existing PNG/ZIP export keeps working unmodified -- this is
+    additive, not a replacement.
+  - **A real sample pattern is actually test-imported into Pattern
+    Keeper** (not just self-checked against the "select as text" test)
+    before this goal is called done -- everything known about Pattern
+    Keeper's requirements so far comes from its own help pages and
+    third-party summaries, not from testing against the real app, and
+    the goal shouldn't be marked complete on unverified assumptions
+    about how it behaves.
+- **Constraints:** Pick one embedded TTF/OTF font covering every Unicode
+  block the existing symbol set uses, with a checkable open license
+  (STANDARDS.md "Integrity of work" -- record provenance/license the same
+  way `docs/dmc-colors-provenance.md` did for the DMC dataset). No
+  Pattern Keeper account/paid tier assumed beyond whatever access the
+  Owner already has for M4's real-import test.
+- **Sources** (retrieved 2026-09-11, full detail in this goal's creating
+  conversation): patternkeeper.app's own `/help/inputting-grids/`,
+  `/help/importing-a-chart/`, `/help/exporting-charts-from-pcstitch/`,
+  `/help/exporting-charts-from-winstitch-macstitch/`; stitchmate.app's
+  cross-stitch-pattern-PDF-quality guide (summarized via search only --
+  direct fetch returned HTTP 403).
+
+**Milestones:**
+- [ ] M1 — Spike: choose and license-check a Unicode font covering the
+  full existing symbol set (Latin-1 Supplement, Geometric Shapes, Arrows,
+  Miscellaneous Symbols, Dingbats blocks); prototype a minimal single-page
+  PDF (via a PDF library capable of real embedded-font text, e.g.
+  `pdf-lib`) with a handful of real symbols drawn as vector text plus
+  vector gridlines; self-verify the "select as text in a standard PDF
+  viewer" test before building anything further.
+- [ ] M2 — Build the real exporter: a new PDF-generation path reusing the
+  existing A4 pagination/layout logic (`lib/a4-layout.ts`) but rendering
+  each page as real vector text + vector gridlines instead of canvas-to-
+  PNG, plus a real-text legend page (reusing the existing extended-legend
+  content: title, details table, color-key table). Unit-tested wherever
+  the logic is pure.
+- [ ] M3 — UI wiring: add the new export option in the app alongside the
+  existing "Export as A4 pages" (e.g. "Export as PDF (Pattern Keeper
+  compatible)"). Live-browser verified, including the select-as-text
+  check against every symbol actually used in a real generated pattern
+  (not just M1's handful).
+- [ ] M4 — Real-world verification: actually import a real exported
+  sample into Pattern Keeper and confirm grid auto-detection and legend
+  parsing succeed as expected; fix anything the real app reveals that
+  the documentation didn't. Full regression suite, commit, deploy.
+
+**Progress log** (newest first):
+- 2026-09-12 — Goal created per Owner request ("write as a next goal:
+  additional export options - pdf with pattern keeper compatible grid"),
+  built on the Pattern Keeper research done in the prior day's session.
+  Not started.
 
 ## Completed goals
 
