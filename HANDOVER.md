@@ -4965,6 +4965,45 @@ instruction, continuing through M4's remaining sub-steps and then
 G-026 without further check-ins, pushing after each stage and
 deploying once a stage actually changes shippable behavior.
 
+**D66 — G-024 M4.3: quantization + initialization (2026-09-12, Owner:
+"continue without confirmation...").**
+
+New `lib/crisp-quantization-stage.ts`, `runCrispQuantizationStage`:
+builds the weighted sample pool from a frozen `CrispEvidenceLayer`
+(M4.2) — a confident cell contributes its 2 coverage-weighted modes, a
+non-crisp cell contributes its single averaged color at weight 1 —
+runs the caller's chosen weighted quantizer (`selectWeightedQuantizer`,
+preserving Original/Latest), then builds the per-CELL initial
+assignment: a non-crisp cell reads its label straight from the
+quantizer's own per-sample output; a confident cell is initialized to
+`argmin` of `buildAdmissibleLabelCosts`' actual unary cost, evaluated
+against the RETURNED RGB palette converted back to OKLab (not the
+internal training centroids) — per the critique's specific correction,
+NOT "larger coverage wins."
+
+**Verified the argmin-vs-coverage distinction with a real worked
+example**, not just asserted: a stub quantizer function returns a
+fixed 2-entry palette where the 60%-coverage mode's nearest label has
+a real, substantial fit error (squared OKLab distance > 0.03 — the
+exact threshold `alpha=1, beta=0.15` makes it lose at) while the 40%-
+coverage mode's nearest label is an exact match. Confirmed the cell
+initializes to the smaller-coverage, better-fit label, as the unary
+formula requires — a naive coverage-only rule would have picked wrong.
+
+**Verified Standard-compatibility directly**: an empty evidence layer
+(no confident cells) reproduces `plainKMeansQuantizer`/`kMeansQuantizer`
+byte-for-byte, for both quantizer choices.
+
+**Composition-tested** on M1's real genuine-gray-elsewhere fixture: the
+resulting 4-color palette still recovers real black/white/gray, and
+every confident cell at the actual black/white split initializes to
+black or white — never the unrelated gray label.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full
+`npx vitest run` 449/449 passing (45 files, +4 new), `npm run build`
+clean. No e2e run needed — still test-only, no `pattern.ts` wiring.
+Continuing to M4.4 (ICM integration) next.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

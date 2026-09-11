@@ -119,7 +119,7 @@ restructured into this project's usual milestone/check-in shape):
     explicitly defined rather than silently ignored; a bounded
     per-protected-cell representation (at most 2 supported labels/
     costs/mode associations, not a retained `Map`/closure per stitch).
-  - [ ] M4.3 — Quantization + initialization: build the weighted
+  - [x] M4.3 — Quantization + initialization: build the weighted
     sample pool, run the chosen weighted quantizer, initialize each
     protected cell to `argmin` of the actual unary cost (not "larger
     coverage wins," which can pick the more expensive candidate once
@@ -179,6 +179,18 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-12 — M4.3 complete. New `lib/crisp-quantization-stage.ts`
+  (`runCrispQuantizationStage`): builds the weighted sample pool from
+  M4.2's evidence layer, runs the caller's chosen weighted quantizer,
+  initializes non-crisp cells from the quantizer's own labels and
+  confident cells to `argmin` of the actual unary cost (verified with
+  a worked stub-quantizer example, not just asserted) against the
+  RETURNED RGB palette in OKLab -- not "larger coverage wins."
+  Standard-compatibility verified directly for both quantizer choices;
+  composition-tested on M1's real fixture. Full story in HANDOVER.md
+  D66. Verified: 449/449 tests passing (45 files, +4 new), clean
+  `tsc`/`eslint`/`npm run build`. No e2e run needed. Continuing to
+  M4.4 (ICM integration) next.
 - 2026-09-12 — Owner instruction (mid-turn): "continue without
   confirmation for this goal... deploy and push after each stage."
   Standing milestone-boundary check-ins waived for the remainder of
