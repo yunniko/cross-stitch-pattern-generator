@@ -107,7 +107,7 @@ restructured into this project's usual milestone/check-in shape):
     negative controls at multiple phases; sRGB- and OKLab-generated
     ramps; fractional/transparent/insufficient-sample edge cases) —
     not one attractive example.
-  - [ ] M4.2 — The per-image evidence layer AND the shared assignment/
+  - [x] M4.2 — The per-image evidence layer AND the shared assignment/
     palette lifecycle contract: which cells get evaluated (a `pair-
     edge-evidence.ts`-based pre-filter for cost, with its recall
     validated against a full per-cell reference on small fixtures
@@ -179,6 +179,28 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-12 — Owner instruction (mid-turn): "continue without
+  confirmation for this goal... deploy and push after each stage."
+  Standing milestone-boundary check-ins waived for the remainder of
+  this goal (and for G-026) -- proceeding through the remaining M4
+  sub-steps autonomously, pushing after each stage and deploying once
+  a stage actually changes shippable behavior (nothing has yet --
+  still no `buildPattern` wiring).
+- 2026-09-12 — M4.2 complete. New `lib/crisp-evidence-layer.ts`: the
+  frozen per-image evidence layer (`buildCrispEvidenceLayer`, with
+  neighbor-agreement filtering), a `pair-edge-evidence.ts`-based
+  candidate pre-filter (`candidateCellsFromPairEvidence`, recall
+  verified directly against a full per-cell reference on a real
+  fixture), and `selectWeightedQuantizer` (preserves the Original/
+  Latest quantizer choice, throws for any unsupported custom
+  quantizer). A real finding caught while testing: neighbor-agreement
+  needed `neighborhoodMargin: 0` exactly to construct a truly isolated
+  test cell -- even a small nonzero margin still leaks one pixel into
+  neighbors via the detector's own floor/ceil rounding (documented,
+  doesn't affect the production default). Full story in HANDOVER.md
+  D65. Verified: 445/445 tests passing (44 files, +9 new), clean
+  `tsc`/`eslint`/`npm run build`. No e2e run needed (test-only).
+  Continuing to M4.3 next.
 - 2026-09-12 — M4.1 complete (Owner: "proceed to m4"). Fixed the D59/
   D63 detection gap for real: `lib/crisp-edge-evidence.ts` gained a
   third confidence factor, `edgeSharpness`, comparing how well a

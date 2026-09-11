@@ -4904,6 +4904,67 @@ import this module yet. Starting M4.2 next (the per-image evidence
 layer + shared assignment/palette lifecycle contract) once the Owner
 checks in.
 
+**D65 — G-024 M4.2: the per-image evidence layer, pre-filter, neighbor-
+agreement, and quantizer-choice contract (2026-09-12, Owner: "continue",
+then mid-turn: "continue without confirmation for this goal... deploy
+and push after each stage").**
+
+New `lib/crisp-evidence-layer.ts`, implementing the frozen-decision
+contract D63's critique called for: `buildCrispEvidenceLayer` evaluates
+`extractBoundaryEvidence` once per candidate cell, keeps only cells
+clearing a confidence threshold, then applies neighbor-agreement
+filtering (Section 4: "check confidence and side-color agreement in a
+local neighborhood") — a cell is only accepted if at least one
+8-connected neighbor is ALSO independently confident, which costs a
+real multi-cell boundary nothing (verified directly) while filtering
+an isolated one-off. The resulting `Map<cellIndex, BoundaryEvidence>`
+is meant to be the SINGLE thing every downstream stage consults —
+never re-deriving confidence independently (this project's D11 scar:
+three formulas drifting apart from one shared concept).
+
+`candidateCellsFromPairEvidence` is the cheap pre-filter using `pair-
+edge-evidence.ts`'s already-computed tensor, so a large grid doesn't
+need a full 2-means fit on every cell. **Its recall was verified
+directly against a full per-cell reference evaluation** on M1's real
+genuine-gray-elsewhere fixture (two distinct real boundaries) — every
+cell the full reference marks confident also appears in the pre-
+filtered candidate set. Deliberately permissive (threshold 0.05): a
+false positive here just costs one wasted `extractBoundaryEvidence`
+call that then correctly rejects it; a false negative would silently
+disable Crisp mode for a real boundary.
+
+`selectWeightedQuantizer` maps a Standard-mode `ColorQuantizer`
+selection (`plainKMeansQuantizer`/`kMeansQuantizer`) to its weighted
+counterpart (`weightedQuantize`/`weightedKMeansQuantize`), preserving
+the Original/Latest choice instead of silently always picking one —
+throws a clear error for any other (custom) `ColorQuantizer`, since
+there's no way to know how to "weight" an arbitrary implementation.
+
+**A real finding, caught while writing the neighbor-agreement test,
+not assumed away**: a hand-crafted "isolated single confident cell
+surrounded by non-confident neighbors" fixture, at the PRODUCTION
+default `neighborhoodMargin` (0.75), wasn't actually isolated — the
+cell's own hard split legitimately bled into neighboring cells' own
+expanded evaluation windows too (a correct consequence of the
+detector's own neighborhood expansion, not a bug), so neighbor-
+agreement had nothing to filter in that construction. Further,
+`neighborhoodMargin: 0.05` (a small but nonzero margin) STILL leaked
+one boundary pixel into each immediate neighbor's own window, because
+`collectWeightedSamples`'s floor/ceil pixel-grid rounding always pulls
+in at least one whole extra pixel beyond any nonzero fractional
+margin — a mechanical property of the windowing, not the specific
+margin value. Only `neighborhoodMargin: 0` (exact) produced the truly
+isolated construction the test needed. Documented inline; doesn't
+affect production defaults (0.75 is unaffected by this since it was
+already never intended to isolate to a single cell).
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full
+`npx vitest run` 445/445 passing (44 files, +9 new), `npm run build`
+clean. No e2e run needed — still test-only. Per the Owner's mid-turn
+instruction, continuing through M4's remaining sub-steps and then
+G-026 without further check-ins, pushing after each stage and
+deploying once a stage actually changes shippable behavior.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
