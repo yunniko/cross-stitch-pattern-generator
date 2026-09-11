@@ -487,6 +487,237 @@ work," restated with this project's acceptance-criteria/risk framing):
   Goal created and M2-M5 planned per Owner's "one point at a time"
   request; clean `tsc` after M1. Starting M2 next.
 
+### G-024 · Crisp edges mode (preserve hard color boundaries instead of averaging them) — DRAFT (2026-09-11)
+- **What:** An optional `edgeMode: "standard" | "crisp"` generation mode.
+  Standard stays today's exact behavior (backward-compatible default).
+  Crisp keeps two confidently-distinct source-side colors at a hard
+  boundary as a staircase of those two colors, instead of quantizing the
+  cell's single averaged color (which can land on or near a third,
+  unrelated palette entry — a manufactured gray/purple that no amount of
+  downstream edge-awareness can recover, since the information is
+  destroyed at the downsample step, before any optimizer ever runs).
+  Full design in `docs/reviews/2026-09-11-crisp-edges-implementation-
+  recommendations.md` (Codex, read/design-only, no files changed) —
+  this entry is the milestone plan derived from it, not a duplicate of
+  its content.
+- **Why:** Owner-directed scope (per the report's own "Owner intent and
+  scope" section). Reproduced directly before planning against it (this
+  project's standing practice) rather than trusting the report's numbers
+  on faith: a 64x64 opaque black/white split at `x=30`, downsampled to a
+  16x16 grid at 3 requested colors, produces exactly the reported result
+  — column 7 downsamples to RGB(188,188,188), and the final pattern
+  carries 112 black / 16 gray / 128 white stitches. The gray is
+  manufactured by linear-light averaging of a hard boundary, not a real
+  third color, an artifact, or noise; changing the averaging color space
+  would only produce a *different* wrong gray, not fix the underlying
+  problem (verified in `lib/downsample.ts`: alpha-weighted fractional-
+  coverage linear-light averaging is exactly as the report describes,
+  confirming its analysis is grounded in the current code, not stale).
+- **Acceptance criteria:** The report's own section 9 fixture table (12
+  scenarios: the black/white split with and without a genuine gray
+  region elsewhere, red/blue with no unsupported purple, equal-luminance
+  different-hue boundaries, diagonals/circles/ellipses with existing
+  shape metrics, fractional resampling ratios, smooth gradients and real
+  three-color regions, noise/JPEG-artifact negative controls, transparency/
+  upscale, finalization/merging/DMC mapping, Standard-mode/legacy-file
+  exact-equivalence, and the full generate/cancel/save/reload/export
+  lifecycle). Average reconstruction error is explicitly *not* a success
+  metric here (a crisp choice can legitimately score worse against an
+  averaged reference) — report that trade-off honestly rather than
+  hiding it behind a metric that penalizes the feature for working.
+- **Constraints:** Two broad regions only for this scope — no thin-line/
+  stroke/centerline/backstitch work (explicitly deferred, a different,
+  larger problem the earlier review already flagged separately). One
+  palette color per stitch, existing editing/export workflow unchanged.
+  **Sequencing**: the report explicitly says to coordinate with, not
+  bundle into, G-022's still-open M5 and G-020's still-open M5 — reuse
+  their shared boundary-energy/importance interfaces once they land
+  rather than duplicating or racing them. Per this project's listed-
+  order convention, G-022 M5 and G-020 M5 (both already ACTIVE) run
+  first; this goal stays DRAFT until the Owner either confirms that
+  order or explicitly asks to reprioritize it sooner.
+
+**Milestones** (from the report's own suggested sequence, section 10 —
+restructured into this project's usual milestone/check-in shape):
+- [ ] M1 — Formalize the reproduction as permanent regression fixtures
+  (the black/white gray-band case above, plus a real-gray-elsewhere
+  control) and inventory exactly which current G-022/G-020 machinery
+  Crisp mode must build on vs. leave untouched, before writing any new
+  production code.
+- [ ] M2 — Prototype the source-side evidence extractor in isolation
+  (bounded typed-array storage, up to two representative colors per
+  candidate boundary cell, fractional coverage, within-mode spread,
+  spatial/orientation evidence, confidence score) against hard-edge,
+  smooth-gradient, and noisy-control fixtures together — calibrate
+  confidence thresholds broadly, not off one attractive example (this
+  project's own D18 lesson). No wiring into `buildPattern` yet.
+- [ ] M3 — Weighted palette training (generalize `ColorQuantizer`'s
+  seeding/update/merge-reinvestment scoring to accept coverage-weighted
+  evidence without double-counting a split cell's influence) plus a new
+  shared assignment-cost interface implementing the report's mode-aware
+  unary cost (Section 6) — the core "stop scoring against the blend"
+  fix, since keeping two colors but minimizing distance to their average
+  (or the sum of both squared distances) provably still prefers a blend
+  (report's derivation, independently re-checkable).
+- [ ] M4 — Full pipeline integration per the report's Section 7 table:
+  denoising, initial assignment, coarse/fine ICM, small-component
+  recoloring, diagonal cleanup, palette merge/remap, and final palette
+  color estimation (replacing the unconditional `meanRgbOklab` call on
+  raw averaged cells for crisp cells specifically) all made mode-aware
+  and consistent, plus DMC-mode mapping of the selected source-side
+  colors. This is the milestone most likely to hide a "new sampler,
+  old pass overwrites it" regression — verify each stage individually,
+  not just the end-to-end result.
+- [ ] M5 — UI + persistence: `edgeMode` through
+  `pattern.worker.ts`/`pattern-client.ts`'s existing cancellable job
+  boundary, a Standard/Crisp control in `app/workspace.tsx`, and
+  persistence in `types.ts`/`pattern-serialize.ts`/`workspace-storage.ts`
+  with missing/legacy values defaulting to Standard. Generate/Regenerate
+  semantics only — switching the setting must never silently regenerate
+  or overwrite manual edits.
+- [ ] M6 — Calibration and acceptance testing against the report's full
+  Section 9 fixture matrix, benchmarking (time/memory vs. Standard on
+  representative and large grids), and delivery: before/after magnified
+  images at identical scale with the source shown alongside, documented
+  known limitations and remaining manual-correction cases.
+
+**Progress log** (newest first):
+- 2026-09-11 — Plan drafted from `docs/reviews/2026-09-11-crisp-edges-
+  implementation-recommendations.md` per Owner request ("read new report
+  from codex and plan what to do next"). Verified the report's central
+  claim by direct reproduction (see Why) and spot-checked its code
+  references (`downsampleToGrid`, `meanRgbOklab`, `ColorQuantizer`'s
+  interface shape, every named file) against the current tree — all
+  accurate, not stale. Not started; stays DRAFT behind G-022 M5/G-020 M5
+  per the existing listed-order convention until the Owner says
+  otherwise.
+
+### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT (2026-09-11)
+- **What:** Move the compute-heavy stage of the pattern pipeline (k-means
+  in OKLab + the ICM/Potts local optimizer, `lib/quantize.ts` +
+  `lib/local-optimizer.ts`) out of the browser and into a separate Rust
+  HTTP service (Axum + `rayon`), called server-to-server from Next.js.
+  Backlog item -- Owner explicitly parked this as "maybe one day," not
+  scheduled. Do not start without an explicit Owner go-ahead.
+- **Why:** The pipeline's worst-case latency is real (HANDOVER.md
+  performance history, though the figures disagree with each other --
+  ~13.4s, ~22s, and 9.5s recorded at different sizes/settings, meaning
+  there's no solid current baseline yet). Originally scoped as "turn the
+  app into a desktop app," narrowed across the conversation to "keep it a
+  website, move the heavy compute server-side, use Rust" once the Owner
+  confirmed browser-only processing isn't a hard requirement.
+- **Acceptance criteria:** Not yet set for the full migration -- per the
+  critique exchange below, M1's own acceptance criteria (a defined
+  latency target) must exist before M2+ are even attempted, since
+  whether this goal is needed at all depends on M1's result.
+- **Constraints:** Sequencing is load-bearing, not optional -- see the
+  critique exchange below. Do not jump straight to M3 (building the
+  service) without M1 (and, if M1 misses target, M2) first. If Rust is
+  ultimately adopted, the TS implementation becomes a frozen migration
+  oracle, not a second permanently-maintained implementation.
+
+**Codex critique exchange (2026-09-11, `codex-rescue`, read-only/
+diagnosis-only, no files changed)** -- put the originally-proposed
+architecture (sidecar Rust service, only the downsampled color grid sent
+to the server, `rayon` for parallelism) to Codex for a real critique per
+STANDARDS.md's "important decision" protocol, not a rubber-stamp
+second opinion. Its findings, verified rather than taken on faith:
+- **The 13.4s baseline is stale and internally inconsistent** with later
+  HANDOVER.md entries (~22s at the same 1000-stitch/64-color case, 9.5s
+  at 300-stitch/24-color) -- no real current baseline exists yet.
+- **The "just a small abstracted grid, not the photo" framing was
+  wrong.** `longerSideStitches` sets the *longer* dimension, so a
+  1000-stitch pattern is up to ~667,000 cells, not ~1,000. The optimizer
+  also needs the Sobel-derived importance map and directional pair-
+  evidence computed from the *original* image, not just downsampled
+  color -- recomputing them server-side from the grid alone would be an
+  algorithm change, not a faithful port. Total payload at typical max
+  settings: ~15-23MB, and a downsampled RGB grid at that resolution is
+  itself a reconstructible low-resolution image. Corrected framing: the
+  server receives "a reduced-resolution image and derived features," not
+  an anonymized abstraction -- the README/HANDOVER's current "your photo
+  never leaves your browser" claim would need updating if this is built.
+- **A genuine, independently-verified algorithmic finding, language-
+  agnostic:** the current energy function's Potts-style boundary term
+  (`lib/energy.ts`) means only a cell's unary-best color plus its
+  neighbors' current labels can ever be the ICM optimum -- any candidate
+  matching none of the neighbors is provably dominated (re-derived and
+  confirmed correct, not taken on faith). Cuts the per-cell candidate
+  scan from up to 100 to ~9, in whichever language this runs. Worth
+  doing regardless of the Rust/sidecar question.
+- **Naive per-cell `rayon` parallelism would silently change ICM's
+  result** (it updates assignments in scan order within a pass; later
+  cells see earlier updates from the same pass). A four-color
+  checkerboard scheduling scheme (partitioning on `(x mod 2, y mod 2)`)
+  is the correct way to parallelize this specific 8-neighbor stencil
+  without changing which local optimum it converges to -- flagged as a
+  later optimization, not part of an initial port.
+- **Two evolving implementations of the same algorithm is a real risk.**
+  If Rust is adopted, it should become the authoritative implementation;
+  TS gets frozen as a migration oracle (compared against identical
+  serialized inputs/intermediate outputs, not just the existing
+  regression suite, which checks diagnostic tolerance bands rather than
+  exact port equivalence) and eventually retired from production use,
+  not maintained indefinitely alongside Rust.
+- **Concrete service-engineering guidance for if/when M3 happens:**
+  versioned binary payload (not JSON) with protocol/algorithm versions
+  separated; an explicit Next.js Route Handler rather than a Server
+  Action (whose default body-size limit is smaller than even the
+  RGB-only portion of this payload); CPU work kept off Axum/Tokio's
+  async executor via a bounded worker pool, not unrestricted
+  `spawn_blocking`; one end-to-end deadline with cooperative cancellation
+  checkpoints in the kernel; a bounded admission queue that fails fast
+  under overload; the Rust container reachable only over the internal
+  Docker network, never a published host port (consistent with
+  `INFRASTRUCTURE.md`'s existing safety invariant); and real
+  observability (per-stage timings, queue time, algorithm version,
+  cancellation/failure counts, no logging of image buffers/derived
+  feature arrays).
+- **Overall verdict: the bottleneck is real and worth investigating, but
+  doesn't yet justify the full Rust sidecar architecture** -- the
+  smallest responsible first step is a current baseline plus an
+  equivalence-tested optimization spike in TypeScript, deciding on real
+  numbers whether Rust is even needed. No rebuttal was raised against
+  this critique -- its central technical claim was independently
+  re-derived and confirmed correct, and its corrections (stale baseline,
+  payload/privacy framing) were factual, not matters of judgment to
+  contest.
+
+**Milestones** (M2-M4 conditional -- do not start until the prior
+milestone's own result justifies continuing):
+- [ ] M1 — Re-establish a real current baseline (both generation modes,
+  several sizes, the historical worst case) since existing numbers
+  disagree with each other; set a concrete user-facing latency target
+  before judging anything against it. Implement the candidate-set
+  reduction (neighbor labels + unary-best color only, ~9 candidates
+  instead of up to 100) and the identified loop waste (rebuilt neighbor
+  objects, repeated fixed edge calculations per candidate, recomputed
+  color distances across passes) in TypeScript. Validate against the
+  existing regression suite plus real rendered-pattern spot checks (the
+  suite alone checks tolerance bands, not exact preservation).
+- [ ] M2 (only if M1 misses the latency target) — Port just the
+  optimizer/quantization kernel to a standalone Rust library with a
+  benchmark harness (no service yet). Compare single-threaded native and
+  single-threaded WASM against the identical frozen TS revision on
+  identical inputs before deciding anything about parallelism or
+  deployment shape.
+- [ ] M3 (only if M2's numbers justify a production build) — Build the
+  Axum sidecar per the engineering guidance above; Rust becomes
+  authoritative, TS frozen as oracle. Deploy per
+  `COMPANY/INFRASTRUCTURE_DEPLOY.md` conventions (internal-network-only,
+  no published host port).
+- [ ] M4 — Side-by-side validation against real patterns, a domain-expert
+  re-review of any numerically-changed behavior, corrected privacy
+  framing in README/HANDOVER, then retire the TS engine to oracle-only
+  status.
+
+**Progress log** (newest first):
+- 2026-09-11 — Goal created as backlog/DRAFT per Owner request ("write it
+  as a backlog goal (maybe one day)") after a full architecture
+  discussion (desktop app -> server-side -> Rust sidecar) and a real
+  Codex critique exchange (see above). Not started; no Owner go-ahead to
+  begin M1.
+
 ## Completed goals
 
 ### G-021 · DMC as an independent palette mode, not a third algorithm — DONE (2026-09-11)

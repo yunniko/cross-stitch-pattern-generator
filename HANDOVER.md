@@ -3374,6 +3374,49 @@ Regenerate on the deployed page's existing `prod-preview-test` pattern
 act on, so an unchanged visual result was expected), zero console
 messages.
 
+**D46 — G-024 planned: Crisp edges mode, from an external Codex design
+report (2026-09-11).**
+
+- **Context**: an untracked file, `docs/reviews/2026-09-11-crisp-edges-
+  implementation-recommendations.md`, appeared in the working tree ahead
+  of this session's own review-doc conventions -- a full design report
+  (Owner intent/scope, verified reproduction, data representation,
+  boundary detection, palette-training and color-objective redesign,
+  per-stage integration table, acceptance-test fixture matrix, and a
+  suggested 6-step implementation sequence) for an optional "Crisp
+  edges" mode that keeps hard color boundaries as two distinct colors
+  instead of the pipeline's current single-averaged-color-per-cell
+  representation, which manufactures a gray/purple stitch at a hard
+  boundary that no downstream edge-awareness (importance, M2's 8-neighbor
+  weighting, M3's directional pair evidence) can ever recover, since the
+  averaging happens at `downsampleToGrid`, before any of that machinery
+  runs.
+- **Verified, not trusted on faith**: reproduced the report's headline
+  fixture directly (64x64 opaque black/white split at `x=30`, 16x16
+  grid, 3 colors) -- got the exact reported numbers (downsampled column 7
+  = RGB(188,188,188); final pattern = 112 black / 16 gray / 128 white
+  stitches). Spot-checked the report's code references
+  (`downsampleToGrid`'s alpha-weighted fractional-coverage linear-light
+  averaging, `meanRgbOklab`'s call site in `pattern.ts`,
+  `ColorQuantizer`'s interface shape) against the current tree -- all
+  accurate and current, not stale or hallucinated.
+- **Decision**: planned as G-024, DRAFT, in GOALS.md -- not started.
+  Kept behind G-022's still-open M5 and G-020's still-open M5 per this
+  project's listed-order convention, matching the report's own explicit
+  instruction to coordinate with (not bundle into) that pending work and
+  reuse its shared boundary-energy/importance interfaces once landed.
+  Milestone breakdown follows the report's own suggested 6-step sequence
+  (baseline/fixtures, isolated evidence-extractor prototype, weighted-
+  palette-training + shared mode-aware cost interface, full per-stage
+  pipeline integration, UI/persistence, calibration+acceptance+delivery)
+  restructured into this project's usual milestone/check-in shape rather
+  than adopted as a single undifferentiated block.
+- **Left untouched**: the report itself, as the authoritative design
+  reference for whoever executes G-024 -- GOALS.md's entry summarizes
+  and restructures it for milestone tracking but deliberately doesn't
+  duplicate its full technical content (data-structure field tables,
+  the unary-cost derivation, the full 12-row acceptance-fixture matrix).
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
