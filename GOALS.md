@@ -135,6 +135,13 @@ svc-lab).
   to `runPatternJob`.
 
 **Progress log** (newest first):
+- 2026-09-11 — Root-caused and fixed the pre-existing e2e failure noted
+  below (Owner: "research the failure causation"): `git log -S` traced
+  the stale `/total \(incl\. legend\)/` regex in `a4-export.spec.ts` to
+  commit `eef7c1a` (G-016, same day), which changed the actual UI text to
+  "...(incl. simple + extended legend)" without updating this assertion.
+  Fixed the regex; full e2e suite (27 tests) now passes. See HANDOVER.md
+  D40 for the full trace.
 - 2026-09-11 — Deployed (Owner: "deploy"). `docker ps` before/after
   confirmed only the cross-stitch container restarted; 3 other sites
   spot-checked at 200. Live-verified against production itself: clicked

@@ -2716,12 +2716,25 @@ latest and original modes work with full palette or dmc palette."
   in a screenshot is not always reliable and should be cross-checked
   against actual DOM/computed-style state when the two disagree, rather
   than trusting the screenshot by default.
-- **Found, not caused, a pre-existing e2e failure** while running the
-  full suite as part of this change's own verification --
-  `a4-export.spec.ts`'s ZIP-download test; confirmed via `git stash` to
-  fail identically without G-021's changes. Logged in the Owner action
-  list below rather than investigated further, since it's unrelated to
-  this goal.
+- **Found, root-caused, and fixed a pre-existing, unrelated e2e failure**
+  while running the full suite as part of this change's own verification
+  -- `a4-export.spec.ts`'s "downloads a ZIP with grid page(s) plus a
+  legend page" test, failing waiting for `/total \(incl\. legend\)/` text.
+  Confirmed via `git stash` it failed identically without G-021's changes
+  (not caused by this goal). Owner then asked to "research the failure
+  causation": the accessibility snapshot Playwright captured at the
+  moment of failure showed the real on-page text was `"1 x 1 pages -- 3+
+  total (incl. simple + extended legend)"`, not `"... (incl. legend)"` --
+  `git log -S` on that string pinned it to commit `eef7c1a` (G-016 M1-M3,
+  "Add A4 extended legend page...", same day, 2026-09-11), which
+  deliberately changed the summary text (`{pages.length + 1} total (incl.
+  legend)` -> `{pages.length + 2}+ total (incl. simple + extended
+  legend)`) to describe the newly-added extended legend page, but never
+  updated this test's now-stale regex to match. A real, intentional UI
+  copy change with a forgotten test update, not an app bug. Fixed by
+  updating the regex to `/total \(incl\. simple \+ extended legend\)/`;
+  full e2e suite (all 27 tests, `npx playwright test`) now passes,
+  alongside the unaffected 279 unit tests and clean `tsc`.
 - **Deployed (2026-09-11).** Owner: "deploy". Standard recipe: `git push`
   then on the VPS `git fetch origin`/`git pull`/`docker compose --profile
   app up -d --build`. `docker ps` before/after confirmed isolation: only
@@ -2764,18 +2777,6 @@ latest and original modes work with full palette or dmc palette."
    unconfirmed without checking against a current `codex` release.
    Worth an Owner look if the critique-exchange workflow is wanted
    working again before the API account's credits are topped up.
-
-3. **Pre-existing e2e failure, found incidentally (2026-09-11), not yet
-   root-caused.** `tests/e2e/a4-export.spec.ts`'s "downloads a ZIP with
-   grid page(s) plus a legend page" test fails waiting for
-   `/total \(incl\. legend\)/` text to appear after generating a fresh
-   "Small" pattern from `fixtures/sample.png`. Confirmed via `git stash`
-   to fail identically with G-021's changes removed, so it predates this
-   session's work and isn't something introduced here -- but it was not
-   investigated further (out of scope for G-021), so root cause is
-   unknown. The adjacent "works in B&W mode" test in the same file
-   passes. Worth a look before next relying on the e2e suite as a full
-   regression gate.
 
 ## Next steps and open questions
 

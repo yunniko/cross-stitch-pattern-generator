@@ -16,7 +16,7 @@ test("export as A4 pages downloads a ZIP with grid page(s) plus a legend page", 
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
 
-  await expect(page.getByText(/total \(incl\. legend\)/)).toBeVisible();
+  await expect(page.getByText(/total \(incl\. simple \+ extended legend\)/)).toBeVisible();
 
   const [download] = await Promise.all([
     page.waitForEvent("download"),
