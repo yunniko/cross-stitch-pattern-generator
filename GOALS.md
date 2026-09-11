@@ -255,6 +255,14 @@ not moved there unilaterally. G-020's own paused M5 (the post-DMC fine
 pass) can now resume, per the cross-goal ordering decision above.
 
 **Progress log** (newest first):
+- 2026-09-11 — Deployed (Owner: "deploy if it i not yet"). The VPS had
+  fallen 5 commits behind (still on `fb449ec`, the XL/XXL-presets
+  commit) -- this deploy carries D51's axial-line denoise fix plus all
+  of M5.3-M5.6. Container isolation confirmed, other sites healthy, live
+  production re-test of D51's own fix specifically (a genuine 1-pixel
+  line in a real 200x200 PNG, 2:1 downsample) -- survived at exactly its
+  true 100-stitch count, zero console errors. `contourRefinement` stays
+  unreachable via the UI, consistent with staying opt-in/default-false.
 - 2026-09-11 — M5.6 complete (Owner: "continue with m5.6").
   **CONCLUSION: contourRefinement is NOT adopted as default behavior --
   a legitimate, well-evidenced negative result.** Swept the existing

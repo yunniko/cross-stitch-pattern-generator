@@ -4085,6 +4085,25 @@ G-022's M5 investigation (2026-09-11, Owner: "continue with m5.6").**
   sub-step (investigation only) -- no e2e re-run needed, no deploy
   (nothing in default behavior to deploy).
 
+**Deployed (2026-09-11).** Owner: "deploy if it i not yet." This batch
+had accumulated across several sub-steps without a deploy in between
+(D51's axial-line denoise fix, and G-022 M5.3-M5.6 -- the VPS was still
+on `fb449ec`, the XL/XXL-presets commit, five real commits behind
+`d246679`). Standard recipe: `git push`/VPS `git fetch`+`git pull`/
+`docker compose --profile app up -d --build`. `docker ps` before/after
+confirmed isolation: only `cross-stitch-pattern-generator-app-1`
+restarted (`Up 5 hours` -> `Up 11 seconds`); every other container's
+uptime unchanged. Spot-checked `meet.app.julienika.cz`, `craftale.eu`,
+and `arfid.julienika.cz` at HTTP 200, plus the target site at 200. Live
+verification directly on production, specifically re-testing D51's own
+fix (not a generic smoke test, since that's the one real user-facing
+change in this batch): uploaded a genuine 200x200 PNG containing a
+1-pixel-wide vertical line, generated at 100 stitches (a real 2:1
+downsample) -- the line survived as its own palette entry at exactly
+100 stitches (its true cell count), zero console errors. `contour-
+Refinement` stays unreachable via the UI (no control exists for it),
+consistent with it remaining opt-in/default-false in production too.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
