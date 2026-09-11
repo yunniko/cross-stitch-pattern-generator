@@ -209,7 +209,10 @@ function buildPaletteFromAssignment(
 // only merges colors close enough that losing the distinction barely
 // changes reconstruction error, so genuinely different content (checked
 // against the busy-multi-hue case in testing) isn't merged away.
-const REINVEST_MERGE_THRESHOLD = 0.012;
+// Exported so `weighted-quantize.ts`'s analogous reinvestment path (G-024
+// M3) reuses the exact same tuned constants rather than drifting into its
+// own separately-chosen values for what should be one shared policy.
+export const REINVEST_MERGE_THRESHOLD = 0.012;
 
 // How much a cell's own `importance` (0-1) can boost its effective
 // reinvestment priority over raw reconstruction error alone: a
@@ -218,7 +221,8 @@ const REINVEST_MERGE_THRESHOLD = 0.012;
 // enough for a low-error "important" cell to leapfrog a genuinely
 // large-error one -- see `injectWorstFitClusters`'s own doc comment below
 // for why that asymmetry is the point, not a compromise.
-const WORST_FIT_IMPORTANCE_BOOST = 1.0;
+// Exported for the same reason as `REINVEST_MERGE_THRESHOLD` above.
+export const WORST_FIT_IMPORTANCE_BOOST = 1.0;
 
 /**
  * Redistributes palette budget freed by merging redundant colors to

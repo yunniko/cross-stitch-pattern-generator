@@ -757,7 +757,7 @@ restructured into this project's usual milestone/check-in shape):
   smooth-gradient, and noisy-control fixtures together — calibrate
   confidence thresholds broadly, not off one attractive example (this
   project's own D18 lesson). No wiring into `buildPattern` yet.
-- [ ] M3 — Weighted palette training (generalize `ColorQuantizer`'s
+- [x] M3 — Weighted palette training (generalize `ColorQuantizer`'s
   seeding/update/merge-reinvestment scoring to accept coverage-weighted
   evidence without double-counting a split cell's influence) plus a new
   shared assignment-cost interface implementing the report's mode-aware
@@ -788,6 +788,33 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-12 — M3 complete. Built both halves standalone (no
+  `buildPattern` wiring yet -- that's M4), per the Codex critique's
+  synthesis: `lib/weighted-quantize.ts` (weighted k-means training --
+  `weightedQuantize`/`weightedKMeansQuantize`, generalizing
+  `quantize.ts`'s seeding/Lloyd/reinvestment to accept coverage-
+  weighted samples, with cell-first reinvestment ranking) and
+  `lib/crisp-unary-cost.ts` (the mode-aware unary cost + admissible-
+  label-set construction, Section 6's core fix). Verified byte-for-
+  byte Standard-compatibility directly (not assumed) -- caught and
+  fixed a real bug along the way where the RNG seed depended on raw
+  sample-record count instead of distinct cell count, which would have
+  silently reshuffled unrelated cells' quantization whenever a nearby
+  cell's evidence happened to be split into 2 samples. Calibrated a
+  provisional `beta=0.15` via a real (not fabricated) side-switch
+  experiment -- explicitly documented as provisional pending M4's real
+  passes. Composition-tested both halves together end-to-end on M1's
+  genuine-gray-elsewhere fixture: recovers real black/white/gray
+  palette entries and correct admissible label sets at the real
+  boundary (a test-scope bug of my own, not an implementation bug, was
+  caught and fixed along the way -- the fixture has TWO real
+  boundaries, black/white and white/gray, and an assertion that didn't
+  account for that produced a false failure). Full story in
+  HANDOVER.md D60 (the critique + a real M2 coverage bug it surfaced,
+  fixed first) and D61 (M3's actual build). Verified: 418/418 tests
+  passing (42 files), clean `tsc`/`eslint`/`npm run build`. No e2e run
+  needed. Starting M4 next (full pipeline integration) once the Owner
+  checks in.
 - 2026-09-11/12 — Before starting M3, sent the planned design (weighted
   palette training + mode-aware unary cost) to Codex for critique per
   this project's standard practice. It found a real bug in M2's own

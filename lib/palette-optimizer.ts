@@ -26,14 +26,25 @@ function find(parent: Int32Array, i: number): number {
  * near-duplicate colors that a k-means run can produce when the requested
  * color count exceeds what the image actually needs.
  */
+/**
+ * `entryWeights` (optional, one entry per `cellPaletteIndex` position; G-024
+ * M3, HANDOVER.md D60) generalizes "which color is more-used" from a raw
+ * occurrence count to summed observation mass -- needed once a caller's
+ * `cellPaletteIndex`-like array can represent weighted samples (a confident
+ * boundary cell's two mode-samples, each carrying that mode's coverage,
+ * rather than one guaranteed-weight-1 entry per grid cell). Omitting it
+ * reproduces today's exact raw-count behavior (each entry counted as weight
+ * 1) byte-for-byte -- verified directly, not assumed from the math.
+ */
 export function mergeSimilarColors(
   cellPaletteIndex: Uint8Array,
   palette: RGB[],
-  mergeDistanceThreshold: number = DEFAULT_MERGE_DISTANCE_SQUARED
+  mergeDistanceThreshold: number = DEFAULT_MERGE_DISTANCE_SQUARED,
+  entryWeights?: number[]
 ): PaletteMergeResult {
   const oklab = palette.map(rgbToOklab);
   const counts = new Array(palette.length).fill(0);
-  for (const index of cellPaletteIndex) counts[index]++;
+  for (let i = 0; i < cellPaletteIndex.length; i++) counts[cellPaletteIndex[i]] += entryWeights ? entryWeights[i] : 1;
 
   const parent = new Int32Array(palette.length);
   for (let i = 0; i < palette.length; i++) parent[i] = i;

@@ -4454,6 +4454,146 @@ full `npx vitest run` 381/381 passing (38 files), `npm run build`
 clean. No e2e run needed (test-only, `lib/pattern.ts` still does not
 import this module).
 
+**D61 — G-024 M3 built: weighted k-means training + mode-aware unary
+cost, both standalone and unit-tested, per D60's Codex-critique
+synthesis (2026-09-12, Owner: "continue").**
+
+**Half A — `lib/weighted-quantize.ts`** (weighted palette training,
+report Section 5): generalizes `quantize.ts`'s k-means core to accept
+`WeightedColorSample[]` (`{oklab, weight, cellIndex}`) instead of one
+fixed color per cell — an ordinary cell contributes one weight-1
+sample; a confident boundary cell contributes its two modes, each
+weighted by `coverage` (summing to 1, never double-counted). Per the
+critique's corrected formulation, each mode independently picks its
+OWN nearest training cluster (`assignToNearestCentroid` is unaffected
+by weights — scaling one sample's distances by a positive weight can't
+change which centroid is nearest) — this is what avoids Section 6's
+blend-scoring trap during TRAINING specifically: nothing is ever scored
+against a weighted average of two modes.
+
+- `weightedKMeansPlusPlusSeeds`: weights BOTH the first seed draw and
+  the subsequent distance-weighted draws (the critique's specific
+  correction to my original sketch, which only weighted the later
+  draws — a real, avoidable bias).
+- `runWeightedLloyd`: centroid update becomes the weighted mean;
+  carries forward the D42 trailing-reassignment invariant.
+- `weightedInjectWorstFitClusters`: **cell-first** reinvestment (the
+  critique's recommended policy of three defensible options) — ranks
+  by a CELL's total coverage-weighted error
+  (`sum_m coverage_m * error_m * (1+gamma*importance)`), then injects
+  the specific mode within that cell with the largest weighted error.
+  Chosen over a per-sample-maximum policy because the critique's own
+  worked example shows per-sample ranking has real "coverage
+  blindness": a cell split into two half-weight 0.08-error samples has
+  total error 0.08 (correctly the worst), but neither individual
+  sample's own contribution (0.04 each) would beat an ordinary weight-1
+  cell with error 0.06 under a per-sample ranking — locked into a
+  dedicated ranking test using exactly this example.
+- `weightedKMeansQuantize`: the merge+reinvest wrapper, analogous to
+  `quantize.ts`'s `kMeansQuantizer`. `mergeSimilarColors` (`palette-
+  optimizer.ts`) gained an optional `entryWeights` parameter (summed
+  weight instead of raw occurrence count decides which near-duplicate
+  survives) — omitting it reproduces the exact original behavior.
+  `REINVEST_MERGE_THRESHOLD`/`WORST_FIT_IMPORTANCE_BOOST` were exported
+  from `quantize.ts` so this module reuses the same tuned constants
+  rather than drifting into its own values (the D11 lesson, applied
+  proactively this time).
+
+**Verified Standard-compatibility directly, not assumed from the
+math** (the critique's explicit warning: "mathematical equivalence
+with unit weights does not automatically imply byte-identical
+output"): feeding `weightedQuantize`/`weightedKMeansQuantize` one
+weight-1 sample per cell reproduces `plainKMeansQuantizer`/
+`kMeansQuantizer`'s output byte-for-byte across several fixtures,
+including the importance-weighted reinvestment path — confirmed this
+requires the RNG seed to depend on DISTINCT CELL COUNT rather than raw
+sample-record count (a bug caught by my own first test run: splitting
+one cell into two weight-summing records changed `samples.length`,
+which fed `mulberry32`'s seed, silently reshuffling every OTHER cell's
+unrelated seed sequence too — fixed by deriving the seed from
+`new Set(samples.map(s => s.cellIndex)).size` instead, which equals
+`samples.length` in the one-sample-per-cell case, preserving Standard-
+compatibility, while also making seeding invariant to how many pieces
+one cell's own evidence happens to be split into).
+
+**Half B — `lib/crisp-unary-cost.ts`** (mode-aware unary cost, report
+Section 6): `mapModesToLabels` (nearest-OKLab mapping from each
+evidence mode to a palette label, excluding zero-coverage modes
+entirely per the critique's explicit rule), `crispUnaryCost` (the
+report's `alpha*colorFit + beta*(1-coverage)` formula), and
+`buildAdmissibleLabelCosts` (one entry per label supported by at least
+one mode, keeping the MINIMUM cost when two modes map to the same
+label — never an invented combined-coverage bonus, per the critique).
+`buildUnaryCostEvaluator` is the single shared entry point M4's
+consumers (ICM, simulated annealing, contour-cleanup) must call:
+falls back to today's exact single-color cost for a cell with no
+evidence or below-threshold confidence (verified byte-identical to
+`oklabDistanceSquared` directly), returns `Infinity` for any
+unsupported label on a confident cell — never an arbitrary global
+palette color, per the report's explicit restriction.
+
+**Weight composition and palette-finalization rules settled now, in
+the module's own docs, so M4's several consumers don't each reinvent
+them and drift (the D11 lesson again):** `alpha` plays the exact role
+`local-optimizer.ts`'s `weights.color` plays today — M4 must NOT apply
+`weights.color` a second time on top of it. The eventual final-palette-
+color step (replacing `pattern.ts`'s unconditional `meanRgbOklab` call
+for crisp cells) must weight a selected mode's contribution by `alpha`
+(unit weight), not by `coverage` again — `beta*(1-coverage)` is an
+assignment-time preference term only, not a finalization weight.
+
+**Beta calibration** (`tests/unit/crisp-unary-calibration.spec.ts`): a
+real, measured (not fabricated) but deliberately smaller experiment
+than the critique's full proposal (small multi-cell patches, exhaustive
+enumeration, multiple angles — explicitly deferred to M4/M6, per the
+critique's own "M3 can establish provisional parameters... final
+calibration still needs M4's actual passes" allowance). Setup: one
+ambiguous cell between two same-colored (WHITE) neighbors, with a
+perfect palette fit for both candidate colors (isolating beta's
+interaction with the real pairwise geometric term, since a perfect fit
+can't calibrate `alpha` at all — both candidates score zero color
+error). Algebraically: BLACK wins over WHITE exactly when
+`coverage > 0.5 + GEOMETRIC_NORMALIZATION*boundaryPairEnergy(weights,edge,true)/beta`.
+Measured this crossover across both the coarse/fine multi-scale passes
+and edge strengths 0.1/0.3/0.5/0.7: at the originally-planned
+`beta=0.08`, the weakest tested pull (coarse, edge=0.1) pushed the
+crossover to 0.91 — meaning coverage evidence would be nearly
+powerless against even a moderate 2-neighbor geometric pull. Raised to
+`beta=0.15`: crossover now ranges 0.50 (fine pass, edge>=0.5, where
+`boundaryPairEnergy`'s own clamp already zeroes the mismatch cost
+entirely) to 0.7195 (coarse, edge=0.1, the worst case tested) — a
+majority but not near-unreachable share is enough to override a real
+geometric pull, which is the qualitative property the critique asked
+for. Explicitly documented as provisional, not final.
+
+**Composition test** (`tests/unit/crisp-training-composition.spec.ts`,
+the critique's own explicit final recommendation): weighted training →
+emitted palette → mode-to-label mapping → admissible-label construction,
+exercised together end-to-end on M1's real genuine-gray-elsewhere
+fixture (not `buildPattern`-wired — builds its own sample pool from
+`extractBoundaryEvidence` directly, the same way M4 eventually will).
+Confirms: the resulting 4-color palette recovers real black, white,
+AND the genuine gray entry (not a manufactured transition gray eating
+the budget); a confident cell at the actual black/white split has an
+admissible set containing only black/white, never the unrelated gray.
+One genuine surprise, caught by the test itself rather than assumed
+away: a confident cell was found admitting the gray label even though
+my first draft of this test asserted it never should — investigation
+showed this was CORRECT, not a bug: the gray rectangle's own edges are
+a real, separate white/gray hard boundary the detector correctly
+flags, and a mode there legitimately supports the gray label. Fixed
+the test's scope (restricted the "never gray" assertion to columns
+near the actual black/white split) and added a companion test
+confirming the white/gray boundary case correctly ADMITS gray — a
+useful reminder that this fixture contains two distinct real
+boundaries, not one, and a boundary-position-blind assertion will
+produce false failures.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean (one
+unused-variable cleanup), full `npx vitest run` 418/418 passing (42
+files, no regressions), `npm run build` clean. No e2e run needed —
+still no `buildPattern`/`pattern.ts` wiring; that's M4.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
