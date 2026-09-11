@@ -694,7 +694,7 @@ pass) can now resume, per the cross-goal ordering decision above.
   them. Not started -- awaiting Owner direction on whether/where to
   start relative to G-020's remaining M5.
 
-### G-024 · Crisp edges mode (preserve hard color boundaries instead of averaging them) — DRAFT (2026-09-11)
+### G-024 · Crisp edges mode (preserve hard color boundaries instead of averaging them) — ACTIVE (2026-09-11)
 - **What:** An optional `edgeMode: "standard" | "crisp"` generation mode.
   Standard stays today's exact behavior (backward-compatible default).
   Crisp keeps two confidently-distinct source-side colors at a hard
@@ -737,16 +737,15 @@ pass) can now resume, per the cross-goal ordering decision above.
   larger problem the earlier review already flagged separately). One
   palette color per stitch, existing editing/export workflow unchanged.
   **Sequencing**: the report explicitly says to coordinate with, not
-  bundle into, G-022's still-open M5 and G-020's still-open M5 — reuse
-  their shared boundary-energy/importance interfaces once they land
-  rather than duplicating or racing them. Per this project's listed-
-  order convention, G-022 M5 and G-020 M5 (both already ACTIVE) run
-  first; this goal stays DRAFT until the Owner either confirms that
-  order or explicitly asks to reprioritize it sooner.
+  bundle into, G-022's M5 and G-020's M5 — reuse their shared boundary-
+  energy/importance interfaces once they land rather than duplicating or
+  racing them. Both concluded 2026-09-11 (G-022 M5 with a negative
+  result, opt-in; G-020 M5 shipped and deployed) -- this goal is
+  unblocked and now ACTIVE.
 
 **Milestones** (from the report's own suggested sequence, section 10 —
 restructured into this project's usual milestone/check-in shape):
-- [ ] M1 — Formalize the reproduction as permanent regression fixtures
+- [x] M1 — Formalize the reproduction as permanent regression fixtures
   (the black/white gray-band case above, plus a real-gray-elsewhere
   control) and inventory exactly which current G-022/G-020 machinery
   Crisp mode must build on vs. leave untouched, before writing any new
@@ -789,6 +788,26 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-11 — M1 complete (Owner: "yes please" -- unblocked once G-022
+  M5/G-020 M5 both concluded). New `tests/unit/crisp-edges-fixtures.ts`
+  + `crisp-edges-regression.spec.ts`, reproducing the report's own
+  Section 9 fixtures #1-#2 exactly: the headline black/white split
+  (matches the report's own claimed numbers precisely: column 7 ->
+  RGB(188,188,188), pattern -> 112/16/128 black/gray/white stitches) and
+  a genuine-gray-elsewhere control, which surfaced a clean, concrete,
+  numeric demonstration of the actual problem: today's pipeline produces
+  two DIFFERENT, unrelated grays (a genuine 128,128,128 region entry and
+  a separate manufactured 184,184,184 "transition" entry at the
+  boundary) with nothing distinguishing "real content" from "averaging
+  artifact." Also completed the inventory half of M1 -- a code-grounded
+  table of what Crisp mode builds on vs. leaves untouched, verified
+  against the current tree (not the report's own stale snapshot --
+  `boundary-chains.ts`/`contour-refinement.ts` postdate the report and
+  are confirmed orthogonal, no coordination needed). See HANDOVER.md D57
+  for the full inventory. Verified: 368 unit tests (365 + 3 new), clean
+  `tsc`/`eslint`/`npm run build`. No production code changed, no e2e
+  run needed. Starting M2 next (the source-side evidence extractor
+  prototype) once the Owner checks in.
 - 2026-09-11 — Plan drafted from `docs/reviews/2026-09-11-crisp-edges-
   implementation-recommendations.md` per Owner request ("read new report
   from codex and plan what to do next"). Verified the report's central

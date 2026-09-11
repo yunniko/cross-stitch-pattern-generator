@@ -4203,6 +4203,54 @@ legend correctly showed real DMC threads "318 - Steel Gray Light"
 nearest-DMC pair measured during development, no zero-count entries,
 zero console errors.
 
+**D57 — G-024 M1: reproduction locked into permanent regression tests,
+plus a code-grounded inventory of existing machinery before any new
+production code (2026-09-11, Owner: "yes please").** Now unblocked --
+G-022 M5 and G-020 M5, the two milestones the Crisp Edges report itself
+said to coordinate with rather than race, are both concluded.
+
+**Fixtures** (`tests/unit/crisp-edges-fixtures.ts` + `crisp-edges-
+regression.spec.ts`), reproducing the report's own Section 9 fixtures
+#1-#2 exactly:
+- The headline case (64x64 opaque black/white split at x=30, 16x16
+  grid, 3 colors) reproduces the report's own claimed numbers exactly,
+  verified directly rather than trusted twice now (first during G-024's
+  own planning, D-entry above; now as a locked-in test): column 7
+  downsamples to RGB(188,188,188), final pattern carries exactly 112
+  black / 16 gray / 128 white stitches.
+- A genuine-gray-elsewhere control (the same split plus an unambiguous
+  128,128,128 region well away from the boundary) surfaced a clean,
+  concrete demonstration of the actual problem, not just an abstract
+  one: at colorCount=4, today's pipeline produces **two different,
+  unrelated grays** -- the genuine region color (128,128,128, survives
+  as its own entry) and a *separate* manufactured "transition" gray
+  (measured: 184,184,184) at the black/white boundary -- with nothing
+  in the current palette/legend distinguishing "real content" from
+  "averaging artifact." This is G-024's motivating problem made
+  concrete and numeric, not just descriptive.
+
+**Inventory** (the "what to build on vs. leave untouched" half of M1,
+verified against the current tree, not the report's own snapshot --
+`lib/boundary-chains.ts` and `lib/contour-refinement.ts` didn't exist
+when the report was written):
+
+| Module | Role for Crisp mode |
+|---|---|
+| `lib/downsample.ts` | **Preserve exactly** as the Standard sampler. Crisp's own evidence extraction (M2) must reuse its *same* fractional-coverage/alpha-weighting math (confirmed still accurate: `downsampleToGrid`'s inner loop computes `xWeight`/`yWeight` per source pixel exactly as the report describes) -- a new function alongside it, not a modification to it. |
+| `lib/edge-map.ts` | `computeCellImportance`/`computeEdgeMagnitude` stay exactly as-is for existing importance-gated protection thresholds (denoise, contour-cleanup). Crisp's own hard-boundary detection (M2) must NOT gate on this alone -- luminance-only with a hard noise floor, per the report's own warning; a real color edge with near-zero luminance gradient (M3's own same-luminance-different-hue motivating case) is invisible to it. |
+| `lib/pair-edge-evidence.ts` | A genuine, reusable *input* signal for Crisp's boundary detector (M2) -- but the report is explicit that high tensor magnitude alone is not proof of a genuine two-region hard boundary (corners, intersecting edges, and texture can also produce it). M2 needs additional confirmation (spatial/orientation evidence, negative controls for gradients and noise) on top of this signal, not a repurposing of it as a boundary classifier by itself. |
+| `lib/quantize.ts` | `ColorQuantizer`'s interface (one RGB per cell) doesn't fit Crisp's weighted, coverage-split evidence (M3) -- needs a new, explicit weighted-evidence interface, not a disguised reuse of the existing per-cell contract. `meanRgbOklab`'s unconditional recompute-from-membership (used for every mode's final palette today) must NOT run unchanged for Crisp cells (M4) -- it would re-contaminate a correctly-selected source-side color by averaging in the cells it deliberately chose not to blend with. |
+| `lib/local-optimizer.ts` / `lib/contour-cleanup.ts` | The shared `boundaryPairEnergy`/`WEIGHTED_NEIGHBOR_OFFSETS` pairwise formula stays exactly as-is -- Crisp's mode-aware unary cost (M3/Section 6's derivation) is a *unary* term change (which labels are even admissible for a cell, and their color-fit score), not a pairwise-term change. Every downstream consumer of the shared per-cell candidate-evaluation pattern (ICM, `recolorSmallComponents`, `fixDiagonalConnections`) needs the same admissible-label-set awareness (M4) -- centralized behind one shared interface, per the report's own instruction, not reimplemented per call site (repeating exactly the mistake D11 already found and fixed once for the boundary energy itself). |
+| `lib/boundary-chains.ts`, `lib/contour-refinement.ts` (new since the report, G-022 M5) | **Orthogonal, no coordination required for M1-M4.** Contour refinement addresses boundary *placement/pacing*; Crisp addresses source-*color representation* at a boundary that already exists -- different concerns at different conceptual layers. `contourRefinement` is also not adopted as default (D55), so there's no live interaction to break even in principle. `extractBoundaryChains` is generic over any label assignment, so it would keep working unchanged on Crisp-mode output if a future milestone ever wanted it; nothing here requires touching it now. |
+| `lib/dmc-match.ts` | `applyDmcPalette`'s `reoptimize` context (D56) is the natural extension point for the report's own Section 7 DMC requirement ("map the selected source-side colors to available thread colors... using updated mode associations") -- M4 should extend this existing mechanism (which source-side color to snap, not just which averaged one) rather than duplicate a second DMC-mapping path. |
+| `lib/pattern.ts` | Orchestration point for a new `edgeMode` option (`"standard"` or `"crisp"`, M5), following the exact established pattern of `paletteMode`/`contourRefinement`: additive, optional, defaults to today's exact behavior, threaded through the same internal `cells`/`importance`/`pairEvidence` scope already available there. |
+| `tests/unit/shape-fixtures.ts` | Directly reusable for M6's shape/curve acceptance fixtures (diagonals, circles, rotated ellipses) -- no changes needed, per the report's own instruction to reuse existing shape metrics. |
+
+No production code changed this sub-step. **Verified**: 368 unit tests
+(365 + 3 new), clean `tsc`/`eslint`/`npm run build`. No e2e run needed
+(test-only). Starting M2 next (the source-side evidence extractor
+prototype) once the Owner checks in.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
