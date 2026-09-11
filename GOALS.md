@@ -169,7 +169,7 @@ work," restated with this project's acceptance-criteria/risk framing):
   infrastructure, deliberately, per the critique's own recommended
   order and this project's D18/D11 precedent for not trusting an
   approach that "looks correct in isolation."
-  - [ ] M5.1 — Build the step-discrepancy pacing metric (critique
+  - [x] M5.1 — Build the step-discrepancy pacing metric (critique
     section 4: `D = actual_vertical_steps - w * matched_source_arc's_
     local_vertical_proportion` over short boundary windows) and
     calibrate its "good staircase" range against digitizations of known
@@ -235,6 +235,33 @@ work," restated with this project's acceptance-criteria/risk framing):
     Full verification, GOALS.md/HANDOVER.md documentation, deploy.
 
 **Progress log** (newest first):
+- 2026-09-11 — M5.1 complete (Owner: "go with 5.1"). New standalone
+  harness `tests/unit/contour-pacing.ts` (matching `shape-fixtures.ts`'s
+  precedent -- a measurement tool, not yet wired into the pipeline):
+  `traceStaircase` (builds the literal H/V pixel-grid boundary polygon
+  from a digitized height sequence), `stepDiscrepancies` (the critique's
+  `D = V - w*p*` formula, matching a window's true source-curve x-span
+  against its actual vertical-step count), `christoffelChain` (the
+  well-established balanced/mechanical-word construction for a digital
+  straight segment -- Monteil's own reference domain -- used as an
+  independent cross-check of the general rounding-based tracer), plus
+  straight-line and canonical-first-octant circular-arc source-curve
+  generators. `tests/unit/contour-pacing.spec.ts`: reproduces the
+  critique's own worked numbers exactly (`HVHVHVHV` -> zero discrepancy
+  at every w=4 window; `HHHHVVVV` -> -2,-1,0,1,2, both against the same
+  slope-1 endpoints), cross-checks the rounding tracer against the
+  closed-form Christoffel construction, and calibrates the "good
+  staircase" range (deliberately *not* assumed to be zero, per the
+  critique) against 9 line angles x 4 phases x 3 window sizes (measured:
+  overall RMS(|D|/w) = 0.099, worst-case max = 0.301) and 4 circular-arc
+  radii x 3 window sizes (measured: RMS = 0.094, max = 0.298) --
+  comparable ranges for both shape families, bounds set with real margin
+  above the measured baseline (D18 discipline), not a knife-edge match.
+  Verified: 325 unit tests (318 + 7 new), clean `tsc`/`eslint`/`npm run
+  build`. No pipeline/production code touched, no e2e impact, no deploy
+  needed for this sub-step. Starting M5.2 next (extending
+  `shape-fixtures.ts`'s harness gaps + the new junction-corruption
+  fixture) once the Owner checks in.
 - 2026-09-11 — M5 design critique obtained (codex-cli, new thread, per
   Owner: "proceed m5"). Restructured M5 into sub-steps M5.1-M5.6 above
   per the critique's finding that this milestone is a staged research
