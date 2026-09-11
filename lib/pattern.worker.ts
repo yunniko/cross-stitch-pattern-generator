@@ -1,5 +1,4 @@
-import { applyDmcPalette } from "./dmc-match";
-import { buildPattern } from "./pattern";
+import { buildPattern, type PaletteMode } from "./pattern";
 import { kMeansQuantizer, plainKMeansQuantizer } from "./quantize";
 import type { PixelBuffer, StitchPattern } from "./types";
 
@@ -15,13 +14,12 @@ import type { PixelBuffer, StitchPattern } from "./types";
  */
 export type GenerationMode = "original" | "latest";
 
-/**
- * "full" = whatever continuous colors the clustering algorithm above
- * produces; "dmc" = that same output with `applyDmcPalette` snapping every
- * color to the nearest real, buyable DMC thread color afterward (G-013) --
- * a palette constraint, applicable to either `GenerationMode`.
- */
-export type PaletteMode = "full" | "dmc";
+// Re-exported from pattern.ts (not defined here) as of G-020 M5
+// (HANDOVER.md D56): applying the DMC snap now happens inside
+// `buildPattern` itself, since re-optimizing against the new palette
+// needs the same internal `cells`/`importance`/`pairEvidence` context
+// only `buildPattern` has in scope.
+export type { PaletteMode };
 
 export interface StartMessage {
   type: "start";
@@ -59,10 +57,10 @@ self.onmessage = (event) => {
       longerSideStitches: msg.longerSideStitches,
       colorCount: msg.colorCount,
       quantizer: msg.generationMode === "original" ? plainKMeansQuantizer : kMeansQuantizer,
+      paletteMode: msg.paletteMode,
       onProgress: (fraction) => self.postMessage({ type: "progress", jobId: msg.jobId, fraction }),
     });
-    const finalPattern = msg.paletteMode === "dmc" ? applyDmcPalette(pattern) : pattern;
-    self.postMessage({ type: "done", jobId: msg.jobId, pattern: finalPattern });
+    self.postMessage({ type: "done", jobId: msg.jobId, pattern });
   } catch (err) {
     self.postMessage({ type: "error", jobId: msg.jobId, message: err instanceof Error ? err.message : "Unknown error" });
   }

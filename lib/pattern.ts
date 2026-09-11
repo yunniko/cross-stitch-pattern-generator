@@ -10,7 +10,11 @@ import { mergeSimilarColors } from "./palette-optimizer";
 import { kMeansQuantizer, meanRgbOklab, type ColorQuantizer } from "./quantize";
 import { symbolsFor } from "./symbols";
 import { runContourRefinement, DEFAULT_CONTOUR_REFINEMENT_OPTIONS, type ContourRefinementOptions } from "./contour-refinement";
+import { applyDmcPalette } from "./dmc-match";
 import type { PaletteColor, PixelBuffer, StitchPattern } from "./types";
+
+/** "full" = whatever continuous colors the clustering algorithm produces; "dmc" = that same output snapped to the nearest real, buyable DMC thread colors (G-013), with the fine local-optimizer pass re-run against the new fixed palette (G-020 M5, HANDOVER.md D56). */
+export type PaletteMode = "full" | "dmc";
 
 export interface BuildPatternOptions {
   longerSideStitches: number;
@@ -28,6 +32,8 @@ export interface BuildPatternOptions {
    */
   contourRefinement?: boolean;
   contourRefinementOptions?: ContourRefinementOptions;
+  /** Defaults to "full" (today's exact behavior). See `PaletteMode`'s own doc comment. */
+  paletteMode?: PaletteMode;
   onProgress?: (fraction: number) => void;
 }
 
@@ -181,13 +187,34 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   for (let i = 0; i < compactCellPaletteIndex.length; i++) {
     cellPalette[i] = remap[compactCellPaletteIndex[i]];
   }
-  options.onProgress?.(1);
 
-  return {
+  const pattern: StitchPattern = {
     width: gridWidth,
     height: gridHeight,
     cellPalette,
     palette,
     isLandscape: imageData.width > imageData.height,
   };
+
+  if (options.paletteMode !== "dmc") {
+    options.onProgress?.(1);
+    return pattern;
+  }
+
+  // G-020 M5 (HANDOVER.md D56): re-run the fine local-optimizer pass
+  // against the newly-snapped, fixed DMC palette -- only reachable here,
+  // not from `applyDmcPalette` called standalone, since this is the only
+  // place `cells`/`importance`/`pairEvidence` are still in scope. No
+  // effect when `optimize` is false (matches every other optimizer-only
+  // pass in this pipeline).
+  const dmcPattern = shouldOptimize
+    ? applyDmcPalette(pattern, {
+        cells,
+        importance,
+        weights: options.multiScaleWeights?.fine,
+        pairEvidence,
+      })
+    : applyDmcPalette(pattern);
+  options.onProgress?.(1);
+  return dmcPattern;
 }

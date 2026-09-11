@@ -694,134 +694,6 @@ pass) can now resume, per the cross-goal ordering decision above.
   them. Not started -- awaiting Owner direction on whether/where to
   start relative to G-020's remaining M5.
 
-### G-020 · Clustering-pipeline quality review follow-ups — ACTIVE (2026-09-11)
-- **What:** Address the concrete findings from a domain-informed review of
-  the color-clustering/quantization pipeline (`lib/quantize.ts`,
-  `palette-optimizer.ts`, `local-optimizer.ts`, `contour-cleanup.ts`,
-  `dmc-match.ts`, `downsample.ts`, `edge-map.ts`, `color.ts`), done at
-  Owner request with cross-stitch/pixel-art domain framing.
-- **Why:** The review (full text in the session transcript, 2026-09-11)
-  found the pipeline already sound on its core algorithm choices (OKLab
-  metric, ICM/Potts-MRF, LBG split/reinvest) but identified real, scoped
-  gaps: two stale comments, a k-means edge case where a requested color
-  count silently under-delivers, worst-fit reinvestment not distinguishing
-  real detail from noise, no noise-aware pre-filter before quantization,
-  and DMC mode never re-running spatial optimization after snapping to
-  the coarser DMC gamut. Owner asked to fix docs first, then take the
-  remaining points one at a time rather than as one large change.
-- **Acceptance criteria:** Each milestone below lands as its own reviewed,
-  tested, verified change; Owner checks in at each milestone boundary per
-  OPERATIONS.md before the next starts.
-- **Constraints:** None stated beyond the standard one-milestone-at-a-time
-  check-in cadence.
-
-**Milestones:**
-- [x] M1 — Fix the two stale/inaccurate doc comments found by the review:
-  `quantize.ts`'s `plainKMeansQuantizer` docstring (falsely claimed a
-  linear-RGB mean; code actually returns the OKLab centroid converted to
-  RGB) and `color.ts`'s OKLab-vs-CIEDE2000 comment (claimed the tool
-  "doesn't match to a real DMC/Anchor thread database," no longer true
-  since G-013/D31).
-- [x] M2 — Reinvest palette slots lost to ordinary Lloyd's-algorithm
-  cluster attrition (a k-means++ seed's Voronoi region going empty during
-  refinement), not just slots freed by `mergeSimilarColors` finding
-  redundant survivors — currently the former silently under-delivers the
-  requested `colorCount` even when real distinct color material remains
-  unclaimed elsewhere in the image, despite `injectWorstFitClusters`
-  already existing to handle exactly this kind of shortfall.
-- [x] M3 — Bias `injectWorstFitClusters`' worst-fit search by per-cell
-  `importance` (already computed for the optimizer stages), not raw OKLab
-  reconstruction error alone, so a genuinely rare *artifact* (JPEG
-  ringing, a stray specular highlight) doesn't compete equally with a
-  genuinely rare *detail* for a freed palette slot.
-- [x] M4 — Add a mild noise-aware pre-filter (e.g. bilateral or median) on
-  the downsampled cell grid before quantization, to reduce sensor-noise/
-  JPEG-driven over-segmentation without weakening real-edge protection
-  (importance is derived from the original full-resolution image, not the
-  filtered grid, so the two shouldn't conflict).
-- [ ] M5 — Re-run the fine local-optimizer pass after DMC-mode snaps
-  colors to the coarser 454-color DMC gamut, since the smoothness/color
-  trade-off ICM originally solved was computed against the pre-snap
-  continuous colors, not the thread palette actually shipped in the
-  chart. **Sequenced after G-022 M2-M4** (Owner decision, 2026-09-11) --
-  this milestone calls the exact shared energy/importance machinery
-  G-022 M2-M4 are about to redesign; see G-022's own entry for the
-  reasoning. Paused here until G-022 M4 lands.
-
-**Progress log** (newest first):
-- 2026-09-11 — Owner decision: sequence G-022 M2-M4 before this
-  milestone (see G-022's "Cross-goal ordering" note). M5 paused, no
-  other change.
-- 2026-09-11 — M4 deployed and fully verified (Owner: "deploy M4").
-  Container-level deploy succeeded immediately, but a shared-
-  infrastructure incident (host nginx down since before this deploy
-  started -- see HANDOVER.md, unrelated root cause) blocked HTTP
-  verification until the Owner fixed it. Re-verified after: production
-  Regenerate completes with zero console messages.
-- 2026-09-11 — M4 complete: added `lib/denoise.ts`'s `denoiseForQuantization`
-  -- a 3x3 vector-medoid filter in OKLab space, gated by the same
-  `importance` signal (>0.5 protects a cell entirely) contour-cleanup
-  already uses, applied to a copy of the downsampled grid fed only to the
-  quantizer (every other stage keeps using the true unfiltered cells).
-  Chose a medoid over a bilateral/blend filter specifically because it
-  never fabricates a new color and provably does nothing to a cell that
-  already agrees with its neighborhood -- fewer tunable parameters than a
-  bilateral filter, which matters given three earlier "improve k-means"
-  attempts were rejected after looking good in isolation (HANDOVER.md
-  D18). codex-cli was attempted for a design critique first and failed on
-  the same known pre-existing ChatGPT-account/model issue (Owner action
-  list); proceeded on independent analysis per STANDARDS.md's documented
-  fallback. Measured honestly against all 4 existing golden-fixture
-  regression scenarios plus the D18 motivating fixture: clear
-  improvement on the two more realistic ones (a real 2.4x downsample
-  ratio: componentCount 72->57, boundaryCellPairCount 903->509, 2 fewer
-  wasted palette slots; the edge-preservation fixture: componentCount
-  14->2, confettiRatio 0.0056->0, edgeAlignmentScore 0.35->0.56) and a
-  small, still-comfortably-within-tolerance regression on the one
-  atypical 1:1-source-to-cell-ratio synthetic fixture (confettiRatio
-  0.0142->0.0158, both far under its 0.1 bound) that has no real box-
-  averaging to begin with, so isn't representative of actual photo usage.
-  D18's "gray cat, yellow eyes" fixture still finds the eyes. Verified:
-  285 tests (279 + 6 new direct unit tests of the medoid's own contract),
-  clean `tsc`/`eslint`/`npm run build`/full 27-test e2e suite, plus a
-  dev-server smoke test (uploaded a real 4-quadrant test photo, generated
-  cleanly, zero console errors). See HANDOVER.md D41 for the full
-  before/after numbers. Starting M5 next.
-- 2026-09-11 — M3 complete: `injectWorstFitClusters`' worst-fit ranking now
-  scores each candidate cell as `distance * (1 + importance)` instead of
-  raw distance alone, so a genuinely important rare detail can win a freed
-  palette slot over a merely-larger-error artifact, without letting
-  importance manufacture priority for a near-perfect-fit cell (multiplied
-  against real error, not added). `importance` is now computed once,
-  unconditionally, before quantization in `pattern.ts` (previously only
-  computed under `optimize: true`, and only after quantization ran) and
-  threaded through the `ColorQuantizer` interface as an optional third
-  parameter; `plainKMeansQuantizer` ignores it (declares fewer params than
-  the interface allows, which TS permits). Verified: 279 tests (275 + 4
-  new, including exporting `injectWorstFitClusters` for direct testing of
-  the scoring formula against hand-chosen OKLab points, same rationale as
-  `meanRgbOklab`), clean `tsc`/`eslint`/`npm run build`, plus a dev-server
-  smoke test (regenerate on the existing checkerboard fixture still
-  correctly collapses to 2 colors, zero console errors) confirming the
-  reordered `pattern.ts` pipeline doesn't regress anything. Starting M4
-  next.
-- 2026-09-11 — M2 complete: `kMeansQuantizer` now compares its merged
-  survivor count against the actual requested/clamped color budget
-  (`targetK`), not just against slots `mergeSimilarColors` frees from
-  redundancy, so a color lost to ordinary Lloyd's-algorithm attrition gets
-  the same reinvestment chance via the existing `injectWorstFitClusters`.
-  Found a real, reproducible repro by brute-force search (25 cells / 13
-  distinct colors, k=5: both quantizers previously returned only 4 colors)
-  and added it as a permanent regression test. Verified: 275 tests (274 +
-  1 new), clean `tsc`/`eslint`/`npm run build`; confirmed the fix is
-  self-correcting for the genuine-scarcity case (doesn't fabricate colors
-  when k truly exceeds distinct colors) both by hand-tracing the algorithm
-  and by the pre-existing "collapses to distinct colors" test still
-  passing unmodified. Starting M3 next.
-- 2026-09-11 — M1 complete: fixed both stale doc comments (see commit).
-  Goal created and M2-M5 planned per Owner's "one point at a time"
-  request; clean `tsc` after M1. Starting M2 next.
-
 ### G-024 · Crisp edges mode (preserve hard color boundaries instead of averaging them) — DRAFT (2026-09-11)
 - **What:** An optional `edgeMode: "standard" | "crisp"` generation mode.
   Standard stays today's exact behavior (backward-compatible default).
@@ -1054,6 +926,176 @@ milestone's own result justifies continuing):
   begin M1.
 
 ## Completed goals
+
+### G-020 · Clustering-pipeline quality review follow-ups — DONE (2026-09-11)
+- **What:** Address the concrete findings from a domain-informed review of
+  the color-clustering/quantization pipeline (`lib/quantize.ts`,
+  `palette-optimizer.ts`, `local-optimizer.ts`, `contour-cleanup.ts`,
+  `dmc-match.ts`, `downsample.ts`, `edge-map.ts`, `color.ts`), done at
+  Owner request with cross-stitch/pixel-art domain framing.
+- **Why:** The review (full text in the session transcript, 2026-09-11)
+  found the pipeline already sound on its core algorithm choices (OKLab
+  metric, ICM/Potts-MRF, LBG split/reinvest) but identified real, scoped
+  gaps: two stale comments, a k-means edge case where a requested color
+  count silently under-delivers, worst-fit reinvestment not distinguishing
+  real detail from noise, no noise-aware pre-filter before quantization,
+  and DMC mode never re-running spatial optimization after snapping to
+  the coarser DMC gamut. Owner asked to fix docs first, then take the
+  remaining points one at a time rather than as one large change.
+- **Acceptance criteria:** Each milestone below lands as its own reviewed,
+  tested, verified change; Owner checks in at each milestone boundary per
+  OPERATIONS.md before the next starts.
+- **Constraints:** None stated beyond the standard one-milestone-at-a-time
+  check-in cadence.
+
+**Milestones:**
+- [x] M1 — Fix the two stale/inaccurate doc comments found by the review:
+  `quantize.ts`'s `plainKMeansQuantizer` docstring (falsely claimed a
+  linear-RGB mean; code actually returns the OKLab centroid converted to
+  RGB) and `color.ts`'s OKLab-vs-CIEDE2000 comment (claimed the tool
+  "doesn't match to a real DMC/Anchor thread database," no longer true
+  since G-013/D31).
+- [x] M2 — Reinvest palette slots lost to ordinary Lloyd's-algorithm
+  cluster attrition (a k-means++ seed's Voronoi region going empty during
+  refinement), not just slots freed by `mergeSimilarColors` finding
+  redundant survivors — currently the former silently under-delivers the
+  requested `colorCount` even when real distinct color material remains
+  unclaimed elsewhere in the image, despite `injectWorstFitClusters`
+  already existing to handle exactly this kind of shortfall.
+- [x] M3 — Bias `injectWorstFitClusters`' worst-fit search by per-cell
+  `importance` (already computed for the optimizer stages), not raw OKLab
+  reconstruction error alone, so a genuinely rare *artifact* (JPEG
+  ringing, a stray specular highlight) doesn't compete equally with a
+  genuinely rare *detail* for a freed palette slot.
+- [x] M4 — Add a mild noise-aware pre-filter (e.g. bilateral or median) on
+  the downsampled cell grid before quantization, to reduce sensor-noise/
+  JPEG-driven over-segmentation without weakening real-edge protection
+  (importance is derived from the original full-resolution image, not the
+  filtered grid, so the two shouldn't conflict).
+- [x] M5 — Re-run the fine local-optimizer pass after DMC-mode snaps
+  colors to the coarser 454-color DMC gamut, since the smoothness/color
+  trade-off ICM originally solved was computed against the pre-snap
+  continuous colors, not the thread palette actually shipped in the
+  chart. **Sequenced after G-022 M2-M4** (Owner decision, 2026-09-11) --
+  this milestone calls the exact shared energy/importance machinery
+  G-022 M2-M4 are about to redesign; see G-022's own entry for the
+  reasoning. Paused here until G-022 M4 lands, then resumed once G-022's
+  own M5 (contour refinement) concluded, since only M2-M4's shared
+  energy machinery (not M5's separate work) was the actual dependency.
+
+**Progress log** (newest first):
+- 2026-09-11 — M5 complete, **goal DONE** (Owner: "resume g-020").
+  `lib/dmc-match.ts`'s `applyDmcPalette` gained an optional `reoptimize`
+  context (`{ cells, importance?, weights?, pairEvidence? }`); when
+  given, it re-runs the fine local-optimizer pass against the newly-
+  snapped, fixed DMC palette before finalizing the legend, then re-drops
+  any DMC group ICM reassigned every cell away from (reusing the same
+  "never leave a zero-count legend entry" rule `pattern.ts` already
+  enforces elsewhere). Omitting `reoptimize` reproduces exactly today's
+  snap-only behavior -- every existing direct test of `applyDmcPalette`
+  passes completely unmodified.
+  Wiring: DMC application moved from `pattern.worker.ts` (a bare post-
+  process on a finished `StitchPattern`, with no access to the internal
+  `cells`/`importance`/`pairEvidence` re-optimization needs) into
+  `buildPattern` itself via a new `paletteMode?: "full" | "dmc"` option
+  (default `"full"`, today's exact behavior) -- the only place that
+  context is still in scope. `pattern.worker.ts`'s own `PaletteMode`
+  type is now re-exported from `pattern.ts` rather than independently
+  defined, keeping the dependency direction consistent.
+  Verified directly, not assumed: a hand-built fixture (a cell whose
+  true color is near-black but initially assigned to a near-white DMC
+  group -- exactly the kind of stale assignment this milestone exists to
+  fix) is measurably corrected by the reoptimization pass (moves from
+  the white DMC group to the black one), while the same fixture without
+  `reoptimize` keeps the stale assignment -- a real, deterministic,
+  positive control, not just an absence-of-crash check. A real-photo-
+  shaped close-color integration fixture ran cleanly end-to-end but
+  happened to show zero differing cells on that specific geometry (an
+  honest, reported finding, not forced to show a difference it didn't
+  have -- the mechanism's real effect is already conclusively
+  demonstrated by the positive-control fixture above).
+  Verified: 365 unit tests (358 + 7 new), clean `tsc`/`eslint`/`npm run
+  build`, full e2e (27/27 on a clean re-run; an initial run showed 2
+  failures + 4 flakes, all "canvas not found" timeouts, which vanished
+  entirely on immediate re-run with no code changes -- diagnosed as
+  transient resource contention from running directly after a full unit
+  suite + build, not a real regression). **This completes G-020's full
+  milestone list (M1-M5)** -- unlike G-022, whose M5 concluded with a
+  negative result requiring Owner sign-off before "Completed," G-020's
+  M5 is a real, working, verified improvement with no open question, so
+  the goal moves to Completed goals below.
+- 2026-09-11 — Owner decision: sequence G-022 M2-M4 before this
+  milestone (see G-022's "Cross-goal ordering" note). M5 paused, no
+  other change.
+- 2026-09-11 — M4 deployed and fully verified (Owner: "deploy M4").
+  Container-level deploy succeeded immediately, but a shared-
+  infrastructure incident (host nginx down since before this deploy
+  started -- see HANDOVER.md, unrelated root cause) blocked HTTP
+  verification until the Owner fixed it. Re-verified after: production
+  Regenerate completes with zero console messages.
+- 2026-09-11 — M4 complete: added `lib/denoise.ts`'s `denoiseForQuantization`
+  -- a 3x3 vector-medoid filter in OKLab space, gated by the same
+  `importance` signal (>0.5 protects a cell entirely) contour-cleanup
+  already uses, applied to a copy of the downsampled grid fed only to the
+  quantizer (every other stage keeps using the true unfiltered cells).
+  Chose a medoid over a bilateral/blend filter specifically because it
+  never fabricates a new color and provably does nothing to a cell that
+  already agrees with its neighborhood -- fewer tunable parameters than a
+  bilateral filter, which matters given three earlier "improve k-means"
+  attempts were rejected after looking good in isolation (HANDOVER.md
+  D18). codex-cli was attempted for a design critique first and failed on
+  the same known pre-existing ChatGPT-account/model issue (Owner action
+  list); proceeded on independent analysis per STANDARDS.md's documented
+  fallback. Measured honestly against all 4 existing golden-fixture
+  regression scenarios plus the D18 motivating fixture: clear
+  improvement on the two more realistic ones (a real 2.4x downsample
+  ratio: componentCount 72->57, boundaryCellPairCount 903->509, 2 fewer
+  wasted palette slots; the edge-preservation fixture: componentCount
+  14->2, confettiRatio 0.0056->0, edgeAlignmentScore 0.35->0.56) and a
+  small, still-comfortably-within-tolerance regression on the one
+  atypical 1:1-source-to-cell-ratio synthetic fixture (confettiRatio
+  0.0142->0.0158, both far under its 0.1 bound) that has no real box-
+  averaging to begin with, so isn't representative of actual photo usage.
+  D18's "gray cat, yellow eyes" fixture still finds the eyes. Verified:
+  285 tests (279 + 6 new direct unit tests of the medoid's own contract),
+  clean `tsc`/`eslint`/`npm run build`/full 27-test e2e suite, plus a
+  dev-server smoke test (uploaded a real 4-quadrant test photo, generated
+  cleanly, zero console errors). See HANDOVER.md D41 for the full
+  before/after numbers. Starting M5 next.
+- 2026-09-11 — M3 complete: `injectWorstFitClusters`' worst-fit ranking now
+  scores each candidate cell as `distance * (1 + importance)` instead of
+  raw distance alone, so a genuinely important rare detail can win a freed
+  palette slot over a merely-larger-error artifact, without letting
+  importance manufacture priority for a near-perfect-fit cell (multiplied
+  against real error, not added). `importance` is now computed once,
+  unconditionally, before quantization in `pattern.ts` (previously only
+  computed under `optimize: true`, and only after quantization ran) and
+  threaded through the `ColorQuantizer` interface as an optional third
+  parameter; `plainKMeansQuantizer` ignores it (declares fewer params than
+  the interface allows, which TS permits). Verified: 279 tests (275 + 4
+  new, including exporting `injectWorstFitClusters` for direct testing of
+  the scoring formula against hand-chosen OKLab points, same rationale as
+  `meanRgbOklab`), clean `tsc`/`eslint`/`npm run build`, plus a dev-server
+  smoke test (regenerate on the existing checkerboard fixture still
+  correctly collapses to 2 colors, zero console errors) confirming the
+  reordered `pattern.ts` pipeline doesn't regress anything. Starting M4
+  next.
+- 2026-09-11 — M2 complete: `kMeansQuantizer` now compares its merged
+  survivor count against the actual requested/clamped color budget
+  (`targetK`), not just against slots `mergeSimilarColors` frees from
+  redundancy, so a color lost to ordinary Lloyd's-algorithm attrition gets
+  the same reinvestment chance via the existing `injectWorstFitClusters`.
+  Found a real, reproducible repro by brute-force search (25 cells / 13
+  distinct colors, k=5: both quantizers previously returned only 4 colors)
+  and added it as a permanent regression test. Verified: 275 tests (274 +
+  1 new), clean `tsc`/`eslint`/`npm run build`; confirmed the fix is
+  self-correcting for the genuine-scarcity case (doesn't fabricate colors
+  when k truly exceeds distinct colors) both by hand-tracing the algorithm
+  and by the pre-existing "collapses to distinct colors" test still
+  passing unmodified. Starting M3 next.
+- 2026-09-11 — M1 complete: fixed both stale doc comments (see commit).
+  Goal created and M2-M5 planned per Owner's "one point at a time"
+  request; clean `tsc` after M1. Starting M2 next.
 
 ### G-025 · XL (200) and XXL (250) pattern-size presets — DONE (2026-09-11)
 - **What:** Owner request: "add XL (200) and XXL (250) sizes." Extended

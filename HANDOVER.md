@@ -4104,6 +4104,87 @@ downsample) -- the line survived as its own palette entry at exactly
 Refinement` stays unreachable via the UI (no control exists for it),
 consistent with it remaining opt-in/default-false in production too.
 
+**D56 — G-020 M5: DMC snap now re-runs the fine local-optimizer pass,
+goal DONE (2026-09-11, Owner: "resume g-020").** Paused since 2026-09-11
+pending G-022 M2-M4's shared energy-function changes; resumed once
+G-022's own M5 (contour refinement) concluded, since only M2-M4's
+shared `boundaryPairEnergy`/importance machinery -- not M5's separate
+contour work -- was ever the real dependency.
+
+- **Problem**: `applyDmcPalette` (G-013) snaps an already-fully-
+  optimized continuous-color pattern to the nearest real DMC threads,
+  merging duplicates, as a pure post-process. The spatial boundary
+  placement ICM originally computed was optimized against the pre-snap
+  continuous colors' distances -- a cell sitting near a smoothness/
+  color-error tradeoff boundary may no longer be on the right side of
+  that tradeoff once its actual color-error cost changes (DMC's 454-
+  color line is coarser, so distances between what's actually shipped
+  can differ meaningfully from the pre-snap distances ICM balanced
+  against).
+- **Fix**: `applyDmcPalette` gained an optional `reoptimize: { cells,
+  importance?, weights?, pairEvidence? }` parameter. When given, after
+  computing the merged DMC groups (unchanged logic) it re-runs `local-
+  optimizer.ts`'s `runLocalOptimizer` (the fine pass, per this
+  milestone's own literal wording) against the new, fixed DMC RGB
+  palette using the cells' true (unfiltered) colors, then re-drops any
+  DMC group ICM reassigned every cell away from -- the same "never leave
+  a zero-count legend entry" rule `pattern.ts` already enforces after
+  its own structural passes, now applied a second time here since re-
+  optimization can create a fresh instance of exactly that bug class.
+  Omitting `reoptimize` reproduces today's exact snap-only behavior --
+  the only real caller previously (`pattern.worker.ts`) always omitted
+  it, so every existing direct test of `applyDmcPalette` needed no
+  changes at all.
+- **Wiring**: DMC application moved from `pattern.worker.ts` (calling
+  `applyDmcPalette(pattern)` on an already-finished `StitchPattern`,
+  with no access to the internal `cells`/`importance`/`pairEvidence`
+  re-optimization needs) into `buildPattern` itself, via a new
+  `paletteMode?: "full" | "dmc"` option (default `"full"`, today's exact
+  behavior) -- the only place that context is still in scope before
+  being discarded as locals. `pattern.worker.ts`'s own `PaletteMode`
+  type is now re-exported from `pattern.ts` (`export type { PaletteMode
+  }`) instead of independently defined, keeping the dependency
+  direction consistent with `pattern.worker.ts` already depending on
+  `pattern.ts`, not the reverse.
+- **Verified with a real positive control, not just absence-of-crash**:
+  a hand-built fixture (5 cells; two continuous colors far enough apart
+  to snap to genuinely different, far-apart DMC threads; one cell's true
+  color near-black but *initially* assigned to the near-white group --
+  a deliberately engineered stale assignment) is measurably corrected by
+  `reoptimize` (that cell moves to the black DMC group), while the exact
+  same fixture without `reoptimize` keeps the stale assignment. This is
+  a real, deterministic proof the mechanism works, not an assumption.
+  A separate, more realistic close-color integration fixture (a soft
+  circle, `[150,150,150]`/`[172,172,172]`, matching M2's own Finding 2
+  regime) ran the full pipeline cleanly end-to-end but happened to show
+  zero differing cells on that specific geometry -- reported honestly as
+  a real, fixture-specific finding (the already-converged fine ICM pass
+  apparently sat close enough to the new DMC-palette optimum on this
+  particular shape that nothing needed correcting), not silently
+  dropped or forced to show a difference it didn't have. The mechanism's
+  real effect is already conclusively established by the positive-
+  control fixture above; this integration test instead confirms the
+  wiring itself doesn't break anything even when re-optimization happens
+  to find nothing to change.
+- **Verified**: 365 unit tests (358 + 7 new), clean `tsc`/`eslint`/`npm
+  run build`. Full e2e: an initial run showed 2 failures + 4 flaky
+  retries, all the identical "canvas not found" timeout symptom;
+  re-running immediately with zero code changes gave a clean 27/27 in
+  well under half the wall-clock time of the first run -- diagnosed as
+  transient resource contention (this ran directly after a full unit
+  suite + production build on the same machine), not a real regression,
+  and treated as such per this session's own established practice of
+  distinguishing genuine failures from environmental flakiness by
+  re-running rather than assuming either way.
+- **This completes G-020's full milestone list (M1-M5)**, all landing as
+  real, working, verified improvements with no open question -- unlike
+  G-022, whose own M5 concluded with a legitimate negative result still
+  awaiting Owner sign-off, G-020 moves directly to "Completed goals."
+  Not yet deployed as of this entry -- DMC mode is real, already-shipped,
+  default-reachable behavior (unlike G-022 M5's opt-in `contourRefine-
+  ment`), so this is a genuine behavior change for anyone using DMC mode
+  and needs its own explicit "deploy" before going live.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
