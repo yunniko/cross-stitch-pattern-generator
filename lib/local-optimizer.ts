@@ -1,5 +1,5 @@
-import type { CrispEvidenceLayer } from "./crisp-evidence-layer";
-import { buildAdmissibleLabelCosts, DEFAULT_CRISP_UNARY_COST_WEIGHTS, type AdmissibleLabelCost } from "./crisp-unary-cost";
+import { buildCrispAdmissibleCostMap, type CrispEvidenceLayer } from "./crisp-evidence-layer";
+import { DEFAULT_CRISP_UNARY_COST_WEIGHTS } from "./crisp-unary-cost";
 import { edgeBetweenCells } from "./edge-map";
 import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS, type PairEnergyWeights } from "./energy";
 import { getPairEdgeEvidence } from "./pair-edge-evidence";
@@ -112,12 +112,7 @@ export function runLocalOptimizer(
   const cellImportance = importance ?? new Float32Array(cellCount);
 
   const crispAdmissibleCosts = crispEvidenceLayer
-    ? new Map<number, Map<number, AdmissibleLabelCost>>(
-        Array.from(crispEvidenceLayer.evidenceByCell, ([cellIndex, evidence]) => [
-          cellIndex,
-          buildAdmissibleLabelCosts(evidence, paletteOklab, { alpha: weights.color, beta: DEFAULT_CRISP_UNARY_COST_WEIGHTS.beta }),
-        ])
-      )
+    ? buildCrispAdmissibleCostMap(crispEvidenceLayer, paletteOklab, { alpha: weights.color, beta: DEFAULT_CRISP_UNARY_COST_WEIGHTS.beta })
     : undefined;
 
   const assignment = initialAssignment.slice();

@@ -1,4 +1,6 @@
 import { extractBoundaryEvidence, DEFAULT_BOUNDARY_EVIDENCE_OPTIONS, type BoundaryEvidence, type BoundaryEvidenceOptions } from "./crisp-edge-evidence";
+import { buildAdmissibleLabelCosts, DEFAULT_CRISP_UNARY_COST_WEIGHTS, type AdmissibleLabelCost, type CrispUnaryCostWeights } from "./crisp-unary-cost";
+import { oklabDistanceSquared, type Oklab } from "./color";
 import { getPairEdgeEvidence } from "./pair-edge-evidence";
 import { plainKMeansQuantizer, kMeansQuantizer, type ColorQuantizer } from "./quantize";
 import { weightedQuantize, weightedKMeansQuantize, type WeightedColorSample, type WeightedQuantizeResult } from "./weighted-quantize";
@@ -190,6 +192,57 @@ export type WeightedQuantizerFn = (
  * failure rather than silently ignoring the customization or guessing how
  * to "weight" an arbitrary implementation this module knows nothing about.
  */
+/**
+ * Builds the per-cell admissible-label-cost map for every confident cell in
+ * a `CrispEvidenceLayer`, once, against a FIXED palette -- the single
+ * shared helper every consumer (`local-optimizer.ts`'s M4.4 integration,
+ * `contour-cleanup.ts`'s M4.5 integration, and any future one) uses
+ * instead of independently rebuilding this same map inline (the D11
+ * lesson, applied proactively: three call sites drifting into three
+ * slightly different versions of "build the crisp cost map" is exactly
+ * the kind of duplication that formula previously drifted apart from
+ * itself). Bounded to confident cells only, discarded when the caller's
+ * own function returns -- never retained as part of the frozen evidence
+ * layer itself, since costs depend on a palette that changes across
+ * stages (merge, DMC snap) while the evidence layer does not.
+ */
+export function buildCrispAdmissibleCostMap(
+  evidenceLayer: CrispEvidenceLayer,
+  paletteOklab: Oklab[],
+  weights: CrispUnaryCostWeights = DEFAULT_CRISP_UNARY_COST_WEIGHTS
+): Map<number, Map<number, AdmissibleLabelCost>> {
+  const result = new Map<number, Map<number, AdmissibleLabelCost>>();
+  for (const [cellIndex, evidence] of evidenceLayer.evidenceByCell) {
+    result.set(cellIndex, buildAdmissibleLabelCosts(evidence, paletteOklab, weights));
+  }
+  return result;
+}
+
+/**
+ * Looks up a single (cell, candidate label) cost from a precomputed
+ * admissible-cost map (`buildCrispAdmissibleCostMap`), falling back to
+ * the plain `oklabDistanceSquared` for a cell with no entry (not crisp).
+ * The shared per-candidate cost lookup for consumers that evaluate one
+ * specific candidate at a time (`contour-cleanup.ts`'s M4.5 integration)
+ * -- a plain top-level function, not a closure allocated inside a hot
+ * loop (this project's own D44 scar: a closure inside ICM's innermost
+ * per-candidate loop once cost a measured 3x slowdown before being
+ * fixed). `local-optimizer.ts`'s own M4.4 integration has a different
+ * shape (enumerating only a cell's few admissible labels, rather than
+ * costing one candidate at a time) and doesn't use this helper.
+ */
+export function crispAwareCost(
+  crispCosts: Map<number, Map<number, AdmissibleLabelCost>> | undefined,
+  cellOklab: Oklab[],
+  paletteOklab: Oklab[],
+  cellIndex: number,
+  label: number
+): number {
+  const admissible = crispCosts?.get(cellIndex);
+  if (admissible) return admissible.get(label)?.cost ?? Infinity;
+  return oklabDistanceSquared(cellOklab[cellIndex], paletteOklab[label]);
+}
+
 export function selectWeightedQuantizer(quantizer: ColorQuantizer): WeightedQuantizerFn {
   if (quantizer === plainKMeansQuantizer) {
     return (samples, colorCount) => weightedQuantize(samples, colorCount);

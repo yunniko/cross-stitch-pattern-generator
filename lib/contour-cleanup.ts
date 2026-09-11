@@ -1,6 +1,7 @@
+import { buildCrispAdmissibleCostMap, crispAwareCost, type CrispEvidenceLayer } from "./crisp-evidence-layer";
 import { edgeBetweenCells } from "./edge-map";
 import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS, type PairEnergyWeights } from "./energy";
-import { oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
+import { rgbToOklab, type Oklab } from "./color";
 import { getPairEdgeEvidence } from "./pair-edge-evidence";
 import { labelRegions } from "./regions";
 import { cellRgb, type CellColorBuffer, type RGB } from "./types";
@@ -37,6 +38,17 @@ export const DEFAULT_DIAGONAL_FIX_OPTIONS: DiagonalFixOptions = {
  * only applied if it costs at or below `costCeiling` — otherwise "leave it
  * alone" wins, matching how every other pass in the pipeline compares
  * against the status quo.
+ *
+ * `crispEvidenceLayer` (optional, G-024 M4.5, HANDOVER.md D68): a
+ * candidate recolor targeting a protected cell (`lib/crisp-evidence-
+ * layer.ts`) with a label that isn't admissible for it is never proposed
+ * -- its cost is treated as `Infinity`, which both fails `costCeiling`
+ * and can never win the cheapest-candidate search below, so this pass
+ * can never assign a confident boundary cell an unsupported color. A
+ * protected candidate's cost otherwise uses the same mode-aware unary
+ * cost `local-optimizer.ts`'s M4.4 integration uses, not the flat
+ * `oklabDistanceSquared`. Omitting it, or a cell with no entry in it,
+ * reproduces today's exact behavior.
  */
 export function fixDiagonalConnections(
   cells: CellColorBuffer,
@@ -44,7 +56,8 @@ export function fixDiagonalConnections(
   palette: RGB[],
   importance?: Float32Array,
   options: DiagonalFixOptions = DEFAULT_DIAGONAL_FIX_OPTIONS,
-  maxPasses = 4
+  maxPasses = 4,
+  crispEvidenceLayer?: CrispEvidenceLayer
 ): Uint8Array {
   const { width, height } = cells;
   const cellCount = width * height;
@@ -52,6 +65,7 @@ export function fixDiagonalConnections(
   for (let i = 0; i < cellCount; i++) cellOklab[i] = rgbToOklab(cellRgb(cells, i));
   const paletteOklab = palette.map(rgbToOklab);
   const cellImportance = importance ?? new Float32Array(cellCount);
+  const crispCosts = crispEvidenceLayer ? buildCrispAdmissibleCostMap(crispEvidenceLayer, paletteOklab) : undefined;
 
   const result = assignment.slice();
 
@@ -85,8 +99,8 @@ export function fixDiagonalConnections(
         for (const candidate of candidates) {
           const currentColor = result[candidate.cell];
           const cost =
-            oklabDistanceSquared(cellOklab[candidate.cell], paletteOklab[candidate.newColor]) -
-            oklabDistanceSquared(cellOklab[candidate.cell], paletteOklab[currentColor]);
+            crispAwareCost(crispCosts, cellOklab, paletteOklab, candidate.cell, candidate.newColor) -
+            crispAwareCost(crispCosts, cellOklab, paletteOklab, candidate.cell, currentColor);
           if (cost < bestCost) {
             bestCost = cost;
             bestCandidate = candidate;
@@ -171,6 +185,17 @@ export function defaultComponentRecolorOptions(cellCount: number): ComponentReco
  * to that pair -- same additive-parameter pattern as `local-
  * optimizer.ts`/`simulated-annealing.ts`; omitting it reproduces today's
  * exact behavior.
+ *
+ * `crispEvidenceLayer` (optional, G-024 M4.5, HANDOVER.md D68): if ANY
+ * member cell of a small component is protected and a candidate color
+ * isn't admissible for it, `crispAwareCost` returns `Infinity` for that
+ * member -- which propagates through the summed `colorError` to make the
+ * WHOLE candidate's `totalEnergyFor` infinite, so it can never win the
+ * cheapest-candidate search below (report Section 7: "Reject a candidate
+ * recolor if it is unsupported for any protected member cell"), achieved
+ * via the existing sum-and-compare structure rather than a special-cased
+ * branch. Omitting it, or a component with no protected members,
+ * reproduces today's exact behavior.
  */
 export function recolorSmallComponents(
   cells: CellColorBuffer,
@@ -178,7 +203,8 @@ export function recolorSmallComponents(
   palette: RGB[],
   importance?: Float32Array,
   options?: ComponentRecolorOptions,
-  pairEvidence?: Float32Array
+  pairEvidence?: Float32Array,
+  crispEvidenceLayer?: CrispEvidenceLayer
 ): Uint8Array {
   const { width, height } = cells;
   const cellCount = width * height;
@@ -187,6 +213,7 @@ export function recolorSmallComponents(
   for (let i = 0; i < cellCount; i++) cellOklab[i] = rgbToOklab(cellRgb(cells, i));
   const paletteOklab = palette.map(rgbToOklab);
   const cellImportance = importance ?? new Float32Array(cellCount);
+  const crispCosts = crispEvidenceLayer ? buildCrispAdmissibleCostMap(crispEvidenceLayer, paletteOklab) : undefined;
 
   const result = assignment.slice();
   const regions = labelRegions(result, width, height);
@@ -230,7 +257,7 @@ export function recolorSmallComponents(
 
     function totalEnergyFor(candidateColor: number): number {
       let colorError = 0;
-      for (const i of memberCells) colorError += oklabDistanceSquared(cellOklab[i], paletteOklab[candidateColor]);
+      for (const i of memberCells) colorError += crispAwareCost(crispCosts, cellOklab, paletteOklab, i, candidateColor);
       let boundaryEnergy = 0;
       for (const [member, neighbor, weight, dx, dy] of boundaryPairs) {
         const edge = pairEvidence

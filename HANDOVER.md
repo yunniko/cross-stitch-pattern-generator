@@ -5067,6 +5067,80 @@ today's live behavior.
 clean, full e2e (27/27, no flakes). Continuing to M4.5 (contour-cleanup
 integration + the contourRefinement rejection decision) next.
 
+**D68 — G-024 M4.5: contour-cleanup integration + the contourRefinement
+rejection decision (2026-09-12, Owner: "continue without
+confirmation...").**
+
+**Shared helper extracted first**, to avoid the map-building pattern
+drifting across three call sites (the D11 lesson, applied proactively
+this time rather than after the fact): `lib/crisp-evidence-layer.ts`
+gained `buildCrispAdmissibleCostMap` (builds the per-cell admissible-
+cost map for a whole evidence layer against a fixed palette) and
+`crispAwareCost` (a plain top-level per-candidate cost lookup, falling
+back to `oklabDistanceSquared` for a non-crisp cell — deliberately NOT
+a closure, this project's own D44 scar about closures inside hot loops).
+`local-optimizer.ts`'s M4.4 integration was refactored to call the
+shared `buildCrispAdmissibleCostMap` instead of its own inline
+construction.
+
+**`fixDiagonalConnections`**: each of a pinch's 4 candidate recolors is
+costed via `crispAwareCost` instead of the flat `oklabDistanceSquared`
+delta — a candidate targeting an unsupported label for a protected cell
+gets `Infinity`, which both fails `costCeiling` and can never win the
+cheapest-candidate search, so this pass can never propose an
+unsupported color for a confident cell.
+
+**`recolorSmallComponents`**: `totalEnergyFor`'s `colorError` sum now
+uses `crispAwareCost` per member cell. If ANY protected member's
+candidate label is inadmissible, that member's `Infinity` propagates
+through the sum to make the WHOLE candidate's total energy infinite —
+naturally rejecting the candidate for the entire component via the
+EXISTING sum-and-compare structure, achieving the report's Section 7
+requirement ("reject a candidate recolor if it is unsupported for any
+protected member cell") without a special-cased branch.
+
+**Both verified two ways**: Standard-compatibility (byte-identical with
+an omitted vs. an explicitly-empty `crispEvidenceLayer`) and a real
+admissibility test each — `fixDiagonalConnections`'s test specifically
+constructs a case where the cheapest fix BY RAW COLOR DISTANCE targets
+an unsupported label, confirming it gets rejected in favor of (or in
+place of) that naive-cheapest choice; `recolorSmallComponents`'s test
+confirms a 2-cell component with one protected member never gets
+recolored to gray even though gray would otherwise be the
+energy-minimizing choice (matching its neighbors) — and confirms BOTH
+members move together or not at all, not just the protected one.
+
+**The `contourRefinement` decision, implemented as a loud, explicit
+rejection rather than left as a documented-only intention**:
+`contour-refinement.ts`'s `runContourRefinement` gained an optional
+`crispEvidenceLayer` parameter whose SOLE purpose is to throw
+immediately if it contains any confident cells — `runContourRefinementPass`
+scores every candidate against the raw averaged cell color with no
+admissibility awareness at all, so silently allowing the combination
+could overwrite a protected cell's supported choice. Given
+`contourRefinement` is already off-by-default and not adopted (D55),
+and threading the full shared evaluator through this module's own
+bias-driven search is a real scope expansion, the deliberate choice is
+"refuse loudly" rather than "support properly" for now. Verified: the
+guard throws for a non-empty layer, and is a no-op (byte-identical
+output) for an omitted or empty one. The same rule (honor the shared
+contract or reject the usage) applies to `simulated-annealing.ts`,
+which isn't wired into `buildPattern` at all today and has no current
+integration point to guard — noted here for whenever that changes,
+not acted on now since there's nothing to guard yet.
+
+**Extra caution again**: both `contour-cleanup.ts` and
+`contour-refinement.ts` are already-live production files (like
+`local-optimizer.ts` in M4.4) — ran the full e2e suite in addition to
+the usual checks.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean (one
+unused-import cleanup after `oklabDistanceSquared`'s last direct call
+site in `contour-cleanup.ts` was replaced by `crispAwareCost`), full
+`npx vitest run` 460/460 passing (47 files, +6 new), `npm run build`
+clean, full e2e (27/27, no flakes). Continuing to M4.6 (palette-merge/
+remap handling) next.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

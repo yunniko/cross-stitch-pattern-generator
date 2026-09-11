@@ -133,7 +133,7 @@ restructured into this project's usual milestone/check-in shape):
     protected-cell-only tie-breaking convention (retain the current
     admissible label on exact ties), since Standard's own existing
     tie behavior (lowest-index wins) must stay unchanged.
-  - [ ] M4.5 — Contour-cleanup integration (`recolorSmallComponents`
+  - [x] M4.5 — Contour-cleanup integration (`recolorSmallComponents`
     x2, `fixDiagonalConnections`) using the same shared evaluator.
     `contourRefinement` decision: **explicitly reject the `crisp +
     contourRefinement` combination** rather than threading the shared
@@ -179,6 +179,23 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-12 — M4.5 complete. Extracted a shared helper first
+  (`buildCrispAdmissibleCostMap`/`crispAwareCost` in `lib/crisp-
+  evidence-layer.ts`) to avoid the map-building pattern drifting across
+  call sites, and refactored M4.4's own inline version to use it too.
+  `fixDiagonalConnections` and `recolorSmallComponents` both integrated:
+  an unsupported candidate for a protected cell costs `Infinity`,
+  naturally excluding it via each function's own existing cost-
+  comparison structure (no special-cased branch needed) -- verified
+  with real tests where the naive cheapest fix would otherwise target
+  an unsupported label. The `contourRefinement` decision (reject the
+  combination, made during M4 planning) is now actually enforced, not
+  just documented: `runContourRefinement` throws immediately if given
+  a non-empty evidence layer. Ran the full e2e suite again (both
+  `contour-cleanup.ts` and `contour-refinement.ts` are already-live
+  files). Full story in HANDOVER.md D68. Verified: 460/460 tests
+  passing (47 files, +6 new), clean `tsc`/`eslint`/`npm run build`,
+  e2e 27/27. Continuing to M4.6 (palette-merge/remap handling) next.
 - 2026-09-12 — M4.4 complete: `lib/local-optimizer.ts`'s `runLocalOptimizer`/
   `runMultiScaleOptimizer` gained an optional `crispEvidenceLayer`
   parameter -- the FIRST already-live production file this feature has

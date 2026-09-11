@@ -310,3 +310,49 @@ describe("M5.6 finding, locked in (HANDOVER.md D55): NOT adopted as default -- r
     expect(withRefinement).toBeGreaterThan(withoutRefinement * 2); // measured: ~6x (0.0013 -> 0.0075) at k=16
   });
 });
+
+describe("G-024 M4.5 (HANDOVER.md D68): crisp + contourRefinement is explicitly rejected, not silently combined", () => {
+  it("throws when a non-empty crispEvidenceLayer is passed", () => {
+    const width = 4;
+    const height = 4;
+    const cells: CellColorBuffer = { data: new Uint8ClampedArray(width * height * 3), width, height };
+    const palette: RGB[] = [[0, 0, 0], [255, 255, 255]];
+    const assignment = new Uint8Array(width * height);
+    const evidence = {
+      modes: [rgbToOklab([0, 0, 0]), rgbToOklab([255, 255, 255])],
+      coverage: [0.5, 0.5],
+      spread: [0, 0],
+      spatialSeparation: 0.5,
+      boundaryDirection: [1, 0] as [number, number],
+      edgeSharpness: 1,
+      confidence: 0.9,
+    };
+    const layer = { evidenceByCell: new Map([[0, evidence]]) };
+
+    expect(() =>
+      runContourRefinement(cells, assignment, palette, undefined, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, 1, DEFAULT_CONTOUR_REFINEMENT_OPTIONS, undefined, layer)
+    ).toThrow(/does not support Crisp edge mode/);
+  });
+
+  it("does not throw and reproduces today's exact behavior with an omitted or empty crispEvidenceLayer", () => {
+    const width = 4;
+    const height = 4;
+    const cells: CellColorBuffer = { data: new Uint8ClampedArray(width * height * 3), width, height };
+    const palette: RGB[] = [[0, 0, 0], [255, 255, 255]];
+    const assignment = new Uint8Array(width * height);
+
+    const withoutLayer = runContourRefinement(cells, assignment, palette, undefined, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, 1);
+    const withEmptyLayer = runContourRefinement(
+      cells,
+      assignment,
+      palette,
+      undefined,
+      DEFAULT_LOCAL_OPTIMIZER_WEIGHTS,
+      1,
+      DEFAULT_CONTOUR_REFINEMENT_OPTIONS,
+      undefined,
+      { evidenceByCell: new Map() }
+    );
+    expect(Array.from(withEmptyLayer)).toEqual(Array.from(withoutLayer));
+  });
+});

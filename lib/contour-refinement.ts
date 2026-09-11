@@ -1,4 +1,5 @@
 import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS, type PairEnergyWeights } from "./energy";
+import type { CrispEvidenceLayer } from "./crisp-evidence-layer";
 import { edgeBetweenCells } from "./edge-map";
 import { getPairEdgeEvidence } from "./pair-edge-evidence";
 import { extractBoundaryChains, type BoundaryChainMap, type BoundaryEdge } from "./boundary-chains";
@@ -252,6 +253,21 @@ export function runContourRefinementPass(
  * Full pass loop: recompute chains/bias from scratch each pass (the
  * boundary shape changes as cells move), apply one biased ICM sweep,
  * repeat until no bias-driven change occurs or `maxPasses` is reached.
+ *
+ * `crispEvidenceLayer` (optional, G-024 M4.5, HANDOVER.md D68) exists
+ * SOLELY to reject the combination explicitly: this pass scores every
+ * candidate against the raw averaged cell color with no admissibility
+ * awareness at all (a Codex critique's own finding during M4 planning --
+ * D57's "orthogonal" characterization overstated actual independence),
+ * so enabling it together with Crisp mode could silently overwrite a
+ * protected cell's admissible choice. Given `contourRefinement` is
+ * already off-by-default and not adopted as a default behavior (D55),
+ * and threading the full shared evaluator through this module's own
+ * bias-driven candidate search is a real expansion of an already-large
+ * milestone, the deliberate choice for now is a loud, explicit failure
+ * here rather than silent misbehavior -- not a quiet degradation.
+ * Passing a layer with any confident cells throws; omitting it (or an
+ * empty layer) reproduces today's exact behavior.
  */
 export function runContourRefinement(
   cells: CellColorBuffer,
@@ -261,8 +277,14 @@ export function runContourRefinement(
   weights: PairEnergyWeights,
   colorWeight: number,
   options: ContourRefinementOptions = DEFAULT_CONTOUR_REFINEMENT_OPTIONS,
-  pairEvidence?: Float32Array
+  pairEvidence?: Float32Array,
+  crispEvidenceLayer?: CrispEvidenceLayer
 ): Uint8Array {
+  if (crispEvidenceLayer && crispEvidenceLayer.evidenceByCell.size > 0) {
+    throw new Error(
+      "contourRefinement does not support Crisp edge mode: its candidate search has no admissibility awareness and could overwrite a confident cell's supported color. Disable one of the two options."
+    );
+  }
   let current: Uint8Array = assignment.slice();
   for (let pass = 0; pass < options.maxPasses; pass++) {
     const bias = computePacingBias(current, cells.width, cells.height, importance, options);
