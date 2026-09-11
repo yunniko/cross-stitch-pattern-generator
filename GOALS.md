@@ -11,7 +11,61 @@ svc-lab).
 
 ## Active goals
 
-_No goals currently active._
+### G-020 · Clustering-pipeline quality review follow-ups — ACTIVE (2026-09-11)
+- **What:** Address the concrete findings from a domain-informed review of
+  the color-clustering/quantization pipeline (`lib/quantize.ts`,
+  `palette-optimizer.ts`, `local-optimizer.ts`, `contour-cleanup.ts`,
+  `dmc-match.ts`, `downsample.ts`, `edge-map.ts`, `color.ts`), done at
+  Owner request with cross-stitch/pixel-art domain framing.
+- **Why:** The review (full text in the session transcript, 2026-09-11)
+  found the pipeline already sound on its core algorithm choices (OKLab
+  metric, ICM/Potts-MRF, LBG split/reinvest) but identified real, scoped
+  gaps: two stale comments, a k-means edge case where a requested color
+  count silently under-delivers, worst-fit reinvestment not distinguishing
+  real detail from noise, no noise-aware pre-filter before quantization,
+  and DMC mode never re-running spatial optimization after snapping to
+  the coarser DMC gamut. Owner asked to fix docs first, then take the
+  remaining points one at a time rather than as one large change.
+- **Acceptance criteria:** Each milestone below lands as its own reviewed,
+  tested, verified change; Owner checks in at each milestone boundary per
+  OPERATIONS.md before the next starts.
+- **Constraints:** None stated beyond the standard one-milestone-at-a-time
+  check-in cadence.
+
+**Milestones:**
+- [x] M1 — Fix the two stale/inaccurate doc comments found by the review:
+  `quantize.ts`'s `plainKMeansQuantizer` docstring (falsely claimed a
+  linear-RGB mean; code actually returns the OKLab centroid converted to
+  RGB) and `color.ts`'s OKLab-vs-CIEDE2000 comment (claimed the tool
+  "doesn't match to a real DMC/Anchor thread database," no longer true
+  since G-013/D31).
+- [ ] M2 — Reinvest palette slots lost to ordinary Lloyd's-algorithm
+  cluster attrition (a k-means++ seed's Voronoi region going empty during
+  refinement), not just slots freed by `mergeSimilarColors` finding
+  redundant survivors — currently the former silently under-delivers the
+  requested `colorCount` even when real distinct color material remains
+  unclaimed elsewhere in the image, despite `injectWorstFitClusters`
+  already existing to handle exactly this kind of shortfall.
+- [ ] M3 — Bias `injectWorstFitClusters`' worst-fit search by per-cell
+  `importance` (already computed for the optimizer stages), not raw OKLab
+  reconstruction error alone, so a genuinely rare *artifact* (JPEG
+  ringing, a stray specular highlight) doesn't compete equally with a
+  genuinely rare *detail* for a freed palette slot.
+- [ ] M4 — Add a mild noise-aware pre-filter (e.g. bilateral or median) on
+  the downsampled cell grid before quantization, to reduce sensor-noise/
+  JPEG-driven over-segmentation without weakening real-edge protection
+  (importance is derived from the original full-resolution image, not the
+  filtered grid, so the two shouldn't conflict).
+- [ ] M5 — Re-run the fine local-optimizer pass after DMC-mode snaps
+  colors to the coarser 454-color DMC gamut, since the smoothness/color
+  trade-off ICM originally solved was computed against the pre-snap
+  continuous colors, not the thread palette actually shipped in the
+  chart.
+
+**Progress log** (newest first):
+- 2026-09-11 — M1 complete: fixed both stale doc comments (see commit).
+  Goal created and M2-M5 planned per Owner's "one point at a time"
+  request; clean `tsc` after M1. Starting M2 next.
 
 ## Completed goals
 

@@ -30,9 +30,24 @@ export function linearToSrgb(v: number): number {
  * plain Euclidean distance in OKLab already approximates perceptual
  * difference well, whereas Euclidean CIELAB distance is known to diverge
  * from perception (CIEDE2000 exists specifically to correct for that gap).
- * Since this tool doesn't match to a real DMC/Anchor thread database — see
- * HANDOVER.md D1's "deliberately not doing" note — there's no industry-
- * convention reason to carry CIEDE2000's complexity. See HANDOVER.md D6.
+ * CIEDE2000 also isn't itself a metric (it violates the triangle
+ * inequality), which disqualifies it from the Lloyd's-algorithm centroid
+ * update every quantization/optimization pass here depends on (HANDOVER.md
+ * D7) — so it was never actually a live option for the pipeline's own
+ * clustering regardless of the DMC question. See HANDOVER.md D6.
+ *
+ * D1 (2026-09-09) also cited "this tool doesn't match to a real DMC/Anchor
+ * thread database" as a reason CIEDE2000's extra complexity bought nothing
+ * — true when written, no longer true since G-013/D31 (2026-09-10) added
+ * `lib/dmc-match.ts`'s DMC snapping. That later addition deliberately
+ * reused this same OKLab distance for its nearest-real-thread search too
+ * (D31: "the same metric every other color decision in this pipeline
+ * uses"), for pipeline consistency — not because OKLab was independently
+ * re-evaluated as the right choice for matching against physical DMC
+ * floss specifically (where the textile industry's own convention is
+ * CIEDE2000 or CMC l:c). Consistency was a reasonable call, but it was
+ * inherited rather than re-decided; worth a deliberate look if DMC-match
+ * accuracy against real thread ever comes into question.
  */
 export function rgbToOklab([r, g, b]: RGB): Oklab {
   const rl = srgbToLinear(r);

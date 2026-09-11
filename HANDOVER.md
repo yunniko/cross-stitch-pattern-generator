@@ -2473,6 +2473,59 @@ set to "Empty (no stitch)" reads back as `[0, 0, 0, 0]` -- true
 transparency, not a gray/white fill-through. Zero console errors. Goal
 DONE -- see GOALS.md's G-019 entry.
 
+**D39 — G-020: domain-informed review of the clustering pipeline, M1
+(stale documentation) fixed (2026-09-11).** Owner asked for a review of
+the color-clustering algorithms with cross-stitch/pixel-art domain
+framing, report-only. Findings (full report in the session transcript):
+the core pipeline (OKLab k-means++/Lloyd, LBG-style split/reinvest, ICM/
+Potts-MRF denoising, component/diagonal cleanup) holds up well against
+both domain literature and this project's own prior domain-expert
+reviews (D1/D6-D11/D18-D20) -- no core-algorithm concerns. Five concrete,
+scoped gaps found, tracked as G-020's milestones:
+
+1. DMC mode (`applyDmcPalette`, D31) never re-runs spatial optimization
+   after snapping colors to the coarser 454-color DMC gamut -- the ICM
+   smoothness/color trade-off was computed against the pre-snap
+   continuous colors.
+2. A k-means cluster that goes empty from ordinary Lloyd's-algorithm
+   attrition (not from a genuine shortage of distinct colors -- that case
+   is already correct and tested) silently loses its slot: the existing
+   `injectWorstFitClusters` reinvestment only triggers off
+   `mergeSimilarColors`-detected redundancy, not off a shortfall against
+   the originally-requested `colorCount`.
+3. No noise-aware pre-filter runs on the downsampled cell grid before
+   quantization, so sensor/JPEG noise the box-downsample doesn't fully
+   remove becomes extra palette entries or confetti for later passes to
+   clean up, rather than being avoided going in.
+4. `injectWorstFitClusters`' worst-fit search uses raw OKLab
+   reconstruction error only, with no way to prefer a genuinely important
+   rare *detail* over a rare *artifact* -- `computeCellImportance` is
+   already computed for the optimizer stages but unused here.
+5. Two stale comments: `quantize.ts`'s `plainKMeansQuantizer` docstring
+   claimed the returned palette color is a linear-light RGB mean; the
+   actual code (`buildPaletteFromAssignment`) returns the OKLab centroid
+   converted to RGB. `color.ts`'s OKLab-vs-CIEDE2000 justification (D6)
+   cited "this tool doesn't match to a real DMC/Anchor thread database"
+   as a reason CIEDE2000 buys nothing -- true when D6 was written
+   (2026-09-09), false since G-013/D31 (2026-09-10) added DMC matching.
+   Also noted for the record, not changed: D31's DMC-match reused OKLab
+   for pipeline consistency rather than as an independently-evaluated
+   choice for matching physical DMC floss (where CIEDE2000/CMC l:c is the
+   textile-industry convention) -- a reasonable call, but inherited
+   rather than re-decided, worth revisiting only if DMC-match accuracy
+   against real thread is ever specifically questioned.
+
+**M1 fixed (2026-09-11):** both stale comments corrected in place
+(`quantize.ts`, `color.ts`) -- no behavior change, since `pattern.ts`
+already recomputes final palette colors from real post-optimization
+membership regardless of what either quantizer docstring claimed.
+**Verified**: all 274 existing unit tests still pass unmodified (a
+comment-only change), clean `tsc`. M2-M5 (points 2-1 above, DMC
+re-optimization last since it's the widest-touching) to follow one at a
+time per Owner's request, each its own reviewed/tested/verified change
+with a milestone check-in before the next starts -- see GOALS.md's G-020
+entry.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

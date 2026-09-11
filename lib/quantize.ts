@@ -222,10 +222,17 @@ function injectWorstFitClusters(oklabColors: Oklab[], assignment: Uint8Array, ce
  * triangle inequality) — confirmed independently by the domain-expert
  * review, HANDOVER.md D7. Each cell has already been box-averaged (in
  * linear light) by `downsampleToGrid` before reaching here. The reported
- * palette color is the linear-light mean RGB of a cluster's members, not
- * the OKLab centroid converted back to RGB — avoids gamut round-trip
- * artifacts and matches the linear-light averaging rule used throughout
- * (HANDOVER.md D7).
+ * palette color is `buildPaletteFromAssignment`'s direct `oklabToRgb`
+ * conversion of each converged centroid — the correct Lloyd-update
+ * centroid for the squared-OKLab objective this quantizer actually
+ * minimizes (see `meanRgbOklab`'s docstring above for why a linear-RGB
+ * mean would be a different, less accurate color for that same
+ * membership). `buildPattern` in `lib/pattern.ts` recomputes this again
+ * from each color's *final* post-optimization membership before a chart
+ * is rendered, since ICM/contour-cleanup reassign cells after this
+ * function returns — this quantizer's own returned palette is only ever
+ * final as-is when called directly (e.g. with `optimize: false`, or from
+ * a test) rather than through the normal `buildPattern` pipeline.
  *
  * This is "Original" in the app's generation-mode switch (HANDOVER.md D20):
  * exactly the algorithm this project shipped with, before D18/D19/D20's
