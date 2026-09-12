@@ -6062,6 +6062,13 @@ vitest run` 515/515 passing, `npm run build` clean, full `npx
 playwright test` 33/33 passing. Live-checked by hand: the icon reads
 clearly as a bucket with a handle at the Tools dock's 40×40px size.
 
+**Deployed (2026-09-12).** Standard recipe. Container isolation
+confirmed (`cross-stitch-pattern-generator-app-1` alone restarted,
+other containers' uptimes unchanged). Other sites healthy
+(`meet.app.julienika.cz`/`craftale.eu`/`arfid.julienika.cz` all HTTP
+200). Live check on `https://cross-stitch.craftodejnice.cz`: the bucket
+icon renders correctly, zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
