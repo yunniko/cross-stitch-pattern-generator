@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import { hexToRgb, rgbToHex } from "@/lib/color";
 import { decodeSourceImage, loadImageAsPixelBuffer } from "@/lib/load-image";
@@ -91,6 +91,124 @@ const ZOOM_STEP = 1.4;
 
 type ViewMode = RenderMode | "realistic" | "photo";
 type Tool = "brush" | "pan" | "zoom" | "move" | "highlight" | "select" | "fill";
+
+// --- Tools dock icons (Owner request, 2026-09-12: icons instead of text
+// labels, grouped by kind) -- small original stroke-based SVGs rather than
+// a new icon-library dependency, matching this project's own minimal-deps
+// pattern (no icon package anywhere else in the portfolio either). Every
+// tool button keeps an `aria-label` carrying its old visible text as the
+// accessible name, so existing behavior (and every e2e test that finds a
+// tool by name, e.g. "Move"/"Highlight"/"Pan") is unaffected by dropping
+// the visible label.
+const TOOL_ICON_PROPS = {
+  viewBox: "0 0 24 24",
+  className: "h-5 w-5",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.8,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
+function BrushIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <line x1="19" y1="5" x2="9" y2="15" />
+      <path d="M9 15c-2.5 0-4.5 2-4.5 4.5" />
+      <circle cx="19" cy="5" r="1.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function FillIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <path d="M12 3c3.5 4 6 7.2 6 10.5A6 6 0 1 1 6 13.5C6 10.2 8.5 7 12 3Z" />
+    </svg>
+  );
+}
+
+function SelectIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <rect x="4" y="4" width="16" height="16" rx="1" strokeDasharray="4 3" />
+    </svg>
+  );
+}
+
+function MoveIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <line x1="12" y1="3" x2="12" y2="21" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <path d="M9 6l3-3 3 3" />
+      <path d="M9 18l3 3 3-3" />
+      <path d="M6 9l-3 3 3 3" />
+      <path d="M18 9l3 3-3 3" />
+    </svg>
+  );
+}
+
+function PanIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <path d="M7 11V6a1.5 1.5 0 0 1 3 0v4" />
+      <path d="M10 10.5V5a1.5 1.5 0 0 1 3 0v5.5" />
+      <path d="M13 10.5V6a1.5 1.5 0 0 1 3 0v6" />
+      <path d="M16 12V9a1.5 1.5 0 0 1 3 0v6c0 3.5-2 6-6 6h-1c-3 0-4.5-1-6-3l-2.2-3.3c-.6-.9 0-2.2 1.2-2.2.6 0 1.1.3 1.4.8L7 16" />
+    </svg>
+  );
+}
+
+function ZoomIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <line x1="20" y1="20" x2="15.5" y2="15.5" />
+    </svg>
+  );
+}
+
+function HighlightIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="2.5" />
+    </svg>
+  );
+}
+
+/** Grouped per Owner spec (2026-09-12): brush+fill, select+move, pan+zoom+highlight -- each group visually separated by a divider in the Tools dock. */
+const TOOL_GROUPS = [
+  [
+    { tool: "brush" as const, label: "Brush", title: "Paint the selected color -- click a color in the Colors dock first", Icon: BrushIcon },
+    {
+      tool: "fill" as const,
+      label: "Fill",
+      title: "Click a color in the Colors dock, then click a cell to flood-fill its same-colored region (diagonal touching counts as connected)",
+      Icon: FillIcon,
+    },
+  ],
+  [
+    {
+      tool: "select" as const,
+      label: "Select",
+      title: "Drag a rectangle to select it -- then copy/paste/move/flip it before it merges back into the picture",
+      Icon: SelectIcon,
+    },
+    {
+      tool: "move" as const,
+      label: "Move",
+      title: "Drag to reposition the whole design (and its photo underlay) within the canvas",
+      Icon: MoveIcon,
+    },
+  ],
+  [
+    { tool: "pan" as const, label: "Pan", title: "Drag the Image window to scroll it", Icon: PanIcon },
+    { tool: "zoom" as const, label: "Zoom", title: "Click to zoom in, Shift-click to zoom out (wheel always zooms too)", Icon: ZoomIcon },
+    { tool: "highlight" as const, label: "Highlight", title: "Click colors in the Colors dock to dim everything else", Icon: HighlightIcon },
+  ],
+];
 
 interface SourceImageMeta {
   dataUrl: string;
@@ -1396,33 +1514,25 @@ export default function Workspace() {
         {/* Tools dock (left) */}
         <aside className="flex w-16 shrink-0 flex-col items-center gap-2 border-r border-zinc-300 bg-white py-3 dark:border-zinc-800 dark:bg-zinc-900">
           <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">Tools</span>
-          {(
-            [
-              { tool: "brush" as const, label: "Brush", title: "Paint the selected color -- click a color in the Colors dock first" },
-              { tool: "pan" as const, label: "Pan", title: "Drag the Image window to scroll it" },
-              { tool: "zoom" as const, label: "Zoom", title: "Click to zoom in, Shift-click to zoom out (wheel always zooms too)" },
-              { tool: "move" as const, label: "Move", title: "Drag to reposition the whole design (and its photo underlay) within the canvas" },
-              { tool: "select" as const, label: "Select", title: "Drag a rectangle to select it -- then copy/paste/move/flip it before it merges back into the picture" },
-              {
-                tool: "fill" as const,
-                label: "Fill",
-                title: "Click a color in the Colors dock, then click a cell to flood-fill its same-colored region (diagonal touching counts as connected)",
-              },
-              { tool: "highlight" as const, label: "Highlight", title: "Click colors in the Colors dock to dim everything else" },
-            ]
-          ).map(({ tool, label, title }) => (
-            <button
-              key={tool}
-              type="button"
-              onClick={() => switchTool(tool)}
-              disabled={!pattern}
-              title={title}
-              className={`flex h-10 w-10 items-center justify-center rounded border text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 ${
-                activeTool === tool ? "border-foreground bg-black/[.06] dark:bg-white/[.1]" : "border-zinc-300 dark:border-zinc-700"
-              }`}
-            >
-              {label}
-            </button>
+          {TOOL_GROUPS.map((group, groupIndex) => (
+            <Fragment key={groupIndex}>
+              {groupIndex > 0 && <div className="my-1 h-px w-8 shrink-0 bg-zinc-300 dark:bg-zinc-700" aria-hidden="true" />}
+              {group.map(({ tool, label, title, Icon }) => (
+                <button
+                  key={tool}
+                  type="button"
+                  onClick={() => switchTool(tool)}
+                  disabled={!pattern}
+                  title={title}
+                  aria-label={label}
+                  className={`flex h-10 w-10 items-center justify-center rounded border disabled:cursor-not-allowed disabled:opacity-50 ${
+                    activeTool === tool ? "border-foreground bg-black/[.06] dark:bg-white/[.1]" : "border-zinc-300 dark:border-zinc-700"
+                  }`}
+                >
+                  <Icon />
+                </button>
+              ))}
+            </Fragment>
           ))}
         </aside>
 

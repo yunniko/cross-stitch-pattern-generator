@@ -5983,6 +5983,60 @@ other containers' uptimes unchanged). Other sites healthy
 shows Open pattern…/Options…/Resize canvas… | Export dropdown/Export/
 Export all exactly as designed, zero console errors.
 
+**D81 — Fixed white-on-white native dropdown options in dark mode
+(2026-09-12, Owner: "on hover dropdown options becoming white on
+white").**
+
+Root cause: `app/globals.css` never declared `color-scheme`, so the
+browser had no way to know this page supports a dark appearance for its
+own *native* form-control chrome -- most visibly a `<select>`'s options
+popup, which is rendered by the OS/browser itself and ignores nearly
+every CSS property except `color`/`background-color` (and even those
+inconsistently across browsers). The page's own `dark:*` text-color
+rules made option text light, while the browser's unstyled popup
+defaulted to a light background regardless -- white-on-white,
+illegible on hover. Fixed with the standard one-line fix: `color-scheme:
+light dark;` on `:root`, which tells the browser to render native
+controls (select popups, scrollbars, etc.) using dark-appropriate
+defaults when the OS/media preference is dark, matching the page's own
+existing `@media (prefers-color-scheme: dark)`-driven theme. Verified
+`getComputedStyle(document.documentElement).colorScheme` reports `"light
+dark"` in a live browser; the native popup itself can't be captured by
+CDP screenshots (it's OS-level chrome outside the page's render tree),
+so visual confirmation relies on this being the well-documented,
+standard fix for exactly this symptom rather than a screenshot.
+
+**D82 — Tools dock: icons instead of text labels, grouped with
+dividers (2026-09-12, Owner: "Tools instead of names make icons. Group
+brush and fill, divider, select, move, divider, pan, zoom, highlight").**
+
+Replaced each tool button's visible text ("Brush", "Pan", etc.) with a
+small original stroke-based SVG icon (brush: diagonal stroke + tip dot;
+fill: droplet; select: dashed marquee rectangle; move: 4-way arrow
+cross; pan: open hand; zoom: magnifying glass; highlight: eye) --
+hand-drawn from basic SVG primitives rather than adding an icon-library
+dependency, matching this project's existing minimal-deps posture (no
+icon package used anywhere else in the portfolio either). Reordered
+into the Owner's specified groups -- brush+fill, select+move,
+pan+zoom+highlight -- each separated by a thin divider line in the
+Tools dock, replacing the old flat single list (which had also been in
+a different order: brush/pan/zoom/move/select/fill/highlight).
+
+**Accessible name preserved via `aria-label`**, same pattern as D80's
+Export dropdown: each button keeps its old visible text as
+`aria-label` (plus the existing `title` tooltip) even with no visible
+label text, so every e2e test that finds a tool by name --
+`move-highlight.spec.ts`'s "Move"/"Highlight", `navigation.spec.ts`'s
+"Pan" -- kept passing unchanged, and screen-reader users still hear the
+same tool names as before.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full `npx
+vitest run` 515/515 passing, `npm run build` clean, full `npx
+playwright test` 33/33 passing (no test needed updating). Live-checked
+by hand in a running `next dev` instance: all 7 icons render clearly
+and distinctly at their 40×40px button size, correctly grouped with
+visible dividers, zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

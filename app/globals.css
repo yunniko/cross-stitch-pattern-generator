@@ -3,6 +3,16 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Without this, the browser doesn't know this page supports a dark
+     appearance and renders native form-control chrome -- most visibly a
+     <select>'s own options popup, which almost no other CSS property can
+     reach -- with light-mode defaults regardless of the dark:* classes
+     applied to the page itself. That mismatch is exactly what produced
+     white-on-white (illegible) dropdown options on hover in dark mode
+     (Owner report, 2026-09-12): the page's own text color rules made the
+     option text light, while the browser's own unstyled options popup
+     stayed light-background by default. */
+  color-scheme: light dark;
 }
 
 @theme inline {
