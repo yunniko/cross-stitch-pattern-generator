@@ -20,7 +20,7 @@ test("expanding the canvas adds a new fill color and is a single undoable step (
 
   await page.getByRole("button", { name: "Resize canvas…" }).click();
   await page.getByLabel("Right").fill("5");
-  await page.locator('input[type="color"]').fill("#123456");
+  await page.getByRole("textbox", { name: "Fill color" }).fill("#123456");
   await page.getByRole("button", { name: "Apply" }).click();
 
   await expect(page.getByText(/55 × \d+ stitches/)).toBeVisible();

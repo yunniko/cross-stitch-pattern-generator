@@ -35,6 +35,13 @@ function withCounts(pattern: StitchPattern, cellPalette: Uint8Array, palette: Pa
  * dedup in `palette-optimizer.ts`, which only merges colors *close enough*
  * to be near-indistinguishable; here any two colors can be merged
  * regardless of distance, since it's an explicit user action).
+ *
+ * `targetIndex` may also be `EMPTY_CELL` (Owner request, 2026-09-12):
+ * merging a color "into empty" turns its stitches into empty (no-stitch)
+ * cells and still removes it from the palette -- no special-casing needed
+ * here, since `EMPTY_CELL` already sits far outside the real palette's
+ * index range and the remap step below already treats it as a sentinel to
+ * pass through untouched.
  */
 export function mergeColors(pattern: StitchPattern, sourceIndex: number, targetIndex: number): StitchPattern {
   if (sourceIndex === targetIndex) return pattern;

@@ -1,8 +1,8 @@
 import type { OverlapCells } from "./a4-layout";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import { deserializePattern, serializePattern } from "./pattern-serialize";
-import type { EdgeMode } from "./pattern.worker";
-import type { StitchPattern } from "./types";
+import type { EdgeMode, GenerationMode, PaletteMode } from "./pattern.worker";
+import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, type SizePresetId, type StitchPattern } from "./types";
 
 // Workspace-level preferences and the in-progress project, persisted to
 // localStorage (G-015, Owner request 2026-09-10) so a page reload doesn't
@@ -38,6 +38,30 @@ export interface WorkspaceOptions {
    * to `5`, the same default `calculateA4Layout` itself already uses.
    */
   overlapCells: OverlapCells;
+  /**
+   * The on-screen canvas background color (Owner request, 2026-09-12):
+   * shown behind empty (no-stitch) cells in the live Color/B&W chart view
+   * and as a backdrop behind the realistic preview's own transparent PNG.
+   * Purely a display preference -- never threaded into any export path,
+   * which always renders empty cells on white and the realistic preview on
+   * a transparent background regardless of this setting. Missing/corrupt
+   * defaults to white, matching every export's own existing default.
+   */
+  canvasColor: string;
+  /**
+   * Generate/Regenerate settings (Owner request, 2026-09-12: "remember
+   * regeneration modes, pattern size and color count on page reload") --
+   * unlike `edgeMode` above, these have no per-pattern equivalent (nothing
+   * on a `StitchPattern` itself records "this was generated as Large,
+   * 24 colors, Latest/Full range"), so the *only* place they can survive a
+   * reload is here, exactly like `aidaCount`/`sizeUnit` already do.
+   */
+  sizePreset: SizePresetId;
+  /** Only meaningful when `sizePreset` is `"custom"` -- kept even when a named preset is selected, so switching back to Custom later restores the Owner's last custom value instead of resetting to the default. */
+  customSize: number;
+  colorCount: number;
+  generationMode: GenerationMode;
+  paletteMode: PaletteMode;
 }
 
 const DEFAULT_OPTIONS: WorkspaceOptions = {
@@ -46,9 +70,17 @@ const DEFAULT_OPTIONS: WorkspaceOptions = {
   authorName: "",
   edgeMode: "standard",
   overlapCells: 5,
+  canvasColor: "#ffffff",
+  sizePreset: "medium",
+  customSize: 100,
+  colorCount: 16,
+  generationMode: "latest",
+  paletteMode: "full",
 };
 
 const VALID_OVERLAP_CELLS: readonly OverlapCells[] = [0, 5, 10];
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+const VALID_SIZE_PRESETS: readonly SizePresetId[] = ["small", "medium", "large", "xl", "xxl", "custom"];
 
 /** Reads persisted fabric count / unit / author name / edge mode / overlap -- falls back to defaults on first visit or any corrupt/missing data. */
 export function loadWorkspaceOptions(): WorkspaceOptions {
@@ -63,6 +95,18 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       authorName: typeof parsed.authorName === "string" ? parsed.authorName : DEFAULT_OPTIONS.authorName,
       edgeMode: parsed.edgeMode === "crisp" ? "crisp" : DEFAULT_OPTIONS.edgeMode,
       overlapCells: VALID_OVERLAP_CELLS.includes(parsed.overlapCells as OverlapCells) ? (parsed.overlapCells as OverlapCells) : DEFAULT_OPTIONS.overlapCells,
+      canvasColor: typeof parsed.canvasColor === "string" && HEX_COLOR_PATTERN.test(parsed.canvasColor) ? parsed.canvasColor : DEFAULT_OPTIONS.canvasColor,
+      sizePreset: VALID_SIZE_PRESETS.includes(parsed.sizePreset as SizePresetId) ? (parsed.sizePreset as SizePresetId) : DEFAULT_OPTIONS.sizePreset,
+      customSize:
+        typeof parsed.customSize === "number" && Number.isInteger(parsed.customSize) && parsed.customSize >= MIN_STITCHES && parsed.customSize <= MAX_STITCHES
+          ? parsed.customSize
+          : DEFAULT_OPTIONS.customSize,
+      colorCount:
+        typeof parsed.colorCount === "number" && Number.isInteger(parsed.colorCount) && parsed.colorCount >= MIN_COLORS && parsed.colorCount <= MAX_COLORS
+          ? parsed.colorCount
+          : DEFAULT_OPTIONS.colorCount,
+      generationMode: parsed.generationMode === "original" ? "original" : DEFAULT_OPTIONS.generationMode,
+      paletteMode: parsed.paletteMode === "dmc" ? "dmc" : DEFAULT_OPTIONS.paletteMode,
     };
   } catch {
     return DEFAULT_OPTIONS;

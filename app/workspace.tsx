@@ -88,8 +88,14 @@ const NAVIGATOR_MAX_SIZE_PX = 180;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 1.4;
+/** How close together (in time) two brush clicks on the same cell need to be to treat the second as "probably part of a double-click" -- see preDoubleClickPatternRef. */
+const DOUBLE_CLICK_WINDOW_MS = 400;
 
-type ViewMode = RenderMode | "realistic" | "photo";
+// "photo" = the existing "Grid + photo" mode (symbol grid overlaid on the
+// source photo, drawChartOutline). "photo-only" is a distinct, newer mode
+// (Owner request, 2026-09-12): just the original uploaded photo, no grid/
+// symbols at all -- for comparing the generated chart against the source.
+type ViewMode = RenderMode | "realistic" | "photo" | "photo-only";
 type Tool = "brush" | "pan" | "zoom" | "move" | "highlight" | "select" | "fill";
 
 // --- Tools dock icons (Owner request, 2026-09-12: icons instead of text
@@ -182,11 +188,16 @@ function HighlightIcon() {
 /** Grouped per Owner spec (2026-09-12): brush+fill, select+move, pan+zoom+highlight -- each group visually separated by a divider in the Tools dock. */
 const TOOL_GROUPS = [
   [
-    { tool: "brush" as const, label: "Brush", title: "Paint the selected color -- click a color in the Colors dock first", Icon: BrushIcon },
+    {
+      tool: "brush" as const,
+      label: "Brush",
+      title: "Paint the selected color -- click a color in the Colors dock first (B). Double-click to flood-fill instead.",
+      Icon: BrushIcon,
+    },
     {
       tool: "fill" as const,
       label: "Fill",
-      title: "Click a color in the Colors dock, then click a cell to flood-fill its same-colored region (diagonal touching counts as connected)",
+      title: "Click a color in the Colors dock, then click a cell to flood-fill its same-colored region (diagonal touching counts as connected) (F)",
       Icon: FillIcon,
     },
   ],
@@ -205,7 +216,7 @@ const TOOL_GROUPS = [
     },
   ],
   [
-    { tool: "pan" as const, label: "Pan", title: "Drag the Image window to scroll it", Icon: PanIcon },
+    { tool: "pan" as const, label: "Pan", title: "Drag the Image window to scroll it (or just hold Space with any tool active)", Icon: PanIcon },
     { tool: "zoom" as const, label: "Zoom", title: "Click to zoom in, Shift-click to zoom out (wheel always zooms too)", Icon: ZoomIcon },
     { tool: "highlight" as const, label: "Highlight", title: "Click colors in the Colors dock to dim everything else", Icon: HighlightIcon },
   ],
@@ -344,6 +355,7 @@ export default function Workspace() {
   const [paletteMode, setPaletteMode] = useState<PaletteMode>("full");
   const [edgeMode, setEdgeMode] = useState<EdgeMode>("standard");
   const [a4Overlap, setA4Overlap] = useState<OverlapCells>(5);
+  const [canvasColor, setCanvasColor] = useState("#ffffff");
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [genError, setGenError] = useState<string | null>(null);
@@ -378,6 +390,12 @@ export default function Workspace() {
       setAuthorName(options.authorName);
       setEdgeMode(options.edgeMode);
       setA4Overlap(options.overlapCells);
+      setCanvasColor(options.canvasColor);
+      setSizePreset(options.sizePreset);
+      setCustomSize(options.customSize);
+      setColorCount(options.colorCount);
+      setGenerationMode(options.generationMode);
+      setPaletteMode(options.paletteMode);
 
       const saved = loadSavedProject();
       if (saved) {
@@ -394,8 +412,20 @@ export default function Workspace() {
 
   useEffect(() => {
     if (!workspaceRestoredRef.current) return;
-    saveWorkspaceOptions({ aidaCount, sizeUnit, authorName, edgeMode, overlapCells: a4Overlap });
-  }, [aidaCount, sizeUnit, authorName, edgeMode, a4Overlap]);
+    saveWorkspaceOptions({
+      aidaCount,
+      sizeUnit,
+      authorName,
+      edgeMode,
+      overlapCells: a4Overlap,
+      canvasColor,
+      sizePreset,
+      customSize,
+      colorCount,
+      generationMode,
+      paletteMode,
+    });
+  }, [aidaCount, sizeUnit, authorName, edgeMode, a4Overlap, canvasColor, sizePreset, customSize, colorCount, generationMode, paletteMode]);
 
   useEffect(() => {
     if (!workspaceRestoredRef.current) return;
@@ -425,6 +455,10 @@ export default function Workspace() {
   const [editingSymbolIndex, setEditingSymbolIndex] = useState<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const strokeRef = useRef<{ pattern: StitchPattern; lastCell: number | null } | null>(null);
+  /** The pattern state right before a brush click (or the first click of a double-click) started painting -- see handleCanvasDoubleClick. */
+  const preDoubleClickPatternRef = useRef<StitchPattern | null>(null);
+  /** Time+cell of the last brush click -- used to recognize "this pointerdown is probably the second half of a double-click" by timing/position alone, since a `PointerEvent`'s own `detail` isn't reliably incremented for the second click across browsers/automation. */
+  const lastBrushClickRef = useRef<{ time: number; cellIndex: number } | null>(null);
 
   // --- Tools dock: active tool + pan/zoom (M2) ---
   const [activeTool, setActiveTool] = useState<Tool>("brush");
@@ -551,9 +585,12 @@ export default function Workspace() {
         }
         drawChartOutline(ctx, displayPattern, cellSize);
       } else {
-        // viewMode is "color" | "bw" here -- "realistic" is handled by its own
-        // async, non-interactive effect below, and "photo" is handled above.
-        drawChart(ctx, displayPattern, viewMode as RenderMode, cellSize);
+        // viewMode is "color" | "bw" here -- "realistic" and "photo-only" are
+        // each handled by their own <img>-based rendering below instead (no
+        // canvas), and "photo" (Grid + photo) is handled above. canvasColor
+        // is the Owner's view-only "canvas color" preference (2026-09-12) --
+        // shown behind empty cells here, never passed by any export path.
+        drawChart(ctx, displayPattern, viewMode as RenderMode, cellSize, undefined, canvasColor);
       }
 
       if (activeTool === "highlight" && highlightedColorIndices.size > 0) {
@@ -569,12 +606,12 @@ export default function Workspace() {
     // callback (and the effect below re-running it) needs to be recreated
     // then, or the redraw would use a stale closure and never show it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [viewMode, cellSize, photoImageVersion, activeTool, highlightedColorIndices, selection]
+    [viewMode, cellSize, photoImageVersion, activeTool, highlightedColorIndices, selection, canvasColor]
   );
 
   // --- Image window: live editable canvas for color/bw/photo ---
   useEffect(() => {
-    if (viewMode === "realistic") return;
+    if (viewMode === "realistic" || viewMode === "photo-only") return;
     const canvas = canvasRef.current;
     if (!canvas || !pattern) return;
     canvas.width = pattern.width * cellSize;
@@ -851,6 +888,82 @@ export default function Workspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTool, selection, pattern]);
 
+  /**
+   * Global keyboard shortcuts (Owner request, 2026-09-12): Ctrl+Z/Ctrl+Y for
+   * undo/redo, B/F to switch to Brush/Fill, holding Space to pan
+   * temporarily -- the same convention every mainstream image editor uses --
+   * regardless of whichever tool was active before (releasing Space restores
+   * it), and 1-5 to switch the Image window's view mode (Color/B&W/
+   * Realistic/Grid+photo/Original photo). Skipped entirely while focus is in
+   * a text input/textarea/contenteditable element, so typing the pattern
+   * name, author name, or a DMC search query is never hijacked as a
+   * shortcut (and Ctrl+Z there stays that field's own native undo, not this
+   * app's pattern-level one).
+   */
+  const previousToolRef = useRef<Tool | null>(null);
+  const spacePanActiveRef = useRef(false);
+
+  useEffect(() => {
+    function isTypingTarget(target: EventTarget | null): boolean {
+      if (!(target instanceof HTMLElement)) return false;
+      return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (isTypingTarget(e.target)) return;
+
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        history.undo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        history.redo();
+        return;
+      }
+
+      if (!pattern) return; // no pattern yet -- every tool button is disabled too
+
+      if (e.key === " ") {
+        e.preventDefault(); // stop the page itself from scrolling on every repeat while held
+        if (!spacePanActiveRef.current) {
+          spacePanActiveRef.current = true;
+          previousToolRef.current = activeTool;
+          switchTool("pan");
+        }
+        return;
+      }
+
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.key.toLowerCase() === "b") switchTool("brush");
+        else if (e.key.toLowerCase() === "f") switchTool("fill");
+        else if (e.key === "1") setViewMode("color");
+        else if (e.key === "2") setViewMode("bw");
+        else if (e.key === "3") setViewMode("realistic");
+        else if (e.key === "4" && pattern.sourceImage) setViewMode("photo");
+        else if (e.key === "5" && pattern.sourceImage) setViewMode("photo-only");
+      }
+    }
+
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.key === " " && spacePanActiveRef.current) {
+        spacePanActiveRef.current = false;
+        const restore = previousToolRef.current;
+        previousToolRef.current = null;
+        if (restore) setActiveTool(restore);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTool, pattern]);
+
   function handleCanvasPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
     if (!canvas || !pattern) return;
@@ -904,6 +1017,20 @@ export default function Workspace() {
     if (activeTool === "highlight" || activeColorIndex === null) return;
     const cellIndex = cellIndexFromEvent(e, canvas, cellSize, pattern.width, pattern.height);
     if (cellIndex === null) return;
+    // Only the *first* click of a potential double-click should snapshot
+    // `pattern` here -- a second click landing on the same cell shortly
+    // after keeps the first click's snapshot, so a following dblclick (see
+    // handleCanvasDoubleClick) can flood-fill the region as it was *before*
+    // either of the double-click's two incidental single-cell paints ran,
+    // rather than the tiny, already-repainted region they'd otherwise leave
+    // behind. Timing+position, not `e.detail`: a PointerEvent's own click
+    // count isn't reliably incremented for the second click across every
+    // browser/automation tool.
+    const now = Date.now();
+    const last = lastBrushClickRef.current;
+    const isSecondClickOfDoubleClick = last !== null && now - last.time < DOUBLE_CLICK_WINDOW_MS && last.cellIndex === cellIndex;
+    if (!isSecondClickOfDoubleClick) preDoubleClickPatternRef.current = pattern;
+    lastBrushClickRef.current = { time: now, cellIndex };
     const painted = paintStitch(pattern, cellIndex, activeColorIndex);
     strokeRef.current = { pattern: painted, lastCell: cellIndex };
     redrawWith(painted);
@@ -997,6 +1124,23 @@ export default function Workspace() {
     if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
       canvasRef.current.releasePointerCapture(e.pointerId);
     }
+  }
+
+  /** Owner request (2026-09-12): double-clicking with Brush active flood-fills the cell's same-colored region, the same action the Fill tool's own click already does -- a shortcut so switching tools isn't needed for an occasional fill while painting. */
+  function handleCanvasDoubleClick(e: React.MouseEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas || !pattern) return;
+    if (activeTool !== "brush" || activeColorIndex === null) return;
+    const cellIndex = cellIndexFromEvent(e, canvas, cellSize, pattern.width, pattern.height);
+    if (cellIndex === null) return;
+    // Flood-fill from the state *before* the double-click's own two
+    // incidental single-cell paints (each already committed to history by
+    // this point) -- not the current `pattern`, which by now only shows a
+    // single already-repainted cell and would make the fill a no-op beyond
+    // what those two clicks already did. Falls back to `pattern` itself in
+    // the unlikely event no pre-click snapshot was captured.
+    const basePattern = preDoubleClickPatternRef.current ?? pattern;
+    history.set(fillClusterDiagonal(basePattern, cellIndex, activeColorIndex));
   }
 
   function handleCanvasDrop(e: React.DragEvent<HTMLCanvasElement>) {
@@ -1282,6 +1426,7 @@ export default function Workspace() {
             type="button"
             onClick={history.undo}
             disabled={!history.canUndo}
+            title="Ctrl+Z"
             className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
           >
             Undo
@@ -1290,6 +1435,7 @@ export default function Workspace() {
             type="button"
             onClick={history.redo}
             disabled={!history.canRedo}
+            title="Ctrl+Y"
             className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
           >
             Redo
@@ -1558,6 +1704,7 @@ export default function Workspace() {
                   disabled={!pattern}
                   title={title}
                   aria-label={label}
+                  aria-pressed={activeTool === tool}
                   className={`flex h-10 w-10 items-center justify-center rounded border disabled:cursor-not-allowed disabled:opacity-50 ${
                     activeTool === tool ? "border-foreground bg-black/[.06] dark:bg-white/[.1]" : "border-zinc-300 dark:border-zinc-700"
                   }`}
@@ -1606,6 +1753,31 @@ export default function Workspace() {
                     onChange={() => setViewMode("photo")}
                   />
                   Grid + photo
+                </label>
+                <label
+                  className={`flex items-center gap-1.5 ${!pattern.sourceImage ? "opacity-50" : ""}`}
+                  title={pattern.sourceImage ? undefined : "No source photo is associated with this pattern"}
+                >
+                  <input
+                    type="radio"
+                    name="view-mode"
+                    checked={viewMode === "photo-only"}
+                    disabled={!pattern.sourceImage}
+                    onChange={() => setViewMode("photo-only")}
+                  />
+                  Original photo
+                </label>
+                <label
+                  className="ml-2 flex items-center gap-1.5 border-l border-zinc-300 pl-3 dark:border-zinc-700"
+                  title="Shown behind empty stitches in Color/B&W view and behind the realistic preview -- display only, never affects any export"
+                >
+                  Canvas color
+                  <input
+                    type="color"
+                    value={canvasColor}
+                    onChange={(e) => setCanvasColor(e.target.value)}
+                    className="h-6 w-8 cursor-pointer rounded border border-zinc-300 bg-transparent p-0 dark:border-zinc-700"
+                  />
                 </label>
                 <div className="ml-2 flex items-center gap-1 border-l border-zinc-300 pl-3 dark:border-zinc-700">
                   <button
@@ -1661,13 +1833,22 @@ export default function Workspace() {
             {!pattern && !sourceImageMeta && (
               <p className="text-sm text-zinc-500">Upload an image in the Processing params dock below to get started.</p>
             )}
-            {pattern && viewMode !== "realistic" && (
+            {pattern && viewMode === "photo-only" && pattern.sourceImage && (
+              // eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize
+              <img
+                src={pattern.sourceImage.dataUrl}
+                alt="Original uploaded photo"
+                className="max-h-full max-w-full border border-zinc-300 dark:border-zinc-700"
+              />
+            )}
+            {pattern && viewMode !== "realistic" && viewMode !== "photo-only" && (
               <canvas
                 ref={canvasRef}
                 onPointerDown={handleCanvasPointerDown}
                 onPointerMove={handleCanvasPointerMove}
                 onPointerUp={handleCanvasPointerUp}
                 onPointerCancel={handleCanvasPointerUp}
+                onDoubleClick={handleCanvasDoubleClick}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleCanvasDrop}
                 className={`touch-none border border-zinc-300 dark:border-zinc-700 ${
@@ -1686,6 +1867,12 @@ export default function Workspace() {
               <img
                 src={realisticPreviewUrl}
                 alt="Cross-stitch pattern preview"
+                // The Owner's "canvas color" (2026-09-12) shown as a backdrop
+                // behind this PNG's own transparent background -- display
+                // only, via inline style on the <img> itself: the downloaded
+                // file (a separate render via downloadCanvasAsPng) is
+                // untouched and stays transparent regardless.
+                style={{ backgroundColor: canvasColor }}
                 className="border border-zinc-300 dark:border-zinc-700"
               />
             )}
@@ -1899,8 +2086,10 @@ export default function Workspace() {
             <div
               draggable
               onDragStart={(e) => e.dataTransfer.setData("text/plain", String(EMPTY_CELL))}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleLegendDrop(EMPTY_CELL)}
               onClick={() => setActiveColorIndex(activeColorIndex === EMPTY_CELL ? null : EMPTY_CELL)}
-              title="No stitch -- marks cells that shouldn't be stitched at all. Never appears in the legend or exports' stitch counts."
+              title="No stitch -- marks cells that shouldn't be stitched at all. Never appears in the legend or exports' stitch counts. Drag a color here to merge it into empty (its stitches become empty and it's removed from the palette)."
               className={`flex cursor-pointer items-center gap-2 rounded border px-2 py-1 text-sm transition-colors ${
                 activeColorIndex === EMPTY_CELL
                   ? "border-foreground bg-black/[.04] dark:bg-white/[.08]"

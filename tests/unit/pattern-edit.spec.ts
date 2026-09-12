@@ -64,6 +64,37 @@ describe("mergeColors", () => {
     ]);
     expect(mergeColors(pattern, 0, 0)).toBe(pattern);
   });
+
+  it("merging a color into EMPTY_CELL turns its stitches empty and removes it from the palette (Owner request 2026-09-12)", () => {
+    // 2x2 grid: [0,1] / [1,2] -- merge color 1 (the middle one) into empty.
+    const pattern = makePattern(2, 2, [0, 1, 1, 2], [
+      [255, 0, 0],
+      [0, 255, 0],
+      [0, 0, 255],
+    ]);
+    const merged = mergeColors(pattern, 1, EMPTY_CELL);
+
+    expect(merged.palette).toHaveLength(2);
+    expect(merged.palette.map((c) => c.rgb)).toEqual([
+      [255, 0, 0],
+      [0, 0, 255],
+    ]);
+    // Cells that held color 1 become EMPTY_CELL; the others remap down by one.
+    expect(Array.from(merged.cellPalette)).toEqual([0, EMPTY_CELL, EMPTY_CELL, 1]);
+    expect(merged.palette[0].count).toBe(1);
+    expect(merged.palette[1].count).toBe(1);
+  });
+
+  it("merging a color into EMPTY_CELL leaves cells that were already empty untouched", () => {
+    const pattern = makePattern(1, 3, [0, EMPTY_CELL, 1], [
+      [10, 10, 10],
+      [20, 20, 20],
+    ]);
+    const merged = mergeColors(pattern, 0, EMPTY_CELL);
+    expect(Array.from(merged.cellPalette)).toEqual([EMPTY_CELL, EMPTY_CELL, 0]);
+    expect(merged.palette).toHaveLength(1);
+    expect(merged.palette[0].rgb).toEqual([20, 20, 20]);
+  });
 });
 
 describe("fillCluster", () => {

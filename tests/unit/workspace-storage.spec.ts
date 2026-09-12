@@ -56,26 +56,53 @@ describe("workspace-storage", () => {
   });
 
   describe("loadWorkspaceOptions / saveWorkspaceOptions", () => {
-    it("returns defaults (14-count, cm, no author, Standard edges, overlap 5) when nothing is stored", () => {
-      expect(loadWorkspaceOptions()).toEqual({ aidaCount: 14, sizeUnit: "cm", authorName: "", edgeMode: "standard", overlapCells: 5 });
+    const DEFAULTS = {
+      aidaCount: 14,
+      sizeUnit: "cm",
+      authorName: "",
+      edgeMode: "standard",
+      overlapCells: 5,
+      canvasColor: "#ffffff",
+      sizePreset: "medium",
+      customSize: 100,
+      colorCount: 16,
+      generationMode: "latest",
+      paletteMode: "full",
+    } as const;
+
+    it("returns defaults (14-count, cm, no author, Standard edges, overlap 5, white canvas, Medium/16 colors/Latest/Full range) when nothing is stored", () => {
+      expect(loadWorkspaceOptions()).toEqual(DEFAULTS);
     });
 
     it("round-trips saved options", () => {
-      saveWorkspaceOptions({ aidaCount: 18, sizeUnit: "in", authorName: "Jules", edgeMode: "crisp", overlapCells: 10 });
-      expect(loadWorkspaceOptions()).toEqual({ aidaCount: 18, sizeUnit: "in", authorName: "Jules", edgeMode: "crisp", overlapCells: 10 });
+      const saved = {
+        aidaCount: 18,
+        sizeUnit: "in" as const,
+        authorName: "Jules",
+        edgeMode: "crisp" as const,
+        overlapCells: 10 as const,
+        canvasColor: "#336699",
+        sizePreset: "xl" as const,
+        customSize: 250,
+        colorCount: 32,
+        generationMode: "original" as const,
+        paletteMode: "dmc" as const,
+      };
+      saveWorkspaceOptions(saved);
+      expect(loadWorkspaceOptions()).toEqual(saved);
     });
 
     it("falls back to defaults entirely for corrupted stored JSON", () => {
       window.localStorage.setItem(OPTIONS_KEY, "{not valid json");
-      expect(loadWorkspaceOptions()).toEqual({ aidaCount: 14, sizeUnit: "cm", authorName: "", edgeMode: "standard", overlapCells: 5 });
+      expect(loadWorkspaceOptions()).toEqual(DEFAULTS);
     });
 
     it("falls back field-by-field for individually invalid values", () => {
       window.localStorage.setItem(
         OPTIONS_KEY,
-        JSON.stringify({ aidaCount: -5, sizeUnit: "furlongs", authorName: 42, edgeMode: "chunky", overlapCells: 7 })
+        JSON.stringify({ aidaCount: -5, sizeUnit: "furlongs", authorName: 42, edgeMode: "chunky", overlapCells: 7, canvasColor: "not-a-color" })
       );
-      expect(loadWorkspaceOptions()).toEqual({ aidaCount: 14, sizeUnit: "cm", authorName: "", edgeMode: "standard", overlapCells: 5 });
+      expect(loadWorkspaceOptions()).toEqual(DEFAULTS);
     });
 
     it("defaults edgeMode to standard for a workspace saved before G-024 M5 (edgeMode absent entirely)", () => {
@@ -90,9 +117,64 @@ describe("workspace-storage", () => {
 
     it("accepts every valid overlapCells value (0, 5, 10)", () => {
       for (const overlapCells of [0, 5, 10] as const) {
-        saveWorkspaceOptions({ aidaCount: 14, sizeUnit: "cm", authorName: "", edgeMode: "standard", overlapCells });
+        saveWorkspaceOptions({ ...DEFAULTS, overlapCells });
         expect(loadWorkspaceOptions().overlapCells).toBe(overlapCells);
       }
+    });
+
+    it("defaults canvasColor to white for a workspace saved before this setting existed", () => {
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18, sizeUnit: "in", authorName: "Jules", edgeMode: "crisp", overlapCells: 10 }));
+      expect(loadWorkspaceOptions().canvasColor).toBe("#ffffff");
+    });
+
+    it("rejects a canvasColor that isn't a plain #rrggbb hex string", () => {
+      for (const bad of ["red", "#fff", "#gggggg", "rgb(0,0,0)"]) {
+        saveWorkspaceOptions({ ...DEFAULTS, canvasColor: bad });
+        expect(loadWorkspaceOptions().canvasColor).toBe("#ffffff");
+      }
+    });
+
+    it("defaults sizePreset/customSize/colorCount/generationMode/paletteMode to Medium/100/16/Latest/Full range for a workspace saved before G-028 (all absent entirely)", () => {
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18, sizeUnit: "in", authorName: "Jules" }));
+      const options = loadWorkspaceOptions();
+      expect(options.sizePreset).toBe("medium");
+      expect(options.customSize).toBe(100);
+      expect(options.colorCount).toBe(16);
+      expect(options.generationMode).toBe("latest");
+      expect(options.paletteMode).toBe("full");
+    });
+
+    it("accepts every valid sizePreset value", () => {
+      for (const sizePreset of ["small", "medium", "large", "xl", "xxl", "custom"] as const) {
+        saveWorkspaceOptions({ ...DEFAULTS, sizePreset });
+        expect(loadWorkspaceOptions().sizePreset).toBe(sizePreset);
+      }
+    });
+
+    it("rejects an invalid sizePreset", () => {
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, sizePreset: "gigantic" }));
+      expect(loadWorkspaceOptions().sizePreset).toBe("medium");
+    });
+
+    it("rejects a customSize outside 10-1000 or non-integer", () => {
+      for (const bad of [0, 5, 1001, 50.5, "100"]) {
+        window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, customSize: bad }));
+        expect(loadWorkspaceOptions().customSize).toBe(100);
+      }
+    });
+
+    it("rejects a colorCount outside 2-100 or non-integer", () => {
+      for (const bad of [0, 1, 101, 16.5, "16"]) {
+        window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, colorCount: bad }));
+        expect(loadWorkspaceOptions().colorCount).toBe(16);
+      }
+    });
+
+    it("rejects an invalid generationMode/paletteMode", () => {
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, generationMode: "fastest", paletteMode: "rainbow" }));
+      const options = loadWorkspaceOptions();
+      expect(options.generationMode).toBe("latest");
+      expect(options.paletteMode).toBe("full");
     });
   });
 

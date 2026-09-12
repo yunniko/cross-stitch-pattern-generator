@@ -172,7 +172,16 @@ export function drawChart(
   pattern: StitchPattern,
   mode: RenderMode,
   cellSize: number,
-  region?: ChartRegion
+  region?: ChartRegion,
+  /**
+   * Fill for the empty-stitch sentinel -- defaults to white, which is what
+   * every existing caller (every export path: PNG download, A4 pages, the
+   * Pattern Keeper PDF) still gets since none of them pass this. Only the
+   * live interactive canvas (`app/workspace.tsx`) passes a non-default
+   * value, for the Owner's own "canvas color" view preference (2026-09-12)
+   * -- deliberately view-only, never plumbed into any export call site.
+   */
+  emptyCellColor: string = "#ffffff"
 ) {
   const { width, height, cellPalette, palette } = pattern;
   const { x0, y0, x1, y1 } = region ?? { x0: 0, y0: 0, x1: width, y1: height };
@@ -191,9 +200,9 @@ export function drawChart(
       const localY = (y - y0) * cellSize;
 
       // The empty-stitch sentinel (G-012 M5) has no palette entry -- render
-      // it as plain blank/white, not "the first color by accident."
+      // it as plain blank (white by default), not "the first color by accident."
       if (paletteIndex === EMPTY_CELL) {
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = emptyCellColor;
         ctx.fillRect(localX, localY, cellSize, cellSize);
         continue;
       }

@@ -6137,6 +6137,162 @@ confirmed the Export dropdown's default value/label is
 `"editable"`/"Editable pattern (.json)" via a script against the real
 DOM, zero console errors.
 
+**D86 — Global keyboard shortcuts: Ctrl+Z/Ctrl+Y, Space-hold-to-pan,
+B/F tool switching, double-click-to-fill (2026-09-12, Owner: "Make
+shortcuts and keyboard work. Ctrl+z and Cntrl + y for undo and redo;
+Space and drag for panning; B for brush; F for fill; When brush is
+active - double-click for applying fill").**
+
+One `useEffect` in `app/workspace.tsx` wires keydown/keyup for all of
+these, gated by an `isTypingTarget(e.target)` guard (checks
+`INPUT`/`TEXTAREA`/`isContentEditable`) so typing in the pattern name,
+author name, or a search field never hijacks a shortcut -- Ctrl+Z there
+stays that field's own native undo. Space-hold-to-pan uses
+`previousToolRef`/`spacePanActiveRef` to restore whichever tool was
+active before the key was held, on release.
+
+**Double-click-to-fill needed two failed attempts before it worked.**
+The naive version flood-filled from the *current* `pattern` state at
+`dblclick` time -- but by then, the two constituent clicks' own
+pointerdown/pointerup cycles had already each committed a single-cell
+brush paint, so the flood-fill only ever found the tiny, already-
+repainted 1-cell region, never the original region the Owner meant to
+fill. Caught by a real e2e test failure (`color0After` only dropped by
+1 instead of the expected 3 from a controlled 3-cell stroke), not by
+inspection. First fix attempt gated the pre-double-click snapshot on
+`e.detail <= 1`; this failed the *same* test, because a `PointerEvent`'s
+`detail` isn't reliably incremented for the second click of a double-
+click across browsers/Playwright's synthetic dispatch. Final fix: a
+timing+position heuristic (`lastBrushClickRef` storing `{time,
+cellIndex}`, a `DOUBLE_CLICK_WINDOW_MS = 400` threshold) decides whether
+this pointerdown is "probably the second half of a double-click," and a
+`preDoubleClickPatternRef` snapshots `pattern` only on the *first* click
+of a sequence so the eventual `dblclick` handler fills from the
+original pre-gesture pattern. Known, accepted tradeoff: this leaves 3
+undo-steps in history for one double-click-fill instead of one clean
+step -- the flood-fill's own visual/data result is fully correct, and a
+cleaner deferred-commit design was considered and rejected as
+meaningfully riskier for a cosmetic undo-history nicety.
+
+**Verified**: new `tests/e2e/keyboard-shortcuts.spec.ts` (6 tests)
+covering undo/redo, tool switching with the typing-target guard, Space-
+hold-pan and restore, and the double-click fix above -- all passing.
+Full suite verified together with D87-D89 below (see D89's verification
+note).
+
+**D87 — Five numbered view-mode shortcuts, a new "Original photo" view
+mode, and a canvas background color preference (2026-09-12, Owner:
+"1,2,3,4,5 for switching view modes (color. bw. realistic. photo +
+grid) Make one more view mode - just original photo (will be available
+on 5). Add canvas color selection. It will be shown as a basis for
+empty stitches and as underline for realistic preview. View only, does
+not affect export").**
+
+`ViewMode` gained a `"photo-only"` variant (shows `pattern.sourceImage`
+directly, disabled when there's no source image) alongside the
+existing `"color"/"bw"/"realistic"/"photo"`; keys 1-5 map to the five
+radio options via the same global shortcuts effect as D86, guarded the
+same way. `canvasColor` is a new persisted preference (see D89) shown
+as the backdrop behind empty (no-stitch) cells in the live Color/B&W
+canvas and as a CSS `backgroundColor` behind the realistic-preview
+`<img>` on screen.
+
+**Hard constraint, enforced at the call-site level, not by a flag**:
+this is view-only and must never leak into any export. `drawChart`
+(`lib/render.ts`) gained a 6th optional parameter, `emptyCellColor:
+string = "#ffffff"`, defaulting to the same white every export already
+used -- it's passed the live `canvasColor` *only* from the interactive
+canvas's own draw call in `drawCurrentView`; every export call site
+(PNG download, A4 pages, the Pattern Keeper PDF adapter) omits the
+argument entirely and keeps white, unchanged. The realistic preview's
+on-screen backdrop is inline `style` on the `<img>` element itself, not
+on the PNG data the download path renders separately -- the downloaded
+file stays transparent regardless of the on-screen preference. This
+follows the project's established "shared function gains a capability
+via a trailing optional parameter defaulting to prior behavior" rule
+(D11/D74/D78) rather than forking a second draw path.
+
+**Verified**: `tests/e2e/keyboard-shortcuts.spec.ts`'s view-mode test
+confirms all five keys switch the correct radio, including the new
+"Original photo" mode and its `alt="Original uploaded photo"` image.
+Manually confirmed in a live `next dev` session that changing the
+canvas color visibly tints empty cells and the realistic-preview
+backdrop, while a downloaded PNG/A4/PDF export from the same pattern
+stayed on a plain white background.
+
+**D88 — Merge a real color into Empty by dragging it onto the Empty
+legend row (2026-09-12, Owner: "Allow merging colors into empty color
+(stitches become empty, the color is deleted from list)").**
+
+Wired the existing "Empty (no stitch)" legend row up as a drop target
+(`onDragOver`/`onDrop`) alongside the real color rows it already
+accepted drags onto. **No change was needed in `mergeColors`
+(`lib/pattern-edit.ts`) itself** -- `mergeColors(pattern, sourceIndex,
+targetIndex)` already worked correctly for `targetIndex = EMPTY_CELL`
+(255) with zero code changes, because `EMPTY_CELL` sits far outside the
+real palette's index range and the function's existing remap step
+(`value === EMPTY_CELL ? EMPTY_CELL : remap[value]`) already treats it
+as a pass-through sentinel. This was confirmed by writing two new unit
+tests (a color with existing stitches merging into empty; already-empty
+cells staying untouched) rather than assumed from reading the code --
+matching this project's own standing "verify, don't assume" bar. Only
+the doc comment on `mergeColors` was extended to state this capability
+explicitly.
+
+**Verified**: `tests/unit/pattern-edit.spec.ts`'s two new tests pass; a
+new e2e test in `keyboard-shortcuts.spec.ts` drags a real color onto the
+Empty row and confirms the legend row count drops by one.
+
+**D89 — Persist Generate/Regenerate settings (pattern size, color
+count, algorithm, palette mode) across a reload, alongside the fabric
+count/unit/author/edge-mode/canvas-color preferences already persisted
+(2026-09-12, Owner: "remember regeneration modes, pattern size and
+color count on page reload" -- superseding an earlier, narrower "remember
+regeneration modes and color count" phrasing from the same request).**
+
+Added `sizePreset`, `customSize`, `colorCount`, `generationMode`, and
+`paletteMode` to `WorkspaceOptions` (`lib/workspace-storage.ts`),
+following the exact pattern `edgeMode`/`overlapCells`/`canvasColor`
+already established: a `DEFAULT_OPTIONS` fallback value for each, and
+per-field validation on load (bounds/integer checks against the
+existing `MIN_STITCHES`/`MAX_STITCHES`/`MIN_COLORS`/`MAX_COLORS`
+constants for the numeric fields, a fixed allow-list for `sizePreset`,
+and exact-match checks for the two mode enums) so a corrupted or
+pre-G-028 stored blob degrades field-by-field to today's defaults
+rather than throwing or reviving a stale/invalid value. Wired into
+`app/workspace.tsx`'s existing mount-only restore effect and its
+`workspaceRestoredRef`-gated save effect, unchanged in structure from
+how the earlier fields were added. These five have no per-pattern
+equivalent to fall back on (unlike `edgeMode`, nothing on a saved
+`StitchPattern` itself records what size/color-count/algorithm produced
+it), so a reload's only way to remember them is this same
+localStorage-backed preference store.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full `npx
+vitest run` 525/525 passing (`tests/unit/workspace-storage.spec.ts`
+alone: 19/19, including 6 new tests for defaults-when-absent, every
+valid `sizePreset`, an invalid `sizePreset`, `customSize`/`colorCount`
+bounds+integer rejection, and invalid `generationMode`/`paletteMode`
+rejection), `npm run build` clean, full `npx playwright test` 39/39
+passing (covers D86-D89 together: the new `keyboard-shortcuts.spec.ts`
+and every pre-existing e2e file, including `resize-canvas.spec.ts`'s
+selector fix below). Live-checked in a running `next dev` instance:
+changed pattern size to Large, algorithm to Original, palette to DMC,
+and edges to Crisp via the real UI, confirmed the change landed in
+`localStorage`'s `cross-stitch-pattern-generator:options:v1` entry, then
+reloaded the page and confirmed via the live DOM (button classes and
+checked radios, not just re-reading storage) that all four restored
+correctly -- `sizePreset: "large"`, `generationMode: "original"`,
+`paletteMode: "dmc"`, `edgeMode: "crisp"` all showing as the active
+selection after reload.
+
+**Incidental fix bundled with this verification pass**: the new Canvas
+color `<input type="color">` (D87) made `resize-canvas.spec.ts`'s
+`page.locator('input[type="color"]')` ambiguous (two matches). Changed
+to `page.getByRole("textbox", { name: "Fill color" })`, disambiguating
+by the existing fill-color input's own accessible name rather than its
+type.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
