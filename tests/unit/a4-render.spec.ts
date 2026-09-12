@@ -137,6 +137,12 @@ describe("buildDetailRows (G-016)", () => {
     const rows = buildDetailRows(pattern, 14, "in");
     expect(Object.fromEntries(rows)["Thread"]).toBe("Cosmo");
   });
+
+  it("includes a 'Thread: Anchor' row for an Anchor-matched pattern (G-029 M3)", () => {
+    const pattern = { ...makePattern(10, 10, [0], [[0, 0, 0]]), threadBrand: "anchor" as const };
+    const rows = buildDetailRows(pattern, 14, "in");
+    expect(Object.fromEntries(rows)["Thread"]).toBe("Anchor");
+  });
 });
 
 describe("computeKeyColumns (G-016)", () => {

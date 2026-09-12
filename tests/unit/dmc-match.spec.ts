@@ -314,3 +314,56 @@ describe("applyBrandPalette with brand: 'cosmo' (G-029 M2)", () => {
     for (const color of pattern.palette) expect(color.count).toBeGreaterThan(0);
   });
 });
+
+describe("applyBrandPalette with brand: 'anchor' (G-029 M3 -- dmc-equivalence matching)", () => {
+  it("matches via the nearest real DMC thread, then relabels with its documented Anchor equivalent -- not a direct match against ANCHOR_COLORS", () => {
+    const pattern = makePattern(1, 1, [0], [[0, 0, 0]]); // exact DMC 310 Black
+    const anchor = applyBrandPalette(pattern, "anchor");
+    expect(anchor.palette[0].name).toBe("403"); // DMC 310 -> Anchor 403, widely-cited equivalence
+    expect(anchor.threadBrand).toBe("anchor");
+  });
+
+  it("uses the real matched DMC color's own RGB, not any RGB from the Anchor browsable list", () => {
+    const pattern = makePattern(1, 1, [0], [[0, 0, 0]]);
+    const anchor = applyBrandPalette(pattern, "anchor");
+    expect(anchor.palette[0].rgb).toEqual([0, 0, 0]); // DMC 310's real RGB, not a stand-in
+  });
+
+  it("merges two colors whose nearest DMC threads share the same Anchor equivalent into one palette entry", () => {
+    // A real collision found directly in the data, not assumed: DMC 469
+    // (Avocado Green, exact RGB [114,132,60]) and DMC 470 (Avocado Green -
+    // Light, exact RGB [148,171,79]) both map to Anchor 267.
+    const pattern = makePattern(3, 1, [0, 0, 1], [
+      [114, 132, 60],
+      [148, 171, 79],
+    ]);
+    const anchor = applyBrandPalette(pattern, "anchor");
+    expect(anchor.palette).toHaveLength(1);
+    expect(anchor.palette[0].name).toBe("267");
+    expect(anchor.palette[0].count).toBe(3);
+  });
+
+  it("buildPattern with paletteMode: 'anchor' produces a valid brand-matched pattern end-to-end", () => {
+    const buffer: PixelBuffer = (() => {
+      const width = 20;
+      const height = 20;
+      const data = new Uint8ClampedArray(width * height * 4);
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const [r, g, b] = x < 10 ? [0, 0, 0] : [255, 255, 255];
+          const o = (y * width + x) * 4;
+          data[o] = r;
+          data[o + 1] = g;
+          data[o + 2] = b;
+          data[o + 3] = 255;
+        }
+      }
+      return { data, width, height };
+    })();
+    const pattern = buildPattern(buffer, { longerSideStitches: 20, colorCount: 2, paletteMode: "anchor" });
+    expect(pattern.threadBrand).toBe("anchor");
+    const total = pattern.palette.reduce((sum, c) => sum + c.count, 0);
+    expect(total).toBe(20 * 20);
+    for (const color of pattern.palette) expect(color.count).toBeGreaterThan(0);
+  });
+});

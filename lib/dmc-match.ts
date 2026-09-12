@@ -74,13 +74,13 @@ export interface BrandReoptimizeContext {
  * brand-matched pattern apart reliably, without re-parsing color names or
  * depending on the UI's own transient mode selector.
  *
- * Only `brand`s whose `matching` is `"direct"` (DMC today) are
- * implemented -- a `"dmc-equivalence"` brand (Anchor, G-029 M3) needs a
- * structurally different two-step lookup (nearest DMC match, then relabel
- * via an explicit code map), not a direct nearest-match against its own
- * `colors` list; see `lib/thread-brands.ts`'s own doc comment and
- * HANDOVER.md D92's Codex critique exchange for why. Unreachable today
- * since `ThreadBrand` only has one member.
+ * Branches on `brand`'s `matching` (`lib/thread-brands.ts`): `"direct"`
+ * (DMC, Cosmo) nearest-matches straight against that brand's own `colors`;
+ * `"dmc-equivalence"` (Anchor, G-029 M3, HANDOVER.md D92/D94) always
+ * matches the nearest REAL DMC thread first, then relabels via the
+ * documented DMC-code -> Anchor-code map -- never a direct nearest-match
+ * against Anchor's own (deduplicated-approximation) `colors` list, which
+ * exists only for the UI picker (docs/anchor-colors-provenance.md).
  *
  * **Optional re-optimization (G-020 M5, HANDOVER.md D56).** Snapping can
  * shift how far each cell now sits from *its own* assigned color: the
@@ -123,11 +123,23 @@ export function applyBrandPalette(
   crispEvidenceLayer?: CrispEvidenceLayer
 ): StitchPattern {
   if (pattern.palette.length === 0) return pattern;
-  if (THREAD_BRANDS[brand].matching !== "direct") {
-    throw new Error(`"${brand}" thread matching isn't implemented yet.`);
-  }
 
-  const threadByOldIndex = pattern.palette.map((color) => nearestColorInBrand(color.rgb, brand));
+  const brandInfo = THREAD_BRANDS[brand];
+  const threadByOldIndex: ThreadColor[] =
+    brandInfo.matching === "direct"
+      ? pattern.palette.map((color) => nearestColorInBrand(color.rgb, brand))
+      : // "dmc-equivalence" (Anchor, G-029 M3): always match the nearest REAL
+        // DMC thread first (using its real, correct RGB), then relabel with
+        // that DMC code's documented equivalent in this brand -- never a
+        // direct nearest-match against `brandInfo.colors`, which is only a
+        // deduplicated approximation for the UI picker (see
+        // docs/anchor-colors-provenance.md). This is what "matched via its
+        // nearest DMC thread, not independently measured" actually means.
+        pattern.palette.map((color) => {
+          const nearestDmc = nearestColorInBrand(color.rgb, "dmc");
+          const equivalentCode = brandInfo.dmcEquivalence![nearestDmc.code];
+          return { code: equivalentCode, name: "", rgb: nearestDmc.rgb };
+        });
 
   const mergedIndexByCode = new Map<string, number>();
   let groups: Array<{ thread: ThreadColor; count: number }> = [];

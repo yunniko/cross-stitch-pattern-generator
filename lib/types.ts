@@ -157,7 +157,7 @@ export interface StitchPattern {
    * for backward compatibility with files saved before this rename;
    * nowhere else in the codebase should reference it.
    */
-  threadBrand?: "dmc" | "cosmo";
+  threadBrand?: "dmc" | "cosmo" | "anchor";
   /**
    * Set when this pattern was generated with `edgeMode: "crisp"`
    * (G-024's Crisp Edges feature; see `lib/pattern.ts`'s `EdgeMode`),

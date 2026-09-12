@@ -2003,7 +2003,9 @@ export default function Workspace() {
                         ...THREAD_BRAND_IDS.map((brand) => ({
                           mode: brand,
                           label: THREAD_BRANDS[brand].label,
-                          title: `Snaps the palette to real, buyable ${THREAD_BRANDS[brand].label} thread colors -- colors are named "code - name" (or just the code, for a brand with no published names) and similar shades may merge into one`,
+                          title: THREAD_BRANDS[brand].derivationNote
+                            ? `Snaps the palette to ${THREAD_BRANDS[brand].label} thread colors -- ${THREAD_BRANDS[brand].derivationNote}; colors are named "code - name" (or just the code, for a brand with no published names) and similar shades may merge into one`
+                            : `Snaps the palette to real, buyable ${THREAD_BRANDS[brand].label} thread colors -- colors are named "code - name" (or just the code, for a brand with no published names) and similar shades may merge into one`,
                         })),
                       ]
                     ).map(({ mode, label, title }) => (
@@ -2252,6 +2254,7 @@ export default function Workspace() {
                 <p className="text-xs text-zinc-500">
                   This pattern is in {THREAD_BRANDS[pattern.threadBrand].label} mode -- pick a real {THREAD_BRANDS[pattern.threadBrand].label}{" "}
                   thread color.
+                  {THREAD_BRANDS[pattern.threadBrand].derivationNote && ` (${THREAD_BRANDS[pattern.threadBrand].derivationNote}.)`}
                 </p>
               ) : (
                 <div className="flex items-center overflow-hidden self-start rounded border border-zinc-300 dark:border-zinc-700">
@@ -2324,6 +2327,7 @@ export default function Workspace() {
               <p className="text-xs text-zinc-500">
                 This pattern is in {THREAD_BRANDS[pattern.threadBrand].label} mode -- pick a real {THREAD_BRANDS[pattern.threadBrand].label} thread
                 color.
+                {THREAD_BRANDS[pattern.threadBrand].derivationNote && ` (${THREAD_BRANDS[pattern.threadBrand].derivationNote}.)`}
               </p>
               <input
                 type="text"

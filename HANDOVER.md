@@ -6631,6 +6631,92 @@ provenance data exactly (checked `"600"` -> `rgb(16, 17, 19)` directly
 against the DOM); `addBrandColor` and Undo both work correctly against
 a live Cosmo-matched pattern; zero console errors.
 
+**D94 — G-029 M3: Anchor palette mode, via a real DMC-equivalence
+two-step match, with an explicit Owner-approved license judgment call
+on the underlying data (2026-09-12).**
+
+**The license question, surfaced rather than resolved unilaterally.**
+Anchor has no independently-measured color data anywhere -- confirmed
+during the earlier competitive-research phase, not assumed -- so a
+DMC-code -> Anchor-code equivalence table is the only real path. The
+one real source found
+([katjackson/embroidery-color-scheme-tool](https://github.com/katjackson/embroidery-color-scheme-tool)'s
+`dmcColorChart.csv`) has **no license at all** (`license: null` via
+GitHub's own API) -- a materially weaker situation than DMC's own data
+(traces to an MIT-licensed repackaging) or Cosmo's (directly MIT). Put
+the choice to the Owner directly rather than picking silently: use it
+as a documented judgment call, drop Anchor from the goal, or spend more
+time searching for a second source. **Owner chose to use it as a
+documented judgment call**, on this project's own precedent of already
+applying the same "a plain code-to-code correspondence table is
+factual/measured data, not copyrightable creative expression" reasoning
+to DMC's own unlicensed upstream. Full reasoning, what's actually used
+(only the code pairs, never the source's RGB/description columns for
+Anchor's own values), and the residual-risk framing are all in
+`docs/anchor-colors-provenance.md` -- read that in full before touching
+this data again.
+
+**Data verified before use, not trusted blindly**: the mapping's 454
+DMC codes are the *exact same set* as this app's own `DMC_COLORS`
+(zero missing, zero extra -- checked by set comparison); spot-checked
+against independent, widely-cited community knowledge (DMC 310 Black ->
+Anchor 403, DMC 666 Bright Red -> Anchor 46 -- both match, and neither
+is just self-consistency within the one source file). Found and
+quantified a real property the design needed to handle: only 355 of the
+454 DMC codes map to a *unique* Anchor code -- 99 DMC codes share an
+Anchor code with at least one other, confirming the many-to-one
+collision risk D92's Codex critique specifically flagged.
+
+**Implementation follows the critique's exact recommendation, not a
+shortcut.** `applyBrandPalette` (`lib/dmc-match.ts`) branches on
+`THREAD_BRANDS[brand].matching`: `"dmc-equivalence"` always computes
+`nearestColorInBrand(color.rgb, "dmc")` first (the real nearest DMC
+thread, with its real correct RGB), then looks up that DMC code's
+Anchor equivalent via `dmcEquivalence` -- **never** a direct nearest-
+match against Anchor's own `colors` list, which is only a deduplicated
+approximation built for the "+Add" picker (`ANCHOR_COLORS` in
+`lib/anchor-colors.ts`: one entry per unique Anchor code, RGB from
+whichever DMC code is encountered first in `DMC_COLORS`'s own order for
+codes sharing that Anchor equivalent -- a deterministic, documented
+representative choice, not a guess). This distinction matters: a direct
+nearest-match against the deduplicated 355-entry list would compare
+against fewer, already-collapsed candidates and could silently pick a
+worse match than "true nearest DMC, then relabel" -- exactly the
+correctness gap the critique warned a naive design would have.
+
+**Disclosure, not silently presented as independent (GOALS.md G-029
+AC4).** `ThreadBrandInfo` gained an optional `derivationNote` field,
+populated only for Anchor, shown in both the Palette mode button's
+`title` tooltip and the "+Add"/color-editor panel's message text (e.g.
+"matched via each color's nearest real DMC thread, then its documented
+Anchor equivalent -- not independently measured"). Generic UI code
+checks `derivationNote`'s presence rather than hardcoding "if brand is
+anchor," so a future `"dmc-equivalence"` brand gets the same disclosure
+automatically.
+
+**Names**: same honest treatment as Cosmo (D93) -- `ANCHOR_COLORS`
+entries all have `name: ""`, never the source CSV's `description`
+column (which is the *DMC* thread's own name, not Anchor's, and would
+be actively wrong to pick for any of the 99 collision groups -- whose
+DMC description would even be "the" name?).
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full `npx
+vitest run` 575/575 passing (560 -> 575: new `anchor-colors.spec.ts`
+covering the 1:1 DMC coverage check, the two spot-checked equivalences,
+and the real 99-collision property; Anchor-specific cases added to
+`dmc-match.spec.ts` -- including a real found-in-the-data collision,
+DMC 469 and 470 both -> Anchor 267, not a fabricated example --
+`pattern-edit.spec.ts`, `a4-render.spec.ts`, `workspace-storage.spec.ts`,
+`pattern-serialize.spec.ts`; every pre-existing test from M1/M2 passed
+unmodified), `npm run build` clean, full `npx playwright test` 39/39
+passing with zero collateral changes. Live-verified in a running `next
+dev` instance: the Anchor button's tooltip shows the full disclosure
+text; regenerating with Anchor produces a real Anchor-coded legend;
+"+Add" shows the disclosure message and its picker's swatch for `"403"`
+renders `rgb(0, 0, 0)`, matching DMC 310 Black exactly; `addBrandColor`
+and Undo both work correctly against a live Anchor-matched pattern;
+zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
@@ -6748,3 +6834,35 @@ already deliberately deferred as out-of-scope in G-024. Evenweave/linen
 fabric support and a cross-program interchange export (`.oxs`) are two
 smaller gaps found. None of this was folded into any in-flight goal; if
 pursued, each should become its own `GOALS.md` entry.
+
+## Fabric/canvas-type domain research — 2026-09-12
+
+Owner follow-up on the evenweave/linen gap above: what other cross-stitch
+canvas/fabric types exist, and can finished-size estimation be extended to
+them. Domain-expert (textile/needlework) research, sourced and cited, is in
+[`docs/domain-reference-fabric-types.md`](docs/domain-reference-fabric-types.md).
+Research only — no code changed, no goal opened yet.
+
+Core finding: fabric "count" means different physical things across
+families. Aida count is blocks-per-inch (stitches-per-inch = count, what
+`lib/finished-size.ts` already assumes and correctly scopes to). Evenweave
+and linen count is threads-per-inch, conventionally stitched **over two**
+threads, so stitches-per-inch = count / 2 — e.g. 28-count evenweave over two
+= 14 spi, the same finished size as 14-count Aida. Plastic canvas,
+perforated paper, congress cloth, and water-soluble canvas are all
+block/hole-counted like Aida (spi = count, no halving). Hardanger (22-count)
+is genuinely ambiguous — both over-one and over-two are common and must be
+an explicit user choice, not a default.
+
+The dangerous naive mistake this rules out: adding an evenweave/linen count
+straight into `STANDARD_AIDA_COUNTS` without halving would silently
+understate finished size by 2x (and floss estimate by a similar factor in
+`lib/floss-estimate.ts`, whose thread-path formula is inversely
+proportional to spi, not raw count) — compounding with the standard
+"+6 inches" fabric-buying margin convention into a real wasted-fabric-
+purchase risk for a user who trusts the number. If this becomes a goal, the
+domain-correct model is two fields (`count` + `threadsPerStitch`, or
+equivalent), with a single derived `spi` value feeding both
+`finished-size.ts` and `floss-estimate.ts` — never a raw count reaching
+either. Not yet scoped as a `GOALS.md` entry; Owner has not decided whether
+to pursue it.

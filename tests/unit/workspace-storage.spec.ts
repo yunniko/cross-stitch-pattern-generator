@@ -181,6 +181,11 @@ describe("workspace-storage", () => {
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, paletteMode: "cosmo" }));
       expect(loadWorkspaceOptions().paletteMode).toBe("cosmo");
     });
+
+    it("accepts 'anchor' as a valid paletteMode (G-029 M3)", () => {
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, paletteMode: "anchor" }));
+      expect(loadWorkspaceOptions().paletteMode).toBe("anchor");
+    });
   });
 
   describe("loadSavedProject / saveProject", () => {

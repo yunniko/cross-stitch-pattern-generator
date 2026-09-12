@@ -179,6 +179,13 @@ describe("editColorToBrandColor", () => {
     expect(edited.palette[0].rgb).toEqual([16, 17, 19]);
     expect(edited.palette[0].name).toBe("600");
   });
+
+  it("changes the target color to an Anchor thread by its Anchor code, renamed as just the bare code (G-029 M3)", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    const edited = editColorToBrandColor(pattern, 0, "403", "anchor"); // Anchor equivalent of DMC 310 Black
+    expect(edited.palette[0].rgb).toEqual([0, 0, 0]);
+    expect(edited.palette[0].name).toBe("403");
+  });
 });
 
 describe("addColor", () => {
@@ -233,6 +240,19 @@ describe("addBrandColor", () => {
   it("rejects a code that isn't a real Cosmo color", () => {
     const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
     expect(() => addBrandColor(pattern, "NOT-A-REAL-CODE", "cosmo")).toThrow();
+  });
+
+  it("appends a new zero-count Anchor color by its Anchor code, named as just the bare code (G-029 M3)", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    const withNew = addBrandColor(pattern, "403", "anchor");
+    const added = withNew.palette[1];
+    expect(added.rgb).toEqual([0, 0, 0]);
+    expect(added.name).toBe("403");
+  });
+
+  it("rejects a code that isn't a real Anchor color", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    expect(() => addBrandColor(pattern, "NOT-A-REAL-CODE", "anchor")).toThrow();
   });
 });
 

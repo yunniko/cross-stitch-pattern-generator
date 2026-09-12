@@ -518,22 +518,22 @@ restructured into this project's usual milestone/check-in shape):
   per the existing listed-order convention until the Owner says
   otherwise.
 
-### G-023 · Rust sidecar for the color-quantization/ICM hot path — SUPERSEDED by G-030 (2026-09-12)
-- **Superseded, not done and not abandoned for no reason.** G-030 (drafted
-  2026-09-12, Owner decision to make the app public/paid) moves the
-  *entire* generation pipeline server-side for every user, free and paid
-  alike -- a strict superset of this goal's narrower "just the hot path,
-  just for latency" scope, and it resolves the exact privacy-framing
-  objection the critique below raised (a stealth partial upload) by making
-  full server-side upload an explicit, disclosed part of a public product
-  instead. This goal's own engineering guidance (versioned binary payload,
-  Route Handler not Server Action, bounded worker pool, internal-network-
-  only container, observability requirements) still applies directly to
-  G-030's M2 and is referenced from there rather than repeated. Left in
-  place below for its own record -- the Codex critique's algorithmic
-  finding (candidate-set reduction) is real and language-agnostic, worth
-  doing regardless of which goal ships the server move.
-- **What (original scope, now superseded):** Move the compute-heavy stage
+### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT, possibly relevant to G-030 (2026-09-12)
+- **Not superseded -- correcting an earlier overreach.** An earlier pass
+  at this file marked this goal "superseded by G-030" on the assumption
+  that G-030 would definitely move the entire generation pipeline server-
+  side. G-030 has since been pulled back to a vague, far-future "social
+  ecosystem" placeholder with no defined architecture yet (see its own
+  entry) -- it's no longer safe to assume this goal is subsumed by
+  anything. Left as its own independent DRAFT/backlog item, exactly as
+  the Owner originally parked it ("maybe one day"). If G-030 eventually
+  does involve server-side generation, this goal's own engineering
+  guidance (versioned binary payload, Route Handler not Server Action,
+  bounded worker pool, internal-network-only container, observability)
+  and its Codex-critique findings (the candidate-set reduction is real
+  and language-agnostic regardless of where it runs) are directly
+  reusable -- but that's a "when we get there" note, not a decided plan.
+- **What:** Move the compute-heavy stage
   of the pattern pipeline (k-means
   in OKLab + the ICM/Potts local optimizer, `lib/quantize.ts` +
   `lib/local-optimizer.ts`) out of the browser and into a separate Rust
@@ -1100,9 +1100,13 @@ milestone's own result justifies continuing):
   the fetched-and-verified data, the honest no-descriptive-names gap
   (empty `name`, not a fabricated one), a real pre-existing bug this
   surfaced and fixed in `splitThreadCodeName`, and verification detail.
-- [ ] M3 -- Anchor mode: DMC-equivalence matching/relabeling, the in-app
+- [x] M3 -- Anchor mode: DMC-equivalence matching/relabeling, the in-app
   "derived from DMC" disclosure, `docs/anchor-colors-provenance.md`,
-  wired into M1's architecture, unit tests, UI wiring.
+  wired into M1's architecture, unit tests, UI wiring. **Done
+  (2026-09-12) -- see HANDOVER.md D94** for the license judgment call
+  put to and approved by the Owner (the only real mapping source has no
+  license at all), the verified 1:1 DMC coverage and real 99-collision
+  property, and the two-step nearest-DMC-then-relabel implementation.
 - [ ] M4 -- Full regression + real-world verification: full unit/e2e
   suite across all three brand modes plus a backward-compat check
   against a pattern saved before this goal (old `dmcMode: true` JSON
@@ -1162,6 +1166,49 @@ milestone's own result justifies continuing):
   and a real pre-existing `splitThreadCodeName` bug this surfaced and
   fixed. 560/560 unit, 39/39 e2e, clean tsc/eslint/build. Starting M3
   (Anchor) next.
+- 2026-09-12 -- M3 complete. Anchor's only real mapping source
+  (katjackson/embroidery-color-scheme-tool) has no license at all --
+  surfaced to the Owner directly (use as a documented judgment call /
+  drop Anchor / search for a second source) rather than resolved
+  unilaterally; Owner approved using it, documented in
+  `docs/anchor-colors-provenance.md`. Data verified: exact 1:1 coverage
+  against `DMC_COLORS`, spot-checked against independently-known
+  DMC↔Anchor equivalences (310->403, 666->46), and a real 99-collision
+  property found and handled (not assumed away). Implemented as the
+  real two-step nearest-DMC-then-relabel match the D92 critique called
+  for, with an in-app disclosure. See HANDOVER.md D94. 575/575 unit,
+  39/39 e2e, clean tsc/eslint/build. Starting M4 (full regression +
+  real-world verification) next.
+
+### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
+- **What:** Eventually make the app public, built around **a social
+  ecosystem** (community/sharing features -- exact shape not yet defined:
+  could include public pattern galleries, profiles, following, comments,
+  or similar) rather than a plain paywall-on-exports model. Owner
+  explicitly corrected an earlier draft of this goal that jumped straight
+  to a detailed "server-side generation + paid export tiers" plan --
+  **that plan is withdrawn**, not just superseded; the real direction is
+  the social ecosystem, and "other details will be defined later"
+  (Owner's own words, 2026-09-12).
+- **Why:** Owner is exploring making the app public and building a
+  business around it, but this is explicitly **a plan for very later**,
+  not something to scope or sequence now.
+- **Status:** Intentionally not planned in detail -- no acceptance
+  criteria, no milestones, per the Owner's own "very later, details
+  defined later" framing. This entry exists so the intent isn't lost
+  between sessions, not to commit to any architecture yet. Do not expand
+  this into a full plan without an explicit Owner go-ahead to start
+  planning it for real.
+- **One durable technical fact worth keeping regardless of eventual
+  shape** (verified while a fuller version of this goal was briefly
+  drafted, then withdrawn): `buildPattern` (`lib/pattern.ts`) and
+  everything it calls already take/return plain typed-array buffers with
+  zero DOM dependency (`lib/pattern.worker.ts` is just a thin
+  `postMessage` shim around it) -- so if a future version of this goal
+  ever does need server-side generation, the existing TypeScript pipeline
+  can run in a Node server context unmodified, without needing G-023's
+  Rust work first. Not a decision, just a fact worth not re-deriving
+  later.
 
 ## Completed goals
 
