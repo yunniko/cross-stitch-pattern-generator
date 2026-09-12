@@ -71,6 +71,17 @@ export interface A4Layout {
   pageHeightPx: number;
   marginPx: number;
   cellSizePx: number;
+  /**
+   * The DPI this layout's own pixel fields were resolved at (defaults to
+   * `PRINT_DPI`) -- carried on the layout itself so a renderer's own
+   * internal `mmToPx(...)` calls for font sizes/row heights/etc (not
+   * derived from `calculateA4Layout`'s own fields) can stay consistent with
+   * whatever DPI the caller actually requested, instead of silently
+   * defaulting to 300 regardless (a real bug this field exists to close --
+   * caught by a Codex design critique before the PDF exporter, G-026 M2,
+   * became the first caller to ever request a non-default DPI).
+   */
+  dpi: number;
   overlapCells: OverlapCells;
   /** Cells that fit across/down one page's printable area, before clipping to the pattern's own size. */
   cellsPerPageX: number;
@@ -168,6 +179,7 @@ function layoutForOrientation(
     cellsPerPageY,
     gridOriginXPx,
     gridOriginYPx,
+    dpi,
   };
 }
 

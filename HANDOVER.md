@@ -5450,6 +5450,169 @@ clean. No e2e run needed — new module, not imported by any app page
 yet. Not deployed — nothing shippable yet (no UI wiring, that's M3).
 Continuing to M2 (the real exporter) next.
 
+**D74 — G-026 M2: the real PDF exporter, built by reusing the existing
+A4 canvas/PNG page-drawing functions unmodified through a small adapter
+(2026-09-12, same standing "continue without confirmation... deploy and
+push after each stage" instruction as D65-D73).**
+
+**Codex critique before implementing (this project's own standing
+practice for important decisions)**: sent the design question — reuse
+`lib/a4-render.ts`'s already-shipped, already-tested page-drawing
+functions for the PDF path (a "canvas-shim adapter") vs. write a
+parallel, independent PDF-drawing implementation — to Codex before
+writing any code. Codex agreed the adapter approach was right ("Option
+B would recreate precisely the maintenance risk documented in D11") but
+found three concrete, real problems in the plan as first proposed, all
+verified independently before acting on them (never trusted blind, per
+Quality):
+
+1. **A real, pre-existing DPI bug in `lib/a4-render.ts`**: every
+   internal `mmToPx(...)` call in that file omitted the `dpi` argument,
+   silently defaulting to `PRINT_DPI` (300) regardless of what DPI
+   `calculateA4Layout` was actually given. Dormant today only because
+   every existing caller always uses the 300 DPI default — confirmed by
+   rereading the file myself. Fixed by adding a `dpi: number` field to
+   `A4Layout` itself (`lib/a4-layout.ts`, populated from the same `dpi`
+   already resolved inside `calculateA4Layout`) and threading
+   `layout.dpi` through every `mmToPx` call in `a4-render.ts`, plus a
+   new optional `dpi` parameter on `computeKeyColumns` (defaulting to
+   `PRINT_DPI` so the existing unit test calling it with two arguments
+   keeps its exact original meaning).
+2. **A real pdf-lib 1.17.1 bug in `PDFFont.heightAtSize(size, {descender:
+   false})`**: verified directly (not just trusted) with a throwaway
+   script against the project's own bundled `DejaVuSans.ttf` — at 12pt
+   it returns `8.17275` when the geometrically correct ascent-only
+   height is `11.1387` (full height with descender, `13.96875`, IS
+   correct). Root cause per Codex: the function mixes 1000-unit-scaled
+   and raw-font-unit quantities internally. Fixed by never calling that
+   method for baseline math — `lib/pdf-canvas-adapter.ts` instead takes
+   a small `FontMetricsSource` (`{ascent, descent, unitsPerEm}`) read
+   directly from `@pdf-lib/fontkit`'s own `create(fontBytes)` result,
+   the same real values `heightAtSize(size,{descender:true})` (the
+   *correct* call) is independently confirmed to agree with.
+3. **A real TypeScript variance footgun in the interface design**: the
+   first draft narrowed `fillStyle`/`strokeStyle` to plain `string`, but
+   a real `CanvasRenderingContext2D`'s `fillStyle` is
+   `string | CanvasGradient | CanvasPattern` — Codex found (and I
+   independently re-verified with a standalone `tsc --strict` probe)
+   that this narrower type is genuinely NOT structurally assignable
+   from the native type, breaking the whole "real ctx satisfies the
+   interface for free" premise. Fixed by keeping every member of the
+   new `ChartDrawingContext` interface (`lib/chart-drawing-context.ts`)
+   typed *exactly* as the native DOM type (never narrowed) — re-verified
+   with the same standalone probe that a real `CanvasRenderingContext2D`
+   now satisfies it with zero cast, so every existing browser call site
+   (the live interactive editor canvas, the on-screen chart, the A4
+   PNG/ZIP export) needed **zero changes** to keep compiling and
+   working.
+
+**Scope cuts made deliberately, not accidentally**: (a) no bold PDF font
+face — only regular DejaVu Sans is embedded; `ChartDrawingContext.font`
+strings requesting `bold` still render at regular weight in the PDF
+(cosmetic only — headings/table-header emphasis is lost, but Pattern
+Keeper's actual requirements, grid detection and symbol-as-text search,
+don't depend on font weight). (b) A few small canvas-pixel-calibrated
+constants (`LEGIBILITY_FLOOR_PX`, the `-4`/`+1` label-offset nudges in
+`drawGlobalCoordinateNumbers`/`drawChart`) were **not** rescaled for
+72-DPI/points — they were calibrated in D7's domain-expert review at
+300 DPI's physical meaning, and rescaling every such constant was out of
+scope for this milestone. Checked they don't cause a regression at the
+actual default print settings (`DEFAULT_CELL_SIZE_MM=2.75` resolves to
+8pt at 72 DPI, safely above the 6-unit floor either way) but the exact
+visual spacing/legibility margin is not identical to the 300-DPI PNG
+export — a known, minor, logged cosmetic gap, not a functional one.
+
+**`lib/pdf-canvas-adapter.ts`'s `PdfCanvasAdapter`** implements
+`ChartDrawingContext` against a real `PDFPage`+`PDFFont`, deliberately
+bounded to exactly what the reused functions actually do (verified by
+reading every call site first, not guessed): a 2D affine transform
+stack for `translate`/`rotate`/`save`/`restore` (canvas's own
+right-multiply composition order, matching real `ctx.transform`
+semantics); `beginPath`/`moveTo`/`lineTo`/`stroke` accepted only as
+"exactly one straight two-point line," throwing otherwise;
+`fillRect`/`strokeRect` throwing if the current transform has any
+rotation (none of the reused functions ever draw a rotated rect); solid
+`#hex`/`rgb()`/`rgba()` color strings only, throwing for a
+gradient/pattern. Text position/rotation math: horizontal offset from
+`textAlign` via `font.widthOfTextAtSize`, vertical offset from
+`textBaseline` via the real `ascent`/`descent` (not the buggy
+`heightAtSize`), both applied in local (pre-transform) space before the
+CTM, then the whole scene's y-axis is flipped (`pdfY = pageHeight -
+canvasY`) to go from canvas's top-down convention to PDF's bottom-up
+one — which also negates the sense of any accumulated rotation, so a
+canvas `rotate(-Math.PI/2)` (the vertical "OVERLAP" band labels in
+`drawOverlapBands`) must become PDF `rotate(+90deg)` to look the same.
+This exact sign convention was verified empirically against a minimal
+probe (not assumed from the general flip-negates-rotation argument
+alone) before being encoded, and is asserted directly in
+`tests/unit/pdf-canvas-adapter.spec.ts` against `pdfjs-dist`'s own
+reported per-glyph transform matrix.
+
+**Shared-function refactor, not a fork**: `lib/render.ts`'s `drawChart`/
+`drawGridLines`/`truncateToWidth` and `lib/a4-render.ts`'s
+`renderA4GridPage`/`renderA4LegendPage`/`renderA4InfoPages` were each
+split into a pure `drawA4GridPage`/`drawA4LegendPage`/
+`drawInfoPage1`+`drawInfoContinuationPage` (taking a `ChartDrawingContext`
+and drawing onto it, no canvas allocation) plus a thin canvas-allocating
+wrapper that keeps the exported function's original signature/behavior
+identical for every existing caller. `renderA4InfoPages`'s pagination
+math was further extracted into a pure, exported `planInfoPages` so the
+PDF exporter can plan its own page count up front (it must call
+`doc.addPage` once per page, unlike the canvas path's array-of-canvases
+return) using the *exact* same math the PNG export already uses.
+
+**New `buildPatternKeeperPdf`** (`lib/pattern-keeper-pdf.ts`): calls
+`calculateA4Layout(..., {dpi: 72})`, creates one `PDFDocument`, and
+draws one grid page per `layout.pages` entry, one simple-legend page,
+and the extended-legend/color-key page(s) — each via a fresh
+`PdfCanvasAdapter` wrapping a new `doc.addPage(...)` — using the exact
+functions above. `fontBytes` is passed in (not read from disk inside
+the function), matching M1's `buildSpikePdf`'s own contract, so it works
+identically from a browser `fetch` and from a test's `fs.readFileSync`.
+
+**A genuine, reproducible test-infra fix along the way**: running the
+full suite together (not each file alone) intermittently timed out
+(default 5000ms) on whichever `pdfjs-dist`-dependent spec file's worker
+warmed up last — reproduced twice, with the *specific* failing file
+rotating between runs (matching this project's own established
+"transient resource contention, not a regression" diagnostic pattern
+from the e2e flakiness seen at D72), but now caused directly by this
+milestone adding a second heavy `pdfjs-dist`-based spec file. Fixed by
+raising `vitest.config.ts`'s `testTimeout` to 15000ms (each file still
+runs in under a second in isolation) rather than ignoring or
+sequentially-forcing the suite.
+
+**Verified**: `npx tsc --noEmit` clean; `npx eslint .` clean; full `npx
+vitest run` 500/500 passing (53 files, +2 new — `pdf-canvas-adapter.spec.ts`
+and the extended `pattern-keeper-pdf.spec.ts`), re-run twice to confirm
+the timeout fix actually holds; `npm run build` clean. Ran the **live
+e2e suite** for the two file families this refactor could have broken —
+`a4-export.spec.ts` (both color and B&W ZIP export) and
+`editing.spec.ts`/`generate-pattern.spec.ts` (the live interactive
+editor canvas, which also goes through the now-retyped `drawChart`) —
+all 12 passed, confirming zero regression to the already-shipped,
+already-deployed canvas/PNG path. New test coverage specifically for
+the PDF path: `PdfCanvasAdapter`'s rotation/alignment/baseline math
+against `pdfjs-dist`'s own reported transform (not eyeballed), its
+bounded-contract guards (rotated rect / multi-segment path / gradient /
+unrecognized font string all throw), a `drawA4LegendPage` integration
+test, and a full-pipeline test building a real PDF from a pattern using
+all 100 real symbols, checking every symbol is extractable **from the
+grid page specifically** (not just the legend, which would hide an
+actual grid-drawing gap) and that mm-based sizing resolves at 72 DPI
+(this last test is a direct regression guard for problem 1 above — it
+would have caught the original DPI bug immediately, since a 300-DPI
+title font size is roughly 4x the correct 72-DPI one).
+
+**Not done in this milestone**: UI wiring (M3), real Pattern Keeper
+import verification including whether the µ/μ caveat (D73) matters in
+practice (M4), and the bold-font/legibility-constant cosmetic gaps noted
+above (not currently planned as their own milestone — worth a follow-up
+note if the Owner wants pixel-parity with the PNG export rather than
+"functionally equivalent, visually close"). Not deployed — no UI wiring
+yet, matching M1's own "nothing shippable" precedent. Continuing to M3
+next.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

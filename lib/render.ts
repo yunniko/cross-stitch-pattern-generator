@@ -1,3 +1,4 @@
+import type { ChartDrawingContext } from "./chart-drawing-context";
 import { luminance, rgbToHex } from "./color";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, formatFinishedSize, type SizeUnit } from "./finished-size";
 import { formatSkeinEstimate } from "./floss-estimate";
@@ -167,7 +168,7 @@ export function renderNavigatorPixels(pattern: StitchPattern): Uint8ClampedArray
 }
 
 export function drawChart(
-  ctx: CanvasRenderingContext2D,
+  ctx: ChartDrawingContext,
   pattern: StitchPattern,
   mode: RenderMode,
   cellSize: number,
@@ -212,7 +213,7 @@ export function drawChart(
 }
 
 /** Shared by `drawChart` and `drawChartOutline` -- gridline weight (every 5th/10th heavier) and spacing, independent of what (if anything) is drawn underneath. */
-function drawGridLines(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, cellSize: number) {
+function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: number, y1: number, cellSize: number) {
   const minorWidth = Math.max(1, Math.round(cellSize * MINOR_LINE_RATIO));
   const mediumWidth = Math.max(1, Math.round(cellSize * MEDIUM_LINE_RATIO));
   const majorWidth = Math.max(1, Math.round(cellSize * MAJOR_LINE_RATIO));
@@ -383,7 +384,7 @@ function drawHeader(ctx: CanvasRenderingContext2D, pattern: StitchPattern, aidaC
 }
 
 /** Shortens text with a trailing ellipsis if it doesn't fit maxWidth in the context's current font -- names from the reference list have no fixed length cap. */
-export function truncateToWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+export function truncateToWidth(ctx: ChartDrawingContext, text: string, maxWidth: number): string {
   if (ctx.measureText(text).width <= maxWidth) return text;
   let low = 0;
   let high = text.length;

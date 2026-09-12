@@ -1,6 +1,7 @@
+import type { ChartDrawingContext } from "./chart-drawing-context";
 import { luminance, rgbToHex } from "./color";
 import type { A4Layout, PageRange } from "./a4-layout";
-import { mmToPx } from "./a4-layout";
+import { mmToPx, PRINT_DPI } from "./a4-layout";
 import { formatFinishedSize, type SizeUnit } from "./finished-size";
 import { estimateSkeins } from "./floss-estimate";
 import { drawChart, FONT_STACK, GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX, truncateToWidth, type RenderMode } from "./render";
@@ -39,7 +40,7 @@ export function overlapSidesForPage(page: PageRange, layout: A4Layout): OverlapS
 }
 
 function drawOverlapBands(
-  ctx: CanvasRenderingContext2D,
+  ctx: ChartDrawingContext,
   page: PageRange,
   layout: A4Layout,
   sides: OverlapSides,
@@ -57,7 +58,7 @@ function drawOverlapBands(
 
   if (!sides.left && !sides.top && !sides.right && !sides.bottom) return;
 
-  const fontPx = mmToPx(OVERLAP_LABEL_FONT_MM);
+  const fontPx = mmToPx(OVERLAP_LABEL_FONT_MM, layout.dpi);
   ctx.fillStyle = "#7a5200";
   ctx.font = `bold ${fontPx}px ${FONT_STACK}`;
   ctx.textBaseline = "middle";
@@ -89,10 +90,10 @@ function drawOverlapBands(
 }
 
 /** Column numbers along the page's own top edge, row numbers along its own left edge -- always the pattern's *global* coordinates, labeled every 10 stitches, so a page starting at stitch 70 still reads "70, 80, 90...", not "0, 10, 20...". */
-function drawGlobalCoordinateNumbers(ctx: CanvasRenderingContext2D, page: PageRange, layout: A4Layout) {
+function drawGlobalCoordinateNumbers(ctx: ChartDrawingContext, page: PageRange, layout: A4Layout) {
   if (layout.cellSizePx < LEGIBILITY_FLOOR_PX) return;
 
-  const fontPx = mmToPx(NUMBER_FONT_MM);
+  const fontPx = mmToPx(NUMBER_FONT_MM, layout.dpi);
   ctx.fillStyle = GRID_LINE_COLOR;
   ctx.font = `${fontPx}px ${FONT_STACK}`;
 
@@ -115,8 +116,8 @@ function drawGlobalCoordinateNumbers(ctx: CanvasRenderingContext2D, page: PageRa
   }
 }
 
-function drawPageCaption(ctx: CanvasRenderingContext2D, page: PageRange, pageIndex: number, totalPages: number, layout: A4Layout) {
-  const fontPx = mmToPx(CAPTION_FONT_MM);
+function drawPageCaption(ctx: ChartDrawingContext, page: PageRange, pageIndex: number, totalPages: number, layout: A4Layout) {
+  const fontPx = mmToPx(CAPTION_FONT_MM, layout.dpi);
   ctx.fillStyle = "#111111";
   ctx.font = `${fontPx}px ${FONT_STACK}`;
   ctx.textAlign = "left";
@@ -133,22 +134,24 @@ function drawPageCaption(ctx: CanvasRenderingContext2D, page: PageRange, pageInd
  * every cell/symbol/color pixel (Owner's spec, requirement 15); everything
  * else here is page-specific chrome that `drawChart` has no notion of.
  */
-export function renderA4GridPage(
+/**
+ * The actual drawing logic for one A4 grid page, factored out from
+ * `renderA4GridPage` (which just allocates a canvas around this) so G-026
+ * M2's PDF exporter can call it unmodified against a `PdfCanvasAdapter`
+ * instead -- one implementation of this page's content, never two that
+ * could drift apart (HANDOVER.md D11/D74).
+ */
+export function drawA4GridPage(
+  ctx: ChartDrawingContext,
   pattern: StitchPattern,
   mode: RenderMode,
   layout: A4Layout,
   page: PageRange,
   pageIndex: number,
   totalPages: number
-): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
-  canvas.width = layout.pageWidthPx;
-  canvas.height = layout.pageHeightPx;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("2D canvas context unavailable");
-
+): void {
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, layout.pageWidthPx, layout.pageHeightPx);
 
   drawPageCaption(ctx, page, pageIndex, totalPages, layout);
 
@@ -163,6 +166,23 @@ export function renderA4GridPage(
   drawGlobalCoordinateNumbers(ctx, page, layout);
 
   ctx.restore();
+}
+
+export function renderA4GridPage(
+  pattern: StitchPattern,
+  mode: RenderMode,
+  layout: A4Layout,
+  page: PageRange,
+  pageIndex: number,
+  totalPages: number
+): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = layout.pageWidthPx;
+  canvas.height = layout.pageHeightPx;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2D canvas context unavailable");
+
+  drawA4GridPage(ctx, pattern, mode, layout, page, pageIndex, totalPages);
 
   return canvas;
 }
@@ -184,28 +204,23 @@ const LEGEND_DETAIL_FONT_MM = 2.6;
  * page set is self-contained without needing the separately-downloaded
  * full-chart PNG for reference. The grid pages themselves carry no legend.
  */
-export function renderA4LegendPage(pattern: StitchPattern, layout: A4Layout): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
-  canvas.width = layout.pageWidthPx;
-  canvas.height = layout.pageHeightPx;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("2D canvas context unavailable");
-
+/** Drawing logic for the simple legend page, factored out for the same reason as `drawA4GridPage` -- see its own doc comment. */
+export function drawA4LegendPage(ctx: ChartDrawingContext, pattern: StitchPattern, layout: A4Layout): void {
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, layout.pageWidthPx, layout.pageHeightPx);
 
-  const titleFontPx = mmToPx(LEGEND_TITLE_FONT_MM);
+  const titleFontPx = mmToPx(LEGEND_TITLE_FONT_MM, layout.dpi);
   ctx.fillStyle = "#111111";
   ctx.font = `bold ${titleFontPx}px ${FONT_STACK}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
   ctx.fillText("Legend", layout.marginPx, layout.marginPx);
 
-  const swatchPx = mmToPx(LEGEND_SWATCH_MM);
-  const rowHeightPx = mmToPx(LEGEND_ROW_HEIGHT_MM);
-  const columnWidthPx = mmToPx(LEGEND_COLUMN_WIDTH_MM);
-  const nameFontPx = mmToPx(LEGEND_NAME_FONT_MM);
-  const detailFontPx = mmToPx(LEGEND_DETAIL_FONT_MM);
+  const swatchPx = mmToPx(LEGEND_SWATCH_MM, layout.dpi);
+  const rowHeightPx = mmToPx(LEGEND_ROW_HEIGHT_MM, layout.dpi);
+  const columnWidthPx = mmToPx(LEGEND_COLUMN_WIDTH_MM, layout.dpi);
+  const nameFontPx = mmToPx(LEGEND_NAME_FONT_MM, layout.dpi);
+  const detailFontPx = mmToPx(LEGEND_DETAIL_FONT_MM, layout.dpi);
 
   const gridTop = layout.marginPx + titleFontPx * 1.8;
   const printableWidthPx = layout.pageWidthPx - 2 * layout.marginPx;
@@ -229,8 +244,8 @@ export function renderA4LegendPage(pattern: StitchPattern, layout: A4Layout): HT
     ctx.textBaseline = "middle";
     ctx.fillText(color.symbol, x + swatchPx / 2, y + swatchPx / 2 + 1);
 
-    const textX = x + swatchPx + mmToPx(2);
-    const maxTextWidth = columnWidthPx - swatchPx - mmToPx(4);
+    const textX = x + swatchPx + mmToPx(2, layout.dpi);
+    const maxTextWidth = columnWidthPx - swatchPx - mmToPx(4, layout.dpi);
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
 
@@ -242,6 +257,16 @@ export function renderA4LegendPage(pattern: StitchPattern, layout: A4Layout): HT
     ctx.font = `${detailFontPx}px ${FONT_STACK}`;
     ctx.fillText(`${rgbToHex(color.rgb)} · ${color.count} sts`, textX, y + swatchPx / 2 + nameFontPx * 0.6);
   });
+}
+
+export function renderA4LegendPage(pattern: StitchPattern, layout: A4Layout): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = layout.pageWidthPx;
+  canvas.height = layout.pageHeightPx;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2D canvas context unavailable");
+
+  drawA4LegendPage(ctx, pattern, layout);
 
   return canvas;
 }
@@ -312,10 +337,10 @@ export function buildDetailRows(pattern: StitchPattern, aidaCount: number, sizeU
 }
 
 /** Two-column label/value table with a full grid (outer border + row/column rules) -- the details block at the top of page 1. */
-function drawDetailsTable(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, rows: Array<[string, string]>): number {
-  const rowHeightPx = mmToPx(INFO_ROW_HEIGHT_MM);
-  const labelColWidthPx = mmToPx(INFO_LABEL_COLUMN_MM);
-  const labelFontPx = mmToPx(INFO_LABEL_FONT_MM);
+function drawDetailsTable(ctx: ChartDrawingContext, x: number, y: number, width: number, rows: Array<[string, string]>, dpi: number): number {
+  const rowHeightPx = mmToPx(INFO_ROW_HEIGHT_MM, dpi);
+  const labelColWidthPx = mmToPx(INFO_LABEL_COLUMN_MM, dpi);
+  const labelFontPx = mmToPx(INFO_LABEL_FONT_MM, dpi);
   const totalHeight = rows.length * rowHeightPx;
 
   rows.forEach(([label, value], i) => {
@@ -325,10 +350,10 @@ function drawDetailsTable(ctx: CanvasRenderingContext2D, x: number, y: number, w
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#555555";
     ctx.font = `${labelFontPx}px ${FONT_STACK}`;
-    ctx.fillText(label, x + mmToPx(2), midY);
+    ctx.fillText(label, x + mmToPx(2, dpi), midY);
     ctx.fillStyle = "#111111";
     ctx.font = `bold ${labelFontPx}px ${FONT_STACK}`;
-    ctx.fillText(value, x + labelColWidthPx + mmToPx(2), midY);
+    ctx.fillText(value, x + labelColWidthPx + mmToPx(2, dpi), midY);
   });
 
   ctx.strokeStyle = GRID_LINE_COLOR;
@@ -363,12 +388,12 @@ export interface KeyColumns {
   totalWidth: number;
 }
 
-export function computeKeyColumns(printableWidthPx: number, isDmc: boolean): KeyColumns {
-  const symbolW = mmToPx(12);
-  const codeW = isDmc ? mmToPx(18) : 0;
-  const stitchW = mmToPx(28);
-  const skeinW = mmToPx(28);
-  const nameW = Math.max(mmToPx(30), printableWidthPx - symbolW - codeW - stitchW - skeinW);
+export function computeKeyColumns(printableWidthPx: number, isDmc: boolean, dpi: number = PRINT_DPI): KeyColumns {
+  const symbolW = mmToPx(12, dpi);
+  const codeW = isDmc ? mmToPx(18, dpi) : 0;
+  const stitchW = mmToPx(28, dpi);
+  const skeinW = mmToPx(28, dpi);
+  const nameW = Math.max(mmToPx(30, dpi), printableWidthPx - symbolW - codeW - stitchW - skeinW);
 
   let x = 0;
   const symbolX = x;
@@ -387,17 +412,18 @@ export function computeKeyColumns(printableWidthPx: number, isDmc: boolean): Key
 
 /** Draws the "Color key" table's header row plus as many `colors` rows as given, with a full grid, starting at `(x, yStart)`. Returns the y just past the drawn block. */
 function drawKeyTableBlock(
-  ctx: CanvasRenderingContext2D,
+  ctx: ChartDrawingContext,
   x: number,
   yStart: number,
   cols: KeyColumns,
   isDmc: boolean,
   colors: readonly PaletteColor[],
-  aidaCount: number
+  aidaCount: number,
+  dpi: number
 ): number {
-  const headerHeightPx = mmToPx(KEY_HEADER_ROW_HEIGHT_MM);
-  const rowHeightPx = mmToPx(KEY_ROW_HEIGHT_MM);
-  const headerFontPx = mmToPx(KEY_HEADER_FONT_MM);
+  const headerHeightPx = mmToPx(KEY_HEADER_ROW_HEIGHT_MM, dpi);
+  const rowHeightPx = mmToPx(KEY_ROW_HEIGHT_MM, dpi);
+  const headerFontPx = mmToPx(KEY_HEADER_FONT_MM, dpi);
   const totalHeight = headerHeightPx + colors.length * rowHeightPx;
 
   // Header row background + text.
@@ -411,7 +437,7 @@ function drawKeyTableBlock(
   ctx.fillText("Symbol", x + cols.symbolX + cols.symbolW / 2, headerMidY);
   if (isDmc) ctx.fillText("Color #", x + cols.codeX + cols.codeW / 2, headerMidY);
   ctx.textAlign = "left";
-  ctx.fillText("Color name", x + cols.nameX + mmToPx(1.5), headerMidY);
+  ctx.fillText("Color name", x + cols.nameX + mmToPx(1.5, dpi), headerMidY);
   ctx.textAlign = "center";
   ctx.fillText("Stitch count", x + cols.stitchX + cols.stitchW / 2, headerMidY);
   ctx.fillText("Skein count", x + cols.skeinX + cols.skeinW / 2, headerMidY);
@@ -421,7 +447,7 @@ function drawKeyTableBlock(
     const rowTop = yStart + headerHeightPx + i * rowHeightPx;
     const midY = rowTop + rowHeightPx / 2;
 
-    const swatchSize = Math.min(cols.symbolW - mmToPx(2), rowHeightPx - mmToPx(2));
+    const swatchSize = Math.min(cols.symbolW - mmToPx(2, dpi), rowHeightPx - mmToPx(2, dpi));
     const swatchX = x + cols.symbolX + (cols.symbolW - swatchSize) / 2;
     const swatchY = rowTop + (rowHeightPx - swatchSize) / 2;
     ctx.fillStyle = `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`;
@@ -444,9 +470,9 @@ function drawKeyTableBlock(
     }
 
     ctx.fillStyle = "#111111";
-    ctx.font = `${mmToPx(KEY_NAME_FONT_MM)}px ${FONT_STACK}`;
+    ctx.font = `${mmToPx(KEY_NAME_FONT_MM, dpi)}px ${FONT_STACK}`;
     ctx.textAlign = "left";
-    ctx.fillText(truncateToWidth(ctx, name, cols.nameW - mmToPx(3)), x + cols.nameX + mmToPx(1.5), midY);
+    ctx.fillText(truncateToWidth(ctx, name, cols.nameW - mmToPx(3, dpi)), x + cols.nameX + mmToPx(1.5, dpi), midY);
 
     ctx.font = `${headerFontPx}px ${FONT_STACK}`;
     ctx.textAlign = "center";
@@ -478,9 +504,9 @@ function drawKeyTableBlock(
   return yStart + totalHeight;
 }
 
-function drawPageFooter(ctx: CanvasRenderingContext2D, layout: A4Layout, pageIndex: number, totalPages: number) {
+function drawPageFooter(ctx: ChartDrawingContext, layout: A4Layout, pageIndex: number, totalPages: number) {
   if (totalPages <= 1) return;
-  const fontPx = mmToPx(OVERLAP_LABEL_FONT_MM);
+  const fontPx = mmToPx(OVERLAP_LABEL_FONT_MM, layout.dpi);
   ctx.fillStyle = "#888888";
   ctx.font = `${fontPx}px ${FONT_STACK}`;
   ctx.textAlign = "right";
@@ -495,6 +521,115 @@ export interface A4InfoPageOptions {
 }
 
 /**
+ * The pure pagination math behind the extended legend / info pages (G-016)
+ * -- how many colors fit on page 1 vs each continuation page, and the
+ * shared content (title, details rows, column layout) every page needs.
+ * Factored out from `renderA4InfoPages` so G-026 M2's PDF exporter can plan
+ * its own page count up front (it must call `doc.addPage` once per page
+ * before drawing, unlike the canvas path's array-of-canvases return) using
+ * the exact same math the canvas/PNG export already uses -- never a second,
+ * possibly-drifting copy of it (HANDOVER.md D11/D74).
+ */
+export interface InfoPagesPlan {
+  title: string;
+  detailRows: Array<[string, string]>;
+  cols: KeyColumns;
+  isDmc: boolean;
+  printableWidthPx: number;
+  rowsOnPage1: number;
+  rowsPerContinuationPage: number;
+  totalColors: number;
+  totalPages: number;
+}
+
+export function planInfoPages(pattern: StitchPattern, layout: A4Layout, options: A4InfoPageOptions): InfoPagesPlan {
+  const isDmc = pattern.dmcMode === true;
+  const printableWidthPx = layout.pageWidthPx - 2 * layout.marginPx;
+  const printableHeightPx = layout.pageHeightPx - 2 * layout.marginPx;
+
+  const title = infoPageTitle(pattern.name, options.authorName);
+  const detailRows = buildDetailRows(pattern, options.aidaCount, options.sizeUnit);
+  const cols = computeKeyColumns(printableWidthPx, isDmc, layout.dpi);
+
+  const titleFontPx = mmToPx(INFO_TITLE_FONT_MM, layout.dpi);
+  const gapPx = mmToPx(INFO_SECTION_GAP_MM, layout.dpi);
+  const detailsTableHeightPx = detailRows.length * mmToPx(INFO_ROW_HEIGHT_MM, layout.dpi);
+  const keyTitleFontPx = mmToPx(KEY_TITLE_FONT_MM, layout.dpi);
+  const keyHeaderHeightPx = mmToPx(KEY_HEADER_ROW_HEIGHT_MM, layout.dpi);
+  const keyRowHeightPx = mmToPx(KEY_ROW_HEIGHT_MM, layout.dpi);
+
+  const page1FixedHeightPx = titleFontPx * 1.8 + gapPx + detailsTableHeightPx + gapPx + keyTitleFontPx * 1.6 + keyHeaderHeightPx;
+  const continuationFixedHeightPx = mmToPx(CAPTION_FONT_MM, layout.dpi) * 1.8 + keyHeaderHeightPx;
+
+  const rowsOnPage1 = Math.max(1, Math.floor((printableHeightPx - page1FixedHeightPx) / keyRowHeightPx));
+  const rowsPerContinuationPage = Math.max(1, Math.floor((printableHeightPx - continuationFixedHeightPx) / keyRowHeightPx));
+
+  const totalColors = pattern.palette.length;
+  const remainingAfterPage1 = Math.max(0, totalColors - rowsOnPage1);
+  const continuationPageCount = remainingAfterPage1 === 0 ? 0 : Math.ceil(remainingAfterPage1 / rowsPerContinuationPage);
+  const totalPages = 1 + continuationPageCount;
+
+  return { title, detailRows, cols, isDmc, printableWidthPx, rowsOnPage1, rowsPerContinuationPage, totalColors, totalPages };
+}
+
+/** Draws info page 1's content (title, details table, color-key table start) -- see `planInfoPages`. */
+export function drawInfoPage1(ctx: ChartDrawingContext, pattern: StitchPattern, plan: InfoPagesPlan, layout: A4Layout, aidaCount: number): void {
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, layout.pageWidthPx, layout.pageHeightPx);
+
+  const titleFontPx = mmToPx(INFO_TITLE_FONT_MM, layout.dpi);
+  const gapPx = mmToPx(INFO_SECTION_GAP_MM, layout.dpi);
+  const keyTitleFontPx = mmToPx(KEY_TITLE_FONT_MM, layout.dpi);
+
+  let y = layout.marginPx;
+  ctx.fillStyle = "#111111";
+  ctx.font = `bold ${titleFontPx}px ${FONT_STACK}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText(plan.title, layout.marginPx, y);
+  y += titleFontPx * 1.8 + gapPx;
+
+  y = drawDetailsTable(ctx, layout.marginPx, y, plan.printableWidthPx, plan.detailRows, layout.dpi);
+  y += gapPx;
+
+  ctx.fillStyle = "#111111";
+  ctx.font = `bold ${keyTitleFontPx}px ${FONT_STACK}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText("Color key", layout.marginPx, y);
+  y += keyTitleFontPx * 1.6;
+
+  const rowsOnPage1Actual = Math.min(plan.rowsOnPage1, plan.totalColors);
+  drawKeyTableBlock(ctx, layout.marginPx, y, plan.cols, plan.isDmc, pattern.palette.slice(0, rowsOnPage1Actual), aidaCount, layout.dpi);
+  drawPageFooter(ctx, layout, 1, plan.totalPages);
+}
+
+/** Draws one "Color key (continued)" page's content -- see `planInfoPages`. `pageNumber` is this page's 1-based position in the whole info-pages document (page 1 is `drawInfoPage1`, so the first continuation page is 2). */
+export function drawInfoContinuationPage(
+  ctx: ChartDrawingContext,
+  plan: InfoPagesPlan,
+  colors: readonly PaletteColor[],
+  pageNumber: number,
+  layout: A4Layout,
+  aidaCount: number
+): void {
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, layout.pageWidthPx, layout.pageHeightPx);
+
+  const captionFontPx = mmToPx(CAPTION_FONT_MM, layout.dpi);
+  let cy = layout.marginPx;
+  ctx.fillStyle = "#111111";
+  ctx.font = `bold ${captionFontPx}px ${FONT_STACK}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText("Color key (continued)", layout.marginPx, cy);
+  cy += captionFontPx * 1.8;
+
+  drawKeyTableBlock(ctx, layout.marginPx, cy, plan.cols, plan.isDmc, colors, aidaCount, layout.dpi);
+  drawPageFooter(ctx, layout, pageNumber, plan.totalPages);
+}
+
+/**
  * Renders the extended legend / info page(s) (G-016): a title, a details
  * table (stitch count, finished size in both units, fabric, thread when
  * `dmcMode`, color count), and a full "Color key" table with one row per
@@ -505,31 +640,7 @@ export interface A4InfoPageOptions {
  * remain as well."
  */
 export function renderA4InfoPages(pattern: StitchPattern, layout: A4Layout, options: A4InfoPageOptions): HTMLCanvasElement[] {
-  const isDmc = pattern.dmcMode === true;
-  const printableWidthPx = layout.pageWidthPx - 2 * layout.marginPx;
-  const printableHeightPx = layout.pageHeightPx - 2 * layout.marginPx;
-
-  const title = infoPageTitle(pattern.name, options.authorName);
-  const detailRows = buildDetailRows(pattern, options.aidaCount, options.sizeUnit);
-  const cols = computeKeyColumns(printableWidthPx, isDmc);
-
-  const titleFontPx = mmToPx(INFO_TITLE_FONT_MM);
-  const gapPx = mmToPx(INFO_SECTION_GAP_MM);
-  const detailsTableHeightPx = detailRows.length * mmToPx(INFO_ROW_HEIGHT_MM);
-  const keyTitleFontPx = mmToPx(KEY_TITLE_FONT_MM);
-  const keyHeaderHeightPx = mmToPx(KEY_HEADER_ROW_HEIGHT_MM);
-  const keyRowHeightPx = mmToPx(KEY_ROW_HEIGHT_MM);
-
-  const page1FixedHeightPx = titleFontPx * 1.8 + gapPx + detailsTableHeightPx + gapPx + keyTitleFontPx * 1.6 + keyHeaderHeightPx;
-  const continuationFixedHeightPx = mmToPx(CAPTION_FONT_MM) * 1.8 + keyHeaderHeightPx;
-
-  const rowsOnPage1 = Math.max(1, Math.floor((printableHeightPx - page1FixedHeightPx) / keyRowHeightPx));
-  const rowsPerContinuationPage = Math.max(1, Math.floor((printableHeightPx - continuationFixedHeightPx) / keyRowHeightPx));
-
-  const totalColors = pattern.palette.length;
-  const remainingAfterPage1 = Math.max(0, totalColors - rowsOnPage1);
-  const continuationPageCount = remainingAfterPage1 === 0 ? 0 : Math.ceil(remainingAfterPage1 / rowsPerContinuationPage);
-  const totalPages = 1 + continuationPageCount;
+  const plan = planInfoPages(pattern, layout, options);
 
   function newCanvas(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
     const canvas = document.createElement("canvas");
@@ -537,53 +648,21 @@ export function renderA4InfoPages(pattern: StitchPattern, layout: A4Layout, opti
     canvas.height = layout.pageHeightPx;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("2D canvas context unavailable");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
     return { canvas, ctx };
   }
 
   const pages: HTMLCanvasElement[] = [];
 
   const { canvas: page1, ctx: ctx1 } = newCanvas();
-  let y = layout.marginPx;
-  ctx1.fillStyle = "#111111";
-  ctx1.font = `bold ${titleFontPx}px ${FONT_STACK}`;
-  ctx1.textAlign = "left";
-  ctx1.textBaseline = "top";
-  ctx1.fillText(title, layout.marginPx, y);
-  y += titleFontPx * 1.8 + gapPx;
-
-  y = drawDetailsTable(ctx1, layout.marginPx, y, printableWidthPx, detailRows);
-  y += gapPx;
-
-  ctx1.fillStyle = "#111111";
-  ctx1.font = `bold ${keyTitleFontPx}px ${FONT_STACK}`;
-  ctx1.textAlign = "left";
-  ctx1.textBaseline = "top";
-  ctx1.fillText("Color key", layout.marginPx, y);
-  y += keyTitleFontPx * 1.6;
-
-  const rowsOnPage1Actual = Math.min(rowsOnPage1, totalColors);
-  drawKeyTableBlock(ctx1, layout.marginPx, y, cols, isDmc, pattern.palette.slice(0, rowsOnPage1Actual), options.aidaCount);
-  drawPageFooter(ctx1, layout, 1, totalPages);
+  drawInfoPage1(ctx1, pattern, plan, layout, options.aidaCount);
   pages.push(page1);
 
-  let consumed = rowsOnPage1Actual;
-  for (let p = 0; p < continuationPageCount; p++) {
+  let consumed = Math.min(plan.rowsOnPage1, plan.totalColors);
+  for (let p = 0; p < plan.totalPages - 1; p++) {
     const { canvas, ctx } = newCanvas();
-    let cy = layout.marginPx;
-    ctx.fillStyle = "#111111";
-    ctx.font = `bold ${mmToPx(CAPTION_FONT_MM)}px ${FONT_STACK}`;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    ctx.fillText("Color key (continued)", layout.marginPx, cy);
-    cy += mmToPx(CAPTION_FONT_MM) * 1.8;
-
-    const rowsHere = Math.min(rowsPerContinuationPage, totalColors - consumed);
-    drawKeyTableBlock(ctx, layout.marginPx, cy, cols, isDmc, pattern.palette.slice(consumed, consumed + rowsHere), options.aidaCount);
+    const rowsHere = Math.min(plan.rowsPerContinuationPage, plan.totalColors - consumed);
+    drawInfoContinuationPage(ctx, plan, pattern.palette.slice(consumed, consumed + rowsHere), p + 2, layout, options.aidaCount);
     consumed += rowsHere;
-
-    drawPageFooter(ctx, layout, p + 2, totalPages);
     pages.push(canvas);
   }
 

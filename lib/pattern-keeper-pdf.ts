@@ -1,5 +1,11 @@
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
+import { calculateA4Layout, type A4LayoutOptions } from "./a4-layout";
+import { drawA4GridPage, drawA4LegendPage, drawInfoContinuationPage, drawInfoPage1, planInfoPages, type A4InfoPageOptions } from "./a4-render";
+import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
+import { PdfCanvasAdapter, type FontMetricsSource } from "./pdf-canvas-adapter";
+import type { RenderMode } from "./render";
+import type { StitchPattern } from "./types";
 
 /**
  * G-026 M1 (spike): the core primitive for the Pattern Keeper-compatible
@@ -98,6 +104,77 @@ export async function buildSpikePdf(fontBytes: Uint8Array, symbols: string[], co
 
   const page = doc.addPage([pageWidth, pageHeight]);
   drawSymbolGrid(page, font, { symbols, columns, cellSizePt, margin });
+
+  return doc.save();
+}
+
+// --- G-026 M2: the real, full exporter ------------------------------------
+//
+// Reuses the exact same page content as the existing "Export as A4 pages"
+// PNG/ZIP export (`lib/a4-export.ts`) -- `drawA4GridPage`/`drawA4LegendPage`/
+// `planInfoPages`+`drawInfoPage1`/`drawInfoContinuationPage`, all from
+// `lib/a4-render.ts` -- by drawing them onto a `PdfCanvasAdapter` instead of
+// a real canvas, one page per `PDFDocument.addPage` call. This is what
+// makes the PDF's layout, tables, and coordinate numbering provably the
+// same content as the already-shipped export, rather than a second,
+// independently-written implementation that could drift from it
+// (HANDOVER.md D11/D74). `calculateA4Layout` is called with `dpi: 72` so
+// its own pixel output is already PDF-native points -- see D73/D74.
+
+export interface PatternKeeperPdfOptions extends A4LayoutOptions {
+  aidaCount?: number;
+  sizeUnit?: SizeUnit;
+  authorName?: string;
+}
+
+function fontMetricsFor(fontBytes: Uint8Array): FontMetricsSource {
+  const fkFont = fontkit.create(fontBytes);
+  return { ascent: fkFont.ascent, descent: fkFont.descent, unitsPerEm: fkFont.unitsPerEm };
+}
+
+/**
+ * Builds the complete Pattern Keeper-compatible PDF: one page per A4 grid
+ * fragment (in the same row-major, global-coordinate order as the PNG
+ * export), one simple-legend page, then one or more extended-legend/color-
+ * key pages -- all real, extractable vector text and vector gridlines, no
+ * rasterized image anywhere. `fontBytes` is passed in (not read from disk
+ * here) so this function works the same in a browser (`fetch`) and in
+ * tests (`fs.readFileSync`), matching M1's `buildSpikePdf`'s own contract.
+ */
+export async function buildPatternKeeperPdf(
+  pattern: StitchPattern,
+  mode: RenderMode,
+  fontBytes: Uint8Array,
+  options: PatternKeeperPdfOptions = {}
+): Promise<Uint8Array> {
+  const { aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", ...layoutOptions } = options;
+  const layout = calculateA4Layout(pattern.width, pattern.height, { ...layoutOptions, dpi: 72 });
+  const metrics = fontMetricsFor(fontBytes);
+
+  const doc = await PDFDocument.create();
+  doc.setTitle(pattern.name?.trim() || "Cross stitch pattern");
+  const font = await embedDejaVuSans(doc, fontBytes);
+  const pageSize: [number, number] = [layout.pageWidthPx, layout.pageHeightPx];
+
+  const totalGridPages = layout.pages.length;
+  for (let i = 0; i < layout.pages.length; i++) {
+    const adapter = new PdfCanvasAdapter(doc.addPage(pageSize), font, metrics);
+    drawA4GridPage(adapter, pattern, mode, layout, layout.pages[i], i, totalGridPages);
+  }
+
+  drawA4LegendPage(new PdfCanvasAdapter(doc.addPage(pageSize), font, metrics), pattern, layout);
+
+  const infoOptions: A4InfoPageOptions = { authorName, aidaCount, sizeUnit };
+  const plan = planInfoPages(pattern, layout, infoOptions);
+  drawInfoPage1(new PdfCanvasAdapter(doc.addPage(pageSize), font, metrics), pattern, plan, layout, aidaCount);
+
+  let consumed = Math.min(plan.rowsOnPage1, plan.totalColors);
+  for (let p = 0; p < plan.totalPages - 1; p++) {
+    const rowsHere = Math.min(plan.rowsPerContinuationPage, plan.totalColors - consumed);
+    const adapter = new PdfCanvasAdapter(doc.addPage(pageSize), font, metrics);
+    drawInfoContinuationPage(adapter, plan, pattern.palette.slice(consumed, consumed + rowsHere), p + 2, layout, aidaCount);
+    consumed += rowsHere;
+  }
 
   return doc.save();
 }

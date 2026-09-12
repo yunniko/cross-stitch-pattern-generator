@@ -699,7 +699,7 @@ milestone's own result justifies continuing):
   `pdf-lib`) with a handful of real symbols drawn as vector text plus
   vector gridlines; self-verify the "select as text in a standard PDF
   viewer" test before building anything further.
-- [ ] M2 — Build the real exporter: a new PDF-generation path reusing the
+- [x] M2 — Build the real exporter: a new PDF-generation path reusing the
   existing A4 pagination/layout logic (`lib/a4-layout.ts`) but rendering
   each page as real vector text + vector gridlines instead of canvas-to-
   PNG, plus a real-text legend page (reusing the existing extended-legend
@@ -716,6 +716,44 @@ milestone's own result justifies continuing):
   the documentation didn't. Full regression suite, commit, deploy.
 
 **Progress log** (newest first):
+- 2026-09-12 — M2 complete (same standing instruction). Sent the reuse
+  design (adapt the shipped A4/PNG canvas-drawing functions for PDF via
+  a small "canvas-shim" adapter, vs. a parallel PDF implementation) to
+  Codex before writing code, per this project's own standing practice
+  for important decisions -- Codex agreed with the adapter approach but
+  found and I independently verified three real problems in the initial
+  plan: a pre-existing DPI bug in `lib/a4-render.ts` (every internal
+  `mmToPx()` call silently defaulted to 300 DPI regardless of the
+  layout's actual DPI -- now fixed via a new `A4Layout.dpi` field), a
+  real pdf-lib 1.17.1 bug in `PDFFont.heightAtSize(size,{descender:
+  false})` (confirmed wrong against the project's own bundled font --
+  now avoided entirely in favor of `@pdf-lib/fontkit`'s raw
+  ascent/descent metrics), and a TypeScript structural-typing footgun
+  that would have broken "a real canvas context satisfies the adapter
+  interface for free" (fixed by keeping every interface member typed
+  exactly as the native DOM type). Extracted `lib/render.ts`'s
+  `drawChart`/`drawGridLines` and `lib/a4-render.ts`'s three page
+  renderers into pure draw functions (`drawA4GridPage`/
+  `drawA4LegendPage`/`drawInfoPage1`+`drawInfoContinuationPage`) taking
+  a new `ChartDrawingContext` interface, plus a canvas-allocating thin
+  wrapper preserving every existing function's exact original API --
+  zero changes needed at any real browser call site (interactive
+  editor, on-screen chart, existing PNG/ZIP export), confirmed via the
+  full e2e suite for those paths (12/12 passing, including both A4
+  export modes and live editing). Built `lib/pdf-canvas-adapter.ts`'s
+  `PdfCanvasAdapter` (real vector-text positioning/rotation via actual
+  font metrics, deliberately throws on anything outside the reused
+  functions' actual usage patterns rather than silently mis-rendering)
+  and `lib/pattern-keeper-pdf.ts`'s `buildPatternKeeperPdf` (the real,
+  full multi-page exporter). Deliberately deferred a bold PDF font face
+  and rescaling a few 300-DPI-calibrated pixel constants -- logged as
+  known, minor cosmetic gaps, not functional ones. Full story in
+  HANDOVER.md D74. Verified: 500/500 unit tests passing (53 files, +2
+  new, including a `pdfjs-dist`-based rotation/position probe and a
+  full-pipeline test across all 100 real symbols that also directly
+  regression-guards the DPI bug found above), clean `tsc`/`eslint`/
+  `npm run build`, e2e green for every browser call site this touched.
+  Not deployed (no UI wiring yet, M3). Starting M3 next (UI wiring).
 - 2026-09-12 — M1 complete (Owner: "continue without confirmation...").
   Chose DejaVu Sans 2.37 (official release), verified programmatically
   via `fontkit` that it covers all 100 codepoints in the app's real
