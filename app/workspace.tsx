@@ -42,6 +42,7 @@ import {
 } from "@/lib/render";
 import { generateA4Export, downloadBlob } from "@/lib/a4-export";
 import { calculateA4Layout, type OverlapCells } from "@/lib/a4-layout";
+import { buildPatternKeeperPdf } from "@/lib/pattern-keeper-pdf";
 import { useUndoHistory } from "@/lib/use-undo-history";
 import {
   EMPTY_CELL,
@@ -304,6 +305,8 @@ export default function Workspace() {
   const [a4Mode, setA4Mode] = useState<RenderMode>("color");
   const [a4Overlap, setA4Overlap] = useState<OverlapCells>(5);
   const [isExportingA4, setIsExportingA4] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [pdfExportError, setPdfExportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const openEditableInputRef = useRef<HTMLInputElement>(null);
 
@@ -1025,6 +1028,31 @@ export default function Workspace() {
         downloadBlob(result.blob, result.filename);
       } finally {
         setIsExportingA4(false);
+      }
+    }, 0);
+  }
+
+  function handleExportPatternKeeperPdf() {
+    if (!pattern) return;
+    setIsExportingPdf(true);
+    setPdfExportError(null);
+    setTimeout(async () => {
+      try {
+        const compacted = compactUnusedColors(pattern);
+        const fontResponse = await fetch("/fonts/DejaVuSans.ttf");
+        if (!fontResponse.ok) throw new Error("Couldn't load the PDF font.");
+        const fontBytes = new Uint8Array(await fontResponse.arrayBuffer());
+        const pdfBytes = await buildPatternKeeperPdf(compacted, a4Mode, fontBytes, {
+          overlapCells: a4Overlap,
+          aidaCount,
+          sizeUnit,
+          authorName,
+        });
+        downloadBlob(new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" }), `${baseFileName()}_patternkeeper.pdf`);
+      } catch (err) {
+        setPdfExportError(err instanceof Error ? err.message : "Couldn't generate the PDF export.");
+      } finally {
+        setIsExportingPdf(false);
       }
     }, 0);
   }
@@ -1956,6 +1984,16 @@ export default function Workspace() {
           >
             {isExportingA4 ? "Preparing…" : "Export ZIP"}
           </button>
+          <button
+            type="button"
+            onClick={handleExportPatternKeeperPdf}
+            disabled={!pattern || isExportingPdf}
+            title="A single PDF with real, searchable vector text -- readable by the Pattern Keeper app's grid detection and symbol search, unlike the ZIP's PNG pages."
+            className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
+          >
+            {isExportingPdf ? "Preparing…" : "Export PDF (Pattern Keeper)"}
+          </button>
+          {pdfExportError && <p className="text-sm text-red-600 dark:text-red-400">{pdfExportError}</p>}
         </div>
       </footer>
     </div>

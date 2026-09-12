@@ -5613,6 +5613,48 @@ note if the Owner wants pixel-parity with the PNG export rather than
 yet, matching M1's own "nothing shippable" precedent. Continuing to M3
 next.
 
+**D75 — G-026 M3: UI wiring for the PDF export (2026-09-12, same standing
+instruction).**
+
+Added an "Export PDF (Pattern Keeper)" button to `app/workspace.tsx`,
+directly alongside the existing "Export ZIP" button in the same A4-export
+panel, reusing that panel's existing Color/B&W and overlap controls
+rather than duplicating them (M2's exporter takes the same
+`overlapCells`/`aidaCount`/`sizeUnit`/`authorName` options as the
+PNG/ZIP export). `handleExportPatternKeeperPdf` fetches
+`/fonts/DejaVuSans.ttf` at click time (a `fetch`, not a bundled import —
+keeps the ~700KB font out of the app's JS bundle, matching this
+project's existing pattern of loading the DMC dataset/reference assets
+on demand rather than eagerly), calls `buildPatternKeeperPdf`, and
+downloads the result via the existing `downloadBlob` helper (already
+shared with the PNG/ZIP export) wrapped in a `Blob`. Hit the same
+recurring TS 5.9.3 `Uint8Array<ArrayBufferLike>` vs `Uint8Array<ArrayBuffer>`
+generic mismatch as several other places this session (`pdf-lib`'s
+`doc.save()` return value isn't assignable to `BlobPart` directly) —
+fixed the same way as before, an explicit `new Uint8Array(pdfBytes)` copy
+rather than a type-only annotation (that alone doesn't resolve a generic
+mismatch against a library's own return type).
+
+**Live-browser verified**, not just unit/e2e: manually generated a
+pattern in a running `next dev` instance, clicked the new button, and
+confirmed a real ~580KB PDF downloaded with no console errors. New
+Playwright e2e coverage (`tests/e2e/pattern-keeper-pdf-export.spec.ts`,
+2 tests): generates a real pattern from the fixture photo, reads the
+**actual** symbols the app assigned via the real DOM legend
+(`data-testid="legend-color-row"`) rather than predicting them, exports
+the PDF, and confirms via `pdfjs-dist` that every one of those real
+symbols is extractable as text (plus the documented µ/μ caveat), the PDF
+starts with the `%PDF-` magic bytes, and both Color and B&W modes work —
+satisfying M3's acceptance criterion of checking "every symbol actually
+used in a real generated pattern," not just M1's handful.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full `npx
+vitest run` 500/500 passing, `npm run build` clean, full e2e suite green
+including the 2 new PDF-export tests. This is the first stage in G-026
+that changes real, user-facing shippable behavior — **deployed**
+afterward (see the deploy note immediately following this entry).
+Continuing to M4 next (real Pattern Keeper import verification).
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

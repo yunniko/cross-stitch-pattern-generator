@@ -705,7 +705,7 @@ milestone's own result justifies continuing):
   PNG, plus a real-text legend page (reusing the existing extended-legend
   content: title, details table, color-key table). Unit-tested wherever
   the logic is pure.
-- [ ] M3 — UI wiring: add the new export option in the app alongside the
+- [x] M3 — UI wiring: add the new export option in the app alongside the
   existing "Export as A4 pages" (e.g. "Export as PDF (Pattern Keeper
   compatible)"). Live-browser verified, including the select-as-text
   check against every symbol actually used in a real generated pattern
@@ -716,6 +716,19 @@ milestone's own result justifies continuing):
   the documentation didn't. Full regression suite, commit, deploy.
 
 **Progress log** (newest first):
+- 2026-09-12 — M3 complete (same standing instruction). Added an
+  "Export PDF (Pattern Keeper)" button to `app/workspace.tsx` alongside
+  the existing "Export ZIP" button, reusing the same Color/B&W/overlap
+  controls. Live-browser verified by hand (generated a pattern, clicked
+  the button, confirmed a real PDF downloaded with no console errors),
+  plus new Playwright e2e coverage that reads the real symbols the app
+  assigned from its own DOM legend (not predicted) and confirms every
+  one is extractable as text in the exported PDF, satisfying the "every
+  symbol actually used" acceptance bar. Full story in HANDOVER.md D75.
+  Verified: full unit/e2e suite green, clean tsc/eslint/build. **This
+  stage changes real shippable behavior, so it was deployed** (see
+  HANDOVER.md's deploy log). Starting M4 next (real Pattern Keeper
+  import verification).
 - 2026-09-12 — M2 complete (same standing instruction). Sent the reuse
   design (adapt the shipped A4/PNG canvas-drawing functions for PDF via
   a small "canvas-shim" adapter, vs. a parallel PDF implementation) to
