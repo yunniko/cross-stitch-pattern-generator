@@ -409,7 +409,7 @@ milestone's own result justifies continuing):
       it either returns a valid pattern or throws — never a pattern that
       later crashes render. Deliverable: tests + a manual check that a
       pattern generated from a >4 MB photo survives a reload.
-- [ ] **M2 — Interaction correctness (B4, B5, B7, B8).** Extract the
+- [x] **M2 — Interaction correctness (B4, B5, B7, B8).** Extract the
       keyboard shortcuts into `useKeyboardShortcuts` reading live state
       through refs (no stale `selection`/`pattern`); claim Space only
       when focus is on `body` or the canvas scroller; add Ctrl+Shift+Z
@@ -486,6 +486,17 @@ milestone's own result justifies continuing):
       handover's "Rules in force".
 
 **Progress log** (newest first):
+- 2026-09-13 — **M2 done.** B4/B5/B8: shortcuts extracted to
+  `app/hooks/use-keyboard-shortcuts.ts`, reading live state through a ref
+  (D101); Space claimed only with focus on body/canvas scroller;
+  Ctrl+Shift+Z = redo; Escape merge moved into the hook; no
+  `exhaustive-deps` disable left for shortcuts. B7: brush strokes paint a
+  working `Uint8Array` and redraw one cell via new `drawCell`; Move/Select
+  blit a pointer-down snapshot per event (D102). Verified: `tsc`/eslint
+  clean; 623/623 unit (+4 `drawCell` geometry/weight tests); 49/49 e2e
+  (+5 in `tests/e2e/interaction-correctness.spec.ts`; on the pre-fix build
+  B4 and B8 fail and the 50-cell stroke on a 1000×625 pattern took
+  21,126 ms — now 1,261 ms, bound 5 s). Next: M3.
 - 2026-09-13 — **M1 done** (Owner instruction this session: work through
   the milestones without check-ins unless a decision needs them).
   Started from a clean tree after committing the earlier sessions'

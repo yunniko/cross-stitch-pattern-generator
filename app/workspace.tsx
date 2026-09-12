@@ -20,12 +20,12 @@ import {
   mergeColors,
   mergeSelection,
   moveSelection,
-  paintStitch,
   renameColor,
   renamePattern,
   resizeCanvas,
   setColorSymbol,
   shiftPattern,
+  withCellPalette,
 } from "@/lib/pattern-edit";
 import type { DmcColor } from "@/lib/dmc-colors";
 import { THREAD_BRANDS, THREAD_BRAND_IDS, formatThreadName, type ThreadBrand } from "@/lib/thread-brands";
@@ -38,6 +38,7 @@ import { loadPatternFromFile } from "@/lib/pattern-import";
 import { generateExportAllZip } from "@/lib/export-all";
 import {
   downloadCanvasAsPng,
+  drawCell,
   drawChart,
   drawChartOutline,
   drawHighlightOverlay,
@@ -68,6 +69,8 @@ import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, STANDARD_AIDA_COUNTS, formatFini
 import { formatSkeinEstimate } from "@/lib/floss-estimate";
 import { legacyProjectSlot, loadWorkspaceOptions, saveWorkspaceOptions } from "@/lib/workspace-storage";
 import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pattern.worker";
+import type { Tool, ViewMode } from "./editor-types";
+import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 
 // The Image window's target on-screen width for its live-editable (color/bw)
 // canvas -- cell size is derived from this so a small pattern isn't a
@@ -94,13 +97,6 @@ const MAX_ZOOM = 4;
 const ZOOM_STEP = 1.4;
 /** How close together (in time) two brush clicks on the same cell need to be to treat the second as "probably part of a double-click" -- see preDoubleClickPatternRef. */
 const DOUBLE_CLICK_WINDOW_MS = 400;
-
-// "photo" = the existing "Grid + photo" mode (symbol grid overlaid on the
-// source photo, drawChartOutline). "photo-only" is a distinct, newer mode
-// (Owner request, 2026-09-12): just the original uploaded photo, no grid/
-// symbols at all -- for comparing the generated chart against the source.
-type ViewMode = RenderMode | "realistic" | "photo" | "photo-only";
-type Tool = "brush" | "pan" | "zoom" | "move" | "highlight" | "select" | "fill";
 
 // --- Tools dock icons (Owner request, 2026-09-12: icons instead of text
 // labels, grouped by kind) -- small original stroke-based SVGs rather than
@@ -272,6 +268,15 @@ function rectFromCorners(x0: number, y0: number, x1: number, y1: number): CellRe
 
 function pointInRect(x: number, y: number, rect: CellRect): boolean {
   return x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height;
+}
+
+/** Copies the canvas into an offscreen canvas -- the pre-gesture image a Move/Select drag blits back per pointer event instead of repainting every cell (D102). */
+function snapshotCanvas(source: HTMLCanvasElement): HTMLCanvasElement {
+  const copy = document.createElement("canvas");
+  copy.width = source.width;
+  copy.height = source.height;
+  copy.getContext("2d")?.drawImage(source, 0, 0);
+  return copy;
 }
 
 /** A dashed rectangle outline marking the current/in-progress selection, in a color distinct from the chart's own grid lines. */
@@ -465,7 +470,9 @@ export default function Workspace() {
   const [renameDraft, setRenameDraft] = useState("");
   const [editingSymbolIndex, setEditingSymbolIndex] = useState<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const strokeRef = useRef<{ pattern: StitchPattern; lastCell: number | null } | null>(null);
+  // A brush stroke paints into one working copy of the cells and commits
+  // (with one recount) on pointer-up (D102).
+  const strokeRef = useRef<{ base: StitchPattern; cells: Uint8Array; lastCell: number | null } | null>(null);
   /** The pattern state right before a brush click (or the first click of a double-click) started painting -- see handleCanvasDoubleClick. */
   const preDoubleClickPatternRef = useRef<StitchPattern | null>(null);
   /** Time+cell of the last brush click -- used to recognize "this pointerdown is probably the second half of a double-click" by timing/position alone, since a `PointerEvent`'s own `detail` isn't reliably incremented for the second click across browsers/automation. */
@@ -476,7 +483,15 @@ export default function Workspace() {
   const [zoomLevel, setZoomLevel] = useState(1);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const panRef = useRef<{ pointerId: number; startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null);
-  const moveRef = useRef<{ pointerId: number; basePattern: StitchPattern; startX: number; startY: number; lastDx: number; lastDy: number } | null>(null);
+  const moveRef = useRef<{
+    pointerId: number;
+    basePattern: StitchPattern;
+    snapshot: HTMLCanvasElement;
+    startX: number;
+    startY: number;
+    lastDx: number;
+    lastDy: number;
+  } | null>(null);
 
   // --- Rectangle Select tool (G-018) ---
   // `selection` is the committed floating piece (drives the normal
@@ -489,8 +504,18 @@ export default function Workspace() {
   const [selection, setSelection] = useState<FloatingSelection | null>(null);
   const [clipboard, setClipboard] = useState<FloatingSelection | null>(null);
   const selectDragRef = useRef<
-    | { pointerId: number; mode: "drawing"; basePattern: StitchPattern; startX: number; startY: number; rect: CellRect }
-    | { pointerId: number; mode: "moving"; basePattern: StitchPattern; selection: FloatingSelection; startX: number; startY: number; lastDx: number; lastDy: number }
+    | { pointerId: number; mode: "drawing"; basePattern: StitchPattern; snapshot: HTMLCanvasElement | null; startX: number; startY: number; rect: CellRect }
+    | {
+        pointerId: number;
+        mode: "moving";
+        basePattern: StitchPattern;
+        snapshot: HTMLCanvasElement | null;
+        selection: FloatingSelection;
+        startX: number;
+        startY: number;
+        lastDx: number;
+        lastDy: number;
+      }
     | null
   >(null);
 
@@ -838,7 +863,14 @@ export default function Workspace() {
 
   // --- Rectangle Select tool helpers (G-018) ---
 
-  /** Redraws the canvas for the current in-progress select-tool drag (drawing a new rectangle, or moving the current selection) -- called from both pointerdown (for instant feedback) and pointermove. */
+  /**
+   * Redraws the canvas for the current in-progress select-tool drag
+   * (drawing a new rectangle, or moving the current selection). The base
+   * pattern was drawn once and snapshotted at pointer-down; each pointer
+   * event blits that back and draws only the selection's own cells and
+   * outline on top (D102). Grid + photo mode has no per-cell fill, so a
+   * moving selection there falls back to the full composite redraw.
+   */
   function redrawSelectionDrag() {
     const drag = selectDragRef.current;
     const canvas = canvasRef.current;
@@ -847,13 +879,67 @@ export default function Workspace() {
     if (!ctx) return;
 
     if (drag.mode === "drawing") {
-      drawCurrentView(ctx, drag.basePattern);
+      if (drag.snapshot) ctx.drawImage(drag.snapshot, 0, 0);
+      else drawCurrentView(ctx, drag.basePattern);
       drawSelectionOutline(ctx, drag.rect, cellSize);
-    } else {
-      const moved = moveSelection(drag.selection, drag.lastDx, drag.lastDy);
-      drawCurrentView(ctx, compositeSelectionPreview(drag.basePattern, moved));
-      drawSelectionOutline(ctx, moved, cellSize);
+      return;
     }
+
+    const moved = moveSelection(drag.selection, drag.lastDx, drag.lastDy);
+    if (drag.snapshot && (viewMode === "color" || viewMode === "bw")) {
+      ctx.drawImage(drag.snapshot, 0, 0);
+      const { width, height } = drag.basePattern;
+      for (let ly = 0; ly < moved.height; ly++) {
+        const py = moved.y + ly;
+        if (py < 0 || py >= height) continue;
+        for (let lx = 0; lx < moved.width; lx++) {
+          const px = moved.x + lx;
+          if (px < 0 || px >= width) continue;
+          drawCell(ctx, drag.basePattern, viewMode, cellSize, px, py, moved.cells[ly * moved.width + lx], canvasColor);
+        }
+      }
+    } else {
+      drawCurrentView(ctx, compositeSelectionPreview(drag.basePattern, moved));
+    }
+    drawSelectionOutline(ctx, moved, cellSize);
+  }
+
+  /** Starts a select-tool drag: draws `basePattern` once (with `selectDragRef` already set, so nothing is composited over it), snapshots it, then draws the first frame. */
+  function beginSelectDrag(canvas: HTMLCanvasElement, drag: NonNullable<typeof selectDragRef.current>) {
+    selectDragRef.current = drag;
+    canvas.setPointerCapture(drag.pointerId);
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      drawCurrentView(ctx, drag.basePattern);
+      drag.snapshot = snapshotCanvas(canvas);
+    }
+    redrawSelectionDrag();
+  }
+
+  /** Incremental preview of one changed cell during a brush stroke. Grid + photo mode has no per-cell fill to restore, so it falls back to a full redraw. */
+  function drawWorkingCell(base: StitchPattern, cells: Uint8Array, cellIndex: number) {
+    if (viewMode !== "color" && viewMode !== "bw") {
+      redrawWith({ ...base, cellPalette: cells });
+      return;
+    }
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    drawCell(ctx, base, viewMode, cellSize, cellIndex % base.width, Math.floor(cellIndex / base.width), cells[cellIndex], canvasColor);
+  }
+
+  /** Live preview of the Move tool: the pre-drag canvas blitted at the shifted position with wrap-around copies -- the same cyclic shift `shiftPattern` commits on pointer-up, without rebuilding and repainting every cell per pointer event. */
+  function drawShiftedSnapshot(base: StitchPattern, snapshot: HTMLCanvasElement, dx: number, dy: number) {
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    const w = base.width * cellSize;
+    const h = base.height * cellSize;
+    const ox = ((((dx % base.width) + base.width) % base.width) * cellSize);
+    const oy = ((((dy % base.height) + base.height) % base.height) * cellSize);
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(snapshot, ox, oy);
+    ctx.drawImage(snapshot, ox - w, oy);
+    ctx.drawImage(snapshot, ox, oy - h);
+    ctx.drawImage(snapshot, ox - w, oy - h);
   }
 
   /** Commits the current floating selection into the pattern/history and clears selection state -- the "as soon as selection is reset, the editable piece merges into picture" step. No-op if there's nothing selected. */
@@ -893,94 +979,23 @@ export default function Workspace() {
     setSelection(flipSelectionVertical(selection));
   }
 
-  // Escape deselects (merges) the current selection -- the explicit,
-  // discoverable-by-convention counterpart to the Deselect button, and to
-  // clicking outside the selection on the canvas.
-  useEffect(() => {
-    if (activeTool !== "select") return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") mergeCurrentSelection();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTool, selection, pattern]);
-
-  /**
-   * Global keyboard shortcuts (Owner request, 2026-09-12): Ctrl+Z/Ctrl+Y for
-   * undo/redo, B/F to switch to Brush/Fill, holding Space to pan
-   * temporarily -- the same convention every mainstream image editor uses --
-   * regardless of whichever tool was active before (releasing Space restores
-   * it), and 1-5 to switch the Image window's view mode (Color/B&W/
-   * Realistic/Grid+photo/Original photo). Skipped entirely while focus is in
-   * a text input/textarea/contenteditable element, so typing the pattern
-   * name, author name, or a DMC search query is never hijacked as a
-   * shortcut (and Ctrl+Z there stays that field's own native undo, not this
-   * app's pattern-level one).
-   */
-  const previousToolRef = useRef<Tool | null>(null);
-  const spacePanActiveRef = useRef(false);
-
-  useEffect(() => {
-    function isTypingTarget(target: EventTarget | null): boolean {
-      if (!(target instanceof HTMLElement)) return false;
-      return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
-    }
-
-    function onKeyDown(e: KeyboardEvent) {
-      if (isTypingTarget(e.target)) return;
-
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z") {
-        e.preventDefault();
-        history.undo();
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
-        e.preventDefault();
-        history.redo();
-        return;
-      }
-
-      if (!pattern) return; // no pattern yet -- every tool button is disabled too
-
-      if (e.key === " ") {
-        e.preventDefault(); // stop the page itself from scrolling on every repeat while held
-        if (!spacePanActiveRef.current) {
-          spacePanActiveRef.current = true;
-          previousToolRef.current = activeTool;
-          switchTool("pan");
-        }
-        return;
-      }
-
-      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
-        if (e.key.toLowerCase() === "b") switchTool("brush");
-        else if (e.key.toLowerCase() === "f") switchTool("fill");
-        else if (e.key === "1") setViewMode("color");
-        else if (e.key === "2") setViewMode("bw");
-        else if (e.key === "3") setViewMode("realistic");
-        else if (e.key === "4" && pattern.sourceImage) setViewMode("photo");
-        else if (e.key === "5" && pattern.sourceImage) setViewMode("photo-only");
-      }
-    }
-
-    function onKeyUp(e: KeyboardEvent) {
-      if (e.key === " " && spacePanActiveRef.current) {
-        spacePanActiveRef.current = false;
-        const restore = previousToolRef.current;
-        previousToolRef.current = null;
-        if (restore) setActiveTool(restore);
-      }
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTool, pattern]);
+  // Global keyboard shortcuts (Owner request, 2026-09-12), reading live
+  // state through the hook's ref so Space/Escape always see the current
+  // floating selection (D101).
+  useKeyboardShortcuts(
+    {
+      hasPattern: pattern !== null,
+      hasSourceImage: pattern?.sourceImage !== undefined,
+      activeTool,
+      undo: history.undo,
+      redo: history.redo,
+      switchTool,
+      setActiveTool,
+      setViewMode,
+      mergeSelection: mergeCurrentSelection,
+    },
+    scrollerRef
+  );
 
   function handleCanvasPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
@@ -1000,7 +1015,7 @@ export default function Workspace() {
     }
 
     if (activeTool === "move") {
-      moveRef.current = { pointerId: e.pointerId, basePattern: pattern, startX: e.clientX, startY: e.clientY, lastDx: 0, lastDy: 0 };
+      moveRef.current = { pointerId: e.pointerId, basePattern: pattern, snapshot: snapshotCanvas(canvas), startX: e.clientX, startY: e.clientY, lastDx: 0, lastDy: 0 };
       canvas.setPointerCapture(e.pointerId);
       return;
     }
@@ -1008,7 +1023,7 @@ export default function Workspace() {
     if (activeTool === "select") {
       const { x: cx, y: cy } = clampedCellFromEvent(e, canvas, cellSize, pattern.width, pattern.height);
       if (selection && pointInRect(cx, cy, selection)) {
-        selectDragRef.current = { pointerId: e.pointerId, mode: "moving", basePattern: pattern, selection, startX: cx, startY: cy, lastDx: 0, lastDy: 0 };
+        beginSelectDrag(canvas, { pointerId: e.pointerId, mode: "moving", basePattern: pattern, snapshot: null, selection, startX: cx, startY: cy, lastDx: 0, lastDy: 0 });
       } else {
         // Clicking outside the current selection commits it first, then starts drawing a new one.
         let workingPattern = pattern;
@@ -1017,10 +1032,16 @@ export default function Workspace() {
           history.set(workingPattern);
           setSelection(null);
         }
-        selectDragRef.current = { pointerId: e.pointerId, mode: "drawing", basePattern: workingPattern, startX: cx, startY: cy, rect: { x: cx, y: cy, width: 1, height: 1 } };
+        beginSelectDrag(canvas, {
+          pointerId: e.pointerId,
+          mode: "drawing",
+          basePattern: workingPattern,
+          snapshot: null,
+          startX: cx,
+          startY: cy,
+          rect: { x: cx, y: cy, width: 1, height: 1 },
+        });
       }
-      canvas.setPointerCapture(e.pointerId);
-      redrawSelectionDrag();
       return;
     }
 
@@ -1049,9 +1070,10 @@ export default function Workspace() {
     const isSecondClickOfDoubleClick = last !== null && now - last.time < DOUBLE_CLICK_WINDOW_MS && last.cellIndex === cellIndex;
     if (!isSecondClickOfDoubleClick) preDoubleClickPatternRef.current = pattern;
     lastBrushClickRef.current = { time: now, cellIndex };
-    const painted = paintStitch(pattern, cellIndex, activeColorIndex);
-    strokeRef.current = { pattern: painted, lastCell: cellIndex };
-    redrawWith(painted);
+    const cells = pattern.cellPalette.slice();
+    cells[cellIndex] = activeColorIndex;
+    strokeRef.current = { base: pattern, cells, lastCell: cellIndex };
+    drawWorkingCell(pattern, cells, cellIndex);
     canvas.setPointerCapture(e.pointerId);
   }
 
@@ -1071,7 +1093,7 @@ export default function Workspace() {
       if (dx === move.lastDx && dy === move.lastDy) return;
       move.lastDx = dx;
       move.lastDy = dy;
-      redrawWith(shiftPattern(move.basePattern, dx, dy));
+      drawShiftedSnapshot(move.basePattern, move.snapshot, dx, dy);
       return;
     }
 
@@ -1095,14 +1117,15 @@ export default function Workspace() {
       return;
     }
 
-    if (!strokeRef.current || activeColorIndex === null || !pattern) return;
+    const stroke = strokeRef.current;
+    if (!stroke || activeColorIndex === null) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const cellIndex = cellIndexFromEvent(e, canvas, cellSize, pattern.width, pattern.height);
-    if (cellIndex === null || cellIndex === strokeRef.current.lastCell) return;
-    const painted = paintStitch(strokeRef.current.pattern, cellIndex, activeColorIndex);
-    strokeRef.current = { pattern: painted, lastCell: cellIndex };
-    redrawWith(painted);
+    const cellIndex = cellIndexFromEvent(e, canvas, cellSize, stroke.base.width, stroke.base.height);
+    if (cellIndex === null || cellIndex === stroke.lastCell) return;
+    stroke.cells[cellIndex] = activeColorIndex;
+    stroke.lastCell = cellIndex;
+    drawWorkingCell(stroke.base, stroke.cells, cellIndex);
   }
 
   function handleCanvasPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -1137,7 +1160,7 @@ export default function Workspace() {
     }
 
     if (!strokeRef.current) return;
-    history.set(strokeRef.current.pattern);
+    history.set(withCellPalette(strokeRef.current.base, strokeRef.current.cells));
     strokeRef.current = null;
     if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
       canvasRef.current.releasePointerCapture(e.pointerId);

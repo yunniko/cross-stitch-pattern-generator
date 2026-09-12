@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { ChartDrawingContext } from "@/lib/chart-drawing-context";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
 import { mulberry32 } from "@/lib/prng";
 import { drawChart, renderNavigatorPixels } from "@/lib/render";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type StitchPattern } from "@/lib/types";
+import { makeRecordingContext } from "./helpers/recording-context";
 
 /**
  * Seeded fuzz of `deserializePattern` (G-031 M1, review finding B2/B3): a
@@ -141,50 +141,6 @@ function mutate(file: Json, rng: () => number): string {
   }
 }
 
-/** A `ChartDrawingContext` that records every fill/stroke style set and fails on anything that isn't a well-formed color string. */
-function makeRecordingContext(): ChartDrawingContext & { styles: string[]; texts: string[] } {
-  const styles: string[] = [];
-  const texts: string[] = [];
-  let fillStyle: string | CanvasGradient | CanvasPattern = "#000";
-  let strokeStyle: string | CanvasGradient | CanvasPattern = "#000";
-  return {
-    styles,
-    texts,
-    get fillStyle() {
-      return fillStyle;
-    },
-    set fillStyle(v) {
-      styles.push(String(v));
-      fillStyle = v;
-    },
-    get strokeStyle() {
-      return strokeStyle;
-    },
-    set strokeStyle(v) {
-      styles.push(String(v));
-      strokeStyle = v;
-    },
-    lineWidth: 1,
-    font: "",
-    textAlign: "center",
-    textBaseline: "middle",
-    fillRect: () => {},
-    strokeRect: () => {},
-    fillText: (text) => {
-      texts.push(text);
-    },
-    measureText: (text) => ({ width: text.length * 5 }),
-    beginPath: () => {},
-    moveTo: () => {},
-    lineTo: () => {},
-    stroke: () => {},
-    save: () => {},
-    restore: () => {},
-    translate: () => {},
-    rotate: () => {},
-  };
-}
-
 function assertRenderable(pattern: StitchPattern): void {
   expect(Number.isInteger(pattern.width) && pattern.width >= 1 && pattern.width <= MAX_STITCHES).toBe(true);
   expect(Number.isInteger(pattern.height) && pattern.height >= 1 && pattern.height <= MAX_STITCHES).toBe(true);
@@ -215,7 +171,7 @@ function assertRenderable(pattern: StitchPattern): void {
     const ctx = makeRecordingContext();
     drawChart(ctx, pattern, mode, 8);
     for (const style of ctx.styles) expect(style).not.toMatch(/undefined|NaN|null/);
-    for (const text of ctx.texts) expect(text).not.toMatch(/^(undefined|null)$/);
+    for (const { text } of ctx.texts) expect(text).not.toMatch(/^(undefined|null)$/);
   }
   // And it must survive its own round trip byte-for-byte.
   const again = deserializePattern(serializePattern(pattern));

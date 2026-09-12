@@ -224,8 +224,53 @@ export function drawChart(
   drawGridLines(ctx, x0, y0, x1, y1, cellSize);
 }
 
-/** Shared by `drawChart` and `drawChartOutline` -- gridline weight (every 5th/10th heavier) and spacing, independent of what (if anything) is drawn underneath. */
-function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: number, y1: number, cellSize: number) {
+/**
+ * Redraws one cell of a full-pattern chart in place (fill, symbol, and the
+ * four gridline segments around it, since the fill overpaints half of
+ * each) -- the incremental step a brush stroke or a dragged selection
+ * takes per changed cell instead of repainting the whole canvas (D102).
+ * `paletteIndex` is drawn rather than read from `pattern.cellPalette`, so
+ * a gesture's working buffer can be previewed without building a pattern.
+ * Only valid for a chart drawn by `drawChart` with no region offset.
+ */
+export function drawCell(
+  ctx: ChartDrawingContext,
+  pattern: StitchPattern,
+  mode: RenderMode,
+  cellSize: number,
+  x: number,
+  y: number,
+  paletteIndex: number,
+  emptyCellColor: string = "#ffffff"
+) {
+  const px = x * cellSize;
+  const py = y * cellSize;
+  if (paletteIndex === EMPTY_CELL) {
+    ctx.fillStyle = emptyCellColor;
+    ctx.fillRect(px, py, cellSize, cellSize);
+  } else {
+    const color = pattern.palette[paletteIndex];
+    ctx.fillStyle = fillForCell(mode, color.rgb);
+    ctx.fillRect(px, py, cellSize, cellSize);
+    if (cellSize >= LEGIBILITY_FLOOR_PX) {
+      ctx.font = `${Math.round(cellSize * 0.6)}px ${FONT_STACK}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = symbolTextColor(mode, color.rgb);
+      ctx.fillText(color.symbol, px + cellSize / 2, py + cellSize / 2 + 1);
+    }
+  }
+  drawGridLines(ctx, x, y, x + 1, y + 1, cellSize, px, py);
+}
+
+/**
+ * Shared by `drawChart`, `drawChartOutline` and `drawCell` -- gridline
+ * weight (every 5th/10th heavier) and spacing, independent of what (if
+ * anything) is drawn underneath. `originX`/`originY` is where cell
+ * (x0, y0) sits on the canvas: 0 for a region drawn at the origin, the
+ * cell's own pixel position for an in-place single-cell redraw.
+ */
+function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: number, y1: number, cellSize: number, originX = 0, originY = 0) {
   const minorWidth = Math.max(1, Math.round(cellSize * MINOR_LINE_RATIO));
   const mediumWidth = Math.max(1, Math.round(cellSize * MEDIUM_LINE_RATIO));
   const majorWidth = Math.max(1, Math.round(cellSize * MAJOR_LINE_RATIO));
@@ -234,15 +279,15 @@ function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: num
   for (let x = x0; x <= x1; x++) {
     ctx.lineWidth = x % 10 === 0 ? majorWidth : x % 5 === 0 ? mediumWidth : minorWidth;
     ctx.beginPath();
-    ctx.moveTo((x - x0) * cellSize, 0);
-    ctx.lineTo((x - x0) * cellSize, (y1 - y0) * cellSize);
+    ctx.moveTo(originX + (x - x0) * cellSize, originY);
+    ctx.lineTo(originX + (x - x0) * cellSize, originY + (y1 - y0) * cellSize);
     ctx.stroke();
   }
   for (let y = y0; y <= y1; y++) {
     ctx.lineWidth = y % 10 === 0 ? majorWidth : y % 5 === 0 ? mediumWidth : minorWidth;
     ctx.beginPath();
-    ctx.moveTo(0, (y - y0) * cellSize);
-    ctx.lineTo((x1 - x0) * cellSize, (y - y0) * cellSize);
+    ctx.moveTo(originX, originY + (y - y0) * cellSize);
+    ctx.lineTo(originX + (x1 - x0) * cellSize, originY + (y - y0) * cellSize);
     ctx.stroke();
   }
 }

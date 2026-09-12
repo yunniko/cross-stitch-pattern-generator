@@ -108,6 +108,17 @@ export function paintStitch(pattern: StitchPattern, cellIndex: number, paletteIn
 }
 
 /**
+ * Commits a gesture's working cell buffer (a brush stroke painted cell by
+ * cell into one `Uint8Array`) as a new pattern, recounting once at the end
+ * rather than per pointer event (D102). `cellPalette` must be the same
+ * length as the pattern's and is used as-is, not copied.
+ */
+export function withCellPalette(pattern: StitchPattern, cellPalette: Uint8Array): StitchPattern {
+  if (cellPalette.length !== pattern.cellPalette.length) throw new Error("Working buffer doesn't match the pattern's size.");
+  return withCounts(pattern, cellPalette, pattern.palette);
+}
+
+/**
  * The Move tool (G-012): repositions the grid's stitch content by
  * `(dx, dy)` whole stitch cells within the *same* fixed canvas size, and
  * moves the photo underlay's stored alignment offset by the identical
