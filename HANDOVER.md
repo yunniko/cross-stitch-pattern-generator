@@ -5975,6 +5975,14 @@ Options… / Resize canvas… | Export dropdown / Export / Export all, all
 pill-shaped, divider visible between the two groups, zero console
 errors.
 
+**Deployed (2026-09-12).** Standard recipe. Container isolation
+confirmed (`cross-stitch-pattern-generator-app-1` alone restarted,
+other containers' uptimes unchanged). Other sites healthy
+(`meet.app.julienika.cz`/`craftale.eu`/`arfid.julienika.cz` all HTTP
+200). Live check on `https://cross-stitch.craftodejnice.cz`: toolbar
+shows Open pattern…/Options…/Resize canvas… | Export dropdown/Export/
+Export all exactly as designed, zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
