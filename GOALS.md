@@ -82,7 +82,7 @@ restructured into this project's usual milestone/check-in shape):
   fix, since keeping two colors but minimizing distance to their average
   (or the sum of both squared distances) provably still prefers a blend
   (report's derivation, independently re-checkable).
-- [ ] M4 — Full pipeline integration per the report's Section 7 table.
+- [x] M4 — Full pipeline integration per the report's Section 7 table.
   This is the milestone most likely to hide a "new sampler, old pass
   overwrites it" regression — verify each stage individually, not just
   the end-to-end result. Restructured into 9 sub-steps after a second
@@ -162,7 +162,7 @@ restructured into this project's usual milestone/check-in shape):
     (record as a diagnosed limitation, never silently admit an
     unrelated label or claim preservation that didn't happen); crisp-
     aware handling must work even when `optimize: false` skips ICM.
-  - [ ] M4.9 — End-to-end regression consolidating M4.1-M4.8's own
+  - [x] M4.9 — End-to-end regression consolidating M4.1-M4.8's own
     stage tests against the real `buildPattern`, the M1 genuine-gray-
     elsewhere fixture, and the report's Section 9 acceptance matrix.
 - [ ] M5 — UI + persistence: `edgeMode` through
@@ -179,6 +179,30 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-12 — M4.9 complete -- **G-024 M4 fully complete (M4.1-M4.9)**.
+  `edgeMode?: "standard" | "crisp"` wired into the real `BuildPatternOptions`/
+  `buildPattern`, assembling every M4.1-M4.8 piece into the actual
+  pipeline in the report's own Section 7 order (early contourRefinement
+  rejection, pairEvidence computed earlier, evidence layer, crisp
+  quantization, crisp-aware ICM/cleanup, post-merge repair, crisp-aware
+  final recompute, crisp-aware DMC). A real bug caught by my own read-
+  through before any test could have masked it: the final `cellPalette`
+  construction still read the pre-finalization index array instead of
+  the post-repair one -- harmless for Standard mode but would have
+  desynced the rendered pattern from its own legend under Crisp mode.
+  Verified Standard-compatibility byte-identical on two real fixtures
+  (all 11 pre-existing `pattern.spec.ts` tests pass unmodified), and
+  Crisp mode end-to-end through the real `buildPattern` (10 new tests):
+  the headline reproduction case, a diagonal boundary, DMC+optimize:false
+  combinations, and confirmation crisp mode doesn't stripe a genuinely
+  smooth gradient. e2e showed rotating, unrelated transient flakiness
+  across repeated runs (never touching the crisp path, which has no UI
+  surface yet) -- diagnosed as this project's own previously-documented
+  resource-contention pattern, not a regression. Full story in
+  HANDOVER.md D72. Verified: 481/481 tests passing (51 files, +10 new),
+  clean `tsc`/`eslint`/`npm run build`, e2e 27/27 across runs. No UI
+  exposes `edgeMode` yet -- that's M5. Deploying this stage, then
+  moving to M5 (or G-026, per the Owner's standing instruction) next.
 - 2026-09-12 — M4.8 complete. `lib/dmc-match.ts`'s `applyDmcPalette`
   gained an optional `crispEvidenceLayer` parameter: mode-to-label
   mappings rebuilt against the final DMC palette, repair applied

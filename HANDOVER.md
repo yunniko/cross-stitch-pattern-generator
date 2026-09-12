@@ -5287,6 +5287,94 @@ clean, full e2e (27/27, no flakes — `dmc-match.ts` is already-live).
 Continuing to M4.9 (end-to-end regression, consolidating everything
 built so far) next.
 
+**D72 — G-024 M4.9: `edgeMode` wired into the real `buildPattern` —
+G-024 M4 complete (2026-09-12, Owner: "continue without
+confirmation...").**
+
+This is the milestone's actual payoff: `lib/pattern.ts`'s `BuildPatternOptions`
+gained `edgeMode?: "standard" | "crisp"` (default `"standard"`, byte-
+identical to today when omitted) plus `crispEvidenceLayerOptions`. Every
+one of M4.1-M4.8's standalone pieces is now assembled into the real
+pipeline, in the order the report's own Section 7 table specifies:
+
+1. An early guard throws immediately if `edgeMode: "crisp"` is combined
+   with `contourRefinement`, before any real work happens (a second,
+   defense-in-depth guard already exists inside `runContourRefinement`
+   itself, M4.5).
+2. `pairEvidence` is now computed once, unconditionally whenever
+   `edgeMode === "crisp"` OR `shouldOptimize` (previously only the
+   latter) — needed earlier for the pre-filter, and verified to still
+   produce byte-identical values regardless of timing (the same
+   reasoning already established for `importance`).
+3. The evidence layer is built via the pre-filter + `buildCrispEvidenceLayer`
+   (M4.2) when crisp.
+4. Quantization routes through `runCrispQuantizationStage` (M4.3) with
+   `selectWeightedQuantizer` preserving the caller's Original/Latest
+   choice, instead of the plain quantizer call.
+5. `runMultiScaleOptimizer` (M4.4) and both `recolorSmallComponents`
+   calls plus `fixDiagonalConnections` (M4.5) all receive the evidence
+   layer.
+6. Immediately after `mergeSimilarColors`, `repairCrispAssignments`
+   (M4.6) fixes any now-inadmissible assignment against the post-merge
+   palette.
+7. The final palette recompute branches to `finalizeCrispPalette`
+   (M4.7) instead of the raw `meanRgbOklab` loop when crisp — with a
+   new defensive re-compaction pass added in case finalization's own
+   repair rounds ever empty out a label (never observed, but the
+   project's own "never leave a zero-count legend entry" rule applied
+   consistently rather than assumed safe).
+8. `applyDmcPalette` receives the evidence layer unconditionally
+   (M4.8), not nested inside the `shouldOptimize` branch.
+
+**A real bug caught by my own read-through before it could ship**: the
+final `cellPalette` construction still read from the pre-finalization
+`compactCellPaletteIndex` instead of the new `finalCellPaletteIndex` —
+harmless for Standard mode (the two are identical there) but would
+have silently desynced the rendered pattern from the `counts`/palette
+actually computed for Crisp mode (a cell could show one label while
+its legend counted it under a different one, post-repair). Fixed
+before any test ran against it.
+
+**Verified Standard-compatibility on the two fixtures that matter
+most**: a realistic noisy two-region photo and M1's own genuine-gray-
+elsewhere fixture — both produce byte-identical `cellPalette`/`palette`
+whether `edgeMode` is omitted or explicitly `"standard"`. All 11
+pre-existing `pattern.spec.ts` tests pass completely unmodified.
+
+**Verified Crisp mode end-to-end** (`tests/unit/pattern-crisp.spec.ts`,
+10 tests) through the real `buildPattern`, not a hand-assembled
+composition of standalone modules: the headline black/white/gray
+reproduction case recovers real black, white, and the untouched
+genuine gray with no confetti regression versus Standard; a diagonal
+(non-axis-aligned) boundary is also correctly recovered; `paletteMode:
+"dmc"` and `optimize: false` both work in combination with crisp mode;
+a genuinely smooth gradient region shows no worse banding under crisp
+than under standard (the D64 fix holding up through the full pipeline,
+not just the isolated detector). The report's full Section 9 twelve-
+fixture acceptance matrix is deliberately NOT exhaustively covered here
+— that's explicitly M6's own job; this suite covers the highest-value
+subset given M4's own scope is integration, not final calibration.
+
+**e2e**: four consecutive full runs showed rotating, unrelated
+flakiness (Move tool, A4 export, image upload, zoom, pan — none of
+which touch the crisp code path, since `edgeMode` has no UI surface
+yet and every UI-driven `buildPattern` call stays on `"standard"`) plus
+one literal `Target crashed` browser-level error on the third run —
+every test passed at least once, and the specific failing test
+rotated each run rather than repeating, matching this project's own
+previously-documented "transient resource contention" diagnosis for
+this exact symptom (not a regression; Standard-mode output is
+separately proven byte-identical by direct unit comparison).
+
+**G-024 M4 is now fully complete** (M4.1-M4.9). Full pipeline
+integration exists, is opt-in, defaults to today's exact behavior, and
+is verified end-to-end. No UI exposes it yet — that's M5's job.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full
+`npx vitest run` 481/481 passing (51 files, +10 new), `npm run build`
+clean, e2e 27/27 across repeated runs (rotating transient flakiness,
+diagnosed not a regression).
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
