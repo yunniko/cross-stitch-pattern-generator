@@ -5754,6 +5754,13 @@ after each stage" instruction interpreted as "batch trivially, deploy
 once you've actually got something to ship" rather than two back-to-back
 rebuilds for changes made minutes apart in the same session.
 
+**Deployed (2026-09-12).** Standard redeploy recipe. Container isolation
+confirmed (`cross-stitch-pattern-generator-app-1` alone restarted, all 29
+other containers' uptimes unchanged). Other sites healthy
+(`meet.app.julienika.cz`/`craftale.eu`/`arfid.julienika.cz` all HTTP
+200). Live check on `https://cross-stitch.craftodejnice.cz`: the new
+"Edges" Standard/Crisp toggle renders correctly, zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
