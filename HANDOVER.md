@@ -6127,6 +6127,16 @@ just trusting the JSX (native option-group popups can't be captured by
 a CDP screenshot) -- confirmed the exact structure and labels above,
 default value `"editable"`, zero console errors.
 
+**Deployed (2026-09-12).** Covers both D84 (brush icon) and D85
+(export dropdown reorganization) in one redeploy. Standard recipe.
+Container isolation confirmed (`cross-stitch-pattern-generator-app-1`
+alone restarted, other containers' uptimes unchanged). Other sites
+healthy (`meet.app.julienika.cz`/`craftale.eu`/`arfid.julienika.cz` all
+HTTP 200). Live check on `https://cross-stitch.craftodejnice.cz`:
+confirmed the Export dropdown's default value/label is
+`"editable"`/"Editable pattern (.json)" via a script against the real
+DOM, zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
