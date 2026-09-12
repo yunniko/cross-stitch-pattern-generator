@@ -39,6 +39,14 @@ export function overlapSidesForPage(page: PageRange, layout: A4Layout): OverlapS
   };
 }
 
+/**
+ * Just the tint -- no "OVERLAP" text on the band itself (Owner decision,
+ * 2026-09-12: the word was cluttering the grid on every render mode: PNG
+ * color/B&W and the PDF export, since both now share this function).
+ * What the tint means is explained once, in the legend
+ * (`drawA4LegendPage`'s overlap note below), not repeated on every band
+ * of every page.
+ */
 function drawOverlapBands(
   ctx: ChartDrawingContext,
   page: PageRange,
@@ -55,38 +63,6 @@ function drawOverlapBands(
   if (sides.right) ctx.fillRect(gridWidthPx - bandPx, 0, bandPx, gridHeightPx);
   if (sides.top) ctx.fillRect(0, 0, gridWidthPx, bandPx);
   if (sides.bottom) ctx.fillRect(0, gridHeightPx - bandPx, gridWidthPx, bandPx);
-
-  if (!sides.left && !sides.top && !sides.right && !sides.bottom) return;
-
-  const fontPx = mmToPx(OVERLAP_LABEL_FONT_MM, layout.dpi);
-  ctx.fillStyle = "#7a5200";
-  ctx.font = `bold ${fontPx}px ${FONT_STACK}`;
-  ctx.textBaseline = "middle";
-
-  if (sides.left) {
-    ctx.save();
-    ctx.translate(bandPx / 2, gridHeightPx / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = "center";
-    ctx.fillText("OVERLAP", 0, 0);
-    ctx.restore();
-  }
-  if (sides.right) {
-    ctx.save();
-    ctx.translate(gridWidthPx - bandPx / 2, gridHeightPx / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = "center";
-    ctx.fillText("OVERLAP", 0, 0);
-    ctx.restore();
-  }
-  if (sides.top) {
-    ctx.textAlign = "center";
-    ctx.fillText("OVERLAP", gridWidthPx / 2, bandPx / 2);
-  }
-  if (sides.bottom) {
-    ctx.textAlign = "center";
-    ctx.fillText("OVERLAP", gridWidthPx / 2, gridHeightPx - bandPx / 2);
-  }
 }
 
 /** Column numbers along the page's own top edge, row numbers along its own left edge -- always the pattern's *global* coordinates, labeled every 10 stitches, so a page starting at stitch 70 still reads "70, 80, 90...", not "0, 10, 20...". */
@@ -222,7 +198,32 @@ export function drawA4LegendPage(ctx: ChartDrawingContext, pattern: StitchPatter
   const nameFontPx = mmToPx(LEGEND_NAME_FONT_MM, layout.dpi);
   const detailFontPx = mmToPx(LEGEND_DETAIL_FONT_MM, layout.dpi);
 
-  const gridTop = layout.marginPx + titleFontPx * 1.8;
+  let gridTop = layout.marginPx + titleFontPx * 1.8;
+
+  // What the grid pages' tinted bands mean, explained once here instead of
+  // spelling out "OVERLAP" on every band of every page (Owner decision,
+  // 2026-09-12) -- only shown when this export actually has overlap.
+  if (layout.overlapCells > 0) {
+    const noteSwatchPx = mmToPx(4, layout.dpi);
+    const noteGapPx = mmToPx(2, layout.dpi);
+    ctx.fillStyle = OVERLAP_TINT;
+    ctx.fillRect(layout.marginPx, gridTop, noteSwatchPx, noteSwatchPx);
+    ctx.strokeStyle = GRID_LINE_COLOR;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(layout.marginPx, gridTop, noteSwatchPx, noteSwatchPx);
+
+    ctx.fillStyle = "#7a5200";
+    ctx.font = `${detailFontPx}px ${FONT_STACK}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(
+      "Tinted bands on grid pages repeat on the adjacent page — don't stitch them twice.",
+      layout.marginPx + noteSwatchPx + noteGapPx,
+      gridTop + noteSwatchPx / 2
+    );
+    gridTop += noteSwatchPx + mmToPx(3, layout.dpi);
+  }
+
   const printableWidthPx = layout.pageWidthPx - 2 * layout.marginPx;
   const columns = Math.max(1, Math.floor(printableWidthPx / columnWidthPx));
 
