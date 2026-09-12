@@ -61,7 +61,7 @@ import {
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, STANDARD_AIDA_COUNTS, formatFinishedDimension, type SizeUnit } from "@/lib/finished-size";
 import { formatSkeinEstimate } from "@/lib/floss-estimate";
 import { loadSavedProject, loadWorkspaceOptions, saveProject, saveWorkspaceOptions } from "@/lib/workspace-storage";
-import type { GenerationMode, PaletteMode } from "@/lib/pattern.worker";
+import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pattern.worker";
 
 // The Image window's target on-screen width for its live-editable (color/bw)
 // canvas -- cell size is derived from this so a small pattern isn't a
@@ -179,6 +179,7 @@ export default function Workspace() {
   const [colorCount, setColorCount] = useState(16);
   const [generationMode, setGenerationMode] = useState<GenerationMode>("latest");
   const [paletteMode, setPaletteMode] = useState<PaletteMode>("full");
+  const [edgeMode, setEdgeMode] = useState<EdgeMode>("standard");
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [genError, setGenError] = useState<string | null>(null);
@@ -211,6 +212,7 @@ export default function Workspace() {
       setAidaCount(options.aidaCount);
       setSizeUnit(options.sizeUnit);
       setAuthorName(options.authorName);
+      setEdgeMode(options.edgeMode);
 
       const saved = loadSavedProject();
       if (saved) {
@@ -227,8 +229,8 @@ export default function Workspace() {
 
   useEffect(() => {
     if (!workspaceRestoredRef.current) return;
-    saveWorkspaceOptions({ aidaCount, sizeUnit, authorName });
-  }, [aidaCount, sizeUnit, authorName]);
+    saveWorkspaceOptions({ aidaCount, sizeUnit, authorName, edgeMode });
+  }, [aidaCount, sizeUnit, authorName, edgeMode]);
 
   useEffect(() => {
     if (!workspaceRestoredRef.current) return;
@@ -540,6 +542,7 @@ export default function Workspace() {
         colorCount,
         generationMode,
         paletteMode,
+        edgeMode,
         onProgress: setProgress,
       });
       if (sourceRevisionRef.current !== myRevision) return; // a different image was selected meanwhile
@@ -1585,6 +1588,33 @@ export default function Workspace() {
                         onClick={() => setPaletteMode(mode)}
                         className={`px-2 py-0.5 text-sm transition-colors ${
                           paletteMode === mode ? "bg-foreground text-background" : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Edges</span>
+                  <div className="flex items-center overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
+                    {(
+                      [
+                        { mode: "standard", label: "Standard", title: "Today's default -- averages colors across a boundary" },
+                        {
+                          mode: "crisp",
+                          label: "Crisp",
+                          title: "Preserves hard color boundaries instead of blending them into a manufactured intermediate color (G-024)",
+                        },
+                      ] as const
+                    ).map(({ mode, label, title }) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        title={title}
+                        onClick={() => setEdgeMode(mode)}
+                        className={`px-2 py-0.5 text-sm transition-colors ${
+                          edgeMode === mode ? "bg-foreground text-background" : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
                         }`}
                       >
                         {label}

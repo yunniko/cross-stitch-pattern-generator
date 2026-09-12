@@ -291,6 +291,11 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     cellPalette,
     palette,
     isLandscape: imageData.width > imageData.height,
+    // Recorded on the pattern itself (not just passed as a build option) so
+    // a saved/reopened pattern remembers how it was generated, the same way
+    // `dmcMode` does (G-024 M5) -- `applyDmcPalette`'s own `{...pattern, ...}`
+    // spread below carries this through to the DMC-mode return path too.
+    edgeMode: edgeMode === "crisp" ? "crisp" : undefined,
   };
 
   if (options.paletteMode !== "dmc") {

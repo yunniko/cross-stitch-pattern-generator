@@ -3,10 +3,11 @@ import { EMPTY_CELL, MAX_STITCHES, type PaletteColor, type RGB, type SourceImage
 // Plain JSON, not a PNG with embedded data (Owner decision, 2026-09-09,
 // HANDOVER.md D21) -- simplest reliable format, at the cost of not being
 // previewable as an image on its own. Bumped to 2 for G-012's embedded
-// sourceImage, and to 3 for G-016's dmcMode flag (Owner decision,
-// 2026-09-10) -- old files still open fine, they just parse with that
-// field absent (see deserializePattern).
-const FORMAT_VERSION = 3;
+// sourceImage, to 3 for G-016's dmcMode flag (Owner decision,
+// 2026-09-10), and to 4 for G-024's edgeMode flag -- old files still
+// open fine, they just parse with that field absent (see
+// deserializePattern).
+const FORMAT_VERSION = 4;
 
 export interface SerializedPattern {
   formatVersion: number;
@@ -22,6 +23,8 @@ export interface SerializedPattern {
   sourceImage?: SourceImageRef;
   /** Absent on files saved before G-016, or when the pattern isn't a DMC-mode one. */
   dmcMode?: boolean;
+  /** Absent on files saved before G-024 M5, or when the pattern wasn't generated with `edgeMode: "crisp"`. */
+  edgeMode?: "crisp";
 }
 
 /** `count`/`index` are left out -- both are derived from `cellPalette` and recomputed on load, not stored. */
@@ -36,6 +39,7 @@ export function serializePattern(pattern: StitchPattern): string {
     name: pattern.name,
     sourceImage: pattern.sourceImage,
     dmcMode: pattern.dmcMode,
+    edgeMode: pattern.edgeMode,
   };
   return JSON.stringify(data);
 }
@@ -97,6 +101,7 @@ export function deserializePattern(json: string): StitchPattern {
     name: typeof d.name === "string" && d.name.trim() !== "" ? d.name : undefined,
     sourceImage: isValidSourceImageRef(d.sourceImage) ? d.sourceImage : undefined,
     dmcMode: d.dmcMode === true ? true : undefined,
+    edgeMode: d.edgeMode === "crisp" ? "crisp" : undefined,
   };
 }
 

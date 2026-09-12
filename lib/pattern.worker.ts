@@ -1,4 +1,4 @@
-import { buildPattern, type PaletteMode } from "./pattern";
+import { buildPattern, type EdgeMode, type PaletteMode } from "./pattern";
 import { kMeansQuantizer, plainKMeansQuantizer } from "./quantize";
 import type { PixelBuffer, StitchPattern } from "./types";
 
@@ -20,6 +20,8 @@ export type GenerationMode = "original" | "latest";
 // needs the same internal `cells`/`importance`/`pairEvidence` context
 // only `buildPattern` has in scope.
 export type { PaletteMode };
+// Re-exported the same way for G-024 M5's Standard/Crisp UI control.
+export type { EdgeMode };
 
 export interface StartMessage {
   type: "start";
@@ -29,6 +31,7 @@ export interface StartMessage {
   colorCount: number;
   generationMode?: GenerationMode;
   paletteMode?: PaletteMode;
+  edgeMode?: EdgeMode;
 }
 
 export type WorkerRequest = StartMessage;
@@ -58,6 +61,7 @@ self.onmessage = (event) => {
       colorCount: msg.colorCount,
       quantizer: msg.generationMode === "original" ? plainKMeansQuantizer : kMeansQuantizer,
       paletteMode: msg.paletteMode,
+      edgeMode: msg.edgeMode,
       onProgress: (fraction) => self.postMessage({ type: "progress", jobId: msg.jobId, fraction }),
     });
     self.postMessage({ type: "done", jobId: msg.jobId, pattern });

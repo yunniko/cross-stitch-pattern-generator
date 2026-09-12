@@ -36,6 +36,28 @@ function makeBuffer(width: number, height: number, colorAt: (x: number, y: numbe
   return { data, width, height };
 }
 
+describe("buildPattern records edgeMode on its own output (G-024 M5, HANDOVER.md D74/D76)", () => {
+  it("stamps edgeMode: 'crisp' on the returned pattern when requested", () => {
+    const buffer = makeHardSplitWithGenuineGrayBuffer();
+    const pattern = buildPattern(buffer, { longerSideStitches: 16, colorCount: 4, edgeMode: "crisp" });
+    expect(pattern.edgeMode).toBe("crisp");
+  });
+
+  it("leaves edgeMode undefined for the default/'standard' path, including the DMC-mode return branch", () => {
+    const buffer = makeHardSplitWithGenuineGrayBuffer();
+    expect(buildPattern(buffer, { longerSideStitches: 16, colorCount: 4 }).edgeMode).toBeUndefined();
+    expect(buildPattern(buffer, { longerSideStitches: 16, colorCount: 4, edgeMode: "standard" }).edgeMode).toBeUndefined();
+    expect(buildPattern(buffer, { longerSideStitches: 16, colorCount: 4, paletteMode: "dmc" }).edgeMode).toBeUndefined();
+  });
+
+  it("carries edgeMode: 'crisp' through the DMC-mode return branch too (applyDmcPalette's own spread)", () => {
+    const buffer = makeHardSplitWithGenuineGrayBuffer();
+    const pattern = buildPattern(buffer, { longerSideStitches: 16, colorCount: 4, edgeMode: "crisp", paletteMode: "dmc" });
+    expect(pattern.edgeMode).toBe("crisp");
+    expect(pattern.dmcMode).toBe(true);
+  });
+});
+
 describe("buildPattern Standard-compatibility: edgeMode omitted/'standard' is byte-identical to today's output", () => {
   it("matches exactly on a real photo-like noisy fixture", () => {
     const width = 64;

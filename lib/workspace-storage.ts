@@ -1,5 +1,6 @@
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import { deserializePattern, serializePattern } from "./pattern-serialize";
+import type { EdgeMode } from "./pattern.worker";
 import type { StitchPattern } from "./types";
 
 // Workspace-level preferences and the in-progress project, persisted to
@@ -18,15 +19,26 @@ export interface WorkspaceOptions {
   aidaCount: number;
   sizeUnit: SizeUnit;
   authorName: string;
+  /**
+   * The Standard/Crisp choice for the *next* Generate/Regenerate (G-024
+   * M5) -- unlike `dmcMode`/`edgeMode` on a `StitchPattern` itself
+   * (which record how an already-generated pattern was built), this is
+   * just a remembered UI preference so a reloaded session starts with
+   * the Owner's last choice instead of always resetting to Standard.
+   * Missing/corrupt/legacy (every workspace saved before this field
+   * existed) defaults to `"standard"`.
+   */
+  edgeMode: EdgeMode;
 }
 
 const DEFAULT_OPTIONS: WorkspaceOptions = {
   aidaCount: DEFAULT_AIDA_COUNT,
   sizeUnit: DEFAULT_SIZE_UNIT,
   authorName: "",
+  edgeMode: "standard",
 };
 
-/** Reads persisted fabric count / unit / author name -- falls back to defaults on first visit or any corrupt/missing data. */
+/** Reads persisted fabric count / unit / author name / edge mode -- falls back to defaults on first visit or any corrupt/missing data. */
 export function loadWorkspaceOptions(): WorkspaceOptions {
   if (typeof window === "undefined") return DEFAULT_OPTIONS;
   try {
@@ -37,6 +49,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       aidaCount: typeof parsed.aidaCount === "number" && parsed.aidaCount > 0 ? parsed.aidaCount : DEFAULT_OPTIONS.aidaCount,
       sizeUnit: parsed.sizeUnit === "in" || parsed.sizeUnit === "cm" ? parsed.sizeUnit : DEFAULT_OPTIONS.sizeUnit,
       authorName: typeof parsed.authorName === "string" ? parsed.authorName : DEFAULT_OPTIONS.authorName,
+      edgeMode: parsed.edgeMode === "crisp" ? "crisp" : DEFAULT_OPTIONS.edgeMode,
     };
   } catch {
     return DEFAULT_OPTIONS;

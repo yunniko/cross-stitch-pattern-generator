@@ -132,6 +132,20 @@ describe("pattern-serialize", () => {
     expect(restored.dmcMode).toBeUndefined();
   });
 
+  it("round-trips edgeMode: \"crisp\" (G-024 M5)", () => {
+    const pattern = { ...makePattern(), edgeMode: "crisp" as const };
+    const restored = deserializePattern(serializePattern(pattern));
+    expect(restored.edgeMode).toBe("crisp");
+  });
+
+  it("leaves edgeMode undefined for a file saved before G-024 M5, or any non-\"crisp\" value", () => {
+    const restored = deserializePattern(serializePattern(makePattern()));
+    expect(restored.edgeMode).toBeUndefined();
+
+    const tampered = JSON.stringify({ ...JSON.parse(serializePattern(makePattern())), edgeMode: "chunky" });
+    expect(deserializePattern(tampered).edgeMode).toBeUndefined();
+  });
+
   it("round-trips an EMPTY_CELL stitch without rejecting the file (G-012 M5)", () => {
     const pattern = { ...makePattern(), cellPalette: Uint8Array.from([EMPTY_CELL, 1, 1, 0]) };
     const restored = deserializePattern(serializePattern(pattern));

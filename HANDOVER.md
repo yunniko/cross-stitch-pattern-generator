@@ -5665,6 +5665,95 @@ clicked the new "Export PDF (Pattern Keeper)" button against a real
 persisted pattern, confirmed a real ~585KB PDF actually downloaded, with
 zero console errors.
 
+**D76 — Removed the "OVERLAP" text from grid-page tint bands, moved the
+explanation to the legend (2026-09-12, Owner: "remove overlap word from
+overlap area on all modes of render. add it to legend instead").**
+
+`lib/a4-render.ts`'s `drawOverlapBands` used to draw the literal word
+"OVERLAP" (rotated vertically on left/right bands) on top of the
+semi-transparent tint marking cells that repeat on an adjacent page.
+Since this function is now shared by every render mode that draws a
+grid page -- PNG Color, PNG B&W, and the new PDF export (all three go
+through `drawA4GridPage`, per D74's shared-function refactor) -- removing
+it there fixed all three at once, no per-mode changes needed. The tint
+itself is unchanged; only the text is gone. `drawA4LegendPage` now draws
+a small swatch matching the tint color plus a one-line explanation
+("Tinted bands on grid pages repeat on the adjacent page — don't stitch
+them twice."), shown once, only when `layout.overlapCells > 0` (an
+overlap-0 export never gets bands at all, so the note would be
+meaningless there). Verified: full unit suite green, `tsc`/`eslint`
+clean, e2e green for both the PNG A4 export and the PDF export (the two
+real consumers of this shared code).
+
+**D77 — G-024 M5: `edgeMode` UI control + persistence (2026-09-12, same
+standing "continue without confirmation... deploy and push after each
+stage" instruction).**
+
+Plumbed `edgeMode` all the way through the existing cancellable-job
+machinery, mirroring `generationMode`/`paletteMode`'s already-established
+pattern exactly (`lib/pattern.worker.ts`'s `StartMessage` →
+`lib/pattern-client.ts`'s `RunPatternJobOptions` → `app/workspace.tsx`'s
+`runPatternJob` call) rather than inventing a new plumbing convention.
+
+**Recorded on the pattern itself, not just passed as a build option**:
+`lib/pattern.ts`'s `buildPattern` now stamps `edgeMode: "crisp"` onto its
+own returned `StitchPattern` when requested (mirroring `dmcMode`'s
+existing precedent exactly) -- added to the single `pattern` object
+construction partway through `buildPattern`, which `applyDmcPalette`'s
+own `{...pattern, ...}` spread at the DMC-mode return path already
+carries through unchanged, so one edit covers both exit paths. Missing
+(every pre-M5 pattern) or `"standard"` both mean the same thing --
+`edgeMode` is only ever explicitly set to `"crisp"`, never `"standard"`,
+matching `dmcMode?: boolean`'s own "absent means false" idiom.
+
+**Two distinct kinds of persistence, not one** -- deliberately different
+from each other, per the goal's own milestone text naming both
+`types.ts`/`pattern-serialize.ts` (the saved-pattern file format) and
+`workspace-storage.ts` (workspace-level preferences) as separate things
+to change:
+1. `StitchPattern.edgeMode?: "crisp"` (`lib/types.ts`) round-trips
+   through `lib/pattern-serialize.ts`'s `SerializedPattern`
+   (`FORMAT_VERSION` bumped 3→4, same as G-016's `dmcMode` bump) --
+   this records *how an already-generated pattern was actually built*,
+   so reopening a saved file doesn't lose that fact.
+2. `WorkspaceOptions.edgeMode` (`lib/workspace-storage.ts`, alongside
+   `aidaCount`/`sizeUnit`/`authorName`) remembers the Owner's last
+   *UI selection* for the next Generate/Regenerate click, the same way
+   the existing aida-count/unit/author fields already do -- unlike
+   `generationMode`/`paletteMode`, which are plain, not-persisted
+   `useState` in `workspace.tsx` (an existing asymmetry in the app I
+   didn't try to fix here, since the goal's own plan specifically called
+   out `edgeMode`'s persistence, not those two).
+
+**"Generate/Regenerate semantics only" was free, not something extra to
+build**: the new "Edges" Standard/Crisp toggle in `app/workspace.tsx`
+(placed next to the existing Algorithm/Palette toggles) only ever
+affects the NEXT `runPatternJob` call -- there's no code path where
+flipping the toggle alone touches `pattern` or its cells, the same
+structural guarantee the pre-existing `generationMode`/`paletteMode`
+toggles already have. Verified live (not just by reading the code):
+clicked "Crisp" against an already-generated pattern and confirmed the
+on-screen grid/legend didn't change at all, then reloaded the page and
+confirmed the toggle still showed "Crisp" (workspace-level persistence
+working end-to-end in a real browser).
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full `npx
+vitest run` 507/507 passing (new tests: `buildPattern` stamping
+`edgeMode` on both the Standard and DMC-mode return paths,
+`pattern-client`'s request-forwarding, `pattern-serialize`'s round-trip
++ legacy-file default, `workspace-storage`'s load/save/corrupt-data
+fallback for the new field), `npm run build` clean, and the **complete**
+e2e suite (29/29) -- run in full rather than a subset, since this
+milestone's persistence effects sit on the same restore/save hooks every
+other e2e test's initial page load already depends on.
+
+**Not deployed with D76** -- both D76 and this milestone change real,
+user-facing shippable behavior, so they're deployed together in one
+redeploy immediately following this entry, per the standing "deploy
+after each stage" instruction interpreted as "batch trivially, deploy
+once you've actually got something to ship" rather than two back-to-back
+rebuilds for changes made minutes apart in the same session.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

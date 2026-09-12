@@ -56,23 +56,28 @@ describe("workspace-storage", () => {
   });
 
   describe("loadWorkspaceOptions / saveWorkspaceOptions", () => {
-    it("returns defaults (14-count, cm, no author) when nothing is stored", () => {
-      expect(loadWorkspaceOptions()).toEqual({ aidaCount: 14, sizeUnit: "cm", authorName: "" });
+    it("returns defaults (14-count, cm, no author, Standard edges) when nothing is stored", () => {
+      expect(loadWorkspaceOptions()).toEqual({ aidaCount: 14, sizeUnit: "cm", authorName: "", edgeMode: "standard" });
     });
 
     it("round-trips saved options", () => {
-      saveWorkspaceOptions({ aidaCount: 18, sizeUnit: "in", authorName: "Jules" });
-      expect(loadWorkspaceOptions()).toEqual({ aidaCount: 18, sizeUnit: "in", authorName: "Jules" });
+      saveWorkspaceOptions({ aidaCount: 18, sizeUnit: "in", authorName: "Jules", edgeMode: "crisp" });
+      expect(loadWorkspaceOptions()).toEqual({ aidaCount: 18, sizeUnit: "in", authorName: "Jules", edgeMode: "crisp" });
     });
 
     it("falls back to defaults entirely for corrupted stored JSON", () => {
       window.localStorage.setItem(OPTIONS_KEY, "{not valid json");
-      expect(loadWorkspaceOptions()).toEqual({ aidaCount: 14, sizeUnit: "cm", authorName: "" });
+      expect(loadWorkspaceOptions()).toEqual({ aidaCount: 14, sizeUnit: "cm", authorName: "", edgeMode: "standard" });
     });
 
     it("falls back field-by-field for individually invalid values", () => {
-      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: -5, sizeUnit: "furlongs", authorName: 42 }));
-      expect(loadWorkspaceOptions()).toEqual({ aidaCount: 14, sizeUnit: "cm", authorName: "" });
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: -5, sizeUnit: "furlongs", authorName: 42, edgeMode: "chunky" }));
+      expect(loadWorkspaceOptions()).toEqual({ aidaCount: 14, sizeUnit: "cm", authorName: "", edgeMode: "standard" });
+    });
+
+    it("defaults edgeMode to standard for a workspace saved before G-024 M5 (edgeMode absent entirely)", () => {
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18, sizeUnit: "in", authorName: "Jules" }));
+      expect(loadWorkspaceOptions().edgeMode).toBe("standard");
     });
   });
 

@@ -165,7 +165,7 @@ restructured into this project's usual milestone/check-in shape):
   - [x] M4.9 — End-to-end regression consolidating M4.1-M4.8's own
     stage tests against the real `buildPattern`, the M1 genuine-gray-
     elsewhere fixture, and the report's Section 9 acceptance matrix.
-- [ ] M5 — UI + persistence: `edgeMode` through
+- [x] M5 — UI + persistence: `edgeMode` through
   `pattern.worker.ts`/`pattern-client.ts`'s existing cancellable job
   boundary, a Standard/Crisp control in `app/workspace.tsx`, and
   persistence in `types.ts`/`pattern-serialize.ts`/`workspace-storage.ts`
@@ -179,6 +179,26 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-12 — M5 complete (same standing instruction). Plumbed
+  `edgeMode` through the existing cancellable-job machinery exactly like
+  `generationMode`/`paletteMode` already are, added a Standard/Crisp
+  toggle to `app/workspace.tsx` next to those two, and wired two
+  distinct kinds of persistence: `StitchPattern.edgeMode?: "crisp"`
+  (mirroring `dmcMode`'s own precedent) round-trips through the saved-
+  pattern file format (`pattern-serialize.ts`, format version 3→4), and
+  a separate `WorkspaceOptions.edgeMode` remembers the Owner's last UI
+  choice across reloads (alongside aida-count/unit/author). Verified
+  live in a real browser that flipping the toggle alone never touches
+  the current pattern (Generate/Regenerate semantics only, as required)
+  and that the choice survives a page reload. Full story in HANDOVER.md
+  D77. Also fixed, same session: removed the "OVERLAP" text label from
+  grid-page tint bands across every render mode (PNG color/B&W, PDF) per
+  Owner request, moving the explanation to the legend instead
+  (HANDOVER.md D76). Verified: 507/507 unit tests, clean
+  `tsc`/`eslint`/build, full 29/29 e2e suite green. **Both D76 and M5
+  change real shippable behavior — deployed together** (see HANDOVER.md
+  for the deploy log). Starting M6 next (calibration/acceptance testing
+  against the report's full fixture matrix).
 - 2026-09-12 — M4.9 complete -- **G-024 M4 fully complete (M4.1-M4.9)**.
   `edgeMode?: "standard" | "crisp"` wired into the real `BuildPatternOptions`/
   `buildPattern`, assembling every M4.1-M4.8 piece into the actual

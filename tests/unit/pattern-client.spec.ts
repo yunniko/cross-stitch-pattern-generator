@@ -54,6 +54,13 @@ describe("pattern-client", () => {
     await expect(promise).resolves.toBe(FIXTURE_PATTERN);
   });
 
+  it("forwards edgeMode through to the worker request (G-024 M5)", async () => {
+    const { runPatternJob } = await import("@/lib/pattern-client");
+    runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2, edgeMode: "crisp" }).catch(() => {});
+    const w = FakeWorker.instances[0];
+    expect(w.lastRequest?.edgeMode).toBe("crisp");
+  });
+
   it("rejects a superseded job's promise instead of leaving it pending forever", async () => {
     const { runPatternJob } = await import("@/lib/pattern-client");
     const firstPromise = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });

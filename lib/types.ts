@@ -146,6 +146,19 @@ export interface StitchPattern {
    * section.
    */
   dmcMode?: boolean;
+  /**
+   * Set when this pattern was generated with `edgeMode: "crisp"`
+   * (G-024's Crisp Edges feature; see `lib/pattern.ts`'s `EdgeMode`),
+   * persisted on the pattern itself for the same reason `dmcMode` is --
+   * so a reopened/restored pattern still reports how it was actually
+   * built, not just whatever the UI's transient mode selector currently
+   * shows. Absent for every Standard-mode pattern, including every
+   * pattern saved before this field existed (G-024 M5) -- "missing"
+   * and "Standard" are the same thing here, never stored explicitly.
+   * Purely informational for now (no rendering/export path branches on
+   * it); regenerating is the only way to change it.
+   */
+  edgeMode?: "crisp";
 }
 
 /** An axis-aligned, half-open (end-exclusive) rectangle in stitch-cell coordinates. */
