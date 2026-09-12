@@ -960,6 +960,142 @@ milestone's own result justifies continuing):
   over-100 handling) rather than assumed. Not yet promoted to ACTIVE --
   awaiting Owner review of this plan.
 
+### G-029 · Anchor and Cosmo thread-brand palette modes — DRAFT (2026-09-12)
+- **What:** Two new selectable palette modes alongside today's "Full
+  range" and "DMC": **Anchor** and **Cosmo**, each snapping the generated
+  pattern's colors to that brand's real, buyable thread line, with the
+  same floss/skein estimate, legend formatting, "+Add" restriction, and
+  A4/PDF export treatment DMC mode already gets. This requires first
+  **generalizing** the current DMC-only plumbing (`dmcMode: boolean` on
+  `StitchPattern`, `PaletteMode = "full" | "dmc"`, `applyDmcPalette`,
+  `filterDmcColors`, the DMC-only "+Add"/color-editor restriction, the
+  A4/PDF "Thread: DMC" legend section -- 16 files touch `dmcMode` today)
+  into a brand-agnostic mechanism, rather than adding two more brand-
+  specific booleans/branches on top -- per this project's own standing
+  preference for holistic redesigns over narrow per-case patches, and
+  directly continuing G-021's own precedent ("DMC as an independent
+  palette mode, not a third algorithm").
+- **Why:** Anchor was directly requested by the Owner (2026-09-12).
+  Cosmo rides along in the same goal because researching Anchor's data
+  situation (see below) surfaced Cosmo as unexpectedly well-sourced --
+  better provenance than DMC's own -- and cheap to add once the
+  architecture is generalized; building that generalization twice (once
+  per brand, in two separate goals) would duplicate real work across the
+  same 16 files for no benefit. Full sourcing for this decision is in
+  `docs/reviews/2026-09-12-thread-brand-palette-research.md`.
+- **Data honesty, verified before planning (not assumed):**
+  - **Cosmo has a genuinely independent dataset.**
+    [tallcoleman/CosmoToRGB](https://github.com/tallcoleman/CosmoToRGB),
+    **MIT licensed** (confirmed via GitHub's own API). The author sampled
+    RGB directly from Cosmo's own official 2020 color-card PDF -- not
+    derived from DMC. Same rigor bar as `docs/dmc-colors-provenance.md`,
+    arguably better-sourced.
+  - **Anchor has no independent dataset anywhere.** Every "Anchor RGB"
+    resource found (verified directly by inspecting
+    [katjackson/embroidery-color-scheme-tool](https://github.com/katjackson/embroidery-color-scheme-tool)'s
+    actual CSV: columns `dmc,anchor,description,red,green,blue,hexValue`,
+    one row per **DMC** code with Anchor as a paired equivalent-code
+    column) is a DMC-equivalence cross-reference, not independently
+    measured Anchor color data -- industry-wide, not just this one
+    source. **Anchor mode will therefore be "nearest DMC match, relabeled
+    with its known Anchor equivalent," not an independent color-matching
+    pipeline** -- this must be disclosed in-app (not just in this doc),
+    per VALUES.md Honesty.
+  - **The floss/skein estimate formula (`lib/floss-estimate.ts`) is
+    genuinely brand-agnostic, verified, not assumed**: its `SKEIN_STRAND_CM
+    = 4800` constant assumes an 8m/6-strand skein, which is DMC's real
+    standard -- confirmed Anchor and Cosmo both also sell 8m/6-strand
+    skeins (same industry-standard put-up), so the existing formula
+    applies unchanged to all three brands.
+- **Acceptance criteria:**
+  1. `StitchPattern`'s `dmcMode: boolean` and `PaletteMode`'s `"full" |
+     "dmc"` generalize to support 3+ brands, with existing saved
+     patterns (`dmcMode: true` in old `.json`/`.cspzip` files) still
+     opening correctly as DMC mode -- a real backward-compatibility path,
+     not a breaking change.
+  2. `applyDmcPalette` generalizes into a brand-agnostic matcher
+     (generic `{code, name, rgb}` color list in, brand label out) with
+     the *same* reoptimize/crisp-evidence-repair/collision-diagnostic
+     behavior DMC mode has today -- Anchor and Cosmo are not second-class
+     relative to DMC.
+  3. Cosmo mode: real independent nearest-match (same OKLab-distance
+     method as DMC) against the verified MIT dataset, full
+     `docs/cosmo-colors-provenance.md` (same shape/rigor as the DMC one:
+     source commit/version, license, spot-checks, duplicate scan).
+  4. Anchor mode: DMC-equivalence-based matching/relabeling, a real
+     `docs/anchor-colors-provenance.md` documenting the derivation
+     honestly (why no independent data exists, what source the DMC-
+     equivalence table came from), and a visible in-app disclosure
+     (e.g. the mode's own tooltip/help text) that Anchor colors are
+     derived via DMC-equivalence, not independently matched -- this is
+     not optional polish, it's the acceptance bar for not overstating
+     what the feature does.
+  5. Every DMC-only UI surface found in the 16-file sweep (`app/workspace.tsx`'s
+     "+Add" restriction and Full-range/brand-only color-editor switcher,
+     `lib/a4-render.ts`'s "Thread: DMC" legend section, etc.) now works
+     generically for all three brand modes.
+  6. Full regression suite green **including every pre-existing DMC
+     test unmodified** (M1's generalization must be behavior-preserving
+     for DMC before any new brand is added -- this is the milestone most
+     likely to introduce a silent DMC regression), e2e coverage added for
+     both new modes' generate -> legend -> export path, real deploy.
+- **Constraints:**
+  - Scope is DMC (existing) + Anchor + Cosmo only. Madeira, Sullivans,
+    J&P Coats, Kreinik, Presencia, and hand-dyed brands (Weeks Dye Works,
+    Classic Colorworks, The Gentle Art) have no usable open data per the
+    research doc -- separate future goals if/when real data surfaces, not
+    folded into this one.
+  - Anchor's DMC-derived nature is a disclosed limitation, not something
+    to silently paper over by inventing independent Anchor RGB data --
+    none exists to invent it from.
+  - Given this touches core generation/serialization/rendering code
+    across ~16 existing files and changes a persisted-file field's
+    meaning, M1's actual design (especially the backward-compatibility
+    strategy) goes through a real Codex critique exchange before being
+    written, per this project's standing practice for consequential
+    decisions.
+  - No domain-expert review needed (data-sourcing/software-architecture
+    concern, not a physical/chemical/craft-science one) -- though AC's
+    "floss estimate is brand-agnostic" claim above was independently
+    verified (real skein-length sources for Anchor and Cosmo), not just
+    assumed by analogy to DMC.
+
+**Milestones:**
+- [ ] M1 -- Generalize the architecture: `lib/types.ts`, `lib/dmc-match.ts`
+  (-> a brand-agnostic matcher), `lib/pattern.ts`, `lib/pattern-serialize.ts`
+  (with backward-compat read of legacy `dmcMode: true` saves),
+  `lib/pattern-edit.ts`, `lib/a4-render.ts`, `app/workspace.tsx`. Design
+  reviewed by Codex first (backward-compat strategy especially). Existing
+  DMC behavior must be bit-for-bit unchanged -- verified via the full
+  existing regression suite passing unmodified before any new brand is
+  added. No new user-facing feature yet.
+- [ ] M2 -- Cosmo data + mode: `lib/cosmo-colors.ts` built from
+  tallcoleman/CosmoToRGB (MIT), `docs/cosmo-colors-provenance.md`, wired
+  into M1's architecture, unit tests, UI wiring (mode toggle, "+Add"
+  restriction, A4/PDF legend). Goes before Anchor since its data is
+  independent/higher-confidence -- exercises the new architecture on a
+  clean case first.
+- [ ] M3 -- Anchor mode: DMC-equivalence matching/relabeling, the in-app
+  "derived from DMC" disclosure, `docs/anchor-colors-provenance.md`,
+  wired into M1's architecture, unit tests, UI wiring.
+- [ ] M4 -- Full regression + real-world verification: full unit/e2e
+  suite across all three brand modes plus a backward-compat check
+  against a pattern saved before this goal (old `dmcMode: true` JSON
+  still opens correctly as DMC); manual check of Anchor/Cosmo legends
+  and exports. Commit, deploy.
+
+**Progress log** (newest first):
+- 2026-09-12 -- Goal drafted, combining Anchor (Owner-requested) and
+  Cosmo (surfaced by research as unexpectedly well-sourced) into one
+  goal because both need the same DMC-plumbing generalization first.
+  Data situation for each verified directly (not assumed) before writing
+  acceptance criteria: Cosmo has genuine independent MIT data; Anchor
+  has none anywhere, only DMC-equivalence tables -- this shapes AC4's
+  disclosure requirement. Floss-estimate skein-length assumption checked
+  against real sources for both brands rather than assumed by analogy.
+  Not yet promoted to ACTIVE -- awaiting Owner review of this plan and
+  of the combined-vs-split goal structure.
+
 ## Completed goals
 
 ### G-022 · Fix rectangular-boundary bias found by the cluster-boundary review — DONE (2026-09-11, Owner sign-off 2026-09-12)
