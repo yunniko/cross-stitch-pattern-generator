@@ -5655,6 +5655,16 @@ that changes real, user-facing shippable behavior — **deployed**
 afterward (see the deploy note immediately following this entry).
 Continuing to M4 next (real Pattern Keeper import verification).
 
+**Deployed (2026-09-12).** Redeploy recipe: `git fetch origin && git
+pull && docker compose --profile app up -d --build`. Container isolation
+confirmed (`cross-stitch-pattern-generator-app-1` alone restarted; all
+29 other containers' uptimes unchanged). Other sites healthy
+(`meet.app.julienika.cz`/`craftale.eu`/`arfid.julienika.cz` all HTTP
+200). Live production check on `https://cross-stitch.craftodejnice.cz`:
+clicked the new "Export PDF (Pattern Keeper)" button against a real
+persisted pattern, confirmed a real ~585KB PDF actually downloaded, with
+zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
