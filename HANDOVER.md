@@ -6230,3 +6230,27 @@ teardown and was interrupted. iOS, Docker builds, maximum canvas allocation,
 and deployment parity were not verified. The report also identifies stale
 current-state/next-step summaries above; historical decision entries were
 preserved.
+
+## Competitive analysis — 2026-09-12
+
+Owner requested a functionality review plus market research: what do
+analog tools (photo-to-cross-stitch web generators, desktop chart software,
+Pattern Keeper-style progress trackers, newer AI-prompt generators) have
+that we don't, and vice versa. Full sourced comparison, gap ranking, and
+confidence notes are in
+[`docs/reviews/2026-09-12-competitive-analysis.md`](docs/reviews/2026-09-12-competitive-analysis.md).
+Research only — no code changed, no goal scope altered.
+
+Own functionality was spot-verified live in production (upload → generate,
+DMC mode, Crisp edges mode, Realistic preview all confirmed working), not
+just read from GOALS.md. Top findings: we're the only tool surveyed
+combining *no account + no watermark + no paid tier + fully client-side
+image processing*; our OKLab/ICM/Sobel-importance quantization pipeline and
+domain-reviewed floss-estimate math are more rigorously documented than any
+competitor's. The most consistently-present gap across competitors is
+Anchor/other thread-brand palettes (DMC-only today); backstitch and
+fractional (half/quarter) stitches are also common elsewhere but were
+already deliberately deferred as out-of-scope in G-024. Evenweave/linen
+fabric support and a cross-program interchange export (`.oxs`) are two
+smaller gaps found. None of this was folded into any in-flight goal; if
+pursued, each should become its own `GOALS.md` entry.

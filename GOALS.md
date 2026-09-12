@@ -818,6 +818,148 @@ milestone's own result justifies continuing):
   module, no UI wiring yet). Not deployed (nothing shippable). Goal
   promoted from DRAFT to ACTIVE. Starting M2 next (the real exporter).
 
+### G-028 · Import and export the OXS (Open Cross Stitch) interchange format — DRAFT (2026-09-12)
+- **What:** Read and write `.oxs` files -- the open, XML-based chart
+  interchange format (developed by Ursa Software, used by PCStitch,
+  WinStitch/MacStitch, KXStitch, FlossCross, Xstitchify, and others) --
+  so a pattern can move between this app and any of those programs.
+  Export produces a valid `.oxs` from the current `StitchPattern`; import
+  reads a real `.oxs` file (from any of the programs above, not just
+  self-round-tripped files) into a working `StitchPattern`.
+- **Why:** Directly follows a gap identified in the 2026-09-12 competitive
+  analysis (`docs/reviews/2026-09-12-competitive-analysis.md`, Part 3
+  item 5): several real competitors (Xstitchify, FlossCross) export
+  `.oxs` specifically so a pattern isn't locked to one program; we
+  currently only interchange via our own `.cspzip`/JSON, which nothing
+  else can read. This is a genuine interoperability feature, not
+  cosmetic -- it lets a pattern made here be finished/tracked in
+  whatever desktop software the Owner or another user already uses.
+- **Format grounding (verified before planning, not assumed):** Primary
+  source is Ursa Software's own spec page
+  (https://www.ursasoftware.com/OXSFormat/, retrieved 2026-09-12),
+  cross-checked against a real, independently-hosted `.oxs` file
+  (`Mickey1992/stitch-pdf2oxs`'s `test.oxs` on GitHub, retrieved
+  2026-09-12) and a real generator script (a public gist producing the
+  exact same file FlossCross itself ships). All three agree: root
+  `<chart>` element containing `<properties>` (size, title, author,
+  `stitchesperinch`/`stitchesperinch_y`), `<palette>` of `<palette_item
+  index number name color strands symbol .../>` (color = 6-hex RRGGBB,
+  no `#`; `number` is typically `"DMC ####"` but any brand/free text is
+  valid), `<fullstitches>` of `<stitch x y palindex marked/>`,
+  `<partstitches>` (half/quarter stitches, two palette indices +
+  direction), `<backstitches>` (line segments `x1 y1 x2 y2 palindex`),
+  `<ornaments_inc_knots_and_beads>` (French knots/beads/buttons/etc.),
+  and `<commentboxes>` -- the last four are "mandatory even if empty"
+  per the spec's own wording. **Only `.oxs` is in scope** -- PCStitch's
+  own `.pat`/`.xsd` formats are a different, proprietary, far-less-
+  documented format family (some possibly binary) and are explicitly
+  out of scope for this goal.
+- **Acceptance criteria:**
+  1. `buildPatternKeeperPdf`-style pure module producing a spec-valid
+     `.oxs` from any `StitchPattern` (DMC-mode or full-range), verified
+     both by self-round-trip (our own parser reads back what our own
+     writer wrote, losslessly for grid+palette) and by actually opening
+     the exported file in at least one independent real OXS consumer
+     (candidate: stitchmate.app's free "Open OXS files online" tool, or
+     a desktop program if the Owner has one) -- not just eyeballing the
+     XML, matching this project's own standing "verify against the real
+     thing" bar (see G-026 M4).
+  2. Import reads a real `.oxs` file (self-authored small synthetic
+     fixtures for automated tests -- see licensing note below -- plus at
+     least one real-world-shaped sample for manual verification) into a
+     `StitchPattern`: grid dimensions, per-cell colors, and palette
+     (with DMC auto-detection when `number` parses as a real DMC code
+     matching our own `DMC_COLORS` table) all correct.
+  3. Content the app cannot represent (backstitch, French knots,
+     beads/buttons/sequins, comment boxes) is **never silently dropped**
+     -- import surfaces an honest, specific summary of what wasn't
+     carried over (counts per category), per VALUES.md Honesty ("never
+     smoothed over to look like success"). Half/quarter partstitches are
+     approximated as a full stitch of their primary color (documented as
+     an approximation, not silently treated as exact).
+  4. Existing export/import paths (PNG, A4, Pattern Keeper PDF, `.cspzip`,
+     editable JSON) are unaffected -- this is additive. OXS export is
+     folded into the "Export all" `.cspzip` bundle alongside the other
+     formats, consistent with G-027's own "every export format" intent.
+  5. Full regression suite green, real deploy, following this project's
+     standing practice of shipping real shippable behavior mid-goal
+     rather than batching it all to the end.
+- **Constraints / deliberate scope decisions (flagged for Owner review
+  at plan approval, not assumed unilaterally):**
+  - **Open question -- needs an Owner answer before M2 (not before M1):**
+    real OXS files can carry far more than our `MAX_COLORS = 100` cap
+    (the verified real sample above has 237 colors). Proposed default:
+    **reject import with a clear, honest error naming the file's actual
+    color count and our cap**, rather than building a lossy palette-
+    reduction algorithm on import (a much larger, separate feature this
+    goal's brief didn't ask for). If the Owner wants auto-reduction
+    instead, that changes M2's scope materially -- say so before M2
+    starts.
+  - Never commit a real third-party designer's `.oxs` file as a test
+    fixture (the verified sample above is a copyrighted commercial
+    pattern, "Aimee Stewart 2015 ") -- automated-test fixtures are
+    self-authored synthetic files only (STANDARDS.md "Integrity of
+    work"); any real-world sample used for manual verification stays
+    local, never committed.
+  - Anchor/Madeira/other-brand `number` values on import are treated as
+    plain custom colors (hex + free-text name), not converted to DMC --
+    we have no Anchor color table, and building one is a separate
+    concern (already logged as its own competitive-analysis gap, not
+    folded into this goal).
+  - Symbol values on import are ignored in favor of our own auto-
+    assignment (`lib/symbols.ts`) -- an incoming numeric/font-specific
+    symbol code means nothing without the source program's own symbol
+    font, so reinterpreting it would be guesswork, not a real mapping.
+    Symbols on export carry our real Unicode symbol character in the
+    `symbol` attribute (best-effort; other programs' own fonts may not
+    render the same glyph -- an industry-wide OXS limitation, not one of
+    ours, per the spec's live-and-let-live design for exactly this).
+  - `stitchesperinch`/`stitchesperinch_y` maps to our existing
+    `aidaCount` field; if the two differ (non-square weave) on import,
+    use `stitchesperinch` and note the mismatch rather than averaging or
+    guessing.
+  - No domain-expert review needed (this is a file-interoperability/
+    software-engineering concern, not a physical/chemical/craft-science
+    one per STANDARDS.md's own scoping for that step).
+  - Per this project's standing practice for consequential design
+    decisions, M1's actual parser/serializer design goes through a real
+    Codex critique exchange before being written, not just this plan.
+
+**Milestones:**
+- [ ] M1 -- Pure module (`lib/oxs.ts` or similar): parse real OXS XML
+  (via `DOMParser`, main-thread-only like `pattern-import.ts` already
+  is -- not the generation Web Worker) into an intermediate structure,
+  and serialize a `StitchPattern` into spec-valid OXS XML (proper XML-
+  escaping for name/author/title text). Self-authored synthetic
+  fixtures only (see licensing constraint). Design sent through a real
+  Codex critique exchange first, per standing practice. Unit-tested.
+- [ ] M2 -- Import integration: wire into `lib/pattern-import.ts` /
+  `loadPatternFromFile`'s existing content-sniffing flow (extend past
+  ZIP/JSON to also recognize OXS XML), palette mapping (DMC auto-
+  detection, EMPTY_CELL for any cell absent from `<fullstitches>`),
+  partstitch approximation, and the honest drop/approximation-summary
+  UI surface. **Blocked on the Owner's color-cap-behavior answer above
+  before this milestone starts.**
+- [ ] M3 -- Export integration: new `ExportKind` ("oxs") in
+  `app/workspace.tsx`'s export dropdown (top-level, alongside
+  "editable" -- it's a data format, not a color/bw render variant), plus
+  folded into `lib/export-all.ts`'s `.cspzip` bundle.
+- [ ] M4 -- Real-world verification: export a generated pattern's
+  `.oxs` and open it in a real independent OXS consumer to confirm
+  correct reading; import a real-world-shaped sample and confirm
+  grid/colors/drop-summary are all correct. Full regression suite,
+  commit, deploy.
+
+**Progress log** (newest first):
+- 2026-09-12 -- Goal drafted from the 2026-09-12 competitive-analysis
+  review's Part 3 gap #5. Format verified against three independent
+  sources (Ursa's own spec, a real hosted sample file, a real generator
+  script) before writing any acceptance criteria, per this project's
+  own standing practice of reproducing/verifying before planning
+  against a claim. One open question flagged for the Owner (color-count-
+  over-100 handling) rather than assumed. Not yet promoted to ACTIVE --
+  awaiting Owner review of this plan.
+
 ## Completed goals
 
 ### G-022 · Fix rectangular-boundary bias found by the cluster-boundary review — DONE (2026-09-11, Owner sign-off 2026-09-12)
