@@ -6293,6 +6293,22 @@ to `page.getByRole("textbox", { name: "Fill color" })`, disambiguating
 by the existing fill-color input's own accessible name rather than its
 type.
 
+**Deployed (2026-09-12).** Covers D86-D89 in one redeploy (all four
+were developed and verified together in the same session; bundling
+matches the D81/D82 and D84/D85 precedent). Standard recipe (`git
+fetch` + `git pull` + `docker compose --profile app up -d --build`).
+Container isolation confirmed (`cross-stitch-pattern-generator-app-1`
+alone recreated/restarted; every other container's `docker ps` uptime
+on the host unchanged). Other sites healthy
+(`meet.app.julienika.cz`/`craftale.eu`/`arfid.julienika.cz` all HTTP
+200). Live-checked on `https://cross-stitch.craftodejnice.cz` against
+the real production DOM (not just a health-check ping): confirmed the
+persisted options (`generationMode: "latest"`, `paletteMode: "full"`,
+`edgeMode: "crisp"` from an earlier real session) rendered as the
+correct pressed buttons on load; pressed F then 2 via the keyboard and
+confirmed the Fill tool and Black & white view mode both activated;
+zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
