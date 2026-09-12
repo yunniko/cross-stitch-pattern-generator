@@ -6,6 +6,7 @@ import { renderPatternToCanvas, renderStitchPreviewToCanvas } from "./render";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import type { OverlapCells } from "./a4-layout";
 import type { StitchPattern } from "./types";
+import { yieldToMain } from "./yield";
 
 /**
  * G-027 (Owner request, 2026-09-12): "one .cspzip with everything" -- every
@@ -60,24 +61,34 @@ export async function generateExportAllZip(pattern: StitchPattern, options: Expo
   const zip = new JSZip();
 
   zip.file(`${baseName}_editable.json`, serializePattern(pattern));
+  await yieldToMain();
 
   const colorCanvas = renderPatternToCanvas(pattern, "color", { aidaCount, sizeUnit, authorName });
   zip.file(`${baseName}_color.png`, await canvasToPngBlob(colorCanvas));
+  await yieldToMain();
 
   const bwCanvas = renderPatternToCanvas(pattern, "bw", { aidaCount, sizeUnit, authorName });
   zip.file(`${baseName}_bw.png`, await canvasToPngBlob(bwCanvas));
+  await yieldToMain();
 
   const previewCanvas = await renderStitchPreviewToCanvas(pattern);
   zip.file(`${baseName}_preview.png`, await canvasToPngBlob(previewCanvas));
+  await yieldToMain();
 
   const pdfBytes = await buildPatternKeeperPdf(pattern, "color", fontBytes, { overlapCells, aidaCount, sizeUnit, authorName });
   zip.file(`${baseName}_patternkeeper.pdf`, new Uint8Array(pdfBytes));
+  await yieldToMain();
 
+  // generateA4Export's own per-page loop already yields internally (see
+  // lib/a4-export.ts) -- these outer yields just checkpoint between the
+  // two full A4 exports and the PDF/PNG steps above.
   const colorA4 = await generateA4Export(pattern, "color", { overlapCells, baseName, aidaCount, sizeUnit, authorName });
   await mergeZipIntoFolder(zip, "A4_color", colorA4.blob);
+  await yieldToMain();
 
   const bwA4 = await generateA4Export(pattern, "bw", { overlapCells, baseName, aidaCount, sizeUnit, authorName });
   await mergeZipIntoFolder(zip, "A4_bw", bwA4.blob);
+  await yieldToMain();
 
   const blob = await zip.generateAsync({ type: "blob" });
   return { blob, filename: `${baseName}.cspzip` };

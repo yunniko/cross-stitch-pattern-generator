@@ -5871,6 +5871,45 @@ work itself is one long synchronous block once started) -- worth a
 follow-up if the Owner finds the UI freeze during a large pattern's
 bundle build actually painful in practice, not assumed necessary here.
 
+**D79 — G-027 follow-up: explicit yield points in the export pipeline
+(2026-09-12, Owner: "can we make export task asynchronous?").**
+
+The export handlers were already `async`/`Promise`-based and already
+wrapped in `setTimeout(..., 0)` so a "Preparing…"/"Building…" label
+paints before the heavy work starts (an existing pattern, not new here)
+-- but the actual rendering/zipping work is genuinely CPU-bound,
+single-threaded JavaScript, which will always contend with the rest of
+the page for the same main thread. That's a real, honest limit: "make
+it asynchronous" in the sense of *the tab staying fully interactive
+while the work runs* would need the whole rendering pipeline (canvas
+draws, `drawA4GridPage`/`drawChart`/the PDF adapter) ported to run
+inside a Web Worker against an `OffscreenCanvas` -- a much larger,
+riskier change than requested here, not attempted.
+
+What *was* done, cheaply and safely: a new `lib/yield.ts`'s
+`yieldToMain()` (`new Promise(resolve => setTimeout(resolve, 0))`)
+inserted at each major step boundary in `lib/export-all.ts`'s
+`generateExportAllZip` (between each PNG render, the PDF build, and
+each of the two full A4 exports) and inside `lib/a4-export.ts`'s
+`generateA4Export` per-grid-page loop (after each page, on top of
+whatever yielding `canvas.toBlob`'s own async encoding already gives).
+This doesn't move work off the main thread, but it does guarantee the
+browser gets a turn to repaint/handle other events between each chunk
+of work, rather than however much yielding happened to fall out of the
+existing `await` points -- the practical effect for a large "Export
+all" is a tab that stays visibly responsive (spinner animates, other
+tabs/windows aren't starved) between checkpoints, at real cost only
+during each individual render/encode/compress step, matching how this
+kind of heavy client-side export is conventionally made to *feel*
+non-blocking without a full worker rewrite.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full `npx
+vitest run` 515/515 passing (no unit-testable behavior changed -- this
+is purely a timing/scheduling change), `npm run build` clean, full
+`npx playwright test` 33/33 passing (confirms the yield points didn't
+change any export's actual output/filenames/timing-sensitive
+assertions).
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

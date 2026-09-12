@@ -4,6 +4,7 @@ import { renderA4GridPage, renderA4InfoPages, renderA4LegendPage } from "./a4-re
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import type { RenderMode } from "./render";
 import type { StitchPattern } from "./types";
+import { yieldToMain } from "./yield";
 
 export interface A4ExportOptions extends A4LayoutOptions {
   /** Drives every filename in the export -- both the ZIP itself and its internal pages. Defaults to "pattern". */
@@ -60,6 +61,11 @@ export async function generateA4Export(
     const canvas = renderA4GridPage(pattern, mode, layout, page, i, totalGridPages);
     const blob = await canvasToPngBlob(canvas);
     zip.file(`${baseName}_r${pad2(page.row + 1)}_c${pad2(page.column + 1)}.png`, blob);
+    // Explicit yield (on top of whatever toBlob's own async encoding
+    // already gives) so a large, many-page export keeps the tab
+    // responsive between pages rather than one long unbroken stretch of
+    // render calls (G-027 follow-up, HANDOVER.md D79).
+    await yieldToMain();
   }
 
   const legendCanvas = renderA4LegendPage(pattern, layout);
