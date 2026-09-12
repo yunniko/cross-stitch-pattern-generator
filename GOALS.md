@@ -517,6 +517,239 @@ milestone's own result justifies continuing):
   uncommitted G-024 M6 work at creation time — the executing agent must
   resolve that (commit or worktree) before M1, per the constraints above.
 
+### G-032 · Optional photo enhancement (predefined, content-adaptive modes) — DRAFT (2026-09-13)
+- **What:** An optional pre-processing stage that corrects a source
+  photo's exposure, tonal range, local contrast, colour cast and
+  saturation *before* the pattern pipeline sees it. In the processing
+  params it is a fourth segmented control next to Algorithm / Palette /
+  Edges — **Photo: Off | Auto | Vivid | Portrait** — with Off the
+  default and byte-identical to today. A mode is a *policy*, not a fixed
+  filter: every adjustment is measured from the photo itself (histogram
+  percentiles, median lightness, illuminant estimate, mean chroma) and
+  capped, so a well-exposed photo passes through almost unchanged while
+  a dark, flat, colour-cast one gets the full correction. Before
+  Generate, the Image window shows the chosen mode applied to the photo
+  (with a way to compare against the original); the mode used is
+  recorded on the pattern (like `edgeMode`) so a reopened file reports
+  how it was built, and remembered as a preference for the next
+  Generate (like `WorkspaceOptions.edgeMode`).
+- **Why:** Phone photos are routinely underexposed, flat (backlit,
+  overcast, hazy) or colour-cast. The pipeline then spends its palette
+  budget on a compressed tonal range and the chart comes out muddy, and
+  `docs/domain-reference.md`'s A4 finding already documents that a
+  low-contrast source weakens the importance map and therefore confetti
+  suppression across the whole image. Fixing the photo once, upstream,
+  improves every later stage consistently, and does so with one click
+  rather than asking stitchers to learn a photo editor first.
+
+**The universal adjustments (design).** Applied in this order, all in
+OKLab/OKLch (`lib/color.ts`) so tone changes don't shift hue and colour
+changes don't shift lightness; alpha is carried through untouched and
+fully transparent pixels are excluded from every statistic.
+1. **Auto white balance** — estimate the illuminant (gray-world blended
+   with a robust bright-neutral "white patch" estimate), correct by a
+   von Kries diagonal scaling in the OKLab LMS cone space, with the
+   per-channel gain **capped** (≈ ≤1.3×) so a legitimately dominant
+   colour (a sunset, a red flower on green) is not neutralised away. A
+   grayscale photo stays gray by construction (neutral estimate →
+   identity).
+2. **Auto levels (exposure / black & white point)** — stretch OKLab L
+   so robust low/high percentiles (≈0.5th / 99.5th) map to the full
+   range; an already full-range photo is a near no-op. Guarded against
+   degenerate histograms (flat/near-flat image → identity).
+3. **Midtone gamma** — a single power curve on L pulling the median
+   towards a target midtone (≈ L 0.45–0.5), capped both ways (lifts a
+   dark photo, tames an overexposed one, leaves a normal one alone).
+4. **Local contrast (CLAHE on L)** — contrast-limited adaptive
+   histogram equalisation with a **conservative clip limit**: this is
+   the one adjustment that genuinely rescues fog/backlight/flat
+   lighting, and also the one that amplifies flat-region noise, which
+   is exactly what `lib/denoise.ts` and the contour-cleanup passes fight.
+   The clip limit is therefore calibrated against the existing noisy
+   golden fixture's confetti ratio (M2/M4), not chosen by eye. Skipped
+   in Portrait (blotchy skin) and on images too small for a sensible
+   tile grid.
+5. **Vibrance** — chroma boost in OKLch weighted towards low-chroma
+   pixels (already-saturated colours barely move), with a skin-hue band
+   (orange hues at moderate chroma) protected, then gamut-mapped back to
+   sRGB by *reducing chroma at constant hue and lightness*, never by
+   per-channel RGB clipping (which shifts hue). Moderate on purpose:
+   over-saturation pushes colours outside what real thread can match,
+   so a brand palette mode (DMC/Anchor/Cosmo) would then *lose* distinct
+   colours at the snap (guarded by an explicit acceptance test).
+
+Deliberately **excluded** from v1, each with a reason to be recorded in
+its decision file: *sharpening / unsharp mask* (halos are manufactured
+edge colours — precisely what Crisp mode exists to prevent, and box
+downsampling averages fine detail away anyway); *noise reduction*
+(already exists, quantizer-only, `lib/denoise.ts`); *dehaze* (largely
+covered by CLAHE + levels, and a real dehaze model is a different-sized
+problem); *highlight/shadow recovery* (nothing to recover in clipped
+8-bit input); *manual sliders* (Owner scope: predefined modes only).
+
+**Modes** (initial presets — one data-driven `EnhancementPreset` record
+each, so adding/tuning a mode is a data change, not code):
+
+| Mode | WB | Levels + gamma | CLAHE | Vibrance | Intended for |
+|---|---|---|---|---|---|
+| Off | — | — | — | — | Default; today's exact output |
+| Auto | capped | yes | mild | +≈10 % | Any photo; the safe default fix |
+| Vivid | capped | yes | stronger | +≈25 % | Landscapes, objects, pets, faded/old prints |
+| Portrait | more conservative | yes, gentler curve | off | skin-protected, +≈10 % | Faces (no blotching, natural skin) |
+
+The percentages are starting points to be calibrated in M4, not
+commitments; each calibrated constant gets a decision file with its
+measurement linked.
+
+**Placement decision (to be confirmed by the M1 critique exchange):**
+enhancement runs on the *source* `PixelBuffer` before `buildPattern`
+(inside the worker job), never on the downsampled cell grid — because
+`computeEdgeMagnitude`/`computeCellImportance`, `computePairEdgeEvidence`
+and the Crisp evidence layer all read source pixels, not cells; enhancing
+cells alone would leave those stages (and Crisp's supporting-mode
+colours) seeing un-enhanced colours, an inconsistency no later stage can
+repair. Cost: one extra pass over up to 16 MP (`MAX_DECODE_DIMENSION_PX`
+4000²); statistics are gathered on a subsampled grid (≤ ~1 M samples)
+and the per-pixel pass is typed-array only, with a measured budget
+(criterion 7). The `pixelBuffer` held by the workspace stays the
+*original* decode, so switching modes and pressing Regenerate needs no
+second buffer; `sourceImage.dataUrl` (the photo underlay / Move tool /
+saved-file embed) also stays the original bytes.
+
+- **Acceptance criteria:**
+  1. Photo = Off produces output **byte-identical** to the pre-G-032
+     pipeline on every existing golden/regression fixture (the
+     `regression`, `shape-regression`, `pattern`, `pattern-crisp` and
+     `crisp-edges-acceptance-matrix` suites pass unmodified) and the
+     worker/serializer round-trip of a pre-G-032 save file is unchanged.
+  2. **Recovery test, with numbers:** for each of at least three golden
+     fixtures, a *degraded* copy (contrast reduced to ~40 %, −1 EV
+     darker, warm cast applied) generated with Auto agrees with the
+     undegraded original's Off pattern on **≥ 85 % of cells** (per-cell
+     palette-colour ΔE tolerance defined in the test), while the same
+     degraded copy with Off agrees on measurably fewer — the test asserts
+     the improvement, not just the absolute number. Target to be
+     re-tuned in M4 if evidence shows it is set wrong, with the reason
+     logged.
+  3. **Do-no-harm tests:** (a) on a well-exposed fixture, Auto changes
+     the mean OKLab ΔE by less than a small tolerance (near-identity);
+     (b) enhance(enhance(x)) ≈ enhance(x) (idempotence within tolerance);
+     (c) a grayscale image stays grayscale under every mode; (d) alpha is
+     unchanged and transparent pixels don't influence statistics; (e)
+     on the amplitude-50 noisy golden fixture, Auto's confetti ratio
+     rises by no more than a bounded amount over Off, and the Crisp
+     acceptance matrix's noise/JPEG negative controls still pass with
+     Auto on; (f) with the DMC palette mode, Vivid keeps at least 90 %
+     of Off's distinct-thread count on the fixture set.
+  4. UI: the Photo control in processing params (accessible names,
+     keyboard-operable like the existing segmented controls); the Image
+     window shows the enhanced preview before Generate whenever the mode
+     is not Off, with a compare-to-original affordance; the preference
+     persists across reloads; `StitchPattern.enhancementMode` survives
+     save → reopen and the .cspzip/Export-all path; e2e tests cover
+     each of these.
+  5. Every op has unit tests on synthetic images (monotonic tonal
+     mapping preserves lightness order; WB neutralises a known cast on a
+     gray card within tolerance and respects the gain cap; gamut mapping
+     preserves hue within tolerance; degenerate inputs — 1×1, all-black,
+     all-white, flat colour — return without throwing).
+  6. Calibrated on **real photographs** (Owner-supplied preferred;
+     otherwise public-domain/CC0 images with source and licence recorded
+     under `docs/`) across the mode matrix, with before/after
+     measurements in a `docs/reviews/` document — never by eye alone.
+  7. Performance: enhancement of a 4000×3000 buffer completes in under
+     **1.5 s** in the worker on the Owner's machine (measured via
+     `npm run bench` from G-031 M3, extended with an enhancement row),
+     and the Image-window preview updates in under 300 ms for a
+     ≤ 1200 px preview.
+  8. Domain-expert review (photographic image processing / colour
+     science) at M1 and again at M4, and a Codex critique exchange on
+     the placement decision and the mode set, both logged with outcome.
+  9. README, HANDOVER, decision files, docs-lint green, everything
+     committed, Owner sign-off.
+- **Constraints:**
+  - **Sequence after G-031 M4** (the `workspace.tsx` split and `lib/`
+    regrouping): this goal adds a control to the processing-params
+    component and a module under `lib/pipeline/`; starting earlier
+    would edit a 2,400-line file another goal is actively splitting.
+    If G-031 stalls, the Owner decides whether to start on a worktree.
+  - Off stays the default and stays byte-identical; any measured change
+    with Off is a bug.
+  - Pure, DOM-free enhancement module (unit-testable in Node like every
+    other pipeline stage); browser-only code limited to the preview
+    plumbing.
+  - No new runtime dependencies (CLAHE, percentiles and colour maths are
+    a few hundred lines on typed arrays; a library would bring its own
+    colour space and gamut handling that don't match `lib/color.ts`).
+  - Save-file format: add the optional `enhancementMode` field the same
+    way `edgeMode` was added (bump the format version, validate the
+    value against the preset registry on read, old files still open).
+  - Standard OPERATIONS.md check-in at every milestone boundary.
+
+**Milestones:**
+- [ ] **M1 — Design gate + pure core.** Codex critique exchange on the
+      placement decision (source pixels vs cell grid), the adjustment
+      set and the mode matrix; domain-expert review of the same design
+      against photographic image-processing practice (illuminant
+      estimation, CLAHE limits, vibrance/skin protection, gamut
+      mapping). Outcomes → decision files. Then implement
+      `lib/pipeline/enhance.ts` (`lib/enhance.ts` if the regrouping
+      hasn't landed): image statistics on a subsampled grid, the preset
+      registry (`EnhancementModeId`, `ENHANCEMENT_PRESETS`), and the five
+      ops above as pure functions over `PixelBuffer`, plus an
+      `oklabToRgbGamutMapped` helper in `lib/color.ts`. Unit tests per
+      criterion 5 and the do-no-harm tests 3(a)–(d). Deliverable: green
+      unit suite, a first timing at 4000×3000.
+- [ ] **M2 — Pipeline integration and evidence.** `enhancementMode` on
+      `BuildPatternOptions`/`StartMessage`/`RunPatternJobOptions`,
+      applied before `gridDimensionsFor`/`downsampleToGrid`; recorded on
+      `StitchPattern`; serializer version bump + fuzz-test coverage;
+      `WorkspaceOptions.enhancementMode`. Add the degraded-fixture
+      recovery test (criterion 2), the noise/Crisp negative controls
+      (3e) and the DMC distinct-colour test (3f); calibrate the Auto
+      CLAHE clip limit from those numbers (decision file). Off
+      byte-identity test on every existing fixture (criterion 1). Bench
+      row for enhancement (criterion 7).
+- [ ] **M3 — UI and preview.** Photo segmented control in processing
+      params; a preview job (same worker script, new `"enhance-preview"`
+      message, its own supersede-on-new-request semantics, run on a
+      ≤ 1200 px copy) feeding the Image window when no pattern exists
+      yet, with a compare-to-original affordance; persisted preference;
+      save/reopen/Export-all carry the mode. Playwright e2e per
+      criterion 4, run against the production build. Deliverable: the
+      feature usable end-to-end in the browser.
+- [ ] **M4 — Real-photo calibration, docs, deploy.** Assemble the
+      real-photo set (licences recorded), run the mode matrix, measure
+      (criteria 2, 3, 7) and tune preset constants — one decision file
+      per calibrated constant, measurements in
+      `docs/reviews/<date>-photo-enhancement-calibration.md`. Re-invoke
+      the domain expert on the calibrated result. README (one paragraph
+      + the mode table), HANDOVER regenerated, docs-lint green, deploy
+      after Owner approval (per `COMPANY/INFRASTRUCTURE_DEPLOY.md`),
+      deploy-log row.
+
+**Open questions for the Owner (answer before M1 starts):**
+- Three modes (Auto / Vivid / Portrait) plus Off, or start with Auto
+  only and add the others once Auto is calibrated? The plan is written
+  for three; cutting to one removes nothing structural.
+- Should the "Grid + photo" underlay after generation show the enhanced
+  photo (matches the pattern's colours) or the original (today's
+  behaviour, the Move tool's reference)? Plan assumes the original.
+- Are there Owner photos that can serve as the M4 calibration set?
+  Otherwise public-domain images will be used and their licences
+  recorded.
+
+**Progress log** (newest first):
+- 2026-09-13 — goal created at the Owner's request ("make plan of new
+  feature: optional picture enhancement … universal adjustments … one or
+  more predefined enhancement modes"). Planned from a read of
+  `lib/pattern.ts`, `lib/pattern.worker.ts`, `lib/pattern-client.ts`,
+  `lib/load-image.ts`, `lib/workspace-storage.ts`, `lib/types.ts`, the
+  processing-params UI in `app/workspace.tsx` and the domain reference's
+  A4 (low-contrast) finding. No code written. Working tree at creation
+  held another session's uncommitted G-031 M1 work (project-store /
+  serializer files); this entry is the only change of this session.
+
 ## Completed goals
 
 ### G-026 · Additional export option: Pattern Keeper-compatible PDF — DONE (2026-09-12)
