@@ -29,7 +29,9 @@ import {
 } from "@/lib/pattern-edit";
 import { DMC_COLORS, type DmcColor } from "@/lib/dmc-colors";
 import { SYMBOL_SET } from "@/lib/symbols";
-import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
+import { serializePattern } from "@/lib/pattern-serialize";
+import { loadPatternFromFile } from "@/lib/pattern-import";
+import { generateExportAllZip } from "@/lib/export-all";
 import {
   downloadCanvasAsPng,
   drawChart,
@@ -156,6 +158,25 @@ function filterDmcColors(query: string): readonly DmcColor[] {
   return DMC_COLORS.filter((c) => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
 }
 
+/** Every single-file export the app offers, unified behind one dropdown (G-027, Owner request 2026-09-12) instead of a separate button per format. */
+type ExportKind = "png-color" | "png-bw" | "png-realistic" | "editable" | "a4-color" | "a4-bw" | "pdf-color" | "pdf-bw";
+
+const EXPORT_KIND_OPTIONS: Array<{ value: ExportKind; label: string }> = [
+  { value: "png-color", label: "Color PNG (full chart)" },
+  { value: "png-bw", label: "Black & white PNG (full chart)" },
+  { value: "png-realistic", label: "Realistic preview PNG" },
+  { value: "editable", label: "Editable pattern (.json)" },
+  { value: "a4-color", label: "A4 pages — Color (ZIP)" },
+  { value: "a4-bw", label: "A4 pages — Black & white (ZIP)" },
+  { value: "pdf-color", label: "PDF, Pattern Keeper — Color" },
+  { value: "pdf-bw", label: "PDF, Pattern Keeper — Black & white" },
+];
+
+/** `pdf-*`/`a4-*` kinds paginate via the same A4 layout the Overlap setting affects -- used to decide whether to show the page-count preview and whether the PDF font needs fetching. */
+function paginatesAsA4(kind: ExportKind): boolean {
+  return kind.startsWith("a4-") || kind.startsWith("pdf-");
+}
+
 export default function Workspace() {
   // --- Source image + processing params (the Processing-params dock) ---
   const [pixelBuffer, setPixelBuffer] = useState<PixelBuffer | null>(null);
@@ -180,6 +201,7 @@ export default function Workspace() {
   const [generationMode, setGenerationMode] = useState<GenerationMode>("latest");
   const [paletteMode, setPaletteMode] = useState<PaletteMode>("full");
   const [edgeMode, setEdgeMode] = useState<EdgeMode>("standard");
+  const [a4Overlap, setA4Overlap] = useState<OverlapCells>(5);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [genError, setGenError] = useState<string | null>(null);
@@ -213,6 +235,7 @@ export default function Workspace() {
       setSizeUnit(options.sizeUnit);
       setAuthorName(options.authorName);
       setEdgeMode(options.edgeMode);
+      setA4Overlap(options.overlapCells);
 
       const saved = loadSavedProject();
       if (saved) {
@@ -229,8 +252,8 @@ export default function Workspace() {
 
   useEffect(() => {
     if (!workspaceRestoredRef.current) return;
-    saveWorkspaceOptions({ aidaCount, sizeUnit, authorName, edgeMode });
-  }, [aidaCount, sizeUnit, authorName, edgeMode]);
+    saveWorkspaceOptions({ aidaCount, sizeUnit, authorName, edgeMode, overlapCells: a4Overlap });
+  }, [aidaCount, sizeUnit, authorName, edgeMode, a4Overlap]);
 
   useEffect(() => {
     if (!workspaceRestoredRef.current) return;
@@ -298,17 +321,16 @@ export default function Workspace() {
   const [photoImageVersion, setPhotoImageVersion] = useState(0);
   const navigatorCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // --- Name, open/save, downloads, A4 export ---
+  // --- Name, open/save, downloads, export (G-027: one dropdown covers
+  // every single-file export; a separate "Export all" bundles all of
+  // them into one .cspzip) ---
   const [nameDraft, setNameDraft] = useState("cross-stitch-pattern");
   const [lastCommittedName, setLastCommittedName] = useState<string | undefined>(undefined);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
-  const [a4Mode, setA4Mode] = useState<RenderMode>("color");
-  const [a4Overlap, setA4Overlap] = useState<OverlapCells>(5);
-  const [isExportingA4, setIsExportingA4] = useState(false);
-  const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [pdfExportError, setPdfExportError] = useState<string | null>(null);
+  const [exportKind, setExportKind] = useState<ExportKind>("png-color");
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [isExportingAll, setIsExportingAll] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const openEditableInputRef = useRef<HTMLInputElement>(null);
 
@@ -927,18 +949,6 @@ export default function Workspace() {
     history.set(renamePattern(pattern, nameDraft));
   }
 
-  function handleDownloadEditable() {
-    if (!pattern) return;
-    const json = serializePattern(pattern);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${baseFileName()}_editable.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
   /**
    * Shared by "Open editable pattern" and the on-mount auto-restore (G-015)
    * -- both need to land a freshly-loaded `StitchPattern` into every piece
@@ -984,78 +994,104 @@ export default function Workspace() {
     e.target.value = "";
     if (!file) return;
     setOpenError(null);
-    file
-      .text()
-      .then(async (text) => {
-        const loaded = deserializePattern(text);
+    loadPatternFromFile(file)
+      .then(async (loaded) => {
         const fallbackName = file.name.replace(/\.[^.]+$/, "").replace(/[-_]editable$/, "");
         await loadPatternIntoWorkspace(loaded, fallbackName);
       })
       .catch((err) => setOpenError(err instanceof Error ? err.message : "Couldn't open that file."));
   }
 
-  function handleDownload(mode: RenderMode | "realistic") {
+  /** Fetches the embedded PDF font on demand (not bundled in the app's JS) -- shared by the single-export PDF kinds and "Export all". */
+  async function fetchPdfFontBytes(): Promise<Uint8Array> {
+    const fontResponse = await fetch("/fonts/DejaVuSans.ttf");
+    if (!fontResponse.ok) throw new Error("Couldn't load the PDF font.");
+    return new Uint8Array(await fontResponse.arrayBuffer());
+  }
+
+  /** Every single-file export format lives behind this one dropdown (G-027) -- picking `exportKind` and clicking "Export" is the only way to reach any of them now. */
+  function handleExport() {
     if (!pattern) return;
-    setIsDownloading(true);
-    setDownloadError(null);
+    setIsExporting(true);
+    setExportError(null);
     setTimeout(async () => {
       try {
         const compacted = compactUnusedColors(pattern);
-        const canvas =
-          mode === "realistic"
-            ? await renderStitchPreviewToCanvas(compacted)
-            : renderPatternToCanvas(compacted, mode, { aidaCount, sizeUnit, authorName });
-        const suffix = mode === "realistic" ? "preview" : mode;
-        await downloadCanvasAsPng(canvas, `${baseFileName()}_${suffix}.png`);
+        switch (exportKind) {
+          case "png-color":
+          case "png-bw": {
+            const mode: RenderMode = exportKind === "png-color" ? "color" : "bw";
+            const canvas = renderPatternToCanvas(compacted, mode, { aidaCount, sizeUnit, authorName });
+            await downloadCanvasAsPng(canvas, `${baseFileName()}_${mode}.png`);
+            break;
+          }
+          case "png-realistic": {
+            const canvas = await renderStitchPreviewToCanvas(compacted);
+            await downloadCanvasAsPng(canvas, `${baseFileName()}_preview.png`);
+            break;
+          }
+          case "editable": {
+            const json = serializePattern(pattern);
+            downloadBlob(new Blob([json], { type: "application/json" }), `${baseFileName()}_editable.json`);
+            break;
+          }
+          case "a4-color":
+          case "a4-bw": {
+            const mode: RenderMode = exportKind === "a4-color" ? "color" : "bw";
+            const result = await generateA4Export(compacted, mode, {
+              overlapCells: a4Overlap,
+              baseName: baseFileName(),
+              aidaCount,
+              sizeUnit,
+              authorName,
+            });
+            downloadBlob(result.blob, result.filename);
+            break;
+          }
+          case "pdf-color":
+          case "pdf-bw": {
+            const mode: RenderMode = exportKind === "pdf-color" ? "color" : "bw";
+            const fontBytes = await fetchPdfFontBytes();
+            const pdfBytes = await buildPatternKeeperPdf(compacted, mode, fontBytes, {
+              overlapCells: a4Overlap,
+              aidaCount,
+              sizeUnit,
+              authorName,
+            });
+            downloadBlob(new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" }), `${baseFileName()}_patternkeeper.pdf`);
+            break;
+          }
+        }
       } catch (err) {
-        setDownloadError(err instanceof Error ? err.message : "Couldn't render that download.");
+        setExportError(err instanceof Error ? err.message : "Couldn't complete that export.");
       } finally {
-        setIsDownloading(false);
+        setIsExporting(false);
       }
     }, 0);
   }
 
-  function handleExportA4Pages() {
+  /** Bundles every export format into one .cspzip (G-027, Owner request 2026-09-12). */
+  function handleExportAll() {
     if (!pattern) return;
-    setIsExportingA4(true);
+    setIsExportingAll(true);
+    setExportError(null);
     setTimeout(async () => {
       try {
         const compacted = compactUnusedColors(pattern);
-        const result = await generateA4Export(compacted, a4Mode, {
-          overlapCells: a4Overlap,
+        const fontBytes = await fetchPdfFontBytes();
+        const result = await generateExportAllZip(compacted, {
           baseName: baseFileName(),
           aidaCount,
           sizeUnit,
           authorName,
+          overlapCells: a4Overlap,
+          fontBytes,
         });
         downloadBlob(result.blob, result.filename);
-      } finally {
-        setIsExportingA4(false);
-      }
-    }, 0);
-  }
-
-  function handleExportPatternKeeperPdf() {
-    if (!pattern) return;
-    setIsExportingPdf(true);
-    setPdfExportError(null);
-    setTimeout(async () => {
-      try {
-        const compacted = compactUnusedColors(pattern);
-        const fontResponse = await fetch("/fonts/DejaVuSans.ttf");
-        if (!fontResponse.ok) throw new Error("Couldn't load the PDF font.");
-        const fontBytes = new Uint8Array(await fontResponse.arrayBuffer());
-        const pdfBytes = await buildPatternKeeperPdf(compacted, a4Mode, fontBytes, {
-          overlapCells: a4Overlap,
-          aidaCount,
-          sizeUnit,
-          authorName,
-        });
-        downloadBlob(new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" }), `${baseFileName()}_patternkeeper.pdf`);
       } catch (err) {
-        setPdfExportError(err instanceof Error ? err.message : "Couldn't generate the PDF export.");
+        setExportError(err instanceof Error ? err.message : "Couldn't build the export-all bundle.");
       } finally {
-        setIsExportingPdf(false);
+        setIsExportingAll(false);
       }
     }, 0);
   }
@@ -1121,11 +1157,12 @@ export default function Workspace() {
           <button
             type="button"
             onClick={() => openEditableInputRef.current?.click()}
+            title="Accepts a .json pattern file, or a .cspzip/.zip export-all bundle -- searched for a valid pattern inside"
             className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]"
           >
-            Open editable pattern
+            Open pattern…
           </button>
-          <input ref={openEditableInputRef} type="file" accept="application/json" onChange={handleOpenFile} className="hidden" />
+          <input ref={openEditableInputRef} type="file" accept=".json,.zip,.cspzip,application/json,application/zip" onChange={handleOpenFile} className="hidden" />
           <button
             type="button"
             onClick={() => setShowOptionsPanel((v) => !v)}
@@ -1140,14 +1177,6 @@ export default function Workspace() {
             className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
           >
             Resize canvas…
-          </button>
-          <button
-            type="button"
-            onClick={handleDownloadEditable}
-            disabled={!pattern}
-            className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
-          >
-            Download editable
           </button>
         </div>
       </header>
@@ -1196,6 +1225,18 @@ export default function Workspace() {
               placeholder="(shown on exported charts)"
               className="w-56 rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             />
+          </label>
+          <label className="flex items-center gap-1.5 text-sm" title="How many stitches of overlap the A4/PDF page exports repeat between adjacent pages, so they can be lined up when printed">
+            A4/PDF overlap
+            <select
+              value={a4Overlap}
+              onChange={(e) => setA4Overlap(Number(e.target.value) as OverlapCells)}
+              className="rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            >
+              <option value={0}>0</option>
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+            </select>
           </label>
           <span className="text-xs text-zinc-500">Saved automatically in this browser.</span>
           <button
@@ -1945,86 +1986,46 @@ export default function Workspace() {
         </aside>
       </div>
 
-      {/* Export dock (bottom) */}
+      {/* Export dock (bottom) -- G-027: one dropdown covers every single-file export, plus a separate "Export all" bundle */}
       <footer className="flex flex-wrap items-center gap-3 border-t border-zinc-300 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-        <button
-          type="button"
-          onClick={() => handleDownload("color")}
-          disabled={!pattern || isDownloading}
-          className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
-        >
-          {isDownloading ? "Preparing…" : "Download color PNG"}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleDownload("bw")}
-          disabled={!pattern || isDownloading}
-          className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
-        >
-          {isDownloading ? "Preparing…" : "Download black & white PNG"}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleDownload("realistic")}
-          disabled={!pattern || isDownloading}
-          className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
-        >
-          {isDownloading ? "Preparing…" : "Download realistic preview PNG"}
-        </button>
-        {downloadError && <p className="text-sm text-red-600 dark:text-red-400">{downloadError}</p>}
-
-        <div className="ml-auto flex flex-wrap items-center gap-3 rounded border border-zinc-300 px-3 py-1.5 dark:border-zinc-700">
-          <span className="text-sm font-medium">Export as A4 pages</span>
-          <div className="flex items-center overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
-            {(["color", "bw"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setA4Mode(mode)}
-                className={`px-2 py-0.5 text-sm transition-colors ${
-                  a4Mode === mode ? "bg-foreground text-background" : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
-                }`}
-              >
-                {mode === "color" ? "Color" : "B&W"}
-              </button>
+        <label className="flex items-center gap-1.5 text-sm">
+          Export
+          <select
+            value={exportKind}
+            onChange={(e) => setExportKind(e.target.value as ExportKind)}
+            className="min-w-[220px] rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            {EXPORT_KIND_OPTIONS.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
             ))}
-          </div>
-          <label className="flex items-center gap-1.5 text-sm">
-            Overlap:
-            <select
-              value={a4Overlap}
-              onChange={(e) => setA4Overlap(Number(e.target.value) as OverlapCells)}
-              className="rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              <option value={0}>0</option>
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-            </select>
-          </label>
-          {a4LayoutPreview && (
-            <span className="text-xs text-zinc-500">
-              {a4LayoutPreview.columns} × {a4LayoutPreview.rows} pages — {a4LayoutPreview.pages.length + 2}+ total (incl. simple + extended legend)
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={handleExportA4Pages}
-            disabled={!pattern || isExportingA4}
-            className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
-          >
-            {isExportingA4 ? "Preparing…" : "Export ZIP"}
-          </button>
-          <button
-            type="button"
-            onClick={handleExportPatternKeeperPdf}
-            disabled={!pattern || isExportingPdf}
-            title="A single PDF with real, searchable vector text -- readable by the Pattern Keeper app's grid detection and symbol search, unlike the ZIP's PNG pages."
-            className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
-          >
-            {isExportingPdf ? "Preparing…" : "Export PDF (Pattern Keeper)"}
-          </button>
-          {pdfExportError && <p className="text-sm text-red-600 dark:text-red-400">{pdfExportError}</p>}
-        </div>
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={!pattern || isExporting || isExportingAll}
+          className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-[#ccc]"
+        >
+          {isExporting ? "Preparing…" : "Export"}
+        </button>
+        {paginatesAsA4(exportKind) && a4LayoutPreview && (
+          <span className="text-xs text-zinc-500">
+            {a4LayoutPreview.columns} × {a4LayoutPreview.rows} pages — {a4LayoutPreview.pages.length + 2}+ total (incl. simple + extended legend). Overlap in Options.
+          </span>
+        )}
+
+        <button
+          type="button"
+          onClick={handleExportAll}
+          disabled={!pattern || isExporting || isExportingAll}
+          title="One .cspzip with everything: editable JSON, color/B&W/realistic PNGs, the Pattern Keeper PDF, and A4_color/A4_bw subfolders of A4 page PNGs"
+          className="ml-auto rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
+        >
+          {isExportingAll ? "Building…" : "Export all"}
+        </button>
+        {exportError && <p className="w-full text-sm text-red-600 dark:text-red-400">{exportError}</p>}
       </footer>
     </div>
   );

@@ -30,17 +30,16 @@ test("generate, merge two colors, undo/redo, download editable, and reopen it", 
   await page.getByRole("button", { name: "Redo" }).click();
   await expect(legendRows).toHaveCount(initialCount - 1);
 
-  // Download editable, then reopen it fresh and confirm the same state comes back.
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Download editable" }).click(),
-  ]);
+  // Download editable (via the consolidated Export dropdown), then reopen
+  // it fresh and confirm the same state comes back.
+  await page.getByLabel("Export").selectOption({ label: "Editable pattern (.json)" });
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   const savedPath = test.info().outputPath("saved-pattern.json");
   await download.saveAs(savedPath);
 
   await page.goto("/");
   const fileChooserPromise = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "Open editable pattern" }).click();
+  await page.getByRole("button", { name: "Open pattern…" }).click();
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles(savedPath);
   await expect(page.getByRole("main").locator("canvas")).toBeVisible();
@@ -55,22 +54,19 @@ test("renaming the pattern changes every download's filename", async ({ page }) 
   await nameInput.fill("My Cat");
   await nameInput.blur();
 
-  const [colorDownload] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Download color PNG" }).click(),
-  ]);
+  const exportSelect = page.getByLabel("Export");
+  const exportButton = page.getByRole("button", { name: "Export", exact: true });
+
+  await exportSelect.selectOption({ label: "Color PNG (full chart)" });
+  const [colorDownload] = await Promise.all([page.waitForEvent("download"), exportButton.click()]);
   expect(colorDownload.suggestedFilename()).toBe("My Cat_color.png");
 
-  const [realisticDownload] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Download realistic preview PNG" }).click(),
-  ]);
+  await exportSelect.selectOption({ label: "Realistic preview PNG" });
+  const [realisticDownload] = await Promise.all([page.waitForEvent("download"), exportButton.click()]);
   expect(realisticDownload.suggestedFilename()).toBe("My Cat_preview.png");
 
-  const [editableDownload] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Download editable" }).click(),
-  ]);
+  await exportSelect.selectOption({ label: "Editable pattern (.json)" });
+  const [editableDownload] = await Promise.all([page.waitForEvent("download"), exportButton.click()]);
   expect(editableDownload.suggestedFilename()).toBe("My Cat_editable.json");
 
   // Renaming is a normal, undoable history step, like every other edit.

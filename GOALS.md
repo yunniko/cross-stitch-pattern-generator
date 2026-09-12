@@ -1710,6 +1710,61 @@ pass) can now resume, per the cross-goal ordering decision above.
   verification selecting XXL and regenerating (250x250 stitches, zero
   console errors). See HANDOVER.md D47.
 
+### G-027 · Consolidated export UI, "Export all" .cspzip bundle, and ZIP-aware import — DONE (2026-09-12)
+- **What:** Owner request: "move overlap export setting to the options
+  and store it in local storage. Move all export options to the one
+  export dropdown for single file export. Alongside to this dropdown
+  make a button 'export all' Zip containing: editable json, bw and color
+  full schemes, realistic preview, a4 pdf, subfolders A4_color and
+  A4_bw with exported A4 pics. Make import editable to allow zip and
+  searching for json there. If found and valid - import, otherwise show
+  error message. Can we give this zip custom extension and keep
+  functionality? For example .cspzip." Collapsed every single-file
+  export (color/B&W/realistic PNG, editable JSON, A4 pages ZIP x2
+  modes, Pattern Keeper PDF x2 modes) behind one dropdown + one "Export"
+  button; added a separate "Export all" button producing one `.cspzip`
+  bundle with everything; moved the A4/PDF overlap setting into the
+  persisted Options panel; and extended "Open pattern" to search a
+  `.zip`/`.cspzip` archive for a valid pattern JSON, by content not
+  extension.
+- **Why:** Owner-directed UX simplification -- the export dock had grown
+  to 8 separate buttons across two different rows/panels as PDF export
+  (G-026) and edge-mode (G-024) each added their own controls; one
+  dropdown plus one combined-bundle download is simpler to use and to
+  hand off a complete backup/reference of a pattern in one file.
+- **Acceptance criteria:** Every export format previously reachable
+  individually is still reachable through the one dropdown; "Export
+  all" produces a single archive containing every format including
+  paginated A4 pages in per-mode subfolders; that archive re-imports
+  cleanly through "Open pattern"; a `.cspzip`-extensioned archive works
+  identically to a `.zip` one; opening a file with no valid pattern
+  inside shows a clear error rather than failing silently or crashing.
+- **Constraints:** None stated beyond the Owner's own explicit question
+  about the custom extension, answered directly in HANDOVER.md D78
+  (yes -- a ZIP stays a ZIP under any extension, same principle as
+  `.docx`/`.epub`/`.cbz`).
+
+**Progress log** (newest first):
+- 2026-09-12 — Complete. New `lib/export-all.ts` (`generateExportAllZip`,
+  reusing `generateA4Export`/`buildPatternKeeperPdf`/`renderPatternToCanvas`/
+  `renderStitchPreviewToCanvas`/`serializePattern` directly rather than
+  re-implementing any of their rendering logic, per this project's own
+  D11 lesson) and `lib/pattern-import.ts` (`loadPatternFromFile`,
+  content-based ZIP detection with a plain-JSON-text fallback). Overlap
+  moved into `WorkspaceOptions` (`lib/workspace-storage.ts`) for
+  localStorage persistence alongside fabric count/unit/author name.
+  `app/workspace.tsx`'s export dock reduced from 8 buttons to one
+  dropdown + "Export" + "Export all". Full story in HANDOVER.md D78.
+  Verified: 515/515 unit tests (54 files, +2 new), clean
+  `tsc`/`eslint`/`npm run build`, full e2e suite 33/33 passing (every
+  existing test touching a removed button/label updated, 3 new tests
+  covering the bundle's contents, a real round-trip re-import, and the
+  no-valid-pattern error path). Live-verified by hand: Options panel
+  shows and persists the overlap setting; "Export all" against a real
+  100×100/16-color pattern produced a ~5.5MB `.cspzip` with exactly the
+  expected 19 entries. Deployed alongside this same push (see
+  HANDOVER.md's deploy log).
+
 ### G-021 · DMC as an independent palette mode, not a third algorithm — DONE (2026-09-11)
 - **What:** Owner request: "Make DMC separate type of mode (palette mode)
   instead of just a mode. And let latest and original modes work with full

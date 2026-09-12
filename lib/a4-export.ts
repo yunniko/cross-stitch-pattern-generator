@@ -22,7 +22,8 @@ export interface A4ExportResult {
   pageCount: number;
 }
 
-function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+/** Exported for reuse by `lib/export-all.ts` (G-027's "Export all" bundle) -- one shared canvas-to-PNG-blob helper rather than a second copy. */
+export function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);

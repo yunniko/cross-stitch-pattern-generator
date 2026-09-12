@@ -5761,6 +5761,116 @@ other containers' uptimes unchanged). Other sites healthy
 200). Live check on `https://cross-stitch.craftodejnice.cz`: the new
 "Edges" Standard/Crisp toggle renders correctly, zero console errors.
 
+**D78 — G-027: consolidated export UI, "Export all" .cspzip bundle, and
+ZIP-aware import (2026-09-12, Owner: "move overlap export setting to the
+options and store it in local storage. Move all export options to the
+one export dropdown for single file export. Alongside to this dropdown
+make a button 'export all' Zip containing: editable json, bw and color
+full schemes, realistic preview, a4 pdf, subfolders A4_color and A4_bw
+with exported A4 pics. Make import editable to allow zip and searching
+for json there. If found and valid - import, otherwise show error
+message. Can we give this zip custom extension and keep functionality?
+For example .cspzip").**
+
+**Answering the Owner's own question first, since the rest of the design
+depends on it**: yes, a ZIP archive can carry any file extension and
+stays a fully functional ZIP -- this is exactly how `.docx`/`.pptx`/
+`.epub`/`.cbz` already work (all plain ZIPs under a format-specific
+extension). The only real-world cost is that the OS won't have a
+built-in file-type association/icon for something as narrow as
+`.cspzip` the way it does for those established formats, so a curious
+Owner who wants to peek inside with a generic archive tool may need to
+rename it to `.zip` first (or use "open with" and pick one directly).
+Since the app itself never relies on the extension -- it detects a ZIP
+by trying to actually parse it, falling back to plain JSON on failure
+(see below) -- this costs nothing functionally. Implemented: "Export
+all" downloads `<name>.cspzip`; "Open pattern" accepts `.json`, `.zip`,
+and `.cspzip` (the `accept` attribute is a UI hint only, not a security
+boundary, and content-detection means even a fourth extension would
+still work).
+
+**Every single-file export unified behind one dropdown + one "Export"
+button** (`app/workspace.tsx`): the eight previously-separate buttons
+("Download color PNG", "Download black & white PNG", "Download
+realistic preview PNG", "Download editable", "Export ZIP" x2 modes,
+"Export PDF (Pattern Keeper)" x2 modes) collapsed into one `ExportKind`
+union and one `<select>` + "Export" button dispatching through a single
+`handleExport` function. This also **removed** three separate loading/
+error state pairs (`isDownloading`/`downloadError`,
+`isExportingA4`, `isExportingPdf`/`pdfExportError`) in favor of one
+shared `isExporting`/`exportError` pair -- simpler, and the four
+underlying operations were never going to run concurrently from one
+button anyway. The old per-mode A4 Color/B&W toggle and the PDF's own
+implicit "whatever a4Mode currently is" no longer exist as separate
+controls -- mode is now baked directly into the dropdown's own entries
+("A4 pages — Color (ZIP)" / "— Black & white (ZIP)", same split for the
+PDF), so every combination the old UI could reach is still reachable,
+just from one place.
+
+**Overlap moved from an inline control to a persisted Option**: the A4/
+PDF overlap-cells setting (0/5/10) used to live as a `<select>` next to
+the old "Export as A4 pages" panel; with every export now behind one
+generic dropdown there's no natural home for an export-specific inline
+control, so it moved into the "Options…" panel (alongside fabric count/
+unit/author name) and into `WorkspaceOptions` (`lib/workspace-storage.ts`)
+for the same kind of localStorage persistence those already have --
+missing/corrupt/out-of-range values default to `5`, `calculateA4Layout`'s
+own existing default, verified with a corrupt-value test using an
+invalid `7` (not one of the three legal values 0/5/10).
+
+**New `lib/export-all.ts`'s `generateExportAllZip`**: builds the
+`.cspzip` by calling the exact same, already-tested export functions
+this app already ships (`renderPatternToCanvas`, `renderStitchPreviewToCanvas`,
+`serializePattern`, `buildPatternKeeperPdf`, `generateA4Export` x2 modes)
+rather than reimplementing any of their rendering logic -- per this
+project's own HANDOVER.md D11 "never duplicate a shared implementation"
+lesson. The two `generateA4Export` ZIPs (color, B&W) are unpacked into
+this bundle's own `A4_color`/`A4_bw` subfolders via a small
+`mergeZipIntoFolder` helper (`JSZip.loadAsync` on the already-built ZIP
+blob, then copy every entry across) rather than re-rendering A4 pages a
+second time with different folder-prefixed filenames.
+
+**New `lib/pattern-import.ts`'s `loadPatternFromFile`**: detects a ZIP
+by *content*, not file name or extension -- tries `JSZip.loadAsync`
+first; on success, searches every `.json`-named entry (case-insensitive)
+in file order, returning the first one `deserializePattern` accepts,
+and throwing a clear "No valid pattern (.json) file was found inside
+that archive" only if none validate; on failure to parse as a ZIP at
+all, falls through to the original plain-JSON-text behavior unchanged.
+This ordering matters: a real ZIP with no valid pattern inside must
+never silently fall through to being parsed as raw JSON text (which
+would just produce a confusing "not valid JSON" error instead of the
+much clearer ZIP-specific one) -- tested explicitly, along with content-
+based detection using a deliberately mismatched file extension (a real
+ZIP saved as `.json`) to prove extension never drives the decision.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full `npx
+vitest run` 515/515 passing (54 files, +2 new --
+`pattern-import.spec.ts` and extended `workspace-storage.spec.ts`), full
+`npx playwright test` **33/33** passing (updated every existing e2e test
+that referenced a now-removed button/label, e.g. `editing.spec.ts`'s
+"Download editable"/"Open editable pattern" and `generate-pattern.spec.ts`'s
+individual download buttons, plus 3 new tests in `export-all.spec.ts`
+covering the bundle's full contents, a real round-trip through "Open
+pattern", and the no-valid-pattern-inside error path), `npm run build`
+clean. Live-verified by hand in a running `next dev` instance: opened
+Options and confirmed "A4/PDF overlap" is there and persists; clicked
+"Export all" against a real 100×100/16-color pattern and confirmed the
+downloaded `.cspzip` (~5.5MB) contains exactly the expected 19 entries
+(5 top-level files + `A4_color`/`A4_bw` each with 4 grid pages + simple
+legend + extended legend) -- the heavy synchronous rendering work (5
+full-chart renders plus two complete A4 exports) visibly blocks the tab
+for several seconds while building, same known characteristic this
+app's other heavy synchronous exports already have, not a new
+regression.
+
+**Not part of this pass**: no attempt to make "Export all" itself
+cancellable or progress-reported (it reuses `setTimeout(...,0)` to let
+"Building…" paint first, same as every other export handler, but the
+work itself is one long synchronous block once started) -- worth a
+follow-up if the Owner finds the UI freeze during a large pattern's
+bundle build actually painful in practice, not assumed necessary here.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

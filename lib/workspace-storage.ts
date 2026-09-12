@@ -1,3 +1,4 @@
+import type { OverlapCells } from "./a4-layout";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import { deserializePattern, serializePattern } from "./pattern-serialize";
 import type { EdgeMode } from "./pattern.worker";
@@ -29,6 +30,14 @@ export interface WorkspaceOptions {
    * existed) defaults to `"standard"`.
    */
   edgeMode: EdgeMode;
+  /**
+   * The A4 export overlap-cells choice (Owner request, 2026-09-12: moved
+   * here from an inline control next to the old per-mode A4 export
+   * buttons, now that every export lives behind one dropdown with no
+   * room for its own inline settings). Missing/corrupt/legacy defaults
+   * to `5`, the same default `calculateA4Layout` itself already uses.
+   */
+  overlapCells: OverlapCells;
 }
 
 const DEFAULT_OPTIONS: WorkspaceOptions = {
@@ -36,9 +45,12 @@ const DEFAULT_OPTIONS: WorkspaceOptions = {
   sizeUnit: DEFAULT_SIZE_UNIT,
   authorName: "",
   edgeMode: "standard",
+  overlapCells: 5,
 };
 
-/** Reads persisted fabric count / unit / author name / edge mode -- falls back to defaults on first visit or any corrupt/missing data. */
+const VALID_OVERLAP_CELLS: readonly OverlapCells[] = [0, 5, 10];
+
+/** Reads persisted fabric count / unit / author name / edge mode / overlap -- falls back to defaults on first visit or any corrupt/missing data. */
 export function loadWorkspaceOptions(): WorkspaceOptions {
   if (typeof window === "undefined") return DEFAULT_OPTIONS;
   try {
@@ -50,6 +62,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       sizeUnit: parsed.sizeUnit === "in" || parsed.sizeUnit === "cm" ? parsed.sizeUnit : DEFAULT_OPTIONS.sizeUnit,
       authorName: typeof parsed.authorName === "string" ? parsed.authorName : DEFAULT_OPTIONS.authorName,
       edgeMode: parsed.edgeMode === "crisp" ? "crisp" : DEFAULT_OPTIONS.edgeMode,
+      overlapCells: VALID_OVERLAP_CELLS.includes(parsed.overlapCells as OverlapCells) ? (parsed.overlapCells as OverlapCells) : DEFAULT_OPTIONS.overlapCells,
     };
   } catch {
     return DEFAULT_OPTIONS;

@@ -33,10 +33,8 @@ test("export as PDF (Pattern Keeper) downloads a real PDF with every actually-us
   const symbols = await symbolButtons.allTextContents();
   expect(symbols.length).toBeGreaterThan(0);
 
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Export PDF (Pattern Keeper)" }).click(),
-  ]);
+  await page.getByLabel("Export").selectOption({ label: "PDF, Pattern Keeper — Color" });
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   expect(download.suggestedFilename()).toBe("sample_patternkeeper.pdf");
 
   const downloadPath = await download.path();
@@ -60,12 +58,8 @@ test("export as PDF (Pattern Keeper) works in B&W mode too", async ({ page }) =>
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
 
-  await page.getByRole("button", { name: "B&W", exact: true }).click();
-
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Export PDF (Pattern Keeper)" }).click(),
-  ]);
+  await page.getByLabel("Export").selectOption({ label: "PDF, Pattern Keeper — Black & white" });
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   expect(download.suggestedFilename()).toBe("sample_patternkeeper.pdf");
 
   const downloadPath = await download.path();
