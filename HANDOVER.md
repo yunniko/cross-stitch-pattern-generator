@@ -5375,6 +5375,22 @@ is verified end-to-end. No UI exposes it yet — that's M5's job.
 clean, e2e 27/27 across repeated runs (rotating transient flakiness,
 diagnosed not a regression).
 
+**Deployed (2026-09-12).** The VPS was 16 commits behind (every G-024
+commit since the last deploy was test-only/standalone until this one).
+Container isolation confirmed (`cross-stitch-pattern-generator-app-1`
+alone restarted, `Up 5 hours` → `Up 14 seconds`; all 28 other
+containers' uptimes unchanged), other sites healthy
+(`meet.app.julienika.cz`/`craftale.eu`/`arfid.julienika.cz` all HTTP
+200). Live production check: regenerated a real pattern on
+`https://cross-stitch.craftodejnice.cz` twice (once against a
+previously-saved project, once after changing the color-count setting)
+— both completed with a visibly different, correct output (real DMC
+thread names, a genuine shaded region where a flat placeholder had
+been) and zero console errors. `edgeMode` itself has no UI surface yet
+(M5), so this verification exercised the only reachable path
+(Standard mode) — exactly the path already proven byte-identical by
+direct unit comparison.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

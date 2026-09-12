@@ -201,8 +201,11 @@ restructured into this project's usual milestone/check-in shape):
   resource-contention pattern, not a regression. Full story in
   HANDOVER.md D72. Verified: 481/481 tests passing (51 files, +10 new),
   clean `tsc`/`eslint`/`npm run build`, e2e 27/27 across runs. No UI
-  exposes `edgeMode` yet -- that's M5. Deploying this stage, then
-  moving to M5 (or G-026, per the Owner's standing instruction) next.
+  exposes `edgeMode` yet -- that's M5. Deployed same day: container
+  isolation confirmed, other sites healthy, live production regenerate
+  (twice) on `cross-stitch.craftodejnice.cz` completed correctly with
+  zero console errors. Moving to M5 (or G-026, per the Owner's standing
+  instruction) next.
 - 2026-09-12 — M4.8 complete. `lib/dmc-match.ts`'s `applyDmcPalette`
   gained an optional `crispEvidenceLayer` parameter: mode-to-label
   mappings rebuilt against the final DMC palette, repair applied
