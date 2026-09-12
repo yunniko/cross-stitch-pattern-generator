@@ -6048,6 +6048,20 @@ other containers' uptimes unchanged). Other sites healthy
 brush+fill / select+move / pan+zoom+highlight groups with visible
 dividers, zero console errors.
 
+**D83 — Fill tool icon swapped from a droplet to a paint bucket
+(2026-09-12, Owner: "find a bucket icon for fill").**
+
+Replaced `FillIcon`'s teardrop path (D82) with a small original bucket
+glyph: a handle arc (`M6 7A6 4 0 0 1 18 7`) over a closed pail body with
+rounded bottom corners, built the same way as this project's other
+hand-drawn stroke icons -- no new icon-library dependency. `aria-label`/
+`title`/behavior unchanged, so no test needed updating.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full `npx
+vitest run` 515/515 passing, `npm run build` clean, full `npx
+playwright test` 33/33 passing. Live-checked by hand: the icon reads
+clearly as a bucket with a handle at the Tools dock's 40×40px size.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

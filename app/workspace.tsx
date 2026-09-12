@@ -123,7 +123,8 @@ function BrushIcon() {
 function FillIcon() {
   return (
     <svg {...TOOL_ICON_PROPS}>
-      <path d="M12 3c3.5 4 6 7.2 6 10.5A6 6 0 1 1 6 13.5C6 10.2 8.5 7 12 3Z" />
+      <path d="M6 7A6 4 0 0 1 18 7" />
+      <path d="M5.5 7 6.9 18.3A1.6 1.6 0 0 0 8.5 20h7a1.6 1.6 0 0 0 1.6-1.7L18.5 7Z" />
     </svg>
   );
 }
