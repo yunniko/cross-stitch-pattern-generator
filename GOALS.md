@@ -714,6 +714,17 @@ milestone's own result justifies continuing):
   sample into Pattern Keeper and confirm grid auto-detection and legend
   parsing succeed as expected; fix anything the real app reveals that
   the documentation didn't. Full regression suite, commit, deploy.
+  **BLOCKED: needs the Owner's own Pattern Keeper access** (2026-09-12)
+  — this milestone requires actually opening the real third-party
+  Pattern Keeper app (mobile/desktop, not a web app JulAI can drive) on
+  a device/account only the Owner has, per the goal's own constraints
+  ("No Pattern Keeper account/paid tier assumed beyond whatever access
+  the Owner already has for M4's real-import test"). A generated sample
+  PDF is ready at any time via the live "Export PDF (Pattern Keeper)"
+  button. Owner action needed: import a generated PDF into Pattern
+  Keeper and report back what grid-detection/legend-parsing actually
+  does (or grant remote access to test it directly) so this milestone
+  can be genuinely verified rather than assumed done.
 
 **Progress log** (newest first):
 - 2026-09-12 — M3 complete (same standing instruction). Added an
