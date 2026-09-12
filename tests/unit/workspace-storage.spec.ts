@@ -1,26 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  loadSavedProject,
-  loadWorkspaceOptions,
-  OPTIONS_KEY,
-  PROJECT_KEY,
-  saveProject,
-  saveWorkspaceOptions,
-} from "@/lib/workspace-storage";
-import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
-
-function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {
-  const counts = new Array(colors.length).fill(0);
-  for (const i of cellPalette) counts[i]++;
-  const palette: PaletteColor[] = colors.map((rgb, i) => ({
-    index: i,
-    rgb,
-    symbol: String(i),
-    name: `Color ${i}`,
-    count: counts[i],
-  }));
-  return { width, height, cellPalette: Uint8Array.from(cellPalette), palette, isLandscape: width >= height };
-}
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { LEGACY_PROJECT_KEY, legacyProjectSlot, loadWorkspaceOptions, OPTIONS_KEY, saveWorkspaceOptions } from "@/lib/workspace-storage";
 
 // This project's default Vitest environment is plain Node (no jsdom/window),
 // matching how the rest of the suite tests only the DOM-free parts of
@@ -188,48 +167,43 @@ describe("workspace-storage", () => {
     });
   });
 
-  describe("loadSavedProject / saveProject", () => {
-    it("returns null when nothing is saved", () => {
-      expect(loadSavedProject()).toBeNull();
+  describe("legacyProjectSlot (pre-D098 localStorage project, migration only)", () => {
+    it("reads and clears the old project entry", () => {
+      window.localStorage.setItem(LEGACY_PROJECT_KEY, "{}");
+      expect(legacyProjectSlot.read()).toBe("{}");
+      legacyProjectSlot.clear();
+      expect(legacyProjectSlot.read()).toBeNull();
+      expect(window.localStorage.getItem(LEGACY_PROJECT_KEY)).toBeNull();
     });
 
-    it("round-trips a saved pattern", () => {
-      const pattern = makePattern(2, 1, [0, 1], [
-        [255, 0, 0],
-        [0, 255, 0],
-      ]);
-      saveProject(pattern);
-      const restored = loadSavedProject();
-      expect(restored?.width).toBe(2);
-      expect(restored?.palette.map((c) => c.rgb)).toEqual([
-        [255, 0, 0],
-        [0, 255, 0],
-      ]);
+    it("returns null when there is nothing saved", () => {
+      expect(legacyProjectSlot.read()).toBeNull();
+    });
+  });
+
+  // G-031 M1 (review B6): the old project read sat outside its try/catch,
+  // so a browser that throws on the storage getter (site data blocked, some
+  // private modes) killed the whole restore and every later save.
+  describe("when storage access itself throws", () => {
+    beforeEach(() => {
+      (globalThis as { window?: unknown }).window = {
+        get localStorage(): Storage {
+          throw new Error("SecurityError: access to localStorage is denied");
+        },
+      };
     });
 
-    it("clears the saved project when passed null", () => {
-      saveProject(makePattern(1, 1, [0], [[1, 2, 3]]));
-      saveProject(null);
-      expect(loadSavedProject()).toBeNull();
-      expect(window.localStorage.getItem(PROJECT_KEY)).toBeNull();
+    it("loadWorkspaceOptions falls back to defaults", () => {
+      expect(loadWorkspaceOptions().aidaCount).toBe(14);
     });
 
-    it("returns null rather than throwing for corrupted saved data", () => {
-      window.localStorage.setItem(PROJECT_KEY, "not json");
-      expect(loadSavedProject()).toBeNull();
+    it("saveWorkspaceOptions does not throw", () => {
+      expect(() => saveWorkspaceOptions(loadWorkspaceOptions())).not.toThrow();
     });
 
-    it("reports and clears a corrupted autosave rather than leaving it to fail again on every future reload", () => {
-      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-      window.localStorage.setItem(PROJECT_KEY, "not json");
-
-      expect(loadSavedProject()).toBeNull();
-
-      expect(consoleError).toHaveBeenCalledTimes(1);
-      expect(consoleError.mock.calls[0][0]).toContain("auto-restore");
-      expect(window.localStorage.getItem(PROJECT_KEY)).toBeNull(); // cleared, not left to re-report forever
-
-      consoleError.mockRestore();
+    it("legacyProjectSlot reads as empty and clears without throwing", () => {
+      expect(legacyProjectSlot.read()).toBeNull();
+      expect(() => legacyProjectSlot.clear()).not.toThrow();
     });
   });
 });

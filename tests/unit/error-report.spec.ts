@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { deriveErrorReportFilename, reportPatternLoadFailure } from "@/lib/error-report";
+import { deriveErrorReportFilename, downloadPatternLoadReport, logPatternLoadFailure, reportPatternLoadFailure } from "@/lib/error-report";
 
 describe("error-report", () => {
   describe("deriveErrorReportFilename", () => {
@@ -58,6 +58,31 @@ describe("error-report", () => {
       expect(console.error).toHaveBeenCalledTimes(1);
       const [, detail] = vi.mocked(console.error).mock.calls[0];
       expect(detail).toBe("plain string failure");
+    });
+  });
+
+  // G-031 M1 (review B9): the auto-restore path logs at once but only
+  // downloads on a click, so the two halves are separately callable.
+  describe("logPatternLoadFailure / downloadPatternLoadReport", () => {
+    const originalConsoleError = console.error;
+
+    beforeEach(() => {
+      console.error = vi.fn();
+    });
+
+    afterEach(() => {
+      console.error = originalConsoleError;
+    });
+
+    it("logPatternLoadFailure logs once and returns the ISO timestamp it used", () => {
+      const stamp = logPatternLoadFailure({ source: "auto-restore", error: new Error("bad") });
+      expect(console.error).toHaveBeenCalledTimes(1);
+      expect(stamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    });
+
+    it("downloadPatternLoadReport is a silent no-op without a DOM and never logs", () => {
+      expect(() => downloadPatternLoadReport({ content: "{}" })).not.toThrow();
+      expect(console.error).not.toHaveBeenCalled();
     });
   });
 });

@@ -8,20 +8,19 @@ export default defineConfig({
   retries: 1,
   use: {
     baseURL: `http://localhost:${PORT}`,
-    // G-012's app shell is a desktop-class docked layout (Tools/Colors/
-    // Processing-params docks around a central Image window) -- it's
-    // designed for, and only claims to support, a real desktop viewport,
-    // not Playwright's cramped 1280x720 default. At the default size the
-    // shell's chrome (header/mode-bar/processing-params dock/footer)
-    // leaves too little vertical room for the Image window, which made
-    // drag-and-drop interactions onto the canvas flaky (the drop target
-    // ended up scrolled partly under the fixed chrome above it).
+    // The app shell is a desktop-class docked layout; at Playwright's
+    // 1280x720 default the Image window is too short and drag-and-drop
+    // onto the canvas gets flaky. See D100.
     viewport: { width: 1440, height: 900 },
   },
   webServer: {
-    command: `npm run dev -- -p ${PORT}`,
+    // A production build on its own port, not `next dev`: Next 16 allows one
+    // dev server per directory, so a developer's running dev server used to
+    // block the whole suite. Locally an already-running `next start` on this
+    // port is reused between iterations; CI always builds fresh. See D100.
+    command: `npm run build && npm run start -- -p ${PORT}`,
     url: `http://localhost:${PORT}`,
-    reuseExistingServer: false,
-    timeout: 120_000,
+    reuseExistingServer: !process.env.CI,
+    timeout: 300_000,
   },
 });

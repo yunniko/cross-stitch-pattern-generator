@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
-import { EMPTY_CELL, MAX_STITCHES, type PaletteColor, type StitchPattern } from "@/lib/types";
+import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 function makePattern(): StitchPattern {
   const palette: PaletteColor[] = [
@@ -193,6 +193,61 @@ describe("pattern-serialize", () => {
     expect(Array.from(restored.cellPalette)).toEqual([EMPTY_CELL, 1, 1, 0]);
     // EMPTY_CELL cells aren't counted against any real color.
     expect(restored.palette.map((c) => c.count)).toEqual([1, 2]);
+  });
+
+  // G-031 M1 (review B2): a palette longer than MAX_COLORS used to be
+  // accepted, and Uint8Array.from then silently truncated cell index 260
+  // to 4 and 255 to EMPTY_CELL.
+  it("rejects a palette longer than MAX_COLORS instead of letting Uint8Array truncate the cell indices", () => {
+    const palette = Array.from({ length: 300 }, (_, i) => ({ rgb: [i % 256, 0, 0], symbol: `s${i}`, name: `C${i}` }));
+    const bad = JSON.stringify({ width: 2, height: 1, cellPalette: [260, 255], palette });
+    expect(() => deserializePattern(bad)).toThrow(/more than the maximum/);
+  });
+
+  it("accepts a palette exactly at MAX_COLORS", () => {
+    const palette = Array.from({ length: MAX_COLORS }, (_, i) => ({ rgb: [i, 0, 0], symbol: `s${i}`, name: `C${i}` }));
+    const ok = JSON.stringify({ width: 1, height: 1, cellPalette: [MAX_COLORS - 1], palette });
+    expect(deserializePattern(ok).palette).toHaveLength(MAX_COLORS);
+  });
+
+  // G-031 M1 (review B3): malformed entries used to be returned as-is and
+  // only failed later, inside the renderer/legend.
+  it.each([
+    ["a non-array rgb", { rgb: "red", symbol: "x", name: "A" }],
+    ["an rgb with two channels", { rgb: [1, 2], symbol: "x", name: "A" }],
+    ["an rgb channel above 255", { rgb: [1, 2, 300], symbol: "x", name: "A" }],
+    ["a fractional rgb channel", { rgb: [1, 2, 2.5], symbol: "x", name: "A" }],
+    ["a null rgb channel", { rgb: [null, 0, 0], symbol: "x", name: "A" }],
+    ["a numeric symbol", { rgb: [0, 0, 0], symbol: 1, name: "A" }],
+    ["an empty symbol", { rgb: [0, 0, 0], symbol: "", name: "A" }],
+    ["a null name", { rgb: [0, 0, 0], symbol: "x", name: null }],
+    ["a non-object entry", "not a color"],
+  ])("rejects a palette entry with %s", (_label, entry) => {
+    const bad = JSON.stringify({ width: 1, height: 1, cellPalette: [0], palette: [entry] });
+    expect(() => deserializePattern(bad)).toThrow();
+  });
+
+  it("rejects two palette colors sharing one symbol", () => {
+    const bad = JSON.stringify({
+      width: 2,
+      height: 1,
+      cellPalette: [0, 1],
+      palette: [
+        { rgb: [0, 0, 0], symbol: "x", name: "A" },
+        { rgb: [9, 9, 9], symbol: "x", name: "B" },
+      ],
+    });
+    expect(() => deserializePattern(bad)).toThrow(/same symbol/);
+  });
+
+  it("rejects fractional dimensions even when the cell count happens to match", () => {
+    const bad = JSON.stringify({ width: 2.5, height: 2, cellPalette: [0, 0, 0, 0, 0], palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }] });
+    expect(() => deserializePattern(bad)).toThrow(/dimensions/);
+  });
+
+  it("rejects a fractional cell index", () => {
+    const bad = JSON.stringify({ width: 1, height: 1, cellPalette: [0.5], palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }] });
+    expect(() => deserializePattern(bad)).toThrow();
   });
 
   it("still rejects a genuinely out-of-range index that isn't EMPTY_CELL", () => {

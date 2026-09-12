@@ -4,14 +4,15 @@
  * problematic file version to [an] error report folder and try to load
  * previous version (undo)").
  *
- * This app is entirely client-side with no server filesystem -- there is no
- * literal "folder" to write into. The closest real equivalent is triggering
- * a browser download of the exact content that failed to load, landing in
- * the user's own Downloads folder, alongside a console.error with the same
- * detail. "Try to load previous version" is satisfied by the callers of
- * this module never overwriting the current in-memory pattern until a load
- * has actually succeeded -- see `loadSavedProject` (lib/workspace-storage.ts)
- * and `handleOpenFile` (app/workspace.tsx).
+ * This app is entirely client-side with no server filesystem -- the closest
+ * real equivalent of an "error report folder" is a browser download of the
+ * exact content that failed to load, alongside a console.error with the
+ * same detail. "Try to load previous version" is satisfied by callers never
+ * overwriting the current in-memory pattern until a load has succeeded.
+ *
+ * The download is a separate step from the log so the auto-restore path can
+ * log immediately but only download on a click (a page-load download with
+ * no user gesture is commonly blocked, and startling when it isn't -- D099).
  */
 
 export type PatternLoadSource = "open-file" | "auto-restore";
@@ -21,7 +22,7 @@ export interface PatternLoadFailure {
   error: unknown;
   /** The exact bytes/text that failed to load. */
   content: Blob | string;
-  /** The original file name, when there was a real file (absent for `"auto-restore"` -- that content came from localStorage, not a file). */
+  /** The original file name, when there was a real file (absent for `"auto-restore"`, whose content came from the autosave store, not a file). */
   originalFileName?: string;
 }
 
@@ -40,25 +41,27 @@ function errorDetail(error: unknown): string {
   return String(error);
 }
 
-/**
- * Logs a pattern-load failure to the console and, when a DOM is available,
- * downloads the exact content that failed to load. In environments with no
- * `document` (unit tests, SSR) only the console.error happens -- there is
- * nowhere to download to, and nothing else in this module depends on the
- * download succeeding.
- */
-export function reportPatternLoadFailure({ source, error, content, originalFileName }: PatternLoadFailure): void {
+/** Console-logs a pattern-load failure. Returns the timestamp used, so a later download can carry the same one. */
+export function logPatternLoadFailure({ source, error }: Pick<PatternLoadFailure, "source" | "error">): string {
   const timestamp = new Date().toISOString();
   console.error(`[cross-stitch-pattern-generator] Pattern load failed (source: ${source}) at ${timestamp}:`, errorDetail(error));
+  return timestamp;
+}
 
+/** Downloads the exact content that failed to load. No-op where there's no `document` (unit tests, SSR). */
+export function downloadPatternLoadReport({ content, originalFileName }: Pick<PatternLoadFailure, "content" | "originalFileName">, timestamp = new Date().toISOString()): void {
   if (typeof document === "undefined") return;
-
   const blob = content instanceof Blob ? content : new Blob([content], { type: "text/plain" });
-  const filename = deriveErrorReportFilename(originalFileName, timestamp);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = filename;
+  link.download = deriveErrorReportFilename(originalFileName, timestamp);
   link.click();
   URL.revokeObjectURL(url);
+}
+
+/** Log + immediate download -- for failures that follow a user gesture (opening a file), where a download is expected. */
+export function reportPatternLoadFailure(failure: PatternLoadFailure): void {
+  const timestamp = logPatternLoadFailure(failure);
+  downloadPatternLoadReport(failure, timestamp);
 }

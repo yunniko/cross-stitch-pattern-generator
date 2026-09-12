@@ -1,65 +1,33 @@
 import type { OverlapCells } from "./a4-layout";
-import { reportPatternLoadFailure } from "./error-report";
+import type { LegacyProjectSlot } from "./editor/project-store";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
-import { deserializePattern, serializePattern } from "./pattern-serialize";
 import type { EdgeMode, GenerationMode, PaletteMode } from "./pattern.worker";
 import { THREAD_BRAND_IDS } from "./thread-brands";
-import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, type SizePresetId, type StitchPattern } from "./types";
+import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, type SizePresetId } from "./types";
 
-// Workspace-level preferences and the in-progress project, persisted to
-// localStorage (G-015, Owner request 2026-09-10) so a page reload doesn't
-// lose either. Both are per-browser, best-effort: every read/write is
-// wrapped so a disabled/full/unavailable localStorage (private browsing,
-// SSR, quota exceeded by a large embedded source photo) degrades to
-// "nothing persists" rather than throwing and breaking the edit that
-// triggered it.
-// Exported so tests can seed/inspect the underlying storage entries directly
-// without duplicating these literals.
+// Workspace-level preferences, persisted to localStorage (G-015). Per-
+// browser and best-effort: every access -- reads included, since some
+// browsers throw on the `localStorage` getter itself when site data is
+// blocked -- is wrapped so a disabled/full/unavailable store degrades to
+// "nothing persists" rather than throwing (D098). The in-progress project
+// itself lives in IndexedDB (lib/editor/project-store.ts); only the legacy
+// slot below remains here, for a one-time migration.
 export const OPTIONS_KEY = "cross-stitch-pattern-generator:options:v1";
-export const PROJECT_KEY = "cross-stitch-pattern-generator:project:v1";
+export const LEGACY_PROJECT_KEY = "cross-stitch-pattern-generator:project:v1";
 
 export interface WorkspaceOptions {
   aidaCount: number;
   sizeUnit: SizeUnit;
   authorName: string;
-  /**
-   * The Standard/Crisp choice for the *next* Generate/Regenerate (G-024
-   * M5) -- unlike `dmcMode`/`edgeMode` on a `StitchPattern` itself
-   * (which record how an already-generated pattern was built), this is
-   * just a remembered UI preference so a reloaded session starts with
-   * the Owner's last choice instead of always resetting to Standard.
-   * Missing/corrupt/legacy (every workspace saved before this field
-   * existed) defaults to `"standard"`.
-   */
+  /** The Standard/Crisp choice for the *next* Generate -- a remembered UI preference, unlike `edgeMode` on a `StitchPattern`, which records how that pattern was built. */
   edgeMode: EdgeMode;
-  /**
-   * The A4 export overlap-cells choice (Owner request, 2026-09-12: moved
-   * here from an inline control next to the old per-mode A4 export
-   * buttons, now that every export lives behind one dropdown with no
-   * room for its own inline settings). Missing/corrupt/legacy defaults
-   * to `5`, the same default `calculateA4Layout` itself already uses.
-   */
+  /** A4/PDF export overlap; defaults to 5 like `calculateA4Layout` itself. */
   overlapCells: OverlapCells;
-  /**
-   * The on-screen canvas background color (Owner request, 2026-09-12):
-   * shown behind empty (no-stitch) cells in the live Color/B&W chart view
-   * and as a backdrop behind the realistic preview's own transparent PNG.
-   * Purely a display preference -- never threaded into any export path,
-   * which always renders empty cells on white and the realistic preview on
-   * a transparent background regardless of this setting. Missing/corrupt
-   * defaults to white, matching every export's own existing default.
-   */
+  /** On-screen canvas background behind empty cells and the realistic preview. Display only, never threaded into any export. */
   canvasColor: string;
-  /**
-   * Generate/Regenerate settings (Owner request, 2026-09-12: "remember
-   * regeneration modes, pattern size and color count on page reload") --
-   * unlike `edgeMode` above, these have no per-pattern equivalent (nothing
-   * on a `StitchPattern` itself records "this was generated as Large,
-   * 24 colors, Latest/Full range"), so the *only* place they can survive a
-   * reload is here, exactly like `aidaCount`/`sizeUnit` already do.
-   */
+  /** Generate settings remembered across reloads (Owner request, 2026-09-12); nothing on a `StitchPattern` records these. */
   sizePreset: SizePresetId;
-  /** Only meaningful when `sizePreset` is `"custom"` -- kept even when a named preset is selected, so switching back to Custom later restores the Owner's last custom value instead of resetting to the default. */
+  /** Kept even when a named preset is selected, so switching back to Custom restores the last custom value. */
   customSize: number;
   colorCount: number;
   generationMode: GenerationMode;
@@ -84,7 +52,7 @@ const VALID_OVERLAP_CELLS: readonly OverlapCells[] = [0, 5, 10];
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const VALID_SIZE_PRESETS: readonly SizePresetId[] = ["small", "medium", "large", "xl", "xxl", "custom"];
 
-/** Reads persisted fabric count / unit / author name / edge mode / overlap -- falls back to defaults on first visit or any corrupt/missing data. */
+/** Reads persisted options, falling back to defaults on first visit or any corrupt/missing data, field by field. */
 export function loadWorkspaceOptions(): WorkspaceOptions {
   if (typeof window === "undefined") return DEFAULT_OPTIONS;
   try {
@@ -108,10 +76,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
           ? parsed.colorCount
           : DEFAULT_OPTIONS.colorCount,
       generationMode: parsed.generationMode === "original" ? "original" : DEFAULT_OPTIONS.generationMode,
-      // Validated against every real `ThreadBrand` (plus "full"), not just
-      // "dmc" specifically -- so a new brand added in G-029 M2/M3 doesn't
-      // need this check updated to be readable (flagged as a risky, easy-
-      // to-forget spot in HANDOVER.md D92's Codex critique exchange).
+      // Validated against the live brand registry, not a hardcoded "dmc", so a new brand needs no change here.
       paletteMode:
         parsed.paletteMode === "full" || (THREAD_BRAND_IDS as string[]).includes(parsed.paletteMode as string)
           ? (parsed.paletteMode as PaletteMode)
@@ -131,50 +96,22 @@ export function saveWorkspaceOptions(options: WorkspaceOptions): void {
   }
 }
 
-/**
- * The most recently open project. Returns null (never throws) when there's
- * nothing saved or it fails to parse -- callers treat that as "start fresh,"
- * the same as a first visit. There is no earlier in-memory pattern to fall
- * back to on a cold page load, so "start fresh" *is* this path's correct
- * "previous version" (Owner request 2026-09-12) -- there is nothing to
- * undo to that would be more correct than a blank workspace.
- *
- * A parse failure (e.g. a truncated autosave from a localStorage quota hit
- * while saving a pattern with a large embedded photo) is reported via
- * `reportPatternLoadFailure` -- logged, and downloaded so it's inspectable
- * -- and the corrupted entry is then cleared so it doesn't re-report on
- * every subsequent reload.
- */
-export function loadSavedProject(): StitchPattern | null {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(PROJECT_KEY);
-  if (!raw) return null;
-  try {
-    return deserializePattern(raw);
-  } catch (error) {
-    reportPatternLoadFailure({ source: "auto-restore", error, content: raw });
+/** The pre-D098 localStorage project slot, read once by `restoreProject` to migrate an earlier build's autosave into IndexedDB. Never written to. */
+export const legacyProjectSlot: LegacyProjectSlot = {
+  read() {
+    if (typeof window === "undefined") return null;
     try {
-      window.localStorage.removeItem(PROJECT_KEY);
+      return window.localStorage.getItem(LEGACY_PROJECT_KEY);
+    } catch {
+      return null;
+    }
+  },
+  clear() {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.removeItem(LEGACY_PROJECT_KEY);
     } catch {
       // Best-effort, matching every other write in this module.
     }
-    return null;
-  }
-}
-
-/**
- * Auto-saves the current project, or clears the saved slot when `pattern`
- * is null. Best-effort: a pattern with a large embedded source photo can
- * exceed localStorage's quota (typically 5-10MB/origin) -- that failure is
- * swallowed rather than surfaced, matching how this app already treats a
- * failed source-photo re-decode on open as non-fatal (app/workspace.tsx).
- */
-export function saveProject(pattern: StitchPattern | null): void {
-  if (typeof window === "undefined") return;
-  try {
-    if (pattern) window.localStorage.setItem(PROJECT_KEY, serializePattern(pattern));
-    else window.localStorage.removeItem(PROJECT_KEY);
-  } catch {
-    // Best-effort, see above.
-  }
-}
+  },
+};

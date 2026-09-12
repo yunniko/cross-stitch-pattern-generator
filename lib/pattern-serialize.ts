@@ -1,5 +1,5 @@
 import { THREAD_BRAND_IDS, type ThreadBrand } from "./thread-brands";
-import { EMPTY_CELL, MAX_STITCHES, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern } from "./types";
+import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern } from "./types";
 
 // Plain JSON, not a PNG with embedded data (Owner decision, 2026-09-09,
 // HANDOVER.md D21) -- simplest reliable format, at the cost of not being
@@ -62,51 +62,73 @@ export function deserializePattern(json: string): StitchPattern {
   } catch {
     throw new Error("That file isn't valid JSON.");
   }
+  return deserializePatternData(data);
+}
 
+/**
+ * The parsed-object half of `deserializePattern`, shared with the
+ * IndexedDB project store (`lib/editor/project-store.ts`), whose records
+ * are never JSON text. `cellPalette` may be a plain array or a typed array.
+ *
+ * Every field is validated, not just the grid geometry: a palette longer
+ * than `MAX_COLORS` would otherwise be truncated by the `Uint8Array`
+ * (index 260 silently becomes 4, index 255 becomes `EMPTY_CELL`), and a
+ * malformed entry would reach the renderer as `rgb(undefined, ...)` /
+ * a `NaN` luminance / a "null" legend row. See D097.
+ */
+export function deserializePatternData(data: unknown): StitchPattern {
   if (typeof data !== "object" || data === null) throw new Error("That file doesn't look like an editable pattern.");
-  const d = data as Partial<SerializedPattern>;
+  const d = data as Record<string, unknown>;
 
-  if (typeof d.width !== "number" || typeof d.height !== "number" || d.width <= 0 || d.height <= 0) {
+  const width = d.width;
+  const height = d.height;
+  if (!isPositiveInteger(width) || !isPositiveInteger(height)) {
     throw new Error("That file's dimensions are missing or invalid.");
   }
-  // Generation itself already enforces this range (app/page.tsx), but a
-  // hand-edited or corrupted file reaches this function without going
-  // through that check -- without this, an oversized file could still slip
-  // through to rendering/export, which has its own budget but shouldn't be
-  // the only line of defense (code-review 2026-09-09, finding 4).
-  if (d.width > MAX_STITCHES || d.height > MAX_STITCHES) {
-    throw new Error(`That file's dimensions (${d.width}×${d.height}) exceed the maximum supported size of ${MAX_STITCHES} stitches per side.`);
+  // Generation enforces this range up front; a hand-edited or corrupted
+  // file reaches this function without going through that check.
+  if (width > MAX_STITCHES || height > MAX_STITCHES) {
+    throw new Error(`That file's dimensions (${width}×${height}) exceed the maximum supported size of ${MAX_STITCHES} stitches per side.`);
   }
-  if (!Array.isArray(d.cellPalette) || d.cellPalette.length !== d.width * d.height) {
+
+  const cellPalette = d.cellPalette;
+  if (!isIndexList(cellPalette) || cellPalette.length !== width * height) {
     throw new Error("That file's stitch data doesn't match its stated dimensions.");
   }
-  if (!Array.isArray(d.palette) || d.palette.length === 0) {
+
+  const rawPalette = d.palette;
+  if (!Array.isArray(rawPalette) || rawPalette.length === 0) {
     throw new Error("That file has no color palette.");
   }
-  for (const index of d.cellPalette) {
-    if (typeof index !== "number" || (index !== EMPTY_CELL && (index < 0 || index >= d.palette.length))) {
+  if (rawPalette.length > MAX_COLORS) {
+    throw new Error(`That file's palette has ${rawPalette.length} colors, more than the maximum of ${MAX_COLORS}.`);
+  }
+  const entries = rawPalette.map(validatePaletteEntry);
+  const symbols = new Set(entries.map((c) => c.symbol));
+  if (symbols.size !== entries.length) {
+    throw new Error("That file's palette gives the same symbol to more than one color.");
+  }
+
+  for (let i = 0; i < cellPalette.length; i++) {
+    const index = cellPalette[i];
+    if (!Number.isInteger(index) || (index !== EMPTY_CELL && (index < 0 || index >= entries.length))) {
       throw new Error("That file references a color that isn't in its own palette.");
     }
   }
 
-  const counts = new Array(d.palette.length).fill(0);
-  for (const index of d.cellPalette) {
+  const counts = new Array<number>(entries.length).fill(0);
+  for (let i = 0; i < cellPalette.length; i++) {
+    const index = cellPalette[i];
     if (index !== EMPTY_CELL) counts[index]++;
   }
 
-  const palette: PaletteColor[] = d.palette.map((c, i) => ({
-    index: i,
-    rgb: c.rgb,
-    symbol: c.symbol,
-    name: c.name,
-    count: counts[i],
-  }));
+  const palette: PaletteColor[] = entries.map((c, i) => ({ index: i, rgb: c.rgb, symbol: c.symbol, name: c.name, count: counts[i] }));
 
   return {
-    width: d.width,
-    height: d.height,
-    isLandscape: d.isLandscape ?? d.width >= d.height,
-    cellPalette: Uint8Array.from(d.cellPalette),
+    width,
+    height,
+    isLandscape: typeof d.isLandscape === "boolean" ? d.isLandscape : width >= height,
+    cellPalette: Uint8Array.from(cellPalette),
     palette,
     name: typeof d.name === "string" && d.name.trim() !== "" ? d.name : undefined,
     sourceImage: isValidSourceImageRef(d.sourceImage) ? d.sourceImage : undefined,
@@ -115,17 +137,41 @@ export function deserializePattern(json: string): StitchPattern {
   };
 }
 
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+function isIndexList(value: unknown): value is ArrayLike<number> {
+  return Array.isArray(value) || value instanceof Uint8Array;
+}
+
+function isByte(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 255;
+}
+
+function validatePaletteEntry(entry: unknown): { rgb: RGB; symbol: string; name: string } {
+  if (typeof entry !== "object" || entry === null) throw new Error("That file's palette contains an entry that isn't a color.");
+  const e = entry as Record<string, unknown>;
+  const rgb = e.rgb;
+  if (!Array.isArray(rgb) || rgb.length !== 3 || !rgb.every(isByte)) {
+    throw new Error("That file's palette contains a color whose RGB value is invalid.");
+  }
+  if (typeof e.symbol !== "string" || e.symbol === "") {
+    throw new Error("That file's palette contains a color with no symbol.");
+  }
+  if (typeof e.name !== "string") {
+    throw new Error("That file's palette contains a color with no name.");
+  }
+  return { rgb: [rgb[0], rgb[1], rgb[2]], symbol: e.symbol, name: e.name };
+}
+
 /**
- * Reads a file's brand-matched state, preferring the current `threadBrand`
- * field and falling back to the legacy `dmcMode: true` written before
- * G-029 M1 (HANDOVER.md D92) -- so a pre-G-029 save still opens as a DMC
- * pattern. Validated against the real, known set of brands rather than
- * trusted blindly: an unrecognized/malformed value (a hand-edited file, a
- * future format this build doesn't know about yet) falls back to
- * "unmatched" instead of being stored as an invalid `ThreadBrand` that
- * would later crash a `THREAD_BRANDS[pattern.threadBrand]` lookup.
+ * Prefers the current `threadBrand` field, falling back to the legacy
+ * `dmcMode: true` written before G-029 M1 (HANDOVER.md D92). An
+ * unrecognized value falls back to "unmatched" rather than being stored
+ * as an invalid `ThreadBrand` that would crash a later registry lookup.
  */
-function resolveThreadBrand(d: Partial<SerializedPattern>): ThreadBrand | undefined {
+function resolveThreadBrand(d: Record<string, unknown>): ThreadBrand | undefined {
   if (typeof d.threadBrand === "string" && (THREAD_BRAND_IDS as string[]).includes(d.threadBrand)) {
     return d.threadBrand as ThreadBrand;
   }
@@ -136,7 +182,7 @@ function resolveThreadBrand(d: Partial<SerializedPattern>): ThreadBrand | undefi
 // just means the photo-underlay mode and Move tool are unavailable for this
 // pattern, not that the whole file is unopenable -- the grid/palette are
 // still perfectly valid without it.
-function isValidSourceImageRef(value: unknown): value is SourceImageRef {
+export function isValidSourceImageRef(value: unknown): value is SourceImageRef {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Partial<SourceImageRef>;
   return (

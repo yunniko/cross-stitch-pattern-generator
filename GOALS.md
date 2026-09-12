@@ -395,7 +395,7 @@ milestone's own result justifies continuing):
     M2 may be presented together at one check-in since both are small.
 
 **Milestones:**
-- [ ] **M1 — Data safety (B1, B2, B3, B6).** Move the autosaved project
+- [x] **M1 — Data safety (B1, B2, B3, B6).** Move the autosaved project
       to IndexedDB via a small async wrapper (`lib/editor/project-store.ts`),
       store `cellPalette` as base64, store the source photo once keyed by
       a content hash (one entry shared by autosave and undo snapshots),
@@ -486,6 +486,27 @@ milestone's own result justifies continuing):
       handover's "Rules in force".
 
 **Progress log** (newest first):
+- 2026-09-13 — **M1 done** (Owner instruction this session: work through
+  the milestones without check-ins unless a decision needs them).
+  Started from a clean tree after committing the earlier sessions'
+  carry-over (`3553795`). B1/B6: autosave moved to IndexedDB via
+  `lib/editor/project-store.ts` (photo stored once by SHA-256, typed-array
+  cells, 500 ms debounce, `pagehide` flush, one-time migration off the
+  localStorage slot, every localStorage access wrapped) with a visible
+  "Autosave unavailable" status (D098). B2/B3: `deserializePattern`
+  validates every palette field, `MAX_COLORS`, integer dimensions/indices
+  and unique symbols (D097). B9: corrupt autosave → banner with an
+  on-demand "Download error report" button, no page-load download (D099).
+  Pulled M5's Playwright change forward: e2e now runs against
+  `next build && next start` (D100) because a stale `next dev` from
+  2026-09-12 (PID 17476) still holds this directory. Verified: `tsc`
+  and eslint clean; 619/619 unit tests (was 587; +32: store, fuzz with 200
+  seeded mutations, validation cases — 14 of them fail on the pre-fix
+  deserializer, checked by swapping the old file in); 44/44 e2e including
+  five new autosave tests (edited pattern + photo survive a reload, a
+  >4 MB noise photo survives a reload, corrupt autosave banner/report,
+  legacy-slot migration, throwing `localStorage` getter). `docs-lint`
+  reports only the pre-existing HANDOVER.md items (M5). Next: M2.
 - 2026-09-12 — Goal created from the review's "Prioritized
   recommendations" section at the Owner's instruction ("make a plan
   according to your recommendations and put it into a new goal for other

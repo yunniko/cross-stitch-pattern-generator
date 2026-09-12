@@ -31,7 +31,9 @@ import type { DmcColor } from "@/lib/dmc-colors";
 import { THREAD_BRANDS, THREAD_BRAND_IDS, formatThreadName, type ThreadBrand } from "@/lib/thread-brands";
 import { SYMBOL_SET } from "@/lib/symbols";
 import { serializePattern } from "@/lib/pattern-serialize";
-import { reportPatternLoadFailure } from "@/lib/error-report";
+import { downloadPatternLoadReport, logPatternLoadFailure, reportPatternLoadFailure } from "@/lib/error-report";
+import { getProjectStore, restoreProject, type ProjectLoadFailure } from "@/lib/editor/project-store";
+import { useProjectAutosave } from "@/lib/editor/use-project-autosave";
 import { loadPatternFromFile } from "@/lib/pattern-import";
 import { generateExportAllZip } from "@/lib/export-all";
 import {
@@ -64,7 +66,7 @@ import {
 } from "@/lib/types";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, STANDARD_AIDA_COUNTS, formatFinishedDimension, type SizeUnit } from "@/lib/finished-size";
 import { formatSkeinEstimate } from "@/lib/floss-estimate";
-import { loadSavedProject, loadWorkspaceOptions, saveProject, saveWorkspaceOptions } from "@/lib/workspace-storage";
+import { legacyProjectSlot, loadWorkspaceOptions, saveWorkspaceOptions } from "@/lib/workspace-storage";
 import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pattern.worker";
 
 // The Image window's target on-screen width for its live-editable (color/bw)
@@ -379,42 +381,52 @@ export default function Workspace() {
     patternRef.current = pattern;
   }, [pattern]);
 
-  // --- Persisted workspace options + auto-saved project (G-015) ---
-  // Gated on a ref (not just "run once on mount") so the save effects below
-  // can tell whether the initial load has actually completed yet -- without
-  // this, they'd fire on the very first render (before restoring anything)
-  // and immediately overwrite/clear whatever was already saved.
-  const workspaceRestoredRef = useRef(false);
+  // --- Persisted workspace options + auto-saved project (G-015, D098) ---
+  // The save effects are gated on the restore having *completed* (it's
+  // async now) -- otherwise they'd fire on the first render and overwrite
+  // or clear whatever was saved before it was read back.
+  const [workspaceRestored, setWorkspaceRestored] = useState(false);
+  const [restoreFailure, setRestoreFailure] = useState<ProjectLoadFailure | null>(null);
   useEffect(() => {
-    queueMicrotask(() => {
-      const options = loadWorkspaceOptions();
-      setAidaCount(options.aidaCount);
-      setSizeUnit(options.sizeUnit);
-      setAuthorName(options.authorName);
-      setEdgeMode(options.edgeMode);
-      setA4Overlap(options.overlapCells);
-      setCanvasColor(options.canvasColor);
-      setSizePreset(options.sizePreset);
-      setCustomSize(options.customSize);
-      setColorCount(options.colorCount);
-      setGenerationMode(options.generationMode);
-      setPaletteMode(options.paletteMode);
-
-      const saved = loadSavedProject();
-      if (saved) {
-        loadPatternIntoWorkspace(saved, saved.name ?? "cross-stitch-pattern");
-      }
-      workspaceRestoredRef.current = true;
-    });
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => {
+        const options = loadWorkspaceOptions();
+        setAidaCount(options.aidaCount);
+        setSizeUnit(options.sizeUnit);
+        setAuthorName(options.authorName);
+        setEdgeMode(options.edgeMode);
+        setA4Overlap(options.overlapCells);
+        setCanvasColor(options.canvasColor);
+        setSizePreset(options.sizePreset);
+        setCustomSize(options.customSize);
+        setColorCount(options.colorCount);
+        setGenerationMode(options.generationMode);
+        setPaletteMode(options.paletteMode);
+        return restoreProject(getProjectStore(), legacyProjectSlot);
+      })
+      .catch((error: unknown) => ({ pattern: null, failure: { error, payload: "" } }))
+      .then((result) => {
+        if (cancelled) return;
+        if (result.failure) {
+          logPatternLoadFailure({ source: "auto-restore", error: result.failure.error });
+          setRestoreFailure(result.failure);
+        }
+        if (result.pattern) loadPatternIntoWorkspace(result.pattern, result.pattern.name ?? "cross-stitch-pattern");
+        setWorkspaceRestored(true);
+      });
+    return () => {
+      cancelled = true;
+    };
     // Deliberately mount-only -- loadPatternIntoWorkspace's identity changes
-    // every render, but re-running this restore whenever it changes would
-    // defeat the point (it must fire exactly once, before the save effects
-    // below start reacting to state changes).
+    // every render, but the restore must fire exactly once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const autosaveStatus = useProjectAutosave(pattern, workspaceRestored, getProjectStore());
+
   useEffect(() => {
-    if (!workspaceRestoredRef.current) return;
+    if (!workspaceRestored) return;
     saveWorkspaceOptions({
       aidaCount,
       sizeUnit,
@@ -428,12 +440,7 @@ export default function Workspace() {
       generationMode,
       paletteMode,
     });
-  }, [aidaCount, sizeUnit, authorName, edgeMode, a4Overlap, canvasColor, sizePreset, customSize, colorCount, generationMode, paletteMode]);
-
-  useEffect(() => {
-    if (!workspaceRestoredRef.current) return;
-    saveProject(pattern);
-  }, [pattern]);
+  }, [workspaceRestored, aidaCount, sizeUnit, authorName, edgeMode, a4Overlap, canvasColor, sizePreset, customSize, colorCount, generationMode, paletteMode]);
 
   // --- Image window view mode + brush/legend state (the Colors dock) ---
   const [viewMode, setViewMode] = useState<ViewMode>("color");
@@ -1459,6 +1466,20 @@ export default function Workspace() {
             Redo
           </button>
         </div>
+        <span
+          role="status"
+          data-testid="autosave-status"
+          data-status={autosaveStatus}
+          className={`text-xs ${autosaveStatus === "unavailable" ? "font-medium text-red-600 dark:text-red-400" : "text-zinc-500"}`}
+        >
+          {autosaveStatus === "unavailable"
+            ? "Autosave unavailable — edits won't survive a reload"
+            : autosaveStatus === "saving"
+              ? "Saving…"
+              : autosaveStatus === "saved" && pattern
+                ? "Autosaved"
+                : ""}
+        </span>
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
@@ -1527,6 +1548,25 @@ export default function Workspace() {
           </button>
         </div>
       </header>
+      {restoreFailure && (
+        <div
+          role="alert"
+          data-testid="restore-failure"
+          className="flex flex-wrap items-center gap-3 border-b border-amber-300 bg-amber-50 px-4 py-1 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+        >
+          <span>The autosaved project couldn&apos;t be restored, so this session started fresh. The failed data is available as an error report.</span>
+          <button
+            type="button"
+            onClick={() => downloadPatternLoadReport({ content: restoreFailure.payload })}
+            className="rounded-full border border-amber-400 px-3 py-0.5 font-medium hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900"
+          >
+            Download error report
+          </button>
+          <button type="button" onClick={() => setRestoreFailure(null)} className="rounded-full px-3 py-0.5 font-medium hover:bg-amber-100 dark:hover:bg-amber-900">
+            Dismiss
+          </button>
+        </div>
+      )}
       {openError && <p className="border-b border-red-300 bg-red-50 px-4 py-1 text-xs text-red-600 dark:border-red-800 dark:bg-red-950 dark:text-red-400">{openError}</p>}
       {exportError && <p className="border-b border-red-300 bg-red-50 px-4 py-1 text-xs text-red-600 dark:border-red-800 dark:bg-red-950 dark:text-red-400">{exportError}</p>}
       {paginatesAsA4(exportKind) && a4LayoutPreview && (
