@@ -6717,6 +6717,50 @@ renders `rgb(0, 0, 0)`, matching DMC 310 Black exactly; `addBrandColor`
 and Undo both work correctly against a live Anchor-matched pattern;
 zero console errors.
 
+**D95 — G-029 M4: full regression + real-world backward-compatibility
+verification, then deploy. Goal DONE (2026-09-12).**
+
+No code changed for M4 itself -- this milestone was entirely
+verification. **The one real-world check not yet done**: every earlier
+backward-compat test called `deserializePattern` directly; M4
+constructed a real pre-G-029 pattern file (literal old-format JSON:
+`dmcMode: true`, no `threadBrand` field at all) and fed it through the
+app's own file-open path in a running `next dev` instance (via a
+synthetic `File`/`DataTransfer` dispatched at the real file input, not
+Playwright, since the browser automation tool's own sandboxing blocked
+uploading a local scratch file directly) -- confirmed it opens with
+zero errors, and that the "+Add" panel's DMC-only disclosure appears,
+proving `pattern.threadBrand` was correctly derived from the legacy
+field through the real UI, not just in isolation. Full suite
+re-confirmed unchanged from M3 (575/575 unit, 39/39 e2e, clean
+`tsc`/`eslint`/`npm run build`) since no code was touched.
+
+**Deployed.** Standard recipe (`git fetch` + `git pull` + `docker
+compose --profile app up -d --build`). Container isolation confirmed
+(`cross-stitch-pattern-generator-app-1` alone recreated; every other
+container's `docker ps` uptime on the host unchanged via a before/after
+diff). Other sites healthy
+(`meet.app.julienika.cz`/`craftale.eu`/`arfid.julienika.cz` all HTTP
+200). Live-checked `https://cross-stitch.craftodejnice.cz`: confirmed
+the Palette selector shows Full range/DMC/Cosmo/Anchor, zero console
+errors.
+
+**G-029 summary, for anyone picking this up cold**: `lib/thread-brands.ts`
+is the registry (`THREAD_BRANDS`, `ThreadBrand`, `formatThreadName`).
+`lib/dmc-match.ts`'s `applyBrandPalette` is the one place matching
+actually happens, branching on each brand's `matching` field --
+`"direct"` (DMC, Cosmo) or `"dmc-equivalence"` (Anchor). Adding a
+fourth brand with real independent color data needs: a `lib/<brand>-
+colors.ts` data file + provenance doc (follow `docs/cosmo-colors-
+provenance.md` as the template), one more `ThreadBrand` union member
+(`lib/thread-brands.ts` -- remember `lib/types.ts`'s `threadBrand`
+field's inline literal union has to be widened by hand too, to avoid a
+circular import), one more `THREAD_BRANDS` registry entry. No UI code
+should need to change (the Palette selector, color editor, and "+Add"
+picker all already map over `THREAD_BRAND_IDS`/`THREAD_BRANDS`
+generically) -- if a UI change does turn out to be needed, that's a
+sign the generalization missed something.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

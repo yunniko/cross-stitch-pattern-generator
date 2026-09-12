@@ -975,7 +975,39 @@ milestone's own result justifies continuing):
   over-100 handling) rather than assumed. Not yet promoted to ACTIVE --
   awaiting Owner review of this plan.
 
-### G-029 · Anchor and Cosmo thread-brand palette modes — ACTIVE (2026-09-12)
+### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
+- **What:** Eventually make the app public, built around **a social
+  ecosystem** (community/sharing features -- exact shape not yet defined:
+  could include public pattern galleries, profiles, following, comments,
+  or similar) rather than a plain paywall-on-exports model. Owner
+  explicitly corrected an earlier draft of this goal that jumped straight
+  to a detailed "server-side generation + paid export tiers" plan --
+  **that plan is withdrawn**, not just superseded; the real direction is
+  the social ecosystem, and "other details will be defined later"
+  (Owner's own words, 2026-09-12).
+- **Why:** Owner is exploring making the app public and building a
+  business around it, but this is explicitly **a plan for very later**,
+  not something to scope or sequence now.
+- **Status:** Intentionally not planned in detail -- no acceptance
+  criteria, no milestones, per the Owner's own "very later, details
+  defined later" framing. This entry exists so the intent isn't lost
+  between sessions, not to commit to any architecture yet. Do not expand
+  this into a full plan without an explicit Owner go-ahead to start
+  planning it for real.
+- **One durable technical fact worth keeping regardless of eventual
+  shape** (verified while a fuller version of this goal was briefly
+  drafted, then withdrawn): `buildPattern` (`lib/pattern.ts`) and
+  everything it calls already take/return plain typed-array buffers with
+  zero DOM dependency (`lib/pattern.worker.ts` is just a thin
+  `postMessage` shim around it) -- so if a future version of this goal
+  ever does need server-side generation, the existing TypeScript pipeline
+  can run in a Node server context unmodified, without needing G-023's
+  Rust work first. Not a decision, just a fact worth not re-deriving
+  later.
+
+## Completed goals
+
+### G-029 · Anchor and Cosmo thread-brand palette modes — DONE (2026-09-12)
 - **What:** Two new selectable palette modes alongside today's "Full
   range" and "DMC": **Anchor** and **Cosmo**, each snapping the generated
   pattern's colors to that brand's real, buyable thread line, with the
@@ -1107,11 +1139,17 @@ milestone's own result justifies continuing):
   put to and approved by the Owner (the only real mapping source has no
   license at all), the verified 1:1 DMC coverage and real 99-collision
   property, and the two-step nearest-DMC-then-relabel implementation.
-- [ ] M4 -- Full regression + real-world verification: full unit/e2e
+- [x] M4 -- Full regression + real-world verification: full unit/e2e
   suite across all three brand modes plus a backward-compat check
   against a pattern saved before this goal (old `dmcMode: true` JSON
   still opens correctly as DMC); manual check of Anchor/Cosmo legends
-  and exports. Commit, deploy.
+  and exports. Commit, deploy. **Done (2026-09-12)** -- a real
+  pre-G-029 file (literal `dmcMode: true`, no `threadBrand`, fed
+  through the app's own file-open path, not just a unit test) opened
+  correctly as DMC mode; DMC/Cosmo/Anchor all live-verified end-to-end
+  (regenerate, "+Add", color editor, undo) across all three milestones;
+  full suite green throughout (575/575 unit, 39/39 e2e at completion).
+  Deployed same session -- see HANDOVER.md D95.
 
 **Progress log** (newest first):
 - 2026-09-12 -- Goal drafted, combining Anchor (Owner-requested) and
@@ -1179,38 +1217,17 @@ milestone's own result justifies continuing):
   for, with an in-app disclosure. See HANDOVER.md D94. 575/575 unit,
   39/39 e2e, clean tsc/eslint/build. Starting M4 (full regression +
   real-world verification) next.
-
-### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
-- **What:** Eventually make the app public, built around **a social
-  ecosystem** (community/sharing features -- exact shape not yet defined:
-  could include public pattern galleries, profiles, following, comments,
-  or similar) rather than a plain paywall-on-exports model. Owner
-  explicitly corrected an earlier draft of this goal that jumped straight
-  to a detailed "server-side generation + paid export tiers" plan --
-  **that plan is withdrawn**, not just superseded; the real direction is
-  the social ecosystem, and "other details will be defined later"
-  (Owner's own words, 2026-09-12).
-- **Why:** Owner is exploring making the app public and building a
-  business around it, but this is explicitly **a plan for very later**,
-  not something to scope or sequence now.
-- **Status:** Intentionally not planned in detail -- no acceptance
-  criteria, no milestones, per the Owner's own "very later, details
-  defined later" framing. This entry exists so the intent isn't lost
-  between sessions, not to commit to any architecture yet. Do not expand
-  this into a full plan without an explicit Owner go-ahead to start
-  planning it for real.
-- **One durable technical fact worth keeping regardless of eventual
-  shape** (verified while a fuller version of this goal was briefly
-  drafted, then withdrawn): `buildPattern` (`lib/pattern.ts`) and
-  everything it calls already take/return plain typed-array buffers with
-  zero DOM dependency (`lib/pattern.worker.ts` is just a thin
-  `postMessage` shim around it) -- so if a future version of this goal
-  ever does need server-side generation, the existing TypeScript pipeline
-  can run in a Node server context unmodified, without needing G-023's
-  Rust work first. Not a decision, just a fact worth not re-deriving
-  later.
-
-## Completed goals
+- 2026-09-12 -- M4 complete, goal DONE. Constructed a real pre-G-029
+  pattern file (literal old-format JSON: `dmcMode: true`, no
+  `threadBrand`) and opened it through the app's own file-open path in
+  a live `next dev` instance -- not just `deserializePattern` called
+  directly in a unit test -- confirmed it opens with zero errors and
+  is fully recognized as DMC mode ("+Add" shows the DMC disclosure).
+  Full suite re-confirmed green (575/575 unit, 39/39 e2e, clean
+  tsc/eslint/build -- unchanged since M3, no code touched during M4).
+  Deployed to `cross-stitch.craftodejnice.cz` -- see HANDOVER.md D95
+  for the deploy record (container isolation, other-sites health,
+  live production check).
 
 ### G-022 · Fix rectangular-boundary bias found by the cluster-boundary review — DONE (2026-09-11, Owner sign-off 2026-09-12)
 - **What:** Address the 5 findings in `docs/reviews/2026-09-11-cluster-
