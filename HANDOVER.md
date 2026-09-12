@@ -6398,10 +6398,21 @@ the main canvas and the navigator preview returned the exact same
 similar, byte-identical. Full suite re-run together with D90 above (see
 that entry's verification numbers, which include this change).
 
-**Deployed (2026-09-12).** Covers D90 and D91 in one redeploy (built on
-top of, and pushed together with, D86-D89's already-deployed base).
-Standard recipe. Container isolation and other-sites health to be
-confirmed as part of this same deploy step below.
+**Deployed (2026-09-12).** Covers D90 and D91 in one redeploy (on top
+of D86-D89's already-deployed base). Standard recipe. Container
+isolation confirmed (`cross-stitch-pattern-generator-app-1` alone
+recreated -- a `docker ps` diff before/after showed only that one
+line change, every other container's uptime identical). Other sites
+healthy (`meet.app.julienika.cz`/`craftale.eu`/`arfid.julienika.cz` all
+HTTP 200). Live-checked `https://cross-stitch.craftodejnice.cz` loads
+with zero console errors; didn't re-exercise the corrupt-file-upload
+path against production itself (the browser automation tool's
+sandboxing blocked uploading a local scratch file to a production tab --
+a tooling restriction, not a app issue), but the exact same build was
+already exercised end-to-end by the full Playwright suite (a real
+Chromium browser, not a mock) immediately before this deploy, including
+the new download-and-console-log assertions passing -- see D90's own
+verification note.
 
 ## Owner action list
 
