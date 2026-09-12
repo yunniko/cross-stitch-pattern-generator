@@ -5910,6 +5910,18 @@ is purely a timing/scheduling change), `npm run build` clean, full
 change any export's actual output/filenames/timing-sensitive
 assertions).
 
+**Deployed (2026-09-12).** Covers both G-027 (D78) and its yield-points
+follow-up (D79) in one redeploy. Standard recipe. Container isolation
+confirmed (`cross-stitch-pattern-generator-app-1` alone restarted; every
+other container's uptime unchanged, `julienika-home`'s own "Up 34
+hours" → "Up 35 hours" is just real elapsed time between the two
+snapshots, not a restart). Other sites healthy
+(`meet.app.julienika.cz`/`craftale.eu`/`arfid.julienika.cz`/
+`julienika.cz` all HTTP 200). Live check on
+`https://cross-stitch.craftodejnice.cz`: the new consolidated Export
+dropdown/button, "Export all" button, and "Open pattern…" label all
+render correctly against a real persisted pattern, zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
