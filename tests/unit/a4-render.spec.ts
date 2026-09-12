@@ -100,8 +100,8 @@ describe("splitThreadCodeName (G-016)", () => {
     expect(splitThreadCodeName("347 - Salmon - Very Dark")).toEqual({ code: "347", name: "Salmon - Very Dark" });
   });
 
-  it("returns the whole string as the name, with an empty code, when there's no separator", () => {
-    expect(splitThreadCodeName("Not DMC formatted")).toEqual({ code: "", name: "Not DMC formatted" });
+  it("returns the whole string as the code, with an empty name, when there's no separator (G-029 M2: this is Cosmo's real shape -- a bare code, no descriptive name)", () => {
+    expect(splitThreadCodeName("352")).toEqual({ code: "352", name: "" });
   });
 });
 
@@ -130,6 +130,12 @@ describe("buildDetailRows (G-016)", () => {
     const pattern = { ...makePattern(10, 10, [0], [[0, 0, 0]]), threadBrand: "dmc" as const };
     const rows = buildDetailRows(pattern, 14, "in");
     expect(Object.fromEntries(rows)["Thread"]).toBe("DMC");
+  });
+
+  it("includes a 'Thread: Cosmo' row for a Cosmo-matched pattern (G-029 M2)", () => {
+    const pattern = { ...makePattern(10, 10, [0], [[0, 0, 0]]), threadBrand: "cosmo" as const };
+    const rows = buildDetailRows(pattern, 14, "in");
+    expect(Object.fromEntries(rows)["Thread"]).toBe("Cosmo");
   });
 });
 

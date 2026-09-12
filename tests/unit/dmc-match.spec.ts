@@ -270,3 +270,47 @@ describe("buildPattern with paletteMode: \"dmc\" (G-020 M5, HANDOVER.md D56)", (
     for (const color of pattern.palette) expect(color.count).toBeGreaterThan(0);
   });
 });
+
+describe("applyBrandPalette with brand: 'cosmo' (G-029 M2)", () => {
+  it("replaces every color with its nearest real Cosmo thread color, named as just the bare code (Cosmo has no descriptive names)", () => {
+    const pattern = makePattern(1, 1, [0], [[16, 17, 19]]); // near-exact Cosmo 600 (near-black)
+    const cosmo = applyBrandPalette(pattern, "cosmo");
+    expect(cosmo.palette[0].name).toBe("600");
+    expect(cosmo.threadBrand).toBe("cosmo");
+  });
+
+  it("merges two clusters that snap to the same Cosmo color into one palette entry with combined counts", () => {
+    const pattern = makePattern(3, 1, [0, 0, 1], [
+      [16, 17, 19],
+      [17, 18, 20],
+    ]);
+    const cosmo = applyBrandPalette(pattern, "cosmo");
+    expect(cosmo.palette).toHaveLength(1);
+    expect(cosmo.palette[0].name).toBe("600");
+    expect(cosmo.palette[0].count).toBe(3);
+  });
+
+  it("buildPattern with paletteMode: 'cosmo' produces a valid brand-matched pattern end-to-end", () => {
+    const buffer: PixelBuffer = (() => {
+      const width = 20;
+      const height = 20;
+      const data = new Uint8ClampedArray(width * height * 4);
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const [r, g, b] = x < 10 ? [30, 30, 30] : [220, 210, 200];
+          const o = (y * width + x) * 4;
+          data[o] = r;
+          data[o + 1] = g;
+          data[o + 2] = b;
+          data[o + 3] = 255;
+        }
+      }
+      return { data, width, height };
+    })();
+    const pattern = buildPattern(buffer, { longerSideStitches: 20, colorCount: 2, paletteMode: "cosmo" });
+    expect(pattern.threadBrand).toBe("cosmo");
+    const total = pattern.palette.reduce((sum, c) => sum + c.count, 0);
+    expect(total).toBe(20 * 20);
+    for (const color of pattern.palette) expect(color.count).toBeGreaterThan(0);
+  });
+});

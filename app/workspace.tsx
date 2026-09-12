@@ -27,7 +27,8 @@ import {
   setColorSymbol,
   shiftPattern,
 } from "@/lib/pattern-edit";
-import { DMC_COLORS, type DmcColor } from "@/lib/dmc-colors";
+import type { DmcColor } from "@/lib/dmc-colors";
+import { THREAD_BRANDS, THREAD_BRAND_IDS, formatThreadName, type ThreadBrand } from "@/lib/thread-brands";
 import { SYMBOL_SET } from "@/lib/symbols";
 import { serializePattern } from "@/lib/pattern-serialize";
 import { reportPatternLoadFailure } from "@/lib/error-report";
@@ -282,11 +283,12 @@ function drawSelectionOutline(ctx: CanvasRenderingContext2D, rect: CellRect, cel
   ctx.restore();
 }
 
-/** Filters the 454-color DMC line by code or name substring (case-insensitive) -- shared by "+ Add" and the color editor's DMC picker (G-016/G-017). */
-function filterDmcColors(query: string): readonly DmcColor[] {
+/** Filters a thread brand's color line by code or name substring (case-insensitive) -- shared by "+ Add" and the color editor's brand picker (G-016/G-017, generalized from DMC-only in G-029 M2). */
+function filterBrandColors(query: string, brand: ThreadBrand): readonly DmcColor[] {
   const q = query.trim().toLowerCase();
-  if (!q) return DMC_COLORS;
-  return DMC_COLORS.filter((c) => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
+  const colors = THREAD_BRANDS[brand].colors;
+  if (!q) return colors;
+  return colors.filter((c) => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
 }
 
 /** Every single-file export the app offers, unified behind one dropdown (G-027, Owner request 2026-09-12) instead of a separate button per format. */
@@ -441,12 +443,13 @@ export default function Workspace() {
   const [activeColorIndex, setActiveColorIndex] = useState<number | null>(null);
   const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null);
   const [editingDraftHex, setEditingDraftHex] = useState("#000000");
-  // "Full range" (arbitrary hex) vs "DMC" (real thread swatches) for the
-  // color-editor panel (G-017). Forced to the pattern's own brand and
+  // "Full range" (arbitrary hex) vs a specific thread brand (real thread
+  // swatches) for the color-editor panel (G-017, generalized to any
+  // `ThreadBrand` in G-029 M2). Forced to the pattern's own brand and
   // hidden entirely for a brand-matched (`threadBrand`) pattern; a
   // free-form pattern gets the switcher so any single color can still be
   // snapped to a real thread without converting the whole palette.
-  const [editColorMode, setEditColorMode] = useState<"full" | "dmc">("full");
+  const [editColorMode, setEditColorMode] = useState<"full" | ThreadBrand>("full");
   const [editDmcFilter, setEditDmcFilter] = useState("");
   const [addingColor, setAddingColor] = useState(false);
   const [addColorDraftHex, setAddColorDraftHex] = useState("#808080");
@@ -522,13 +525,20 @@ export default function Workspace() {
     [pattern, a4Overlap]
   );
 
-  // "+ Add" in a dmcMode pattern (G-016), and the "DMC" side of the color
-  // editor's switcher (G-017), both pick from the real DMC line instead of
-  // an arbitrary hex color -- filtered by code or name so 454 swatches stay
+  // "+ Add" in a brand-matched pattern (G-016), and the non-"full" side of
+  // the color editor's switcher (G-017, generalized to any brand in G-029
+  // M2), both pick from a real thread brand's line instead of an arbitrary
+  // hex color -- filtered by code or name so hundreds of swatches stay
   // browsable. Two independent filter strings/memos since both pickers can
   // be open (and searched) at the same time.
-  const filteredDmcColors = useMemo(() => filterDmcColors(addDmcFilter), [addDmcFilter]);
-  const filteredEditDmcColors = useMemo(() => filterDmcColors(editDmcFilter), [editDmcFilter]);
+  // Falls back to "dmc" when there's no relevant brand yet (the panel that
+  // would use this isn't even rendered in that case) -- just needs a valid
+  // ThreadBrand to satisfy the type, never actually shown to the user.
+  const filteredDmcColors = useMemo(() => filterBrandColors(addDmcFilter, pattern?.threadBrand ?? "dmc"), [addDmcFilter, pattern?.threadBrand]);
+  const filteredEditDmcColors = useMemo(
+    () => filterBrandColors(editDmcFilter, editColorMode !== "full" ? editColorMode : "dmc"),
+    [editDmcFilter, editColorMode]
+  );
 
   // Re-syncs the draft only when the committed name actually changes (undo/
   // redo, regenerate, or opening a different file) -- not on every
@@ -1186,8 +1196,8 @@ export default function Workspace() {
   }
 
   function commitEditDmcColor(code: string) {
-    if (editingColorIndex === null || !pattern) return;
-    history.set(editColorToBrandColor(pattern, editingColorIndex, code, "dmc"));
+    if (editingColorIndex === null || !pattern || editColorMode === "full") return;
+    history.set(editColorToBrandColor(pattern, editingColorIndex, code, editColorMode));
     setEditingColorIndex(null);
   }
 
@@ -1204,8 +1214,8 @@ export default function Workspace() {
   }
 
   function commitAddDmcColor(code: string) {
-    if (!pattern) return;
-    history.set(addBrandColor(pattern, code, "dmc"));
+    if (!pattern || !pattern.threadBrand) return;
+    history.set(addBrandColor(pattern, code, pattern.threadBrand));
     setAddingColor(false);
     setAddDmcFilter("");
   }
@@ -1989,14 +1999,13 @@ export default function Workspace() {
                   <div className="flex items-center overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
                     {(
                       [
-                        { mode: "full", label: "Full range", title: "Whatever colors the chosen algorithm finds" },
-                        {
-                          mode: "dmc",
-                          label: "DMC",
-                          title:
-                            'Snaps the palette to real, buyable DMC thread colors (G-013) -- colors are named "code - name" and similar shades may merge into one',
-                        },
-                      ] as const
+                        { mode: "full" as const, label: "Full range", title: "Whatever colors the chosen algorithm finds" },
+                        ...THREAD_BRAND_IDS.map((brand) => ({
+                          mode: brand,
+                          label: THREAD_BRANDS[brand].label,
+                          title: `Snaps the palette to real, buyable ${THREAD_BRANDS[brand].label} thread colors -- colors are named "code - name" (or just the code, for a brand with no published names) and similar shades may merge into one`,
+                        })),
+                      ]
                     ).map(({ mode, label, title }) => (
                       <button
                         key={mode}
@@ -2240,14 +2249,14 @@ export default function Workspace() {
           {editingColorIndex !== null && (
             <div className="flex flex-col gap-2 rounded border border-zinc-300 p-3 dark:border-zinc-700">
               {pattern?.threadBrand ? (
-                <p className="text-xs text-zinc-500">This pattern is in DMC mode -- pick a real DMC thread color.</p>
+                <p className="text-xs text-zinc-500">
+                  This pattern is in {THREAD_BRANDS[pattern.threadBrand].label} mode -- pick a real {THREAD_BRANDS[pattern.threadBrand].label}{" "}
+                  thread color.
+                </p>
               ) : (
                 <div className="flex items-center overflow-hidden self-start rounded border border-zinc-300 dark:border-zinc-700">
                   {(
-                    [
-                      { mode: "full" as const, label: "Full range" },
-                      { mode: "dmc" as const, label: "DMC" },
-                    ]
+                    [{ mode: "full" as const, label: "Full range" }, ...THREAD_BRAND_IDS.map((brand) => ({ mode: brand, label: THREAD_BRANDS[brand].label }))]
                   ).map(({ mode, label }) => (
                     <button
                       key={mode}
@@ -2263,7 +2272,7 @@ export default function Workspace() {
                 </div>
               )}
 
-              {editColorMode === "dmc" ? (
+              {editColorMode !== "full" ? (
                 <>
                   <input
                     type="text"
@@ -2279,13 +2288,13 @@ export default function Workspace() {
                         key={dmc.code}
                         type="button"
                         onClick={() => commitEditDmcColor(dmc.code)}
-                        title={`${dmc.code} - ${dmc.name}`}
+                        title={formatThreadName(dmc)}
                         style={{ backgroundColor: rgbToHex(dmc.rgb) }}
                         className="h-7 w-7 shrink-0 rounded border border-zinc-400 dark:border-zinc-600"
                       />
                     ))}
                     {filteredEditDmcColors.length === 0 && (
-                      <p className="col-span-10 text-xs text-zinc-500">No DMC colors match that search.</p>
+                      <p className="col-span-10 text-xs text-zinc-500">No colors match that search.</p>
                     )}
                   </div>
                 </>
@@ -2312,7 +2321,10 @@ export default function Workspace() {
 
           {addingColor && pattern?.threadBrand && (
             <div className="flex flex-col gap-2 rounded border border-zinc-300 p-3 dark:border-zinc-700">
-              <p className="text-xs text-zinc-500">This pattern is in DMC mode -- pick a real DMC thread color.</p>
+              <p className="text-xs text-zinc-500">
+                This pattern is in {THREAD_BRANDS[pattern.threadBrand].label} mode -- pick a real {THREAD_BRANDS[pattern.threadBrand].label} thread
+                color.
+              </p>
               <input
                 type="text"
                 value={addDmcFilter}
@@ -2327,12 +2339,12 @@ export default function Workspace() {
                     key={dmc.code}
                     type="button"
                     onClick={() => commitAddDmcColor(dmc.code)}
-                    title={`${dmc.code} - ${dmc.name}`}
+                    title={formatThreadName(dmc)}
                     style={{ backgroundColor: rgbToHex(dmc.rgb) }}
                     className="h-7 w-7 shrink-0 rounded border border-zinc-400 dark:border-zinc-600"
                   />
                 ))}
-                {filteredDmcColors.length === 0 && <p className="col-span-10 text-xs text-zinc-500">No DMC colors match that search.</p>}
+                {filteredDmcColors.length === 0 && <p className="col-span-10 text-xs text-zinc-500">No colors match that search.</p>}
               </div>
               <button
                 type="button"

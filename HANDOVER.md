@@ -6558,6 +6558,79 @@ no shippable-behavior deploy trigger either way -- whether to deploy
 this refactor-only commit now or bundle it with M2/M3's real new
 functionality is one of the open questions for that check-in.
 
+**D93 — G-029 M2: real Cosmo color data + palette mode, wired into
+M1's generalized architecture (2026-09-12, Owner: "proceed until goal
+reached then deploy" -- granting G-029 the same continue-without-
+confirmation waiver G-024/G-026 had, so M2-M4 proceed without a
+per-milestone stop).**
+
+**Real data, fetched and verified, not fabricated.** Downloaded
+`Cosmo_2020–500.csv` directly from
+[tallcoleman/CosmoToRGB](https://github.com/tallcoleman/CosmoToRGB)
+(MIT licensed, confirmed both by reading the `LICENSE` file and via
+GitHub's own API) -- 500 rows, RGB sampled by the dataset's author
+directly from Cosmo's own official 2020 color-card PDF using GIMP, a
+genuinely independent methodology per that repo's own README. Verified
+before use: exactly 500 rows, all 500 `Cosmo_Floss_#` codes unique (no
+duplicates), and a spot check against a documented community reference
+(`"600"` -> `[16,17,19]`, near-black, matching Cosmo 600's known role
+as their standard black thread). Full sourcing recorded in
+`docs/cosmo-colors-provenance.md`, matching the existing
+`docs/dmc-colors-provenance.md`'s rigor.
+
+**The honest gap: Cosmo has no descriptive color names, only codes.**
+Unlike DMC, the source CSV has no name column at all -- just a code and
+RGB. Every `COSMO_COLORS` entry's `name` field is a deliberate empty
+string, not a fabricated name invented to fit DMC's `{code, name, rgb}`
+shape (VALUES.md Honesty). This needed one real design decision beyond
+"paste in the data": `lib/thread-brands.ts`'s new `formatThreadName`
+helper produces `"CODE - Name"` when a name exists, or just the bare
+code when it doesn't -- applied at every color-construction site
+(`applyBrandPalette`, `addBrandColor`, `editColorToBrandColor`) so a
+Cosmo pattern's colors are stored as `"600"`, never a bare `"600 - "`
+artifact with a dangling separator.
+
+**One real bug this surfaced and fixed**: `lib/a4-render.ts`'s
+`splitThreadCodeName` (used only for a brand-matched pattern's A4 key
+table) originally treated a no-separator string as "the whole thing is
+the Name, code is empty" -- a defensive fallback for malformed input
+that was fine when every real caller had a DMC-shaped `"CODE - Name"`
+string. Once Cosmo's colors legitimately have no separator, that
+fallback put the color's only identifier in the wrong column (Name
+instead of Code) for every single Cosmo entry. Fixed by flipping the
+fallback: no separator now means the whole string IS the code (correct
+for this function's only real caller, which only ever runs on a
+brand-matched pattern's color name) -- existing test updated to reflect
+the corrected, not just different, behavior.
+
+**UI wiring, made brand-count-agnostic rather than hardcoded to two
+options**: the Palette selector, the color-editor's brand switcher, and
+the "+ Add"/edit color search-and-swatch pickers now all map over
+`THREAD_BRAND_IDS`/`THREAD_BRANDS` instead of a hardcoded Full-range/DMC
+pair -- adding Anchor in M3 needs a registry entry, not another round of
+UI edits. `editColorMode` widened from `"full" | "dmc"` to `"full" |
+ThreadBrand`; `commitEditDmcColor`/`commitAddDmcColor` (names kept for
+now -- internal, not part of the reviewed public API surface) now pass
+through the actual relevant brand (`editColorMode` for the editor,
+`pattern.threadBrand` for "+ Add") instead of a hardcoded `"dmc"`.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full `npx
+vitest run` 560/560 passing (541 -> 560: new `cosmo-colors.spec.ts`,
+`thread-brands.spec.ts`, Cosmo-specific cases added to
+`dmc-match.spec.ts`/`pattern-edit.spec.ts`/`a4-render.spec.ts`/
+`workspace-storage.spec.ts`/`pattern-serialize.spec.ts` -- every
+pre-existing test, including all 541 from M1, passed unmodified,
+confirming this landed as a pure addition), `npm run build` clean, full
+`npx playwright test` 39/39 passing with zero collateral changes needed.
+Live-verified in a running `next dev` instance: the Palette selector
+shows Full range/DMC/Cosmo; switching to Cosmo and regenerating
+produces a real Cosmo-coded legend (bare codes, no descriptive names,
+no trailing artifacts); "+Add" correctly shows "This pattern is in
+Cosmo mode" and its picker's swatch titles/colors match the real
+provenance data exactly (checked `"600"` -> `rgb(16, 17, 19)` directly
+against the DOM); `addBrandColor` and Undo both work correctly against
+a live Cosmo-matched pattern; zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

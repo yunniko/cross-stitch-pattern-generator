@@ -172,6 +172,13 @@ describe("editColorToBrandColor", () => {
     const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
     expect(() => editColorToBrandColor(pattern, 0, "NOT-A-REAL-CODE", "dmc")).toThrow();
   });
+
+  it("changes the target color to a Cosmo thread, renamed as just the bare code (G-029 M2)", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    const edited = editColorToBrandColor(pattern, 0, "600", "cosmo");
+    expect(edited.palette[0].rgb).toEqual([16, 17, 19]);
+    expect(edited.palette[0].name).toBe("600");
+  });
 });
 
 describe("addColor", () => {
@@ -213,6 +220,19 @@ describe("addBrandColor", () => {
     const colors: RGB[] = Array.from({ length: MAX_COLORS }, (_, i) => [i, i, i] as RGB);
     const pattern = makePattern(MAX_COLORS, 1, colors.map((_, i) => i), colors);
     expect(() => addBrandColor(pattern, "310", "dmc")).toThrow();
+  });
+
+  it("appends a new zero-count Cosmo color named as just the bare code (G-029 M2 -- Cosmo has no descriptive names)", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    const withNew = addBrandColor(pattern, "600", "cosmo");
+    const added = withNew.palette[1];
+    expect(added.rgb).toEqual([16, 17, 19]);
+    expect(added.name).toBe("600");
+  });
+
+  it("rejects a code that isn't a real Cosmo color", () => {
+    const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
+    expect(() => addBrandColor(pattern, "NOT-A-REAL-CODE", "cosmo")).toThrow();
   });
 });
 

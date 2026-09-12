@@ -149,13 +149,15 @@ export interface StitchPattern {
    * D92) -- see `lib/thread-brands.ts` for the brand registry and its
    * own `ThreadBrand` type (not imported here, same as `edgeMode` below
    * doesn't import `EdgeMode` from `lib/pattern.ts` -- avoids a circular
-   * import back through `lib/dmc-colors.ts`, which itself imports `RGB`
-   * from this file). `dmcMode` itself now only ever appears in
-   * `lib/pattern-serialize.ts`'s on-disk DTO type, read for backward
-   * compatibility with files saved before this rename; nowhere else in
-   * the codebase should reference it.
+   * import back through `lib/dmc-colors.ts`/`lib/cosmo-colors.ts`, which
+   * themselves import `RGB` from this file). This literal union must be
+   * kept in sync with `ThreadBrand` by hand -- widen it here whenever a
+   * new brand lands (Cosmo added in G-029 M2). `dmcMode` itself now only
+   * ever appears in `lib/pattern-serialize.ts`'s on-disk DTO type, read
+   * for backward compatibility with files saved before this rename;
+   * nowhere else in the codebase should reference it.
    */
-  threadBrand?: "dmc";
+  threadBrand?: "dmc" | "cosmo";
   /**
    * Set when this pattern was generated with `edgeMode: "crisp"`
    * (G-024's Crisp Edges feature; see `lib/pattern.ts`'s `EdgeMode`),

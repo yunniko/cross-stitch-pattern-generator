@@ -305,11 +305,19 @@ const KEY_HEADER_ROW_HEIGHT_MM = 6.5;
  * `pattern.threadBrand` (set by `applyBrandPalette`, generalized from
  * `dmcMode` in G-029 M1, HANDOVER.md D92), never re-derived by parsing
  * names here. The `"CODE - Name"` format itself is brand-agnostic --
- * every brand `applyBrandPalette` produces a color for uses it.
+ * every brand `applyBrandPalette` produces a color name uses it.
+ *
+ * When there's no `" - "` separator, the whole string is treated as the
+ * CODE, not the name (G-029 M2, HANDOVER.md D93): this function is only
+ * ever called on a brand-matched pattern's color name
+ * (`hasThreadCode`-gated), and `formatThreadName` (lib/thread-brands.ts)
+ * produces exactly this shape -- a bare code, no separator -- for a
+ * brand with no published descriptive names (Cosmo). A bare code
+ * belongs in the CODE column, not the Name column.
  */
 export function splitThreadCodeName(fullName: string): { code: string; name: string } {
   const idx = fullName.indexOf(" - ");
-  if (idx === -1) return { code: "", name: fullName };
+  if (idx === -1) return { code: fullName, name: "" };
   return { code: fullName.slice(0, idx), name: fullName.slice(idx + 3) };
 }
 

@@ -1,7 +1,7 @@
 import { nameNewColor } from "./color-names";
 import { floodFillDiagonal, labelRegions } from "./regions";
 import { SYMBOL_SET } from "./symbols";
-import { THREAD_BRANDS, type ThreadBrand } from "./thread-brands";
+import { formatThreadName, THREAD_BRANDS, type ThreadBrand } from "./thread-brands";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type CellRect, type FloatingSelection, type PaletteColor, type RGB, type StitchPattern } from "./types";
 
 // `EMPTY_CELL` (255) is never counted against any real palette color and
@@ -231,7 +231,7 @@ export function editColorToBrandColor(pattern: StitchPattern, paletteIndex: numb
   const thread = THREAD_BRANDS[brand].colors.find((c) => c.code === code);
   if (!thread) throw new Error(`"${code}" isn't a recognized ${THREAD_BRANDS[brand].label} color code.`);
   const palette = pattern.palette.map((color, i) =>
-    i === paletteIndex ? { ...color, rgb: thread.rgb, name: `${thread.code} - ${thread.name}` } : color
+    i === paletteIndex ? { ...color, rgb: thread.rgb, name: formatThreadName(thread) } : color
   );
   return { ...pattern, palette };
 }
@@ -283,7 +283,7 @@ export function addBrandColor(pattern: StitchPattern, code: string, brand: Threa
     index: pattern.palette.length,
     rgb: thread.rgb,
     symbol,
-    name: `${thread.code} - ${thread.name}`,
+    name: formatThreadName(thread),
     count: 0,
   };
 

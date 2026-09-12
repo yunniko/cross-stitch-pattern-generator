@@ -518,8 +518,23 @@ restructured into this project's usual milestone/check-in shape):
   per the existing listed-order convention until the Owner says
   otherwise.
 
-### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT (2026-09-11)
-- **What:** Move the compute-heavy stage of the pattern pipeline (k-means
+### G-023 · Rust sidecar for the color-quantization/ICM hot path — SUPERSEDED by G-030 (2026-09-12)
+- **Superseded, not done and not abandoned for no reason.** G-030 (drafted
+  2026-09-12, Owner decision to make the app public/paid) moves the
+  *entire* generation pipeline server-side for every user, free and paid
+  alike -- a strict superset of this goal's narrower "just the hot path,
+  just for latency" scope, and it resolves the exact privacy-framing
+  objection the critique below raised (a stealth partial upload) by making
+  full server-side upload an explicit, disclosed part of a public product
+  instead. This goal's own engineering guidance (versioned binary payload,
+  Route Handler not Server Action, bounded worker pool, internal-network-
+  only container, observability requirements) still applies directly to
+  G-030's M2 and is referenced from there rather than repeated. Left in
+  place below for its own record -- the Codex critique's algorithmic
+  finding (candidate-set reduction) is real and language-agnostic, worth
+  doing regardless of which goal ships the server move.
+- **What (original scope, now superseded):** Move the compute-heavy stage
+  of the pattern pipeline (k-means
   in OKLab + the ICM/Potts local optimizer, `lib/quantize.ts` +
   `lib/local-optimizer.ts`) out of the browser and into a separate Rust
   HTTP service (Axum + `rayon`), called server-to-server from Next.js.
@@ -1076,12 +1091,15 @@ milestone's own result justifies continuing):
   empty Cosmo/Anchor catalogs, a validated `threadBrand` deserialize
   path, and the fixed `editColorMode`/`paletteMode` risk spots Codex
   caught), and verification detail.
-- [ ] M2 -- Cosmo data + mode: `lib/cosmo-colors.ts` built from
+- [x] M2 -- Cosmo data + mode: `lib/cosmo-colors.ts` built from
   tallcoleman/CosmoToRGB (MIT), `docs/cosmo-colors-provenance.md`, wired
   into M1's architecture, unit tests, UI wiring (mode toggle, "+Add"
   restriction, A4/PDF legend). Goes before Anchor since its data is
   independent/higher-confidence -- exercises the new architecture on a
-  clean case first.
+  clean case first. **Done (2026-09-12) -- see HANDOVER.md D93** for
+  the fetched-and-verified data, the honest no-descriptive-names gap
+  (empty `name`, not a fabricated one), a real pre-existing bug this
+  surfaced and fixed in `splitThreadCodeName`, and verification detail.
 - [ ] M3 -- Anchor mode: DMC-equivalence matching/relabeling, the in-app
   "derived from DMC" disclosure, `docs/anchor-colors-provenance.md`,
   wired into M1's architecture, unit tests, UI wiring.
@@ -1135,6 +1153,15 @@ milestone's own result justifies continuing):
   reached -- stopping to check in with the Owner before M2 (Cosmo data
   ingestion) per standard practice**, since this goal doesn't carry the
   same "continue without confirmation" waiver G-024/G-026 had.
+- 2026-09-12 -- Owner: "proceed until goal reached then deploy" --
+  granting G-029 the same waiver, so M2-M4 now proceed without a
+  per-milestone check-in; one real deploy happens once the whole goal
+  is DONE. M2 complete same session: real Cosmo data fetched and
+  verified (not fabricated) from tallcoleman/CosmoToRGB, wired into
+  M1's architecture. See HANDOVER.md D93 for the honest no-names gap
+  and a real pre-existing `splitThreadCodeName` bug this surfaced and
+  fixed. 560/560 unit, 39/39 e2e, clean tsc/eslint/build. Starting M3
+  (Anchor) next.
 
 ## Completed goals
 

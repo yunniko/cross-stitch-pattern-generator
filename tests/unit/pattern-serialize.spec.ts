@@ -132,6 +132,12 @@ describe("pattern-serialize", () => {
     expect(restored.threadBrand).toBeUndefined();
   });
 
+  it("round-trips threadBrand: 'cosmo' (G-029 M2)", () => {
+    const pattern = { ...makePattern(), threadBrand: "cosmo" as const };
+    const restored = deserializePattern(serializePattern(pattern));
+    expect(restored.threadBrand).toBe("cosmo");
+  });
+
   it("never writes the legacy dmcMode field for a newly-serialized file", () => {
     const pattern = { ...makePattern(), threadBrand: "dmc" as const };
     const data = JSON.parse(serializePattern(pattern));

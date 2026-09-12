@@ -3,7 +3,7 @@ import { buildAdmissibleLabelCosts, type CrispUnaryCostWeights } from "./crisp-u
 import { repairCrispAssignments, type CrispEvidenceLayer } from "./crisp-evidence-layer";
 import { runLocalOptimizer, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, type LocalOptimizerWeights } from "./local-optimizer";
 import { symbolsFor } from "./symbols";
-import { THREAD_BRANDS, type ThreadBrand, type ThreadColor } from "./thread-brands";
+import { formatThreadName, THREAD_BRANDS, type ThreadBrand, type ThreadColor } from "./thread-brands";
 import type { CellColorBuffer, PaletteColor, RGB, StitchPattern } from "./types";
 
 // Precomputed lazily per brand, then cached -- each brand's list is fixed
@@ -196,8 +196,9 @@ export function applyBrandPalette(
     index: finalIndex,
     rgb: entry.thread.rgb,
     symbol: symbols[finalIndex],
-    // Owner-specified format (2026-09-10): "XXX - name".
-    name: `${entry.thread.code} - ${entry.thread.name}`,
+    // Owner-specified format (2026-09-10): "XXX - name" (falls back to
+    // just the code for a brand with no descriptive names, e.g. Cosmo).
+    name: formatThreadName(entry.thread),
     count: entry.count,
   }));
 
