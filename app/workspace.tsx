@@ -1178,9 +1178,47 @@ export default function Workspace() {
           >
             Resize canvas…
           </button>
+
+          <div className="mx-1 h-5 w-px shrink-0 bg-zinc-300 dark:bg-zinc-700" aria-hidden="true" />
+
+          <select
+            aria-label="Export"
+            value={exportKind}
+            onChange={(e) => setExportKind(e.target.value as ExportKind)}
+            className="min-w-[190px] rounded-full border border-zinc-300 px-3 py-1 text-sm transition-colors hover:bg-black/[.04] dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-white/[.08]"
+          >
+            {EXPORT_KIND_OPTIONS.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={!pattern || isExporting || isExportingAll}
+            className="rounded-full bg-foreground px-3 py-1 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-[#ccc]"
+          >
+            {isExporting ? "Preparing…" : "Export"}
+          </button>
+          <button
+            type="button"
+            onClick={handleExportAll}
+            disabled={!pattern || isExporting || isExportingAll}
+            title="One .cspzip with everything: editable JSON, color/B&W/realistic PNGs, the Pattern Keeper PDF, and A4_color/A4_bw subfolders of A4 page PNGs"
+            className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
+          >
+            {isExportingAll ? "Building…" : "Export all"}
+          </button>
         </div>
       </header>
       {openError && <p className="border-b border-red-300 bg-red-50 px-4 py-1 text-xs text-red-600 dark:border-red-800 dark:bg-red-950 dark:text-red-400">{openError}</p>}
+      {exportError && <p className="border-b border-red-300 bg-red-50 px-4 py-1 text-xs text-red-600 dark:border-red-800 dark:bg-red-950 dark:text-red-400">{exportError}</p>}
+      {paginatesAsA4(exportKind) && a4LayoutPreview && (
+        <p className="border-b border-zinc-300 bg-white px-4 py-1 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900">
+          {a4LayoutPreview.columns} × {a4LayoutPreview.rows} pages — {a4LayoutPreview.pages.length + 2}+ total (incl. simple + extended legend). Overlap in Options.
+        </p>
+      )}
 
       {showOptionsPanel && (
         <div className="flex flex-wrap items-center gap-4 border-b border-zinc-300 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
@@ -1985,48 +2023,6 @@ export default function Workspace() {
           )}
         </aside>
       </div>
-
-      {/* Export dock (bottom) -- G-027: one dropdown covers every single-file export, plus a separate "Export all" bundle */}
-      <footer className="flex flex-wrap items-center gap-3 border-t border-zinc-300 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-        <label className="flex items-center gap-1.5 text-sm">
-          Export
-          <select
-            value={exportKind}
-            onChange={(e) => setExportKind(e.target.value as ExportKind)}
-            className="min-w-[220px] rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          >
-            {EXPORT_KIND_OPTIONS.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={!pattern || isExporting || isExportingAll}
-          className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-[#ccc]"
-        >
-          {isExporting ? "Preparing…" : "Export"}
-        </button>
-        {paginatesAsA4(exportKind) && a4LayoutPreview && (
-          <span className="text-xs text-zinc-500">
-            {a4LayoutPreview.columns} × {a4LayoutPreview.rows} pages — {a4LayoutPreview.pages.length + 2}+ total (incl. simple + extended legend). Overlap in Options.
-          </span>
-        )}
-
-        <button
-          type="button"
-          onClick={handleExportAll}
-          disabled={!pattern || isExporting || isExportingAll}
-          title="One .cspzip with everything: editable JSON, color/B&W/realistic PNGs, the Pattern Keeper PDF, and A4_color/A4_bw subfolders of A4 page PNGs"
-          className="ml-auto rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/[.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-white/[.08]"
-        >
-          {isExportingAll ? "Building…" : "Export all"}
-        </button>
-        {exportError && <p className="w-full text-sm text-red-600 dark:text-red-400">{exportError}</p>}
-      </footer>
     </div>
   );
 }

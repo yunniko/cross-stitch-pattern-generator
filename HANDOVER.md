@@ -5922,6 +5922,59 @@ snapshots, not a restart). Other sites healthy
 dropdown/button, "Export all" button, and "Open pattern…" label all
 render correctly against a real persisted pattern, zero console errors.
 
+**D80 — G-027 follow-up: export controls moved into the top bar,
+dropdown restyled, footer removed (2026-09-12, Owner: "remove label
+Export, style dropdown to fit page design; move export dropdown and
+buttons up; next to open pattern, resize canvas (use separator or white
+space)").**
+
+Moved the Export dropdown/button/"Export all" button from their own
+bottom `<footer>` dock into the top bar's existing button row, right
+after "Resize canvas…", separated by a thin vertical divider (`h-5 w-px
+bg-zinc-300 dark:bg-zinc-700`) rather than just whitespace, so the two
+groups (file actions; export actions) read as visually distinct without
+a heavier full border. The bottom `<footer>` had nothing left in it
+once these moved, so it's gone entirely -- the canvas area now extends
+that little bit further down.
+
+**Dropped the visible "Export" label text**, but not its accessible
+name: the `<select>` now carries `aria-label="Export"` directly instead
+of being wrapped in a `<label>Export<select>…` -- every existing
+Playwright test using `page.getByLabel("Export")` (from G-027's own
+test suite) kept passing unchanged, confirming the accessible name
+survived the restyle.
+
+**Restyled the dropdown to match its new neighbors**: it sat in the
+bottom dock as a plain rectangular `rounded border` select (the same
+style Options-panel selects still use, appropriate for a settings
+panel); moved next to the top bar's `rounded-full` pill buttons
+(Undo/Redo/Open pattern/Resize canvas/etc), a plain rectangle would
+have visually clashed. Restyled to `rounded-full` with the same
+border/hover treatment as those buttons, so it now reads as one more
+pill in the same row instead of an imported settings-panel control.
+Also shrank the Export/Export all buttons' padding from `px-4 py-2` to
+`px-3 py-1` to match the top bar's smaller button scale (the bottom
+dock's buttons were sized for a full-width footer row, not a compact
+title-bar-style toolbar).
+
+**The two dynamic info strips (A4/PDF page-count preview,
+export-error message)** moved from inline elements inside the dropdown
+row to their own conditional strips directly below the header --
+matching the existing `openError` strip's own established pattern
+(a `<p>` between `</header>` and the main content, shown only when
+relevant) -- since a page-count sentence or an error message doesn't
+fit naturally as another pill in a single-row toolbar.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full `npx
+vitest run` 515/515 passing, `npm run build` clean, full `npx
+playwright test` 33/33 passing unchanged (no test needed updating --
+the accessible names and button roles this whole suite depends on were
+deliberately preserved through the restyle). Live-checked by hand in a
+running `next dev` instance: the toolbar reads Open pattern… /
+Options… / Resize canvas… | Export dropdown / Export / Export all, all
+pill-shaped, divider visible between the two groups, zero console
+errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
