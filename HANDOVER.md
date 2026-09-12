@@ -5391,6 +5391,65 @@ been) and zero console errors. `edgeMode` itself has no UI surface yet
 (Standard mode) — exactly the path already proven byte-identical by
 direct unit comparison.
 
+**D73 — G-026 M1: font chosen and verified, PDF spike built and proven
+to produce real extractable text (2026-09-12, Owner: "continue without
+confirmation... and for [the] goal to build export compatible with
+pattern keeper").**
+
+**Font choice, verified rather than assumed**: `lib/symbols.ts`'s full
+100-symbol set spans several different Unicode blocks (Basic Latin,
+Latin-1 Supplement, Arrows, Mathematical Operators, Miscellaneous
+Technical, Geometric Shapes, Miscellaneous Symbols, Dingbats). Rather
+than trust a font's general reputation for "broad coverage," downloaded
+**DejaVu Sans 2.37** from its authoritative release
+(`dejavu-fonts.github.io` → SourceForge, not an arbitrary GitHub
+mirror) and checked all 100 codepoints programmatically against its
+own `cmap` table via `fontkit` (`glyphForCodePoint(cp).id !== 0`) —
+**zero missing glyphs**, confirmed directly, not assumed. License is
+the Bitstream Vera Fonts license (free embedding in a larger software
+package explicitly permitted, only obligation is keeping the license
+notice with the font file itself). Full provenance recorded in
+`docs/dejavu-font-provenance.md` (same convention as
+`docs/dmc-colors-provenance.md`), font + license committed to
+`public/fonts/`.
+
+**New `lib/pattern-keeper-pdf.ts`** (a real, buildable-upon module, not
+a throwaway scratch file — same precedent as `lib/boundary-chains.ts`'s
+own "prototype but production-shaped" status): `embedDejaVuSans` +
+`drawSymbolGrid` + `buildSpikePdf`, using `pdf-lib` (added as a real
+dependency) + `@pdf-lib/fontkit` (its companion for custom font
+embedding) to draw a small grid of real vector-text symbols plus
+vector gridlines onto a PDF page.
+
+**Verified "select as text" programmatically, not just visually**:
+added `pdfjs-dist` (Mozilla's own PDF.js engine — the same one
+Firefox's built-in viewer uses) as a devDependency purely for test-time
+text extraction. Generated the spike PDF, extracted its text via
+`pdfjs-dist`, and confirmed every one of the 100 real symbols in the
+app's actual symbol set round-trips back out as a real, extractable
+character — the direct proxy for "select a symbol as text in a
+standard PDF viewer," Pattern Keeper's own stated requirement, rather
+than trusting that embedding a font "should" produce selectable text.
+
+**A real, narrow finding along the way, not swept under the rug**: "µ"
+(U+00B5 MICRO SIGN) round-trips through `pdfjs-dist`'s own text
+extraction as "μ" (U+03BC GREEK SMALL LETTER MU) instead — isolated
+with a minimal single-character test to confirm this is a `pdfjs-dist`
+text-extraction/ToUnicode-mapping behavior (a well-known, visually-
+identical Unicode compatibility pair; most fonts including DejaVu Sans
+render both from the same glyph), not a font coverage gap or a defect
+specific to the full symbol set. Accepted for now; flagged for M4's
+real Pattern Keeper import test to specifically confirm Pattern
+Keeper's own symbol matching tolerates it too, since that's the only
+test that can actually settle whether it matters for the real
+downstream consumer.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full
+`npx vitest run` 484/484 passing (52 files, +3 new), `npm run build`
+clean. No e2e run needed — new module, not imported by any app page
+yet. Not deployed — nothing shippable yet (no UI wiring, that's M3).
+Continuing to M2 (the real exporter) next.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

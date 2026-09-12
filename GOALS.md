@@ -624,7 +624,7 @@ milestone's own result justifies continuing):
   Codex critique exchange (see above). Not started; no Owner go-ahead to
   begin M1.
 
-### G-026 · Additional export option: Pattern Keeper-compatible PDF — DRAFT (2026-09-12)
+### G-026 · Additional export option: Pattern Keeper-compatible PDF — ACTIVE (2026-09-12)
 - **What:** A new export option, additive to the existing "Export as A4
   pages" ZIP (PNG-per-page), that produces a single PDF chart readable by
   the Pattern Keeper app (a cross-stitch progress-tracking app the Owner
@@ -692,7 +692,7 @@ milestone's own result justifies continuing):
   direct fetch returned HTTP 403).
 
 **Milestones:**
-- [ ] M1 — Spike: choose and license-check a Unicode font covering the
+- [x] M1 — Spike: choose and license-check a Unicode font covering the
   full existing symbol set (Latin-1 Supplement, Geometric Shapes, Arrows,
   Miscellaneous Symbols, Dingbats blocks); prototype a minimal single-page
   PDF (via a PDF library capable of real embedded-font text, e.g.
@@ -716,10 +716,25 @@ milestone's own result justifies continuing):
   the documentation didn't. Full regression suite, commit, deploy.
 
 **Progress log** (newest first):
-- 2026-09-12 — Goal created per Owner request ("write as a next goal:
-  additional export options - pdf with pattern keeper compatible grid"),
-  built on the Pattern Keeper research done in the prior day's session.
-  Not started.
+- 2026-09-12 — M1 complete (Owner: "continue without confirmation...").
+  Chose DejaVu Sans 2.37 (official release), verified programmatically
+  via `fontkit` that it covers all 100 codepoints in the app's real
+  symbol set (zero missing), not assumed from reputation. License
+  (Bitstream Vera) and provenance recorded in
+  `docs/dejavu-font-provenance.md`, font committed to `public/fonts/`.
+  Built `lib/pattern-keeper-pdf.ts` (real vector-text + gridline
+  drawing via `pdf-lib`/`@pdf-lib/fontkit`) and verified the "select as
+  text" requirement programmatically using `pdfjs-dist` (real text
+  extraction, not visual inspection) -- all 100 symbols round-trip as
+  real characters. Found and honestly documented one narrow caveat: "µ"
+  extracts back as "μ" (a well-known, visually-identical Unicode
+  compatibility pair, confirmed to be a `pdfjs-dist` extraction
+  behavior, not a font gap) -- flagged for M4's real Pattern Keeper
+  import test to confirm it doesn't matter to the real app. Full story
+  in HANDOVER.md D73. Verified: 484/484 tests passing (52 files, +3
+  new), clean `tsc`/`eslint`/`npm run build`. No e2e run needed (new
+  module, no UI wiring yet). Not deployed (nothing shippable). Goal
+  promoted from DRAFT to ACTIVE. Starting M2 next (the real exporter).
 
 ## Completed goals
 
