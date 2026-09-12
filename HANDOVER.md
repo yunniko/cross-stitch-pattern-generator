@@ -6037,6 +6037,17 @@ by hand in a running `next dev` instance: all 7 icons render clearly
 and distinctly at their 40×40px button size, correctly grouped with
 visible dividers, zero console errors.
 
+**Deployed (2026-09-12).** Covers both D81 (color-scheme fix) and D82
+(Tools dock icons) in one redeploy. Standard recipe. Container isolation
+confirmed (`cross-stitch-pattern-generator-app-1` alone restarted,
+other containers' uptimes unchanged). Other sites healthy
+(`meet.app.julienika.cz`/`craftale.eu`/`arfid.julienika.cz` all HTTP
+200). Live check on `https://cross-stitch.craftodejnice.cz`: confirmed
+`getComputedStyle(document.documentElement).colorScheme` reports
+`"light dark"`, and the Tools dock renders all 7 icons in their
+brush+fill / select+move / pan+zoom+highlight groups with visible
+dividers, zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
