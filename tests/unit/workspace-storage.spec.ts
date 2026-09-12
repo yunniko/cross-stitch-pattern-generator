@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   loadSavedProject,
   loadWorkspaceOptions,
@@ -207,6 +207,19 @@ describe("workspace-storage", () => {
     it("returns null rather than throwing for corrupted saved data", () => {
       window.localStorage.setItem(PROJECT_KEY, "not json");
       expect(loadSavedProject()).toBeNull();
+    });
+
+    it("reports and clears a corrupted autosave rather than leaving it to fail again on every future reload", () => {
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      window.localStorage.setItem(PROJECT_KEY, "not json");
+
+      expect(loadSavedProject()).toBeNull();
+
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      expect(consoleError.mock.calls[0][0]).toContain("auto-restore");
+      expect(window.localStorage.getItem(PROJECT_KEY)).toBeNull(); // cleared, not left to re-report forever
+
+      consoleError.mockRestore();
     });
   });
 });

@@ -62,8 +62,15 @@ test("a .cspzip from Export all round-trips back into the app via Open pattern",
   await expect(page.locator("text=Couldn't open that file")).toHaveCount(0);
 });
 
-test("opening a file with no valid pattern inside shows a clear error instead of silently failing", async ({ page }) => {
+test("opening a file with no valid pattern inside shows a clear error instead of silently failing, and auto-downloads an error report", async ({
+  page,
+}) => {
   await page.goto("/");
+
+  const consoleErrors: string[] = [];
+  page.on("console", (msg) => {
+    if (msg.type() === "error") consoleErrors.push(msg.text());
+  });
 
   // A real zip, but with nothing resembling a pattern inside it.
   const zip = new JSZip();
@@ -75,7 +82,16 @@ test("opening a file with no valid pattern inside shows a clear error instead of
   const fileChooserPromise = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Open pattern…" }).click();
   const fileChooser = await fileChooserPromise;
-  await fileChooser.setFiles(badZipPath);
+  const [download] = await Promise.all([page.waitForEvent("download"), fileChooser.setFiles(badZipPath)]);
 
   await expect(page.getByText("No valid pattern (.json) file was found inside that archive.")).toBeVisible();
+
+  // Owner request 2026-09-12: a loading failure auto-downloads the exact
+  // problematic content ("error report folder" for a client-only app).
+  expect(download.suggestedFilename()).toMatch(/^empty_error-report_.*\.cspzip$/);
+  const downloadPath = await download.path();
+  expect(downloadPath).not.toBeNull();
+  expect(await readFile(downloadPath!)).toEqual(bytes);
+
+  expect(consoleErrors.some((line) => line.includes("Pattern load failed") && line.includes("open-file"))).toBe(true);
 });

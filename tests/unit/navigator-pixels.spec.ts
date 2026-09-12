@@ -24,9 +24,15 @@ describe("renderNavigatorPixels", () => {
     expect(Array.from(pixels.slice(4, 8))).toEqual([0, 0, 255, 255]);
   });
 
-  it("renders an EMPTY_CELL stitch as opaque white, not a crash from an out-of-range palette lookup (G-012 M5)", () => {
+  it("renders an EMPTY_CELL stitch as opaque white by default, not a crash from an out-of-range palette lookup (G-012 M5)", () => {
     const pattern = { ...makePattern(), cellPalette: Uint8Array.from([EMPTY_CELL, 1]) };
     const pixels = renderNavigatorPixels(pattern);
     expect(Array.from(pixels.slice(0, 4))).toEqual([255, 255, 255, 255]);
+  });
+
+  it("renders an EMPTY_CELL stitch using the given canvas color instead of white (2026-09-12)", () => {
+    const pattern = { ...makePattern(), cellPalette: Uint8Array.from([EMPTY_CELL, 1]) };
+    const pixels = renderNavigatorPixels(pattern, "#336699");
+    expect(Array.from(pixels.slice(0, 4))).toEqual([0x33, 0x66, 0x99, 255]);
   });
 });

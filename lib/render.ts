@@ -1,5 +1,5 @@
 import type { ChartDrawingContext } from "./chart-drawing-context";
-import { luminance, rgbToHex } from "./color";
+import { hexToRgb, luminance, rgbToHex } from "./color";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, formatFinishedSize, type SizeUnit } from "./finished-size";
 import { formatSkeinEstimate } from "./floss-estimate";
 import { buildTintedTextureSet } from "./stitch-texture";
@@ -150,14 +150,17 @@ export interface ChartRegion {
  * not a DOM-drawing one, so the actual pixel derivation is unit-testable
  * without a canvas.
  */
-export function renderNavigatorPixels(pattern: StitchPattern): Uint8ClampedArray {
+export function renderNavigatorPixels(pattern: StitchPattern, emptyCellColor: string = "#ffffff"): Uint8ClampedArray {
   const { cellPalette, palette } = pattern;
   const data = new Uint8ClampedArray(cellPalette.length * 4);
+  const emptyRgb = hexToRgb(emptyCellColor);
   for (let i = 0; i < cellPalette.length; i++) {
     const paletteIndex = cellPalette[i];
-    // The empty-stitch sentinel has no palette entry -- render it as blank
-    // white, same as every other render/export path (G-012 M5).
-    const [r, g, b] = paletteIndex === EMPTY_CELL ? [255, 255, 255] : palette[paletteIndex].rgb;
+    // The empty-stitch sentinel has no palette entry -- defaults to blank
+    // white, same as every export path (G-012 M5); the live navigator
+    // preview passes the Owner's own view-only "canvas color" (2026-09-12)
+    // so it matches the main canvas, never plumbed into any export.
+    const [r, g, b] = paletteIndex === EMPTY_CELL ? emptyRgb : palette[paletteIndex].rgb;
     const o = i * 4;
     data[o] = r;
     data[o + 1] = g;

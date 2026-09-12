@@ -1,4 +1,5 @@
 import type { OverlapCells } from "./a4-layout";
+import { reportPatternLoadFailure } from "./error-report";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import { deserializePattern, serializePattern } from "./pattern-serialize";
 import type { EdgeMode, GenerationMode, PaletteMode } from "./pattern.worker";
@@ -122,14 +123,33 @@ export function saveWorkspaceOptions(options: WorkspaceOptions): void {
   }
 }
 
-/** The most recently open project. Returns null (never throws) when there's nothing saved or it fails to parse -- callers treat that as "start fresh," the same as a first visit. */
+/**
+ * The most recently open project. Returns null (never throws) when there's
+ * nothing saved or it fails to parse -- callers treat that as "start fresh,"
+ * the same as a first visit. There is no earlier in-memory pattern to fall
+ * back to on a cold page load, so "start fresh" *is* this path's correct
+ * "previous version" (Owner request 2026-09-12) -- there is nothing to
+ * undo to that would be more correct than a blank workspace.
+ *
+ * A parse failure (e.g. a truncated autosave from a localStorage quota hit
+ * while saving a pattern with a large embedded photo) is reported via
+ * `reportPatternLoadFailure` -- logged, and downloaded so it's inspectable
+ * -- and the corrupted entry is then cleared so it doesn't re-report on
+ * every subsequent reload.
+ */
 export function loadSavedProject(): StitchPattern | null {
   if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(PROJECT_KEY);
+  if (!raw) return null;
   try {
-    const raw = window.localStorage.getItem(PROJECT_KEY);
-    if (!raw) return null;
     return deserializePattern(raw);
-  } catch {
+  } catch (error) {
+    reportPatternLoadFailure({ source: "auto-restore", error, content: raw });
+    try {
+      window.localStorage.removeItem(PROJECT_KEY);
+    } catch {
+      // Best-effort, matching every other write in this module.
+    }
     return null;
   }
 }

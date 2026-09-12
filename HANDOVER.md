@@ -6309,6 +6309,100 @@ correct pressed buttons on load; pressed F then 2 via the keyboard and
 confirmed the Fill tool and Black & white view mode both activated;
 zero console errors.
 
+**D90 — Pattern-load failures are now logged and auto-downloaded as a
+report, and the current pattern is guaranteed to survive one (2026-09-12,
+Owner: "If while working on a scheme there is a loading error (happens
+sometimes, idk why), log the error, save the problematic file version
+to error report folder and try to load previous version (undo)").**
+
+**Scope-defining question asked before writing any code, not assumed**:
+this app has no server filesystem, so "error report folder" has no
+literal meaning here. Asked the Owner via `AskUserQuestion` whether that
+should mean an automatic browser download, browser-storage-only
+quarantine, or a hybrid; the Owner chose **auto-download for every
+case**, including the silent background auto-restore path. Built
+accordingly.
+
+New `lib/error-report.ts`, a small pure-first module:
+`reportPatternLoadFailure({source, error, content, originalFileName})`
+does a `console.error` (satisfies "log the error") unconditionally,
+then -- only when `document` exists (skipped cleanly in the Vitest/Node
+test environment, no crash) -- downloads `content` (a `Blob` or string)
+verbatim via a `URL.createObjectURL` + synthetic `<a download>` click,
+named `<original-base>_error-report_<ISO-timestamp><ext>` (or
+`autosave_error-report_<timestamp>.json` when there's no source file,
+i.e. the auto-restore path). `deriveErrorReportFilename` is the pure,
+directly-unit-tested half of that naming logic.
+
+**Wired into the two places pattern-loading can actually fail**:
+1. `handleOpenFile`'s existing `.catch` (`app/workspace.tsx`) --
+   `loadPatternFromFile` never got the chance to call
+   `loadPatternIntoWorkspace` before throwing, so the current pattern
+   was *already* untouched on this path before today; this change adds
+   the report call alongside the pre-existing `setOpenError`, nothing
+   else needed for "try to load previous version" here.
+2. `loadSavedProject` (`lib/workspace-storage.ts`), the on-mount
+   auto-restore -- previously swallowed a parse failure silently and
+   returned `null` ("start fresh"), with the corrupted localStorage
+   entry left in place to fail identically on every future reload. Now
+   reports the failure and **clears** the corrupted entry so it
+   self-heals after one report instead of repeating forever. "Try to
+   load previous version" on a cold page load has no real in-memory
+   previous version to fall back to -- "start fresh" already *is* the
+   correct fallback, so this path's behavior is otherwise unchanged.
+
+**Verified**: new `tests/unit/error-report.spec.ts` (filename derivation
+for a named file, a `.cspzip`, an extension-less file, and the no-file
+autosave case; confirms `reportPatternLoadFailure` never throws without
+a DOM and still logs both `Error`-typed and plain-string thrown values).
+Extended `tests/unit/workspace-storage.spec.ts` with a test confirming
+a corrupted autosave triggers exactly one `console.error` mentioning
+`"auto-restore"` and clears `PROJECT_KEY`. Extended the existing e2e
+"opening a file with no valid pattern inside" test
+(`tests/e2e/export-all.spec.ts`) to also assert on the real browser
+`download` event: filename matches `empty_error-report_*.cspzip`, and
+the downloaded bytes are byte-identical to the bad file fed in; also
+asserts a matching `console.error` line appeared. Full suite: `npx tsc
+--noEmit` clean, `npx eslint .` clean, `npx vitest run` 533/533,
+`npm run build` clean, `npx playwright test` 39/39 (the new e2e
+assertion's browser console output, `[cross-stitch-pattern-generator]
+Pattern load failed (source: open-file) ...`, showed up directly in the
+test run's own log, confirming the console-log path fires for real, not
+just past a mock).
+
+**D91 — Navigator/preview dock now uses the canvas-color preference for
+empty cells too (2026-09-12, Owner: "navigator previe should have
+canvas color too for empty cells").** A gap left by D87: `drawChart`
+(the live canvas) got the `emptyCellColor` parameter, but
+`renderNavigatorPixels` (the small true-scale preview dock, top right)
+still hardcoded white, so the navigator and the main canvas visibly
+disagreed on empty-cell color whenever the Owner picked a non-white
+canvas color. Fixed the same way as `drawChart` itself (D87's own
+precedent, itself following D11): `renderNavigatorPixels(pattern,
+emptyCellColor = "#ffffff")` gained a second optional parameter,
+defaulting to prior behavior; its one real call site
+(`app/workspace.tsx`'s navigator-canvas effect) now passes `canvasColor`
+and depends on it. `renderNavigatorPixels` has no export call site at
+all (confirmed via a repo-wide grep -- only ever used for this one
+on-screen preview), so there was no "never affects export" boundary to
+worry about here, unlike `drawChart`.
+
+**Verified**: extended `tests/unit/navigator-pixels.spec.ts` with a test
+confirming a custom `emptyCellColor` renders in the output pixels
+instead of white. Live-checked in a running `next dev` instance by
+reading both canvases' actual pixel data via a script (`getImageData`)
+rather than trusting the JSX: painted two real empty cells into a
+loaded pattern, changed Canvas color to `#336699`, and confirmed both
+the main canvas and the navigator preview returned the exact same
+`[51, 102, 153, 255]` at the corresponding pixel -- not just visually
+similar, byte-identical. Full suite re-run together with D90 above (see
+that entry's verification numbers, which include this change).
+
+**Deployed (2026-09-12).** Covers D90 and D91 in one redeploy (built on
+top of, and pushed together with, D86-D89's already-deployed base).
+Standard recipe. Container isolation and other-sites health to be
+confirmed as part of this same deploy step below.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

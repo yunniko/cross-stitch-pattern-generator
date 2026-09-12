@@ -30,6 +30,7 @@ import {
 import { DMC_COLORS, type DmcColor } from "@/lib/dmc-colors";
 import { SYMBOL_SET } from "@/lib/symbols";
 import { serializePattern } from "@/lib/pattern-serialize";
+import { reportPatternLoadFailure } from "@/lib/error-report";
 import { loadPatternFromFile } from "@/lib/pattern-import";
 import { generateExportAllZip } from "@/lib/export-all";
 import {
@@ -653,9 +654,9 @@ export default function Workspace() {
     // mismatch between TS's typed-array and DOM lib definitions -- the
     // runtime array is always a plain ArrayBuffer (`new Uint8ClampedArray(n)`
     // never produces a SharedArrayBuffer-backed one).
-    const pixels = renderNavigatorPixels(pattern) as unknown as Uint8ClampedArray<ArrayBuffer>;
+    const pixels = renderNavigatorPixels(pattern, canvasColor) as unknown as Uint8ClampedArray<ArrayBuffer>;
     ctx.putImageData(new ImageData(pixels, pattern.width, pattern.height), 0, 0);
-  }, [pattern]);
+  }, [pattern, canvasColor]);
 
   function redrawWith(p: StitchPattern) {
     if (viewMode === "realistic") return;
@@ -1285,7 +1286,13 @@ export default function Workspace() {
         const fallbackName = file.name.replace(/\.[^.]+$/, "").replace(/[-_]editable$/, "");
         await loadPatternIntoWorkspace(loaded, fallbackName);
       })
-      .catch((err) => setOpenError(err instanceof Error ? err.message : "Couldn't open that file."));
+      .catch((err) => {
+        // The current pattern is never touched above until loadPatternIntoWorkspace
+        // actually runs, so a failure here already leaves it exactly as it was --
+        // the "previous version" the Owner asked to fall back to (2026-09-12).
+        reportPatternLoadFailure({ source: "open-file", error: err, content: file, originalFileName: file.name });
+        setOpenError(err instanceof Error ? err.message : "Couldn't open that file.");
+      });
   }
 
   /** Fetches the embedded PDF font on demand (not bundled in the app's JS) -- shared by the single-export PDF kinds and "Export all". */
