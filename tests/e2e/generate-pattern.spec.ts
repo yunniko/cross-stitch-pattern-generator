@@ -26,14 +26,14 @@ test("upload an image, generate a pattern, preview it, and download both variant
   const exportSelect = page.getByLabel("Export");
   const exportButton = page.getByRole("button", { name: "Export", exact: true });
 
-  await exportSelect.selectOption({ label: "Color PNG (full chart)" });
+  await exportSelect.selectOption("png-color");
   const [colorDownload] = await Promise.all([page.waitForEvent("download"), exportButton.click()]);
   expect(colorDownload.suggestedFilename()).toBe("sample_color.png");
 
   await page.getByRole("radio", { name: "Black & white" }).check();
   await expect(canvas).toBeVisible();
 
-  await exportSelect.selectOption({ label: "Black & white PNG (full chart)" });
+  await exportSelect.selectOption("png-bw");
   const [bwDownload] = await Promise.all([page.waitForEvent("download"), exportButton.click()]);
   expect(bwDownload.suggestedFilename()).toBe("sample_bw.png");
 });
@@ -64,7 +64,7 @@ test("a small chart's header is never clipped, even at the minimum custom size (
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
 
-  await page.getByLabel("Export").selectOption({ label: "Color PNG (full chart)" });
+  await page.getByLabel("Export").selectOption("png-color");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   const savedPath = test.info().outputPath("small-chart.png");
   await download.saveAs(savedPath);

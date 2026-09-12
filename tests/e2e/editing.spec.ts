@@ -57,7 +57,7 @@ test("renaming the pattern changes every download's filename", async ({ page }) 
   const exportSelect = page.getByLabel("Export");
   const exportButton = page.getByRole("button", { name: "Export", exact: true });
 
-  await exportSelect.selectOption({ label: "Color PNG (full chart)" });
+  await exportSelect.selectOption("png-color");
   const [colorDownload] = await Promise.all([page.waitForEvent("download"), exportButton.click()]);
   expect(colorDownload.suggestedFilename()).toBe("My Cat_color.png");
 

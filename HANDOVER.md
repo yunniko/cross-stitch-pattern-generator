@@ -6069,6 +6069,64 @@ other containers' uptimes unchanged). Other sites healthy
 200). Live check on `https://cross-stitch.craftodejnice.cz`: the bucket
 icon renders correctly, zero console errors.
 
+**D84 — Brush tool icon redrawn to actually look like a brush
+(2026-09-12, Owner: "and make brush toollook like a brush").**
+
+D82's original `BrushIcon` was a plain diagonal line with a dot -- too
+abstract on its own once every other tool got a purpose-built glyph.
+Redrawn as a handle stroke plus a closed, flared "bristle head" shape
+(a filled wedge tapering to a point, per the same hand-drawn-primitives
+approach as every other tool icon) plus a short trailing stroke below
+it suggesting a brush mark just applied. Verified visually in a live
+`next dev` instance at the actual 40×40px button size before shipping.
+
+**D85 — Export dropdown reorganized into Color/Black & white groups,
+editable JSON as the default (2026-09-12, Owner: "Rearrange dropdown
+list of export options. First and default editable json, then divider,
+realistic preview, then divider with -----color---- header: full
+chart, a4 pages, pdf for keeper, then divider with header -------black
+& white------: full chart, a4 pages, pdf for keeper").**
+
+Replaced the flat `EXPORT_KIND_OPTIONS` list with two ungrouped top
+entries (Editable pattern (.json), now also the default `exportKind`
+state instead of Color PNG; Realistic preview PNG) followed by two
+`<optgroup>`s -- "Color" and "Black & white" -- each listing the same
+three formats (Full chart PNG, A4 pages (ZIP), PDF for Pattern Keeper)
+in the same order. A native `<select>` has no divider primitive between
+plain options, so the Owner's requested dividers are realized as far as
+HTML actually allows: `<optgroup>` supplies both the requested header
+text and a real, browser-rendered visual break before each group;
+the two ungrouped top items are ordered but not separated by a literal
+rule (no HTML mechanism exists for that between non-grouped options).
+
+**Shortened option labels now that the group header carries the
+"Color"/"Black & white" context** (e.g. "Color PNG (full chart)" →
+"Full chart PNG" nested under the "Color" optgroup) -- this was the
+Owner's own explicit design ("full chart, a4 pages, pdf for keeper",
+no color qualifier repeated per item). Consequence: the Color and Black
+& white groups now contain options with identical visible text
+("Full chart PNG" appears twice, distinguished only by which group
+header sits above it) -- correct and intentional per spec, but it means
+Playwright's `selectOption({label: ...})` can no longer reliably target
+"the black & white one" by label text alone (it would match the first
+same-labeled option in document order). Fixed by switching every
+affected e2e call to `selectOption("<value>")` (e.g. `"png-bw"`,
+`"a4-color"`, `"pdf-bw"`) -- the underlying `ExportKind` values were
+already unique and stable, so this is a more robust way to drive the
+control in tests regardless of what its visible text says, not a
+workaround.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full `npx
+vitest run` 515/515 passing, `npm run build` clean, full `npx
+playwright test` 33/33 passing after updating every affected
+`selectOption` call across `a4-export.spec.ts`/`editing.spec.ts`/
+`generate-pattern.spec.ts`/`pattern-keeper-pdf-export.spec.ts`.
+Live-checked the actual rendered `<select>`'s DOM structure and default
+selection via a script in a running `next dev` instance rather than
+just trusting the JSX (native option-group popups can't be captured by
+a CDP screenshot) -- confirmed the exact structure and labels above,
+default value `"editable"`, zero console errors.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

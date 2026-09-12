@@ -113,9 +113,9 @@ const TOOL_ICON_PROPS = {
 function BrushIcon() {
   return (
     <svg {...TOOL_ICON_PROPS}>
-      <line x1="19" y1="5" x2="9" y2="15" />
-      <path d="M9 15c-2.5 0-4.5 2-4.5 4.5" />
-      <circle cx="19" cy="5" r="1.6" fill="currentColor" stroke="none" />
+      <path d="M19 3 13 9" />
+      <path d="M13 9c1 1.5.7 3-.5 4.2L8 17.7c-1 1-2.6 1-3.6 0s-1-2.6 0-3.6l4.5-4.5C10.1 8.4 11.6 8.1 13 9Z" />
+      <path d="M4 20c1.2-1.8 2.3-2.8 3.3-3.5" />
     </svg>
   );
 }
@@ -280,15 +280,38 @@ function filterDmcColors(query: string): readonly DmcColor[] {
 /** Every single-file export the app offers, unified behind one dropdown (G-027, Owner request 2026-09-12) instead of a separate button per format. */
 type ExportKind = "png-color" | "png-bw" | "png-realistic" | "editable" | "a4-color" | "a4-bw" | "pdf-color" | "pdf-bw";
 
-const EXPORT_KIND_OPTIONS: Array<{ value: ExportKind; label: string }> = [
-  { value: "png-color", label: "Color PNG (full chart)" },
-  { value: "png-bw", label: "Black & white PNG (full chart)" },
-  { value: "png-realistic", label: "Realistic preview PNG" },
+/**
+ * Ordering/grouping per Owner spec (2026-09-12): editable JSON first (also
+ * the default selection -- it's the most complete, most re-importable
+ * single-file format), then the realistic preview, then a "Color" group
+ * and a "Black & white" group each listing the same three formats in the
+ * same order. `<optgroup>` supplies both the header text and the native
+ * select's own visual separation -- a plain `<select>` has no divider
+ * primitive between individual options, so the two ungrouped items above
+ * the groups are ordered but not literally divided by a rule.
+ */
+const EXPORT_KIND_TOP_OPTIONS: Array<{ value: ExportKind; label: string }> = [
   { value: "editable", label: "Editable pattern (.json)" },
-  { value: "a4-color", label: "A4 pages — Color (ZIP)" },
-  { value: "a4-bw", label: "A4 pages — Black & white (ZIP)" },
-  { value: "pdf-color", label: "PDF, Pattern Keeper — Color" },
-  { value: "pdf-bw", label: "PDF, Pattern Keeper — Black & white" },
+  { value: "png-realistic", label: "Realistic preview PNG" },
+];
+
+const EXPORT_KIND_GROUPS: Array<{ heading: string; options: Array<{ value: ExportKind; label: string }> }> = [
+  {
+    heading: "Color",
+    options: [
+      { value: "png-color", label: "Full chart PNG" },
+      { value: "a4-color", label: "A4 pages (ZIP)" },
+      { value: "pdf-color", label: "PDF for Pattern Keeper" },
+    ],
+  },
+  {
+    heading: "Black & white",
+    options: [
+      { value: "png-bw", label: "Full chart PNG" },
+      { value: "a4-bw", label: "A4 pages (ZIP)" },
+      { value: "pdf-bw", label: "PDF for Pattern Keeper" },
+    ],
+  },
 ];
 
 /** `pdf-*`/`a4-*` kinds paginate via the same A4 layout the Overlap setting affects -- used to decide whether to show the page-count preview and whether the PDF font needs fetching. */
@@ -446,7 +469,7 @@ export default function Workspace() {
   const [nameDraft, setNameDraft] = useState("cross-stitch-pattern");
   const [lastCommittedName, setLastCommittedName] = useState<string | undefined>(undefined);
   const [openError, setOpenError] = useState<string | null>(null);
-  const [exportKind, setExportKind] = useState<ExportKind>("png-color");
+  const [exportKind, setExportKind] = useState<ExportKind>("editable");
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExportingAll, setIsExportingAll] = useState(false);
@@ -1306,10 +1329,19 @@ export default function Workspace() {
             onChange={(e) => setExportKind(e.target.value as ExportKind)}
             className="min-w-[190px] rounded-full border border-zinc-300 px-3 py-1 text-sm transition-colors hover:bg-black/[.04] dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-white/[.08]"
           >
-            {EXPORT_KIND_OPTIONS.map(({ value, label }) => (
+            {EXPORT_KIND_TOP_OPTIONS.map(({ value, label }) => (
               <option key={value} value={value}>
                 {label}
               </option>
+            ))}
+            {EXPORT_KIND_GROUPS.map(({ heading, options }) => (
+              <optgroup key={heading} label={heading}>
+                {options.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
           <button
