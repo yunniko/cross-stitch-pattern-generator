@@ -1,7 +1,7 @@
 import { nameNewColor } from "./color-names";
-import { DMC_COLORS } from "./dmc-colors";
 import { floodFillDiagonal, labelRegions } from "./regions";
 import { SYMBOL_SET } from "./symbols";
+import { THREAD_BRANDS, type ThreadBrand } from "./thread-brands";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type CellRect, type FloatingSelection, type PaletteColor, type RGB, type StitchPattern } from "./types";
 
 // `EMPTY_CELL` (255) is never counted against any real palette color and
@@ -216,20 +216,22 @@ export function editColorRgb(pattern: StitchPattern, paletteIndex: number, rgb: 
 }
 
 /**
- * Changes an existing palette color to a specific real DMC thread by code
- * (G-017), renaming it `"CODE - Name"` to match -- unlike `editColorRgb`,
+ * Changes an existing palette color to a specific real thread from `brand`'s
+ * line by code (G-017, generalized from DMC-only in G-029 M1, HANDOVER.md
+ * D92), renaming it `"CODE - Name"` to match -- unlike `editColorRgb`,
  * which deliberately leaves the name alone for an arbitrary hex edit,
- * picking a named DMC thread is picking a specific identity, so the name
- * should follow it. Does not touch `dmcMode`: that flag means "every color
- * in this palette is DMC" (set only by `applyDmcPalette` at generation
- * time) -- converting a single color in an otherwise free-form palette
- * doesn't make the whole pattern a DMC one.
+ * picking a named thread is picking a specific identity, so the name
+ * should follow it. Does not touch `threadBrand`: that field means "every
+ * color in this palette is matched to this brand" (set only by
+ * `applyBrandPalette` at generation time) -- converting a single color in
+ * an otherwise free-form palette doesn't make the whole pattern a brand-
+ * matched one.
  */
-export function editColorToDmc(pattern: StitchPattern, paletteIndex: number, dmcCode: string): StitchPattern {
-  const dmc = DMC_COLORS.find((c) => c.code === dmcCode);
-  if (!dmc) throw new Error(`"${dmcCode}" isn't a recognized DMC color code.`);
+export function editColorToBrandColor(pattern: StitchPattern, paletteIndex: number, code: string, brand: ThreadBrand): StitchPattern {
+  const thread = THREAD_BRANDS[brand].colors.find((c) => c.code === code);
+  if (!thread) throw new Error(`"${code}" isn't a recognized ${THREAD_BRANDS[brand].label} color code.`);
   const palette = pattern.palette.map((color, i) =>
-    i === paletteIndex ? { ...color, rgb: dmc.rgb, name: `${dmc.code} - ${dmc.name}` } : color
+    i === paletteIndex ? { ...color, rgb: thread.rgb, name: `${thread.code} - ${thread.name}` } : color
   );
   return { ...pattern, palette };
 }
@@ -257,20 +259,21 @@ export function addColor(pattern: StitchPattern, rgb: RGB): StitchPattern {
 }
 
 /**
- * Adds a brand-new color from the real DMC line, by code (G-016) -- the
- * "+ Add" counterpart to `addColor` for a `dmcMode` pattern, where every
- * color must stay a real, buyable thread rather than an arbitrary RGB.
- * Named `"CODE - Name"` like every other color `applyDmcPalette` produces,
- * so the two stay indistinguishable in the legend. Starts at zero stitches,
- * same as `addColor`.
+ * Adds a brand-new color from a real thread brand's line, by code (G-016,
+ * generalized from DMC-only in G-029 M1, HANDOVER.md D92) -- the "+ Add"
+ * counterpart to `addColor` for a `threadBrand`-matched pattern, where
+ * every color must stay a real, buyable thread rather than an arbitrary
+ * RGB. Named `"CODE - Name"` like every other color `applyBrandPalette`
+ * produces, so the two stay indistinguishable in the legend. Starts at
+ * zero stitches, same as `addColor`.
  */
-export function addDmcColor(pattern: StitchPattern, dmcCode: string): StitchPattern {
+export function addBrandColor(pattern: StitchPattern, code: string, brand: ThreadBrand): StitchPattern {
   if (pattern.palette.length >= MAX_COLORS) {
     throw new Error(`Cannot add another color -- already at the maximum of ${MAX_COLORS}.`);
   }
 
-  const dmc = DMC_COLORS.find((c) => c.code === dmcCode);
-  if (!dmc) throw new Error(`"${dmcCode}" isn't a recognized DMC color code.`);
+  const thread = THREAD_BRANDS[brand].colors.find((c) => c.code === code);
+  if (!thread) throw new Error(`"${code}" isn't a recognized ${THREAD_BRANDS[brand].label} color code.`);
 
   const usedSymbols = new Set(pattern.palette.map((c) => c.symbol));
   const symbol = SYMBOL_SET.find((s) => !usedSymbols.has(s));
@@ -278,9 +281,9 @@ export function addDmcColor(pattern: StitchPattern, dmcCode: string): StitchPatt
 
   const newColor: PaletteColor = {
     index: pattern.palette.length,
-    rgb: dmc.rgb,
+    rgb: thread.rgb,
     symbol,
-    name: `${dmc.code} - ${dmc.name}`,
+    name: `${thread.code} - ${thread.name}`,
     count: 0,
   };
 

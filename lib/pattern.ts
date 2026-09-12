@@ -22,11 +22,12 @@ import { mergeSimilarColors } from "./palette-optimizer";
 import { kMeansQuantizer, meanRgbOklab, type ColorQuantizer } from "./quantize";
 import { symbolsFor } from "./symbols";
 import { runContourRefinement, DEFAULT_CONTOUR_REFINEMENT_OPTIONS, type ContourRefinementOptions } from "./contour-refinement";
-import { applyDmcPalette } from "./dmc-match";
+import { applyBrandPalette } from "./dmc-match";
+import type { ThreadBrand } from "./thread-brands";
 import type { PaletteColor, PixelBuffer, RGB, StitchPattern } from "./types";
 
-/** "full" = whatever continuous colors the clustering algorithm produces; "dmc" = that same output snapped to the nearest real, buyable DMC thread colors (G-013), with the fine local-optimizer pass re-run against the new fixed palette (G-020 M5, HANDOVER.md D56). */
-export type PaletteMode = "full" | "dmc";
+/** "full" = whatever continuous colors the clustering algorithm produces; any `ThreadBrand` (only "dmc" so far, G-013) = that same output snapped to the nearest real, buyable thread color from that brand's line, with the fine local-optimizer pass re-run against the new fixed palette (G-020 M5, HANDOVER.md D56). Generalized from `"full" | "dmc"` in G-029 M1 (HANDOVER.md D92). */
+export type PaletteMode = "full" | ThreadBrand;
 
 /** "standard" = today's exact behavior (default). "crisp" = the G-024 Crisp Edges feature (HANDOVER.md D57-D71): preserves hard color boundaries the standard averaging pipeline would otherwise blend into a manufactured intermediate color. */
 export type EdgeMode = "standard" | "crisp";
@@ -293,30 +294,39 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     isLandscape: imageData.width > imageData.height,
     // Recorded on the pattern itself (not just passed as a build option) so
     // a saved/reopened pattern remembers how it was generated, the same way
-    // `dmcMode` does (G-024 M5) -- `applyDmcPalette`'s own `{...pattern, ...}`
-    // spread below carries this through to the DMC-mode return path too.
+    // `threadBrand` does (G-024 M5) -- `applyBrandPalette`'s own
+    // `{...pattern, ...}` spread below carries this through to the brand-
+    // matched return path too.
     edgeMode: edgeMode === "crisp" ? "crisp" : undefined,
   };
 
-  if (options.paletteMode !== "dmc") {
+  // Only "full" skips brand matching entirely -- every other `PaletteMode`
+  // value IS a `ThreadBrand` (G-029 M1, HANDOVER.md D92). Deliberately
+  // checking `!== "full"` rather than `=== "dmc"`: the earlier DMC-only
+  // check would have silently skipped matching for every other brand once
+  // one existed (flagged by the Codex critique exchange as the single
+  // riskiest spot in this generalization).
+  if (options.paletteMode === undefined || options.paletteMode === "full") {
     options.onProgress?.(1);
     return pattern;
   }
+  const brand: ThreadBrand = options.paletteMode;
 
   // G-020 M5 (HANDOVER.md D56): re-run the fine local-optimizer pass
-  // against the newly-snapped, fixed DMC palette -- only reachable here,
-  // not from `applyDmcPalette` called standalone, since this is the only
+  // against the newly-snapped, fixed brand palette -- only reachable here,
+  // not from `applyBrandPalette` called standalone, since this is the only
   // place `cells`/`importance`/`pairEvidence` are still in scope. No
   // effect when `optimize` is false (matches every other optimizer-only
   // pass in this pipeline).
   //
   // G-024 M4.8 (HANDOVER.md D71): `evidenceLayer` is threaded through
   // unconditionally, not nested inside the `shouldOptimize` branch --
-  // crisp-aware DMC-snap repair applies even when `optimize: false` skips
-  // ICM entirely.
-  const dmcPattern = shouldOptimize
-    ? applyDmcPalette(
+  // crisp-aware snap repair applies even when `optimize: false` skips ICM
+  // entirely.
+  const brandPattern = shouldOptimize
+    ? applyBrandPalette(
         pattern,
+        brand,
         {
           cells,
           importance,
@@ -325,7 +335,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
         },
         evidenceLayer
       )
-    : applyDmcPalette(pattern, undefined, evidenceLayer);
+    : applyBrandPalette(pattern, brand, undefined, evidenceLayer);
   options.onProgress?.(1);
-  return dmcPattern;
+  return brandPattern;
 }

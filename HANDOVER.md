@@ -6414,6 +6414,150 @@ Chromium browser, not a mock) immediately before this deploy, including
 the new download-and-console-log assertions passing -- see D90's own
 verification note.
 
+**D92 — G-029 M1: generalized the DMC-only palette-matching plumbing to
+a brand-agnostic mechanism, via a real Codex critique exchange
+(2026-09-12, Owner: "there are new goals about adding new patterns,
+should work as option along with full color and DMC" -- confirming the
+already-drafted G-029 plan to add Anchor and Cosmo as two more
+selectable Palette-mode options alongside today's Full range/DMC).**
+
+**The critique exchange, not just a rubber stamp.** Before writing any
+code, the proposed design (remove `dmcMode` from the runtime
+`StitchPattern` type in favor of `threadBrand: ThreadBrand`, keep
+`dmcMode` only as a legacy read-path in the serializer, generalize
+`applyDmcPalette`/`nearestDmcColor` to take a brand parameter backed by
+a flat `{code, name, rgb}` color list per brand) was put to
+`codex:codex-rescue` for a critique, per this project's own standing
+practice for consequential decisions. The critique found real,
+concrete problems, not stylistic nitpicks:
+
+1. **A flat color list is the wrong shape for Anchor specifically.**
+   Anchor has no independently-measured color data anywhere -- only
+   DMC-equivalence tables (confirmed in the 2026-09-12 thread-brand
+   research doc) -- so it needs a genuinely different two-step match
+   (nearest DMC color first, then relabel via an explicit DMC-code ->
+   Anchor-code lookup, with an explicit policy for duplicate/missing
+   mappings and a deterministic representative RGB per Anchor thread
+   group), not a direct nearest-match against its own "colors" list the
+   way DMC and Cosmo can. **Conceded and adopted**: `ThreadBrandInfo`
+   (`lib/thread-brands.ts`) now carries a `matching: "direct" |
+   "dmc-equivalence"` field, and `applyBrandPalette` guards against the
+   not-yet-implemented `"dmc-equivalence"` path explicitly rather than
+   silently mismatching Anchor against a nonexistent "Anchor RGB" list.
+   The real two-step implementation is deferred to M3 (Anchor itself),
+   but the architecture now has a real place for it to land.
+2. **A separate `editColorMode` UI state in `app/workspace.tsx` --
+   entirely missed in the original design** -- derives its "is this
+   pattern brand-locked" check from `pattern.dmcMode` at a call site
+   (`setEditColorMode(pattern.dmcMode ? "dmc" : "full")`) the original
+   plan never looked at. Renaming the field without fixing this site
+   would have either broken the build or (worse, if done carelessly)
+   silently stopped forcing the color editor into DMC-only mode for a
+   brand-matched pattern. **Fixed**: now reads `pattern.threadBrand ??
+   "full"`, live-verified in a running `next dev` instance (see below).
+3. **Two risky `paletteMode`/`dmcMode` comparisons that would have
+   silently broken once a second brand existed**: `lib/pattern.ts`'s
+   `if (options.paletteMode !== "dmc")` (would skip brand-matching
+   entirely for Anchor/Cosmo) and `lib/workspace-storage.ts`'s
+   `parsed.paletteMode === "dmc" ? "dmc" : ...` (would silently reload
+   a saved Anchor/Cosmo preference as "full"). **Fixed now**, ahead of
+   actually needing it in M2/M3 -- `pattern.ts` checks `!== "full"`
+   instead of `=== "dmc"`, and `workspace-storage.ts` validates against
+   `THREAD_BRAND_IDS` (derived from the registry) instead of the
+   literal string `"dmc"`.
+4. **The acceptance criteria's "existing tests pass unmodified" was
+   contradictory with the plan's own rename** -- tests directly import
+   `applyDmcPalette` and assert `.dmcMode`, so a clean rename
+   necessarily touches them. **Reworded** (GOALS.md M1) to "unchanged
+   fixtures and behavioral expectations, mechanical import/signature
+   updates allowed" -- the actual bar met (every fixture's inputs and
+   expected outputs are byte-identical to before; only names changed).
+5. **Verification needed an independent baseline, not just the existing
+   suite** -- `regression.spec.ts`'s own tolerance-banded assertions
+   could pass despite a real behavior change (this project's own D18
+   lesson: three earlier "improvement" attempts each looked correct in
+   isolation). **Added** `tests/unit/dmc-generalization-baseline.spec.ts`:
+   captures an FNV-1a hash of `buildPattern`'s DMC-mode `cellPalette`
+   output plus an exact palette summary, for Standard/Crisp edges ×
+   optimize on/off, run against the UNMODIFIED pre-refactor code first
+   and hardcoded as the expected values, then re-asserted after the
+   refactor -- an independent, exact-equality oracle the refactor itself
+   couldn't accidentally satisfy by construction.
+
+The critique also confirmed two things the original design got right
+(clean rename over permanent compat wrappers for the internal API
+surface, since STANDARDS.md's shim-avoidance principle applies to
+same-codebase call sites; the serializer boundary as the one place
+`dmcMode` may still appear) and flagged a **pre-existing, out-of-scope
+defect** worth recording rather than fixing here: `addColor`
+(`lib/pattern-edit.ts`, used by canvas-resize's fill color) already
+lets an arbitrary hex color into an otherwise brand-matched pattern's
+palette, breaking brand-purity -- this predates G-029 entirely and
+M1's job was byte-identical behavior preservation, not new bug fixes,
+so it's left alone and simply noted here for whoever picks up brand-
+purity enforcement later.
+
+**What actually changed**: `lib/types.ts`'s `StitchPattern.dmcMode:
+boolean` -> `threadBrand?: "dmc"` (inline literal, not an imported
+`ThreadBrand` type, to avoid a circular import back through
+`lib/dmc-colors.ts` -> `lib/types.ts`, same reason `edgeMode` doesn't
+import `EdgeMode` from `lib/pattern.ts`). New `lib/thread-brands.ts`:
+`ThreadBrand` (currently just `"dmc"` -- deliberately not widened ahead
+of Cosmo/Anchor's real data landing, per the critique's own advice
+against empty placeholder catalogs), `ThreadColor` (an alias for the
+already-generic `DmcColor` shape), `THREAD_BRANDS` registry.
+`lib/dmc-match.ts`: `applyDmcPalette` -> `applyBrandPalette(pattern,
+brand, reoptimize?, crispEvidenceLayer?)`, `nearestDmcColor(rgb)` ->
+`nearestColorInBrand(rgb, brand)` (per-brand OKLab cache instead of one
+module-level DMC-only constant), `countCrispDmcCollisions` ->
+`countCrispThreadCollisions`, `DmcReoptimizeContext` ->
+`BrandReoptimizeContext`. `lib/pattern-edit.ts`: `editColorToDmc` ->
+`editColorToBrandColor(pattern, paletteIndex, code, brand)`,
+`addDmcColor` -> `addBrandColor(pattern, code, brand)`.
+`lib/a4-render.ts`: `splitDmcName` -> `splitThreadCodeName`, the
+internal `isDmc` variable -> `hasThreadCode` throughout, the hardcoded
+`"Thread", "DMC"` row -> `THREAD_BRANDS[pattern.threadBrand].label`.
+`lib/pattern-serialize.ts`: `FORMAT_VERSION` bumped to 5; the DTO type
+keeps `dmcMode?: boolean` as an explicitly-documented legacy-only field;
+`deserializePattern` reads `threadBrand` first, validated against
+`THREAD_BRAND_IDS` (rejecting a malformed/unknown value rather than
+storing it and crashing a later `THREAD_BRANDS[...]` lookup), falling
+back to `dmcMode === true ? "dmc" : undefined` for a pre-G-029 file;
+`serializePattern` never writes `dmcMode` again.
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full `npx
+vitest run` 541/541 passing (up from 525 -- the new golden-baseline
+file plus new backward-compatibility tests in
+`pattern-serialize.spec.ts`: a literal old-format DTO with `dmcMode:
+true` fed directly to `deserializePattern` without going through
+today's writer, confirming real pre-G-029 files still open correctly;
+an unrecognized `threadBrand` value falling back safely; a present
+`threadBrand` winning over a stale/contradictory legacy `dmcMode`),
+`npm run build` clean, full `npx playwright test` 39/39 passing
+unmodified (no e2e test touches the DMC UI directly, so this suite
+mainly confirms no collateral breakage elsewhere). Live-verified in a
+running `next dev` instance via direct DOM/React-state interaction
+(button clicks weren't landing through the browser automation tool's
+own stale-ref/coordinate-scaling issues that session, so verified via
+`element.click()` and reading React props directly instead of trusting
+screenshots): regenerating with DMC palette mode produces real DMC-
+coded legend entries ("3033 - Mocha Brown - Very Light"); "+Add"
+correctly shows the DMC-only picker and `addBrandColor` correctly
+appends a real DMC color at zero stitches; the color editor correctly
+forces DMC-only mode (no Full range/DMC switcher) for a brand-matched
+pattern and `editColorToBrandColor` correctly re-colors and renames a
+palette entry; Undo correctly reverts both.
+
+**Not deployed yet -- this is a milestone boundary.** G-029 doesn't
+carry the same "continue without confirmation" waiver G-024/G-026 had
+this session, so per OPERATIONS.md this stops here for an Owner check-
+in before M2 (Cosmo data ingestion + real UI wiring) starts, rather
+than continuing autonomously. M1 itself has zero user-facing behavior
+change (confirmed byte-identical via the golden baseline), so there's
+no shippable-behavior deploy trigger either way -- whether to deploy
+this refactor-only commit now or bundle it with M2/M3's real new
+functionality is one of the open questions for that check-in.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

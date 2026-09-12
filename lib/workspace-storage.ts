@@ -3,6 +3,7 @@ import { reportPatternLoadFailure } from "./error-report";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import { deserializePattern, serializePattern } from "./pattern-serialize";
 import type { EdgeMode, GenerationMode, PaletteMode } from "./pattern.worker";
+import { THREAD_BRAND_IDS } from "./thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, type SizePresetId, type StitchPattern } from "./types";
 
 // Workspace-level preferences and the in-progress project, persisted to
@@ -107,7 +108,14 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
           ? parsed.colorCount
           : DEFAULT_OPTIONS.colorCount,
       generationMode: parsed.generationMode === "original" ? "original" : DEFAULT_OPTIONS.generationMode,
-      paletteMode: parsed.paletteMode === "dmc" ? "dmc" : DEFAULT_OPTIONS.paletteMode,
+      // Validated against every real `ThreadBrand` (plus "full"), not just
+      // "dmc" specifically -- so a new brand added in G-029 M2/M3 doesn't
+      // need this check updated to be readable (flagged as a risky, easy-
+      // to-forget spot in HANDOVER.md D92's Codex critique exchange).
+      paletteMode:
+        parsed.paletteMode === "full" || (THREAD_BRAND_IDS as string[]).includes(parsed.paletteMode as string)
+          ? (parsed.paletteMode as PaletteMode)
+          : DEFAULT_OPTIONS.paletteMode,
     };
   } catch {
     return DEFAULT_OPTIONS;

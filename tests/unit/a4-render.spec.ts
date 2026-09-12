@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDetailRows, computeKeyColumns, infoPageTitle, overlapSidesForPage, splitDmcName } from "@/lib/a4-render";
+import { buildDetailRows, computeKeyColumns, infoPageTitle, overlapSidesForPage, splitThreadCodeName } from "@/lib/a4-render";
 import { calculateA4Layout } from "@/lib/a4-layout";
 import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
 
@@ -91,17 +91,17 @@ describe("infoPageTitle (G-016)", () => {
   });
 });
 
-describe("splitDmcName (G-016)", () => {
+describe("splitThreadCodeName (G-016)", () => {
   it("splits a 'CODE - Name' string into its parts", () => {
-    expect(splitDmcName("310 - Black")).toEqual({ code: "310", name: "Black" });
+    expect(splitThreadCodeName("310 - Black")).toEqual({ code: "310", name: "Black" });
   });
 
   it("only splits on the first ' - ', since a DMC name can itself contain one", () => {
-    expect(splitDmcName("347 - Salmon - Very Dark")).toEqual({ code: "347", name: "Salmon - Very Dark" });
+    expect(splitThreadCodeName("347 - Salmon - Very Dark")).toEqual({ code: "347", name: "Salmon - Very Dark" });
   });
 
   it("returns the whole string as the name, with an empty code, when there's no separator", () => {
-    expect(splitDmcName("Not DMC formatted")).toEqual({ code: "", name: "Not DMC formatted" });
+    expect(splitThreadCodeName("Not DMC formatted")).toEqual({ code: "", name: "Not DMC formatted" });
   });
 });
 
@@ -126,8 +126,8 @@ describe("buildDetailRows (G-016)", () => {
     expect(cmFirst.indexOf("cm")).toBeLessThan(cmFirst.indexOf("in"));
   });
 
-  it("includes a 'Thread: DMC' row only when the pattern is dmcMode", () => {
-    const pattern = { ...makePattern(10, 10, [0], [[0, 0, 0]]), dmcMode: true };
+  it("includes a 'Thread: DMC' row only when the pattern is brand-matched", () => {
+    const pattern = { ...makePattern(10, 10, [0], [[0, 0, 0]]), threadBrand: "dmc" as const };
     const rows = buildDetailRows(pattern, 14, "in");
     expect(Object.fromEntries(rows)["Thread"]).toBe("DMC");
   });

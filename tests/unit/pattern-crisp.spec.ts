@@ -50,11 +50,11 @@ describe("buildPattern records edgeMode on its own output (G-024 M5, HANDOVER.md
     expect(buildPattern(buffer, { longerSideStitches: 16, colorCount: 4, paletteMode: "dmc" }).edgeMode).toBeUndefined();
   });
 
-  it("carries edgeMode: 'crisp' through the DMC-mode return branch too (applyDmcPalette's own spread)", () => {
+  it("carries edgeMode: 'crisp' through the brand-matched return branch too (applyBrandPalette's own spread)", () => {
     const buffer = makeHardSplitWithGenuineGrayBuffer();
     const pattern = buildPattern(buffer, { longerSideStitches: 16, colorCount: 4, edgeMode: "crisp", paletteMode: "dmc" });
     expect(pattern.edgeMode).toBe("crisp");
-    expect(pattern.dmcMode).toBe(true);
+    expect(pattern.threadBrand).toBe("dmc");
   });
 });
 
@@ -150,7 +150,7 @@ describe("buildPattern edgeMode: 'crisp' combined with other options", () => {
   it("works end-to-end with paletteMode: 'dmc'", () => {
     const buffer = makeHardSplitWithGenuineGrayBuffer();
     const pattern = buildPattern(buffer, { longerSideStitches: 16, colorCount: 4, edgeMode: "crisp", paletteMode: "dmc" });
-    expect(pattern.dmcMode).toBe(true);
+    expect(pattern.threadBrand).toBe("dmc");
     const totalCount = pattern.palette.reduce((sum, c) => sum + c.count, 0);
     expect(totalCount).toBe(pattern.cellPalette.length);
     for (const c of pattern.palette) expect(c.count).toBeGreaterThan(0); // never a zero-count legend entry

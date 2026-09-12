@@ -121,15 +121,44 @@ describe("pattern-serialize", () => {
     expect(restored.sourceImage).toBeUndefined();
   });
 
-  it("round-trips dmcMode: true (G-016)", () => {
-    const pattern = { ...makePattern(), dmcMode: true };
+  it("round-trips threadBrand: 'dmc' (G-016, generalized from dmcMode in G-029 M1)", () => {
+    const pattern = { ...makePattern(), threadBrand: "dmc" as const };
     const restored = deserializePattern(serializePattern(pattern));
-    expect(restored.dmcMode).toBe(true);
+    expect(restored.threadBrand).toBe("dmc");
   });
 
-  it("leaves dmcMode undefined for a file saved before G-016", () => {
+  it("leaves threadBrand undefined for a file saved before G-016", () => {
     const restored = deserializePattern(serializePattern(makePattern()));
-    expect(restored.dmcMode).toBeUndefined();
+    expect(restored.threadBrand).toBeUndefined();
+  });
+
+  it("never writes the legacy dmcMode field for a newly-serialized file", () => {
+    const pattern = { ...makePattern(), threadBrand: "dmc" as const };
+    const data = JSON.parse(serializePattern(pattern));
+    expect(data).not.toHaveProperty("dmcMode");
+    expect(data.threadBrand).toBe("dmc");
+  });
+
+  it("reads a real pre-G-029 file's legacy dmcMode: true as threadBrand: 'dmc' (HANDOVER.md D92 backward-compat requirement) -- fed a literal old-format DTO, not round-tripped through today's writer", () => {
+    const legacyFile = JSON.stringify({
+      formatVersion: 4,
+      width: 1,
+      height: 1,
+      cellPalette: [0],
+      palette: [{ rgb: [0, 0, 0], symbol: "x", name: "310 - Black" }],
+      dmcMode: true,
+    });
+    expect(deserializePattern(legacyFile).threadBrand).toBe("dmc");
+  });
+
+  it("rejects an unrecognized threadBrand value rather than storing an invalid brand that would later crash a lookup", () => {
+    const tampered = JSON.stringify({ ...JSON.parse(serializePattern(makePattern())), threadBrand: "rainbow" });
+    expect(deserializePattern(tampered).threadBrand).toBeUndefined();
+  });
+
+  it("prefers a present threadBrand over a stale/contradictory legacy dmcMode on the same file", () => {
+    const both = JSON.stringify({ ...JSON.parse(serializePattern({ ...makePattern(), threadBrand: "dmc" as const })), dmcMode: false });
+    expect(deserializePattern(both).threadBrand).toBe("dmc");
   });
 
   it("round-trips edgeMode: \"crisp\" (G-024 M5)", () => {

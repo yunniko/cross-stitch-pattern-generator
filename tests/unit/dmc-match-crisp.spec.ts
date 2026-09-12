@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyDmcPalette, countCrispDmcCollisions } from "@/lib/dmc-match";
+import { applyBrandPalette, countCrispThreadCollisions } from "@/lib/dmc-match";
 import { rgbToOklab } from "@/lib/color";
 import type { BoundaryEvidence } from "@/lib/crisp-edge-evidence";
 import type { CrispEvidenceLayer } from "@/lib/crisp-evidence-layer";
@@ -24,20 +24,20 @@ function makePattern(width: number, height: number, cellPalette: number[], color
   return { width, height, cellPalette: Uint8Array.from(cellPalette), palette, isLandscape: width >= height };
 }
 
-describe("applyDmcPalette: Standard-compatibility", () => {
+describe("applyBrandPalette: Standard-compatibility", () => {
   it("is byte-identical with an omitted vs. empty crispEvidenceLayer", () => {
     const pattern = makePattern(2, 1, [0, 1], [
       [50, 50, 50],
       [0, 0, 0],
     ]);
-    const withoutLayer = applyDmcPalette(pattern);
-    const withEmptyLayer = applyDmcPalette(pattern, undefined, { evidenceByCell: new Map() });
+    const withoutLayer = applyBrandPalette(pattern, "dmc");
+    const withEmptyLayer = applyBrandPalette(pattern, "dmc", undefined, { evidenceByCell: new Map() });
     expect(withEmptyLayer.cellPalette).toEqual(withoutLayer.cellPalette);
     expect(withEmptyLayer.palette).toEqual(withoutLayer.palette);
   });
 });
 
-describe("applyDmcPalette: crisp-aware handling works even without reoptimize (optimize: false)", () => {
+describe("applyBrandPalette: crisp-aware handling works even without reoptimize (optimize: false)", () => {
   it("repairs a mechanically-remapped cell whose mode no longer supports its own snapped group at all, with no reoptimize context", () => {
     // repairCrispAssignments (M4.6) is deliberately conservative: it only
     // repairs a label that is genuinely ABSENT from the fresh admissible
@@ -72,13 +72,13 @@ describe("applyDmcPalette: crisp-aware handling works even without reoptimize (o
     };
     const layer: CrispEvidenceLayer = { evidenceByCell: new Map([[0, evidence]]) };
 
-    const result = applyDmcPalette(pattern, undefined, layer); // no reoptimize context at all
+    const result = applyBrandPalette(pattern, "dmc", undefined, layer); // no reoptimize context at all
     const cell0Color = result.palette[result.cellPalette[0]];
     expect(cell0Color.name).toBe("310 - Black"); // repaired to the lower-cost admissible group (310, cost 0.06), not left on the unsupported 934
   });
 });
 
-describe("applyDmcPalette: crisp-aware handling threads through reoptimize too", () => {
+describe("applyBrandPalette: crisp-aware handling threads through reoptimize too", () => {
   it("does not throw and produces a valid pattern when both reoptimize and crispEvidenceLayer are given", () => {
     const width = 2;
     const height = 1;
@@ -98,15 +98,15 @@ describe("applyDmcPalette: crisp-aware handling threads through reoptimize too",
     const layer: CrispEvidenceLayer = { evidenceByCell: new Map([[0, evidence]]) };
     const cells = { data: new Uint8ClampedArray([50, 50, 50, 0, 0, 0]), width, height };
 
-    const result = applyDmcPalette(pattern, { cells }, layer);
-    expect(result.dmcMode).toBe(true);
+    const result = applyBrandPalette(pattern, "dmc", { cells }, layer);
+    expect(result.threadBrand).toBe("dmc");
     expect(result.cellPalette.length).toBe(2);
-    const totalCount = result.palette.reduce((sum, c) => sum + c.count, 0);
+    const totalCount = result.palette.reduce((sum: number, c: PaletteColor) => sum + c.count, 0);
     expect(totalCount).toBe(2); // no cells lost
   });
 });
 
-describe("countCrispDmcCollisions", () => {
+describe("countCrispThreadCollisions", () => {
   it("counts a confident cell whose two modes collapse onto the same DMC thread", () => {
     // Two modes both very close to pure black -- their nearest DMC thread
     // (310) is the same for both, so only 1 admissible label survives
@@ -121,8 +121,8 @@ describe("countCrispDmcCollisions", () => {
       confidence: 0.9,
     };
     const layer: CrispEvidenceLayer = { evidenceByCell: new Map([[0, evidence]]) };
-    const dmcPaletteOklab = [rgbToOklab([0, 0, 0]), rgbToOklab([255, 255, 255])];
-    expect(countCrispDmcCollisions(layer, dmcPaletteOklab)).toBe(1);
+    const threadPaletteOklab = [rgbToOklab([0, 0, 0]), rgbToOklab([255, 255, 255])];
+    expect(countCrispThreadCollisions(layer, threadPaletteOklab)).toBe(1);
   });
 
   it("counts zero when a confident cell's two modes map to two distinct DMC labels", () => {
@@ -136,7 +136,7 @@ describe("countCrispDmcCollisions", () => {
       confidence: 0.9,
     };
     const layer: CrispEvidenceLayer = { evidenceByCell: new Map([[0, evidence]]) };
-    const dmcPaletteOklab = [rgbToOklab([0, 0, 0]), rgbToOklab([255, 255, 255])];
-    expect(countCrispDmcCollisions(layer, dmcPaletteOklab)).toBe(0);
+    const threadPaletteOklab = [rgbToOklab([0, 0, 0]), rgbToOklab([255, 255, 255])];
+    expect(countCrispThreadCollisions(layer, threadPaletteOklab)).toBe(0);
   });
 });

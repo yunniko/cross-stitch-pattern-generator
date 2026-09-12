@@ -1,13 +1,15 @@
+import { THREAD_BRAND_IDS, type ThreadBrand } from "./thread-brands";
 import { EMPTY_CELL, MAX_STITCHES, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern } from "./types";
 
 // Plain JSON, not a PNG with embedded data (Owner decision, 2026-09-09,
 // HANDOVER.md D21) -- simplest reliable format, at the cost of not being
 // previewable as an image on its own. Bumped to 2 for G-012's embedded
 // sourceImage, to 3 for G-016's dmcMode flag (Owner decision,
-// 2026-09-10), and to 4 for G-024's edgeMode flag -- old files still
-// open fine, they just parse with that field absent (see
-// deserializePattern).
-const FORMAT_VERSION = 4;
+// 2026-09-10), to 4 for G-024's edgeMode flag, and to 5 for G-029's
+// generalized threadBrand field (HANDOVER.md D92) -- old files still open
+// fine either way, they just parse with that field absent/legacy-shaped
+// (see deserializePattern).
+const FORMAT_VERSION = 5;
 
 export interface SerializedPattern {
   formatVersion: number;
@@ -21,8 +23,16 @@ export interface SerializedPattern {
   name?: string;
   /** Absent on files saved before G-012, or when the pattern has no associated photo. */
   sourceImage?: SourceImageRef;
-  /** Absent on files saved before G-016, or when the pattern isn't a DMC-mode one. */
+  /**
+   * Legacy field, only ever present on a file saved before G-029 M1
+   * (HANDOVER.md D92) -- `deserializePattern` reads it as a fallback for
+   * `threadBrand` below, but `serializePattern` never writes it again.
+   * Every other file in this codebase should read/write `threadBrand`,
+   * never this field.
+   */
   dmcMode?: boolean;
+  /** Absent on files saved before G-029 M1, or when the pattern isn't matched to a thread brand. Replaces the legacy `dmcMode: boolean` above (G-016 originally only ever had one brand to be true/false about). */
+  threadBrand?: ThreadBrand;
   /** Absent on files saved before G-024 M5, or when the pattern wasn't generated with `edgeMode: "crisp"`. */
   edgeMode?: "crisp";
 }
@@ -38,7 +48,7 @@ export function serializePattern(pattern: StitchPattern): string {
     palette: pattern.palette.map((c) => ({ rgb: c.rgb, symbol: c.symbol, name: c.name })),
     name: pattern.name,
     sourceImage: pattern.sourceImage,
-    dmcMode: pattern.dmcMode,
+    threadBrand: pattern.threadBrand,
     edgeMode: pattern.edgeMode,
   };
   return JSON.stringify(data);
@@ -100,9 +110,26 @@ export function deserializePattern(json: string): StitchPattern {
     palette,
     name: typeof d.name === "string" && d.name.trim() !== "" ? d.name : undefined,
     sourceImage: isValidSourceImageRef(d.sourceImage) ? d.sourceImage : undefined,
-    dmcMode: d.dmcMode === true ? true : undefined,
+    threadBrand: resolveThreadBrand(d),
     edgeMode: d.edgeMode === "crisp" ? "crisp" : undefined,
   };
+}
+
+/**
+ * Reads a file's brand-matched state, preferring the current `threadBrand`
+ * field and falling back to the legacy `dmcMode: true` written before
+ * G-029 M1 (HANDOVER.md D92) -- so a pre-G-029 save still opens as a DMC
+ * pattern. Validated against the real, known set of brands rather than
+ * trusted blindly: an unrecognized/malformed value (a hand-edited file, a
+ * future format this build doesn't know about yet) falls back to
+ * "unmatched" instead of being stored as an invalid `ThreadBrand` that
+ * would later crash a `THREAD_BRANDS[pattern.threadBrand]` lookup.
+ */
+function resolveThreadBrand(d: Partial<SerializedPattern>): ThreadBrand | undefined {
+  if (typeof d.threadBrand === "string" && (THREAD_BRAND_IDS as string[]).includes(d.threadBrand)) {
+    return d.threadBrand as ThreadBrand;
+  }
+  return d.dmcMode === true ? "dmc" : undefined;
 }
 
 // Loose validation rather than throwing: an absent/malformed sourceImage

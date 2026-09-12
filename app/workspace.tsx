@@ -6,12 +6,12 @@ import { hexToRgb, rgbToHex } from "@/lib/color";
 import { decodeSourceImage, loadImageAsPixelBuffer } from "@/lib/load-image";
 import { cancelPatternJob, runPatternJob } from "@/lib/pattern-client";
 import {
+  addBrandColor,
   addColor,
-  addDmcColor,
   compactUnusedColors,
   compositeSelectionPreview,
   editColorRgb,
-  editColorToDmc,
+  editColorToBrandColor,
   fillCluster,
   fillClusterDiagonal,
   flipSelectionHorizontal,
@@ -442,10 +442,10 @@ export default function Workspace() {
   const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null);
   const [editingDraftHex, setEditingDraftHex] = useState("#000000");
   // "Full range" (arbitrary hex) vs "DMC" (real thread swatches) for the
-  // color-editor panel (G-017). Forced to "dmc" and hidden entirely for a
-  // dmcMode pattern; a free-form pattern gets the switcher so any single
-  // color can still be snapped to a real thread without converting the
-  // whole palette.
+  // color-editor panel (G-017). Forced to the pattern's own brand and
+  // hidden entirely for a brand-matched (`threadBrand`) pattern; a
+  // free-form pattern gets the switcher so any single color can still be
+  // snapped to a real thread without converting the whole palette.
   const [editColorMode, setEditColorMode] = useState<"full" | "dmc">("full");
   const [editDmcFilter, setEditDmcFilter] = useState("");
   const [addingColor, setAddingColor] = useState(false);
@@ -1178,15 +1178,16 @@ export default function Workspace() {
     if (!pattern) return;
     setEditingColorIndex(paletteIndex);
     setEditingDraftHex(rgbToHex(pattern.palette[paletteIndex].rgb));
-    // A dmcMode pattern is DMC-only, no switcher; a free-form pattern
-    // defaults to "Full range" but can switch to DMC for this one color.
-    setEditColorMode(pattern.dmcMode ? "dmc" : "full");
+    // A brand-matched pattern is that brand only, no switcher; a free-form
+    // pattern defaults to "Full range" but can switch to DMC for this one
+    // color. (Only "dmc" exists so far -- G-029 M1, HANDOVER.md D92.)
+    setEditColorMode(pattern.threadBrand ?? "full");
     setEditDmcFilter("");
   }
 
   function commitEditDmcColor(code: string) {
     if (editingColorIndex === null || !pattern) return;
-    history.set(editColorToDmc(pattern, editingColorIndex, code));
+    history.set(editColorToBrandColor(pattern, editingColorIndex, code, "dmc"));
     setEditingColorIndex(null);
   }
 
@@ -1204,7 +1205,7 @@ export default function Workspace() {
 
   function commitAddDmcColor(code: string) {
     if (!pattern) return;
-    history.set(addDmcColor(pattern, code));
+    history.set(addBrandColor(pattern, code, "dmc"));
     setAddingColor(false);
     setAddDmcFilter("");
   }
@@ -2238,7 +2239,7 @@ export default function Workspace() {
 
           {editingColorIndex !== null && (
             <div className="flex flex-col gap-2 rounded border border-zinc-300 p-3 dark:border-zinc-700">
-              {pattern?.dmcMode ? (
+              {pattern?.threadBrand ? (
                 <p className="text-xs text-zinc-500">This pattern is in DMC mode -- pick a real DMC thread color.</p>
               ) : (
                 <div className="flex items-center overflow-hidden self-start rounded border border-zinc-300 dark:border-zinc-700">
@@ -2309,7 +2310,7 @@ export default function Workspace() {
             </div>
           )}
 
-          {addingColor && pattern?.dmcMode && (
+          {addingColor && pattern?.threadBrand && (
             <div className="flex flex-col gap-2 rounded border border-zinc-300 p-3 dark:border-zinc-700">
               <p className="text-xs text-zinc-500">This pattern is in DMC mode -- pick a real DMC thread color.</p>
               <input
@@ -2343,7 +2344,7 @@ export default function Workspace() {
             </div>
           )}
 
-          {addingColor && !pattern?.dmcMode && (
+          {addingColor && !pattern?.threadBrand && (
             <div className="flex flex-col gap-2 rounded border border-zinc-300 p-3 dark:border-zinc-700">
               <HexColorPicker color={addColorDraftHex} onChange={setAddColorDraftHex} />
               <div className="flex gap-2">

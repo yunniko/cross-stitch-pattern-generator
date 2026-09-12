@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  addBrandColor,
   addColor,
-  addDmcColor,
   compactUnusedColors,
   compositeSelectionPreview,
   editColorRgb,
-  editColorToDmc,
+  editColorToBrandColor,
   fillCluster,
   fillClusterDiagonal,
   flipSelectionHorizontal,
@@ -145,10 +145,10 @@ describe("editColorRgb", () => {
   });
 });
 
-describe("editColorToDmc", () => {
+describe("editColorToBrandColor", () => {
   it("changes the target color's rgb and renames it 'CODE - Name' to match", () => {
     const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
-    const edited = editColorToDmc(pattern, 0, "310"); // Black
+    const edited = editColorToBrandColor(pattern, 0, "310", "dmc"); // Black
     expect(edited.palette[0].rgb).toEqual([0, 0, 0]);
     expect(edited.palette[0].name).toBe("310 - Black");
   });
@@ -158,19 +158,19 @@ describe("editColorToDmc", () => {
       [10, 10, 10],
       [20, 20, 20],
     ]);
-    const edited = editColorToDmc(pattern, 0, "310");
+    const edited = editColorToBrandColor(pattern, 0, "310", "dmc");
     expect(edited.palette[0].symbol).toBe(pattern.palette[0].symbol);
     expect(edited.palette[1]).toEqual(pattern.palette[1]);
   });
 
-  it("does not set dmcMode -- converting one color doesn't make the whole pattern DMC", () => {
+  it("does not set threadBrand -- converting one color doesn't make the whole pattern brand-matched", () => {
     const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
-    expect(editColorToDmc(pattern, 0, "310").dmcMode).toBeUndefined();
+    expect(editColorToBrandColor(pattern, 0, "310", "dmc").threadBrand).toBeUndefined();
   });
 
   it("rejects a code that isn't a real DMC color", () => {
     const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
-    expect(() => editColorToDmc(pattern, 0, "NOT-A-REAL-CODE")).toThrow();
+    expect(() => editColorToBrandColor(pattern, 0, "NOT-A-REAL-CODE", "dmc")).toThrow();
   });
 });
 
@@ -192,10 +192,10 @@ describe("addColor", () => {
   });
 });
 
-describe("addDmcColor", () => {
+describe("addBrandColor", () => {
   it("appends a new zero-count color with the real DMC rgb and a 'CODE - Name' name", () => {
     const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
-    const withNew = addDmcColor(pattern, "310"); // Black
+    const withNew = addBrandColor(pattern, "310", "dmc"); // Black
     expect(withNew.palette).toHaveLength(2);
     const added = withNew.palette[1];
     expect(added.count).toBe(0);
@@ -206,13 +206,13 @@ describe("addDmcColor", () => {
 
   it("rejects a code that isn't a real DMC color", () => {
     const pattern = makePattern(1, 1, [0], [[10, 10, 10]]);
-    expect(() => addDmcColor(pattern, "NOT-A-REAL-CODE")).toThrow();
+    expect(() => addBrandColor(pattern, "NOT-A-REAL-CODE", "dmc")).toThrow();
   });
 
   it("refuses to add a color past MAX_COLORS", () => {
     const colors: RGB[] = Array.from({ length: MAX_COLORS }, (_, i) => [i, i, i] as RGB);
     const pattern = makePattern(MAX_COLORS, 1, colors.map((_, i) => i), colors);
-    expect(() => addDmcColor(pattern, "310")).toThrow();
+    expect(() => addBrandColor(pattern, "310", "dmc")).toThrow();
   });
 });
 

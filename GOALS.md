@@ -960,7 +960,7 @@ milestone's own result justifies continuing):
   over-100 handling) rather than assumed. Not yet promoted to ACTIVE --
   awaiting Owner review of this plan.
 
-### G-029 · Anchor and Cosmo thread-brand palette modes — DRAFT (2026-09-12)
+### G-029 · Anchor and Cosmo thread-brand palette modes — ACTIVE (2026-09-12)
 - **What:** Two new selectable palette modes alongside today's "Full
   range" and "DMC": **Anchor** and **Cosmo**, each snapping the generated
   pattern's colors to that brand's real, buyable thread line, with the
@@ -1061,14 +1061,21 @@ milestone's own result justifies continuing):
     assumed by analogy to DMC.
 
 **Milestones:**
-- [ ] M1 -- Generalize the architecture: `lib/types.ts`, `lib/dmc-match.ts`
+- [x] M1 -- Generalize the architecture: `lib/types.ts`, `lib/dmc-match.ts`
   (-> a brand-agnostic matcher), `lib/pattern.ts`, `lib/pattern-serialize.ts`
   (with backward-compat read of legacy `dmcMode: true` saves),
   `lib/pattern-edit.ts`, `lib/a4-render.ts`, `app/workspace.tsx`. Design
   reviewed by Codex first (backward-compat strategy especially). Existing
-  DMC behavior must be bit-for-bit unchanged -- verified via the full
-  existing regression suite passing unmodified before any new brand is
-  added. No new user-facing feature yet.
+  DMC behavior must be bit-for-bit unchanged -- verified via an
+  independent golden-baseline comparison plus the full existing
+  regression suite, both green, before any new brand is added. No new
+  user-facing feature yet. **Done (2026-09-12) -- see HANDOVER.md D92**
+  for the full critique exchange, the corrected design that came out of
+  it (a real `"dmc-equivalence"` matching mode reserved for Anchor,
+  `ThreadBrand` deliberately kept to just `"dmc"` rather than shipping
+  empty Cosmo/Anchor catalogs, a validated `threadBrand` deserialize
+  path, and the fixed `editColorMode`/`paletteMode` risk spots Codex
+  caught), and verification detail.
 - [ ] M2 -- Cosmo data + mode: `lib/cosmo-colors.ts` built from
   tallcoleman/CosmoToRGB (MIT), `docs/cosmo-colors-provenance.md`, wired
   into M1's architecture, unit tests, UI wiring (mode toggle, "+Add"
@@ -1095,6 +1102,39 @@ milestone's own result justifies continuing):
   against real sources for both brands rather than assumed by analogy.
   Not yet promoted to ACTIVE -- awaiting Owner review of this plan and
   of the combined-vs-split goal structure.
+- 2026-09-12 -- Owner confirmed the core design ("should work as option
+  along with full color and DMC" -- exactly this goal's own "What":
+  Anchor/Cosmo as two more selectable entries in the same Palette
+  control, not a separate UI). Promoted to ACTIVE. Starting M1 next
+  (generalize `dmcMode`/`PaletteMode` to a brand-agnostic mechanism);
+  per this goal's own constraint, M1's backward-compatibility design
+  goes through a Codex critique exchange before any code is written.
+- 2026-09-12 -- M1 complete. The Codex critique exchange (HANDOVER.md
+  D92) found real problems in the original proposal -- most importantly
+  that a flat brand color list is the wrong shape for Anchor (which has
+  no independent color data, only DMC-equivalence tables, and needs a
+  structurally different two-step match) and a separate `editColorMode`
+  UI state that the original plan hadn't accounted for at all. Design
+  corrected on the critique's merits (no rebuttal needed -- every point
+  held up under verification), then implemented: `dmcMode: boolean` is
+  gone from the runtime `StitchPattern` type, replaced by `threadBrand`;
+  `applyDmcPalette`/`nearestDmcColor`/`editColorToDmc`/`addDmcColor`/
+  `countCrispDmcCollisions` all generalized to brand-parameterized
+  versions backed by a new `lib/thread-brands.ts` registry; the
+  serializer validates `threadBrand` against the real known set and
+  falls back to reading legacy `dmcMode: true` files. `ThreadBrand`
+  deliberately stays a one-member union (`"dmc"`) until Cosmo/Anchor's
+  real data lands in M2/M3 -- Codex's own advice against shipping empty
+  placeholder catalogs. Verified via an independent pre/post-refactor
+  golden-baseline comparison (`tests/unit/dmc-generalization-baseline.spec.ts`,
+  captured from the pre-refactor code, asserted byte-identical after)
+  plus the full suite: 541/541 unit tests, 39/39 e2e, clean
+  `tsc`/`eslint`/`npm run build`. Live-verified in a running `next dev`
+  instance that Regenerate-with-DMC, "+Add", the color editor, and
+  undo/redo all still work correctly end-to-end. **Milestone boundary
+  reached -- stopping to check in with the Owner before M2 (Cosmo data
+  ingestion) per standard practice**, since this goal doesn't carry the
+  same "continue without confirmation" waiver G-024/G-026 had.
 
 ## Completed goals
 

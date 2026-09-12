@@ -135,22 +135,32 @@ export interface StitchPattern {
   /** Absent for patterns generated/opened before G-012, or opened from a pre-G-012 save file -- the photo-underlay mode and Move tool are simply unavailable then. */
   sourceImage?: SourceImageRef;
   /**
-   * True when every color in `palette` is a real DMC thread (G-013's
-   * "dmc" generation mode; set by `applyDmcPalette`), persisted on the
-   * pattern itself rather than inferred from the UI's transient mode
-   * selector or by pattern-matching color names -- so a reopened/restored
-   * pattern, or one whose colors were merged/edited since generation,
-   * still reports its true state. Absent/false for every other pattern.
-   * Drives whether "+ Add" restricts new colors to real DMC swatches
-   * (G-016) and whether A4 exports show a "Color number"/"Thread: DMC"
-   * section.
+   * Set when every color in `palette` is a real thread from a specific
+   * brand's line (G-013/G-016/G-021's DMC mode, generalized in G-029 to
+   * support more than one brand), persisted on the pattern itself rather
+   * than inferred from the UI's transient mode selector or by pattern-
+   * matching color names -- so a reopened/restored pattern, or one whose
+   * colors were merged/edited since generation, still reports its true
+   * state. Absent for every other pattern. Drives whether "+ Add"
+   * restricts new colors to that brand's real swatches and whether A4
+   * exports show a "Color number"/"Thread: <brand>" section.
+   *
+   * Renamed from the earlier `dmcMode: boolean` (G-029 M1, HANDOVER.md
+   * D92) -- see `lib/thread-brands.ts` for the brand registry and its
+   * own `ThreadBrand` type (not imported here, same as `edgeMode` below
+   * doesn't import `EdgeMode` from `lib/pattern.ts` -- avoids a circular
+   * import back through `lib/dmc-colors.ts`, which itself imports `RGB`
+   * from this file). `dmcMode` itself now only ever appears in
+   * `lib/pattern-serialize.ts`'s on-disk DTO type, read for backward
+   * compatibility with files saved before this rename; nowhere else in
+   * the codebase should reference it.
    */
-  dmcMode?: boolean;
+  threadBrand?: "dmc";
   /**
    * Set when this pattern was generated with `edgeMode: "crisp"`
    * (G-024's Crisp Edges feature; see `lib/pattern.ts`'s `EdgeMode`),
-   * persisted on the pattern itself for the same reason `dmcMode` is --
-   * so a reopened/restored pattern still reports how it was actually
+   * persisted on the pattern itself for the same reason `threadBrand` is
+   * -- so a reopened/restored pattern still reports how it was actually
    * built, not just whatever the UI's transient mode selector currently
    * shows. Absent for every Standard-mode pattern, including every
    * pattern saved before this field existed (G-024 M5) -- "missing"

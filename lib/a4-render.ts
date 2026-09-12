@@ -5,6 +5,7 @@ import { mmToPx, PRINT_DPI } from "./a4-layout";
 import { formatFinishedSize, type SizeUnit } from "./finished-size";
 import { estimateSkeins } from "./floss-estimate";
 import { drawChart, FONT_STACK, GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX, truncateToWidth, type RenderMode } from "./render";
+import { THREAD_BRANDS } from "./thread-brands";
 import type { PaletteColor, StitchPattern } from "./types";
 
 // Physical text sizes for print, independent of cell size (unlike the
@@ -278,8 +279,8 @@ export function renderA4LegendPage(pattern: StitchPattern, layout: A4Layout): HT
 // Owner's explicit "simple legend should remain as well") -- this one leads
 // with a title and a details table (stitch count, finished size, fabric,
 // thread, color count), then a full "Color key" table with one row per
-// color (symbol swatch, DMC code when the pattern is `dmcMode`, name,
-// stitch count, skein count). Unlike the simple legend's swatch grid, a
+// color (symbol swatch, thread code when the pattern is brand-matched,
+// name, stitch count, skein count). Unlike the simple legend's swatch grid, a
 // one-row-per-color table with this much per-row detail can outgrow a
 // single A4 page well within MAX_COLORS (100) -- e.g. at ~25 rows/page,
 // exceeding it needs only 26+ colors -- so this is genuinely paginated,
@@ -298,12 +299,15 @@ const KEY_ROW_HEIGHT_MM = 8;
 const KEY_HEADER_ROW_HEIGHT_MM = 6.5;
 
 /**
- * Splits a `dmcMode` pattern's `"CODE - Name"` color name back into its
- * parts for display -- purely cosmetic (which column shows what); whether
- * the pattern *is* DMC mode is decided once from `pattern.dmcMode` (set by
- * `applyDmcPalette`), never re-derived by parsing names here.
+ * Splits a brand-matched pattern's `"CODE - Name"` color name back into
+ * its parts for display -- purely cosmetic (which column shows what);
+ * whether the pattern *is* brand-matched is decided once from
+ * `pattern.threadBrand` (set by `applyBrandPalette`, generalized from
+ * `dmcMode` in G-029 M1, HANDOVER.md D92), never re-derived by parsing
+ * names here. The `"CODE - Name"` format itself is brand-agnostic --
+ * every brand `applyBrandPalette` produces a color for uses it.
  */
-export function splitDmcName(fullName: string): { code: string; name: string } {
+export function splitThreadCodeName(fullName: string): { code: string; name: string } {
   const idx = fullName.indexOf(" - ");
   if (idx === -1) return { code: "", name: fullName };
   return { code: fullName.slice(0, idx), name: fullName.slice(idx + 3) };
@@ -332,7 +336,7 @@ export function buildDetailRows(pattern: StitchPattern, aidaCount: number, sizeU
     ["Finished size", `${finishedPrimary} (${finishedSecondary})`],
     ["Fabric", `${aidaCount}-count Aida`],
   ];
-  if (pattern.dmcMode) rows.push(["Thread", "DMC"]);
+  if (pattern.threadBrand) rows.push(["Thread", THREAD_BRANDS[pattern.threadBrand].label]);
   rows.push(["Color count", `${pattern.palette.length} colors`]);
   return rows;
 }
@@ -389,9 +393,9 @@ export interface KeyColumns {
   totalWidth: number;
 }
 
-export function computeKeyColumns(printableWidthPx: number, isDmc: boolean, dpi: number = PRINT_DPI): KeyColumns {
+export function computeKeyColumns(printableWidthPx: number, hasThreadCode: boolean, dpi: number = PRINT_DPI): KeyColumns {
   const symbolW = mmToPx(12, dpi);
-  const codeW = isDmc ? mmToPx(18, dpi) : 0;
+  const codeW = hasThreadCode ? mmToPx(18, dpi) : 0;
   const stitchW = mmToPx(28, dpi);
   const skeinW = mmToPx(28, dpi);
   const nameW = Math.max(mmToPx(30, dpi), printableWidthPx - symbolW - codeW - stitchW - skeinW);
@@ -417,7 +421,7 @@ function drawKeyTableBlock(
   x: number,
   yStart: number,
   cols: KeyColumns,
-  isDmc: boolean,
+  hasThreadCode: boolean,
   colors: readonly PaletteColor[],
   aidaCount: number,
   dpi: number
@@ -436,7 +440,7 @@ function drawKeyTableBlock(
   const headerMidY = yStart + headerHeightPx / 2;
   ctx.textAlign = "center";
   ctx.fillText("Symbol", x + cols.symbolX + cols.symbolW / 2, headerMidY);
-  if (isDmc) ctx.fillText("Color #", x + cols.codeX + cols.codeW / 2, headerMidY);
+  if (hasThreadCode) ctx.fillText("Color #", x + cols.codeX + cols.codeW / 2, headerMidY);
   ctx.textAlign = "left";
   ctx.fillText("Color name", x + cols.nameX + mmToPx(1.5, dpi), headerMidY);
   ctx.textAlign = "center";
@@ -461,9 +465,9 @@ function drawKeyTableBlock(
     ctx.textAlign = "center";
     ctx.fillText(color.symbol, swatchX + swatchSize / 2, midY + 1);
 
-    const { code, name } = isDmc ? splitDmcName(color.name) : { code: "", name: color.name };
+    const { code, name } = hasThreadCode ? splitThreadCodeName(color.name) : { code: "", name: color.name };
 
-    if (isDmc) {
+    if (hasThreadCode) {
       ctx.fillStyle = "#111111";
       ctx.font = `${headerFontPx}px ${FONT_STACK}`;
       ctx.textAlign = "center";
@@ -493,7 +497,7 @@ function drawKeyTableBlock(
     ctx.lineTo(x + cols.totalWidth, ly);
     ctx.stroke();
   }
-  const columnXs = [cols.symbolX, ...(isDmc ? [cols.codeX] : []), cols.nameX, cols.stitchX, cols.skeinX];
+  const columnXs = [cols.symbolX, ...(hasThreadCode ? [cols.codeX] : []), cols.nameX, cols.stitchX, cols.skeinX];
   for (const colX of columnXs) {
     if (colX === 0) continue; // left edge already drawn by the outer rect
     ctx.beginPath();
@@ -535,7 +539,7 @@ export interface InfoPagesPlan {
   title: string;
   detailRows: Array<[string, string]>;
   cols: KeyColumns;
-  isDmc: boolean;
+  hasThreadCode: boolean;
   printableWidthPx: number;
   rowsOnPage1: number;
   rowsPerContinuationPage: number;
@@ -544,13 +548,13 @@ export interface InfoPagesPlan {
 }
 
 export function planInfoPages(pattern: StitchPattern, layout: A4Layout, options: A4InfoPageOptions): InfoPagesPlan {
-  const isDmc = pattern.dmcMode === true;
+  const hasThreadCode = pattern.threadBrand !== undefined;
   const printableWidthPx = layout.pageWidthPx - 2 * layout.marginPx;
   const printableHeightPx = layout.pageHeightPx - 2 * layout.marginPx;
 
   const title = infoPageTitle(pattern.name, options.authorName);
   const detailRows = buildDetailRows(pattern, options.aidaCount, options.sizeUnit);
-  const cols = computeKeyColumns(printableWidthPx, isDmc, layout.dpi);
+  const cols = computeKeyColumns(printableWidthPx, hasThreadCode, layout.dpi);
 
   const titleFontPx = mmToPx(INFO_TITLE_FONT_MM, layout.dpi);
   const gapPx = mmToPx(INFO_SECTION_GAP_MM, layout.dpi);
@@ -570,7 +574,7 @@ export function planInfoPages(pattern: StitchPattern, layout: A4Layout, options:
   const continuationPageCount = remainingAfterPage1 === 0 ? 0 : Math.ceil(remainingAfterPage1 / rowsPerContinuationPage);
   const totalPages = 1 + continuationPageCount;
 
-  return { title, detailRows, cols, isDmc, printableWidthPx, rowsOnPage1, rowsPerContinuationPage, totalColors, totalPages };
+  return { title, detailRows, cols, hasThreadCode, printableWidthPx, rowsOnPage1, rowsPerContinuationPage, totalColors, totalPages };
 }
 
 /** Draws info page 1's content (title, details table, color-key table start) -- see `planInfoPages`. */
@@ -601,7 +605,7 @@ export function drawInfoPage1(ctx: ChartDrawingContext, pattern: StitchPattern, 
   y += keyTitleFontPx * 1.6;
 
   const rowsOnPage1Actual = Math.min(plan.rowsOnPage1, plan.totalColors);
-  drawKeyTableBlock(ctx, layout.marginPx, y, plan.cols, plan.isDmc, pattern.palette.slice(0, rowsOnPage1Actual), aidaCount, layout.dpi);
+  drawKeyTableBlock(ctx, layout.marginPx, y, plan.cols, plan.hasThreadCode, pattern.palette.slice(0, rowsOnPage1Actual), aidaCount, layout.dpi);
   drawPageFooter(ctx, layout, 1, plan.totalPages);
 }
 
@@ -626,14 +630,14 @@ export function drawInfoContinuationPage(
   ctx.fillText("Color key (continued)", layout.marginPx, cy);
   cy += captionFontPx * 1.8;
 
-  drawKeyTableBlock(ctx, layout.marginPx, cy, plan.cols, plan.isDmc, colors, aidaCount, layout.dpi);
+  drawKeyTableBlock(ctx, layout.marginPx, cy, plan.cols, plan.hasThreadCode, colors, aidaCount, layout.dpi);
   drawPageFooter(ctx, layout, pageNumber, plan.totalPages);
 }
 
 /**
  * Renders the extended legend / info page(s) (G-016): a title, a details
  * table (stitch count, finished size in both units, fabric, thread when
- * `dmcMode`, color count), and a full "Color key" table with one row per
+ * brand-matched, color count), and a full "Color key" table with one row per
  * palette color -- paginated across as many A4 pages as the color count
  * needs, continuing with a repeated table header on each extra page.
  * Returned alongside (not instead of) `renderA4LegendPage`'s compact
