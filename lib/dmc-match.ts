@@ -1,4 +1,6 @@
 import { luminance, oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
+import { buildAdmissibleLabelCosts, type CrispUnaryCostWeights } from "./crisp-unary-cost";
+import { repairCrispAssignments, type CrispEvidenceLayer } from "./crisp-evidence-layer";
 import { DMC_COLORS, type DmcColor } from "./dmc-colors";
 import { runLocalOptimizer, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, type LocalOptimizerWeights } from "./local-optimizer";
 import { symbolsFor } from "./symbols";
@@ -72,8 +74,27 @@ export interface DmcReoptimizeContext {
  * zero-count legend entry" rule `pattern.ts` already enforces elsewhere).
  * Omitting `reoptimize` reproduces exactly today's behavior -- every
  * existing direct test of this function is unaffected.
+ *
+ * `crispEvidenceLayer` (optional, G-024 M4.8, HANDOVER.md D71): the unary
+ * cost formula is already palette-agnostic (`buildAdmissibleLabelCosts`
+ * takes any `paletteOklab`), so DMC needs orchestration, not a new
+ * objective. Mode-to-label mappings are rebuilt AFTER thread
+ * deduplication (against `groups`' own DMC colors, the FINAL fixed
+ * palette this function ships), never against the pre-snap continuous
+ * palette. Works even when `reoptimize` is omitted (`optimize: false`
+ * skips ICM entirely, but a confident cell's mechanical DMC-snap remap
+ * still needs the same admissibility repair `repairCrispAssignments`
+ * (M4.6) already provides elsewhere) -- crisp-aware handling here is not
+ * nested inside the `reoptimize`-only branch. If `reoptimize` IS given,
+ * the same evidence layer is also threaded into its `runLocalOptimizer`
+ * call (M4.4's existing integration), so the re-optimization pass
+ * respects admissibility too. DMC's own RGB values are always fixed
+ * reference colors, never recomputed the way `finalizeCrispPalette`
+ * (M4.7) recomputes continuous colors -- only assignment repair applies
+ * here. See `countCrispDmcCollisions` below for the explicit diagnostic
+ * the report calls for when two modes collapse onto the same thread.
  */
-export function applyDmcPalette(pattern: StitchPattern, reoptimize?: DmcReoptimizeContext): StitchPattern {
+export function applyDmcPalette(pattern: StitchPattern, reoptimize?: DmcReoptimizeContext, crispEvidenceLayer?: CrispEvidenceLayer): StitchPattern {
   if (pattern.palette.length === 0) return pattern;
 
   const dmcByOldIndex = pattern.palette.map((color) => nearestDmcColor(color.rgb));
@@ -93,8 +114,13 @@ export function applyDmcPalette(pattern: StitchPattern, reoptimize?: DmcReoptimi
     oldToMergedIndex[oldIndex] = mergedIndex;
   });
 
-  let assignment = new Uint8Array(pattern.cellPalette.length);
+  let assignment: Uint8Array = new Uint8Array(pattern.cellPalette.length);
   for (let i = 0; i < assignment.length; i++) assignment[i] = oldToMergedIndex[pattern.cellPalette[i]];
+
+  if (crispEvidenceLayer && crispEvidenceLayer.evidenceByCell.size > 0) {
+    const dmcPaletteOklab = groups.map((g) => rgbToOklab(g.dmc.rgb));
+    assignment = repairCrispAssignments(assignment, crispEvidenceLayer, dmcPaletteOklab);
+  }
 
   if (reoptimize) {
     const dmcRgbPalette: RGB[] = groups.map((g) => g.dmc.rgb);
@@ -104,7 +130,8 @@ export function applyDmcPalette(pattern: StitchPattern, reoptimize?: DmcReoptimi
       dmcRgbPalette,
       reoptimize.importance,
       reoptimize.weights ?? DEFAULT_LOCAL_OPTIMIZER_WEIGHTS,
-      reoptimize.pairEvidence
+      reoptimize.pairEvidence,
+      crispEvidenceLayer
     );
 
     // Re-optimization can empty out a DMC group entirely (every one of its
@@ -150,4 +177,31 @@ export function applyDmcPalette(pattern: StitchPattern, reoptimize?: DmcReoptimi
   }
 
   return { ...pattern, cellPalette, palette, dmcMode: true };
+}
+
+/**
+ * G-024 M4.8 (HANDOVER.md D71): the explicit diagnostic the report calls
+ * for when independent nearest-thread snapping collapses two modes onto
+ * the SAME DMC thread -- e.g. a confident cell whose two continuous-
+ * palette labels were genuinely distinct both happen to be closest to one
+ * real thread color. `buildAdmissibleLabelCosts` already handles this
+ * correctly by construction (keeps the minimum-cost supporting mode,
+ * never invents a combined-coverage bonus or admits an unrelated label),
+ * so no separate mechanism is needed for correctness -- this function
+ * exists purely to SURFACE how often it happens, since a collapsed cell's
+ * boundary is no longer representable as two distinct thread colors at
+ * this palette. Not a claim that a different thread-allocation policy
+ * couldn't do better (the critique's own point: independent nearest-
+ * thread snapping can collide even when a distinct second-choice thread
+ * would fit within budget) -- that's a deliberately separate, un-built
+ * decision, out of this milestone's scope.
+ */
+export function countCrispDmcCollisions(evidenceLayer: CrispEvidenceLayer, dmcPaletteOklab: Oklab[], weights?: CrispUnaryCostWeights): number {
+  let collisions = 0;
+  for (const evidence of evidenceLayer.evidenceByCell.values()) {
+    if (evidence.modes.length < 2) continue; // nothing to collide -- only ever had one mode
+    const admissible = buildAdmissibleLabelCosts(evidence, dmcPaletteOklab, weights);
+    if (admissible.size < 2) collisions++;
+  }
+  return collisions;
 }

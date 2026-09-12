@@ -5227,6 +5227,66 @@ untouched genuine gray entry.
 clean. No e2e run needed — new, standalone module. Continuing to M4.8
 (DMC-mode interaction) next.
 
+**D71 — G-024 M4.8: DMC-mode interaction (2026-09-12, Owner: "continue
+without confirmation...").**
+
+`lib/dmc-match.ts`'s `applyDmcPalette` gained an optional
+`crispEvidenceLayer` parameter. The unary formula itself needed no
+change (already palette-agnostic); DMC needed orchestration only: mode-
+to-label mappings are rebuilt against `groups`' own DMC colors (the
+final fixed palette this function ships), never the pre-snap continuous
+palette, and repair (M4.6's `repairCrispAssignments`) runs immediately
+after the mechanical snap+merge — **critically, this happens whether or
+not `reoptimize` is given**, since `optimize: false` skips ICM entirely
+but a confident cell's mechanical remap still needs the same
+admissibility check. When `reoptimize` IS given, the same evidence
+layer is also threaded into its own `runLocalOptimizer` call, reusing
+M4.4's existing integration rather than a second one. DMC's own RGB
+values are fixed reference colors and are never recomputed the way
+`finalizeCrispPalette` (M4.7) recomputes continuous colors — only
+assignment repair applies here.
+
+**The collision case, handled correctly by construction, with an added
+explicit diagnostic**: two modes independently snapping to the same
+DMC thread is exactly the "two modes map to one label" case
+`buildAdmissibleLabelCosts` (M3) already resolves correctly (keeps the
+minimum-cost supporting mode, invents nothing) — no new mechanism
+needed for correctness. Added `countCrispDmcCollisions` purely to
+SURFACE how often this happens (the critique's own explicit ask for
+"internal diagnostics"), without building a bigger thread-allocation
+policy — the critique's own point that independent nearest-thread
+snapping can collide even when a distinct second-choice thread would
+fit within budget is a deliberately separate, unbuilt decision, kept
+out of this milestone's scope.
+
+**A real test-construction lesson, caught before it could ship as a
+false claim**: my first version of the "works without reoptimize" test
+assumed `repairCrispAssignments` would move a cell to whatever label
+has the globally lowest cost — it doesn't, by design (M4.6's own
+documented, already-tested contract: only repair a label that's
+genuinely ABSENT from the admissible set, leave a merely-suboptimal-
+but-still-supported one alone). Verified this directly: a 2-continuous-
+label fixture left the mechanically-snapped cell untouched (it was
+still technically admissible via its weaker-coverage mode), which
+would have made the test wrongly look like a bug in the DMC
+integration. Fixed by adding a third, genuinely competing continuous
+label so the mechanical group has ZERO supporting modes at all,
+triggering the real repair path — confirmed the exact snap targets
+directly (`50,50,50` → real DMC `934 Avocado Green - Black`; `0,0,0` →
+exact `310 Black`; `255,255,255` → exact `B5200 Snow White`) before
+trusting the constructed scenario.
+
+**Also fixed** a TS 5.9.3 typed-array generic mismatch (`Uint8Array<ArrayBufferLike>`
+vs `Uint8Array<ArrayBuffer>`) on `assignment`'s declaration — the same
+class of issue `contour-refinement.ts` hit earlier in this project's
+history, fixed the same way (explicit `: Uint8Array` annotation).
+
+**Verified**: `npx tsc --noEmit` clean, `npx eslint .` clean, full
+`npx vitest run` 471/471 passing (50 files, +5 new), `npm run build`
+clean, full e2e (27/27, no flakes — `dmc-match.ts` is already-live).
+Continuing to M4.9 (end-to-end regression, consolidating everything
+built so far) next.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...

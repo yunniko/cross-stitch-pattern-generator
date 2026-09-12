@@ -156,7 +156,7 @@ restructured into this project's usual milestone/check-in shape):
     pre-recompute palette, followed by a bounded, explicitly-
     terminated consistency check (fixed number of proposed updates,
     accepting only validated states) per the report's Section 7.
-  - [ ] M4.8 — DMC-mode interaction: reuse the same palette-agnostic
+  - [x] M4.8 — DMC-mode interaction: reuse the same palette-agnostic
     unary formula; build mode mappings AFTER thread deduplication;
     explicitly handle two modes colliding onto the same DMC thread
     (record as a diagnosed limitation, never silently admit an
@@ -179,6 +179,25 @@ restructured into this project's usual milestone/check-in shape):
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-12 — M4.8 complete. `lib/dmc-match.ts`'s `applyDmcPalette`
+  gained an optional `crispEvidenceLayer` parameter: mode-to-label
+  mappings rebuilt against the final DMC palette, repair applied
+  immediately after the mechanical snap+merge REGARDLESS of whether
+  `reoptimize` is given (crisp handling isn't nested inside the
+  optimize-only branch), and threaded into `reoptimize`'s own ICM call
+  when present. Added `countCrispDmcCollisions` as the explicit
+  diagnostic for two modes colliding onto one DMC thread (the
+  underlying mechanism already handles this correctly via M3's
+  min-cost-supporting-mode rule; this just surfaces how often it
+  happens). A real test-construction lesson along the way: my first
+  "works without reoptimize" test wrongly assumed repair always picks
+  the globally-best label -- `repairCrispAssignments` is deliberately
+  conservative (only repairs a genuinely-inadmissible label), caught
+  and fixed by constructing a fixture where the mechanical group truly
+  has zero supporting modes. Full story in HANDOVER.md D71. Verified:
+  471/471 tests passing (50 files, +5 new), clean `tsc`/`eslint`/
+  `npm run build`, e2e 27/27 (`dmc-match.ts` is already-live).
+  Continuing to M4.9 (end-to-end regression) next.
 - 2026-09-12 — M4.7 complete. New `lib/crisp-palette-finalization.ts`
   (`finalizeCrispPalette`): the mode-aware replacement for `pattern.ts`'s
   final `meanRgbOklab` recompute -- a crisp cell contributes its
