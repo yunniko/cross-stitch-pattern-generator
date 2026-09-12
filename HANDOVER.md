@@ -6761,6 +6761,213 @@ picker all already map over `THREAD_BRAND_IDS`/`THREAD_BRANDS`
 generically) -- if a UI change does turn out to be needed, that's a
 sign the generalization missed something.
 
+**D96 — G-024 M6: acceptance-matrix coverage, calibration, benchmarking,
+and delivery. G-024 (Crisp edges) DONE (2026-09-12).**
+
+M6 was the last milestone: "Calibration and acceptance testing against
+the report's full Section 9 fixture matrix, benchmarking (time/memory vs.
+Standard on representative and large grids), and delivery." No pipeline
+code changed -- this milestone is entirely testing, measurement, and
+documentation. Full writeup, with the actual acceptance-matrix results
+table, benchmark numbers, before/after images, and the honest known-
+limitations list: `docs/reviews/2026-09-12-crisp-edges-acceptance-and-
+delivery.md`. Summary here, not repeated there:
+
+**Acceptance matrix**: `pattern-crisp.spec.ts` (M4.9/M5) already covered 4
+of the report's 12 Section 9 rows through the real `buildPattern`; this
+milestone's new `tests/unit/crisp-edges-acceptance-matrix.spec.ts` (12
+tests) closes every remaining row -- red/blue (no unsupported purple
+bridge), an OKLab-verified equal-luminance different-hue boundary, a real
+three-color region (no two-color posterization), circles/rotated ellipses
+via the existing `shape-fixtures.ts` harness, a shifted boundary at a
+genuinely fractional resampling ratio, flat-noise/checkerboard negative
+controls, and transparency/upscale. All pass.
+
+**A real calibration finding, not just a passing test**: the first circle/
+ellipse attempt used a 1:1 source-to-grid ratio (matching `shape-
+regression.spec.ts`'s own convention) and found Standard and Crisp produced
+an IDENTICAL palette -- vacuously equal, not a real comparison. Investigated
+rather than accepted: a circle's boundary ring is one cell wide, and at 1:1
+scale each boundary cell's own blend value varies with local curve angle,
+so no single manufactured color has enough supporting cells to survive its
+own k-means cluster -- the pre-existing weighted boundary-coherence energy
+(G-022, unrelated to this goal) already absorbs those individually-varying
+cells into a real neighbor color. Re-measured at a 4:1 downsample ratio
+(240px source -> 60-stitch grid, so each boundary cell genuinely averages a
+4x4 block): Standard now manufactures a real third palette entry with
+nonzero confetti; Crisp removes it entirely with equal-or-better IoU. The
+acceptance test now asserts this directly (a `countIntermediateColors`
+helper: 0 for Crisp, strictly less than Standard's) rather than relying on
+loose shape-metric bounds alone. Same discipline as D18: calibrate against
+a broad, honestly-investigated case, not the first attempt that happens to
+pass.
+
+Also worth recording: the "no unsupported bridge" check for the red/blue
+and equal-luminance rows uses a self-calibrating threshold
+(`endpoint-separation-squared / 8`) rather than a fixed magic epsilon --
+a first attempt with a fixed `0.02` passed for red/blue (very separated in
+OKLab) but produced a false failure for the equal-luminance pair (whose two
+hues, by construction, sit closer together), because a 50/50 linear-light
+blend sits at a roughly fixed *fraction* of the endpoint separation, not a
+fixed absolute distance. Verified against Standard mode actually violating
+each check before trusting that Crisp mode satisfies it (this project's
+usual "prove the test discriminates" discipline).
+
+**Benchmarking** (`tests/unit/crisp-benchmark.ts` -- excluded from
+`vitest.config.ts`'s `test.include`/`npm run test:unit` by design, run
+manually only): representative grid (600x400 source, 150 stitches, 24
+colors, 3 runs each) measured Standard at ~2.1s mean, Crisp at ~3.0s mean
+(~45% slower). D5/M5's own established "large/worst-case" configuration
+(1500x1000 source, 1000 stitches, 64 colors) was attempted first against
+this milestone's own noisy four-region fixture and abandoned: a single
+Standard-mode run alone exceeded 400 CPU-seconds with no sign of finishing
+on this machine -- a real difference in fixture composition (D5/M5's
+number came from whatever simpler "synthetic image" that measurement used,
+not this fixture's own dense per-pixel noise across four regions), not a
+hang, confirmed by watching real, steadily-climbing CPU time on the
+process throughout. Scaled down to 500 stitches/32 colors instead (still
+11x representative's own cell count) and measured a single real run per
+mode there: Standard 26.7s, Crisp 41.7s (~56% slower; palette sizes 12 vs.
+6, expected from Crisp's mode-aware cost admitting fewer distinct labels
+at this fixture's actual color budget, not a bug). Chose this over
+burning further session time chasing an exactly-comparable-to-D5 number --
+the actual point (the Standard-vs-Crisp ratio) doesn't need it. Full
+numbers and caveats in the delivery doc.
+
+A genuine process hygiene note for whoever reads this next: an earlier
+`vitest bench`-API attempt at this same large-grid measurement was
+abandoned (tinybench's own warmup phase ran far more iterations than
+intended, with no cheap bound on total wall-clock for a single 13s+ call)
+-- but `TaskStop`-equivalent cancellation of that backgrounded shell task
+did NOT kill the underlying `node` process on this Windows machine; it was
+found still running and burning CPU several minutes later via `Get-Process`
+and had to be killed directly (`Stop-Process -Id <pid> -Force`). Worth
+remembering for any future backgrounded long-running command on this host:
+verify the actual process is gone, don't trust the task-stop confirmation
+alone.
+
+**Delivery**: before/after magnified images captured by actually driving
+the real running app via Playwright (`docs/reviews/crisp-edges-delivery-
+assets/capture-before-after.mjs`, kept alongside the images it produced),
+not a reimplemented renderer -- the headline reproduction-plus-genuine-gray
+fixture at 16 stitches/4 colors, Standard vs Crisp at identical zoom.
+Confirms live what the unit tests already prove: Standard's legend carries
+a real "Silver Mist" entry (23 stitches) that doesn't exist in the source;
+Crisp's legend carries exactly White/Black/Grey (128/112/16), the
+manufactured entry gone, the genuine gray's own count untouched.
+
+**Known limitations, documented rather than glossed over** (full detail in
+the delivery doc): thin lines/strokes/junctions/gradual shading are out of
+scope by design (fall back to Standard); `contourRefinement` and simulated-
+annealing are explicitly incompatible with Crisp (throw immediately, D68/
+D72); a DMC/Cosmo/Anchor thread collision between two source-side modes is
+handled correctly (min-cost mode wins) but not policy-optimized toward a
+second-choice thread (`countCrispThreadCollisions` surfaces frequency only,
+G-029's rename of D71's `countCrispDmcCollisions`); a 50/50 coverage tie's
+placement can still shift by one stitch under translation (report's own
+accepted trade-off); Crisp fixes color representation, not geometry, so
+shape-tracking quality is inherited from the existing G-022 machinery
+unchanged; the performance cost above is real, with no evidence yet that
+real usage commonly hits the worst-case combination (matches the base
+pipeline's own already-logged, still-open perf question).
+
+**Verified**: 587/587 unit tests (60 files, +2 new -- the acceptance-matrix
+spec, and the benchmark file which is deliberately excluded from this
+count's own normal run path but was executed manually), clean `tsc
+--noEmit`, clean `eslint`. No code changes to the shipped pipeline this
+milestone, so no redeploy -- `edgeMode` has been live since M5 (D77).
+**G-024 moved to Completed in GOALS.md.**
+
+**D97 — G-026 M4: real-world Pattern Keeper import, confirmed by the
+Owner. G-026 (Pattern Keeper PDF export) DONE (2026-09-12).**
+
+M4 was the one milestone this goal couldn't close without the Owner: the
+app can generate a real, embedded-font PDF and every internal check
+(select-as-text via `pdfjs-dist`, e2e coverage against every symbol a real
+generated pattern actually used) already passed as of M3, but none of that
+proves the real third-party Pattern Keeper app actually auto-detects the
+grid and parses the legend the way its own documentation says it should --
+that requires opening the real app on a device only the Owner has. Logged
+`BLOCKED` on 2026-09-12 pending exactly that.
+
+The Owner imported a real exported sample directly and reported back:
+**"it is working, I checked."** No code changes were needed -- recorded
+here at the same level of detail actually confirmed, per this project's
+own honesty standard, rather than assumed further (the M1-flagged "µ"-
+extracts-as-"μ" `pdfjs-dist` caveat was not separately confirmed either
+way; not treated as a blocker given the overall "working" report, but
+worth a specific look if a future pattern uses that symbol and something
+in Pattern Keeper looks off).
+
+Nothing to deploy -- the feature has been live in production since M3
+(D75). **G-026 moved to Completed in GOALS.md.**
+
+**D98 — Discovered a concurrent independent review; two process gaps in
+this session's own G-024 closure, corrected (2026-09-12).**
+
+While wrapping up G-026 M4, found `docs/reviews/2026-09-12-architecture-
+and-code-review.md` had appeared in the working tree -- written by a
+**different, concurrently-running Claude Code session** on this same
+machine (confirmed via the peer-session list: 3 other interactive
+sessions were running alongside this one), not by this session. It
+reviewed the repo at `ca4cfb1` plus this session's own in-flight
+uncommitted changes and found real issues worth recording here so they
+aren't lost:
+
+- **Two High-severity bugs**: autosave silently stops working above the
+  ~5MB `localStorage` quota with no user-visible indication (B1), and
+  `deserializePattern` accepts an oversized palette that then silently
+  corrupts cell indices via `Uint8Array` truncation (B2). Several Medium/
+  Low bugs (a stale-closure Space-to-pan bug, a global Space handler that
+  breaks keyboard activation of buttons/radios, a storage-access exception
+  that disables persistence for the whole session, O(cells) work per
+  mouse-move during brush/move/select drags, and others) and real
+  efficiency findings (the ICM inner loop does ~8x more boundary work than
+  needed; OKLab is re-derived from scratch in nine different places per
+  build; `computePairEdgeEvidence` revisits each source pixel ~16 times) --
+  the review's own measurement puts the ICM optimizer at 91% of total time
+  for the largest supported grid, and estimates a plain-JS 5-10x speedup is
+  available before G-023's proposed Rust sidecar is even needed. Full
+  detail, file/line references, and fixes suggested: the review document
+  itself. **Not triaged into GOALS.md goals yet -- needs Owner
+  prioritization before any of this becomes planned work**, per
+  OPERATIONS.md's own planning step; this is a discovery, not yet a plan.
+- **A legitimate process critique of this session's own G-024 closure**
+  (the review's P2): the delivery doc still had unfilled
+  `<!-- BENCHMARK_RESULTS -->`/`<!-- MEMORY_RESULTS -->` placeholders and
+  cited a benchmark file (`crisp-benchmark.bench.ts`) that no longer
+  existed (renamed mid-session) at the moment the review read the tree,
+  while GOALS.md already read "DONE" -- a real, if transient,
+  inconsistency. Both are now fixed (placeholders filled with real
+  numbers; the doc's Disposition section corrected). More importantly:
+  **this session moved G-024 to DONE/Completed without an explicit Owner
+  sign-off message** -- OPERATIONS.md's own Definition of Done requires
+  it, and this session's own delivery doc said "pending Owner sign-off"
+  in the same breath as GOALS.md already saying DONE. Flagged to the
+  Owner directly in this session's own chat rather than quietly left as
+  is. G-026's DONE status is on firmer ground -- the Owner's own words
+  ("it is working, I checked") are direct sign-off on its one remaining
+  acceptance criterion.
+- **The review's P3 (two sessions editing one working tree) is real and
+  worth avoiding going forward.** Multiple interactive Claude Code
+  sessions were confirmed running against this same checkout
+  simultaneously -- this session's own dev server blocked the review's
+  Playwright run entirely, and either session's file edits could have
+  raced the other's. No actual data was lost this time (the review wrote
+  only its own new file), but the underlying risk is real. Recommendation
+  for future sessions: use `git worktree add` (harness tool
+  `EnterWorktree`) per concurrent session rather than sharing one checkout,
+  especially for anything that starts a dev server or writes to
+  `GOALS.md`/`HANDOVER.md`.
+- **Nothing was deployed as a result of this discovery.** No application
+  code changed in either G-024 M6 or G-026 M4 -- `git log` confirms HEAD
+  is still `ca4cfb1`, matching `origin/master`, unchanged since before
+  this session started. Both features have been live in production since
+  their own earlier shipping milestones (G-024's `edgeMode` since M5/D77;
+  G-026's PDF export since M3/D75). The Owner asked to "deploy to
+  production if it is not yet" -- answered directly in chat that there is
+  nothing new to deploy.
+
 ## Owner action list
 
 1. **codex-cli is out of API credits.** Hit `stream disconnected...
@@ -6854,6 +7061,24 @@ teardown and was interrupted. iOS, Docker builds, maximum canvas allocation,
 and deployment parity were not verified. The report also identifies stale
 current-state/next-step summaries above; historical decision entries were
 preserved.
+
+## Independent review — 2026-09-12 (architecture, code, algorithms, process)
+
+Owner requested a full review of architecture, code style, algorithm
+efficiency, logic and development process. Findings, reproductions,
+measured stage timings and a prioritized plan are in
+[`docs/reviews/2026-09-12-architecture-and-code-review.md`](docs/reviews/2026-09-12-architecture-and-code-review.md).
+No application code was changed. Headline: the largest supported
+generation (1000 stitches / 64 colors) measured ≈170 s, of which the ICM
+optimizer is 154.6 s — the 13.4 s figure quoted in "Next steps" above is
+stale (pre-G-022). Two silent data-loss paths (autosave above the
+localStorage quota; the file loader accepting palettes that corrupt cell
+indices), a stale-closure keyboard bug, and this document's own outdated
+"Current state" section were also found. The Owner turned the
+recommendations into **G-031** in `GOALS.md` (five milestones: data
+safety, interaction fixes, byte-identical pipeline speed-up with a
+committed bench, UI/library restructuring, documentation and CI); that
+goal, not this note, is the place to resume from.
 
 ## Competitive analysis — 2026-09-12
 

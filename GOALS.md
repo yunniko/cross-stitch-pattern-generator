@@ -11,7 +11,671 @@ svc-lab).
 
 ## Active goals
 
-### G-024 · Crisp edges mode (preserve hard color boundaries instead of averaging them) — ACTIVE (2026-09-11)
+### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT, possibly relevant to G-030 (2026-09-12)
+- **Not superseded -- correcting an earlier overreach.** An earlier pass
+  at this file marked this goal "superseded by G-030" on the assumption
+  that G-030 would definitely move the entire generation pipeline server-
+  side. G-030 has since been pulled back to a vague, far-future "social
+  ecosystem" placeholder with no defined architecture yet (see its own
+  entry) -- it's no longer safe to assume this goal is subsumed by
+  anything. Left as its own independent DRAFT/backlog item, exactly as
+  the Owner originally parked it ("maybe one day"). If G-030 eventually
+  does involve server-side generation, this goal's own engineering
+  guidance (versioned binary payload, Route Handler not Server Action,
+  bounded worker pool, internal-network-only container, observability)
+  and its Codex-critique findings (the candidate-set reduction is real
+  and language-agnostic regardless of where it runs) are directly
+  reusable -- but that's a "when we get there" note, not a decided plan.
+- **What:** Move the compute-heavy stage
+  of the pattern pipeline (k-means
+  in OKLab + the ICM/Potts local optimizer, `lib/quantize.ts` +
+  `lib/local-optimizer.ts`) out of the browser and into a separate Rust
+  HTTP service (Axum + `rayon`), called server-to-server from Next.js.
+  Backlog item -- Owner explicitly parked this as "maybe one day," not
+  scheduled. Do not start without an explicit Owner go-ahead.
+- **Why:** The pipeline's worst-case latency is real (HANDOVER.md
+  performance history, though the figures disagree with each other --
+  ~13.4s, ~22s, and 9.5s recorded at different sizes/settings, meaning
+  there's no solid current baseline yet). Originally scoped as "turn the
+  app into a desktop app," narrowed across the conversation to "keep it a
+  website, move the heavy compute server-side, use Rust" once the Owner
+  confirmed browser-only processing isn't a hard requirement.
+- **Acceptance criteria:** Not yet set for the full migration -- per the
+  critique exchange below, M1's own acceptance criteria (a defined
+  latency target) must exist before M2+ are even attempted, since
+  whether this goal is needed at all depends on M1's result.
+- **Constraints:** Sequencing is load-bearing, not optional -- see the
+  critique exchange below. Do not jump straight to M3 (building the
+  service) without M1 (and, if M1 misses target, M2) first. If Rust is
+  ultimately adopted, the TS implementation becomes a frozen migration
+  oracle, not a second permanently-maintained implementation.
+
+**Codex critique exchange (2026-09-11, `codex-rescue`, read-only/
+diagnosis-only, no files changed)** -- put the originally-proposed
+architecture (sidecar Rust service, only the downsampled color grid sent
+to the server, `rayon` for parallelism) to Codex for a real critique per
+STANDARDS.md's "important decision" protocol, not a rubber-stamp
+second opinion. Its findings, verified rather than taken on faith:
+- **The 13.4s baseline is stale and internally inconsistent** with later
+  HANDOVER.md entries (~22s at the same 1000-stitch/64-color case, 9.5s
+  at 300-stitch/24-color) -- no real current baseline exists yet.
+- **The "just a small abstracted grid, not the photo" framing was
+  wrong.** `longerSideStitches` sets the *longer* dimension, so a
+  1000-stitch pattern is up to ~667,000 cells, not ~1,000. The optimizer
+  also needs the Sobel-derived importance map and directional pair-
+  evidence computed from the *original* image, not just downsampled
+  color -- recomputing them server-side from the grid alone would be an
+  algorithm change, not a faithful port. Total payload at typical max
+  settings: ~15-23MB, and a downsampled RGB grid at that resolution is
+  itself a reconstructible low-resolution image. Corrected framing: the
+  server receives "a reduced-resolution image and derived features," not
+  an anonymized abstraction -- the README/HANDOVER's current "your photo
+  never leaves your browser" claim would need updating if this is built.
+- **A genuine, independently-verified algorithmic finding, language-
+  agnostic:** the current energy function's Potts-style boundary term
+  (`lib/energy.ts`) means only a cell's unary-best color plus its
+  neighbors' current labels can ever be the ICM optimum -- any candidate
+  matching none of the neighbors is provably dominated (re-derived and
+  confirmed correct, not taken on faith). Cuts the per-cell candidate
+  scan from up to 100 to ~9, in whichever language this runs. Worth
+  doing regardless of the Rust/sidecar question.
+- **Naive per-cell `rayon` parallelism would silently change ICM's
+  result** (it updates assignments in scan order within a pass; later
+  cells see earlier updates from the same pass). A four-color
+  checkerboard scheduling scheme (partitioning on `(x mod 2, y mod 2)`)
+  is the correct way to parallelize this specific 8-neighbor stencil
+  without changing which local optimum it converges to -- flagged as a
+  later optimization, not part of an initial port.
+- **Two evolving implementations of the same algorithm is a real risk.**
+  If Rust is adopted, it should become the authoritative implementation;
+  TS gets frozen as a migration oracle (compared against identical
+  serialized inputs/intermediate outputs, not just the existing
+  regression suite, which checks diagnostic tolerance bands rather than
+  exact port equivalence) and eventually retired from production use,
+  not maintained indefinitely alongside Rust.
+- **Concrete service-engineering guidance for if/when M3 happens:**
+  versioned binary payload (not JSON) with protocol/algorithm versions
+  separated; an explicit Next.js Route Handler rather than a Server
+  Action (whose default body-size limit is smaller than even the
+  RGB-only portion of this payload); CPU work kept off Axum/Tokio's
+  async executor via a bounded worker pool, not unrestricted
+  `spawn_blocking`; one end-to-end deadline with cooperative cancellation
+  checkpoints in the kernel; a bounded admission queue that fails fast
+  under overload; the Rust container reachable only over the internal
+  Docker network, never a published host port (consistent with
+  `INFRASTRUCTURE.md`'s existing safety invariant); and real
+  observability (per-stage timings, queue time, algorithm version,
+  cancellation/failure counts, no logging of image buffers/derived
+  feature arrays).
+- **Overall verdict: the bottleneck is real and worth investigating, but
+  doesn't yet justify the full Rust sidecar architecture** -- the
+  smallest responsible first step is a current baseline plus an
+  equivalence-tested optimization spike in TypeScript, deciding on real
+  numbers whether Rust is even needed. No rebuttal was raised against
+  this critique -- its central technical claim was independently
+  re-derived and confirmed correct, and its corrections (stale baseline,
+  payload/privacy framing) were factual, not matters of judgment to
+  contest.
+
+**Milestones** (M2-M4 conditional -- do not start until the prior
+milestone's own result justifies continuing):
+- [ ] M1 — Re-establish a real current baseline (both generation modes,
+  several sizes, the historical worst case) since existing numbers
+  disagree with each other; set a concrete user-facing latency target
+  before judging anything against it. Implement the candidate-set
+  reduction (neighbor labels + unary-best color only, ~9 candidates
+  instead of up to 100) and the identified loop waste (rebuilt neighbor
+  objects, repeated fixed edge calculations per candidate, recomputed
+  color distances across passes) in TypeScript. Validate against the
+  existing regression suite plus real rendered-pattern spot checks (the
+  suite alone checks tolerance bands, not exact preservation).
+- [ ] M2 (only if M1 misses the latency target) — Port just the
+  optimizer/quantization kernel to a standalone Rust library with a
+  benchmark harness (no service yet). Compare single-threaded native and
+  single-threaded WASM against the identical frozen TS revision on
+  identical inputs before deciding anything about parallelism or
+  deployment shape.
+- [ ] M3 (only if M2's numbers justify a production build) — Build the
+  Axum sidecar per the engineering guidance above; Rust becomes
+  authoritative, TS frozen as oracle. Deploy per
+  `COMPANY/INFRASTRUCTURE_DEPLOY.md` conventions (internal-network-only,
+  no published host port).
+- [ ] M4 — Side-by-side validation against real patterns, a domain-expert
+  re-review of any numerically-changed behavior, corrected privacy
+  framing in README/HANDOVER, then retire the TS engine to oracle-only
+  status.
+
+**Progress log** (newest first):
+- 2026-09-11 — Goal created as backlog/DRAFT per Owner request ("write it
+  as a backlog goal (maybe one day)") after a full architecture
+  discussion (desktop app -> server-side -> Rust sidecar) and a real
+  Codex critique exchange (see above). Not started; no Owner go-ahead to
+  begin M1.
+
+### G-028 · Import and export the OXS (Open Cross Stitch) interchange format — DRAFT (2026-09-12)
+- **What:** Read and write `.oxs` files -- the open, XML-based chart
+  interchange format (developed by Ursa Software, used by PCStitch,
+  WinStitch/MacStitch, KXStitch, FlossCross, Xstitchify, and others) --
+  so a pattern can move between this app and any of those programs.
+  Export produces a valid `.oxs` from the current `StitchPattern`; import
+  reads a real `.oxs` file (from any of the programs above, not just
+  self-round-tripped files) into a working `StitchPattern`.
+- **Why:** Directly follows a gap identified in the 2026-09-12 competitive
+  analysis (`docs/reviews/2026-09-12-competitive-analysis.md`, Part 3
+  item 5): several real competitors (Xstitchify, FlossCross) export
+  `.oxs` specifically so a pattern isn't locked to one program; we
+  currently only interchange via our own `.cspzip`/JSON, which nothing
+  else can read. This is a genuine interoperability feature, not
+  cosmetic -- it lets a pattern made here be finished/tracked in
+  whatever desktop software the Owner or another user already uses.
+- **Format grounding (verified before planning, not assumed):** Primary
+  source is Ursa Software's own spec page
+  (https://www.ursasoftware.com/OXSFormat/, retrieved 2026-09-12),
+  cross-checked against a real, independently-hosted `.oxs` file
+  (`Mickey1992/stitch-pdf2oxs`'s `test.oxs` on GitHub, retrieved
+  2026-09-12) and a real generator script (a public gist producing the
+  exact same file FlossCross itself ships). All three agree: root
+  `<chart>` element containing `<properties>` (size, title, author,
+  `stitchesperinch`/`stitchesperinch_y`), `<palette>` of `<palette_item
+  index number name color strands symbol .../>` (color = 6-hex RRGGBB,
+  no `#`; `number` is typically `"DMC ####"` but any brand/free text is
+  valid), `<fullstitches>` of `<stitch x y palindex marked/>`,
+  `<partstitches>` (half/quarter stitches, two palette indices +
+  direction), `<backstitches>` (line segments `x1 y1 x2 y2 palindex`),
+  `<ornaments_inc_knots_and_beads>` (French knots/beads/buttons/etc.),
+  and `<commentboxes>` -- the last four are "mandatory even if empty"
+  per the spec's own wording. **Only `.oxs` is in scope** -- PCStitch's
+  own `.pat`/`.xsd` formats are a different, proprietary, far-less-
+  documented format family (some possibly binary) and are explicitly
+  out of scope for this goal.
+- **Acceptance criteria:**
+  1. `buildPatternKeeperPdf`-style pure module producing a spec-valid
+     `.oxs` from any `StitchPattern` (DMC-mode or full-range), verified
+     both by self-round-trip (our own parser reads back what our own
+     writer wrote, losslessly for grid+palette) and by actually opening
+     the exported file in at least one independent real OXS consumer
+     (candidate: stitchmate.app's free "Open OXS files online" tool, or
+     a desktop program if the Owner has one) -- not just eyeballing the
+     XML, matching this project's own standing "verify against the real
+     thing" bar (see G-026 M4).
+  2. Import reads a real `.oxs` file (self-authored small synthetic
+     fixtures for automated tests -- see licensing note below -- plus at
+     least one real-world-shaped sample for manual verification) into a
+     `StitchPattern`: grid dimensions, per-cell colors, and palette
+     (with DMC auto-detection when `number` parses as a real DMC code
+     matching our own `DMC_COLORS` table) all correct.
+  3. Content the app cannot represent (backstitch, French knots,
+     beads/buttons/sequins, comment boxes) is **never silently dropped**
+     -- import surfaces an honest, specific summary of what wasn't
+     carried over (counts per category), per VALUES.md Honesty ("never
+     smoothed over to look like success"). Half/quarter partstitches are
+     approximated as a full stitch of their primary color (documented as
+     an approximation, not silently treated as exact).
+  4. Existing export/import paths (PNG, A4, Pattern Keeper PDF, `.cspzip`,
+     editable JSON) are unaffected -- this is additive. OXS export is
+     folded into the "Export all" `.cspzip` bundle alongside the other
+     formats, consistent with G-027's own "every export format" intent.
+  5. Full regression suite green, real deploy, following this project's
+     standing practice of shipping real shippable behavior mid-goal
+     rather than batching it all to the end.
+- **Constraints / deliberate scope decisions (flagged for Owner review
+  at plan approval, not assumed unilaterally):**
+  - **Open question -- needs an Owner answer before M2 (not before M1):**
+    real OXS files can carry far more than our `MAX_COLORS = 100` cap
+    (the verified real sample above has 237 colors). Proposed default:
+    **reject import with a clear, honest error naming the file's actual
+    color count and our cap**, rather than building a lossy palette-
+    reduction algorithm on import (a much larger, separate feature this
+    goal's brief didn't ask for). If the Owner wants auto-reduction
+    instead, that changes M2's scope materially -- say so before M2
+    starts.
+  - Never commit a real third-party designer's `.oxs` file as a test
+    fixture (the verified sample above is a copyrighted commercial
+    pattern, "Aimee Stewart 2015 ") -- automated-test fixtures are
+    self-authored synthetic files only (STANDARDS.md "Integrity of
+    work"); any real-world sample used for manual verification stays
+    local, never committed.
+  - Anchor/Madeira/other-brand `number` values on import are treated as
+    plain custom colors (hex + free-text name), not converted to DMC --
+    we have no Anchor color table, and building one is a separate
+    concern (already logged as its own competitive-analysis gap, not
+    folded into this goal).
+  - Symbol values on import are ignored in favor of our own auto-
+    assignment (`lib/symbols.ts`) -- an incoming numeric/font-specific
+    symbol code means nothing without the source program's own symbol
+    font, so reinterpreting it would be guesswork, not a real mapping.
+    Symbols on export carry our real Unicode symbol character in the
+    `symbol` attribute (best-effort; other programs' own fonts may not
+    render the same glyph -- an industry-wide OXS limitation, not one of
+    ours, per the spec's live-and-let-live design for exactly this).
+  - `stitchesperinch`/`stitchesperinch_y` maps to our existing
+    `aidaCount` field; if the two differ (non-square weave) on import,
+    use `stitchesperinch` and note the mismatch rather than averaging or
+    guessing.
+  - No domain-expert review needed (this is a file-interoperability/
+    software-engineering concern, not a physical/chemical/craft-science
+    one per STANDARDS.md's own scoping for that step).
+  - Per this project's standing practice for consequential design
+    decisions, M1's actual parser/serializer design goes through a real
+    Codex critique exchange before being written, not just this plan.
+
+**Milestones:**
+- [ ] M1 -- Pure module (`lib/oxs.ts` or similar): parse real OXS XML
+  (via `DOMParser`, main-thread-only like `pattern-import.ts` already
+  is -- not the generation Web Worker) into an intermediate structure,
+  and serialize a `StitchPattern` into spec-valid OXS XML (proper XML-
+  escaping for name/author/title text). Self-authored synthetic
+  fixtures only (see licensing constraint). Design sent through a real
+  Codex critique exchange first, per standing practice. Unit-tested.
+- [ ] M2 -- Import integration: wire into `lib/pattern-import.ts` /
+  `loadPatternFromFile`'s existing content-sniffing flow (extend past
+  ZIP/JSON to also recognize OXS XML), palette mapping (DMC auto-
+  detection, EMPTY_CELL for any cell absent from `<fullstitches>`),
+  partstitch approximation, and the honest drop/approximation-summary
+  UI surface. **Blocked on the Owner's color-cap-behavior answer above
+  before this milestone starts.**
+- [ ] M3 -- Export integration: new `ExportKind` ("oxs") in
+  `app/workspace.tsx`'s export dropdown (top-level, alongside
+  "editable" -- it's a data format, not a color/bw render variant), plus
+  folded into `lib/export-all.ts`'s `.cspzip` bundle.
+- [ ] M4 -- Real-world verification: export a generated pattern's
+  `.oxs` and open it in a real independent OXS consumer to confirm
+  correct reading; import a real-world-shaped sample and confirm
+  grid/colors/drop-summary are all correct. Full regression suite,
+  commit, deploy.
+
+**Progress log** (newest first):
+- 2026-09-12 -- Goal drafted from the 2026-09-12 competitive-analysis
+  review's Part 3 gap #5. Format verified against three independent
+  sources (Ursa's own spec, a real hosted sample file, a real generator
+  script) before writing any acceptance criteria, per this project's
+  own standing practice of reproducing/verifying before planning
+  against a claim. One open question flagged for the Owner (color-count-
+  over-100 handling) rather than assumed. Not yet promoted to ACTIVE --
+  awaiting Owner review of this plan.
+
+### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
+- **What:** Eventually make the app public, built around **a social
+  ecosystem** (community/sharing features -- exact shape not yet defined:
+  could include public pattern galleries, profiles, following, comments,
+  or similar) rather than a plain paywall-on-exports model. Owner
+  explicitly corrected an earlier draft of this goal that jumped straight
+  to a detailed "server-side generation + paid export tiers" plan --
+  **that plan is withdrawn**, not just superseded; the real direction is
+  the social ecosystem, and "other details will be defined later"
+  (Owner's own words, 2026-09-12).
+- **Why:** Owner is exploring making the app public and building a
+  business around it, but this is explicitly **a plan for very later**,
+  not something to scope or sequence now.
+- **Status:** Intentionally not planned in detail -- no acceptance
+  criteria, no milestones, per the Owner's own "very later, details
+  defined later" framing. This entry exists so the intent isn't lost
+  between sessions, not to commit to any architecture yet. Do not expand
+  this into a full plan without an explicit Owner go-ahead to start
+  planning it for real.
+- **One durable technical fact worth keeping regardless of eventual
+  shape** (verified while a fuller version of this goal was briefly
+  drafted, then withdrawn): `buildPattern` (`lib/pattern.ts`) and
+  everything it calls already take/return plain typed-array buffers with
+  zero DOM dependency (`lib/pattern.worker.ts` is just a thin
+  `postMessage` shim around it) -- so if a future version of this goal
+  ever does need server-side generation, the existing TypeScript pipeline
+  can run in a Node server context unmodified, without needing G-023's
+  Rust work first. Not a decision, just a fact worth not re-deriving
+  later.
+
+### G-031 · Act on the 2026-09-12 architecture/code/process review — ACTIVE (2026-09-12)
+- **What:** Fix every confirmed bug, take the measured pipeline
+  speed-ups, restructure the UI/library, and repair the documentation
+  and process gaps found by the independent review in
+  [`docs/reviews/2026-09-12-architecture-and-code-review.md`](docs/reviews/2026-09-12-architecture-and-code-review.md)
+  (the review's finding IDs — B1–B9, E1–E7, A1–A7, S1–S5, P1–P6 — are
+  used below; read that document in full before starting; it carries
+  the line references, the reproduction probes and the measured
+  numbers, none of which are repeated here).
+- **Why:** The review found (a) two silent data-loss paths reachable by
+  an ordinary user (autosave dies above the localStorage quota; the
+  file loader accepts palettes that corrupt cell indices), (b) the
+  largest supported generation takes ~170 s, not the 13.4 s the
+  handover claims, with ~91 % of that in avoidable ICM work, (c) a
+  2,384-line UI component whose hand-pruned effect dependencies are
+  already producing bugs, and (d) a 7,000-line handover whose "current
+  state" is wrong — the same defect the 2026-09-09 review flagged.
+  Fixing these now is cheaper than carrying them under G-023/G-028/
+  G-030, and M3 decides whether G-023 (Rust sidecar) is needed at all.
+- **Acceptance criteria:**
+  1. Bugs B1–B7 fixed with a unit or e2e test each that fails on the
+     pre-fix code; B8–B9 fixed or explicitly declined with a logged
+     reason.
+  2. `buildPattern` at 1500×1000 source → 1000 stitches / 64 colors
+     (Standard, Latest, Full range) completes in **under 30 s** on the
+     Owner's machine via a committed `npm run bench`, and Standard-mode
+     output is **byte-identical** to the pre-M3 pipeline on every
+     existing golden/regression fixture (the existing `regression.spec.ts`,
+     `shape-regression.spec.ts`, `pattern.spec.ts` and `pattern-crisp.spec.ts`
+     suites pass unmodified; add an explicit old-vs-new equivalence test
+     for the ICM rewrite).
+  3. `app/workspace.tsx` under 600 lines, no
+     `eslint-disable-next-line react-hooks/exhaustive-deps` left in
+     `app/`; `lib/` grouped into subfolders; no module in `lib/` that is
+     imported only by tests (moved to `lib/experimental/` with a status
+     note, or deleted).
+  4. Comment-line share under 30 % in every `lib/` file; no comment
+     that says "not wired in yet" about something that is wired in; no
+     reference to `app/page.tsx`.
+  5. `HANDOVER.md` "Current state" / "How things fit together" / "Next
+     steps" rewritten accurately in under 300 lines with a
+     "last verified" date; decision record moved to `docs/decisions/`
+     (one file per decision, append-only); completed goals moved to
+     `docs/goals-archive.md`; `.dockerignore` present; a CI workflow
+     runs lint, `tsc`, unit and e2e on push; e2e coverage exists for
+     each palette mode (DMC, Cosmo, Anchor) and for Crisp.
+  6. Every milestone verified by running (tests, bench, browser), not by
+     reading; results logged with numbers in the progress log.
+- **Constraints:**
+  - **One session per worktree.** The review found two sessions editing
+    this checkout at once (files renamed mid-review; Playwright unable
+    to start because another `next dev` held the directory). Before
+    starting any milestone: `git status` must be clean or every dirty
+    file must be yours; if not, stop and log `BLOCKED:`. Use
+    `git worktree add` if another session is active.
+  - No goal or milestone may be reported complete while its files are
+    uncommitted or a deliverable contains placeholder markers (the
+    G-024 delivery doc's empty `<!-- BENCHMARK_RESULTS -->` sections are
+    the precedent to avoid — fill them in M3 from the new bench).
+  - Standard-mode generation output must not change in M3. Any measured
+    quality change is a bug, not a trade-off, for this goal.
+  - Codex critique exchange (STANDARDS.md) for the M3 ICM redesign and
+    the M4 component split, if the plugin is working; otherwise note it
+    and proceed.
+  - No new runtime dependencies without logging why. IndexedDB access
+    is a small hand-written wrapper, not a library, unless one is
+    already in the portfolio.
+  - Standard OPERATIONS.md check-in at every milestone boundary; M1 and
+    M2 may be presented together at one check-in since both are small.
+
+**Milestones:**
+- [ ] **M1 — Data safety (B1, B2, B3, B6).** Move the autosaved project
+      to IndexedDB via a small async wrapper (`lib/editor/project-store.ts`),
+      store `cellPalette` as base64, store the source photo once keyed by
+      a content hash (one entry shared by autosave and undo snapshots),
+      debounce saves (~500 ms), keep `localStorage` only for
+      `WorkspaceOptions`, and surface a visible "autosave unavailable"
+      state on write failure. Wrap the remaining unguarded
+      `localStorage.getItem`. In `deserializePattern`: reject
+      `palette.length > MAX_COLORS`, validate each entry (`rgb` = three
+      integers 0–255, `symbol` non-empty string, `name` string, symbols
+      unique), and add a fuzz test (seeded, ~200 mutated files) proving
+      it either returns a valid pattern or throws — never a pattern that
+      later crashes render. Deliverable: tests + a manual check that a
+      pattern generated from a >4 MB photo survives a reload.
+- [ ] **M2 — Interaction correctness (B4, B5, B7, B8).** Extract the
+      keyboard shortcuts into `useKeyboardShortcuts` reading live state
+      through refs (no stale `selection`/`pattern`); claim Space only
+      when focus is on `body` or the canvas scroller; add Ctrl+Shift+Z
+      → redo. Make brush/move/select drags incremental: one working
+      `Uint8Array` per gesture, draw only changed cells during the
+      gesture, build the pattern and recount once on pointer-up. Add a
+      Playwright test that paints a 50-cell stroke on a 1000-stitch
+      pattern and asserts the gesture completes within a bounded time,
+      and e2e tests for Space-while-selecting and Space-on-focused-button.
+- [ ] **M3 — Pipeline performance (E1–E7, A3), byte-identical.**
+      (1) Commit `scripts/bench.mjs` + `npm run bench` (the review's
+      ad-hoc stage timer, ~40 lines: per-stage ms at 300/24 and 1000/64)
+      and record the baseline. (2) Introduce a `PipelineContext`
+      (`cells`, `cellOklab: Float32Array(3n)`, `importance`,
+      `pairEvidence`, `evidenceLayer`, `width`, `height`) built once in
+      `buildPattern` and passed to every stage; delete the nine per-stage
+      `rgbToOklab(cellRgb(...))` loops and the `Array<Oklab>` tuples.
+      (3) Rewrite the ICM loop: precompute `w·q(edge)` per directed pair
+      once per call into a `Float32Array(8n)`, score labels as
+      `color·d(c) + T − S[c]`, replace the per-cell `neighbors` object
+      array with index/weight typed arrays; keep the crisp admissible-
+      label branch and its tie-break rule intact. (4) Replace the
+      per-window derivative scan in `computePairEdgeEvidence` with
+      per-pixel structure-tensor terms + summed-area tables. (5)
+      Histogram percentile in `computeEdgeMagnitude`; per-color partial
+      ranking in `nameColors`; reuse the worker between jobs. (6) Only
+      if still needed for the <30 s target: sampled/mini-batch Lloyd for
+      grids above ~200k cells with one full assignment pass. Gate:
+      existing regression suites unmodified and green, plus a new
+      equivalence test that runs the pre-M3 `runLocalOptimizer` (kept
+      temporarily as a test-only reference) and the new one on the
+      golden fixtures and asserts identical output. Then fill the
+      G-024 delivery doc's benchmark placeholders from the new bench,
+      update G-023's entry with the measured result and a
+      recommendation (proceed / not needed).
+- [ ] **M4 — Structure (A1, A2, A4, A5, S1–S3).** Split
+      `app/workspace.tsx` into hooks (`useWorkspaceOptions`, `usePanZoom`,
+      `useBrushTool`, `useSelectTool`, `useMoveTool`,
+      `useKeyboardShortcuts` from M2, `useExports`) and components
+      (`TopBar`, `OptionsPanel`, `ResizePanel`, `ToolsDock`, `ImageWindow`,
+      `ProcessingParams`, `ColorsDock`, `BrandColorPicker`, `PillButton`,
+      `SegmentedControl`). Regroup `lib/` into `pipeline/`, `crisp/`,
+      `threads/`, `export/`, `editor/`, `color/`; move
+      `simulated-annealing`, `boundary-chains`, `contour-refinement`,
+      `diagnostics` to `lib/experimental/` (or delete) with a status
+      note. Replace the hand-synced `threadBrand`/`edgeMode` unions with
+      type-only imports. Rename `*Dmc*` identifiers that handle any brand.
+      Trim comments to invariant + one-line reason + `See Dxx` pointer;
+      delete every stale "not wired in yet" and `app/page.tsx` reference.
+      Gate: all tests green, `tsc`/eslint clean, every e2e test passes
+      unchanged (the split must not change behavior or accessible names).
+- [ ] **M5 — Documentation and process (P1–P5, A7).** Rewrite the three
+      HANDOVER summary sections (accurate, <300 lines, "last verified"
+      date); move D1–D95 to `docs/decisions/Dxx-<slug>.md` with an index;
+      move completed goals to `docs/goals-archive.md`; add a one-line
+      deploy-log table replacing narrative deploy entries going forward.
+      Add `.dockerignore` (`node_modules`, `.next`, `.git`,
+      `test-results`, `playwright-report`, `docs/reviews/*assets*`).
+      Add `.github/workflows/ci.yml` (lint, `tsc --noEmit`, `vitest run`,
+      Playwright against `next build && next start`, Node 22). Change
+      `playwright.config.ts` to run against a production build on its own
+      port so a running dev server never blocks it. Add e2e tests for
+      DMC, Cosmo, Anchor and Crisp generation (legend naming, no console
+      errors). Follow the handover format now in `COMPANY/STANDARDS.md`
+      → Documentation (300-line snapshot with a `Last verified` line,
+      one `docs/decisions/Dnnn-<slug>.md` per existing `Dnn` entry using
+      the template, deploy-log table, `docs/goals-archive.md`) and
+      finish with `node E:\CLAUDE\COMPANY\scripts\docs-lint.mjs .`
+      passing (it currently reports the 7,138-line handover, the missing
+      `Last verified` line, and a stale reference to
+      `tests/e2e/pattern-editor.spec.ts`). The "no DONE with a dirty
+      tree or placeholders" and "one session per worktree" rules are now
+      company-wide (`COMPANY/OPERATIONS.md` §3/§5); list them under the
+      handover's "Rules in force".
+
+**Progress log** (newest first):
+- 2026-09-12 — Goal created from the review's "Prioritized
+  recommendations" section at the Owner's instruction ("make a plan
+  according to your recommendations and put it into a new goal for other
+  agent execution"). Review verification state at creation: tsc/eslint
+  clean, 587/587 unit tests, e2e not runnable (another session's dev
+  server held the directory), measured 1000-stitch/64-color generation
+  ≈170 s (ICM 154.6 s). Working tree was dirty with another session's
+  uncommitted G-024 M6 work at creation time — the executing agent must
+  resolve that (commit or worktree) before M1, per the constraints above.
+
+## Completed goals
+
+### G-026 · Additional export option: Pattern Keeper-compatible PDF — DONE (2026-09-12)
+- **What:** A new export option, additive to the existing "Export as A4
+  pages" ZIP (PNG-per-page), that produces a single PDF chart readable by
+  the Pattern Keeper app (a cross-stitch progress-tracking app the Owner
+  uses) -- real embedded-font vector text per stitch symbol in a precise
+  grid, not a rasterized image, plus a real-text thread legend.
+- **Why:** Researched Pattern Keeper's actual import requirements
+  (2026-09-11 session; sources below) because the Owner currently
+  composes pattern files by hand in Affinity Designer to get them into
+  Pattern Keeper. Two findings drive this goal:
+  1. **Pattern Keeper doesn't take a plain "text grid" file** -- it
+     imports PDF and overlays a detected grid on it, then reads whatever
+     is under that grid. For a chart to be correctly read (not just
+     visually present), the symbols must be real, embedded, standard-
+     encoded vector text in a consistent row/column grid -- Pattern
+     Keeper's own help page states plainly that a chart built without
+     proper encodings "will not be searchable in Pattern Keeper." The
+     app's existing A4 export is 100% raster PNG (`a4-export.ts`), the
+     opposite of what's needed -- it would only be importable via Pattern
+     Keeper's lesser photo/paper-chart path, losing symbol search and
+     auto legend-parsing.
+  2. **Hand-composing this in Affinity Designer is fragile at real
+     pattern sizes** and has two silent failure modes: converting symbol
+     text to curves, or a PDF export setting that rasterizes/doesn't
+     embed the font -- either one destroys the character encoding Pattern
+     Keeper needs, with no visual difference on screen. Since the app
+     already holds the pattern as structured grid/symbol/color data (not
+     pixels), generating the PDF directly from that data avoids both
+     failure modes and guarantees pixel-exact grid-cell alignment that's
+     impractical to hand-place at thousands of cells.
+  Good news found during research: `lib/symbols.ts`'s existing symbol set
+  is already standard Unicode codepoints from common blocks (Latin-1,
+  Geometric Shapes, Arrows, Dingbats) -- exactly what Pattern Keeper
+  wants, not a custom remapped dingbat font. No symbol-set change needed.
+- **Acceptance criteria:**
+  - A new export option produces one PDF (not a ZIP) with the stitch
+    grid rendered as real, individually selectable vector text per cell
+    (verified with the "select a symbol as text in a standard PDF
+    viewer" test Pattern Keeper's own community recommends), using the
+    existing symbol set and an embedded font that covers it, paginated
+    consistently with the existing A4 grid layout (same page-to-page
+    row/column size consistency Pattern Keeper's grid-detection
+    requires).
+  - The legend (thread code/name/symbol/stitch count) is real text, not
+    an image, on the same or an adjacent page.
+  - The existing PNG/ZIP export keeps working unmodified -- this is
+    additive, not a replacement.
+  - **A real sample pattern is actually test-imported into Pattern
+    Keeper** (not just self-checked against the "select as text" test)
+    before this goal is called done -- everything known about Pattern
+    Keeper's requirements so far comes from its own help pages and
+    third-party summaries, not from testing against the real app, and
+    the goal shouldn't be marked complete on unverified assumptions
+    about how it behaves.
+- **Constraints:** Pick one embedded TTF/OTF font covering every Unicode
+  block the existing symbol set uses, with a checkable open license
+  (STANDARDS.md "Integrity of work" -- record provenance/license the same
+  way `docs/dmc-colors-provenance.md` did for the DMC dataset). No
+  Pattern Keeper account/paid tier assumed beyond whatever access the
+  Owner already has for M4's real-import test.
+- **Sources** (retrieved 2026-09-11, full detail in this goal's creating
+  conversation): patternkeeper.app's own `/help/inputting-grids/`,
+  `/help/importing-a-chart/`, `/help/exporting-charts-from-pcstitch/`,
+  `/help/exporting-charts-from-winstitch-macstitch/`; stitchmate.app's
+  cross-stitch-pattern-PDF-quality guide (summarized via search only --
+  direct fetch returned HTTP 403).
+
+**Milestones:**
+- [x] M1 — Spike: choose and license-check a Unicode font covering the
+  full existing symbol set (Latin-1 Supplement, Geometric Shapes, Arrows,
+  Miscellaneous Symbols, Dingbats blocks); prototype a minimal single-page
+  PDF (via a PDF library capable of real embedded-font text, e.g.
+  `pdf-lib`) with a handful of real symbols drawn as vector text plus
+  vector gridlines; self-verify the "select as text in a standard PDF
+  viewer" test before building anything further.
+- [x] M2 — Build the real exporter: a new PDF-generation path reusing the
+  existing A4 pagination/layout logic (`lib/a4-layout.ts`) but rendering
+  each page as real vector text + vector gridlines instead of canvas-to-
+  PNG, plus a real-text legend page (reusing the existing extended-legend
+  content: title, details table, color-key table). Unit-tested wherever
+  the logic is pure.
+- [x] M3 — UI wiring: add the new export option in the app alongside the
+  existing "Export as A4 pages" (e.g. "Export as PDF (Pattern Keeper
+  compatible)"). Live-browser verified, including the select-as-text
+  check against every symbol actually used in a real generated pattern
+  (not just M1's handful).
+- [x] M4 — Real-world verification: actually import a real exported
+  sample into Pattern Keeper and confirm grid auto-detection and legend
+  parsing succeed as expected; fix anything the real app reveals that
+  the documentation didn't. Full regression suite, commit, deploy.
+
+**Progress log** (newest first):
+- 2026-09-12 — M4 complete -- **G-026 fully complete, goal DONE.**
+  Unblocked by the Owner, who imported a real exported sample into
+  Pattern Keeper directly and reported back: "it is working, I checked."
+  No code changes needed -- the real-world import behaved as the
+  documentation and M1-M3's own verification predicted. Recorded here
+  exactly as reported rather than assumed in more detail than confirmed:
+  the Owner's own words are the acceptance evidence for this milestone's
+  "actually test-imported into Pattern Keeper" bar, per this goal's own
+  acceptance criteria. (The M1-flagged "µ"-extracts-as-"μ" caveat was not
+  separately confirmed one way or the other -- worth a specific look if
+  a future pattern happens to use that symbol and something looks off in
+  Pattern Keeper, but not treated as a blocker given the Owner's overall
+  "working" report.) Nothing to deploy -- the feature has been live since
+  M3 (HANDOVER.md D75). Full story in HANDOVER.md D97.
+- 2026-09-12 — M3 complete (same standing instruction). Added an
+  "Export PDF (Pattern Keeper)" button to `app/workspace.tsx` alongside
+  the existing "Export ZIP" button, reusing the same Color/B&W/overlap
+  controls. Live-browser verified by hand (generated a pattern, clicked
+  the button, confirmed a real PDF downloaded with no console errors),
+  plus new Playwright e2e coverage that reads the real symbols the app
+  assigned from its own DOM legend (not predicted) and confirms every
+  one is extractable as text in the exported PDF, satisfying the "every
+  symbol actually used" acceptance bar. Full story in HANDOVER.md D75.
+  Verified: full unit/e2e suite green, clean tsc/eslint/build. **This
+  stage changes real shippable behavior, so it was deployed** (see
+  HANDOVER.md's deploy log). Starting M4 next (real Pattern Keeper
+  import verification).
+- 2026-09-12 — M2 complete (same standing instruction). Sent the reuse
+  design (adapt the shipped A4/PNG canvas-drawing functions for PDF via
+  a small "canvas-shim" adapter, vs. a parallel PDF implementation) to
+  Codex before writing code, per this project's own standing practice
+  for important decisions -- Codex agreed with the adapter approach but
+  found and I independently verified three real problems in the initial
+  plan: a pre-existing DPI bug in `lib/a4-render.ts` (every internal
+  `mmToPx()` call silently defaulted to 300 DPI regardless of the
+  layout's actual DPI -- now fixed via a new `A4Layout.dpi` field), a
+  real pdf-lib 1.17.1 bug in `PDFFont.heightAtSize(size,{descender:
+  false})` (confirmed wrong against the project's own bundled font --
+  now avoided entirely in favor of `@pdf-lib/fontkit`'s raw
+  ascent/descent metrics), and a TypeScript structural-typing footgun
+  that would have broken "a real canvas context satisfies the adapter
+  interface for free" (fixed by keeping every interface member typed
+  exactly as the native DOM type). Extracted `lib/render.ts`'s
+  `drawChart`/`drawGridLines` and `lib/a4-render.ts`'s three page
+  renderers into pure draw functions (`drawA4GridPage`/
+  `drawA4LegendPage`/`drawInfoPage1`+`drawInfoContinuationPage`) taking
+  a new `ChartDrawingContext` interface, plus a canvas-allocating thin
+  wrapper preserving every existing function's exact original API --
+  zero changes needed at any real browser call site (interactive
+  editor, on-screen chart, existing PNG/ZIP export), confirmed via the
+  full e2e suite for those paths (12/12 passing, including both A4
+  export modes and live editing). Built `lib/pdf-canvas-adapter.ts`'s
+  `PdfCanvasAdapter` (real vector-text positioning/rotation via actual
+  font metrics, deliberately throws on anything outside the reused
+  functions' actual usage patterns rather than silently mis-rendering)
+  and `lib/pattern-keeper-pdf.ts`'s `buildPatternKeeperPdf` (the real,
+  full multi-page exporter). Deliberately deferred a bold PDF font face
+  and rescaling a few 300-DPI-calibrated pixel constants -- logged as
+  known, minor cosmetic gaps, not functional ones. Full story in
+  HANDOVER.md D74. Verified: 500/500 unit tests passing (53 files, +2
+  new, including a `pdfjs-dist`-based rotation/position probe and a
+  full-pipeline test across all 100 real symbols that also directly
+  regression-guards the DPI bug found above), clean `tsc`/`eslint`/
+  `npm run build`, e2e green for every browser call site this touched.
+  Not deployed (no UI wiring yet, M3). Starting M3 next (UI wiring).
+- 2026-09-12 — M1 complete (Owner: "continue without confirmation...").
+  Chose DejaVu Sans 2.37 (official release), verified programmatically
+  via `fontkit` that it covers all 100 codepoints in the app's real
+  symbol set (zero missing), not assumed from reputation. License
+  (Bitstream Vera) and provenance recorded in
+  `docs/dejavu-font-provenance.md`, font committed to `public/fonts/`.
+  Built `lib/pattern-keeper-pdf.ts` (real vector-text + gridline
+  drawing via `pdf-lib`/`@pdf-lib/fontkit`) and verified the "select as
+  text" requirement programmatically using `pdfjs-dist` (real text
+  extraction, not visual inspection) -- all 100 symbols round-trip as
+  real characters. Found and honestly documented one narrow caveat: "µ"
+  extracts back as "μ" (a well-known, visually-identical Unicode
+  compatibility pair, confirmed to be a `pdfjs-dist` extraction
+  behavior, not a font gap) -- flagged for M4's real Pattern Keeper
+  import test to confirm it doesn't matter to the real app. Full story
+  in HANDOVER.md D73. Verified: 484/484 tests passing (52 files, +3
+  new), clean `tsc`/`eslint`/`npm run build`. No e2e run needed (new
+  module, no UI wiring yet). Not deployed (nothing shippable). Goal
+  promoted from DRAFT to ACTIVE. Starting M2 next (the real exporter).
+
+### G-024 · Crisp edges mode (preserve hard color boundaries instead of averaging them) — DONE (2026-09-12)
 - **What:** An optional `edgeMode: "standard" | "crisp"` generation mode.
   Standard stays today's exact behavior (backward-compatible default).
   Crisp keeps two confidently-distinct source-side colors at a hard
@@ -172,13 +836,43 @@ restructured into this project's usual milestone/check-in shape):
   with missing/legacy values defaulting to Standard. Generate/Regenerate
   semantics only — switching the setting must never silently regenerate
   or overwrite manual edits.
-- [ ] M6 — Calibration and acceptance testing against the report's full
+- [x] M6 — Calibration and acceptance testing against the report's full
   Section 9 fixture matrix, benchmarking (time/memory vs. Standard on
   representative and large grids), and delivery: before/after magnified
   images at identical scale with the source shown alongside, documented
   known limitations and remaining manual-correction cases.
 
 **Progress log** (newest first):
+- 2026-09-12 — M6 complete -- **G-024 fully complete, goal DONE.** Closed
+  the report's full Section 9 acceptance matrix (12 new tests in
+  `tests/unit/crisp-edges-acceptance-matrix.spec.ts`, covering every row
+  M4.9/M5's own tests hadn't already: red/blue, equal-luminance different-
+  hue, a real three-color region, circles/rotated ellipses, a shifted
+  boundary at a fractional resampling ratio, noise/checkerboard negative
+  controls, and transparency/upscale). A real calibration finding along
+  the way: the circle/ellipse fixtures needed a 4:1 downsample ratio, not
+  1:1, to show any real Standard-vs-Crisp difference at all (at 1:1 a
+  circle's own one-cell boundary ring is already absorbed cleanly by the
+  pre-existing boundary-coherence energy, unrelated to this goal) --
+  investigated and documented rather than accepted as a vacuous pass.
+  Benchmarked Standard vs Crisp on a representative grid (150 stitches/24
+  colors: ~2.1s vs ~3.0s mean, about 45% slower) and a large grid (500
+  stitches/32 colors: 26.7s vs 41.7s, about 56% slower) -- D5/M5's own
+  literal established "worst case" (1000 stitches/64 colors) was
+  attempted first against this same noisy fixture and abandoned after a
+  single Standard run alone exceeded 400 CPU-seconds with no sign of
+  finishing (a real fixture-composition difference, not a hang -- see
+  HANDOVER.md D96). Delivered before/after magnified images by actually
+  driving the real app via Playwright (not a reimplemented renderer),
+  confirming live what the tests already prove: Standard's legend carries
+  a manufactured "Silver Mist" entry that doesn't exist in the source;
+  Crisp's doesn't. Documented known limitations openly (thin-line/junction
+  scope, `contourRefinement`/simulated-annealing rejection, DMC/Cosmo/
+  Anchor thread-collision handling, geometry vs. color-representation
+  scope, the real performance cost). Full writeup: `docs/reviews/2026-09-
+  12-crisp-edges-acceptance-and-delivery.md`; full story in HANDOVER.md
+  D96. No pipeline code changed this milestone, so no redeploy needed.
+  Verified: 587/587 unit tests, clean `tsc`/`eslint`. Moved to Completed.
 - 2026-09-12 — M5 complete (same standing instruction). Plumbed
   `edgeMode` through the existing cancellable-job machinery exactly like
   `generationMode`/`paletteMode` already are, added a Standard/Crisp
@@ -517,495 +1211,6 @@ restructured into this project's usual milestone/check-in shape):
   accurate, not stale. Not started; stays DRAFT behind G-022 M5/G-020 M5
   per the existing listed-order convention until the Owner says
   otherwise.
-
-### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT, possibly relevant to G-030 (2026-09-12)
-- **Not superseded -- correcting an earlier overreach.** An earlier pass
-  at this file marked this goal "superseded by G-030" on the assumption
-  that G-030 would definitely move the entire generation pipeline server-
-  side. G-030 has since been pulled back to a vague, far-future "social
-  ecosystem" placeholder with no defined architecture yet (see its own
-  entry) -- it's no longer safe to assume this goal is subsumed by
-  anything. Left as its own independent DRAFT/backlog item, exactly as
-  the Owner originally parked it ("maybe one day"). If G-030 eventually
-  does involve server-side generation, this goal's own engineering
-  guidance (versioned binary payload, Route Handler not Server Action,
-  bounded worker pool, internal-network-only container, observability)
-  and its Codex-critique findings (the candidate-set reduction is real
-  and language-agnostic regardless of where it runs) are directly
-  reusable -- but that's a "when we get there" note, not a decided plan.
-- **What:** Move the compute-heavy stage
-  of the pattern pipeline (k-means
-  in OKLab + the ICM/Potts local optimizer, `lib/quantize.ts` +
-  `lib/local-optimizer.ts`) out of the browser and into a separate Rust
-  HTTP service (Axum + `rayon`), called server-to-server from Next.js.
-  Backlog item -- Owner explicitly parked this as "maybe one day," not
-  scheduled. Do not start without an explicit Owner go-ahead.
-- **Why:** The pipeline's worst-case latency is real (HANDOVER.md
-  performance history, though the figures disagree with each other --
-  ~13.4s, ~22s, and 9.5s recorded at different sizes/settings, meaning
-  there's no solid current baseline yet). Originally scoped as "turn the
-  app into a desktop app," narrowed across the conversation to "keep it a
-  website, move the heavy compute server-side, use Rust" once the Owner
-  confirmed browser-only processing isn't a hard requirement.
-- **Acceptance criteria:** Not yet set for the full migration -- per the
-  critique exchange below, M1's own acceptance criteria (a defined
-  latency target) must exist before M2+ are even attempted, since
-  whether this goal is needed at all depends on M1's result.
-- **Constraints:** Sequencing is load-bearing, not optional -- see the
-  critique exchange below. Do not jump straight to M3 (building the
-  service) without M1 (and, if M1 misses target, M2) first. If Rust is
-  ultimately adopted, the TS implementation becomes a frozen migration
-  oracle, not a second permanently-maintained implementation.
-
-**Codex critique exchange (2026-09-11, `codex-rescue`, read-only/
-diagnosis-only, no files changed)** -- put the originally-proposed
-architecture (sidecar Rust service, only the downsampled color grid sent
-to the server, `rayon` for parallelism) to Codex for a real critique per
-STANDARDS.md's "important decision" protocol, not a rubber-stamp
-second opinion. Its findings, verified rather than taken on faith:
-- **The 13.4s baseline is stale and internally inconsistent** with later
-  HANDOVER.md entries (~22s at the same 1000-stitch/64-color case, 9.5s
-  at 300-stitch/24-color) -- no real current baseline exists yet.
-- **The "just a small abstracted grid, not the photo" framing was
-  wrong.** `longerSideStitches` sets the *longer* dimension, so a
-  1000-stitch pattern is up to ~667,000 cells, not ~1,000. The optimizer
-  also needs the Sobel-derived importance map and directional pair-
-  evidence computed from the *original* image, not just downsampled
-  color -- recomputing them server-side from the grid alone would be an
-  algorithm change, not a faithful port. Total payload at typical max
-  settings: ~15-23MB, and a downsampled RGB grid at that resolution is
-  itself a reconstructible low-resolution image. Corrected framing: the
-  server receives "a reduced-resolution image and derived features," not
-  an anonymized abstraction -- the README/HANDOVER's current "your photo
-  never leaves your browser" claim would need updating if this is built.
-- **A genuine, independently-verified algorithmic finding, language-
-  agnostic:** the current energy function's Potts-style boundary term
-  (`lib/energy.ts`) means only a cell's unary-best color plus its
-  neighbors' current labels can ever be the ICM optimum -- any candidate
-  matching none of the neighbors is provably dominated (re-derived and
-  confirmed correct, not taken on faith). Cuts the per-cell candidate
-  scan from up to 100 to ~9, in whichever language this runs. Worth
-  doing regardless of the Rust/sidecar question.
-- **Naive per-cell `rayon` parallelism would silently change ICM's
-  result** (it updates assignments in scan order within a pass; later
-  cells see earlier updates from the same pass). A four-color
-  checkerboard scheduling scheme (partitioning on `(x mod 2, y mod 2)`)
-  is the correct way to parallelize this specific 8-neighbor stencil
-  without changing which local optimum it converges to -- flagged as a
-  later optimization, not part of an initial port.
-- **Two evolving implementations of the same algorithm is a real risk.**
-  If Rust is adopted, it should become the authoritative implementation;
-  TS gets frozen as a migration oracle (compared against identical
-  serialized inputs/intermediate outputs, not just the existing
-  regression suite, which checks diagnostic tolerance bands rather than
-  exact port equivalence) and eventually retired from production use,
-  not maintained indefinitely alongside Rust.
-- **Concrete service-engineering guidance for if/when M3 happens:**
-  versioned binary payload (not JSON) with protocol/algorithm versions
-  separated; an explicit Next.js Route Handler rather than a Server
-  Action (whose default body-size limit is smaller than even the
-  RGB-only portion of this payload); CPU work kept off Axum/Tokio's
-  async executor via a bounded worker pool, not unrestricted
-  `spawn_blocking`; one end-to-end deadline with cooperative cancellation
-  checkpoints in the kernel; a bounded admission queue that fails fast
-  under overload; the Rust container reachable only over the internal
-  Docker network, never a published host port (consistent with
-  `INFRASTRUCTURE.md`'s existing safety invariant); and real
-  observability (per-stage timings, queue time, algorithm version,
-  cancellation/failure counts, no logging of image buffers/derived
-  feature arrays).
-- **Overall verdict: the bottleneck is real and worth investigating, but
-  doesn't yet justify the full Rust sidecar architecture** -- the
-  smallest responsible first step is a current baseline plus an
-  equivalence-tested optimization spike in TypeScript, deciding on real
-  numbers whether Rust is even needed. No rebuttal was raised against
-  this critique -- its central technical claim was independently
-  re-derived and confirmed correct, and its corrections (stale baseline,
-  payload/privacy framing) were factual, not matters of judgment to
-  contest.
-
-**Milestones** (M2-M4 conditional -- do not start until the prior
-milestone's own result justifies continuing):
-- [ ] M1 — Re-establish a real current baseline (both generation modes,
-  several sizes, the historical worst case) since existing numbers
-  disagree with each other; set a concrete user-facing latency target
-  before judging anything against it. Implement the candidate-set
-  reduction (neighbor labels + unary-best color only, ~9 candidates
-  instead of up to 100) and the identified loop waste (rebuilt neighbor
-  objects, repeated fixed edge calculations per candidate, recomputed
-  color distances across passes) in TypeScript. Validate against the
-  existing regression suite plus real rendered-pattern spot checks (the
-  suite alone checks tolerance bands, not exact preservation).
-- [ ] M2 (only if M1 misses the latency target) — Port just the
-  optimizer/quantization kernel to a standalone Rust library with a
-  benchmark harness (no service yet). Compare single-threaded native and
-  single-threaded WASM against the identical frozen TS revision on
-  identical inputs before deciding anything about parallelism or
-  deployment shape.
-- [ ] M3 (only if M2's numbers justify a production build) — Build the
-  Axum sidecar per the engineering guidance above; Rust becomes
-  authoritative, TS frozen as oracle. Deploy per
-  `COMPANY/INFRASTRUCTURE_DEPLOY.md` conventions (internal-network-only,
-  no published host port).
-- [ ] M4 — Side-by-side validation against real patterns, a domain-expert
-  re-review of any numerically-changed behavior, corrected privacy
-  framing in README/HANDOVER, then retire the TS engine to oracle-only
-  status.
-
-**Progress log** (newest first):
-- 2026-09-11 — Goal created as backlog/DRAFT per Owner request ("write it
-  as a backlog goal (maybe one day)") after a full architecture
-  discussion (desktop app -> server-side -> Rust sidecar) and a real
-  Codex critique exchange (see above). Not started; no Owner go-ahead to
-  begin M1.
-
-### G-026 · Additional export option: Pattern Keeper-compatible PDF — ACTIVE (2026-09-12)
-- **What:** A new export option, additive to the existing "Export as A4
-  pages" ZIP (PNG-per-page), that produces a single PDF chart readable by
-  the Pattern Keeper app (a cross-stitch progress-tracking app the Owner
-  uses) -- real embedded-font vector text per stitch symbol in a precise
-  grid, not a rasterized image, plus a real-text thread legend.
-- **Why:** Researched Pattern Keeper's actual import requirements
-  (2026-09-11 session; sources below) because the Owner currently
-  composes pattern files by hand in Affinity Designer to get them into
-  Pattern Keeper. Two findings drive this goal:
-  1. **Pattern Keeper doesn't take a plain "text grid" file** -- it
-     imports PDF and overlays a detected grid on it, then reads whatever
-     is under that grid. For a chart to be correctly read (not just
-     visually present), the symbols must be real, embedded, standard-
-     encoded vector text in a consistent row/column grid -- Pattern
-     Keeper's own help page states plainly that a chart built without
-     proper encodings "will not be searchable in Pattern Keeper." The
-     app's existing A4 export is 100% raster PNG (`a4-export.ts`), the
-     opposite of what's needed -- it would only be importable via Pattern
-     Keeper's lesser photo/paper-chart path, losing symbol search and
-     auto legend-parsing.
-  2. **Hand-composing this in Affinity Designer is fragile at real
-     pattern sizes** and has two silent failure modes: converting symbol
-     text to curves, or a PDF export setting that rasterizes/doesn't
-     embed the font -- either one destroys the character encoding Pattern
-     Keeper needs, with no visual difference on screen. Since the app
-     already holds the pattern as structured grid/symbol/color data (not
-     pixels), generating the PDF directly from that data avoids both
-     failure modes and guarantees pixel-exact grid-cell alignment that's
-     impractical to hand-place at thousands of cells.
-  Good news found during research: `lib/symbols.ts`'s existing symbol set
-  is already standard Unicode codepoints from common blocks (Latin-1,
-  Geometric Shapes, Arrows, Dingbats) -- exactly what Pattern Keeper
-  wants, not a custom remapped dingbat font. No symbol-set change needed.
-- **Acceptance criteria:**
-  - A new export option produces one PDF (not a ZIP) with the stitch
-    grid rendered as real, individually selectable vector text per cell
-    (verified with the "select a symbol as text in a standard PDF
-    viewer" test Pattern Keeper's own community recommends), using the
-    existing symbol set and an embedded font that covers it, paginated
-    consistently with the existing A4 grid layout (same page-to-page
-    row/column size consistency Pattern Keeper's grid-detection
-    requires).
-  - The legend (thread code/name/symbol/stitch count) is real text, not
-    an image, on the same or an adjacent page.
-  - The existing PNG/ZIP export keeps working unmodified -- this is
-    additive, not a replacement.
-  - **A real sample pattern is actually test-imported into Pattern
-    Keeper** (not just self-checked against the "select as text" test)
-    before this goal is called done -- everything known about Pattern
-    Keeper's requirements so far comes from its own help pages and
-    third-party summaries, not from testing against the real app, and
-    the goal shouldn't be marked complete on unverified assumptions
-    about how it behaves.
-- **Constraints:** Pick one embedded TTF/OTF font covering every Unicode
-  block the existing symbol set uses, with a checkable open license
-  (STANDARDS.md "Integrity of work" -- record provenance/license the same
-  way `docs/dmc-colors-provenance.md` did for the DMC dataset). No
-  Pattern Keeper account/paid tier assumed beyond whatever access the
-  Owner already has for M4's real-import test.
-- **Sources** (retrieved 2026-09-11, full detail in this goal's creating
-  conversation): patternkeeper.app's own `/help/inputting-grids/`,
-  `/help/importing-a-chart/`, `/help/exporting-charts-from-pcstitch/`,
-  `/help/exporting-charts-from-winstitch-macstitch/`; stitchmate.app's
-  cross-stitch-pattern-PDF-quality guide (summarized via search only --
-  direct fetch returned HTTP 403).
-
-**Milestones:**
-- [x] M1 — Spike: choose and license-check a Unicode font covering the
-  full existing symbol set (Latin-1 Supplement, Geometric Shapes, Arrows,
-  Miscellaneous Symbols, Dingbats blocks); prototype a minimal single-page
-  PDF (via a PDF library capable of real embedded-font text, e.g.
-  `pdf-lib`) with a handful of real symbols drawn as vector text plus
-  vector gridlines; self-verify the "select as text in a standard PDF
-  viewer" test before building anything further.
-- [x] M2 — Build the real exporter: a new PDF-generation path reusing the
-  existing A4 pagination/layout logic (`lib/a4-layout.ts`) but rendering
-  each page as real vector text + vector gridlines instead of canvas-to-
-  PNG, plus a real-text legend page (reusing the existing extended-legend
-  content: title, details table, color-key table). Unit-tested wherever
-  the logic is pure.
-- [x] M3 — UI wiring: add the new export option in the app alongside the
-  existing "Export as A4 pages" (e.g. "Export as PDF (Pattern Keeper
-  compatible)"). Live-browser verified, including the select-as-text
-  check against every symbol actually used in a real generated pattern
-  (not just M1's handful).
-- [ ] M4 — Real-world verification: actually import a real exported
-  sample into Pattern Keeper and confirm grid auto-detection and legend
-  parsing succeed as expected; fix anything the real app reveals that
-  the documentation didn't. Full regression suite, commit, deploy.
-  **BLOCKED: needs the Owner's own Pattern Keeper access** (2026-09-12)
-  — this milestone requires actually opening the real third-party
-  Pattern Keeper app (mobile/desktop, not a web app JulAI can drive) on
-  a device/account only the Owner has, per the goal's own constraints
-  ("No Pattern Keeper account/paid tier assumed beyond whatever access
-  the Owner already has for M4's real-import test"). A generated sample
-  PDF is ready at any time via the live "Export PDF (Pattern Keeper)"
-  button. Owner action needed: import a generated PDF into Pattern
-  Keeper and report back what grid-detection/legend-parsing actually
-  does (or grant remote access to test it directly) so this milestone
-  can be genuinely verified rather than assumed done.
-
-**Progress log** (newest first):
-- 2026-09-12 — M3 complete (same standing instruction). Added an
-  "Export PDF (Pattern Keeper)" button to `app/workspace.tsx` alongside
-  the existing "Export ZIP" button, reusing the same Color/B&W/overlap
-  controls. Live-browser verified by hand (generated a pattern, clicked
-  the button, confirmed a real PDF downloaded with no console errors),
-  plus new Playwright e2e coverage that reads the real symbols the app
-  assigned from its own DOM legend (not predicted) and confirms every
-  one is extractable as text in the exported PDF, satisfying the "every
-  symbol actually used" acceptance bar. Full story in HANDOVER.md D75.
-  Verified: full unit/e2e suite green, clean tsc/eslint/build. **This
-  stage changes real shippable behavior, so it was deployed** (see
-  HANDOVER.md's deploy log). Starting M4 next (real Pattern Keeper
-  import verification).
-- 2026-09-12 — M2 complete (same standing instruction). Sent the reuse
-  design (adapt the shipped A4/PNG canvas-drawing functions for PDF via
-  a small "canvas-shim" adapter, vs. a parallel PDF implementation) to
-  Codex before writing code, per this project's own standing practice
-  for important decisions -- Codex agreed with the adapter approach but
-  found and I independently verified three real problems in the initial
-  plan: a pre-existing DPI bug in `lib/a4-render.ts` (every internal
-  `mmToPx()` call silently defaulted to 300 DPI regardless of the
-  layout's actual DPI -- now fixed via a new `A4Layout.dpi` field), a
-  real pdf-lib 1.17.1 bug in `PDFFont.heightAtSize(size,{descender:
-  false})` (confirmed wrong against the project's own bundled font --
-  now avoided entirely in favor of `@pdf-lib/fontkit`'s raw
-  ascent/descent metrics), and a TypeScript structural-typing footgun
-  that would have broken "a real canvas context satisfies the adapter
-  interface for free" (fixed by keeping every interface member typed
-  exactly as the native DOM type). Extracted `lib/render.ts`'s
-  `drawChart`/`drawGridLines` and `lib/a4-render.ts`'s three page
-  renderers into pure draw functions (`drawA4GridPage`/
-  `drawA4LegendPage`/`drawInfoPage1`+`drawInfoContinuationPage`) taking
-  a new `ChartDrawingContext` interface, plus a canvas-allocating thin
-  wrapper preserving every existing function's exact original API --
-  zero changes needed at any real browser call site (interactive
-  editor, on-screen chart, existing PNG/ZIP export), confirmed via the
-  full e2e suite for those paths (12/12 passing, including both A4
-  export modes and live editing). Built `lib/pdf-canvas-adapter.ts`'s
-  `PdfCanvasAdapter` (real vector-text positioning/rotation via actual
-  font metrics, deliberately throws on anything outside the reused
-  functions' actual usage patterns rather than silently mis-rendering)
-  and `lib/pattern-keeper-pdf.ts`'s `buildPatternKeeperPdf` (the real,
-  full multi-page exporter). Deliberately deferred a bold PDF font face
-  and rescaling a few 300-DPI-calibrated pixel constants -- logged as
-  known, minor cosmetic gaps, not functional ones. Full story in
-  HANDOVER.md D74. Verified: 500/500 unit tests passing (53 files, +2
-  new, including a `pdfjs-dist`-based rotation/position probe and a
-  full-pipeline test across all 100 real symbols that also directly
-  regression-guards the DPI bug found above), clean `tsc`/`eslint`/
-  `npm run build`, e2e green for every browser call site this touched.
-  Not deployed (no UI wiring yet, M3). Starting M3 next (UI wiring).
-- 2026-09-12 — M1 complete (Owner: "continue without confirmation...").
-  Chose DejaVu Sans 2.37 (official release), verified programmatically
-  via `fontkit` that it covers all 100 codepoints in the app's real
-  symbol set (zero missing), not assumed from reputation. License
-  (Bitstream Vera) and provenance recorded in
-  `docs/dejavu-font-provenance.md`, font committed to `public/fonts/`.
-  Built `lib/pattern-keeper-pdf.ts` (real vector-text + gridline
-  drawing via `pdf-lib`/`@pdf-lib/fontkit`) and verified the "select as
-  text" requirement programmatically using `pdfjs-dist` (real text
-  extraction, not visual inspection) -- all 100 symbols round-trip as
-  real characters. Found and honestly documented one narrow caveat: "µ"
-  extracts back as "μ" (a well-known, visually-identical Unicode
-  compatibility pair, confirmed to be a `pdfjs-dist` extraction
-  behavior, not a font gap) -- flagged for M4's real Pattern Keeper
-  import test to confirm it doesn't matter to the real app. Full story
-  in HANDOVER.md D73. Verified: 484/484 tests passing (52 files, +3
-  new), clean `tsc`/`eslint`/`npm run build`. No e2e run needed (new
-  module, no UI wiring yet). Not deployed (nothing shippable). Goal
-  promoted from DRAFT to ACTIVE. Starting M2 next (the real exporter).
-
-### G-028 · Import and export the OXS (Open Cross Stitch) interchange format — DRAFT (2026-09-12)
-- **What:** Read and write `.oxs` files -- the open, XML-based chart
-  interchange format (developed by Ursa Software, used by PCStitch,
-  WinStitch/MacStitch, KXStitch, FlossCross, Xstitchify, and others) --
-  so a pattern can move between this app and any of those programs.
-  Export produces a valid `.oxs` from the current `StitchPattern`; import
-  reads a real `.oxs` file (from any of the programs above, not just
-  self-round-tripped files) into a working `StitchPattern`.
-- **Why:** Directly follows a gap identified in the 2026-09-12 competitive
-  analysis (`docs/reviews/2026-09-12-competitive-analysis.md`, Part 3
-  item 5): several real competitors (Xstitchify, FlossCross) export
-  `.oxs` specifically so a pattern isn't locked to one program; we
-  currently only interchange via our own `.cspzip`/JSON, which nothing
-  else can read. This is a genuine interoperability feature, not
-  cosmetic -- it lets a pattern made here be finished/tracked in
-  whatever desktop software the Owner or another user already uses.
-- **Format grounding (verified before planning, not assumed):** Primary
-  source is Ursa Software's own spec page
-  (https://www.ursasoftware.com/OXSFormat/, retrieved 2026-09-12),
-  cross-checked against a real, independently-hosted `.oxs` file
-  (`Mickey1992/stitch-pdf2oxs`'s `test.oxs` on GitHub, retrieved
-  2026-09-12) and a real generator script (a public gist producing the
-  exact same file FlossCross itself ships). All three agree: root
-  `<chart>` element containing `<properties>` (size, title, author,
-  `stitchesperinch`/`stitchesperinch_y`), `<palette>` of `<palette_item
-  index number name color strands symbol .../>` (color = 6-hex RRGGBB,
-  no `#`; `number` is typically `"DMC ####"` but any brand/free text is
-  valid), `<fullstitches>` of `<stitch x y palindex marked/>`,
-  `<partstitches>` (half/quarter stitches, two palette indices +
-  direction), `<backstitches>` (line segments `x1 y1 x2 y2 palindex`),
-  `<ornaments_inc_knots_and_beads>` (French knots/beads/buttons/etc.),
-  and `<commentboxes>` -- the last four are "mandatory even if empty"
-  per the spec's own wording. **Only `.oxs` is in scope** -- PCStitch's
-  own `.pat`/`.xsd` formats are a different, proprietary, far-less-
-  documented format family (some possibly binary) and are explicitly
-  out of scope for this goal.
-- **Acceptance criteria:**
-  1. `buildPatternKeeperPdf`-style pure module producing a spec-valid
-     `.oxs` from any `StitchPattern` (DMC-mode or full-range), verified
-     both by self-round-trip (our own parser reads back what our own
-     writer wrote, losslessly for grid+palette) and by actually opening
-     the exported file in at least one independent real OXS consumer
-     (candidate: stitchmate.app's free "Open OXS files online" tool, or
-     a desktop program if the Owner has one) -- not just eyeballing the
-     XML, matching this project's own standing "verify against the real
-     thing" bar (see G-026 M4).
-  2. Import reads a real `.oxs` file (self-authored small synthetic
-     fixtures for automated tests -- see licensing note below -- plus at
-     least one real-world-shaped sample for manual verification) into a
-     `StitchPattern`: grid dimensions, per-cell colors, and palette
-     (with DMC auto-detection when `number` parses as a real DMC code
-     matching our own `DMC_COLORS` table) all correct.
-  3. Content the app cannot represent (backstitch, French knots,
-     beads/buttons/sequins, comment boxes) is **never silently dropped**
-     -- import surfaces an honest, specific summary of what wasn't
-     carried over (counts per category), per VALUES.md Honesty ("never
-     smoothed over to look like success"). Half/quarter partstitches are
-     approximated as a full stitch of their primary color (documented as
-     an approximation, not silently treated as exact).
-  4. Existing export/import paths (PNG, A4, Pattern Keeper PDF, `.cspzip`,
-     editable JSON) are unaffected -- this is additive. OXS export is
-     folded into the "Export all" `.cspzip` bundle alongside the other
-     formats, consistent with G-027's own "every export format" intent.
-  5. Full regression suite green, real deploy, following this project's
-     standing practice of shipping real shippable behavior mid-goal
-     rather than batching it all to the end.
-- **Constraints / deliberate scope decisions (flagged for Owner review
-  at plan approval, not assumed unilaterally):**
-  - **Open question -- needs an Owner answer before M2 (not before M1):**
-    real OXS files can carry far more than our `MAX_COLORS = 100` cap
-    (the verified real sample above has 237 colors). Proposed default:
-    **reject import with a clear, honest error naming the file's actual
-    color count and our cap**, rather than building a lossy palette-
-    reduction algorithm on import (a much larger, separate feature this
-    goal's brief didn't ask for). If the Owner wants auto-reduction
-    instead, that changes M2's scope materially -- say so before M2
-    starts.
-  - Never commit a real third-party designer's `.oxs` file as a test
-    fixture (the verified sample above is a copyrighted commercial
-    pattern, "Aimee Stewart 2015 ") -- automated-test fixtures are
-    self-authored synthetic files only (STANDARDS.md "Integrity of
-    work"); any real-world sample used for manual verification stays
-    local, never committed.
-  - Anchor/Madeira/other-brand `number` values on import are treated as
-    plain custom colors (hex + free-text name), not converted to DMC --
-    we have no Anchor color table, and building one is a separate
-    concern (already logged as its own competitive-analysis gap, not
-    folded into this goal).
-  - Symbol values on import are ignored in favor of our own auto-
-    assignment (`lib/symbols.ts`) -- an incoming numeric/font-specific
-    symbol code means nothing without the source program's own symbol
-    font, so reinterpreting it would be guesswork, not a real mapping.
-    Symbols on export carry our real Unicode symbol character in the
-    `symbol` attribute (best-effort; other programs' own fonts may not
-    render the same glyph -- an industry-wide OXS limitation, not one of
-    ours, per the spec's live-and-let-live design for exactly this).
-  - `stitchesperinch`/`stitchesperinch_y` maps to our existing
-    `aidaCount` field; if the two differ (non-square weave) on import,
-    use `stitchesperinch` and note the mismatch rather than averaging or
-    guessing.
-  - No domain-expert review needed (this is a file-interoperability/
-    software-engineering concern, not a physical/chemical/craft-science
-    one per STANDARDS.md's own scoping for that step).
-  - Per this project's standing practice for consequential design
-    decisions, M1's actual parser/serializer design goes through a real
-    Codex critique exchange before being written, not just this plan.
-
-**Milestones:**
-- [ ] M1 -- Pure module (`lib/oxs.ts` or similar): parse real OXS XML
-  (via `DOMParser`, main-thread-only like `pattern-import.ts` already
-  is -- not the generation Web Worker) into an intermediate structure,
-  and serialize a `StitchPattern` into spec-valid OXS XML (proper XML-
-  escaping for name/author/title text). Self-authored synthetic
-  fixtures only (see licensing constraint). Design sent through a real
-  Codex critique exchange first, per standing practice. Unit-tested.
-- [ ] M2 -- Import integration: wire into `lib/pattern-import.ts` /
-  `loadPatternFromFile`'s existing content-sniffing flow (extend past
-  ZIP/JSON to also recognize OXS XML), palette mapping (DMC auto-
-  detection, EMPTY_CELL for any cell absent from `<fullstitches>`),
-  partstitch approximation, and the honest drop/approximation-summary
-  UI surface. **Blocked on the Owner's color-cap-behavior answer above
-  before this milestone starts.**
-- [ ] M3 -- Export integration: new `ExportKind` ("oxs") in
-  `app/workspace.tsx`'s export dropdown (top-level, alongside
-  "editable" -- it's a data format, not a color/bw render variant), plus
-  folded into `lib/export-all.ts`'s `.cspzip` bundle.
-- [ ] M4 -- Real-world verification: export a generated pattern's
-  `.oxs` and open it in a real independent OXS consumer to confirm
-  correct reading; import a real-world-shaped sample and confirm
-  grid/colors/drop-summary are all correct. Full regression suite,
-  commit, deploy.
-
-**Progress log** (newest first):
-- 2026-09-12 -- Goal drafted from the 2026-09-12 competitive-analysis
-  review's Part 3 gap #5. Format verified against three independent
-  sources (Ursa's own spec, a real hosted sample file, a real generator
-  script) before writing any acceptance criteria, per this project's
-  own standing practice of reproducing/verifying before planning
-  against a claim. One open question flagged for the Owner (color-count-
-  over-100 handling) rather than assumed. Not yet promoted to ACTIVE --
-  awaiting Owner review of this plan.
-
-### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
-- **What:** Eventually make the app public, built around **a social
-  ecosystem** (community/sharing features -- exact shape not yet defined:
-  could include public pattern galleries, profiles, following, comments,
-  or similar) rather than a plain paywall-on-exports model. Owner
-  explicitly corrected an earlier draft of this goal that jumped straight
-  to a detailed "server-side generation + paid export tiers" plan --
-  **that plan is withdrawn**, not just superseded; the real direction is
-  the social ecosystem, and "other details will be defined later"
-  (Owner's own words, 2026-09-12).
-- **Why:** Owner is exploring making the app public and building a
-  business around it, but this is explicitly **a plan for very later**,
-  not something to scope or sequence now.
-- **Status:** Intentionally not planned in detail -- no acceptance
-  criteria, no milestones, per the Owner's own "very later, details
-  defined later" framing. This entry exists so the intent isn't lost
-  between sessions, not to commit to any architecture yet. Do not expand
-  this into a full plan without an explicit Owner go-ahead to start
-  planning it for real.
-- **One durable technical fact worth keeping regardless of eventual
-  shape** (verified while a fuller version of this goal was briefly
-  drafted, then withdrawn): `buildPattern` (`lib/pattern.ts`) and
-  everything it calls already take/return plain typed-array buffers with
-  zero DOM dependency (`lib/pattern.worker.ts` is just a thin
-  `postMessage` shim around it) -- so if a future version of this goal
-  ever does need server-side generation, the existing TypeScript pipeline
-  can run in a Node server context unmodified, without needing G-023's
-  Rust work first. Not a decision, just a fact worth not re-deriving
-  later.
-
-## Completed goals
 
 ### G-029 · Anchor and Cosmo thread-brand palette modes — DONE (2026-09-12)
 - **What:** Two new selectable palette modes alongside today's "Full
