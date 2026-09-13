@@ -614,3 +614,169 @@ milestone's own result justifies continuing):
   ≈170 s (ICM 154.6 s). Working tree was dirty with another session's
   uncommitted G-024 M6 work at creation time — the executing agent must
   resolve that (commit or worktree) before M1, per the constraints above.
+
+### G-033 · Swatch-aware color editor: remembered source, marked current, comparison on hover — DRAFT (2026-09-13)
+- **What:** Every legend color remembers which thread swatch it was
+  picked from (brand + code), or that it is a custom color. Opening that
+  color's editor opens the matching swatch tab, scrolls the swatch grid
+  to the color and marks it as current. Hovering or focusing any other
+  swatch shows how it compares with the current color: "X% lighter" or
+  "X% darker", and "X% more saturated" or "X% less saturated", each part
+  omitted when there is no difference. Picking a color applies it
+  immediately and leaves the editor open. The editor closes only when
+  the user clicks somewhere outside it (or presses Escape).
+- **Why:** Adjusting a thread today means reopening the editor, finding
+  the tab by hand, searching for the current code, and judging "one
+  shade lighter" by eye, and the editor closes after every pick. Stitchers
+  constantly swap a thread for its neighbor in the same family; the
+  remembered source, the marked current swatch and the numeric
+  comparison make that a one-glance, repeatable action.
+
+**Design.**
+1. **Data model.** `PaletteColor.source?: { brand: ThreadBrand; code: string }`.
+   Absent means a custom color. It is set by `applyBrandPalette`
+   (generation with a brand), `editColorToBrandColor`, `addBrandColor`,
+   and OXS import when a brand is detected (after G-028 lands). It is
+   cleared by `editColorRgb`. `mergeColors`, `renameColor` and
+   `setColorSymbol` keep the surviving color's source, since they spread
+   the existing entry. The swatch is looked up **by code, never by RGB**:
+   Anchor entries carry the nearest DMC thread's RGB, not the Anchor
+   table's approximate RGB (`lib/threads/brand-match.ts`).
+2. **Saved files.** Format version 7 adds an optional `source` per
+   palette entry. A malformed `source` rejects the file, consistent with
+   D099. A well-formed source naming a code that is no longer in the
+   thread table is dropped and the color keeps its RGB and name. Files
+   from version 6 and earlier infer the source on load: with
+   `threadBrand` set, match the name against that brand's
+   `formatThreadName`; without it, infer only when the name matches
+   exactly one thread across all brands **and** the RGB equals that
+   thread's RGB. Otherwise the color stays custom. The IndexedDB
+   autosave path is checked to go through the same code.
+3. **Which tab opens.** The color's `source.brand`; otherwise the
+   pattern's `threadBrand`; otherwise Full range. A brand-locked pattern
+   still shows only its own brand.
+4. **Scroll and mark.** The editor panel renders directly under the row
+   being edited, not at the bottom of a list of up to 100 rows. On open,
+   the search is cleared and the grid's own scroll container is scrolled
+   so the current swatch is centred. This sets `scrollTop` on the grid,
+   not `scrollIntoView`, which would also scroll the dock. The current
+   swatch gets a visible ring and a check mark, plus `aria-pressed`. On
+   another brand's tab, or when the search hides it, nothing is marked.
+5. **Comparison readout.** A fixed line inside the panel, not a native
+   `title` tooltip, which is delayed and invisible to keyboard users.
+   It is shown on hover and on keyboard focus, for example
+   "DMC 3865 - Winter White: 12% lighter, 5% less saturated". The
+   metric is **Okhsl** lightness and saturation (Ottosson 2021, both
+   0–1), and the difference is shown in percentage points, rounded to
+   a whole number. A part rounding to 0 is omitted. When both round to
+   0, only the name is shown. Okhsl rather than HSL, because HSL calls
+   pure yellow and pure blue equally light and near-black colors fully
+   saturated. Percentage points rather than a ratio, because a ratio
+   explodes near black (L 2 → 4 would read "100% lighter"). Hue is not
+   compared (not requested). Touch devices have no hover and a tap picks
+   immediately, so there the comparison isn't available before choosing;
+   this limitation is documented rather than solved with long-press.
+   New module `lib/color/okhsl.ts`, ported from Ottosson's reference
+   code (MIT, "Copyright (c) 2021 Björn Ottosson", retrieved
+   2026-09-13 from https://bottosson.github.io/posts/colorpicker/),
+   with the notice kept in the file and the attribution recorded in the
+   README. It reuses the OKLab maths already in `lib/color/color.ts`.
+6. **Stay open, close on outside click.** A swatch click commits one
+   undo step and the panel stays open with the new swatch marked; the
+   readout then compares against the new current color. On the Full
+   range tab, the chart previews the draft live while dragging, and
+   one undo step is committed per gesture (pointer-up, or the end of a
+   keyboard adjustment), since `useUndoHistory` only has `set` and
+   would otherwise record 50 steps per drag. Done and Cancel buttons are
+   removed; a "Revert" button restores the color it had when the panel
+   opened, as one undo step. A small `useDismissOnOutsidePointer` hook
+   listens for `pointerdown` in the capture phase on `document` and
+   closes the panel when the target is outside it. Clicking another
+   row's swatch button retargets the editor to that color rather than
+   closing it. Escape also closes, for keyboard users. The panel also
+   closes when the edited color disappears (a merge, an undo past its
+   creation, a new document), because palette indices shift.
+7. **Out of scope:** the "+ Add" and symbol panels keep today's
+   behavior. "+ Add" reuses the upgraded swatch grid, with no current
+   color and no readout.
+
+- **Acceptance criteria:**
+  1. Unit tests: `source` is set, kept or cleared correctly by every
+     mutation in `lib/editor/pattern-edit.ts` and by brand generation;
+     version-7 round-trip; version-6 inference, including the ambiguous
+     cases that must stay custom; the fuzz test still passes with the
+     new field.
+  2. `lib/color/okhsl.ts` matches Ottosson's reference implementation to
+     within 1e-4 on a fixed set of colors, including black, white,
+     grays, sRGB primaries and several thread colors. The readout
+     formatter is tested at rounding boundaries (0.49 → omitted, 0.5 →
+     "1%") and for each wording branch.
+  3. Playwright e2e against the production build:
+     - a DMC pattern's color opens on the DMC tab with its swatch marked
+       and inside the grid's visible scroll area;
+     - hovering and focusing another swatch shows the expected readout;
+     - clicking a swatch changes the legend row and leaves the panel
+       open with the new swatch marked;
+     - clicking outside closes it, and so does Escape;
+     - clicking another row's swatch retargets the panel;
+     - a Full range drag produces exactly one undo step;
+     - Revert restores the original color;
+     - a custom color opens on Full range;
+     - a saved file reopens with the same tab behavior.
+  4. Generation output is unchanged except for the new `source` field.
+     If `tests/unit/fixtures/golden-hashes.json` covers palette entries,
+     it is regenerated once with a decision file (D107), and a test shows
+     the grid and RGB values are identical.
+  5. `tsc`, eslint, all unit and e2e tests green; README, HANDOVER and
+     decision files updated; docs-lint green; committed; deployed after
+     Owner approval; Owner sign-off logged.
+- **Constraints:**
+  - **Starts after G-028 is committed.** G-028 is active in this working
+    tree with uncommitted files in `lib/editor/`, and this goal edits
+    `lib/editor/pattern-serialize.ts`, `lib/editor/pattern-edit.ts` and
+    OXS import. Starting earlier needs a separate worktree and the
+    Owner's go-ahead (OPERATIONS.md §3, one session per working tree).
+  - No new runtime dependencies. The Okhsl port is a few dozen lines.
+  - Codex critique exchange on the data model and the version-6
+    inference rules before M1 code is written; outcome logged in a
+    decision file. No domain-expert review: the readout compares the
+    catalogue sRGB values shown on screen, which is a colour-space
+    question the Okhsl source settles, not a real-thread physical
+    claim. The panel says "on screen" in its help text so the numbers
+    aren't read as a statement about the physical floss.
+  - Standard OPERATIONS.md check-in at every milestone boundary.
+
+**Milestones:**
+- [ ] **M1 — Swatch source in the data model.** Codex critique of the
+      design in items 1–2. `PaletteColor.source`, every mutation,
+      `applyBrandPalette`, OXS import, serializer version 7 with
+      validation and version-6 inference, fuzz-test update, golden-hash
+      handling per criterion 4. Deliverable: green unit suite and an
+      old saved file reopening with inferred sources.
+- [ ] **M2 — Editor behavior.** Panel under the row, tab from source,
+      scrolled and marked current swatch, stay open on pick, live Full
+      range preview with one undo step per gesture, Revert, outside-
+      click and Escape dismissal, retargeting and close-on-disappear.
+      E2E tests for each. Deliverable: the new editing flow usable in
+      the browser.
+- [ ] **M3 — Comparison readout and release.** `lib/color/okhsl.ts`,
+      the readout formatter, hover and focus readout, e2e for the
+      readout, README attribution, HANDOVER regenerated, docs-lint,
+      deploy after Owner approval, deploy-log row.
+
+**Open questions for the Owner (answer before M2):**
+- When the editor is open and the user clicks the chart, should that
+  click only close the editor, or close it **and** paint as usual? The
+  plan assumes close-and-paint, like the browser's own popover light
+  dismiss; an accidental paint is one Ctrl+Z.
+- Is a "Revert" button wanted, now that Cancel goes away? The plan
+  includes it.
+
+**Progress log** (newest first):
+- 2026-09-13 — Goal drafted at the Owner's request ("make plan of
+  improving color selection …"). Planned from a read of
+  `app/components/colors-dock.tsx`, `lib/editor/pattern-edit.ts`,
+  `lib/editor/pattern-serialize.ts`, `lib/threads/brand-match.ts`,
+  `lib/threads/thread-brands.ts`, `lib/editor/use-undo-history.ts`, the
+  active G-028 OXS code and the e2e suite (no test covers the color
+  editor today). Okhsl licence verified at its source. No code written.
