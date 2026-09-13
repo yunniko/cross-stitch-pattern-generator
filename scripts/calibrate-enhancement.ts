@@ -39,7 +39,7 @@ export const RELEASE_RULE = {
 const WELL_EXPOSED = ["lake-summer", "road-mountains", "portrait-winter", "portrait-headwrap", "tree-normal"];
 const FLAWED = ["underexposed-sun", "fog-sailboat", "fog-brofjorden", "fog-eucalypt", "backlit-tower", "backlit-geyser", "tree-under"];
 const INTENTIONAL_CAST = "sunset-margarita";
-const MODES = ["auto", "vivid", "portrait"] as const;
+const MODES = ["brighten", "auto", "vivid", "portrait"] as const;
 const OPTIONS = { longerSideStitches: 150, colorCount: 24 } as const;
 
 const photosDir = process.env.ENHANCEMENT_PHOTOS_DIR;

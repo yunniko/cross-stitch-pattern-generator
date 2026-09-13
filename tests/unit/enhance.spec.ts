@@ -15,7 +15,7 @@ import { makeBuffer, pseudoNoise } from "./helpers/fixtures";
 
 /** G-032 M1: the pure enhancement core on synthetic images (criteria 3a–3d and 5). */
 
-const MODES = ["auto", "vivid", "portrait"] as const;
+const MODES = ["brighten", "auto", "vivid", "portrait"] as const;
 
 function enhancePixelBufferWith(source: PixelBuffer, preset: EnhancementPreset): PixelBuffer {
   return applyEnhancement(source, analyzeEnhancement(source, preset));
@@ -217,7 +217,23 @@ describe("do no harm", () => {
 
   // Capped steps (levels stretch, partial white balance) finish a large correction over several passes, so exact
   // idempotence isn't expected; repeated application must converge, each pass changing the image less (D114).
-  it.each(MODES)("converges under repeated application (%s)", (mode) => {
+  // Brighten's smaller 1.6× stretch takes a very flat photo to the levels targets over a few passes, and the span grows
+  // geometrically, so a later pass can move more than an earlier one. It must still settle (D114, D118).
+  it("settles under repeated application of Brighten within six passes", () => {
+    let current = degraded;
+    let change = Infinity;
+    let passes = 0;
+    while (change >= 0.005 && passes < 8) {
+      const next = enhancePixelBuffer(current, "brighten");
+      change = next === current ? 0 : meanDeltaE(next, current);
+      current = next;
+      passes++;
+    }
+    expect(change).toBeLessThan(0.005);
+    expect(passes).toBeLessThanOrEqual(6);
+  });
+
+  it.each(MODES.filter((m) => m !== "brighten"))("converges under repeated application (%s)", (mode) => {
     const once = enhancePixelBuffer(degraded, mode);
     const twice = enhancePixelBuffer(once, mode);
     const thrice = enhancePixelBuffer(twice, mode);
@@ -310,6 +326,50 @@ describe("Codex round-2 fixes", () => {
   });
 });
 
+describe("Brighten, the cautious exposure fix (D118)", () => {
+  it("returns a well-exposed photo's buffer itself, so its pattern is exactly Off's", () => {
+    expect(enhancePixelBuffer(wellExposed, "brighten")).toBe(wellExposed);
+  });
+
+  it("leaves a backlit photo (dark subject, bright sky) alone, where Auto still lifts the midtones", () => {
+    const backlit = makeBuffer(240, 160, (x, y) => {
+      const n = pseudoNoise(x, y, 4);
+      return y < 50 ? [232 + n, 238 + n, 248] : [18 + n, 16 + n, 22 + n];
+    });
+    expect(enhancePixelBuffer(backlit, "brighten")).toBe(backlit);
+    const auto = analyzeEnhancement(backlit, ENHANCEMENT_PRESETS.auto).toneLut;
+    expect(auto.some((v, i) => Math.abs(v - i / (auto.length - 1)) > 1e-3)).toBe(true);
+  });
+
+  it("lifts a dark photo with no highlights, without white balance, local contrast or vibrance", () => {
+    const dark = makeBuffer(240, 160, (x, y) => {
+      const v = 8 + (x / 239) * 100 + pseudoNoise(x, y, 6);
+      return [v * 1.1, v, v * 0.85];
+    });
+    const params = analyzeEnhancement(dark, ENHANCEMENT_PRESETS.brighten);
+    expect(params.gains).toEqual([1, 1, 1]);
+    expect(params.clahe).toBeNull();
+    expect(params.vibranceAmount).toBe(0);
+    expect(medianL(applyEnhancement(dark, params))).toBeGreaterThan(medianL(dark) + 0.05);
+  });
+
+  it("never lowers the median of a flat photo whose median sits below the centre of its tonal range", () => {
+    const skewed = makeBuffer(240, 160, (x, y) => {
+      const v = (x < 170 ? 90 + (x / 169) * 20 : 150 + ((x - 170) / 69) * 20) + pseudoNoise(x, y, 4);
+      return [v, v, v];
+    });
+    const before = medianL(skewed);
+    expect(medianL(enhancePixelBuffer(skewed, "brighten"))).toBeGreaterThanOrEqual(before - 0.005);
+  });
+
+  it("stretches a flat photo by at most 1.6× and never darkens its midtones with gamma", () => {
+    const foggy = Float32Array.from({ length: 1001 }, (_, i) => 0.6 + (i / 1000) * 0.25);
+    const [inLow, inHigh, outLow, outHigh] = planLevels(foggy, ENHANCEMENT_PRESETS.brighten.levels)!;
+    expect((outHigh - outLow) / (inHigh - inLow)).toBeLessThanOrEqual(1.6 + 1e-9);
+    expect(planGamma(0.8, ENHANCEMENT_PRESETS.brighten.midtone)).toBe(1);
+  });
+});
+
 describe("vibrance and skin", () => {
   it("recognises typical skin swatches and rejects green and saturated red", () => {
     const weightOf = (rgb: RGB) => {
@@ -326,7 +386,7 @@ describe("vibrance and skin", () => {
     const scene = makeBuffer(120, 60, (x) => (x < 60 ? [120, 135, 165] : [224, 172, 138]));
     const isPastel = (x: number) => x < 60;
     const isSkin = (x: number) => x >= 60;
-    for (const mode of MODES) {
+    for (const mode of MODES.filter((m) => ENHANCEMENT_PRESETS[m].vibrance.amount > 0)) {
       const preset = ENHANCEMENT_PRESETS[mode];
       const withVibrance = enhancePixelBufferWith(scene, preset);
       const without = enhancePixelBufferWith(scene, { ...preset, vibrance: { ...preset.vibrance, amount: 0 } });

@@ -11,9 +11,9 @@ import { EMPTY_CELL, type PixelBuffer, type RGB, type StitchPattern } from "@/li
 import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "./helpers/fixtures";
 
 /**
- * G-032 M2: release gates for enhancement modes (criteria 2, 3e, 3f; D113, D115). Every mode is measured; only released
- * modes must pass, so an unreleased mode's numbers are recorded without failing the suite. Set
- * ENHANCEMENT_CALIBRATION_REPORT=<path> to write the measurements as JSON.
+ * G-032 M2: gates for enhancement modes (criteria 2, 3e, 3f; D113, D115). Releasing a mode is the Owner's decision
+ * (D118), so every mode must pass the safety gates (do no harm, noise, thread palette), while recovery is measured and
+ * reported without failing the suite. Set ENHANCEMENT_CALIBRATION_REPORT=<path> to write the measurements as JSON.
  *
  * Recovery and do-no-harm compare region boundaries (do two neighbouring cells share a colour?), not exact colours. The
  * first run gated on colour agreement within ΔE 0.06, and even the undegraded photos scored 0.08–0.51 against their own
@@ -21,7 +21,7 @@ import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "./helpers/fixtures
  * agreement is still reported, ungated (D115).
  */
 
-const MODES = ["auto", "vivid", "portrait"] as const;
+const MODES = ["brighten", "auto", "vivid", "portrait"] as const;
 type Mode = (typeof MODES)[number];
 
 export const RELEASE_GATES = {
@@ -156,6 +156,7 @@ describe("enhancement release gates", () => {
     "%s: recovery, do-no-harm, noise and thread-palette gates",
     (mode) => {
       const failures: string[] = [];
+      const recoveryShortfalls: string[] = [];
       const metrics: Record<string, unknown> = {};
 
       for (const { name, source } of FIXTURES) {
@@ -178,8 +179,8 @@ describe("enhancement release gates", () => {
           },
           operations: operationsRun(degraded, mode),
         };
-        if (modeOnDegraded < RELEASE_GATES.recoveryMinAgreement) failures.push(`${name}: recovery agreement ${modeOnDegraded.toFixed(3)}`);
-        if (modeOnDegraded - offOnDegraded < RELEASE_GATES.recoveryMinGainOverOff) failures.push(`${name}: gain over Off ${(modeOnDegraded - offOnDegraded).toFixed(3)}`);
+        if (modeOnDegraded < RELEASE_GATES.recoveryMinAgreement) recoveryShortfalls.push(`${name}: recovery agreement ${modeOnDegraded.toFixed(3)}`);
+        if (modeOnDegraded - offOnDegraded < RELEASE_GATES.recoveryMinGainOverOff) recoveryShortfalls.push(`${name}: gain over Off ${(modeOnDegraded - offOnDegraded).toFixed(3)}`);
         if (modeOnOriginal < RELEASE_GATES.wellExposedMinAgreement) failures.push(`${name}: do-no-harm agreement ${modeOnOriginal.toFixed(3)}`);
       }
 
@@ -206,9 +207,9 @@ describe("enhancement release gates", () => {
         if (extraPairs > RELEASE_GATES.maxExtraNearDuplicatePairs) failures.push(`${paletteMode}: ${extraPairs} extra near-duplicate pairs`);
       }
 
-      report[mode] = { metrics, failures, passes: failures.length === 0 };
+      report[mode] = { metrics, failures, recoveryShortfalls, passesSafetyGates: failures.length === 0 };
       if (process.env.ENHANCEMENT_CALIBRATION_REPORT) writeFileSync(process.env.ENHANCEMENT_CALIBRATION_REPORT, JSON.stringify(report, null, 2));
-      if ((releasedEnhancementModes() as readonly string[]).includes(mode)) expect(failures).toEqual([]);
+      expect(failures).toEqual([]);
     },
     300_000
   );

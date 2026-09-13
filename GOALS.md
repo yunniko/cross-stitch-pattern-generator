@@ -827,6 +827,36 @@ saved-file embed) also stays the original bytes.
   recorded.
 
 **Progress log** (newest first):
+- 2026-09-13 — **Owner decision: all modes in the UI, plus a cautious
+  Brighten fix** ("get modes to the ui, i want to check them myself; apply
+  cautious brightness fix for dark or flat photos"). This resolves the
+  pending release decision below (D118, superseding D117).
+
+  Changes:
+  - `releasedEnhancementModes()` returns every mode. The test-build flag is
+    removed.
+  - Brighten preset: levels stretch capped at 1.6×; gamma only lifts, only
+    runs when levels does, and never leaves the median below where it
+    started; no white balance, CLAHE or vibrance. A photo with both deep
+    shadows and highlights (backlit included) is returned untouched.
+  - When every stage abstains, the source buffer itself is returned.
+  - Auto, Vivid and Portrait tooltips say "Experimental".
+
+  Found while testing:
+  - The first Brighten version darkened a dim flat photo, because the
+    centred stretch pulled a median sitting below the range centre down.
+    Fixed with the median floor; a regression test covers it.
+  - On a very flat photo the 1.6× stretch settles over several passes, not
+    shrinking each pass. Its test now requires settling within six passes;
+    the other modes keep the strict test.
+  - The calibration spec now asserts the safety gates (do-no-harm, noise,
+    threads) for every mode and reports recovery. All four modes pass.
+
+  Not done: the real-photo calibration for Brighten (the machine had about
+  1.3 GB free memory, and the previous run was killed).
+
+  Verified: `tsc` and eslint clean, 745/745 unit, 58/58 e2e on a
+  production build, docs-lint ok.
 - 2026-09-13 — **M4 done: nothing released.** Deployed hidden, with Off
   only (50d632a).
 
@@ -872,7 +902,8 @@ saved-file embed) also stays the original bytes.
   Verified: `tsc` and eslint clean, 734/734 unit, 58/58 e2e on a production
   build, docs-lint ok.
 
-  **PENDING APPROVAL: the release decision.** Options: keep hidden; fund a
+  **Release decision: answered by the Owner on 2026-09-13; see the entry
+  above.** Options were: keep hidden; fund a
   validation and tuning round (measured floor, chance-corrected metric,
   expert-graded references such as FiveK, held-out set, blinded stitcher
   comparison); narrow to one conservative exposure fix; or remove the

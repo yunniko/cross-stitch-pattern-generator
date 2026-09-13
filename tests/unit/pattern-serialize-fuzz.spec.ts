@@ -39,7 +39,7 @@ function validFile(rng: () => number): Json {
     sourceImage: rng() < 0.5 ? { dataUrl: "data:image/png;base64,AAAA", naturalWidth: 10, naturalHeight: 10, cellSizePx: 2, offsetX: 0, offsetY: 0 } : undefined,
     threadBrand: rng() < 0.3 ? "dmc" : undefined,
     edgeMode: rng() < 0.3 ? "crisp" : undefined,
-    enhancementMode: rng() < 0.3 ? pick(rng, ["auto", "vivid", "portrait"]) : undefined,
+    enhancementMode: rng() < 0.3 ? pick(rng, ["brighten", "auto", "vivid", "portrait"]) : undefined,
   };
 }
 
@@ -165,7 +165,7 @@ function assertRenderable(pattern: StitchPattern): void {
     expect(index === EMPTY_CELL || index < pattern.palette.length).toBe(true);
   }
   if (pattern.threadBrand !== undefined) expect(["dmc", "cosmo", "anchor"]).toContain(pattern.threadBrand);
-  if (pattern.enhancementMode !== undefined) expect(["auto", "vivid", "portrait"]).toContain(pattern.enhancementMode);
+  if (pattern.enhancementMode !== undefined) expect(["brighten", "auto", "vivid", "portrait"]).toContain(pattern.enhancementMode);
 
   // Every renderer must run clean on the accepted pattern.
   const pixels = renderNavigatorPixels(pattern);

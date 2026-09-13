@@ -2,8 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-// G-032 M3: the Photo control, the enhanced preview before Generate, and the mode's persistence. The Playwright build
-// sets NEXT_PUBLIC_ENHANCEMENT_PREVIEW=1, which offers the not-yet-released modes (D116).
+// G-032 M3: the Photo control, the enhanced preview before Generate, and the mode's persistence. Every mode is offered (D118).
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
 
 function collectErrors(page: Page): string[] {
@@ -24,11 +23,11 @@ async function uploadPhoto(page: Page) {
 
 const modeButton = (page: Page, name: string) => page.getByRole("button", { name, exact: true });
 
-test("the Photo control offers every mode in the test build and starts at Off, showing the plain photo", async ({ page }) => {
+test("the Photo control offers every mode and starts at Off, showing the plain photo", async ({ page }) => {
   const errors = collectErrors(page);
   await uploadPhoto(page);
   await expect(modeButton(page, "Off")).toHaveAttribute("aria-pressed", "true");
-  for (const name of ["Auto", "Vivid", "Portrait"]) await expect(modeButton(page, name)).toHaveAttribute("aria-pressed", "false");
+  for (const name of ["Brighten", "Auto", "Vivid", "Portrait"]) await expect(modeButton(page, name)).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByRole("img", { name: "Uploaded photo" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Compare with original" })).toHaveCount(0);
   expect(errors).toEqual([]);

@@ -102,8 +102,8 @@ describe("the remembered enhancement preference", () => {
     expect(loadWith({}).enhancementMode).toBe("off");
   });
 
-  it("keeps a released mode and resolves an unreleased or unknown one to Off (D113)", () => {
-    for (const mode of ["auto", "vivid", "portrait", "dramatic"]) {
+  it("keeps a released mode and resolves an unknown one to Off (D113)", () => {
+    for (const mode of ["brighten", "auto", "vivid", "portrait", "dramatic"]) {
       const expected = (releasedEnhancementModes() as readonly string[]).includes(mode) ? mode : "off";
       expect(loadWith({ enhancementMode: mode }).enhancementMode).toBe(expected);
     }
@@ -111,19 +111,8 @@ describe("the remembered enhancement preference", () => {
 });
 
 describe("which modes are released", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it("offers only Off in a normal build", () => {
-    vi.stubEnv("NEXT_PUBLIC_ENHANCEMENT_PREVIEW", "");
-    expect(releasedEnhancementModes()).toEqual(["off"]);
-    expect(isReleasedEnhancementMode("auto")).toBe(false);
-  });
-
-  it("offers every recognized mode in the test build flagged with NEXT_PUBLIC_ENHANCEMENT_PREVIEW=1 (D116)", () => {
-    vi.stubEnv("NEXT_PUBLIC_ENHANCEMENT_PREVIEW", "1");
-    expect(releasedEnhancementModes()).toEqual(["off", "auto", "vivid", "portrait"]);
+  it("offers every recognized mode, Brighten first after Off, by the Owner's decision (D118)", () => {
+    expect(releasedEnhancementModes()).toEqual(["off", "brighten", "auto", "vivid", "portrait"]);
     expect(isReleasedEnhancementMode("portrait")).toBe(true);
     expect(isReleasedEnhancementMode("dramatic")).toBe(false);
   });

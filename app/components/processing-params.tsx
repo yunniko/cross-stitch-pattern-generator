@@ -33,9 +33,10 @@ const EDGE_OPTIONS: SegmentOption<WorkspaceOptions["edgeMode"]>[] = [
 
 const ENHANCEMENT_OPTIONS: Record<EnhancementModeId, SegmentOption<EnhancementModeId>> = {
   off: { value: "off", label: "Off", title: "Use the photo exactly as it is" },
-  auto: { value: "auto", label: "Auto", title: "Corrects exposure, contrast, colour cast and saturation, measured from the photo itself" },
-  vivid: { value: "vivid", label: "Vivid", title: "Stronger local contrast and saturation, for landscapes, objects and faded prints" },
-  portrait: { value: "portrait", label: "Portrait", title: "A gentle correction without local contrast, protecting skin tones" },
+  brighten: { value: "brighten", label: "Brighten", title: "A cautious exposure fix for dark or flat photos; colours and well-exposed photos are left as they are" },
+  auto: { value: "auto", label: "Auto", title: "Experimental: corrects exposure, contrast, colour cast and saturation, measured from the photo itself" },
+  vivid: { value: "vivid", label: "Vivid", title: "Experimental: stronger local contrast and saturation, for landscapes, objects and faded prints" },
+  portrait: { value: "portrait", label: "Portrait", title: "Experimental: a gentle correction without local contrast, protecting skin tones" },
 };
 
 const LABEL = "text-xs font-medium text-zinc-600 dark:text-zinc-400";
@@ -57,7 +58,7 @@ export interface ProcessingParamsProps {
 /** The dock under the Image window: photo input, pattern size, color count, algorithm/palette/edge modes and Generate. */
 export function ProcessingParams({ options, onChange, onImageFile, isLoadingImage, isProcessing, progress, sourceFileName, hasPattern, hasSourcePhoto, onGenerate, error }: ProcessingParamsProps) {
   const longerSide = longerSideFor(options);
-  // Only released modes are offered; with Off the only one, the control stays hidden (D113, D116).
+  // Only released modes are offered; with Off the only one, the control stays hidden (D113, D118).
   const photoOptions = releasedEnhancementModes().map((mode) => ENHANCEMENT_OPTIONS[mode]);
   const photoMode = isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off";
 

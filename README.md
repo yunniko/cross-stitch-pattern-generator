@@ -49,11 +49,11 @@ per file in `docs/decisions/`, research and reviews in `docs/reviews/` and
 `docs/domain-reference*.md`, and thread-data and font licensing in
 `docs/*-provenance.md`.
 
-Photo enhancement (Auto, Vivid and Portrait presets that correct exposure,
-contrast, colour cast and saturation before generation) is built but not
-offered: none of the presets met their quality gates on real photos
-(`docs/reviews/2026-09-13-photo-enhancement-calibration.md`). Building with
-`NEXT_PUBLIC_ENHANCEMENT_PREVIEW=1` shows the control, as the e2e build does.
+Photo enhancement runs before generation, with a preview and a compare toggle.
+Brighten is a cautious exposure fix for dark or flat photos, and leaves
+well-exposed ones untouched. Auto, Vivid and Portrait also correct contrast,
+colour cast and saturation, and are experimental: none met their quality
+gates on real photos (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
 Style: Tailwind with the zinc palette, pill-shaped controls, light and dark
 themes following the system preference.

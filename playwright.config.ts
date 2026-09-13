@@ -21,7 +21,6 @@ export default defineConfig({
     command: `npm run build && npm run start -- -p ${PORT}`,
     // Offers the photo-enhancement modes that aren't released yet, so their UI is tested before release. Production
     // builds never set this (D116).
-    env: { ...process.env, NEXT_PUBLIC_ENHANCEMENT_PREVIEW: "1" } as Record<string, string>,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,

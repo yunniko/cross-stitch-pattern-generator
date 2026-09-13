@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-13 at 81dcab6 plus the G-032 M2–M4 commit that carries this line
+Last verified: 2026-09-13 at 0f4dc8a plus the Brighten and mode-release commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -10,8 +10,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs `master` as deployed on 2026-09-13 (last deploy-log
-row). G-032 (photo enhancement) is built and deployed but hidden: no preset
-met its real-photo release gates, so production offers only Off (D117).
+row). G-032 (photo enhancement) is live with every mode offered on the
+Owner's decision (D118), so they can judge the modes by eye.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest
@@ -32,12 +32,14 @@ met its real-photo release gates, so production offers only Off (D117).
   SHA-256, 500 ms debounce) and restores on reload. A corrupt record shows a
   banner with an on-demand error report. Options persist in localStorage.
 
-- Photo enhancement, test build only: a Photo control (Off, Auto, Vivid,
+- Photo enhancement: a Photo control (Off, Brighten, Auto, Vivid,
   Portrait), an enhanced preview with "Compare with original" before
-  Generate, and the mode recorded in saved files. The real-photo results
-  are in `docs/reviews/2026-09-13-photo-enhancement-calibration.md`.
+  Generate, and the mode recorded in saved files. Brighten is a cautious
+  exposure fix for dark or flat photos only. The other three are
+  experimental: none passed its real-photo rule
+  (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 734/734 Vitest
+**Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 745/745 Vitest
 tests; 58/58 Playwright tests on a fresh production build. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
@@ -93,7 +95,8 @@ above the goal's 1.5 s target.
   original (D112). Off returns the input untouched. The preview has its own
   worker (`lib/pipeline/enhance-preview.worker.ts`, D116).
   `releasedEnhancementModes()` decides what the UI offers; files may record
-  any recognized mode (D113).
+  any recognized mode (D113). If every stage abstains, the source buffer
+  itself is returned (D118).
 - **Crisp mode** (`lib/crisp/`): a frozen evidence layer (D065) feeds weighted
   quantization, admissible-label unary costs in ICM and cleanup, repair after
   merges, and mode-aware finalization (D061–D072).
@@ -132,11 +135,11 @@ above the goal's 1.5 s target.
   with a decision file (D107).
 - Omitting `edgeMode`, `contourRefinement`, a brand or `enhancementMode` (or
   passing Off) must reproduce Standard output byte-for-byte.
-- An enhancement mode reaches production only through
-  `releasedEnhancementModes()`, and only after passing
-  `scripts/calibrate-enhancement.ts` or an explicit Owner decision (D117).
-  `NEXT_PUBLIC_ENHANCEMENT_PREVIEW=1` is for the Playwright build only; never
-  set it in the Dockerfile (D116).
+- Which enhancement modes are offered is the Owner's decision, made in
+  `releasedEnhancementModes()` (D118). Every mode must still pass the safety
+  gates in `tests/unit/enhancement-calibration.spec.ts`.
+- Brighten must never white-balance, add local contrast or saturate, and it
+  must leave a photo with both deep shadows and highlights untouched (D118).
 - Enhancement calibration photos stay outside the repository; two show
   identifiable people.
 - Every `cellPalette` mutation passes `EMPTY_CELL` (255) through untouched
@@ -164,12 +167,10 @@ above the goal's 1.5 s target.
 
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
-- **PENDING APPROVAL: G-032 release decision and sign-off.** All four
-  milestones are built and deployed hidden. No preset passed its release
-  rule on 13 real photos, but the rule's structure metric reacts to a
-  one-level brightness change about as much as to enhancement, so harm is
-  unproven too (D117). The Owner chooses: keep hidden, fund a validation
-  and tuning round, narrow to one exposure fix, or remove the feature.
+- **PENDING APPROVAL: G-032 sign-off.** On 2026-09-13 the Owner asked for
+  every mode in the UI to check them by eye, plus a cautious Brighten fix.
+  Both are live (D118). Their verdict decides which modes stay. Brighten
+  wasn't run on the real-photo set because the machine was low on memory.
   Also open: the 1.5 s enhancement target, and a Codex review of the M2–M4
   diff (usage limit hit on 2026-09-13).
 - G-028 (OXS import and export) is a draft. G-030 (public launch) is a

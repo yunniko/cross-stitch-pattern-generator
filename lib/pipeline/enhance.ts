@@ -10,18 +10,31 @@ import type { PixelBuffer } from "../types";
  * See D112–D114.
  */
 
-export type EnhancementModeId = "off" | "auto" | "vivid" | "portrait";
+export type EnhancementModeId = "off" | "brighten" | "auto" | "vivid" | "portrait";
 
 export interface EnhancementPreset {
+  /** strength 0 disables white balance. */
   whiteBalance: { strength: number; brightBlend: number; maxGainRatio: number; maxChromaShift: number };
   levels: { lowPercentile: number; highPercentile: number; maxStretch: number };
-  midtone: { bandLow: number; bandHigh: number; gammaMin: number; gammaMax: number };
+  /**
+   * onlyWithLevels: gamma runs only when levels does, so a photo with real shadows and highlights (e.g. backlit) is left
+   * alone. keepMedian: gamma lifts the median back to at least where it was before levels, so the stretch never darkens.
+   */
+  midtone: { bandLow: number; bandHigh: number; gammaMin: number; gammaMax: number; onlyWithLevels?: boolean; keepMedian?: boolean };
   /** null disables CLAHE. `clip` is in Zuiderveld/OpenCV units (multiples of the uniform bin height). */
   clahe: { clip: number; blend: number; tilesLongSide: number; minTilePx: number } | null;
   vibrance: { amount: number; skinProtection: number };
 }
 
 export const ENHANCEMENT_PRESETS: Record<Exclude<EnhancementModeId, "off">, EnhancementPreset> = {
+  // A cautious exposure fix for dark or flat photos only: tone alone, a smaller stretch, gamma that can only lift (D118).
+  brighten: {
+    whiteBalance: { strength: 0, brightBlend: 0, maxGainRatio: 1, maxChromaShift: 0 },
+    levels: { lowPercentile: 0.005, highPercentile: 0.995, maxStretch: 1.6 },
+    midtone: { bandLow: 0.5, bandHigh: 1, gammaMin: 0.75, gammaMax: 1, onlyWithLevels: true, keepMedian: true },
+    clahe: null,
+    vibrance: { amount: 0, skinProtection: 1 },
+  },
   auto: {
     whiteBalance: { strength: 0.7, brightBlend: 0.3, maxGainRatio: 1.25, maxChromaShift: 0.05 },
     levels: { lowPercentile: 0.005, highPercentile: 0.995, maxStretch: 2.5 },
@@ -45,22 +58,19 @@ export const ENHANCEMENT_PRESETS: Record<Exclude<EnhancementModeId, "off">, Enha
   },
 };
 
-/** Every mode a saved pattern or preference may name. Which modes are offered for new generation is a separate, UI-level release decision (D113). */
-export const ENHANCEMENT_MODE_IDS: EnhancementModeId[] = ["off", "auto", "vivid", "portrait"];
+/** Every mode a saved pattern or preference may name. Which modes are offered for new generation is a separate, UI-level release decision (D113, D118). */
+export const ENHANCEMENT_MODE_IDS: EnhancementModeId[] = ["off", "brighten", "auto", "vivid", "portrait"];
 
 export function isEnhancementModeId(value: unknown): value is EnhancementModeId {
   return typeof value === "string" && (ENHANCEMENT_MODE_IDS as string[]).includes(value);
 }
 
 /**
- * Modes offered for new generation. A mode joins only after passing the calibration gates (D113, D115); until then a
- * remembered preference naming it resolves to "off", while saved patterns still record whatever mode built them. A build
- * with NEXT_PUBLIC_ENHANCEMENT_PREVIEW=1 (only the Playwright build sets it) offers every recognized mode, so the UI can
- * be tested before release (D116). Read lazily, never at module load, so the workers that import this module don't need
- * `process`.
+ * Modes offered for new generation. Releasing a mode is the Owner's decision (D118); a remembered preference naming a
+ * mode that isn't offered resolves to "off", while saved patterns still record whatever mode built them.
  */
 export function releasedEnhancementModes(): readonly EnhancementModeId[] {
-  return process.env.NEXT_PUBLIC_ENHANCEMENT_PREVIEW === "1" ? ENHANCEMENT_MODE_IDS : ["off"];
+  return ENHANCEMENT_MODE_IDS;
 }
 
 export function isReleasedEnhancementMode(value: unknown): value is EnhancementModeId {
@@ -313,6 +323,7 @@ function percentile(sorted: Float32Array, fraction: number): number {
 
 /** Diagonal LMS gains from a capped, partial shades-of-grey estimate over near-neutral samples; identity when unsure. */
 function estimateWhiteBalanceGains(samples: Samples, preset: EnhancementPreset["whiteBalance"]): [number, number, number] {
+  if (preset.strength <= 0) return [1, 1, 1];
   const lab = new Float64Array(3);
   const eligible: number[] = [];
   const eligibleL: number[] = [];
@@ -568,7 +579,9 @@ export function analyzeEnhancement(source: PixelBuffer, preset: EnhancementPrese
   const sortedLeveled = new Float32Array(samples.count);
   for (let i = 0; i < samples.count; i++) sortedLeveled[i] = toneLookup(levelsOnly, labs[i * 3]);
   sortedLeveled.sort();
-  const toneLut = planToneLut(levels, planGamma(percentile(sortedLeveled, 0.5), preset.midtone));
+  const midtone = preset.midtone.keepMedian ? { ...preset.midtone, bandLow: Math.max(preset.midtone.bandLow, percentile(sortedL, 0.5)) } : preset.midtone;
+  const gamma = levels === null && preset.midtone.onlyWithLevels ? 1 : planGamma(percentile(sortedLeveled, 0.5), midtone);
+  const toneLut = planToneLut(levels, gamma);
 
   const toned = new Float32Array(samples.count);
   for (let i = 0; i < samples.count; i++) toned[i] = toneLookup(toneLut, labs[i * 3]);
@@ -778,8 +791,16 @@ export function applyEnhancement(source: PixelBuffer, params: EnhancementParamet
   return { data: out, width, height };
 }
 
-/** Off returns the source object itself, so the pipeline's input bytes and identity are untouched. */
+/** True when every stage abstained: applying the parameters would only round-trip pixels through OKLab. */
+export function isIdentityEnhancement(params: EnhancementParameters): boolean {
+  if (params.clahe || params.vibranceAmount > 0 || params.gains.some((g) => g !== 1)) return false;
+  for (let i = 0; i <= TONE_LUT_SIZE; i++) if (params.toneLut[i] !== Math.fround(i / TONE_LUT_SIZE)) return false;
+  return true;
+}
+
+/** Off, or a mode whose every stage abstained, returns the source object itself, so the pipeline's input bytes and identity are untouched. */
 export function enhancePixelBuffer(source: PixelBuffer, mode: EnhancementModeId): PixelBuffer {
   if (mode === "off") return source;
-  return applyEnhancement(source, analyzeEnhancement(source, ENHANCEMENT_PRESETS[mode]));
+  const params = analyzeEnhancement(source, ENHANCEMENT_PRESETS[mode]);
+  return isIdentityEnhancement(params) ? source : applyEnhancement(source, params);
 }

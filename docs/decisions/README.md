@@ -121,8 +121,9 @@ remain readable with git show.
 - D110 — Text on controls is not selectable; text fields stay selectable — active
 - D111 — Out-of-gamut OKLab colors are mapped with the CSS Color 4 chroma-reduction hybrid — active
 - D112 — Enhancement runs inside buildPattern; color stages read the enhanced photo, edge stages the original — active
-- D113 — Auto, Vivid and Portrait are built, and each ships in the UI only after passing calibration gates — active
+- D113 — Auto, Vivid and Portrait are built, and each ships in the UI only after passing calibration gates — partly superseded (superseded by: D118)
 - D114 — Enhancement steps are capped and target-seeking, with guards against false white balance and clipped tails — active
 - D115 — Release gates compare pattern structure; synthetic fixtures show no harm but not benefit, so nothing is released yet — active
-- D116 — The photo preview has its own worker; unreleased modes appear only in the test build — active
-- D117 — No enhancement mode is released: no evidence of benefit, and the gates can't yet detect harm — active
+- D116 — The photo preview has its own worker; unreleased modes appear only in the test build — partly superseded (superseded by: D118 for the test-build flag)
+- D117 — No enhancement mode is released: no evidence of benefit, and the gates can't yet detect harm — superseded (superseded by: D118)
+- D118 — All photo modes are offered, plus a cautious Brighten mode, on the Owner's decision — active
