@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
+import { formatThreadName, THREAD_BRANDS, type ThreadBrand } from "@/lib/threads/thread-brands";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 function makePattern(): StitchPattern {
@@ -13,6 +14,17 @@ function makePattern(): StitchPattern {
     cellPalette: Uint8Array.from([0, 1, 1, 0]),
     palette,
     isLandscape: false,
+  };
+}
+
+/** The sample pattern locked to `brand`: a lock means every color is that brand's thread, with its source (D122). */
+function lockedTo(brand: ThreadBrand): StitchPattern {
+  const base = makePattern();
+  const threads = THREAD_BRANDS[brand].colors.slice(0, base.palette.length);
+  return {
+    ...base,
+    threadBrand: brand,
+    palette: base.palette.map((color, i) => ({ ...color, rgb: threads[i].rgb, name: formatThreadName(threads[i]), source: { brand, code: threads[i].code } })),
   };
 }
 
@@ -122,7 +134,7 @@ describe("pattern-serialize", () => {
   });
 
   it("round-trips threadBrand: 'dmc' (G-016, generalized from dmcMode in G-029 M1)", () => {
-    const pattern = { ...makePattern(), threadBrand: "dmc" as const };
+    const pattern = lockedTo("dmc");
     const restored = deserializePattern(serializePattern(pattern));
     expect(restored.threadBrand).toBe("dmc");
   });
@@ -133,19 +145,19 @@ describe("pattern-serialize", () => {
   });
 
   it("round-trips threadBrand: 'cosmo' (G-029 M2)", () => {
-    const pattern = { ...makePattern(), threadBrand: "cosmo" as const };
+    const pattern = lockedTo("cosmo");
     const restored = deserializePattern(serializePattern(pattern));
     expect(restored.threadBrand).toBe("cosmo");
   });
 
   it("round-trips threadBrand: 'anchor' (G-029 M3)", () => {
-    const pattern = { ...makePattern(), threadBrand: "anchor" as const };
+    const pattern = lockedTo("anchor");
     const restored = deserializePattern(serializePattern(pattern));
     expect(restored.threadBrand).toBe("anchor");
   });
 
   it("never writes the legacy dmcMode field for a newly-serialized file", () => {
-    const pattern = { ...makePattern(), threadBrand: "dmc" as const };
+    const pattern = lockedTo("dmc");
     const data = JSON.parse(serializePattern(pattern));
     expect(data).not.toHaveProperty("dmcMode");
     expect(data.threadBrand).toBe("dmc");
@@ -169,7 +181,7 @@ describe("pattern-serialize", () => {
   });
 
   it("prefers a present threadBrand over a stale/contradictory legacy dmcMode on the same file", () => {
-    const both = JSON.stringify({ ...JSON.parse(serializePattern({ ...makePattern(), threadBrand: "dmc" as const })), dmcMode: false });
+    const both = JSON.stringify({ ...JSON.parse(serializePattern(lockedTo("dmc"))), dmcMode: false });
     expect(deserializePattern(both).threadBrand).toBe("dmc");
   });
 

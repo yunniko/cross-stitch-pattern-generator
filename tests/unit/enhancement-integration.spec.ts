@@ -62,7 +62,7 @@ describe("buildPattern with enhancementMode", () => {
 describe("saving and restoring the enhancement mode", () => {
   it("round-trips any recognized mode through the save file, released or not", () => {
     const json = serializePattern(samplePattern({ enhancementMode: "vivid" }));
-    expect(JSON.parse(json).formatVersion).toBe(6);
+    expect(JSON.parse(json).formatVersion).toBe(7);
     expect(deserializePattern(json).enhancementMode).toBe("vivid");
   });
 

@@ -38,7 +38,17 @@ describe("project-store", () => {
   it("round-trips a pattern, recomputing counts and keeping name/brand/edge mode", async () => {
     const kv = createMemoryKeyValueStore();
     const store = createProjectStore(kv);
-    await store.save(makePattern({ threadBrand: "dmc", edgeMode: "crisp" }));
+    // A lock means every color is that brand's thread (D122): DMC 310 and 321, with their sources.
+    const unlocked = makePattern({ edgeMode: "crisp" });
+    const threads = [
+      { rgb: [0, 0, 0] as const, name: "310 - Black", code: "310" },
+      { rgb: [199, 43, 59] as const, name: "321 - Red", code: "321" },
+    ];
+    await store.save({
+      ...unlocked,
+      threadBrand: "dmc",
+      palette: unlocked.palette.map((color, i) => ({ ...color, rgb: threads[i].rgb, name: threads[i].name, source: { brand: "dmc" as const, code: threads[i].code } })),
+    });
 
     const { pattern, failure } = await store.load();
     expect(failure).toBeUndefined();

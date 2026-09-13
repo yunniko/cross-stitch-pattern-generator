@@ -133,6 +133,8 @@ export function applyBrandPalette(
     symbol: symbols[finalIndex],
     name: formatThreadName(entry.thread),
     count: entry.count,
+    // Anchor's thread here carries the DMC RGB but its own equivalent code, which is what identifies the swatch (D122).
+    source: { brand, code: entry.thread.code },
   }));
 
   const cellPalette = new Uint8Array(assignment.length);

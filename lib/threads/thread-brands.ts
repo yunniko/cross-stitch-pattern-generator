@@ -35,6 +35,13 @@ export const THREAD_BRANDS: Record<ThreadBrand, ThreadBrandInfo> = {
 
 export const THREAD_BRAND_IDS = Object.keys(THREAD_BRANDS) as ThreadBrand[];
 
+/** A brand's thread by code: an exact match, else a case-insensitive one. Always returns the table's own entry, so callers store its canonical code. */
+export function findThread(brand: ThreadBrand, code: string): ThreadColor | undefined {
+  const colors = THREAD_BRANDS[brand].colors;
+  const wanted = code.toLowerCase();
+  return colors.find((c) => c.code === code) ?? colors.find((c) => c.code.toLowerCase() === wanted);
+}
+
 /** "CODE - Name", or just the code for a brand with no names (never "352 - "). */
 export function formatThreadName(thread: ThreadColor): string {
   return thread.name ? `${thread.code} - ${thread.name}` : thread.code;

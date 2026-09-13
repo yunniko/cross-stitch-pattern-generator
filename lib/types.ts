@@ -62,6 +62,12 @@ export function formatStitchCount(count: number): string {
   return `${count.toLocaleString("en-US")} ${count === 1 ? "stitch" : "stitches"}`;
 }
 
+/** A catalogue thread a palette color was taken from, by brand and canonical table code (G-033, D122). Immutable: replace it, never mutate it. */
+export interface ThreadSwatchRef {
+  readonly brand: ThreadBrand;
+  readonly code: string;
+}
+
 export interface PaletteColor {
   /** Index into the palette array; also the value stored per cell. */
   index: number;
@@ -71,6 +77,8 @@ export interface PaletteColor {
   name: string;
   /** Number of stitches using this color. */
   count: number;
+  /** The thread this color was picked from; absent for a custom color. Its RGB need not equal the table's (Anchor carries DMC RGB). */
+  source?: ThreadSwatchRef;
 }
 
 /**

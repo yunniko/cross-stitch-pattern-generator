@@ -184,8 +184,9 @@ export function useSelectTool({ canvasRef, rendererRef, pattern, cellSize, commi
     setSelection(null);
   }
 
-  /** Drops the selection without merging it -- for when the pattern it belongs to is replaced. */
+  /** Drops the selection, and the copied cells whose palette indices belong to it, without merging -- for when the pattern is replaced. */
   function clear() {
+    setClipboard(null);
     setSelection(null);
     dragRef.current = null;
   }
@@ -243,6 +244,8 @@ export function useSelectTool({ canvasRef, rendererRef, pattern, cellSize, commi
     isDragging,
     merge,
     clear,
+    /** Forgets copied cells after the palette is renumbered (a merge), since their indices now name other colors. */
+    invalidateClipboard: () => setClipboard(null),
     copy: () => selection && setClipboard(selection),
     paste: () => {
       if (!clipboard || !pattern) return;

@@ -212,6 +212,7 @@ export default function Workspace() {
   function handleMergeColors(sourceIndex: number, targetIndex: number) {
     if (!pattern || sourceIndex === targetIndex) return;
     history.set(mergeColors(pattern, sourceIndex, targetIndex));
+    select.invalidateClipboard();
     if (activeColorIndex === sourceIndex) setActiveColorIndex(null);
     // A merge renumbers palette indices, so highlighted indices could now point at other colors.
     if (highlightedColorIndices.size > 0) setHighlightedColorIndices(new Set());

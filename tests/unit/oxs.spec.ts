@@ -2,16 +2,19 @@ import { describe, expect, it } from "vitest";
 import { looksLikeOxs, oxsImportNotice, parseOxs, parseThreadNumber, serializeOxs, summarizeOxsImport } from "@/lib/editor/oxs";
 import { readXmlTags, type XmlTag } from "@/lib/editor/oxs-xml";
 import { formatThreadName, THREAD_BRANDS } from "@/lib/threads/thread-brands";
-import { EMPTY_CELL, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
+import { EMPTY_CELL, type PaletteColor, type RGB, type StitchPattern, type ThreadSwatchRef } from "@/lib/types";
 
 /**
  * G-028 M1: OXS import and export (D119). Every fixture here is self-authored; the real files studied are described in
  * docs/reviews/2026-09-13-oxs-format-evidence.md and are not in the repository.
  */
 
-function makePattern(colors: Array<{ rgb: RGB; name: string }>, width: number, height: number, cells: number[], extra: Partial<StitchPattern> = {}): StitchPattern {
+function makePattern(colors: Array<{ rgb: RGB; name: string; source?: ThreadSwatchRef }>, width: number, height: number, cells: number[], extra: Partial<StitchPattern> = {}): StitchPattern {
   const counts = colors.map((_, i) => cells.filter((c) => c === i).length);
-  const palette: PaletteColor[] = colors.map((c, i) => ({ index: i, rgb: c.rgb, symbol: ["×", "●", "A", "7"][i], name: c.name, count: counts[i] }));
+  const palette: PaletteColor[] = colors.map((c, i) => {
+    const color: PaletteColor = { index: i, rgb: c.rgb, symbol: ["×", "●", "A", "7"][i], name: c.name, count: counts[i] };
+    return c.source ? { ...color, source: c.source } : color;
+  });
   return { width, height, cellPalette: Uint8Array.from(cells), palette, isLandscape: width >= height, ...extra };
 }
 
@@ -95,8 +98,8 @@ describe("serializeOxs", () => {
   it("round-trips a DMC pattern as DMC thread numbers with the file's colours, keeping the brand and thread names", () => {
     const pattern = makePattern(
       [
-        { rgb: dmc("310").rgb, name: formatThreadName(dmc("310")) },
-        { rgb: [190, 20, 40], name: formatThreadName(dmc("321")) },
+        { rgb: dmc("310").rgb, name: formatThreadName(dmc("310")), source: { brand: "dmc", code: "310" } },
+        { rgb: [190, 20, 40], name: formatThreadName(dmc("321")), source: { brand: "dmc", code: "321" } },
       ],
       2,
       1,

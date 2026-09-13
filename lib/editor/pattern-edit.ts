@@ -180,9 +180,45 @@ export function resizeCanvas(pattern: StitchPattern, delta: CanvasResizeDelta): 
   };
 }
 
-/** Changes an existing palette color's actual RGB. Symbol and name are left as-is -- a manual recolor shouldn't silently rename the swatch out from under the user. */
+/**
+ * A brand-locked pattern holds only that brand's threads (D122): a custom color (`brand` null) or another brand's thread
+ * is refused here, whatever the UI offers.
+ */
+function assertBrandAllowed(pattern: StitchPattern, brand: ThreadBrand | null): void {
+  const locked = pattern.threadBrand;
+  if (!locked || brand === locked) return;
+  const lockedLabel = THREAD_BRANDS[locked].label;
+  throw new Error(brand ? `This pattern uses only ${lockedLabel} threads, so a ${THREAD_BRANDS[brand].label} thread can't be used.` : `This pattern uses only ${lockedLabel} threads, so a custom color can't be used.`);
+}
+
+/** The palette entry without its thread identity: a manual RGB makes it a custom color. */
+function withoutSource(color: PaletteColor): PaletteColor {
+  const { source: _source, ...rest } = color;
+  void _source;
+  return rest;
+}
+
+/**
+ * Changes an existing palette color's actual RGB. Symbol and name are left as-is -- a manual recolor shouldn't silently
+ * rename the swatch out from under the user -- but the thread identity is dropped: it is now a custom color (D122).
+ */
 export function editColorRgb(pattern: StitchPattern, paletteIndex: number, rgb: RGB): StitchPattern {
-  const palette = pattern.palette.map((color, i) => (i === paletteIndex ? { ...color, rgb } : color));
+  assertBrandAllowed(pattern, null);
+  const palette = pattern.palette.map((color, i) => (i === paletteIndex ? { ...withoutSource(color), rgb } : color));
+  return { ...pattern, palette };
+}
+
+/**
+ * Puts back a color's RGB, name and thread identity exactly as captured earlier -- the color editor's Cancel (G-033).
+ * The snapshot's `source` object is reused as is, since sources are never mutated.
+ */
+export function restoreColor(pattern: StitchPattern, paletteIndex: number, snapshot: Pick<PaletteColor, "rgb" | "name" | "source">): StitchPattern {
+  assertBrandAllowed(pattern, snapshot.source?.brand ?? null);
+  const palette = pattern.palette.map((color, i) => {
+    if (i !== paletteIndex) return color;
+    const restored = { ...withoutSource(color), rgb: snapshot.rgb, name: snapshot.name };
+    return snapshot.source ? { ...restored, source: snapshot.source } : restored;
+  });
   return { ...pattern, palette };
 }
 
@@ -199,10 +235,11 @@ export function editColorRgb(pattern: StitchPattern, paletteIndex: number, rgb: 
  * matched one.
  */
 export function editColorToBrandColor(pattern: StitchPattern, paletteIndex: number, code: string, brand: ThreadBrand): StitchPattern {
+  assertBrandAllowed(pattern, brand);
   const thread = THREAD_BRANDS[brand].colors.find((c) => c.code === code);
   if (!thread) throw new Error(`"${code}" isn't a recognized ${THREAD_BRANDS[brand].label} color code.`);
   const palette = pattern.palette.map((color, i) =>
-    i === paletteIndex ? { ...color, rgb: thread.rgb, name: formatThreadName(thread) } : color
+    i === paletteIndex ? { ...color, rgb: thread.rgb, name: formatThreadName(thread), source: { brand, code: thread.code } } : color
   );
   return { ...pattern, palette };
 }
@@ -215,6 +252,7 @@ export function editColorToBrandColor(pattern: StitchPattern, paletteIndex: numb
  * adding one.
  */
 export function addColor(pattern: StitchPattern, rgb: RGB): StitchPattern {
+  assertBrandAllowed(pattern, null);
   if (pattern.palette.length >= MAX_COLORS) {
     throw new Error(`Cannot add another color -- already at the maximum of ${MAX_COLORS}.`);
   }
@@ -239,6 +277,7 @@ export function addColor(pattern: StitchPattern, rgb: RGB): StitchPattern {
  * zero stitches, same as `addColor`.
  */
 export function addBrandColor(pattern: StitchPattern, code: string, brand: ThreadBrand): StitchPattern {
+  assertBrandAllowed(pattern, brand);
   if (pattern.palette.length >= MAX_COLORS) {
     throw new Error(`Cannot add another color -- already at the maximum of ${MAX_COLORS}.`);
   }
@@ -256,6 +295,7 @@ export function addBrandColor(pattern: StitchPattern, code: string, brand: Threa
     symbol,
     name: formatThreadName(thread),
     count: 0,
+    source: { brand, code: thread.code },
   };
 
   return { ...pattern, palette: [...pattern.palette, newColor] };

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
 import { mulberry32 } from "@/lib/prng";
 import { drawChart, renderNavigatorPixels } from "@/lib/export/render";
+import { findThread } from "@/lib/threads/thread-brands";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type StitchPattern } from "@/lib/types";
 import { makeRecordingContext } from "./helpers/recording-context";
 
@@ -26,10 +27,11 @@ function validFile(rng: () => number): Json {
     rgb: [Math.floor(rng() * 256), Math.floor(rng() * 256), Math.floor(rng() * 256)],
     symbol: String.fromCharCode(65 + i),
     name: `Color ${i}`,
+    source: rng() < 0.4 ? pick(rng, VALID_SOURCES) : undefined,
   }));
   const cellPalette = Array.from({ length: width * height }, () => (rng() < 0.1 ? EMPTY_CELL : Math.floor(rng() * colors)));
   return {
-    formatVersion: 5,
+    formatVersion: pick(rng, [5, 7]),
     width,
     height,
     isLandscape: width >= height,
@@ -45,13 +47,20 @@ function validFile(rng: () => number): Json {
 
 const JUNK: unknown[] = [null, undefined, "", "x", 0, -1, 1.5, NaN, Infinity, true, [], {}, [1, 2], "300", 1e9];
 
+const VALID_SOURCES = [
+  { brand: "dmc", code: "310" },
+  { brand: "cosmo", code: "600" },
+  { brand: "anchor", code: "403" },
+];
+const BAD_SOURCES: unknown[] = [null, "310", [], {}, { brand: "dmc" }, { brand: "rainbow", code: "1" }, { brand: "dmc", code: "" }, { brand: "dmc", code: "NOPE" }, { brand: "dmc", code: 310 }, { brand: "dmc", code: "b5200" }];
+
 function pick<T>(rng: () => number, items: readonly T[]): T {
   return items[Math.floor(rng() * items.length)];
 }
 
 /** Applies one random mutation in place and returns its description. */
 function mutate(file: Json, rng: () => number): string {
-  const kind = Math.floor(rng() * 14);
+  const kind = Math.floor(rng() * 15);
   // An earlier mutation may have replaced these with junk (a string, a number, an object), so only real arrays count.
   const palette = Array.isArray(file.palette) ? (file.palette as Array<Json>) : undefined;
   const cells = Array.isArray(file.cellPalette) ? (file.cellPalette as unknown[]) : undefined;
@@ -135,8 +144,16 @@ function mutate(file: Json, rng: () => number): string {
       file.sourceImage = value;
       return `sourceImage = ${JSON.stringify(value)}`;
     }
+    case 13: {
+      if (!palette || palette.length === 0) return "noop";
+      const entry = pick(rng, palette);
+      if (typeof entry !== "object" || entry === null) return "noop";
+      const value = pick(rng, [...BAD_SOURCES, ...VALID_SOURCES, undefined]);
+      entry.source = value;
+      return `source = ${JSON.stringify(value)}`;
+    }
     default: {
-      const value = pick(rng, ["rainbow", "cosmo", "anchor", 1, null]);
+      const value = pick(rng, ["rainbow", "cosmo", "anchor", "dmc", 1, null]);
       file.threadBrand = value;
       return `threadBrand = ${JSON.stringify(value)}`;
     }
@@ -165,6 +182,15 @@ function assertRenderable(pattern: StitchPattern): void {
     expect(index === EMPTY_CELL || index < pattern.palette.length).toBe(true);
   }
   if (pattern.threadBrand !== undefined) expect(["dmc", "cosmo", "anchor"]).toContain(pattern.threadBrand);
+  // Every kept thread identity resolves with its canonical code, and a lock means every color is that brand's thread (D122).
+  for (const color of pattern.palette) {
+    if (color.source === undefined) {
+      expect("source" in color).toBe(false);
+      continue;
+    }
+    expect(findThread(color.source.brand, color.source.code)?.code).toBe(color.source.code);
+  }
+  if (pattern.threadBrand !== undefined) expect(pattern.palette.every((color) => color.source?.brand === pattern.threadBrand)).toBe(true);
   if (pattern.enhancementMode !== undefined) expect(["brighten", "auto", "vivid", "portrait"]).toContain(pattern.enhancementMode);
 
   // Every renderer must run clean on the accepted pattern.

@@ -1,6 +1,6 @@
 import { symbolsFor } from "../color/symbols";
-import { formatThreadName, THREAD_BRANDS, type ThreadBrand, type ThreadColor } from "../threads/thread-brands";
-import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "../types";
+import { findThread, formatThreadName, THREAD_BRANDS, type ThreadBrand } from "../threads/thread-brands";
+import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern, type ThreadSwatchRef } from "../types";
 import { escapeXmlAttribute, readXmlTags, XmlReadError } from "./oxs-xml";
 
 /**
@@ -331,7 +331,10 @@ export function parseOxs(text: string): OxsImportResult {
     cellPalette[cell] = colorIndex;
     counts[colorIndex]++;
   }
-  const palette: PaletteColor[] = colors.map((c, i) => ({ index: i, rgb: c.rgb, symbol: symbols[i], name: c.name, count: counts[i] }));
+  const palette: PaletteColor[] = colors.map((c, i) => {
+    const color: PaletteColor = { index: i, rgb: c.rgb, symbol: symbols[i], name: c.name, count: counts[i] };
+    return c.source ? { ...color, source: c.source } : color;
+  });
 
   const spi = parsePositiveNumber(props.stitchesperinch);
   const spiY = parsePositiveNumber(props.stitchesperinch_y);
@@ -427,6 +430,8 @@ interface ResolvedColor {
   name: string;
   /** Palette item indices merged into this colour. */
   sourceIndices: number[];
+  /** The thread the entry names, with the table's canonical code (D122); absent for blends and unknown numbers. */
+  source?: ThreadSwatchRef;
 }
 
 /** "DMC 310", "DMC    943", "Anchor 403", "cosmo 2500" → brand and code. */
@@ -434,11 +439,6 @@ export function parseThreadNumber(number: string): { brand: ThreadBrand; code: s
   const match = /^(dmc|anchor|cosmo)\s*([A-Za-z0-9][\w.-]*)$/i.exec(number.trim());
   if (!match) return null;
   return { brand: match[1].toLowerCase() as ThreadBrand, code: match[2] };
-}
-
-function findThread(brand: ThreadBrand, code: string): ThreadColor | undefined {
-  const wanted = code.toLowerCase();
-  return THREAD_BRANDS[brand].colors.find((t) => t.code.toLowerCase() === wanted);
 }
 
 /**
@@ -468,7 +468,7 @@ function resolveColors(items: PaletteItem[], report: OxsImportReport): ResolvedC
         report.mergedDuplicateColors++;
         return;
       }
-      const color: ResolvedColor = { rgb: item.rgb!, name: formatThreadName(thread), sourceIndices: [item.index] };
+      const color: ResolvedColor = { rgb: item.rgb!, name: formatThreadName(thread), sourceIndices: [item.index], source: { brand, code: thread.code } };
       byCode.set(thread.code, color);
       resolved.push(color);
     });
@@ -490,7 +490,7 @@ function resolveColors(items: PaletteItem[], report: OxsImportReport): ResolvedC
     let name = base;
     for (let n = 2; taken.has(name); n++) name = `${base} (${n})`;
     taken.add(name);
-    resolved.push({ rgb: item.rgb!, name, sourceIndices: [item.index] });
+    resolved.push(identity ? { rgb: item.rgb!, name, sourceIndices: [item.index], source: { brand: identity.brand, code: identity.thread.code } } : { rgb: item.rgb!, name, sourceIndices: [item.index] });
   });
   return resolved;
 }
@@ -505,8 +505,8 @@ const DEFAULT_STITCHES_PER_INCH = 14;
 
 /**
  * Writes a pattern as OXS: the cloth at index 0, each colour at its position plus one, full stitches row by row, and
- * the other sections present but empty. A colour carries a thread number only when it is exactly one of the pattern
- * brand's threads by name; a custom or renamed colour has an empty number, so no text can pose as "cloth" or a thread
+ * the other sections present but empty. A colour's thread number comes only from its thread identity (`source`, D122),
+ * never from its name, so a renamed thread keeps its code and no custom colour's text can pose as "cloth" or a thread
  * code. Callers pass the export-compacted pattern.
  */
 export function serializeOxs(pattern: StitchPattern, options: OxsExportOptions = {}): string {
@@ -534,15 +534,13 @@ export function serializeOxs(pattern: StitchPattern, options: OxsExportOptions =
 
   lines.push("<palette>");
   lines.push(`<palette_item${attribute("index", 0)}${attribute("number", "cloth")}${attribute("name", "cloth")}${attribute("color", "FFFFFF")}${attribute("printcolor", "FFFFFF")}${attribute("blendcolor", "nil")}${attribute("strands", 2)}/>`);
-  const brand = pattern.threadBrand;
-  const brandThreads = brand ? new Map(THREAD_BRANDS[brand].colors.map((t) => [formatThreadName(t), t])) : null;
   pattern.palette.forEach((color, i) => {
-    const thread = brandThreads?.get(color.name);
+    const thread = color.source ? findThread(color.source.brand, color.source.code) : undefined;
     const hex = toHex(color.rgb);
     lines.push(
       "<palette_item" +
         attribute("index", i + 1) +
-        attribute("number", thread && brand ? `${THREAD_BRANDS[brand].label} ${thread.code}` : "") +
+        attribute("number", thread && color.source ? `${THREAD_BRANDS[color.source.brand].label} ${thread.code}` : "") +
         attribute("name", thread ? thread.name || thread.code : color.name) +
         attribute("color", hex) +
         attribute("printcolor", hex) +

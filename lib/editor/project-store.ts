@@ -1,5 +1,5 @@
-import { deserializePattern, deserializePatternData } from "./pattern-serialize";
-import type { RGB, SourceImageRef, StitchPattern } from "../types";
+import { deserializePattern, deserializePatternData, FORMAT_VERSION } from "./pattern-serialize";
+import type { RGB, SourceImageRef, StitchPattern, ThreadSwatchRef } from "../types";
 
 /**
  * The auto-saved project lives in IndexedDB, not localStorage: a large grid
@@ -41,11 +41,13 @@ interface StoredSourceImage {
 /** What is actually written under `CURRENT_PROJECT_KEY`. `cellPalette` is stored as the typed array itself (structured clone), never a JSON number array. */
 export interface StoredProjectRecord {
   storeVersion: number;
+  /** The pattern format the record's contents follow; absent on records written before G-033, whose sources are inferred (D122). */
+  formatVersion?: number;
   width: number;
   height: number;
   isLandscape: boolean;
   cellPalette: Uint8Array;
-  palette: Array<{ rgb: RGB; symbol: string; name: string }>;
+  palette: Array<{ rgb: RGB; symbol: string; name: string; source?: ThreadSwatchRef }>;
   name?: string;
   threadBrand?: StitchPattern["threadBrand"];
   edgeMode?: StitchPattern["edgeMode"];
@@ -111,11 +113,13 @@ async function prunePhotos(kv: KeyValueStore, keep: string | null): Promise<void
 async function encodeRecord(pattern: StitchPattern): Promise<{ record: StoredProjectRecord; photo?: { key: string; dataUrl: string } }> {
   const record: StoredProjectRecord = {
     storeVersion: STORE_VERSION,
+    // Still store version 1, so an older open tab can read the record; `formatVersion` tells legacy records apart (D122).
+    formatVersion: FORMAT_VERSION,
     width: pattern.width,
     height: pattern.height,
     isLandscape: pattern.isLandscape,
     cellPalette: pattern.cellPalette,
-    palette: pattern.palette.map((c) => ({ rgb: c.rgb, symbol: c.symbol, name: c.name })),
+    palette: pattern.palette.map((c) => (c.source ? { rgb: c.rgb, symbol: c.symbol, name: c.name, source: c.source } : { rgb: c.rgb, symbol: c.symbol, name: c.name })),
     name: pattern.name,
     threadBrand: pattern.threadBrand,
     edgeMode: pattern.edgeMode,

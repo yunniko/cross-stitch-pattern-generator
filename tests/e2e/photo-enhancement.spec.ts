@@ -64,7 +64,7 @@ test("a pattern generated with a mode records it in the editable file, and the c
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   const saved = JSON.parse(await readFile((await download.path())!, "utf8"));
   expect(saved.enhancementMode).toBe("vivid");
-  expect(saved.formatVersion).toBe(6);
+  expect(saved.formatVersion).toBe(7);
 
   // Autosave is debounced; reloading before it lands would restore nothing.
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });

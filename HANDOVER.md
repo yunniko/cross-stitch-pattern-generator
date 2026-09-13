@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-13 at 0cd4790 plus the view-sync commit that carries this line
+Last verified: 2026-09-13 at fc35e41 plus the G-033 M1 commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -24,7 +24,8 @@ row). G-032 (photo enhancement) is done and signed off: every mode is offered
   resize, and one undo history covering regeneration.
 - Five view modes (keys 1–5) and a view-only canvas color. Shortcuts: Ctrl+Z,
   Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, and Escape to merge a selection.
-- Exports: editable JSON (format version 6, embeds the source photo),
+- Exports: editable JSON (format version 7, embeds the source photo and each
+  color's thread swatch),
   realistic preview PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern
   Keeper PDF (the Owner confirmed a real import), an OXS chart, and "Export
   all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs`, detected by
@@ -40,7 +41,7 @@ row). G-032 (photo enhancement) is done and signed off: every mode is offered
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 797/797 Vitest
+**Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 850/850 Vitest
 tests; 62/62 Playwright tests on a fresh production build. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
@@ -159,6 +160,9 @@ above the goal's 1.5 s target.
 - Brand-aware UI reads `pattern.threadBrand`. A new brand needs data, a
   provenance doc, a registry entry, and the inline union in `lib/types.ts`
   widened (D093).
+- A color's thread identity is its immutable `source` (brand and code), never
+  its name or RGB. A brand lock means every color has a source of that brand;
+  OXS thread numbers and printed codes come from `source` (D122).
 - Anchor uses code pairs from an unlicensed table under an Owner judgment
   call. Read `docs/anchor-colors-provenance.md` before touching it (D094).
 - Don't strip the embedded photo from saved files without asking (D028).

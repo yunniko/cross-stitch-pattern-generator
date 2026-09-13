@@ -1,16 +1,20 @@
 import { isEnhancementModeId, type EnhancementModeId } from "../pipeline/enhance";
-import { THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
-import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern } from "../types";
+import { findThread, formatThreadName, THREAD_BRANDS, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
+import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern, type ThreadSwatchRef } from "../types";
 
 // Plain JSON, not a PNG with embedded data (Owner decision, 2026-09-09,
 // HANDOVER.md D21) -- simplest reliable format, at the cost of not being
 // previewable as an image on its own. Bumped to 2 for G-012's embedded
 // sourceImage, to 3 for G-016's dmcMode flag (Owner decision,
 // 2026-09-10), to 4 for G-024's edgeMode flag, to 5 for G-029's
-// generalized threadBrand field (HANDOVER.md D92), and to 6 for G-032's
-// enhancementMode -- old files still open fine either way, they just parse
-// with that field absent/legacy-shaped (see deserializePattern).
-const FORMAT_VERSION = 6;
+// generalized threadBrand field (HANDOVER.md D92), to 6 for G-032's
+// enhancementMode, and to 7 for G-033's per-color thread `source` (D122) --
+// old files still open fine either way, they just parse with that field
+// absent/legacy-shaped (see deserializePattern).
+export const FORMAT_VERSION = 7;
+
+/** Files and autosave records from this version on store `source` explicitly, so an absent source means a custom color. */
+const FIRST_VERSION_WITH_SOURCES = 7;
 
 export interface SerializedPattern {
   formatVersion: number;
@@ -19,7 +23,8 @@ export interface SerializedPattern {
   isLandscape: boolean;
   /** Row-major, one index per cell -- a plain array, since Uint8Array doesn't round-trip through JSON.stringify usefully. */
   cellPalette: number[];
-  palette: Array<{ rgb: RGB; symbol: string; name: string }>;
+  /** `source` is absent for a custom color, and on files saved before version 7. */
+  palette: Array<{ rgb: RGB; symbol: string; name: string; source?: { brand: ThreadBrand; code: string } }>;
   /** Optional so files saved before this field existed still parse (see deserializePattern's fallback). */
   name?: string;
   /** Absent on files saved before G-012, or when the pattern has no associated photo. */
@@ -48,7 +53,9 @@ export function serializePattern(pattern: StitchPattern): string {
     height: pattern.height,
     isLandscape: pattern.isLandscape,
     cellPalette: Array.from(pattern.cellPalette),
-    palette: pattern.palette.map((c) => ({ rgb: c.rgb, symbol: c.symbol, name: c.name })),
+    palette: pattern.palette.map((c) =>
+      c.source ? { rgb: c.rgb, symbol: c.symbol, name: c.name, source: { brand: c.source.brand, code: c.source.code } } : { rgb: c.rgb, symbol: c.symbol, name: c.name }
+    ),
     name: pattern.name,
     sourceImage: pattern.sourceImage,
     threadBrand: pattern.threadBrand,
@@ -126,7 +133,24 @@ export function deserializePatternData(data: unknown): StitchPattern {
     if (index !== EMPTY_CELL) counts[index]++;
   }
 
-  const palette: PaletteColor[] = entries.map((c, i) => ({ index: i, rgb: c.rgb, symbol: c.symbol, name: c.name, count: counts[i] }));
+  // Thread identity (D122). Version 7 on stores sources explicitly, so absence there means custom. Older data only ever
+  // had thread names, so a locked pattern's colors are matched to its own brand by exact name: best effort, never proof.
+  let threadBrand = resolveThreadBrand(d);
+  const hasExplicitSources = typeof d.formatVersion === "number" && d.formatVersion >= FIRST_VERSION_WITH_SOURCES;
+  if (!hasExplicitSources && threadBrand) {
+    const byName = new Map(THREAD_BRANDS[threadBrand].colors.map((thread) => [formatThreadName(thread), thread]));
+    for (const entry of entries) {
+      const thread = byName.get(entry.name);
+      if (thread) entry.source = { brand: threadBrand, code: thread.code };
+    }
+  }
+  // A lock means every color is that brand's thread; when that can't be established, the lock goes and the sources stay.
+  if (threadBrand && entries.some((entry) => entry.source?.brand !== threadBrand)) threadBrand = undefined;
+
+  const palette: PaletteColor[] = entries.map((c, i) => {
+    const color: PaletteColor = { index: i, rgb: c.rgb, symbol: c.symbol, name: c.name, count: counts[i] };
+    return c.source ? { ...color, source: c.source } : color;
+  });
 
   return {
     width,
@@ -136,7 +160,7 @@ export function deserializePatternData(data: unknown): StitchPattern {
     palette,
     name: typeof d.name === "string" && d.name.trim() !== "" ? d.name : undefined,
     sourceImage: isValidSourceImageRef(d.sourceImage) ? d.sourceImage : undefined,
-    threadBrand: resolveThreadBrand(d),
+    threadBrand,
     edgeMode: d.edgeMode === "crisp" ? "crisp" : undefined,
     // Any recognized mode is kept, released or not: the file records how it was built (D113).
     enhancementMode: isEnhancementModeId(d.enhancementMode) && d.enhancementMode !== "off" ? d.enhancementMode : undefined,
@@ -155,7 +179,21 @@ function isByte(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 255;
 }
 
-function validatePaletteEntry(entry: unknown): { rgb: RGB; symbol: string; name: string } {
+/**
+ * A palette entry's thread identity, as a fresh object with the table's canonical code. Malformed or unknown values are
+ * dropped rather than rejecting the file, like other optional metadata here -- the autosave loader deletes records it
+ * can't read, so a stray source must not cost the whole project (D122).
+ */
+function parseSource(value: unknown): ThreadSwatchRef | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const { brand, code } = value as Record<string, unknown>;
+  if (typeof brand !== "string" || !(THREAD_BRAND_IDS as string[]).includes(brand)) return undefined;
+  if (typeof code !== "string" || code.trim() === "") return undefined;
+  const thread = findThread(brand as ThreadBrand, code.trim());
+  return thread ? { brand: brand as ThreadBrand, code: thread.code } : undefined;
+}
+
+function validatePaletteEntry(entry: unknown): { rgb: RGB; symbol: string; name: string; source?: ThreadSwatchRef } {
   if (typeof entry !== "object" || entry === null) throw new Error("That file's palette contains an entry that isn't a color.");
   const e = entry as Record<string, unknown>;
   const rgb = e.rgb;
@@ -168,7 +206,8 @@ function validatePaletteEntry(entry: unknown): { rgb: RGB; symbol: string; name:
   if (typeof e.name !== "string") {
     throw new Error("That file's palette contains a color with no name.");
   }
-  return { rgb: [rgb[0], rgb[1], rgb[2]], symbol: e.symbol, name: e.name };
+  const source = parseSource(e.source);
+  return source ? { rgb: [rgb[0], rgb[1], rgb[2]], symbol: e.symbol, name: e.name, source } : { rgb: [rgb[0], rgb[1], rgb[2]], symbol: e.symbol, name: e.name };
 }
 
 /**

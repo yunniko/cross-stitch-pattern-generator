@@ -322,6 +322,17 @@ export function splitThreadCodeName(fullName: string): { code: string; name: str
 }
 
 /**
+ * The code and name printed in the color key. The code comes from the color's thread identity when it has one, so a
+ * renamed thread still prints its real code (D122); the name drops a leading "CODE - " only when that code matches.
+ */
+export function printedThreadCodeName(color: Pick<PaletteColor, "name" | "source">): { code: string; name: string } {
+  const split = splitThreadCodeName(color.name);
+  if (!color.source) return split;
+  if (split.code === color.source.code) return { code: color.source.code, name: split.name };
+  return { code: color.source.code, name: color.name };
+}
+
+/**
  * "PATTERN_NAME by AUTHOR_NAME", falling back in each direction when
  * either is missing (Owner spec, 2026-09-10) -- never blank.
  */
@@ -473,7 +484,7 @@ function drawKeyTableBlock(
     ctx.textAlign = "center";
     ctx.fillText(color.symbol, swatchX + swatchSize / 2, midY + 1);
 
-    const { code, name } = hasThreadCode ? splitThreadCodeName(color.name) : { code: "", name: color.name };
+    const { code, name } = hasThreadCode ? printedThreadCodeName(color) : { code: "", name: color.name };
 
     if (hasThreadCode) {
       ctx.fillStyle = "#111111";

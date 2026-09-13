@@ -462,7 +462,7 @@ milestone's own result justifies continuing):
   uncommitted G-024 M6 work at creation time — the executing agent must
   resolve that (commit or worktree) before M1, per the constraints above.
 
-### G-033 · Swatch-aware color editor: remembered source, marked current, comparison on hover — DRAFT (2026-09-13)
+### G-033 · Swatch-aware color editor: remembered source, marked current, comparison on hover — ACTIVE (2026-09-13)
 - **What:** Every legend color remembers which thread swatch it was
   picked from (brand + code), or that it is a custom color. Opening that
   color's editor opens the matching swatch tab, scrolls the swatch grid
@@ -594,7 +594,7 @@ milestone's own result justifies continuing):
   - Standard OPERATIONS.md check-in at every milestone boundary.
 
 **Milestones:**
-- [ ] **M1 — Swatch source in the data model.** Codex critique of the
+- [x] **M1 — Swatch source in the data model.** Codex critique of the
       design in items 1–2. `PaletteColor.source`, every mutation,
       `applyBrandPalette`, OXS import, serializer version 7 with
       validation and version-6 inference, fuzz-test update, golden-hash
@@ -611,15 +611,76 @@ milestone's own result justifies continuing):
       readout, README attribution, HANDOVER regenerated, docs-lint,
       deploy after Owner approval, deploy-log row.
 
-**Open questions for the Owner (answer before M2):**
-- When the editor is open and the user clicks the chart, should that
-  click only close the editor, or close it **and** paint as usual? The
-  plan assumes close-and-paint, like the browser's own popover light
-  dismiss; an accidental paint is one Ctrl+Z.
-- Is a "Revert" button wanted, now that Cancel goes away? The plan
-  includes it.
+**Owner answers (2026-09-13), replacing design item 6's buttons:**
+- A chart click while the editor is open closes it **and** acts as a normal
+  click (close and paint).
+- **Done and Cancel stay; no Revert button.** Picks still apply
+  immediately and the editor stays open. Done closes and keeps the current
+  colour. Cancel closes and returns the colour to what it was when the
+  editor opened, as one undo step. Clicking outside closes like Done.
+  Escape acts as Cancel, as dialogs conventionally do.
+- No milestone check-ins; deploy when verified under the standing
+  approval; Owner sign-off at the end.
 
 **Progress log** (newest first):
+- 2026-09-13 — **M1 done.** `PaletteColor.source` (D122).
+  - Set by brand generation (DMC, Cosmo, Anchor), thread picks, adding a
+    thread, and OXS import for every resolved entry. Dropped by a manual
+    RGB edit. Kept by rename, symbol change, merge and compaction.
+  - `restoreColor` is ready for M2's Cancel.
+  - Custom or cross-brand edits on a locked pattern throw.
+  - Saved files are format 7. Autosave records carry `formatVersion`
+    (store version still 1). Legacy data infers within its lock by exact
+    name; version 7 never infers. A malformed or unknown source is dropped;
+    a lock that can't be established is cleared.
+  - OXS numbers and A4/PDF printed codes come from `source`.
+  - The copy clipboard is cleared on document replacement and after a
+    merge.
+  - Existing tests that locked patterns of custom colours now use real
+    threads with sources. The format-version expectations moved from 6 to
+    7.
+
+  Verified: `tsc` and eslint clean; 850/850 unit tests, including the new
+  `tests/unit/thread-source.spec.ts` and a fuzz test extended with sources;
+  62/62 e2e on a production build.
+- 2026-09-13 — **Codex critique of the M1 data model, and its outcome (D122).**
+  Conceded:
+  - Autosave records couldn't tell legacy data from a deliberately custom
+    colour, so records and files carry `formatVersion`, and version 7
+    never infers.
+  - Cross-brand inference by name and RGB is dropped. Legacy data infers
+    only within its `threadBrand`, by exact thread name, as best effort.
+  - The brand lock is an invariant: custom or cross-brand edits on a
+    locked pattern throw, and a load that can't establish it clears the
+    lock.
+  - OXS export takes numbers only from `source`, and import sets canonical
+    sources in both branches.
+  - Sources are immutable.
+  - The fuzz test covers sources, and generation gets per-brand source
+    assertions.
+  - A4 and PDF print codes from `source`.
+  - The copy clipboard is cleared when its palette indices go stale.
+
+  Rebutted: rejecting a file with a malformed `source`, because the
+  autosave loader deletes unreadable records and optional metadata already
+  falls back to absence. Such a source is dropped instead.
+
+  Carried into M2:
+  - Comparisons use the palette's actual RGB.
+  - Picking the swatch that is already current is a no-op.
+  - Cancel restores RGB, name and source together.
+
+  Also done ahead of M3: `lib/color/okhsl.ts` matches `ok_color.h`
+  (compiled locally) within 1e-4 on 18 colours, and
+  `lib/color/swatch-comparison.ts` is tested at its rounding boundaries
+  (33 tests).
+- 2026-09-13 — **Started on the Owner's direction** ("proceed to goal 33").
+  - G-028 is archived, so the start gate is met.
+  - The Owner's answers are recorded above: close and paint, Done and
+    Cancel kept, no check-ins.
+  - `tests/unit/fixtures/golden-hashes.json` hashes each colour's index,
+    RGB, symbol, name and count, not `source`, so criterion 4 needs no
+    regeneration as long as those stay identical.
 - 2026-09-13 — Goal drafted at the Owner's request ("make plan of
   improving color selection …"). Planned from a read of
   `app/components/colors-dock.tsx`, `lib/editor/pattern-edit.ts`,
