@@ -128,3 +128,4 @@ remain readable with git show.
 - D117 — No enhancement mode is released: no evidence of benefit, and the gates can't yet detect harm — superseded (superseded by: D118)
 - D118 — All photo modes are offered, plus a cautious Brighten mode, on the Owner's decision — active
 - D119 — OXS is read by a dedicated XML reader and written with the cloth at index 0; losses are counted, never silently dropped — active
+- D120 — Stitch counts count only filled stitches; sizes stay the canvas grid — active

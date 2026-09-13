@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-13 at e52608f plus the G-028 close-out commit that carries this line
+Last verified: 2026-09-13 at 092924c plus the stitch-count commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -40,7 +40,7 @@ row). G-032 (photo enhancement) is done and signed off: every mode is offered
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 795/795 Vitest
+**Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 797/797 Vitest
 tests; 60/60 Playwright tests on a fresh production build. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
@@ -126,7 +126,9 @@ above the goal's 1.5 s target.
 
 ## Rules in force
 
-- Nothing is pushed or deployed without Owner approval.
+- The Owner gave standing push and deploy approval for this project on
+  2026-09-13: deploy verified work without asking, unless something needs
+  the Owner's attention. Deploys still follow `COMPANY/INFRASTRUCTURE_DEPLOY.md`.
 - Keep one session per working tree. A stale `next dev` (PID 17476, from
   2026-09-12) belongs to another session; don't stop it.
 - A goal isn't DONE with a dirty tree, placeholders, or no logged Owner

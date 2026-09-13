@@ -21,7 +21,7 @@ test("upload an image, generate a pattern, preview it, and download both variant
 
   const canvas = page.getByRole("main").locator("canvas");
   await expect(canvas).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText(/50 × \d+ stitches, \d+ colors/)).toBeVisible();
+  await expect(page.getByText(/50 × \d+, [\d,]+ stitches, \d+ colors/)).toBeVisible();
 
   const exportSelect = page.getByLabel("Export");
   const exportButton = page.getByRole("button", { name: "Export", exact: true });

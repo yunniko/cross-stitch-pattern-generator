@@ -129,13 +129,13 @@ test("brush stroke paints multiple stitches as a single undo step", async ({ pag
 
 test("regenerating (a processing-param change) is undoable like any other edit (G-012)", async ({ page }) => {
   await generateSmallPattern(page);
-  await expect(page.getByText(/50 × \d+ stitches/)).toBeVisible();
+  await expect(page.getByText(/50 × \d+, [\d,]+ stitch/)).toBeVisible();
 
   await page.getByRole("radio", { name: "Custom" }).check();
   await page.getByRole("spinbutton").fill("30");
   await page.getByRole("button", { name: "Regenerate" }).click();
-  await expect(page.getByText(/30 × \d+ stitches/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/30 × \d+, [\d,]+ stitch/)).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: "Undo" }).click();
-  await expect(page.getByText(/50 × \d+ stitches/)).toBeVisible();
+  await expect(page.getByText(/50 × \d+, [\d,]+ stitch/)).toBeVisible();
 });

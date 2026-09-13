@@ -11,9 +11,14 @@ async function generateSmallPattern(page: import("@playwright/test").Page) {
   await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
 }
 
+/** The Image window header: "W × H, N stitches, K colors" -- the canvas size, then only filled stitches (D120). */
+const patternHeader = (page: import("@playwright/test").Page) => page.getByText(/^\d+ × \d+, [\d,]+ stitch(es)?, \d+ colors$/);
+
 test("expanding the canvas adds empty stitches, no palette color, as a single undoable step (D109)", async ({ page }) => {
   await generateSmallPattern(page);
-  await expect(page.getByText(/50 × \d+ stitches/)).toBeVisible();
+  const header = patternHeader(page);
+  await expect(header).toHaveText(/^50 × \d+, /);
+  const stitches = /, ([\d,]+ stitch(?:es)?),/.exec((await header.textContent()) ?? "")![1];
 
   const legendRows = page.locator('[data-testid="legend-color-row"]');
   const initialCount = await legendRows.count();
@@ -23,13 +28,14 @@ test("expanding the canvas adds empty stitches, no palette color, as a single un
   await page.getByLabel("Right").fill("5");
   await page.getByRole("button", { name: "Apply" }).click();
 
-  await expect(page.getByText(/55 × \d+ stitches/)).toBeVisible();
+  // The canvas grows; the new empty cells aren't stitches, so the count stays the same (D120).
+  await expect(header).toHaveText(new RegExp(`^55 × \\d+, ${stitches},`));
   await expect(legendRows).toHaveCount(initialCount);
 
   const undoButton = page.getByRole("button", { name: "Undo" });
   await expect(undoButton).toBeEnabled();
   await undoButton.click();
-  await expect(page.getByText(/50 × \d+ stitches/)).toBeVisible();
+  await expect(header).toHaveText(new RegExp(`^50 × \\d+, ${stitches},`));
   await expect(legendRows).toHaveCount(initialCount);
 });
 
@@ -40,7 +46,7 @@ test("cropping the canvas shrinks it", async ({ page }) => {
   await page.getByLabel("Left").fill("-5");
   await page.getByRole("button", { name: "Apply" }).click();
 
-  await expect(page.getByText(/45 × \d+ stitches/)).toBeVisible();
+  await expect(patternHeader(page)).toHaveText(/^45 × \d+, /);
 });
 
 test("rejects cropping away the entire pattern with a visible error, not a crash", async ({ page }) => {
@@ -54,6 +60,6 @@ test("rejects cropping away the entire pattern with a visible error, not a crash
   await page.getByRole("button", { name: "Apply" }).click();
 
   await expect(page.getByText(/entire pattern/)).toBeVisible();
-  await expect(page.getByText(/50 × \d+ stitches/)).toBeVisible(); // unchanged
+  await expect(patternHeader(page)).toHaveText(/^50 × \d+, /); // unchanged
   expect(errors).toEqual([]);
 });

@@ -104,7 +104,7 @@ test("a 50-cell brush stroke on a 1000-stitch pattern completes within a bounded
   await fileChooser.setFiles({ name: "large_editable.json", mimeType: "application/json", buffer: Buffer.from(largePatternJson(1000, 625, 16)) });
   const canvas = page.getByRole("main").locator("canvas");
   await expect(canvas).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText(/1000 × 625 stitches/)).toBeVisible();
+  await expect(page.getByText(/1000 × 625, [\d,]+ stitch/)).toBeVisible();
 
   const legendRows = page.locator('[data-testid="legend-color-row"]');
   await legendRows.nth(0).click();

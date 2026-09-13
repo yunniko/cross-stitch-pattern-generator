@@ -3,7 +3,7 @@ import { hexToRgb, luminance, rgbToHex } from "../color/color";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, formatFinishedSize, type SizeUnit } from "./finished-size";
 import { formatSkeinEstimate } from "../threads/floss-estimate";
 import { buildTintedTextureSet } from "./stitch-texture";
-import { EMPTY_CELL, type PaletteColor, type StitchPattern, type RGB } from "../types";
+import { EMPTY_CELL, filledStitchCount, formatStitchCount, type PaletteColor, type StitchPattern, type RGB } from "../types";
 
 export type RenderMode = "color" | "bw";
 
@@ -427,11 +427,11 @@ const HEADER_FONT = `13px ${FONT_STACK}`;
 
 /** Exported for unit testing -- the exported-PNG header text (also used to size its canvas), verified without needing a real canvas/DOM. */
 export function headerText(pattern: StitchPattern, aidaCount: number, sizeUnit: SizeUnit, authorName?: string): string {
-  const base = `${pattern.width} × ${pattern.height} stitches — approx. ${formatFinishedSize(pattern.width, pattern.height, aidaCount, sizeUnit)} on ${aidaCount}-count Aida`;
+  const base = `${pattern.width} × ${pattern.height} grid, ${formatStitchCount(filledStitchCount(pattern))} — approx. ${formatFinishedSize(pattern.width, pattern.height, aidaCount, sizeUnit)} on ${aidaCount}-count Aida`;
   return authorName?.trim() ? `${base} — Designed by ${authorName.trim()}` : base;
 }
 
-/** Design size in stitches and an estimated finished size at the selected Aida count — conventional on published charts (docs/domain-reference.md §1, §4). The canvas is always sized wide enough to fit this beforehand (see computeChartLayout) -- no wrapping/clipping needed here. */
+/** Design size (the canvas grid), the number of filled stitches (D120) and an estimated finished size at the selected Aida count — conventional on published charts (docs/domain-reference.md §1, §4). The canvas is always sized wide enough to fit this beforehand (see computeChartLayout) -- no wrapping/clipping needed here. */
 function drawHeader(ctx: CanvasRenderingContext2D, pattern: StitchPattern, aidaCount: number, sizeUnit: SizeUnit, authorName?: string) {
   ctx.fillStyle = "#111111";
   ctx.font = HEADER_FONT;

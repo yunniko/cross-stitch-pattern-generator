@@ -66,7 +66,7 @@ test("Crisp edges generates a pattern with a legend and no errors", async ({ pag
   const names = await generateWith(page, ["Crisp"]);
 
   expect(names.length).toBeGreaterThan(0);
-  await expect(page.getByText(/50 × \d+ stitches, \d+ colors/)).toBeVisible();
+  await expect(page.getByText(/50 × \d+, [\d,]+ stitches, \d+ colors/)).toBeVisible();
   expect(errors).toEqual([]);
 });
 

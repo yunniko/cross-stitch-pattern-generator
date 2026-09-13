@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { buildDetailRows, computeKeyColumns, infoPageTitle, overlapSidesForPage, splitThreadCodeName } from "@/lib/export/a4-render";
 import { calculateA4Layout } from "@/lib/export/a4-layout";
-import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
+import { EMPTY_CELL, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {
   const counts = new Array(colors.length).fill(0);
-  for (const i of cellPalette) counts[i]++;
+  for (const i of cellPalette) if (i !== EMPTY_CELL) counts[i]++;
   const palette: PaletteColor[] = colors.map((rgb, i) => ({
     index: i,
     rgb,
@@ -107,15 +107,26 @@ describe("splitThreadCodeName (G-016)", () => {
 
 describe("buildDetailRows (G-016)", () => {
   it("includes stitch count, finished size (both units), fabric, and color count, but no Thread row for a non-DMC pattern", () => {
-    const pattern = makePattern(140, 140, [0], [[0, 0, 0]]);
+    const pattern = makePattern(140, 140, new Array(140 * 140).fill(0), [[0, 0, 0]]);
     const rows = buildDetailRows(pattern, 14, "in");
     const byLabel = Object.fromEntries(rows);
-    expect(byLabel["Stitch count"]).toBe("140 × 140 (19600 total)");
+    expect(byLabel["Stitch count"]).toBe("140 × 140 (19,600 stitches)");
     expect(byLabel["Finished size"]).toContain("10.0 in");
     expect(byLabel["Finished size"]).toContain("25.4 cm");
     expect(byLabel["Fabric"]).toBe("14-count Aida");
     expect(byLabel["Thread"]).toBeUndefined();
     expect(byLabel["Color count"]).toBe("1 colors");
+  });
+
+  it("counts only filled stitches, keeping the canvas size and the finished size it gives (D120)", () => {
+    const cells = new Array(140 * 140).fill(0);
+    for (let i = 0; i < 100; i++) cells[i] = EMPTY_CELL;
+    const byLabel = Object.fromEntries(buildDetailRows(makePattern(140, 140, cells, [[0, 0, 0]]), 14, "in"));
+    expect(byLabel["Stitch count"]).toBe("140 × 140 (19,500 stitches)");
+    expect(byLabel["Finished size"]).toContain("10.0 × 10.0 in");
+    const single = new Array(4).fill(EMPTY_CELL);
+    single[0] = 0;
+    expect(Object.fromEntries(buildDetailRows(makePattern(2, 2, single, [[0, 0, 0]]), 14, "in"))["Stitch count"]).toBe("2 × 2 (1 stitch)");
   });
 
   it("shows the secondary unit as cm-in-parens when the primary unit is cm, and vice versa", () => {

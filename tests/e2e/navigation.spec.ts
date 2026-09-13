@@ -34,7 +34,7 @@ test("zoom controls change the Image window's on-screen size without changing th
   if (!after) throw new Error("canvas not visible after zoom");
   expect(after.width).toBeGreaterThan(before.width * 1.5);
   // The underlying pattern is unaffected by zoom -- still 50 wide.
-  await expect(page.getByText(/50 × \d+ stitches/)).toBeVisible();
+  await expect(page.getByText(/50 × \d+, [\d,]+ stitch/)).toBeVisible();
 
   await page.getByRole("button", { name: "Reset zoom to 100%" }).click();
   const reset = await canvas.boundingBox();

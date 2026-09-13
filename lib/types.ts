@@ -50,6 +50,18 @@ export const MAX_COLORS = 100;
 /** The "no stitch here" cell value: never a palette entry, never counted, blank in every render. It can't collide with a palette index (at most `MAX_COLORS`). */
 export const EMPTY_CELL = 255;
 
+/** Stitches actually made: every cell except `EMPTY_CELL`. Wherever a stitch count is shown, this is it; the canvas size stays width × height (D120). */
+export function filledStitchCount(pattern: Pick<StitchPattern, "cellPalette">): number {
+  let count = 0;
+  for (const value of pattern.cellPalette) if (value !== EMPTY_CELL) count++;
+  return count;
+}
+
+/** "1 stitch", "2,350 stitches"; used by every stitch-count display (D120). */
+export function formatStitchCount(count: number): string {
+  return `${count.toLocaleString("en-US")} ${count === 1 ? "stitch" : "stitches"}`;
+}
+
 export interface PaletteColor {
   /** Index into the palette array; also the value stored per cell. */
   index: number;

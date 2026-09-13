@@ -6,7 +6,7 @@ import { formatFinishedSize, type SizeUnit } from "./finished-size";
 import { estimateSkeins } from "../threads/floss-estimate";
 import { drawChart, FONT_STACK, GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX, truncateToWidth, type RenderMode } from "./render";
 import { THREAD_BRANDS } from "../threads/thread-brands";
-import type { PaletteColor, StitchPattern } from "../types";
+import { filledStitchCount, formatStitchCount, type PaletteColor, type StitchPattern } from "../types";
 
 // Physical text sizes for print, independent of cell size (unlike the
 // on-screen single-PNG chart, where number/label font sizes scale with
@@ -340,7 +340,7 @@ export function buildDetailRows(pattern: StitchPattern, aidaCount: number, sizeU
   const finishedSecondary = formatFinishedSize(pattern.width, pattern.height, aidaCount, secondaryUnit);
 
   const rows: Array<[string, string]> = [
-    ["Stitch count", `${pattern.width} × ${pattern.height} (${pattern.width * pattern.height} total)`],
+    ["Stitch count", `${pattern.width} × ${pattern.height} (${formatStitchCount(filledStitchCount(pattern))})`],
     ["Finished size", `${finishedPrimary} (${finishedSecondary})`],
     ["Fabric", `${aidaCount}-count Aida`],
   ];
