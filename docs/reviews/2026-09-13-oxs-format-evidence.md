@@ -66,6 +66,20 @@ This app's importer (G-028), run on the six files on 2026-09-13:
 | Wesnoth Stitch chart | 39×31, 31 DMC colours, 830 stitches | cloth colour, copyright and instructions not kept |
 | PDF-to-OXS conversion | refused | "This OXS file uses 237 colours; this app supports at most 100." |
 
+## This app's exports read by another program
+
+Two exports (a 60×40 full-range pattern with 11 colours and a DMC pattern with 9) were parsed on 2026-09-13 by
+Embroiderly's OXS reader, built locally from the repository above at commit 552f658 with a small harness in the
+session scratchpad. Nothing was uploaded anywhere.
+
+- Size, fabric count (16), title and author came through unchanged.
+- Every colour matched by hex and name. DMC colours were read as brand "DMC", the right number and the thread name.
+  Custom colours had an empty brand and number, as written.
+- All 2,400 full stitches were read, and no part stitches.
+- Symbols were read as the right code points (× as 215, ÷ as 247, 0 as 48), paired with Embroiderly's default
+  "Ursasoftware" font because the export names no font. A program drawing symbols from its own font may show a different
+  glyph for the same code; the symbol's identity survives, its appearance depends on the reader.
+
 ## What a reader must tolerate
 
 - Missing sections, including ones the spec calls mandatory.

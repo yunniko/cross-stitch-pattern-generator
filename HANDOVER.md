@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-13 at 0f4dc8a plus the Brighten and mode-release commit that carries this line
+Last verified: 2026-09-13 at e52608f plus the G-028 close-out commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -11,7 +11,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 **Production** runs `master` as deployed on 2026-09-13 (last deploy-log
 row). G-032 (photo enhancement) is done and signed off: every mode is offered
-(D118). G-028 (OXS import and export) is active.
+(D118). G-028 (OXS import and export) is deployed and awaits Owner sign-off.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest
@@ -170,9 +170,15 @@ above the goal's 1.5 s target.
 
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
-- G-028 (OXS import and export) started 2026-09-13; see its progress log in
-  `GOALS.md`. Left open from G-032: the 1.5 s enhancement target, and
-  Brighten's real-photo calibration.
+- **PENDING APPROVAL: G-028 sign-off.** OXS import and export are live
+  (D119). Open points:
+  - Symbols are written as Unicode characters; a reading program shows its
+    own font's glyph for that code.
+  - The export is untested in desktop programs such as PCStitch or
+    WinStitch; Embroiderly's reader parsed it correctly.
+  - Details: `docs/reviews/2026-09-13-oxs-format-evidence.md`.
+- Left open from G-032: the 1.5 s enhancement target, and Brighten's
+  real-photo calibration.
 - G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`);
   gaps from `docs/reviews/2026-09-12-competitive-analysis.md`; moving exports
@@ -220,6 +226,7 @@ above the goal's 1.5 s target.
 | 2026-09-13 | fb28d4e | Resize with empty stitches (D109), unselectable control text (D110), CI typegen | Only this container restarted; 5 sites 200; resize e2e 3/3 on production; computed user-select none on buttons, text on inputs |
 | 2026-09-13 | 50d632a | G-032 photo enhancement in the pipeline, preview and saved files, hidden (Off only, D117) | Only this container restarted; 7 sites 200; CI green; live upload shows no Photo modes, generation 0.9 s, saved file format 6 without a mode, no console errors |
 | 2026-09-13 | 8f842bb | All photo modes offered, cautious Brighten mode (D118) | Only this container restarted; 7 sites 200; live: five mode buttons, Brighten preview 0.2 s, saved file records "brighten", no console errors |
+| 2026-09-13 | e52608f | OXS import and export (G-028, D119) | Only this container restarted; 7 sites 200; live: a self-authored OXS chart opened with the expected notice, name and 18-count; its OXS re-export is 6 wide with the cloth at index 0 and 14 stitches; no console errors |
 
 ## Decisions
 

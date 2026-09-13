@@ -286,14 +286,35 @@ milestone's own result justifies continuing):
   `app/workspace.tsx`'s export dropdown (top-level, alongside
   "editable" -- it's a data format, not a color/bw render variant), plus
   folded into `lib/export-all.ts`'s `.cspzip` bundle.
-- [ ] M4 -- Real-world verification: export a generated pattern's
+- [x] M4 -- Real-world verification: export a generated pattern's
   `.oxs` and open it in a real independent OXS consumer to confirm
   correct reading; import a real-world-shaped sample and confirm
   grid/colors/drop-summary are all correct. Full regression suite,
   commit, deploy.
 
 **Progress log** (newest first):
-- 2026-09-13 — **M4 in progress: real OXS files imported.** All six local
+- 2026-09-13 — **M4 done; all milestones complete. Deployed e52608f.**
+
+  Independent reader: Embroiderly's OXS parser, built locally from its
+  open-source repository at 552f658, read two exports from this app
+  (60×40, full range 11 colours and DMC 9 colours). Nothing was uploaded.
+  - Size, 16-count, title, author, every colour's hex and name, DMC
+    brand/number/name, and all 2,400 stitches matched.
+  - Symbols came through as the right code points, drawn with that
+    program's own font.
+  - Stitchmate's online viewer wasn't used: using it means sending a file
+    to an outside service.
+
+  Deploy (pre-approved):
+  - Only this container restarted, and 7 sites return 200.
+  - Live check: the self-authored chart opened with the expected notice,
+    name and 18-count, and its OXS re-export was correct; no console
+    errors.
+
+  **PENDING APPROVAL: G-028 sign-off.** Open points:
+  - symbol glyphs depend on the reading program's font
+  - no desktop program (PCStitch, WinStitch) tested
+- 2026-09-13 — **M4 progress: real OXS files imported.** All six local
   samples were run through the importer; results are in
   `docs/reviews/2026-09-13-oxs-format-evidence.md`.
   - The five usable files opened as DMC patterns, each with its losses
