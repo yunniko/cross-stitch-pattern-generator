@@ -7,7 +7,7 @@ import { loadPatternFromFile } from "@/lib/editor/pattern-import";
 import { getProjectStore } from "@/lib/editor/project-store";
 import { useProjectAutosave } from "@/lib/editor/use-project-autosave";
 import { useUndoHistory } from "@/lib/editor/use-undo-history";
-import type { RGB, StitchPattern } from "@/lib/types";
+import type { StitchPattern } from "@/lib/types";
 import { ColorsDock } from "./components/colors-dock";
 import { ImageWindow, ViewBar } from "./components/image-window";
 import { OptionsPanel, ResizePanel, SelectionBar, WorkspaceNotices } from "./components/panels";
@@ -206,9 +206,9 @@ export default function Workspace() {
     });
   }
 
-  function applyResize(delta: CanvasResizeDelta, fillRgb: RGB) {
+  function applyResize(delta: CanvasResizeDelta) {
     if (!pattern) return;
-    history.set(resizeCanvas(pattern, delta, fillRgb)); // throws on an invalid size; the panel shows the message
+    history.set(resizeCanvas(pattern, delta)); // throws on an invalid size; the panel shows the message
     setResizePanelKey(null);
   }
 

@@ -36,7 +36,7 @@ remain readable with git show.
 - D025 — Superseded generation jobs reject, and async results are gated by a source revision — active
 - D026 — Code-review fixes: whole-chart pixel budget, area-weighted downsampling, OKLab palette centroids — active
 - D027 — A redeploy is verified by container isolation, neighbor sites and the original repro on the live URL — active
-- D028 — One docked workspace with a single undo history; saved files embed the source photo — active
+- D028 — One docked workspace with a single undo history; saved files embed the source photo — partly superseded (superseded by: D109 for the resize fill color)
 - D029 — Rendering deploys re-check the small-chart header clip on production — active
 - D030 — Scrollable centered containers use grid centering; wheel zoom uses a native non-passive listener — active
 - D031 — DMC matching is a post-process over a finished pattern; floss is estimated generously — partly superseded (superseded by: D040, D092)
@@ -117,3 +117,5 @@ remain readable with git show.
 - D106 — Pipeline stages share one `PipelineContext` — active
 - D107 — Pipeline speed-ups must be byte-identical, proven by golden hashes — active
 - D108 — The workspace is a thin shell over hooks and dock components — active
+- D109 — Canvas resize expands with empty stitches, never a new color — active
+- D110 — Text on controls is not selectable; text fields stay selectable — active

@@ -494,6 +494,17 @@ milestone's own result justifies continuing):
       handover's "Rules in force".
 
 **Progress log** (newest first):
+- 2026-09-13 — **Pushed and deployed** (Owner: "push and deploy").
+  `1380bd3` live: only the cross-stitch container restarted (31 containers,
+  diff before/after), 5 sites HTTP 200. Live checks on production: 1000 ×
+  667 stitches / 26 colors generated in 8.5 s with no console errors; the
+  50-cell brush stroke on a 1000-stitch pattern took 1,248 ms; the >4 MB
+  photo autosave, palette-mode and generation e2e tests passed against the
+  live site (9/9). The first CI run failed at `tsc` (generated `LayoutProps`
+  missing on a fresh checkout); fixed by `npx next typegen` before `tsc`,
+  reproduced and verified in a fresh clone. Owner follow-ups in the same
+  session: canvas resize expands with empty stitches (D109) and control text
+  is unselectable (D110). Owner sign-off on G-031 still outstanding.
 - 2026-09-13 — **M5 done; all milestones complete. PENDING APPROVAL: Owner
   sign-off on G-031, and approval to push `master` and deploy — nothing
   leaves the workspace without it — logged 2026-09-13.** `HANDOVER.md`
@@ -593,7 +604,7 @@ milestone's own result justifies continuing):
   uncommitted G-024 M6 work at creation time — the executing agent must
   resolve that (commit or worktree) before M1, per the constraints above.
 
-### G-032 · Optional photo enhancement (predefined, content-adaptive modes) — DRAFT (2026-09-13)
+### G-032 · Optional photo enhancement (predefined, content-adaptive modes) — ACTIVE (2026-09-13)
 - **What:** An optional pre-processing stage that corrects a source
   photo's exposure, tonal range, local contrast, colour cast and
   saturation *before* the pattern pipeline sees it. In the processing
@@ -816,6 +827,18 @@ saved-file embed) also stays the original bytes.
   recorded.
 
 **Progress log** (newest first):
+- 2026-09-13 — **Owner authorization:** "proceed g-032 through all
+  milestones including deploy without confirmation". Milestone check-ins
+  are waived for this goal, and the M4 production deploy is pre-approved.
+  Owner sign-off on the finished goal is still required before it reads DONE.
+- 2026-09-13 — **Started** (Owner: "proceed to picture enhancement goal",
+  standing instruction to work through milestones without check-ins unless
+  input is required). The open questions were not answered, so the plan's
+  own defaults apply, each reversible later: all three modes (Auto, Vivid,
+  Portrait) plus Off; the "Grid + photo" underlay keeps showing the original
+  photo; M4 calibration uses public-domain/CC0 photos with sources and
+  licences recorded, unless the Owner supplies photos first. G-031 M4
+  prerequisite is met (committed 2026-09-13).
 - 2026-09-13 — goal created at the Owner's request ("make plan of new
   feature: optional picture enhancement … universal adjustments … one or
   more predefined enhancement modes"). Planned from a read of

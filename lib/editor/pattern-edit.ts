@@ -142,21 +142,11 @@ export interface CanvasResizeDelta {
 }
 
 /**
- * Canvas resize (G-012 M4): crops and/or expands any combination of edges
- * in one operation, since a crop on one side and an expand on another
- * (e.g. squaring up a portrait photo) is a completely ordinary thing to
- * want in one step. Expansion fills newly-exposed cells with `fillRgb`
- * (Owner decision, 2026-09-10: a real color the user picks, not the
- * empty/no-stitch pseudo-color) -- reusing an existing palette entry with
- * that exact RGB if one exists, otherwise adding a new one via the same
- * `addColor` path the Colors dock's own "+ Add" button uses (so it's
- * capped at `MAX_COLORS` the same way). The photo underlay's stored
- * offset shifts by exactly the left/top deltas so it stays visually
- * anchored in place rather than jumping when the canvas's own origin
- * moves (only left/top affect the origin -- expanding/cropping the
- * right or bottom edge never does).
+ * Crops and/or expands any combination of edges in one step. Newly exposed cells are EMPTY_CELL, so a resize never adds
+ * a palette color (a thread-brand palette stays pure). The photo underlay's offset shifts by the left/top deltas only,
+ * since only those move the canvas origin. See D109.
  */
-export function resizeCanvas(pattern: StitchPattern, delta: CanvasResizeDelta, fillRgb: RGB): StitchPattern {
+export function resizeCanvas(pattern: StitchPattern, delta: CanvasResizeDelta): StitchPattern {
   const { left, right, top, bottom } = delta;
   const newWidth = pattern.width + left + right;
   const newHeight = pattern.height + top + bottom;
@@ -167,17 +157,6 @@ export function resizeCanvas(pattern: StitchPattern, delta: CanvasResizeDelta, f
     throw new Error(`The resized pattern (${newWidth}×${newHeight}) would exceed the maximum supported size of ${MAX_STITCHES} stitches per side.`);
   }
 
-  const isExpanding = left > 0 || right > 0 || top > 0 || bottom > 0;
-  let withFillColor = pattern;
-  let fillIndex = -1;
-  if (isExpanding) {
-    fillIndex = pattern.palette.findIndex((c) => c.rgb[0] === fillRgb[0] && c.rgb[1] === fillRgb[1] && c.rgb[2] === fillRgb[2]);
-    if (fillIndex === -1) {
-      withFillColor = addColor(pattern, fillRgb); // throws at MAX_COLORS, same cap as "+ Add"
-      fillIndex = withFillColor.palette.length - 1;
-    }
-  }
-
   const cellPalette = new Uint8Array(newWidth * newHeight);
   for (let ny = 0; ny < newHeight; ny++) {
     const oy = ny - top;
@@ -185,11 +164,11 @@ export function resizeCanvas(pattern: StitchPattern, delta: CanvasResizeDelta, f
     for (let nx = 0; nx < newWidth; nx++) {
       const ox = nx - left;
       cellPalette[ny * newWidth + nx] =
-        inRowBounds && ox >= 0 && ox < pattern.width ? pattern.cellPalette[oy * pattern.width + ox] : fillIndex;
+        inRowBounds && ox >= 0 && ox < pattern.width ? pattern.cellPalette[oy * pattern.width + ox] : EMPTY_CELL;
     }
   }
 
-  const resized = withCounts(withFillColor, cellPalette, withFillColor.palette);
+  const resized = withCounts(pattern, cellPalette, pattern.palette);
   return {
     ...resized,
     width: newWidth,

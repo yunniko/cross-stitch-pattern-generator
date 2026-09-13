@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { hexToRgb } from "@/lib/color/color";
 import type { ProjectLoadFailure } from "@/lib/editor/project-store";
 import type { CanvasResizeDelta } from "@/lib/editor/pattern-edit";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import type { calculateA4Layout, OverlapCells } from "@/lib/export/a4-layout";
 import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
-import type { RGB, StitchPattern } from "@/lib/types";
+import type { StitchPattern } from "@/lib/types";
 import { NoticeBar, PanelBar, PillButton, SegmentedControl } from "./ui";
 
 export interface WorkspaceNoticesProps {
@@ -161,15 +160,13 @@ const RESIZE_EDGES = [
  * Crop or expand any edge in one step (G-012 M4). Mount it with a new `key` on every open request: clicking
  * "Resize canvas…" while it is already open resets its fields.
  */
-export function ResizePanel({ pattern, onApply, onCancel }: { pattern: StitchPattern; onApply: (delta: CanvasResizeDelta, fillRgb: RGB) => void; onCancel: () => void }) {
+export function ResizePanel({ pattern, onApply, onCancel }: { pattern: StitchPattern; onApply: (delta: CanvasResizeDelta) => void; onCancel: () => void }) {
   const [delta, setDelta] = useState<CanvasResizeDelta>({ left: 0, right: 0, top: 0, bottom: 0 });
-  const [fillHex, setFillHex] = useState("#ffffff");
   const [error, setError] = useState<string | null>(null);
-  const expanding = delta.left > 0 || delta.right > 0 || delta.top > 0 || delta.bottom > 0;
 
   function apply() {
     try {
-      onApply(delta, hexToRgb(fillHex));
+      onApply(delta);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't resize the canvas.");
     }
@@ -189,13 +186,7 @@ export function ResizePanel({ pattern, onApply, onCancel }: { pattern: StitchPat
           />
         </label>
       ))}
-      <span className="text-xs text-zinc-500">(positive expands, negative crops)</span>
-      {expanding && (
-        <label className="flex items-center gap-1.5 text-sm">
-          Fill color
-          <input type="color" value={fillHex} onChange={(e) => setFillHex(e.target.value)} className="h-6 w-8 rounded border border-zinc-300 dark:border-zinc-700" />
-        </label>
-      )}
+      <span className="text-xs text-zinc-500">(positive expands with empty stitches, negative crops)</span>
       <span className="text-xs text-zinc-500">
         → {pattern.width + delta.left + delta.right} × {pattern.height + delta.top + delta.bottom} stitches
       </span>

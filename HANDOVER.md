@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-13 at f7bb51c plus the G-031 M5 docs, CI and e2e commit that carries this file
+Last verified: 2026-09-13 at 1380bd3 plus the resize, control-text and CI-fix commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,9 +9,9 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs `ca4cfb1` (G-029 thread brands, deployed 2026-09-12).
-Local `master` is 9 commits ahead with G-031 M1–M4 and the G-032 plan, plus the
-M5 commit. None of it is pushed or deployed; both wait for the Owner.
+**Production** runs `master` as deployed on 2026-09-13 (last deploy-log
+row): all of G-031, canvas resize with empty stitches (D109) and
+unselectable control text (D110). G-032 (photo enhancement) is in progress.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest
@@ -32,10 +32,11 @@ M5 commit. None of it is pushed or deployed; both wait for the Owner.
   SHA-256, 500 ms debounce) and restores on reload. A corrupt record shows a
   banner with an on-demand error report. Options persist in localStorage.
 
-**Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 653/653 Vitest
-tests; 55/55 Playwright tests on a fresh production build (49 existing plus 6
-new palette-mode and Crisp tests). CI is defined in `.github/workflows/ci.yml`
-but has never run, because nothing is pushed.
+**Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 652/652 Vitest
+tests; 55/55 Playwright tests on a fresh production build. CI
+(`.github/workflows/ci.yml`) failed its first run because route types
+such as `LayoutProps` are generated and git-ignored; it now runs
+`next typegen` before the type-check, verified on a fresh clone.
 
 **Performance** at 1500×1000 → 1000 stitches / 64 colors: Standard 14.6 s,
 Crisp 27.4 s, Standard + DMC 18.5 s. Details in
@@ -46,8 +47,6 @@ Crisp 27.4 s, Standard + DMC 18.5 s. Details in
   Standard behavior for thin lines, junctions and gradual shading (D096).
 - Export all and A4 exports run on the main thread and stall the tab while
   rendering each step (D079).
-- The canvas-resize fill color can add a non-thread color to a thread-brand
-  pattern (D092).
 - The PDF has no bold face. Whether µ (which extracts as μ) matters in Pattern
   Keeper is unconfirmed (D074, D097).
 - A double-click fill leaves 3 undo steps (D086). Highlight does nothing in
@@ -143,16 +142,11 @@ Crisp 27.4 s, Standard + DMC 18.5 s. Details in
 
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
-- **PENDING APPROVAL: push and deploy `master`.** After deploying, check on
-  production that a large photo survives reload, a long brush stroke stays
-  responsive, and 1000-stitch generation takes seconds, not minutes. The first
-  push will also be the first CI run.
-- G-032 (optional photo enhancement) is a draft, planned to start after G-031
-  M4, which is now done.
+- G-032 (optional photo enhancement) is active, with all milestones and
+  the deploy pre-approved by the Owner; see its progress log in `GOALS.md`.
 - G-028 (OXS import and export) is a draft. G-030 (public launch) is a
   far-future draft. G-023 (Rust sidecar) was measured as not needed.
-- Owner decisions not yet made: brand purity for the resize fill color; a
-  real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`);
+- Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`);
   gaps from `docs/reviews/2026-09-12-competitive-analysis.md`; moving exports
   into a worker if the tab stall bothers users.
 
@@ -194,6 +188,7 @@ Crisp 27.4 s, Standard + DMC 18.5 s. Details in
 | 2026-09-12 | 0f64f04 | Shortcuts, view modes, settings persistence (D086–D089) | Restored options and F/2 keys live |
 | 2026-09-12 | 1e802f9 | Load-failure reports, navigator color (D090–D091) | Page loads clean; paths covered by e2e |
 | 2026-09-12 | ca4cfb1 | Cosmo and Anchor palettes (G-029) | Four palette options live, no console errors |
+| 2026-09-13 | 1380bd3 | G-031: IndexedDB autosave, strict loader, shortcut and drag fixes, faster pipeline, workspace split | Only this container restarted; 5 sites 200; live 1000-stitch generation 8.5 s, 50-cell stroke 1.2 s, 4 MB photo survives reload, 9/9 live e2e |
 
 ## Decisions
 
