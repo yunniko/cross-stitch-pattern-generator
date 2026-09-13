@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { buildSpikePdf, buildPatternKeeperPdf } from "@/lib/pattern-keeper-pdf";
-import { mmToPx } from "@/lib/a4-layout";
-import { SYMBOL_SET } from "@/lib/symbols";
+import { buildSpikePdf, buildPatternKeeperPdf } from "@/lib/export/pattern-keeper-pdf";
+import { mmToPx } from "@/lib/export/a4-layout";
+import { SYMBOL_SET } from "@/lib/color/symbols";
 import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
 
 /**

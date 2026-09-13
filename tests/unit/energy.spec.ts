@@ -5,8 +5,8 @@ import {
   GEOMETRIC_NORMALIZATION,
   WEIGHTED_NEIGHBOR_OFFSETS,
   type PairEnergyWeights,
-} from "@/lib/energy";
-import { computePairEdgeEvidence, getPairEdgeEvidence } from "@/lib/pair-edge-evidence";
+} from "@/lib/pipeline/energy";
+import { computePairEdgeEvidence, getPairEdgeEvidence } from "@/lib/pipeline/pair-edge-evidence";
 
 /**
  * Tests for the shared boundary-energy primitives, including the

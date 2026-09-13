@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildPattern } from "@/lib/pattern";
-import { rgbToOklab, oklabToRgb, oklabDistanceSquared, type Oklab } from "@/lib/color";
-import { downsampleToGrid } from "@/lib/downsample";
-import { computePatternDiagnostics } from "@/lib/diagnostics";
+import { buildPattern } from "@/lib/pipeline/pattern";
+import { rgbToOklab, oklabToRgb, oklabDistanceSquared, type Oklab } from "@/lib/color/color";
+import { downsampleToGrid } from "@/lib/pipeline/downsample";
+import { computePatternDiagnostics } from "@/lib/experimental/diagnostics";
 import { makeHardSplitBuffer } from "./crisp-edges-fixtures";
 import { shapes, trueMask, predictedMask, iou, boundaryDistances } from "./shape-fixtures";
 import { cellRgb } from "@/lib/types";

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { LEGACY_PROJECT_KEY, legacyProjectSlot, loadWorkspaceOptions, OPTIONS_KEY, saveWorkspaceOptions } from "@/lib/workspace-storage";
+import { LEGACY_PROJECT_KEY, legacyProjectSlot, loadWorkspaceOptions, OPTIONS_KEY, saveWorkspaceOptions } from "@/lib/editor/workspace-storage";
 
 // This project's default Vitest environment is plain Node (no jsdom/window),
 // matching how the rest of the suite tests only the DOM-free parts of

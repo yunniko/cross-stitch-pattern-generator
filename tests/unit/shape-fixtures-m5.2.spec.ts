@@ -14,7 +14,7 @@ import {
   trueMask,
   trueRegionId,
 } from "./shape-fixtures";
-import { buildPattern } from "@/lib/pattern";
+import { buildPattern } from "@/lib/pipeline/pattern";
 import type { RGB } from "@/lib/types";
 
 /**

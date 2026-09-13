@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deserializePattern, serializePattern } from "@/lib/pattern-serialize";
+import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 function makePattern(): StitchPattern {

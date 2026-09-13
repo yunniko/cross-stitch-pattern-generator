@@ -38,18 +38,18 @@ describe("buildTintedTextureSet", () => {
   });
 
   it("resolves once the texture image loads", async () => {
-    const { buildTintedTextureSet } = await import("@/lib/stitch-texture");
+    const { buildTintedTextureSet } = await import("@/lib/export/stitch-texture");
     await expect(buildTintedTextureSet(PALETTE)).resolves.toBeDefined();
   });
 
   it("rejects when the texture image fails to load", async () => {
-    const { buildTintedTextureSet } = await import("@/lib/stitch-texture");
+    const { buildTintedTextureSet } = await import("@/lib/export/stitch-texture");
     FakeImage.shouldFail = true;
     await expect(buildTintedTextureSet(PALETTE)).rejects.toThrow();
   });
 
   it("retries the load on a later call after a failure, instead of caching the rejection forever (code-review 2026-09-09, finding 6)", async () => {
-    const { buildTintedTextureSet } = await import("@/lib/stitch-texture");
+    const { buildTintedTextureSet } = await import("@/lib/export/stitch-texture");
 
     FakeImage.shouldFail = true;
     await expect(buildTintedTextureSet(PALETTE)).rejects.toThrow();
@@ -59,7 +59,7 @@ describe("buildTintedTextureSet", () => {
   });
 
   it("caches a successful load -- a second call doesn't create a new Image", async () => {
-    const { buildTintedTextureSet } = await import("@/lib/stitch-texture");
+    const { buildTintedTextureSet } = await import("@/lib/export/stitch-texture");
 
     await buildTintedTextureSet(PALETTE);
     const countAfterFirst = FakeImage.instanceCount;

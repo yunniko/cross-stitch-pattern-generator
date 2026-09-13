@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { fixDiagonalConnections, recolorSmallComponents, defaultComponentRecolorOptions } from "@/lib/contour-cleanup";
-import { createPipelineContext } from "@/lib/pipeline-context";
-import { rgbToOklab } from "@/lib/color";
-import type { BoundaryEvidence } from "@/lib/crisp-edge-evidence";
-import type { CrispEvidenceLayer } from "@/lib/crisp-evidence-layer";
+import { fixDiagonalConnections, recolorSmallComponents, defaultComponentRecolorOptions } from "@/lib/pipeline/contour-cleanup";
+import { createPipelineContext } from "@/lib/pipeline/pipeline-context";
+import { rgbToOklab } from "@/lib/color/color";
+import type { BoundaryEvidence } from "@/lib/crisp/crisp-edge-evidence";
+import type { CrispEvidenceLayer } from "@/lib/crisp/crisp-evidence-layer";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 
 /**

@@ -1,13 +1,13 @@
 import { it } from "vitest";
-import { downsampleToGrid, gridDimensionsFor } from "@/lib/downsample";
-import { computeCellImportance, computeEdgeMagnitude } from "@/lib/edge-map";
-import { denoiseForQuantization } from "@/lib/denoise";
-import { defaultComponentRecolorOptions, fixDiagonalConnections, recolorSmallComponents } from "@/lib/contour-cleanup";
-import { runMultiScaleOptimizer } from "@/lib/local-optimizer";
-import { computePairEdgeEvidence } from "@/lib/pair-edge-evidence";
-import { buildPattern } from "@/lib/pattern";
-import { createPipelineContext } from "@/lib/pipeline-context";
-import { kMeansQuantizer } from "@/lib/quantize";
+import { downsampleToGrid, gridDimensionsFor } from "@/lib/pipeline/downsample";
+import { computeCellImportance, computeEdgeMagnitude } from "@/lib/pipeline/edge-map";
+import { denoiseForQuantization } from "@/lib/pipeline/denoise";
+import { defaultComponentRecolorOptions, fixDiagonalConnections, recolorSmallComponents } from "@/lib/pipeline/contour-cleanup";
+import { runMultiScaleOptimizer } from "@/lib/pipeline/local-optimizer";
+import { computePairEdgeEvidence } from "@/lib/pipeline/pair-edge-evidence";
+import { buildPattern } from "@/lib/pipeline/pattern";
+import { createPipelineContext } from "@/lib/pipeline/pipeline-context";
+import { kMeansQuantizer } from "@/lib/pipeline/quantize";
 import type { PixelBuffer } from "@/lib/types";
 import { makePhotoLikeBuffer } from "../tests/unit/helpers/fixtures";
 

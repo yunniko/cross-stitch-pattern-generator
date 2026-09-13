@@ -1,4 +1,4 @@
-import type { ChartDrawingContext } from "@/lib/chart-drawing-context";
+import type { ChartDrawingContext } from "@/lib/export/chart-drawing-context";
 
 export interface RecordedRect {
   x: number;

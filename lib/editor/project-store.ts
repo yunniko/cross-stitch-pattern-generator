@@ -1,4 +1,4 @@
-import { deserializePattern, deserializePatternData } from "../pattern-serialize";
+import { deserializePattern, deserializePatternData } from "./pattern-serialize";
 import type { RGB, SourceImageRef, StitchPattern } from "../types";
 
 /**

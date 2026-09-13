@@ -20,7 +20,7 @@ import {
   resizeCanvas,
   setColorSymbol,
   shiftPattern,
-} from "@/lib/pattern-edit";
+} from "@/lib/editor/pattern-edit";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type FloatingSelection, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {

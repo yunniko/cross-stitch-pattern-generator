@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COSMO_COLORS } from "@/lib/cosmo-colors";
+import { COSMO_COLORS } from "@/lib/threads/cosmo-colors";
 
 describe("COSMO_COLORS", () => {
   it("has 500 colors (the full 2020 Cosmo 500-color line), all with unique codes", () => {

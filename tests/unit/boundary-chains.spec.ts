@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { extractBoundaryChains } from "@/lib/boundary-chains";
-import { labelRegions, type RegionMap } from "@/lib/regions";
-import { buildPattern } from "@/lib/pattern";
+import { extractBoundaryChains } from "@/lib/experimental/boundary-chains";
+import { labelRegions, type RegionMap } from "@/lib/pipeline/regions";
+import { buildPattern } from "@/lib/pipeline/pattern";
 import { makeFourQuadrantJunctionBuffer, predictedMultiClass } from "./shape-fixtures";
 import type { RGB } from "@/lib/types";
 

@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildPattern, type BuildPatternOptions } from "@/lib/pattern";
-import { plainKMeansQuantizer } from "@/lib/quantize";
+import { buildPattern, type BuildPatternOptions } from "@/lib/pipeline/pattern";
+import { plainKMeansQuantizer } from "@/lib/pipeline/quantize";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
 import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "./helpers/fixtures";
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { computeCellImportance, computeEdgeMagnitude } from "@/lib/edge-map";
-import { downsampleToGrid, gridDimensionsFor } from "@/lib/downsample";
-import { computePatternDiagnostics } from "@/lib/diagnostics";
-import { buildPattern } from "@/lib/pattern";
+import { computeCellImportance, computeEdgeMagnitude } from "@/lib/pipeline/edge-map";
+import { downsampleToGrid, gridDimensionsFor } from "@/lib/pipeline/downsample";
+import { computePatternDiagnostics } from "@/lib/experimental/diagnostics";
+import { buildPattern } from "@/lib/pipeline/pattern";
 import type { PixelBuffer, RGB } from "@/lib/types";
 
 /**

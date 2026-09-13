@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS } from "@/lib/energy";
-import { DEFAULT_LOCAL_OPTIMIZER_WEIGHTS } from "@/lib/local-optimizer";
-import { extractBoundaryChains } from "@/lib/boundary-chains";
-import { labelRegions } from "@/lib/regions";
-import { buildPattern } from "@/lib/pattern";
+import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS } from "@/lib/pipeline/energy";
+import { DEFAULT_LOCAL_OPTIMIZER_WEIGHTS } from "@/lib/pipeline/local-optimizer";
+import { extractBoundaryChains } from "@/lib/experimental/boundary-chains";
+import { labelRegions } from "@/lib/pipeline/regions";
+import { buildPattern } from "@/lib/pipeline/pattern";
 import { makeFourQuadrantJunctionBuffer, predictedMultiClass } from "./shape-fixtures";
 import { stepDiscrepancies, summarizeDiscrepancies, straightLineHeight, traceStaircase } from "./contour-pacing";
 import type { RGB } from "@/lib/types";

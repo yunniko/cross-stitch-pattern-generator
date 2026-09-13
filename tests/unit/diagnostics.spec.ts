@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computePatternDiagnostics } from "@/lib/diagnostics";
+import { computePatternDiagnostics } from "@/lib/experimental/diagnostics";
 import type { CellColorBuffer, PaletteColor, RGB, StitchPattern } from "@/lib/types";
 
 function makeCells(width: number, height: number, colorAt: (x: number, y: number) => RGB): CellColorBuffer {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateSkeins, formatSkeinEstimate } from "@/lib/floss-estimate";
+import { estimateSkeins, formatSkeinEstimate } from "@/lib/threads/floss-estimate";
 
 describe("estimateSkeins", () => {
   it("returns 0 for a color with no stitches", () => {

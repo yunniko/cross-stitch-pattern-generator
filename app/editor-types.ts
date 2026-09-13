@@ -1,4 +1,4 @@
-import type { RenderMode } from "@/lib/render";
+import type { RenderMode } from "@/lib/export/render";
 
 /**
  * "photo" = the symbol grid overlaid on the source photo; "photo-only" = just

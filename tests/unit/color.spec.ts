@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { oklabDistanceSquared, oklabToRgb, luminance, rgbToOklab } from "@/lib/color";
+import { oklabDistanceSquared, oklabToRgb, luminance, rgbToOklab } from "@/lib/color/color";
 import type { RGB } from "@/lib/types";
 
 describe("rgbToOklab / oklabToRgb", () => {

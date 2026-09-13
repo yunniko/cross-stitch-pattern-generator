@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { extractBoundaryEvidence, DEFAULT_BOUNDARY_EVIDENCE_OPTIONS } from "@/lib/crisp-edge-evidence";
-import { rgbToOklab } from "@/lib/color";
+import { extractBoundaryEvidence, DEFAULT_BOUNDARY_EVIDENCE_OPTIONS } from "@/lib/crisp/crisp-edge-evidence";
+import { rgbToOklab } from "@/lib/color/color";
 import { makeHardSplitBuffer } from "./crisp-edges-fixtures";
 import type { PixelBuffer, RGB } from "@/lib/types";
 

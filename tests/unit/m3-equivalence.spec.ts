@@ -1,7 +1,7 @@
 import { colornames as bestOfColorNames } from "color-name-list/bestof";
 import { describe, expect, it } from "vitest";
-import { hexToRgb, oklabDistanceSquared, rgbToOklab } from "@/lib/color";
-import { nameColors } from "@/lib/color-names";
+import { hexToRgb, oklabDistanceSquared, rgbToOklab } from "@/lib/color/color";
+import { nameColors } from "@/lib/color/color-names";
 import {
   allCellIndices,
   buildCrispEvidenceLayer,
@@ -9,15 +9,15 @@ import {
   DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD,
   selectWeightedQuantizer,
   type CrispEvidenceLayer,
-} from "@/lib/crisp-evidence-layer";
-import { runCrispQuantizationStage } from "@/lib/crisp-quantization-stage";
-import { downsampleToGrid, gridDimensionsFor } from "@/lib/downsample";
-import { computeCellImportance, computeEdgeMagnitude, selectKth } from "@/lib/edge-map";
-import { DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, DEFAULT_MULTI_SCALE_WEIGHTS, runLocalOptimizer, type LocalOptimizerWeights } from "@/lib/local-optimizer";
-import { computePairEdgeEvidence } from "@/lib/pair-edge-evidence";
-import { createPipelineContext } from "@/lib/pipeline-context";
+} from "@/lib/crisp/crisp-evidence-layer";
+import { runCrispQuantizationStage } from "@/lib/crisp/crisp-quantization-stage";
+import { downsampleToGrid, gridDimensionsFor } from "@/lib/pipeline/downsample";
+import { computeCellImportance, computeEdgeMagnitude, selectKth } from "@/lib/pipeline/edge-map";
+import { DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, DEFAULT_MULTI_SCALE_WEIGHTS, runLocalOptimizer, type LocalOptimizerWeights } from "@/lib/pipeline/local-optimizer";
+import { computePairEdgeEvidence } from "@/lib/pipeline/pair-edge-evidence";
+import { createPipelineContext } from "@/lib/pipeline/pipeline-context";
 import { mulberry32 } from "@/lib/prng";
-import { kMeansQuantizer } from "@/lib/quantize";
+import { kMeansQuantizer } from "@/lib/pipeline/quantize";
 import type { CellColorBuffer, PixelBuffer, RGB } from "@/lib/types";
 import { makeHardSplitWithGenuineGrayBuffer } from "./crisp-edges-fixtures";
 import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "./helpers/fixtures";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { headerText } from "@/lib/render";
+import { headerText } from "@/lib/export/render";
 import type { PaletteColor, StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number): StitchPattern {

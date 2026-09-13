@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { boundaryPairEnergy, GEOMETRIC_NORMALIZATION } from "@/lib/energy";
-import { DEFAULT_MULTI_SCALE_WEIGHTS, type LocalOptimizerWeights } from "@/lib/local-optimizer";
-import { crispUnaryCost, DEFAULT_CRISP_UNARY_COST_WEIGHTS } from "@/lib/crisp-unary-cost";
-import { rgbToOklab, type Oklab } from "@/lib/color";
+import { boundaryPairEnergy, GEOMETRIC_NORMALIZATION } from "@/lib/pipeline/energy";
+import { DEFAULT_MULTI_SCALE_WEIGHTS, type LocalOptimizerWeights } from "@/lib/pipeline/local-optimizer";
+import { crispUnaryCost, DEFAULT_CRISP_UNARY_COST_WEIGHTS } from "@/lib/crisp/crisp-unary-cost";
+import { rgbToOklab, type Oklab } from "@/lib/color/color";
 
 /**
  * G-024 M3 (HANDOVER.md D60): a bounded, real (not fabricated) side-switch

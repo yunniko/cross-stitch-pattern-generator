@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { CURRENT_PROJECT_KEY, PROJECT_DB_NAME, PROJECT_DB_VERSION, PROJECT_OBJECT_STORE } from "../../lib/editor/project-store";
-import { LEGACY_PROJECT_KEY } from "../../lib/workspace-storage";
+import { LEGACY_PROJECT_KEY } from "../../lib/editor/workspace-storage";
 
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
 

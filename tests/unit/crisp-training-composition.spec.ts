@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { downsampleToGrid } from "@/lib/downsample";
-import { extractBoundaryEvidence, type BoundaryEvidence } from "@/lib/crisp-edge-evidence";
-import { weightedKMeansQuantize, type WeightedColorSample } from "@/lib/weighted-quantize";
-import { buildAdmissibleLabelCosts } from "@/lib/crisp-unary-cost";
-import { rgbToOklab, oklabDistanceSquared } from "@/lib/color";
+import { downsampleToGrid } from "@/lib/pipeline/downsample";
+import { extractBoundaryEvidence, type BoundaryEvidence } from "@/lib/crisp/crisp-edge-evidence";
+import { weightedKMeansQuantize, type WeightedColorSample } from "@/lib/crisp/weighted-quantize";
+import { buildAdmissibleLabelCosts } from "@/lib/crisp/crisp-unary-cost";
+import { rgbToOklab, oklabDistanceSquared } from "@/lib/color/color";
 import { cellRgb } from "@/lib/types";
 import { makeHardSplitWithGenuineGrayBuffer } from "./crisp-edges-fixtures";
 

@@ -1,5 +1,5 @@
-import { oklabDistanceSquared, rgbToOklab } from "@/lib/color";
-import { buildPattern, type BuildPatternOptions } from "@/lib/pattern";
+import { oklabDistanceSquared, rgbToOklab } from "@/lib/color/color";
+import { buildPattern, type BuildPatternOptions } from "@/lib/pipeline/pattern";
 import type { PixelBuffer, RGB, StitchPattern } from "@/lib/types";
 
 /**

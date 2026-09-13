@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { computeCellImportance, computeEdgeMagnitude } from "@/lib/edge-map";
-import { computePairEdgeEvidence, DEFAULT_TAU, getPairEdgeEvidence, responseCurve } from "@/lib/pair-edge-evidence";
+import { computeCellImportance, computeEdgeMagnitude } from "@/lib/pipeline/edge-map";
+import { computePairEdgeEvidence, DEFAULT_TAU, getPairEdgeEvidence, responseCurve } from "@/lib/pipeline/pair-edge-evidence";
 import { makeGradientShapeBuffer, shapes } from "./shape-fixtures";
 import type { PixelBuffer } from "@/lib/types";
 

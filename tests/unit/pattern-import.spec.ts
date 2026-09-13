@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import JSZip from "jszip";
-import { loadPatternFromFile } from "@/lib/pattern-import";
-import { serializePattern } from "@/lib/pattern-serialize";
+import { loadPatternFromFile } from "@/lib/editor/pattern-import";
+import { serializePattern } from "@/lib/editor/pattern-serialize";
 import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
 
 /**

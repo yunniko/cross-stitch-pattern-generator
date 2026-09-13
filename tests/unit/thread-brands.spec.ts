@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatThreadName, THREAD_BRAND_IDS, THREAD_BRANDS } from "@/lib/thread-brands";
+import { formatThreadName, THREAD_BRAND_IDS, THREAD_BRANDS } from "@/lib/threads/thread-brands";
 
 describe("THREAD_BRANDS registry", () => {
   it("has an entry for every ThreadBrand id, self-consistent", () => {

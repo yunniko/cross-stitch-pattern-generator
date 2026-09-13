@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { oklabDistanceSquared, rgbToOklab, type Oklab } from "@/lib/color";
-import { mergeSimilarColors } from "@/lib/palette-optimizer";
-import { plainKMeansQuantizer, kMeansQuantizer } from "@/lib/quantize";
-import { weightedQuantize, weightedKMeansQuantize, runWeightedLloyd, weightedInjectWorstFitClusters, type WeightedColorSample } from "@/lib/weighted-quantize";
+import { oklabDistanceSquared, rgbToOklab, type Oklab } from "@/lib/color/color";
+import { mergeSimilarColors } from "@/lib/pipeline/palette-optimizer";
+import { plainKMeansQuantizer, kMeansQuantizer } from "@/lib/pipeline/quantize";
+import { weightedQuantize, weightedKMeansQuantize, runWeightedLloyd, weightedInjectWorstFitClusters, type WeightedColorSample } from "@/lib/crisp/weighted-quantize";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 
 /**

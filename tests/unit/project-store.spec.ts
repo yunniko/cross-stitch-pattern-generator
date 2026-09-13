@@ -8,7 +8,7 @@ import {
   type KeyValueStore,
   type LegacyProjectSlot,
 } from "@/lib/editor/project-store";
-import { serializePattern } from "@/lib/pattern-serialize";
+import { serializePattern } from "@/lib/editor/pattern-serialize";
 import { EMPTY_CELL, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern } from "@/lib/types";
 
 function makePattern(overrides: Partial<StitchPattern> = {}): StitchPattern {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateA4Layout, mmToPx, a4PageSizePx, DEFAULT_CELL_SIZE_MM, DEFAULT_MARGIN_MM } from "@/lib/a4-layout";
+import { calculateA4Layout, mmToPx, a4PageSizePx, DEFAULT_CELL_SIZE_MM, DEFAULT_MARGIN_MM } from "@/lib/export/a4-layout";
 
 // dpi=254 makes 1mm exactly 10px -- lets these tests hit clean round numbers
 // instead of fighting floating-point rounding from a realistic 300 DPI.

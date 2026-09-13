@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ANCHOR_COLORS, DMC_TO_ANCHOR } from "@/lib/anchor-colors";
-import { DMC_COLORS } from "@/lib/dmc-colors";
+import { ANCHOR_COLORS, DMC_TO_ANCHOR } from "@/lib/threads/anchor-colors";
+import { DMC_COLORS } from "@/lib/threads/dmc-colors";
 
 describe("DMC_TO_ANCHOR", () => {
   it("has exactly one entry per real DMC code -- exact 1:1 coverage with DMC_COLORS, no missing or extra codes", () => {

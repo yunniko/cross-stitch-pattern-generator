@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeCellImportance, computeEdgeMagnitude, edgeBetweenCells } from "@/lib/edge-map";
+import { computeCellImportance, computeEdgeMagnitude, edgeBetweenCells } from "@/lib/pipeline/edge-map";
 import type { PixelBuffer, RGB } from "@/lib/types";
 
 function makeBuffer(width: number, height: number, colorAt: (x: number, y: number) => RGB): PixelBuffer {

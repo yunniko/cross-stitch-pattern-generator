@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { applyBrandPalette, countCrispThreadCollisions } from "@/lib/dmc-match";
-import { rgbToOklab } from "@/lib/color";
-import { createPipelineContext } from "@/lib/pipeline-context";
-import type { BoundaryEvidence } from "@/lib/crisp-edge-evidence";
-import type { CrispEvidenceLayer } from "@/lib/crisp-evidence-layer";
+import { applyBrandPalette, countCrispThreadCollisions } from "@/lib/threads/brand-match";
+import { rgbToOklab } from "@/lib/color/color";
+import { createPipelineContext } from "@/lib/pipeline/pipeline-context";
+import type { BoundaryEvidence } from "@/lib/crisp/crisp-edge-evidence";
+import type { CrispEvidenceLayer } from "@/lib/crisp/crisp-evidence-layer";
 import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
 
 /**

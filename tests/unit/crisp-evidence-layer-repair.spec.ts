@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { mergeSimilarColors } from "@/lib/palette-optimizer";
-import { repairCrispAssignments } from "@/lib/crisp-evidence-layer";
-import { rgbToOklab, type Oklab } from "@/lib/color";
-import type { BoundaryEvidence } from "@/lib/crisp-edge-evidence";
-import type { CrispEvidenceLayer } from "@/lib/crisp-evidence-layer";
+import { mergeSimilarColors } from "@/lib/pipeline/palette-optimizer";
+import { repairCrispAssignments } from "@/lib/crisp/crisp-evidence-layer";
+import { rgbToOklab, type Oklab } from "@/lib/color/color";
+import type { BoundaryEvidence } from "@/lib/crisp/crisp-edge-evidence";
+import type { CrispEvidenceLayer } from "@/lib/crisp/crisp-evidence-layer";
 import type { RGB } from "@/lib/types";
 
 /**

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nameColors } from "@/lib/color-names";
+import { nameColors } from "@/lib/color/color-names";
 import { MAX_COLORS, type RGB } from "@/lib/types";
 
 describe("nameColors", () => {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { deriveErrorReportFilename, downloadPatternLoadReport, logPatternLoadFailure, reportPatternLoadFailure } from "@/lib/error-report";
+import { deriveErrorReportFilename, downloadPatternLoadReport, logPatternLoadFailure, reportPatternLoadFailure } from "@/lib/editor/error-report";
 
 describe("error-report", () => {
   describe("deriveErrorReportFilename", () => {

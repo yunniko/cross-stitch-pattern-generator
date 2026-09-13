@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
-import type { WorkerRequest, WorkerResponse } from "@/lib/pattern.worker";
+import type { WorkerRequest, WorkerResponse } from "@/lib/pipeline/pattern.worker";
 
 /**
  * A minimal fake Worker: captures the posted request and lets the test
@@ -47,7 +47,7 @@ describe("pattern-client", () => {
   });
 
   it("resolves with the pattern when the worker reports done", async () => {
-    const { runPatternJob } = await import("@/lib/pattern-client");
+    const { runPatternJob } = await import("@/lib/pipeline/pattern-client");
     const promise = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
     const w = FakeWorker.instances[0];
     w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
@@ -55,14 +55,14 @@ describe("pattern-client", () => {
   });
 
   it("forwards edgeMode through to the worker request (G-024 M5)", async () => {
-    const { runPatternJob } = await import("@/lib/pattern-client");
+    const { runPatternJob } = await import("@/lib/pipeline/pattern-client");
     runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2, edgeMode: "crisp" }).catch(() => {});
     const w = FakeWorker.instances[0];
     expect(w.lastRequest?.edgeMode).toBe("crisp");
   });
 
   it("rejects a superseded job's promise instead of leaving it pending forever", async () => {
-    const { runPatternJob } = await import("@/lib/pattern-client");
+    const { runPatternJob } = await import("@/lib/pipeline/pattern-client");
     const firstPromise = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
     const firstRejection = expect(firstPromise).rejects.toThrow("cancelled");
 
@@ -76,14 +76,14 @@ describe("pattern-client", () => {
   });
 
   it("explicit cancelPatternJob rejects the pending promise", async () => {
-    const { runPatternJob, cancelPatternJob } = await import("@/lib/pattern-client");
+    const { runPatternJob, cancelPatternJob } = await import("@/lib/pipeline/pattern-client");
     const promise = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
     cancelPatternJob();
     await expect(promise).rejects.toThrow("cancelled");
   });
 
   it("a stale worker message delivered after cancellation is ignored, not applied", async () => {
-    const { runPatternJob, cancelPatternJob } = await import("@/lib/pattern-client");
+    const { runPatternJob, cancelPatternJob } = await import("@/lib/pipeline/pattern-client");
     const promise = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
     const staleWorker = FakeWorker.instances[0];
     const rejection = expect(promise).rejects.toThrow("cancelled");
@@ -98,7 +98,7 @@ describe("pattern-client", () => {
   // G-031 M3 (review E6): a worker with no job in flight is reused, keeping
   // its module-level caches (color names, brand OKLab tables) warm.
   it("reuses the worker for a job started after the previous one finished", async () => {
-    const { runPatternJob } = await import("@/lib/pattern-client");
+    const { runPatternJob } = await import("@/lib/pipeline/pattern-client");
     const first = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
     const w = FakeWorker.instances[0];
     w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
@@ -112,7 +112,7 @@ describe("pattern-client", () => {
   });
 
   it("reuses the worker after a job reported an error", async () => {
-    const { runPatternJob } = await import("@/lib/pattern-client");
+    const { runPatternJob } = await import("@/lib/pipeline/pattern-client");
     const first = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
     const w = FakeWorker.instances[0];
     w.respond({ type: "error", jobId: w.lastRequest!.jobId, message: "boom" });
@@ -124,7 +124,7 @@ describe("pattern-client", () => {
   });
 
   it("discards a worker that fired a native error event, so a retry gets a fresh one", async () => {
-    const { runPatternJob } = await import("@/lib/pattern-client");
+    const { runPatternJob } = await import("@/lib/pipeline/pattern-client");
     const first = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
     const broken = FakeWorker.instances[0];
     broken.onerror?.({ message: "script failed to load" } as ErrorEvent);
@@ -139,7 +139,7 @@ describe("pattern-client", () => {
   });
 
   it("rejects, and recovers on the next job, when posting to the worker throws", async () => {
-    const { runPatternJob } = await import("@/lib/pattern-client");
+    const { runPatternJob } = await import("@/lib/pipeline/pattern-client");
     const originalPost = FakeWorker.prototype.postMessage;
     FakeWorker.prototype.postMessage = () => {
       throw new Error("DataCloneError");
@@ -154,7 +154,7 @@ describe("pattern-client", () => {
   });
 
   it("cancelPatternJob with nothing in flight leaves the worker alive", async () => {
-    const { runPatternJob, cancelPatternJob } = await import("@/lib/pattern-client");
+    const { runPatternJob, cancelPatternJob } = await import("@/lib/pipeline/pattern-client");
     const job = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
     const w = FakeWorker.instances[0];
     w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
@@ -164,7 +164,7 @@ describe("pattern-client", () => {
   });
 
   it("terminates the previous worker when a new job supersedes it", async () => {
-    const { runPatternJob } = await import("@/lib/pattern-client");
+    const { runPatternJob } = await import("@/lib/pipeline/pattern-client");
     runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 }).catch(() => {});
     const first = FakeWorker.instances[0];
     runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 20, colorCount: 4 }).catch(() => {});

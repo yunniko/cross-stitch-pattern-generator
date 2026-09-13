@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { computeCellImportance, computeEdgeMagnitude } from "@/lib/edge-map";
-import { downsampleToGrid } from "@/lib/downsample";
-import { runLocalOptimizer, runMultiScaleOptimizer } from "@/lib/local-optimizer";
-import { createPipelineContext } from "@/lib/pipeline-context";
+import { computeCellImportance, computeEdgeMagnitude } from "@/lib/pipeline/edge-map";
+import { downsampleToGrid } from "@/lib/pipeline/downsample";
+import { runLocalOptimizer, runMultiScaleOptimizer } from "@/lib/pipeline/local-optimizer";
+import { createPipelineContext } from "@/lib/pipeline/pipeline-context";
 import type { CellColorBuffer, PixelBuffer, RGB } from "@/lib/types";
 
 function makeCells(width: number, height: number, colorAt: (x: number, y: number) => RGB): CellColorBuffer {

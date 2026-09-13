@@ -1,0 +1,469 @@
+import { oklabDistanceSquared, oklabToRgb, rgbToOklab, type Oklab } from "../color/color";
+import { mergeSimilarColors } from "./palette-optimizer";
+import { mulberry32 } from "../prng";
+import { cellRgb, type CellColorBuffer, type RGB } from "../types";
+
+export interface QuantizeResult {
+  /** One palette index per cell, row-major, same length as the input grid. */
+  cellPaletteIndex: Uint8Array;
+  /** Representative RGB color for each palette entry, length k (or fewer if k > distinct colors). */
+  palette: RGB[];
+}
+
+export interface ColorQuantizer {
+  /**
+   * `importance` (0-1 per cell, row-major, from `lib/edge-map.ts`'s
+   * `computeCellImportance` -- same signal `local-optimizer.ts`/
+   * `contour-cleanup.ts` use) is optional and only consulted by quantizers
+   * that do reconstruction-error-driven reinvestment (`kMeansQuantizer`);
+   * `plainKMeansQuantizer` ignores it entirely, since JS/TS lets an
+   * implementation declare fewer parameters than the interface allows.
+   */
+  quantize(cells: CellColorBuffer, colorCount: number, importance?: Float32Array, cellOklab?: Float64Array): QuantizeResult;
+}
+
+/** `cells` as OKLab tuples, read from an already-computed interleaved conversion (`PipelineContext.cellOklab`) when given -- the same values `rgbToOklab` produces. */
+function oklabTuples(cells: CellColorBuffer, cellOklab?: Float64Array): Oklab[] {
+  const cellCount = cells.width * cells.height;
+  const out = new Array<Oklab>(cellCount);
+  if (cellOklab) {
+    for (let i = 0; i < cellCount; i++) out[i] = [cellOklab[i * 3], cellOklab[i * 3 + 1], cellOklab[i * 3 + 2]];
+  } else {
+    for (let i = 0; i < cellCount; i++) out[i] = rgbToOklab(cellRgb(cells, i));
+  }
+  return out;
+}
+
+/** `meanRgbOklab` over an interleaved OKLab buffer instead of re-converting each member cell -- identical summation order, identical result. */
+export function meanOklabAsRgb(cellOklab: Float64Array, indices: number[]): RGB {
+  let l = 0;
+  let a = 0;
+  let b = 0;
+  for (const i of indices) {
+    l += cellOklab[i * 3];
+    a += cellOklab[i * 3 + 1];
+    b += cellOklab[i * 3 + 2];
+  }
+  const n = indices.length || 1;
+  return oklabToRgb([l / n, a / n, b / n]);
+}
+
+/**
+ * Mean of a cluster's member colors *in OKLab space*, converted back to RGB
+ * (with gamut clamping via `oklabToRgb`) -- the correct Lloyd-update
+ * centroid for the squared-OKLab-distance objective assignment and ICM/
+ * contour-cleanup optimization actually use throughout this pipeline.
+ *
+ * A linear-RGB mean (this function's predecessor, `meanRgbLinear`) does NOT
+ * minimize squared OKLab error for a given membership -- a mean only
+ * minimizes squared error in the coordinate system it's computed in, and
+ * linear RGB isn't that system here. A domain-expert review (HANDOVER.md
+ * D11) had flagged the *need* to recompute post-optimization, but the
+ * recompute itself still used a linear-RGB mean, leaving the same
+ * inconsistency; the code-review that caught this (2026-09-09, finding 3)
+ * reproduced it directly: on a 100x60 grayscale ramp through the default
+ * two-color pipeline, recomputing the same final memberships in OKLab
+ * reduced mean squared OKLab error by ~6.9% without moving a single stitch,
+ * and on a simple 50/50 black/white cluster the reduction was ~26% (0.337 ->
+ * 0.250). Linear-light averaging remains the correct approach for the
+ * *spatial downsample* (`downsampleToGrid`) -- that's a genuinely different
+ * operation (reconstructing what a printed cell's average appearance would
+ * be) from *this* one (finding the representative color that best serves the
+ * clustering objective already in effect).
+ */
+export function meanRgbOklab(cells: CellColorBuffer, indices: number[]): RGB {
+  let l = 0;
+  let a = 0;
+  let b = 0;
+  for (const i of indices) {
+    const [ol, oa, ob] = rgbToOklab(cellRgb(cells, i));
+    l += ol;
+    a += oa;
+    b += ob;
+  }
+  const n = indices.length || 1;
+  return oklabToRgb([l / n, a / n, b / n]);
+}
+
+/** Deterministic k-means++ seeding: spreads initial centroids apart instead of picking randomly. */
+function kMeansPlusPlusSeeds(oklabColors: Oklab[], k: number, rng: () => number): Oklab[] {
+  const seeds: Oklab[] = [oklabColors[Math.floor(rng() * oklabColors.length)]];
+  const distSq = new Float64Array(oklabColors.length).fill(Infinity);
+
+  while (seeds.length < k) {
+    let total = 0;
+    for (let i = 0; i < oklabColors.length; i++) {
+      const d = oklabDistanceSquared(oklabColors[i], seeds[seeds.length - 1]);
+      if (d < distSq[i]) distSq[i] = d;
+      total += distSq[i];
+    }
+    if (total === 0) {
+      // All remaining points coincide with an existing seed; pad with duplicates.
+      seeds.push(oklabColors[Math.floor(rng() * oklabColors.length)]);
+      continue;
+    }
+    let threshold = rng() * total;
+    let chosen = 0;
+    for (let i = 0; i < oklabColors.length; i++) {
+      threshold -= distSq[i];
+      if (threshold <= 0) {
+        chosen = i;
+        break;
+      }
+    }
+    seeds.push(oklabColors[chosen]);
+  }
+  return seeds;
+}
+
+const MAX_ITERATIONS = 30;
+const CONVERGENCE_THRESHOLD_SQ = 0.0001;
+
+/** Nearest-centroid assignment for every interleaved point against a fixed set of centroids; first minimum wins, same arithmetic as `oklabDistanceSquared(point, centroid)`. */
+function assignToNearestCentroid(points: Float64Array, centroids: Oklab[], flat: Float64Array, out: Uint8Array): void {
+  const k = centroids.length;
+  for (let c = 0; c < k; c++) {
+    flat[c * 3] = centroids[c][0];
+    flat[c * 3 + 1] = centroids[c][1];
+    flat[c * 3 + 2] = centroids[c][2];
+  }
+  const n = out.length;
+  for (let i = 0; i < n; i++) {
+    const o = i * 3;
+    const pl = points[o];
+    const pa = points[o + 1];
+    const pb = points[o + 2];
+    let best = 0;
+    let bestDist = Infinity;
+    for (let c = 0; c < k; c++) {
+      const s = c * 3;
+      const dl = pl - flat[s];
+      const da = pa - flat[s + 1];
+      const db = pb - flat[s + 2];
+      const d = dl * dl + da * da + db * db;
+      if (d < bestDist) {
+        bestDist = d;
+        best = c;
+      }
+    }
+    out[i] = best;
+  }
+}
+
+/**
+ * Standard Lloyd's-algorithm refinement to convergence from a given set of
+ * initial centroids.
+ *
+ * A trailing `assignToNearestCentroid` call against the *final* centroids
+ * is required, not optional (2026-09-11 cluster-boundary review, Finding
+ * 4, HANDOVER.md D42/G-022 M1): the loop below assigns points to the
+ * centroids as they stood *before* that iteration's centroid-update step,
+ * then updates the centroids, then may `break` on convergence -- so
+ * without this trailing pass, the returned `assignments` reflect the
+ * *previous* iteration's centroids, not the ones actually returned
+ * alongside them. Reproduced directly: a soft-edged 60x60 grayscale
+ * circle fixture left 40-56 of 3600 cells (depending on `k`) assigned to
+ * a palette entry that was no longer their nearest one, even before RGB
+ * rounding -- the review's own reported case found 100/3600. The spatial
+ * optimizer downstream can only partially correct this, since its own
+ * boundary penalty resists exactly the kind of single-cell move needed to
+ * fix a stale assignment, turning a color-clustering inconsistency into a
+ * visible shape artifact (a flattened contour).
+ */
+// Exported only so the assignment/centroid consistency invariant can be
+// unit-tested directly against the exact OKLab centroids Lloyd's algorithm
+// itself converges on (same rationale as `meanRgbOklab`/
+// `injectWorstFitClusters` above) -- testing this invariant through the
+// public `quantize()` API alone would conflate it with an unrelated,
+// expected side effect: `buildPaletteFromAssignment`'s RGB rounding of the
+// reported palette can itself make a cell's *rounded* palette entry no
+// longer its exact nearest, which is not this bug and would make a
+// zero-tolerance test of the real invariant impossible from outside.
+export function runLloyd(oklabColors: Oklab[], initialCentroids: Oklab[]): { centroids: Oklab[]; assignments: Uint8Array } {
+  // Interleaved typed buffers for the O(iterations × n × k) assignment and
+  // sum loops; accumulation order and arithmetic are unchanged, so the
+  // result is bit-identical to the tuple version (D105).
+  const n = oklabColors.length;
+  const points = new Float64Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    points[i * 3] = oklabColors[i][0];
+    points[i * 3 + 1] = oklabColors[i][1];
+    points[i * 3 + 2] = oklabColors[i][2];
+  }
+  let centroids = initialCentroids;
+  const k = centroids.length;
+  const assignments = new Uint8Array(n);
+  const flat = new Float64Array(k * 3);
+  const sums = new Float64Array(k * 3);
+  const counts = new Int32Array(k);
+
+  for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
+    assignToNearestCentroid(points, centroids, flat, assignments);
+
+    sums.fill(0);
+    counts.fill(0);
+    for (let i = 0; i < n; i++) {
+      const s = assignments[i] * 3;
+      sums[s] += points[i * 3];
+      sums[s + 1] += points[i * 3 + 1];
+      sums[s + 2] += points[i * 3 + 2];
+      counts[assignments[i]]++;
+    }
+
+    let maxShiftSq = 0;
+    const newCentroids: Oklab[] = centroids.map((old, c) => {
+      if (counts[c] === 0) return old;
+      const next: Oklab = [sums[c * 3] / counts[c], sums[c * 3 + 1] / counts[c], sums[c * 3 + 2] / counts[c]];
+      maxShiftSq = Math.max(maxShiftSq, oklabDistanceSquared(old, next));
+      return next;
+    });
+    centroids = newCentroids;
+    if (maxShiftSq < CONVERGENCE_THRESHOLD_SQ) break;
+  }
+
+  assignToNearestCentroid(points, centroids, flat, assignments);
+  return { centroids, assignments };
+}
+
+/**
+ * Builds the final RGB palette straight from `runLloyd`'s own converged
+ * OKLab centroids -- each one already *is* the exact OKLab mean of the
+ * cells assigned to it (that's what makes a centroid step a real Lloyd
+ * update), so converting it to RGB (via `oklabToRgb`, gamut-clamped) is the
+ * correct representative color, not a second, differently-computed mean
+ * over the same membership (code-review 2026-09-09, finding 3).
+ */
+function buildPaletteFromAssignment(
+  centroids: Oklab[],
+  assignments: Uint8Array
+): { cellPaletteIndex: Uint8Array; palette: RGB[] } {
+  const counts = new Array(centroids.length).fill(0);
+  for (const c of assignments) counts[c]++;
+
+  const remap = new Int16Array(centroids.length).fill(-1);
+  const palette: RGB[] = [];
+  centroids.forEach((centroid, c) => {
+    if (counts[c] === 0) return;
+    remap[c] = palette.length;
+    palette.push(oklabToRgb(centroid));
+  });
+
+  const cellPaletteIndex = new Uint8Array(assignments.length);
+  for (let i = 0; i < assignments.length; i++) cellPaletteIndex[i] = remap[assignments[i]];
+
+  return { cellPaletteIndex, palette };
+}
+
+// Looser than palette-optimizer.ts's own DEFAULT_MERGE_DISTANCE_SQUARED
+// (0.0004, tuned to catch only genuinely-tight near-duplicates for its own
+// late-pipeline dedup role): this pass runs immediately after raw
+// quantization, specifically looking for palette redundancy worth trading
+// away for a real minority color the population-weighted k-means objective
+// otherwise never allocates a slot to (HANDOVER.md D19/D20). Deliberately
+// still much tighter than a "these look similar to a human" threshold --
+// only merges colors close enough that losing the distinction barely
+// changes reconstruction error, so genuinely different content (checked
+// against the busy-multi-hue case in testing) isn't merged away.
+// Exported so `weighted-quantize.ts`'s analogous reinvestment path (G-024
+// M3) reuses the exact same tuned constants rather than drifting into its
+// own separately-chosen values for what should be one shared policy.
+export const REINVEST_MERGE_THRESHOLD = 0.012;
+
+// How much a cell's own `importance` (0-1) can boost its effective
+// reinvestment priority over raw reconstruction error alone: a
+// maximally-important cell's score is doubled (`d * (1 + 1.0*1)`), enough to
+// win a freed slot over a moderately-larger-error unimportant cell, but not
+// enough for a low-error "important" cell to leapfrog a genuinely
+// large-error one -- see `injectWorstFitClusters`'s own doc comment below
+// for why that asymmetry is the point, not a compromise.
+// Exported for the same reason as `REINVEST_MERGE_THRESHOLD` above.
+export const WORST_FIT_IMPORTANCE_BOOST = 1.0;
+
+/**
+ * Redistributes palette budget freed by merging redundant colors to
+ * whichever cell is currently the single worst-represented in the whole
+ * image (largest reconstruction error to its own assigned color) --
+ * repeated once per freed slot. This is the classic split/grow step from
+ * LBG-style vector-quantization codebook design (Linde-Buzo-Gray 1980):
+ * grow a codebook by always splitting off the currently-worst-served point,
+ * not by density or geometry. Reconstruction error is a direct, real
+ * measurement of "how badly does an actual color need help," unlike the
+ * population/geometry proxies two earlier, reverted attempts relied on
+ * (HANDOVER.md D18, D19) -- a genuinely rare, saturated color like a small
+ * eye is, by construction, the worst-served point once the rest of the
+ * palette has settled onto the dominant content, so it gets first claim on
+ * any freed slot without needing to out-compete a majority region's
+ * population anywhere in the process.
+ *
+ * `importance` (0-1 per cell; an all-zero array reproduces the original,
+ * importance-blind ranking exactly) biases that ranking toward cells the
+ * rest of the pipeline already treats as real content, not noise -- a
+ * 2026-09-11 review (HANDOVER.md D39/G-020 M3) found raw reconstruction
+ * error alone can't tell a genuinely rare *detail* (a small logo, an eye)
+ * from a genuinely rare *artifact* (a JPEG ringing pixel, a stray specular
+ * highlight): both look identical to this function as "one outlier cell
+ * with a large error." The effective score is `distance * (1 +
+ * WORST_FIT_IMPORTANCE_BOOST * importance)` -- multiplicative, not
+ * additive, so importance can only ever amplify a *real* error, never
+ * manufacture priority for a cell that's already a near-perfect fit
+ * (importance x 0 error = 0 regardless of the boost). This deliberately
+ * doesn't let importance override a much larger raw error either: an
+ * unimportant cell with a severe misfit can still out-rank a merely
+ * moderately-important one, since the boost only doubles the score at
+ * most (`importance` is capped at 1) -- consistent with `local-
+ * optimizer.ts`'s own `edge = max(imp_i, imp_n)` convention of *informing*
+ * energy terms with importance rather than gating on it outright.
+ */
+// Exported only so the importance-weighted ranking itself can be unit-
+// tested directly against hand-chosen OKLab points (same rationale as
+// `meanRgbOklab` above) -- reproducing a specific "which of two comparably-
+// bad-fit cells wins" outcome through the full k-means/merge pipeline would
+// require fighting Lloyd's-algorithm dynamics for a scenario that's really
+// about this scoring formula alone.
+export function injectWorstFitClusters(
+  oklabColors: Oklab[],
+  assignment: Uint8Array,
+  centroids: Oklab[],
+  slotsToAdd: number,
+  importance: Float32Array
+) {
+  const nextAssignment = assignment.slice();
+  let nextCentroids = centroids.slice();
+
+  for (let slot = 0; slot < slotsToAdd; slot++) {
+    let worstIndex = 0;
+    let worstScore = -1;
+    for (let i = 0; i < oklabColors.length; i++) {
+      const d = oklabDistanceSquared(oklabColors[i], nextCentroids[nextAssignment[i]]);
+      const score = d * (1 + WORST_FIT_IMPORTANCE_BOOST * importance[i]);
+      if (score > worstScore) {
+        worstScore = score;
+        worstIndex = i;
+      }
+    }
+
+    const newCentroid = oklabColors[worstIndex];
+    const newClusterIndex = nextCentroids.length;
+    nextCentroids = [...nextCentroids, newCentroid];
+
+    for (let i = 0; i < oklabColors.length; i++) {
+      const distToNew = oklabDistanceSquared(oklabColors[i], newCentroid);
+      const distToCurrent = oklabDistanceSquared(oklabColors[i], nextCentroids[nextAssignment[i]]);
+      if (distToNew < distToCurrent) nextAssignment[i] = newClusterIndex;
+    }
+  }
+
+  return { assignment: nextAssignment, centroids: nextCentroids };
+}
+
+/**
+ * Plain single-stage k-means in OKLab space (see HANDOVER.md D6 for why
+ * OKLab over CIELAB+CIEDE2000). Squared Euclidean distance isn't a
+ * compromise here — Lloyd's algorithm's centroid-update step is only valid
+ * under that exact metric, and CIEDE2000 isn't even a metric (violates the
+ * triangle inequality) — confirmed independently by the domain-expert
+ * review, HANDOVER.md D7. Each cell has already been box-averaged (in
+ * linear light) by `downsampleToGrid` before reaching here. The reported
+ * palette color is `buildPaletteFromAssignment`'s direct `oklabToRgb`
+ * conversion of each converged centroid — the correct Lloyd-update
+ * centroid for the squared-OKLab objective this quantizer actually
+ * minimizes (see `meanRgbOklab`'s docstring above for why a linear-RGB
+ * mean would be a different, less accurate color for that same
+ * membership). `buildPattern` in `lib/pattern.ts` recomputes this again
+ * from each color's *final* post-optimization membership before a chart
+ * is rendered, since ICM/contour-cleanup reassign cells after this
+ * function returns — this quantizer's own returned palette is only ever
+ * final as-is when called directly (e.g. with `optimize: false`, or from
+ * a test) rather than through the normal `buildPattern` pipeline.
+ *
+ * This is "Original" in the app's generation-mode switch (HANDOVER.md D20):
+ * exactly the algorithm this project shipped with, before D18/D19/D20's
+ * investigation into small-region color loss. Kept available on purpose,
+ * not just as a fallback — it has a real, opposite trade-off from
+ * `kMeansQuantizer` below (simpler, more population-driven palettes; can
+ * miss a small distinct region at low color counts) that some source
+ * images and preferences suit better.
+ */
+export const plainKMeansQuantizer: ColorQuantizer = {
+  quantize(cells: CellColorBuffer, colorCount: number, _importance?: Float32Array, cellOklab?: Float64Array): QuantizeResult {
+    const cellCount = cells.width * cells.height;
+    const k = Math.max(1, Math.min(colorCount, cellCount));
+    const oklabColors = oklabTuples(cells, cellOklab);
+
+    const rng = mulberry32(0xc0ffee ^ cellCount ^ k);
+    const initialSeeds = kMeansPlusPlusSeeds(oklabColors, k, rng);
+    const initial = runLloyd(oklabColors, initialSeeds);
+    return buildPaletteFromAssignment(initial.centroids, initial.assignments);
+  },
+};
+
+/**
+ * "Latest" in the app's generation-mode switch (HANDOVER.md D20, the
+ * default): runs `plainKMeansQuantizer` first, then checks whether any of
+ * the resulting colors are redundant enough to merge
+ * (`REINVEST_MERGE_THRESHOLD`, looser than `palette-optimizer.ts`'s own
+ * late-pipeline dedup threshold) and, if so, reinvests each freed slot into
+ * whichever cell is currently worst-served (`injectWorstFitClusters`), then
+ * re-converges. This only changes anything when real redundancy is
+ * actually found — an image with no redundant colors (verified in testing
+ * against a genuinely multi-hued fixture with no dominant majority) takes
+ * the exact same path as the plain quantizer above, unlike two earlier,
+ * reverted attempts at this same underlying problem (HANDOVER.md D18/D19),
+ * which altered every image's clustering unconditionally regardless of
+ * whether it needed it. Real trade-off, not a strict improvement: measured
+ * confetti/complexity on some ordinary noisy photos rises modestly (still
+ * within the project's own regression-suite tolerance bands) in exchange
+ * for reliably surfacing a small, real, perceptually-distinct region much
+ * sooner — which is exactly why both modes stay selectable rather than one
+ * replacing the other outright.
+ *
+ * `freedSlots` also recovers plain, ordinary Lloyd's-algorithm attrition
+ * (a k-means++ seed's Voronoi region going empty during refinement), not
+ * just slots `mergeSimilarColors` frees from genuine redundancy (2026-09-11
+ * review, HANDOVER.md D39/G-020 M2) -- comparing the merged survivor count
+ * against `targetK` (the actual requested/clamped color budget) rather
+ * than against `initialResult`'s own count means a color lost to bad-luck
+ * seeding gets the same reinvestment chance as one lost to a real
+ * redundancy merge, using the exact same, already-proven mechanism. This
+ * is provably safe against the "genuinely fewer distinct colors than k"
+ * case the collapse behavior above is *supposed* to produce (see
+ * `quantize.spec.ts`'s "collapses to the number of distinct colors... never
+ * producing empty entries" test): when every cell already sits exactly on
+ * its own centroid (zero reconstruction error everywhere, because there's
+ * truly nothing left to split), any speculative injected cluster attracts
+ * no cells away from its neighbor and comes back empty from `runLloyd`'s
+ * own reconvergence pass, so `buildPaletteFromAssignment` drops it again --
+ * the same self-correcting property that already makes `injectWorstFitClusters`
+ * safe to call unconditionally in the merge-triggered case below. Confirmed
+ * against a reproducible real-world case found by brute-force search over
+ * random distinct-color fixtures (25 cells / 13 distinct colors, k=5):
+ * before this fix, both `plainKMeansQuantizer` and `kMeansQuantizer`
+ * silently returned only 4 colors; after, `kMeansQuantizer` recovers the
+ * full 5 requested (`quantize.spec.ts`'s attrition-recovery test).
+ */
+export const kMeansQuantizer: ColorQuantizer = {
+  quantize(cells: CellColorBuffer, colorCount: number, importance?: Float32Array, cellOklab?: Float64Array): QuantizeResult {
+    const initialResult = plainKMeansQuantizer.quantize(cells, colorCount, undefined, cellOklab);
+    const targetK = Math.min(colorCount, cells.width * cells.height);
+    if (targetK < 3) {
+      // Nothing meaningful to redistribute (k=1/2, or the image only has a
+      // couple of real distinct colors) -- skip straight to the plain result.
+      return initialResult;
+    }
+
+    const merged = mergeSimilarColors(initialResult.cellPaletteIndex, initialResult.palette, REINVEST_MERGE_THRESHOLD);
+    const freedSlots = Math.max(0, targetK - merged.palette.length);
+    if (freedSlots <= 0) {
+      return initialResult;
+    }
+
+    const cellCount = cells.width * cells.height;
+    const oklabColors = oklabTuples(cells, cellOklab);
+    const cellImportance = importance ?? new Float32Array(cellCount);
+
+    const mergedOklab = merged.palette.map(rgbToOklab);
+    const injected = injectWorstFitClusters(oklabColors, merged.cellPaletteIndex, mergedOklab, freedSlots, cellImportance);
+    const refined = runLloyd(oklabColors, injected.centroids);
+    return buildPaletteFromAssignment(refined.centroids, refined.assignments);
+  },
+};

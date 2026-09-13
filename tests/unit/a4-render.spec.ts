@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildDetailRows, computeKeyColumns, infoPageTitle, overlapSidesForPage, splitThreadCodeName } from "@/lib/a4-render";
-import { calculateA4Layout } from "@/lib/a4-layout";
+import { buildDetailRows, computeKeyColumns, infoPageTitle, overlapSidesForPage, splitThreadCodeName } from "@/lib/export/a4-render";
+import { calculateA4Layout } from "@/lib/export/a4-layout";
 import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {

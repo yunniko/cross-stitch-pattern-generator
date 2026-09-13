@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildPattern } from "@/lib/pattern";
-import { downsampleToGrid } from "@/lib/downsample";
+import { buildPattern } from "@/lib/pipeline/pattern";
+import { downsampleToGrid } from "@/lib/pipeline/downsample";
 import { makeHardSplitBuffer, makeHardSplitWithGenuineGrayBuffer } from "./crisp-edges-fixtures";
 
 /**

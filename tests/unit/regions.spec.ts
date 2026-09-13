@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { confettiRatio, floodFillDiagonal, labelRegions } from "@/lib/regions";
+import { confettiRatio, floodFillDiagonal, labelRegions } from "@/lib/pipeline/regions";
 
 describe("labelRegions", () => {
   it("gives every cell in a uniform grid the same label", () => {

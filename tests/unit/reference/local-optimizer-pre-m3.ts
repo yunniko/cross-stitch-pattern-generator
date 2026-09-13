@@ -3,12 +3,12 @@
 // prove the rewritten optimizer is bit-identical. Delete with that spec once
 // the golden hashes have covered a release. See D105.
 
-import { buildCrispAdmissibleCostMap, type CrispEvidenceLayer } from "@/lib/crisp-evidence-layer";
-import { DEFAULT_CRISP_UNARY_COST_WEIGHTS } from "@/lib/crisp-unary-cost";
-import { edgeBetweenCells } from "@/lib/edge-map";
-import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS, type PairEnergyWeights } from "@/lib/energy";
-import { getPairEdgeEvidence } from "@/lib/pair-edge-evidence";
-import { oklabDistanceSquared, rgbToOklab, type Oklab } from "@/lib/color";
+import { buildCrispAdmissibleCostMap, type CrispEvidenceLayer } from "@/lib/crisp/crisp-evidence-layer";
+import { DEFAULT_CRISP_UNARY_COST_WEIGHTS } from "@/lib/crisp/crisp-unary-cost";
+import { edgeBetweenCells } from "@/lib/pipeline/edge-map";
+import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS, type PairEnergyWeights } from "@/lib/pipeline/energy";
+import { getPairEdgeEvidence } from "@/lib/pipeline/pair-edge-evidence";
+import { oklabDistanceSquared, rgbToOklab, type Oklab } from "@/lib/color/color";
 import { cellRgb, type CellColorBuffer, type RGB } from "@/lib/types";
 
 export interface LocalOptimizerWeights extends PairEnergyWeights {

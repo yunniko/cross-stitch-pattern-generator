@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { runCrispQuantizationStage } from "@/lib/crisp-quantization-stage";
-import { buildCrispEvidenceLayer, allCellIndices, selectWeightedQuantizer } from "@/lib/crisp-evidence-layer";
-import { plainKMeansQuantizer, kMeansQuantizer } from "@/lib/quantize";
-import { rgbToOklab, oklabDistanceSquared } from "@/lib/color";
-import type { BoundaryEvidence } from "@/lib/crisp-edge-evidence";
-import type { CrispEvidenceLayer } from "@/lib/crisp-evidence-layer";
-import { downsampleToGrid } from "@/lib/downsample";
+import { runCrispQuantizationStage } from "@/lib/crisp/crisp-quantization-stage";
+import { buildCrispEvidenceLayer, allCellIndices, selectWeightedQuantizer } from "@/lib/crisp/crisp-evidence-layer";
+import { plainKMeansQuantizer, kMeansQuantizer } from "@/lib/pipeline/quantize";
+import { rgbToOklab, oklabDistanceSquared } from "@/lib/color/color";
+import type { BoundaryEvidence } from "@/lib/crisp/crisp-edge-evidence";
+import type { CrispEvidenceLayer } from "@/lib/crisp/crisp-evidence-layer";
+import { downsampleToGrid } from "@/lib/pipeline/downsample";
 import { makeHardSplitWithGenuineGrayBuffer } from "./crisp-edges-fixtures";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 

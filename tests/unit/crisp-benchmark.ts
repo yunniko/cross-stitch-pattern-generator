@@ -1,5 +1,5 @@
 import { describe, it } from "vitest";
-import { buildPattern, type BuildPatternOptions } from "@/lib/pattern";
+import { buildPattern, type BuildPatternOptions } from "@/lib/pipeline/pattern";
 import type { PixelBuffer, RGB } from "@/lib/types";
 
 /**

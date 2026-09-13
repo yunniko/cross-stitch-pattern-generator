@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPattern } from "@/lib/pattern";
+import { buildPattern } from "@/lib/pipeline/pattern";
 import type { PixelBuffer, RGB } from "@/lib/types";
 
 function makeBuffer(width: number, height: number, colorAt: (x: number, y: number) => RGB): PixelBuffer {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findChartLayout } from "@/lib/render";
+import { findChartLayout } from "@/lib/export/render";
 import { MAX_COLORS, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 // Only width/height/isLandscape/palette.length matter to findChartLayout and

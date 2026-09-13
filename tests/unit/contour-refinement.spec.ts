@@ -4,16 +4,16 @@ import {
   runContourRefinement,
   runContourRefinementPass,
   DEFAULT_CONTOUR_REFINEMENT_OPTIONS,
-} from "@/lib/contour-refinement";
-import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS } from "@/lib/energy";
-import { DEFAULT_LOCAL_OPTIMIZER_WEIGHTS } from "@/lib/local-optimizer";
-import { extractBoundaryChains } from "@/lib/boundary-chains";
-import { labelRegions } from "@/lib/regions";
-import { oklabDistanceSquared, rgbToOklab } from "@/lib/color";
-import { computeCellImportance, computeEdgeMagnitude } from "@/lib/edge-map";
-import { downsampleToGrid, gridDimensionsFor } from "@/lib/downsample";
-import { buildPattern } from "@/lib/pattern";
-import { computePatternDiagnostics } from "@/lib/diagnostics";
+} from "@/lib/experimental/contour-refinement";
+import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS } from "@/lib/pipeline/energy";
+import { DEFAULT_LOCAL_OPTIMIZER_WEIGHTS } from "@/lib/pipeline/local-optimizer";
+import { extractBoundaryChains } from "@/lib/experimental/boundary-chains";
+import { labelRegions } from "@/lib/pipeline/regions";
+import { oklabDistanceSquared, rgbToOklab } from "@/lib/color/color";
+import { computeCellImportance, computeEdgeMagnitude } from "@/lib/pipeline/edge-map";
+import { downsampleToGrid, gridDimensionsFor } from "@/lib/pipeline/downsample";
+import { buildPattern } from "@/lib/pipeline/pattern";
+import { computePatternDiagnostics } from "@/lib/experimental/diagnostics";
 import { straightLineHeight, stepDiscrepancies, summarizeDiscrepancies, traceStaircase } from "./contour-pacing";
 import { makeFourQuadrantJunctionBuffer, makeMultiRegionBuffer } from "./shape-fixtures";
 import { cellRgb, type CellColorBuffer, type RGB } from "@/lib/types";

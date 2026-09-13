@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeSimilarColors } from "@/lib/palette-optimizer";
+import { mergeSimilarColors } from "@/lib/pipeline/palette-optimizer";
 import type { RGB } from "@/lib/types";
 
 describe("mergeSimilarColors", () => {

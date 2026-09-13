@@ -5,12 +5,12 @@ import {
   candidateCellsFromPairEvidence,
   selectWeightedQuantizer,
   DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD,
-} from "@/lib/crisp-evidence-layer";
-import { computePairEdgeEvidence } from "@/lib/pair-edge-evidence";
-import { plainKMeansQuantizer, kMeansQuantizer } from "@/lib/quantize";
-import { rgbToOklab } from "@/lib/color";
+} from "@/lib/crisp/crisp-evidence-layer";
+import { computePairEdgeEvidence } from "@/lib/pipeline/pair-edge-evidence";
+import { plainKMeansQuantizer, kMeansQuantizer } from "@/lib/pipeline/quantize";
+import { rgbToOklab } from "@/lib/color/color";
 import { makeHardSplitBuffer, makeHardSplitWithGenuineGrayBuffer } from "./crisp-edges-fixtures";
-import type { WeightedColorSample } from "@/lib/weighted-quantize";
+import type { WeightedColorSample } from "@/lib/crisp/weighted-quantize";
 import type { PixelBuffer, RGB } from "@/lib/types";
 
 /**

@@ -3,9 +3,9 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { PDFDocument } from "pdf-lib";
 import pdfFontkit from "@pdf-lib/fontkit";
-import { PdfCanvasAdapter, parseCssColor, type FontMetricsSource } from "@/lib/pdf-canvas-adapter";
-import { drawA4LegendPage } from "@/lib/a4-render";
-import { calculateA4Layout } from "@/lib/a4-layout";
+import { PdfCanvasAdapter, parseCssColor, type FontMetricsSource } from "@/lib/export/pdf-canvas-adapter";
+import { drawA4LegendPage } from "@/lib/export/a4-render";
+import { calculateA4Layout } from "@/lib/export/a4-layout";
 import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
 
 /**

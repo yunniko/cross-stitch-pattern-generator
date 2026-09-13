@@ -2,9 +2,9 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
-import { hexToRgb, rgbToHex } from "@/lib/color";
-import { decodeSourceImage, loadImageAsPixelBuffer } from "@/lib/load-image";
-import { cancelPatternJob, runPatternJob } from "@/lib/pattern-client";
+import { hexToRgb, rgbToHex } from "@/lib/color/color";
+import { decodeSourceImage, loadImageAsPixelBuffer } from "@/lib/editor/load-image";
+import { cancelPatternJob, runPatternJob } from "@/lib/pipeline/pattern-client";
 import {
   addBrandColor,
   addColor,
@@ -26,16 +26,16 @@ import {
   setColorSymbol,
   shiftPattern,
   withCellPalette,
-} from "@/lib/pattern-edit";
-import type { DmcColor } from "@/lib/dmc-colors";
-import { THREAD_BRANDS, THREAD_BRAND_IDS, formatThreadName, type ThreadBrand } from "@/lib/thread-brands";
-import { SYMBOL_SET } from "@/lib/symbols";
-import { serializePattern } from "@/lib/pattern-serialize";
-import { downloadPatternLoadReport, logPatternLoadFailure, reportPatternLoadFailure } from "@/lib/error-report";
+} from "@/lib/editor/pattern-edit";
+import type { DmcColor } from "@/lib/threads/dmc-colors";
+import { THREAD_BRANDS, THREAD_BRAND_IDS, formatThreadName, type ThreadBrand } from "@/lib/threads/thread-brands";
+import { SYMBOL_SET } from "@/lib/color/symbols";
+import { serializePattern } from "@/lib/editor/pattern-serialize";
+import { downloadPatternLoadReport, logPatternLoadFailure, reportPatternLoadFailure } from "@/lib/editor/error-report";
 import { getProjectStore, restoreProject, type ProjectLoadFailure } from "@/lib/editor/project-store";
 import { useProjectAutosave } from "@/lib/editor/use-project-autosave";
-import { loadPatternFromFile } from "@/lib/pattern-import";
-import { generateExportAllZip } from "@/lib/export-all";
+import { loadPatternFromFile } from "@/lib/editor/pattern-import";
+import { generateExportAllZip } from "@/lib/export/export-all";
 import {
   downloadCanvasAsPng,
   drawCell,
@@ -46,11 +46,11 @@ import {
   renderPatternToCanvas,
   renderStitchPreviewToCanvas,
   type RenderMode,
-} from "@/lib/render";
-import { generateA4Export, downloadBlob } from "@/lib/a4-export";
-import { calculateA4Layout, type OverlapCells } from "@/lib/a4-layout";
-import { buildPatternKeeperPdf } from "@/lib/pattern-keeper-pdf";
-import { useUndoHistory } from "@/lib/use-undo-history";
+} from "@/lib/export/render";
+import { generateA4Export, downloadBlob } from "@/lib/export/a4-export";
+import { calculateA4Layout, type OverlapCells } from "@/lib/export/a4-layout";
+import { buildPatternKeeperPdf } from "@/lib/export/pattern-keeper-pdf";
+import { useUndoHistory } from "@/lib/editor/use-undo-history";
 import {
   EMPTY_CELL,
   MAX_COLORS,
@@ -65,10 +65,10 @@ import {
   type SizePresetId,
   type StitchPattern,
 } from "@/lib/types";
-import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, STANDARD_AIDA_COUNTS, formatFinishedDimension, type SizeUnit } from "@/lib/finished-size";
-import { formatSkeinEstimate } from "@/lib/floss-estimate";
-import { legacyProjectSlot, loadWorkspaceOptions, saveWorkspaceOptions } from "@/lib/workspace-storage";
-import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pattern.worker";
+import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, STANDARD_AIDA_COUNTS, formatFinishedDimension, type SizeUnit } from "@/lib/export/finished-size";
+import { formatSkeinEstimate } from "@/lib/threads/floss-estimate";
+import { legacyProjectSlot, loadWorkspaceOptions, saveWorkspaceOptions } from "@/lib/editor/workspace-storage";
+import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pipeline/pattern.worker";
 import type { Tool, ViewMode } from "./editor-types";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 

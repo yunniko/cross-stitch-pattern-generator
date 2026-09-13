@@ -5,7 +5,7 @@ import {
   formatFinishedSize,
   stitchesToCm,
   stitchesToInches,
-} from "@/lib/finished-size";
+} from "@/lib/export/finished-size";
 
 describe("finished-size", () => {
   it("converts stitches to inches at a given count", () => {

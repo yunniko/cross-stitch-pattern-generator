@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { downsampleToGrid, gridDimensionsFor } from "@/lib/downsample";
+import { downsampleToGrid, gridDimensionsFor } from "@/lib/pipeline/downsample";
 import { cellRgb } from "@/lib/types";
 import type { PixelBuffer, RGB } from "@/lib/types";
 

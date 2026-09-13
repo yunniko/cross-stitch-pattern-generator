@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SYMBOL_SET, symbolsFor } from "@/lib/symbols";
+import { SYMBOL_SET, symbolsFor } from "@/lib/color/symbols";
 import { MAX_COLORS } from "@/lib/types";
 
 describe("symbol set", () => {

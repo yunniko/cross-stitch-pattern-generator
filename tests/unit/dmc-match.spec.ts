@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { DMC_COLORS } from "@/lib/dmc-colors";
-import { applyBrandPalette, nearestColorInBrand } from "@/lib/dmc-match";
-import { buildPattern } from "@/lib/pattern";
-import { createPipelineContext } from "@/lib/pipeline-context";
+import { DMC_COLORS } from "@/lib/threads/dmc-colors";
+import { applyBrandPalette, nearestColorInBrand } from "@/lib/threads/brand-match";
+import { buildPattern } from "@/lib/pipeline/pattern";
+import { createPipelineContext } from "@/lib/pipeline/pipeline-context";
 import type { CellColorBuffer, PaletteColor, PixelBuffer, RGB, StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {

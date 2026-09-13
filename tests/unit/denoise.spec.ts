@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { denoiseForQuantization } from "@/lib/denoise";
-import { cellsToOklab, createPipelineContext } from "@/lib/pipeline-context";
+import { denoiseForQuantization } from "@/lib/pipeline/denoise";
+import { cellsToOklab, createPipelineContext } from "@/lib/pipeline/pipeline-context";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 
 function denoise(cells: CellColorBuffer, importance?: Float32Array): CellColorBuffer {

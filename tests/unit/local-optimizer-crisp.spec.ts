@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { runLocalOptimizer, runMultiScaleOptimizer, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS } from "@/lib/local-optimizer";
-import { createPipelineContext } from "@/lib/pipeline-context";
-import { buildCrispEvidenceLayer, allCellIndices } from "@/lib/crisp-evidence-layer";
-import { runCrispQuantizationStage } from "@/lib/crisp-quantization-stage";
-import { selectWeightedQuantizer } from "@/lib/crisp-evidence-layer";
-import { kMeansQuantizer } from "@/lib/quantize";
-import { rgbToOklab, oklabDistanceSquared } from "@/lib/color";
-import { downsampleToGrid } from "@/lib/downsample";
+import { runLocalOptimizer, runMultiScaleOptimizer, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS } from "@/lib/pipeline/local-optimizer";
+import { createPipelineContext } from "@/lib/pipeline/pipeline-context";
+import { buildCrispEvidenceLayer, allCellIndices } from "@/lib/crisp/crisp-evidence-layer";
+import { runCrispQuantizationStage } from "@/lib/crisp/crisp-quantization-stage";
+import { selectWeightedQuantizer } from "@/lib/crisp/crisp-evidence-layer";
+import { kMeansQuantizer } from "@/lib/pipeline/quantize";
+import { rgbToOklab, oklabDistanceSquared } from "@/lib/color/color";
+import { downsampleToGrid } from "@/lib/pipeline/downsample";
 import { makeHardSplitWithGenuineGrayBuffer } from "./crisp-edges-fixtures";
-import type { BoundaryEvidence } from "@/lib/crisp-edge-evidence";
-import type { CrispEvidenceLayer } from "@/lib/crisp-evidence-layer";
+import type { BoundaryEvidence } from "@/lib/crisp/crisp-edge-evidence";
+import type { CrispEvidenceLayer } from "@/lib/crisp/crisp-evidence-layer";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 
 /**

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildPattern } from "@/lib/pattern";
-import { rgbToOklab, oklabDistanceSquared } from "@/lib/color";
-import { downsampleToGrid } from "@/lib/downsample";
-import { computePatternDiagnostics } from "@/lib/diagnostics";
+import { buildPattern } from "@/lib/pipeline/pattern";
+import { rgbToOklab, oklabDistanceSquared } from "@/lib/color/color";
+import { downsampleToGrid } from "@/lib/pipeline/downsample";
+import { computePatternDiagnostics } from "@/lib/experimental/diagnostics";
 import { makeHardSplitWithGenuineGrayBuffer } from "./crisp-edges-fixtures";
 import type { PixelBuffer, RGB } from "@/lib/types";
 

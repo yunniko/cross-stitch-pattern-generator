@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { oklabDistanceSquared, rgbToOklab, type Oklab } from "@/lib/color";
-import { downsampleToGrid } from "@/lib/downsample";
-import { injectWorstFitClusters, kMeansQuantizer, meanRgbOklab, plainKMeansQuantizer, runLloyd } from "@/lib/quantize";
+import { oklabDistanceSquared, rgbToOklab, type Oklab } from "@/lib/color/color";
+import { downsampleToGrid } from "@/lib/pipeline/downsample";
+import { injectWorstFitClusters, kMeansQuantizer, meanRgbOklab, plainKMeansQuantizer, runLloyd } from "@/lib/pipeline/quantize";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 
 function makeCells(colors: RGB[]): CellColorBuffer {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fixDiagonalConnections, recolorSmallComponents } from "@/lib/contour-cleanup";
-import { createPipelineContext } from "@/lib/pipeline-context";
+import { fixDiagonalConnections, recolorSmallComponents } from "@/lib/pipeline/contour-cleanup";
+import { createPipelineContext } from "@/lib/pipeline/pipeline-context";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 
 function makeCells(width: number, height: number, colorAt: (x: number, y: number) => RGB): CellColorBuffer {

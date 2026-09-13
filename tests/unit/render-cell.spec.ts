@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { drawCell, drawChart } from "@/lib/render";
+import { drawCell, drawChart } from "@/lib/export/render";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
 import { makeRecordingContext } from "./helpers/recording-context";
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runSimulatedAnnealing } from "@/lib/simulated-annealing";
+import { runSimulatedAnnealing } from "@/lib/experimental/simulated-annealing";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 
 function makeCells(width: number, height: number, colorAt: (x: number, y: number) => RGB): CellColorBuffer {

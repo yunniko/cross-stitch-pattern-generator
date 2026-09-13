@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderNavigatorPixels } from "@/lib/render";
+import { renderNavigatorPixels } from "@/lib/export/render";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 function makePattern(): StitchPattern {
