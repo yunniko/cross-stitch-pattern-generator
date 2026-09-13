@@ -73,6 +73,9 @@ export function selectKth(values: Float32Array, k: number): number {
     let max = -Infinity;
     for (let i = 0; i < candidates.length; i++) {
       const v = candidates[i];
+      // NaN and -0 have sort positions the histogram can't express
+      // (NaN last, -0 before +0); fall back to the exact sort for them.
+      if (v !== v || (v === 0 && 1 / v < 0)) return Float32Array.from(candidates).sort()[rank];
       if (v < min) min = v;
       if (v > max) max = v;
     }

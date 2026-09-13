@@ -136,12 +136,20 @@ describe("selectKth equals the full-sort order statistic it replaced", () => {
     arrays.push(clustered);
     const constant = new Float32Array(100_000).fill(3.5);
     arrays.push(constant);
+    // Out-of-domain for edge magnitudes, but the function is exported:
+    // NaN sorts last and -0 before +0 (Codex review, 2026-09-13).
+    const withNegativeZero = new Float32Array(70_000);
+    withNegativeZero[69_999] = -0;
+    arrays.push(withNegativeZero);
+    const withNaN = new Float32Array(70_000);
+    withNaN[3] = NaN;
+    arrays.push(withNaN);
 
     for (const values of arrays) {
       const sorted = Float32Array.from(values).sort();
       const n = values.length;
       for (const k of [0, n - 1, Math.floor((n - 1) * 0.999), Math.floor(n / 2), Math.floor(n / 3)]) {
-        expect(selectKth(values, k), `n=${n}, k=${k}`).toBe(sorted[k]);
+        expect(Object.is(selectKth(values, k), sorted[k]), `n=${n}, k=${k}: ${selectKth(values, k)} vs ${sorted[k]}`).toBe(true);
       }
     }
   });
@@ -181,5 +189,8 @@ describe("nameColors equals the full-sort greedy assignment it replaced", () => 
       Array.from({ length: 100 }, () => [Math.floor(rng() * 256), Math.floor(rng() * 256), Math.floor(rng() * 256)] as RGB),
     ];
     for (const palette of palettes) expect(nameColors(palette)).toEqual(nameColorsFullSort(palette));
+    // A non-finite color is out of domain (the deserializer rejects it) but must still get a name.
+    const nonFinite: RGB[] = [[NaN, 0, 0]];
+    expect(nameColors(nonFinite)).toEqual(nameColorsFullSort(nonFinite));
   });
 });

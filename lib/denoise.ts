@@ -2,7 +2,7 @@ import type { PipelineContext } from "./pipeline-context";
 import type { CellColorBuffer } from "./types";
 
 // Matches contour-cleanup.ts's `importanceProtectionThreshold` (0.5): a
-// cell the edge/contrast map flags as real content is left untouched here too.
+// cell with importance strictly above it is real content and left untouched.
 const IMPORTANCE_PROTECTION_THRESHOLD = 0.5;
 
 // Ridge-detection noise floor (D51), calibrated against measured data:
@@ -66,7 +66,7 @@ function ridgeStrength(oklab: Float64Array, width: number, height: number, x: nu
  * becomes whichever cell in its neighborhood (itself included, listed
  * first so an exact tie keeps it) has the smallest total squared distance
  * to the others. A medoid never fabricates a color and never blends across
- * an edge. Two protections: importance at or above the threshold, and a
+ * an edge. Two protections: importance above the threshold, and a
  * ridge-flagged cell with a same-colored ally (a genuine 1-cell-wide line,
  * which a Sobel step-edge detector scores as importance 0 -- D50/D51).
  * Every other stage keeps using the true `ctx.cells`.

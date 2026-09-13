@@ -26,6 +26,13 @@ svc-lab).
   and its Codex-critique findings (the candidate-set reduction is real
   and language-agnostic regardless of where it runs) are directly
   reusable -- but that's a "when we get there" note, not a decided plan.
+- **Measured 2026-09-13 (G-031 M3) -- recommendation: not needed.** The
+  JS pipeline now generates the largest supported case (1500×1000 source
+  → 1000 stitches / 64 colors, Standard) in 14.6 s, down from 280.8 s,
+  with byte-identical output; Crisp takes 27.4 s. ICM is 8.5 s of that,
+  k-means 3.4 s. Both are under the <30 s target without a second
+  toolchain. Revisit only if a concrete latency requirement below that
+  appears (G-030). See `docs/reviews/2026-09-13-pipeline-performance.md`.
 - **What:** Move the compute-heavy stage
   of the pattern pipeline (k-means
   in OKLab + the ICM/Potts local optimizer, `lib/quantize.ts` +
@@ -419,7 +426,7 @@ milestone's own result justifies continuing):
       Playwright test that paints a 50-cell stroke on a 1000-stitch
       pattern and asserts the gesture completes within a bounded time,
       and e2e tests for Space-while-selecting and Space-on-focused-button.
-- [ ] **M3 — Pipeline performance (E1–E7, A3), byte-identical.**
+- [x] **M3 — Pipeline performance (E1–E7, A3), byte-identical.**
       (1) Commit `scripts/bench.mjs` + `npm run bench` (the review's
       ad-hoc stage timer, ~40 lines: per-stage ms at 300/24 and 1000/64)
       and record the baseline. (2) Introduce a `PipelineContext`
@@ -486,6 +493,27 @@ milestone's own result justifies continuing):
       handover's "Rules in force".
 
 **Progress log** (newest first):
+- 2026-09-13 — **M3 done.** `npm run bench` committed (D103); baseline
+  on `8f0b78f`: 1000 st / 64 col Standard 280.8 s (ICM 277.4 s). Shared
+  `PipelineContext` (D104); ICM O(8+k) per cell, row-cached pair-evidence
+  derivatives, histogram percentile, k+1-nearest color naming, typed Lloyd
+  buffers, worker reuse -- all byte-identical (D105). After: Standard
+  **14.6 s** (target <30 s), Crisp 27.4 s, Standard+DMC 18.5 s; 300 st /
+  24 col Standard 11.1 s → 1.7 s. Gates: 18 golden hashes recorded from
+  the pre-M3 code all unchanged; old-vs-new optimizer equivalence spec
+  against a verbatim reference copy; regression/shape-regression/pattern/
+  pattern-crisp suites unmodified and green. Codex critique exchange: the
+  first design critique launched but its result couldn't be retrieved
+  from this session (plugin status/result commands are user-only); a
+  second, foreground review of the implemented diff confirmed the ICM/
+  denoise/pair-evidence/finalization rewrites bit-identical and found
+  three edge cases (`selectKth` with NaN/−0, `nameColors` with a NaN
+  color, a natively-errored worker being reused) -- all conceded, fixed
+  and tested; its `stamp` overflow note is outside the supported grid
+  size (≤8 M visits) and left as is. Verified: `tsc`/eslint clean; 653/653
+  unit; 49/49 e2e on a fresh production build. G-024 delivery doc points
+  to the new numbers; G-023 marked "not needed" with the measurement.
+  Numbers: `docs/reviews/2026-09-13-pipeline-performance.md`. Next: M4.
 - 2026-09-13 — **M2 done.** B4/B5/B8: shortcuts extracted to
   `app/hooks/use-keyboard-shortcuts.ts`, reading live state through a ref
   (D101); Space claimed only with focus on body/canvas scroller;

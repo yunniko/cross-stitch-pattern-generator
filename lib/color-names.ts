@@ -39,8 +39,10 @@ export function nameColors(colors: readonly RGB[]): string[] {
   for (let ci = 0; ci < queries.length; ci++) {
     for (let ni = 0; ni < entries.length; ni++) distances[ni] = oklabDistanceSquared(queries[ci], entries[ni].oklab);
     const threshold = Float64Array.from(distances).sort()[keep - 1];
+    // A NaN threshold (a non-finite input color) keeps every pair, as the full sort did.
+    const keepAll = Number.isNaN(threshold);
     for (let ni = 0; ni < entries.length; ni++) {
-      if (distances[ni] <= threshold) pairs.push({ colorIndex: ci, nameIndex: ni, distance: distances[ni] });
+      if (keepAll || distances[ni] <= threshold) pairs.push({ colorIndex: ci, nameIndex: ni, distance: distances[ni] });
     }
   }
   pairs.sort((a, b) => a.distance - b.distance);

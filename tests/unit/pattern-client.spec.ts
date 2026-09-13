@@ -123,6 +123,36 @@ describe("pattern-client", () => {
     expect(w.terminated).toBe(false);
   });
 
+  it("discards a worker that fired a native error event, so a retry gets a fresh one", async () => {
+    const { runPatternJob } = await import("@/lib/pattern-client");
+    const first = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
+    const broken = FakeWorker.instances[0];
+    broken.onerror?.({ message: "script failed to load" } as ErrorEvent);
+    await expect(first).rejects.toThrow("script failed to load");
+    expect(broken.terminated).toBe(true);
+
+    const retry = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
+    expect(FakeWorker.instances).toHaveLength(2);
+    const fresh = FakeWorker.instances[1];
+    fresh.respond({ type: "done", jobId: fresh.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
+    await expect(retry).resolves.toBe(FIXTURE_PATTERN);
+  });
+
+  it("rejects, and recovers on the next job, when posting to the worker throws", async () => {
+    const { runPatternJob } = await import("@/lib/pattern-client");
+    const originalPost = FakeWorker.prototype.postMessage;
+    FakeWorker.prototype.postMessage = () => {
+      throw new Error("DataCloneError");
+    };
+    await expect(runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 })).rejects.toThrow("DataCloneError");
+    FakeWorker.prototype.postMessage = originalPost;
+
+    const next = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
+    const w = FakeWorker.instances[FakeWorker.instances.length - 1];
+    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
+    await expect(next).resolves.toBe(FIXTURE_PATTERN);
+  });
+
   it("cancelPatternJob with nothing in flight leaves the worker alive", async () => {
     const { runPatternJob, cancelPatternJob } = await import("@/lib/pattern-client");
     const job = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });

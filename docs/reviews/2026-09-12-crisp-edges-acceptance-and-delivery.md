@@ -93,6 +93,13 @@ Windows dev machine under ordinary background load, not a clean bench rig.
 | Representative (600x400 source, 150 stitches, 24 colors), mean of 3 runs | 2105ms | 3042ms (~45% slower) | Same palette size (4) both modes |
 | Large (1500x1000 source, 500 stitches, 32 colors), single run each | 26,738ms | 41,722ms (~56% slower) | Standard palette size 12, Crisp palette size 6 -- expected: Crisp's mode-aware unary cost admits fewer distinct labels at this noisy fixture's actual color budget, not a bug |
 
+**Update 2026-09-13 (G-031 M3).** The abandoned 1000-stitch / 64-color
+configuration is now measured by the committed `npm run bench`: before
+G-031 M3, Standard took 280.8 s and Crisp 279.6 s; after, with
+byte-identical output, Standard takes 14.6 s and Crisp 27.4 s. Full tables
+and method: `docs/reviews/2026-09-13-pipeline-performance.md`. The numbers
+in the table above predate that change and are kept as the G-024 record.
+
 **A real, honestly-reported finding: the report's/D5-M5's own literal
 "worst case" (1000 stitches, 64 colors, same 1500x1000 source) was
 attempted first and abandoned.** A single Standard-mode run alone exceeded
