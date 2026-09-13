@@ -129,3 +129,4 @@ remain readable with git show.
 - D118 — All photo modes are offered, plus a cautious Brighten mode, on the Owner's decision — active
 - D119 — OXS is read by a dedicated XML reader and written with the cloth at index 0; losses are counted, never silently dropped — active
 - D120 — Stitch counts count only filled stitches; sizes stay the canvas grid — active
+- D121 — Every view mode draws into one canvas at the same size, so zoom, scroll and pan are shared — active

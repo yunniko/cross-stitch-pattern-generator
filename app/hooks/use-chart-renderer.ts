@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
 import { drawCell, drawChart, drawChartOutline, drawHighlightOverlay, renderNavigatorPixels, renderStitchPreviewToCanvas, type RenderMode } from "@/lib/export/render";
-import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
+import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
 import type { Tool, ViewMode } from "../editor-types";
 import { drawSelectionOutline, PHOTO_UNDERLAY_ALPHA } from "../editor-geometry";
 
@@ -25,30 +25,54 @@ export type SelectDragFrame =
 
 export type ChartRenderer = ReturnType<typeof useChartRenderer>;
 
+/** The source photo at the pattern's stitch scale and offset: the same placement in Grid + photo and Original photo. */
+function drawSourcePhoto(ctx: CanvasRenderingContext2D, img: HTMLImageElement, source: SourceImageRef, cellSize: number, alpha: number) {
+  const { naturalWidth, naturalHeight, cellSizePx, offsetX, offsetY } = source;
+  const scale = cellSize / cellSizePx;
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(img, offsetX * cellSize, offsetY * cellSize, naturalWidth * scale, naturalHeight * scale);
+  ctx.globalAlpha = 1;
+}
+
 /**
  * Everything drawn into the Image window and the navigator: the full redraw whenever what's shown changes, and the
- * incremental drawing gestures use between pointer events (D104). `canvasColor` is display-only, never an export input.
+ * incremental drawing gestures use between pointer events (D104). Every view mode draws into the one canvas at
+ * pattern size × cellSize, so zoom, scroll and pan are shared by all of them (D121). `canvasColor` is display-only.
  */
 export function useChartRenderer(inputs: ChartRendererInputs) {
   const { canvasRef, navigatorCanvasRef, pattern, viewMode, cellSize, activeTool, selection, isSelectDragging, highlightedColorIndices, canvasColor } = inputs;
   const [photo, setPhoto] = useState<{ dataUrl: string; img: HTMLImageElement } | null>(null);
-  const [realisticPreviewUrl, setRealisticPreviewUrl] = useState<string | null>(null);
+  const [realisticPreview, setRealisticPreview] = useState<{ canvas: HTMLCanvasElement; width: number; height: number } | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewRetryToken, setPreviewRetryToken] = useState(0);
 
   const drawCurrentView = useCallback(
     (ctx: CanvasRenderingContext2D, p: StitchPattern) => {
+      const surfaceWidth = p.width * cellSize;
+      const surfaceHeight = p.height * cellSize;
+
+      if (viewMode === "realistic" || viewMode === "photo-only") {
+        ctx.fillStyle = canvasColor;
+        ctx.fillRect(0, 0, surfaceWidth, surfaceHeight);
+        if (viewMode === "realistic") {
+          // The preview renders asynchronously at its own resolution; stretching it keeps the view the same size while a
+          // re-render for a new zoom is pending. A preview of a differently sized pattern is never shown.
+          if (realisticPreview && realisticPreview.width === p.width && realisticPreview.height === p.height) {
+            ctx.drawImage(realisticPreview.canvas, 0, 0, surfaceWidth, surfaceHeight);
+          }
+        } else if (p.sourceImage && photo && photo.dataUrl === p.sourceImage.dataUrl) {
+          drawSourcePhoto(ctx, photo.img, p.sourceImage, cellSize, 1);
+        }
+        return;
+      }
+
       // A floating selection is composited for display only, never into history.
       const dragging = isSelectDragging();
       const displayPattern = activeTool === "select" && selection && !dragging ? compositeSelectionPreview(p, selection) : p;
 
       if (viewMode === "photo" && displayPattern.sourceImage) {
         if (photo && photo.dataUrl === displayPattern.sourceImage.dataUrl) {
-          const { naturalWidth, naturalHeight, cellSizePx, offsetX, offsetY } = displayPattern.sourceImage;
-          const scale = cellSize / cellSizePx;
-          ctx.globalAlpha = PHOTO_UNDERLAY_ALPHA;
-          ctx.drawImage(photo.img, offsetX * cellSize, offsetY * cellSize, naturalWidth * scale, naturalHeight * scale);
-          ctx.globalAlpha = 1;
+          drawSourcePhoto(ctx, photo.img, displayPattern.sourceImage, cellSize, PHOTO_UNDERLAY_ALPHA);
         }
         drawChartOutline(ctx, displayPattern, cellSize);
       } else {
@@ -62,11 +86,10 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
         drawSelectionOutline(ctx, selection, cellSize);
       }
     },
-    [viewMode, cellSize, photo, activeTool, highlightedColorIndices, selection, canvasColor, isSelectDragging]
+    [viewMode, cellSize, photo, realisticPreview, activeTool, highlightedColorIndices, selection, canvasColor, isSelectDragging]
   );
 
   useEffect(() => {
-    if (viewMode === "realistic" || viewMode === "photo-only") return;
     const canvas = canvasRef.current;
     if (!canvas || !pattern) return;
     canvas.width = pattern.width * cellSize;
@@ -76,10 +99,10 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     drawCurrentView(ctx, pattern);
   }, [canvasRef, pattern, viewMode, cellSize, drawCurrentView]);
 
-  // Decodes the embedded photo once per data URL, and only while Grid + photo is shown.
+  // Decodes the embedded photo once per data URL, and only while a view that shows it is active.
   const sourceImage = pattern?.sourceImage;
   useEffect(() => {
-    if (viewMode !== "photo" || !sourceImage || photo?.dataUrl === sourceImage.dataUrl) return;
+    if ((viewMode !== "photo" && viewMode !== "photo-only") || !sourceImage || photo?.dataUrl === sourceImage.dataUrl) return;
     let cancelled = false;
     const img = new Image();
     img.onload = () => {
@@ -111,11 +134,11 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       .then((canvas) => {
         if (cancelled) return;
         setPreviewError(null);
-        setRealisticPreviewUrl(canvas.toDataURL("image/png"));
+        setRealisticPreview({ canvas, width: pattern.width, height: pattern.height });
       })
       .catch((err) => {
         if (cancelled) return;
-        setRealisticPreviewUrl(null);
+        setRealisticPreview(null);
         setPreviewError(err instanceof Error ? err.message : "Couldn't render this preview.");
       });
     return () => {
@@ -130,7 +153,6 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   }
 
   function redrawWith(p: StitchPattern) {
-    if (viewMode === "realistic") return;
     const ctx = context();
     if (ctx) drawCurrentView(ctx, p);
   }
@@ -194,7 +216,6 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     drawWorkingCell,
     drawShiftedSnapshot,
     drawSelectionDragFrame,
-    realisticPreviewUrl,
     previewError,
     retryPreview: () => setPreviewRetryToken((t) => t + 1),
   };

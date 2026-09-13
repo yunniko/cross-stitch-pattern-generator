@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-13 at 092924c plus the stitch-count commit that carries this line
+Last verified: 2026-09-13 at 0cd4790 plus the view-sync commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -41,7 +41,7 @@ row). G-032 (photo enhancement) is done and signed off: every mode is offered
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
 **Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 797/797 Vitest
-tests; 60/60 Playwright tests on a fresh production build. CI
+tests; 62/62 Playwright tests on a fresh production build. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
@@ -74,6 +74,9 @@ above the goal's 1.5 s target.
   generation, pan/zoom, chart renderer, canvas tools, exports, shortcuts. Docks
   live in `app/components/`, with shared controls in `app/components/ui.tsx`.
   Tool hooks reach the renderer through a ref assigned after render (D108).
+  All five view modes draw into the Image window's one canvas at the same size
+  (`app/hooks/use-chart-renderer.ts`); the realistic preview and the original
+  photo are view-only, where only Pan and Zoom act (D121).
 - **Generation path**: `app/hooks/use-generation.ts` →
   `lib/pipeline/pattern-client.ts` (one reused worker; discarded after a
   native error) → `lib/pipeline/pattern.worker.ts` → `buildPattern` in
@@ -229,6 +232,7 @@ above the goal's 1.5 s target.
 | 2026-09-13 | 50d632a | G-032 photo enhancement in the pipeline, preview and saved files, hidden (Off only, D117) | Only this container restarted; 7 sites 200; CI green; live upload shows no Photo modes, generation 0.9 s, saved file format 6 without a mode, no console errors |
 | 2026-09-13 | 8f842bb | All photo modes offered, cautious Brighten mode (D118) | Only this container restarted; 7 sites 200; live: five mode buttons, Brighten preview 0.2 s, saved file records "brighten", no console errors |
 | 2026-09-13 | e52608f | OXS import and export (G-028, D119) | Only this container restarted; 7 sites 200; live: a self-authored OXS chart opened with the expected notice, name and 18-count; its OXS re-export is 6 wide with the cloth at index 0 and 14 stitches; no console errors |
+| 2026-09-13 | 0cd4790 | Stitch counts count only filled stitches (D120); G-028 archived | Only this container restarted; 7 sites 200; live: header "50 × 31, 1,550 stitches" became "55 × 31, 1,550 stitches" after expanding the canvas; no console errors |
 
 ## Decisions
 

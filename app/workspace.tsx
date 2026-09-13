@@ -13,6 +13,7 @@ import { isReleasedEnhancementMode } from "@/lib/pipeline/enhance";
 import type { StitchPattern } from "@/lib/types";
 import { ColorsDock } from "./components/colors-dock";
 import { ImageWindow, ViewBar } from "./components/image-window";
+import { isViewOnlyMode } from "./editor-types";
 import { OptionsPanel, ResizePanel, SelectionBar, WorkspaceNotices } from "./components/panels";
 import { ProcessingParams } from "./components/processing-params";
 import { ToolsDock } from "./components/tools-dock";
@@ -173,6 +174,8 @@ export default function Workspace() {
   function handleCanvasPointerDown(e: PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
     if (!canvas || !pattern) return;
+    // The realistic preview and the original photo only show the pattern: there, the canvas pans and zooms but never edits (D121).
+    if (isViewOnlyMode(viewMode) && activeTool !== "pan" && activeTool !== "zoom") return;
     if (activeTool === "pan") panZoom.beginPan(e, canvas);
     else if (activeTool === "zoom") panZoom.zoomBy(e.shiftKey || e.altKey ? 1 / ZOOM_STEP : ZOOM_STEP);
     else if (activeTool === "move") move.onPointerDown(e, canvas);
@@ -193,7 +196,7 @@ export default function Workspace() {
 
   function handleCanvasDoubleClick(e: MouseEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
-    if (canvas && activeTool === "brush") brush.onDoubleClick(e, canvas);
+    if (canvas && activeTool === "brush" && !isViewOnlyMode(viewMode)) brush.onDoubleClick(e, canvas);
   }
 
   /** Dropping a legend color onto the picture fills that cell's 4-connected region with it. */
@@ -201,7 +204,7 @@ export default function Workspace() {
     e.preventDefault();
     const raw = e.dataTransfer.getData("text/plain");
     const canvas = canvasRef.current;
-    if (!pattern || raw === "" || !canvas) return;
+    if (!pattern || raw === "" || !canvas || isViewOnlyMode(viewMode)) return;
     const cellIndex = cellIndexFromEvent(e, canvas, cellSize, pattern.width, pattern.height);
     if (cellIndex !== null) history.set(fillCluster(pattern, cellIndex, Number(raw)));
   }
@@ -295,8 +298,6 @@ export default function Workspace() {
             viewMode={viewMode}
             activeTool={activeTool}
             activeColorIndex={activeColorIndex}
-            canvasColor={options.canvasColor}
-            realisticPreviewUrl={renderer.realisticPreviewUrl}
             previewError={renderer.previewError}
             onRetryPreview={renderer.retryPreview}
             enhancementActive={pattern === null && enhancementMode !== "off"}

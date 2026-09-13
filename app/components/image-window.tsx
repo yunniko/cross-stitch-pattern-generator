@@ -1,6 +1,6 @@
 import { useState, type DragEvent, type MouseEvent, type PointerEvent, type RefObject } from "react";
 import { filledStitchCount, formatStitchCount, type StitchPattern } from "@/lib/types";
-import type { Tool, ViewMode } from "../editor-types";
+import { isViewOnlyMode, type Tool, type ViewMode } from "../editor-types";
 import type { SourceImageMeta } from "../hooks/use-source-image";
 import { PillButton } from "./ui";
 
@@ -18,15 +18,23 @@ export interface ViewBarProps {
 
 const ZOOM_BUTTON = "rounded border border-zinc-300 px-2 py-0.5 hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]";
 
+const VIEW_MODE_LABELS: Record<ViewMode, string> = {
+  color: "Color",
+  bw: "Black & white",
+  realistic: "Realistic preview",
+  photo: "Grid + photo",
+  "photo-only": "Original photo",
+};
+
 /** The strip above the Image window: pattern size, view modes, canvas color and zoom. */
 export function ViewBar({ pattern, viewMode, onViewModeChange, canvasColor, onCanvasColorChange, zoomLevel, onZoomIn, onZoomOut, onResetZoom }: ViewBarProps) {
   const noPhotoTitle = pattern?.sourceImage ? undefined : "No source photo is associated with this pattern";
   const modes: Array<{ mode: ViewMode; label: string; needsPhoto: boolean }> = [
-    { mode: "color", label: "Color", needsPhoto: false },
-    { mode: "bw", label: "Black & white", needsPhoto: false },
-    { mode: "realistic", label: "Realistic preview", needsPhoto: false },
-    { mode: "photo", label: "Grid + photo", needsPhoto: true },
-    { mode: "photo-only", label: "Original photo", needsPhoto: true },
+    { mode: "color", label: VIEW_MODE_LABELS.color, needsPhoto: false },
+    { mode: "bw", label: VIEW_MODE_LABELS.bw, needsPhoto: false },
+    { mode: "realistic", label: VIEW_MODE_LABELS.realistic, needsPhoto: false },
+    { mode: "photo", label: VIEW_MODE_LABELS.photo, needsPhoto: true },
+    { mode: "photo-only", label: VIEW_MODE_LABELS["photo-only"], needsPhoto: true },
   ];
 
   return (
@@ -80,8 +88,6 @@ export interface ImageWindowProps {
   viewMode: ViewMode;
   activeTool: Tool;
   activeColorIndex: number | null;
-  canvasColor: string;
-  realisticPreviewUrl: string | null;
   previewError: string | null;
   onRetryPreview: () => void;
   /** True when a non-Off photo enhancement applies to the photo shown before Generate. */
@@ -96,13 +102,17 @@ export interface ImageWindowProps {
   onDrop: (e: DragEvent<HTMLCanvasElement>) => void;
 }
 
-function cursorFor(activeTool: Tool, activeColorIndex: number | null): string {
+function cursorFor(activeTool: Tool, activeColorIndex: number | null, viewMode: ViewMode): string {
   if (activeTool === "pan") return "cursor-grab active:cursor-grabbing";
   if (activeTool === "zoom") return "cursor-zoom-in";
+  if (isViewOnlyMode(viewMode)) return "";
   return activeTool === "select" || activeTool === "fill" || activeColorIndex !== null ? "cursor-crosshair" : "";
 }
 
-/** The scrollable Image window: the uploaded photo before generation, then the editable canvas, the realistic preview or the original photo. */
+/**
+ * The scrollable Image window: the uploaded photo before generation, then one canvas that every view mode draws into
+ * at the same size, so zoom, scroll and pan carry across modes (D121).
+ */
 export function ImageWindow({
   scrollerRef,
   canvasRef,
@@ -111,8 +121,6 @@ export function ImageWindow({
   viewMode,
   activeTool,
   activeColorIndex,
-  canvasColor,
-  realisticPreviewUrl,
   previewError,
   onRetryPreview,
   enhancementActive,
@@ -157,13 +165,12 @@ export function ImageWindow({
         </figure>
       )}
       {!pattern && !sourceMeta && <p className="text-sm text-zinc-500">Upload an image in the Processing params dock below to get started.</p>}
-      {pattern && viewMode === "photo-only" && pattern.sourceImage && (
-        // eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize
-        <img src={pattern.sourceImage.dataUrl} alt="Original uploaded photo" className="max-h-full max-w-full border border-zinc-300 dark:border-zinc-700" />
-      )}
-      {pattern && viewMode !== "realistic" && viewMode !== "photo-only" && (
+      {pattern && (
         <canvas
           ref={canvasRef}
+          role="img"
+          aria-label={`Pattern, ${VIEW_MODE_LABELS[viewMode]} view`}
+          data-view-mode={viewMode}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -171,17 +178,7 @@ export function ImageWindow({
           onDoubleClick={onDoubleClick}
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDrop}
-          className={`touch-none border border-zinc-300 dark:border-zinc-700 ${cursorFor(activeTool, activeColorIndex)}`}
-        />
-      )}
-      {pattern && viewMode === "realistic" && realisticPreviewUrl && (
-        // eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize
-        <img
-          src={realisticPreviewUrl}
-          alt="Cross-stitch pattern preview"
-          // The canvas color as a backdrop behind the transparent PNG; display only, the download stays transparent.
-          style={{ backgroundColor: canvasColor }}
-          className="border border-zinc-300 dark:border-zinc-700"
+          className={`touch-none border border-zinc-300 dark:border-zinc-700 ${cursorFor(activeTool, activeColorIndex, viewMode)}`}
         />
       )}
       {pattern && viewMode === "realistic" && previewError && (

@@ -84,7 +84,7 @@ test("1-5 switch the Image window's view mode, including the new Original photo 
 
   await page.keyboard.press("5");
   await expect(photoOnlyRadio).toBeChecked();
-  await expect(page.getByAltText("Original uploaded photo")).toBeVisible();
+  await expect(page.getByRole("main").locator("canvas")).toHaveAttribute("data-view-mode", "photo-only");
 
   await page.keyboard.press("1");
   await expect(colorRadio).toBeChecked();

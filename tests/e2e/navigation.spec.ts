@@ -148,6 +148,78 @@ test("wheel-zoom doesn't also trigger the browser's native scroll (G-012)", asyn
   expect(scrollAfter).toEqual(scrollBefore);
 });
 
+test("every view mode shares one zoom and scroll position, and the realistic view is drawn (D121)", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await generateSmallPattern(page);
+
+  const zoomIn = page.getByRole("button", { name: "Zoom in" });
+  for (let i = 0; i < 4; i++) await zoomIn.click();
+  const scroller = page.locator("div.overflow-auto").first();
+  const canvas = page.getByRole("main").locator("canvas");
+  await scroller.evaluate((el) => {
+    el.scrollLeft = 120;
+    el.scrollTop = 90;
+  });
+  const scrollOf = () => scroller.evaluate((el) => ({ left: el.scrollLeft, top: el.scrollTop }));
+  const referenceBox = await canvas.boundingBox();
+  const referenceScroll = await scrollOf();
+  expect(referenceScroll).toEqual({ left: 120, top: 90 });
+
+  const modes: Array<[string, string]> = [
+    ["Black & white", "bw"],
+    ["Realistic preview", "realistic"],
+    ["Grid + photo", "photo"],
+    ["Original photo", "photo-only"],
+    ["Color", "color"],
+  ];
+  for (const [label, mode] of modes) {
+    await page.getByRole("radio", { name: label, exact: true }).check();
+    await expect(canvas).toHaveAttribute("data-view-mode", mode);
+    expect(await canvas.boundingBox(), label).toEqual(referenceBox);
+    expect(await scrollOf(), label).toEqual(referenceScroll);
+  }
+
+  // The realistic preview renders asynchronously; once it lands, the canvas holds stitches, not only the backdrop.
+  await page.getByRole("radio", { name: "Realistic preview", exact: true }).check();
+  await expect
+    .poll(() =>
+      canvas.evaluate((el: HTMLCanvasElement) => {
+        const ctx = el.getContext("2d")!;
+        const { data } = ctx.getImageData(0, 0, el.width, el.height);
+        let differing = 0;
+        for (let i = 0; i < data.length; i += 4 * 97) if (data[i] !== data[0] || data[i + 1] !== data[1] || data[i + 2] !== data[2]) differing++;
+        return differing;
+      })
+    )
+    .toBeGreaterThan(0);
+  expect(errors).toEqual([]);
+});
+
+test("the Pan tool scrolls in the realistic preview and the original photo without editing (D121)", async ({ page }) => {
+  await generateSmallPattern(page);
+  const zoomIn = page.getByRole("button", { name: "Zoom in" });
+  for (let i = 0; i < 4; i++) await zoomIn.click();
+  await page.getByRole("button", { name: "Pan" }).click();
+  const scroller = page.locator("div.overflow-auto").first();
+  const scrollerBox = await scroller.boundingBox();
+  if (!scrollerBox) throw new Error("scroller not visible");
+  const centerX = scrollerBox.x + scrollerBox.width / 2;
+  const centerY = scrollerBox.y + scrollerBox.height / 2;
+
+  for (const label of ["Realistic preview", "Original photo"]) {
+    await page.getByRole("radio", { name: label, exact: true }).check();
+    const before = await scroller.evaluate((el) => ({ left: el.scrollLeft, top: el.scrollTop }));
+    await page.mouse.move(centerX, centerY);
+    await page.mouse.down();
+    await page.mouse.move(centerX - 60, centerY - 40, { steps: 5 });
+    await page.mouse.up();
+    const after = await scroller.evaluate((el) => ({ left: el.scrollLeft, top: el.scrollTop }));
+    expect(after.left !== before.left || after.top !== before.top, label).toBe(true);
+  }
+  await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
+});
+
 test("Grid + photo mode renders the symbol grid over the source photo without errors (G-012)", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
