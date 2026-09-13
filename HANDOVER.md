@@ -166,8 +166,10 @@ above the goal's 1.5 s target.
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-032 release decision and sign-off.** All four
   milestones are built and deployed hidden. No preset passed its release
-  rule on 13 real photos (D117). The Owner chooses: keep hidden, fund a
-  tuning round on a held-out photo set, narrow the feature, or remove it.
+  rule on 13 real photos, but the rule's structure metric reacts to a
+  one-level brightness change about as much as to enhancement, so harm is
+  unproven too (D117). The Owner chooses: keep hidden, fund a validation
+  and tuning round, narrow to one exposure fix, or remove the feature.
   Also open: the 1.5 s enhancement target, and a Codex review of the M2–M4
   diff (usage limit hit on 2026-09-13).
 - G-028 (OXS import and export) is a draft. G-030 (public launch) is a
@@ -216,6 +218,7 @@ above the goal's 1.5 s target.
 | 2026-09-12 | ca4cfb1 | Cosmo and Anchor palettes (G-029) | Four palette options live, no console errors |
 | 2026-09-13 | 1380bd3 | G-031: IndexedDB autosave, strict loader, shortcut and drag fixes, faster pipeline, workspace split | Only this container restarted; 5 sites 200; live 1000-stitch generation 8.5 s, 50-cell stroke 1.2 s, 4 MB photo survives reload, 9/9 live e2e |
 | 2026-09-13 | fb28d4e | Resize with empty stitches (D109), unselectable control text (D110), CI typegen | Only this container restarted; 5 sites 200; resize e2e 3/3 on production; computed user-select none on buttons, text on inputs |
+| 2026-09-13 | 50d632a | G-032 photo enhancement in the pipeline, preview and saved files, hidden (Off only, D117) | Only this container restarted; 7 sites 200; CI green; live upload shows no Photo modes, generation 0.9 s, saved file format 6 without a mode, no console errors |
 
 ## Decisions
 

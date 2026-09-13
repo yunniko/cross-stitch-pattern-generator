@@ -8,8 +8,9 @@ are not in the repository; sources and licences are listed below.
 
 - Script: `scripts/calibrate-enhancement.ts`, run with `npm run calibrate:enhancement` (547 s on the Owner's machine).
 - Photos were decoded with Chromium's canvas at the app's 4000 px decode cap, so pixels match what the app generates
-  from. The tree photo is one image showing the same scene overexposed, normal and underexposed; it was split into
-  three 1500×1000 panels.
+  from. The tree photo stacks three versions of the same scene (overexposed, normal, underexposed), separated by white
+  bands; it was split at those bands into three 1500×1000 panels. Its Commons metadata shows a single capture edited in
+  Photoshop Elements, so the underexposed panel is an edit, not a real exposure bracket.
 - Every pattern: 150 stitches on the longer side, 24 colours, Standard edges, Full range palette.
 - **Boundary agreement** compares two patterns of the same photo: the share of neighbouring cell pairs where both
   patterns agree on whether the two cells share a colour. It measures structure, not exact colours (D115).
@@ -24,7 +25,7 @@ A mode is released only if all five clauses hold:
 | Clause | Requirement |
 |---|---|
 | Do no harm | Boundary agreement with Off ≥ 0.90 on every well-exposed photo |
-| Benefit | Real underexposed tree panel beats Off by ≥ 0.03 against the normal panel's Off pattern, or synthetic degradation of the well-exposed photos gains ≥ 0.05 on average |
+| Benefit | Underexposed tree panel beats Off by ≥ 0.03 against the normal panel's Off pattern, or synthetic degradation of the well-exposed photos gains ≥ 0.05 on average |
 | Tonal range | Tonal span widens by ≥ 0.05 on at least 60% of the flawed photos |
 | No confetti or duplicates | On no flawed photo does confetti rise more than 0.02, or near-duplicate pairs rise by more than 1 |
 | Keeps intentional cast | White balance shifts mid-grey chroma by ≤ 0.02 on the sunset |
@@ -54,7 +55,7 @@ A mode is released only if all five clauses hold:
 
 | Measure | Off | Auto | Vivid | Portrait |
 |---|---:|---:|---:|---:|
-| Real recovery: tree underexposed vs normal | 0.873 | 0.887 | 0.888 | 0.871 |
+| Tree recovery: underexposed vs normal panel | 0.873 | 0.887 | 0.888 | 0.871 |
 | Synthetic recovery: mean gain over Off | — | +0.004 | +0.000 | −0.002 |
 
 ### Flawed photos: tonal span, confetti, near-duplicate pairs (Off → mode)
@@ -69,11 +70,28 @@ A mode is released only if all five clauses hold:
 | Backlit, geyser | 0.61 → 0.69 | 0.61 → 0.66 | 0.61 → 0.67 | 1 → 1 | 1 → 6 | 0.067 → 0.075 |
 | Tree, underexposed panel | 0.49 → 0.63 | 0.49 → 0.65 | 0.49 → 0.56 | 0 → 0 | 0 → 0 | 0.189 → 0.208 |
 
+### Metric floor (partial, measured after the domain-expert review)
+
+How much boundary agreement drops for changes nobody would see, on the mountain lake. The run was stopped by low memory
+on the Owner's machine after this photo, so the other photos were not measured.
+
+| Change to the photo before an Off pattern | Agreement with the original's Off |
+|---|---:|
+| None (Off generated again) | 1.000 |
+| +1 code value on every channel | 0.883 |
+| Exposure ×0.98 in linear light | 0.895 |
+| Shift by 1 pixel | 0.857 |
+| Seeded ±2 code-value noise | 0.882 |
+
+All three modes scored 0.866–0.872 on this photo. That is the same level an imperceptible change produces: a
+24-colour pattern re-bands its smooth areas after any small change. On this photo the 0.90 do-no-harm threshold is above
+the metric's own noise, so the clause cannot tell harm from normal re-quantisation.
+
 ## What the numbers say
 
 - Enhancement does what it looks like it does on flawed photos: the stitched palette uses a wider lightness range on
   most of them, strongly on the fog and underexposed-tree photos.
-- It does not make the pattern's structure more faithful. On the one real before/after pair (the tree), Auto and Vivid
+- It does not make the pattern's structure more faithful. On the tree's underexposed/normal pair, Auto and Vivid
   move boundary agreement from 0.873 to about 0.887, a third of the required gain; Portrait doesn't move it.
 - Synthetic recovery is mixed rather than absent: every mode helps the degraded landscapes a little (up to +0.030) and
   hurts both degraded portraits (down to −0.033 in Vivid), which averages out to about zero.
@@ -81,19 +99,44 @@ A mode is released only if all five clauses hold:
   on near-duplicate shades alone.
 - It adds shades that are hard to tell apart on some photos (backlit tower 6 → 12 near-duplicate pairs in Auto,
   geyser 1 → 6 in Portrait). For stitchers, that means more similar threads to keep apart.
-- It changes some well-exposed photos more than the do-no-harm bound allows, including the gentlest preset on the
-  mountain lake.
+- The do-no-harm failures are not evidence of harm. On the mountain lake every mode sits at the metric's noise floor
+  (above). The tree gains of +0.013 to +0.015 are also well inside that noise, so benefit is not shown either way.
+- Backlit tower loses tonal span in every mode. The likely cause is midtone gamma lifting a median that sits in the dark
+  silhouettes while levels is skipped, a known limit of a single global tone curve on backlit scenes.
 - White balance correctly leaves the intentional sunset cast alone.
 
 ## Confidence and gaps
 
-- Thirteen photos, one of each situation or a few; one real before/after pair. There is no held-out set, so tuning the
+- Thirteen photos, one of each situation or a few; the only before/after pair is an edit, not a real exposure bracket. There is no held-out set, so tuning the
   presets against these numbers would fit the test rather than the problem (Codex round 2).
-- Boundary agreement has no calibrated noise floor for real photos: an Off pattern agrees with itself exactly, but how
-  much agreement a visually equivalent pattern should keep is not established.
+- Boundary agreement's noise floor is measured on one photo only. It is also not corrected for chance (it is a Rand-type
+  index), and the agreement between patterns of unrelated photos was not measured.
+- Tree panel alignment: panels were cut at their detected white bands, but any residual offset between them was not
+  measured, and it would lower every tree agreement score equally.
+- Near-duplicate pairs are counted on the Full range palette, without thread snapping, and are not weighted by how many
+  stitches each colour covers.
+- The M4 Codex review was not possible: the Codex usage limit was reached on 2026-09-13.
 - The near-duplicate threshold (ΔE 0.03) and the tonal-span measure are proxies for "harder to stitch" and "less muddy";
   neither has been validated against stitchers' judgement.
 - Browser-worker timing (criterion 7) was not re-measured here.
+
+## Domain-expert re-review (M4)
+
+What the review reported. Its sources are listed as it gave them and were not independently re-checked.
+
+- **Releasing nothing is right.** No clause shows benefit.
+- **"Doesn't improve structure" is not established.** The metric lacks a floor and a chance correction (Hubert & Arabie
+  1985). The floor measurement above confirms this for the lake.
+- **The tree panels are an edit.** They come from one Photoshop Elements capture, not a real bracket (Commons metadata).
+- **Global tone curves fail on backlit scenes.** They work only when applied per region and fused (Buades et al. 2020).
+- **k-means crowds colours into smooth areas.** Centroid density follows data density to the power 3/5 (Gersho 1979),
+  which explains near-duplicate shades there.
+- **A credible next round needs four things:**
+  - a validated metric: measured floor, chance-corrected agreement, alignment check
+  - expert-graded references, such as MIT-Adobe FiveK (research use only, kept out of the repository)
+  - a held-out set of roughly 30–50 photos per category
+  - blinded paired comparisons judged by stitchers
+- **Otherwise, narrow the feature** to one conservative exposure fix for photos that are actually flat or dark.
 
 ## Photo sources
 

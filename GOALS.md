@@ -805,7 +805,7 @@ saved-file embed) also stays the original bytes.
       save/reopen/Export-all carry the mode. Playwright e2e per
       criterion 4, run against the production build. Deliverable: the
       feature usable end-to-end in the browser.
-- [ ] **M4 — Real-photo calibration, docs, deploy.** Assemble the
+- [x] **M4 — Real-photo calibration, docs, deploy.** Assemble the
       real-photo set (licences recorded), run the mode matrix, measure
       (criteria 2, 3, 7) and tune preset constants — one decision file
       per calibrated constant, measurements in
@@ -827,6 +827,59 @@ saved-file embed) also stays the original bytes.
   recorded.
 
 **Progress log** (newest first):
+- 2026-09-13 — **M4 done: nothing released.** Deployed hidden, with Off
+  only (50d632a).
+
+  Real-photo calibration (`scripts/calibrate-enhancement.ts`):
+  - 13 CC0 Commons photos (sources in the review) were run against a
+    release rule fixed before measuring. No mode passed.
+  - No mode showed benefit: tree recovery gained at most +0.015 against the
+    0.03 bar, and the synthetic mean was about zero.
+  - Do-no-harm failed on the mountain lake in every mode (0.866–0.872
+    against 0.90).
+  - Near-duplicate shades rose on the backlit and fog photos (tower 6 → 12
+    in Auto).
+  - Only Portrait widened tonal range on enough flawed photos. The
+    intentional sunset cast was kept in every mode.
+  - Presets were not tuned: there is no held-out set.
+  - Results: `docs/reviews/2026-09-13-photo-enhancement-calibration.md`,
+    D117.
+
+  Domain-expert re-review:
+  - Releasing nothing is right, but "no structural benefit" is not
+    established. The agreement metric has no noise floor or chance
+    correction, and the tree pair is a Photoshop edit, not a bracket.
+  - Verified the floor claim on the lake: +1 code value alone scores 0.883
+    and a 1-px shift 0.857. So do-no-harm failures are inside metric noise.
+    The run was killed by low memory after that photo, so the other photos,
+    the chance baseline and the tree alignment check remain unmeasured.
+  - D117 and the review were corrected accordingly.
+
+  Codex review of M2–M4: not available (usage limit until 10:46; session
+  at 07:00).
+
+  Criteria not met:
+  - 2: recovery is not shown on real photos.
+  - 7: enhancement takes 1.58–1.93 s against 1.5 s; the preview's 300 ms
+    was not measured in a browser.
+  - 8: the M4 Codex exchange.
+
+  Deploy (pre-approved):
+  - Only this container restarted, and 7 sites return 200. CI green.
+  - Live smoke check: no Photo modes, generation 0.9 s, the saved file is
+    format 6 without a mode, no console errors.
+
+  Verified: `tsc` and eslint clean, 734/734 unit, 58/58 e2e on a production
+  build, docs-lint ok.
+
+  **PENDING APPROVAL: the release decision.** Options: keep hidden; fund a
+  validation and tuning round (measured floor, chance-corrected metric,
+  expert-graded references such as FiveK, held-out set, blinded stitcher
+  comparison); narrow to one conservative exposure fix; or remove the
+  feature. Escalated under OPERATIONS §4 because the result questions the
+  goal as specified. Logged 2026-09-13.
+
+  **PENDING APPROVAL: G-032 sign-off.**
 - 2026-09-13 — **M3 done.**
   - A "Photo" segmented control (Off, Auto, Vivid, Portrait) in processing
     params. It appears only when more than one mode is released, so
