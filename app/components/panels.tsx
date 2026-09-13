@@ -13,13 +13,15 @@ export interface WorkspaceNoticesProps {
   onDownloadRestoreReport: () => void;
   onDismissRestoreFailure: () => void;
   openError: string | null;
+  /** What an OXS import changed or left out (G-028). */
+  openNotice: string | null;
   exportError: string | null;
   /** Shown only while an A4 or PDF export kind is selected. */
   a4Layout: ReturnType<typeof calculateA4Layout> | null;
 }
 
 /** The strips under the top bar: a failed auto-restore (D101), open and export errors, and the A4 page count. */
-export function WorkspaceNotices({ restoreFailure, onDownloadRestoreReport, onDismissRestoreFailure, openError, exportError, a4Layout }: WorkspaceNoticesProps) {
+export function WorkspaceNotices({ restoreFailure, onDownloadRestoreReport, onDismissRestoreFailure, openError, openNotice, exportError, a4Layout }: WorkspaceNoticesProps) {
   return (
     <>
       {restoreFailure && (
@@ -42,6 +44,11 @@ export function WorkspaceNotices({ restoreFailure, onDownloadRestoreReport, onDi
         </div>
       )}
       {openError && <NoticeBar tone="error">{openError}</NoticeBar>}
+      {openNotice && (
+        <NoticeBar tone="info">
+          <span data-testid="open-notice">{openNotice}</span>
+        </NoticeBar>
+      )}
       {exportError && <NoticeBar tone="error">{exportError}</NoticeBar>}
       {a4Layout && (
         <NoticeBar tone="info">

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { compactUnusedColors } from "@/lib/editor/pattern-edit";
+import { serializeOxs } from "@/lib/editor/oxs";
 import { serializePattern } from "@/lib/editor/pattern-serialize";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { downloadBlob, generateA4Export } from "@/lib/export/a4-export";
@@ -10,7 +11,7 @@ import { downloadCanvasAsPng, renderPatternToCanvas, renderStitchPreviewToCanvas
 import type { StitchPattern } from "@/lib/types";
 
 /** Every single-file export, behind one dropdown (G-027). */
-export type ExportKind = "png-color" | "png-bw" | "png-realistic" | "editable" | "a4-color" | "a4-bw" | "pdf-color" | "pdf-bw";
+export type ExportKind = "png-color" | "png-bw" | "png-realistic" | "editable" | "oxs" | "a4-color" | "a4-bw" | "pdf-color" | "pdf-bw";
 
 /** A4 and PDF kinds paginate with the layout the overlap option affects. */
 export function paginatesAsA4(kind: ExportKind): boolean {
@@ -57,6 +58,9 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
             break;
           case "editable":
             downloadBlob(new Blob([serializePattern(pattern)], { type: "application/json" }), `${baseName}_editable.json`);
+            break;
+          case "oxs":
+            downloadBlob(new Blob([serializeOxs(compacted, { authorName, aidaCount })], { type: "application/xml" }), `${baseName}.oxs`);
             break;
           case "a4-color":
           case "a4-bw": {

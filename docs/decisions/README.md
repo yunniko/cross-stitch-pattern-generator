@@ -127,3 +127,4 @@ remain readable with git show.
 - D116 — The photo preview has its own worker; unreleased modes appear only in the test build — partly superseded (superseded by: D118 for the test-build flag)
 - D117 — No enhancement mode is released: no evidence of benefit, and the gates can't yet detect harm — superseded (superseded by: D118)
 - D118 — All photo modes are offered, plus a cautious Brighten mode, on the Owner's decision — active
+- D119 — OXS is read by a dedicated XML reader and written with the cloth at index 0; losses are counted, never silently dropped — active

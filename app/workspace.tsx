@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from "react";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
 import { fillCluster, mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from "@/lib/editor/pattern-edit";
+import { oxsImportNotice } from "@/lib/editor/oxs";
 import { loadPatternFromFile } from "@/lib/editor/pattern-import";
+import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
 import { getProjectStore } from "@/lib/editor/project-store";
 import { useProjectAutosave } from "@/lib/editor/use-project-autosave";
 import { useUndoHistory } from "@/lib/editor/use-undo-history";
@@ -49,6 +51,7 @@ export default function Workspace() {
   // null while closed; a new key on every "Resize canvas…" click remounts the panel with fresh fields.
   const [resizePanelKey, setResizePanelKey] = useState<number | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
+  const [openNotice, setOpenNotice] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const navigatorCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -116,6 +119,7 @@ export default function Workspace() {
 
   function handleImageFile(file: File) {
     generation.setError(null);
+    setOpenNotice(null);
     void source.loadFile(file, {
       // A new photo is a new document: fresh history, shown as is until Generate.
       onLoaded: () => {
@@ -128,8 +132,16 @@ export default function Workspace() {
 
   function handleOpenPattern(file: File) {
     setOpenError(null);
+    setOpenNotice(null);
     loadPatternFromFile(file)
-      .then((loaded) => loadPatternIntoWorkspace(loaded, file.name.replace(/\.[^.]+$/, "").replace(/[-_]editable$/, "")))
+      .then(async ({ pattern: loaded, oxsReport }) => {
+        await loadPatternIntoWorkspace(loaded, file.name.replace(/\.[^.]+$/, "").replace(/[-_]editable$/, ""));
+        if (oxsReport) {
+          const notice = oxsImportNotice(oxsReport, options.aidaCount, STANDARD_AIDA_COUNTS);
+          if (notice.aidaCount !== undefined) updateOption("aidaCount", notice.aidaCount);
+          setOpenNotice(notice.text);
+        }
+      })
       .catch((err) => {
         // Nothing was replaced, so the current pattern is still the "previous version" (Owner request, 2026-09-12).
         reportPatternLoadFailure({ source: "open-file", error: err, content: file, originalFileName: file.name });
@@ -243,6 +255,7 @@ export default function Workspace() {
         onDownloadRestoreReport={() => restore.failure && downloadPatternLoadReport({ content: restore.failure.payload })}
         onDismissRestoreFailure={restore.dismissFailure}
         openError={openError}
+        openNotice={openNotice}
         exportError={exports.exportError}
         a4Layout={paginatesAsA4(exports.exportKind) ? exports.a4LayoutPreview : null}
       />

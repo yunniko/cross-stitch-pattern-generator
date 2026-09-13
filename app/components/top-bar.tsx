@@ -8,6 +8,7 @@ const DEFAULT_NAME = "cross-stitch-pattern";
 /** Editable JSON first (the default, most complete format), then the realistic preview, then a Color and a Black & white group (Owner spec, 2026-09-12). */
 const EXPORT_KIND_TOP_OPTIONS: Array<{ value: ExportKind; label: string }> = [
   { value: "editable", label: "Editable pattern (.json)" },
+  { value: "oxs", label: "OXS chart for other programs (.oxs)" },
   { value: "png-realistic", label: "Realistic preview PNG" },
 ];
 
@@ -108,14 +109,15 @@ export function TopBar(props: TopBarProps) {
       <div className="ml-auto flex items-center gap-2">
         <PillButton
           onClick={() => openInputRef.current?.click()}
-          title="Accepts a .json pattern file, or a .cspzip/.zip export-all bundle -- searched for a valid pattern inside"
+          title="Accepts a .json pattern file, a .cspzip/.zip export-all bundle (searched for a valid pattern inside), or an .oxs chart from another cross-stitch program"
         >
           Open pattern…
         </PillButton>
         <input
           ref={openInputRef}
           type="file"
-          accept=".json,.zip,.cspzip,application/json,application/zip"
+          aria-label="Open pattern file"
+          accept=".json,.zip,.cspzip,.oxs,application/json,application/zip"
           onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = "";
@@ -157,7 +159,7 @@ export function TopBar(props: TopBarProps) {
         <PillButton
           onClick={props.onExportAll}
           disabled={!hasPattern || isExporting || isExportingAll}
-          title="One .cspzip with everything: editable JSON, color/B&W/realistic PNGs, the Pattern Keeper PDF, and A4_color/A4_bw subfolders of A4 page PNGs"
+          title="One .cspzip with everything: editable JSON, an OXS chart, color/B&W/realistic PNGs, the Pattern Keeper PDF, and A4_color/A4_bw subfolders of A4 page PNGs"
         >
           {isExportingAll ? "Building…" : "Export all"}
         </PillButton>

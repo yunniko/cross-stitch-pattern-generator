@@ -18,8 +18,12 @@ browser's IndexedDB, and no image is ever uploaded. Live at
   pan, zoom and highlight tools. Merge, recolor, rename and re-symbol colors,
   mark stitches as empty, resize the canvas, undo and redo.
 - **Export** editable JSON, a realistic stitched preview, full-chart PNGs,
-  paginated A4 ZIPs, a Pattern Keeper–compatible PDF, or everything at once as
-  a `.cspzip` bundle, which the app can open again.
+  paginated A4 ZIPs, a Pattern Keeper–compatible PDF, an OXS chart for other
+  cross-stitch programs, or everything at once as a `.cspzip` bundle, which the
+  app can open again.
+- **Open** this app's own files or an `.oxs` chart from another program. Content
+  the app can't show, such as backstitch lines and French knots, is listed
+  after opening rather than silently dropped.
 
 ## Run locally
 

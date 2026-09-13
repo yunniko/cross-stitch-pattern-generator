@@ -25,6 +25,8 @@ test("Export all downloads a .cspzip with every format, including A4_color/A4_bw
   const names = Object.keys(zip.files).sort();
 
   expect(names).toContain("sample_editable.json");
+  expect(names).toContain("sample.oxs");
+  expect(await zip.files["sample.oxs"].async("string")).toContain("<chart>");
   expect(names).toContain("sample_color.png");
   expect(names).toContain("sample_bw.png");
   expect(names).toContain("sample_preview.png");
@@ -84,7 +86,7 @@ test("opening a file with no valid pattern inside shows a clear error instead of
   const fileChooser = await fileChooserPromise;
   const [download] = await Promise.all([page.waitForEvent("download"), fileChooser.setFiles(badZipPath)]);
 
-  await expect(page.getByText("No valid pattern (.json) file was found inside that archive.")).toBeVisible();
+  await expect(page.getByText("No valid pattern (.json or .oxs) file was found inside that archive.")).toBeVisible();
 
   // Owner request 2026-09-12: a loading failure auto-downloads the exact
   // problematic content ("error report folder" for a client-only app).

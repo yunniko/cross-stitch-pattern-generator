@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import { canvasToPngBlob, generateA4Export } from "./a4-export";
+import { serializeOxs } from "../editor/oxs";
 import { serializePattern } from "../editor/pattern-serialize";
 import { buildPatternKeeperPdf } from "./pattern-keeper-pdf";
 import { renderPatternToCanvas, renderStitchPreviewToCanvas } from "./render";
@@ -61,6 +62,7 @@ export async function generateExportAllZip(pattern: StitchPattern, options: Expo
   const zip = new JSZip();
 
   zip.file(`${baseName}_editable.json`, serializePattern(pattern));
+  zip.file(`${baseName}.oxs`, serializeOxs(pattern, { authorName, aidaCount }));
   await yieldToMain();
 
   const colorCanvas = renderPatternToCanvas(pattern, "color", { aidaCount, sizeUnit, authorName });

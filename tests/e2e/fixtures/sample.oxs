@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Self-authored test chart for G-028; not taken from any published pattern. -->
+<chart>
+<format comments01="Test chart"/>
+<properties oxsversion="1.0" software="Hand written" chartwidth="6" chartheight="4" charttitle="Little heart" author="Test" stitchesperinch="18" stitchesperinch_y="18" palettecount="2"/>
+<palette>
+<palette_item index="0" number="cloth" name="cloth" color="FFFFFF" strands="2"/>
+<palette_item index="1" number="DMC 321" name="Red" color="C72B3B" strands="2" symbol="1"/>
+<palette_item index="2" number="DMC 310" name="Black" color="000000" strands="2" symbol="2"/>
+</palette>
+<fullstitches>
+<stitch x="1" y="0" palindex="1"/>
+<stitch x="4" y="0" palindex="1"/>
+<stitch x="0" y="1" palindex="1"/>
+<stitch x="1" y="1" palindex="1"/>
+<stitch x="2" y="1" palindex="1"/>
+<stitch x="3" y="1" palindex="1"/>
+<stitch x="4" y="1" palindex="1"/>
+<stitch x="5" y="1" palindex="1"/>
+<stitch x="1" y="2" palindex="1"/>
+<stitch x="2" y="2" palindex="1"/>
+<stitch x="3" y="2" palindex="1"/>
+<stitch x="4" y="2" palindex="1"/>
+<stitch x="2" y="3" palindex="1"/>
+</fullstitches>
+<partstitches>
+<partstitch x="3" y="3" palindex1="1" palindex2="0" direction="2"/>
+</partstitches>
+<backstitches>
+<backstitch x1="0" y1="1" x2="3" y2="4" palindex="2" objecttype="backstitch" sequence="0"/>
+</backstitches>
+<ornaments_inc_knots_and_beads>
+<object x1="5" y1="3" palindex="2" objecttype="knot"/>
+</ornaments_inc_knots_and_beads>
+<commentboxes/>
+</chart>

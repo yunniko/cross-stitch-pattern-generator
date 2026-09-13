@@ -269,20 +269,20 @@ milestone's own result justifies continuing):
     Codex critique exchange before being written, not just this plan.
 
 **Milestones:**
-- [ ] M1 -- Pure module (`lib/oxs.ts` or similar): parse real OXS XML
+- [x] M1 -- Pure module (`lib/oxs.ts` or similar): parse real OXS XML
   (via `DOMParser`, main-thread-only like `pattern-import.ts` already
   is -- not the generation Web Worker) into an intermediate structure,
   and serialize a `StitchPattern` into spec-valid OXS XML (proper XML-
   escaping for name/author/title text). Self-authored synthetic
   fixtures only (see licensing constraint). Design sent through a real
   Codex critique exchange first, per standing practice. Unit-tested.
-- [ ] M2 -- Import integration: wire into `lib/pattern-import.ts` /
+- [x] M2 -- Import integration: wire into `lib/pattern-import.ts` /
   `loadPatternFromFile`'s existing content-sniffing flow (extend past
   ZIP/JSON to also recognize OXS XML), palette mapping (DMC auto-
   detection, EMPTY_CELL for any cell absent from `<fullstitches>`),
   partstitch approximation, and the honest drop/approximation-summary
   UI surface. Over-cap files are rejected (Owner answer, 2026-09-13).
-- [ ] M3 -- Export integration: new `ExportKind` ("oxs") in
+- [x] M3 -- Export integration: new `ExportKind` ("oxs") in
   `app/workspace.tsx`'s export dropdown (top-level, alongside
   "editable" -- it's a data format, not a color/bw render variant), plus
   folded into `lib/export-all.ts`'s `.cspzip` bundle.
@@ -293,6 +293,86 @@ milestone's own result justifies continuing):
   commit, deploy.
 
 **Progress log** (newest first):
+- 2026-09-13 — **M4 in progress: real OXS files imported.** All six local
+  samples were run through the importer; results are in
+  `docs/reviews/2026-09-13-oxs-format-evidence.md`.
+  - The five usable files opened as DMC patterns, each with its losses
+    reported. Ursa's demo matches its known content: 1,105 backstitch
+    lines, 10 knots and 8 beads, plus 55 part stitches approximated.
+  - The 237-colour conversion is refused with the cap message.
+  - Fix from this run: the credits sentence read "instructions isn't
+    kept"; it now lists what isn't kept.
+- 2026-09-13 — **M2 and M3 done.**
+
+  Import (M2):
+  - `loadPatternFromFile` returns `{ pattern, format, oxsReport }`.
+  - It recognises OXS from the first 4 KB, and refuses one over 64 MB
+    before reading it all.
+  - Inside an archive this app's `.json` wins and `.oxs` is the fallback.
+  - The workspace shows the report as a notice (`oxsImportNotice`) and
+    applies the file's fabric count when it is 11, 14, 16 or 18.
+  - Open pattern accepts `.oxs`.
+
+  Export (M3):
+  - An "OXS chart for other programs (.oxs)" option in the Export menu.
+  - "Export all" bundles `<name>.oxs`.
+
+  Verified: `tsc` and eslint clean; 795/795 unit tests (import 3 and
+  summary 2 new); 60/60 e2e on a fresh production build. The new e2e
+  spec `tests/e2e/oxs-interchange.spec.ts` covers:
+  - opening a self-authored chart with a part stitch, a backstitch, a knot
+    and 18-count: notice text, name and fabric count
+  - exporting a generated pattern and reopening it with nothing lost
+
+  Export all asserts the bundled `.oxs`.
+- 2026-09-13 — **M1 done.** `lib/editor/oxs-xml.ts` (a dedicated XML reader)
+  and `lib/editor/oxs.ts` (`parseOxs`, `serializeOxs`, `looksLikeOxs`), D119.
+
+  Format evidence (`docs/reviews/2026-09-13-oxs-format-evidence.md`):
+  - The spec was re-read, and six real files by five writers were studied
+    and kept local.
+  - Every file uses 0-based coordinates; five of six put the cloth at index
+    0.
+  - Real files vary: missing sections, `chatTitle`, "DMC    943",
+    placeholder elements.
+  - Embroiderly's reader was read as a second implementation.
+
+  Changes from the plan:
+  - `DOMParser` isn't available in Vitest's Node environment, and a 47 MB
+    file would build a 750,000-node DOM, so a dedicated reader replaces it.
+  - The cloth entry and palindex offset follow the files.
+  - The Anchor table exists (G-029), and import uses it for names.
+
+  Codex critique (20 findings), outcome:
+  - **Conceded:**
+    - exact element paths
+    - XML character rules
+    - off-grid full crosses reported as approximated
+    - part-stitch fallback only past the cloth
+    - hidden vs overlapped part stitches
+    - no merging of blends or unresolved colours
+    - an empty `number` for custom colours on export, so "cloth" or "DMC 310"
+      names can't be misread
+    - report additions: completion marks, cloth colour, credits, strand
+      counts, unknown elements, colours used only by dropped content
+    - `oxs="1.0"` alongside `oxsversion`
+  - **Already in the implementation:**
+    - file RGB kept (Codex's blocker about Anchor round trips)
+    - a separate object decoder
+    - final occupancy before the colour cap
+  - **Rebutted:**
+    - a SAX library: the reader is tested and OXS needs a small subset
+    - a worker: the real 47 MB file reads in about 2 s
+    - CDATA and text as loss: the spec defines no text content
+    - a generic report entry list: typed fields are clearer
+  - **Deferred:**
+    - loader API returning the report (M2)
+    - a byte limit before reading (M2)
+    - symbol portability (M4)
+
+  Verified: `tsc` clean; 45 new unit tests (reader 23 incl. adversarial
+  inputs and a synthetic 750,000-element document; OXS 22 incl. round
+  trips, real-file-shaped input, every loss category and the colour cap).
 - 2026-09-13 — **Started on the Owner's direction** ("go to import and
   export format implementing"), which approves this plan. Before M1: check
   constraints written before G-029 and G-031 against the current code

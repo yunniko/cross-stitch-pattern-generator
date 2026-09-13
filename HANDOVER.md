@@ -26,8 +26,9 @@ row). G-032 (photo enhancement) is done and signed off: every mode is offered
   Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, and Escape to merge a selection.
 - Exports: editable JSON (format version 6, embeds the source photo),
   realistic preview PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern
-  Keeper PDF (the Owner confirmed a real import), and "Export all" `.cspzip`.
-  Open accepts JSON, ZIP and `.cspzip`, detected by content.
+  Keeper PDF (the Owner confirmed a real import), an OXS chart, and "Export
+  all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs`, detected by
+  content; an OXS import shows a notice listing everything it couldn't keep.
 - Persistence: the open project autosaves to IndexedDB (photo stored once by
   SHA-256, 500 ms debounce) and restores on reload. A corrupt record shows a
   banner with an on-demand error report. Options persist in localStorage.
@@ -39,8 +40,8 @@ row). G-032 (photo enhancement) is done and signed off: every mode is offered
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 745/745 Vitest
-tests; 58/58 Playwright tests on a fresh production build. CI
+**Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 795/795 Vitest
+tests; 60/60 Playwright tests on a fresh production build. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
@@ -110,7 +111,9 @@ above the goal's 1.5 s target.
   (D074). `export-all.ts` bundles the existing exporters.
 - **Editor data** (`lib/editor/`): pure mutations in `pattern-edit.ts`,
   validating (de)serializer in `pattern-serialize.ts` (D099), IndexedDB store
-  in `project-store.ts` (D100), and options in `workspace-storage.ts`.
+  in `project-store.ts` (D100), and options in `workspace-storage.ts`. OXS
+  reading and writing live in `oxs.ts` on the dedicated XML reader
+  `oxs-xml.ts` (D119); `pattern-import.ts` sniffs the format.
 - **Experimental** (`lib/experimental/`): contour refinement, boundary chains,
   simulated annealing, diagnostics. Status table in its README.
 - **Tests**: unit specs in `tests/unit/`. `golden-hashes.spec.ts` pins exact
