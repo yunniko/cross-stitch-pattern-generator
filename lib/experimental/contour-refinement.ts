@@ -8,44 +8,12 @@ import { oklabDistanceSquared, rgbToOklab, type Oklab } from "../color/color";
 import { cellRgb, type CellColorBuffer, type RGB } from "../types";
 
 /**
- * G-022 M5.5 (HANDOVER.md D48/D53): the actual multi-cell contour-pacing
- * pass, gated by the admissibility constraints M5.4's checkpoint found to
- * be a hard requirement (never score pacing across a known corner or
- * junction; freeze junction neighborhoods and high-importance thin
- * features). Opt-in (`buildPattern` must explicitly request it) -- M5.6's
- * broad D45-style sweep across the existing fixture suite hasn't happened
- * yet, so this must not become default behavior before that gate.
- *
- * **Disclosed simplification relative to the critique's ideal design**
- * (HANDOVER.md D48 section 2 preferred discrete "shared-boundary
- * proposals, accepted as discrete multi-cell moves"): implementing that
- * fully -- coordinated multi-cell moves with per-proposal admissibility
- * checks and topology validation -- is a substantially larger undertaking
- * than fits this milestone's remaining scope responsibly. This instead
- * extends the existing, already-correctness-verified ICM per-cell
- * decision (`local-optimizer.ts`'s own `boundaryPairEnergy` formula, its
- * real 8-neighbor structure, unchanged) with one added term: a per-cell
- * `pacingBias` field, computed ONCE per pass from the current boundary
- * chains (not re-derived per candidate), that nudges a flagged cell's
- * decision toward whichever neighboring label the local wide/narrow
- * step-discrepancy comparison (`contour-pacing.ts`'s own formula, self-
- * referentially estimating expected local pacing from a wider window of
- * the SAME chain, since no true source curve exists for a real photo)
- * suggests would better match its surrounding pace. This is a real,
- * disclosed reduction in scope: it captures "better sequencing where a
- * single-cell move can reach it," not the critique's own additional
- * "escaping single-cell ICM minima" benefit from coordinated multi-cell
- * moves -- M5.6's own planned 3-way comparison (unchanged / coordinated-
- * moves-old-objective / coordinated-moves-new-objective) already exists
- * to measure exactly that gap, so it is not silently assumed away here.
- *
- * The critique's warning that "a legitimate pacing improvement may
- * increase the old fine energy slightly while decreasing E5" is the
- * reason `pacingBias` is folded directly into the same per-candidate cost
- * ICM already minimizes (a true joint decision), not gated behind a
- * "must not increase existing energy" filter -- the latter would provably
- * find nothing new, since ICM's own convergence already sits at that
- * objective's local optimum.
+ * EXPERIMENTAL, opt-in only (see lib/experimental/README.md). G-022 M5.5 contour pacing (D48, D53): an ICM-style pass
+ * over cells whose boundary chain steps unevenly compared with its wider neighborhood, with a per-cell `pacingBias`
+ * folded into the same color-plus-boundary cost ICM minimizes -- a joint decision, since a "never raise the old energy"
+ * filter would find nothing new at ICM's optimum. Pacing is never scored across a corner or junction, and junction
+ * neighborhoods and high-importance cells are frozen. A disclosed simplification of the coordinated multi-cell moves
+ * the D48 critique preferred; the broad sweep that would justify enabling it by default (M5.6) hasn't happened.
  */
 
 export interface ContourRefinementOptions {
@@ -250,24 +218,9 @@ export function runContourRefinementPass(
 }
 
 /**
- * Full pass loop: recompute chains/bias from scratch each pass (the
- * boundary shape changes as cells move), apply one biased ICM sweep,
- * repeat until no bias-driven change occurs or `maxPasses` is reached.
- *
- * `crispEvidenceLayer` (optional, G-024 M4.5, HANDOVER.md D68) exists
- * SOLELY to reject the combination explicitly: this pass scores every
- * candidate against the raw averaged cell color with no admissibility
- * awareness at all (a Codex critique's own finding during M4 planning --
- * D57's "orthogonal" characterization overstated actual independence),
- * so enabling it together with Crisp mode could silently overwrite a
- * protected cell's admissible choice. Given `contourRefinement` is
- * already off-by-default and not adopted as a default behavior (D55),
- * and threading the full shared evaluator through this module's own
- * bias-driven candidate search is a real expansion of an already-large
- * milestone, the deliberate choice for now is a loud, explicit failure
- * here rather than silent misbehavior -- not a quiet degradation.
- * Passing a layer with any confident cells throws; omitting it (or an
- * empty layer) reproduces today's exact behavior.
+ * Recomputes chains and bias each pass (the boundary moves), applies one biased sweep, and repeats until nothing
+ * changes or `maxPasses`. A non-empty `crispEvidenceLayer` throws: this pass has no admissibility awareness and could
+ * overwrite a confident cell's supported color, so the combination fails loudly rather than degrading quietly (D68).
  */
 export function runContourRefinement(
   cells: CellColorBuffer,

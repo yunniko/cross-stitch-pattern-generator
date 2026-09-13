@@ -1,18 +1,8 @@
 /**
- * Pattern-load error reporting (Owner request, 2026-09-12: "If while working
- * on a scheme there is a loading error ... log the error, save the
- * problematic file version to [an] error report folder and try to load
- * previous version (undo)").
- *
- * This app is entirely client-side with no server filesystem -- the closest
- * real equivalent of an "error report folder" is a browser download of the
- * exact content that failed to load, alongside a console.error with the
- * same detail. "Try to load previous version" is satisfied by callers never
- * overwriting the current in-memory pattern until a load has succeeded.
- *
- * The download is a separate step from the log so the auto-restore path can
- * log immediately but only download on a click (a page-load download with
- * no user gesture is commonly blocked, and startling when it isn't -- D099).
+ * Pattern-load error reporting (Owner request, 2026-09-12). With no server filesystem, "save the failed version to an
+ * error-report folder" means downloading the exact content that failed, next to a console.error with the same detail;
+ * "load the previous version" means callers never replace the current pattern until a load succeeds. Logging and
+ * downloading are separate so auto-restore can offer the download on a click instead of on page load (D099).
  */
 
 export type PatternLoadSource = "open-file" | "auto-restore";

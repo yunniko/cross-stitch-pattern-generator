@@ -3,16 +3,8 @@ import { deserializePattern } from "./pattern-serialize";
 import type { StitchPattern } from "../types";
 
 /**
- * G-027 (Owner request, 2026-09-12): "Open editable pattern" needs to accept
- * both a plain `.json` file (the original format) and a `.cspzip`/`.zip`
- * export-all bundle, searching inside the archive for the pattern rather
- * than requiring the Owner to unzip it themselves first.
- *
- * Detection is by *content*, not file extension -- a renamed or
- * differently-extensioned archive (`.cspzip`, `.zip`, or anything else)
- * still works, since `JSZip.loadAsync` either parses real ZIP bytes or
- * throws; only on that failure is the file treated as plain JSON text,
- * exactly the original behavior for every file saved before this existed.
+ * Opens a plain editable `.json` pattern or an export-all `.cspzip`/`.zip` bundle (G-027), detected by content rather
+ * than extension: bytes that parse as a ZIP are searched for the first valid pattern `.json`; anything else is JSON.
  */
 export async function loadPatternFromFile(file: File): Promise<StitchPattern> {
   const buffer = await file.arrayBuffer();

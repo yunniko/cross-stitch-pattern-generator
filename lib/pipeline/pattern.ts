@@ -40,27 +40,12 @@ export interface BuildPatternOptions {
   /** Set to skip the local optimizer/palette-merge passes — used by tests that want the raw quantizer output. */
   optimize?: boolean;
   multiScaleWeights?: MultiScaleWeights;
-  /**
-   * G-022 M5.5's contour-pacing refinement pass (HANDOVER.md D48/D54).
-   * Deliberately opt-in, defaulting to off: M5.6's broad D45-style sweep
-   * across the existing golden-fixture/shape-regression suites hasn't
-   * happened yet, so this must not become default pipeline behavior
-   * before that gate. No effect when `optimize` is false. **Incompatible
-   * with `edgeMode: "crisp"`** (HANDOVER.md D68/D72): this pass has no
-   * admissibility awareness and could overwrite a confident cell's
-   * supported color -- combining both throws immediately.
-   */
+  /** Opt-in contour-pacing refinement (D48, D54; lib/experimental). No effect without `optimize`; throws with Crisp mode, which it can't respect (D68). */
   contourRefinement?: boolean;
   contourRefinementOptions?: ContourRefinementOptions;
   /** Defaults to "full" (today's exact behavior). See `PaletteMode`'s own doc comment. */
   paletteMode?: PaletteMode;
-  /**
-   * G-024 Crisp Edges (HANDOVER.md D57-D71). Defaults to "standard" (today's
-   * exact behavior, byte-identical when omitted). "crisp" is incompatible
-   * with `contourRefinement` (see that option's own doc comment) -- passing
-   * both throws immediately, before any work is done, rather than silently
-   * letting one option undermine the other.
-   */
+  /** Crisp Edges (G-024, D57-D71); defaults to "standard". */
   edgeMode?: EdgeMode;
   crispEvidenceLayerOptions?: CrispEvidenceLayerOptions;
   onProgress?: (fraction: number) => void;
@@ -69,11 +54,7 @@ export interface BuildPatternOptions {
 export function buildPattern(imageData: PixelBuffer, options: BuildPatternOptions): StitchPattern {
   const edgeMode = options.edgeMode ?? "standard";
   if (edgeMode === "crisp" && options.contourRefinement) {
-    // Fail fast, before any real work happens (HANDOVER.md D68/D72) --
-    // `contour-refinement.ts`'s own `runContourRefinement` carries the same
-    // guard as defense-in-depth for any future direct caller, but this
-    // check gives a clear, immediate error instead of doing the rest of
-    // the pipeline's work first.
+    // Fail before doing any work; runContourRefinement repeats this guard for direct callers (D68).
     throw new Error(
       "edgeMode: \"crisp\" does not support contourRefinement: its candidate search has no admissibility awareness and could overwrite a confident cell's supported color. Disable one of the two options."
     );
@@ -87,28 +68,12 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   options.onProgress?.(0.1);
   const cells = downsampleToGrid(imageData, gridWidth, gridHeight);
 
-  // Computed unconditionally (not just under `shouldOptimize`) and passed
-  // into the quantizer itself, not just the optimizer passes below: a
-  // 2026-09-11 review (HANDOVER.md D39/G-020 M3) found the quantizer's own
-  // worst-fit reinvestment (`kMeansQuantizer`) had no way to prefer a
-  // genuinely important rare detail over a rare artifact, since importance
-  // wasn't computed yet at quantization time. Both `computeEdgeMagnitude`
-  // and `computeCellImportance` depend only on the original image and grid
-  // dimensions, never on the quantizer's own output, so moving this earlier
-  // changes nothing about the values themselves.
+  // Computed before quantization, not only for the optimizer: reinvestment uses importance to prefer a real rare
+  // detail over a rare artifact (D39). It depends only on the source image and grid size.
   const edgeMagnitude = computeEdgeMagnitude(imageData);
   const importance = computeCellImportance(imageData, edgeMagnitude, gridWidth, gridHeight);
 
-  // G-024 M4.9 (HANDOVER.md D72): `pairEvidence` is computed HERE,
-  // unconditionally whenever Crisp mode is requested (not just under
-  // `shouldOptimize` below, where Standard mode alone still computes it) --
-  // the pre-filter (`candidateCellsFromPairEvidence`) needs it before
-  // quantization even runs. `computePairEdgeEvidence` depends only on the
-  // original image and grid dimensions (same reasoning already applied to
-  // `importance` above), so computing it earlier changes nothing about the
-  // values themselves -- verified by this file's own Standard-compatibility
-  // tests. The `shouldOptimize`-gated block below no longer computes it a
-  // second time.
+  // Needed by ICM, and by Crisp's candidate pre-filter before quantization even without `optimize` (D72).
   const shouldOptimize = options.optimize ?? true;
   const pairEvidence: Float32Array | undefined = edgeMode === "crisp" || shouldOptimize ? computePairEdgeEvidence(imageData, gridWidth, gridHeight) : undefined;
 
@@ -161,11 +126,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
 
   const merged = shouldOptimize ? mergeSimilarColors(optimized, rawPalette) : { cellPaletteIndex: optimized, palette: rawPalette };
 
-  // G-024 M4.6 (HANDOVER.md D69): `mergeSimilarColors`'s mechanical
-  // union-find remap does not guarantee the merge winner is still each
-  // affected mode's actual nearest surviving palette color -- repair any
-  // now-inadmissible protected cell against the POST-merge palette. Only
-  // reachable when `shouldOptimize` (the merge itself only runs then).
+  // The merge remap can leave a crisp cell on a label none of its modes supports; repair against the merged palette (D69).
   if (edgeMode === "crisp" && evidenceLayer && shouldOptimize) {
     const mergedPaletteOklab = merged.palette.map(rgbToOklab);
     merged.cellPaletteIndex = repairCrispAssignments(merged.cellPaletteIndex, evidenceLayer, mergedPaletteOklab);
@@ -190,11 +151,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     );
   }
 
-  // Drop any palette entry no cell actually uses -- reachable whenever the
-  // contour-cleanup passes above (recolorSmallComponents especially) end up
-  // recoloring away every last cell of some color without the palette-merge
-  // step's own distance threshold happening to catch it. A legend row for a
-  // color nothing is stitched in is a real bug, not a cosmetic one.
+  // Drop palette entries the cleanup passes emptied: a legend row for a color with no stitches is a bug.
   const rawCounts = new Array(merged.palette.length).fill(0);
   for (const index of merged.cellPaletteIndex) rawCounts[index]++;
   const usedIndices = merged.palette.map((_, i) => i).filter((i) => rawCounts[i] > 0);
@@ -207,19 +164,8 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     compactCellPaletteIndex[i] = compactRemap[merged.cellPaletteIndex[i]];
   }
 
-  // Recompute each palette color from its *final* member cells rather than
-  // reusing the pre-optimization k-means centroid. A domain-expert review
-  // (HANDOVER.md D11) found this was never done: ICM, component recoloring,
-  // and diagonal fixes all reassign cells between colors, so the k-means
-  // mean no longer reflects who's actually assigned to it by the time the
-  // chart is rendered. Averaged in OKLab space (not a linear-RGB mean) --
-  // assignment throughout this pipeline (k-means, ICM, contour cleanup) is
-  // all driven by squared OKLab distance, and a mean only minimizes squared
-  // error in the coordinate system it's computed in; a linear-RGB mean of
-  // the same membership is a genuinely different, less accurate color by
-  // that metric, not just a stylistic difference (code-review 2026-09-09,
-  // finding 3 -- the previous version of this comment claimed the linear-RGB
-  // recompute was "provably at least as accurate," which wasn't true).
+  // Recompute each color from its FINAL members, since ICM and cleanup move cells after k-means (D11), as an OKLab
+  // mean, the correct centroid for the squared-OKLab objective (code review 2026-09-09, finding 3).
   let finalCellPaletteIndex: Uint8Array = compactCellPaletteIndex;
   let compactPalette: RGB[];
   if (edgeMode === "crisp" && evidenceLayer) {
@@ -302,29 +248,15 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     edgeMode: edgeMode === "crisp" ? "crisp" : undefined,
   };
 
-  // Only "full" skips brand matching entirely -- every other `PaletteMode`
-  // value IS a `ThreadBrand` (G-029 M1, HANDOVER.md D92). Deliberately
-  // checking `!== "full"` rather than `=== "dmc"`: the earlier DMC-only
-  // check would have silently skipped matching for every other brand once
-  // one existed (flagged by the Codex critique exchange as the single
-  // riskiest spot in this generalization).
+  // Every PaletteMode except "full" is a ThreadBrand, so test `=== "full"`, never a specific brand (D92).
   if (options.paletteMode === undefined || options.paletteMode === "full") {
     options.onProgress?.(1);
     return pattern;
   }
   const brand: ThreadBrand = options.paletteMode;
 
-  // G-020 M5 (HANDOVER.md D56): re-run the fine local-optimizer pass
-  // against the newly-snapped, fixed brand palette -- only reachable here,
-  // not from `applyBrandPalette` called standalone, since this is the only
-  // place `cells`/`importance`/`pairEvidence` are still in scope. No
-  // effect when `optimize` is false (matches every other optimizer-only
-  // pass in this pipeline).
-  //
-  // G-024 M4.8 (HANDOVER.md D71): `evidenceLayer` is threaded through
-  // unconditionally, not nested inside the `shouldOptimize` branch --
-  // crisp-aware snap repair applies even when `optimize: false` skips ICM
-  // entirely.
+  // Re-run the fine ICM pass against the snapped thread palette when optimizing (D56); crisp repair applies either
+  // way (D71).
   const brandPattern = shouldOptimize
     ? applyBrandPalette(
         pattern,

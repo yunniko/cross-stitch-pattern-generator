@@ -1,14 +1,7 @@
-// Shared by the live UI size readout (app/page.tsx) and the downloaded
-// chart's header (render.ts) so the two estimates can't drift apart.
+// Shared by the live size readout and the exported chart header, so the two estimates can't drift apart.
 
-// The four counts consistently named as the standard, widely-available
-// Aida range across independent guides (LoveCrafts, Stitched Modern,
-// needlework-tips-and-techniques.com, crossstitchcalc.com, retrieved
-// 2026-09-09) -- 14-count is the one "most patterns assume," 11-count the
-// beginner-friendly open weave, 16/18-count progressively finer detail.
-// Deliberately excludes specialty counts like 28-count "over 2" evenweave,
-// which isn't a plain stitches-per-inch fabric in the same sense and would
-// need its own "over 1 vs over 2" model this app doesn't have.
+// The standard, widely available Aida counts across independent guides (retrieved 2026-09-09). Specialty "over 2"
+// evenweave is excluded: it isn't a plain stitches-per-inch fabric in this model.
 export const STANDARD_AIDA_COUNTS = [11, 14, 16, 18] as const;
 export type AidaCount = (typeof STANDARD_AIDA_COUNTS)[number];
 export const DEFAULT_AIDA_COUNT: AidaCount = 14;

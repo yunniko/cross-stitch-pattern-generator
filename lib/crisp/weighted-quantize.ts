@@ -5,30 +5,10 @@ import { REINVEST_MERGE_THRESHOLD, WORST_FIT_IMPORTANCE_BOOST } from "../pipelin
 import type { RGB } from "../types";
 
 /**
- * G-024 M3 (HANDOVER.md D60): weighted k-means, generalizing `quantize.ts`'s
- * unweighted core so Crisp mode's palette training can see a confident
- * boundary cell's two real source-side colors instead of its single
- * manufactured average (design report Section 5: "Palette construction must
- * see the source-side colors").
- *
- * Kept as a separate module/interface from `ColorQuantizer` rather than a
- * modification to it (Codex critique, G-024 M3 planning) -- `quantize.ts`'s
- * `plainKMeansQuantizer`/`kMeansQuantizer` remain byte-for-byte the exact
- * "Standard" path, untouched. This module's natural output is one label per
- * SAMPLE, not one per grid cell, since a confident boundary cell contributes
- * two samples that may legitimately land on two different palette labels --
- * forcing that back into a one-label-per-cell shape would throw away exactly
- * the information M4's admissible-label-set construction needs.
- *
- * **Verified Standard-compatibility, not just claimed:** feeding this module
- * one weight-1 sample per cell (reproducing today's unweighted training
- * exactly) produces byte-identical output to `plainKMeansQuantizer` --
- * `weighted-quantize.spec.ts`'s dedicated equivalence tests confirm this
- * across several fixtures/colorCounts, not just "mathematically it should
- * reduce to the same thing" (a critique-flagged risk: the RNG consumption
- * pattern, not just the resulting math, has to match exactly for the
- * `mulberry32(0xc0ffee ^ n ^ k)` seed derivation to produce the same
- * sequence of draws).
+ * Weighted k-means for Crisp mode (G-024, D60): palette training sees a confident boundary cell's two source-side
+ * colors instead of its manufactured average. Separate from `ColorQuantizer` so the Standard path stays untouched, and
+ * labels are per SAMPLE, since a crisp cell's two samples may land on different labels. With one weight-1 sample per
+ * cell it is byte-identical to `quantize.ts`, RNG consumption included (weighted-quantize.spec.ts).
  */
 
 export interface WeightedColorSample {
@@ -65,18 +45,9 @@ const MAX_ITERATIONS = 30;
 const CONVERGENCE_THRESHOLD_SQ = 0.0001;
 
 /**
- * Weighted k-means++ seeding. Both the first draw AND the subsequent
- * distance-weighted draws use `weight` as an observation-mass multiplier
- * (Codex critique, G-024 M3 planning: an earlier sketch of this design only
- * weighted the later draws, leaving the first seed's pick uniform over
- * records regardless of weight -- a real bias scikit-learn's own weighted
- * k-means++ avoids by weighting both). For the all-weight-1 case this
- * produces the EXACT same index for the EXACT same `rng()` draw as
- * `quantize.ts`'s unweighted `kMeansPlusPlusSeeds` (verified: for uniform
- * weight w=1, cumulative-threshold selection over `rng()*n` and
- * `Math.floor(rng()*n)` select the same index, consuming exactly one
- * `rng()` call per draw either way) -- the Standard-compatibility
- * invariant this module depends on.
+ * Weighted k-means++ seeding: the first draw and every later draw use `weight` as observation mass (weighting only the
+ * later draws biases the first seed). With all weights 1 it picks the same index for the same `rng()` draw as the
+ * unweighted seeding, one draw each -- the Standard-compatibility invariant.
  */
 function weightedKMeansPlusPlusSeeds(samples: WeightedColorSample[], k: number, rng: () => number): Oklab[] {
   const totalWeight = samples.reduce((sum, s) => sum + s.weight, 0);
@@ -138,16 +109,9 @@ function assignToNearestCentroid(samples: WeightedColorSample[], centroids: Okla
 }
 
 /**
- * Weighted Lloyd's-algorithm refinement: the centroid-update step becomes a
- * weighted mean (`sum(weight*color)/sum(weight)`), the correct generalization
- * for minimizing `sum_i weight_i * ||sample_i - centroid||^2` -- each mode
- * independently attracted to its own nearest centroid (Codex critique: this
- * is the crucial difference from Section 6's blend-scoring trap, which
- * scores ONE candidate against a WEIGHTED AVERAGE of both modes; training
- * instead lets each mode be its own point, free to pull a different
- * centroid). Carries forward the same trailing re-assignment invariant as
- * `quantize.ts`'s `runLloyd` (D42/G-022 M1): the returned `assignments` must
- * reflect the *final* converged centroids, not the previous iteration's.
+ * Weighted Lloyd refinement: the update is the weighted mean, which minimizes `Σ weight·‖sample − centroid‖²`, and each
+ * mode is its own point free to pull a different centroid (unlike blend scoring). Keeps `runLloyd`'s trailing
+ * re-assignment against the final centroids (D42).
  */
 export function runWeightedLloyd(samples: WeightedColorSample[], initialCentroids: Oklab[]): { centroids: Oklab[]; assignments: Uint8Array } {
   let centroids = initialCentroids;
@@ -207,15 +171,8 @@ function buildWeightedPalette(centroids: Oklab[], assignments: Uint8Array, sampl
  */
 export function weightedQuantize(samples: WeightedColorSample[], colorCount: number): WeightedQuantizeResult {
   const k = Math.max(1, Math.min(colorCount, samples.length));
-  // Seeded by DISTINCT CELL COUNT, not raw sample-record count: splitting
-  // one cell's evidence into two coverage-weighted records (vs. one) must
-  // not perturb the RNG seed for every OTHER cell's own quantization run --
-  // otherwise "does this cell need to be Crisp" would silently reshuffle
-  // unrelated palette training elsewhere in the image. For the unweighted
-  // one-sample-per-cell case this equals `samples.length` exactly, so it's
-  // also exactly `quantize.ts`'s own `cellCount ^ k` seed -- the Standard-
-  // compatibility invariant this module depends on (verified directly in
-  // `weighted-quantize.spec.ts`).
+  // Seeded by distinct CELL count, not sample count, so splitting one cell into two samples doesn't reshuffle training
+  // everywhere else; with one sample per cell it equals quantize.ts's `cellCount ^ k` seed.
   const distinctCellCount = new Set(samples.map((s) => s.cellIndex)).size;
   const rng = mulberry32(0xc0ffee ^ distinctCellCount ^ k);
   const seeds = weightedKMeansPlusPlusSeeds(samples, k, rng);
@@ -224,21 +181,9 @@ export function weightedQuantize(samples: WeightedColorSample[], colorCount: num
 }
 
 /**
- * Cell-first reinvestment (Codex critique, G-024 M3 planning): ranks and
- * splits by whichever grid CELL is currently worst-served overall --
- * `(1 + gamma*importance) * sum_of_that_cells_samples(weight * squaredError)`
- * -- then injects specifically the sample (mode) within that cell with the
- * largest `weight * squaredError` as the new centroid seed. This is a
- * deliberate choice among three defensible policies (see HANDOVER.md D60):
- * ranking by the worst INDIVIDUAL sample instead would let a tiny-coverage
- * sliver of a split cell win a slot on the strength of a large per-sample
- * error alone, even though its actual contribution to total error is small
- * -- "coverage blindness" the critique specifically flagged. Cell-first
- * preserves `quantize.ts`'s own established unit of priority (a whole grid
- * cell, per D18/D39's reinvestment-preserves-rare-content rationale) and
- * reduces EXACTLY to today's `injectWorstFitClusters` ranking when every
- * cell contributes exactly one weight-1 sample (single-sample cells: the
- * sum-over-samples collapses to that one sample's own error).
+ * Cell-first reinvestment (D60): ranks cells by `(1 + boost·importance) · Σ weight·error` over their samples and seeds
+ * the new centroid from that cell's worst sample. Ranking single samples instead would let a tiny-coverage sliver win a
+ * slot on per-sample error alone. With one weight-1 sample per cell it reduces exactly to `injectWorstFitClusters`.
  */
 export function weightedInjectWorstFitClusters(
   samples: WeightedColorSample[],
@@ -304,21 +249,9 @@ export function weightedInjectWorstFitClusters(
 }
 
 /**
- * The weighted analogue of `quantize.ts`'s `kMeansQuantizer` ("Latest"):
- * plain weighted k-means, then merge redundant colors (`mergeSimilarColors`,
- * reusing the exact same `REINVEST_MERGE_THRESHOLD` -- one shared tuned
- * constant, not a second independently-chosen one), then reinvest each
- * freed slot via cell-first `weightedInjectWorstFitClusters`, then
- * re-converge. Reduces to exactly `kMeansQuantizer`'s own behavior when
- * `samples` is one weight-1 sample per cell (verified directly in
- * `weighted-quantize.spec.ts`, not assumed).
- *
- * `importance` (0-1 per grid cell; an all-zero function reproduces the
- * unweighted, importance-blind ranking exactly) mirrors `quantize.ts`'s own
- * `injectWorstFitClusters` parameter -- see that function's docstring for
- * the full rationale (D39/G-020 M3): it biases reinvestment toward cells the
- * rest of the pipeline already treats as real content, without letting
- * importance manufacture priority for an already-good fit.
+ * The weighted "Latest": weighted k-means, merge at the shared `REINVEST_MERGE_THRESHOLD`, cell-first reinvestment of
+ * freed slots, re-converge. `importance` works as in `injectWorstFitClusters` (D39). With one weight-1 sample per cell
+ * it reproduces `kMeansQuantizer` exactly (weighted-quantize.spec.ts).
  */
 export function weightedKMeansQuantize(
   samples: WeightedColorSample[],

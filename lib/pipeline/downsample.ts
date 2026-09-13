@@ -6,18 +6,7 @@ export interface GridDimensions {
   height: number;
 }
 
-/**
- * Grid dimensions for a source image, given the stitch count on its longer
- * side. Rounds `longerSideStitches` itself, not just the derived shorter
- * side -- a non-integer value (the UI's own number input accepts decimals
- * like 10.5, and this is a public function other callers could reach too)
- * used to flow straight through as the primary dimension, reaching typed-
- * array allocations downstream that throw `RangeError: Invalid array
- * length` for a non-integer length, surfacing to the user as a misleading
- * "Couldn't generate a pattern from that image" (code-review 2026-09-09,
- * finding 8). The UI also validates this before ever calling here; this is
- * the pipeline's own defense, not the only one.
- */
+/** Grid size for a source image given the longer side's stitch count, rounded so a fractional input can't reach a typed-array allocation (code review 2026-09-09, finding 8). */
 export function gridDimensionsFor(
   sourceWidth: number,
   sourceHeight: number,
@@ -33,39 +22,11 @@ export function gridDimensionsFor(
 }
 
 /**
- * Box-downsamples image pixel data to a `width x height` grid, one averaged
- * RGB color per cell, using true area-weighted averaging: each destination
- * cell's exact source-space rectangle is computed, and every source pixel it
- * overlaps contributes proportionally to its fractional area overlap (the
- * standard box-filter resampling algorithm), not just whichever single cell
- * its center happens to fall in.
- *
- * The earlier version assigned each *source* pixel wholly to one destination
- * cell via `floor(x * gridWidth / srcWidth)` -- correct only at integral
- * scale ratios. At any other ratio it introduced real spatial bias: a
- * symmetric 3-pixel black/white/black stripe downsampled to 2 cells came out
- * gray-188 then black-0, when the true area-weighted average is gray-156 in
- * both cells (verified by hand and by `tests/unit/downsample.spec.ts`).
- * Averaging still happens in *linear* light, not gamma-encoded sRGB —
- * averaging encoded values shifts the result away from the true mean
- * radiance (a 50/50 black/white split should average to sRGB ~188, not
- * ~128) and is worst exactly on the fine high-contrast detail a downsample
- * hits constantly (HANDOVER.md D7, citing the standard gamma-correctness
- * rule); this alone removes most single-pixel outliers before quantization
- * ever sees them -- a real lever against "confetti," though not the only one
- * needed (stitch-level confetti from cells straddling a cluster boundary is
- * handled separately, by the local optimizer in `pattern.ts`).
- *
- * This same rectangle-overlap approach handles upscaling too (a destination
- * cell smaller than one source pixel, when the source photo is smaller than
- * the requested stitch count) with no separate code path: every cell's
- * rectangle always overlaps at least one real source pixel for opaque
- * content, so the earlier nearest-neighbor gap-filling fallback (needed
- * only because center-point binning could skip cells entirely on upscale)
- * is no longer reachable and has been removed. A destination cell only
- * falls back to white when its *entire* overlapped source region is fully
- * transparent -- a direct, more correct generalization of the old single-
- * point transparency check (code-review 2026-09-09, finding 2).
+ * Area-weighted box downsample to one averaged RGB per cell: every source pixel contributes by its exact fractional
+ * overlap with the cell's rectangle, so non-integral ratios carry no spatial bias and upscaling needs no separate path
+ * (code review 2026-09-09, finding 2). Averaging is alpha-weighted, so transparent pixels don't pull colors toward
+ * black, and happens in linear light: a 50/50 black/white split averages to sRGB ~188, not ~128 (D7). A cell whose
+ * whole footprint is transparent becomes white.
  */
 export function downsampleToGrid(imageData: PixelBuffer, gridWidth: number, gridHeight: number): CellColorBuffer {
   const { width: srcW, height: srcH, data } = imageData;
@@ -96,7 +57,6 @@ export function downsampleToGrid(imageData: PixelBuffer, gridWidth: number, grid
           if (xWeight <= 0) continue;
           const pixelIndex = (y * srcW + x) * 4;
           const alpha = data[pixelIndex + 3] / 255;
-          // Alpha-weighted so transparent pixels don't drag colors toward black.
           const weight = xWeight * yWeight * alpha;
           sumR += srgbToLinear(data[pixelIndex]) * weight;
           sumG += srgbToLinear(data[pixelIndex + 1]) * weight;

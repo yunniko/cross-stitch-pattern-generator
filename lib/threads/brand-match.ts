@@ -7,11 +7,7 @@ import { formatThreadName, THREAD_BRANDS, type ThreadBrand, type ThreadColor } f
 import type { PipelineContext } from "../pipeline/pipeline-context";
 import type { PaletteColor, RGB, StitchPattern } from "../types";
 
-// Precomputed lazily per brand, then cached -- each brand's list is fixed
-// (~hundreds of entries, trivial either way), so there's no reason to
-// re-derive OKLab for the same reference list on every call. Generalized
-// from a single `DMC_OKLAB` module-level constant (G-029 M1, HANDOVER.md
-// D92) now that more than one brand's color list can be matched against.
+// Each brand's OKLab table, built once on first use.
 const oklabCache = new Map<ThreadBrand, readonly { color: ThreadColor; oklab: Oklab }[]>();
 function oklabFor(brand: ThreadBrand): readonly { color: ThreadColor; oklab: Oklab }[] {
   let cached = oklabCache.get(brand);
@@ -22,16 +18,7 @@ function oklabFor(brand: ThreadBrand): readonly { color: ThreadColor; oklab: Okl
   return cached;
 }
 
-/**
- * The closest real thread color from `brand`'s line to `rgb`, by squared
- * OKLab distance -- the same perceptual metric every other assignment/
- * distance decision in this pipeline already uses (HANDOVER.md D6/D7), not
- * a linear-RGB nearest match. Only valid for a brand whose `matching` is
- * `"direct"` (DMC today; Cosmo once it lands) -- a `"dmc-equivalence"`
- * brand (Anchor, landing in G-029 M3) needs a structurally different two-
- * step lookup, not a direct nearest-match against its own "colors" list
- * (HANDOVER.md D92's Codex critique exchange).
- */
+/** The nearest thread in `brand`'s own list by squared OKLab distance. Only valid for a "direct" brand; Anchor goes through DMC (D92). */
 export function nearestColorInBrand(rgb: RGB, brand: ThreadBrand): ThreadColor {
   const target = rgbToOklab(rgb);
   const entries = oklabFor(brand);
@@ -55,65 +42,14 @@ export interface BrandReoptimizeContext {
 }
 
 /**
- * The thread-brand palette mode (G-013's DMC mode, generalized to any
- * brand in G-029 M1, HANDOVER.md D92): snaps every color in an already-
- * fully-generated pattern to its nearest real thread color from `brand`'s
- * line, merging any two clusters that land on the same thread code.
- * Applied as a pure post-process on a finished `StitchPattern` (same
- * k-means/ICM/contour-cleanup pipeline "Latest" mode already uses for
- * spatial quality) rather than a different clustering algorithm -- the
- * brand is a constraint on which colors the final palette may use, not a
- * different way of choosing where color boundaries fall. Merging is
- * expected, not a bug: a real thread line is coarser than a free-form
- * k-means palette (up to MAX_COLORS), so some of the generator's finer
- * distinctions collapse onto the same real thread -- which is the whole
- * point (fewer, actually-buyable colors). Also sets the returned
- * pattern's `threadBrand` field (G-016, renamed from `dmcMode` in G-029
- * M1) so downstream code (A4 export, the "+ Add" color picker) can tell a
- * brand-matched pattern apart reliably, without re-parsing color names or
- * depending on the UI's own transient mode selector.
+ * Snaps a finished pattern's palette to real threads from `brand` (G-013, generalized in D92), merging clusters that
+ * land on the same thread code -- expected, since a thread line is coarser than a free palette. "direct" brands match
+ * their own colors; "dmc-equivalence" brands (Anchor) match the nearest real DMC thread and take its documented
+ * equivalent code. Sets `threadBrand` on the result.
  *
- * Branches on `brand`'s `matching` (`lib/thread-brands.ts`): `"direct"`
- * (DMC, Cosmo) nearest-matches straight against that brand's own `colors`;
- * `"dmc-equivalence"` (Anchor, G-029 M3, HANDOVER.md D92/D94) always
- * matches the nearest REAL DMC thread first, then relabels via the
- * documented DMC-code -> Anchor-code map -- never a direct nearest-match
- * against Anchor's own (deduplicated-approximation) `colors` list, which
- * exists only for the UI picker (docs/anchor-colors-provenance.md).
- *
- * **Optional re-optimization (G-020 M5, HANDOVER.md D56).** Snapping can
- * shift how far each cell now sits from *its own* assigned color: the
- * original ICM pass balanced smoothness against color error using the
- * pre-snap continuous palette, which is a different set of distances than
- * the coarser real-thread palette actually shipped in the chart. When
- * `reoptimize` is given (only `buildPattern` itself has the `cells`/
- * `importance`/`pairEvidence` context needed, since a `StitchPattern`
- * alone doesn't retain them -- see `pattern.ts`'s own `paletteMode`
- * wiring), this re-runs the fine local-optimizer pass against the new,
- * fixed brand palette before finalizing the legend, then re-drops any
- * group ICM reassigned every cell away from (the same "never leave a
- * zero-count legend entry" rule `pattern.ts` already enforces elsewhere).
- * Omitting `reoptimize` reproduces exactly today's behavior -- every
- * existing direct test of this function is unaffected.
- *
- * `crispEvidenceLayer` (optional, G-024 M4.8, HANDOVER.md D71): the unary
- * cost formula is already palette-agnostic (`buildAdmissibleLabelCosts`
- * takes any `paletteOklab`), so this needs orchestration, not a new
- * objective. Mode-to-label mappings are rebuilt AFTER thread
- * deduplication (against `groups`' own thread colors, the FINAL fixed
- * palette this function ships), never against the pre-snap continuous
- * palette. Works even when `reoptimize` is omitted (`optimize: false`
- * skips ICM entirely, but a confident cell's mechanical snap remap still
- * needs the same admissibility repair `repairCrispAssignments` (M4.6)
- * already provides elsewhere) -- crisp-aware handling here is not nested
- * inside the `reoptimize`-only branch. If `reoptimize` IS given, the same
- * evidence layer is also threaded into its `runLocalOptimizer` call
- * (M4.4's existing integration), so the re-optimization pass respects
- * admissibility too. A brand's own RGB values are always fixed reference
- * colors, never recomputed the way `finalizeCrispPalette` (M4.7)
- * recomputes continuous colors -- only assignment repair applies here.
- * See `countCrispThreadCollisions` below for the explicit diagnostic the
- * report calls for when two modes collapse onto the same thread.
+ * With `reoptimize`, the fine ICM pass re-runs against the fixed thread palette, since snapping changes every cell's
+ * color error, and threads emptied by that pass are dropped (D56). With `crispEvidenceLayer`, confident cells are
+ * repaired against the thread palette whether or not `reoptimize` is given (D71).
  */
 export function applyBrandPalette(
   pattern: StitchPattern,
@@ -124,17 +60,11 @@ export function applyBrandPalette(
   if (pattern.palette.length === 0) return pattern;
 
   const brandInfo = THREAD_BRANDS[brand];
+  // "dmc-equivalence": the nearest REAL DMC thread (and its RGB), relabeled with that code's documented equivalent.
   const threadByOldIndex: ThreadColor[] =
     brandInfo.matching === "direct"
       ? pattern.palette.map((color) => nearestColorInBrand(color.rgb, brand))
-      : // "dmc-equivalence" (Anchor, G-029 M3): always match the nearest REAL
-        // DMC thread first (using its real, correct RGB), then relabel with
-        // that DMC code's documented equivalent in this brand -- never a
-        // direct nearest-match against `brandInfo.colors`, which is only a
-        // deduplicated approximation for the UI picker (see
-        // docs/anchor-colors-provenance.md). This is what "matched via its
-        // nearest DMC thread, not independently measured" actually means.
-        pattern.palette.map((color) => {
+      : pattern.palette.map((color) => {
           const nearestDmc = nearestColorInBrand(color.rgb, "dmc");
           const equivalentCode = brandInfo.dmcEquivalence![nearestDmc.code];
           return { code: equivalentCode, name: "", rgb: nearestDmc.rgb };
@@ -172,10 +102,7 @@ export function applyBrandPalette(
       reoptimize.weights ?? DEFAULT_LOCAL_OPTIMIZER_WEIGHTS
     );
 
-    // Re-optimization can empty out a thread group entirely (every one of
-    // its cells reassigned elsewhere) -- compact those away now, the same
-    // "never leave a zero-count legend entry" rule `pattern.ts` already
-    // enforces after its own structural passes.
+    // Drop thread groups the re-optimization emptied: never a zero-count legend row.
     const newCounts = new Array(groups.length).fill(0);
     for (const g of reoptimized) newCounts[g]++;
     const usedIndices = groups.map((_, i) => i).filter((i) => newCounts[i] > 0);
@@ -190,7 +117,7 @@ export function applyBrandPalette(
     assignment = compactedAssignment;
   }
 
-  // Dark-to-light, matching every other mode's own legend convention.
+  // Dark-to-light, matching every other mode's legend.
   const order = groups
     .map((group, mergedIndex) => ({ ...group, mergedIndex }))
     .sort((a, b) => luminance(a.thread.rgb) - luminance(b.thread.rgb));
@@ -204,8 +131,6 @@ export function applyBrandPalette(
     index: finalIndex,
     rgb: entry.thread.rgb,
     symbol: symbols[finalIndex],
-    // Owner-specified format (2026-09-10): "XXX - name" (falls back to
-    // just the code for a brand with no descriptive names, e.g. Cosmo).
     name: formatThreadName(entry.thread),
     count: entry.count,
   }));
@@ -219,21 +144,8 @@ export function applyBrandPalette(
 }
 
 /**
- * G-024 M4.8 (HANDOVER.md D71): the explicit diagnostic the report calls
- * for when independent nearest-thread snapping collapses two modes onto
- * the SAME real thread -- e.g. a confident cell whose two continuous-
- * palette labels were genuinely distinct both happen to be closest to one
- * real thread color. `buildAdmissibleLabelCosts` already handles this
- * correctly by construction (keeps the minimum-cost supporting mode,
- * never invents a combined-coverage bonus or admits an unrelated label),
- * so no separate mechanism is needed for correctness -- this function
- * exists purely to SURFACE how often it happens, since a collapsed cell's
- * boundary is no longer representable as two distinct thread colors at
- * this palette. Not a claim that a different thread-allocation policy
- * couldn't do better (the critique's own point: independent nearest-
- * thread snapping can collide even when a distinct second-choice thread
- * would fit within budget) -- that's a deliberately separate, un-built
- * decision, out of this milestone's scope.
+ * Counts confident cells whose two modes collapse onto one thread (D71). `buildAdmissibleLabelCosts` already handles
+ * that case correctly; this only surfaces how often a boundary can no longer be two distinct threads.
  */
 export function countCrispThreadCollisions(evidenceLayer: CrispEvidenceLayer, threadPaletteOklab: Oklab[], weights?: CrispUnaryCostWeights): number {
   let collisions = 0;

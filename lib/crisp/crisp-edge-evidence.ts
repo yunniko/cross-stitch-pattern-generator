@@ -2,27 +2,9 @@ import { oklabDistanceSquared, rgbToOklab, type Oklab } from "../color/color";
 import type { PixelBuffer } from "../types";
 
 /**
- * G-024 M2 (HANDOVER.md D57/D58): the source-side boundary-evidence
- * extractor -- a standalone prototype, NOT wired into `buildPattern` yet
- * (that's M4's job, once M3's weighted-palette-training side exists too).
- * Implements the design report's Section 3 (data representation) and
- * Section 4 (conservative hard-boundary detection): for each cell, fit a
- * deterministic two-color ("mode") description from a small SOURCE
- * neighborhood around it (not just the cell's own footprint -- "neighboring
- * source context helps estimate the two region colors when the boundary
- * crosses near a cell edge," Section 4), then decide, via an explicit
- * confidence score, whether that neighborhood shows a genuine two-region
- * hard boundary rather than a smooth gradient or noise.
- *
- * **Not yet the report's own bounded-typed-array storage layout.** This
- * prototype returns one object per queried cell for testability and
- * calibration; M4's actual pipeline wiring will need the compact,
- * allocation-free storage the report calls for ("bounded typed-array
- * storage... source samples can be processed and discarded"). Isolating
- * the algorithm from its eventual storage layout first, and validating it
- * broadly, is deliberate -- consistent with this project's own D18
- * lesson (an attractive-looking mechanism validated on one example alone
- * has repeatedly turned out to need real correction once tested broadly).
+ * Source-side boundary evidence for Crisp mode (G-024, D57/D58): for one cell, fits a deterministic two-color model to
+ * a small source neighborhood around it and scores confidence that it shows a genuine two-region hard boundary rather
+ * than a smooth gradient or noise (design report Sections 3 and 4). Called only for pre-filtered candidate cells.
  */
 
 export interface BoundaryEvidence {
@@ -45,24 +27,9 @@ export interface BoundaryEvidence {
    */
   boundaryDirection: [number, number] | null;
   /**
-   * [0,1]: how much better a two-constant-color STEP model explains the
-   * samples (projected onto `boundaryDirection`) than a smooth AFFINE
-   * (linear ramp) model does, relative to how well the affine model
-   * explains them. Added for G-024 M4.1 (HANDOVER.md D64) to close a real,
-   * structural gap in `colorConfidence`/`spatialConfidence` alone: for a
-   * sufficiently steep smooth gradient, k-means' own 2-cluster split
-   * inevitably makes color separation look large relative to within-mode
-   * spread (that's what Lloyd's objective optimizes for on any uniform
-   * continuum), and the two halves ARE genuinely spatially separated too
-   * -- so neither existing factor can tell "one continuous ramp, locally
-   * split into 2 clusters" from "two flat regions with a sharp transition"
-   * (HANDOVER.md D59/D63). A real step's samples fit the STEP model far
-   * better than an AFFINE line (which can't represent a discontinuity
-   * without large residual right at the jump); a ramp's samples fit the
-   * AFFINE model far better than a forced 2-level STEP approximation.
-   * 1 when only one mode was found (no ambiguity to resolve) or when the
-   * two centroids coincide (already excluded via `spatialSeparation`/
-   * `spatialConfidence` regardless).
+   * [0,1]: how much better a two-color STEP model along `boundaryDirection` explains the samples than an AFFINE ramp
+   * does. Color separation and spatial separation alone can't tell a steep smooth gradient from a real step (D59, D63,
+   * D64). 1 when only one mode was found.
    */
   edgeSharpness: number;
   /** Combined [0,1] confidence that this cell's neighborhood shows a genuine two-region hard boundary. 0 when only one mode was found. */
@@ -109,32 +76,9 @@ function overlap(a0: number, a1: number, b0: number, b1: number): number {
 }
 
 /**
- * Collects alpha-weighted, fractional-coverage-weighted source samples for
- * a cell's expanded neighborhood, using the *exact same* per-pixel weight
- * formula as `downsampleToGrid` (the report's own explicit instruction --
- * Section 3: "Use the same exact fractional source footprints and alpha
- * weighting as `downsampleToGrid`"). Verified directly against `lib/
- * downsample.ts`'s own inner loop, not assumed to match from memory.
- *
- * **Bug found and fixed during G-024 M3 planning (HANDOVER.md D59, via a
- * Codex design critique that read this file directly rather than trusting
- * it from the M2 summary):** `cellWeight` must be each pixel's own
- * fractional overlap with the CELL's bounds specifically, computed the
- * same way `weight` is computed against the neighborhood's bounds -- NOT
- * a binary "does this pixel's CENTER fall inside the cell" test gating the
- * neighborhood-relative `weight` (the original, buggy version). That
- * binary version silently corrupted `coverage` for any pixel straddling a
- * cell boundary -- i.e. for the exact boundary cells this whole module
- * exists to describe correctly -- by either dropping a real partial
- * overlap to zero (center just outside) or inflating it to the pixel's
- * full neighborhood-relative weight (center just inside), rather than the
- * true fractional cell-overlap in between. Reproduced directly before
- * fixing: a 5-pixel-wide source (black at x<2) downsampled to 2 columns
- * has a true 80%/20% black/white coverage split for cell 0 (its footprint
- * is source x in [0, 2.5), so the white pixel at [2,3) contributes exactly
- * half its weight) -- the buggy version returned 100%/0% because that
- * pixel's center (x=2.5) landed exactly on the cell boundary and failed
- * the binary test, discarding its real partial contribution entirely.
+ * Alpha- and fractional-coverage-weighted source samples for a cell's expanded neighborhood, using exactly
+ * `downsampleToGrid`'s per-pixel weights. `cellWeight` is each pixel's own fractional overlap with the cell's bounds,
+ * computed like `weight`; a binary pixel-center test corrupted coverage at exactly the boundary cells (D59).
  */
 function collectWeightedSamples(
   source: PixelBuffer,

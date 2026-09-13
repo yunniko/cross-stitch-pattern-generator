@@ -28,20 +28,9 @@ function withCounts(pattern: StitchPattern, cellPalette: Uint8Array, palette: Pa
 }
 
 /**
- * Merges `sourceIndex` into `targetIndex`: every stitch that had the source
- * color now has the target color, and the source color disappears from the
- * palette entirely (not just zeroed out — this is a deliberate, permanent
- * merge the user asked for, unlike the generation-time near-duplicate
- * dedup in `palette-optimizer.ts`, which only merges colors *close enough*
- * to be near-indistinguishable; here any two colors can be merged
- * regardless of distance, since it's an explicit user action).
- *
- * `targetIndex` may also be `EMPTY_CELL` (Owner request, 2026-09-12):
- * merging a color "into empty" turns its stitches into empty (no-stitch)
- * cells and still removes it from the palette -- no special-casing needed
- * here, since `EMPTY_CELL` already sits far outside the real palette's
- * index range and the remap step below already treats it as a sentinel to
- * pass through untouched.
+ * Merges `sourceIndex` into `targetIndex` at any distance -- an explicit user action, unlike the generation-time
+ * near-duplicate merge -- and removes the source from the palette. `targetIndex` may be `EMPTY_CELL`, which turns the
+ * source's stitches into empty cells (Owner request, 2026-09-12).
  */
 export function mergeColors(pattern: StitchPattern, sourceIndex: number, targetIndex: number): StitchPattern {
   if (sourceIndex === targetIndex) return pattern;
@@ -119,17 +108,9 @@ export function withCellPalette(pattern: StitchPattern, cellPalette: Uint8Array)
 }
 
 /**
- * The Move tool (G-012): repositions the grid's stitch content by
- * `(dx, dy)` whole stitch cells within the *same* fixed canvas size, and
- * moves the photo underlay's stored alignment offset by the identical
- * amount so the two stay locked together. A cyclic (wrap-around) shift,
- * not a fill-with-empty one -- deliberately chosen over needing an
- * "empty cell" concept that doesn't exist until G-012's own M5, and
- * because wrapping never destroys already-stitched content (a user who
- * doesn't want the wrapped-around part can crop it away once M4's canvas
- * resize exists). Every color's stitch count is unaffected by relocating
- * cells, so — unlike every other edit in this file — this deliberately
- * does *not* go through `withCounts`.
+ * The Move tool (G-012): shifts the stitches by whole cells within the same canvas and moves the photo offset by the
+ * same amount. The shift wraps around, so no stitched content is ever destroyed; counts don't change, so it skips
+ * `withCounts`.
  */
 export function shiftPattern(pattern: StitchPattern, dx: number, dy: number): StitchPattern {
   const { width, height, cellPalette, sourceImage } = pattern;
