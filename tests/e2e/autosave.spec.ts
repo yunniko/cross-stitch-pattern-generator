@@ -112,10 +112,12 @@ test("a corrupt autosave starts a fresh session with a banner and an on-demand e
   const downloads: string[] = [];
   page.on("download", (d) => downloads.push(d.suggestedFilename()));
 
-  await page.goto("/");
+  // Seed from a same-origin page that doesn't mount the workspace: on "/" the page's own restore could read the corrupt
+  // record first, clear it and show the banner there, leaving nothing for the load under test.
+  await page.goto("/e2e-seed-without-workspace");
   await seedProjectRecord(page, { storeVersion: 1, width: 2, height: 2, cellPalette: [0, 9, 0, 0], palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }] });
 
-  await page.reload();
+  await page.goto("/");
   const banner = page.getByTestId("restore-failure");
   await expect(banner).toContainText("couldn't be restored");
   await expect(page.getByRole("main").locator("canvas")).not.toBeVisible();

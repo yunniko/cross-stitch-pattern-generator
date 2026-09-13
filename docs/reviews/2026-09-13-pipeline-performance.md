@@ -1,11 +1,11 @@
 # Pipeline performance before and after G-031 M3 — 2026-09-13
 
-Measured with `npm run bench` (`scripts/bench.ts`, D103) on the Owner's
+Measured with `npm run bench` (`scripts/bench.ts`, D105) on the Owner's
 Windows machine, Node 22.20.0, one run per row. Both columns use the same
 photo-like synthetic sources (`tests/unit/helpers/fixtures.ts`): four broad
 regions, a diagonal shading ramp, a small bright disc, and per-pixel noise
 of amplitude 40. "Before" is commit `8f0b78f`, "after" is commit `9b8f692`.
-Generation output is byte-identical between the two (D105): the golden
+Generation output is byte-identical between the two (D107): the golden
 hashes recorded from `8f0b78f` pass unchanged on `9b8f692`.
 
 This fixture is noisier than the review's. The 2026-09-12 review measured
@@ -65,7 +65,7 @@ The G-031 acceptance target is Standard at 1000 stitches / 64 colors under
   skipping its own matches, every other label reuses the full sum. Per cell
   this is O(8 + k) instead of O(8k), with the neighbor object array gone.
 - **Shared cell OKLab (E2, A3).** One interleaved Float64 conversion in
-  `PipelineContext` replaces nine per-stage tuple conversions (D104).
+  `PipelineContext` replaces nine per-stage tuple conversions (D106).
 - **Pair-edge evidence (E3).** Per-pixel derivatives are cached per source
   row instead of recomputed for each overlapping window; summation order is
   unchanged, so summed-area tables were not used.

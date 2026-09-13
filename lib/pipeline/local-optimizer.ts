@@ -34,7 +34,7 @@ const MAX_PASSES = 8;
  * neighbors gets its boundary term re-summed in the same order skipping
  * matching pairs, every other label gets `total`. Both are the exact
  * floating-point sums the per-label loop used to compute, so results are
- * bit-identical at O(8 + k) per cell instead of O(8k) (review E1, D105).
+ * bit-identical at O(8 + k) per cell instead of O(8k) (review E1, D107).
  *
  * Crisp cells (present in `ctx.evidenceLayer`) search only their
  * admissible labels with the mode-aware unary cost (`alpha` = this call's

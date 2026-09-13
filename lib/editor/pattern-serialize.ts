@@ -74,7 +74,7 @@ export function deserializePattern(json: string): StitchPattern {
  * than `MAX_COLORS` would otherwise be truncated by the `Uint8Array`
  * (index 260 silently becomes 4, index 255 becomes `EMPTY_CELL`), and a
  * malformed entry would reach the renderer as `rgb(undefined, ...)` /
- * a `NaN` luminance / a "null" legend row. See D097.
+ * a `NaN` luminance / a "null" legend row. See D099.
  */
 export function deserializePatternData(data: unknown): StitchPattern {
   if (typeof data !== "object" || data === null) throw new Error("That file doesn't look like an editable pattern.");

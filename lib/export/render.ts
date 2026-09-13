@@ -228,7 +228,7 @@ export function drawChart(
  * Redraws one cell of a full-pattern chart in place (fill, symbol, and the
  * four gridline segments around it, since the fill overpaints half of
  * each) -- the incremental step a brush stroke or a dragged selection
- * takes per changed cell instead of repainting the whole canvas (D102).
+ * takes per changed cell instead of repainting the whole canvas (D104).
  * `paletteIndex` is drawn rather than read from `pattern.cellPalette`, so
  * a gesture's working buffer can be previewed without building a pattern.
  * Only valid for a chart drawn by `drawChart` with no region offset.

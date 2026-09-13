@@ -21,7 +21,7 @@ interface SaveOutcome {
  * edit doesn't lose it. The status is derived from the last completed
  * write versus the current pattern: "saving" from the moment an edit is
  * pending, "saved" only once *this* pattern is stored, "unavailable" after
- * a storage failure until the next edit retries. See D098.
+ * a storage failure until the next edit retries. See D100.
  */
 export function useProjectAutosave(pattern: StitchPattern | null, enabled: boolean, store: ProjectStore): AutosaveStatus {
   const [baseline, setBaseline] = useState<SaveOutcome | null>(null);

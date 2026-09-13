@@ -167,7 +167,7 @@ describe("workspace-storage", () => {
     });
   });
 
-  describe("legacyProjectSlot (pre-D098 localStorage project, migration only)", () => {
+  describe("legacyProjectSlot (pre-D100 localStorage project, migration only)", () => {
     it("reads and clears the old project entry", () => {
       window.localStorage.setItem(LEGACY_PROJECT_KEY, "{}");
       expect(legacyProjectSlot.read()).toBe("{}");

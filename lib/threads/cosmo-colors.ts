@@ -1,12 +1,8 @@
 // AUTO-GENERATED reference data -- see docs/cosmo-colors-provenance.md for how this was built and its license.
-import type { DmcColor } from "./dmc-colors";
+import type { ThreadColor } from "./thread-color";
 
-// Cosmo (Lecien) has no published descriptive color names, only numeric
-// codes -- every entry's `name` is deliberately an empty string rather
-// than a fabricated one (see docs/cosmo-colors-provenance.md). Downstream
-// display code (lib/thread-brands.ts's `formatThreadName`) falls back to
-// showing just the code when `name` is empty.
-export const COSMO_COLORS: readonly DmcColor[] = [
+// Cosmo (Lecien) publishes no color names, so every `name` is "" rather than invented; `formatThreadName` shows the code alone.
+export const COSMO_COLORS: readonly ThreadColor[] = [
   { code: "351", name: "", rgb: [248, 223, 216] },
   { code: "352", name: "", rgb: [249, 209, 223] },
   { code: "353", name: "", rgb: [244, 157, 199] },

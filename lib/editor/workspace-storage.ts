@@ -9,7 +9,7 @@ import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, type SizePresetId }
 // browser and best-effort: every access -- reads included, since some
 // browsers throw on the `localStorage` getter itself when site data is
 // blocked -- is wrapped so a disabled/full/unavailable store degrades to
-// "nothing persists" rather than throwing (D098). The in-progress project
+// "nothing persists" rather than throwing (D100). The in-progress project
 // itself lives in IndexedDB (lib/editor/project-store.ts); only the legacy
 // slot below remains here, for a one-time migration.
 export const OPTIONS_KEY = "cross-stitch-pattern-generator:options:v1";
@@ -34,7 +34,7 @@ export interface WorkspaceOptions {
   paletteMode: PaletteMode;
 }
 
-const DEFAULT_OPTIONS: WorkspaceOptions = {
+export const DEFAULT_OPTIONS: WorkspaceOptions = {
   aidaCount: DEFAULT_AIDA_COUNT,
   sizeUnit: DEFAULT_SIZE_UNIT,
   authorName: "",
@@ -96,7 +96,7 @@ export function saveWorkspaceOptions(options: WorkspaceOptions): void {
   }
 }
 
-/** The pre-D098 localStorage project slot, read once by `restoreProject` to migrate an earlier build's autosave into IndexedDB. Never written to. */
+/** The pre-D100 localStorage project slot, read once by `restoreProject` to migrate an earlier build's autosave into IndexedDB. Never written to. */
 export const legacyProjectSlot: LegacyProjectSlot = {
   read() {
     if (typeof window === "undefined") return null;

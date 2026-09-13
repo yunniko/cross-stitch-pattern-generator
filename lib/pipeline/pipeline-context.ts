@@ -7,7 +7,7 @@ import type { CellColorBuffer } from "../types";
  * `buildPattern` and passed to every stage instead of 5-7 positional
  * parameters with `undefined` holes (review A3). `cellOklab` is the one
  * OKLab conversion of the true cell colors (review E2: nine stages used to
- * re-derive it). See D104.
+ * re-derive it). See D106.
  */
 export interface PipelineContext {
   readonly width: number;

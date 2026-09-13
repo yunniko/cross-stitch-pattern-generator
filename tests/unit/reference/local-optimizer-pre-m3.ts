@@ -1,7 +1,7 @@
 // Test-only reference: lib/local-optimizer.ts as committed before G-031 M3
 // (commit 8f0b78f), kept verbatim so tests/unit/m3-equivalence.spec.ts can
 // prove the rewritten optimizer is bit-identical. Delete with that spec once
-// the golden hashes have covered a release. See D105.
+// the golden hashes have covered a release. See D107.
 
 import { buildCrispAdmissibleCostMap, type CrispEvidenceLayer } from "@/lib/crisp/crisp-evidence-layer";
 import { DEFAULT_CRISP_UNARY_COST_WEIGHTS } from "@/lib/crisp/crisp-unary-cost";

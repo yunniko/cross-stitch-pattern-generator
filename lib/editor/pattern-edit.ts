@@ -99,7 +99,7 @@ export function paintStitch(pattern: StitchPattern, cellIndex: number, paletteIn
 /**
  * Commits a gesture's working cell buffer (a brush stroke painted cell by
  * cell into one `Uint8Array`) as a new pattern, recounting once at the end
- * rather than per pointer event (D102). `cellPalette` must be the same
+ * rather than per pointer event (D104). `cellPalette` must be the same
  * length as the pattern's and is used as-is, not copied.
  */
 export function withCellPalette(pattern: StitchPattern, cellPalette: Uint8Array): StitchPattern {

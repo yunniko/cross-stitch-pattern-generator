@@ -1,4 +1,4 @@
-# D104 · Pipeline stages share one `PipelineContext`
+# D106 · Pipeline stages share one `PipelineContext`
 Date: 2026-09-13 · Goal: G-031 M3 · Status: active (superseded by: —)
 Context: stages took five to seven positional parameters with `undefined` holes, and nine stages each re-derived OKLab for every cell as tuple arrays (review A3, E2).
 Decision: `buildPattern` builds `lib/pipeline/pipeline-context.ts`'s context once (true cells, interleaved Float64 `cellOklab`, importance, pair evidence, crisp layer); ICM, contour cleanup, denoise, crisp finalization and brand re-optimization take it as their first argument, with per-stage options after. Denoise returns its own OKLab for the quantizer, which accepts an optional precomputed buffer.

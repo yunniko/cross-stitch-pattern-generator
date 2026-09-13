@@ -2,7 +2,7 @@
  * Pattern-load error reporting (Owner request, 2026-09-12). With no server filesystem, "save the failed version to an
  * error-report folder" means downloading the exact content that failed, next to a console.error with the same detail;
  * "load the previous version" means callers never replace the current pattern until a load succeeds. Logging and
- * downloading are separate so auto-restore can offer the download on a click instead of on page load (D099).
+ * downloading are separate so auto-restore can offer the download on a click instead of on page load (D101).
  */
 
 export type PatternLoadSource = "open-file" | "auto-restore";

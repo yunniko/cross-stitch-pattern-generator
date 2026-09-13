@@ -452,7 +452,7 @@ milestone's own result justifies continuing):
       G-024 delivery doc's benchmark placeholders from the new bench,
       update G-023's entry with the measured result and a
       recommendation (proceed / not needed).
-- [ ] **M4 — Structure (A1, A2, A4, A5, S1–S3).** Split
+- [x] **M4 — Structure (A1, A2, A4, A5, S1–S3).** Split
       `app/workspace.tsx` into hooks (`useWorkspaceOptions`, `usePanZoom`,
       `useBrushTool`, `useSelectTool`, `useMoveTool`,
       `useKeyboardShortcuts` from M2, `useExports`) and components
@@ -493,11 +493,28 @@ milestone's own result justifies continuing):
       handover's "Rules in force".
 
 **Progress log** (newest first):
-- 2026-09-13 — **M3 done.** `npm run bench` committed (D103); baseline
+- 2026-09-13 — **M4 done.** `lib/` grouped into `pipeline/`, `crisp/`,
+  `threads/`, `export/`, `editor/`, `color/`; the four test-only modules
+  moved to `lib/experimental/` with a status README (`75c91bb`). Comments
+  trimmed to invariant + reason + `See Dxx`; every `lib/` file under 30 %
+  comment lines; no "not wired" or `app/page.tsx` references (`e316f39`).
+  `app/workspace.tsx` 2,448 → 319 lines: ten hook files in `app/hooks/`, seven
+  component files in `app/components/` (D108); no `exhaustive-deps`
+  disable left in `app/`. Brand unions are type-only imports; the shared
+  thread-color shape is `ThreadColor` (`lib/threads/thread-color.ts`), and
+  `dmc-match` became `brand-match`. Decision files renumbered D099–D108
+  because `HANDOVER.md` already used D97/D98. Codex critique of the split
+  hit its usage limit after a partial answer (palette-editor state across
+  loads, resize panel resetting on re-click); both handled. One e2e race
+  fixed: the corrupt-autosave test seeds from a page without the workspace,
+  since the page's own restore could consume the record first (25/25 on
+  `--repeat-each=5`). Verified: `tsc`/eslint clean; 653/653 unit; 49/49
+  e2e unchanged on a fresh production build. Next: M5.
+- 2026-09-13 — **M3 done.** `npm run bench` committed (D105); baseline
   on `8f0b78f`: 1000 st / 64 col Standard 280.8 s (ICM 277.4 s). Shared
-  `PipelineContext` (D104); ICM O(8+k) per cell, row-cached pair-evidence
+  `PipelineContext` (D106); ICM O(8+k) per cell, row-cached pair-evidence
   derivatives, histogram percentile, k+1-nearest color naming, typed Lloyd
-  buffers, worker reuse -- all byte-identical (D105). After: Standard
+  buffers, worker reuse -- all byte-identical (D107). After: Standard
   **14.6 s** (target <30 s), Crisp 27.4 s, Standard+DMC 18.5 s; 300 st /
   24 col Standard 11.1 s → 1.7 s. Gates: 18 golden hashes recorded from
   the pre-M3 code all unchanged; old-vs-new optimizer equivalence spec
@@ -516,11 +533,11 @@ milestone's own result justifies continuing):
   Numbers: `docs/reviews/2026-09-13-pipeline-performance.md`. Next: M4.
 - 2026-09-13 — **M2 done.** B4/B5/B8: shortcuts extracted to
   `app/hooks/use-keyboard-shortcuts.ts`, reading live state through a ref
-  (D101); Space claimed only with focus on body/canvas scroller;
+  (D103); Space claimed only with focus on body/canvas scroller;
   Ctrl+Shift+Z = redo; Escape merge moved into the hook; no
   `exhaustive-deps` disable left for shortcuts. B7: brush strokes paint a
   working `Uint8Array` and redraw one cell via new `drawCell`; Move/Select
-  blit a pointer-down snapshot per event (D102). Verified: `tsc`/eslint
+  blit a pointer-down snapshot per event (D104). Verified: `tsc`/eslint
   clean; 623/623 unit (+4 `drawCell` geometry/weight tests); 49/49 e2e
   (+5 in `tests/e2e/interaction-correctness.spec.ts`; on the pre-fix build
   B4 and B8 fail and the 50-cell stroke on a 1000×625 pattern took
@@ -532,12 +549,12 @@ milestone's own result justifies continuing):
   `lib/editor/project-store.ts` (photo stored once by SHA-256, typed-array
   cells, 500 ms debounce, `pagehide` flush, one-time migration off the
   localStorage slot, every localStorage access wrapped) with a visible
-  "Autosave unavailable" status (D098). B2/B3: `deserializePattern`
+  "Autosave unavailable" status (D100). B2/B3: `deserializePattern`
   validates every palette field, `MAX_COLORS`, integer dimensions/indices
-  and unique symbols (D097). B9: corrupt autosave → banner with an
-  on-demand "Download error report" button, no page-load download (D099).
+  and unique symbols (D099). B9: corrupt autosave → banner with an
+  on-demand "Download error report" button, no page-load download (D101).
   Pulled M5's Playwright change forward: e2e now runs against
-  `next build && next start` (D100) because a stale `next dev` from
+  `next build && next start` (D102) because a stale `next dev` from
   2026-09-12 (PID 17476) still holds this directory. Verified: `tsc`
   and eslint clean; 619/619 unit tests (was 587; +32: store, fuzz with 200
   seeded mutations, validation cases — 14 of them fail on the pre-fix

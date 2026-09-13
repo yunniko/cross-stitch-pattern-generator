@@ -1,5 +1,5 @@
 // AUTO-GENERATED reference data -- see docs/anchor-colors-provenance.md for how this was built, its license judgment call, and verification.
-import type { DmcColor } from "./dmc-colors";
+import type { ThreadColor } from "./thread-color";
 
 /**
  * Maps a real DMC thread code to its documented Anchor-equivalent code
@@ -484,7 +484,7 @@ export const DMC_TO_ANCHOR: Readonly<Record<string, string>> = {
  * would misattribute a DMC name to a specific Anchor thread when several
  * DMC codes collapse into one Anchor code -- deliberately not used).
  */
-export const ANCHOR_COLORS: readonly DmcColor[] = [
+export const ANCHOR_COLORS: readonly ThreadColor[] = [
   { code: "1", name: "", rgb: [255, 255, 255] },
   { code: "387", name: "", rgb: [240, 234, 218] },
   { code: "2", name: "", rgb: [252, 251, 248] },

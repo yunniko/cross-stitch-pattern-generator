@@ -1,9 +1,9 @@
 import { ANCHOR_COLORS, DMC_TO_ANCHOR } from "./anchor-colors";
 import { COSMO_COLORS } from "./cosmo-colors";
-import { DMC_COLORS, type DmcColor } from "./dmc-colors";
+import { DMC_COLORS } from "./dmc-colors";
+import type { ThreadColor } from "./thread-color";
 
-/** A buyable thread color. `name` is "" for a brand with no published names (Cosmo, Anchor). */
-export type ThreadColor = DmcColor;
+export type { ThreadColor };
 
 export type ThreadBrand = "dmc" | "cosmo" | "anchor";
 

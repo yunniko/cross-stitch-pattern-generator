@@ -84,7 +84,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   }
 
   // Every later stage reads the true cells, their OKLab, importance, pair
-  // evidence and the crisp layer from this one context (D104).
+  // evidence and the crisp layer from this one context (D106).
   const ctx = createPipelineContext(cells, { importance, pairEvidence, evidenceLayer });
 
   // Denoised copy for the quantizer's eyes only (D41): it decides cluster

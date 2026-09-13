@@ -24,7 +24,7 @@ import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "./helpers/fixtures
 import { runLocalOptimizer as runLocalOptimizerPreM3 } from "./reference/local-optimizer-pre-m3";
 
 /**
- * G-031 M3 equivalence gate (D105): the rewritten hot paths must produce
+ * G-031 M3 equivalence gate (D107): the rewritten hot paths must produce
  * exactly what the pre-M3 code produced, not merely similar output. The
  * ICM optimizer is compared against a verbatim copy of its committed
  * version; the order statistic and color naming against direct

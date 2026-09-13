@@ -1,13 +1,7 @@
 // AUTO-GENERATED reference data -- see docs/dmc-colors-provenance.md for how this was built and its license.
-import type { RGB } from "../types";
+import type { ThreadColor } from "./thread-color";
 
-export interface DmcColor {
-  code: string;
-  name: string;
-  rgb: RGB;
-}
-
-export const DMC_COLORS: readonly DmcColor[] = [
+export const DMC_COLORS: readonly ThreadColor[] = [
   { code: "3713", name: "Salmon - Very Light", rgb: [255, 226, 226] },
   { code: "761", name: "Salmon - Light", rgb: [255, 201, 201] },
   { code: "760", name: "Salmon", rgb: [245, 173, 173] },

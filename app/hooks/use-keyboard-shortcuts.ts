@@ -1,7 +1,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 import type { Tool, ViewMode } from "../editor-types";
 
-/** Everything the shortcut handlers read or call. Rebuilt every render and read through a ref, so a handler never sees stale state (D101). */
+/** Everything the shortcut handlers read or call. Rebuilt every render and read through a ref, so a handler never sees stale state (D103). */
 export interface KeyboardShortcutContext {
   hasPattern: boolean;
   hasSourceImage: boolean;

@@ -13,7 +13,7 @@ export interface QuantizeResult {
 export interface ColorQuantizer {
   /**
    * `importance` (0-1 per cell) is used only by reinvestment (`kMeansQuantizer`). `cellOklab` is an optional precomputed
-   * interleaved conversion of `cells` (D104).
+   * interleaved conversion of `cells` (D106).
    */
   quantize(cells: CellColorBuffer, colorCount: number, importance?: Float32Array, cellOklab?: Float64Array): QuantizeResult;
 }
@@ -134,7 +134,7 @@ function assignToNearestCentroid(points: Float64Array, centroids: Oklab[], flat:
  * invariant against exact centroids, which the rounded public palette would obscure.
  */
 export function runLloyd(oklabColors: Oklab[], initialCentroids: Oklab[]): { centroids: Oklab[]; assignments: Uint8Array } {
-  // Interleaved typed buffers for the O(iterations × n × k) loops; same accumulation order, bit-identical (D105).
+  // Interleaved typed buffers for the O(iterations × n × k) loops; same accumulation order, bit-identical (D107).
   const n = oklabColors.length;
   const points = new Float64Array(n * 3);
   for (let i = 0; i < n; i++) {

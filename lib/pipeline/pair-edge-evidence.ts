@@ -97,7 +97,7 @@ export const DEFAULT_BLUR_RADIUS = 2;
  * row into a small rolling cache -- windows of adjacent pairs overlap, so
  * the old per-window recomputation visited each pixel ~16 times and
  * allocated three tuples per visit (review E3). The per-window summation
- * itself is unchanged, so the result is bit-identical (D105).
+ * itself is unchanged, so the result is bit-identical (D107).
  */
 export function computePairEdgeEvidence(
   source: PixelBuffer,

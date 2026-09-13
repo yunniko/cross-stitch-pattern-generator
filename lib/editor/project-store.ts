@@ -6,7 +6,7 @@ import type { RGB, SourceImageRef, StitchPattern } from "../types";
  * plus its embedded photo exceeds localStorage's ~5 MB quota exactly for
  * the projects where losing an editing session hurts most, and every write
  * above the quota used to fail silently. The photo is stored once, keyed by
- * a content hash, separately from the project record. See D098.
+ * a content hash, separately from the project record. See D100.
  *
  * The store is written against a four-method key/value interface so the
  * record/photo logic is unit-tested in plain Node against an in-memory
@@ -290,7 +290,7 @@ export function getProjectStore(): ProjectStore {
 
 // --- Restore, including the one-time migration off localStorage ---
 
-/** The pre-D098 localStorage slot, read once so a project autosaved by an earlier build still comes back after the upgrade. */
+/** The pre-D100 localStorage slot, read once so a project autosaved by an earlier build still comes back after the upgrade. */
 export interface LegacyProjectSlot {
   read(): string | null;
   clear(): void;

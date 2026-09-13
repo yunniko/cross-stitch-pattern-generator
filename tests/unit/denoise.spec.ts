@@ -123,7 +123,7 @@ describe("denoiseForQuantization", () => {
     expect(pixelAt(withoutImportance, 1, 1)).toEqual(bg);
   });
 
-  it("returns the OKLab of its output cells, exactly as a fresh conversion would compute it (G-031 M3, D104)", () => {
+  it("returns the OKLab of its output cells, exactly as a fresh conversion would compute it (G-031 M3, D106)", () => {
     const width = 6;
     const height = 6;
     const colors: RGB[] = Array.from({ length: 36 }, (_, i) => [(i * 37) % 256, (i * 91) % 256, (i * 53) % 256] as RGB);

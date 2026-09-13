@@ -1,4 +1,4 @@
-# D097 · The pattern deserializer validates every field, not just grid geometry
+# D099 · The pattern deserializer validates every field, not just grid geometry
 Date: 2026-09-13 · Goal: G-031 M1 · Status: active (superseded by: —)
 Context: `deserializePattern` checked cell indices against `palette.length` but never `palette.length <= MAX_COLORS` (a 300-entry palette was accepted and `Uint8Array.from` silently turned index 260 into 4 and 255 into `EMPTY_CELL`), and never type-checked `rgb`/`symbol`/`name` (review B2/B3).
 Decision: reject any file whose dimensions aren't positive integers within `MAX_STITCHES`, whose palette is empty, longer than `MAX_COLORS`, has a non-3-byte `rgb`, an empty/non-string `symbol`, a non-string `name`, or duplicate symbols, or whose cell indices aren't integers in range; the parsed-object half is exposed as `deserializePatternData` for the IndexedDB store.
