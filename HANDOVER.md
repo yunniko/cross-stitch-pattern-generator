@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-13 at fc35e41 plus the G-033 M1 commit that carries this line
+Last verified: 2026-09-13 at ca8d883 plus the G-033 M2–M3 commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -11,7 +11,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 **Production** runs `master` as deployed on 2026-09-13 (last deploy-log
 row). G-032 (photo enhancement) is done and signed off: every mode is offered
-(D118). G-028 (OXS import and export) is deployed and awaits Owner sign-off.
+(D118). G-028 (OXS import and export) is done and signed off (D119). G-033
+(swatch-aware color editor) is deployed and awaits Owner sign-off.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest
@@ -22,6 +23,11 @@ row). G-032 (photo enhancement) is done and signed off: every mode is offered
   copy, paste, move and flip, move, pan, zoom, highlight. Also merge (including
   into Empty), recolor, rename, symbol swap, add color, empty stitches, canvas
   resize, and one undo history covering regeneration.
+- Color editor: opens under its legend row on the color's remembered thread
+  swatch (D122), marked and scrolled into view; hovering or focusing a swatch
+  shows an Okhsl comparison (D123); picks apply at once and the editor stays
+  open, Full range drags are one undo step, Done keeps and Cancel or Escape
+  restores, and a click outside closes it while still acting.
 - Five view modes (keys 1–5) and a view-only canvas color. Shortcuts: Ctrl+Z,
   Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, and Escape to merge a selection.
 - Exports: editable JSON (format version 7, embeds the source photo and each
@@ -42,7 +48,7 @@ row). G-032 (photo enhancement) is done and signed off: every mode is offered
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
 **Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 850/850 Vitest
-tests; 62/62 Playwright tests on a fresh production build. CI
+tests; 67/67 Playwright tests on a fresh production build. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
@@ -179,10 +185,13 @@ above the goal's 1.5 s target.
 
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
-- **PENDING APPROVAL: G-028 sign-off.** OXS import and export are live
-  (D119). Open points:
-  - Symbols are written as Unicode characters; a reading program shows its
-    own font's glyph for that code.
+- **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is
+  live (D122, D123); see the G-033 progress log in `GOALS.md`. Out of scope:
+  "+ Add" keeps its old flow, and touch screens pick on tap with no
+  comparison.
+- Left open from G-028 (signed off):
+  - OXS symbols are written as Unicode characters; a reading program shows
+    its own font's glyph for that code.
   - The export is untested in desktop programs such as PCStitch or
     WinStitch; Embroiderly's reader parsed it correctly.
   - Details: `docs/reviews/2026-09-13-oxs-format-evidence.md`.
@@ -238,6 +247,7 @@ above the goal's 1.5 s target.
 | 2026-09-13 | e52608f | OXS import and export (G-028, D119) | Only this container restarted; 7 sites 200; live: a self-authored OXS chart opened with the expected notice, name and 18-count; its OXS re-export is 6 wide with the cloth at index 0 and 14 stitches; no console errors |
 | 2026-09-13 | 0cd4790 | Stitch counts count only filled stitches (D120); G-028 archived | Only this container restarted; 7 sites 200; live: header "50 × 31, 1,550 stitches" became "55 × 31, 1,550 stitches" after expanding the canvas; no console errors |
 | 2026-09-13 | ebde884 | One canvas for every view mode: zoom, scroll and pan shared (D121) | Only this container restarted; 7 sites 200; live at zoom ×4 and scroll 120/90, all five modes showed the same 2702×1676 canvas box and kept the scroll; no console errors |
+| 2026-09-13 | ca8d883 | G-033 M1: palette colors remember their thread swatch, format 7 (D122) | Only this container restarted; 7 sites 200; live: a DMC pattern's editable export is format 7, locked to DMC, with a matching DMC source on all 16 colors; no console errors |
 
 ## Decisions
 

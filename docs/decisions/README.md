@@ -131,3 +131,4 @@ remain readable with git show.
 - D120 — Stitch counts count only filled stitches; sizes stay the canvas grid — active
 - D121 — Every view mode draws into one canvas at the same size, so zoom, scroll and pan are shared — active
 - D122 — Palette colours remember their thread swatch by brand and code; a brand lock means every colour is that brand's thread — active
+- D123 — The swatch comparison reports Okhsl lightness and saturation differences in percentage points — active

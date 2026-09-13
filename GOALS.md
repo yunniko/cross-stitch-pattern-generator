@@ -600,13 +600,13 @@ milestone's own result justifies continuing):
       validation and version-6 inference, fuzz-test update, golden-hash
       handling per criterion 4. Deliverable: green unit suite and an
       old saved file reopening with inferred sources.
-- [ ] **M2 — Editor behavior.** Panel under the row, tab from source,
+- [x] **M2 — Editor behavior.** Panel under the row, tab from source,
       scrolled and marked current swatch, stay open on pick, live Full
       range preview with one undo step per gesture, Revert, outside-
       click and Escape dismissal, retargeting and close-on-disappear.
       E2E tests for each. Deliverable: the new editing flow usable in
       the browser.
-- [ ] **M3 — Comparison readout and release.** `lib/color/okhsl.ts`,
+- [x] **M3 — Comparison readout and release.** `lib/color/okhsl.ts`,
       the readout formatter, hover and focus readout, e2e for the
       readout, README attribution, HANDOVER regenerated, docs-lint,
       deploy after Owner approval, deploy-log row.
@@ -623,6 +623,44 @@ milestone's own result justifies continuing):
   approval; Owner sign-off at the end.
 
 **Progress log** (newest first):
+- 2026-09-13 — **M2 and M3 done; all milestones complete.**
+
+  Editor (M2), in `app/components/colors-dock.tsx`:
+  - The panel opens under its legend row. The tab comes from the colour's
+    source, then the pattern's lock, then Full range.
+  - The current swatch is marked with a ring, a check, `aria-pressed` and
+    `data-current`. On opening, the grid's own scroll area centres it.
+  - A thread pick applies as one undo step and the editor stays open.
+    Re-picking the current thread does nothing.
+  - Full range previews the draft live on the chart through a workspace
+    preview keyed to its base pattern, and commits once per drag or key
+    press.
+  - Done keeps the colour. Cancel and Escape restore its RGB, name and
+    source as one step.
+  - A click outside closes the editor like Done, and the click still acts
+    (`app/hooks/use-dismiss-on-outside-pointer.ts`).
+  - Clicking another colour's swatch button retargets the editor. A new
+    document, a generation or a change in palette size closes it.
+
+  Readout (M3):
+  - A fixed line shows the Okhsl comparison on hover and keyboard focus
+    ("DMC 3865 - Winter White: 12% lighter, 5% less saturated"), with
+    "on screen" help text (D123).
+  - The README credits Ottosson's MIT code.
+
+  Found by e2e and fixed: swatches reported `aria-pressed` only when a
+  current swatch existed, so a custom colour switched to a brand tab
+  exposed no state. Every editor swatch now reports it.
+
+  Verified: `tsc` and eslint clean; 850/850 unit; 67/67 e2e on a
+  production build, one worker, including `tests/e2e/color-editor.spec.ts`
+  (5 tests covering criterion 3). The first full e2e run was killed by low
+  memory on this machine and was re-run with one worker.
+
+  Out of scope, as planned: "+ Add" keeps today's flow, and on touch
+  screens a tap picks without a comparison.
+
+  **PENDING APPROVAL: G-033 sign-off.**
 - 2026-09-13 — **M1 done.** `PaletteColor.source` (D122).
   - Set by brand generation (DMC, Cosmo, Anchor), thread picks, adding a
     thread, and OXS import for every resolved entry. Dropped by a manual

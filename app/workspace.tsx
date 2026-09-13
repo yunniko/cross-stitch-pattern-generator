@@ -53,6 +53,11 @@ export default function Workspace() {
   const [resizePanelKey, setResizePanelKey] = useState<number | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
   const [openNotice, setOpenNotice] = useState<string | null>(null);
+  // A color editor's live draft (G-033): shown only while it was derived from the current pattern, so any real edit,
+  // undo or new document drops it without an effect.
+  const [colorPreview, setColorPreview] = useState<{ base: StitchPattern; next: StitchPattern } | null>(null);
+  // Bumped whenever the palette is replaced wholesale (a new document or a generation), so open editors close.
+  const [documentId, setDocumentId] = useState(0);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const navigatorCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -67,10 +72,11 @@ export default function Workspace() {
   const select = useSelectTool(toolInputs);
   const brush = useBrushTool({ ...toolInputs, activeColorIndex });
   const move = useMoveTool(toolInputs);
+  const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
   const renderer = useChartRenderer({
     canvasRef,
     navigatorCanvasRef,
-    pattern,
+    pattern: displayedPattern,
     viewMode,
     cellSize,
     activeTool,
@@ -84,6 +90,7 @@ export default function Workspace() {
   });
 
   function resetDocumentView() {
+    setDocumentId((id) => id + 1);
     setActiveColorIndex(null);
     panZoom.resetZoom();
     setHighlightedColorIndices(new Set());
@@ -112,6 +119,7 @@ export default function Workspace() {
     onGenerated: (next, isFirst) => {
       // A floating selection belongs to the replaced pattern and may be out of bounds: drop it, don't merge it.
       select.clear();
+      setDocumentId((id) => id + 1);
       // The first generate is the undo baseline; a regenerate is an ordinary undoable step (G-012).
       if (isFirst) history.reset(next);
       else history.set(next);
@@ -335,6 +343,8 @@ export default function Workspace() {
           onToggleHighlight={toggleHighlight}
           aidaCount={options.aidaCount}
           onChange={history.set}
+          onPreviewChange={setColorPreview}
+          documentId={documentId}
           onMergeColors={handleMergeColors}
         />
       </div>

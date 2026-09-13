@@ -16,7 +16,9 @@ browser's IndexedDB, and no image is ever uploaded. Live at
   hard boundary as two real colors instead of inventing a blend.
 - **Edit** with brush, fill, rectangle select (copy, paste, move, flip), move,
   pan, zoom and highlight tools. Merge, recolor, rename and re-symbol colors,
-  mark stitches as empty, resize the canvas, undo and redo.
+  mark stitches as empty, resize the canvas, undo and redo. The color editor
+  opens on a color's own thread swatch, shows how other swatches compare
+  ("12% lighter, 5% less saturated"), and stays open while you try threads.
 - **Export** editable JSON, a realistic stitched preview, full-chart PNGs,
   paginated A4 ZIPs, a Pattern Keeper–compatible PDF, an OXS chart for other
   cross-stitch programs, or everything at once as a `.cspzip` bundle, which the
@@ -58,6 +60,10 @@ Brighten is a cautious exposure fix for dark or flat photos, and leaves
 well-exposed ones untouched. Auto, Vivid and Portrait also correct contrast,
 colour cast and saturation, and are experimental: none met their quality
 gates on real photos (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
+
+The Okhsl conversion in `lib/color/okhsl.ts` is ported from Björn Ottosson's
+`ok_color.h` (<https://bottosson.github.io/misc/ok_color.h>, MIT licence; the
+notice is kept in the file).
 
 Style: Tailwind with the zinc palette, pill-shaped controls, light and dark
 themes following the system preference.
