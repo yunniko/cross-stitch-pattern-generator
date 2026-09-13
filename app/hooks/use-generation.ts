@@ -1,5 +1,6 @@
 import { useState, type RefObject } from "react";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
+import { isReleasedEnhancementMode } from "@/lib/pipeline/enhance";
 import { runPatternJob } from "@/lib/pipeline/pattern-client";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, type PixelBuffer, type StitchPattern } from "@/lib/types";
 import type { SourceImageMeta } from "./use-source-image";
@@ -52,6 +53,8 @@ export function useGeneration(inputs: GenerationInputs) {
         generationMode: options.generationMode,
         paletteMode: options.paletteMode,
         edgeMode: options.edgeMode,
+        // Release eligibility is resolved at Generate time, so a preference for a withdrawn mode can't run it (D113).
+        enhancementMode: isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off",
         onProgress: setProgress,
       });
       if (revisionRef.current !== myRevision) return; // a different photo was chosen meanwhile

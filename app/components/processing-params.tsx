@@ -1,5 +1,6 @@
 import type { ChangeEvent } from "react";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
+import { isReleasedEnhancementMode, releasedEnhancementModes, type EnhancementModeId } from "@/lib/pipeline/enhance";
 import { formatFinishedDimension } from "@/lib/export/finished-size";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
@@ -30,6 +31,13 @@ const EDGE_OPTIONS: SegmentOption<WorkspaceOptions["edgeMode"]>[] = [
   { value: "crisp", label: "Crisp", title: "Preserves hard color boundaries instead of blending them into a manufactured intermediate color (G-024)" },
 ];
 
+const ENHANCEMENT_OPTIONS: Record<EnhancementModeId, SegmentOption<EnhancementModeId>> = {
+  off: { value: "off", label: "Off", title: "Use the photo exactly as it is" },
+  auto: { value: "auto", label: "Auto", title: "Corrects exposure, contrast, colour cast and saturation, measured from the photo itself" },
+  vivid: { value: "vivid", label: "Vivid", title: "Stronger local contrast and saturation, for landscapes, objects and faded prints" },
+  portrait: { value: "portrait", label: "Portrait", title: "A gentle correction without local contrast, protecting skin tones" },
+};
+
 const LABEL = "text-xs font-medium text-zinc-600 dark:text-zinc-400";
 
 export interface ProcessingParamsProps {
@@ -49,6 +57,9 @@ export interface ProcessingParamsProps {
 /** The dock under the Image window: photo input, pattern size, color count, algorithm/palette/edge modes and Generate. */
 export function ProcessingParams({ options, onChange, onImageFile, isLoadingImage, isProcessing, progress, sourceFileName, hasPattern, hasSourcePhoto, onGenerate, error }: ProcessingParamsProps) {
   const longerSide = longerSideFor(options);
+  // Only released modes are offered; with Off the only one, the control stays hidden (D113, D116).
+  const photoOptions = releasedEnhancementModes().map((mode) => ENHANCEMENT_OPTIONS[mode]);
+  const photoMode = isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off";
 
   function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -122,6 +133,12 @@ export function ProcessingParams({ options, onChange, onImageFile, isLoadingImag
             <span className={LABEL}>Edges</span>
             <SegmentedControl options={EDGE_OPTIONS} value={options.edgeMode} onChange={(mode) => onChange("edgeMode", mode)} />
           </div>
+          {photoOptions.length > 1 && (
+            <div className="flex flex-col gap-1">
+              <span className={LABEL}>Photo</span>
+              <SegmentedControl options={photoOptions} value={photoMode} onChange={(mode) => onChange("enhancementMode", mode)} />
+            </div>
+          )}
         </div>
       </div>
 

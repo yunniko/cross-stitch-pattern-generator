@@ -52,6 +52,21 @@ export function isEnhancementModeId(value: unknown): value is EnhancementModeId 
   return typeof value === "string" && (ENHANCEMENT_MODE_IDS as string[]).includes(value);
 }
 
+/**
+ * Modes offered for new generation. A mode joins only after passing the calibration gates (D113, D115); until then a
+ * remembered preference naming it resolves to "off", while saved patterns still record whatever mode built them. A build
+ * with NEXT_PUBLIC_ENHANCEMENT_PREVIEW=1 (only the Playwright build sets it) offers every recognized mode, so the UI can
+ * be tested before release (D116). Read lazily, never at module load, so the workers that import this module don't need
+ * `process`.
+ */
+export function releasedEnhancementModes(): readonly EnhancementModeId[] {
+  return process.env.NEXT_PUBLIC_ENHANCEMENT_PREVIEW === "1" ? ENHANCEMENT_MODE_IDS : ["off"];
+}
+
+export function isReleasedEnhancementMode(value: unknown): value is EnhancementModeId {
+  return typeof value === "string" && (releasedEnhancementModes() as readonly string[]).includes(value);
+}
+
 // White balance: sample eligibility and gates.
 const WB_MAX_NEUTRAL_CHROMA = 0.05;
 const WB_MAX_CHANNEL = 250;

@@ -17,6 +17,7 @@ import { finalizeCrispPalette } from "../crisp/crisp-palette-finalization";
 import { runCrispQuantizationStage } from "../crisp/crisp-quantization-stage";
 import { defaultComponentRecolorOptions, fixDiagonalConnections, recolorSmallComponents } from "./contour-cleanup";
 import { runMultiScaleOptimizer, type MultiScaleWeights } from "./local-optimizer";
+import { enhancePixelBuffer, type EnhancementModeId } from "./enhance";
 import { computePairEdgeEvidence } from "./pair-edge-evidence";
 import { mergeSimilarColors } from "./palette-optimizer";
 import { createPipelineContext } from "./pipeline-context";
@@ -48,6 +49,8 @@ export interface BuildPatternOptions {
   /** Crisp Edges (G-024, D57-D71); defaults to "standard". */
   edgeMode?: EdgeMode;
   crispEvidenceLayerOptions?: CrispEvidenceLayerOptions;
+  /** Photo enhancement before generation (G-032); defaults to "off", which passes the original buffer through untouched (D112). */
+  enhancementMode?: EnhancementModeId;
   onProgress?: (fraction: number) => void;
 }
 
@@ -60,13 +63,18 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     );
   }
 
+  // Color stages (downsampling, Crisp's two-color fits) read the enhanced photo; Sobel importance and pair-edge evidence
+  // keep reading the original, so their calibrated noise floors stay valid (D112). Off returns `imageData` itself.
+  const enhancementMode = options.enhancementMode ?? "off";
+  const colorSource = enhancePixelBuffer(imageData, enhancementMode);
+
   const { width: gridWidth, height: gridHeight } = gridDimensionsFor(
     imageData.width,
     imageData.height,
     options.longerSideStitches
   );
   options.onProgress?.(0.1);
-  const cells = downsampleToGrid(imageData, gridWidth, gridHeight);
+  const cells = downsampleToGrid(colorSource, gridWidth, gridHeight);
 
   // Computed before quantization, not only for the optimizer: reinvestment uses importance to prefer a real rare
   // detail over a rare artifact (D39). It depends only on the source image and grid size.
@@ -80,7 +88,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   let evidenceLayer: CrispEvidenceLayer | undefined;
   if (edgeMode === "crisp") {
     const candidates = candidateCellsFromPairEvidence(pairEvidence!, gridWidth, gridHeight, DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD);
-    evidenceLayer = buildCrispEvidenceLayer(imageData, gridWidth, gridHeight, candidates, options.crispEvidenceLayerOptions ?? DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS);
+    evidenceLayer = buildCrispEvidenceLayer(colorSource, gridWidth, gridHeight, candidates, options.crispEvidenceLayerOptions ?? DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS);
   }
 
   // Every later stage reads the true cells, their OKLab, importance, pair
@@ -246,6 +254,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     // `{...pattern, ...}` spread below carries this through to the brand-
     // matched return path too.
     edgeMode: edgeMode === "crisp" ? "crisp" : undefined,
+    enhancementMode: enhancementMode === "off" ? undefined : enhancementMode,
   };
 
   // Every PaletteMode except "full" is a ThreadBrand, so test `=== "full"`, never a specific brand (D92).

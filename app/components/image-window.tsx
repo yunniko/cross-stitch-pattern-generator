@@ -1,7 +1,8 @@
-import type { DragEvent, MouseEvent, PointerEvent, RefObject } from "react";
+import { useState, type DragEvent, type MouseEvent, type PointerEvent, type RefObject } from "react";
 import type { StitchPattern } from "@/lib/types";
 import type { Tool, ViewMode } from "../editor-types";
 import type { SourceImageMeta } from "../hooks/use-source-image";
+import { PillButton } from "./ui";
 
 export interface ViewBarProps {
   pattern: StitchPattern | null;
@@ -83,6 +84,11 @@ export interface ImageWindowProps {
   realisticPreviewUrl: string | null;
   previewError: string | null;
   onRetryPreview: () => void;
+  /** True when a non-Off photo enhancement applies to the photo shown before Generate. */
+  enhancementActive: boolean;
+  enhancedPreviewUrl: string | null;
+  isPreparingEnhancedPreview: boolean;
+  enhancedPreviewError: string | null;
   onPointerDown: (e: PointerEvent<HTMLCanvasElement>) => void;
   onPointerMove: (e: PointerEvent<HTMLCanvasElement>) => void;
   onPointerUp: (e: PointerEvent<HTMLCanvasElement>) => void;
@@ -109,12 +115,19 @@ export function ImageWindow({
   realisticPreviewUrl,
   previewError,
   onRetryPreview,
+  enhancementActive,
+  enhancedPreviewUrl,
+  isPreparingEnhancedPreview,
+  enhancedPreviewError,
   onPointerDown,
   onPointerMove,
   onPointerUp,
   onDoubleClick,
   onDrop,
 }: ImageWindowProps) {
+  const [showOriginal, setShowOriginal] = useState(false);
+  const showEnhanced = enhancementActive && enhancedPreviewUrl !== null && !showOriginal;
+
   return (
     <div
       ref={scrollerRef}
@@ -123,8 +136,25 @@ export function ImageWindow({
       className="grid flex-1 place-items-center overflow-auto p-4"
     >
       {!pattern && sourceMeta && (
-        // eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize
-        <img src={sourceMeta.dataUrl} alt="Uploaded photo" className="max-h-full max-w-full border border-zinc-300 dark:border-zinc-700" />
+        <figure className="flex max-h-full max-w-full flex-col items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize */}
+          <img
+            src={showEnhanced ? enhancedPreviewUrl! : sourceMeta.dataUrl}
+            alt={showEnhanced ? "Enhanced photo preview" : "Uploaded photo"}
+            className="max-h-full max-w-full border border-zinc-300 dark:border-zinc-700"
+          />
+          {enhancementActive && (
+            <figcaption className="flex items-center gap-2 text-xs text-zinc-500">
+              {isPreparingEnhancedPreview && <span>Preparing enhanced preview…</span>}
+              {enhancedPreviewError && <span className="text-red-600 dark:text-red-400">{enhancedPreviewError}</span>}
+              {enhancedPreviewUrl && (
+                <PillButton size="xs" aria-pressed={showOriginal} onClick={() => setShowOriginal((shown) => !shown)}>
+                  Compare with original
+                </PillButton>
+              )}
+            </figcaption>
+          )}
+        </figure>
       )}
       {!pattern && !sourceMeta && <p className="text-sm text-zinc-500">Upload an image in the Processing params dock below to get started.</p>}
       {pattern && viewMode === "photo-only" && pattern.sourceImage && (

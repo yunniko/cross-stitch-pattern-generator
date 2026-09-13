@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-13 at 1380bd3 plus the resize, control-text and CI-fix commit that carries this line
+Last verified: 2026-09-13 at 81dcab6 plus the G-032 M2–M4 commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -10,8 +10,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs `master` as deployed on 2026-09-13 (last deploy-log
-row): all of G-031, canvas resize with empty stitches (D109) and
-unselectable control text (D110). G-032 (photo enhancement) is in progress.
+row). G-032 (photo enhancement) is built and deployed but hidden: no preset
+met its real-photo release gates, so production offers only Off (D117).
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest
@@ -24,7 +24,7 @@ unselectable control text (D110). G-032 (photo enhancement) is in progress.
   resize, and one undo history covering regeneration.
 - Five view modes (keys 1–5) and a view-only canvas color. Shortcuts: Ctrl+Z,
   Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, and Escape to merge a selection.
-- Exports: editable JSON (format version 5, embeds the source photo),
+- Exports: editable JSON (format version 6, embeds the source photo),
   realistic preview PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern
   Keeper PDF (the Owner confirmed a real import), and "Export all" `.cspzip`.
   Open accepts JSON, ZIP and `.cspzip`, detected by content.
@@ -32,16 +32,22 @@ unselectable control text (D110). G-032 (photo enhancement) is in progress.
   SHA-256, 500 ms debounce) and restores on reload. A corrupt record shows a
   banner with an on-demand error report. Options persist in localStorage.
 
-**Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 652/652 Vitest
-tests; 55/55 Playwright tests on a fresh production build. CI
-(`.github/workflows/ci.yml`) failed its first run because route types
-such as `LayoutProps` are generated and git-ignored; it now runs
-`next typegen` before the type-check, and passed on GitHub for `fb28d4e`
-(lint, tsc, unit and Playwright in 2 min 34 s).
+- Photo enhancement, test build only: a Photo control (Off, Auto, Vivid,
+  Portrait), an enhanced preview with "Compare with original" before
+  Generate, and the mode recorded in saved files. The real-photo results
+  are in `docs/reviews/2026-09-13-photo-enhancement-calibration.md`.
+
+**Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 734/734 Vitest
+tests; 58/58 Playwright tests on a fresh production build. CI
+(`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
+because route types such as `LayoutProps` are generated and git-ignored.
+It passed on GitHub for `fb28d4e`.
 
 **Performance** at 1500×1000 → 1000 stitches / 64 colors: Standard 14.6 s,
 Crisp 27.4 s, Standard + DMC 18.5 s. Details in
-`docs/reviews/2026-09-13-pipeline-performance.md`.
+`docs/reviews/2026-09-13-pipeline-performance.md`. Enhancing a 4000×3000
+photo takes 1.58–1.93 s by mode in `npm run bench` (G-032 M1 progress log),
+above the goal's 1.5 s target.
 
 **Known limitations**:
 - Crisp is about 2× slower than Standard at the largest size, and falls back to
@@ -80,6 +86,14 @@ Crisp 27.4 s, Standard + DMC 18.5 s. Details in
   8. Palette merge, zero-count compaction, then OKLab palette recompute.
   9. Thread-brand snap with a re-run of fine ICM (D056), then dark-to-light
      sort, symbols and unique names.
+- **Photo enhancement** (`lib/pipeline/enhance.ts`): a preset is analysed
+  from the photo (white balance, levels and gamma, CLAHE, vibrance) and then
+  applied per pixel. `buildPattern` enhances once. Downsampling and Crisp's
+  colour fits read the enhanced photo; importance and pair evidence read the
+  original (D112). Off returns the input untouched. The preview has its own
+  worker (`lib/pipeline/enhance-preview.worker.ts`, D116).
+  `releasedEnhancementModes()` decides what the UI offers; files may record
+  any recognized mode (D113).
 - **Crisp mode** (`lib/crisp/`): a frozen evidence layer (D065) feeds weighted
   quantization, admissible-label unary costs in ICM and cleanup, repair after
   merges, and mode-aware finalization (D061–D072).
@@ -116,8 +130,15 @@ Crisp 27.4 s, Standard + DMC 18.5 s. Details in
 - Speed-ups must leave `tests/unit/fixtures/golden-hashes.json` unchanged.
   Regenerate it (`UPDATE_GOLDEN_HASHES=1`) only for an intended output change,
   with a decision file (D107).
-- Omitting `edgeMode`, `contourRefinement` or a brand must reproduce Standard
-  output byte-for-byte.
+- Omitting `edgeMode`, `contourRefinement`, a brand or `enhancementMode` (or
+  passing Off) must reproduce Standard output byte-for-byte.
+- An enhancement mode reaches production only through
+  `releasedEnhancementModes()`, and only after passing
+  `scripts/calibrate-enhancement.ts` or an explicit Owner decision (D117).
+  `NEXT_PUBLIC_ENHANCEMENT_PREVIEW=1` is for the Playwright build only; never
+  set it in the Dockerfile (D116).
+- Enhancement calibration photos stay outside the repository; two show
+  identifiable people.
 - Every `cellPalette` mutation passes `EMPTY_CELL` (255) through untouched
   (D028).
 - View-only settings (canvas color) never reach an export call site (D087).
@@ -143,11 +164,12 @@ Crisp 27.4 s, Standard + DMC 18.5 s. Details in
 
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
-- G-032 (optional photo enhancement) is active, with all milestones and the
-  deploy pre-approved by the Owner. M1 is done: the pure core lives in
-  `lib/pipeline/enhance.ts` (D111–D114) and is not yet wired into generation.
-  At 4000×3000 it takes 1.6–1.9 s against a 1.5 s target, which is still
-  open. Next is M2, pipeline integration; see the G-032 progress log.
+- **PENDING APPROVAL: G-032 release decision and sign-off.** All four
+  milestones are built and deployed hidden. No preset passed its release
+  rule on 13 real photos (D117). The Owner chooses: keep hidden, fund a
+  tuning round on a held-out photo set, narrow the feature, or remove it.
+  Also open: the 1.5 s enhancement target, and a Codex review of the M2–M4
+  diff (usage limit hit on 2026-09-13).
 - G-028 (OXS import and export) is a draft. G-030 (public launch) is a
   far-future draft. G-023 (Rust sidecar) was measured as not needed.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`);

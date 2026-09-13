@@ -1,3 +1,4 @@
+import type { EnhancementModeId } from "./pipeline/enhance";
 import type { EdgeMode } from "./pipeline/pattern";
 import type { ThreadBrand } from "./threads/thread-brands";
 
@@ -91,6 +92,8 @@ export interface StitchPattern {
   threadBrand?: ThreadBrand;
   /** Set when generated in Crisp mode. Informational only; absent means Standard (G-024). */
   edgeMode?: Extract<EdgeMode, "crisp">;
+  /** The photo enhancement the pattern was generated with (G-032). Informational; absent means Off. */
+  enhancementMode?: Exclude<EnhancementModeId, "off">;
 }
 
 /** An axis-aligned, end-exclusive rectangle in stitch-cell coordinates. */

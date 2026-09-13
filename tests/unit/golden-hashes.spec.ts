@@ -25,6 +25,8 @@ function hashPattern(pattern: StitchPattern): string {
   hash.update(pattern.cellPalette);
   for (const color of pattern.palette) hash.update(`${color.index}:${color.rgb.join(",")}:${color.symbol}:${color.name}:${color.count};`);
   hash.update(`${pattern.threadBrand ?? ""};${pattern.edgeMode ?? ""}`);
+  // Appended only when set, so every hash recorded before G-032 still applies to Off.
+  if (pattern.enhancementMode) hash.update(`;${pattern.enhancementMode}`);
   return hash.digest("hex");
 }
 
@@ -88,6 +90,18 @@ describe("golden hashes: generation output is byte-identical to the recorded pre
       expect(hash).toBe(recorded[name]);
     },
     // The 300-stitch/64-color case took 27 s on the pre-M3 pipeline.
+    120_000
+  );
+
+  // G-032 (D112): an explicit enhancementMode "off" must reproduce the same recorded bytes, and leave the input untouched.
+  it.each(CASES.map((c) => [c.name, c] as const))(
+    "%s with enhancementMode off",
+    (name, { source, options }) => {
+      if (updating) return;
+      const before = Uint8ClampedArray.from(source.data);
+      expect(hashPattern(buildPattern(source, { ...options, enhancementMode: "off" }))).toBe(recorded[name]);
+      expect(source.data).toEqual(before);
+    },
     120_000
   );
 

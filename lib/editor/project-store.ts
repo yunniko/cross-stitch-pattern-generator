@@ -49,6 +49,7 @@ export interface StoredProjectRecord {
   name?: string;
   threadBrand?: StitchPattern["threadBrand"];
   edgeMode?: StitchPattern["edgeMode"];
+  enhancementMode?: StitchPattern["enhancementMode"];
   sourceImage?: StoredSourceImage;
 }
 
@@ -118,6 +119,7 @@ async function encodeRecord(pattern: StitchPattern): Promise<{ record: StoredPro
     name: pattern.name,
     threadBrand: pattern.threadBrand,
     edgeMode: pattern.edgeMode,
+    enhancementMode: pattern.enhancementMode,
   };
   if (!pattern.sourceImage) return { record };
   const { dataUrl, ...rest } = pattern.sourceImage;

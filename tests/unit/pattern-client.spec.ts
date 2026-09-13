@@ -61,6 +61,13 @@ describe("pattern-client", () => {
     expect(w.lastRequest?.edgeMode).toBe("crisp");
   });
 
+  it("forwards enhancementMode through to the worker request (G-032)", async () => {
+    const { runPatternJob } = await import("@/lib/pipeline/pattern-client");
+    runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2, enhancementMode: "auto" }).catch(() => {});
+    const w = FakeWorker.instances[0];
+    expect(w.lastRequest?.enhancementMode).toBe("auto");
+  });
+
   it("rejects a superseded job's promise instead of leaving it pending forever", async () => {
     const { runPatternJob } = await import("@/lib/pipeline/pattern-client");
     const firstPromise = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });

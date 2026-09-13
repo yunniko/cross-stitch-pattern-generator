@@ -47,6 +47,7 @@ describe("workspace-storage", () => {
       colorCount: 16,
       generationMode: "latest",
       paletteMode: "full",
+      enhancementMode: "off",
     } as const;
 
     it("returns defaults (14-count, cm, no author, Standard edges, overlap 5, white canvas, Medium/16 colors/Latest/Full range) when nothing is stored", () => {
@@ -66,6 +67,7 @@ describe("workspace-storage", () => {
         colorCount: 32,
         generationMode: "original" as const,
         paletteMode: "dmc" as const,
+        enhancementMode: "off" as const,
       };
       saveWorkspaceOptions(saved);
       expect(loadWorkspaceOptions()).toEqual(saved);

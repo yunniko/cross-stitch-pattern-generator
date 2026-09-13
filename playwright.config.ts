@@ -19,6 +19,9 @@ export default defineConfig({
     // block the whole suite. Locally an already-running `next start` on this
     // port is reused between iterations; CI always builds fresh. See D102.
     command: `npm run build && npm run start -- -p ${PORT}`,
+    // Offers the photo-enhancement modes that aren't released yet, so their UI is tested before release. Production
+    // builds never set this (D116).
+    env: { ...process.env, NEXT_PUBLIC_ENHANCEMENT_PREVIEW: "1" } as Record<string, string>,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,

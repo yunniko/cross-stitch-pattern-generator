@@ -1,4 +1,5 @@
 import type { PixelBuffer, StitchPattern } from "../types";
+import type { EnhancementModeId } from "./enhance";
 import type { EdgeMode, GenerationMode, PaletteMode, WorkerRequest, WorkerResponse } from "./pattern.worker";
 
 export interface RunPatternJobOptions {
@@ -8,6 +9,7 @@ export interface RunPatternJobOptions {
   generationMode?: GenerationMode;
   paletteMode?: PaletteMode;
   edgeMode?: EdgeMode;
+  enhancementMode?: EnhancementModeId;
   onProgress?: (fraction: number) => void;
 }
 
@@ -110,6 +112,7 @@ export function runPatternJob(options: RunPatternJobOptions): Promise<StitchPatt
         generationMode: options.generationMode,
         paletteMode: options.paletteMode,
         edgeMode: options.edgeMode,
+        enhancementMode: options.enhancementMode,
       };
       w.postMessage(request);
     } catch (error) {

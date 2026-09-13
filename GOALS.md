@@ -787,7 +787,7 @@ saved-file embed) also stays the original bytes.
       `oklabToRgbGamutMapped` helper in `lib/color.ts`. Unit tests per
       criterion 5 and the do-no-harm tests 3(a)–(d). Deliverable: green
       unit suite, a first timing at 4000×3000.
-- [ ] **M2 — Pipeline integration and evidence.** `enhancementMode` on
+- [x] **M2 — Pipeline integration and evidence.** `enhancementMode` on
       `BuildPatternOptions`/`StartMessage`/`RunPatternJobOptions`,
       applied before `gridDimensionsFor`/`downsampleToGrid`; recorded on
       `StitchPattern`; serializer version bump + fuzz-test coverage;
@@ -797,7 +797,7 @@ saved-file embed) also stays the original bytes.
       CLAHE clip limit from those numbers (decision file). Off
       byte-identity test on every existing fixture (criterion 1). Bench
       row for enhancement (criterion 7).
-- [ ] **M3 — UI and preview.** Photo segmented control in processing
+- [x] **M3 — UI and preview.** Photo segmented control in processing
       params; a preview job (same worker script, new `"enhance-preview"`
       message, its own supersede-on-new-request semantics, run on a
       ≤ 1200 px copy) feeding the Image window when no pattern exists
@@ -827,6 +827,73 @@ saved-file embed) also stays the original bytes.
   recorded.
 
 **Progress log** (newest first):
+- 2026-09-13 — **M3 done.**
+  - A "Photo" segmented control (Off, Auto, Vivid, Portrait) in processing
+    params. It appears only when more than one mode is released, so
+    production shows nothing today.
+  - Before Generate, the Image window shows the chosen mode applied to the
+    photo, with a "Compare with original" toggle. The preview runs in its
+    own lazily created worker (`lib/pipeline/enhance-preview.worker.ts`).
+    The worker keeps the photo, analyses the full photo once per mode and
+    applies it to a ≤1200 px copy. Loading a new photo cancels it (D116).
+  - The preference persists. Save, reopen and Export all carry the mode
+    (format 6).
+  - Released modes come from `releasedEnhancementModes()`: Off only, unless
+    `NEXT_PUBLIC_ENHANCEMENT_PREVIEW=1`, which only the Playwright build
+    sets so e2e can exercise the hidden UI (D116).
+
+  Verified: `tests/e2e/photo-enhancement.spec.ts` (3 tests: control and
+  default, preview with compare, mode in the saved file and after reload).
+  Its first run failed because the reload beat the 500 ms autosave; the test
+  now waits for the saved status. Full e2e 58/58 on a fresh production
+  build. Preview unit tests: the preview matches the full-size enhancement
+  within ΔE 0.02, and the client cancels superseded requests.
+- 2026-09-13 — **M2 done.**
+
+  Pipeline integration:
+  - `buildPattern` takes `enhancementMode` and calls enhancement once; Off
+    passes the caller's buffer object straight through.
+  - Colour stages (downsampling, Crisp's two-colour fits) read the enhanced
+    photo; Sobel importance and pair evidence read the original (D112).
+  - The pattern records the mode. The worker and client forward it.
+  - The serializer moves to format 6 and keeps any recognized non-Off mode.
+    The IndexedDB record carries it.
+  - The workspace preference keeps only released modes, and Generate
+    resolves release eligibility again. Recognized and released modes are
+    kept separate (D113).
+  - `RELEASED_ENHANCEMENT_MODES` is Off only.
+
+  Evidence:
+  - Every golden-hash case also runs with an explicit Off: identical bytes,
+    input buffer untouched.
+  - The fuzz test covers the new field. The stricter RNG sequence exposed a
+    harness bug (array mutations on junk values), now fixed.
+  - The integration spec covers stamping, round-trips, the store and the
+    preference.
+  - Crisp candidate recall holds: candidates from original-photo pair
+    evidence include every cell confident on the enhanced photo, in all
+    three modes.
+
+  Release gates (D115):
+  - The first run gated on exact cell colour and turned out to measure
+    intended tone change: undegraded photos agreed with Off on only 8–51%
+    of cells. The gate was switched to boundary agreement, with thresholds
+    unchanged.
+  - All modes then pass recovery (0.93–0.98), do-no-harm (0.92–0.98), noise
+    (no confetti rise, Standard or Crisp) and threads (7–9 vs 6, at most one
+    extra near-duplicate pair).
+  - No mode beats Off by 0.05, because synthetic degradation barely harms
+    structure (Off already agrees 0.95–0.98). So nothing is released, and
+    M4 decides on real photos.
+  - CLAHE clips stay at 1.8 and 2.5: no confetti evidence against them.
+    White balance abstained on every degraded fixture, as its guards intend.
+
+  Codex review of the diff: not available. The forwarded job ran in the
+  background, where its result can't be fetched from this session, and a
+  foreground retry hit the Codex usage limit (resets 10:46). Proceeded per
+  STANDARDS.
+
+  Verified: `tsc` and eslint clean; 734/734 unit tests.
 - 2026-09-13 — **M1 done.** Design gate: a Codex critique exchange in two
   rounds (round 1 on the plan; round 2 on my synthesis and the first
   implementation) and a domain-expert review, saved as

@@ -1,3 +1,4 @@
+import { isEnhancementModeId, type EnhancementModeId } from "../pipeline/enhance";
 import { THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern } from "../types";
 
@@ -5,11 +6,11 @@ import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type
 // HANDOVER.md D21) -- simplest reliable format, at the cost of not being
 // previewable as an image on its own. Bumped to 2 for G-012's embedded
 // sourceImage, to 3 for G-016's dmcMode flag (Owner decision,
-// 2026-09-10), to 4 for G-024's edgeMode flag, and to 5 for G-029's
-// generalized threadBrand field (HANDOVER.md D92) -- old files still open
-// fine either way, they just parse with that field absent/legacy-shaped
-// (see deserializePattern).
-const FORMAT_VERSION = 5;
+// 2026-09-10), to 4 for G-024's edgeMode flag, to 5 for G-029's
+// generalized threadBrand field (HANDOVER.md D92), and to 6 for G-032's
+// enhancementMode -- old files still open fine either way, they just parse
+// with that field absent/legacy-shaped (see deserializePattern).
+const FORMAT_VERSION = 6;
 
 export interface SerializedPattern {
   formatVersion: number;
@@ -35,6 +36,8 @@ export interface SerializedPattern {
   threadBrand?: ThreadBrand;
   /** Absent on files saved before G-024 M5, or when the pattern wasn't generated with `edgeMode: "crisp"`. */
   edgeMode?: "crisp";
+  /** The photo enhancement the pattern was generated with; absent for Off and on files saved before G-032. */
+  enhancementMode?: Exclude<EnhancementModeId, "off">;
 }
 
 /** `count`/`index` are left out -- both are derived from `cellPalette` and recomputed on load, not stored. */
@@ -50,6 +53,7 @@ export function serializePattern(pattern: StitchPattern): string {
     sourceImage: pattern.sourceImage,
     threadBrand: pattern.threadBrand,
     edgeMode: pattern.edgeMode,
+    enhancementMode: pattern.enhancementMode,
   };
   return JSON.stringify(data);
 }
@@ -134,6 +138,8 @@ export function deserializePatternData(data: unknown): StitchPattern {
     sourceImage: isValidSourceImageRef(d.sourceImage) ? d.sourceImage : undefined,
     threadBrand: resolveThreadBrand(d),
     edgeMode: d.edgeMode === "crisp" ? "crisp" : undefined,
+    // Any recognized mode is kept, released or not: the file records how it was built (D113).
+    enhancementMode: isEnhancementModeId(d.enhancementMode) && d.enhancementMode !== "off" ? d.enhancementMode : undefined,
   };
 }
 

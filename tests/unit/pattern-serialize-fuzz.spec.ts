@@ -39,6 +39,7 @@ function validFile(rng: () => number): Json {
     sourceImage: rng() < 0.5 ? { dataUrl: "data:image/png;base64,AAAA", naturalWidth: 10, naturalHeight: 10, cellSizePx: 2, offsetX: 0, offsetY: 0 } : undefined,
     threadBrand: rng() < 0.3 ? "dmc" : undefined,
     edgeMode: rng() < 0.3 ? "crisp" : undefined,
+    enhancementMode: rng() < 0.3 ? pick(rng, ["auto", "vivid", "portrait"]) : undefined,
   };
 }
 
@@ -51,8 +52,9 @@ function pick<T>(rng: () => number, items: readonly T[]): T {
 /** Applies one random mutation in place and returns its description. */
 function mutate(file: Json, rng: () => number): string {
   const kind = Math.floor(rng() * 14);
-  const palette = file.palette as Array<Json> | undefined;
-  const cells = file.cellPalette as unknown[] | undefined;
+  // An earlier mutation may have replaced these with junk (a string, a number, an object), so only real arrays count.
+  const palette = Array.isArray(file.palette) ? (file.palette as Array<Json>) : undefined;
+  const cells = Array.isArray(file.cellPalette) ? (file.cellPalette as unknown[]) : undefined;
   switch (kind) {
     case 0: {
       const key = pick(rng, Object.keys(file));
@@ -60,7 +62,7 @@ function mutate(file: Json, rng: () => number): string {
       return `delete ${key}`;
     }
     case 1: {
-      const key = pick(rng, ["width", "height", "cellPalette", "palette", "isLandscape", "name", "sourceImage", "threadBrand", "edgeMode", "formatVersion", "dmcMode"]);
+      const key = pick(rng, ["width", "height", "cellPalette", "palette", "isLandscape", "name", "sourceImage", "threadBrand", "edgeMode", "enhancementMode", "formatVersion", "dmcMode"]);
       const value = pick(rng, JUNK);
       file[key] = value;
       return `set ${key} = ${JSON.stringify(value)}`;
@@ -163,6 +165,7 @@ function assertRenderable(pattern: StitchPattern): void {
     expect(index === EMPTY_CELL || index < pattern.palette.length).toBe(true);
   }
   if (pattern.threadBrand !== undefined) expect(["dmc", "cosmo", "anchor"]).toContain(pattern.threadBrand);
+  if (pattern.enhancementMode !== undefined) expect(["auto", "vivid", "portrait"]).toContain(pattern.enhancementMode);
 
   // Every renderer must run clean on the accepted pattern.
   const pixels = renderNavigatorPixels(pattern);

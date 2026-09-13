@@ -1,6 +1,7 @@
 import type { OverlapCells } from "../export/a4-layout";
 import type { LegacyProjectSlot } from "./project-store";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "../export/finished-size";
+import { isReleasedEnhancementMode, type EnhancementModeId } from "../pipeline/enhance";
 import type { EdgeMode, GenerationMode, PaletteMode } from "../pipeline/pattern.worker";
 import { THREAD_BRAND_IDS } from "../threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, type SizePresetId } from "../types";
@@ -32,6 +33,8 @@ export interface WorkspaceOptions {
   colorCount: number;
   generationMode: GenerationMode;
   paletteMode: PaletteMode;
+  /** Photo enhancement for the next Generate. Only released modes survive a reload (D113). */
+  enhancementMode: EnhancementModeId;
 }
 
 export const DEFAULT_OPTIONS: WorkspaceOptions = {
@@ -46,6 +49,7 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   colorCount: 16,
   generationMode: "latest",
   paletteMode: "full",
+  enhancementMode: "off",
 };
 
 const VALID_OVERLAP_CELLS: readonly OverlapCells[] = [0, 5, 10];
@@ -81,6 +85,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
         parsed.paletteMode === "full" || (THREAD_BRAND_IDS as string[]).includes(parsed.paletteMode as string)
           ? (parsed.paletteMode as PaletteMode)
           : DEFAULT_OPTIONS.paletteMode,
+      enhancementMode: isReleasedEnhancementMode(parsed.enhancementMode) ? parsed.enhancementMode : DEFAULT_OPTIONS.enhancementMode,
     };
   } catch {
     return DEFAULT_OPTIONS;

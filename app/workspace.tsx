@@ -7,6 +7,7 @@ import { loadPatternFromFile } from "@/lib/editor/pattern-import";
 import { getProjectStore } from "@/lib/editor/project-store";
 import { useProjectAutosave } from "@/lib/editor/use-project-autosave";
 import { useUndoHistory } from "@/lib/editor/use-undo-history";
+import { isReleasedEnhancementMode } from "@/lib/pipeline/enhance";
 import type { StitchPattern } from "@/lib/types";
 import { ColorsDock } from "./components/colors-dock";
 import { ImageWindow, ViewBar } from "./components/image-window";
@@ -22,6 +23,7 @@ import { paginatesAsA4, useExports } from "./hooks/use-exports";
 import { useGeneration } from "./hooks/use-generation";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { usePanZoom, ZOOM_STEP } from "./hooks/use-pan-zoom";
+import { useEnhancePreview } from "./hooks/use-enhance-preview";
 import { useProjectRestore } from "./hooks/use-project-restore";
 import { useSourceImage } from "./hooks/use-source-image";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
@@ -35,6 +37,9 @@ export default function Workspace() {
   const pattern = history.state;
   const { options, update: updateOption } = useWorkspaceOptions();
   const source = useSourceImage();
+  // The enhanced preview replaces the plain photo only before the first Generate; afterwards the grid views take over.
+  const enhancementMode = isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off";
+  const photoPreview = useEnhancePreview(source.pixelBuffer, enhancementMode, pattern === null);
 
   const [viewMode, setViewMode] = useState<ViewMode>("color");
   const [activeTool, setActiveTool] = useState<Tool>("brush");
@@ -281,6 +286,10 @@ export default function Workspace() {
             realisticPreviewUrl={renderer.realisticPreviewUrl}
             previewError={renderer.previewError}
             onRetryPreview={renderer.retryPreview}
+            enhancementActive={pattern === null && enhancementMode !== "off"}
+            enhancedPreviewUrl={photoPreview.previewUrl}
+            isPreparingEnhancedPreview={photoPreview.isPreparing}
+            enhancedPreviewError={photoPreview.error}
             onPointerDown={handleCanvasPointerDown}
             onPointerMove={handleCanvasPointerMove}
             onPointerUp={handleCanvasPointerUp}

@@ -1,3 +1,4 @@
+import type { EnhancementModeId } from "./enhance";
 import { buildPattern, type EdgeMode, type PaletteMode } from "./pattern";
 import { kMeansQuantizer, plainKMeansQuantizer } from "./quantize";
 import type { PixelBuffer, StitchPattern } from "../types";
@@ -32,6 +33,7 @@ export interface StartMessage {
   generationMode?: GenerationMode;
   paletteMode?: PaletteMode;
   edgeMode?: EdgeMode;
+  enhancementMode?: EnhancementModeId;
 }
 
 export type WorkerRequest = StartMessage;
@@ -62,6 +64,7 @@ self.onmessage = (event) => {
       quantizer: msg.generationMode === "original" ? plainKMeansQuantizer : kMeansQuantizer,
       paletteMode: msg.paletteMode,
       edgeMode: msg.edgeMode,
+      enhancementMode: msg.enhancementMode,
       onProgress: (fraction) => self.postMessage({ type: "progress", jobId: msg.jobId, fraction }),
     });
     self.postMessage({ type: "done", jobId: msg.jobId, pattern });
