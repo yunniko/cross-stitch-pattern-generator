@@ -233,6 +233,7 @@ above the goal's 1.5 s target.
 | 2026-09-13 | 8f842bb | All photo modes offered, cautious Brighten mode (D118) | Only this container restarted; 7 sites 200; live: five mode buttons, Brighten preview 0.2 s, saved file records "brighten", no console errors |
 | 2026-09-13 | e52608f | OXS import and export (G-028, D119) | Only this container restarted; 7 sites 200; live: a self-authored OXS chart opened with the expected notice, name and 18-count; its OXS re-export is 6 wide with the cloth at index 0 and 14 stitches; no console errors |
 | 2026-09-13 | 0cd4790 | Stitch counts count only filled stitches (D120); G-028 archived | Only this container restarted; 7 sites 200; live: header "50 × 31, 1,550 stitches" became "55 × 31, 1,550 stitches" after expanding the canvas; no console errors |
+| 2026-09-13 | ebde884 | One canvas for every view mode: zoom, scroll and pan shared (D121) | Only this container restarted; 7 sites 200; live at zoom ×4 and scroll 120/90, all five modes showed the same 2702×1676 canvas box and kept the scroll; no console errors |
 
 ## Decisions
 
