@@ -1,66 +1,53 @@
 # Cross-Stitch Pattern Generator
 
-Turns an uploaded photo into a printable cross-stitch chart. Pick a
-pattern size (stitch count) and a number of colors; the tool reduces
-the image to a genuine region-aware, edge-preserving palette — not
-just an independent per-cell nearest-color match — and assigns each
-color a symbol. Everything runs in the browser (in a Web Worker, so
-the page stays responsive); no image is ever uploaded anywhere.
+Turns a photo into an editable, printable cross-stitch chart. Everything runs
+in the browser: generation happens in a Web Worker, projects autosave to the
+browser's IndexedDB, and no image is ever uploaded. Live at
+<https://cross-stitch.craftodejnice.cz>.
 
-Download the chart as:
-- **Black & white** — grayscale shading + symbols (ink-friendly,
-  printable, highlightable).
-- **Color** — actual colors + symbols.
+## What it does
 
-Every chart includes:
-- A grid marking every stitch, with a heavier line every 5 stitches
-  and heavier still every 10.
-- Centre markers (arrows at each edge's midpoint) and row/column
-  numbers along the top and left — the standard chart-software
-  conventions for finding your place and counting.
-- A header with the stitch dimensions and an estimated finished size
-  on 14-count Aida.
-- A legend with each color's swatch, symbol, hex code, and stitch
-  count, placed below the chart for a landscape photo or to the right
-  otherwise.
-
-## How the color reduction works
-
-Rather than quantizing each stitch independently, the pipeline:
-1. Downsamples the image to the target grid (averaging in linear
-   light, not gamma-encoded sRGB).
-2. Clusters cell colors in OKLab space (k-means) to build the palette.
-3. Runs a local optimizer (Iterated Conditional Modes over a
-   Potts-model energy) that favors coherent color regions and
-   preserves real image edges — weighted by a Sobel-based importance
-   map so genuinely important small details survive, not just noise.
-4. Cleans up structural artifacts a per-cell pass can't see: small
-   isolated components get recolored as a whole, and 2x2 diagonal-only
-   color pinches get resolved.
-5. Merges near-duplicate palette colors and recomputes each color from
-   its final cell membership.
-
-Full research, algorithm rationale, and decision history are in
-`HANDOVER.md` and `docs/domain-reference.md`.
-
-## Status
-
-Core functionality complete and verified (upload → generate → preview
-→ download, both chart variants, the region-aware optimizer, chart
-conventions). See `GOALS.md` for the milestone plan — a few optional
-refinements (jaggy-contour smoothing, banding detection, a debug-
-visualization mode) are deliberately deferred; see `HANDOVER.md` D10.
+- **Generate** a chart from a photo at 10–1000 stitches and 2–100 colors.
+  The pipeline downsamples in linear light, clusters in OKLab, then smooths
+  regions with an edge-aware optimizer so the chart has few stray stitches.
+- **Choose the palette**: whatever colors the photo needs, or real DMC,
+  Cosmo or Anchor threads (Anchor is derived from DMC equivalents and says so).
+- **Choose edge handling**: Standard averages across boundaries; Crisp keeps a
+  hard boundary as two real colors instead of inventing a blend.
+- **Edit** with brush, fill, rectangle select (copy, paste, move, flip), move,
+  pan, zoom and highlight tools. Merge, recolor, rename and re-symbol colors,
+  mark stitches as empty, resize the canvas, undo and redo.
+- **Export** editable JSON, a realistic stitched preview, full-chart PNGs,
+  paginated A4 ZIPs, a Pattern Keeper–compatible PDF, or everything at once as
+  a `.cspzip` bundle, which the app can open again.
 
 ## Run locally
 
 ```
-npm install
+npm install --legacy-peer-deps
 npm run dev
 ```
 
-## Tests
+## Tests and checks
 
 ```
-npm run test:unit   # Vitest — pipeline logic + diagnostics/regression suite
-npm run test:e2e    # Playwright — upload → generate → download
+npm run lint
+npx tsc --noEmit
+npm run test:unit   # Vitest: pipeline, editor, export and storage logic, golden hashes
+npm run test:e2e    # Playwright against a production build on port 30200
+npm run bench       # per-stage generation timings (slow; not part of CI)
 ```
+
+CI (`.github/workflows/ci.yml`) runs lint, type-check, unit and e2e on every
+push.
+
+## Status and documentation
+
+Actively developed; see `GOALS.md` for active goals and `HANDOVER.md` for the
+current state, architecture, rules and deploy log. Decisions are recorded one
+per file in `docs/decisions/`, research and reviews in `docs/reviews/` and
+`docs/domain-reference*.md`, and thread-data and font licensing in
+`docs/*-provenance.md`.
+
+Style: Tailwind with the zinc palette, pill-shaped controls, light and dark
+themes following the system preference.

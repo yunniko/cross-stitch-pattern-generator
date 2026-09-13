@@ -2,9 +2,111 @@
 
 One file per significant decision (`Dnnn-<slug>.md`, template and size cap in
 `COMPANY/STANDARDS.md` → Documentation). Append-only: a reversal is a new file
-that names the old one. D1–D98 predate this folder and still live inline in
-`HANDOVER.md` until G-031 M5 migrates them.
+that names the old one, and the old file's Status line points forward.
 
+D001–D098 were migrated in G-031 M5 from the narrative decision record that
+used to live in `HANDOVER.md`. Each migrated file's Evidence line cites the
+original entry at commit f7bb51c, where the full reasoning and measurements
+remain readable with git show.
+
+- D001 — Colors are reduced by clustering cell averages in a perceptual space, not matched per pixel — superseded (superseded by: D006)
+- D002 — Size presets are 50, 100 and 150 stitches on the longer side — active
+- D003 — Chart symbols come from a fixed, hand-curated list — active
+- D004 — Chart canvas size is clamped by shrinking the cell size — partly superseded (superseded by: D026 for whole-chart budgets)
+- D005 — Generation runs on the main thread, deferred one tick — superseded (superseded by: D006)
+- D006 — The pipeline optimizes a stitchable pattern: OKLab clustering plus an energy optimizer in a worker — active
+- D007 — First domain-expert review: fix the rendering and averaging bugs, defer chart conventions to M9a — active
+- D008 — Edge importance weights the optimizer as a strict generalization of the plain Potts penalty — partly superseded (superseded by: D044 for pair edge evidence)
+- D009 — Contour cleanup ships diagonal fixes and component recoloring; simulated annealing stays unwired — active
+- D010 — Quality diagnostics and a tolerance-band regression suite; no debug-visualization UI — active
+- D011 — Second domain review: clamp the pair energy, recompute palette colors, normalize edges at the 99.9th percentile — active
+- D012 — Charts carry centre markers, row/column numbers, a size header and a pinned font stack — active
+- D013 — Deployed to cross-stitch.craftodejnice.cz from a public repository — active
+- D014 — The realistic preview is a separate renderer drawing one cross per cell — superseded (superseded by: D015)
+- D015 — The realistic preview tints the Owner's stitch photo per palette color — active
+- D016 — Finished-size conversion lives in one pure module — active
+- D017 — Legend colors get unique names from color-name-list, assigned greedily by OKLab distance — active
+- D018 — K-means merges redundant colors and reinvests freed slots in the worst-represented cell — active
+- D019 — Fabric count is selectable from 11/14/16/18 and size shows in one chosen unit — active
+- D020 — Users choose between the Latest and Original color-picking algorithms — active
+- D021 — The editable pattern file is plain JSON, not a PNG with embedded data — active
+- D022 — The editor uses pure pattern mutations, a snapshot undo stack and a DOM legend — active
+- D023 — A brush stroke is one undo step; colors are renamed by hand; the legend sorts a copy — active
+- D024 — A4 export splits pure page layout from rendering and ZIP bundling — active
+- D025 — Superseded generation jobs reject, and async results are gated by a source revision — active
+- D026 — Code-review fixes: whole-chart pixel budget, area-weighted downsampling, OKLab palette centroids — active
+- D027 — A redeploy is verified by container isolation, neighbor sites and the original repro on the live URL — active
+- D028 — One docked workspace with a single undo history; saved files embed the source photo — active
+- D029 — Rendering deploys re-check the small-chart header clip on production — active
+- D030 — Scrollable centered containers use grid centering; wheel zoom uses a native non-passive listener — active
+- D031 — DMC matching is a post-process over a finished pattern; floss is estimated generously — partly superseded (superseded by: D040, D092)
+- D032 — Up to 100 colors with single-glyph symbols; reassigning a used symbol swaps it — active
+- D033 — Fabric count, unit and author name are persisted options; the open project restores on reload — partly superseded (superseded by: D100 for project storage)
+- D034 — Thread mode is stored on the pattern; A4 export adds a paginated extended legend — partly superseded (superseded by: D092 for the brand field)
+- D035 — G-013 to G-016 shipped in one redeploy without the planned DMC e2e coverage — active
+- D036 — A thread-mode pattern's color editor offers only real threads; free-form patterns get a switch — active
+- D037 — Rectangle selections float until merged; the Fill tool is 8-connected — active
+- D038 — The realistic preview has a transparent background and no border — active
+- D039 — The quantizer refills slots lost to Lloyd attrition and biases reinvestment by importance — active
+- D040 — Palette mode is independent of the clustering algorithm — partly superseded (superseded by: D092 for multiple brands)
+- D041 — Quantizer input is pre-filtered by an importance-gated 3×3 OKLab vector medoid — partly superseded (superseded by: D051)
+- D042 — Lloyd's last step reassigns against the returned centroids; a shape-fidelity suite guards boundaries — active
+- D043 — Boundary energy uses an 8-neighbor stencil with 1/√2 diagonal weights — active
+- D044 — Per-pair color structure-tensor edge evidence replaces per-cell max(importance) — active
+- D045 — The coarse pass's edgeLoss is 0.015; other multi-scale weights stay unchanged — active
+- D046 — Crisp edges mode is planned from the external design report, queued behind open work — active
+- D047 — XL (200) and XXL (250) size presets, with an explicit label map — active
+- D048 — Contour refinement is a staged research effort with admissibility constraints — active
+- D049 — The shape harness measures N classes, degenerate boundaries, fractional scales, junctions and thin lines — active
+- D050 — Thin axial lines were erased because Sobel importance is zero on a ridge — superseded (superseded by: D051)
+- D051 — Denoise protects a cell with high ridge strength and a matching neighbor — active
+- D052 — Boundary chains are ordered lattice-edge walks that end at junctions — active
+- D053 — The pacing objective is worth building, but only with corner and junction admissibility — active
+- D054 — Contour refinement is an opt-in pacing bias inside the single-cell ICM decision — active
+- D055 — Contour refinement is not adopted: it fragments real photos without improving real shapes — active
+- D056 — Snapping to a thread palette re-runs the fine ICM pass inside buildPattern — active
+- D057 — Crisp mode starts from locked reproduction fixtures and a per-module build-on/leave-alone inventory — active
+- D058 — Crisp boundary evidence fits two modes per cell; confidence is color separation times spatial separation — partly superseded (superseded by: D059, D064)
+- D059 — Crisp coverage sums each pixel's true overlap with the cell — active
+- D060 — not assigned (numbering gap in the original record; D061 cites D059's critique under this number)
+- D061 — Crisp palettes train on coverage-weighted modes; unary cost is α·fit + β·(1 − coverage) — active
+- D062 — A goal-number collision is resolved by renumbering the goal with no references — active
+- D063 — Crisp pipeline integration follows a fixed contract, and Crisp refuses contour refinement — active
+- D064 — Crisp confidence includes edge sharpness from a step-versus-affine model comparison — active
+- D065 — One frozen Crisp evidence layer, pre-filtered by pair evidence and confirmed by a confident neighbor — active
+- D066 — Confident Crisp cells start at the argmin of unary cost against the returned palette — active
+- D067 — In ICM, protected cells search only admissible labels, with α from weights.color, and keep their label on ties — active
+- D068 — Contour cleanup costs candidates through the shared Crisp-aware lookup — active
+- D069 — After a palette change, only inadmissible Crisp labels are repaired, by the shared argmin rule — active
+- D070 — Final Crisp palette colors average each protected cell's selected mode, with at most 3 repair rounds — active
+- D071 — Brand snapping rebuilds Crisp mode mappings against thread colors and repairs, even without re-optimization — active
+- D072 — buildPattern takes edgeMode, defaulting to Standard and byte-identical when omitted — active
+- D073 — PDF charts embed DejaVu Sans with pdf-lib so every symbol is real extractable text — active
+- D074 — The PDF exporter reuses the A4 page-drawing code through a bounded canvas adapter — active
+- D075 — The Pattern Keeper PDF export fetches its font on click and is tested against real legend symbols — active
+- D076 — Overlap bands carry no text; the legend page explains them once — active
+- D077 — Edge mode is a toggle saved both on the pattern and as a workspace preference — active
+- D078 — One export dropdown, an "Export all" .cspzip bundle, and import that detects ZIPs by content — active
+- D079 — Heavy exports yield to the main thread between steps instead of moving to a worker — active
+- D080 — Export controls sit in the top bar as pills, with the label kept as an accessible name — active
+- D081 — The root declares color-scheme: light dark so native controls follow the theme — active
+- D082 — Tools are hand-drawn SVG icons in three groups, keeping their names as aria-labels — active
+- D083 — The Fill tool icon is a paint bucket — active
+- D084 — The Brush tool icon shows a handle, a bristle head and a stroke — active
+- D085 — The export dropdown defaults to editable JSON and groups formats under Color and Black & white — active
+- D086 — Global keyboard shortcuts skip typing targets; brush double-click fills from the pre-click pattern — partly superseded (superseded by: D103)
+- D087 — Keys 1–5 switch views, including an original-photo view; canvas color is view-only — active
+- D088 — Dropping a color on the Empty row merges it into no-stitch — active
+- D089 — Pattern size, color count, algorithm and palette persist, each validated field by field — active
+- D090 — Pattern-load failures are logged with a report of the bad file; a corrupt autosave is cleared — partly superseded (superseded by: D101)
+- D091 — The navigator preview draws empty cells in the canvas color — active
+- D092 — Thread brands live in one registry with a matching strategy; patterns store threadBrand — active
+- D093 — Cosmo colors come from the MIT CosmoToRGB dataset and show codes only — active
+- D094 — Anchor matches the nearest real DMC thread, relabels it, and discloses the derivation — active
+- D095 — Pre-brand pattern files open as DMC patterns, checked through the real file-open path — active
+- D096 — Crisp acceptance covers every report fixture, measured at real downsampling ratios — active
+- D097 — Pattern Keeper compatibility rests on the Owner's real import of an exported PDF — active
+- D098 — A concurrent review's findings are recorded for triage; goals need explicit Owner sign-off — active
 - D099 — The pattern deserializer validates every field, not just grid geometry — active
 - D100 — Project autosave moves to IndexedDB, photo stored once by content hash — active
 - D101 — A failed auto-restore shows a banner with an on-demand report, not a page-load download — active
