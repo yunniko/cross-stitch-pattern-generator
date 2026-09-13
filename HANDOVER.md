@@ -220,6 +220,7 @@ above the goal's 1.5 s target.
 | 2026-09-13 | 1380bd3 | G-031: IndexedDB autosave, strict loader, shortcut and drag fixes, faster pipeline, workspace split | Only this container restarted; 5 sites 200; live 1000-stitch generation 8.5 s, 50-cell stroke 1.2 s, 4 MB photo survives reload, 9/9 live e2e |
 | 2026-09-13 | fb28d4e | Resize with empty stitches (D109), unselectable control text (D110), CI typegen | Only this container restarted; 5 sites 200; resize e2e 3/3 on production; computed user-select none on buttons, text on inputs |
 | 2026-09-13 | 50d632a | G-032 photo enhancement in the pipeline, preview and saved files, hidden (Off only, D117) | Only this container restarted; 7 sites 200; CI green; live upload shows no Photo modes, generation 0.9 s, saved file format 6 without a mode, no console errors |
+| 2026-09-13 | 8f842bb | All photo modes offered, cautious Brighten mode (D118) | Only this container restarted; 7 sites 200; live: five mode buttons, Brighten preview 0.2 s, saved file records "brighten", no console errors |
 
 ## Decisions
 
