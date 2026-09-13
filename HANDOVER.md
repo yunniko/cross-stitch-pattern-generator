@@ -36,7 +36,8 @@ unselectable control text (D110). G-032 (photo enhancement) is in progress.
 tests; 55/55 Playwright tests on a fresh production build. CI
 (`.github/workflows/ci.yml`) failed its first run because route types
 such as `LayoutProps` are generated and git-ignored; it now runs
-`next typegen` before the type-check, verified on a fresh clone.
+`next typegen` before the type-check, and passed on GitHub for `fb28d4e`
+(lint, tsc, unit and Playwright in 2 min 34 s).
 
 **Performance** at 1500×1000 → 1000 stitches / 64 colors: Standard 14.6 s,
 Crisp 27.4 s, Standard + DMC 18.5 s. Details in
@@ -142,8 +143,11 @@ Crisp 27.4 s, Standard + DMC 18.5 s. Details in
 
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
-- G-032 (optional photo enhancement) is active, with all milestones and
-  the deploy pre-approved by the Owner; see its progress log in `GOALS.md`.
+- G-032 (optional photo enhancement) is active, with all milestones and the
+  deploy pre-approved by the Owner. M1 is done: the pure core lives in
+  `lib/pipeline/enhance.ts` (D111–D114) and is not yet wired into generation.
+  At 4000×3000 it takes 1.6–1.9 s against a 1.5 s target, which is still
+  open. Next is M2, pipeline integration; see the G-032 progress log.
 - G-028 (OXS import and export) is a draft. G-030 (public launch) is a
   far-future draft. G-023 (Rust sidecar) was measured as not needed.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`);
@@ -189,6 +193,7 @@ Crisp 27.4 s, Standard + DMC 18.5 s. Details in
 | 2026-09-12 | 1e802f9 | Load-failure reports, navigator color (D090–D091) | Page loads clean; paths covered by e2e |
 | 2026-09-12 | ca4cfb1 | Cosmo and Anchor palettes (G-029) | Four palette options live, no console errors |
 | 2026-09-13 | 1380bd3 | G-031: IndexedDB autosave, strict loader, shortcut and drag fixes, faster pipeline, workspace split | Only this container restarted; 5 sites 200; live 1000-stitch generation 8.5 s, 50-cell stroke 1.2 s, 4 MB photo survives reload, 9/9 live e2e |
+| 2026-09-13 | fb28d4e | Resize with empty stitches (D109), unselectable control text (D110), CI typegen | Only this container restarted; 5 sites 200; resize e2e 3/3 on production; computed user-select none on buttons, text on inputs |
 
 ## Decisions
 

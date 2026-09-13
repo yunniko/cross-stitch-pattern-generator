@@ -4,6 +4,7 @@ import { computeCellImportance, computeEdgeMagnitude } from "@/lib/pipeline/edge
 import { denoiseForQuantization } from "@/lib/pipeline/denoise";
 import { defaultComponentRecolorOptions, fixDiagonalConnections, recolorSmallComponents } from "@/lib/pipeline/contour-cleanup";
 import { runMultiScaleOptimizer } from "@/lib/pipeline/local-optimizer";
+import { analyzeEnhancement, applyEnhancement, ENHANCEMENT_PRESETS } from "@/lib/pipeline/enhance";
 import { computePairEdgeEvidence } from "@/lib/pipeline/pair-edge-evidence";
 import { buildPattern } from "@/lib/pipeline/pattern";
 import { createPipelineContext } from "@/lib/pipeline/pipeline-context";
@@ -44,6 +45,16 @@ function printTable(title: string, rows: Array<[string, number]>) {
   console.log(`\n${title}`);
   for (const [label, ms] of rows) console.log(`  ${label.padEnd(width)}  ${ms.toFixed(0).padStart(8)} ms`);
 }
+
+it("enhancement: 4000x3000 photo-like source (G-032 criterion 7: under 1.5 s)", () => {
+  const source = makePhotoLikeBuffer(4000, 3000);
+  const rows: Array<[string, number]> = [];
+  for (const mode of ["auto", "vivid", "portrait"] as const) {
+    const params = timed(rows, `analyzeEnhancement ${mode}`, () => analyzeEnhancement(source, ENHANCEMENT_PRESETS[mode]));
+    timed(rows, `applyEnhancement ${mode}`, () => applyEnhancement(source, params));
+  }
+  printTable("Enhancement -- 4000x3000", rows);
+});
 
 for (const { label, source, stitches, colors } of CONFIGS) {
   it(`stages: ${label}`, () => {

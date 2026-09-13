@@ -85,6 +85,103 @@ export function oklabToRgb([L, a, b]: Oklab): RGB {
   return [linearToSrgb(rl), linearToSrgb(gl), linearToSrgb(bl)];
 }
 
+/** OKLab to linear-light sRGB without clamping: a component outside [0, 1] means the color is outside the sRGB gamut. */
+export function oklabToLinearRgb([L, a, b]: Oklab): [number, number, number] {
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  return [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+  ];
+}
+
+const GAMUT_EPSILON = 1e-6;
+/** CSS Color 4 gamut mapping: a clipped color within this ΔEOK of the chroma-reduced candidate is accepted. */
+export const GAMUT_JND = 0.02;
+const GAMUT_CHROMA_EPSILON = 1e-4;
+
+function linearInGamut([r, g, b]: [number, number, number]): boolean {
+  return r >= -GAMUT_EPSILON && r <= 1 + GAMUT_EPSILON && g >= -GAMUT_EPSILON && g <= 1 + GAMUT_EPSILON && b >= -GAMUT_EPSILON && b <= 1 + GAMUT_EPSILON;
+}
+
+function clipLinearToOklab([r, g, b]: [number, number, number]): Oklab {
+  const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  const rl = clamp(r);
+  const gl = clamp(g);
+  const bl = clamp(b);
+  const l_ = Math.cbrt(0.4122214708 * rl + 0.5363325363 * gl + 0.0514459929 * bl);
+  const m_ = Math.cbrt(0.2119034982 * rl + 0.6806995451 * gl + 0.1073969566 * bl);
+  const s_ = Math.cbrt(0.0883024619 * rl + 0.2817188376 * gl + 0.6299787005 * bl);
+  return [
+    0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_,
+    1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_,
+    0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_,
+  ];
+}
+
+/**
+ * CSS Color 4 gamut mapping into `out` as linear sRGB: binary search on chroma at constant lightness and hue, accepting
+ * the per-channel clip once it is within GAMUT_JND of the candidate (keeps bright yellows and dark blues from fully
+ * desaturating). Gamut membership is tested on unclamped linear RGB, because `oklabToRgb` clamps and testing its output
+ * would call everything in gamut. The one implementation behind both `oklabToRgbGamutMapped` and photo enhancement. See D111.
+ */
+export function gamutMapOklabToLinear(L: number, a: number, b: number, out: Float64Array): void {
+  if (L <= 0) {
+    out[0] = out[1] = out[2] = 0;
+    return;
+  }
+  if (L >= 1) {
+    out[0] = out[1] = out[2] = 1;
+    return;
+  }
+  const linear = oklabToLinearRgb([L, a, b]);
+  if (linearInGamut(linear)) {
+    out[0] = linear[0];
+    out[1] = linear[1];
+    out[2] = linear[2];
+    return;
+  }
+  const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  let best: [number, number, number] = [clamp(linear[0]), clamp(linear[1]), clamp(linear[2])];
+  if (oklabDistanceSquared(clipLinearToOklab(linear), [L, a, b]) >= GAMUT_JND * GAMUT_JND) {
+    let low = 0;
+    let high = 1;
+    let lowInGamut = true;
+    const chroma = Math.hypot(a, b);
+    while ((high - low) * chroma > GAMUT_CHROMA_EPSILON) {
+      const scale = (low + high) / 2;
+      const candidate: Oklab = [L, a * scale, b * scale];
+      const candidateLinear = oklabToLinearRgb(candidate);
+      if (lowInGamut && linearInGamut(candidateLinear)) {
+        low = scale;
+        best = candidateLinear;
+        continue;
+      }
+      const error = Math.sqrt(oklabDistanceSquared(clipLinearToOklab(candidateLinear), candidate));
+      if (error < GAMUT_JND) {
+        best = [clamp(candidateLinear[0]), clamp(candidateLinear[1]), clamp(candidateLinear[2])];
+        if (GAMUT_JND - error < GAMUT_CHROMA_EPSILON) break;
+        lowInGamut = false;
+        low = scale;
+      } else {
+        high = scale;
+      }
+    }
+  }
+  out[0] = clamp(best[0]);
+  out[1] = clamp(best[1]);
+  out[2] = clamp(best[2]);
+}
+
+/** OKLab to 8-bit sRGB with CSS Color 4 gamut mapping (`gamutMapOklabToLinear`). */
+export function oklabToRgbGamutMapped(color: Oklab): RGB {
+  const out = new Float64Array(3);
+  gamutMapOklabToLinear(color[0], color[1], color[2], out);
+  return [linearToSrgb(out[0]), linearToSrgb(out[1]), linearToSrgb(out[2])];
+}
+
 export function oklabDistanceSquared(a: Oklab, b: Oklab): number {
   const dl = a[0] - b[0];
   const da = a[1] - b[1];

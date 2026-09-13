@@ -119,3 +119,7 @@ remain readable with git show.
 - D108 — The workspace is a thin shell over hooks and dock components — active
 - D109 — Canvas resize expands with empty stitches, never a new color — active
 - D110 — Text on controls is not selectable; text fields stay selectable — active
+- D111 — Out-of-gamut OKLab colors are mapped with the CSS Color 4 chroma-reduction hybrid — active
+- D112 — Enhancement runs inside buildPattern; color stages read the enhanced photo, edge stages the original — active
+- D113 — Auto, Vivid and Portrait are built, and each ships in the UI only after passing calibration gates — active
+- D114 — Enhancement steps are capped and target-seeking, with guards against false white balance and clipped tails — active

@@ -774,7 +774,7 @@ saved-file embed) also stays the original bytes.
   - Standard OPERATIONS.md check-in at every milestone boundary.
 
 **Milestones:**
-- [ ] **M1 — Design gate + pure core.** Codex critique exchange on the
+- [x] **M1 — Design gate + pure core.** Codex critique exchange on the
       placement decision (source pixels vs cell grid), the adjustment
       set and the mode matrix; domain-expert review of the same design
       against photographic image-processing practice (illuminant
@@ -827,6 +827,59 @@ saved-file embed) also stays the original bytes.
   recorded.
 
 **Progress log** (newest first):
+- 2026-09-13 — **M1 done.** Design gate: a Codex critique exchange in two
+  rounds (round 1 on the plan; round 2 on my synthesis and the first
+  implementation) and a domain-expert review, saved as
+  `docs/domain-reference-photo-enhancement.md`. Outcomes are D111–D114.
+  Changes from the plan:
+  - enhancement runs once inside `buildPattern`, and Off is a true bypass;
+  - colour stages read the enhanced photo while Sobel importance and pair
+    evidence read the original (a first-calibration prior);
+  - the midtone target is the band L 0.50–0.64, not 0.45–0.5;
+  - the levels deadband and targets are corrected, and levels use a toe and
+    shoulder instead of clipping, with a capped, centred stretch and a
+    composed tone-slope cap of 3;
+  - white balance is guarded by near-neutral selection, a lightness-spread
+    requirement, and the chroma cap checked after normalization;
+  - CLAHE has a flatness gate that scales blend to zero;
+  - sampling is stratified and alpha-weighted;
+  - gamut mapping follows CSS Color 4, in one implementation (`lib/color/color.ts`);
+  - idempotence is restated as convergence;
+  - three presets are built, each released only after passing gates, with
+    recognized kept separate from released modes.
+
+  Bugs found and fixed during M1:
+  - a flat beige surface was white-balanced;
+  - levels clipped the tails to pure black and white. A drift diagnostic
+    showed levels was the only stage still acting on repeat passes; with
+    levels off, second-pass drift fell from 0.045 to 0.010;
+  - the vibrance deadband was measured before chroma compensation;
+  - the CLAHE lookup read bin edges as bin centres;
+  - CLAHE coordinates didn't scale to a preview.
+
+  Verified: 38 new unit tests (enhance 32, gamut 6) plus the full suite, all
+  passing, with `tsc` and eslint clean. Timing at 4000×3000 via
+  `npm run bench` on the Owner's machine, from 2.3–4.6 s at first to:
+
+  | Mode | Analysis | Pixel pass | Total |
+  |---|---|---|---|
+  | Portrait | 0.19 s | 1.39 s | 1.58 s |
+  | Auto | 0.28 s | 1.62 s | 1.90 s |
+  | Vivid | 0.25 s | 1.68 s | 1.93 s |
+
+  **Criterion 7 (under 1.5 s) is not met yet.** The remaining cost is the
+  per-pixel RGB-to-OKLab conversion (three cube roots ≈ 0.35 s) plus the
+  tone and CLAHE lookups. The next lever, a 3D lookup table for the
+  conversion, trades accuracy near black. Re-measure inside the browser
+  worker in M2/M4 before choosing it, or before asking the Owner whether
+  the target should change.
+
+  Added to M2/M3 from round 2:
+  - Crisp candidate recall is checked against fits on the enhanced photo;
+  - release gates measure benefit and retained detail across DMC, Cosmo and
+    Anchor, and record which operations ran.
+
+  Next: M2.
 - 2026-09-13 — **Owner authorization:** "proceed g-032 through all
   milestones including deploy without confirmation". Milestone check-ins
   are waived for this goal, and the M4 production deploy is pre-approved.
