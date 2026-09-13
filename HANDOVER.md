@@ -248,6 +248,7 @@ above the goal's 1.5 s target.
 | 2026-09-13 | 0cd4790 | Stitch counts count only filled stitches (D120); G-028 archived | Only this container restarted; 7 sites 200; live: header "50 × 31, 1,550 stitches" became "55 × 31, 1,550 stitches" after expanding the canvas; no console errors |
 | 2026-09-13 | ebde884 | One canvas for every view mode: zoom, scroll and pan shared (D121) | Only this container restarted; 7 sites 200; live at zoom ×4 and scroll 120/90, all five modes showed the same 2702×1676 canvas box and kept the scroll; no console errors |
 | 2026-09-13 | ca8d883 | G-033 M1: palette colors remember their thread swatch, format 7 (D122) | Only this container restarted; 7 sites 200; live: a DMC pattern's editable export is format 7, locked to DMC, with a matching DMC source on all 16 colors; no console errors |
+| 2026-09-13 | 5ead992 | G-033 M2–M3: swatch-aware color editor with Okhsl comparison (D123) | Only this container restarted; 7 sites 200; live: a DMC color opened with one marked swatch in view, hover read "DMC 3328 - Salmon - Dark: 7% lighter, 10% more saturated", a pick stayed open, Escape restored the color; no console errors |
 
 ## Decisions
 
