@@ -95,6 +95,44 @@ describe("pattern-client", () => {
     await expect(promise).rejects.toThrow("cancelled");
   });
 
+  // G-031 M3 (review E6): a worker with no job in flight is reused, keeping
+  // its module-level caches (color names, brand OKLab tables) warm.
+  it("reuses the worker for a job started after the previous one finished", async () => {
+    const { runPatternJob } = await import("@/lib/pattern-client");
+    const first = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
+    const w = FakeWorker.instances[0];
+    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
+    await first;
+
+    const second = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 20, colorCount: 4 });
+    expect(FakeWorker.instances).toHaveLength(1);
+    expect(w.terminated).toBe(false);
+    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
+    await expect(second).resolves.toBe(FIXTURE_PATTERN);
+  });
+
+  it("reuses the worker after a job reported an error", async () => {
+    const { runPatternJob } = await import("@/lib/pattern-client");
+    const first = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
+    const w = FakeWorker.instances[0];
+    w.respond({ type: "error", jobId: w.lastRequest!.jobId, message: "boom" });
+    await expect(first).rejects.toThrow("boom");
+
+    runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 }).catch(() => {});
+    expect(FakeWorker.instances).toHaveLength(1);
+    expect(w.terminated).toBe(false);
+  });
+
+  it("cancelPatternJob with nothing in flight leaves the worker alive", async () => {
+    const { runPatternJob, cancelPatternJob } = await import("@/lib/pattern-client");
+    const job = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
+    const w = FakeWorker.instances[0];
+    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
+    await job;
+    cancelPatternJob();
+    expect(w.terminated).toBe(false);
+  });
+
   it("terminates the previous worker when a new job supersedes it", async () => {
     const { runPatternJob } = await import("@/lib/pattern-client");
     runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 }).catch(() => {});

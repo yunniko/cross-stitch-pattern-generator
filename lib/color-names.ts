@@ -7,10 +7,8 @@ interface NamedColorEntry {
   oklab: Oklab;
 }
 
-// Lazily built once per session (module-level cache): the curated ~5,000
-// name "best of" list from color-name-list (MIT-licensed, brand-neutral --
-// see HANDOVER.md D17 for why this and not a floss-brand dataset) converted
-// to OKLab once, since every subsequent call reuses the same reference set.
+// The curated ~5,000-name "best of" list (MIT, brand-neutral -- D17),
+// converted to OKLab once per session.
 let cachedEntries: NamedColorEntry[] | null = null;
 
 function getEntries(): NamedColorEntry[] {
@@ -21,23 +19,28 @@ function getEntries(): NamedColorEntry[] {
 }
 
 /**
- * Assigns each color the nearest name from the reference list, using the
- * same OKLab perceptual distance the rest of the pipeline already relies on
- * (rather than introducing a second, less accurate metric). Matching is
- * greedy-global: every (color, name) pair is sorted by distance and claimed
- * closest-first, so two colors that would both naturally be "Cerulean" don't
- * collide -- the closer one gets it, the other falls through to its
- * next-nearest still-available name. Names are unique within one call, but
- * not guaranteed unique across separate calls/patterns.
+ * Nearest name per color by OKLab distance, assigned greedy-globally:
+ * every (color, name) pair is claimed closest-first, so two colors that
+ * would both be "Cerulean" don't collide. Names are unique within one call.
+ *
+ * Only each color's `k + 1` nearest names (k = number of colors) enter the
+ * sort: at most `k - 1` names can be claimed by other colors before a
+ * color's turn, so its assigned name always lies within its `k` nearest.
+ * Pairs are pushed in the same (color, name) order and stable-sorted by
+ * distance, so ties resolve exactly as the full sort did (review E5).
  */
 export function nameColors(colors: readonly RGB[]): string[] {
   const entries = getEntries();
   const queries = colors.map(rgbToOklab);
+  const keep = Math.min(entries.length, colors.length + 1);
 
   const pairs: Array<{ colorIndex: number; nameIndex: number; distance: number }> = [];
+  const distances = new Float64Array(entries.length);
   for (let ci = 0; ci < queries.length; ci++) {
+    for (let ni = 0; ni < entries.length; ni++) distances[ni] = oklabDistanceSquared(queries[ci], entries[ni].oklab);
+    const threshold = Float64Array.from(distances).sort()[keep - 1];
     for (let ni = 0; ni < entries.length; ni++) {
-      pairs.push({ colorIndex: ci, nameIndex: ni, distance: oklabDistanceSquared(queries[ci], entries[ni].oklab) });
+      if (distances[ni] <= threshold) pairs.push({ colorIndex: ci, nameIndex: ni, distance: distances[ni] });
     }
   }
   pairs.sort((a, b) => a.distance - b.distance);
@@ -56,15 +59,9 @@ export function nameColors(colors: readonly RGB[]): string[] {
 }
 
 /**
- * Names a single color (e.g. one added by hand in the pattern editor)
- * without touching any existing palette color's name — `nameColors`'
- * greedy-global assignment recomputes across its *entire* input, which
- * would risk reshuffling every other color's name just because one more
- * was added. Simple nearest-first search, skipping any name already in
- * `existingNames` so the new color doesn't collide with the palette it's
- * joining (uniqueness across the same palette matters here the same way
- * it does for `nameColors`; uniqueness against a *different* pattern's
- * names still isn't guaranteed, same caveat as `nameColors`).
+ * Names one color added by hand without touching existing names (which
+ * `nameColors`' global assignment could reshuffle): nearest name not in
+ * `existingNames`.
  */
 export function nameNewColor(rgb: RGB, existingNames: readonly string[]): string {
   const entries = getEntries();

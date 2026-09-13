@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyBrandPalette, countCrispThreadCollisions } from "@/lib/dmc-match";
 import { rgbToOklab } from "@/lib/color";
+import { createPipelineContext } from "@/lib/pipeline-context";
 import type { BoundaryEvidence } from "@/lib/crisp-edge-evidence";
 import type { CrispEvidenceLayer } from "@/lib/crisp-evidence-layer";
 import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
@@ -98,7 +99,7 @@ describe("applyBrandPalette: crisp-aware handling threads through reoptimize too
     const layer: CrispEvidenceLayer = { evidenceByCell: new Map([[0, evidence]]) };
     const cells = { data: new Uint8ClampedArray([50, 50, 50, 0, 0, 0]), width, height };
 
-    const result = applyBrandPalette(pattern, "dmc", { cells }, layer);
+    const result = applyBrandPalette(pattern, "dmc", { context: createPipelineContext(cells) }, layer);
     expect(result.threadBrand).toBe("dmc");
     expect(result.cellPalette.length).toBe(2);
     const totalCount = result.palette.reduce((sum: number, c: PaletteColor) => sum + c.count, 0);

@@ -1,0 +1,20 @@
+{
+  "two-region/standard/latest/8": "20460a417358f2a53c721cf4c6753b4950421ceb48890e71a32311b3c4c9ff06",
+  "two-region/standard/original/8": "45e7f6852694e51240662bbdb447314d812e7f73d13f066208a29118dba72466",
+  "two-region/standard/latest/12/no-optimize": "3bc6e747009141909756b90a2fbaef4a0ccfba3f52cbfb8e36d9c2f74d0c99a8",
+  "realistic-ratio/standard/latest/16": "aa8dd8b4f3e41f0a5d3e61fc99d280e4602b3b128fd1a2dac601e96124e2db3b",
+  "gradient/standard/latest/8": "264f47c40e0452e11c399f0e5f608e83de7ce28636be517301721282606cd782",
+  "circle/standard/latest/3": "8977baf3214f57130b786e0e52c36a5d184079b858dfb421ee1f5a1ef41bed9e",
+  "hard-split/crisp/latest/3": "6047668a20545ae32b605327828dc118b68b74b6d93b859e837c59d5dc1388dc",
+  "hard-split/standard/latest/3": "d47daed4eaf17b0ab47aecf05e026451897858f0a5feaae2ee729c2dab0fc7a9",
+  "photo/standard/latest/24": "864f5141082146ae5220ca5e98ac62d25552e817196fa61d86f503337e87cf85",
+  "photo/standard/original/24": "82fa751345266fe2db03695e34043f9bda39a257b0758170151f58c3903fc8e1",
+  "photo/crisp/latest/24": "8bcb596270db33b41d08e1f2f732d3f69d017f1a61fc20b278a72867df96e57b",
+  "photo/crisp/original/24": "aa6b56ddccb2376b200b5b2c36e2e55edbcbadce50c4a89bc61ded13cb98ff21",
+  "photo/standard/latest/24/dmc": "5844a7e5dee61b563226f3ac7dbefe22bd32905f8336f40824be6bd5aeffdc55",
+  "photo/standard/latest/24/cosmo": "c6062fc14070cf5acdc94308f3ecc44e09d1048b5bd0bc21760a19331989c6cf",
+  "photo/standard/latest/24/anchor": "482c8a3e0029f8b9fde1c0967fe48edbe4a2de80c266d14dc94cf55ad7e33886",
+  "photo/crisp/latest/24/dmc": "aa50998fe45c4b963c8eea8afc0a8d6b08360c3d7c1e23055d2e9e2ced548b28",
+  "photo/standard/latest/64": "1cfa0b0fd84bc1ebb3afba1568d6d4b01f0caf72cc9715ebfc1b0837f6f99ffb",
+  "photo/standard/latest/100": "b6f962407e0a5a1981b2ef2bf0aed7617d2a25f419770595d2a95f0482a14360"
+}

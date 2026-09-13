@@ -6,7 +6,7 @@ import {
   type AdmissibleLabelCost,
   type CrispUnaryCostWeights,
 } from "./crisp-unary-cost";
-import { oklabDistanceSquared, type Oklab } from "./color";
+import type { Oklab } from "./color";
 import { getPairEdgeEvidence } from "./pair-edge-evidence";
 import { plainKMeansQuantizer, kMeansQuantizer, type ColorQuantizer } from "./quantize";
 import { weightedQuantize, weightedKMeansQuantize, type WeightedColorSample, type WeightedQuantizeResult } from "./weighted-quantize";
@@ -279,14 +279,19 @@ export function repairCrispAssignments(
  */
 export function crispAwareCost(
   crispCosts: Map<number, Map<number, AdmissibleLabelCost>> | undefined,
-  cellOklab: Oklab[],
+  cellOklab: Float64Array,
   paletteOklab: Oklab[],
   cellIndex: number,
   label: number
 ): number {
   const admissible = crispCosts?.get(cellIndex);
   if (admissible) return admissible.get(label)?.cost ?? Infinity;
-  return oklabDistanceSquared(cellOklab[cellIndex], paletteOklab[label]);
+  const o = cellIndex * 3;
+  const p = paletteOklab[label];
+  const dl = cellOklab[o] - p[0];
+  const da = cellOklab[o + 1] - p[1];
+  const db = cellOklab[o + 2] - p[2];
+  return dl * dl + da * da + db * db;
 }
 
 export function selectWeightedQuantizer(quantizer: ColorQuantizer): WeightedQuantizerFn {

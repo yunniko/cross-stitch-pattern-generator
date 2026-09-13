@@ -33,16 +33,14 @@ function getWorker(): Worker {
 
 /**
  * Cancels any in-flight job. Cancellation is blunt (terminate + recreate)
- * rather than cooperative — `buildPattern`'s hot loops (k-means, the local
- * optimizer) aren't checkpointed for interruption, and adding that would be
- * real complexity this app's single-job-at-a-time UI doesn't need yet.
- *
- * Rejects the cancelled job's own promise with `PatternJobCancelledError`
- * rather than leaving it pending forever -- a terminated worker never posts
- * another message, so without this the caller's promise would simply hang
- * (code-review 2026-09-09, finding 9).
+ * rather than cooperative: `buildPattern`'s hot loops aren't checkpointed
+ * for interruption. The cancelled job's promise is rejected with
+ * `PatternJobCancelledError` rather than left pending forever. A worker
+ * with no job in flight is left alone, so the next Generate reuses it and
+ * its module-level caches (review E6).
  */
 export function cancelPatternJob(): void {
+  if (activeJobId === null) return;
   if (worker) {
     worker.terminate();
     worker = null;
@@ -55,9 +53,9 @@ export function cancelPatternJob(): void {
   }
 }
 
-/** Runs pattern generation in a Web Worker so the UI thread stays responsive during k-means/local-optimizer passes (HANDOVER.md D6). */
+/** Runs pattern generation in a Web Worker so the UI thread stays responsive (D6). One job at a time: a new request supersedes an in-flight one. */
 export function runPatternJob(options: RunPatternJobOptions): Promise<StitchPattern> {
-  cancelPatternJob(); // only one job makes sense at a time for this UI; a new request supersedes the old one
+  cancelPatternJob();
   const jobId = ++jobCounter;
   activeJobId = jobId;
   const w = getWorker();
@@ -71,15 +69,18 @@ export function runPatternJob(options: RunPatternJobOptions): Promise<StitchPatt
       if (msg.type === "progress") {
         options.onProgress?.(msg.fraction);
       } else if (msg.type === "done") {
+        activeJobId = null;
         activeReject = null;
         resolve(msg.pattern);
       } else if (msg.type === "error") {
+        activeJobId = null;
         activeReject = null;
         reject(new Error(msg.message));
       }
     };
     w.onerror = (event) => {
       if (jobId !== activeJobId) return;
+      activeJobId = null;
       activeReject = null;
       reject(new Error(event.message || "Pattern generation failed"));
     };

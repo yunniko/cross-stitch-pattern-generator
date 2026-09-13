@@ -4,6 +4,7 @@ import { meanRgbOklab } from "@/lib/quantize";
 import { buildCrispEvidenceLayer, allCellIndices, selectWeightedQuantizer } from "@/lib/crisp-evidence-layer";
 import { runCrispQuantizationStage } from "@/lib/crisp-quantization-stage";
 import { runMultiScaleOptimizer } from "@/lib/local-optimizer";
+import { cellsToOklab, createPipelineContext } from "@/lib/pipeline-context";
 import { kMeansQuantizer } from "@/lib/quantize";
 import { rgbToOklab, oklabDistanceSquared } from "@/lib/color";
 import { downsampleToGrid } from "@/lib/downsample";
@@ -43,7 +44,7 @@ describe("Standard-compatibility: an empty evidence layer reproduces meanRgbOkla
     ];
     const emptyLayer: CrispEvidenceLayer = { evidenceByCell: new Map() };
 
-    const result = finalizeCrispPalette(cells, cellPaletteIndex, palette, emptyLayer);
+    const result = finalizeCrispPalette(cellsToOklab(cells), cellPaletteIndex, palette, emptyLayer);
 
     const expectedLabel0 = meanRgbOklab(cells, [0, 1]);
     const expectedLabel1 = meanRgbOklab(cells, [2, 3]);
@@ -81,7 +82,7 @@ describe("a crisp cell's contaminated raw average never leaks into the final pal
     };
     const layer: CrispEvidenceLayer = { evidenceByCell: new Map([[0, evidence]]) };
 
-    const result = finalizeCrispPalette(cells, cellPaletteIndex, palette, layer);
+    const result = finalizeCrispPalette(cellsToOklab(cells), cellPaletteIndex, palette, layer);
 
     // Without the fix, cell 0 would contribute contaminatingGray (140s)
     // into the mean with trueBlack (5s), pulling the average toward ~72 --
@@ -106,9 +107,9 @@ describe("M4.7 composition: full pipeline through finalization on M1's genuine-g
     const evidenceLayer = buildCrispEvidenceLayer(buffer, gridSize, gridSize, allCellIndices(gridSize, gridSize));
     const quantizerFn = selectWeightedQuantizer(kMeansQuantizer);
     const quantized = runCrispQuantizationStage(cells, 4, importance, evidenceLayer, quantizerFn);
-    const optimized = runMultiScaleOptimizer(cells, quantized.cellPaletteIndex, quantized.palette, importance, undefined, undefined, evidenceLayer);
+    const optimized = runMultiScaleOptimizer(createPipelineContext(cells, { importance, evidenceLayer }), quantized.cellPaletteIndex, quantized.palette);
 
-    const finalized = finalizeCrispPalette(cells, optimized, quantized.palette, evidenceLayer);
+    const finalized = finalizeCrispPalette(cellsToOklab(cells), optimized, quantized.palette, evidenceLayer);
 
     const blackOklab = rgbToOklab([0, 0, 0]);
     const whiteOklab = rgbToOklab([255, 255, 255]);

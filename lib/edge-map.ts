@@ -1,31 +1,16 @@
 import { luminance } from "./color";
 import type { PixelBuffer } from "./types";
 
-// Raw Sobel responses below this are treated as sensor/JPEG noise, not a
-// real edge -- i.i.d. pixel noise of a few 8-bit levels can produce Sobel
-// responses up to ~30-40 raw units even with no real structure present
-// (see docs/domain-reference.md §6.3). Without this floor, a flat, noisy
-// region (fog, overcast sky, a smooth gradient) inflates every cell's
-// importance and weakens confetti suppression exactly where it matters
-// most -- a real robustness gap a 2026-09-09 domain-expert review found,
-// not caught by the synthetic test images used while building this
-// (their strongest gradient is always the feature under test, so it
-// always normalizes to ~1.0 regardless of this floor). See HANDOVER.md D11.
+// Raw Sobel responses below this are sensor/JPEG noise, not an edge: i.i.d.
+// noise of a few 8-bit levels reaches ~30-40 raw units with no structure
+// (docs/domain-reference.md §6.3, D11).
 const NOISE_FLOOR = 40;
-// Normalizing by the single highest gradient in the image means one very
-// strong outlier (a JPEG block edge, a specular highlight, hard lettering)
-// crushes every other real edge toward a low value that never reaches the
-// importance-protection thresholds used elsewhere in the pipeline -- also
-// a real, not theoretical, failure mode per the same review. A high
-// percentile is far less sensitive to a handful of outlier pixels.
+// Normalizing by a high percentile rather than the single max: one outlier
+// (a JPEG block edge, a specular highlight) would otherwise crush every
+// real edge toward zero (D11).
 const NORMALIZATION_PERCENTILE = 0.999;
 
-/**
- * Sobel gradient magnitude on source luminance, normalized to 0-1. No ML
- * segmentation/saliency model is available (Owner's spec section 4 allows
- * falling back to "edge strength + local contrast" in that case) — this is
- * the edge-strength half of that approximation.
- */
+/** Sobel gradient magnitude on source luminance, normalized to 0-1 by the 99.9th percentile. */
 export function computeEdgeMagnitude(source: PixelBuffer): Float32Array {
   const { width, height, data } = source;
   const gray = new Float32Array(width * height);
@@ -59,28 +44,67 @@ export function computeEdgeMagnitude(source: PixelBuffer): Float32Array {
     }
   }
 
-  const sorted = Float32Array.from(magnitude).sort();
-  const normalizer = sorted[Math.floor((sorted.length - 1) * NORMALIZATION_PERCENTILE)] || 1;
+  const normalizer = selectKth(magnitude, Math.floor((magnitude.length - 1) * NORMALIZATION_PERCENTILE)) || 1;
   for (let i = 0; i < magnitude.length; i++) {
     magnitude[i] = Math.min(1, magnitude[i] / normalizer);
   }
   return magnitude;
 }
 
+const SELECT_BINS = 4096;
+const SELECT_SORT_LIMIT = 1 << 16;
+
 /**
- * Per-cell importance (0-1), combining the max edge magnitude found inside
- * each stitch cell with the cell's own internal luminance contrast (a real
- * detail can sit *inside* one cell without producing a strong edge at its
- * boundary — the Owner's spec section 4 formula). Weighted 0.7/0.3 toward
- * edge strength: a real boundary is a stronger, less ambiguous signal than
- * raw contrast, which also fires on uniform photographic noise.
+ * The k-th smallest value (0-based) of `values` -- exactly what
+ * `Float32Array.from(values).sort()[k]` returns, in O(n) instead of a full
+ * sort of up to 16 M source pixels (review E4). Histogram bins narrow the
+ * candidates until they're few enough to sort; all values in the chosen
+ * bin are collected, so the answer is the true order statistic, not a bin
+ * midpoint.
  */
-export function computeCellImportance(
-  source: PixelBuffer,
-  edgeMagnitude: Float32Array,
-  gridWidth: number,
-  gridHeight: number
-): Float32Array {
+export function selectKth(values: Float32Array, k: number): number {
+  let candidates = values;
+  let rank = k;
+  for (;;) {
+    if (candidates.length <= SELECT_SORT_LIMIT) {
+      return Float32Array.from(candidates).sort()[rank];
+    }
+    let min = Infinity;
+    let max = -Infinity;
+    for (let i = 0; i < candidates.length; i++) {
+      const v = candidates[i];
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    if (min === max) return min;
+
+    const scale = SELECT_BINS / (max - min);
+    const counts = new Int32Array(SELECT_BINS);
+    for (let i = 0; i < candidates.length; i++) {
+      counts[Math.min(SELECT_BINS - 1, Math.floor((candidates[i] - min) * scale))]++;
+    }
+    let bin = 0;
+    let below = 0;
+    while (below + counts[bin] <= rank) {
+      below += counts[bin];
+      bin++;
+    }
+    const next = new Float32Array(counts[bin]);
+    let n = 0;
+    for (let i = 0; i < candidates.length; i++) {
+      if (Math.min(SELECT_BINS - 1, Math.floor((candidates[i] - min) * scale)) === bin) next[n++] = candidates[i];
+    }
+    candidates = next;
+    rank -= below;
+  }
+}
+
+/**
+ * Per-cell importance (0-1): 0.7 x the max edge magnitude inside the cell
+ * + 0.3 x the cell's own luminance contrast (a detail can sit inside one
+ * cell without a strong edge at its boundary -- Owner's spec section 4).
+ */
+export function computeCellImportance(source: PixelBuffer, edgeMagnitude: Float32Array, gridWidth: number, gridHeight: number): Float32Array {
   const { width: srcW, height: srcH, data } = source;
   const cellMaxEdge = new Float32Array(gridWidth * gridHeight);
   const cellLumaSum = new Float64Array(gridWidth * gridHeight);

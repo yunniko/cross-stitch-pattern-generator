@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { denoiseForQuantization } from "@/lib/denoise";
+import { cellsToOklab, createPipelineContext } from "@/lib/pipeline-context";
 import type { CellColorBuffer, RGB } from "@/lib/types";
+
+function denoise(cells: CellColorBuffer, importance?: Float32Array): CellColorBuffer {
+  return denoiseForQuantization(createPipelineContext(cells, { importance })).cells;
+}
 
 function makeGrid(width: number, height: number, colors: RGB[]): CellColorBuffer {
   const data = new Uint8ClampedArray(width * height * 3);
@@ -24,7 +29,7 @@ describe("denoiseForQuantization", () => {
     const colors: RGB[] = Array.from({ length: width * height }, () => [120, 80, 200]);
     const cells = makeGrid(width, height, colors);
 
-    const result = denoiseForQuantization(cells);
+    const result = denoise(cells);
     expect(Array.from(result.data)).toEqual(Array.from(cells.data));
   });
 
@@ -38,7 +43,7 @@ describe("denoiseForQuantization", () => {
     colors[4] = [255, 0, 0]; // center
 
     const cells = makeGrid(width, height, colors);
-    const result = denoiseForQuantization(cells);
+    const result = denoise(cells);
 
     expect(pixelAt(result, 1, 1)).toEqual(bg);
   });
@@ -59,7 +64,7 @@ describe("denoiseForQuantization", () => {
     const importance = new Float32Array(9);
     importance[4] = 0.9;
 
-    const result = denoiseForQuantization(cells, importance);
+    const result = denoise(cells, importance);
     expect(pixelAt(result, 1, 1)).toEqual(outlier);
   });
 
@@ -73,7 +78,7 @@ describe("denoiseForQuantization", () => {
     const colors: RGB[] = Array.from({ length: 36 }, (_, i) => [(i * 37) % 256, (i * 91) % 256, (i * 53) % 256] as RGB);
     const cells = makeGrid(width, height, colors);
 
-    const result = denoiseForQuantization(cells);
+    const result = denoise(cells);
     const inputSet = new Set(colors.map((c) => c.join(",")));
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -95,7 +100,7 @@ describe("denoiseForQuantization", () => {
     }
     const cells = makeGrid(width, height, colors);
 
-    const result = denoiseForQuantization(cells);
+    const result = denoise(cells);
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const px = pixelAt(result, x, y);
@@ -112,9 +117,17 @@ describe("denoiseForQuantization", () => {
     colors[4] = [10, 200, 30];
     const cells = makeGrid(width, height, colors);
 
-    const withExplicitZero = denoiseForQuantization(cells, new Float32Array(9));
-    const withoutImportance = denoiseForQuantization(cells);
+    const withExplicitZero = denoise(cells, new Float32Array(9));
+    const withoutImportance = denoise(cells);
     expect(Array.from(withExplicitZero.data)).toEqual(Array.from(withoutImportance.data));
     expect(pixelAt(withoutImportance, 1, 1)).toEqual(bg);
+  });
+
+  it("returns the OKLab of its output cells, exactly as a fresh conversion would compute it (G-031 M3, D104)", () => {
+    const width = 6;
+    const height = 6;
+    const colors: RGB[] = Array.from({ length: 36 }, (_, i) => [(i * 37) % 256, (i * 91) % 256, (i * 53) % 256] as RGB);
+    const result = denoiseForQuantization(createPipelineContext(makeGrid(width, height, colors)));
+    expect(Array.from(result.cellOklab)).toEqual(Array.from(cellsToOklab(result.cells)));
   });
 });

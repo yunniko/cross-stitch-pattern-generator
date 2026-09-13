@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fixDiagonalConnections, recolorSmallComponents, defaultComponentRecolorOptions } from "@/lib/contour-cleanup";
+import { createPipelineContext } from "@/lib/pipeline-context";
 import { rgbToOklab } from "@/lib/color";
 import type { BoundaryEvidence } from "@/lib/crisp-edge-evidence";
 import type { CrispEvidenceLayer } from "@/lib/crisp-evidence-layer";
@@ -45,8 +46,8 @@ describe("fixDiagonalConnections: Standard-compatibility", () => {
     const closePalette = [A, nearA];
     const cells = makeCells(2, 2, (x, y) => (x === y ? A : nearA));
     const assignment = Uint8Array.from([0, 1, 1, 0]);
-    const withoutLayer = fixDiagonalConnections(cells, assignment, closePalette);
-    const withEmptyLayer = fixDiagonalConnections(cells, assignment, closePalette, undefined, undefined, undefined, { evidenceByCell: new Map() });
+    const withoutLayer = fixDiagonalConnections(createPipelineContext(cells), assignment, closePalette);
+    const withEmptyLayer = fixDiagonalConnections(createPipelineContext(cells, { evidenceLayer: { evidenceByCell: new Map() } }), assignment, closePalette);
     expect(Array.from(withEmptyLayer)).toEqual(Array.from(withoutLayer));
   });
 });
@@ -73,7 +74,7 @@ describe("fixDiagonalConnections: admissibility", () => {
     const evidence = makeEvidence();
     const layer: CrispEvidenceLayer = { evidenceByCell: new Map([[3, evidence]]) };
 
-    const result = fixDiagonalConnections(cells, assignment, palette, undefined, undefined, undefined, layer);
+    const result = fixDiagonalConnections(createPipelineContext(cells, { evidenceLayer: layer }), assignment, palette);
     expect(result[3]).not.toBe(2); // br must never become the unsupported gray label
   });
 });
@@ -88,10 +89,13 @@ describe("recolorSmallComponents: Standard-compatibility", () => {
     for (let i = 0; i < 16; i++) assignment[i] = i % 4 < 2 ? 0 : 1;
     assignment[5] = 1; // a lone off-color cell forming a small component
 
-    const withoutLayer = recolorSmallComponents(cells, assignment, palette, undefined, defaultComponentRecolorOptions(16));
-    const withEmptyLayer = recolorSmallComponents(cells, assignment, palette, undefined, defaultComponentRecolorOptions(16), undefined, {
-      evidenceByCell: new Map(),
-    });
+    const withoutLayer = recolorSmallComponents(createPipelineContext(cells), assignment, palette, defaultComponentRecolorOptions(16));
+    const withEmptyLayer = recolorSmallComponents(
+      createPipelineContext(cells, { evidenceLayer: { evidenceByCell: new Map() } }),
+      assignment,
+      palette,
+      defaultComponentRecolorOptions(16)
+    );
     expect(Array.from(withEmptyLayer)).toEqual(Array.from(withoutLayer));
   });
 });
@@ -119,7 +123,7 @@ describe("recolorSmallComponents: a candidate unsupported for ANY protected memb
     const evidence = makeEvidence(); // black/white only -- gray(1) is never admissible
     const layer: CrispEvidenceLayer = { evidenceByCell: new Map([[memberA, evidence]]) };
 
-    const result = recolorSmallComponents(cells, assignment, palette, undefined, defaultComponentRecolorOptions(width * height), undefined, layer);
+    const result = recolorSmallComponents(createPipelineContext(cells, { evidenceLayer: layer }), assignment, palette, defaultComponentRecolorOptions(width * height));
     expect(result[memberA]).not.toBe(1); // never gray
     expect(result[memberB]).not.toBe(1); // the WHOLE component is rejected together, not just the protected member
   });

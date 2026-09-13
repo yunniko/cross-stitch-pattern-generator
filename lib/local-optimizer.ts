@@ -1,10 +1,11 @@
-import { buildCrispAdmissibleCostMap, type CrispEvidenceLayer } from "./crisp-evidence-layer";
+import { buildCrispAdmissibleCostMap } from "./crisp-evidence-layer";
 import { DEFAULT_CRISP_UNARY_COST_WEIGHTS } from "./crisp-unary-cost";
 import { edgeBetweenCells } from "./edge-map";
 import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS, type PairEnergyWeights } from "./energy";
 import { getPairEdgeEvidence } from "./pair-edge-evidence";
-import { oklabDistanceSquared, rgbToOklab, type Oklab } from "./color";
-import { cellRgb, type CellColorBuffer, type RGB } from "./types";
+import { rgbToOklab } from "./color";
+import type { PipelineContext } from "./pipeline-context";
+import type { RGB } from "./types";
 
 export interface LocalOptimizerWeights extends PairEnergyWeights {
   /** Weight on OKLab squared distance to the source cell color. */
@@ -20,102 +21,56 @@ export const DEFAULT_LOCAL_OPTIMIZER_WEIGHTS: LocalOptimizerWeights = {
 const MAX_PASSES = 8;
 
 /**
- * Single-cell hill-climbing with a neighbor-agreement smoothness term — this
- * is Iterated Conditional Modes (ICM) for MAP estimation of a Potts-model
- * Markov random field, a real, well-established technique for exactly this
- * problem (denoising a labeled grid while preserving genuine structure), not
- * a decorative heuristic. For each cell, try every palette color and keep
- * whichever minimizes the energy below; repeat until a full pass makes no
- * changes (or MAX_PASSES is hit).
+ * Iterated Conditional Modes over a Potts-model energy: for each cell, try
+ * every palette label and keep the one minimizing `color * ||cell - label||²
+ * + Σ_neighbors weight · boundaryPairEnergy(edge, mismatch)`; repeat until
+ * a pass changes nothing (or MAX_PASSES). The pairwise term is the single
+ * shared `boundaryPairEnergy` over the rotation-neutral 8-neighbor stencil
+ * (`WEIGHTED_NEIGHBOR_OFFSETS`), with `edge` from `ctx.pairEvidence` when
+ * present, else `edgeBetweenCells(ctx.importance)`. See D11, D43, D44.
  *
- * `importance` (0-1 per cell, from `lib/edge-map.ts`) feeds `edgeBetweenCells`
- * (the stronger of the two cells' own importance) so a mismatch across a
- * real edge costs less than the flat per-mismatch penalty — a real boundary
- * is desirable, not noise (spec sections 7/12/24, Phase B, HANDOVER.md D8).
- * There is deliberately no separate per-cell "protection" multiplier beyond
- * that: an earlier version multiplied the whole boundary term by
- * `1 - importance[i]`, which is asymmetric between a pair's two cells and
- * broke ICM's single-global-energy requirement (Besag 1986) — removed per
- * a 2026-09-09 domain-expert review, HANDOVER.md D11. `edge = max(imp_i,
- * imp_n)` already carries a high-importance cell's own importance into
- * every one of its boundary terms, so nothing is lost by relying on it
- * alone (confirmed: the eye-highlight detail-preservation test still
- * passes). Passing no `importance` (or all-zero) reproduces plain
- * mismatch-counting with no edge discount at all.
+ * Per cell and pass the eight directed pair costs are computed once and
+ * summed in stencil order (`total`); a label that appears among the
+ * neighbors gets its boundary term re-summed in the same order skipping
+ * matching pairs, every other label gets `total`. Both are the exact
+ * floating-point sums the per-label loop used to compute, so results are
+ * bit-identical at O(8 + k) per cell instead of O(8k) (review E1, D105).
  *
- * Sums over `WEIGHTED_NEIGHBOR_OFFSETS`' full 8-connected neighborhood, not
- * just the 4 orthogonal ones (2026-09-11 cluster-boundary review, Finding 1;
- * HANDOVER.md D43/G-022 M2) -- each pair's raw `boundaryPairEnergy` result is
- * multiplied by that offset's own geometric weight (already including the
- * shared normalization constant), never by scaling just one term inside the
- * energy formula, which a codex-cli critique confirmed would reproduce
- * D11's old double-discount bug under a different name (moving the zero-
- * cost crossover point and over-protecting diagonal boundaries). This keeps
- * ICM's single-global-energy property intact: the weight is a fixed,
- * symmetric per-pair constant, unrelated to importance or evaluation order,
- * so every cell's local energy still equals the corresponding change in one
- * consistent global sum.
- *
- * `pairEvidence` (optional, from `lib/pair-edge-evidence.ts`'s
- * `computePairEdgeEvidence`; HANDOVER.md D44/G-022 M3), when provided,
- * replaces `edgeBetweenCells(importance, ...)` as the `edge` value fed to
- * `boundaryPairEnergy` -- a directional, per-pair color-structure-tensor
- * reading instead of a direction-blind per-cell scalar reused for every
- * side of a cell. `importance` itself is untouched and still passed
- * through unconditionally: this function doesn't use it for anything
- * else, but callers/tests that omit `pairEvidence` still get today's
- * exact `edgeBetweenCells`-based behavior, so no existing direct test of
- * this function needed to change.
- *
- * `crispEvidenceLayer` (optional, G-024 M4.4, HANDOVER.md D67): a frozen
- * `CrispEvidenceLayer` (`lib/crisp-evidence-layer.ts`, M4.2). A cell
- * present in it is restricted to searching only its ADMISSIBLE labels
- * (report Section 6/7: "labels with no supporting mode are inadmissible")
- * using the mode-aware unary cost instead of the flat single-color
- * distance -- every other cell keeps today's exact unweighted-distance
- * search, byte-identical when `crispEvidenceLayer` is omitted or a
- * particular cell has no entry in it. Admissible costs are precomputed
- * ONCE per call (the palette is fixed for every pass below), bounded to
- * confident cells only -- never a closure/Map retained per stitch beyond
- * this function's own lifetime (`crisp-evidence-layer.ts`'s own
- * documented bound). `alpha` is derived from THIS call's own
- * `weights.color`, never a separately-set constant applied on top of it
- * -- resolves a real weight-composition bug caught before it shipped
- * (HANDOVER.md D63): `buildUnaryCostEvaluator`/`buildAdmissibleLabelCosts`
- * already produce an alpha-WEIGHTED crisp cost, so multiplying by
- * `weights.color` a second time (as the Standard branch does to its own
- * raw, UNweighted `oklabDistanceSquared`) would double-scale it.
- *
- * Protected cells get their own, explicit tie-breaking convention: the
- * CURRENT label is evaluated first and wins any exact tie (only replaced
- * by a STRICTLY lower-energy alternative) -- Standard cells are
- * unaffected and keep today's exact behavior (`bestEnergy = Infinity`,
- * ascending label order, first candidate to reach the minimum wins).
- * Without this, ICM's existing tie rule would silently erase a
- * deliberate geometric initialization (M4.3) the moment two admissible
- * labels happened to cost the same.
+ * Crisp cells (present in `ctx.evidenceLayer`) search only their
+ * admissible labels with the mode-aware unary cost (`alpha` = this call's
+ * `weights.color`, never applied twice), and the CURRENT label is evaluated
+ * first so it wins an exact tie -- a deliberate geometric initialization
+ * must not be erased by ascending-label order. Standard cells keep
+ * `bestEnergy = Infinity` with first-to-reach-minimum-wins. See D63, D67.
  */
 export function runLocalOptimizer(
-  cells: CellColorBuffer,
+  ctx: PipelineContext,
   initialAssignment: Uint8Array,
   palette: RGB[],
-  importance?: Float32Array,
-  weights: LocalOptimizerWeights = DEFAULT_LOCAL_OPTIMIZER_WEIGHTS,
-  pairEvidence?: Float32Array,
-  crispEvidenceLayer?: CrispEvidenceLayer
+  weights: LocalOptimizerWeights = DEFAULT_LOCAL_OPTIMIZER_WEIGHTS
 ): Uint8Array {
-  const { width, height } = cells;
-  const cellCount = width * height;
-  const cellOklab = new Array<Oklab>(cellCount);
-  for (let i = 0; i < cellCount; i++) cellOklab[i] = rgbToOklab(cellRgb(cells, i));
+  const { width, height, cellOklab, importance, pairEvidence, evidenceLayer } = ctx;
   const paletteOklab = palette.map(rgbToOklab);
-  const cellImportance = importance ?? new Float32Array(cellCount);
+  const k = paletteOklab.length;
+  const pal = new Float64Array(k * 3);
+  for (let c = 0; c < k; c++) {
+    pal[c * 3] = paletteOklab[c][0];
+    pal[c * 3 + 1] = paletteOklab[c][1];
+    pal[c * 3 + 2] = paletteOklab[c][2];
+  }
 
-  const crispAdmissibleCosts = crispEvidenceLayer
-    ? buildCrispAdmissibleCostMap(crispEvidenceLayer, paletteOklab, { alpha: weights.color, beta: DEFAULT_CRISP_UNARY_COST_WEIGHTS.beta })
+  const crispAdmissibleCosts = evidenceLayer
+    ? buildCrispAdmissibleCostMap(evidenceLayer, paletteOklab, { alpha: weights.color, beta: DEFAULT_CRISP_UNARY_COST_WEIGHTS.beta })
     : undefined;
 
   const assignment = initialAssignment.slice();
+  const pairCost = new Float64Array(8);
+  const neighborLabel = new Int32Array(8);
+  // Boundary sums for the labels found among a cell's neighbors; `stamp`
+  // marks which entries belong to the current cell so nothing is cleared.
+  const exactBoundary = new Float64Array(k);
+  const stamp = new Int32Array(k).fill(-1);
+  let visit = 0;
 
   for (let pass = 0; pass < MAX_PASSES; pass++) {
     let changed = false;
@@ -123,12 +78,32 @@ export function runLocalOptimizer(
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const i = y * width + x;
-        const neighbors: Array<{ n: number; weight: number; dx: number; dy: number }> = [];
-        for (const offset of WEIGHTED_NEIGHBOR_OFFSETS) {
+        visit++;
+
+        let count = 0;
+        let total = 0;
+        for (let o = 0; o < WEIGHTED_NEIGHBOR_OFFSETS.length; o++) {
+          const offset = WEIGHTED_NEIGHBOR_OFFSETS[o];
           const nx = x + offset.dx;
           const ny = y + offset.dy;
           if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-          neighbors.push({ n: ny * width + nx, weight: offset.weight, dx: offset.dx, dy: offset.dy });
+          const n = ny * width + nx;
+          const edge = pairEvidence ? getPairEdgeEvidence(pairEvidence, i, offset.dx, offset.dy, width) : edgeBetweenCells(importance, i, n);
+          const cost = offset.weight * boundaryPairEnergy(weights, edge, true);
+          pairCost[count] = cost;
+          neighborLabel[count] = assignment[n];
+          total += cost;
+          count++;
+        }
+        for (let j = 0; j < count; j++) {
+          const c = neighborLabel[j];
+          if (stamp[c] === visit) continue;
+          stamp[c] = visit;
+          let sum = 0;
+          for (let m = 0; m < count; m++) {
+            if (neighborLabel[m] !== c) sum += pairCost[m];
+          }
+          exactBoundary[c] = sum;
         }
 
         const admissible = crispAdmissibleCosts?.get(i);
@@ -136,7 +111,6 @@ export function runLocalOptimizer(
         let bestEnergy = Infinity;
 
         if (admissible) {
-          // Current label first, so it wins any exact tie (see doc comment above).
           const orderedCandidates: number[] = [best];
           for (const c of admissible.keys()) {
             if (c !== best) orderedCandidates.push(c);
@@ -144,28 +118,24 @@ export function runLocalOptimizer(
           for (const c of orderedCandidates) {
             const entry = admissible.get(c);
             if (!entry) continue; // current label happened not to be admissible -- defensive only, see crisp-quantization-stage.ts
-            let boundaryEnergy = 0;
-            for (const { n, weight, dx, dy } of neighbors) {
-              const edge = pairEvidence ? getPairEdgeEvidence(pairEvidence, i, dx, dy, width) : edgeBetweenCells(cellImportance, i, n);
-              boundaryEnergy += weight * boundaryPairEnergy(weights, edge, c !== assignment[n]);
-            }
-            const energy = entry.cost + boundaryEnergy;
+            const energy = entry.cost + (stamp[c] === visit ? exactBoundary[c] : total);
             if (energy < bestEnergy) {
               bestEnergy = energy;
               best = c;
             }
           }
         } else {
-          for (let c = 0; c < paletteOklab.length; c++) {
-            const colorTerm = oklabDistanceSquared(cellOklab[i], paletteOklab[c]);
-
-            let boundaryEnergy = 0;
-            for (const { n, weight, dx, dy } of neighbors) {
-              const edge = pairEvidence ? getPairEdgeEvidence(pairEvidence, i, dx, dy, width) : edgeBetweenCells(cellImportance, i, n);
-              boundaryEnergy += weight * boundaryPairEnergy(weights, edge, c !== assignment[n]);
-            }
-
-            const energy = weights.color * colorTerm + boundaryEnergy;
+          const ci = i * 3;
+          const cl = cellOklab[ci];
+          const ca = cellOklab[ci + 1];
+          const cb = cellOklab[ci + 2];
+          for (let c = 0; c < k; c++) {
+            const pi = c * 3;
+            const dl = cl - pal[pi];
+            const da = ca - pal[pi + 1];
+            const db = cb - pal[pi + 2];
+            const colorTerm = dl * dl + da * da + db * db;
+            const energy = weights.color * colorTerm + (stamp[c] === visit ? exactBoundary[c] : total);
             if (energy < bestEnergy) {
               bestEnergy = energy;
               best = c;
@@ -193,40 +163,24 @@ export interface MultiScaleWeights {
   fine: LocalOptimizerWeights;
 }
 
-/**
- * `coarse.edgeLoss` was raised from 0.01 to 0.015 per G-022 M4 (HANDOVER.md
- * D45): a broad empirical sweep (golden-fixture suite, shape-regression
- * suite, and the D18 gray-cat-eyes fixture, across colorCount 4-16) found
- * this is a consistent, non-fluke improvement -- lower or equal confetti
- * ratio at every colorCount tested on the noisy-two-region fixture, zero
- * change to 3 of 4 golden fixtures and to the D18 fixture's own detail-
- * survival result, at the cost of a negligible (0.4%) dip in one synthetic
- * shape-fidelity metric. Other candidates tried (lower coarse smoothness,
- * higher fine edgeLoss, combinations) either matched or underperformed
- * these already-tuned constants -- see the M4 progress log for the full
- * sweep results.
- */
+/** `coarse.edgeLoss` 0.015 was calibrated by a broad sweep across the golden and shape suites (G-022 M4, D45). */
 export const DEFAULT_MULTI_SCALE_WEIGHTS: MultiScaleWeights = {
   coarse: { color: 1, smoothness: 0.09, edgeLoss: 0.015 },
   fine: { color: 1, smoothness: 0.045, edgeLoss: 0.05 },
 };
 
 /**
- * Coarse-to-fine optimization (Owner's spec section 21): a first pass with
- * high smoothness/low edge-fidelity weight settles large-scale region
- * structure, then a second pass with the real edge-aware weights refines it.
- * Running the fine pass second means it refines the coarse pass's settled
- * structure rather than fighting noise from scratch.
+ * Two ICM passes on the same grid with different weight schedules (not
+ * multiple scales, despite the name kept for its call sites): a coarse
+ * pass settles large-scale region structure, then the fine pass refines
+ * it with the real edge-aware weights.
  */
 export function runMultiScaleOptimizer(
-  cells: CellColorBuffer,
+  ctx: PipelineContext,
   initialAssignment: Uint8Array,
   palette: RGB[],
-  importance?: Float32Array,
-  weights: MultiScaleWeights = DEFAULT_MULTI_SCALE_WEIGHTS,
-  pairEvidence?: Float32Array,
-  crispEvidenceLayer?: CrispEvidenceLayer
+  weights: MultiScaleWeights = DEFAULT_MULTI_SCALE_WEIGHTS
 ): Uint8Array {
-  const coarse = runLocalOptimizer(cells, initialAssignment, palette, importance, weights.coarse, pairEvidence, crispEvidenceLayer);
-  return runLocalOptimizer(cells, coarse, palette, importance, weights.fine, pairEvidence, crispEvidenceLayer);
+  const coarse = runLocalOptimizer(ctx, initialAssignment, palette, weights.coarse);
+  return runLocalOptimizer(ctx, coarse, palette, weights.fine);
 }

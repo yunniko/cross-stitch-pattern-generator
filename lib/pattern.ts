@@ -19,7 +19,8 @@ import { defaultComponentRecolorOptions, fixDiagonalConnections, recolorSmallCom
 import { runMultiScaleOptimizer, type MultiScaleWeights } from "./local-optimizer";
 import { computePairEdgeEvidence } from "./pair-edge-evidence";
 import { mergeSimilarColors } from "./palette-optimizer";
-import { kMeansQuantizer, meanRgbOklab, type ColorQuantizer } from "./quantize";
+import { createPipelineContext } from "./pipeline-context";
+import { kMeansQuantizer, meanOklabAsRgb, type ColorQuantizer } from "./quantize";
 import { symbolsFor } from "./symbols";
 import { runContourRefinement, DEFAULT_CONTOUR_REFINEMENT_OPTIONS, type ContourRefinementOptions } from "./contour-refinement";
 import { applyBrandPalette } from "./dmc-match";
@@ -98,13 +99,6 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   const edgeMagnitude = computeEdgeMagnitude(imageData);
   const importance = computeCellImportance(imageData, edgeMagnitude, gridWidth, gridHeight);
 
-  // Denoised copy for the quantizer's eyes only (HANDOVER.md D41/G-020 M4)
-  // -- every other stage below (ICM, contour cleanup, the final palette-
-  // color recompute) keeps using the true, unfiltered `cells`, so a
-  // cleaner signal informs *which cluster a cell belongs to* without ever
-  // changing what color is actually reported for it.
-  const quantizationCells = denoiseForQuantization(cells, importance);
-
   // G-024 M4.9 (HANDOVER.md D72): `pairEvidence` is computed HERE,
   // unconditionally whenever Crisp mode is requested (not just under
   // `shouldOptimize` below, where Standard mode alone still computes it) --
@@ -124,16 +118,24 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     evidenceLayer = buildCrispEvidenceLayer(imageData, gridWidth, gridHeight, candidates, options.crispEvidenceLayerOptions ?? DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS);
   }
 
+  // Every later stage reads the true cells, their OKLab, importance, pair
+  // evidence and the crisp layer from this one context (D104).
+  const ctx = createPipelineContext(cells, { importance, pairEvidence, evidenceLayer });
+
+  // Denoised copy for the quantizer's eyes only (D41): it decides cluster
+  // membership, but every reported color still comes from the true cells.
+  const denoised = denoiseForQuantization(ctx);
+
   const quantizer = options.quantizer ?? kMeansQuantizer;
   let quantized: Uint8Array;
   let rawPalette: RGB[];
   if (edgeMode === "crisp" && evidenceLayer) {
     const quantizerFn = selectWeightedQuantizer(quantizer);
-    const crispResult = runCrispQuantizationStage(quantizationCells, options.colorCount, importance, evidenceLayer, quantizerFn);
+    const crispResult = runCrispQuantizationStage(denoised.cells, options.colorCount, importance, evidenceLayer, quantizerFn, undefined, denoised.cellOklab);
     quantized = crispResult.cellPaletteIndex;
     rawPalette = crispResult.palette;
   } else {
-    const result = quantizer.quantize(quantizationCells, options.colorCount, importance);
+    const result = quantizer.quantize(denoised.cells, options.colorCount, importance, denoised.cellOklab);
     quantized = result.cellPaletteIndex;
     rawPalette = result.palette;
   }
@@ -142,18 +144,18 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   let optimized = quantized;
   if (shouldOptimize) {
     const componentRecolorOptions = defaultComponentRecolorOptions(cells.width * cells.height);
-    optimized = runMultiScaleOptimizer(cells, quantized, rawPalette, importance, options.multiScaleWeights, pairEvidence, evidenceLayer);
+    optimized = runMultiScaleOptimizer(ctx, quantized, rawPalette, options.multiScaleWeights);
     // Contour cleanup (Phase C): fixes structural artifacts the per-cell
     // ICM pass above has no way to see -- a component-level move (recolor
     // a whole small blob at once) or a diagonal-only pinch (invisible to
     // 4-neighbor-only energy) that no single-cell change could resolve.
-    optimized = recolorSmallComponents(cells, optimized, rawPalette, importance, componentRecolorOptions, pairEvidence, evidenceLayer);
-    optimized = fixDiagonalConnections(cells, optimized, rawPalette, importance, undefined, undefined, evidenceLayer);
+    optimized = recolorSmallComponents(ctx, optimized, rawPalette, componentRecolorOptions);
+    optimized = fixDiagonalConnections(ctx, optimized, rawPalette);
     // Diagonal fixes can leave a pinch's other member as a fresh size-1
     // component with nothing after it to clean up -- a domain-expert review
     // found this could regress confetti as the pipeline's last structural
     // step (HANDOVER.md D11). One more component-recolor pass closes that gap.
-    optimized = recolorSmallComponents(cells, optimized, rawPalette, importance, componentRecolorOptions, pairEvidence, evidenceLayer);
+    optimized = recolorSmallComponents(ctx, optimized, rawPalette, componentRecolorOptions);
   }
   options.onProgress?.(0.8);
 
@@ -226,7 +228,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     // averaged color -- see `finalizeCrispPalette`'s own doc comment for
     // the full rationale and its bounded repair-and-recompute loop.
     const preRecomputePalette = usedIndices.map((originalIndex) => merged.palette[originalIndex]);
-    const finalized = finalizeCrispPalette(cells, compactCellPaletteIndex, preRecomputePalette, evidenceLayer);
+    const finalized = finalizeCrispPalette(ctx.cellOklab, compactCellPaletteIndex, preRecomputePalette, evidenceLayer);
 
     // Defensive: `finalizeCrispPalette`'s own repair rounds could, in
     // principle, move every cell away from some label -- re-run the same
@@ -253,7 +255,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     const cellsByFinalIndex: number[][] = usedIndices.map(() => []);
     for (let i = 0; i < compactCellPaletteIndex.length; i++) cellsByFinalIndex[compactCellPaletteIndex[i]].push(i);
     compactPalette = usedIndices.map((originalIndex, newIndex) =>
-      cellsByFinalIndex[newIndex].length > 0 ? meanRgbOklab(cells, cellsByFinalIndex[newIndex]) : merged.palette[originalIndex]
+      cellsByFinalIndex[newIndex].length > 0 ? meanOklabAsRgb(ctx.cellOklab, cellsByFinalIndex[newIndex]) : merged.palette[originalIndex]
     );
   }
 
@@ -327,12 +329,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     ? applyBrandPalette(
         pattern,
         brand,
-        {
-          cells,
-          importance,
-          weights: options.multiScaleWeights?.fine,
-          pairEvidence,
-        },
+        { context: ctx, weights: options.multiScaleWeights?.fine },
         evidenceLayer
       )
     : applyBrandPalette(pattern, brand, undefined, evidenceLayer);

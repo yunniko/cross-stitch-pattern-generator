@@ -19,7 +19,33 @@ export interface ColorQuantizer {
    * `plainKMeansQuantizer` ignores it entirely, since JS/TS lets an
    * implementation declare fewer parameters than the interface allows.
    */
-  quantize(cells: CellColorBuffer, colorCount: number, importance?: Float32Array): QuantizeResult;
+  quantize(cells: CellColorBuffer, colorCount: number, importance?: Float32Array, cellOklab?: Float64Array): QuantizeResult;
+}
+
+/** `cells` as OKLab tuples, read from an already-computed interleaved conversion (`PipelineContext.cellOklab`) when given -- the same values `rgbToOklab` produces. */
+function oklabTuples(cells: CellColorBuffer, cellOklab?: Float64Array): Oklab[] {
+  const cellCount = cells.width * cells.height;
+  const out = new Array<Oklab>(cellCount);
+  if (cellOklab) {
+    for (let i = 0; i < cellCount; i++) out[i] = [cellOklab[i * 3], cellOklab[i * 3 + 1], cellOklab[i * 3 + 2]];
+  } else {
+    for (let i = 0; i < cellCount; i++) out[i] = rgbToOklab(cellRgb(cells, i));
+  }
+  return out;
+}
+
+/** `meanRgbOklab` over an interleaved OKLab buffer instead of re-converting each member cell -- identical summation order, identical result. */
+export function meanOklabAsRgb(cellOklab: Float64Array, indices: number[]): RGB {
+  let l = 0;
+  let a = 0;
+  let b = 0;
+  for (const i of indices) {
+    l += cellOklab[i * 3];
+    a += cellOklab[i * 3 + 1];
+    b += cellOklab[i * 3 + 2];
+  }
+  const n = indices.length || 1;
+  return oklabToRgb([l / n, a / n, b / n]);
 }
 
 /**
@@ -93,13 +119,28 @@ function kMeansPlusPlusSeeds(oklabColors: Oklab[], k: number, rng: () => number)
 const MAX_ITERATIONS = 30;
 const CONVERGENCE_THRESHOLD_SQ = 0.0001;
 
-/** Nearest-centroid assignment for every point against a fixed set of centroids. */
-function assignToNearestCentroid(oklabColors: Oklab[], centroids: Oklab[], out: Uint8Array): void {
-  for (let i = 0; i < oklabColors.length; i++) {
+/** Nearest-centroid assignment for every interleaved point against a fixed set of centroids; first minimum wins, same arithmetic as `oklabDistanceSquared(point, centroid)`. */
+function assignToNearestCentroid(points: Float64Array, centroids: Oklab[], flat: Float64Array, out: Uint8Array): void {
+  const k = centroids.length;
+  for (let c = 0; c < k; c++) {
+    flat[c * 3] = centroids[c][0];
+    flat[c * 3 + 1] = centroids[c][1];
+    flat[c * 3 + 2] = centroids[c][2];
+  }
+  const n = out.length;
+  for (let i = 0; i < n; i++) {
+    const o = i * 3;
+    const pl = points[o];
+    const pa = points[o + 1];
+    const pb = points[o + 2];
     let best = 0;
     let bestDist = Infinity;
-    for (let c = 0; c < centroids.length; c++) {
-      const d = oklabDistanceSquared(oklabColors[i], centroids[c]);
+    for (let c = 0; c < k; c++) {
+      const s = c * 3;
+      const dl = pl - flat[s];
+      const da = pa - flat[s + 1];
+      const db = pb - flat[s + 2];
+      const d = dl * dl + da * da + db * db;
       if (d < bestDist) {
         bestDist = d;
         best = c;
@@ -139,26 +180,40 @@ function assignToNearestCentroid(oklabColors: Oklab[], centroids: Oklab[], out: 
 // longer its exact nearest, which is not this bug and would make a
 // zero-tolerance test of the real invariant impossible from outside.
 export function runLloyd(oklabColors: Oklab[], initialCentroids: Oklab[]): { centroids: Oklab[]; assignments: Uint8Array } {
+  // Interleaved typed buffers for the O(iterations × n × k) assignment and
+  // sum loops; accumulation order and arithmetic are unchanged, so the
+  // result is bit-identical to the tuple version (D105).
+  const n = oklabColors.length;
+  const points = new Float64Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    points[i * 3] = oklabColors[i][0];
+    points[i * 3 + 1] = oklabColors[i][1];
+    points[i * 3 + 2] = oklabColors[i][2];
+  }
   let centroids = initialCentroids;
-  const assignments = new Uint8Array(oklabColors.length);
+  const k = centroids.length;
+  const assignments = new Uint8Array(n);
+  const flat = new Float64Array(k * 3);
+  const sums = new Float64Array(k * 3);
+  const counts = new Int32Array(k);
 
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
-    assignToNearestCentroid(oklabColors, centroids, assignments);
+    assignToNearestCentroid(points, centroids, flat, assignments);
 
-    const sums = centroids.map(() => [0, 0, 0]);
-    const counts = new Array(centroids.length).fill(0);
-    for (let i = 0; i < oklabColors.length; i++) {
-      const c = assignments[i];
-      sums[c][0] += oklabColors[i][0];
-      sums[c][1] += oklabColors[i][1];
-      sums[c][2] += oklabColors[i][2];
-      counts[c]++;
+    sums.fill(0);
+    counts.fill(0);
+    for (let i = 0; i < n; i++) {
+      const s = assignments[i] * 3;
+      sums[s] += points[i * 3];
+      sums[s + 1] += points[i * 3 + 1];
+      sums[s + 2] += points[i * 3 + 2];
+      counts[assignments[i]]++;
     }
 
     let maxShiftSq = 0;
     const newCentroids: Oklab[] = centroids.map((old, c) => {
       if (counts[c] === 0) return old;
-      const next: Oklab = [sums[c][0] / counts[c], sums[c][1] / counts[c], sums[c][2] / counts[c]];
+      const next: Oklab = [sums[c * 3] / counts[c], sums[c * 3 + 1] / counts[c], sums[c * 3 + 2] / counts[c]];
       maxShiftSq = Math.max(maxShiftSq, oklabDistanceSquared(old, next));
       return next;
     });
@@ -166,7 +221,7 @@ export function runLloyd(oklabColors: Oklab[], initialCentroids: Oklab[]): { cen
     if (maxShiftSq < CONVERGENCE_THRESHOLD_SQ) break;
   }
 
-  assignToNearestCentroid(oklabColors, centroids, assignments);
+  assignToNearestCentroid(points, centroids, flat, assignments);
   return { centroids, assignments };
 }
 
@@ -330,11 +385,10 @@ export function injectWorstFitClusters(
  * images and preferences suit better.
  */
 export const plainKMeansQuantizer: ColorQuantizer = {
-  quantize(cells: CellColorBuffer, colorCount: number): QuantizeResult {
+  quantize(cells: CellColorBuffer, colorCount: number, _importance?: Float32Array, cellOklab?: Float64Array): QuantizeResult {
     const cellCount = cells.width * cells.height;
     const k = Math.max(1, Math.min(colorCount, cellCount));
-    const oklabColors = new Array<Oklab>(cellCount);
-    for (let i = 0; i < cellCount; i++) oklabColors[i] = rgbToOklab(cellRgb(cells, i));
+    const oklabColors = oklabTuples(cells, cellOklab);
 
     const rng = mulberry32(0xc0ffee ^ cellCount ^ k);
     const initialSeeds = kMeansPlusPlusSeeds(oklabColors, k, rng);
@@ -388,8 +442,8 @@ export const plainKMeansQuantizer: ColorQuantizer = {
  * full 5 requested (`quantize.spec.ts`'s attrition-recovery test).
  */
 export const kMeansQuantizer: ColorQuantizer = {
-  quantize(cells: CellColorBuffer, colorCount: number, importance?: Float32Array): QuantizeResult {
-    const initialResult = plainKMeansQuantizer.quantize(cells, colorCount);
+  quantize(cells: CellColorBuffer, colorCount: number, importance?: Float32Array, cellOklab?: Float64Array): QuantizeResult {
+    const initialResult = plainKMeansQuantizer.quantize(cells, colorCount, undefined, cellOklab);
     const targetK = Math.min(colorCount, cells.width * cells.height);
     if (targetK < 3) {
       // Nothing meaningful to redistribute (k=1/2, or the image only has a
@@ -404,8 +458,7 @@ export const kMeansQuantizer: ColorQuantizer = {
     }
 
     const cellCount = cells.width * cells.height;
-    const oklabColors = new Array<Oklab>(cellCount);
-    for (let i = 0; i < cellCount; i++) oklabColors[i] = rgbToOklab(cellRgb(cells, i));
+    const oklabColors = oklabTuples(cells, cellOklab);
     const cellImportance = importance ?? new Float32Array(cellCount);
 
     const mergedOklab = merged.palette.map(rgbToOklab);

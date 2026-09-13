@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fixDiagonalConnections, recolorSmallComponents } from "@/lib/contour-cleanup";
+import { createPipelineContext } from "@/lib/pipeline-context";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 
 function makeCells(width: number, height: number, colorAt: (x: number, y: number) => RGB): CellColorBuffer {
@@ -29,7 +30,7 @@ describe("fixDiagonalConnections", () => {
     const cells = makeCells(2, 2, (x, y) => (x === y ? A : nearA));
     const assignment = Uint8Array.from([0, 1, 1, 0]); // A nearA / nearA A
 
-    const result = fixDiagonalConnections(cells, assignment, closePalette);
+    const result = fixDiagonalConnections(createPipelineContext(cells), assignment, closePalette);
 
     // Resolving a 2x2-only pinch necessarily produces a 3-1 split (there's
     // no way to fix it by changing one cell that keeps a clean 2-2 split),
@@ -53,7 +54,7 @@ describe("fixDiagonalConnections", () => {
     const cells = makeCells(2, 2, (x, y) => (x === y ? A : B));
     const assignment = Uint8Array.from([0, 1, 1, 0]); // A B / B A
 
-    const result = fixDiagonalConnections(cells, assignment, palette);
+    const result = fixDiagonalConnections(createPipelineContext(cells), assignment, palette);
 
     expect(Array.from(result)).toEqual(Array.from(assignment));
   });
@@ -63,7 +64,7 @@ describe("fixDiagonalConnections", () => {
     const assignment = Uint8Array.from([0, 1, 1, 0]);
     const importance = new Float32Array(4).fill(1);
 
-    const result = fixDiagonalConnections(cells, assignment, palette, importance, {
+    const result = fixDiagonalConnections(createPipelineContext(cells, { importance }), assignment, palette, {
       importanceProtectionThreshold: 0.5,
       costCeiling: Infinity, // even with no cost limit, importance should still protect it
     });
@@ -81,7 +82,7 @@ describe("fixDiagonalConnections", () => {
     });
     const assignment = Uint8Array.from([0, 1, 1, 0]); // A B / B A (top-left mislabeled A)
 
-    const result = fixDiagonalConnections(cells, assignment, palette);
+    const result = fixDiagonalConnections(createPipelineContext(cells), assignment, palette);
 
     expect(result[0]).toBe(1); // recolored to B, matching its true source color
   });
@@ -91,7 +92,7 @@ describe("fixDiagonalConnections", () => {
     const assignment = new Uint8Array(16);
     for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) assignment[y * 4 + x] = x < 2 ? 0 : 1;
 
-    const result = fixDiagonalConnections(cells, assignment, palette);
+    const result = fixDiagonalConnections(createPipelineContext(cells), assignment, palette);
 
     expect(Array.from(result)).toEqual(Array.from(assignment));
   });
@@ -114,7 +115,7 @@ describe("recolorSmallComponents", () => {
     assignment[3 * width + 2] = 1;
     assignment[3 * width + 3] = 1;
 
-    const result = recolorSmallComponents(cells, assignment, palette);
+    const result = recolorSmallComponents(createPipelineContext(cells), assignment, palette);
 
     expect(result[3 * width + 2]).toBe(0);
     expect(result[3 * width + 3]).toBe(0);
@@ -131,7 +132,7 @@ describe("recolorSmallComponents", () => {
     importance[3 * width + 2] = 1;
     importance[3 * width + 3] = 1;
 
-    const result = recolorSmallComponents(cells, assignment, palette, importance);
+    const result = recolorSmallComponents(createPipelineContext(cells, { importance }), assignment, palette);
 
     expect(result[3 * width + 2]).toBe(1);
     expect(result[3 * width + 3]).toBe(1);
@@ -144,7 +145,7 @@ describe("recolorSmallComponents", () => {
     const assignment = new Uint8Array(width * height);
     for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) assignment[y * width + x] = x < 5 ? 0 : 1;
 
-    const result = recolorSmallComponents(cells, assignment, palette);
+    const result = recolorSmallComponents(createPipelineContext(cells), assignment, palette);
 
     expect(Array.from(result)).toEqual(Array.from(assignment));
   });

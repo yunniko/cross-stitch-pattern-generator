@@ -4,7 +4,8 @@ import { repairCrispAssignments, type CrispEvidenceLayer } from "./crisp-evidenc
 import { runLocalOptimizer, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, type LocalOptimizerWeights } from "./local-optimizer";
 import { symbolsFor } from "./symbols";
 import { formatThreadName, THREAD_BRANDS, type ThreadBrand, type ThreadColor } from "./thread-brands";
-import type { CellColorBuffer, PaletteColor, RGB, StitchPattern } from "./types";
+import type { PipelineContext } from "./pipeline-context";
+import type { PaletteColor, RGB, StitchPattern } from "./types";
 
 // Precomputed lazily per brand, then cached -- each brand's list is fixed
 // (~hundreds of entries, trivial either way), so there's no reason to
@@ -47,12 +48,10 @@ export function nearestColorInBrand(rgb: RGB, brand: ThreadBrand): ThreadColor {
 }
 
 export interface BrandReoptimizeContext {
-  /** The true (unfiltered) downsampled cell colors -- the same `cells` every other spatial pass in this pipeline scores against. */
-  cells: CellColorBuffer;
-  importance?: Float32Array;
-  /** Defaults to the pipeline's own fine-pass weights (`DEFAULT_LOCAL_OPTIMIZER_WEIGHTS`) -- G-020 M5's own wording is specifically "the fine local-optimizer pass," not the coarse one. */
+  /** The pipeline's shared context (true cells, importance, pair evidence). Its `evidenceLayer` is replaced by `applyBrandPalette`'s own `crispEvidenceLayer` argument. */
+  context: PipelineContext;
+  /** Defaults to `DEFAULT_LOCAL_OPTIMIZER_WEIGHTS`; `buildPattern` passes the fine-pass weights (G-020 M5). */
   weights?: LocalOptimizerWeights;
-  pairEvidence?: Float32Array;
 }
 
 /**
@@ -167,13 +166,10 @@ export function applyBrandPalette(
   if (reoptimize) {
     const threadRgbPalette: RGB[] = groups.map((g) => g.thread.rgb);
     const reoptimized = runLocalOptimizer(
-      reoptimize.cells,
+      { ...reoptimize.context, evidenceLayer: crispEvidenceLayer },
       assignment,
       threadRgbPalette,
-      reoptimize.importance,
-      reoptimize.weights ?? DEFAULT_LOCAL_OPTIMIZER_WEIGHTS,
-      reoptimize.pairEvidence,
-      crispEvidenceLayer
+      reoptimize.weights ?? DEFAULT_LOCAL_OPTIMIZER_WEIGHTS
     );
 
     // Re-optimization can empty out a thread group entirely (every one of

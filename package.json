@@ -10,7 +10,8 @@
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test": "npm run test:unit && npm run test:e2e",
-    "generate-test-fixture": "node scripts/generate-test-fixture.mjs"
+    "generate-test-fixture": "node scripts/generate-test-fixture.mjs",
+    "bench": "vitest run --config vitest.bench.config.ts"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

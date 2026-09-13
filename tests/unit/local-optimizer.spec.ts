@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computeCellImportance, computeEdgeMagnitude } from "@/lib/edge-map";
 import { downsampleToGrid } from "@/lib/downsample";
 import { runLocalOptimizer, runMultiScaleOptimizer } from "@/lib/local-optimizer";
+import { createPipelineContext } from "@/lib/pipeline-context";
 import type { CellColorBuffer, PixelBuffer, RGB } from "@/lib/types";
 
 function makeCells(width: number, height: number, colorAt: (x: number, y: number) => RGB): CellColorBuffer {
@@ -34,7 +35,7 @@ describe("runLocalOptimizer", () => {
     const cells = makeCells(width, height, () => WHITE);
     const initial = Uint8Array.from([1, 1, 1, 1, 0, 1, 1, 1, 1]); // center = black (0), rest white (1)
 
-    const optimized = runLocalOptimizer(cells, initial, palette);
+    const optimized = runLocalOptimizer(createPipelineContext(cells), initial, palette);
 
     expect(Array.from(optimized)).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1]);
   });
@@ -49,7 +50,7 @@ describe("runLocalOptimizer", () => {
       for (let x = 0; x < width; x++) initial[y * width + x] = x < 3 ? 0 : 1;
     }
 
-    const optimized = runLocalOptimizer(cells, initial, palette);
+    const optimized = runLocalOptimizer(createPipelineContext(cells), initial, palette);
 
     expect(Array.from(optimized)).toEqual(Array.from(initial));
   });
@@ -62,7 +63,7 @@ describe("runLocalOptimizer", () => {
     for (let i = 0; i < initial.length; i++) initial[i] = i % 2;
 
     // Should return without throwing/hanging (MAX_PASSES bounds it either way).
-    expect(() => runLocalOptimizer(cells, initial, palette)).not.toThrow();
+    expect(() => runLocalOptimizer(createPipelineContext(cells), initial, palette)).not.toThrow();
   });
 
   it("reduces confetti on a noisy quantizer assignment without changing a uniform source's true color", () => {
@@ -77,7 +78,7 @@ describe("runLocalOptimizer", () => {
     const initial = new Uint8Array(width * height).fill(1); // all gray (index 1)
     initial[12] = 0; // center cell mis-assigned to black
 
-    const optimized = runLocalOptimizer(cells, initial, paletteWithGray);
+    const optimized = runLocalOptimizer(createPipelineContext(cells), initial, paletteWithGray);
 
     expect(optimized[12]).toBe(1);
   });
@@ -91,7 +92,7 @@ describe("runLocalOptimizer", () => {
     const initial = new Uint8Array(25).fill(0);
     initial[detail.centerCell] = 1;
 
-    const optimized = runLocalOptimizer(cells, initial, detail.palette);
+    const optimized = runLocalOptimizer(createPipelineContext(cells), initial, detail.palette);
 
     expect(optimized[detail.centerCell]).toBe(0); // smoothed away to background
   });
@@ -111,7 +112,7 @@ describe("runLocalOptimizer", () => {
     initial[detail.centerCell] = 1;
     const importance = computeCellImportance(detail.source, computeEdgeMagnitude(detail.source), 5, 5);
 
-    const optimized = runLocalOptimizer(cells, initial, detail.palette, importance, {
+    const optimized = runLocalOptimizer(createPipelineContext(cells, { importance }), initial, detail.palette, {
       color: 1,
       smoothness: 0.045,
       edgeLoss: 0.05,
@@ -127,7 +128,7 @@ describe("runLocalOptimizer", () => {
     initial[detail.centerCell] = 1;
     const importance = computeCellImportance(detail.source, computeEdgeMagnitude(detail.source), 5, 5);
 
-    const optimized = runMultiScaleOptimizer(cells, initial, detail.palette, importance);
+    const optimized = runMultiScaleOptimizer(createPipelineContext(cells, { importance }), initial, detail.palette);
 
     expect(optimized[detail.centerCell]).toBe(1);
   });
@@ -140,7 +141,7 @@ describe("runLocalOptimizer", () => {
     initial[0] = 1; // spurious quantizer noise, unrelated to the real detail, in a flat corner
     const importance = computeCellImportance(detail.source, computeEdgeMagnitude(detail.source), 5, 5);
 
-    const optimized = runMultiScaleOptimizer(cells, initial, detail.palette, importance);
+    const optimized = runMultiScaleOptimizer(createPipelineContext(cells, { importance }), initial, detail.palette);
 
     expect(optimized[0]).toBe(0); // noise cleaned up
     expect(optimized[detail.centerCell]).toBe(1); // real detail still preserved

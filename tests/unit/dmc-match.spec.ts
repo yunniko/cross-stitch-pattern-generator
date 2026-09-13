@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DMC_COLORS } from "@/lib/dmc-colors";
 import { applyBrandPalette, nearestColorInBrand } from "@/lib/dmc-match";
 import { buildPattern } from "@/lib/pattern";
+import { createPipelineContext } from "@/lib/pipeline-context";
 import type { CellColorBuffer, PaletteColor, PixelBuffer, RGB, StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {
@@ -145,7 +146,7 @@ describe("applyBrandPalette with reoptimize (G-020 M5, HANDOVER.md D56)", () => 
     ]);
 
     const withoutReoptimize = applyBrandPalette(pattern, "dmc");
-    const withReoptimize = applyBrandPalette(pattern, "dmc", { cells });
+    const withReoptimize = applyBrandPalette(pattern, "dmc", { context: createPipelineContext(cells) });
 
     // Without re-optimization, cell 2 stays in whichever DMC group the
     // original (stale) assignment put it in. Identify "the black one" /
@@ -182,7 +183,7 @@ describe("applyBrandPalette with reoptimize (G-020 M5, HANDOVER.md D56)", () => 
       [30, 30, 200], // a clearly distinct blue
     ]);
 
-    const dmc = applyBrandPalette(pattern, "dmc", { cells, weights: { color: 1, smoothness: 0.045, edgeLoss: 0 } });
+    const dmc = applyBrandPalette(pattern, "dmc", { context: createPipelineContext(cells), weights: { color: 1, smoothness: 0.045, edgeLoss: 0 } });
     for (const color of dmc.palette) expect(color.count).toBeGreaterThan(0);
     expect(Array.from(dmc.cellPalette).every((i) => i === dmc.cellPalette[0])).toBe(true);
   });
