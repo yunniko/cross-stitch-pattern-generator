@@ -10,8 +10,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs `master` as deployed on 2026-09-13 (last deploy-log
-row). G-032 (photo enhancement) is live with every mode offered on the
-Owner's decision (D118), so they can judge the modes by eye.
+row). G-032 (photo enhancement) is done and signed off: every mode is offered
+(D118). G-028 (OXS import and export) is active.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest
@@ -167,14 +167,10 @@ above the goal's 1.5 s target.
 
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
-- **PENDING APPROVAL: G-032 sign-off.** On 2026-09-13 the Owner asked for
-  every mode in the UI to check them by eye, plus a cautious Brighten fix.
-  Both are live (D118). Their verdict decides which modes stay. Brighten
-  wasn't run on the real-photo set because the machine was low on memory.
-  Also open: the 1.5 s enhancement target, and a Codex review of the M2–M4
-  diff (usage limit hit on 2026-09-13).
-- G-028 (OXS import and export) is a draft. G-030 (public launch) is a
-  far-future draft. G-023 (Rust sidecar) was measured as not needed.
+- G-028 (OXS import and export) started 2026-09-13; see its progress log in
+  `GOALS.md`. Left open from G-032: the 1.5 s enhancement target, and
+  Brighten's real-photo calibration.
+- G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`);
   gaps from `docs/reviews/2026-09-12-competitive-analysis.md`; moving exports
   into a worker if the tab stall bothers users.
