@@ -38,8 +38,7 @@ quality gates (D129). G-032 (photo enhancement) is done and signed off: every mo
 - Five view modes (keys 1–5) and a view-only canvas color. Shortcuts: Ctrl+Z,
   Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, and Escape to merge a selection.
 - Exports: editable JSON (format version 7, embeds the source photo and each
-  color's thread swatch),
-  realistic preview PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern
+  color's thread swatch), realistic preview PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern
   Keeper PDF (the Owner confirmed a real import), an OXS chart, and "Export
   all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs`, detected by
   content; an OXS import shows a notice listing everything it couldn't keep.
