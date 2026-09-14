@@ -8,7 +8,8 @@ here.
 ## Summary
 
 - The evidence layer now reads samples into typed arrays and converts each source row to OKLab once per job. Output is
-  byte-identical, and the 12 MP benchmark's evidence layer went from 19.3 s to 4.6 s.
+  byte-identical. On the 12 MP benchmark the evidence layer went from 19.3 s to 4.6 s and Crisp end to end from 23.1 s
+  to a median of 8.4 s, just above the 8 s target.
 - The candidate pre-filter can't be made more selective without losing confident boundary cells on real photos, so it
   stays unchanged (D131).
 - Today's pre-filter already misses about 3 % of confident cells on real photos at 100 stitches. D065 requires zero
@@ -29,6 +30,9 @@ shuffled order. The golden hashes, including four Crisp configurations, are unch
 | Evidence layer, 1200×800 → 300 st | 1.9 s | 0.45 s |
 | Evidence layer, 1500×1000 → 1000 st | 4.0 s | 1.3 s |
 | Crisp end to end, 1500×1000 → 1000 st | 25.0 s | 21.3 s |
+
+Repeated afterwards on the same 12 MP source, 5 runs after a warm-up: Crisp median 8.37 s (8.12–8.89 s), Standard
+3.2 s. The single 7.8 s run was optimistic; the ≤ 8 s target is not met.
 
 ## Pre-filter on synthetic fixtures
 
