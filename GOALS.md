@@ -1191,6 +1191,122 @@ escalation-tier, not a routine refactor):
 - **Answered 2026-09-14:** deploy after each milestone.
 
 **Progress log** (newest first):
+- 2026-09-14 — **M3 in progress: cap mechanism and comparison switch built;
+  real photos show the cap isn't quality-neutral yet.**
+  - Codex round 1 (read-only) critique of the design. Accepted:
+    - cap only when the target is no larger in both dimensions and smaller
+      in one;
+    - skip transparent photos, since 8-bit alpha rounding can turn a faint
+      stitch white;
+    - one shared entry point, so tests cover the capped path;
+    - keep the original's orientation (a 1001×1000 photo capped to a square
+      flipped it);
+    - analyse enhancement on the full photo, as the preview does;
+    - each result carries its own details; the flag is needed on every load.
+    Deferred: the pinned side-by-side comparison and off-main-thread
+    decoding. Decision D127.
+  - Built: `lib/pipeline/source-cap.ts`, `lib/pipeline/generate-from-photo.ts`
+    and the flag-gated switch (`?compare-resolution`). Uncapped output is
+    unchanged: golden hashes pass; 884/884 unit tests.
+  - Real photos: 41 sampled from the Owner's folder (anonymous IDs; raw pixels
+    only in the session scratchpad). Medians against Full, measured against
+    full-resolution truth:
+
+    | 100 st / 16 col | 8 px | 4 px | 2 px |
+    |---|---:|---:|---:|
+    | Speed-up | 6.0× | 10.4× | 12.3× |
+    | Confetti change (from 0.060) | +0.016 | +0.019 | +0.027 |
+    | Confetti change, p90 | +0.082 | +0.132 | +0.130 |
+    | Edge alignment change | +0.000 | −0.010 | −0.038 |
+    | Reconstruction error ratio | 0.76 | 0.62 | 0.64 |
+
+    At 250 stitches: 1.6–2.8× faster, confetti +0.002 to +0.012. Crisp at 100
+    stitches: 60–119× faster, confetti +0.024 to +0.035. Palette size changes
+    by at most 2 colors; the earlier 10 → 16 jump didn't recur, but its cause
+    is unresolved.
+  - Reading: capped results fit colors more closely but leave more stray
+    stitches, and at 2 px edges align worse.
+  - Diagnosis (6 worst photos, stage by stage): stray stitches after color
+    quantization are equal or fewer when capped; the rise happens in the
+    smoothing optimizer. Pair-edge evidence saturates on a shrunk photo
+    (share ≥ 0.5: 7.7 % Full, 59.5 % at 8 px, 80.7 % at 2 px on the worst
+    photo), and above ≈ 0.47 the optimizer stops smoothing that pair. Its tau
+    and blur radius are in source pixels, calibrated on full photos.
+  - Codex round 2: no factor may become the default on this evidence;
+    corrected my first guess (lower importance isn't the cause); calibrate an
+    explicit profile and keep Full's output unchanged; add structural,
+    worst-case and per-group gates; measure release numbers through the
+    shared entry point. Accepted; round 3 covers the calibration plan.
+  - Verified: production build plus full e2e run, 70/70, including the
+    comparison switch spec.
+  - Codex round 3: agreed evidence saturation is the mechanism. Asked for:
+    - exact zero-penalty pair counts per pass;
+    - one shared stitch-unit tau tried across factors before per-factor
+      constants;
+    - the calibrated profile applied whenever it is requested on an opaque
+      photo, even without a resize, with transparent photos kept legacy;
+    - validated override values;
+    - a small phase sweep of edges and thin lines before any default;
+    - a recorded set of eyes, lettering, highlights and thin structures for
+      the Owner's inspection, not only the worst confetti cases.
+    Accepted. The odd/even holdout was checked for burst neighbours: none are
+    split across the halves.
+  - Photo decode moved into a worker (`lib/editor/decode-image.worker.ts`),
+    for uploads and reopened saves, with the old decode kept as a logged
+    fallback. `tests/e2e/decode-parity.spec.ts` shows identical pixels for a
+    plain JPEG, EXIF rotation, an embedded colour profile, transparency and a
+    5000 px photo; with the photo specs, 20/20 passed.
+  - Coarse sweep (tau 0.01–0.32 × blur radius 0–2 × 8/4/2 px, 100 stitches,
+    21 calibration photos): no setting passes every gate. Small tau leaves
+    extra stray stitches; large tau over-smooths (reconstruction error ratio
+    p90 up to 3.4, edge alignment −0.12). Near misses: 8 px tau 0.02 r 1
+    (confetti median −0.002 but p90 +0.044), 4 and 2 px tau 0.04 r 0.
+  - Per-pass diagnostic (6 worst plus 4 control photos): the assignment
+    entering the optimizer is identical for every evidence variant, and the
+    zero-penalty pair share tracks fine-pass confetti. Full itself isn't a
+    consistent reference: its zero-penalty share depends on the photo's
+    native resolution. A 1038 px photo at Full has 82 % zero-penalty pairs
+    and confetti 0.44, while at 2 px per stitch it gets 0.19.
+  - Override values are validated (`tests/unit/pair-evidence-options.spec.ts`,
+    10/10). The comparison's time is labelled worker time. D128 records the
+    decode worker.
+  - Phase sweep (edges and lines at 6 angles × 4 sub-stitch offsets, strong
+    and weak contrast, 60 stitches from 20 px per stitch): edges and strong
+    2-stitch lines stay within the 0.02 IoU gate at every factor. Weak-contrast
+    lines 1–2 stitches wide often vanish at 4 and 2 px (IoU 0.97 → 0), and
+    the calibrated near-miss settings make that worse. With the optimizer
+    off, capped copies keep those lines exactly as well as Full, so the
+    loss is the optimizer collapsing the palette to 1–2 colors. Half-stitch
+    lines are already lost at Full at 10° and 45°.
+  - Finer sweep (tau 0.015–0.05, radius 0–1): still no single tau passes.
+    Each photo's best-matching tau follows its native px per stitch
+    (Spearman 0.92 at 8 px, radius 0), which confirms Full's
+    resolution dependence. A rule tau = c × native px per stitch ÷ factor
+    (c ≈ 0.00875, radius 0) nearly passes at 8 px: confetti +0.002
+    (p90 +0.018), edge −0.001, reconstruction ratio p90 1.08. That was
+    estimated from swept values, and clamped at 4 and 2 px.
+  - The rule measured directly fails. On calibration photos, 8 px c 0.00875
+    comes closest at 100 stitches: confetti p90 +0.025, edge −0.006,
+    reconstruction p90 1.08. The best c differs between 100 and 250
+    stitches, and 4 and 2 px over-smooth. On the held-out photos the setting
+    frozen beforehand also fails: at 100 stitches confetti p90 +0.032, edge
+    −0.007, reconstruction p90 1.07; at 250, confetti median +0.011, p90
+    +0.076.
+  - Conclusion: no factor and no evidence setting passes the gates, so
+    ordinary generation stays at Full. Raw photo pixels are deleted from
+    the scratchpad. Unit tests 895/895.
+  - Browser benchmark (Medium, synthetic 12 MP JPEG, one run): reopening a
+    saved file 212 ms with 0 ms of main-thread tasks. Photo upload 733 ms,
+    but one 376 ms main-thread task. Generation 3.0 s; exports and Export
+    all 0 ms of main-thread tasks. D129 records that no cap ships by default.
+  - A CPU profile put 320 ms of that task in Playwright's own injected script,
+    which rebuilds an in-memory upload inside the page. Uploaded by path
+    instead, three runs had no main-thread task over 50 ms; the largest
+    block was 15 ms. The photo-load target (≤ 100 ms) is met. The M1
+    baseline of 0.4 s likely carried the same harness cost, and the old
+    decode wasn't re-measured by path. `npm run bench:browser` now uploads
+    by path.
+  - Next: commit, deploy and the Owner check-in.
 - 2026-09-14 — **M3 started on the Owner's direction** ("go next"). The
   Owner's reply does not mention Pattern Keeper, so M2's import check (D097)
   stays open and is asked again at the M3 check-in. Before any M3 code, the

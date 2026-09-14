@@ -17,7 +17,7 @@ import { finalizeCrispPalette } from "../crisp/crisp-palette-finalization";
 import { runCrispQuantizationStage } from "../crisp/crisp-quantization-stage";
 import { defaultComponentRecolorOptions, fixDiagonalConnections, recolorSmallComponents } from "./contour-cleanup";
 import { runMultiScaleOptimizer, type MultiScaleWeights } from "./local-optimizer";
-import { enhancePixelBuffer, type EnhancementModeId } from "./enhance";
+import { applyEnhancement, enhancePixelBuffer, isIdentityEnhancement, type EnhancementModeId, type EnhancementParameters } from "./enhance";
 import { computePairEdgeEvidence } from "./pair-edge-evidence";
 import { mergeSimilarColors } from "./palette-optimizer";
 import { createPipelineContext } from "./pipeline-context";
@@ -51,10 +51,29 @@ export interface BuildPatternOptions {
   crispEvidenceLayerOptions?: CrispEvidenceLayerOptions;
   /** Photo enhancement before generation (G-032); defaults to "off", which passes the original buffer through untouched (D112). */
   enhancementMode?: EnhancementModeId;
+  /**
+   * Enhancement parameters analysed on the original photo when `imageData` is a smaller capped copy of it (D127), so the
+   * copy gets the same white balance, tone curve and CLAHE tiles. Ignored when `enhancementMode` is off.
+   */
+  enhancementParameters?: EnhancementParameters;
+  /** The original photo's size when `imageData` is a capped copy, so orientation-dependent output follows the original (D127). */
+  sourceDimensions?: { width: number; height: number };
+  /**
+   * Pair-edge evidence overrides. Its tau and blur radius are measured in source pixels and were calibrated on
+   * full-resolution photos (D44), so a capped copy needs its own values (G-035 M3). Unset keeps the D44 defaults.
+   */
+  pairEvidenceOptions?: { tau?: number; blurRadius?: number };
   onProgress?: (fraction: number) => void;
 }
 
 export function buildPattern(imageData: PixelBuffer, options: BuildPatternOptions): StitchPattern {
+  const evidenceOverrides = options.pairEvidenceOptions;
+  if (evidenceOverrides?.tau !== undefined && !(Number.isFinite(evidenceOverrides.tau) && evidenceOverrides.tau > 0)) {
+    throw new RangeError(`pairEvidenceOptions.tau must be a finite number above 0, got ${evidenceOverrides.tau}`);
+  }
+  if (evidenceOverrides?.blurRadius !== undefined && !(Number.isInteger(evidenceOverrides.blurRadius) && evidenceOverrides.blurRadius >= 0)) {
+    throw new RangeError(`pairEvidenceOptions.blurRadius must be a whole number of at least 0, got ${evidenceOverrides.blurRadius}`);
+  }
   const edgeMode = options.edgeMode ?? "standard";
   if (edgeMode === "crisp" && options.contourRefinement) {
     // Fail before doing any work; runContourRefinement repeats this guard for direct callers (D68).
@@ -66,7 +85,13 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   // Color stages (downsampling, Crisp's two-color fits) read the enhanced photo; Sobel importance and pair-edge evidence
   // keep reading the original, so their calibrated noise floors stay valid (D112). Off returns `imageData` itself.
   const enhancementMode = options.enhancementMode ?? "off";
-  const colorSource = enhancePixelBuffer(imageData, enhancementMode);
+  const presetParameters = options.enhancementParameters;
+  const colorSource =
+    enhancementMode === "off" || !presetParameters
+      ? enhancePixelBuffer(imageData, enhancementMode)
+      : isIdentityEnhancement(presetParameters)
+        ? imageData
+        : applyEnhancement(imageData, presetParameters);
 
   const { width: gridWidth, height: gridHeight } = gridDimensionsFor(
     imageData.width,
@@ -83,7 +108,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
 
   // Needed by ICM, and by Crisp's candidate pre-filter before quantization even without `optimize` (D72).
   const shouldOptimize = options.optimize ?? true;
-  const pairEvidence: Float32Array | undefined = edgeMode === "crisp" || shouldOptimize ? computePairEdgeEvidence(imageData, gridWidth, gridHeight) : undefined;
+  const pairEvidence: Float32Array | undefined = edgeMode === "crisp" || shouldOptimize ? computePairEdgeEvidence(imageData, gridWidth, gridHeight, options.pairEvidenceOptions?.tau, options.pairEvidenceOptions?.blurRadius) : undefined;
 
   let evidenceLayer: CrispEvidenceLayer | undefined;
   if (edgeMode === "crisp") {
@@ -247,7 +272,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     height: gridHeight,
     cellPalette,
     palette,
-    isLandscape: imageData.width > imageData.height,
+    isLandscape: (options.sourceDimensions ?? imageData).width > (options.sourceDimensions ?? imageData).height,
     // Recorded on the pattern itself (not just passed as a build option) so
     // a saved/reopened pattern remembers how it was generated, the same way
     // `threadBrand` does (G-024 M5) -- `applyBrandPalette`'s own

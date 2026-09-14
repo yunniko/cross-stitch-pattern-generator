@@ -1,4 +1,4 @@
-import { downsampleToGrid, gridDimensionsFor } from "./downsample";
+import { downsampleToOpaqueRgba, gridDimensionsFor } from "./downsample";
 import { applyEnhancement, type EnhancementParameters } from "./enhance";
 import type { PixelBuffer } from "../types";
 
@@ -12,15 +12,7 @@ export const ENHANCEMENT_PREVIEW_MAX_SIDE = 1200;
 export function downscaleForPreview(source: PixelBuffer, maxSide: number): PixelBuffer {
   if (Math.max(source.width, source.height) <= maxSide) return source;
   const { width, height } = gridDimensionsFor(source.width, source.height, maxSide);
-  const cells = downsampleToGrid(source, width, height);
-  const data = new Uint8ClampedArray(width * height * 4);
-  for (let i = 0; i < width * height; i++) {
-    data[i * 4] = cells.data[i * 3];
-    data[i * 4 + 1] = cells.data[i * 3 + 1];
-    data[i * 4 + 2] = cells.data[i * 3 + 2];
-    data[i * 4 + 3] = 255;
-  }
-  return { data, width, height };
+  return downsampleToOpaqueRgba(source, width, height);
 }
 
 /**

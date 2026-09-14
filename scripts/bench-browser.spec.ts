@@ -127,10 +127,16 @@ const CONFIGS = [
 const EXPORT_KINDS = ["editable", "oxs", "png-color", "png-bw", "png-realistic", "pdf-color", "pdf-bw", "a4-color", "a4-bw"] as const;
 
 let jpeg: Buffer;
+let jpegPath: string;
 
 test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage();
   jpeg = await makeSyntheticJpeg(page);
+  // Uploaded by path: an in-memory buffer is rebuilt inside the page by Playwright, a ~320 ms main-thread task that
+  // isn't the app's (G-035 M3).
+  mkdirSync(BENCH_OUTPUT_DIR, { recursive: true });
+  jpegPath = path.join(BENCH_OUTPUT_DIR, "photo.jpg");
+  writeFileSync(jpegPath, jpeg);
   await page.close();
 });
 
@@ -143,7 +149,7 @@ for (const config of CONFIGS) {
     await page.goto("/");
 
     await measure(page, rows, "photo load (file → decoded buffer)", async () => {
-      await page.getByLabel("Image").setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer: jpeg });
+      await page.getByLabel("Image").setInputFiles(jpegPath);
       await waitForBodyText(page, /Loaded: photo\.jpg/.source, 60_000);
     });
 

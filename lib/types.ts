@@ -96,6 +96,17 @@ export interface SourceImageRef {
   offsetY: number;
 }
 
+/** What one generation read and how long it took (G-035 M3). Lives only in memory, with its pattern in undo history. */
+export interface GenerationRecord {
+  sourceWidth: number;
+  sourceHeight: number;
+  /** The comparison's requested cap; null when generation read the full decoded photo on purpose. */
+  requestedPixelsPerStitch: number | null;
+  capped: boolean;
+  reason?: "not-larger" | "transparent";
+  durationMs: number;
+}
+
 export interface StitchPattern {
   width: number;
   height: number;
@@ -114,6 +125,8 @@ export interface StitchPattern {
   edgeMode?: Extract<EdgeMode, "crisp">;
   /** The photo enhancement the pattern was generated with (G-032). Informational; absent means Off. */
   enhancementMode?: Exclude<EnhancementModeId, "off">;
+  /** How this pattern was generated, for the temporary resolution comparison (G-035 M3). Transient: never saved or autosaved. */
+  generation?: GenerationRecord;
 }
 
 /** An axis-aligned, end-exclusive rectangle in stitch-cell coordinates. */

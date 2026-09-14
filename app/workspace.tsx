@@ -24,6 +24,7 @@ import { useBrushTool, useMoveTool, useSelectTool } from "./hooks/use-canvas-too
 import { useChartRenderer, type ChartRenderer } from "./hooks/use-chart-renderer";
 import { paginatesAsA4, useExports } from "./hooks/use-exports";
 import { useGeneration } from "./hooks/use-generation";
+import { useResolutionComparison } from "./hooks/use-resolution-comparison";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { usePanZoom, ZOOM_STEP } from "./hooks/use-pan-zoom";
 import { useEnhancePreview } from "./hooks/use-enhance-preview";
@@ -114,8 +115,10 @@ export default function Workspace() {
   const restore = useProjectRestore((restored) => void loadPatternIntoWorkspace(restored, restored.name ?? "cross-stitch-pattern"));
   const autosaveStatus = useProjectAutosave(pattern, restore.restored, getProjectStore());
   const exports = useExports(pattern, options);
+  const resolutionComparison = useResolutionComparison();
   const generation = useGeneration({
     options,
+    pixelsPerStitch: resolutionComparison.enabled ? resolutionComparison.pixelsPerStitch : null,
     pixelBuffer: source.pixelBuffer,
     sourceMeta: source.meta,
     sourceFileName: source.fileName,
@@ -304,6 +307,7 @@ export default function Workspace() {
             onZoomIn={() => panZoom.zoomBy(ZOOM_STEP)}
             onZoomOut={() => panZoom.zoomBy(1 / ZOOM_STEP)}
             onResetZoom={panZoom.resetZoom}
+            showGenerationDetails={resolutionComparison.enabled}
           />
           <ImageWindow
             scrollerRef={scrollerRef}
@@ -337,6 +341,9 @@ export default function Workspace() {
             hasSourcePhoto={source.hasPhoto}
             onGenerate={() => void generation.generate()}
             error={generation.error}
+            resolutionComparison={
+              resolutionComparison.enabled ? { value: resolutionComparison.pixelsPerStitch, onChange: resolutionComparison.setPixelsPerStitch } : undefined
+            }
           />
         </main>
         <ColorsDock

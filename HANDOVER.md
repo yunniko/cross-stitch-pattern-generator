@@ -10,8 +10,12 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs `master` as deployed on 2026-09-14 (last deploy-log
-row). G-035 (performance) is active: M2 (exports without freezes) is deployed
-and awaits the Owner's Pattern Keeper import check (D097). G-032 (photo enhancement) is done and signed off: every mode is offered
+row). G-035 (performance) is active. M2 (exports without freezes) awaits the
+Owner's Pattern Keeper import check (D097). M3 is deployed and awaits the
+Owner's comparison: photos decode in a worker (D128), and a temporary
+`?compare-resolution` switch generates from 8, 4 or 2 px per stitch, while
+ordinary generation keeps the full photo because no factor passed the
+quality gates (D129). G-032 (photo enhancement) is done and signed off: every mode is offered
 (D118). G-028 (OXS import and export) is done and signed off (D119). G-033
 (swatch-aware color editor) is deployed and awaits Owner sign-off.
 
@@ -39,10 +43,12 @@ and awaits the Owner's Pattern Keeper import check (D097). G-032 (photo enhancem
   Keeper PDF (the Owner confirmed a real import), an OXS chart, and "Export
   all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs`, detected by
   content; an OXS import shows a notice listing everything it couldn't keep.
+- Photo upload and reopening a save decode in a worker, with the old decode
+  as a logged fallback; a 12 MP upload showed no main-thread task over 50 ms
+  (D128).
 - Persistence: the open project autosaves to IndexedDB (photo stored once by
   SHA-256, 500 ms debounce) and restores on reload. A corrupt record shows a
   banner with an on-demand error report. Options persist in localStorage.
-
 - Photo enhancement: a Photo control (Off, Brighten, Auto, Vivid,
   Portrait), an enhanced preview with "Compare with original" before
   Generate, and the mode recorded in saved files. Brighten is a cautious
@@ -78,6 +84,9 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 - A double-click fill leaves 3 undo steps (D086). Highlight does nothing in
   the realistic preview (D028).
 - Contour refinement exists but isn't adopted (D055).
+- The photo resolution cap isn't quality-neutral: pair-edge evidence is
+  measured in source pixels, so a shrunk photo gets extra stray stitches
+  and can lose weak thin lines (D129).
 
 ## How things fit together
 
@@ -95,8 +104,12 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
   photo are view-only, where only Pan and Zoom act (D121).
 - **Generation path**: `app/hooks/use-generation.ts` →
   `lib/pipeline/pattern-client.ts` (one reused worker; discarded after a
-  native error) → `lib/pipeline/pattern.worker.ts` → `buildPattern` in
-  `lib/pipeline/pattern.ts`.
+  native error) → `lib/pipeline/pattern.worker.ts` → `generateFromPhoto` in
+  `lib/pipeline/generate-from-photo.ts` (the optional cap, D127) →
+  `buildPattern` in `lib/pipeline/pattern.ts`.
+- **Photo decode**: `lib/editor/load-image.ts` sends the file or data URL to
+  `lib/editor/decode-image.worker.ts`; `lib/editor/decode-main-thread.ts` is
+  the fallback, and both size through `lib/editor/decode-bitmap.ts` (D128).
 - **Pipeline order** in `buildPattern`:
   1. Area-weighted linear-light downsample.
   2. Sobel importance and per-pair color structure-tensor evidence (D044).
@@ -199,26 +212,31 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 - `npm ci --legacy-peer-deps` is required (npm arborist crash).
 - On this Windows host, stopping a background task can leave node running;
   check the process list (D096).
+- Both photo decode paths must stay byte-identical:
+  `tests/e2e/decode-parity.spec.ts` (D128).
+- The resolution switch and its `?compare-resolution` flag are temporary;
+  G-035 M6 removes them (D127). Unset `pairEvidenceOptions` must reproduce
+  D44 evidence; overrides are experimental (D129).
 - Run `node E:\CLAUDE\COMPANY\scripts\docs-lint.mjs .` before every check-in.
 
 ## Next steps and open questions
 
-- **PENDING APPROVAL: G-035 M2 Pattern Keeper import check.** M2 is deployed.
-  The PDF's bytes changed (D126), so the Owner re-imports an exported PDF into
-  Pattern Keeper (D097). M3 (photo resolution cap and comparison switch) then
-  waits for approval. Measurements are in the G-035 entry in `GOALS.md`.
+- **PENDING APPROVAL: G-035 M2 Pattern Keeper import check.** The PDF's bytes
+  changed (D126), so the Owner re-imports an exported PDF into Pattern Keeper
+  (D097).
+- **PENDING APPROVAL: G-035 M3 comparison and factor decision.** Open the app
+  with `?compare-resolution`, compare Full with 8, 4 and 2 px per stitch, and
+  decide whether any cap ships
+  (`docs/reviews/2026-09-14-photo-resolution-cap.md`). M4 waits for approval.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is
   live (D122, D123); see the G-033 progress log in `GOALS.md`. Out of scope:
   "+ Add" keeps its old flow, and touch screens pick on tap with no
   comparison.
-- Left open from G-028 (signed off):
-  - OXS symbols are written as Unicode characters; a reading program shows
-    its own font's glyph for that code.
-  - The export is untested in desktop programs such as PCStitch or
-    WinStitch; Embroiderly's reader parsed it correctly.
-  - Details: `docs/reviews/2026-09-13-oxs-format-evidence.md`.
+- Left open from G-028: OXS symbols use each reader's own font glyph, and the
+  export is untested in PCStitch or WinStitch
+  (`docs/reviews/2026-09-13-oxs-format-evidence.md`).
 - Left open from G-032: the 1.5 s enhancement target, and Brighten's
   real-photo calibration.
 - G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.

@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
+import type { GenerationSourceInfo } from "@/lib/pipeline/generate-from-photo";
 import type { WorkerRequest, WorkerResponse } from "@/lib/pipeline/pattern.worker";
+
+/** The fields every "done" reply carries alongside the pattern (G-035 M3). */
+const FIXTURE_DONE_INFO: { source: GenerationSourceInfo; durationMs: number } = {
+  source: { width: 4, height: 4, requestedPixelsPerStitch: null, capped: false },
+  durationMs: 1,
+};
 
 /**
  * A minimal fake Worker: captures the posted request and lets the test
@@ -50,7 +57,7 @@ describe("pattern-client", () => {
     const { runPatternJob } = await import("@/lib/pipeline/pattern-client");
     const promise = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
     const w = FakeWorker.instances[0];
-    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
+    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN, ...FIXTURE_DONE_INFO });
     await expect(promise).resolves.toBe(FIXTURE_PATTERN);
   });
 
@@ -59,6 +66,23 @@ describe("pattern-client", () => {
     runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2, edgeMode: "crisp" }).catch(() => {});
     const w = FakeWorker.instances[0];
     expect(w.lastRequest?.edgeMode).toBe("crisp");
+  });
+
+  it("forwards the photo cap to the worker and reports what the job read before resolving (G-035 M3)", async () => {
+    const { runPatternJob } = await import("@/lib/pipeline/pattern-client");
+    const events: string[] = [];
+    const onSourceInfo = vi.fn(() => events.push("info"));
+    const promise = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2, pixelsPerStitch: 2, onSourceInfo }).then((pattern) => {
+      events.push("resolved");
+      return pattern;
+    });
+    const w = FakeWorker.instances[0];
+    expect(w.lastRequest?.pixelsPerStitch).toBe(2);
+    const info = { source: { width: 20, height: 10, requestedPixelsPerStitch: 2, capped: true }, durationMs: 42 };
+    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN, ...info });
+    await expect(promise).resolves.toBe(FIXTURE_PATTERN);
+    expect(onSourceInfo).toHaveBeenCalledWith(info);
+    expect(events).toEqual(["info", "resolved"]);
   });
 
   it("forwards enhancementMode through to the worker request (G-032)", async () => {
@@ -78,7 +102,7 @@ describe("pattern-client", () => {
     await firstRejection;
 
     const secondWorker = FakeWorker.instances[1];
-    secondWorker.respond({ type: "done", jobId: secondWorker.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
+    secondWorker.respond({ type: "done", jobId: secondWorker.lastRequest!.jobId, pattern: FIXTURE_PATTERN, ...FIXTURE_DONE_INFO });
     await expect(secondPromise).resolves.toBe(FIXTURE_PATTERN);
   });
 
@@ -98,7 +122,7 @@ describe("pattern-client", () => {
     await rejection;
 
     // The terminated worker's message arrives late; must not resolve the already-rejected promise.
-    staleWorker.respond({ type: "done", jobId: staleWorker.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
+    staleWorker.respond({ type: "done", jobId: staleWorker.lastRequest!.jobId, pattern: FIXTURE_PATTERN, ...FIXTURE_DONE_INFO });
     await expect(promise).rejects.toThrow("cancelled");
   });
 
@@ -108,13 +132,13 @@ describe("pattern-client", () => {
     const { runPatternJob } = await import("@/lib/pipeline/pattern-client");
     const first = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
     const w = FakeWorker.instances[0];
-    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
+    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN, ...FIXTURE_DONE_INFO });
     await first;
 
     const second = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 20, colorCount: 4 });
     expect(FakeWorker.instances).toHaveLength(1);
     expect(w.terminated).toBe(false);
-    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
+    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN, ...FIXTURE_DONE_INFO });
     await expect(second).resolves.toBe(FIXTURE_PATTERN);
   });
 
@@ -141,7 +165,7 @@ describe("pattern-client", () => {
     const retry = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
     expect(FakeWorker.instances).toHaveLength(2);
     const fresh = FakeWorker.instances[1];
-    fresh.respond({ type: "done", jobId: fresh.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
+    fresh.respond({ type: "done", jobId: fresh.lastRequest!.jobId, pattern: FIXTURE_PATTERN, ...FIXTURE_DONE_INFO });
     await expect(retry).resolves.toBe(FIXTURE_PATTERN);
   });
 
@@ -156,7 +180,7 @@ describe("pattern-client", () => {
 
     const next = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
     const w = FakeWorker.instances[FakeWorker.instances.length - 1];
-    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
+    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN, ...FIXTURE_DONE_INFO });
     await expect(next).resolves.toBe(FIXTURE_PATTERN);
   });
 
@@ -164,7 +188,7 @@ describe("pattern-client", () => {
     const { runPatternJob, cancelPatternJob } = await import("@/lib/pipeline/pattern-client");
     const job = runPatternJob({ imageData: FIXTURE_IMAGE, longerSideStitches: 10, colorCount: 2 });
     const w = FakeWorker.instances[0];
-    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN });
+    w.respond({ type: "done", jobId: w.lastRequest!.jobId, pattern: FIXTURE_PATTERN, ...FIXTURE_DONE_INFO });
     await job;
     cancelPatternJob();
     expect(w.terminated).toBe(false);

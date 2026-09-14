@@ -135,3 +135,6 @@ remain readable with git show.
 - D124 — Zooming keeps the point under the cursor in place — active
 - D125 — Exports run in a worker with OffscreenCanvas, falling back to the main thread — active
 - D126 — The PDF adapter omits opacity for opaque colors and caches parsed styles — active
+- D127 — The photo cap is an exact grid multiple on opaque photos, with enhancement analysed on the full photo — active
+- D128 — Photos decode in a worker, with the old decode as a logged fallback — active
+- D129 — No default photo cap: pair evidence isn't resolution-invariant — active

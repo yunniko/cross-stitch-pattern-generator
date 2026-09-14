@@ -39,6 +39,16 @@ const ENHANCEMENT_OPTIONS: Record<EnhancementModeId, SegmentOption<EnhancementMo
   portrait: { value: "portrait", label: "Portrait", title: "Experimental: a gentle correction without local contrast, protecting skin tones" },
 };
 
+type ResolutionChoice = "full" | "8" | "4" | "2";
+
+// Temporary (G-035 M3): lets the Owner compare photo resolutions before a cap rule ships. Removed with its URL flag.
+const RESOLUTION_OPTIONS: SegmentOption<ResolutionChoice>[] = [
+  { value: "full", label: "Full decoded image (max 4000 px)", title: "The photo as decoded, capped at 4000 px on the longer side: today's behavior" },
+  { value: "8", label: "8 px/stitch", title: "Shrink the photo to 8 source pixels per stitch before generating" },
+  { value: "4", label: "4 px/stitch", title: "Shrink the photo to 4 source pixels per stitch before generating" },
+  { value: "2", label: "2 px/stitch", title: "Shrink the photo to 2 source pixels per stitch before generating" },
+];
+
 const LABEL = "text-xs font-medium text-zinc-600 dark:text-zinc-400";
 
 export interface ProcessingParamsProps {
@@ -53,10 +63,12 @@ export interface ProcessingParamsProps {
   hasSourcePhoto: boolean;
   onGenerate: () => void;
   error: string | null;
+  /** Present only while the temporary resolution comparison is on (G-035 M3); null means the full decoded photo. */
+  resolutionComparison?: { value: number | null; onChange: (value: number | null) => void };
 }
 
 /** The dock under the Image window: photo input, pattern size, color count, algorithm/palette/edge modes and Generate. */
-export function ProcessingParams({ options, onChange, onImageFile, isLoadingImage, isProcessing, progress, sourceFileName, hasPattern, hasSourcePhoto, onGenerate, error }: ProcessingParamsProps) {
+export function ProcessingParams({ options, onChange, onImageFile, isLoadingImage, isProcessing, progress, sourceFileName, hasPattern, hasSourcePhoto, onGenerate, error, resolutionComparison }: ProcessingParamsProps) {
   const longerSide = longerSideFor(options);
   // Only released modes are offered; with Off the only one, the control stays hidden (D113, D118).
   const photoOptions = releasedEnhancementModes().map((mode) => ENHANCEMENT_OPTIONS[mode]);
@@ -138,6 +150,16 @@ export function ProcessingParams({ options, onChange, onImageFile, isLoadingImag
             <div className="flex flex-col gap-1">
               <span className={LABEL}>Photo</span>
               <SegmentedControl options={photoOptions} value={photoMode} onChange={(mode) => onChange("enhancementMode", mode)} />
+            </div>
+          )}
+          {resolutionComparison && (
+            <div className="flex flex-col gap-1">
+              <span className={LABEL}>Photo resolution (comparison)</span>
+              <SegmentedControl
+                options={RESOLUTION_OPTIONS}
+                value={resolutionComparison.value === null ? "full" : (String(resolutionComparison.value) as ResolutionChoice)}
+                onChange={(choice) => resolutionComparison.onChange(choice === "full" ? null : Number(choice))}
+              />
             </div>
           )}
         </div>
