@@ -1191,6 +1191,10 @@ escalation-tier, not a routine refactor):
 - **Answered 2026-09-14:** deploy after each milestone.
 
 **Progress log** (newest first):
+- 2026-09-14 — **M2 started on the Owner's direction** ("start M2"). Tree
+  clean at `c09718c`; peer sessions idle. Before any change, every export
+  kind is captured from the current build at 100 and 250 stitches, as the
+  baseline for the parity check.
 - 2026-09-14 — **M1 done and deployed (`71a23af`); M2 awaits Owner approval.**
   - Benchmarks (`b540179`): `npm run bench` gained a 12 MP / 100-stitch
     configuration and Crisp stage rows. `npm run bench:browser` runs the

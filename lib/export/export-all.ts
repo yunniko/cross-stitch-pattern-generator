@@ -1,26 +1,21 @@
 import JSZip from "jszip";
-import { canvasToPngBlob, generateA4Export } from "./a4-export";
+import { addA4PagesToZip } from "./a4-export";
+import { calculateA4Layout, type OverlapCells } from "./a4-layout";
+import { planInfoPages } from "./a4-render";
+import { canvasToPngBlob } from "./canvas-backend";
+import type { ExportProgressCallback } from "./export-progress";
 import { serializeOxs } from "../editor/oxs";
 import { serializePattern } from "../editor/pattern-serialize";
 import { buildPatternKeeperPdf } from "./pattern-keeper-pdf";
 import { renderPatternToCanvas, renderStitchPreviewToCanvas } from "./render";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
-import type { OverlapCells } from "./a4-layout";
 import type { StitchPattern } from "../types";
 import { yieldToMain } from "./yield";
 
 /**
- * G-027 (Owner request, 2026-09-12): "one .cspzip with everything" -- every
- * export format the app produces, bundled into a single archive, so the
- * Owner doesn't have to click through each export one at a time to build a
- * complete backup/handoff of a pattern.
- *
- * Reuses the existing, already-tested export functions directly rather
- * than re-implementing any of them -- `generateA4Export`'s own ZIPs are
- * unpacked into this ZIP's `A4_color`/`A4_bw` subfolders (see
- * `mergeZipIntoFolder`) instead of duplicating its page-rendering loop,
- * per this project's own HANDOVER.md D11 "never let a shared formula/
- * implementation drift across call sites" lesson.
+ * "Export all" (G-027, Owner request 2026-09-12): every export format in one `.cspzip`, built by the same exporters the
+ * single-format exports use rather than a second implementation (D11). A4 pages are written straight into the
+ * bundle's `A4_color` and `A4_bw` folders instead of being zipped and unzipped again (G-035 M2).
  */
 export interface ExportAllOptions {
   baseName?: string;
@@ -28,70 +23,79 @@ export interface ExportAllOptions {
   sizeUnit?: SizeUnit;
   authorName?: string;
   overlapCells?: OverlapCells;
-  /** The embedded font's raw bytes for the bundled Pattern Keeper PDF -- same contract as `buildPatternKeeperPdf`'s own `fontBytes` param (passed in, not read from disk here, so this works the same in a browser `fetch` and in tests). */
+  /** The embedded font's raw bytes for the bundled Pattern Keeper PDF, passed in so this works in a page, a worker and tests. */
   fontBytes: Uint8Array;
+  onProgress?: ExportProgressCallback;
 }
 
 export interface ExportAllResult {
   blob: Blob;
-  /** `.cspzip`, not `.zip` -- a plain ZIP archive under a project-specific extension, still openable by any archive tool that supports "open with"/extension override, and always re-importable via this app's own "Open editable pattern" regardless of extension (see `lib/pattern-import.ts`). */
+  /** `.cspzip`: a plain ZIP under a project-specific extension, re-importable through "Open pattern" (lib/editor/pattern-import.ts). */
   filename: string;
 }
 
-/** Copies every file from an already-built ZIP `Blob` into `folderName` inside `masterZip`, preserving each entry's own relative path within that folder. */
-async function mergeZipIntoFolder(masterZip: JSZip, folderName: string, sourceZipBlob: Blob): Promise<void> {
-  const source = await JSZip.loadAsync(sourceZipBlob);
-  const folder = masterZip.folder(folderName);
-  if (!folder) throw new Error(`Couldn't create the "${folderName}" folder in the export bundle.`);
-  const entries = Object.values(source.files).filter((entry) => !entry.dir);
-  for (const entry of entries) {
-    folder.file(entry.name, await entry.async("uint8array"));
-  }
+/** Pages an A4 export of `pattern` contains at `dpi`: grid pages, one simple legend and the extended legend pages. */
+function a4PageCount(pattern: StitchPattern, overlapCells: OverlapCells, info: { aidaCount: number; sizeUnit: SizeUnit; authorName: string }, dpi?: number): number {
+  const layout = calculateA4Layout(pattern.width, pattern.height, dpi === undefined ? { overlapCells } : { overlapCells, dpi });
+  return layout.pages.length + 1 + planInfoPages(pattern, layout, info).totalPages;
 }
 
 export async function generateExportAllZip(pattern: StitchPattern, options: ExportAllOptions): Promise<ExportAllResult> {
-  const {
-    baseName = "pattern",
-    aidaCount = DEFAULT_AIDA_COUNT,
-    sizeUnit = DEFAULT_SIZE_UNIT,
-    authorName = "",
-    overlapCells = 5,
-    fontBytes,
-  } = options;
+  const { baseName = "pattern", aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", overlapCells = 5, fontBytes, onProgress } = options;
+  const info = { aidaCount, sizeUnit, authorName };
+
+  const pdfPages = a4PageCount(pattern, overlapCells, info, 72);
+  const a4Pages = a4PageCount(pattern, overlapCells, info);
+  const total = 5 + pdfPages + 2 * a4Pages;
+  let completed = 0;
+  const step = async (label: string, units = 1) => {
+    completed += units;
+    onProgress?.({ completed, total, label });
+    await yieldToMain();
+  };
 
   const zip = new JSZip();
 
   zip.file(`${baseName}_editable.json`, serializePattern(pattern));
   zip.file(`${baseName}.oxs`, serializeOxs(pattern, { authorName, aidaCount }));
-  await yieldToMain();
+  await step("Editable file and OXS", 2);
 
-  const colorCanvas = renderPatternToCanvas(pattern, "color", { aidaCount, sizeUnit, authorName });
-  zip.file(`${baseName}_color.png`, await canvasToPngBlob(colorCanvas));
-  await yieldToMain();
+  zip.file(`${baseName}_color.png`, await canvasToPngBlob(renderPatternToCanvas(pattern, "color", info)));
+  await step("Color chart");
 
-  const bwCanvas = renderPatternToCanvas(pattern, "bw", { aidaCount, sizeUnit, authorName });
-  zip.file(`${baseName}_bw.png`, await canvasToPngBlob(bwCanvas));
-  await yieldToMain();
+  zip.file(`${baseName}_bw.png`, await canvasToPngBlob(renderPatternToCanvas(pattern, "bw", info)));
+  await step("Black-and-white chart");
 
-  const previewCanvas = await renderStitchPreviewToCanvas(pattern);
-  zip.file(`${baseName}_preview.png`, await canvasToPngBlob(previewCanvas));
-  await yieldToMain();
+  zip.file(`${baseName}_preview.png`, await canvasToPngBlob(await renderStitchPreviewToCanvas(pattern)));
+  await step("Realistic preview");
 
-  const pdfBytes = await buildPatternKeeperPdf(pattern, "color", fontBytes, { overlapCells, aidaCount, sizeUnit, authorName });
+  let base = completed;
+  const pdfBytes = await buildPatternKeeperPdf(pattern, "color", fontBytes, {
+    overlapCells,
+    ...info,
+    onProgress: (p) => onProgress?.({ completed: base + Math.min(p.completed, pdfPages), total, label: `PDF page ${Math.min(p.completed, p.total)} of ${p.total}` }),
+  });
   zip.file(`${baseName}_patternkeeper.pdf`, new Uint8Array(pdfBytes));
+  completed = base + pdfPages;
   await yieldToMain();
 
-  // generateA4Export's own per-page loop already yields internally (see
-  // lib/a4-export.ts) -- these outer yields just checkpoint between the
-  // two full A4 exports and the PDF/PNG steps above.
-  const colorA4 = await generateA4Export(pattern, "color", { overlapCells, baseName, aidaCount, sizeUnit, authorName });
-  await mergeZipIntoFolder(zip, "A4_color", colorA4.blob);
-  await yieldToMain();
+  for (const [mode, folderName, label] of [
+    ["color", "A4_color", "A4 color"],
+    ["bw", "A4_bw", "A4 black-and-white"],
+  ] as const) {
+    const folder = zip.folder(folderName);
+    if (!folder) throw new Error(`Couldn't create the "${folderName}" folder in the export bundle.`);
+    base = completed;
+    await addA4PagesToZip(folder, pattern, mode, {
+      overlapCells,
+      baseName,
+      ...info,
+      onProgress: (p) => onProgress?.({ completed: base + Math.min(p.completed, a4Pages), total, label: `${label} page ${p.completed} of ${p.total}` }),
+    });
+    completed = base + a4Pages;
+  }
 
-  const bwA4 = await generateA4Export(pattern, "bw", { overlapCells, baseName, aidaCount, sizeUnit, authorName });
-  await mergeZipIntoFolder(zip, "A4_bw", bwA4.blob);
-  await yieldToMain();
-
+  onProgress?.({ completed: total, total, label: "Compressing bundle…" });
   const blob = await zip.generateAsync({ type: "blob" });
   return { blob, filename: `${baseName}.cspzip` };
 }

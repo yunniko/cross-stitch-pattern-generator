@@ -6,6 +6,8 @@ import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished
 import { PdfCanvasAdapter, type FontMetricsSource } from "./pdf-canvas-adapter";
 import type { RenderMode } from "./render";
 import type { StitchPattern } from "../types";
+import type { ExportProgressCallback } from "./export-progress";
+import { yieldToMain } from "./yield";
 
 /**
  * G-026 M1 (spike): the core primitive for the Pattern Keeper-compatible
@@ -125,6 +127,8 @@ export interface PatternKeeperPdfOptions extends A4LayoutOptions {
   aidaCount?: number;
   sizeUnit?: SizeUnit;
   authorName?: string;
+  /** Called after each page is drawn (G-035 M2). */
+  onProgress?: ExportProgressCallback;
 }
 
 function fontMetricsFor(fontBytes: Uint8Array): FontMetricsSource {
@@ -147,7 +151,7 @@ export async function buildPatternKeeperPdf(
   fontBytes: Uint8Array,
   options: PatternKeeperPdfOptions = {}
 ): Promise<Uint8Array> {
-  const { aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", ...layoutOptions } = options;
+  const { aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", onProgress, ...layoutOptions } = options;
   const layout = calculateA4Layout(pattern.width, pattern.height, { ...layoutOptions, dpi: 72 });
   const metrics = fontMetricsFor(fontBytes);
 
@@ -157,16 +161,28 @@ export async function buildPatternKeeperPdf(
   const pageSize: [number, number] = [layout.pageWidthPx, layout.pageHeightPx];
 
   const totalGridPages = layout.pages.length;
+  const infoOptions: A4InfoPageOptions = { authorName, aidaCount, sizeUnit };
+  const plan = planInfoPages(pattern, layout, infoOptions);
+  const totalPages = totalGridPages + 1 + plan.totalPages;
+  let drawn = 0;
+  const pageDone = async () => {
+    drawn++;
+    onProgress?.({ completed: drawn, total: totalPages, label: `Page ${drawn} of ${totalPages}` });
+    // Keeps the tab responsive between pages on the main-thread fallback (D079); returns at once in the worker.
+    await yieldToMain();
+  };
+
   for (let i = 0; i < layout.pages.length; i++) {
     const adapter = new PdfCanvasAdapter(doc.addPage(pageSize), font, metrics);
     drawA4GridPage(adapter, pattern, mode, layout, layout.pages[i], i, totalGridPages);
+    await pageDone();
   }
 
   drawA4LegendPage(new PdfCanvasAdapter(doc.addPage(pageSize), font, metrics), pattern, layout);
+  await pageDone();
 
-  const infoOptions: A4InfoPageOptions = { authorName, aidaCount, sizeUnit };
-  const plan = planInfoPages(pattern, layout, infoOptions);
   drawInfoPage1(new PdfCanvasAdapter(doc.addPage(pageSize), font, metrics), pattern, plan, layout, aidaCount);
+  await pageDone();
 
   let consumed = Math.min(plan.rowsOnPage1, plan.totalColors);
   for (let p = 0; p < plan.totalPages - 1; p++) {
@@ -174,7 +190,9 @@ export async function buildPatternKeeperPdf(
     const adapter = new PdfCanvasAdapter(doc.addPage(pageSize), font, metrics);
     drawInfoContinuationPage(adapter, plan, pattern.palette.slice(consumed, consumed + rowsHere), p + 2, layout, aidaCount);
     consumed += rowsHere;
+    await pageDone();
   }
 
+  onProgress?.({ completed: totalPages, total: totalPages, label: "Saving PDF…" });
   return doc.save();
 }

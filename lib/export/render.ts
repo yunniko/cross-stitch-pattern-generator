@@ -1,3 +1,4 @@
+import { createCanvas, type AnyCanvas, type Canvas2D } from "./canvas-backend";
 import type { ChartDrawingContext } from "./chart-drawing-context";
 import { hexToRgb, luminance, rgbToHex } from "../color/color";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, formatFinishedSize, type SizeUnit } from "./finished-size";
@@ -364,7 +365,7 @@ export function drawHighlightOverlay(
 }
 
 /** Small inward-pointing triangles at the midpoint of each chart edge, marking the design's horizontal/vertical center — the conventional stitching start point on a real chart. */
-function drawCenterMarkers(ctx: CanvasRenderingContext2D, chartWidthPx: number, chartHeightPx: number) {
+function drawCenterMarkers(ctx: Canvas2D, chartWidthPx: number, chartHeightPx: number) {
   const size = MARKER_MARGIN * 0.6;
   const midX = chartWidthPx / 2;
   const midY = chartHeightPx / 2;
@@ -405,7 +406,7 @@ function drawCenterMarkers(ctx: CanvasRenderingContext2D, chartWidthPx: number, 
 }
 
 /** Column numbers along the top, row numbers along the left, at every major (10-stitch) gridline — standard chart-software output for counting. */
-function drawRowColumnNumbers(ctx: CanvasRenderingContext2D, width: number, height: number, cellSize: number) {
+function drawRowColumnNumbers(ctx: Canvas2D, width: number, height: number, cellSize: number) {
   if (cellSize < LEGIBILITY_FLOOR_PX) return;
   ctx.fillStyle = GRID_LINE_COLOR;
   ctx.font = `${Math.min(12, Math.round(cellSize * 0.45))}px ${FONT_STACK}`;
@@ -432,7 +433,7 @@ export function headerText(pattern: StitchPattern, aidaCount: number, sizeUnit: 
 }
 
 /** Design size (the canvas grid), the number of filled stitches (D120) and an estimated finished size at the selected Aida count — conventional on published charts (docs/domain-reference.md §1, §4). The canvas is always sized wide enough to fit this beforehand (see computeChartLayout) -- no wrapping/clipping needed here. */
-function drawHeader(ctx: CanvasRenderingContext2D, pattern: StitchPattern, aidaCount: number, sizeUnit: SizeUnit, authorName?: string) {
+function drawHeader(ctx: Canvas2D, pattern: StitchPattern, aidaCount: number, sizeUnit: SizeUnit, authorName?: string) {
   ctx.fillStyle = "#111111";
   ctx.font = HEADER_FONT;
   ctx.textAlign = "left";
@@ -455,7 +456,7 @@ export function truncateToWidth(ctx: ChartDrawingContext, text: string, maxWidth
 }
 
 function drawLegendItem(
-  ctx: CanvasRenderingContext2D,
+  ctx: Canvas2D,
   color: PaletteColor,
   mode: RenderMode,
   x: number,
@@ -496,7 +497,7 @@ function drawLegendItem(
 
 /** Lays the legend out below the chart (wide, few rows) when landscape, or to its right (tall, few columns) otherwise. */
 function drawLegend(
-  ctx: CanvasRenderingContext2D,
+  ctx: Canvas2D,
   pattern: StitchPattern,
   mode: RenderMode,
   chartWidthPx: number,
@@ -548,24 +549,6 @@ export function legendCanvasExtent(pattern: StitchPattern, chartWidthPx: number,
   const rowsPerColumn = Math.max(1, Math.floor(chartHeightPx / LEGEND_ITEM_HEIGHT));
   const columns = Math.ceil(count / rowsPerColumn);
   return { extraWidth: MARKER_MARGIN + LEGEND_PADDING + columns * LEGEND_COLUMN_WIDTH, extraHeight: 0, belowChart };
-}
-
-/**
- * Draws just the grid (fills, symbols, gridlines) with no legend, header,
- * markers, or numbers, at exactly `width*cellSize x height*cellSize` -- for
- * the interactive pattern editor, where the legend is a separate, real DOM
- * list (so native drag-and-drop works) and click-to-cell hit-testing needs
- * to be plain `floor(pixel / cellSize)` arithmetic with no gutters to
- * account for.
- */
-export function renderEditableCanvas(pattern: StitchPattern, cellSize: number): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
-  canvas.width = pattern.width * cellSize;
-  canvas.height = pattern.height * cellSize;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("2D canvas context unavailable");
-  drawChart(ctx, pattern, "color", cellSize);
-  return canvas;
 }
 
 export interface ChartLayout {
@@ -632,8 +615,7 @@ export function findChartLayout(pattern: StitchPattern, requestedCellSize: numbe
 }
 
 function computeChartLayout(pattern: StitchPattern, requestedCellSize: number, aidaCount: number, sizeUnit: SizeUnit, authorName?: string): ChartLayout {
-  const measureCtx = document.createElement("canvas").getContext("2d");
-  if (!measureCtx) throw new Error("2D canvas context unavailable");
+  const { ctx: measureCtx } = createCanvas(1, 1);
   measureCtx.font = HEADER_FONT;
   const headerWidthPx = measureCtx.measureText(headerText(pattern, aidaCount, sizeUnit, authorName)).width + LEGEND_PADDING * 2;
 
@@ -646,19 +628,14 @@ export function renderPatternToCanvas(
   pattern: StitchPattern,
   mode: RenderMode,
   options: RenderOptions = {}
-): HTMLCanvasElement {
+): AnyCanvas {
   const aidaCount = options.aidaCount ?? DEFAULT_AIDA_COUNT;
   const sizeUnit = options.sizeUnit ?? DEFAULT_SIZE_UNIT;
   const authorName = options.authorName;
   const layout = computeChartLayout(pattern, options.cellSize ?? DEFAULT_CELL_SIZE, aidaCount, sizeUnit, authorName);
   const { cellSize, chartWidthPx, chartHeightPx, belowChart, leftGutter, topGutter, canvasWidth, canvasHeight } = layout;
 
-  const canvas = document.createElement("canvas");
-  canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("2D canvas context unavailable");
+  const { canvas, ctx } = createCanvas(canvasWidth, canvasHeight);
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -689,18 +666,13 @@ export function renderPatternToCanvas(
 export async function renderStitchPreviewToCanvas(
   pattern: StitchPattern,
   options: RenderOptions = {}
-): Promise<HTMLCanvasElement> {
+): Promise<AnyCanvas> {
   const { width, height, cellPalette, palette } = pattern;
   const cellSize = effectiveCellSize(width, height, options.cellSize ?? DEFAULT_CELL_SIZE);
   const areaWidthPx = width * cellSize;
   const areaHeightPx = height * cellSize;
 
-  const canvas = document.createElement("canvas");
-  canvas.width = areaWidthPx;
-  canvas.height = areaHeightPx;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("2D canvas context unavailable");
+  const { canvas, ctx } = createCanvas(areaWidthPx, areaHeightPx);
 
   const textures = await buildTintedTextureSet(palette);
   for (let y = 0; y < height; y++) {
@@ -716,31 +688,4 @@ export async function renderStitchPreviewToCanvas(
   }
 
   return canvas;
-}
-
-/**
- * Returns a promise that resolves only after encoding actually succeeds and
- * the download has been initiated, and rejects on a `null` blob -- a real,
- * documented `toBlob` failure case (MDN). The previous fire-and-forget
- * version returned immediately regardless of outcome, so a caller's
- * "Preparing..." state cleared before encoding even finished, and a `null`
- * blob silently produced no file and no error (code-review 2026-09-09,
- * finding 7).
- */
-export function downloadCanvasAsPng(canvas: HTMLCanvasElement, filename: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error("Couldn't encode the image for download. Try a smaller pattern size."));
-        return;
-      }
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      link.click();
-      URL.revokeObjectURL(url);
-      resolve();
-    }, "image/png");
-  });
 }

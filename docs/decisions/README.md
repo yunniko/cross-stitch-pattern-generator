@@ -87,7 +87,7 @@ remain readable with git show.
 - D076 — Overlap bands carry no text; the legend page explains them once — active
 - D077 — Edge mode is a toggle saved both on the pattern and as a workspace preference — active
 - D078 — One export dropdown, an "Export all" .cspzip bundle, and import that detects ZIPs by content — active
-- D079 — Heavy exports yield to the main thread between steps instead of moving to a worker — active
+- D079 — Heavy exports yield to the main thread between steps instead of moving to a worker — superseded (superseded by: D125)
 - D080 — Export controls sit in the top bar as pills, with the label kept as an accessible name — active
 - D081 — The root declares color-scheme: light dark so native controls follow the theme — active
 - D082 — Tools are hand-drawn SVG icons in three groups, keeping their names as aria-labels — active
@@ -133,3 +133,5 @@ remain readable with git show.
 - D122 — Palette colours remember their thread swatch by brand and code; a brand lock means every colour is that brand's thread — active
 - D123 — The swatch comparison reports Okhsl lightness and saturation differences in percentage points — active
 - D124 — Zooming keeps the point under the cursor in place — active
+- D125 — Exports run in a worker with OffscreenCanvas, falling back to the main thread — active
+- D126 — The PDF adapter omits opacity for opaque colors and caches parsed styles — active

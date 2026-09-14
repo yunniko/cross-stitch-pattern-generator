@@ -1,4 +1,20 @@
-import { degrees, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import {
+  degrees,
+  drawText as drawTextOperators,
+  fill as fillOperator,
+  lineTo as lineToOperator,
+  moveTo as moveToOperator,
+  rectangle as rectangleOperator,
+  rgb,
+  setFillingColor as setFillingColorOperator,
+  setLineWidth as setLineWidthOperator,
+  setStrokingColor as setStrokingColorOperator,
+  stroke as strokeOperator,
+  type PDFFont,
+  type PDFHexString,
+  type PDFName,
+  type PDFPage,
+} from "pdf-lib";
 import type { ChartDrawingContext } from "./chart-drawing-context";
 
 /**
@@ -80,13 +96,26 @@ export function parseCssColor(css: string): ParsedColor {
   throw new Error(`PdfCanvasAdapter: unsupported color string "${css}" -- only #hex/rgb()/rgba() are supported`);
 }
 
-function pdfColor(css: string) {
-  const { r, g, b } = parseCssColor(css);
-  return rgb(r / 255, g / 255, b / 255);
+// Parsed colors, font strings and glyph widths are cached: a grid page draws thousands of cells with a handful of
+// distinct values, and re-parsing them on every call was measurable (G-035 M2, D126). Keys come from palette colors and
+// a few fixed styles, so each cache is small; the limit only guards against unbounded growth.
+const CACHE_LIMIT = 1024;
+const colorCache = new Map<string, { color: ReturnType<typeof rgb>; alpha: number }>();
+
+function cachedColor(css: string): { color: ReturnType<typeof rgb>; alpha: number } {
+  let entry = colorCache.get(css);
+  if (!entry) {
+    const { r, g, b, alpha } = parseCssColor(css);
+    entry = { color: rgb(r / 255, g / 255, b / 255), alpha };
+    if (colorCache.size >= CACHE_LIMIT) colorCache.clear();
+    colorCache.set(css, entry);
+  }
+  return entry;
 }
 
-function colorAlpha(css: string): number {
-  return parseCssColor(css).alpha;
+/** pdf-lib registers a new graphics-state resource for every call that passes an opacity, so an opaque color passes none (D126). */
+function opacityOption(alpha: number): number | undefined {
+  return alpha < 1 ? alpha : undefined;
 }
 
 // --- `ctx.font` string parsing -- a strict parser for exactly the two
@@ -101,10 +130,57 @@ interface ParsedFont {
   sizePt: number;
 }
 
+const fontCache = new Map<string, ParsedFont>();
+
 function parseFont(font: string): ParsedFont {
-  const m = font.match(FONT_PATTERN);
-  if (!m) throw new Error(`PdfCanvasAdapter: unsupported font string "${font}"`);
-  return { bold: Boolean(m[1]), sizePt: Number(m[2]) };
+  let parsed = fontCache.get(font);
+  if (!parsed) {
+    const m = font.match(FONT_PATTERN);
+    if (!m) throw new Error(`PdfCanvasAdapter: unsupported font string "${font}"`);
+    parsed = { bold: Boolean(m[1]), sizePt: Number(m[2]) };
+    if (fontCache.size >= CACHE_LIMIT) fontCache.clear();
+    fontCache.set(font, parsed);
+  }
+  return parsed;
+}
+
+const widthCache = new WeakMap<PDFFont, Map<string, number>>();
+const encodingCache = new WeakMap<PDFFont, Map<string, PDFHexString>>();
+
+/** `font.encodeText`, cached per font and text. The subset font records each glyph when a text is first encoded. */
+function encodedText(font: PDFFont, text: string): PDFHexString {
+  let encodings = encodingCache.get(font);
+  if (!encodings) {
+    encodings = new Map();
+    encodingCache.set(font, encodings);
+  }
+  let encoded = encodings.get(text);
+  if (!encoded) {
+    encoded = font.encodeText(text);
+    if (encodings.size >= CACHE_LIMIT) encodings.clear();
+    encodings.set(text, encoded);
+  }
+  return encoded;
+}
+
+/** Characters pdf-lib's own drawText replaces or splits lines on; text containing any keeps that path. */
+const TEXT_NEEDING_CLEANUP = /[\t\n\r\f\b\v\u0085\u2028\u2029]/;
+
+/** `font.widthOfTextAtSize`, cached per font, size and text. */
+function textWidth(font: PDFFont, text: string, sizePt: number): number {
+  let widths = widthCache.get(font);
+  if (!widths) {
+    widths = new Map();
+    widthCache.set(font, widths);
+  }
+  const key = `${sizePt}\u0000${text}`;
+  let width = widths.get(key);
+  if (width === undefined) {
+    width = font.widthOfTextAtSize(text, sizePt);
+    if (widths.size >= CACHE_LIMIT) widths.clear();
+    widths.set(key, width);
+  }
+  return width;
 }
 
 /** Real ascent/descent/unitsPerEm from the embedding font itself, used instead of pdf-lib's own `PDFFont.heightAtSize(size, {descender:false})`, which was found (and verified against this project's own bundled DejaVuSans.ttf) to return a wrong value in pdf-lib 1.17.1 -- it mixes 1000-unit-scaled and raw font-unit quantities. See HANDOVER.md D74. */
@@ -144,6 +220,8 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
   private ctm: Mat = IDENTITY;
   private stack: SavedState[] = [];
   private pathPoints: Array<[number, number]> = [];
+  /** Each font is registered on the page once; pdf-lib's drawText would add a new Font resource for every call (D126). */
+  private readonly fontKeys = new Map<PDFFont, PDFName>();
 
   constructor(
     private readonly page: PDFPage,
@@ -158,6 +236,16 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
       throw new Error("PdfCanvasAdapter: gradients/patterns are not supported, only solid CSS color strings");
     }
     return style;
+  }
+
+  private fontKeyFor(font: PDFFont): PDFName {
+    let key = this.fontKeys.get(font);
+    if (!key) {
+      // What pdf-lib's own setFont does, without changing the page's current font.
+      key = this.page.node.newFontDictionary(font.name, font.ref);
+      this.fontKeys.set(font, key);
+    }
+    return key;
   }
 
   private activeFont(): { font: PDFFont; metrics: FontMetricsSource; sizePt: number; bold: boolean } {
@@ -189,17 +277,22 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
     const pdfY = pageHeight - top - height;
 
     if (fill) {
-      const css = this.requireSolidColor(this.fillStyle);
-      this.page.drawRectangle({ x: pdfX, y: pdfY, width, height, color: pdfColor(css), opacity: colorAlpha(css), borderWidth: 0 });
+      const { color, alpha } = cachedColor(this.requireSolidColor(this.fillStyle));
+      if (alpha < 1) {
+        this.page.drawRectangle({ x: pdfX, y: pdfY, width, height, color, opacity: alpha, borderWidth: 0 });
+      } else {
+        // Direct operators (D126): every direct fill, stroke and text run sets its own color, so no state save is needed.
+        this.page.pushOperators(setFillingColorOperator(color), rectangleOperator(pdfX, pdfY, width, height), fillOperator());
+      }
     } else {
-      const css = this.requireSolidColor(this.strokeStyle);
+      const { color, alpha } = cachedColor(this.requireSolidColor(this.strokeStyle));
       this.page.drawRectangle({
         x: pdfX,
         y: pdfY,
         width,
         height,
-        borderColor: pdfColor(css),
-        borderOpacity: colorAlpha(css),
+        borderColor: color,
+        borderOpacity: opacityOption(alpha),
         borderWidth: this.lineWidth,
       });
     }
@@ -211,8 +304,8 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
     const { ascent, descent } = ascentDescentAtSize(metrics, sizePt);
 
     let dx = 0;
-    if (this.textAlign === "center") dx = -font.widthOfTextAtSize(text, sizePt) / 2;
-    else if (this.textAlign === "right" || this.textAlign === "end") dx = -font.widthOfTextAtSize(text, sizePt);
+    if (this.textAlign === "center") dx = -textWidth(font, text, sizePt) / 2;
+    else if (this.textAlign === "right" || this.textAlign === "end") dx = -textWidth(font, text, sizePt);
     // "left"/"start" (and the default) need no horizontal adjustment.
 
     let dy: number;
@@ -234,21 +327,29 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
     // own reported per-glyph transform in tests/unit/pdf-canvas-adapter.spec.ts.
     const rotationDegrees = (-rotationOf(this.ctm) * 180) / Math.PI;
 
-    const css = this.requireSolidColor(this.fillStyle);
-    this.page.drawText(text, {
-      x: pdfX,
-      y: pdfY,
-      size: sizePt,
-      font,
-      color: pdfColor(css),
-      opacity: colorAlpha(css),
-      rotate: degrees(rotationDegrees),
-    });
+    const { color, alpha } = cachedColor(this.requireSolidColor(this.fillStyle));
+    if (alpha < 1 || TEXT_NEEDING_CLEANUP.test(text)) {
+      this.page.drawText(text, { x: pdfX, y: pdfY, size: sizePt, font, color, opacity: opacityOption(alpha), rotate: degrees(rotationDegrees) });
+      return;
+    }
+    // The same operators pdf-lib's drawText emits, with the font registered once per page and the encoding cached.
+    this.page.pushOperators(
+      ...drawTextOperators(encodedText(font, text), {
+        color,
+        font: this.fontKeyFor(font),
+        size: sizePt,
+        rotate: degrees(rotationDegrees),
+        xSkew: degrees(0),
+        ySkew: degrees(0),
+        x: pdfX,
+        y: pdfY,
+      })
+    );
   }
 
   measureText(text: string): { width: number } {
     const { font, sizePt } = this.activeFont();
-    return { width: font.widthOfTextAtSize(text, sizePt) };
+    return { width: textWidth(font, text, sizePt) };
   }
 
   beginPath(): void {
@@ -272,14 +373,18 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
     }
     const pageHeight = this.page.getHeight();
     const [[x0, y0], [x1, y1]] = this.pathPoints;
-    const css = this.requireSolidColor(this.strokeStyle);
-    this.page.drawLine({
-      start: { x: x0, y: pageHeight - y0 },
-      end: { x: x1, y: pageHeight - y1 },
-      thickness: this.lineWidth,
-      color: pdfColor(css),
-      opacity: colorAlpha(css),
-    });
+    const { color, alpha } = cachedColor(this.requireSolidColor(this.strokeStyle));
+    if (alpha < 1) {
+      this.page.drawLine({ start: { x: x0, y: pageHeight - y0 }, end: { x: x1, y: pageHeight - y1 }, thickness: this.lineWidth, color, opacity: alpha });
+      return;
+    }
+    this.page.pushOperators(
+      setStrokingColorOperator(color),
+      setLineWidthOperator(this.lineWidth),
+      moveToOperator(x0, pageHeight - y0),
+      lineToOperator(x1, pageHeight - y1),
+      strokeOperator()
+    );
   }
 
   save(): void {

@@ -1,3 +1,4 @@
+import { createCanvas, type AnyCanvas } from "./canvas-backend";
 import type { ChartDrawingContext } from "./chart-drawing-context";
 import { luminance, rgbToHex } from "../color/color";
 import type { A4Layout, PageRange } from "./a4-layout";
@@ -152,12 +153,8 @@ export function renderA4GridPage(
   page: PageRange,
   pageIndex: number,
   totalPages: number
-): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
-  canvas.width = layout.pageWidthPx;
-  canvas.height = layout.pageHeightPx;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("2D canvas context unavailable");
+): AnyCanvas {
+  const { canvas, ctx } = createCanvas(layout.pageWidthPx, layout.pageHeightPx);
 
   drawA4GridPage(ctx, pattern, mode, layout, page, pageIndex, totalPages);
 
@@ -261,12 +258,8 @@ export function drawA4LegendPage(ctx: ChartDrawingContext, pattern: StitchPatter
   });
 }
 
-export function renderA4LegendPage(pattern: StitchPattern, layout: A4Layout): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
-  canvas.width = layout.pageWidthPx;
-  canvas.height = layout.pageHeightPx;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("2D canvas context unavailable");
+export function renderA4LegendPage(pattern: StitchPattern, layout: A4Layout): AnyCanvas {
+  const { canvas, ctx } = createCanvas(layout.pageWidthPx, layout.pageHeightPx);
 
   drawA4LegendPage(ctx, pattern, layout);
 
@@ -663,19 +656,12 @@ export function drawInfoContinuationPage(
  * swatch-grid legend, per the Owner's explicit "simple legend should
  * remain as well."
  */
-export function renderA4InfoPages(pattern: StitchPattern, layout: A4Layout, options: A4InfoPageOptions): HTMLCanvasElement[] {
+export function renderA4InfoPages(pattern: StitchPattern, layout: A4Layout, options: A4InfoPageOptions): AnyCanvas[] {
   const plan = planInfoPages(pattern, layout, options);
 
-  function newCanvas(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
-    const canvas = document.createElement("canvas");
-    canvas.width = layout.pageWidthPx;
-    canvas.height = layout.pageHeightPx;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("2D canvas context unavailable");
-    return { canvas, ctx };
-  }
+  const newCanvas = () => createCanvas(layout.pageWidthPx, layout.pageHeightPx);
 
-  const pages: HTMLCanvasElement[] = [];
+  const pages: AnyCanvas[] = [];
 
   const { canvas: page1, ctx: ctx1 } = newCanvas();
   drawInfoPage1(ctx1, pattern, plan, layout, options.aidaCount);

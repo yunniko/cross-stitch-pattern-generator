@@ -57,6 +57,8 @@ export interface TopBarProps {
   onExportAll: () => void;
   isExporting: boolean;
   isExportingAll: boolean;
+  /** A running export's progress, such as "Page 12 of 180"; null when there is none. */
+  exportProgressText: string | null;
 }
 
 export function TopBar(props: TopBarProps) {
@@ -154,14 +156,14 @@ export function TopBar(props: TopBarProps) {
           ))}
         </select>
         <PillButton variant="primary" onClick={props.onExport} disabled={!hasPattern || isExporting || isExportingAll}>
-          {isExporting ? "Preparing…" : "Export"}
+          {isExporting ? (props.exportProgressText ?? "Preparing…") : "Export"}
         </PillButton>
         <PillButton
           onClick={props.onExportAll}
           disabled={!hasPattern || isExporting || isExportingAll}
           title="One .cspzip with everything: editable JSON, an OXS chart, color/B&W/realistic PNGs, the Pattern Keeper PDF, and A4_color/A4_bw subfolders of A4 page PNGs"
         >
-          {isExportingAll ? "Building…" : "Export all"}
+          {isExportingAll ? (props.exportProgressText ?? "Building…") : "Export all"}
         </PillButton>
       </div>
     </header>

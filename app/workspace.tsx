@@ -266,6 +266,7 @@ export default function Workspace() {
         onExportAll={exports.exportAll}
         isExporting={exports.isExporting}
         isExportingAll={exports.isExportingAll}
+        exportProgressText={exports.exportProgressText}
       />
       <WorkspaceNotices
         restoreFailure={restore.failure}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useState, type RefObject } from "react";
 import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
+import type { AnyCanvas } from "@/lib/export/canvas-backend";
 import { drawCell, drawChart, drawChartOutline, drawHighlightOverlay, renderNavigatorPixels, renderStitchPreviewToCanvas, type RenderMode } from "@/lib/export/render";
 import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
 import type { Tool, ViewMode } from "../editor-types";
@@ -42,7 +43,7 @@ function drawSourcePhoto(ctx: CanvasRenderingContext2D, img: HTMLImageElement, s
 export function useChartRenderer(inputs: ChartRendererInputs) {
   const { canvasRef, navigatorCanvasRef, pattern, viewMode, cellSize, activeTool, selection, isSelectDragging, highlightedColorIndices, canvasColor } = inputs;
   const [photo, setPhoto] = useState<{ dataUrl: string; img: HTMLImageElement } | null>(null);
-  const [realisticPreview, setRealisticPreview] = useState<{ canvas: HTMLCanvasElement; width: number; height: number } | null>(null);
+  const [realisticPreview, setRealisticPreview] = useState<{ canvas: AnyCanvas; width: number; height: number } | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewRetryToken, setPreviewRetryToken] = useState(0);
 

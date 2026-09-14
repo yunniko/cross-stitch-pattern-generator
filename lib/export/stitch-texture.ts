@@ -1,5 +1,6 @@
 import { luminance } from "../color/color";
 import type { PaletteColor, RGB } from "../types";
+import { createCanvas, type AnyCanvas } from "./canvas-backend";
 
 // Single swappable texture asset -- a photographed/rendered cross-stitch
 // with real shading (highlights/shadows) and soft alpha edges. Swap the file
@@ -12,25 +13,34 @@ const TEXTURE_URL = "/stitch-texture.png";
 // without any visible quality loss at on-screen/print cell sizes.
 const TEXTURE_SAMPLE_SIZE = 64;
 
-let cachedImage: Promise<HTMLImageElement> | null = null;
+let cachedImage: Promise<CanvasImageSource> | null = null;
 
-function loadTextureImage(): Promise<HTMLImageElement> {
+/** The texture as a drawable image: an <img> on the main thread, an ImageBitmap in the export worker, which has no Image (G-035 M2). */
+function loadTextureImage(): Promise<CanvasImageSource> {
   if (!cachedImage) {
-    cachedImage = new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => {
-        // Clear the cache on failure so a later call retries the load fresh,
-        // rather than permanently returning this same rejected promise --
-        // without this, one blocked/failed request broke "Realistic preview"
-        // until a full page reload (code-review 2026-09-09, finding 6).
-        cachedImage = null;
-        reject(new Error(`Failed to load stitch texture at ${TEXTURE_URL}`));
-      };
-      img.src = TEXTURE_URL;
+    cachedImage = (typeof Image !== "undefined" ? loadWithImageElement() : loadAsBitmap()).catch((err: unknown) => {
+      // Clear the cache on failure so a later call retries fresh, instead of returning the same rejection until a page
+      // reload (code-review 2026-09-09, finding 6).
+      cachedImage = null;
+      throw err;
     });
   }
   return cachedImage;
+}
+
+function loadWithImageElement(): Promise<CanvasImageSource> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Failed to load stitch texture at ${TEXTURE_URL}`));
+    img.src = TEXTURE_URL;
+  });
+}
+
+async function loadAsBitmap(): Promise<CanvasImageSource> {
+  const response = await fetch(TEXTURE_URL);
+  if (!response.ok) throw new Error(`Failed to load stitch texture at ${TEXTURE_URL}`);
+  return createImageBitmap(await response.blob());
 }
 
 /**
@@ -39,13 +49,9 @@ function loadTextureImage(): Promise<HTMLImageElement> {
  * own luminance (so highlights stay bright, shadows stay dark) and alpha is
  * copied through unchanged.
  */
-function tintTexture(image: HTMLImageElement, [r, g, b]: RGB): HTMLCanvasElement {
+function tintTexture(image: CanvasImageSource, [r, g, b]: RGB): AnyCanvas {
   const size = TEXTURE_SAMPLE_SIZE;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("2D canvas context unavailable");
+  const { canvas, ctx } = createCanvas(size, size);
 
   ctx.drawImage(image, 0, 0, size, size);
   const imageData = ctx.getImageData(0, 0, size, size);
@@ -65,13 +71,13 @@ function tintTexture(image: HTMLImageElement, [r, g, b]: RGB): HTMLCanvasElement
 }
 
 export interface TintedTextureSet {
-  get(paletteIndex: number): HTMLCanvasElement;
+  get(paletteIndex: number): AnyCanvas;
 }
 
 /** Loads the shared texture (once, cached) and lazily tints it per palette color as requested. */
 export async function buildTintedTextureSet(palette: readonly PaletteColor[]): Promise<TintedTextureSet> {
   const image = await loadTextureImage();
-  const cache = new Map<number, HTMLCanvasElement>();
+  const cache = new Map<number, AnyCanvas>();
   return {
     get(paletteIndex: number) {
       let tinted = cache.get(paletteIndex);

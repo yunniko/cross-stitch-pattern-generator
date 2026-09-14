@@ -1,6 +1,8 @@
 import JSZip from "jszip";
 import { calculateA4Layout, type A4LayoutOptions } from "./a4-layout";
-import { renderA4GridPage, renderA4InfoPages, renderA4LegendPage } from "./a4-render";
+import { planInfoPages, renderA4GridPage, renderA4InfoPages, renderA4LegendPage } from "./a4-render";
+import { canvasToPngBlob } from "./canvas-backend";
+import type { ExportProgressCallback } from "./export-progress";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import type { RenderMode } from "./render";
 import type { StitchPattern } from "../types";
@@ -14,6 +16,8 @@ export interface A4ExportOptions extends A4LayoutOptions {
   sizeUnit?: SizeUnit;
   /** Shown in the extended legend's title when non-blank (G-016). */
   authorName?: string;
+  /** Called after each page is rendered and encoded (G-035 M2). */
+  onProgress?: ExportProgressCallback;
 }
 
 export interface A4ExportResult {
@@ -23,68 +27,75 @@ export interface A4ExportResult {
   pageCount: number;
 }
 
-/** Exported for reuse by `lib/export-all.ts` (G-027's "Export all" bundle) -- one shared canvas-to-PNG-blob helper rather than a second copy. */
-export function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob);
-      else reject(new Error("Canvas toBlob failed"));
-    }, "image/png");
-  });
-}
-
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
 /**
- * Builds the full "Export as A4 pages" ZIP: one PNG per grid page (row-major,
- * global coordinates continuing across pages), one simple-legend page, and
- * one or more extended-legend pages (title + details table + full color-key
- * table, G-016) -- bundled together (Owner's spec, requirements 9/10, plus
- * the G-016 addition). Pages are rendered and converted to PNG one at a
- * time -- never one giant canvas cropped into pieces (requirement 12), so
- * memory use doesn't scale with page count on a very large pattern.
+ * `name` with "." and ".." segments resolved exactly as JSZip resolves entry names when it loads an archive. A pattern
+ * named "../cat" would otherwise write "A4_color/../cat_r01_c01.png", which escapes its folder and, once loaded,
+ * collides with the B&W page of the same name (G-035 M2 review).
  */
-export async function generateA4Export(
-  pattern: StitchPattern,
-  mode: RenderMode,
-  options: A4ExportOptions = {}
-): Promise<A4ExportResult> {
-  const { baseName = "pattern", aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", ...layoutOptions } = options;
+export function zipEntryName(name: string): string {
+  const parts = name.split("/");
+  const result: string[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (part === "." || (part === "" && i !== 0 && i !== parts.length - 1)) continue;
+    if (part === "..") result.pop();
+    else result.push(part);
+  }
+  return result.join("/");
+}
+
+/**
+ * Renders every A4 page -- grid pages in row-major order with global coordinates, one simple-legend page, and one or
+ * more extended-legend pages (G-016) -- and adds each as a PNG to `folder`, which is either a whole ZIP or a folder
+ * inside the Export all bundle. Pages are rendered and encoded one at a time, never cropped from one giant canvas, so
+ * memory doesn't scale with page count (requirement 12). Returns the number of pages written.
+ */
+export async function addA4PagesToZip(folder: JSZip, pattern: StitchPattern, mode: RenderMode, options: A4ExportOptions = {}): Promise<number> {
+  const { baseName = "pattern", aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", onProgress, ...layoutOptions } = options;
   const layout = calculateA4Layout(pattern.width, pattern.height, layoutOptions);
   const totalGridPages = layout.pages.length;
+  const infoOptions = { aidaCount, sizeUnit, authorName };
+  const totalPages = totalGridPages + 1 + planInfoPages(pattern, layout, infoOptions).totalPages;
 
-  const zip = new JSZip();
-  for (let i = 0; i < layout.pages.length; i++) {
-    const page = layout.pages[i];
-    const canvas = renderA4GridPage(pattern, mode, layout, page, i, totalGridPages);
-    const blob = await canvasToPngBlob(canvas);
-    zip.file(`${baseName}_r${pad2(page.row + 1)}_c${pad2(page.column + 1)}.png`, blob);
-    // Explicit yield (on top of whatever toBlob's own async encoding
-    // already gives) so a large, many-page export keeps the tab
-    // responsive between pages rather than one long unbroken stretch of
-    // render calls (G-027 follow-up, HANDOVER.md D79).
+  let written = 0;
+  const pageDone = async () => {
+    written++;
+    onProgress?.({ completed: written, total: totalPages, label: `Page ${written} of ${totalPages}` });
+    // Keeps the tab responsive between pages on the main-thread fallback (D079); returns at once in the worker.
     await yieldToMain();
+  };
+
+  for (let i = 0; i < totalGridPages; i++) {
+    const page = layout.pages[i];
+    const blob = await canvasToPngBlob(renderA4GridPage(pattern, mode, layout, page, i, totalGridPages));
+    folder.file(zipEntryName(`${baseName}_r${pad2(page.row + 1)}_c${pad2(page.column + 1)}.png`), blob);
+    await pageDone();
   }
 
-  const legendCanvas = renderA4LegendPage(pattern, layout);
-  const legendBlob = await canvasToPngBlob(legendCanvas);
-  zip.file(`${baseName}_legend.png`, legendBlob);
+  folder.file(zipEntryName(`${baseName}_legend.png`), await canvasToPngBlob(renderA4LegendPage(pattern, layout)));
+  await pageDone();
 
-  // Extended legend (G-016): title + details table + a full "Color key"
-  // table, alongside (not instead of) the simple legend above. Paginated
-  // -- almost always one page, but a large palette can need more.
-  const infoCanvases = renderA4InfoPages(pattern, layout, { aidaCount, sizeUnit, authorName });
+  const infoCanvases = renderA4InfoPages(pattern, layout, infoOptions);
   for (let i = 0; i < infoCanvases.length; i++) {
-    const blob = await canvasToPngBlob(infoCanvases[i]);
     const suffix = infoCanvases.length > 1 ? `_${pad2(i + 1)}` : "";
-    zip.file(`${baseName}_legend_extended${suffix}.png`, blob);
+    folder.file(zipEntryName(`${baseName}_legend_extended${suffix}.png`), await canvasToPngBlob(infoCanvases[i]));
+    await pageDone();
   }
 
+  return written;
+}
+
+/** The "Export as A4 pages" ZIP (Owner's spec, requirements 9, 10 and 12, plus G-016's extended legend). */
+export async function generateA4Export(pattern: StitchPattern, mode: RenderMode, options: A4ExportOptions = {}): Promise<A4ExportResult> {
+  const zip = new JSZip();
+  const pageCount = await addA4PagesToZip(zip, pattern, mode, options);
   const zipBlob = await zip.generateAsync({ type: "blob" });
   const modeLabel = mode === "bw" ? "bw" : "color";
-  return { blob: zipBlob, filename: `${baseName}_A4_${modeLabel}.zip`, pageCount: totalGridPages + 1 + infoCanvases.length };
+  return { blob: zipBlob, filename: `${options.baseName ?? "pattern"}_A4_${modeLabel}.zip`, pageCount };
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
