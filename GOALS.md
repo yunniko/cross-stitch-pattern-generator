@@ -1191,6 +1191,10 @@ escalation-tier, not a routine refactor):
 - **Answered 2026-09-14:** deploy after each milestone.
 
 **Progress log** (newest first):
+- 2026-09-14 — **M3 started on the Owner's direction** ("go next"). The
+  Owner's reply does not mention Pattern Keeper, so M2's import check (D097)
+  stays open and is asked again at the M3 check-in. Before any M3 code, the
+  resolution rule and design go to a Codex critique (constraint).
 - 2026-09-14 — **M2 deployed (`03b69c5`). M2 is done once the Owner confirms a
   Pattern Keeper import of a new PDF (D097); M3 then awaits approval.**
   - Change: PNG, realistic PNG, A4, Pattern Keeper PDF, OXS and Export all run
