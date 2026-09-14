@@ -1152,7 +1152,8 @@ escalation-tier, not a routine refactor):
   - Gate: the Browser generate and photo-load targets; the quality review
     document; the Owner's comparison with the switch and decision on the
     factor.
-- [ ] **M4 — Crisp evidence layer.**
+- [x] **M4 — Crisp evidence layer.** Identical rewrite, then every cell
+  evaluated (D131, D132); accepted at 8.4 s by the Owner.
   - Identical output first: sample into typed arrays instead of objects,
     and convert each source pixel to OKLab once per job instead of once
     per overlapping cell. A row-band cache keeps memory bounded, so a full
@@ -1192,6 +1193,27 @@ escalation-tier, not a routine refactor):
 - **Answered 2026-09-14:** deploy after each milestone.
 
 **Progress log** (newest first):
+- 2026-09-15 — **M5 deployed (5ab38eb); awaiting the Owner's check-in.**
+  - Checks: tsc and eslint clean; Vitest 890 passed plus 1 opt-in scale test
+    skipped; 75/75 e2e on a production build. Adversarial spec 18 passed
+    with Crisp's weighted pools.
+  - `npm run bench`, single run:
+
+    | Measure | Standard | Crisp |
+    |---|---:|---:|
+    | 1500×1000 → 1000 st / 64 col | 5.3 s | 6.7 s |
+    | 1200×800 → 300 st / 24 col | 0.76 s | 1.3 s |
+    | 12 MP → 100 st / 16 col | 2.9 s | 7.6 s |
+
+    At 1000 st, k-means takes 1.8 s and ICM 2.1 s.
+  - Deploy: this container restarted. A concurrent deploy by another session
+    recreated natural-dye-mordant-calculator (00:01:57 CEST, one minute
+    after its repository's commit) and julienika-home (00:03:22, 18 s after
+    this container). julienika.cz briefly returned 502, then 200 on three
+    retries; all 20 sites 200 afterwards. Live Crisp generation passed with
+    no console errors.
+  - PENDING APPROVAL: G-035 M5 check-in and M6 start — milestone boundary —
+    logged 2026-09-15.
 - 2026-09-15 — **M5 step 2: Crisp's weighted k-means on flat buffers, identical.**
   - Weighted seeding, nearest-centroid assignment and Lloyd read parallel
     Float64 columns in sample order, with the same RNG draws. Weighted
