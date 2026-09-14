@@ -1120,6 +1120,25 @@ escalation-tier, not a routine refactor):
     stitch, each with a decision file.
   - If 2 pixels per stitch fails a quality gate, report the evidence and
     the smallest factor that passes to the Owner. Never raise it silently.
+  - Photos: the Owner's folder `D:\_PHOTO\_____C1______`, with 3,750 JPEGs
+    and 2 PNGs in 11 subfolders. The Capture One sidecar and session files
+    (`.cos`, `.cop`, `.cof`, `.cot`) and the archives are ignored. Photos
+    are read in place and never copied into the repository or any
+    committed file. Measurements use a sample of about 40 photos spread
+    across the subfolders, plus any the Owner picks. Results name photos
+    by anonymous ID only.
+  - Temporary comparison switch (Owner request, 2026-09-14):
+    - a "Photo resolution (comparison)" control in the processing
+      parameters, with Full, 8, 4 and 2 pixels per stitch;
+    - the photo size used and the generation time shown next to the
+      pattern stats;
+    - each regeneration is an undo step, so Ctrl+Z and Ctrl+Y flip
+      between two results;
+    - shown only when the page is opened with `?compare-resolution`,
+      remembered per browser, while everyone else keeps today's full
+      resolution until the rule is adopted;
+    - removed, with its flag, once the Owner decides, recorded in a
+      decision file.
   - Codex critique of the chosen rule, then a decision file.
   - The cap must shrink in linear light with area weighting, like
     `downsampleToGrid` (D7). The browser's own resampler averages in
@@ -1130,7 +1149,8 @@ escalation-tier, not a routine refactor):
     them.
   - Photo enhancement then runs on the capped buffer, consistent with D112.
   - Gate: the Browser generate and photo-load targets; the quality review
-    document.
+    document; the Owner's comparison with the switch and decision on the
+    factor.
 - [ ] **M4 — Crisp evidence layer.**
   - Identical output first: sample into typed arrays instead of objects,
     and convert each source pixel to OKLab once per job instead of once
@@ -1154,6 +1174,8 @@ escalation-tier, not a routine refactor):
     large-grid target.
 - [ ] **M6 — Results and release.**
   - Rerun every benchmark row.
+  - Confirm the temporary resolution switch and its `?compare-resolution`
+    flag are gone.
   - Write `docs/reviews/<date>-performance-results.md` with before and
     after tables.
   - Regenerate HANDOVER's performance section.
@@ -1164,13 +1186,16 @@ escalation-tier, not a routine refactor):
 **Open questions for the Owner (answer before M3):**
 - **Answered 2026-09-14:** the photo may be shrunk, down to twice the
   stitch grid on each side (see M3).
-- Can you supply real photos for the M3 and M4 measurements, such as
-  portraits, pets, landscapes and text? Otherwise public-domain photos are
-  used, with licences recorded.
+- **Answered 2026-09-14:** real photos come from the Owner's folder (see
+  M3).
 - Deploy after each milestone, or batch them? The plan assumes after each,
   with approval.
 
 **Progress log** (newest first):
+- 2026-09-14 — Owner supplied the calibration photo folder and asked for a
+  temporary UI switch to compare photo resolutions when shrinking is
+  implemented. Folder checked read-only: 3,750 JPEGs, 2 PNGs, plus Capture
+  One sidecars that are ignored. M3, its gate and M6 updated.
 - 2026-09-14 — Owner answer on the source cap: "resolution can be lowered
   but should be twice bigger than cell resolution", read as at least 2
   source pixels per stitch on each side. Criterion 4 and M3 updated; M3
