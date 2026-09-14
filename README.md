@@ -41,7 +41,8 @@ npm run lint
 npx tsc --noEmit
 npm run test:unit   # Vitest: pipeline, editor, export and storage logic, golden hashes
 npm run test:e2e    # Playwright against a production build on port 30200
-npm run bench       # per-stage generation timings (slow; not part of CI)
+npm run bench       # per-stage generation timings, incl. a 12 MP photo and Crisp stages (slow; not in CI)
+npm run bench:browser  # photo load, generation and every export in a real browser (very slow; not in CI)
 ```
 
 CI (`.github/workflows/ci.yml`) runs lint, type-check, unit and e2e on every
