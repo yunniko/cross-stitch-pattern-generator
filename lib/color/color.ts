@@ -13,10 +13,24 @@ export function hexToRgb(hex: string): RGB {
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }
 
-/** sRGB channel (0-255) to linear light (0-1). Exported for use anywhere pixel values must be averaged correctly (see HANDOVER.md D7). */
-export function srgbToLinear(c: number): number {
+function srgbToLinearFormula(c: number): number {
   const v = c / 255;
   return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+}
+
+/**
+ * `srgbToLinear` for every 8-bit value, filled from the same formula, so a lookup returns the identical double. The
+ * per-call `Math.pow` was about half of all generation time on a 12 MP photo (G-035 M1).
+ */
+export const SRGB_TO_LINEAR: Float64Array = (() => {
+  const table = new Float64Array(256);
+  for (let c = 0; c < 256; c++) table[c] = srgbToLinearFormula(c);
+  return table;
+})();
+
+/** sRGB channel (0-255) to linear light (0-1), for averaging pixels correctly (D7). Integers 1–255 use the table; anything else, including 0 and -0, the formula. */
+export function srgbToLinear(c: number): number {
+  return c >= 1 && c <= 255 && (c | 0) === c ? SRGB_TO_LINEAR[c] : srgbToLinearFormula(c);
 }
 
 /** Linear light (0-1) back to an sRGB channel (0-255, rounded and clamped). */
@@ -49,7 +63,7 @@ export function linearToSrgb(v: number): number {
  * inherited rather than re-decided; worth a deliberate look if DMC-match
  * accuracy against real thread ever comes into question.
  */
-export function rgbToOklab([r, g, b]: RGB): Oklab {
+export function writeOklab(r: number, g: number, b: number, out: Float64Array, offset = 0): void {
   const rl = srgbToLinear(r);
   const gl = srgbToLinear(g);
   const bl = srgbToLinear(b);
@@ -62,11 +76,22 @@ export function rgbToOklab([r, g, b]: RGB): Oklab {
   const m_ = Math.cbrt(m);
   const s_ = Math.cbrt(s);
 
-  return [
-    0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_,
-    1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_,
-    0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_,
-  ];
+  out[offset] = 0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_;
+  out[offset + 1] = 1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_;
+  out[offset + 2] = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_;
+}
+
+const oklabScratch = new Float64Array(3);
+
+/** `rgbToOklab` for separate channel values, without allocating an input tuple; same arithmetic as `writeOklab`. */
+export function oklabFromBytes(r: number, g: number, b: number): Oklab {
+  writeOklab(r, g, b, oklabScratch);
+  return [oklabScratch[0], oklabScratch[1], oklabScratch[2]];
+}
+
+/** sRGB to OKLab; see `writeOklab` above for why OKLab. */
+export function rgbToOklab([r, g, b]: RGB): Oklab {
+  return oklabFromBytes(r, g, b);
 }
 
 export function oklabToRgb([L, a, b]: Oklab): RGB {

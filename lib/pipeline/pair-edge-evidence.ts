@@ -1,4 +1,4 @@
-import { rgbToOklab } from "../color/color";
+import { writeOklab } from "../color/color";
 import type { PixelBuffer } from "../types";
 
 /**
@@ -111,12 +111,13 @@ export function computePairEdgeEvidence(
   const rawL = new Float32Array(srcW * srcH);
   const rawA = new Float32Array(srcW * srcH);
   const rawB = new Float32Array(srcW * srcH);
+  const lab = new Float64Array(3);
   for (let i = 0; i < srcW * srcH; i++) {
     const o = i * 4;
-    const [l, a, b] = rgbToOklab([data[o], data[o + 1], data[o + 2]]);
-    rawL[i] = l;
-    rawA[i] = a;
-    rawB[i] = b;
+    writeOklab(data[o], data[o + 1], data[o + 2], lab);
+    rawL[i] = lab[0];
+    rawA[i] = lab[1];
+    rawB[i] = lab[2];
   }
   const L = boxBlur(rawL, srcW, srcH, blurRadius);
   const A = boxBlur(rawA, srcW, srcH, blurRadius);

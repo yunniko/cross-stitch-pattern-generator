@@ -1,4 +1,4 @@
-import { oklabDistanceSquared, rgbToOklab, type Oklab } from "../color/color";
+import { oklabDistanceSquared, oklabFromBytes, type Oklab } from "../color/color";
 import type { PixelBuffer } from "../types";
 
 /**
@@ -130,7 +130,7 @@ function collectWeightedSamples(
       // binary center test.
       const cellWeight = Math.max(0, xCellWeight) * Math.max(0, yCellWeight) * alpha;
 
-      const oklab = rgbToOklab([data[pixelIndex], data[pixelIndex + 1], data[pixelIndex + 2]]);
+      const oklab = oklabFromBytes(data[pixelIndex], data[pixelIndex + 1], data[pixelIndex + 2]);
       const px = x + 0.5;
       const py = y + 0.5;
       samples.push({

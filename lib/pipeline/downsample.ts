@@ -1,4 +1,4 @@
-import { linearToSrgb, srgbToLinear } from "../color/color";
+import { linearToSrgb, SRGB_TO_LINEAR } from "../color/color";
 import type { CellColorBuffer, PixelBuffer } from "../types";
 
 export interface GridDimensions {
@@ -58,9 +58,9 @@ export function downsampleToGrid(imageData: PixelBuffer, gridWidth: number, grid
           const pixelIndex = (y * srcW + x) * 4;
           const alpha = data[pixelIndex + 3] / 255;
           const weight = xWeight * yWeight * alpha;
-          sumR += srgbToLinear(data[pixelIndex]) * weight;
-          sumG += srgbToLinear(data[pixelIndex + 1]) * weight;
-          sumB += srgbToLinear(data[pixelIndex + 2]) * weight;
+          sumR += SRGB_TO_LINEAR[data[pixelIndex]] * weight;
+          sumG += SRGB_TO_LINEAR[data[pixelIndex + 1]] * weight;
+          sumB += SRGB_TO_LINEAR[data[pixelIndex + 2]] * weight;
           sumWeight += weight;
         }
       }
