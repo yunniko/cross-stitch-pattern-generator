@@ -1,4 +1,12 @@
 import { it } from "vitest";
+import {
+  buildCrispEvidenceLayer,
+  candidateCellsFromPairEvidence,
+  selectWeightedQuantizer,
+  DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS,
+  DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD,
+} from "@/lib/crisp/crisp-evidence-layer";
+import { runCrispQuantizationStage } from "@/lib/crisp/crisp-quantization-stage";
 import { downsampleToGrid, gridDimensionsFor } from "@/lib/pipeline/downsample";
 import { computeCellImportance, computeEdgeMagnitude } from "@/lib/pipeline/edge-map";
 import { denoiseForQuantization } from "@/lib/pipeline/denoise";
@@ -13,11 +21,12 @@ import type { PixelBuffer } from "@/lib/types";
 import { makePhotoLikeBuffer } from "../tests/unit/helpers/fixtures";
 
 /**
- * Per-stage pipeline timing (G-031 M3, review E1-E7): `npm run bench`.
- * The two configurations the 2026-09-12 review measured, on a photo-like
- * synthetic source. Each stage is timed on the same intermediate data the
- * real pipeline produces, then `buildPattern` end to end in Standard,
- * Crisp and DMC modes. Single runs; results vary by machine and are logged,
+ * Per-stage pipeline timing: `npm run bench`. Three configurations on photo-like synthetic sources:
+ * - the two the 2026-09-12 review measured (1.2 MP and 1.5 MP sources, grid-heavy at 1000 stitches);
+ * - a 12 MP source at the default Medium size, the typical phone photo after the 4000 px decode cap, where
+ *   reading every source pixel dominates (2026-09-14 performance investigation, G-035).
+ * Each stage, including Crisp's extra stages, is timed on the same intermediate data the real pipeline produces, then
+ * `buildPattern` end to end in Standard, Crisp and DMC modes. Single runs; results vary by machine and are logged,
  * never asserted. Results are recorded in docs/reviews/.
  */
 
@@ -31,6 +40,7 @@ interface Config {
 const CONFIGS: Config[] = [
   { label: "300 st / 24 col (1200x800)", source: makePhotoLikeBuffer(1200, 800), stitches: 300, colors: 24 },
   { label: "1000 st / 64 col (1500x1000)", source: makePhotoLikeBuffer(1500, 1000), stitches: 1000, colors: 64 },
+  { label: "100 st / 16 col (4000x3000, 12 MP)", source: makePhotoLikeBuffer(4000, 3000), stitches: 100, colors: 16 },
 ];
 
 function timed<T>(rows: Array<[string, number]>, label: string, fn: () => T): T {
@@ -71,7 +81,19 @@ for (const { label, source, stitches, colors } of CONFIGS) {
     const recolorOptions = defaultComponentRecolorOptions(width * height);
     const recolored = timed(rows, "recolorSmallComponents", () => recolorSmallComponents(ctx, optimized, quantized.palette, recolorOptions));
     timed(rows, "fixDiagonalConnections", () => fixDiagonalConnections(ctx, recolored, quantized.palette));
-    rows.push(["total (stages)", rows.reduce((sum, [, ms]) => sum + ms, 0)]);
+    rows.push(["total (Standard stages)", rows.reduce((sum, [, ms]) => sum + ms, 0)]);
+
+    // Crisp's extra stages, on the same intermediates.
+    const crispStart = rows.length;
+    const candidates = timed(rows, "crisp: candidateCellsFromPairEvidence", () =>
+      candidateCellsFromPairEvidence(pairEvidence, width, height, DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD)
+    );
+    const layer = timed(rows, "crisp: buildCrispEvidenceLayer", () => buildCrispEvidenceLayer(source, width, height, candidates, DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS));
+    timed(rows, "crisp: runCrispQuantizationStage", () =>
+      runCrispQuantizationStage(denoised.cells, colors, importance, layer, selectWeightedQuantizer(kMeansQuantizer), undefined, denoised.cellOklab)
+    );
+    rows.push(["total (Crisp extra stages)", rows.slice(crispStart).reduce((sum, [, ms]) => sum + ms, 0)]);
+    console.log(`  crisp candidate cells: ${candidates.length} of ${width * height}`);
     printTable(`Stages -- ${label}`, rows);
   });
 

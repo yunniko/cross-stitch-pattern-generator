@@ -985,7 +985,7 @@ escalation-tier, not a routine refactor):
     `client_max_body_size` in any nginx config.
   No code written.
 
-### G-035 · Faster generation and freeze-free exports (2026-09-14 performance investigation) — DRAFT (2026-09-14)
+### G-035 · Faster generation and freeze-free exports (2026-09-14 performance investigation) — ACTIVE (2026-09-14)
 - **What:** Implement the ranked fixes from
   `docs/reviews/2026-09-14-performance-investigation.md` (read it first;
   its tables are the baseline every target below is measured against).
@@ -1188,10 +1188,13 @@ escalation-tier, not a routine refactor):
   stitch grid on each side (see M3).
 - **Answered 2026-09-14:** real photos come from the Owner's folder (see
   M3).
-- Deploy after each milestone, or batch them? The plan assumes after each,
-  with approval.
+- **Answered 2026-09-14:** deploy after each milestone.
 
 **Progress log** (newest first):
+- 2026-09-14 — **Started on the Owner's direction** ("deploy after each
+  milestone, start G-035"). Each verified milestone is deployed, then the
+  standard check-in waits for approval before the next one. Tree clean at
+  `a64aa3a`; peer sessions idle.
 - 2026-09-14 — Owner supplied the calibration photo folder and asked for a
   temporary UI switch to compare photo resolutions when shrinking is
   implemented. Folder checked read-only: 3,750 JPEGs, 2 PNGs, plus Capture
