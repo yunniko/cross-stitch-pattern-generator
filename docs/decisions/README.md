@@ -141,3 +141,4 @@ remain readable with git show.
 - D130 — The photo resolution cap is cancelled — active
 - D131 — Crisp's candidate pre-filter isn't recalibrated for speed — active
 - D132 — Crisp evaluates every cell; the pair-evidence pre-filter is removed — active
+- D133 — Large grids: ICM skips unchanged neighbourhoods and k-means caches distances, output identical — active

@@ -222,13 +222,30 @@ export function injectWorstFitClusters(
 ) {
   const nextAssignment = assignment.slice();
   let nextCentroids = centroids.slice();
+  const n = oklabColors.length;
+
+  // G-035 M5: each point's distance to its assigned centroid is computed once from the supplied assignment and replaced
+  // only when the point moves, with the same `oklabDistanceSquared` arithmetic, so every score and comparison sees the
+  // identical double the per-slot recomputation produced (tests/unit/m5-equivalence.spec.ts).
+  const points = new Float64Array(n * 3);
+  const assignedDist = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const p = oklabColors[i];
+    points[i * 3] = p[0];
+    points[i * 3 + 1] = p[1];
+    points[i * 3 + 2] = p[2];
+    const c = nextCentroids[nextAssignment[i]];
+    const dl = p[0] - c[0];
+    const da = p[1] - c[1];
+    const db = p[2] - c[2];
+    assignedDist[i] = dl * dl + da * da + db * db;
+  }
 
   for (let slot = 0; slot < slotsToAdd; slot++) {
     let worstIndex = 0;
     let worstScore = -1;
-    for (let i = 0; i < oklabColors.length; i++) {
-      const d = oklabDistanceSquared(oklabColors[i], nextCentroids[nextAssignment[i]]);
-      const score = d * (1 + WORST_FIT_IMPORTANCE_BOOST * importance[i]);
+    for (let i = 0; i < n; i++) {
+      const score = assignedDist[i] * (1 + WORST_FIT_IMPORTANCE_BOOST * importance[i]);
       if (score > worstScore) {
         worstScore = score;
         worstIndex = i;
@@ -238,11 +255,20 @@ export function injectWorstFitClusters(
     const newCentroid = oklabColors[worstIndex];
     const newClusterIndex = nextCentroids.length;
     nextCentroids = [...nextCentroids, newCentroid];
+    const cl = newCentroid[0];
+    const ca = newCentroid[1];
+    const cb = newCentroid[2];
 
-    for (let i = 0; i < oklabColors.length; i++) {
-      const distToNew = oklabDistanceSquared(oklabColors[i], newCentroid);
-      const distToCurrent = oklabDistanceSquared(oklabColors[i], nextCentroids[nextAssignment[i]]);
-      if (distToNew < distToCurrent) nextAssignment[i] = newClusterIndex;
+    for (let i = 0; i < n; i++) {
+      const o = i * 3;
+      const dl = points[o] - cl;
+      const da = points[o + 1] - ca;
+      const db = points[o + 2] - cb;
+      const distToNew = dl * dl + da * da + db * db;
+      if (distToNew < assignedDist[i]) {
+        nextAssignment[i] = newClusterIndex;
+        assignedDist[i] = distToNew;
+      }
     }
   }
 

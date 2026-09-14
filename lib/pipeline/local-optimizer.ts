@@ -2,7 +2,7 @@ import { buildCrispAdmissibleCostMap } from "../crisp/crisp-evidence-layer";
 import { DEFAULT_CRISP_UNARY_COST_WEIGHTS } from "../crisp/crisp-unary-cost";
 import { edgeBetweenCells } from "./edge-map";
 import { boundaryPairEnergy, WEIGHTED_NEIGHBOR_OFFSETS, type PairEnergyWeights } from "./energy";
-import { getPairEdgeEvidence } from "./pair-edge-evidence";
+import { CANONICAL_SLOT_COUNT, getPairEdgeEvidence } from "./pair-edge-evidence";
 import { rgbToOklab } from "../color/color";
 import type { PipelineContext } from "./pipeline-context";
 import type { RGB } from "../types";
@@ -36,6 +36,13 @@ const MAX_PASSES = 8;
  * floating-point sums the per-label loop used to compute, so results are
  * bit-identical at O(8 + k) per cell instead of O(8k) (review E1, D107).
  *
+ * G-035 M5: each undirected pair's cost is computed once per call into a four-slot cache (opposite directions share
+ * one evidence slot and one stencil weight, so the doubles are identical), and a cell is re-evaluated only when a
+ * neighbor's label changed since its last evaluation. Its result depends only on its neighbors' labels and its own,
+ * and re-evaluating it right after its own change picks the same label under both tie rules, so skipping it cannot
+ * change the outcome. The row-major, in-place, at-most-8-pass schedule and the no-change stop are unchanged
+ * (tests/unit/m5-equivalence.spec.ts).
+ *
  * Crisp cells (present in `ctx.evidenceLayer`) search only their
  * admissible labels with the mode-aware unary cost (`alpha` = this call's
  * `weights.color`, never applied twice), and the CURRENT label is evaluated
@@ -64,6 +71,50 @@ export function runLocalOptimizer(
     : undefined;
 
   const assignment = initialAssignment.slice();
+  const cellCount = width * height;
+
+  // Cost of each undirected pair, stored at the canonical cell's slot: E, S, SE, SW (see pair-edge-evidence.ts).
+  // `pairCostOf` reproduces `offset.weight * boundaryPairEnergy(weights, edge, true)` exactly for either direction.
+  const slotCost = new Float64Array(cellCount * CANONICAL_SLOT_COUNT);
+  const CANONICAL: ReadonlyArray<readonly [number, number, number]> = [
+    [1, 0, 0],
+    [0, 1, 1],
+    [1, 1, 2],
+    [-1, 1, 3],
+  ];
+  const canonicalWeight = [0, 0, 0, 0];
+  for (const offset of WEIGHTED_NEIGHBOR_OFFSETS) {
+    for (const [dx, dy, slot] of CANONICAL) if (offset.dx === dx && offset.dy === dy) canonicalWeight[slot] = offset.weight;
+  }
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = y * width + x;
+      for (const [dx, dy, slot] of CANONICAL) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || nx >= width || ny >= height) continue;
+        const n = ny * width + nx;
+        const edge = pairEvidence ? getPairEdgeEvidence(pairEvidence, i, dx, dy, width) : edgeBetweenCells(importance, i, n);
+        slotCost[i * CANONICAL_SLOT_COUNT + slot] = canonicalWeight[slot] * boundaryPairEnergy(weights, edge, true);
+      }
+    }
+  }
+  // For each stencil offset: which canonical slot it uses, and whether the cost lives on this cell or the neighbor.
+  const offsetSlot = new Int8Array(WEIGHTED_NEIGHBOR_OFFSETS.length);
+  const offsetOnNeighbor = new Uint8Array(WEIGHTED_NEIGHBOR_OFFSETS.length);
+  WEIGHTED_NEIGHBOR_OFFSETS.forEach((offset, o) => {
+    for (const [dx, dy, slot] of CANONICAL) {
+      if (offset.dx === dx && offset.dy === dy) offsetSlot[o] = slot;
+      else if (offset.dx === -dx && offset.dy === -dy) {
+        offsetSlot[o] = slot;
+        offsetOnNeighbor[o] = 1;
+      }
+    }
+    if (offset.weight !== canonicalWeight[offsetSlot[o]]) throw new Error("runLocalOptimizer: opposite stencil offsets must share a weight");
+  });
+
+  // 1 = a neighbor's label changed since this cell was last evaluated (every cell starts dirty).
+  const dirty = new Uint8Array(cellCount).fill(1);
   const pairCost = new Float64Array(8);
   const neighborLabel = new Int32Array(8);
   // Boundary sums for the labels found among a cell's neighbors; `stamp`
@@ -78,6 +129,8 @@ export function runLocalOptimizer(
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const i = y * width + x;
+        if (dirty[i] === 0) continue;
+        dirty[i] = 0;
         visit++;
 
         let count = 0;
@@ -88,8 +141,7 @@ export function runLocalOptimizer(
           const ny = y + offset.dy;
           if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
           const n = ny * width + nx;
-          const edge = pairEvidence ? getPairEdgeEvidence(pairEvidence, i, offset.dx, offset.dy, width) : edgeBetweenCells(importance, i, n);
-          const cost = offset.weight * boundaryPairEnergy(weights, edge, true);
+          const cost = slotCost[(offsetOnNeighbor[o] ? n : i) * CANONICAL_SLOT_COUNT + offsetSlot[o]];
           pairCost[count] = cost;
           neighborLabel[count] = assignment[n];
           total += cost;
@@ -146,6 +198,11 @@ export function runLocalOptimizer(
         if (best !== assignment[i]) {
           assignment[i] = best;
           changed = true;
+          for (let o = 0; o < WEIGHTED_NEIGHBOR_OFFSETS.length; o++) {
+            const nx = x + WEIGHTED_NEIGHBOR_OFFSETS[o].dx;
+            const ny = y + WEIGHTED_NEIGHBOR_OFFSETS[o].dy;
+            if (nx >= 0 && nx < width && ny >= 0 && ny < height) dirty[ny * width + nx] = 1;
+          }
         }
       }
     }

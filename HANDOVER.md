@@ -62,7 +62,7 @@ It passed on GitHub for `fb28d4e`.
 **Performance** (`npm run bench`, Owner's machine, 2026-09-14 after G-035
 M4): a 12 MP photo at 100 stitches / 16 colors takes 3.2 s in Standard and a
 median 8.4 s in Crisp (5 runs), down from 7.8 s and 38.6 s before G-035. At 1500×1000 → 1000 stitches / 64
-colors, Standard takes 12.5 s and Crisp 22.0 s. In the browser
+colors (G-035 M5, median of 3), Standard takes 4.7 s and Crisp 6.0 s, down from 13.7 s and 21.3 s. In the browser
 (`npm run bench:browser`) a 12 MP photo generates in about 3.5 s at 100 and
 250 stitches. Exports run in a worker and no longer block the page: at 1000
 stitches the Pattern Keeper PDF takes 12.7 s and Export all 45 s, down from
@@ -110,7 +110,8 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
   3. One shared `PipelineContext` holding cell OKLab (D106).
   4. Importance-gated medoid pre-filter for the quantizer only (D041, D051).
   5. OKLab k-means: plain (Original) or merge-and-reinvest (Latest) (D018, D039).
-  6. Coarse then fine ICM on an 8-neighbor stencil (D043, D045).
+  6. Coarse then fine ICM on an 8-neighbor stencil (D043, D045); a cell is
+     re-evaluated only after a neighbour changes (D133).
   7. Small-component recolor and diagonal-pinch fixes.
   8. Palette merge, zero-count compaction, then OKLab palette recompute.
   9. Thread-brand snap with a re-run of fine ICM (D056), then dark-to-light
@@ -194,6 +195,8 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 - Crisp boundary evidence must stay identical to its verbatim reference copy:
   `tests/unit/crisp-evidence-equivalence.spec.ts` (G-035 M4).
 - ICM inner loops use no closures or array scans (D044).
+- ICM and both k-means paths stay identical to their pre-M5 copies (D133):
+  `tests/unit/m5-equivalence.spec.ts`, `tests/unit/m5-equivalence-adversarial.spec.ts`.
 - Brand-aware UI reads `pattern.threadBrand`. A new brand needs data, a
   provenance doc, a registry entry, and the inline union in `lib/types.ts`
   widened (D093).

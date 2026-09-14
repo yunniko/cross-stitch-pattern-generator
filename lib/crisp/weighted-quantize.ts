@@ -44,44 +44,78 @@ export interface WeightedQuantizeResult {
 const MAX_ITERATIONS = 30;
 const CONVERGENCE_THRESHOLD_SQ = 0.0001;
 
+/** Parallel columns of a sample pool, read once so the hot loops never touch sample objects (G-035 M5). */
+interface SampleColumns {
+  n: number;
+  L: Float64Array;
+  A: Float64Array;
+  B: Float64Array;
+  W: Float64Array;
+}
+
+function sampleColumns(samples: WeightedColorSample[]): SampleColumns {
+  const n = samples.length;
+  const L = new Float64Array(n);
+  const A = new Float64Array(n);
+  const B = new Float64Array(n);
+  const W = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const s = samples[i];
+    L[i] = s.oklab[0];
+    A[i] = s.oklab[1];
+    B[i] = s.oklab[2];
+    W[i] = s.weight;
+  }
+  return { n, L, A, B, W };
+}
+
 /**
  * Weighted k-means++ seeding: the first draw and every later draw use `weight` as observation mass (weighting only the
  * later draws biases the first seed). With all weights 1 it picks the same index for the same `rng()` draw as the
- * unweighted seeding, one draw each -- the Standard-compatibility invariant.
+ * unweighted seeding, one draw each -- the Standard-compatibility invariant. Totals are re-summed from scratch in sample
+ * order each round, never updated incrementally, so rounding matches.
  */
 function weightedKMeansPlusPlusSeeds(samples: WeightedColorSample[], k: number, rng: () => number): Oklab[] {
-  const totalWeight = samples.reduce((sum, s) => sum + s.weight, 0);
+  const { n, L, A, B, W } = sampleColumns(samples);
+  let totalWeight = 0;
+  for (let i = 0; i < n; i++) totalWeight += W[i];
 
   let firstThreshold = rng() * totalWeight;
-  let firstIndex = samples.length - 1;
-  for (let i = 0; i < samples.length; i++) {
-    firstThreshold -= samples[i].weight;
+  let firstIndex = n - 1;
+  for (let i = 0; i < n; i++) {
+    firstThreshold -= W[i];
     if (firstThreshold <= 0) {
       firstIndex = i;
       break;
     }
   }
   const seeds: Oklab[] = [samples[firstIndex].oklab];
-  const distSq = new Float64Array(samples.length).fill(Infinity);
+  const distSq = new Float64Array(n).fill(Infinity);
 
   while (seeds.length < k) {
+    const last = seeds[seeds.length - 1];
+    const sl = last[0];
+    const sa = last[1];
+    const sb = last[2];
     let total = 0;
-    for (let i = 0; i < samples.length; i++) {
-      const d = oklabDistanceSquared(samples[i].oklab, seeds[seeds.length - 1]);
+    for (let i = 0; i < n; i++) {
+      const dl = L[i] - sl;
+      const da = A[i] - sa;
+      const db = B[i] - sb;
+      const d = dl * dl + da * da + db * db;
       if (d < distSq[i]) distSq[i] = d;
-      total += distSq[i] * samples[i].weight;
+      total += distSq[i] * W[i];
     }
     if (total === 0) {
-      // All remaining points coincide with an existing seed; pad with duplicates.
-      // Not weighted (nothing to weight -- every candidate contributes 0),
-      // matching the unweighted fallback's own uniform pick exactly.
-      seeds.push(samples[Math.floor(rng() * samples.length)].oklab);
+      // All remaining points coincide with an existing seed; pad with duplicates. Not weighted (nothing to weight --
+      // every candidate contributes 0), matching the unweighted fallback's own uniform pick exactly.
+      seeds.push(samples[Math.floor(rng() * n)].oklab);
       continue;
     }
     let threshold = rng() * total;
-    let chosen = samples.length - 1;
-    for (let i = 0; i < samples.length; i++) {
-      threshold -= distSq[i] * samples[i].weight;
+    let chosen = n - 1;
+    for (let i = 0; i < n; i++) {
+      threshold -= distSq[i] * W[i];
       if (threshold <= 0) {
         chosen = i;
         break;
@@ -92,13 +126,27 @@ function weightedKMeansPlusPlusSeeds(samples: WeightedColorSample[], k: number, 
   return seeds;
 }
 
-/** Nearest-centroid assignment. Unaffected by weights: scaling every candidate distance for one sample by that sample's own (positive) weight cannot change which centroid is nearest. */
-function assignToNearestCentroid(samples: WeightedColorSample[], centroids: Oklab[], out: Uint8Array): void {
-  for (let i = 0; i < samples.length; i++) {
+/** Nearest-centroid assignment, first minimum wins. Unaffected by weights: scaling every candidate distance for one sample by that sample's own (positive) weight cannot change which centroid is nearest. */
+function assignToNearestCentroid(cols: SampleColumns, centroids: Oklab[], flat: Float64Array, out: Uint8Array): void {
+  const k = centroids.length;
+  for (let c = 0; c < k; c++) {
+    flat[c * 3] = centroids[c][0];
+    flat[c * 3 + 1] = centroids[c][1];
+    flat[c * 3 + 2] = centroids[c][2];
+  }
+  const { n, L, A, B } = cols;
+  for (let i = 0; i < n; i++) {
+    const pl = L[i];
+    const pa = A[i];
+    const pb = B[i];
     let best = 0;
     let bestDist = Infinity;
-    for (let c = 0; c < centroids.length; c++) {
-      const d = oklabDistanceSquared(samples[i].oklab, centroids[c]);
+    for (let c = 0; c < k; c++) {
+      const o = c * 3;
+      const dl = pl - flat[o];
+      const da = pa - flat[o + 1];
+      const db = pb - flat[o + 2];
+      const d = dl * dl + da * da + db * db;
       if (d < bestDist) {
         bestDist = d;
         best = c;
@@ -111,29 +159,35 @@ function assignToNearestCentroid(samples: WeightedColorSample[], centroids: Okla
 /**
  * Weighted Lloyd refinement: the update is the weighted mean, which minimizes `Σ weight·‖sample − centroid‖²`, and each
  * mode is its own point free to pull a different centroid (unlike blend scoring). Keeps `runLloyd`'s trailing
- * re-assignment against the final centroids (D42).
+ * re-assignment against the final centroids (D42). Sums accumulate in sample order on flat buffers (G-035 M5).
  */
 export function runWeightedLloyd(samples: WeightedColorSample[], initialCentroids: Oklab[]): { centroids: Oklab[]; assignments: Uint8Array } {
+  const cols = sampleColumns(samples);
+  const { n, L, A, B, W } = cols;
   let centroids = initialCentroids;
-  const assignments = new Uint8Array(samples.length);
+  const k = centroids.length;
+  const assignments = new Uint8Array(n);
+  const flat = new Float64Array(k * 3);
+  const sums = new Float64Array(k * 3);
+  const weightSums = new Float64Array(k);
 
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
-    assignToNearestCentroid(samples, centroids, assignments);
+    assignToNearestCentroid(cols, centroids, flat, assignments);
 
-    const sums = centroids.map(() => [0, 0, 0]);
-    const weightSums = new Array(centroids.length).fill(0);
-    for (let i = 0; i < samples.length; i++) {
+    sums.fill(0);
+    weightSums.fill(0);
+    for (let i = 0; i < n; i++) {
       const c = assignments[i];
-      sums[c][0] += samples[i].oklab[0] * samples[i].weight;
-      sums[c][1] += samples[i].oklab[1] * samples[i].weight;
-      sums[c][2] += samples[i].oklab[2] * samples[i].weight;
-      weightSums[c] += samples[i].weight;
+      sums[c * 3] += L[i] * W[i];
+      sums[c * 3 + 1] += A[i] * W[i];
+      sums[c * 3 + 2] += B[i] * W[i];
+      weightSums[c] += W[i];
     }
 
     let maxShiftSq = 0;
     const newCentroids: Oklab[] = centroids.map((old, c) => {
       if (weightSums[c] === 0) return old;
-      const next: Oklab = [sums[c][0] / weightSums[c], sums[c][1] / weightSums[c], sums[c][2] / weightSums[c]];
+      const next: Oklab = [sums[c * 3] / weightSums[c], sums[c * 3 + 1] / weightSums[c], sums[c * 3 + 2] / weightSums[c]];
       maxShiftSq = Math.max(maxShiftSq, oklabDistanceSquared(old, next));
       return next;
     });
@@ -141,7 +195,7 @@ export function runWeightedLloyd(samples: WeightedColorSample[], initialCentroid
     if (maxShiftSq < CONVERGENCE_THRESHOLD_SQ) break;
   }
 
-  assignToNearestCentroid(samples, centroids, assignments);
+  assignToNearestCentroid(cols, centroids, flat, assignments);
   return { centroids, assignments };
 }
 
@@ -195,39 +249,71 @@ export function weightedInjectWorstFitClusters(
 ): { assignment: Uint8Array; centroids: Oklab[] } {
   const nextAssignment = assignment.slice();
   let nextCentroids = centroids.slice();
+  const { n, L, A, B, W } = sampleColumns(samples);
 
-  // Group sample indices by cellIndex once; membership doesn't change
-  // across injection rounds even though each sample's assigned CLUSTER
-  // does.
-  const samplesByCell = new Map<number, number[]>();
-  samples.forEach((s, i) => {
-    const list = samplesByCell.get(s.cellIndex);
-    if (list) list.push(i);
-    else samplesByCell.set(s.cellIndex, [i]);
-  });
+  // Cells in first-occurrence order, each with its sample indices in ascending order, as flat arrays. Membership
+  // doesn't change across injection rounds even though each sample's assigned cluster does.
+  const groupOf = new Map<number, number>();
+  const groupCells: number[] = [];
+  const groupCounts: number[] = [];
+  const sampleGroup = new Int32Array(n);
+  for (let i = 0; i < n; i++) {
+    const cellIndex = samples[i].cellIndex;
+    let g = groupOf.get(cellIndex);
+    if (g === undefined) {
+      g = groupCells.length;
+      groupOf.set(cellIndex, g);
+      groupCells.push(cellIndex);
+      groupCounts.push(0);
+    }
+    sampleGroup[i] = g;
+    groupCounts[g]++;
+  }
+  const groupCount = groupCells.length;
+  const groupStart = new Int32Array(groupCount + 1);
+  for (let g = 0; g < groupCount; g++) groupStart[g + 1] = groupStart[g] + groupCounts[g];
+  const groupSamples = new Int32Array(n);
+  const fill = groupStart.slice(0, groupCount);
+  for (let i = 0; i < n; i++) groupSamples[fill[sampleGroup[i]]++] = i;
+  // `(1 + boost · importance)` per cell, the same double the ranking computed every round.
+  const cellFactor = new Float64Array(groupCount);
+  for (let g = 0; g < groupCount; g++) cellFactor[g] = 1 + importanceBoost * importance(groupCells[g]);
+
+  // Each sample's distance to its assigned centroid, from the supplied assignment, replaced only when the sample moves
+  // (G-035 M5); the arithmetic is `oklabDistanceSquared(sample, centroid)`'s.
+  const assignedDist = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const c = nextCentroids[nextAssignment[i]];
+    const dl = L[i] - c[0];
+    const da = A[i] - c[1];
+    const db = B[i] - c[2];
+    assignedDist[i] = dl * dl + da * da + db * db;
+  }
 
   for (let slot = 0; slot < slotsToAdd; slot++) {
     let worstCell = -1;
     let worstCellScore = -1;
     let worstSampleInCell = -1;
 
-    for (const [cellIndex, sampleIndices] of samplesByCell) {
+    for (let g = 0; g < groupCount; g++) {
+      const start = groupStart[g];
+      const end = groupStart[g + 1];
       let cellTotal = 0;
-      let bestSampleIndex = sampleIndices[0];
+      let bestSampleIndex = groupSamples[start];
       let bestSampleScore = -1;
-      for (const i of sampleIndices) {
-        const d = oklabDistanceSquared(samples[i].oklab, nextCentroids[nextAssignment[i]]);
-        const weightedError = d * samples[i].weight;
+      for (let j = start; j < end; j++) {
+        const i = groupSamples[j];
+        const weightedError = assignedDist[i] * W[i];
         cellTotal += weightedError;
         if (weightedError > bestSampleScore) {
           bestSampleScore = weightedError;
           bestSampleIndex = i;
         }
       }
-      const cellScore = cellTotal * (1 + importanceBoost * importance(cellIndex));
+      const cellScore = cellTotal * cellFactor[g];
       if (cellScore > worstCellScore) {
         worstCellScore = cellScore;
-        worstCell = cellIndex;
+        worstCell = groupCells[g];
         worstSampleInCell = bestSampleIndex;
       }
     }
@@ -237,11 +323,19 @@ export function weightedInjectWorstFitClusters(
     const newCentroid = samples[worstSampleInCell].oklab;
     const newClusterIndex = nextCentroids.length;
     nextCentroids = [...nextCentroids, newCentroid];
+    const cl = newCentroid[0];
+    const ca = newCentroid[1];
+    const cb = newCentroid[2];
 
-    for (let i = 0; i < samples.length; i++) {
-      const distToNew = oklabDistanceSquared(samples[i].oklab, newCentroid);
-      const distToCurrent = oklabDistanceSquared(samples[i].oklab, nextCentroids[nextAssignment[i]]);
-      if (distToNew < distToCurrent) nextAssignment[i] = newClusterIndex;
+    for (let i = 0; i < n; i++) {
+      const dl = L[i] - cl;
+      const da = A[i] - ca;
+      const db = B[i] - cb;
+      const distToNew = dl * dl + da * da + db * db;
+      if (distToNew < assignedDist[i]) {
+        nextAssignment[i] = newClusterIndex;
+        assignedDist[i] = distToNew;
+      }
     }
   }
 

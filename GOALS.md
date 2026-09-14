@@ -1192,9 +1192,53 @@ escalation-tier, not a routine refactor):
 - **Answered 2026-09-14:** deploy after each milestone.
 
 **Progress log** (newest first):
+- 2026-09-15 — **M5 step 2: Crisp's weighted k-means on flat buffers, identical.**
+  - Weighted seeding, nearest-centroid assignment and Lloyd read parallel
+    Float64 columns in sample order, with the same RNG draws. Weighted
+    reinvestment keeps cell-first ranking over flat cell groups, and caches
+    each sample's assigned distance and each cell's importance factor.
+  - Identical: full unit suite 890 passed + 1 gated skip, including both M5
+    equivalence specs and golden hashes. The adversarial spec gained
+    interleaved, unsorted, collapsing, zero-weight and tied pools (run after
+    e2e).
+  - 1500×1000 → 1000 st / 64 col, median of 3: Crisp quantization stage
+    8.8–9.5 s → 1.7 s; `buildPattern` Crisp 21.3 s → 6.0 s; Standard 4.7 s.
+  - D133 records the approach and the dropped candidate pruning.
+- 2026-09-14 — **M5 step 1: identical ICM and Standard reinvestment; ≤ 8 s met.**
+  - ICM caches each undirected pair's cost once per call (four slots per
+    cell). It also re-evaluates a cell only when a neighbour's label changed
+    since its last evaluation, inside the same row-major, in-place, ≤ 8-pass
+    schedule.
+  - `injectWorstFitClusters` caches each point's assigned distance from the
+    supplied assignment.
+  - Identical: `tests/unit/m5-equivalence.spec.ts` (15/15),
+    `tests/unit/m5-equivalence-adversarial.spec.ts` (3/3, Codex's matrix);
+    the benchmark-sized 1000×667 chained ICM also matched (M5_SCALE=1);
+    m3 equivalence and golden hashes unchanged.
+  - 1500×1000 → 1000 st / 64 col, median of 3: ICM 8.1–8.5 s → 1.6 s;
+    Standard Latest k-means 3.4–3.8 s → 1.45 s; `buildPattern` Standard
+    13.4–13.7 s → 4.6 s (target ≤ 8 s). The corrected candidate pruning is
+    not needed and is dropped.
+  - Next: Crisp's weighted k-means on flat buffers (step 2), then timing,
+    e2e and deploy.
 - 2026-09-14 — **M5 started: diagnostics before any code.**
-  - The Codex critique of the M5 plan is running; no code is written before
-    it (constraint).
+  - Codex critique of the M5 plan (read-only), before any code:
+    - agrees with caching pair costs, keeping ordered mismatch sums;
+    - pruning candidates to neighbour labels plus the best colour is not
+      exact: rounding in `U + T` can tie labels. It gave a proof for choosing
+      the non-neighbour candidate by the rounded total, and advised keeping
+      Crisp's full admissible search;
+    - dirty-cell skipping is exact only inside the existing row-major,
+      in-place, 8-pass schedule;
+    - seeding is already incremental, so the win is reinvestment, via a
+      cached assigned distance and no `Math.min`;
+    - flags the sentinel 255 behaviour (not preserved today, must stay so),
+      lists invariants and an adversarial test matrix, and calls ≤ 8 s
+      plausible but not established.
+    Response: agreed on all five. Pair-cost caching, dirty skipping and
+    reinvestment caching are applied together and bisected if the exact
+    tests fail. The corrected pruning is deferred until those are measured.
+    The adversarial matrix is added as `tests/unit/m5-equivalence-adversarial.spec.ts`.
   - ICM at 1500×1000 → 1000×667 (667,000 cells), 64 colours, verbatim
     instrumented copy identical to `runLocalOptimizer`:
     - both runs use all 8 passes, about 0.5 s each whatever changes;
