@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-14 at a0c4bcf plus the handover commit that carries this line
+Last verified: 2026-09-14 at f31b2c1 plus the handover commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -10,8 +10,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs `master` as deployed on 2026-09-14 (last deploy-log
-row). G-035 (performance) is active: M1–M3 are done and M4 awaits the
-Owner's approval. Photos decode in a worker (D128); the photo resolution
+row). G-035 (performance) is active: M1–M3 are done, and M4 (faster Crisp,
+identical output) is deployed and awaits the Owner's check-in. Photos decode in a worker (D128); the photo resolution
 cap was cancelled after failing its quality gates (D130). G-032 (photo enhancement) is done and signed off: every mode is offered
 (D118). G-028 (OXS import and export) is done and signed off (D119). G-033
 (swatch-aware color editor) is deployed and awaits Owner sign-off.
@@ -52,15 +52,15 @@ cap was cancelled after failing its quality gates (D130). G-032 (photo enhanceme
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-14**: `tsc --noEmit` and eslint clean; 861/861 Vitest
-tests; 75/75 Playwright tests on a fresh production build without the photo cap. CI
+**Checks run 2026-09-14**: `tsc --noEmit` and eslint clean; 878/878 Vitest
+tests; 75/75 Playwright tests on a fresh production build of `faea36b`. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
 
 **Performance** (`npm run bench`, Owner's machine, 2026-09-14 after G-035
-M1): a 12 MP photo at 100 stitches / 16 colors takes 2.8 s in Standard and
-19.7 s in Crisp, down from 7.8 s and 38.6 s. At 1500×1000 → 1000 stitches / 64
+M4): a 12 MP photo at 100 stitches / 16 colors takes 3.2 s in Standard and a
+median 8.4 s in Crisp (5 runs), down from 7.8 s and 38.6 s before G-035. At 1500×1000 → 1000 stitches / 64
 colors, Standard takes 12.5 s and Crisp 22.0 s. In the browser
 (`npm run bench:browser`) a 12 MP photo generates in about 3.5 s at 100 and
 250 stitches. Exports run in a worker and no longer block the page: at 1000
@@ -70,8 +70,9 @@ stitches the Pattern Keeper PDF takes 12.7 s and Export all 45 s, down from
 photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 
 **Known limitations**:
-- Crisp takes about 7× Standard's time on a 12 MP photo, because its
-  candidate pre-filter passes almost every cell (G-035 M4). It falls back to
+- Crisp takes about 2.6× Standard's time on a 12 MP photo (median 8.4 s
+  against 3.2 s; 8.7–10.6 s on real photos), because nearly every cell still
+  gets the two-mode fit (D131). It falls back to
   Standard behavior for thin lines, junctions and gradual shading (D096).
 - Crisp's candidate pre-filter misses about 3 % of confident boundary cells
   on real photos at 100 stitches, though D065 requires none (D131).
@@ -217,9 +218,13 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **PENDING APPROVAL: G-035 M4 (Crisp evidence layer).** M2 and M3 are
-  approved; the browser generate target is unreachable without the cap
-  (D130). Evidence: `docs/reviews/2026-09-14-photo-resolution-cap.md`.
+- **PENDING APPROVAL: G-035 M4 check-in.** Crisp is identical and faster,
+  but the ≤ 8 s target is missed: median 8.4 s on the benchmark, 8.7–10.6 s
+  on real photos. Open decision: whether to fix the pre-filter's recall miss
+  by evaluating every cell, an output change costing 0.3–1.1 s per job
+  (D131, `docs/reviews/2026-09-14-crisp-prefilter.md`). M5 waits for
+  approval. The browser generate target is unreachable without the cap
+  (D130).
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is
@@ -287,6 +292,7 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 | 2026-09-14 | 03b69c5 | G-035 M2: exports in a worker with page progress; direct PDF operators; OXS in the worker (D125, D126) | Only this container restarted; 20 of 20 sites 200; live: PNG, PDF, A4, OXS and Export all downloaded with 0 ms main-thread tasks, Export all 3.1 s; a 12 MP photo generated at 100 st in 3.5 s and at 250 st in 4.0 s; no console errors |
 | 2026-09-14 | 9b8de28 | G-035 M3: photo decode in a worker; flag-gated resolution comparison; no default cap (D127–D129) | Only this container restarted; 20 of 20 sites 200; live: no switch without the flag; with `?compare-resolution` Full read 160×100 and 2 px read 100×62, Undo restored Full's details; no decode fallback warning; no console errors |
 | 2026-09-14 | a0c4bcf | Photo resolution cap and comparison switch removed on the Owner's decision (D130) | Only this container restarted; 20 of 20 sites 200; live: no resolution control even with `?compare-resolution`, upload decoded without fallback, a 50 × 31 chart generated; no console errors |
+| 2026-09-14 | f31b2c1 | G-035 M4: Crisp evidence on typed arrays with a per-row OKLab cache, identical output | Only this container restarted; 20 of 20 sites 200; live: a Crisp 50 × 31 chart generated, no decode fallback, no console errors |
 
 ## Decisions
 

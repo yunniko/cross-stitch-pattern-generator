@@ -1255,8 +1255,19 @@ escalation-tier, not a routine refactor):
       947 and 348 → 385 at 100 stitches).
     Decoded photo pixels deleted from the scratchpad. D131 records keeping
     the filter; `docs/reviews/2026-09-14-crisp-prefilter.md` has the data.
-  - Next: median of repeated synthetic 12 MP runs (queued), then commit,
-    deploy and the Owner check-in with the recall-fix decision.
+  - Repeated timing, 12 MP benchmark source → 100 st, 5 runs after a
+    warm-up: Crisp median 8.37 s (8.12–8.89 s), Standard 3.2 s. The single
+    7.8 s run was optimistic, so the ≤ 8 s target is not met: 8.4 s on the
+    benchmark and 8.7–10.6 s on real photos, down from 23.1 s.
+  - Deployed f31b2c1 (code faea36b: 878/878 unit, 75/75 e2e): only this
+    container restarted, 20 of 20 sites 200; live Crisp generation with no
+    decode fallback and no console errors.
+  - PENDING APPROVAL: G-035 M4 check-in — the ≤ 8 s Crisp target is missed
+    (median 8.4 s; 8.7–10.6 s on real photos) — milestone approval — logged
+    2026-09-14.
+  - PENDING APPROVAL: fix the Crisp pre-filter's recall miss by evaluating
+    every cell (output change, +0.3–1.1 s per job, D131) — changes Crisp
+    output — logged 2026-09-14.
 - 2026-09-14 — **M2 and M3 closed on the Owner's decisions.**
   - Owner, on the two pending approvals: "Pattern keeper is ok. Photo
     shrinking is questionable but certainly not for automatic work.
