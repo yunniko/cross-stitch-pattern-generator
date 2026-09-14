@@ -1041,10 +1041,12 @@ escalation-tier, not a routine refactor):
      - PDFs have identical page count, text and legend, read with
        `pdfjs-dist`;
      - the Owner re-confirms a real Pattern Keeper import (D097).
-  4. The source cap (M3) is chosen from real photos, with the measured
-     quality effect in a `docs/reviews/` document. The shape, confetti and
-     Crisp acceptance suites pass. The 250-stitch palette-count change seen
-     in the investigation (10 → 16 colors) is explained before adoption.
+  4. The source cap (M3) follows the Owner's rule: the photo may be
+     shrunk, but never below 2 source pixels per stitch on each side. Its
+     measured quality effect on real photos goes in a `docs/reviews/`
+     document. The shape, confetti and Crisp acceptance suites pass. The
+     250-stitch palette-count change seen in the investigation (10 → 16
+     colors) is explained before adoption.
   5. README performance notes, HANDOVER and decision files updated;
      docs-lint passes; everything committed; each deploy approved by the
      Owner and logged; Owner sign-off logged.
@@ -1097,15 +1099,27 @@ escalation-tier, not a routine refactor):
   - Gate: export parity (criterion 3), Pattern Keeper import re-confirmed,
     and a long-task e2e check at 1000 stitches.
 - [ ] **M3 — Source resolution cap and off-thread photo decode.**
-  - Measure generation on real photos at several pixels-per-stitch caps
-    against the uncapped result:
+  - Rule (Owner, 2026-09-14): the photo may be shrunk, but stays at least
+    twice the stitch grid on each side. The default is exactly 2 pixels
+    per stitch, so a 100×75 pattern works from a 200×150 photo, sized so
+    each stitch averages a whole 2×2 pixel block. The 4000 px decode cap
+    still applies from above.
+  - Measure 2 pixels per stitch against 4, 8 and uncapped on real photos:
     - cells that differ;
     - palette count;
     - confetti ratio;
     - the shape suites;
     - the Crisp acceptance matrix.
     Include cases where the cap must not hurt: fine lines, text, small
-    bright details.
+    bright details. The investigation already saw 6 % of cells change at
+    8 pixels per stitch, so 2 is expected to change more.
+  - Check the constants tuned in source pixels, which were calibrated with
+    many pixels per stitch: the Sobel noise floor and percentile, the
+    pair-evidence blur radius and response `tau`, and Crisp's sampling
+    neighbourhood. Recalibrate any that stop working at 2 pixels per
+    stitch, each with a decision file.
+  - If 2 pixels per stitch fails a quality gate, report the evidence and
+    the smallest factor that passes to the Owner. Never raise it silently.
   - Codex critique of the chosen rule, then a decision file.
   - The cap must shrink in linear light with area weighting, like
     `downsampleToGrid` (D7). The browser's own resampler averages in
@@ -1148,11 +1162,8 @@ escalation-tier, not a routine refactor):
   - Final deploy after approval, with a production spot check on the VPS.
 
 **Open questions for the Owner (answer before M3):**
-- The source cap changes patterns slightly, by a fraction of a percent of
-  cells in the investigation. Is that acceptable in principle if the
-  quality review shows no visible loss? The alternative keeps output
-  identical, but typical generation then stays around 2–3 s instead of
-  about 1 s.
+- **Answered 2026-09-14:** the photo may be shrunk, down to twice the
+  stitch grid on each side (see M3).
 - Can you supply real photos for the M3 and M4 measurements, such as
   portraits, pets, landscapes and text? Otherwise public-domain photos are
   used, with licences recorded.
@@ -1160,6 +1171,11 @@ escalation-tier, not a routine refactor):
   with approval.
 
 **Progress log** (newest first):
+- 2026-09-14 — Owner answer on the source cap: "resolution can be lowered
+  but should be twice bigger than cell resolution", read as at least 2
+  source pixels per stitch on each side. Criterion 4 and M3 updated; M3
+  now also checks the pixel-scale constants tuned with many pixels per
+  stitch.
 - 2026-09-14 — Goal drafted at the Owner's request ("make a goal plan for
   these optimizations"), from the measured findings in
   `docs/reviews/2026-09-14-performance-investigation.md`. No code written.
