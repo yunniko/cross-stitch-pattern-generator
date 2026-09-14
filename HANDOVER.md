@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-14 at 03b69c5 plus the handover commit that carries this line
+Last verified: 2026-09-14 at 9b8de28 plus the handover commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -56,8 +56,8 @@ quality gates (D129). G-032 (photo enhancement) is done and signed off: every mo
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-14**: `tsc --noEmit` and eslint clean; 861/861 Vitest
-tests; 69/69 Playwright tests on a fresh production build of the `03b69c5` code. CI
+**Checks run 2026-09-14**: `tsc --noEmit` and eslint clean; 895/895 Vitest
+tests; 76/76 Playwright tests on a fresh production build of the `9b8de28` code. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
@@ -293,6 +293,7 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 | 2026-09-14 | 35b9d16 | Zoom keeps the stitch under the cursor in place (D124) | Only this container restarted; 7 sites 200; live: wheel zoom 196%→274%→384%→274% kept the point under the cursor within 0.4 px (one stitch 38–54 px); no console errors |
 | 2026-09-14 | 71a23af | G-035 M1: sRGB lookup table and allocation-free OKLab conversion; 12 MP bench rows; bench:browser | Only this container restarted; 20 of 20 sites 200; live: a 12 MP photo generated at 100 st in 3.5 s and at 250 st in 3.4 s; no console errors |
 | 2026-09-14 | 03b69c5 | G-035 M2: exports in a worker with page progress; direct PDF operators; OXS in the worker (D125, D126) | Only this container restarted; 20 of 20 sites 200; live: PNG, PDF, A4, OXS and Export all downloaded with 0 ms main-thread tasks, Export all 3.1 s; a 12 MP photo generated at 100 st in 3.5 s and at 250 st in 4.0 s; no console errors |
+| 2026-09-14 | 9b8de28 | G-035 M3: photo decode in a worker; flag-gated resolution comparison; no default cap (D127–D129) | Only this container restarted; 20 of 20 sites 200; live: no switch without the flag; with `?compare-resolution` Full read 160×100 and 2 px read 100×62, Undo restored Full's details; no decode fallback warning; no console errors |
 
 ## Decisions
 

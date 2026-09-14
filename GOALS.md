@@ -1306,7 +1306,16 @@ escalation-tier, not a routine refactor):
     baseline of 0.4 s likely carried the same harness cost, and the old
     decode wasn't re-measured by path. `npm run bench:browser` now uploads
     by path.
-  - Next: commit, deploy and the Owner check-in.
+  - Committed 9b8de28 (tsc and eslint clean, 895/895 unit, 76/76 e2e on a
+    production build) and deployed: only this container restarted, 20 of 20
+    sites 200; live, the switch appears only with the flag, Full and 2 px
+    results show their own details, no decode fallback, no console errors.
+  - PENDING APPROVAL: G-035 M3 gate — the Owner's comparison with
+    `?compare-resolution` and the factor decision; D129 recommends no
+    default cap — milestone approval — logged 2026-09-14.
+  - PENDING APPROVAL: G-035 M2 Pattern Keeper import check (D097) — the
+    PDF's bytes changed — still open, asked again at this check-in —
+    logged 2026-09-14.
 - 2026-09-14 — **M3 started on the Owner's direction** ("go next"). The
   Owner's reply does not mention Pattern Keeper, so M2's import check (D097)
   stays open and is asked again at the M3 check-in. Before any M3 code, the
