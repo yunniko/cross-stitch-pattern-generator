@@ -12,8 +12,8 @@ here.
   to a median of 8.4 s, just above the 8 s target.
 - The candidate pre-filter can't be made more selective without losing confident boundary cells on real photos, so it
   stays unchanged (D131).
-- Today's pre-filter already misses about 3 % of confident cells on real photos at 100 stitches. D065 requires zero
-  misses, so this is an open defect; a fix changes output and needs the Owner's decision.
+- The pre-filter missed about 3 % of confident cells on real photos at 100 stitches, which D065 forbids. On the
+  Owner's decision it was removed, and the layer now evaluates every cell (D132).
 
 ## Identical-output rewrite
 

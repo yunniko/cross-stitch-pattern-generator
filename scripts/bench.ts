@@ -1,10 +1,9 @@
 import { it } from "vitest";
 import {
+  allCellIndices,
   buildCrispEvidenceLayer,
-  candidateCellsFromPairEvidence,
   selectWeightedQuantizer,
   DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS,
-  DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD,
 } from "@/lib/crisp/crisp-evidence-layer";
 import { runCrispQuantizationStage } from "@/lib/crisp/crisp-quantization-stage";
 import { downsampleToGrid, gridDimensionsFor } from "@/lib/pipeline/downsample";
@@ -85,15 +84,14 @@ for (const { label, source, stitches, colors } of CONFIGS) {
 
     // Crisp's extra stages, on the same intermediates.
     const crispStart = rows.length;
-    const candidates = timed(rows, "crisp: candidateCellsFromPairEvidence", () =>
-      candidateCellsFromPairEvidence(pairEvidence, width, height, DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD)
+    const layer = timed(rows, "crisp: buildCrispEvidenceLayer (every cell, D132)", () =>
+      buildCrispEvidenceLayer(source, width, height, allCellIndices(width, height), DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS)
     );
-    const layer = timed(rows, "crisp: buildCrispEvidenceLayer", () => buildCrispEvidenceLayer(source, width, height, candidates, DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS));
     timed(rows, "crisp: runCrispQuantizationStage", () =>
       runCrispQuantizationStage(denoised.cells, colors, importance, layer, selectWeightedQuantizer(kMeansQuantizer), undefined, denoised.cellOklab)
     );
     rows.push(["total (Crisp extra stages)", rows.slice(crispStart).reduce((sum, [, ms]) => sum + ms, 0)]);
-    console.log(`  crisp candidate cells: ${candidates.length} of ${width * height}`);
+    console.log(`  crisp confident cells: ${layer.evidenceByCell.size} of ${width * height}`);
     printTable(`Stages -- ${label}`, rows);
   });
 

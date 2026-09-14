@@ -73,7 +73,7 @@ remain readable with git show.
 - D062 — A goal-number collision is resolved by renumbering the goal with no references — active
 - D063 — Crisp pipeline integration follows a fixed contract, and Crisp refuses contour refinement — active
 - D064 — Crisp confidence includes edge sharpness from a step-versus-affine model comparison — active
-- D065 — One frozen Crisp evidence layer, pre-filtered by pair evidence and confirmed by a confident neighbor — active
+- D065 — One frozen Crisp evidence layer, pre-filtered by pair evidence and confirmed by a confident neighbor — partly superseded (superseded by: D132 for the pre-filter)
 - D066 — Confident Crisp cells start at the argmin of unary cost against the returned palette — active
 - D067 — In ICM, protected cells search only admissible labels, with α from weights.color, and keep their label on ties — active
 - D068 — Contour cleanup costs candidates through the shared Crisp-aware lookup — active
@@ -140,3 +140,4 @@ remain readable with git show.
 - D129 — No default photo cap: pair evidence isn't resolution-invariant — superseded by D130
 - D130 — The photo resolution cap is cancelled — active
 - D131 — Crisp's candidate pre-filter isn't recalibrated for speed — active
+- D132 — Crisp evaluates every cell; the pair-evidence pre-filter is removed — active

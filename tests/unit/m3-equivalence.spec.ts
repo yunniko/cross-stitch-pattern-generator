@@ -5,8 +5,6 @@ import { nameColors } from "@/lib/color/color-names";
 import {
   allCellIndices,
   buildCrispEvidenceLayer,
-  candidateCellsFromPairEvidence,
-  DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD,
   selectWeightedQuantizer,
   type CrispEvidenceLayer,
 } from "@/lib/crisp/crisp-evidence-layer";
@@ -115,7 +113,7 @@ describe("runLocalOptimizer is bit-identical to the pre-M3 implementation", () =
     const cells = downsampleToGrid(photo, width, height);
     const importance = computeCellImportance(photo, computeEdgeMagnitude(photo), width, height);
     const pairEvidence = computePairEdgeEvidence(photo, width, height);
-    const layer = buildCrispEvidenceLayer(photo, width, height, candidateCellsFromPairEvidence(pairEvidence, width, height, DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD));
+    const layer = buildCrispEvidenceLayer(photo, width, height, allCellIndices(width, height));
     const quantized = runCrispQuantizationStage(cells, 16, importance, layer, selectWeightedQuantizer(kMeansQuantizer));
     compareOptimizers(cells, quantized.cellPaletteIndex, quantized.palette, DEFAULT_MULTI_SCALE_WEIGHTS.fine, { importance, pairEvidence, evidenceLayer: layer }, "photo crisp fine");
   });

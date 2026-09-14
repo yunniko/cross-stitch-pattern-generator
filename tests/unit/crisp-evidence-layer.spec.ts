@@ -2,14 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   buildCrispEvidenceLayer,
   allCellIndices,
-  candidateCellsFromPairEvidence,
   selectWeightedQuantizer,
-  DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD,
 } from "@/lib/crisp/crisp-evidence-layer";
-import { computePairEdgeEvidence } from "@/lib/pipeline/pair-edge-evidence";
 import { plainKMeansQuantizer, kMeansQuantizer } from "@/lib/pipeline/quantize";
 import { rgbToOklab } from "@/lib/color/color";
-import { makeHardSplitBuffer, makeHardSplitWithGenuineGrayBuffer } from "./crisp-edges-fixtures";
+import { makeHardSplitBuffer } from "./crisp-edges-fixtures";
 import type { WeightedColorSample } from "@/lib/crisp/weighted-quantize";
 import type { PixelBuffer, RGB } from "@/lib/types";
 
@@ -126,40 +123,6 @@ describe("neighbor-agreement filtering", () => {
 
     expect(withoutAgreement.evidenceByCell.size).toBe(1); // sanity: exactly the isolated cell is confident on its own, nothing else
     expect(withAgreement.evidenceByCell.size).toBe(0); // filtered out -- no agreeing neighbor
-  });
-});
-
-describe("candidateCellsFromPairEvidence pre-filter recall (must never miss a genuinely confident cell)", () => {
-  it("every cell the full per-cell reference marks confident also appears in the pre-filtered candidate set", () => {
-    // A real, non-trivial fixture: the M1 genuine-gray-elsewhere buffer,
-    // which has TWO distinct real boundaries (black/white and white/gray).
-    const buffer = makeHardSplitWithGenuineGrayBuffer();
-    const gridWidth = 16;
-    const gridHeight = 16;
-
-    const fullReference = buildCrispEvidenceLayer(buffer, gridWidth, gridHeight, allCellIndices(gridWidth, gridHeight), {
-      confidenceThreshold: 0.7,
-      boundaryEvidenceOptions: { neighborhoodMargin: 0.75, minModeSeparation: 0.02, maxLloydIterations: 6 },
-      requireNeighborAgreement: false, // isolate the PRE-FILTER's own recall, not neighbor-agreement's separate effect
-    });
-    expect(fullReference.evidenceByCell.size).toBeGreaterThan(0); // sanity
-
-    const pairEvidence = computePairEdgeEvidence(buffer, gridWidth, gridHeight);
-    const candidates = new Set(candidateCellsFromPairEvidence(pairEvidence, gridWidth, gridHeight, DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD));
-
-    for (const cellIndex of fullReference.evidenceByCell.keys()) {
-      expect(candidates.has(cellIndex)).toBe(true);
-    }
-  });
-
-  it("is permissive, not restrictive -- catches real edges without requiring an exact match to the detector's own confidence", () => {
-    const buffer = makeHardSplitBuffer(64, 64, 30);
-    const gridWidth = 16;
-    const gridHeight = 16;
-    const pairEvidence = computePairEdgeEvidence(buffer, gridWidth, gridHeight);
-    const candidates = candidateCellsFromPairEvidence(pairEvidence, gridWidth, gridHeight, DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD);
-    // The known boundary column (source x=30, grid cx ~7) must be a candidate.
-    expect(candidates).toContain(7 * gridWidth + 8); // row 8, column 7 (matches other tests' own convention)
   });
 });
 

@@ -1,11 +1,9 @@
 import { writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { oklabDistanceSquared, rgbToOklab, type Oklab } from "@/lib/color/color";
-import { allCellIndices, buildCrispEvidenceLayer, candidateCellsFromPairEvidence, DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS, DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD } from "@/lib/crisp/crisp-evidence-layer";
 import { computePatternDiagnostics } from "@/lib/experimental/diagnostics";
 import { downsampleToGrid } from "@/lib/pipeline/downsample";
-import { analyzeEnhancement, enhancePixelBuffer, ENHANCEMENT_PRESETS, releasedEnhancementModes } from "@/lib/pipeline/enhance";
-import { computePairEdgeEvidence } from "@/lib/pipeline/pair-edge-evidence";
+import { analyzeEnhancement, ENHANCEMENT_PRESETS, releasedEnhancementModes } from "@/lib/pipeline/enhance";
 import { buildPattern } from "@/lib/pipeline/pattern";
 import { EMPTY_CELL, type PixelBuffer, type RGB, type StitchPattern } from "@/lib/types";
 import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "./helpers/fixtures";
@@ -215,23 +213,3 @@ describe("enhancement release gates", () => {
   );
 });
 
-describe("Crisp candidate recall with enhancement (Codex round 2)", () => {
-  it.each(MODES)("%s: candidates from the original photo's pair evidence include every cell confident on the enhanced photo", (mode) => {
-    const original = degrade(makeBuffer(160, 160, (x, y) => {
-      const n = pseudoNoise(x, y, 6);
-      const base: RGB = x < 75 ? [60, 70, 150] : y < 90 ? [210, 190, 90] : [120, 170, 110];
-      return [clamp(base[0] + n), clamp(base[1] + n), clamp(base[2] + n)];
-    }));
-    const enhanced = enhancePixelBuffer(original, mode);
-    const gridWidth = 40;
-    const gridHeight = 40;
-    const reference = buildCrispEvidenceLayer(enhanced, gridWidth, gridHeight, allCellIndices(gridWidth, gridHeight), {
-      ...DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS,
-      requireNeighborAgreement: false,
-    });
-    expect(reference.evidenceByCell.size).toBeGreaterThan(0);
-    const candidates = new Set(candidateCellsFromPairEvidence(computePairEdgeEvidence(original, gridWidth, gridHeight), gridWidth, gridHeight, DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD));
-    const missed = [...reference.evidenceByCell.keys()].filter((cell) => !candidates.has(cell));
-    expect(missed).toEqual([]);
-  });
-});

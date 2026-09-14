@@ -7,7 +7,6 @@ import {
   type CrispUnaryCostWeights,
 } from "./crisp-unary-cost";
 import type { Oklab } from "../color/color";
-import { getPairEdgeEvidence } from "../pipeline/pair-edge-evidence";
 import { plainKMeansQuantizer, kMeansQuantizer, type ColorQuantizer } from "../pipeline/quantize";
 import { weightedQuantize, weightedKMeansQuantize, type WeightedColorSample, type WeightedQuantizeResult } from "./weighted-quantize";
 import type { PixelBuffer } from "../types";
@@ -50,7 +49,7 @@ const EIGHT_NEIGHBOR_OFFSETS: ReadonlyArray<readonly [number, number]> = [
   [-1, -1],
 ];
 
-/** Every cell index -- the full reference candidate set for calibration and recall tests, not the pipeline's hot path. */
+/** Every cell index: the candidate set the pipeline evaluates, since no cheap pre-filter is lossless on real photos (D132). */
 export function allCellIndices(gridWidth: number, gridHeight: number): number[] {
   const out = new Array<number>(gridWidth * gridHeight);
   for (let i = 0; i < out.length; i++) out[i] = i;
@@ -94,35 +93,6 @@ export function buildCrispEvidenceLayer(
   }
   return { evidenceByCell: agreed };
 }
-
-/**
- * Cheap candidate pre-filter on the already-computed pair evidence: a cell is a candidate when any of its 8 pair
- * readings reaches `threshold`. Deliberately permissive -- correctness comes from `extractBoundaryEvidence`'s own
- * confidence afterward; this only avoids a two-mode fit on every cell. Its recall against the full evaluation is tested
- * in crisp-evidence-layer.spec.ts.
- */
-export function candidateCellsFromPairEvidence(pairEvidence: Float32Array, gridWidth: number, gridHeight: number, threshold: number): number[] {
-  const candidates: number[] = [];
-  for (let y = 0; y < gridHeight; y++) {
-    for (let x = 0; x < gridWidth; x++) {
-      const i = y * gridWidth + x;
-      let maxEvidence = 0;
-      for (const [dx, dy] of EIGHT_NEIGHBOR_OFFSETS) {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx < 0 || nx >= gridWidth || ny < 0 || ny >= gridHeight) continue;
-        const e = getPairEdgeEvidence(pairEvidence, i, dx, dy, gridWidth);
-        if (e > maxEvidence) maxEvidence = e;
-      }
-      if (maxEvidence >= threshold) candidates.push(i);
-    }
-  }
-  return candidates;
-}
-
-// Calibrated for recall, not precision: every cell the full reference marks confident must pass. A false positive
-// costs one rejected evidence fit; a false negative silently disables Crisp mode for a real boundary.
-export const DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD = 0.05;
 
 export type WeightedQuantizerFn = (
   samples: WeightedColorSample[],

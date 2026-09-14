@@ -1192,6 +1192,22 @@ escalation-tier, not a routine refactor):
 - **Answered 2026-09-14:** deploy after each milestone.
 
 **Progress log** (newest first):
+- 2026-09-14 — **M4 accepted at 8.4 s; Crisp recall fix (D132); M5 approved.**
+  - Owner: "1 yes, 2 fix please and move to m5".
+  - Fix: the Crisp evidence layer evaluates every cell, and the pair-evidence
+    pre-filter with its threshold is deleted. Pair evidence is still computed
+    as before, so only the confident set changes.
+  - Removed with it: the two pre-filter recall tests. The M3 optimizer
+    equivalence test and the benchmark now build their layers from every
+    cell.
+  - Golden hashes unchanged: no golden fixture hit a missed cell. Checks:
+    tsc and eslint clean, 872/872 unit.
+  - M5's Codex critique started before any code, as the goal requires.
+  - Repeated timing after the fix, 12 MP benchmark source → 100 st, 5 runs
+    after a warm-up: Crisp median 7.86 s (7.78–8.38 s), Standard 2.94 s. The
+    earlier session measured 8.37 s and 3.2 s, so the machine ran faster this
+    time; Crisp stays about 2.7× Standard.
+  - Next: commit, deploy, then M5.
 - 2026-09-14 — **M4 started ("continue m4"); identical-output rewrite done.**
   - Crisp boundary evidence reads samples into reused typed arrays, and each
     source row's OKLab values are computed once per job and shared by every
@@ -1264,10 +1280,12 @@ escalation-tier, not a routine refactor):
     decode fallback and no console errors.
   - PENDING APPROVAL: G-035 M4 check-in — the ≤ 8 s Crisp target is missed
     (median 8.4 s; 8.7–10.6 s on real photos) — milestone approval — logged
-    2026-09-14.
+    2026-09-14. Approved by the Owner 2026-09-14: "1 yes"; M4 is accepted at
+    8.4 s.
   - PENDING APPROVAL: fix the Crisp pre-filter's recall miss by evaluating
     every cell (output change, +0.3–1.1 s per job, D131) — changes Crisp
-    output — logged 2026-09-14.
+    output — logged 2026-09-14. Approved by the Owner 2026-09-14: "2 fix
+    please and move to m5"; M5 is approved to start after the fix.
 - 2026-09-14 — **M2 and M3 closed on the Owner's decisions.**
   - Owner, on the two pending approvals: "Pattern keeper is ok. Photo
     shrinking is questionable but certainly not for automatic work.

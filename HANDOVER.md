@@ -70,12 +70,10 @@ stitches the Pattern Keeper PDF takes 12.7 s and Export all 45 s, down from
 photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 
 **Known limitations**:
-- Crisp takes about 2.6× Standard's time on a 12 MP photo (median 8.4 s
-  against 3.2 s; 8.7–10.6 s on real photos), because nearly every cell still
-  gets the two-mode fit (D131). It falls back to
+- Crisp takes about 2.7× Standard's time on a 12 MP photo (medians 7.9–8.4 s
+  against 2.9–3.2 s across two sessions; 8.7–10.6 s on real photos), because
+  every cell gets the two-mode fit (D132). It falls back to
   Standard behavior for thin lines, junctions and gradual shading (D096).
-- Crisp's candidate pre-filter misses about 3 % of confident boundary cells
-  on real photos at 100 stitches, though D065 requires none (D131).
 - Browsers without OffscreenCanvas 2D in workers fall back to main-thread
   exports, which stall the tab between pages (D125).
 - The PDF has no bold face. Whether µ (which extracts as μ) matters in Pattern
@@ -127,8 +125,9 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
   itself is returned (D118).
 - **Crisp mode** (`lib/crisp/`): a frozen evidence layer (D065) feeds weighted
   quantization, admissible-label unary costs in ICM and cleanup, repair after
-  merges, and mode-aware finalization (D061–D072). Its sampling uses typed
-  arrays and converts each source row to OKLab once per job (G-035 M4).
+  merges, and mode-aware finalization (D061–D072). The layer evaluates every
+  cell (D132); its sampling uses typed arrays and converts each source row to
+  OKLab once per job (G-035 M4).
 - **Threads** (`lib/threads/`): `thread-brands.ts` is the registry. Its
   `matching` field is "direct" for DMC and Cosmo, or "dmc-equivalence" for
   Anchor. `brand-match.ts` does the snapping. Data provenance is in

@@ -5,11 +5,10 @@ import { luminance, rgbToOklab } from "../color/color";
 import { nameColors } from "../color/color-names";
 import {
   buildCrispEvidenceLayer,
-  candidateCellsFromPairEvidence,
+  allCellIndices,
   repairCrispAssignments,
   selectWeightedQuantizer,
   DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS,
-  DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD,
   type CrispEvidenceLayer,
   type CrispEvidenceLayerOptions,
 } from "../crisp/crisp-evidence-layer";
@@ -81,14 +80,14 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   const edgeMagnitude = computeEdgeMagnitude(imageData);
   const importance = computeCellImportance(imageData, edgeMagnitude, gridWidth, gridHeight);
 
-  // Needed by ICM, and by Crisp's candidate pre-filter before quantization even without `optimize` (D72).
+  // Needed by ICM. Crisp still computes it without `optimize`, as it did while it fed the removed pre-filter (D72, D132).
   const shouldOptimize = options.optimize ?? true;
   const pairEvidence: Float32Array | undefined = edgeMode === "crisp" || shouldOptimize ? computePairEdgeEvidence(imageData, gridWidth, gridHeight) : undefined;
 
   let evidenceLayer: CrispEvidenceLayer | undefined;
   if (edgeMode === "crisp") {
-    const candidates = candidateCellsFromPairEvidence(pairEvidence!, gridWidth, gridHeight, DEFAULT_PAIR_EVIDENCE_PREFILTER_THRESHOLD);
-    evidenceLayer = buildCrispEvidenceLayer(colorSource, gridWidth, gridHeight, candidates, options.crispEvidenceLayerOptions ?? DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS);
+    // Every cell is evaluated: no cheap pre-filter kept every confident cell on real photos (D132).
+    evidenceLayer = buildCrispEvidenceLayer(colorSource, gridWidth, gridHeight, allCellIndices(gridWidth, gridHeight), options.crispEvidenceLayerOptions ?? DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS);
   }
 
   // Every later stage reads the true cells, their OKLab, importance, pair
