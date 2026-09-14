@@ -2,7 +2,7 @@ import { useState, type RefObject } from "react";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { isReleasedEnhancementMode } from "@/lib/pipeline/enhance";
 import { runPatternJob } from "@/lib/pipeline/pattern-client";
-import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, type GenerationRecord, type PixelBuffer, type StitchPattern } from "@/lib/types";
+import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, type PixelBuffer, type StitchPattern } from "@/lib/types";
 import type { SourceImageMeta } from "./use-source-image";
 
 export function longerSideFor(options: Pick<WorkspaceOptions, "sizePreset" | "customSize">): number {
@@ -16,8 +16,6 @@ export interface GenerationInputs {
   sourceFileName: string | null;
   revisionRef: RefObject<number>;
   currentPattern: StitchPattern | null;
-  /** The temporary resolution comparison's cap (G-035 M3); null reads the full decoded photo. */
-  pixelsPerStitch: number | null;
   /** Receives the generated pattern; `isFirst` when there was no pattern before, so it becomes the undo baseline. */
   onGenerated: (pattern: StitchPattern, isFirst: boolean) => void;
 }
@@ -29,7 +27,7 @@ export function useGeneration(inputs: GenerationInputs) {
   const [error, setError] = useState<string | null>(null);
 
   async function generate() {
-    const { options, pixelBuffer, sourceMeta, sourceFileName, revisionRef, currentPattern, pixelsPerStitch, onGenerated } = inputs;
+    const { options, pixelBuffer, sourceMeta, sourceFileName, revisionRef, currentPattern, onGenerated } = inputs;
     const longerSideStitches = longerSideFor(options);
     if (!pixelBuffer) {
       setError("Upload an image first.");
@@ -48,7 +46,6 @@ export function useGeneration(inputs: GenerationInputs) {
     setIsProcessing(true);
     setProgress(0);
     try {
-      let generationRecord: GenerationRecord | undefined;
       const result = await runPatternJob({
         imageData: pixelBuffer,
         longerSideStitches,
@@ -58,25 +55,13 @@ export function useGeneration(inputs: GenerationInputs) {
         edgeMode: options.edgeMode,
         // Release eligibility is resolved at Generate time, so a preference for a withdrawn mode can't run it (D113).
         enhancementMode: isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off",
-        pixelsPerStitch,
         onProgress: setProgress,
-        onSourceInfo: ({ source, durationMs }) => {
-          generationRecord = {
-            sourceWidth: source.width,
-            sourceHeight: source.height,
-            requestedPixelsPerStitch: source.requestedPixelsPerStitch,
-            capped: source.capped,
-            reason: source.reason,
-            durationMs,
-          };
-        },
       });
       if (revisionRef.current !== myRevision) return; // a different photo was chosen meanwhile
       const naturalLonger = sourceMeta ? Math.max(sourceMeta.naturalWidth, sourceMeta.naturalHeight) : null;
       onGenerated(
         {
           ...result,
-          generation: generationRecord,
           name: currentPattern?.name ?? sourceFileName?.replace(/\.[^.]+$/, "") ?? "cross-stitch-pattern",
           sourceImage:
             sourceMeta && naturalLonger

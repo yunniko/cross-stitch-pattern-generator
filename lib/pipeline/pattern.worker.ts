@@ -1,6 +1,5 @@
 import type { EnhancementModeId } from "./enhance";
-import { generateFromPhoto, type GenerationSourceInfo } from "./generate-from-photo";
-import type { EdgeMode, PaletteMode } from "./pattern";
+import { buildPattern, type EdgeMode, type PaletteMode } from "./pattern";
 import { kMeansQuantizer, plainKMeansQuantizer } from "./quantize";
 import type { PixelBuffer, StitchPattern } from "../types";
 
@@ -35,15 +34,13 @@ export interface StartMessage {
   paletteMode?: PaletteMode;
   edgeMode?: EdgeMode;
   enhancementMode?: EnhancementModeId;
-  /** Cap the photo to this many source pixels per stitch before generating (G-035 M3); absent or null reads the full photo. */
-  pixelsPerStitch?: number | null;
 }
 
 export type WorkerRequest = StartMessage;
 
 export type WorkerResponse =
   | { type: "progress"; jobId: number; fraction: number }
-  | { type: "done"; jobId: number; pattern: StitchPattern; source: GenerationSourceInfo; durationMs: number }
+  | { type: "done"; jobId: number; pattern: StitchPattern }
   | { type: "error"; jobId: number; message: string };
 
 // TypeScript's "dom" and "webworker" libs can't coexist in one tsconfig
@@ -61,18 +58,16 @@ self.onmessage = (event) => {
   if (msg.type !== "start") return;
 
   try {
-    const start = performance.now();
-    const { pattern, source } = generateFromPhoto(msg.imageData, {
+    const pattern = buildPattern(msg.imageData, {
       longerSideStitches: msg.longerSideStitches,
       colorCount: msg.colorCount,
       quantizer: msg.generationMode === "original" ? plainKMeansQuantizer : kMeansQuantizer,
       paletteMode: msg.paletteMode,
       edgeMode: msg.edgeMode,
       enhancementMode: msg.enhancementMode,
-      pixelsPerStitch: msg.pixelsPerStitch,
       onProgress: (fraction) => self.postMessage({ type: "progress", jobId: msg.jobId, fraction }),
     });
-    self.postMessage({ type: "done", jobId: msg.jobId, pattern, source, durationMs: performance.now() - start });
+    self.postMessage({ type: "done", jobId: msg.jobId, pattern });
   } catch (err) {
     self.postMessage({ type: "error", jobId: msg.jobId, message: err instanceof Error ? err.message : "Unknown error" });
   }

@@ -1,6 +1,5 @@
 import type { PixelBuffer, StitchPattern } from "../types";
 import type { EnhancementModeId } from "./enhance";
-import type { GenerationSourceInfo } from "./generate-from-photo";
 import type { EdgeMode, GenerationMode, PaletteMode, WorkerRequest, WorkerResponse } from "./pattern.worker";
 
 export interface RunPatternJobOptions {
@@ -11,11 +10,7 @@ export interface RunPatternJobOptions {
   paletteMode?: PaletteMode;
   edgeMode?: EdgeMode;
   enhancementMode?: EnhancementModeId;
-  /** See `StartMessage.pixelsPerStitch` (G-035 M3). */
-  pixelsPerStitch?: number | null;
   onProgress?: (fraction: number) => void;
-  /** Receives what the job actually read and how long it took, just before the pattern resolves. */
-  onSourceInfo?: (info: { source: GenerationSourceInfo; durationMs: number }) => void;
 }
 
 let worker: Worker | null = null;
@@ -95,7 +90,6 @@ export function runPatternJob(options: RunPatternJobOptions): Promise<StitchPatt
           options.onProgress?.(msg.fraction);
         } else if (msg.type === "done") {
           settle();
-          options.onSourceInfo?.({ source: msg.source, durationMs: msg.durationMs });
           resolve(msg.pattern);
         } else if (msg.type === "error") {
           settle();
@@ -119,7 +113,6 @@ export function runPatternJob(options: RunPatternJobOptions): Promise<StitchPatt
         paletteMode: options.paletteMode,
         edgeMode: options.edgeMode,
         enhancementMode: options.enhancementMode,
-        pixelsPerStitch: options.pixelsPerStitch,
       };
       w.postMessage(request);
     } catch (error) {

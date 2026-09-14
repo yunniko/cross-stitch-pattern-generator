@@ -8,8 +8,8 @@ against full-resolution truth. The measurement scripts were session scratch file
 
 - The cap works mechanically and is fast: at 100 stitches, 6× (8 px per stitch) to 12× (2 px) faster in Standard,
   60–119× in Crisp.
-- It is not quality-neutral. No factor, and no pair-evidence setting tried, passes the provisional gates. Ordinary
-  generation stays at Full; the cap is reachable only through the `?compare-resolution` switch.
+- It is not quality-neutral. No factor, and no pair-evidence setting tried, passes the provisional gates. The Owner
+  then cancelled the cap, and it and its comparison switch were removed (D130).
 - Cause: pair-edge evidence is computed per source pixel with constants calibrated on full photos (D44). On a
   shrunk copy it saturates, so the smoothing optimizer stops penalising most boundaries and stray stitches rise.
 - Full is not a consistent reference either. Its smoothing depends on each photo's native resolution, so a single

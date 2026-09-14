@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type MouseEvent, type PointerEvent, type RefObject } from "react";
-import { filledStitchCount, formatStitchCount, type GenerationRecord, type StitchPattern } from "@/lib/types";
+import { filledStitchCount, formatStitchCount, type StitchPattern } from "@/lib/types";
 import { isViewOnlyMode, type Tool, type ViewMode } from "../editor-types";
 import type { SourceImageMeta } from "../hooks/use-source-image";
 import { PillButton } from "./ui";
@@ -14,8 +14,6 @@ export interface ViewBarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetZoom: () => void;
-  /** Shows what the current result's generation read and how long it took (temporary resolution comparison, G-035 M3). */
-  showGenerationDetails?: boolean;
 }
 
 const ZOOM_BUTTON = "rounded border border-zinc-300 px-2 py-0.5 hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]";
@@ -29,18 +27,7 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
 };
 
 /** The strip above the Image window: pattern size, view modes, canvas color and zoom. */
-/** One line describing a result's generation, for the temporary resolution comparison (G-035 M3). */
-function describeGeneration(record: GenerationRecord): string {
-  const size = `${record.sourceWidth}×${record.sourceHeight}`;
-  // Worker time: preparing and generating in the pattern worker, not decode, transfer or drawing.
-  const seconds = `worker time ${(record.durationMs / 1000).toFixed(1)} s`;
-  if (record.requestedPixelsPerStitch === null) return `Read the full decoded photo, ${size}; ${seconds}`;
-  if (record.capped) return `Read ${size} (${record.requestedPixelsPerStitch} px per stitch); ${seconds}`;
-  const why = record.reason === "transparent" ? "the photo has transparency" : "the photo isn't larger than that";
-  return `Asked for ${record.requestedPixelsPerStitch} px per stitch, but ${why}; read the full ${size}; ${seconds}`;
-}
-
-export function ViewBar({ pattern, viewMode, onViewModeChange, canvasColor, onCanvasColorChange, zoomLevel, onZoomIn, onZoomOut, onResetZoom, showGenerationDetails }: ViewBarProps) {
+export function ViewBar({ pattern, viewMode, onViewModeChange, canvasColor, onCanvasColorChange, zoomLevel, onZoomIn, onZoomOut, onResetZoom }: ViewBarProps) {
   const noPhotoTitle = pattern?.sourceImage ? undefined : "No source photo is associated with this pattern";
   const modes: Array<{ mode: ViewMode; label: string; needsPhoto: boolean }> = [
     { mode: "color", label: VIEW_MODE_LABELS.color, needsPhoto: false },
@@ -53,11 +40,6 @@ export function ViewBar({ pattern, viewMode, onViewModeChange, canvasColor, onCa
   return (
     <div className="flex items-center gap-3 border-b border-zinc-300 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
       <span className="text-sm font-medium">{pattern ? `${pattern.width} × ${pattern.height}, ${formatStitchCount(filledStitchCount(pattern))}, ${pattern.palette.length} colors` : "No pattern yet"}</span>
-      {showGenerationDetails && pattern?.generation && (
-        <span className="text-xs text-zinc-500" data-testid="generation-details">
-          {describeGeneration(pattern.generation)}
-        </span>
-      )}
       {pattern && (
         <div className="ml-auto flex items-center gap-3 text-sm">
           {modes.map(({ mode, label, needsPhoto }) => {

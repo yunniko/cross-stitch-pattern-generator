@@ -80,19 +80,3 @@ export function downsampleToGrid(imageData: PixelBuffer, gridWidth: number, grid
 
   return { data: out, width: gridWidth, height: gridHeight };
 }
-
-/**
- * `downsampleToGrid` at any size, widened to an opaque RGBA photo: the enhancement preview and the resolution cap read
- * the result as a smaller copy of the photo rather than as stitch cells.
- */
-export function downsampleToOpaqueRgba(source: PixelBuffer, width: number, height: number): PixelBuffer {
-  const cells = downsampleToGrid(source, width, height);
-  const data = new Uint8ClampedArray(width * height * 4);
-  for (let i = 0; i < width * height; i++) {
-    data[i * 4] = cells.data[i * 3];
-    data[i * 4 + 1] = cells.data[i * 3 + 1];
-    data[i * 4 + 2] = cells.data[i * 3 + 2];
-    data[i * 4 + 3] = 255;
-  }
-  return { data, width, height };
-}

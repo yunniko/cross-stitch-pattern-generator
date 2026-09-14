@@ -1080,7 +1080,7 @@ escalation-tier, not a routine refactor):
     Crisp's sample collection.
   - Gate: golden hashes unchanged; before/after numbers in the progress
     log. Deliverable: deployable faster generation with identical output.
-- [ ] **M2 — Exports without freezes.**
+- [x] **M2 — Exports without freezes.**
   - PDF adapter: omit `opacity` when it's 1 (measured 1.8× faster drawing
     and half the file size). Cache parsed CSS colors, font strings and
     glyph widths.
@@ -1098,7 +1098,8 @@ escalation-tier, not a routine refactor):
   - A new decision file supersedes D079.
   - Gate: export parity (criterion 3), Pattern Keeper import re-confirmed,
     and a long-task e2e check at 1000 stitches.
-- [ ] **M3 — Source resolution cap and off-thread photo decode.**
+- [x] **M3 — Source resolution cap and off-thread photo decode.** Decode done
+  (D128); the cap was cancelled by the Owner (D130).
   - Rule (Owner, 2026-09-14): the photo may be shrunk, but stays at least
     twice the stitch grid on each side. The default is exactly 2 pixels
     per stitch, so a 100×75 pattern works from a 200×150 photo, sized so
@@ -1191,6 +1192,22 @@ escalation-tier, not a routine refactor):
 - **Answered 2026-09-14:** deploy after each milestone.
 
 **Progress log** (newest first):
+- 2026-09-14 — **M2 and M3 closed on the Owner's decisions.**
+  - Owner, on the two pending approvals: "Pattern keeper is ok. Photo
+    shrinking is questionable but certainly not for automatic work.
+    Probably cancel completely." So the M2 Pattern Keeper import check is
+    approved, and the M3 cap is cancelled.
+  - Removed: the cap, `generateFromPhoto`, the `?compare-resolution`
+    switch, the transient generation record and `pairEvidenceOptions`; the
+    affected files are back to their pre-M3 code (7e4dd73). Kept: the
+    worker photo decode (D128) and the benchmark's by-path upload. D130
+    supersedes D127 and D129; the quality review stays as evidence.
+  - Criteria affected: the browser generate target (≤ 1.5 s after the cap)
+    is unreachable without the cap; measured 3.0 s at 100 stitches. The
+    photo-load target is met without it (no main-thread task over 50 ms).
+    Criterion 4 no longer applies. M6's "switch removed" check is done.
+  - Next: verification and deploy of the removal, then the Owner's approval
+    to start M4 (Crisp evidence layer).
 - 2026-09-14 — **M3 in progress: cap mechanism and comparison switch built;
   real photos show the cap isn't quality-neutral yet.**
   - Codex round 1 (read-only) critique of the design. Accepted:
