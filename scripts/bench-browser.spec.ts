@@ -1,7 +1,7 @@
 import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import { test, type Page } from "@playwright/test";
 
 /**
  * Browser timing benchmark: `npm run bench:browser` (G-035 criterion 1). What a user waits for, and how long the main
@@ -51,6 +51,34 @@ async function measure(page: Page, rows: Row[], step: string, fn: () => Promise<
   await page.waitForTimeout(300); // lets a trailing long task be reported
   const tasks = await takeLongTasks(page);
   rows.push({ step, ms, longTaskMs: tasks.reduce((s, t) => s + t, 0), maxLongTaskMs: tasks.length ? Math.max(...tasks) : 0, note });
+}
+
+// Waits are polled in the page every 20-50 ms. Playwright's `expect` retries on a growing interval (up to about 1 s),
+// which rounded the investigation's photo-load and generation times to that poll.
+const STATS_PATTERN = /\d+ × \d+, [\d,]+ stitches, \d+ colors/.source;
+
+async function waitForBodyText(page: Page, pattern: string, timeout: number) {
+  await page.waitForFunction((source) => new RegExp(source).test(document.body.textContent ?? ""), pattern, { polling: 50, timeout });
+}
+
+/** Waits for the Generate/Regenerate button to go busy and then become usable again, polled every 20 ms. */
+async function waitForGenerationCycle(page: Page, timeout: number) {
+  await page.waitForFunction(
+    () => {
+      const w = window as unknown as { __sawBusy?: boolean };
+      const button = Array.from(document.querySelectorAll("button")).find((b) => /^(Generat|Regenerat)/.test(b.textContent ?? ""));
+      if (!button) return false;
+      const busy = button.disabled || /…/.test(button.textContent ?? "");
+      if (busy) w.__sawBusy = true;
+      if (w.__sawBusy && !busy) {
+        w.__sawBusy = false;
+        return true;
+      }
+      return false;
+    },
+    undefined,
+    { polling: 20, timeout }
+  );
 }
 
 async function makeSyntheticJpeg(page: Page): Promise<Buffer> {
@@ -116,7 +144,7 @@ for (const config of CONFIGS) {
 
     await measure(page, rows, "photo load (file → decoded buffer)", async () => {
       await page.getByLabel("Image").setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer: jpeg });
-      await expect(page.getByText("Loaded: photo.jpg")).toBeVisible({ timeout: 60_000 });
+      await waitForBodyText(page, /Loaded: photo\.jpg/.source, 60_000);
     });
 
     if ("radio" in config.size) await page.getByRole("radio", { name: config.size.radio }).check();
@@ -126,13 +154,14 @@ for (const config of CONFIGS) {
     const stats = page.getByText(/\d+ × \d+, [\d,]+ stitches, \d+ colors/);
     await measure(page, rows, "generate (click → chart shown)", async () => {
       await page.getByRole("button", { name: "Generate pattern" }).click();
-      await expect(stats).toBeVisible({ timeout: 600_000 });
+      await waitForGenerationCycle(page, 600_000);
+      await waitForBodyText(page, STATS_PATTERN, 60_000);
       return (await stats.textContent()) ?? undefined;
     });
 
     await measure(page, rows, "regenerate same settings", async () => {
       await page.getByRole("button", { name: "Regenerate" }).click();
-      await expect(page.getByRole("button", { name: "Regenerate" })).toBeEnabled({ timeout: 600_000 });
+      await waitForGenerationCycle(page, 600_000);
     });
 
     const exportSelect = page.getByLabel("Export", { exact: true });
@@ -162,7 +191,7 @@ for (const config of CONFIGS) {
         const chooser = page.waitForEvent("filechooser");
         await page.getByRole("button", { name: "Open pattern…" }).click();
         await (await chooser).setFiles(editablePath!);
-        await expect(stats).toBeVisible({ timeout: 120_000 });
+        await waitForBodyText(page, STATS_PATTERN, 120_000);
       });
     }
 

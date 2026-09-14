@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-14 at bb6bce9 plus the zoom-to-cursor commit that carries this line
+Last verified: 2026-09-14 at 71a23af plus the handover commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,8 +9,9 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs `master` as deployed on 2026-09-13 (last deploy-log
-row). G-032 (photo enhancement) is done and signed off: every mode is offered
+**Production** runs `master` as deployed on 2026-09-14 (last deploy-log
+row). G-035 (performance) is active: M1 is deployed, and M2 (exports without
+freezes) awaits Owner approval. G-032 (photo enhancement) is done and signed off: every mode is offered
 (D118). G-028 (OXS import and export) is done and signed off (D119). G-033
 (swatch-aware color editor) is deployed and awaits Owner sign-off.
 
@@ -49,23 +50,28 @@ row). G-032 (photo enhancement) is done and signed off: every mode is offered
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 850/850 Vitest
-tests; 68/68 Playwright tests on a fresh production build. CI
+**Checks run 2026-09-14**: `tsc --noEmit` and eslint clean; 854/854 Vitest
+tests; 68/68 Playwright tests on a fresh production build of `db7b749`. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
 
-**Performance** at 1500×1000 → 1000 stitches / 64 colors: Standard 14.6 s,
-Crisp 27.4 s, Standard + DMC 18.5 s. Details in
-`docs/reviews/2026-09-13-pipeline-performance.md`. Enhancing a 4000×3000
-photo takes 1.58–1.93 s by mode in `npm run bench` (G-032 M1 progress log),
-above the goal's 1.5 s target.
+**Performance** (`npm run bench`, Owner's machine, 2026-09-14 after G-035
+M1): a 12 MP photo at 100 stitches / 16 colors takes 2.8 s in Standard and
+19.7 s in Crisp, down from 7.8 s and 38.6 s. At 1500×1000 → 1000 stitches / 64
+colors, Standard takes 12.5 s and Crisp 22.0 s. In the browser
+(`npm run bench:browser`) a 12 MP photo generates in about 3.5 s at 100 and
+250 stitches. The Pattern Keeper PDF at 1000 stitches takes 86 s,
+including a 74 s page freeze. Baseline and causes are in
+`docs/reviews/2026-09-14-performance-investigation.md`. Enhancing a 4000×3000
+photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 
 **Known limitations**:
-- Crisp is about 2× slower than Standard at the largest size, and falls back to
+- Crisp takes about 7× Standard's time on a 12 MP photo, because its
+  candidate pre-filter passes almost every cell (G-035 M4). It falls back to
   Standard behavior for thin lines, junctions and gradual shading (D096).
-- Export all and A4 exports run on the main thread and stall the tab while
-  rendering each step (D079).
+- Export all, A4, PNG and PDF exports run on the main thread and stall the
+  tab while rendering (D079). G-035 M2 moves them to a worker.
 - The PDF has no bold face. Whether µ (which extracts as μ) matters in Pattern
   Keeper is unconfirmed (D074, D097).
 - A double-click fill leaves 3 undo steps (D086). Highlight does nothing in
@@ -131,7 +137,9 @@ above the goal's 1.5 s target.
 - **Tests**: unit specs in `tests/unit/`. `golden-hashes.spec.ts` pins exact
   `buildPattern` output for 18 configurations (D107), and
   `m3-equivalence.spec.ts` compares the optimizer with a verbatim pre-M3 copy.
-  E2E specs are in `tests/e2e/`. `npm run bench` runs `scripts/bench.ts`.
+  E2E specs are in `tests/e2e/`. `npm run bench` runs `scripts/bench.ts`; `npm run bench:browser` runs
+  `scripts/bench-browser.spec.ts` against a production build and writes to the
+  OS temp folder.
 - **Deploy**: `Dockerfile` (standalone build) and `docker-compose.yml`
   (profile `app`, `127.0.0.1:30150`). Recipe and shared-host rules are in
   `COMPANY/INFRASTRUCTURE_DEPLOY.md`; verification per D027.
@@ -185,6 +193,8 @@ above the goal's 1.5 s target.
 
 ## Next steps and open questions
 
+- **G-035 M1 is done and deployed; M2 (exports without freezes) awaits Owner
+  approval.** Targets and measurements are in the G-035 entry in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is
@@ -201,8 +211,7 @@ above the goal's 1.5 s target.
   real-photo calibration.
 - G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`);
-  gaps from `docs/reviews/2026-09-12-competitive-analysis.md`; moving exports
-  into a worker if the tab stall bothers users.
+  gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log
 
@@ -252,6 +261,7 @@ above the goal's 1.5 s target.
 | 2026-09-13 | ca8d883 | G-033 M1: palette colors remember their thread swatch, format 7 (D122) | Only this container restarted; 7 sites 200; live: a DMC pattern's editable export is format 7, locked to DMC, with a matching DMC source on all 16 colors; no console errors |
 | 2026-09-13 | 5ead992 | G-033 M2–M3: swatch-aware color editor with Okhsl comparison (D123) | Only this container restarted; 7 sites 200; live: a DMC color opened with one marked swatch in view, hover read "DMC 3328 - Salmon - Dark: 7% lighter, 10% more saturated", a pick stayed open, Escape restored the color; no console errors |
 | 2026-09-14 | 35b9d16 | Zoom keeps the stitch under the cursor in place (D124) | Only this container restarted; 7 sites 200; live: wheel zoom 196%→274%→384%→274% kept the point under the cursor within 0.4 px (one stitch 38–54 px); no console errors |
+| 2026-09-14 | 71a23af | G-035 M1: sRGB lookup table and allocation-free OKLab conversion; 12 MP bench rows; bench:browser | Only this container restarted; 20 of 20 sites 200; live: a 12 MP photo generated at 100 st in 3.5 s and at 250 st in 3.4 s; no console errors |
 
 ## Decisions
 

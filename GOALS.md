@@ -1069,7 +1069,7 @@ escalation-tier, not a routine refactor):
   - Standard OPERATIONS.md check-in at every milestone boundary.
 
 **Milestones:**
-- [ ] **M1 — Repeatable benchmarks and identical-output pixel fixes.**
+- [x] **M1 — Repeatable benchmarks and identical-output pixel fixes.**
   - Commit the benchmark additions from criterion 1.
   - Replace `srgbToLinear`'s per-call `Math.pow` with a 256-entry table of
     the same doubles, used everywhere it's called: downsampling,
@@ -1191,6 +1191,35 @@ escalation-tier, not a routine refactor):
 - **Answered 2026-09-14:** deploy after each milestone.
 
 **Progress log** (newest first):
+- 2026-09-14 — **M1 done and deployed (`71a23af`); M2 awaits Owner approval.**
+  - Benchmarks (`b540179`): `npm run bench` gained a 12 MP / 100-stitch
+    configuration and Crisp stage rows. `npm run bench:browser` runs the
+    browser timing script against a production build; it is not in CI.
+    Its waits now poll every 20–50 ms: the investigation's photo-load and
+    generation times had been rounded by `expect`'s retry interval, while
+    export times and freezes were exact.
+  - Change (`db7b749`): a 256-entry sRGB table holding the formula's exact
+    doubles, and OKLab conversion without temporary arrays in pair-edge
+    evidence and Crisp sampling.
+  - Verified: golden hashes unchanged; 854/854 unit tests, including a new
+    `tests/unit/srgb-lookup.spec.ts` that compares bit for bit with the old
+    code; 68/68 e2e on a production build; `tsc` and eslint clean.
+
+    | `npm run bench` | Before (`b540179`) | After (`db7b749`) | Target |
+    |---|---:|---:|---:|
+    | 12 MP → 100 st / 16 col, Standard | 7.8 s | 2.8 s | ≤ 4.5 s |
+    | 12 MP → 100 st / 16 col, Crisp | 38.6 s | 19.7 s | ≤ 25 s |
+    | 1.2 MP → 300 st / 24 col, Standard / Crisp | 1.62 / 5.16 s | 1.17 / 2.74 s | — |
+    | 1.5 MP → 1000 st / 64 col, Standard / Crisp | 13.4 / 25.3 s | 12.5 / 22.0 s | M5 |
+
+  - Browser (`npm run bench:browser`, before the polling fix): a 12 MP photo
+    generated in about 3.5 s at 100 and 250 stitches, down from about 5.0 s.
+    Exports were unchanged; the 1000-stitch PDF took 86 s with a
+    74 s freeze.
+  - Deploy: only this container restarted; 20 of 20 sites returned 200; live,
+    a 12 MP photo generated at 100 stitches in 3.5 s and at 250 in
+    3.4 s, with no console errors.
+  - Next: M2, exports without freezes.
 - 2026-09-14 — **Started on the Owner's direction** ("deploy after each
   milestone, start G-035"). Each verified milestone is deployed, then the
   standard check-in waits for approval before the next one. Tree clean at
