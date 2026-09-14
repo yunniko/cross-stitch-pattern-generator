@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-13 at ca8d883 plus the G-033 M2–M3 commit that carries this line
+Last verified: 2026-09-14 at bb6bce9 plus the zoom-to-cursor commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -28,6 +28,8 @@ row). G-032 (photo enhancement) is done and signed off: every mode is offered
   shows an Okhsl comparison (D123); picks apply at once and the editor stays
   open, Full range drags are one undo step, Done keeps and Cancel or Escape
   restores, and a click outside closes it while still acting.
+- Wheel and Zoom-tool zoom keep the stitch under the cursor in place; the
+  zoom buttons keep the view's centre (D124).
 - Five view modes (keys 1–5) and a view-only canvas color. Shortcuts: Ctrl+Z,
   Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, and Escape to merge a selection.
 - Exports: editable JSON (format version 7, embeds the source photo and each
@@ -48,7 +50,7 @@ row). G-032 (photo enhancement) is done and signed off: every mode is offered
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
 **Checks run 2026-09-13**: `tsc --noEmit` and eslint clean; 850/850 Vitest
-tests; 67/67 Playwright tests on a fresh production build. CI
+tests; 68/68 Playwright tests on a fresh production build. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.

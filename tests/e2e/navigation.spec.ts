@@ -113,39 +113,60 @@ test("zoomed-in content can be scrolled all the way to its true top-left corner"
   expect(canvasBox.x).toBeGreaterThanOrEqual(scrollerBox.x);
 });
 
-test("wheel-zoom doesn't also trigger the browser's native scroll (G-012)", async ({ page }) => {
-  await generateSmallPattern(page);
+/** Where a screen position falls on the Image window's canvas, as fractions of its box, plus one stitch's size on screen. */
+async function canvasPointAt(page: import("@playwright/test").Page, x: number, y: number) {
+  const box = await page.getByRole("main").locator("canvas").boundingBox();
+  if (!box) throw new Error("canvas not visible");
+  // The Small preset gives this landscape fixture 50 stitches across.
+  return { fx: (x - box.x) / box.width, fy: (y - box.y) / box.height, stitchPx: box.width / 50 };
+}
 
-  // Zoom in and scroll to a mid-position first, so a native scroll (if the
-  // fix regressed) would actually move the scroll position instead of
-  // trivially no-op'ing against an already-fits-in-view canvas.
+/** Zooms in two steps and scrolls into the chart, so there is room to scroll both ways and to zoom without hitting the limits. */
+async function zoomedAndScrolled(page: import("@playwright/test").Page) {
   const zoomIn = page.getByRole("button", { name: "Zoom in" });
-  for (let i = 0; i < 4; i++) await zoomIn.click();
+  for (let i = 0; i < 2; i++) await zoomIn.click();
   const scroller = page.locator("div.overflow-auto").first();
   await scroller.evaluate((el) => {
     el.scrollTop = 100;
     el.scrollLeft = 100;
   });
+  const view = await scroller.boundingBox();
+  if (!view) throw new Error("scroller not visible");
+  return { x: view.x + view.width * 0.35, y: view.y + view.height * 0.4 };
+}
 
+test("wheel zoom keeps the stitch under the cursor in place, zooming in and out (D124)", async ({ page }) => {
+  await generateSmallPattern(page);
+  const { x, y } = await zoomedAndScrolled(page);
   const zoomReadout = page.getByRole("button", { name: "Reset zoom to 100%" });
-  const zoomBefore = await zoomReadout.textContent();
-  const scrollBefore = await scroller.evaluate((el) => ({ top: el.scrollTop, left: el.scrollLeft }));
-  const scrollerBox = await scroller.boundingBox();
-  if (!scrollerBox) throw new Error("scroller not visible");
-  await page.mouse.move(scrollerBox.x + scrollerBox.width / 2, scrollerBox.y + scrollerBox.height / 2);
-  // Real, trusted wheel input (unlike React's own onWheel, which is
-  // attached passive by default -- see facebook/react#14856 -- a native,
-  // explicitly non-passive listener is required for preventDefault() to
-  // actually suppress the browser's default scroll here).
-  await page.mouse.wheel(0, -100);
-  await page.waitForTimeout(100);
+  await page.mouse.move(x, y);
 
-  const zoomAfter = await zoomReadout.textContent();
-  const scrollAfter = await scroller.evaluate((el) => ({ top: el.scrollTop, left: el.scrollLeft }));
-  // The wheel actually zoomed (not a no-op)...
-  expect(zoomAfter).not.toBe(zoomBefore);
-  // ...and did NOT also natively scroll the container.
-  expect(scrollAfter).toEqual(scrollBefore);
+  for (const deltaY of [-100, -100, 100]) {
+    const before = await canvasPointAt(page, x, y);
+    const zoomBefore = (await zoomReadout.textContent())!;
+    // Real, trusted wheel input: a native non-passive listener must stop the browser's own scroll (facebook/react#14856).
+    await page.mouse.wheel(0, deltaY);
+    await expect(zoomReadout).not.toHaveText(zoomBefore);
+    const after = await canvasPointAt(page, x, y);
+    // The same stitch is still under the cursor, within one stitch: no drift from resizing, and no native scroll.
+    expect(Math.abs(after.fx - before.fx) * after.stitchPx * 50).toBeLessThan(after.stitchPx);
+    expect(Math.abs(after.fy - before.fy) * (await page.getByRole("main").locator("canvas").boundingBox())!.height).toBeLessThan(after.stitchPx);
+  }
+});
+
+test("the Zoom tool zooms in at the clicked stitch (D124)", async ({ page }) => {
+  await generateSmallPattern(page);
+  const { x, y } = await zoomedAndScrolled(page);
+  const zoomReadout = page.getByRole("button", { name: "Reset zoom to 100%" });
+  await page.getByRole("button", { name: "Zoom", exact: true }).click();
+
+  const before = await canvasPointAt(page, x, y);
+  const zoomBefore = (await zoomReadout.textContent())!;
+  await page.mouse.click(x, y);
+  await expect(zoomReadout).not.toHaveText(zoomBefore);
+  const after = await canvasPointAt(page, x, y);
+  expect(Math.abs(after.fx - before.fx) * after.stitchPx * 50).toBeLessThan(after.stitchPx);
+  expect(Math.abs(after.fy - before.fy) * (await page.getByRole("main").locator("canvas").boundingBox())!.height).toBeLessThan(after.stitchPx);
 });
 
 test("every view mode shares one zoom and scroll position, and the realistic view is drawn (D121)", async ({ page }) => {

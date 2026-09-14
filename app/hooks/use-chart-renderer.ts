@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState, type RefObject } from "react";
 import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
 import { drawCell, drawChart, drawChartOutline, drawHighlightOverlay, renderNavigatorPixels, renderStitchPreviewToCanvas, type RenderMode } from "@/lib/export/render";
 import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
@@ -89,7 +89,8 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     [viewMode, cellSize, photo, realisticPreview, activeTool, highlightedColorIndices, selection, canvasColor, isSelectDragging]
   );
 
-  useEffect(() => {
+  // A layout effect, so the canvas has its new size before paint and before a zoom's anchor is applied (D124).
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !pattern) return;
     canvas.width = pattern.width * cellSize;

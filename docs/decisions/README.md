@@ -132,3 +132,4 @@ remain readable with git show.
 - D121 — Every view mode draws into one canvas at the same size, so zoom, scroll and pan are shared — active
 - D122 — Palette colours remember their thread swatch by brand and code; a brand lock means every colour is that brand's thread — active
 - D123 — The swatch comparison reports Okhsl lightness and saturation differences in percentage points — active
+- D124 — Zooming keeps the point under the cursor in place — active

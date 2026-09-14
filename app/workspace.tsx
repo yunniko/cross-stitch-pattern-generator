@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from "react";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
 import { fillCluster, mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from "@/lib/editor/pattern-edit";
 import { oxsImportNotice } from "@/lib/editor/oxs";
@@ -88,6 +88,11 @@ export default function Workspace() {
   useEffect(() => {
     rendererRef.current = renderer;
   });
+  // Declared after the renderer, whose layout effect resizes the canvas first: keeps a zoom's anchor point in place (D124).
+  const { zoomLevel, applyZoomAnchor } = panZoom;
+  useLayoutEffect(() => {
+    applyZoomAnchor();
+  }, [zoomLevel, applyZoomAnchor]);
 
   function resetDocumentView() {
     setDocumentId((id) => id + 1);
@@ -185,7 +190,7 @@ export default function Workspace() {
     // The realistic preview and the original photo only show the pattern: there, the canvas pans and zooms but never edits (D121).
     if (isViewOnlyMode(viewMode) && activeTool !== "pan" && activeTool !== "zoom") return;
     if (activeTool === "pan") panZoom.beginPan(e, canvas);
-    else if (activeTool === "zoom") panZoom.zoomBy(e.shiftKey || e.altKey ? 1 / ZOOM_STEP : ZOOM_STEP);
+    else if (activeTool === "zoom") panZoom.zoomBy(e.shiftKey || e.altKey ? 1 / ZOOM_STEP : ZOOM_STEP, { clientX: e.clientX, clientY: e.clientY });
     else if (activeTool === "move") move.onPointerDown(e, canvas);
     else if (activeTool === "select") select.onPointerDown(e, canvas);
     else if (activeTool === "fill") brush.fillAt(e, canvas);
