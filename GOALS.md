@@ -984,3 +984,182 @@ escalation-tier, not a routine refactor):
     available, about 30 containers, load average 1.3, and no
     `client_max_body_size` in any nginx config.
   No code written.
+
+### G-035 · Faster generation and freeze-free exports (2026-09-14 performance investigation) — DRAFT (2026-09-14)
+- **What:** Implement the ranked fixes from
+  `docs/reviews/2026-09-14-performance-investigation.md` (read it first;
+  its tables are the baseline every target below is measured against).
+  Generation from a typical phone photo gets several times faster, Crisp
+  stops taking 40+ seconds, and no export freezes the page.
+- **Why:** Owner request (2026-09-14). Measured today:
+  - generating from a 12 MP photo takes 5 s in the browser even at 100
+    stitches, and 90 % of that is reading every source pixel;
+  - one `Math.pow`-based function, `srgbToLinear`, takes about half of
+    all generation time;
+  - Crisp takes 42–60 s;
+  - the Pattern Keeper PDF at 1000 stitches takes 86 s, including a 72 s
+    page freeze, and Export all takes 122 s.
+  Faster jobs also cut the per-job server cost if G-034 goes ahead.
+
+**Output rules.** Each fix is one of two kinds, and the milestone says which:
+- **Identical output.** `tests/unit/fixtures/golden-hashes.json` stays
+  unchanged (D107), backed by an old-versus-new equivalence test where the
+  change rewrites an algorithm.
+- **Intended output change.** Allowed only with a decision file, measured
+  evidence on real photos, and the Owner's approval at the check-in. These
+  are: the PDF's bytes (M2), the source resolution cap (M3), and Crisp's
+  candidate pre-filter (M4).
+
+- **Acceptance criteria** (Owner's machine, committed benchmarks, compared
+  with the 2026-09-14 baseline):
+
+  | Measure | Baseline | Target |
+  |---|---:|---:|
+  | Node, Standard, 12 MP → 100 st / 16 col, identical output (M1) | 7.7 s | ≤ 4.5 s |
+  | Node, Crisp, 12 MP → 100 st / 16 col, identical output (M1) | 42.7 s | ≤ 25 s |
+  | Browser generate, 12 MP photo → 100 st, after the source cap (M3) | 5.0 s | ≤ 1.5 s |
+  | Node, Crisp, 12 MP → 100 st, after M4 | 42.7 s | ≤ 8 s |
+  | Node, 1.5 MP → 1000 st / 64 col Standard, identical output (M5) | 13.4 s | ≤ 8 s |
+  | Pattern Keeper PDF, 250 st (M2) | 5.0 s | ≤ 2.5 s |
+  | Pattern Keeper PDF, 1000 st (M2) | 86 s | ≤ 40 s |
+  | Export all, 1000 st (M2) | 122 s | ≤ 60 s |
+  | Longest main-thread task during any export (M2) | 72 s | ≤ 200 ms |
+  | Longest main-thread task during photo load (M3) | 0.4 s | ≤ 100 ms |
+
+  A target that proves unreachable is reported with the measured result
+  and the reason at that milestone's check-in, never silently lowered.
+  Further criteria:
+  1. `npm run bench` gains 12 MP source rows and Crisp stage rows. A new
+     opt-in `npm run bench:browser` runs the browser timing script from the
+     investigation against a production build. It is not part of CI, and
+     its output goes outside the project tree.
+  2. Every identical-output milestone leaves the golden hashes unchanged,
+     and the full unit and e2e suites pass.
+  3. Export parity (M2):
+     - worker-rendered PNG and A4 pages have identical dimensions to the
+       main-thread path, and any pixel difference is measured and logged;
+     - PDFs have identical page count, text and legend, read with
+       `pdfjs-dist`;
+     - the Owner re-confirms a real Pattern Keeper import (D097).
+  4. The source cap (M3) is chosen from real photos, with the measured
+     quality effect in a `docs/reviews/` document. The shape, confetti and
+     Crisp acceptance suites pass. The 250-stitch palette-count change seen
+     in the investigation (10 → 16 colors) is explained before adoption.
+  5. README performance notes, HANDOVER and decision files updated;
+     docs-lint passes; everything committed; each deploy approved by the
+     Owner and logged; Owner sign-off logged.
+- **Constraints:**
+  - Starts when this working tree has no other session's work in progress
+    (G-033 is still ACTIVE here). One session per working tree.
+  - No new runtime dependencies. Workers, `OffscreenCanvas` and
+    `createImageBitmap` are browser built-ins.
+  - Real calibration photos stay outside the repository, as in G-032.
+  - Codex critique exchange on the source cap rule (M3) and the ICM and
+    k-means rewrites (M5) before code is written; `/codex:review` on the
+    export worker (M2).
+  - Crisp pre-filter changes are measured against the full Crisp
+    acceptance matrix (D096).
+  - Shipping mid-goal is expected: each milestone may be deployed on its
+    own after Owner approval, following
+    `COMPANY/INFRASTRUCTURE_DEPLOY.md`.
+  - Compatible with G-034: the export worker's canvas-factory split and
+    the source cap are the same pieces a server move would need.
+  - Standard OPERATIONS.md check-in at every milestone boundary.
+
+**Milestones:**
+- [ ] **M1 — Repeatable benchmarks and identical-output pixel fixes.**
+  - Commit the benchmark additions from criterion 1.
+  - Replace `srgbToLinear`'s per-call `Math.pow` with a 256-entry table of
+    the same doubles, used everywhere it's called: downsampling,
+    `rgbToOklab`, pair-edge evidence and Crisp sampling. The investigation
+    showed all 256 entries bit-identical, and 36 M conversions going from
+    2,775 ms to 35 ms.
+  - Remove per-pixel tuple allocation in the pair-edge OKLab loop and
+    Crisp's sample collection.
+  - Gate: golden hashes unchanged; before/after numbers in the progress
+    log. Deliverable: deployable faster generation with identical output.
+- [ ] **M2 — Exports without freezes.**
+  - PDF adapter: omit `opacity` when it's 1 (measured 1.8× faster drawing
+    and half the file size). Cache parsed CSS colors, font strings and
+    glyph widths.
+  - Move PNG, realistic PNG, A4, PDF and Export all into an export worker.
+    Raster output uses `OffscreenCanvas`, and the stitch texture loads with
+    `createImageBitmap`. The drawing code takes an injected canvas factory
+    instead of calling `document.createElement`, so the on-screen chart
+    keeps working.
+  - If `OffscreenCanvas` is unavailable, fall back to today's
+    main-thread path.
+  - The worker reports page-by-page progress, for example "Page 12 of
+    180".
+  - Export all writes A4 pages straight into its own ZIP instead of
+    unzipping and re-zipping the A4 bundles.
+  - A new decision file supersedes D079.
+  - Gate: export parity (criterion 3), Pattern Keeper import re-confirmed,
+    and a long-task e2e check at 1000 stitches.
+- [ ] **M3 — Source resolution cap and off-thread photo decode.**
+  - Measure generation on real photos at several pixels-per-stitch caps
+    against the uncapped result:
+    - cells that differ;
+    - palette count;
+    - confetti ratio;
+    - the shape suites;
+    - the Crisp acceptance matrix.
+    Include cases where the cap must not hurt: fine lines, text, small
+    bright details.
+  - Codex critique of the chosen rule, then a decision file.
+  - The cap must shrink in linear light with area weighting, like
+    `downsampleToGrid` (D7). The browser's own resampler averages in
+    gamma space, so it is used only if its measured difference is
+    negligible.
+  - Decode and cap in a worker. The original file bytes stay the saved and
+    underlay copy, and changing the size re-derives the capped buffer from
+    them.
+  - Photo enhancement then runs on the capped buffer, consistent with D112.
+  - Gate: the Browser generate and photo-load targets; the quality review
+    document.
+- [ ] **M4 — Crisp evidence layer.**
+  - Identical output first: sample into typed arrays instead of objects,
+    and convert each source pixel to OKLab once per job instead of once
+    per overlapping cell. A row-band cache keeps memory bounded, so a full
+    12 MP Float64 plane (288 MB) is never held.
+  - Then recalibrate the candidate pre-filter, which passes 97 % of cells
+    on a noisy photo, against the Crisp acceptance matrix, with a decision
+    file.
+  - Gate: the Crisp target; the acceptance matrix passing.
+- [ ] **M5 — Large grids: ICM and k-means, identical output.**
+  - Codex critique first. Then:
+    - cache each cell's eight pair costs once per call;
+    - score only neighbour labels plus the best-color label, with the same
+      lowest-index tie rule;
+    - skip cells whose neighbours haven't changed since their last
+      evaluation;
+    - move `injectWorstFitClusters` and k-means++ seeding onto typed
+      arrays with incremental distances.
+  - Gate: an old-versus-new equivalence test in the style of
+    `tests/unit/m3-equivalence.spec.ts`, golden hashes unchanged, and the
+    large-grid target.
+- [ ] **M6 — Results and release.**
+  - Rerun every benchmark row.
+  - Write `docs/reviews/<date>-performance-results.md` with before and
+    after tables.
+  - Regenerate HANDOVER's performance section.
+  - Update G-023's entry and G-032's open 1.5 s enhancement target with the
+    new numbers.
+  - Final deploy after approval, with a production spot check on the VPS.
+
+**Open questions for the Owner (answer before M3):**
+- The source cap changes patterns slightly, by a fraction of a percent of
+  cells in the investigation. Is that acceptable in principle if the
+  quality review shows no visible loss? The alternative keeps output
+  identical, but typical generation then stays around 2–3 s instead of
+  about 1 s.
+- Can you supply real photos for the M3 and M4 measurements, such as
+  portraits, pets, landscapes and text? Otherwise public-domain photos are
+  used, with licences recorded.
+- Deploy after each milestone, or batch them? The plan assumes after each,
+  with approval.
+
+**Progress log** (newest first):
+- 2026-09-14 — Goal drafted at the Owner's request ("make a goal plan for
+  these optimizations"), from the measured findings in
+  `docs/reviews/2026-09-14-performance-investigation.md`. No code written.
