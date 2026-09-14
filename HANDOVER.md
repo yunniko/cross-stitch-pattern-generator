@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-14 at 71a23af plus the handover commit that carries this line
+Last verified: 2026-09-14 at 03b69c5 plus the handover commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -10,8 +10,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs `master` as deployed on 2026-09-14 (last deploy-log
-row). G-035 (performance) is active: M1 is deployed, and M2 (exports without
-freezes) awaits Owner approval. G-032 (photo enhancement) is done and signed off: every mode is offered
+row). G-035 (performance) is active: M2 (exports without freezes) is deployed
+and awaits the Owner's Pattern Keeper import check (D097). G-032 (photo enhancement) is done and signed off: every mode is offered
 (D118). G-028 (OXS import and export) is done and signed off (D119). G-033
 (swatch-aware color editor) is deployed and awaits Owner sign-off.
 
@@ -50,8 +50,8 @@ freezes) awaits Owner approval. G-032 (photo enhancement) is done and signed off
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-14**: `tsc --noEmit` and eslint clean; 854/854 Vitest
-tests; 68/68 Playwright tests on a fresh production build of `db7b749`. CI
+**Checks run 2026-09-14**: `tsc --noEmit` and eslint clean; 861/861 Vitest
+tests; 69/69 Playwright tests on a fresh production build of the `03b69c5` code. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
@@ -61,8 +61,9 @@ M1): a 12 MP photo at 100 stitches / 16 colors takes 2.8 s in Standard and
 19.7 s in Crisp, down from 7.8 s and 38.6 s. At 1500×1000 → 1000 stitches / 64
 colors, Standard takes 12.5 s and Crisp 22.0 s. In the browser
 (`npm run bench:browser`) a 12 MP photo generates in about 3.5 s at 100 and
-250 stitches. The Pattern Keeper PDF at 1000 stitches takes 86 s,
-including a 74 s page freeze. Baseline and causes are in
+250 stitches. Exports run in a worker and no longer block the page: at 1000
+stitches the Pattern Keeper PDF takes 12.7 s and Export all 45 s, down from
+86 s and 125 s (G-035 M2). Baseline and causes are in
 `docs/reviews/2026-09-14-performance-investigation.md`. Enhancing a 4000×3000
 photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 
@@ -70,8 +71,8 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 - Crisp takes about 7× Standard's time on a 12 MP photo, because its
   candidate pre-filter passes almost every cell (G-035 M4). It falls back to
   Standard behavior for thin lines, junctions and gradual shading (D096).
-- Export all, A4, PNG and PDF exports run on the main thread and stall the
-  tab while rendering (D079). G-035 M2 moves them to a worker.
+- Browsers without OffscreenCanvas 2D in workers fall back to main-thread
+  exports, which stall the tab between pages (D125).
 - The PDF has no bold face. Whether µ (which extracts as μ) matters in Pattern
   Keeper is unconfirmed (D074, D097).
 - A double-click fill leaves 3 undo steps (D086). Highlight does nothing in
@@ -126,7 +127,11 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 - **Export** (`lib/export/`): `render.ts` handles the chart layout budget and
   the realistic preview. A4 page drawing takes a `ChartDrawingContext`, so the
   same code draws PNG pages and PDF pages through `pdf-canvas-adapter.ts`
-  (D074). `export-all.ts` bundles the existing exporters.
+  (D074). `export-all.ts` bundles the existing exporters. `export-jobs.ts`
+  runs every export; `export-client.ts` sends all but the editable JSON to
+  `export.worker.ts`, which draws into `OffscreenCanvas` through
+  `canvas-backend.ts` (D125). The PDF adapter writes opaque drawing as direct
+  content-stream operators with one font resource per page (D126).
 - **Editor data** (`lib/editor/`): pure mutations in `pattern-edit.ts`,
   validating (de)serializer in `pattern-serialize.ts` (D099), IndexedDB store
   in `project-store.ts` (D100), and options in `workspace-storage.ts`. OXS
@@ -170,6 +175,11 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 - Every `cellPalette` mutation passes `EMPTY_CELL` (255) through untouched
   (D028).
 - View-only settings (canvas color) never reach an export call site (D087).
+- Export drawing creates canvases only through `lib/export/canvas-backend.ts`,
+  and code on the worker path never touches `document` or `Image` (D125).
+- The PDF adapter keeps opaque drawing on direct operators with one font
+  resource per page; `tests/unit/pdf-canvas-adapter-resources.spec.ts` guards
+  it (D126).
 - Crisp consumers use the shared admissible-cost functions or throw. Crisp
   with contour refinement throws (D063, D068).
 - ICM inner loops use no closures or array scans (D044).
@@ -193,8 +203,10 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **G-035 M1 is done and deployed; M2 (exports without freezes) awaits Owner
-  approval.** Targets and measurements are in the G-035 entry in `GOALS.md`.
+- **PENDING APPROVAL: G-035 M2 Pattern Keeper import check.** M2 is deployed.
+  The PDF's bytes changed (D126), so the Owner re-imports an exported PDF into
+  Pattern Keeper (D097). M3 (photo resolution cap and comparison switch) then
+  waits for approval. Measurements are in the G-035 entry in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is
@@ -262,6 +274,7 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 | 2026-09-13 | 5ead992 | G-033 M2–M3: swatch-aware color editor with Okhsl comparison (D123) | Only this container restarted; 7 sites 200; live: a DMC color opened with one marked swatch in view, hover read "DMC 3328 - Salmon - Dark: 7% lighter, 10% more saturated", a pick stayed open, Escape restored the color; no console errors |
 | 2026-09-14 | 35b9d16 | Zoom keeps the stitch under the cursor in place (D124) | Only this container restarted; 7 sites 200; live: wheel zoom 196%→274%→384%→274% kept the point under the cursor within 0.4 px (one stitch 38–54 px); no console errors |
 | 2026-09-14 | 71a23af | G-035 M1: sRGB lookup table and allocation-free OKLab conversion; 12 MP bench rows; bench:browser | Only this container restarted; 20 of 20 sites 200; live: a 12 MP photo generated at 100 st in 3.5 s and at 250 st in 3.4 s; no console errors |
+| 2026-09-14 | 03b69c5 | G-035 M2: exports in a worker with page progress; direct PDF operators; OXS in the worker (D125, D126) | Only this container restarted; 20 of 20 sites 200; live: PNG, PDF, A4, OXS and Export all downloaded with 0 ms main-thread tasks, Export all 3.1 s; a 12 MP photo generated at 100 st in 3.5 s and at 250 st in 4.0 s; no console errors |
 
 ## Decisions
 

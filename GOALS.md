@@ -1191,6 +1191,41 @@ escalation-tier, not a routine refactor):
 - **Answered 2026-09-14:** deploy after each milestone.
 
 **Progress log** (newest first):
+- 2026-09-14 — **M2 deployed (`03b69c5`). M2 is done once the Owner confirms a
+  Pattern Keeper import of a new PDF (D097); M3 then awaits approval.**
+  - Change: PNG, realistic PNG, A4, Pattern Keeper PDF, OXS and Export all run
+    in an export worker on OffscreenCanvas, with page progress in the top bar
+    and a main-thread fallback (D125, supersedes D079). The PDF adapter omits
+    opacity for opaque colors and pushes content-stream operators directly,
+    with one font resource per page and cached colors, fonts, widths and
+    encodings (D126). Export all writes A4 pages straight into the bundle.
+  - Codex review (read-only) raised three findings, each checked and fixed:
+    worker handlers now detach after each job; only Export all sends the
+    embedded photo to the worker; A4 entry names resolve dot segments as JSZip
+    does, so a name such as `../cat` can't collide inside the bundle
+    (`tests/unit/a4-zip-entry-name.spec.ts`).
+  - Verified: `tsc` and eslint clean; 861/861 unit tests; 69/69 e2e on a
+    production build, including `tests/e2e/export-worker.spec.ts` at 1000
+    stitches. Parity against the pre-M2 build at 100 and 250 stitches: every
+    PNG, including those inside ZIPs, 0 px different; JSON and OXS
+    byte-identical; ZIP entry lists identical; PDFs with the same pages and
+    text; every PDF page rendered with pdfjs 0 px different.
+
+    | `npm run bench:browser` | Before M2 | After | Target |
+    |---|---:|---:|---:|
+    | Pattern Keeper PDF, 250 st | 4.8–5.1 s | 0.90 s | ≤ 2.5 s |
+    | Pattern Keeper PDF, 1000 st | 86.2 s | 12.7 s | ≤ 40 s |
+    | Export all, 1000 st | 125.4 s | 45.2 s | ≤ 60 s |
+    | Longest main-thread task during any export | about 75 s | 0 ms | ≤ 200 ms |
+
+  - The 1000-stitch PDF shrank from 43.8 MB to 5.9 MB. OXS moved into the
+    worker after an intermediate run showed a 281 ms main-thread task at 1000
+    stitches. Node PDF build at 250 stitches: 9.0 s before, 1.45 s after.
+  - The first full verification chain was killed by the harness for low
+    memory during the 1000-stitch browser run; rerun on its own, it passed.
+  - Deploy: only this container restarted; 20 of 20 sites returned 200; live,
+    PNG, PDF, A4, OXS and Export all downloaded with 0 ms main-thread tasks and
+    no console errors.
 - 2026-09-14 — **M2 started on the Owner's direction** ("start M2"). Tree
   clean at `c09718c`; peer sessions idle. Before any change, every export
   kind is captured from the current build at 100 and 250 stitches, as the
