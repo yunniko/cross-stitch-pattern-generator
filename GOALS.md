@@ -946,7 +946,7 @@ escalation-tier, not a routine refactor):
       load, run a production latency check (criterion 3), add a
       deploy-log row.
 
-**Open questions for the Owner (answer before M1):**
+**Open questions for the Owner (answered 2026-09-14, see the progress log):**
 - **What is the main reason for the move?** If it's weak devices or tab
   freezes, a hybrid might be enough: the browser by default, the server
   for large jobs or on request. That keeps the privacy promise for
@@ -964,6 +964,16 @@ escalation-tier, not a routine refactor):
   yes.
 
 **Progress log** (newest first):
+- 2026-09-14 — Owner answers to the open questions. Still a plan, not
+  started.
+  - Reason for the move: monetizing access.
+  - Privacy is not a big concern; the in-memory photo cache is fine.
+  - The browser may shrink or compress the photo before uploading it.
+  - Editable JSON and OXS may run on either side. Keep or duplicate the
+    editable JSON save in the browser, so work can be saved when the
+    server has problems.
+  - The Owner redirected effort to investigating and optimizing the
+    current processes' timings first.
 - 2026-09-13 — Goal drafted at the Owner's request ("make plan to move
   export and all photo processing functions to server side"). Planned
   from:
