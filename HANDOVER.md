@@ -73,6 +73,8 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 - Crisp takes about 7× Standard's time on a 12 MP photo, because its
   candidate pre-filter passes almost every cell (G-035 M4). It falls back to
   Standard behavior for thin lines, junctions and gradual shading (D096).
+- Crisp's candidate pre-filter misses about 3 % of confident boundary cells
+  on real photos at 100 stitches, though D065 requires none (D131).
 - Browsers without OffscreenCanvas 2D in workers fall back to main-thread
   exports, which stall the tab between pages (D125).
 - The PDF has no bold face. Whether µ (which extracts as μ) matters in Pattern
@@ -124,7 +126,8 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
   itself is returned (D118).
 - **Crisp mode** (`lib/crisp/`): a frozen evidence layer (D065) feeds weighted
   quantization, admissible-label unary costs in ICM and cleanup, repair after
-  merges, and mode-aware finalization (D061–D072).
+  merges, and mode-aware finalization (D061–D072). Its sampling uses typed
+  arrays and converts each source row to OKLab once per job (G-035 M4).
 - **Threads** (`lib/threads/`): `thread-brands.ts` is the registry. Its
   `matching` field is "direct" for DMC and Cosmo, or "dmc-equivalence" for
   Anchor. `brand-match.ts` does the snapping. Data provenance is in
@@ -187,6 +190,8 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
   it (D126).
 - Crisp consumers use the shared admissible-cost functions or throw. Crisp
   with contour refinement throws (D063, D068).
+- Crisp boundary evidence must stay identical to its verbatim reference copy:
+  `tests/unit/crisp-evidence-equivalence.spec.ts` (G-035 M4).
 - ICM inner loops use no closures or array scans (D044).
 - Brand-aware UI reads `pattern.threadBrand`. A new brand needs data, a
   provenance doc, a registry entry, and the inline union in `lib/types.ts`

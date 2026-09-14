@@ -1215,8 +1215,48 @@ escalation-tier, not a routine refactor):
     The target is met by a thin margin. The pre-filter still passes 7,266 of
     7,500 cells. At 1000 stitches, Crisp's quantization stage (9.5 s)
     dominates, which is M5's territory.
-  - Next: the pre-filter sweep on the acceptance fixtures (running), then a
-    Codex critique before any output-changing recalibration.
+  - Full e2e on the rewrite: 75/75 on a production build.
+  - Pre-filter sweep, synthetic fixtures: a cheap alternative predictor (the
+    largest squared OKLab distance between a cell's average colour and its 8
+    neighbours') kept every confident cell on all 15 fixtures at 0.002, with
+    pass rates of 0–32 %. Today's filter (pair evidence ≥ 0.05) passes 97 % on
+    the 12 MP photo-like source and misses 2 of its 520 confident cells.
+  - Real photos (20 sampled from the Owner's folder, anonymous IDs, decoded
+    into the scratchpad) reverse that: no cheap predictor is both selective
+    and lossless. At 100 stitches:
+
+    | Pre-filter | Confident cells missed | Cells passed |
+    |---|---:|---:|
+    | Pair evidence ≥ 0.05 (today) | 139 of 5,018 (worst photo recall 91 %) | 81 % |
+    | 3×3 colour range ≥ 0.002 | 40 | 76 % |
+    | 5×5 colour range ≥ 0.0005 | 4 | 96 % |
+
+    At 250 stitches today's filter misses 30 of 23,039. So recalibrating can't
+    buy real-photo speed, but today's filter already loses about 3 % of real
+    boundary cells at 100 stitches.
+  - Codex critique (read-only) of replacing the filter with the colour range:
+    - disagrees; the range isn't a sound rejection rule;
+    - built counterexamples: identical cell averages around confident cells,
+      and a 1-px line confident at 0.96 with range 0.00008;
+    - agrees that fixing today's recall miss belongs to any change, via
+      regenerated golden hashes and a decision file;
+    - offers a provably lossless bound: reject only when the neighbourhood's
+      source-pixel colour range is below the 0.02 mode separation;
+    - recommends closing M4 on the identical-output rewrite, with repeated
+      timings, since one 7.8 s run leaves less headroom than run-to-run
+      variance.
+    Accepted: the real photos show the same thing.
+  - Real photos, 4 large ones (4000 px) at 100 and 250 stitches, one run each:
+    - Crisp end to end takes 8.7–10.6 s, so the ≤ 8 s target, measured on
+      the synthetic benchmark, is not met on real photos.
+    - The evidence layer takes 5.3–5.9 s with today's filter and 6.1–6.5 s
+      when every cell is evaluated: 0.3–1.1 s more.
+    - Evaluating every cell recovers the missed confident cells (e.g. 895 →
+      947 and 348 → 385 at 100 stitches).
+    Decoded photo pixels deleted from the scratchpad. D131 records keeping
+    the filter; `docs/reviews/2026-09-14-crisp-prefilter.md` has the data.
+  - Next: median of repeated synthetic 12 MP runs (queued), then commit,
+    deploy and the Owner check-in with the recall-fix decision.
 - 2026-09-14 — **M2 and M3 closed on the Owner's decisions.**
   - Owner, on the two pending approvals: "Pattern keeper is ok. Photo
     shrinking is questionable but certainly not for automatic work.

@@ -139,3 +139,4 @@ remain readable with git show.
 - D128 — Photos decode in a worker, with the old decode as a logged fallback — active
 - D129 — No default photo cap: pair evidence isn't resolution-invariant — superseded by D130
 - D130 — The photo resolution cap is cancelled — active
+- D131 — Crisp's candidate pre-filter isn't recalibrated for speed — active
