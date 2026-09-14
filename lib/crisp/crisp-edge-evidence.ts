@@ -1,10 +1,14 @@
-import { oklabDistanceSquared, oklabFromBytes, type Oklab } from "../color/color";
+import { writeOklab, type Oklab } from "../color/color";
 import type { PixelBuffer } from "../types";
 
 /**
  * Source-side boundary evidence for Crisp mode (G-024, D57/D58): for one cell, fits a deterministic two-color model to
  * a small source neighborhood around it and scores confidence that it shows a genuine two-region hard boundary rather
  * than a smooth gradient or noise (design report Sections 3 and 4). Called only for pre-filtered candidate cells.
+ *
+ * Samples live in reused typed arrays, and each source row's OKLab values are computed once and shared by every
+ * overlapping neighborhood through `SourceOklabRows` (G-035 M4). The arithmetic, including the order of every sum, is
+ * the pre-M4 version's, so results are bit-identical (tests/unit/crisp-evidence-equivalence.spec.ts).
  */
 
 export interface BoundaryEvidence {
@@ -17,13 +21,9 @@ export interface BoundaryEvidence {
   /** How far apart the two modes' weighted source-position centroids are, in neighborhood-normalized [0,1] coordinates -- large for a genuine spatial split, small when the two color groups are spatially interleaved (texture/noise). 0 when only one mode was found. */
   spatialSeparation: number;
   /**
-   * Unit vector (in the same neighborhood-normalized [0,1] coordinates as
-   * `spatialSeparation`, NOT aspect-corrected true source-pixel direction)
-   * pointing from mode 0's spatial centroid toward mode 1's. `null` when
-   * only one mode was found or the two centroids coincide. Added for G-024
-   * M4.1 (HANDOVER.md D64) -- `spatialSeparation` alone discards which way
-   * the split runs, which `edgeSharpness` below needs to project samples
-   * onto, and which M4's later admissible-geometry work may also want.
+   * Unit vector (in the same neighborhood-normalized [0,1] coordinates as `spatialSeparation`, NOT aspect-corrected
+   * true source-pixel direction) pointing from mode 0's spatial centroid toward mode 1's. `null` when only one mode was
+   * found or the two centroids coincide (D64).
    */
   boundaryDirection: [number, number] | null;
   /**
@@ -50,26 +50,69 @@ export const DEFAULT_BOUNDARY_EVIDENCE_OPTIONS: BoundaryEvidenceOptions = {
   maxLloydIterations: 6,
 };
 
-interface WeightedSample {
-  oklab: Oklab;
-  weight: number;
-  /** Position within the (expanded) sampling neighborhood, normalized to [0,1] on each axis. */
-  nx: number;
-  ny: number;
-  /**
-   * This pixel's alpha-weighted overlap with the CELL's own (unexpanded)
-   * footprint specifically -- used for `coverage`, not for fitting the
-   * modes themselves (that uses `weight`, the overlap with the wider
-   * neighborhood). Computed independently of `weight`, not derived from it:
-   * a pixel that straddles the cell/neighborhood boundary has a real
-   * partial overlap with each box separately (the neighborhood box always
-   * contains the cell box, so `cellWeight <= weight`, but the two are
-   * otherwise unrelated fractions -- see the corrected-bug note on
-   * `collectWeightedSamples` for why a binary "is the center inside the
-   * cell" test does not recover this fraction).
-   */
-  cellWeight: number;
+/** Rows kept at most; a job reads cells in row order, so rows above the current neighborhood are dropped first. */
+const MAX_CACHED_ROWS = 512;
+
+/**
+ * Per-row OKLab values of one source photo, computed on first use and shared by every neighborhood that overlaps the
+ * row (G-035 M4). Rows above the neighborhood being read are evicted, and at most `MAX_CACHED_ROWS` are held, so a
+ * 12 MP photo never needs a full 288 MB plane. Values are `writeOklab`'s, identical to per-pixel conversion.
+ */
+export class SourceOklabRows {
+  private readonly rows = new Map<number, Float64Array>();
+
+  constructor(readonly source: PixelBuffer) {}
+
+  row(y: number): Float64Array {
+    let row = this.rows.get(y);
+    if (!row) {
+      const { width, data } = this.source;
+      row = new Float64Array(width * 3);
+      for (let x = 0, p = y * width * 4; x < width; x++, p += 4) writeOklab(data[p], data[p + 1], data[p + 2], row, x * 3);
+      this.rows.set(y, row);
+    }
+    return row;
+  }
+
+  /** Drops rows above `firstNeededRow`, then the lowest-numbered rows while more than `MAX_CACHED_ROWS` remain. */
+  release(firstNeededRow: number): void {
+    for (const y of this.rows.keys()) if (y < firstNeededRow) this.rows.delete(y);
+    if (this.rows.size <= MAX_CACHED_ROWS) return;
+    const keys = [...this.rows.keys()].sort((a, b) => a - b);
+    for (let i = 0; this.rows.size > MAX_CACHED_ROWS; i++) this.rows.delete(keys[i]);
+  }
 }
+
+/** One neighborhood's samples as parallel columns, reused across cells and grown on demand. */
+class SampleColumns {
+  count = 0;
+  L = new Float64Array(0);
+  A = new Float64Array(0);
+  B = new Float64Array(0);
+  weight = new Float64Array(0);
+  nx = new Float64Array(0);
+  ny = new Float64Array(0);
+  /** This pixel's alpha-weighted fractional overlap with the CELL's own footprint, computed independently of `weight` (D59). */
+  cellWeight = new Float64Array(0);
+  assignment = new Uint8Array(0);
+  projection = new Float64Array(0);
+
+  reserve(capacity: number): void {
+    if (this.L.length >= capacity) return;
+    const size = Math.max(capacity, this.L.length * 2);
+    this.L = new Float64Array(size);
+    this.A = new Float64Array(size);
+    this.B = new Float64Array(size);
+    this.weight = new Float64Array(size);
+    this.nx = new Float64Array(size);
+    this.ny = new Float64Array(size);
+    this.cellWeight = new Float64Array(size);
+    this.assignment = new Uint8Array(size);
+    this.projection = new Float64Array(size);
+  }
+}
+
+const sharedSamples = new SampleColumns();
 
 function overlap(a0: number, a1: number, b0: number, b1: number): number {
   return Math.min(a1, b1) - Math.max(a0, b0);
@@ -81,14 +124,15 @@ function overlap(a0: number, a1: number, b0: number, b1: number): number {
  * computed like `weight`; a binary pixel-center test corrupted coverage at exactly the boundary cells (D59).
  */
 function collectWeightedSamples(
-  source: PixelBuffer,
+  rows: SourceOklabRows,
   gridWidth: number,
   gridHeight: number,
   cellX: number,
   cellY: number,
-  neighborhoodMargin: number
-): WeightedSample[] {
-  const { width: srcW, height: srcH, data } = source;
+  neighborhoodMargin: number,
+  out: SampleColumns
+): void {
+  const { width: srcW, height: srcH, data } = rows.source;
 
   const cellXStart = (cellX * srcW) / gridWidth;
   const cellXEnd = ((cellX + 1) * srcW) / gridWidth;
@@ -107,14 +151,18 @@ function collectWeightedSamples(
   const yFirst = Math.max(0, Math.floor(nbYStart));
   const yLast = Math.min(srcH - 1, Math.ceil(nbYEnd) - 1);
 
-  const samples: WeightedSample[] = [];
   const nbW = nbXEnd - nbXStart || 1;
   const nbH = nbYEnd - nbYStart || 1;
+
+  rows.release(yFirst);
+  out.reserve(Math.max(0, xLast - xFirst + 1) * Math.max(0, yLast - yFirst + 1));
+  let n = 0;
 
   for (let y = yFirst; y <= yLast; y++) {
     const yWeight = overlap(y, y + 1, nbYStart, nbYEnd);
     if (yWeight <= 0) continue;
     const yCellWeight = overlap(y, y + 1, cellYStart, cellYEnd);
+    let row: Float64Array | null = null;
     for (let x = xFirst; x <= xLast; x++) {
       const xWeight = overlap(x, x + 1, nbXStart, nbXEnd);
       if (xWeight <= 0) continue;
@@ -124,80 +172,94 @@ function collectWeightedSamples(
       if (weight <= 0) continue;
 
       const xCellWeight = overlap(x, x + 1, cellXStart, cellXEnd);
-      // Independent fractional overlap with the CELL's own bounds -- see
-      // the doc comment above this function for why this must NOT be
-      // derived from `weight` (the neighborhood-relative value) via a
-      // binary center test.
-      const cellWeight = Math.max(0, xCellWeight) * Math.max(0, yCellWeight) * alpha;
-
-      const oklab = oklabFromBytes(data[pixelIndex], data[pixelIndex + 1], data[pixelIndex + 2]);
-      const px = x + 0.5;
-      const py = y + 0.5;
-      samples.push({
-        oklab,
-        weight,
-        nx: (px - nbXStart) / nbW,
-        ny: (py - nbYStart) / nbH,
-        cellWeight,
-      });
+      row ??= rows.row(y);
+      const o = x * 3;
+      out.L[n] = row[o];
+      out.A[n] = row[o + 1];
+      out.B[n] = row[o + 2];
+      out.weight[n] = weight;
+      out.nx[n] = (x + 0.5 - nbXStart) / nbW;
+      out.ny[n] = (y + 0.5 - nbYStart) / nbH;
+      out.cellWeight[n] = Math.max(0, xCellWeight) * Math.max(0, yCellWeight) * alpha;
+      n++;
     }
   }
-  return samples;
+  out.count = n;
 }
 
 /**
- * Weighted 2-means (farthest-point initialization for determinism -- no
- * random seeding, matching this project's general preference for
- * reproducible algorithms). Returns the two centroids and a same-length
- * assignment array (0 or 1) into `samples`. With fewer than 2 samples,
- * returns a degenerate single-cluster result.
+ * Weighted 2-means with farthest-point initialization (deterministic, no random seeding). Writes each sample's 0/1
+ * label into `s.assignment` and returns the two centroids. Needs at least 2 samples.
  */
-function fitTwoModes(samples: WeightedSample[], maxIterations: number): { centroids: Oklab[]; assignment: Uint8Array } {
-  if (samples.length === 0) return { centroids: [[0, 0, 0]], assignment: new Uint8Array(0) };
-  if (samples.length === 1) return { centroids: [samples[0].oklab], assignment: new Uint8Array(1) };
+function fitTwoModes(s: SampleColumns, maxIterations: number): [Oklab, Oklab] {
+  const n = s.count;
+  const { L, A, B, weight, assignment } = s;
 
-  // Farthest-point seeding: first seed is the sample farthest from the
-  // weighted mean (breaks ties deterministically by iteration order);
-  // second seed is the sample farthest from the first.
+  // First seed: the sample farthest from the weighted mean (ties go to the earliest); second: farthest from the first.
   let meanL = 0;
   let meanA = 0;
   let meanB = 0;
   let totalWeight = 0;
-  for (const s of samples) {
-    meanL += s.oklab[0] * s.weight;
-    meanA += s.oklab[1] * s.weight;
-    meanB += s.oklab[2] * s.weight;
-    totalWeight += s.weight;
+  for (let i = 0; i < n; i++) {
+    meanL += L[i] * weight[i];
+    meanA += A[i] * weight[i];
+    meanB += B[i] * weight[i];
+    totalWeight += weight[i];
   }
-  const mean: Oklab = totalWeight > 0 ? [meanL / totalWeight, meanA / totalWeight, meanB / totalWeight] : samples[0].oklab;
+  if (totalWeight > 0) {
+    meanL = meanL / totalWeight;
+    meanA = meanA / totalWeight;
+    meanB = meanB / totalWeight;
+  } else {
+    meanL = L[0];
+    meanA = A[0];
+    meanB = B[0];
+  }
 
   let seed0 = 0;
   let bestDist = -1;
-  samples.forEach((s, i) => {
-    const d = oklabDistanceSquared(s.oklab, mean);
+  for (let i = 0; i < n; i++) {
+    const dl = L[i] - meanL;
+    const da = A[i] - meanA;
+    const db = B[i] - meanB;
+    const d = dl * dl + da * da + db * db;
     if (d > bestDist) {
       bestDist = d;
       seed0 = i;
     }
-  });
+  }
   let seed1 = 0;
   bestDist = -1;
-  samples.forEach((s, i) => {
-    const d = oklabDistanceSquared(s.oklab, samples[seed0].oklab);
+  for (let i = 0; i < n; i++) {
+    const dl = L[i] - L[seed0];
+    const da = A[i] - A[seed0];
+    const db = B[i] - B[seed0];
+    const d = dl * dl + da * da + db * db;
     if (d > bestDist) {
       bestDist = d;
       seed1 = i;
     }
-  });
+  }
 
-  let centroids: Oklab[] = [samples[seed0].oklab, samples[seed1].oklab];
-  const assignment = new Uint8Array(samples.length);
+  let c0L = L[seed0];
+  let c0A = A[seed0];
+  let c0B = B[seed0];
+  let c1L = L[seed1];
+  let c1A = A[seed1];
+  let c1B = B[seed1];
+  assignment.fill(0, 0, n);
 
   for (let iter = 0; iter < maxIterations; iter++) {
     let changed = false;
-    for (let i = 0; i < samples.length; i++) {
-      const d0 = oklabDistanceSquared(samples[i].oklab, centroids[0]);
-      const d1 = oklabDistanceSquared(samples[i].oklab, centroids[1]);
+    for (let i = 0; i < n; i++) {
+      let dl = L[i] - c0L;
+      let da = A[i] - c0A;
+      let db = B[i] - c0B;
+      const d0 = dl * dl + da * da + db * db;
+      dl = L[i] - c1L;
+      da = A[i] - c1A;
+      db = B[i] - c1B;
+      const d1 = dl * dl + da * da + db * db;
       const label = d1 < d0 ? 1 : 0;
       if (assignment[i] !== label) {
         assignment[i] = label;
@@ -205,87 +267,102 @@ function fitTwoModes(samples: WeightedSample[], maxIterations: number): { centro
       }
     }
 
-    const sums: [number, number, number][] = [
-      [0, 0, 0],
-      [0, 0, 0],
-    ];
-    const weights = [0, 0];
-    for (let i = 0; i < samples.length; i++) {
-      const label = assignment[i];
-      sums[label][0] += samples[i].oklab[0] * samples[i].weight;
-      sums[label][1] += samples[i].oklab[1] * samples[i].weight;
-      sums[label][2] += samples[i].oklab[2] * samples[i].weight;
-      weights[label] += samples[i].weight;
+    let s0L = 0;
+    let s0A = 0;
+    let s0B = 0;
+    let s1L = 0;
+    let s1A = 0;
+    let s1B = 0;
+    let w0 = 0;
+    let w1 = 0;
+    for (let i = 0; i < n; i++) {
+      if (assignment[i] === 1) {
+        s1L += L[i] * weight[i];
+        s1A += A[i] * weight[i];
+        s1B += B[i] * weight[i];
+        w1 += weight[i];
+      } else {
+        s0L += L[i] * weight[i];
+        s0A += A[i] * weight[i];
+        s0B += B[i] * weight[i];
+        w0 += weight[i];
+      }
     }
-    centroids = [0, 1].map((k): Oklab => (weights[k] > 0 ? [sums[k][0] / weights[k], sums[k][1] / weights[k], sums[k][2] / weights[k]] : centroids[k]));
+    if (w0 > 0) {
+      c0L = s0L / w0;
+      c0A = s0A / w0;
+      c0B = s0B / w0;
+    }
+    if (w1 > 0) {
+      c1L = s1L / w1;
+      c1A = s1A / w1;
+      c1B = s1B / w1;
+    }
 
     if (!changed) break;
   }
 
-  return { centroids, assignment };
+  return [
+    [c0L, c0A, c0B],
+    [c1L, c1A, c1B],
+  ];
 }
 
 /**
- * G-024 M4.1 (HANDOVER.md D64): compares how well a two-constant-color STEP
- * model explains the samples against how well a smooth AFFINE (linear
- * ramp) model does, both fit along the same `direction` axis through
- * `midpoint`, using the SAME samples/weights already collected -- see
- * `BoundaryEvidence.edgeSharpness`'s own doc comment for the full
- * rationale (this is the fix for the D59/D63 structural gap: neither
- * `colorConfidence` nor `spatialConfidence` alone can distinguish a real
- * hard edge from a sufficiently steep smooth gradient, since a monotonic
- * ramp's own 2-means split legitimately scores high on both).
- *
- * The STEP model's residual is exactly `spread` (mean squared distance to
- * each sample's own already-assigned 2-means centroid) -- reused directly,
- * not recomputed, since that IS the best-fit two-constant-color model
- * conditional on the existing cluster assignment. The AFFINE model is a
- * fresh per-OKLab-channel weighted linear regression against `t` (each
- * sample's projection onto `direction`).
+ * Compares how well a two-constant-color STEP model explains the samples against a per-channel AFFINE ramp along
+ * `direction` through `midpoint` (D64). The step residual is the 2-means spread, passed in; the affine model is a
+ * weighted linear regression of each OKLab channel against each sample's projection onto `direction`.
  */
-function computeEdgeSharpness(
-  samples: WeightedSample[],
-  direction: [number, number],
-  midpoint: [number, number],
-  stepResidual: number
-): number {
+function computeEdgeSharpness(s: SampleColumns, dirX: number, dirY: number, midX: number, midY: number, stepResidual: number): number {
+  const n = s.count;
+  const { L, A, B, weight, nx, ny, projection } = s;
   let sumW = 0;
   let sumWT = 0;
-  const sumWC = [0, 0, 0];
-  const projections = new Float64Array(samples.length);
+  let sumWCL = 0;
+  let sumWCA = 0;
+  let sumWCB = 0;
 
-  for (let i = 0; i < samples.length; i++) {
-    const s = samples[i];
-    const t = (s.nx - midpoint[0]) * direction[0] + (s.ny - midpoint[1]) * direction[1];
-    projections[i] = t;
-    sumW += s.weight;
-    sumWT += s.weight * t;
-    sumWC[0] += s.weight * s.oklab[0];
-    sumWC[1] += s.weight * s.oklab[1];
-    sumWC[2] += s.weight * s.oklab[2];
+  for (let i = 0; i < n; i++) {
+    const t = (nx[i] - midX) * dirX + (ny[i] - midY) * dirY;
+    projection[i] = t;
+    sumW += weight[i];
+    sumWT += weight[i] * t;
+    sumWCL += weight[i] * L[i];
+    sumWCA += weight[i] * A[i];
+    sumWCB += weight[i] * B[i];
   }
   if (sumW <= 0) return 1;
 
   const tMean = sumWT / sumW;
-  const cMean: Oklab = [sumWC[0] / sumW, sumWC[1] / sumW, sumWC[2] / sumW];
+  const cMeanL = sumWCL / sumW;
+  const cMeanA = sumWCA / sumW;
+  const cMeanB = sumWCB / sumW;
 
   let sxx = 0;
-  const sxy = [0, 0, 0];
-  for (let i = 0; i < samples.length; i++) {
-    const dt = projections[i] - tMean;
-    sxx += samples[i].weight * dt * dt;
-    sxy[0] += samples[i].weight * dt * (samples[i].oklab[0] - cMean[0]);
-    sxy[1] += samples[i].weight * dt * (samples[i].oklab[1] - cMean[1]);
-    sxy[2] += samples[i].weight * dt * (samples[i].oklab[2] - cMean[2]);
+  let sxyL = 0;
+  let sxyA = 0;
+  let sxyB = 0;
+  for (let i = 0; i < n; i++) {
+    const dt = projection[i] - tMean;
+    sxx += weight[i] * dt * dt;
+    sxyL += weight[i] * dt * (L[i] - cMeanL);
+    sxyA += weight[i] * dt * (A[i] - cMeanA);
+    sxyB += weight[i] * dt * (B[i] - cMeanB);
   }
-  const slope: Oklab = sxx > 0 ? [sxy[0] / sxx, sxy[1] / sxx, sxy[2] / sxx] : [0, 0, 0];
-  const intercept: Oklab = [cMean[0] - slope[0] * tMean, cMean[1] - slope[1] * tMean, cMean[2] - slope[2] * tMean];
+  const slopeL = sxx > 0 ? sxyL / sxx : 0;
+  const slopeA = sxx > 0 ? sxyA / sxx : 0;
+  const slopeB = sxx > 0 ? sxyB / sxx : 0;
+  const interceptL = cMeanL - slopeL * tMean;
+  const interceptA = cMeanA - slopeA * tMean;
+  const interceptB = cMeanB - slopeB * tMean;
 
   let affineResidualSum = 0;
-  for (let i = 0; i < samples.length; i++) {
-    const t = projections[i];
-    const predicted: Oklab = [intercept[0] + slope[0] * t, intercept[1] + slope[1] * t, intercept[2] + slope[2] * t];
-    affineResidualSum += samples[i].weight * oklabDistanceSquared(samples[i].oklab, predicted);
+  for (let i = 0; i < n; i++) {
+    const t = projection[i];
+    const dl = L[i] - (interceptL + slopeL * t);
+    const da = A[i] - (interceptA + slopeA * t);
+    const db = B[i] - (interceptB + slopeB * t);
+    affineResidualSum += weight[i] * (dl * dl + da * da + db * db);
   }
   const affineResidual = affineResidualSum / sumW;
 
@@ -293,12 +370,29 @@ function computeEdgeSharpness(
   return denom > 0 ? affineResidual / denom : 1;
 }
 
+/** The whole neighborhood's weighted mean color, the single mode reported when no genuine second mode is found. */
+function weightedMean(s: SampleColumns): Oklab {
+  let sumL = 0;
+  let sumA = 0;
+  let sumB = 0;
+  let sumW = 0;
+  for (let i = 0; i < s.count; i++) {
+    sumL += s.L[i] * s.weight[i];
+    sumA += s.A[i] * s.weight[i];
+    sumB += s.B[i] * s.weight[i];
+    sumW += s.weight[i];
+  }
+  return sumW > 0 ? [sumL / sumW, sumA / sumW, sumB / sumW] : [0, 0, 0];
+}
+
+function singleMode(mode: Oklab): BoundaryEvidence {
+  return { modes: [mode], coverage: [1], spread: [0], spatialSeparation: 0, boundaryDirection: null, edgeSharpness: 1, confidence: 0 };
+}
+
 /**
- * The main entry point: fits a two-mode description for one cell's
- * neighborhood and scores confidence that it represents a genuine hard
- * boundary, per the report's own Section 4 requirements -- color
- * separation, spatial organization, and (implicitly, via within-mode
- * spread) rejecting a smooth gradient's own two-cluster split.
+ * The main entry point: fits a two-mode description for one cell's neighborhood and scores confidence that it
+ * represents a genuine hard boundary -- color separation, spatial organization and edge sharpness (Section 4). Pass
+ * the same `rows` for every cell of one photo so each source row is converted to OKLab once.
  */
 export function extractBoundaryEvidence(
   source: PixelBuffer,
@@ -306,126 +400,94 @@ export function extractBoundaryEvidence(
   gridHeight: number,
   cellX: number,
   cellY: number,
-  options: BoundaryEvidenceOptions = DEFAULT_BOUNDARY_EVIDENCE_OPTIONS
+  options: BoundaryEvidenceOptions = DEFAULT_BOUNDARY_EVIDENCE_OPTIONS,
+  rows: SourceOklabRows = new SourceOklabRows(source)
 ): BoundaryEvidence {
-  const samples = collectWeightedSamples(source, gridWidth, gridHeight, cellX, cellY, options.neighborhoodMargin);
+  if (rows.source !== source) throw new Error("extractBoundaryEvidence: `rows` belongs to a different source buffer");
+  const s = sharedSamples;
+  collectWeightedSamples(rows, gridWidth, gridHeight, cellX, cellY, options.neighborhoodMargin, s);
+  const n = s.count;
 
-  if (samples.length < 2) {
-    const rgb = samples[0]?.oklab ?? [0, 0, 0];
-    return { modes: [rgb], coverage: [1], spread: [0], spatialSeparation: 0, boundaryDirection: null, edgeSharpness: 1, confidence: 0 };
-  }
+  if (n < 2) return singleMode(n === 1 ? [s.L[0], s.A[0], s.B[0]] : [0, 0, 0]);
 
-  const { centroids, assignment } = fitTwoModes(samples, options.maxLloydIterations);
-  const separation = oklabDistanceSquared(centroids[0], centroids[1]);
+  const [c0, c1] = fitTwoModes(s, options.maxLloydIterations);
+  const { L, A, B, weight, nx, ny, cellWeight, assignment } = s;
+  const sepL = c0[0] - c1[0];
+  const sepA = c0[1] - c1[1];
+  const sepB = c0[2] - c1[2];
+  const separation = sepL * sepL + sepA * sepA + sepB * sepB;
 
-  if (separation < options.minModeSeparation) {
-    // Not a meaningfully distinct second color -- one mode, the overall neighborhood's own weighted mean.
-    let sumL = 0;
-    let sumA = 0;
-    let sumB = 0;
-    let sumW = 0;
-    for (const s of samples) {
-      sumL += s.oklab[0] * s.weight;
-      sumA += s.oklab[1] * s.weight;
-      sumB += s.oklab[2] * s.weight;
-      sumW += s.weight;
+  // Not a meaningfully distinct second color: one mode, the neighborhood's weighted mean.
+  if (separation < options.minModeSeparation) return singleMode(weightedMean(s));
+
+  // Per mode: spread over the full neighborhood, coverage within the cell's own footprint, and spatial centroid.
+  let spreadSum0 = 0;
+  let spreadSum1 = 0;
+  let spreadWeight0 = 0;
+  let spreadWeight1 = 0;
+  let inCell0 = 0;
+  let inCell1 = 0;
+  let posX0 = 0;
+  let posX1 = 0;
+  let posY0 = 0;
+  let posY1 = 0;
+  let posWeight0 = 0;
+  let posWeight1 = 0;
+
+  for (let i = 0; i < n; i++) {
+    const c = assignment[i] === 1 ? c1 : c0;
+    const dl = L[i] - c[0];
+    const da = A[i] - c[1];
+    const db = B[i] - c[2];
+    const d = (dl * dl + da * da + db * db) * weight[i];
+    if (assignment[i] === 1) {
+      spreadSum1 += d;
+      spreadWeight1 += weight[i];
+      posX1 += nx[i] * weight[i];
+      posY1 += ny[i] * weight[i];
+      posWeight1 += weight[i];
+      inCell1 += cellWeight[i];
+    } else {
+      spreadSum0 += d;
+      spreadWeight0 += weight[i];
+      posX0 += nx[i] * weight[i];
+      posY0 += ny[i] * weight[i];
+      posWeight0 += weight[i];
+      inCell0 += cellWeight[i];
     }
-    const mean: Oklab = sumW > 0 ? [sumL / sumW, sumA / sumW, sumB / sumW] : [0, 0, 0];
-    return { modes: [mean], coverage: [1], spread: [0], spatialSeparation: 0, boundaryDirection: null, edgeSharpness: 1, confidence: 0 };
   }
 
-  // Per-mode: within-mode spread (over the FULL neighborhood, for a
-  // stable estimate), coverage (restricted to the cell's OWN footprint,
-  // per the report's own Section 3/4 instruction), and spatial centroid
-  // (for the spatial-coherence check).
-  const spreadSum = [0, 0];
-  const spreadWeight = [0, 0];
-  const inCellWeight = [0, 0];
-  const posSumX = [0, 0];
-  const posSumY = [0, 0];
-  const posWeight = [0, 0];
+  const spread = [spreadWeight0 > 0 ? spreadSum0 / spreadWeight0 : 0, spreadWeight1 > 0 ? spreadSum1 / spreadWeight1 : 0];
+  const totalInCellWeight = inCell0 + inCell1;
 
-  for (let i = 0; i < samples.length; i++) {
-    const s = samples[i];
-    const label = assignment[i];
-    spreadSum[label] += oklabDistanceSquared(s.oklab, centroids[label]) * s.weight;
-    spreadWeight[label] += s.weight;
-    posSumX[label] += s.nx * s.weight;
-    posSumY[label] += s.ny * s.weight;
-    posWeight[label] += s.weight;
-    inCellWeight[label] += s.cellWeight;
-  }
+  // A cell whose own footprint has no real weighted samples must never count as a confident boundary, even when its
+  // wider neighborhood fits two modes (D63).
+  if (totalInCellWeight <= 0) return singleMode(weightedMean(s));
 
-  const spread = [0, 1].map((k) => (spreadWeight[k] > 0 ? spreadSum[k] / spreadWeight[k] : 0));
-  const totalInCellWeight = inCellWeight[0] + inCellWeight[1];
+  const coverage = [inCell0 / totalInCellWeight, inCell1 / totalInCellWeight];
 
-  if (totalInCellWeight <= 0) {
-    // The cell's OWN footprint contributed zero real weighted samples (e.g.
-    // fully transparent, matching `downsampleToGrid`'s own "no pixel binned
-    // into this cell" case) even though the wider NEIGHBORHOOD fit two real
-    // modes. Found via a Codex critique during G-024 M4 planning (HANDOVER.md
-    // D63): the fallback `coverage: [0.5, 0.5]` below existed only to avoid
-    // a division by zero, but confidence is computed independently of
-    // coverage -- so a cell with NO real color of its own could still be
-    // reported fully confident, fabricating support for a boundary the cell
-    // itself contributes no actual evidence for. A cell with no real
-    // in-cell data must never be treated as a confident boundary cell.
-    let sumL = 0;
-    let sumA = 0;
-    let sumB = 0;
-    let sumW = 0;
-    for (const s of samples) {
-      sumL += s.oklab[0] * s.weight;
-      sumA += s.oklab[1] * s.weight;
-      sumB += s.oklab[2] * s.weight;
-      sumW += s.weight;
-    }
-    const mean: Oklab = sumW > 0 ? [sumL / sumW, sumA / sumW, sumB / sumW] : [0, 0, 0];
-    return { modes: [mean], coverage: [1], spread: [0], spatialSeparation: 0, boundaryDirection: null, edgeSharpness: 1, confidence: 0 };
-  }
-
-  const coverage = [inCellWeight[0] / totalInCellWeight, inCellWeight[1] / totalInCellWeight];
-
-  const centroidPos: Array<[number, number]> = [0, 1].map((k) =>
-    posWeight[k] > 0 ? [posSumX[k] / posWeight[k], posSumY[k] / posWeight[k]] : [0.5, 0.5]
-  );
-  const spatialSeparation = Math.hypot(centroidPos[0][0] - centroidPos[1][0], centroidPos[0][1] - centroidPos[1][1]);
+  const cx0 = posWeight0 > 0 ? posX0 / posWeight0 : 0.5;
+  const cy0 = posWeight0 > 0 ? posY0 / posWeight0 : 0.5;
+  const cx1 = posWeight1 > 0 ? posX1 / posWeight1 : 0.5;
+  const cy1 = posWeight1 > 0 ? posY1 / posWeight1 : 0.5;
+  const spatialSeparation = Math.hypot(cx0 - cx1, cy0 - cy1);
 
   let boundaryDirection: [number, number] | null = null;
   let edgeSharpness = 1;
   if (spatialSeparation > 0) {
-    boundaryDirection = [(centroidPos[1][0] - centroidPos[0][0]) / spatialSeparation, (centroidPos[1][1] - centroidPos[0][1]) / spatialSeparation];
-    const midpoint: [number, number] = [(centroidPos[0][0] + centroidPos[1][0]) / 2, (centroidPos[0][1] + centroidPos[1][1]) / 2];
-    const stepResidual = (spreadSum[0] + spreadSum[1]) / (spreadWeight[0] + spreadWeight[1]);
-    edgeSharpness = computeEdgeSharpness(samples, boundaryDirection, midpoint, stepResidual);
+    boundaryDirection = [(cx1 - cx0) / spatialSeparation, (cy1 - cy0) / spatialSeparation];
+    const stepResidual = (spreadSum0 + spreadSum1) / (spreadWeight0 + spreadWeight1);
+    edgeSharpness = computeEdgeSharpness(s, boundaryDirection[0], boundaryDirection[1], (cx0 + cx1) / 2, (cy0 + cy1) / 2, stepResidual);
   }
 
-  // Confidence: ALL THREE factors must be high -- color separation must
-  // dominate within-mode spread (rules out a smooth gradient's own
-  // two-cluster split, which has real spread within each half); the two
-  // modes must occupy genuinely different neighborhood positions (rules
-  // out texture/noise, where color groups are spatially interleaved
-  // rather than split); and the spatial transition must actually be
-  // ABRUPT rather than gradual (rules out a sufficiently steep smooth
-  // gradient, which can score high on BOTH factors above despite having
-  // no real discontinuity anywhere -- HANDOVER.md D59/D63/D64). Any
-  // factor alone is insufficient, per the report's own explicit warning
-  // that clustering success alone doesn't prove a boundary.
+  // Confidence needs all three: color separation dominating within-mode spread (rules out a gradient's two-cluster
+  // split), spatially separated modes (rules out texture and noise), and an abrupt transition (rules out a steep smooth
+  // gradient; D59, D63, D64). A genuine straight split separates mode centroids by roughly 0.3–0.6 in normalized
+  // coordinates, so 0.5 is where spatial confidence saturates.
   const maxSpread = Math.max(spread[0], spread[1]);
   const colorConfidence = separation / (separation + maxSpread);
-  // A genuine straight split through a neighborhood typically separates
-  // mode centroids by roughly 0.3-0.6 in normalized coordinates -- 0.5
-  // is used as the reference scale a "fully separated" split saturates at.
   const spatialConfidence = Math.min(1, spatialSeparation / 0.5);
   const confidence = colorConfidence * spatialConfidence * edgeSharpness;
 
-  return {
-    modes: [centroids[0], centroids[1]],
-    coverage,
-    spread,
-    spatialSeparation,
-    boundaryDirection,
-    edgeSharpness,
-    confidence,
-  };
+  return { modes: [c0, c1], coverage, spread, spatialSeparation, boundaryDirection, edgeSharpness, confidence };
 }

@@ -1192,6 +1192,31 @@ escalation-tier, not a routine refactor):
 - **Answered 2026-09-14:** deploy after each milestone.
 
 **Progress log** (newest first):
+- 2026-09-14 — **M4 started ("continue m4"); identical-output rewrite done.**
+  - Crisp boundary evidence reads samples into reused typed arrays, and each
+    source row's OKLab values are computed once per job and shared by every
+    overlapping cell (`SourceOklabRows`, at most 512 rows held). Arithmetic
+    order is unchanged.
+  - Verified identical: `tests/unit/crisp-evidence-equivalence.spec.ts`
+    compares every cell exactly against a verbatim pre-M4 copy
+    (`tests/unit/reference/crisp-edge-evidence-pre-m4.ts`) across 5 sources
+    × 3 option sets, in row and shuffled order; golden hashes unchanged;
+    878/878 unit tests.
+  - `npm run bench`, one run each, before → after:
+
+    | Measure | Before | After |
+    |---|---:|---:|
+    | Evidence layer, 12 MP → 100 st | 19.3 s | 4.6 s |
+    | Crisp end to end, 12 MP → 100 st (target ≤ 8 s) | 23.1 s | 7.8 s |
+    | Evidence layer, 1200×800 → 300 st | 1.9 s | 0.45 s |
+    | Evidence layer, 1500×1000 → 1000 st | 4.0 s | 1.3 s |
+    | Crisp end to end, 1500×1000 → 1000 st | 25.0 s | 21.3 s |
+
+    The target is met by a thin margin. The pre-filter still passes 7,266 of
+    7,500 cells. At 1000 stitches, Crisp's quantization stage (9.5 s)
+    dominates, which is M5's territory.
+  - Next: the pre-filter sweep on the acceptance fixtures (running), then a
+    Codex critique before any output-changing recalibration.
 - 2026-09-14 — **M2 and M3 closed on the Owner's decisions.**
   - Owner, on the two pending approvals: "Pattern keeper is ok. Photo
     shrinking is questionable but certainly not for automatic work.
@@ -1211,7 +1236,8 @@ escalation-tier, not a routine refactor):
     20 sites 200; live, no resolution control even with the old flag, the
     upload decoded without fallback, a chart generated, no console errors.
   - PENDING APPROVAL: start G-035 M4 (Crisp evidence layer) — milestone
-    boundary — logged 2026-09-14.
+    boundary — logged 2026-09-14. Approved by the Owner 2026-09-14:
+    "continue m4".
 - 2026-09-14 — **M3 in progress: cap mechanism and comparison switch built;
   real photos show the cap isn't quality-neutral yet.**
   - Codex round 1 (read-only) critique of the design. Accepted:

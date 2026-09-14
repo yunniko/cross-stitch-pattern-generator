@@ -1,4 +1,4 @@
-import { extractBoundaryEvidence, DEFAULT_BOUNDARY_EVIDENCE_OPTIONS, type BoundaryEvidence, type BoundaryEvidenceOptions } from "./crisp-edge-evidence";
+import { extractBoundaryEvidence, DEFAULT_BOUNDARY_EVIDENCE_OPTIONS, SourceOklabRows, type BoundaryEvidence, type BoundaryEvidenceOptions } from "./crisp-edge-evidence";
 import {
   buildAdmissibleLabelCosts,
   pickBestAdmissibleLabel,
@@ -66,10 +66,11 @@ export function buildCrispEvidenceLayer(
   options: CrispEvidenceLayerOptions = DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS
 ): CrispEvidenceLayer {
   const raw = new Map<number, BoundaryEvidence>();
+  const rows = new SourceOklabRows(source); // each source row converted to OKLab once for all overlapping cells (G-035 M4)
   for (const cellIndex of candidateCells) {
     const cx = cellIndex % gridWidth;
     const cy = (cellIndex - cx) / gridWidth;
-    const evidence = extractBoundaryEvidence(source, gridWidth, gridHeight, cx, cy, options.boundaryEvidenceOptions);
+    const evidence = extractBoundaryEvidence(source, gridWidth, gridHeight, cx, cy, options.boundaryEvidenceOptions, rows);
     if (evidence.confidence >= options.confidenceThreshold) raw.set(cellIndex, evidence);
   }
 
