@@ -1192,6 +1192,24 @@ escalation-tier, not a routine refactor):
 - **Answered 2026-09-14:** deploy after each milestone.
 
 **Progress log** (newest first):
+- 2026-09-14 — **M5 started: diagnostics before any code.**
+  - The Codex critique of the M5 plan is running; no code is written before
+    it (constraint).
+  - ICM at 1500×1000 → 1000×667 (667,000 cells), 64 colours, verbatim
+    instrumented copy identical to `runLocalOptimizer`:
+    - both runs use all 8 passes, about 0.5 s each whatever changes;
+    - cells whose 8 neighbours did not change since their last evaluation:
+      33–98 % of evaluations in coarse passes 1–7, 99–100 % in fine passes
+      1–7; none of them would have changed label;
+    - the winning label was always a neighbour's label or the best colour
+      among the other labels (0 exceptions).
+    Skipping unchanged neighbourhoods would cut evaluations about 5×
+    (estimate).
+  - Quantizers at the same size: Standard Latest 3.78 s (plain k-means 1.16
+    s, so merge, reinvestment and refinement take about 2.6 s). Crisp stage
+    8.80 s: weighted seeding and Lloyd 4.14 s, reinvestment 3.10 s (58 freed
+    slots, each rescanning 671,941 samples), refine Lloyd 1.61 s. The
+    weighted path still works on objects.
 - 2026-09-14 — **M4 accepted at 8.4 s; Crisp recall fix (D132); M5 approved.**
   - Owner: "1 yes, 2 fix please and move to m5".
   - Fix: the Crisp evidence layer evaluates every cell, and the pair-evidence
@@ -1207,7 +1225,11 @@ escalation-tier, not a routine refactor):
     after a warm-up: Crisp median 7.86 s (7.78–8.38 s), Standard 2.94 s. The
     earlier session measured 8.37 s and 3.2 s, so the machine ran faster this
     time; Crisp stays about 2.7× Standard.
-  - Next: commit, deploy, then M5.
+  - The one flaky e2e test (holding Space switches to Pan) passed 18/18 when
+    its spec was repeated 3 times without retries on a quiet machine.
+  - Deployed 3085e6c: only this container restarted, 20 of 20 sites 200;
+    live Crisp generation with no decode fallback and no console errors.
+    M4 is done.
 - 2026-09-14 — **M4 started ("continue m4"); identical-output rewrite done.**
   - Crisp boundary evidence reads samples into reused typed arrays, and each
     source row's OKLab values are computed once per job and shared by every

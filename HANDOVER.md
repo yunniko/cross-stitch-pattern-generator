@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-14 at f31b2c1 plus the handover commit that carries this line
+Last verified: 2026-09-14 at 3085e6c plus the handover commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -10,8 +10,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs `master` as deployed on 2026-09-14 (last deploy-log
-row). G-035 (performance) is active: M1–M3 are done, and M4 (faster Crisp,
-identical output) is deployed and awaits the Owner's check-in. Photos decode in a worker (D128); the photo resolution
+row). G-035 (performance) is active: M1–M4 are done and signed off (Crisp
+now evaluates every cell, D132), and M5 (large grids) is in progress. Photos decode in a worker (D128); the photo resolution
 cap was cancelled after failing its quality gates (D130). G-032 (photo enhancement) is done and signed off: every mode is offered
 (D118). G-028 (OXS import and export) is done and signed off (D119). G-033
 (swatch-aware color editor) is deployed and awaits Owner sign-off.
@@ -52,8 +52,9 @@ cap was cancelled after failing its quality gates (D130). G-032 (photo enhanceme
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-14**: `tsc --noEmit` and eslint clean; 878/878 Vitest
-tests; 75/75 Playwright tests on a fresh production build of `faea36b`. CI
+**Checks run 2026-09-14**: `tsc --noEmit` and eslint clean; 872/872 Vitest
+tests; Playwright 74 passed plus 1 flaky test that passed on retry and 18/18
+when repeated, on a fresh production build of `3085e6c`. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
@@ -217,13 +218,9 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **PENDING APPROVAL: G-035 M4 check-in.** Crisp is identical and faster,
-  but the ≤ 8 s target is missed: median 8.4 s on the benchmark, 8.7–10.6 s
-  on real photos. Open decision: whether to fix the pre-filter's recall miss
-  by evaluating every cell, an output change costing 0.3–1.1 s per job
-  (D131, `docs/reviews/2026-09-14-crisp-prefilter.md`). M5 waits for
-  approval. The browser generate target is unreachable without the cap
-  (D130).
+- **G-035 M5 in progress** (Owner-approved): identical-output ICM and
+  k-means rewrites, Codex critique first. M4 was accepted at 8.4 s; the
+  browser generate target is unreachable without the cap (D130).
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is
@@ -292,6 +289,7 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 | 2026-09-14 | 9b8de28 | G-035 M3: photo decode in a worker; flag-gated resolution comparison; no default cap (D127–D129) | Only this container restarted; 20 of 20 sites 200; live: no switch without the flag; with `?compare-resolution` Full read 160×100 and 2 px read 100×62, Undo restored Full's details; no decode fallback warning; no console errors |
 | 2026-09-14 | a0c4bcf | Photo resolution cap and comparison switch removed on the Owner's decision (D130) | Only this container restarted; 20 of 20 sites 200; live: no resolution control even with `?compare-resolution`, upload decoded without fallback, a 50 × 31 chart generated; no console errors |
 | 2026-09-14 | f31b2c1 | G-035 M4: Crisp evidence on typed arrays with a per-row OKLab cache, identical output | Only this container restarted; 20 of 20 sites 200; live: a Crisp 50 × 31 chart generated, no decode fallback, no console errors |
+| 2026-09-14 | 3085e6c | Crisp evaluates every cell; the lossy pre-filter is removed (D132) | Only this container restarted; 20 of 20 sites 200; live: a Crisp 50 × 31 chart generated, no decode fallback, no console errors |
 
 ## Decisions
 
