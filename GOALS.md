@@ -1206,8 +1206,12 @@ escalation-tier, not a routine refactor):
     is unreachable without the cap; measured 3.0 s at 100 stitches. The
     photo-load target is met without it (no main-thread task over 50 ms).
     Criterion 4 no longer applies. M6's "switch removed" check is done.
-  - Next: verification and deploy of the removal, then the Owner's approval
-    to start M4 (Crisp evidence layer).
+  - Verified and deployed a0c4bcf: tsc and eslint clean, 861/861 unit,
+    75/75 e2e on a production build; only this container restarted, 20 of
+    20 sites 200; live, no resolution control even with the old flag, the
+    upload decoded without fallback, a chart generated, no console errors.
+  - PENDING APPROVAL: start G-035 M4 (Crisp evidence layer) — milestone
+    boundary — logged 2026-09-14.
 - 2026-09-14 — **M3 in progress: cap mechanism and comparison switch built;
   real photos show the cap isn't quality-neutral yet.**
   - Codex round 1 (read-only) critique of the design. Accepted:

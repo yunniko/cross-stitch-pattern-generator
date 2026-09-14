@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-14 at 9b8de28 plus the handover commit that carries this line
+Last verified: 2026-09-14 at a0c4bcf plus the handover commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -281,6 +281,7 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 | 2026-09-14 | 71a23af | G-035 M1: sRGB lookup table and allocation-free OKLab conversion; 12 MP bench rows; bench:browser | Only this container restarted; 20 of 20 sites 200; live: a 12 MP photo generated at 100 st in 3.5 s and at 250 st in 3.4 s; no console errors |
 | 2026-09-14 | 03b69c5 | G-035 M2: exports in a worker with page progress; direct PDF operators; OXS in the worker (D125, D126) | Only this container restarted; 20 of 20 sites 200; live: PNG, PDF, A4, OXS and Export all downloaded with 0 ms main-thread tasks, Export all 3.1 s; a 12 MP photo generated at 100 st in 3.5 s and at 250 st in 4.0 s; no console errors |
 | 2026-09-14 | 9b8de28 | G-035 M3: photo decode in a worker; flag-gated resolution comparison; no default cap (D127–D129) | Only this container restarted; 20 of 20 sites 200; live: no switch without the flag; with `?compare-resolution` Full read 160×100 and 2 px read 100×62, Undo restored Full's details; no decode fallback warning; no console errors |
+| 2026-09-14 | a0c4bcf | Photo resolution cap and comparison switch removed on the Owner's decision (D130) | Only this container restarted; 20 of 20 sites 200; live: no resolution control even with `?compare-resolution`, upload decoded without fallback, a 50 × 31 chart generated; no console errors |
 
 ## Decisions
 
