@@ -17,6 +17,7 @@ import { finalizeCrispPalette } from "../crisp/crisp-palette-finalization";
 import { runCrispQuantizationStage } from "../crisp/crisp-quantization-stage";
 import { snapTransitionStrips, type TransitionSnapOptions } from "../crisp/transition-snap";
 import { pruneBlendLabels, type BlendPruneOptions } from "../crisp/blend-label-pruning";
+import { refillFreedSlots, type PaletteRefillOptions } from "../crisp/palette-refill";
 import { defaultComponentRecolorOptions, fixDiagonalConnections, recolorSmallComponents } from "./contour-cleanup";
 import { runMultiScaleOptimizer, type MultiScaleWeights } from "./local-optimizer";
 import { enhancePixelBuffer, type EnhancementModeId } from "./enhance";
@@ -60,6 +61,8 @@ export interface BuildPatternOptions {
   transitionSnapOptions?: TransitionSnapOptions;
   /** Crisp+ blend-label pruning; defaults to `DEFAULT_BLEND_PRUNE_OPTIONS` (D141). Ignored in other modes. */
   blendPruneOptions?: BlendPruneOptions;
+  /** Crisp+ refill of freed palette slots; defaults to `DEFAULT_PALETTE_REFILL_OPTIONS` (D142). Ignored in other modes. */
+  paletteRefillOptions?: PaletteRefillOptions;
   /** Photo enhancement before generation (G-032); defaults to "off", which passes the original buffer through untouched (D112). */
   enhancementMode?: EnhancementModeId;
   onProgress?: (fraction: number) => void;
@@ -158,17 +161,54 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   // A snapped cell's own colour is still the blend it was averaged from, so in the palette recompute it counts as the
   // colour of the side it joined; otherwise the side colours drift towards the blend (and to a different thread).
   // Blend colours that only form thin transition bands are then pruned (G-038 M3, D141); their cells count the same way.
+  // Slots those passes free are then refilled by splitting the colour whose cells vary most, skipping the moved cells
+  // (G-038 M5, D142), so a chart still reaches the requested colour count.
   let finalizeOklab: Float64Array = ctx.cellOklab;
   if (edgeMode === "crisp-plus" && shouldOptimize) {
     const beforeCrispPlus = merged.cellPaletteIndex;
     const snap = snapTransitionStrips(beforeCrispPlus, gridWidth, gridHeight, merged.palette, colorSource, options.transitionSnapOptions);
     const prune = pruneBlendLabels(snap.cellPaletteIndex, gridWidth, gridHeight, merged.palette, colorSource, options.blendPruneOptions);
-    merged.cellPaletteIndex = prune.cellPaletteIndex;
+    // Moved cells, plus their 8-neighbours: the halo beside a cleaned-up edge still carries blended colour, and a refill
+    // split trained on it would recreate the blend (D142).
+    const changed = new Uint8Array(beforeCrispPlus.length);
+    for (let i = 0; i < changed.length; i++) if (prune.cellPaletteIndex[i] !== beforeCrispPlus[i]) changed[i] = 1;
+    // A refill split may only learn from cells well inside their own colour: a cell beside any boundary still carries
+    // some of the neighbouring colour, and a split trained on those would rebuild the blend the passes just removed.
+    const moved = changed.slice();
+    for (let y = 0; y < gridHeight; y++) {
+      for (let x = 0; x < gridWidth; x++) {
+        const i = y * gridWidth + x;
+        const label = prune.cellPaletteIndex[i];
+        for (let dy = -1; dy <= 1 && !moved[i]; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const xx = x + dx;
+            const yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= gridWidth || yy >= gridHeight) continue;
+            const neighbour = yy * gridWidth + xx;
+            if (changed[neighbour] || prune.cellPaletteIndex[neighbour] !== label) {
+              moved[i] = 1;
+              break;
+            }
+          }
+      }
+    }
+    // Only the slots these passes emptied are refilled, never slots the palette never used: otherwise a photo whose
+    // colours all survive (a gradient, say) would gain colours Crisp never gave it.
+    const distinct = (labels: Uint8Array) => {
+      const seen = new Set<number>();
+      for (const label of labels) if (label < merged.palette.length) seen.add(label);
+      return seen.size;
+    };
+    const usedAfter = distinct(prune.cellPaletteIndex);
+    const target = Math.min(options.colorCount, usedAfter + Math.max(0, distinct(beforeCrispPlus) - usedAfter));
+    const refilled = refillFreedSlots(prune.cellPaletteIndex, merged.palette, ctx.cellOklab, moved, target, options.paletteRefillOptions);
+    merged.cellPaletteIndex = refilled.cellPaletteIndex;
+    merged.palette = refilled.palette;
     if (snap.changes > 0 || prune.pruned.length > 0) {
       finalizeOklab = ctx.cellOklab.slice();
       const labelOklab = merged.palette.map(rgbToOklab);
-      for (let i = 0; i < beforeCrispPlus.length; i++) {
-        if (merged.cellPaletteIndex[i] === beforeCrispPlus[i]) continue;
+      for (let i = 0; i < changed.length; i++) {
+        if (!changed[i]) continue;
         const [l, a, b] = labelOklab[merged.cellPaletteIndex[i]];
         finalizeOklab[i * 3] = l;
         finalizeOklab[i * 3 + 1] = a;

@@ -124,7 +124,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
   quantization, admissible-label unary costs in ICM and cleanup, repair after
   merges, and mode-aware finalization (D061–D072). The layer evaluates every
   cell (D132) and converts each source row to OKLab once per job (G-035 M4).
-  Crisp+ (`edgeMode: "crisp-plus"`, G-038) adds blurred-step evidence (D139), strip snapping (D140), blend pruning (D141).
+  Crisp+ (`edgeMode: "crisp-plus"`, G-038) adds blurred-step evidence (D139), strip snapping (D140), blend pruning (D141), slot refill (D142).
 - **Threads** (`lib/threads/`): `thread-brands.ts` is the registry. Its
   `matching` field is "direct" for DMC and Cosmo, or "dmc-equivalence" for
   Anchor. `brand-match.ts` does the snapping. Data provenance is in
@@ -219,9 +219,9 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 ## Next steps and open questions
 
 - **G-039 Move tool speed planned:** the investigation and the five-option plan are in `docs/reviews/2026-09-16-move-tool-investigation.md` and `GOALS.md`; M1 (benchmark) has not started.
-- **G-038 Crisp+ in progress:** M1–M4 built (D139–D141), M5 (refilling freed colour slots) under way; see `GOALS.md`.
-  Crisp+ can still end under the requested colour count (road-mountains 14 of 24), which M5 addresses;
-  measurements are in `docs/reviews/2026-09-16-crisp-plus-calibration.md`.
+- **G-038 Crisp+ in progress:** M1–M5 built (D139–D142); awaiting the Owner's visual check; see `GOALS.md`.
+  A busy photo can still end under the requested colour count (road-mountains 14 of 24): a refill split may
+  only learn from cells inside a colour (D142). Measurements: `docs/reviews/2026-09-16-crisp-plus-calibration.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is live (D122, D123); see its progress log in `GOALS.md`.
   Out of scope: "+ Add" keeps its old flow, and touch screens pick on tap with no comparison.

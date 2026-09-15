@@ -149,4 +149,5 @@ remain readable with git show.
 - D138 — A brush double-click fill is one undo step; symmetry is saved as an optional file field — active
 - D139 — Crisp+ evidence also fits a blurred step, keeping Crisp's margin and threshold — active
 - D140 — Crisp+ snaps thin blend strips that the source confirms as a blurred edge — active
-- D141 — Crisp+ prunes thin mix colours whose cells ramp in the photo; freed slots stay free — active
+- D141 — Crisp+ prunes thin mix colours whose cells ramp in the photo; freed slots stay free — superseded (superseded by: D142 for the freed slots)
+- D142 — Crisp+ refills only the slots it frees, splitting interior cells, never into a blend — active

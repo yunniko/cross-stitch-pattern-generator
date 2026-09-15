@@ -284,10 +284,57 @@ report what changed and why.
 | lake-summer | 100×67 | 3.42 % → 3.78 % | 2.0 % | 24.3 % | 24 → 20 |
 | road-mountains | 100×67 | 7.93 % → 8.45 % | 9.3 % | 18.0 % | 24 → 14 |
 
-**Open question for the Owner: fewer colours than requested.** Freed slots
-stay free (D140, D141), so a photo whose blends are removed can end well under
-the requested count: road-mountains keeps 14 of 24, backlit-geyser and
-lake-summer 20. On the fixtures this never mattered, because they hold four
-real colours. Reinvesting the slots was rejected in M2 on fixture evidence
-(refilling by colour error recreates the blends); these photos are the first
-case for revisiting it.
+**Fewer colours than requested** was the Owner's next question, answered by M5
+below. Freed slots stayed free under D140 and D141, so a photo whose blends
+are removed ended well under the requested count: road-mountains kept 14 of
+24, backlit-geyser and lake-summer 20.
+
+## M5: refilling the freed slots (D142)
+
+The Owner chose refilling by splitting over re-running colour selection, which
+the stage benchmark priced at about 3.3 s extra at 1000 stitches.
+
+Three versions were measured on the fixtures. Figures are blend boundary +
+interior cells on the region scene; "lines" counts thin-line cells kept
+against Crisp's own 80 / 42 / 152 / 152.
+
+| Version | Blur 0.25 @8 | Blur 0.5 @8 | Blur 0.5 @16 | Blur 1 @8 | Blur 1 @16 | Lines | Gradient cells changed |
+|---|---|---|---|---|---|---|---:|
+| M4, no refill | 0 + 0 | 0 + 0 | 0 + 0 | 4 + 3 | 28 + 30 | equal to Crisp | 0 |
+| Refill to the requested count, moved cells free to join | 5 + 0 | 41 + 0 | 101 + 64 | 108 + 200 | 188 + 313 | 64 of 80 lost 16 | 481 (ramp), 724 (radial) |
+| Only freed slots, moved cells held out | 5 + 0 | 52 + 8 | 78 + 47 | 124 + 205 | 164 + 228 | equal to Crisp | 0 |
+| **Shipped: also interior-only training and no blend-shaped splits** | **0 + 0** | **0 + 0** | **0 + 0** | **2 + 1** | **28 + 29** | **equal to Crisp** | **0** |
+
+So the refill only works when a split learns from cells well inside their own
+colour and may not produce a colour that sits between two existing ones. The
+blur 1 case at 8 colours improves further (4 + 3 → 2 + 1) because the refilled
+colour takes over cells a blend used to hold.
+
+Timing with the refill, same method as M4 (5 alternating runs, run alone):
+
+| Configuration | Crisp median | Crisp+ median | Ratio | Target |
+|---|---:|---:|---:|---:|
+| 12 MP (4000×3000) → 100 stitches, 16 colours | 7,570 ms | 7,931 ms | 1.048 | ≤ 1.3 |
+| 1500×1000 → 1000 stitches, 64 colours | 5,777 ms | 6,566 ms | 1.137 | ≤ 1.3 |
+
+### Real photos with the refill
+
+Colours kept, Crisp → Crisp+ before the refill → Crisp+ with it. Everything
+else in the real-photo table above is unchanged within a percentage point.
+
+| Photo | Grid | Crisp | Before | With refill |
+|---|---|---:|---:|---:|
+| road-mountains | 100×67 | 24 | 14 | 14 |
+| backlit-geyser | 100×66 | 24 | 20 | 20 |
+| lake-summer | 100×67 | 24 | 20 | 22 |
+| tree-under | 250×167 | 24 | 19 | 20 |
+| fog-sailboat | 250×188 | 24 | 23 | 24 |
+| backlit-tower | 250×167 | 24 | 24 | 24 |
+| every other row | | 23–24 | 23–24 | 23–24 |
+
+**Known limitation.** The refill recovers one or two colours on some photos and
+none on the busiest. A split may only learn from cells well inside their own
+colour (D142), and at 100 stitches a detailed photo has few such cells: almost
+every cell borders a different colour. road-mountains therefore still keeps 14
+of 24. Loosening that rule was measured and rejected above: it rebuilt the
+blends the earlier passes removed.

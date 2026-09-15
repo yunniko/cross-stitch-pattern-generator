@@ -1089,8 +1089,47 @@ escalation-tier, not a routine refactor):
   - Benchmarks (criterion 6) and the real-photo comparison (criterion 7).
   - The e2e test; README, HANDOVER and decisions.
   - Deploy, then the Owner's visual check and sign-off.
+- [x] **M5 — Refill the colour slots Crisp+ frees (Owner, 2026-09-16).** Done
+  2026-09-16 (D142).
+  - Real photos end under the requested colour count, for example
+    road-mountains at 14 of 24, because snapping and pruning empty colours
+    and nothing refills them.
+  - After the Crisp+ passes, split the colour whose cells vary most, ignoring
+    the cells those passes moved (training on them would bring the blends
+    back), until the requested count is reached or no colour is worth
+    splitting.
+  - Crisp+ only: Standard and Crisp output stays byte-identical.
+  - Gate: on the fixtures, blends stay at criterion 2's levels and the
+    controls are unchanged; the real photos reach their requested counts;
+    timing stays within criterion 6.
+  - Rejected at the Owner's decision: re-running colour selection on the
+    cleaned chart (option 2). Measured from the stage benchmark, it adds
+    about 3.3 s at 1000 stitches (6.9 s → 10.2 s, about 1.7× Crisp), though
+    only about 50 ms for a 12 MP photo at 100 stitches.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M5 built** (D142), after the Owner chose refilling by
+  splitting over a second colour-selection pass.
+  - `lib/crisp/palette-refill.ts` fills only the slots snapping and pruning
+    freed. A split learns from cells well inside their own colour, and is
+    refused when either new colour sits between two palette colours.
+  - **Two rejected versions, both measured:** refilling up to the requested
+    count gave gradients colours Crisp never had (481 and 724 cells changed);
+    letting moved cells join a split rebuilt the blends (blur 0.5 at 8
+    colours went from 0 to 41 blend cells).
+  - **Fixtures:** blur 0.25 and 0.5 stay at 0 blends, blur 1 at 8 colours
+    improves to 2 + 1 (from 4 + 3), thin lines and gradients match Crisp.
+  - **Real photos:** the refill recovers 1–2 colours on some photos
+    (lake-summer 20 → 22, fog-sailboat 23 → 24, tree-under 19 → 20) and none
+    on the busiest: road-mountains still keeps 14 of 24, because a detailed
+    chart has few cells that are well inside a colour. Recorded as a known
+    limitation.
+  - **Timing:** 1.048× Crisp at 12 MP / 100 stitches, 1.137× at 1000
+    stitches; criterion 6 holds.
+  - **Verification:** full unit suite 984 passed, 8 skipped; type-check and
+    lint clean.
+  - Owner: "deploy when tests pass", so the browser tests decide the deploy
+    without a further check-in.
 - 2026-09-16 — Owner approved M4 ("go ahead with M4").
 - 2026-09-16 — **M3 done; check-in with the Owner before M4.**
   - **What was built:** `lib/crisp/blend-label-pruning.ts` (D141), after
