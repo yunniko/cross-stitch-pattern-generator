@@ -1224,7 +1224,16 @@ escalation-tier, not a routine refactor):
     - `tests/unit/undo-history.spec.ts` (7) and
       `tests/unit/symmetry-persistence.spec.ts` (9).
   - Codex was unavailable (usage limit until 2026-09-19).
-  - Next: deploy M2; M3 (quick mirror actions and release) awaits approval.
+  - Deployed 2963f3c (rebased on the other session's research commit 5d31381,
+    which touched only `docs/reviews/`). Only this container restarted; 20 of 20
+    sites 200 before and after; the G-036 production checks passed.
+  - The first symmetry production check failed on its own assumption, the same
+    one the e2e test had: it expected the colour of stitch (0, 0), 228,124,132,
+    where the brush paints 160,111,72. Its toggle and red guide line checks
+    passed. A corrected check learned the brush colour from a throwaway stitch;
+    on production it painted stitch 1,1 and its mirror 48,1, one undo removed
+    both, and there were no console errors.
+  - Next: M3 (quick mirror actions and release) awaits approval.
 - 2026-09-15 — **Owner: deploy M1 and start M2** ("deploy and go m2"). M3 still needs
   approval. Codex remains unavailable until 2026-09-19.
 - 2026-09-15 — **M1: symmetry geometry in `lib/editor/symmetry.ts`, unit-tested (D137).**
