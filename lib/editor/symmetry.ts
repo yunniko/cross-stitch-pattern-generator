@@ -1,6 +1,6 @@
 import { labelRegions } from "../pipeline/regions";
-import { EMPTY_CELL, type StitchPattern } from "../types";
-import { withCellPalette } from "./pattern-edit";
+import { EMPTY_CELL, type FloatingSelection, type StitchPattern } from "../types";
+import { mergeSelection, withCellPalette } from "./pattern-edit";
 import { effectiveSymmetryAxes, SYMMETRY_AXES, type SymmetryAxes, type SymmetryAxis } from "./symmetry-axes";
 
 export { effectiveSymmetryAxes, NO_SYMMETRY, SYMMETRY_AXES, type SymmetryAxes, type SymmetryAxis } from "./symmetry-axes";
@@ -123,6 +123,15 @@ export function applyQuickMirror(pattern: StitchPattern, kind: QuickMirror): Sti
     }
   }
   return withCellPalette(pattern, cells);
+}
+
+/**
+ * A quick mirror as one edit: a floating selection is merged first, vacating the place it was lifted from as
+ * deselecting does, and the mirror is applied to that result, so the pair commits as a single undo step (G-037
+ * criterion 5). The photo underlay is never mirrored.
+ */
+export function applyQuickMirrorWithSelection(pattern: StitchPattern, selection: FloatingSelection | null, kind: QuickMirror): StitchPattern {
+  return applyQuickMirror(selection ? mergeSelection(pattern, selection) : pattern, kind);
 }
 
 /**

@@ -298,6 +298,8 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
     isDragging,
     merge,
     clear,
+    /** Drops the floating selection without merging it or forgetting the clipboard: an edit has already merged it. */
+    release: () => setSelection(null),
     /** Forgets copied cells after the palette is renumbered (a merge), since their indices now name other colors. */
     invalidateClipboard: () => setClipboard(null),
     copy: () => selection && setClipboard(selection),

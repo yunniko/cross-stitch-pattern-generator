@@ -20,10 +20,10 @@ color editor) is deployed and awaits Owner sign-off.
   or Original clustering, Full range, DMC, Cosmo or Anchor palettes, and
   Standard or Crisp edges. It runs in a reused Web Worker with progress and
   cancellation.
-- Editing: brush (double-click fills), 8-connected fill, rectangle select with
-  copy, paste, move and flip, move, pan, zoom, highlight. Also merge (including
-  into Empty), recolor, rename, symbol swap, add color, empty stitches, canvas
-  resize, and one undo history covering regeneration.
+- Editing: brush (a double-click fill is one undo step, D138), 8-connected fill, symmetric
+  painting on up to four axes and quick mirror (D137), rectangle select with copy, paste,
+  move and flip, move, pan, zoom, highlight; merge, recolor, rename, symbol swap, add
+  color, empty stitches, canvas resize, and one undo history covering regeneration.
 - Color editor: opens under its legend row on the color's remembered thread
   swatch (D122), marked and scrolled into view; hovering or focusing a swatch
   shows an Okhsl comparison (D123); picks apply at once and the editor stays
@@ -218,7 +218,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **G-037 in progress:** M1–M2 done (symmetry geometry, toggles, guide lines, D137, D138); M3 needs approval.
+- **PENDING APPROVAL: G-037 sign-off.** Symmetry and quick mirror are done; see the G-037 log in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is

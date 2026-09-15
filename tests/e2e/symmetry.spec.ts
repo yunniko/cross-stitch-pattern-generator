@@ -282,10 +282,12 @@ test("resizing to a non-square canvas turns the diagonals off, and undoing back 
   await expect(toggle(page, "Diagonal symmetry ↘")).toHaveAttribute("aria-pressed", "false");
 });
 
-test("the Symmetry group fits a 768 px tall window", async ({ page }) => {
+test("the Symmetry and Mirror groups fit a 768 px tall window", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await generateSmallPattern(page);
-  for (const label of ["Vertical symmetry", "Horizontal symmetry", "Diagonal symmetry ↘", "Diagonal symmetry ↙"]) {
+  const labels = ["Vertical symmetry", "Horizontal symmetry", "Diagonal symmetry ↘", "Diagonal symmetry ↙"];
+  labels.push("Mirror left half", "Mirror upper half", "Mirror upper-left corner", "Mirror upper-left half corner");
+  for (const label of labels) {
     const box = (await toggle(page, label).boundingBox())!;
     expect(box.y + box.height, label).toBeLessThanOrEqual(768);
   }

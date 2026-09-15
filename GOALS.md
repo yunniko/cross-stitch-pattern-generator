@@ -1170,7 +1170,7 @@ escalation-tier, not a routine refactor):
     - e2e tests pass for painting, canvas pixels, unchanged rendered
       exports, and the toggles after save, reopen and reload;
     - deployed, with a live smoke test.
-- [ ] **M3 — Quick mirror actions and release.**
+- [x] **M3 — Quick mirror actions and release.** Done; awaiting the Owner's sign-off.
   - A Mirror group of four action buttons with icons that shade the source
     part.
   - Each action computes `mergeSelection` (not the display-only
@@ -1180,6 +1180,35 @@ escalation-tier, not a routine refactor):
   - Gate: deployed, live smoke test, and the goal awaits Owner sign-off.
 
 **Progress log** (newest first):
+- 2026-09-15 — **M3: quick mirror actions; G-037 awaits the Owner's sign-off.**
+  - Tools dock: a Mirror group of four buttons, 2 × 2, below Symmetry. Their
+    icons shade the source part and mark the mirror lines in red. The half
+    corner is disabled on a non-square canvas, with a tooltip. The Symmetry and
+    Mirror groups fit a 768 px tall window (e2e).
+  - `applyQuickMirrorWithSelection` (`lib/editor/symmetry.ts`) merges a
+    floating selection with `mergeSelection`, then mirrors. The workspace
+    commits that once and releases the selection without touching the
+    clipboard. The palette is kept, counts are recomputed, and the photo
+    underlay is not mirrored.
+  - Select, Move, paste and flip ignore symmetry, and their tooltips say so.
+  - README describes symmetric drawing and quick mirror.
+  - Existing tests: the first full run failed two resize-canvas tests, because
+    `getByLabel("Left")` matches by substring and the new "Mirror left half"
+    and "Mirror upper-left …" labels matched too. The resize spec now matches
+    "Left" exactly; the app labels are unchanged.
+  - Checks:
+    - tsc, eslint and docs-lint clean; Vitest 949 passed | 1 skipped (950), including
+      `tests/unit/quick-mirror-selection.spec.ts` (3);
+    - Playwright 300 passed (1.1m) on a production build.
+    - `tests/e2e/quick-mirror.spec.ts` covers:
+      - the three straight mirrors, each symmetric and undone in one step;
+      - the half corner, disabled on a rectangle and giving 8-fold symmetry on
+        a square;
+      - a moved floating selection merged into the same step.
+  - Codex was unavailable (usage limit until 2026-09-19); no Codex review of G-037
+    code.
+  - **PENDING APPROVAL: G-037 sign-off** — every milestone is done; deploy and
+    live check are logged below.
 - 2026-09-15 — **Owner approved M3** ("go ahead"). Codex remains unavailable until 2026-09-19.
 - 2026-09-15 — **M2: symmetry toggles, red guide lines, symmetric painting, one-step double-click fill (D138).**
   - Tools dock: a Symmetry group of four `aria-pressed` toggles, 2 × 2. The

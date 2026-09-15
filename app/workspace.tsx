@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from "react";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
 import { mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from "@/lib/editor/pattern-edit";
-import { effectiveSymmetryAxes, fillSymmetric, NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry";
+import { applyQuickMirrorWithSelection, effectiveSymmetryAxes, fillSymmetric, NO_SYMMETRY, type QuickMirror, type SymmetryAxes } from "@/lib/editor/symmetry";
 import { oxsImportNotice } from "@/lib/editor/oxs";
 import { loadPatternFromFile } from "@/lib/editor/pattern-import";
 import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
@@ -248,6 +248,13 @@ export default function Workspace() {
     if (highlightedColorIndices.size > 0) setHighlightedColorIndices(new Set());
   }
 
+  /** A quick mirror (G-037): any floating selection is merged and the mirror applied, committed as one undo step. */
+  function applyMirror(kind: QuickMirror) {
+    if (!pattern || (kind === "upper-left-half-corner" && pattern.width !== pattern.height)) return;
+    history.set(applyQuickMirrorWithSelection(pattern, select.selection, kind));
+    select.release();
+  }
+
   function toggleHighlight(index: number) {
     setHighlightedColorIndices((prev) => {
       const next = new Set(prev);
@@ -316,6 +323,7 @@ export default function Workspace() {
           symmetry={liveSymmetry}
           squareCanvas={pattern !== null && pattern.width === pattern.height}
           onToggleSymmetry={(axis) => setSymmetry((current) => ({ ...current, [axis]: !current[axis] }))}
+          onMirror={applyMirror}
         />
         <main className="flex flex-1 flex-col overflow-hidden">
           <ViewBar

@@ -19,6 +19,10 @@ browser's IndexedDB, and no image is ever uploaded. Live at
   mark stitches as empty, resize the canvas, undo and redo. The color editor
   opens on a color's own thread swatch, shows how other swatches compare
   ("12% lighter, 5% less saturated"), and stays open while you try threads.
+- **Draw symmetrically**: toggle vertical, horizontal and diagonal symmetry (diagonals on
+  square canvases) and every brush stroke and fill lands on each mirrored stitch, with
+  red guide lines on the chart. Quick mirror copies the left half, upper half, upper-left
+  corner or upper-left half corner over the rest in one undoable step.
 - **Export** editable JSON, a realistic stitched preview, full-chart PNGs,
   paginated A4 ZIPs, a Pattern Keeper–compatible PDF, an OXS chart for other
   cross-stitch programs, or everything at once as a `.cspzip` bundle, which the

@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import type { SymmetryAxes, SymmetryAxis } from "@/lib/editor/symmetry";
+import type { QuickMirror, SymmetryAxes, SymmetryAxis } from "@/lib/editor/symmetry";
 import type { Tool } from "../editor-types";
 
 // Original stroke-based SVGs rather than an icon-library dependency. Every
@@ -140,6 +140,39 @@ const SYMMETRY_TOGGLES: Array<{ axis: SymmetryAxis; label: string; title: string
   { axis: "antidiagonal", label: "Diagonal symmetry ↙", title: "Paint mirrored across the diagonal from top right to bottom left" },
 ];
 
+/** A square with the source part of a quick mirror shaded, and the lines it mirrors across in red. */
+function MirrorIcon({ kind }: { kind: QuickMirror }) {
+  const source = {
+    "left-half": <rect x="4" y="4" width="8" height="16" />,
+    "upper-half": <rect x="4" y="4" width="16" height="8" />,
+    "upper-left-corner": <rect x="4" y="4" width="8" height="8" />,
+    "upper-left-half-corner": <polygon points="4,4 4,12 12,12" />,
+  }[kind];
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+      <g fill="currentColor" opacity="0.45">
+        {source}
+      </g>
+      <rect x="4" y="4" width="16" height="16" rx="1" stroke="currentColor" strokeWidth="1.4" opacity="0.6" />
+      {kind !== "upper-half" && <line x1="12" y1="4" x2="12" y2="20" stroke="#dc2626" strokeWidth="1.4" strokeDasharray="2 1.5" />}
+      {kind !== "left-half" && <line x1="4" y1="12" x2="20" y2="12" stroke="#dc2626" strokeWidth="1.4" strokeDasharray="2 1.5" />}
+      {kind === "upper-left-half-corner" && <line x1="4" y1="4" x2="20" y2="20" stroke="#dc2626" strokeWidth="1.4" strokeDasharray="2 1.5" />}
+    </svg>
+  );
+}
+
+/** One-click mirrors: the shaded part is copied over the rest, as one undo step (G-037). */
+const MIRROR_ACTIONS: Array<{ kind: QuickMirror; label: string; title: string }> = [
+  { kind: "left-half", label: "Mirror left half", title: "Mirror the left half onto the right half" },
+  { kind: "upper-half", label: "Mirror upper half", title: "Mirror the upper half onto the lower half" },
+  { kind: "upper-left-corner", label: "Mirror upper-left corner", title: "Mirror the upper-left quarter to the other three quarters" },
+  {
+    kind: "upper-left-half-corner",
+    label: "Mirror upper-left half corner",
+    title: "Mirror the triangle along the left edge of the upper-left quarter across its diagonal, then to the other quarters",
+  },
+];
+
 export interface ToolsDockProps {
   activeTool: Tool;
   disabled: boolean;
@@ -148,9 +181,10 @@ export interface ToolsDockProps {
   /** Diagonal symmetry exists only on a square canvas. */
   squareCanvas: boolean;
   onToggleSymmetry: (axis: SymmetryAxis) => void;
+  onMirror: (kind: QuickMirror) => void;
 }
 
-export function ToolsDock({ activeTool, disabled, onSelect, symmetry, squareCanvas, onToggleSymmetry }: ToolsDockProps) {
+export function ToolsDock({ activeTool, disabled, onSelect, symmetry, squareCanvas, onToggleSymmetry, onMirror }: ToolsDockProps) {
   return (
     <aside className="flex w-16 shrink-0 flex-col items-center gap-2 border-r border-zinc-300 bg-white py-3 dark:border-zinc-800 dark:bg-zinc-900">
       <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">Tools</span>
@@ -196,6 +230,28 @@ export function ToolsDock({ activeTool, disabled, onSelect, symmetry, squareCanv
               }`}
             >
               <AxisIcon axis={axis} />
+            </button>
+          );
+        })}
+      </div>
+      <div className="my-1 h-px w-8 shrink-0 bg-zinc-300 dark:bg-zinc-700" aria-hidden="true" />
+      <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400" id="mirror-heading">
+        Mirror
+      </span>
+      <div role="group" aria-labelledby="mirror-heading" className="grid grid-cols-2 gap-1">
+        {MIRROR_ACTIONS.map(({ kind, label, title }) => {
+          const needsSquare = kind === "upper-left-half-corner" && !squareCanvas;
+          return (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => onMirror(kind)}
+              disabled={disabled || needsSquare}
+              title={needsSquare ? `${title}. Needs a square canvas.` : title}
+              aria-label={label}
+              className="flex h-7 w-7 items-center justify-center rounded border border-zinc-300 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700"
+            >
+              <MirrorIcon kind={kind} />
             </button>
           );
         })}

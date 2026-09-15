@@ -43,7 +43,7 @@ test("cropping the canvas shrinks it", async ({ page }) => {
   await generateSmallPattern(page);
 
   await page.getByRole("button", { name: "Resize canvas…" }).click();
-  await page.getByLabel("Left").fill("-5");
+  await page.getByLabel("Left", { exact: true }).fill("-5");
   await page.getByRole("button", { name: "Apply" }).click();
 
   await expect(patternHeader(page)).toHaveText(/^45 × \d+, /);
@@ -56,7 +56,7 @@ test("rejects cropping away the entire pattern with a visible error, not a crash
   await generateSmallPattern(page);
 
   await page.getByRole("button", { name: "Resize canvas…" }).click();
-  await page.getByLabel("Left").fill("-60"); // more than the pattern's own 50-stitch width
+  await page.getByLabel("Left", { exact: true }).fill("-60"); // more than the pattern's own 50-stitch width
   await page.getByRole("button", { name: "Apply" }).click();
 
   await expect(page.getByText(/entire pattern/)).toBeVisible();
