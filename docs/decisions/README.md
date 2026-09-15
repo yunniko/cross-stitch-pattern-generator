@@ -112,7 +112,7 @@ remain readable with git show.
 - D101 — A failed auto-restore shows a banner with an on-demand report, not a page-load download — active
 - D102 — Playwright runs against `next build && next start` on its own port — active
 - D103 — Keyboard shortcuts live in a hook that reads state through a ref — active
-- D104 — Brush, Move and Select drags redraw only what changed — active
+- D104 — Brush, Move and Select drags redraw only what changed — partly superseded by D135
 - D105 — `npm run bench` runs a Vitest file, not a separate TS runner — active
 - D106 — Pipeline stages share one `PipelineContext` — active
 - D107 — Pipeline speed-ups must be byte-identical, proven by golden hashes — active
@@ -129,10 +129,10 @@ remain readable with git show.
 - D118 — All photo modes are offered, plus a cautious Brighten mode, on the Owner's decision — active
 - D119 — OXS is read by a dedicated XML reader and written with the cloth at index 0; losses are counted, never silently dropped — active
 - D120 — Stitch counts count only filled stitches; sizes stay the canvas grid — active
-- D121 — Every view mode draws into one canvas at the same size, so zoom, scroll and pan are shared — active
+- D121 — Every view mode draws into one canvas at the same size, so zoom, scroll and pan are shared — superseded by D135
 - D122 — Palette colours remember their thread swatch by brand and code; a brand lock means every colour is that brand's thread — active
 - D123 — The swatch comparison reports Okhsl lightness and saturation differences in percentage points — active
-- D124 — Zooming keeps the point under the cursor in place — active
+- D124 — Zooming keeps the point under the cursor in place — partly superseded by D135
 - D125 — Exports run in a worker with OffscreenCanvas, falling back to the main thread — active
 - D126 — The PDF adapter omits opacity for opaque colors and caches parsed styles — active
 - D127 — The photo cap is an exact grid multiple on opaque photos, with enhancement analysed on the full photo — superseded by D130
@@ -142,4 +142,5 @@ remain readable with git show.
 - D131 — Crisp's candidate pre-filter isn't recalibrated for speed — active
 - D132 — Crisp evaluates every cell; the pair-evidence pre-filter is removed — active
 - D133 — Large grids: ICM skips unchanged neighbourhoods and k-means caches distances, output identical — active
-- D134 — The on-screen chart fills small stitches and the highlight mask from scaled pixels — active
+- D134 — The on-screen chart fills small stitches and the highlight mask from scaled pixels — partly superseded by D135
+- D135 — The Image window paints a viewport canvas inside a chart-sized frame — active

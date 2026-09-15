@@ -84,7 +84,7 @@ test("1-5 switch the Image window's view mode, including the new Original photo 
 
   await page.keyboard.press("5");
   await expect(photoOnlyRadio).toBeChecked();
-  await expect(page.getByRole("main").locator("canvas")).toHaveAttribute("data-view-mode", "photo-only");
+  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-mode", "photo-only");
 
   await page.keyboard.press("1");
   await expect(colorRadio).toBeChecked();
@@ -95,7 +95,7 @@ test("double-clicking with Brush active flood-fills the whole region that was th
 }) => {
   await generateSmallPattern(page);
   const legendRows = page.locator('[data-testid="legend-color-row"]');
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   await canvas.scrollIntoViewIfNeeded();
   const box = await canvas.boundingBox();
   if (!box) throw new Error("canvas not visible");

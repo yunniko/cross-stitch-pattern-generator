@@ -15,7 +15,7 @@ test("generate, merge two colors, undo/redo, download editable, and reopen it", 
   await generateSmallPattern(page);
 
   const legendRows = page.locator('[data-testid="legend-color-row"]');
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   await expect(canvas).toBeVisible();
   const initialCount = await legendRows.count();
   expect(initialCount).toBeGreaterThan(1);
@@ -84,7 +84,7 @@ test("cluster-fill drag and click-to-paint both change the pattern without error
   await generateSmallPattern(page);
 
   const legendRows = page.locator('[data-testid="legend-color-row"]');
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   await canvas.scrollIntoViewIfNeeded();
 
   // Cluster-fill: drag a legend color onto the picture. Center of the
@@ -106,7 +106,7 @@ test("brush stroke paints multiple stitches as a single undo step", async ({ pag
   await generateSmallPattern(page);
 
   const legendRows = page.locator('[data-testid="legend-color-row"]');
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   await canvas.scrollIntoViewIfNeeded();
   const box = await canvas.boundingBox();
   if (!box) throw new Error("canvas not visible");

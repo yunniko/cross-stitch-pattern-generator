@@ -19,7 +19,7 @@ test("painting a stitch empty doesn't add it to the legend or its stitch counts 
   const emptyRow = page.getByText("Empty (no stitch)");
   await expect(emptyRow).toBeVisible();
 
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   await emptyRow.click();
   await canvas.click({ position: { x: 20, y: 20 } });
 
@@ -32,7 +32,7 @@ test("an empty-painted stitch renders as blank white on the live canvas, in colo
   await generateSmallPattern(page);
 
   const emptyRow = page.getByText("Empty (no stitch)");
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   await emptyRow.click();
 
   // Cluster-fill empty at a specific point (not the canvas center default,
@@ -42,7 +42,8 @@ test("an empty-painted stitch renders as blank white on the live canvas, in colo
   await emptyRow.dragTo(canvas, { targetPosition: { x: 5, y: 5 } });
 
   const cellIsWhite = () =>
-    canvas.evaluate((el: HTMLCanvasElement) => {
+    page.getByRole("main").locator("canvas").evaluate((el: HTMLCanvasElement) => {
+      if (el.style.left !== "0px" || el.style.top !== "0px") throw new Error("the canvas is not painted from the chart origin");
       const [r, g, b, a] = el.getContext("2d")!.getImageData(5, 5, 1, 1).data;
       return r === 255 && g === 255 && b === 255 && a === 255;
     });
@@ -62,7 +63,7 @@ test("Grid + photo mode leaves an empty-painted cell showing only the photo unde
   await photoRadio.check();
 
   const emptyRow = page.getByText("Empty (no stitch)");
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   await emptyRow.click();
   await canvas.click({ position: { x: 20, y: 20 } });
 

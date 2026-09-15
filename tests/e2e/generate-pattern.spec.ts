@@ -19,7 +19,7 @@ test("upload an image, generate a pattern, preview it, and download both variant
 
   await page.getByRole("button", { name: "Generate pattern" }).click();
 
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   await expect(canvas).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/50 × \d+, [\d,]+ stitches, \d+ colors/)).toBeVisible();
 

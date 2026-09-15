@@ -148,14 +148,22 @@ async function timed(page: Page, client: CDPSession, action: () => Promise<void>
   return { latencyMs: windowResult.latencyMs, longestTaskMs: windowResult.longestTaskMs, maxFrameGapMs: windowResult.maxFrameGapMs, tailLongTaskMs, topFrames };
 }
 
-async function canvasWidth(page: Page): Promise<number> {
-  return page.getByRole("main").locator("canvas").first().evaluate((el: HTMLCanvasElement) => el.width);
+/** The chart frame's cell size and completed render revision (D135): the viewport canvas keeps its size across zooms. */
+async function chartState(page: Page): Promise<{ cellSize: string; revision: number }> {
+  return page.getByTestId("chart-frame").evaluate((el: HTMLElement) => ({ cellSize: el.dataset.cellSize ?? "", revision: Number(el.dataset.renderRevision ?? 0) }));
 }
 
-/** Waits for a zoom step's resize; returns false when the canvas is already at its size cap and nothing redraws. */
-async function waitForCanvasWidthChange(page: Page, before: number): Promise<boolean> {
+/** Waits for a zoom step's new cell size and its paint; returns false at the zoom cap, where nothing changes. */
+async function waitForZoomRendered(page: Page, before: { cellSize: string; revision: number }): Promise<boolean> {
   return page
-    .waitForFunction((w) => (document.querySelector("main canvas") as HTMLCanvasElement | null)?.width !== w, before, { polling: 16, timeout: 1000 })
+    .waitForFunction(
+      (b) => {
+        const frame = document.querySelector('[data-testid="chart-frame"]') as HTMLElement | null;
+        return !!frame && frame.dataset.cellSize !== b.cellSize && Number(frame.dataset.renderRevision ?? 0) > b.revision;
+      },
+      before,
+      { polling: 16, timeout: 1000 }
+    )
     .then(() => true)
     .catch(() => false);
 }
@@ -191,7 +199,7 @@ test("large-chart operations at 1000 stitches", async ({ page }, testInfo) => {
   const results: Record<string, Sample[]> = {};
   const record = (name: string, sample: Sample) => (results[name] ??= []).push(sample);
   const main = page.getByRole("main");
-  const scroller = main.locator("canvas").first().locator("xpath=ancestor::div[contains(@class,'overflow-auto')][1]");
+  const scroller = page.getByTestId("chart-frame").locator("xpath=ancestor::div[contains(@class,'overflow-auto')][1]");
   const legendRows = page.locator('[data-testid="legend-color-row"]');
 
   for (let run = 0; run < RUNS; run++) {
@@ -206,14 +214,14 @@ test("large-chart operations at 1000 stitches", async ({ page }, testInfo) => {
       })
     );
 
-    // Zoom in until the canvas stops growing, one row per step, then back out.
+    // Zoom in until the cell size stops growing, one row per step, then back out.
     for (let step = 1; step <= 3; step++) {
-      const before = await canvasWidth(page);
+      const before = await chartState(page);
       let changed = true;
       const sample = await timed(page, client, () => page.getByRole("button", { name: "Zoom in" }).click(), async () => {
-        changed = await waitForCanvasWidthChange(page, before);
+        changed = await waitForZoomRendered(page, before);
       });
-      if (!changed) break; // at the canvas cap: no redraw, nothing to time
+      if (!changed) break; // at the zoom cap: no redraw, nothing to time
       record(`zoom in, step ${step}`, sample);
     }
 
@@ -253,7 +261,7 @@ test("large-chart operations at 1000 stitches", async ({ page }, testInfo) => {
 
     // A rectangle selection drag across part of the view.
     await page.getByRole("button", { name: "Select" }).click();
-    const box = await main.locator("canvas").first().boundingBox();
+    const box = await page.getByTestId("chart-frame").boundingBox();
     const view = await scroller.boundingBox();
     if (box && view) {
       const x = Math.max(box.x, view.x) + 60;
@@ -278,9 +286,9 @@ test("large-chart operations at 1000 stitches", async ({ page }, testInfo) => {
 
     // Back to the fitted zoom for the next run.
     for (let i = 0; i < 3; i++) {
-      const before = await canvasWidth(page);
+      const before = await chartState(page);
       await page.getByRole("button", { name: "Zoom out" }).click();
-      await waitForCanvasWidthChange(page, before);
+      await waitForZoomRendered(page, before);
     }
 
     // A saved project reopened on a fresh page.

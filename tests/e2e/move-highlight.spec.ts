@@ -12,17 +12,21 @@ async function generateSmallPattern(page: import("@playwright/test").Page) {
 }
 
 async function cornerPixel(canvas: import("@playwright/test").Locator) {
-  return canvas.evaluate((el: HTMLCanvasElement) => el.getContext("2d")!.getImageData(2, 2, 1, 1).data.join(","));
+  return canvas.evaluate((el: HTMLCanvasElement) => {
+    // The viewport canvas holds chart pixel (2, 2) at its own (2, 2) only while it is painted from the chart origin (D135).
+    if (el.style.left !== "0px" || el.style.top !== "0px") throw new Error("the canvas is not painted from the chart origin");
+    return el.getContext("2d")!.getImageData(2, 2, 1, 1).data.join(",");
+  });
 }
 
 test("the Move tool repositions the whole design as a single undoable step (G-012)", async ({ page }) => {
   await generateSmallPattern(page);
 
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   const box = await canvas.boundingBox();
   if (!box) throw new Error("canvas not visible");
 
-  const before = await cornerPixel(canvas);
+  const before = await cornerPixel(page.getByRole("main").locator("canvas"));
 
   await page.getByRole("button", { name: "Move" }).click();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -30,19 +34,19 @@ test("the Move tool repositions the whole design as a single undoable step (G-01
   await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 20, { steps: 5 });
   await page.mouse.up();
 
-  expect(await cornerPixel(canvas)).not.toBe(before);
+  expect(await cornerPixel(page.getByRole("main").locator("canvas"))).not.toBe(before);
 
   // One undo fully reverts the move (a single history step, like any edit).
   const undoButton = page.getByRole("button", { name: "Undo" });
   await expect(undoButton).toBeEnabled();
   await undoButton.click();
-  expect(await cornerPixel(canvas)).toBe(before);
+  expect(await cornerPixel(page.getByRole("main").locator("canvas"))).toBe(before);
 });
 
 test("the Move tool does nothing (no undo step) when the drag doesn't cross a stitch cell", async ({ page }) => {
   await generateSmallPattern(page);
 
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   const box = await canvas.boundingBox();
   if (!box) throw new Error("canvas not visible");
 
@@ -62,9 +66,8 @@ test("the Highlight tool dims non-selected colors as a pure view overlay -- no u
   const legendRows = page.locator('[data-testid="legend-color-row"]');
   const stsTextBefore = await legendRows.nth(0).textContent();
 
-  const canvas = page.getByRole("main").locator("canvas");
   const readCanvas = () =>
-    canvas.evaluate((el: HTMLCanvasElement) => Array.from(el.getContext("2d")!.getImageData(0, 0, el.width, el.height).data));
+    page.getByRole("main").locator("canvas").evaluate((el: HTMLCanvasElement) => Array.from(el.getContext("2d")!.getImageData(0, 0, el.width, el.height).data));
 
   const plain = await readCanvas();
   await legendRows.nth(0).click(); // select this color for highlighting

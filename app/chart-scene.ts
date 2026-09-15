@@ -8,8 +8,8 @@ import { drawSelectionOutline, PHOTO_UNDERLAY_ALPHA } from "./editor-geometry";
 /**
  * What the Image window shows, drawn into the viewport canvas for any rectangle of chart pixels (G-036 M3, D135).
  * Every function here draws in chart coordinates under the caller's transform and touches only the pixels of the
- * rectangle it is given, each one exactly as the pre-G-036 full-size canvas painted it
- * (tests/e2e/chart-render-parity.spec.ts).
+ * rectangle it is given, each one as the pre-G-036 full-size canvas painted it, with grid lines as filled rectangles
+ * and scaled photo pixels within 16 levels (tests/e2e/chart-viewport-parity.spec.ts).
  */
 export interface ChartScene {
   viewMode: ViewMode;
@@ -109,7 +109,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
     if (photo && photo.dataUrl === displayPattern.sourceImage.dataUrl) {
       drawSourcePhoto(ctx, photo.img, displayPattern.sourceImage, cellSize, PHOTO_UNDERLAY_ALPHA);
     }
-    atRegion(ctx, region, cellSize, () => drawChartOutline(ctx, displayPattern, cellSize, region));
+    atRegion(ctx, region, cellSize, () => drawChartOutline(ctx, displayPattern, cellSize, region, "rects"));
   } else {
     atRegion(ctx, region, cellSize, () => drawChartOnScreen(ctx, displayPattern, viewMode as RenderMode, cellSize, region, canvasColor));
   }
@@ -139,7 +139,7 @@ export function drawCellsInto(
   const region = regionFor(ctx, base, scene, rect);
   ctx.save();
   clipTo(ctx, rect);
-  eachCell(region, (x, y, paletteIndex) => drawCell(ctx, base, mode, cs, x, y, paletteIndex, scene.canvasColor));
+  eachCell(region, (x, y, paletteIndex) => drawCell(ctx, base, mode, cs, x, y, paletteIndex, scene.canvasColor, "rects"));
   ctx.restore();
 }
 

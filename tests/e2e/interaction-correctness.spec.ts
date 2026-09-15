@@ -23,7 +23,7 @@ function largePatternJson(width: number, height: number, colors: number): string
 
 test("Space with a floating selection merges it where it currently is, not where the handler last saw it (B4)", async ({ page }) => {
   await generateSmallPattern(page);
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   const box = await canvas.boundingBox();
   if (!box) throw new Error("canvas not visible");
   const cell = box.width / 50; // Small preset: 50 stitches wide
@@ -102,7 +102,7 @@ test("a 50-cell brush stroke on a 1000-stitch pattern completes within a bounded
   await page.getByRole("button", { name: "Open pattern…" }).click();
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles({ name: "large_editable.json", mimeType: "application/json", buffer: Buffer.from(largePatternJson(1000, 625, 16)) });
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   await expect(canvas).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/1000 × 625, [\d,]+ stitch/)).toBeVisible();
 

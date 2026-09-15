@@ -23,7 +23,7 @@ test("the Preview/navigator dock renders the whole pattern at true 1px-per-stitc
 test("zoom controls change the Image window's on-screen size without changing the pattern (G-012)", async ({ page }) => {
   await generateSmallPattern(page);
 
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   const before = await canvas.boundingBox();
   if (!before) throw new Error("canvas not visible");
 
@@ -105,7 +105,7 @@ test("zoomed-in content can be scrolled all the way to its true top-left corner"
   // And scrollTop/scrollLeft actually being 0 must correspond to the
   // canvas's *true* top-left corner being visible, not merely to an
   // unreachable-but-reported-as-0 value.
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   const scrollerBox = await scroller.boundingBox();
   const canvasBox = await canvas.boundingBox();
   if (!scrollerBox || !canvasBox) throw new Error("elements not visible");
@@ -115,7 +115,7 @@ test("zoomed-in content can be scrolled all the way to its true top-left corner"
 
 /** Where a screen position falls on the Image window's canvas, as fractions of its box, plus one stitch's size on screen. */
 async function canvasPointAt(page: import("@playwright/test").Page, x: number, y: number) {
-  const box = await page.getByRole("main").locator("canvas").boundingBox();
+  const box = await page.getByTestId("chart-frame").boundingBox();
   if (!box) throw new Error("canvas not visible");
   // The Small preset gives this landscape fixture 50 stitches across.
   return { fx: (x - box.x) / box.width, fy: (y - box.y) / box.height, stitchPx: box.width / 50 };
@@ -150,7 +150,7 @@ test("wheel zoom keeps the stitch under the cursor in place, zooming in and out 
     const after = await canvasPointAt(page, x, y);
     // The same stitch is still under the cursor, within one stitch: no drift from resizing, and no native scroll.
     expect(Math.abs(after.fx - before.fx) * after.stitchPx * 50).toBeLessThan(after.stitchPx);
-    expect(Math.abs(after.fy - before.fy) * (await page.getByRole("main").locator("canvas").boundingBox())!.height).toBeLessThan(after.stitchPx);
+    expect(Math.abs(after.fy - before.fy) * (await page.getByTestId("chart-frame").boundingBox())!.height).toBeLessThan(after.stitchPx);
   }
 });
 
@@ -166,7 +166,7 @@ test("the Zoom tool zooms in at the clicked stitch (D124)", async ({ page }) => 
   await expect(zoomReadout).not.toHaveText(zoomBefore);
   const after = await canvasPointAt(page, x, y);
   expect(Math.abs(after.fx - before.fx) * after.stitchPx * 50).toBeLessThan(after.stitchPx);
-  expect(Math.abs(after.fy - before.fy) * (await page.getByRole("main").locator("canvas").boundingBox())!.height).toBeLessThan(after.stitchPx);
+  expect(Math.abs(after.fy - before.fy) * (await page.getByTestId("chart-frame").boundingBox())!.height).toBeLessThan(after.stitchPx);
 });
 
 test("every view mode shares one zoom and scroll position, and the realistic view is drawn (D121)", async ({ page }) => {
@@ -177,7 +177,7 @@ test("every view mode shares one zoom and scroll position, and the realistic vie
   const zoomIn = page.getByRole("button", { name: "Zoom in" });
   for (let i = 0; i < 4; i++) await zoomIn.click();
   const scroller = page.locator("div.overflow-auto").first();
-  const canvas = page.getByRole("main").locator("canvas");
+  const canvas = page.getByTestId("chart-frame");
   await scroller.evaluate((el) => {
     el.scrollLeft = 120;
     el.scrollTop = 90;
@@ -205,7 +205,7 @@ test("every view mode shares one zoom and scroll position, and the realistic vie
   await page.getByRole("radio", { name: "Realistic preview", exact: true }).check();
   await expect
     .poll(() =>
-      canvas.evaluate((el: HTMLCanvasElement) => {
+      page.getByRole("main").locator("canvas").evaluate((el: HTMLCanvasElement) => {
         const ctx = el.getContext("2d")!;
         const { data } = ctx.getImageData(0, 0, el.width, el.height);
         let differing = 0;

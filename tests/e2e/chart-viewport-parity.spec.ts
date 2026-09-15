@@ -8,9 +8,11 @@ import { rolldown } from "rolldown";
  * copy of that drawing (tests/unit/reference/chart-scene-pre-g036.ts over render-pre-g036.ts). Each case renders the
  * reference at the real Image canvas size (width × cellSize by height × cellSize), then draws several rectangles with
  * the live code — the whole chart, the chart edges, arbitrary crops and slivers — and asserts zero differing bytes.
- * Gesture previews (brush strokes with repeated stitches, Move with wrap-around, select rectangles and pieces) are
- * replayed on both sides. Grid + photo gesture frames compare with a fresh render of the working pattern: the
- * pre-G-036 frames there redrew over an uncleared canvas and accumulated the photo underlay (D135).
+ * Gesture previews (brush strokes with repeated stitches and a mid-stroke colour change, Move with wrap-around,
+ * select rectangles and pieces) are replayed on both sides. Owner decisions (D135): the reference draws grid lines as
+ * filled rectangles (through rect-grid-context.ts); Grid + photo gesture frames compare with a fresh render, since the
+ * pre-G-036 frames there accumulated over an uncleared canvas; pixels of the three photo views may differ by up to 16
+ * levels (Chromium resamples scaled images differently at some offsets) and selection outlines by 1; all else is exact.
  */
 
 const ROOT = path.resolve(__dirname, "..", "..");
@@ -46,7 +48,7 @@ interface Case {
 }
 
 interface Result {
-  rects: Array<{ rect: string; differing: number }>;
+  rects: Array<{ rect: string; differing: number; maxDelta: number }>;
   size: string;
 }
 
@@ -57,8 +59,9 @@ async function compare(page: Page, c: Case): Promise<Result> {
       viewport: typeof import("../../lib/editor/chart-viewport");
       reference: typeof import("../unit/reference/chart-scene-pre-g036");
       edit: { compositeSelectionPreview: typeof import("../../lib/editor/pattern-edit").compositeSelectionPreview };
+      rectGridContext: typeof import("./fixtures/rect-grid-context").rectGridContext;
     };
-    const { scene: live, reference, edit } = (window as unknown as { __viewportParity: Modules }).__viewportParity;
+    const { scene: live, reference, edit, rectGridContext } = (window as unknown as { __viewportParity: Modules }).__viewportParity;
     const SYMBOLS = "●■▲◆★✚✖♥♣♠☀☂☘♫✿❖◐◑▣▤▥▦▧▨▩☼♦♪⚑⚙⚡✈✉✎✂✓✗✦✧❀❁❂❃❄❅❆❇❈❉❊❋ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz0123456789+=#%&@".split("");
     // Imported files may carry any non-empty, unique string as a symbol: wide and multi-character ones overhang their stitch.
     const LONG = ["WWW", "@@", "Mm", "——", "ẞQ", "%%%", "⌘⌘", "WM"];
@@ -148,13 +151,30 @@ async function compare(page: Page, c: Case): Promise<Result> {
 
     // Reference: the pre-G-036 full-size canvas after the same sequence of drawing calls.
     const full = document.createElement("canvas");
-    const fctx = reference.renderFullView(full, pattern as never, referenceScene as never);
+    const fullContext = rectGridContext(full.getContext("2d")!);
+    // The frozen drawing asks its canvas for a context; this one hands it the rectangle-grid wrapper.
+    const fullCanvas = {
+      get width() {
+        return full.width;
+      },
+      set width(v: number) {
+        full.width = v;
+      },
+      get height() {
+        return full.height;
+      },
+      set height(v: number) {
+        full.height = v;
+      },
+      getContext: () => fullContext,
+    } as unknown as HTMLCanvasElement;
+    const fctx = reference.renderFullView(fullCanvas, pattern as never, referenceScene as never);
     if (c.gesture === "brush") {
       for (const op of ops) {
         brushCells[op.cellIndex] = op.paletteIndex;
         if (incremental) reference.drawWorkingCell(fctx, referenceScene as never, pattern as never, brushCells, op.cellIndex);
       }
-      if (!incremental) reference.renderFullView(full, { ...pattern, cellPalette: brushCells } as never, referenceScene as never);
+      if (!incremental) reference.renderFullView(fullCanvas, { ...pattern, cellPalette: brushCells } as never, referenceScene as never);
     } else if (c.gesture === "move") {
       const snapshot = reference.snapshotCanvas(full);
       reference.drawShiftedSnapshot(fctx, referenceScene as never, pattern as never, snapshot, dx, dy);
@@ -167,7 +187,7 @@ async function compare(page: Page, c: Case): Promise<Result> {
         reference.drawSelectionDragFrame(fctx, referenceScene as never, { kind: "piece", base: pattern as never, piece, snapshot: reference.snapshotCanvas(full) });
       } else {
         // A fresh render of the composited piece plus its outline (D135: no accumulation over an uncleared canvas).
-        reference.renderFullView(full, edit.compositeSelectionPreview(pattern as never, piece) as never, referenceScene as never);
+        reference.renderFullView(fullCanvas, edit.compositeSelectionPreview(pattern as never, piece) as never, referenceScene as never);
         reference.drawSelectionOutline(fctx, piece, cs);
       }
     }
@@ -193,7 +213,7 @@ async function compare(page: Page, c: Case): Promise<Result> {
       [0, Math.floor(H / 3), W, Math.floor(H / 3) + 3],
       [cs * 3 - 1, cs * 2 + 1, Math.min(W, cs * 9 + 2), Math.min(H, cs * 7 - 1)],
     ];
-    const results: Array<{ rect: string; differing: number }> = [];
+    const results: Array<{ rect: string; differing: number; maxDelta: number }> = [];
     for (const [x0, y0, x1, y1] of rects) {
       if (x1 <= x0 || y1 <= y0) continue;
       const canvas = document.createElement("canvas");
@@ -204,14 +224,19 @@ async function compare(page: Page, c: Case): Promise<Result> {
       live.drawSceneWithGesture(ctx, liveScene as never, pattern as never, liveGesture as never, { x0, y0, x1, y1 });
       const actual = ctx.getImageData(0, 0, x1 - x0, y1 - y0).data;
       let differing = 0;
+      let maxDelta = 0;
       for (let y = y0; y < y1; y++) {
         for (let x = x0; x < x1; x++) {
           const e = (y * W + x) * 4;
           const a = ((y - y0) * (x1 - x0) + (x - x0)) * 4;
-          for (let k = 0; k < 4; k++) if (expected[e + k] !== actual[a + k]) differing++;
+          for (let k = 0; k < 4; k++) {
+            if (expected[e + k] === actual[a + k]) continue;
+            differing++;
+            maxDelta = Math.max(maxDelta, Math.abs(expected[e + k] - actual[a + k]));
+          }
         }
       }
-      results.push({ rect: `${x0},${y0}–${x1},${y1}`, differing });
+      results.push({ rect: `${x0},${y0}–${x1},${y1}`, differing, maxDelta });
     }
     return { rects: results, size: `${W}×${H}` };
   }, c);
@@ -262,6 +287,13 @@ for (const c of CASES) {
     test.setTimeout(240_000);
     const result = await compare(page, c);
     expect(result.rects.length, `chart ${result.size}`).toBeGreaterThan(0);
-    for (const { rect, differing } of result.rects) expect(differing, `rect ${rect} of ${result.size}`).toBe(0);
+    // Owner decision (D135): scaled photo pixels within 16 levels, the dashed selection outline within 1, all else exact.
+    const photoView = c.viewMode === "realistic" || c.viewMode === "photo" || c.viewMode === "photo-only";
+    const outlined = c.gesture === "floating" || c.gesture === "select-rect" || c.gesture === "select-piece";
+    const tolerance = photoView ? 16 : outlined ? 1 : 0;
+    for (const { rect, differing, maxDelta } of result.rects) {
+      if (differing > 0) test.info().annotations.push({ type: "within-tolerance", description: `rect ${rect}: ${differing} bytes, max ${maxDelta}` });
+      expect(maxDelta, `rect ${rect} of ${result.size}: ${differing} differing bytes`).toBeLessThanOrEqual(tolerance);
+    }
   });
 }

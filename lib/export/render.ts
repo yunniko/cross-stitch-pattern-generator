@@ -124,6 +124,12 @@ function symbolTextColor(mode: RenderMode, rgb: RGB): string {
   return luminance(rgb) > 140 ? "#000000" : "#ffffff";
 }
 
+/**
+ * How grid lines are drawn: `stroke` for every export (and the vector PDF context), `rects` for the Image window, whose
+ * viewport canvas needs grid pixels that don't depend on the canvas size or offset (D135).
+ */
+export type GridStyle = "stroke" | "rects";
+
 /** A rectangular range of the pattern's own global stitch coordinates, end-exclusive. */
 export interface ChartRegion {
   x0: number;
@@ -185,7 +191,8 @@ export function drawChart(
    * value, for the Owner's own "canvas color" view preference (2026-09-12)
    * -- deliberately view-only, never plumbed into any export call site.
    */
-  emptyCellColor: string = "#ffffff"
+  emptyCellColor: string = "#ffffff",
+  gridStyle: GridStyle = "stroke"
 ) {
   const { width, height, cellPalette, palette } = pattern;
   const { x0, y0, x1, y1 } = region ?? { x0: 0, y0: 0, x1: width, y1: height };
@@ -226,7 +233,7 @@ export function drawChart(
     }
   }
 
-  drawGridLines(ctx, x0, y0, x1, y1, cellSize);
+  drawGridLines(ctx, x0, y0, x1, y1, cellSize, 0, 0, gridStyle);
 }
 
 /** The exact bytes a canvas fills for a CSS colour, read back from a 1×1 probe; `null` unless it is fully opaque. */
@@ -281,7 +288,7 @@ export function drawChartOnScreen(ctx: CanvasRenderingContext2D, pattern: Stitch
   const { width, height, cellPalette, palette } = pattern;
   const r = region ?? { x0: 0, y0: 0, x1: width, y1: height };
   if (!emptyRgb) {
-    drawChart(ctx, pattern, mode, cellSize, region, emptyCellColor);
+    drawChart(ctx, pattern, mode, cellSize, region, emptyCellColor, "rects");
     return;
   }
   const colors = palette.map((color): RGB => {
@@ -304,10 +311,10 @@ export function drawChartOnScreen(ctx: CanvasRenderingContext2D, pattern: Stitch
     width
   );
   if (!drawn) {
-    drawChart(ctx, pattern, mode, cellSize, region, emptyCellColor);
+    drawChart(ctx, pattern, mode, cellSize, region, emptyCellColor, "rects");
     return;
   }
-  drawGridLines(ctx, r.x0, r.y0, r.x1, r.y1, cellSize);
+  drawGridLines(ctx, r.x0, r.y0, r.x1, r.y1, cellSize, 0, 0, "rects");
 }
 
 /**
@@ -327,7 +334,8 @@ export function drawCell(
   x: number,
   y: number,
   paletteIndex: number,
-  emptyCellColor: string = "#ffffff"
+  emptyCellColor: string = "#ffffff",
+  gridStyle: GridStyle = "stroke"
 ) {
   const px = x * cellSize;
   const py = y * cellSize;
@@ -346,7 +354,7 @@ export function drawCell(
       ctx.fillText(color.symbol, px + cellSize / 2, py + cellSize / 2 + 1);
     }
   }
-  drawGridLines(ctx, x, y, x + 1, y + 1, cellSize, px, py);
+  drawGridLines(ctx, x, y, x + 1, y + 1, cellSize, px, py, gridStyle);
 }
 
 /**
@@ -356,10 +364,40 @@ export function drawCell(
  * (x0, y0) sits on the canvas: 0 for a region drawn at the origin, the
  * cell's own pixel position for an in-place single-cell redraw.
  */
-function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: number, y1: number, cellSize: number, originX = 0, originY = 0) {
+function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: number, y1: number, cellSize: number, originX = 0, originY = 0, style: GridStyle = "stroke") {
   const minorWidth = Math.max(1, Math.round(cellSize * MINOR_LINE_RATIO));
   const mediumWidth = Math.max(1, Math.round(cellSize * MEDIUM_LINE_RATIO));
   const majorWidth = Math.max(1, Math.round(cellSize * MAJOR_LINE_RATIO));
+
+  if (style === "rects") {
+    // The rectangle each butt-capped stroke below covers, filled without anti-aliasing: whole pixels opaque and, for an
+    // odd width, the half pixel on each side at 50% alpha. Nothing then depends on the canvas size or offset (D135).
+    // On-screen only, so the context is always a canvas.
+    const canvasCtx = ctx as CanvasRenderingContext2D;
+    const fill = canvasCtx.fillStyle;
+    const alpha = canvasCtx.globalAlpha;
+    canvasCtx.fillStyle = GRID_LINE_COLOR;
+    const band = (centre: number, w: number, from: number, length: number, vertical: boolean) => {
+      const rect = (at: number, size: number) => (vertical ? canvasCtx.fillRect(at, from, size, length) : canvasCtx.fillRect(from, at, length, size));
+      if (w % 2 === 0) {
+        rect(centre - w / 2, w);
+        return;
+      }
+      if (w > 1) rect(centre - (w - 1) / 2, w - 1);
+      canvasCtx.globalAlpha = alpha * 0.5;
+      rect(centre - (w + 1) / 2, 1);
+      rect(centre + (w - 1) / 2, 1);
+      canvasCtx.globalAlpha = alpha;
+    };
+    for (let x = x0; x <= x1; x++) {
+      band(originX + (x - x0) * cellSize, x % 10 === 0 ? majorWidth : x % 5 === 0 ? mediumWidth : minorWidth, originY, (y1 - y0) * cellSize, true);
+    }
+    for (let y = y0; y <= y1; y++) {
+      band(originY + (y - y0) * cellSize, y % 10 === 0 ? majorWidth : y % 5 === 0 ? mediumWidth : minorWidth, originX, (x1 - x0) * cellSize, false);
+    }
+    canvasCtx.fillStyle = fill;
+    return;
+  }
 
   ctx.strokeStyle = GRID_LINE_COLOR;
   for (let x = x0; x <= x1; x++) {
@@ -388,7 +426,7 @@ function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: num
  * any color, unlike `drawChart`'s luminance-based text color choice which
  * only has its own flat fill color to contrast against.
  */
-export function drawChartOutline(ctx: CanvasRenderingContext2D, pattern: StitchPattern, cellSize: number, region?: ChartRegion) {
+export function drawChartOutline(ctx: CanvasRenderingContext2D, pattern: StitchPattern, cellSize: number, region?: ChartRegion, gridStyle: GridStyle = "stroke") {
   const { width, height, cellPalette, palette } = pattern;
   const { x0, y0, x1, y1 } = region ?? { x0: 0, y0: 0, x1: width, y1: height };
   const drawSymbols = cellSize >= LEGIBILITY_FLOOR_PX;
@@ -414,7 +452,7 @@ export function drawChartOutline(ctx: CanvasRenderingContext2D, pattern: StitchP
     }
   }
 
-  drawGridLines(ctx, x0, y0, x1, y1, cellSize);
+  drawGridLines(ctx, x0, y0, x1, y1, cellSize, 0, 0, gridStyle);
 }
 
 // A dark "spotlight" mask over everything *not* highlighted reads more

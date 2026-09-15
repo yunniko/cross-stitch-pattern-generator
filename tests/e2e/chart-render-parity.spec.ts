@@ -9,6 +9,8 @@ import { rolldown } from "rolldown";
  * sizes 1–112 px (including the 5 → 6 px switch to symbols), color and B&W, several canvas colours, EMPTY cells,
  * regions, the Grid + photo outline over a background, highlight overlays and sequences of single-cell edits, plus
  * the largest charts (1000 × 750 at 4 px and 1000 × 1000 with 100 colors). Chromium is the gate (plan criterion 2).
+ * Exports must match the frozen renderer exactly. The on-screen path draws grid lines as filled rectangles (Owner
+ * decision, D135), so it is compared with the frozen renderer drawn through rect-grid-context.ts.
  */
 
 const ROOT = path.resolve(__dirname, "..", "..");
@@ -47,6 +49,7 @@ async function differingBytes(page: Page, c: Case): Promise<{ exportDiffering: n
   return page.evaluate((c) => {
     type Renderers = typeof import("../../lib/export/render");
     const { live, reference } = (window as unknown as { __renderers: { live: Renderers; reference: Renderers } }).__renderers;
+    const rectGridContext = (window as unknown as { __rectGridContext: (ctx: CanvasRenderingContext2D) => CanvasRenderingContext2D }).__rectGridContext;
     const SYMBOLS = "●■▲◆★✚✖♥♣♠☀☂☘♫✿❖◐◑▣▤▥▦▧▨▩☼♦♪⚑⚙⚡✈✉✎✂✓✗✦✧❀❁❂❃❄❅❆❇❈❉❊❋ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz0123456789+=#%&@".split("");
     let seed = (c.width * 73856093) ^ (c.height * 19349663) ^ (c.cellSize * 83492791) ^ c.colors;
     const rng = () => {
@@ -71,11 +74,13 @@ async function differingBytes(page: Page, c: Case): Promise<{ exportDiffering: n
     const w = (region.x1 - region.x0) * c.cellSize + (c.kind === "chart" || c.kind === "outline" ? 1 : 0);
     const h = (region.y1 - region.y0) * c.cellSize + (c.kind === "chart" || c.kind === "outline" ? 1 : 0);
 
-    function drawWith(r: Renderers, target: "reference" | "export" | "screen" | "mask"): Uint8ClampedArray {
+    function drawWith(r: Renderers, target: "reference" | "reference-rects" | "export" | "screen" | "mask"): Uint8ClampedArray {
       const canvas = document.createElement("canvas");
       canvas.width = w;
       canvas.height = h;
-      const ctx = canvas.getContext("2d")!;
+      const raw = canvas.getContext("2d")!;
+      const ctx = target === "reference-rects" ? rectGridContext(raw) : raw;
+      const onScreen: ["rects"] | [] = target === "screen" || target === "mask" ? ["rects"] : [];
       const mode = c.mode ?? "color";
       const live = r as Renderers & {
         drawChartOnScreen?: Renderers["drawChart"];
@@ -92,7 +97,7 @@ async function differingBytes(page: Page, c: Case): Promise<{ exportDiffering: n
         gradient.addColorStop(1, "#ddbb88");
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, w, h);
-        r.drawChartOutline(ctx, pattern as never, c.cellSize, c.region);
+        (r.drawChartOutline as (...args: unknown[]) => void)(ctx, pattern, c.cellSize, c.region, ...onScreen);
       } else if (c.kind === "highlight") {
         chart(ctx, pattern as never, mode, c.cellSize, undefined, c.canvasColor);
         overlay(ctx, pattern as never, c.cellSize, new Set(c.highlighted ?? []));
@@ -105,10 +110,10 @@ async function differingBytes(page: Page, c: Case): Promise<{ exportDiffering: n
           editSeed = (editSeed * 1103515245 + 12345) & 0x7fffffff;
           const y = editSeed % c.height;
           const index = e % 9 === 0 ? 255 : editSeed % c.colors;
-          r.drawCell(ctx, pattern as never, mode, c.cellSize, x, y, index, c.canvasColor);
+          (r.drawCell as (...args: unknown[]) => void)(ctx, pattern, mode, c.cellSize, x, y, index, c.canvasColor, ...onScreen);
         }
       }
-      return ctx.getImageData(0, 0, w, h).data;
+      return raw.getImageData(0, 0, w, h).data;
     }
 
     const count = (a: Uint8ClampedArray, b: Uint8ClampedArray) => {
@@ -117,10 +122,11 @@ async function differingBytes(page: Page, c: Case): Promise<{ exportDiffering: n
       return differing;
     };
     const expected = drawWith(reference, "reference");
+    const expectedOnScreen = drawWith(reference, "reference-rects");
     return {
       exportDiffering: count(expected, drawWith(live, "export")),
-      screenDiffering: count(expected, drawWith(live, "screen")),
-      maskDiffering: c.kind === "highlight" ? count(expected, drawWith(live, "mask")) : 0,
+      screenDiffering: count(expectedOnScreen, drawWith(live, "screen")),
+      maskDiffering: c.kind === "highlight" ? count(expectedOnScreen, drawWith(live, "mask")) : 0,
       bytes: expected.length,
       size: `${w}×${h}`,
     };
@@ -178,7 +184,6 @@ for (const c of CASES) {
     expect(result.bytes, `canvas ${result.size}`).toBeGreaterThan(0);
     expect(result.exportDiffering, `export path, canvas ${result.size}`).toBe(0);
     expect(result.screenDiffering, `screen path, canvas ${result.size}`).toBe(0);
-    // The raster highlight mask is only a candidate; its parity is reported, and it is wired on screen only if zero.
-    if (c.kind === "highlight") test.info().annotations.push({ type: "raster-mask-differing-bytes", description: String(result.maskDiffering) });
+    expect(result.maskDiffering, `raster highlight mask, canvas ${result.size}`).toBe(0);
   });
 }
