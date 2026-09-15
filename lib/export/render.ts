@@ -427,12 +427,13 @@ const HIGHLIGHT_MASK_ALPHA = 0.6;
  * per stitch. Used on screen only if tests/e2e/chart-render-parity.spec.ts shows it byte-identical to per-stitch
  * `fillRect` compositing; otherwise `drawHighlightOverlay` stays.
  */
-export function drawHighlightOverlayRaster(ctx: CanvasRenderingContext2D, pattern: StitchPattern, cellSize: number, highlightedIndices: ReadonlySet<number>) {
+export function drawHighlightOverlayRaster(ctx: CanvasRenderingContext2D, pattern: StitchPattern, cellSize: number, highlightedIndices: ReadonlySet<number>, region?: ChartRegion) {
   const { width, height, cellPalette } = pattern;
   const alpha = Math.round(HIGHLIGHT_MASK_ALPHA * 255);
+  const r = region ?? { x0: 0, y0: 0, x1: width, y1: height };
   const drawn = drawStitchPixels(
     ctx,
-    { x0: 0, y0: 0, x1: width, y1: height },
+    r,
     cellSize,
     (cellIndex, out, o) => {
       out[o] = 0;
@@ -442,7 +443,38 @@ export function drawHighlightOverlayRaster(ctx: CanvasRenderingContext2D, patter
     },
     width
   );
-  if (!drawn) drawHighlightOverlay(ctx, pattern, cellSize, highlightedIndices);
+  if (!drawn) {
+    // The per-stitch fallback covers the whole pattern at the origin; a region is drawn at its own origin as above.
+    ctx.save();
+    ctx.translate(-r.x0 * cellSize, -r.y0 * cellSize);
+    drawHighlightOverlay(ctx, pattern, cellSize, highlightedIndices);
+    ctx.restore();
+  }
+}
+
+/**
+ * The farthest any on-screen chart paint reaches past its own stitch, in pixels: a symbol glyph (and its Grid + photo
+ * halo, with miter spikes allowed for) extending beyond the cell, or half the widest gridline. The viewport canvas
+ * draws this many pixels' worth of extra stitches around its bitmap so every pixel matches a full-chart render (D135).
+ */
+export function chartPaintOverhangPx(ctx: CanvasRenderingContext2D, pattern: StitchPattern, cellSize: number, halo: boolean): number {
+  let overhang = Math.ceil(Math.max(1, Math.round(cellSize * MAJOR_LINE_RATIO)) / 2);
+  if (cellSize < LEGIBILITY_FLOOR_PX) return overhang + 1;
+  ctx.save();
+  ctx.font = `${Math.round(cellSize * 0.6)}px ${FONT_STACK}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const haloReach = halo ? (Math.max(1, Math.round(cellSize * 0.12)) * ctx.miterLimit) / 2 : 0;
+  const half = cellSize / 2;
+  for (const color of pattern.palette) {
+    const m = ctx.measureText(color.symbol);
+    // Glyphs are drawn at (cell centre x, cell centre y + 1).
+    const reach = Math.max(m.actualBoundingBoxLeft - half, m.actualBoundingBoxRight - half, m.actualBoundingBoxAscent - 1 - half, m.actualBoundingBoxDescent + 1 - half);
+    overhang = Math.max(overhang, Math.ceil(reach + haloReach));
+  }
+  ctx.restore();
+  // One more pixel for antialiasing at the edge of any stroke or glyph.
+  return overhang + 1;
 }
 
 /**
