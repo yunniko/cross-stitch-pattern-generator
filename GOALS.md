@@ -1086,7 +1086,7 @@ escalation-tier, not a routine refactor):
     drawing.
   - Gate: generating and reopening at 1000 stitches meet the 100 ms target,
     with zero-byte parity.
-- [ ] **M3 — Viewport canvas: coordinates, anchoring and input.**
+- [x] **M3 — Viewport canvas: coordinates, anchoring and input.** Done (D135).
   - Codex critique first.
   - The Image window keeps a native scroll container with a spacer at full
     chart size. A persistent canvas the size of the view is clipped and placed
@@ -1128,6 +1128,38 @@ escalation-tier, not a routine refactor):
   - Update HANDOVER; final deploy with a production spot check.
 
 **Progress log** (newest first):
+- 2026-09-15 — **M3: viewport canvas; zoom, views, highlight and select no longer freeze.**
+  - `app/chart-scene.ts` draws any chart rectangle from the scene plus the
+    active gesture. `app/hooks/use-chart-renderer.ts` sizes, places and repaints
+    one canvas inside the chart frame: the visible part plus a quarter of the
+    view per side, aligned to device pixels. It applies the zoom anchor before
+    measuring, and repaints on scroll and resize only when coverage runs low.
+  - Tools hit-test and capture on the frame. The benchmark and e2e tests wait
+    on the frame's `data-cell-size` and `data-render-revision`.
+  - Checks:
+    - tsc and eslint clean; Vitest 906 passed plus 1 opt-in skip;
+    - Playwright 288/288 on a production build, including 84 render-parity
+      cases, 124 viewport-parity cases (gestures included) and 5 new
+      viewport-canvas tests;
+    - docs-lint passes.
+  - `npm run bench:chart`, 1000 st / 64 col, longest main-thread task:
+
+    | Operation | After M2 | After M3 | M3, 4× throttled |
+    |---|---:|---:|---:|
+    | Zoom in, step 1 / step 2 | 1,528 / 1,548 ms | 72 / 0 ms | 367 / 229 ms |
+    | View: B&W / Color | 1,334 / 1,654 ms | 0 / 0 ms | 176 / 174 ms |
+    | View: Grid + photo | 1,942 ms | 115 ms | 574 ms |
+    | View: Realistic | 2,466 ms | 2,274 ms | 11,752 ms |
+    | Highlight on / off | 1,303 / 1,560 ms | 0 / 0 ms | 186 / 184 ms |
+    | Select drag | 1,675 ms | 65 ms | 339 ms |
+    | Scroll, 20 steps | 82 ms | 50 ms (max frame gap 50 ms) | 225 ms |
+    | Saved project reopened | 70 ms | 53 ms | 176 ms |
+
+    Unthrottled (3 runs), the 100 ms targets are met except Grid + photo
+    (115 ms) and Realistic, whose preview generation is M4 work. Throttled
+    rows are single runs.
+  - Open for the Owner: screen differences at fractional device pixel ratios
+    (entry below). Next: M4, awaiting approval.
 - 2026-09-15 — **M3 in progress: Codex critique, parity limits and Owner decisions.**
   - Codex critique, two rounds (read-only). Round 1 found 5 blockers and 7
     majors in the draft; all were conceded:

@@ -71,7 +71,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 - Crisp takes about 2.6× Standard's time on a 12 MP photo (7.5 s against 2.9 s),
   because every cell gets the two-mode fit (D132). It falls back to
   Standard behavior for thin lines, junctions and gradual shading (D096).
-- Zoomed-in 1000-stitch charts block 1.3–2.5 s on zoom, views, highlight (G-036).
+- At 1000 stitches the Realistic view still blocks 2.3 s and Grid + photo 115 ms (G-036 M4).
 - Browsers without OffscreenCanvas 2D in workers fall back to main-thread
   exports, which stall the tab between pages (D125).
 - The PDF has no bold face. Whether µ (which extracts as μ) matters in Pattern
