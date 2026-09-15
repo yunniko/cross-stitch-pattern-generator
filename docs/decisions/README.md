@@ -145,3 +145,4 @@ remain readable with git show.
 - D134 — The on-screen chart fills small stitches and the highlight mask from scaled pixels — partly superseded by D135
 - D135 — The Image window paints a viewport canvas inside a chart-sized frame — active
 - D136 — Realistic view from per-colour stitch tiles; Grid + photo paints less overscan — active
+- D137 — Symmetry is the group the active axes generate, computed in doubled centred coordinates — active

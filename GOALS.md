@@ -989,7 +989,7 @@ escalation-tier, not a routine refactor):
     `client_max_body_size` in any nginx config.
   No code written.
 
-### G-037 · Symmetry drawing and quick mirror — DRAFT (2026-09-15)
+### G-037 · Symmetry drawing and quick mirror — ACTIVE (2026-09-15)
 - **What:** two new editing aids in the Tools dock.
   - **Symmetry:** four on/off toggle buttons — Vertical, Horizontal,
     Diagonal ↘ (top-left to bottom-right) and Diagonal ↙ (top-right to
@@ -1116,7 +1116,7 @@ escalation-tier, not a routine refactor):
      diagonal.
 
 **Milestones:**
-- [ ] **M1 — Symmetry geometry, pure and unit-tested.**
+- [x] **M1 — Symmetry geometry, pure and unit-tested.** Done (D137).
   - Codex critique first.
   - `lib/editor/symmetry.ts`:
     - the axis set type;
@@ -1180,6 +1180,33 @@ escalation-tier, not a routine refactor):
   - Gate: deployed, live smoke test, and the goal awaits Owner sign-off.
 
 **Progress log** (newest first):
+- 2026-09-15 — **M1: symmetry geometry in `lib/editor/symmetry.ts`, unit-tested (D137).**
+  - Axes are signed permutation matrices in doubled centred coordinates. The
+    active axes generate a closed group (orders 1, 2, 4 and 8 across all 16
+    combinations), cached per axis set.
+  - `effectiveSymmetryAxes` drops the diagonals on a non-square canvas, and
+    `symmetryOrbit` applies it itself.
+  - `applyQuickMirror` covers the four mirrors. Each reads the original buffer
+    and recounts through `withCellPalette`, and the half corner rejects a
+    non-square canvas.
+  - `fillSymmetric` floods each orbit cell region of the pre-fill pattern and
+    paints the union: one labelling pass for 4-connected fills, one shared mask
+    for 8-connected ones.
+  - Deviation from the plan: `fillSymmetric` takes the seed cell and the axes,
+    not a caller-built orbit, so its seeds are always a complete orbit.
+  - Checks:
+    - `tests/unit/symmetry.spec.ts`: 22 tests covering criterion 7, including
+      involutions, closure, inverses and non-involution rotations, orbits on odd,
+      even and mixed rectangles and on squares 1–3, idempotent quick mirrors,
+      EMPTY copying, kept palettes, the asymmetric-fill case and invalid input;
+    - the full unit suite passes (counts in the commit);
+    - tsc (after `next typegen`), eslint and docs-lint clean.
+  - Next: M2 (toggles, guide lines, symmetric painting, one-step double-click
+    fill), awaiting approval.
+- 2026-09-15 — **Owner approved the plan** ("proceed g-37"); G-037 is ACTIVE and M1
+  starts. Work happens on branch `g037` in a separate worktree. The planned Codex
+  critique before the geometry code can not run: Codex is at its usage limit until
+  2026-09-19. The design critique above stands, and per STANDARDS.md M1 proceeds.
 - 2026-09-15 — Owner: a double-click fill should be one undo step. This
   reverses the rebuttal below. Criterion 2 and M2 are updated: a history
   rewind to the pre-first-click pattern, found by identity, not the
