@@ -1274,7 +1274,11 @@ escalation-tier, not a routine refactor):
      middle column or row is the axis and keeps its cells; on an even size
      the axis falls between two columns or rows. On a square canvas the
      diagonals map `(x, y) → (y, x)` and `(x, y) → (N−1−y, N−1−x)`.
-     Non-square diagonals follow open question 1.
+     On a non-square canvas both diagonal toggles and *Upper-left half
+     corner* are disabled, with a tooltip saying they need a square canvas.
+     Opening a saved file with a diagonal on a non-square canvas, or
+     resizing to a non-square canvas, turns the diagonal toggles off. They
+     don't stay on invisibly.
   4. Red guide lines are drawn on the axes at chart positions in every view
      mode. They follow a canvas resize and zoom, are not drawn in the
      navigator, and don't change any rendered export. A test compares the
@@ -1301,25 +1305,17 @@ escalation-tier, not a routine refactor):
     The guide lines are one overlay drawn in chart coordinates, so they move
     over with G-036 M3 whichever goal runs first. The lines are off by
     default, so G-036's parity oracle is unaffected.
-- **Open questions for the Owner:**
-  1. *Diagonals on a non-square canvas.* A diagonal from the centre to the
-     corners is not a true mirror line unless the canvas is square: a
-     reflection across it maps cells outside the canvas. Options:
-     - (a) **Recommended:** the diagonal toggles and *Upper-left half
-       corner* work only on square canvases, and are disabled with a tooltip
-       otherwise. The pixels stay exact.
-     - (b) Stretch the mirror proportionally, so it stays corner to corner.
-       Shapes distort, and one cell maps to several cells or to none, so a
-       brush line gets gaps or thick spots.
-     - (c) Mirror across 45° lines through the centre. Mirroring is exact,
-       but the lines miss the corners, and cells mapped off the canvas are
-       dropped.
-  2. *Combinations:* use the full symmetry group, as in criterion 2
-     (recommended)? The alternative applies only the enabled mirrors and
-     their products, which leaves some combinations asymmetric.
-  3. *Upper-left half corner:* is the source triangle the one next to the
-     left edge, bounded by the left edge, the horizontal centre line and the
-     diagonal, as described above?
+- **Owner decisions (2026-09-15):**
+  1. *Diagonals on a non-square canvas:* option (a). Diagonals work only on
+     square canvases, so the pixels stay exact. Rejected: (b) a proportional
+     stretch, which distorts shapes and leaves gaps or doubled cells in
+     brush lines; (c) 45° lines, which miss the corners and drop cells that
+     land off the canvas.
+  2. *Combinations:* the full symmetry group the active axes generate, as in
+     criterion 2.
+  3. *Upper-left half corner:* the source is the triangle next to the left
+     edge, bounded by the left edge, the horizontal centre line and the
+     diagonal.
 
 **Milestones:**
 - [ ] **M1 — Symmetry geometry, pure and unit-tested.**
@@ -1329,7 +1325,7 @@ escalation-tier, not a routine refactor):
     - closure of the group the active axes generate;
     - `symmetryOrbit(cell, width, height, axes)`;
     - `applyQuickMirror(pattern, kind)`, which recomputes counts;
-    - the non-square rule from open question 1.
+    - the square-only rule for diagonals (Owner decision 1).
   - One decision file for the geometry and group-closure rule.
   - Gate: the unit tests in criterion 7 pass.
 - [ ] **M2 — Symmetry toggles, guide lines and symmetric painting.**
@@ -1357,6 +1353,11 @@ escalation-tier, not a routine refactor):
   - Gate: deployed, live smoke test, and the goal awaits Owner sign-off.
 
 **Progress log** (newest first):
+- 2026-09-15 — Owner answered all three open questions: 1a (square only),
+  2 yes (full group), 3 yes (left-edge triangle); recorded under Owner
+  decisions. A diagonal toggle turns off on a non-square canvas rather than
+  staying on invisibly (criterion 3). **Plan only, as the Owner asked; stays
+  DRAFT until the Owner says to start.**
 - 2026-09-15 — Owner: symmetry is off when a document opens, stays in the
   JSON file, is restored if present and skipped if not. Criterion 1 and M2
   are updated to match. Open questions 1–3 are still unanswered. Resolving
