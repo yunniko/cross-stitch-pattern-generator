@@ -988,3 +988,105 @@ escalation-tier, not a routine refactor):
     available, about 30 containers, load average 1.3, and no
     `client_max_body_size` in any nginx config.
   No code written.
+
+### G-038 · Crisp+ edge mode: soft edges without in-between colours — ACTIVE (2026-09-16)
+- **What:** a third Edge option, **Crisp+**, next to Standard and Crisp. It
+  applies the recommendations of
+  `docs/reviews/2026-09-15-in-between-colours-research.md` on top of Crisp:
+  1. **A blurred-step edge model** in the evidence layer, so slightly soft
+     real edges count as boundaries. The plateau colours on each side are
+     the two modes.
+  2. **A transition-strip snapping pass** that moves thin blend strips to
+     one side. It is guarded against real thin lines and gradients.
+  3. **Greedy label-cost palette pruning**, only if blend colours still use
+     palette slots after 1 and 2.
+- **Why:** Owner request (2026-09-16), after the research found that Crisp's
+  hard-step sharpness test rejects edges blurred by a quarter of a cell or
+  more.
+- **Acceptance criteria:**
+  1. **Standard and Crisp are unchanged.** Golden hashes, the Crisp evidence
+     equivalence test and the Crisp acceptance matrix pass untouched.
+  2. **Blends are removed on the research blur series** (8 source px per
+     cell, 8 and 16 colours). The figure below is the number of boundary
+     cells in a blend colour, out of 198:
+     - blur 0.25 cell: 12 or fewer, down from 77–89 with Crisp;
+     - blur 0.5 cell: 25 or fewer, down from 107–112;
+     - blur 1 cell: 60 or fewer, down from 134–141, with at most 5 interior
+       cells in a blend colour;
+     - blur 0 and 0.1 cell: no worse than Crisp.
+     Every run has at most 2 cells assigned to a region that isn't in their
+     footprint.
+  3. **Controls are not damaged:**
+     - (a) Thin lines 1 and 2 cells wide, whose colour lies between the
+       colours on either side: every line cell keeps its colour.
+     - (b) Smooth gradients (the research ramp, a radial and a sky-like
+       one): at most 1 % of cells differ from Crisp, and no fewer distinct
+       colours are used.
+     - (c) Noise and texture: the confetti ratio stays within Crisp's + 0.02.
+     - (d) Every row of the Crisp acceptance matrix also passes for Crisp+.
+  4. **The colour count is respected.** The requested count is never
+     exceeded. Where the pass frees palette slots, the number of slots
+     reinvested or left free is reported.
+  5. **Thread palettes work.** DMC, Cosmo and Anchor behave as they do with
+     Crisp, including thread-collision handling.
+  6. **Performance.** Crisp+ takes at most 1.3× Crisp's median time for a
+     12 MP photo at 100 stitches and at 1500×1000 → 1000 stitches.
+  7. **Real photos.** On the calibration photos without people, Crisp and
+     Crisp+ are compared by confident-cell share and snapped cells. The
+     Owner judges the result visually on the live site.
+  8. **UI and files.**
+     - Edge handling offers Standard, Crisp and Crisp+ with tooltips, and
+       the choice persists.
+     - A Crisp+ pattern records `edgeMode: "crisp-plus"` in files and
+       autosave.
+     - An older file keeps its current behaviour.
+  9. **Tests and release.**
+     - Unit tests cover the model, the snapping pass and any pruning.
+     - An e2e test generates with Crisp+.
+     - Lint, type-check, unit, e2e and docs-lint pass.
+     - Deployed and smoke-tested.
+- **Constraints:**
+  - No new runtime dependencies.
+  - A Codex critique comes before the M1 and M2 code.
+  - Code is written in a separate git worktree, because other sessions share
+    this tree.
+  - The calibration photos are never committed.
+  - Standing deploy approval.
+
+**Milestones:**
+- [ ] **M1 — Blurred-step evidence, Crisp+ in the pipeline, no UI.**
+  - `BoundaryEvidenceOptions` gains an edge model:
+    - `"step"`: today's model, the default, bit-identical;
+    - `"blurred-step"`: fits `c(t) = α + β·s((t − t0)/w)` along the boundary
+      direction over a small set of widths, and compares it with the affine
+      ramp. The plateau colours become the modes, and coverage splits at
+      `t0`.
+  - `EdgeMode` gains `"crisp-plus"` in `buildPattern`.
+  - The research fixtures become `tests/unit/crisp-plus-acceptance.spec.ts`,
+    with the blur series and the controls from criterion 3.
+  - Calibrate the confidence threshold and neighbourhood on the series and
+    the controls together.
+  - Gate: criterion 1 and controls 3a–3c pass; the blur series is measured
+    and reported.
+- [ ] **M2 — Transition-strip snapping.**
+  - A Crisp+ pass after cleanup and the palette merge, before compaction
+    and finalization, so the palette recompute and brand snapping see its
+    result.
+  - A source-evidence guard keeps real thin lines.
+  - Freed slots are reinvested or left free, per a decision file.
+  - Gate: criteria 2–5.
+- [ ] **M3 — Label-cost pruning (conditional).**
+  - Measure blend palette entries after M2.
+  - If any fixture still keeps a blend colour, add greedy pruning with
+    reinvestment; otherwise record that it isn't needed.
+  - Gate: the measurement is recorded, and criteria 2–5 still pass.
+- [ ] **M4 — UI, files, performance and release.**
+  - The Edge option, workspace storage, serialization and types.
+  - Benchmarks (criterion 6) and the real-photo comparison (criterion 7).
+  - The e2e test; README, HANDOVER and decisions.
+  - Deploy, then the Owner's visual check and sign-off.
+
+**Progress log** (newest first):
+- 2026-09-16 — Goal planned from the 2026-09-15 research; M1 started with a
+  Codex critique of the M1 and M2 designs. Crisp+ stays invisible to users
+  until M4, so there is no deploy before then.
