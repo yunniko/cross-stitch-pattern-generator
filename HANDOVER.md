@@ -51,9 +51,9 @@ color editor) is deployed and awaits Owner sign-off.
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-15**: `tsc --noEmit` and eslint clean; Vitest 946 passed
-(1 opt-in skip) at G-037 M2; Playwright 289/289 (including 208 parity cases) on a
-production build of G-036 M4. CI
+**Checks run 2026-09-16**: `tsc --noEmit` and eslint clean; Vitest 984 passed
+(8 opt-in skips) at G-038 M5; Playwright 302/302 (including 208 parity cases) on a
+production build of `bf594f5`. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
@@ -228,8 +228,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
   in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`).
 - Left open from G-032: the 1.5 s enhancement target, and Brighten's real-photo calibration.
 - G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.
-- Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`);
-  gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
+- Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log
 
@@ -293,6 +292,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 | 2026-09-15 | 2963f3c | G-037 M1–M2: symmetry geometry, toggles, red guide lines, symmetric painting, one-step double-click fill (D137, D138) | Only this container restarted (care-card-generator uptime rolled over an hour); 20 of 20 sites 200 before and after; live: G-036 checks passed; symmetry check passed after correcting its brush-colour assumption, mirrored stitch 1,1 and 48,1, undo removed both, no console errors |
 | 2026-09-15 | 9920aab | G-037 M3: quick mirror actions in the Tools dock, each merging a floating selection and mirroring as one undo step | Only this container restarted; 20 of 20 sites 200 before and after; live: G-036 checks, symmetry check and quick-mirror check passed (left half symmetric, one undo restored 1550 stitches), no console errors |
 | 2026-09-16 | c044c45 | G-038 M1–M2: Crisp+ blurred-step evidence and strip snapping in the pipeline, no UI yet (D139, D140) | Only this container restarted; every site kept its pre-deploy status; live: Edge options still Standard and Crisp, both generated 50 × 31 and recorded their mode, no console errors |
+| 2026-09-16 | bf594f5 | G-038 M3–M5: blend pruning, the Crisp+ option in the Edge control, and refilling freed colour slots (D141, D142) | Playwright 302/302 on a production build, Vitest 984, CI green; only this container restarted, others' uptimes unchanged, and sites that timed out in one snapshot returned 200 on recheck; live: Crisp+ generated 50 × 31, recorded "crisp-plus", survived a reload, no console errors |
 
 ## Decisions
 

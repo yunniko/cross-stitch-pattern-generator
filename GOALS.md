@@ -1108,6 +1108,19 @@ escalation-tier, not a routine refactor):
     only about 50 ms for a 12 MP photo at 100 stitches.
 
 **Progress log** (newest first):
+- 2026-09-16 — **Deployed bf594f5** (M3–M5), on the Owner's "deploy when tests
+  pass".
+  - Gates: Playwright 302/302 on a production build, Vitest 984 passed with 8
+    opt-in skips, type-check, lint and docs-lint clean, GitHub CI green.
+  - Only this container restarted; every other container's uptime was
+    unchanged. Four sites that returned 000 in one snapshot each answered 200
+    on recheck, so those were curl timeouts, not deploy damage.
+  - Live check: the Edge control offers Standard, Crisp and Crisp+; Crisp+
+    generated a 50 × 31 chart, recorded `crisp-plus` in the saved file and
+    stayed selected after a reload, with no console errors. It used 14
+    colours where Crisp used 16 on the sample photo.
+  - **PENDING APPROVAL: G-038 sign-off** — the Owner's visual judgement of
+    Crisp+ on real photos.
 - 2026-09-16 — **M5 built** (D142), after the Owner chose refilling by
   splitting over a second colour-selection pass.
   - `lib/crisp/palette-refill.ts` fills only the slots snapping and pruning
