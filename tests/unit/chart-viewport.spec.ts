@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   cellAtClient,
   cellRegionFor,
+  devicePixelAlignment,
   guardCells,
   intersectRects,
   moveTileOffsets,
@@ -45,6 +46,24 @@ describe("paintedRectFor", () => {
       expect(r.x0).toBeLessThanOrEqual(x0);
       expect(r.x1).toBeGreaterThanOrEqual(Math.min(2000, x0 + 91.37));
     }
+  });
+});
+
+describe("devicePixelAlignment and aligned painted rectangles", () => {
+  it("finds the smallest CSS step that is a whole number of device pixels", () => {
+    expect(devicePixelAlignment(1)).toBe(1);
+    expect(devicePixelAlignment(2)).toBe(1);
+    expect(devicePixelAlignment(1.25)).toBe(4);
+    expect(devicePixelAlignment(1.5)).toBe(2);
+    expect(devicePixelAlignment(1.75)).toBe(4);
+    expect(devicePixelAlignment(2.625)).toBe(8);
+    expect(devicePixelAlignment(1.1)).toBe(10);
+    expect(devicePixelAlignment(Math.PI)).toBe(1);
+  });
+
+  it("rounds the leading edges down to the step, so the canvas starts on a device pixel", () => {
+    expect(paintedRectFor({ x0: 99.5, y0: 10.2, x1: 799.5, y1: 610.7 }, 0, 0, 2000, 1500, 4)).toEqual({ x0: 96, y0: 8, x1: 800, y1: 611 });
+    expect(paintedRectFor({ x0: 3, y0: 1, x1: 50, y1: 50 }, 0, 0, 2000, 1500, 4)).toEqual({ x0: 0, y0: 0, x1: 50, y1: 50 });
   });
 });
 

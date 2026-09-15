@@ -41,16 +41,30 @@ export function visibleChartRect(
 /**
  * The bitmap to paint for a visible rectangle: grown by `overscanX`/`overscanY` on each side, rounded outward to whole
  * chart pixels and clamped to the chart, so drawing never runs at a fractional offset (D134 relies on integer-aligned
- * fills) and the chart's outer gridlines stay clipped exactly as on a full-size canvas.
+ * fills) and the chart's outer gridlines stay clipped exactly as on a full-size canvas. The leading edges are also
+ * rounded down to a multiple of `align` (see `devicePixelAlignment`), so the canvas starts on a whole device pixel.
  */
-export function paintedRectFor(visible: PixelRect, overscanX: number, overscanY: number, chartWidthPx: number, chartHeightPx: number): PixelRect {
+export function paintedRectFor(visible: PixelRect, overscanX: number, overscanY: number, chartWidthPx: number, chartHeightPx: number, align = 1): PixelRect {
   if (isEmptyRect(visible)) return { x0: 0, y0: 0, x1: 0, y1: 0 };
   return {
-    x0: Math.max(0, Math.floor(visible.x0 - overscanX)),
-    y0: Math.max(0, Math.floor(visible.y0 - overscanY)),
+    x0: Math.max(0, Math.floor(Math.floor(visible.x0 - overscanX) / align) * align),
+    y0: Math.max(0, Math.floor(Math.floor(visible.y0 - overscanY) / align) * align),
     x1: Math.min(chartWidthPx, Math.ceil(visible.x1 + overscanX)),
     y1: Math.min(chartHeightPx, Math.ceil(visible.y1 + overscanY)),
   };
+}
+
+/**
+ * The smallest step in CSS pixels that is a whole number of device pixels at `devicePixelRatio` (4 at 1.25, 2 at 1.5):
+ * a canvas placed at a multiple of it inside the frame is resampled onto the screen in the same phase as a full-size
+ * canvas would be. Falls back to 1 for ratios with no small step.
+ */
+export function devicePixelAlignment(devicePixelRatio: number): number {
+  for (let step = 1; step <= 64; step++) {
+    const device = step * devicePixelRatio;
+    if (Math.abs(device - Math.round(device)) < 1e-3) return step;
+  }
+  return 1;
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { needsRepaint, paintedRectFor, visibleChartRect, type PixelRect } from "@/lib/editor/chart-viewport";
+import { devicePixelAlignment, needsRepaint, paintedRectFor, visibleChartRect, type PixelRect } from "@/lib/editor/chart-viewport";
 import type { AnyCanvas } from "@/lib/export/canvas-backend";
 import { renderNavigatorPixels, renderStitchPreviewToCanvas } from "@/lib/export/render";
 import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
@@ -35,9 +35,9 @@ const EMPTY_RECT: PixelRect = { x0: 0, y0: 0, x1: 0, y1: 0 };
 /**
  * Everything drawn into the Image window and the navigator (D135). The chart frame is full chart size; the canvas inside
  * it holds only the painted rectangle: the visible part of the chart plus a quarter of the view on each side, at whole
- * chart pixels. It repaints when what is shown changes, when a scroll or resize brings unpainted chart within an eighth
- * of the view, and for every gesture frame, replaying the active gesture so scrolling and zooming keep its preview.
- * `canvasColor` is display-only.
+ * chart pixels, starting on a whole device pixel. It repaints when what is shown changes, when a scroll or resize
+ * brings unpainted chart within an eighth of the view, and for every gesture frame, replaying the active gesture so
+ * scrolling and zooming keep its preview. `canvasColor` is display-only.
  */
 export function useChartRenderer(inputs: ChartRendererInputs) {
   const { canvasRef, frameRef, scrollerRef, navigatorCanvasRef, pattern, viewMode, cellSize, activeTool, selection, isSelectDragging, highlightedColorIndices, canvasColor, applyZoomAnchor } = inputs;
@@ -63,6 +63,8 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   const shownRef = useRef<{ pattern: StitchPattern | null; scene: Omit<ChartScene, "selectDragging"> }>({ pattern: null, scene });
   const gestureRef = useRef<GesturePreview | null>(null);
   const paintedRef = useRef<PixelRect>(EMPTY_RECT);
+  // The device-pixel step the painted rectangle was aligned to; a changed device pixel ratio (browser zoom) repaints.
+  const alignRef = useRef(1);
   const revisionRef = useRef(0);
   // The select drag's base scene for the current bitmap, restored under each frame (keyed by everything it shows).
   const selectBaseRef = useRef<{ key: readonly unknown[]; canvas: HTMLCanvasElement } | null>(null);
@@ -103,7 +105,9 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     const p = shownRef.current.pattern;
     const geometry = measure();
     if (!canvas || !p || !geometry) return;
-    const rect = paintedRectFor(geometry.visible, geometry.viewWidth / 4, geometry.viewHeight / 4, geometry.width, geometry.height);
+    const align = devicePixelAlignment(window.devicePixelRatio || 1);
+    const rect = paintedRectFor(geometry.visible, geometry.viewWidth / 4, geometry.viewHeight / 4, geometry.width, geometry.height, align);
+    alignRef.current = align;
     const w = rect.x1 - rect.x0;
     const h = rect.y1 - rect.y0;
     canvas.width = w;
@@ -127,7 +131,8 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     const geometry = measure();
     if (!geometry) return;
     const margin = Math.min(geometry.viewWidth, geometry.viewHeight) / 8;
-    if (needsRepaint(geometry.visible, paintedRef.current, margin, geometry.width, geometry.height)) paint();
+    const alignmentChanged = devicePixelAlignment(window.devicePixelRatio || 1) !== alignRef.current;
+    if (alignmentChanged || needsRepaint(geometry.visible, paintedRef.current, margin, geometry.width, geometry.height)) paint();
   }
   const ensureCoverageRef = useLatest(ensureCoverage);
 
