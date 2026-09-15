@@ -1263,13 +1263,25 @@ escalation-tier, not a routine refactor):
      dropping a colour onto the canvas, and EMPTY painting all affect every
      cell in the mirror set of the cell they act on. The mirror set is the
      full symmetry group the active axes generate:
-     - one axis gives 2 cells;
-     - both straight axes, or both diagonals, give 4 (the 180° copy is
+     - one axis: a group of 2;
+     - both straight axes, or both diagonals: a group of 4 (the 180° copy is
        included);
-     - a straight axis with a diagonal gives 8.
-     Without the full group the result would not stay symmetric. A stroke or
-     a fill stays one undo step. Symmetric fills flood each mirrored cell's
-     region as it was before the fill, so one fill can't feed another.
+     - a straight axis with a diagonal: a group of 8 (it includes 90°
+       rotations).
+     These are the most cells one action can touch. A cell lying on an axis,
+     or at the centre, has fewer distinct copies, and squares of size 1–3
+     never reach 8. Without the full group the result would not stay
+     symmetric.
+     - A brush stroke stays one undo step. A brush double-click fill keeps
+       today's 3 undo steps (D086); merging them is out of scope.
+     - A symmetric fill floods each mirrored cell's region as it was before
+       the fill, keeping each tool's connectivity (8-connected for the Fill
+       tool and double-click, 4-connected for drop-to-fill), and then paints
+       the union.
+     - On a pattern that isn't already symmetric, the filled regions differ,
+       so the result can be asymmetric. For example, filling `[a,a,b,a]`
+       from cell 0 with a vertical axis gives `[c,c,b,c]`. This is expected
+       behaviour and is tested.
   3. Exact cell mirroring: `x → W−1−x` and `y → H−1−y`. On an odd size the
      middle column or row is the axis and keeps its cells; on an even size
      the axis falls between two columns or rows. On a square canvas the
@@ -1278,23 +1290,34 @@ escalation-tier, not a routine refactor):
      corner* are disabled, with a tooltip saying they need a square canvas.
      Opening a saved file with a diagonal on a non-square canvas, or
      resizing to a non-square canvas, turns the diagonal toggles off. They
-     don't stay on invisibly.
+     don't stay on invisibly. The same applies when undo or redo makes the
+     canvas non-square, and undoing back to a square doesn't turn them on
+     again. The geometry never rounds or clamps an off-canvas result; it
+     applies the square-only rule itself instead of trusting the UI state.
   4. Red guide lines are drawn on the axes at chart positions in every view
      mode. They follow a canvas resize and zoom, are not drawn in the
      navigator, and don't change any rendered export. A test compares the
      PNG, A4, PDF and OXS exports with symmetry on and off. The JSON differs
      only by its `symmetry` field.
   5. Each quick mirror is one undo step. It overwrites only the target part,
-     copying EMPTY cells as they are. A floating selection is merged first.
+     copying EMPTY cells as they are. A floating selection is merged into
+     the same step: the merge and the mirror are computed together and
+     committed once.
      Stitch counts are recomputed, the palette is kept (colours are not
      removed if they become unused), and the photo underlay isn't mirrored.
      Running the same mirror twice gives the same result as running it once.
   6. Select, Move, paste and flip ignore symmetry. Their tooltips don't claim
      otherwise.
   7. Unit tests cover the geometry:
-     - every map is an involution and keeps cells on the canvas;
-     - orbit sizes for all 16 combinations, on odd and even sizes;
-     - quick-mirror results are symmetric and idempotent.
+     - the four reflections are involutions;
+     - group closure, inverses and group orders for all 16 combinations
+       (1, 2, 4 or 8); rotations are not involutions;
+     - every element keeps cells on the canvas;
+     - orbit sizes at the centre, on axes and diagonals, on odd, even and
+       mixed-parity rectangles, and on squares of size 1–3;
+     - quick-mirror results are symmetric and idempotent, EMPTY cells are
+       copied, and unused palette entries are kept;
+     - the asymmetric-fill case from criterion 2, and rejected invalid input.
      E2e tests cover painting with several combinations, the red lines in
      canvas pixels, unchanged exports, and each quick mirror followed by
      undo. Lint, type-check, the unit and e2e suites and docs-lint pass.
@@ -1323,9 +1346,18 @@ escalation-tier, not a routine refactor):
   - `lib/editor/symmetry.ts`:
     - the axis set type;
     - closure of the group the active axes generate;
-    - `symmetryOrbit(cell, width, height, axes)`;
-    - `applyQuickMirror(pattern, kind)`, which recomputes counts;
-    - the square-only rule for diagonals (Owner decision 1).
+    - `symmetryOrbit(cell, width, height, axes)`, which applies the
+      square-only rule itself;
+    - reflections as signed permutation matrices in doubled centred
+      coordinates (`u = 2x − (W−1)`), with groups cached by axis mask;
+    - `applyQuickMirror(pattern, kind)`: reads the original buffer, writes a
+      fresh one, and commits it with `withCellPalette`, which recounts;
+    - `fillSymmetric(pattern, orbitSeeds, paletteIndex, connectivity)`: the
+      seeds must be a complete orbit. Regions are labelled once for
+      4-connected fills, and 8-connected floods share one mask, so a large
+      region is traversed once.
+    - Input is validated: dimensions, buffer length, integer seeds on the
+      canvas, and a destination that is a palette index or EMPTY.
   - One decision file for the geometry and group-closure rule.
   - Gate: the unit tests in criterion 7 pass.
 - [ ] **M2 — Symmetry toggles, guide lines and symmetric painting.**
@@ -1335,7 +1367,16 @@ escalation-tier, not a routine refactor):
   - The renderer draws the red axis overlay after the chart content, in
     every view mode.
   - Brush strokes, their incremental drawing, the Fill tool, double-click
-    fill and drop-to-fill use the orbit, each still one undo step.
+    fill and drop-to-fill use the orbit.
+  - A stroke captures its axes, dimensions and colour at pointer-down. Each
+    pointer cell writes its whole orbit, which is then drawn with one batched
+    redraw rather than one per cell (Grid + photo redraws fully), with the
+    guide lines restored.
+  - The double-click snapshot is dropped when the document, the dimensions,
+    the axes or the colour change between the two clicks. Every mirrored seed
+    floods against that one snapshot.
+  - Live axes are kept outside the undoable pattern snapshots. The saved
+    value is the current axes, with the square-only rule applied.
   - Symmetry state is saved in the JSON file and autosave, and restored on
     open or reload, or reset to off when absent.
     - Tests: a serialize round trip, a file without the field, a malformed
@@ -1347,12 +1388,40 @@ escalation-tier, not a routine refactor):
 - [ ] **M3 — Quick mirror actions and release.**
   - A Mirror group of four action buttons with icons that shade the source
     part.
-  - The floating selection is merged first; each action is one undo step.
+  - Each action computes `mergeSelection` (not the display-only
+    `compositeSelectionPreview`) and then the mirror, and commits once.
   - E2e tests for each action and its undo.
   - Update the README, HANDOVER and decision index; run docs-lint.
   - Gate: deployed, live smoke test, and the goal awaits Owner sign-off.
 
 **Progress log** (newest first):
+- 2026-09-15 — Codex critique of the geometry design (read-only).
+  - It confirmed:
+    - the doubled-coordinate matrices and closure (group orders 1/2/4/8
+      across the 16 combinations);
+    - all four quick-mirror formulas, including the left-edge triangle
+      `0 ≤ x ≤ y`;
+    - turning diagonals off, rather than keeping them hidden.
+  - Accepted into the plan:
+    - test only the reflections as involutions, since the full group
+      includes 90° rotations;
+    - 2/4/8 are group orders, and orbits on axes are smaller;
+    - the square-only rule applies inside the geometry;
+    - diagonals are cleared when undo or redo makes the canvas non-square;
+    - asymmetric fills are documented and tested;
+    - regions are labelled once and floods share one mask;
+    - input is validated;
+    - selection merge and mirror form one step;
+    - strokes capture their settings and draw each orbit in one batch;
+    - the double-click snapshot is invalidated.
+  - Rebutted in part:
+    - the critique asked to merge double-click fill into one undo step. That
+      is D086's existing 3-step behaviour, now out of scope, and criterion 2
+      no longer claims one step.
+    - It noted that sequential fills with one colour would give the same
+      result as the union. Base regions are kept because they are simpler
+      to reason about, and the plan no longer says a fill could "feed"
+      another.
 - 2026-09-15 — Owner answered all three open questions: 1a (square only),
   2 yes (full group), 3 yes (left-edge triangle); recorded under Owner
   decisions. A diagonal toggle turns off on a non-square canvas rather than
