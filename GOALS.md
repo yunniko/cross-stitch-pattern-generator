@@ -1169,7 +1169,11 @@ escalation-tier, not a routine refactor):
 
     Grid + photo, at 94 ms, is the closest to the target. The scroll row runs in
     Color view, so scrolling in Grid + photo isn't timed; M5 adds it.
-  - Next: deploy M4; M5 (results and release) needs approval.
+  - Deployed 0142872: only this container restarted; 20 of 20 sites 200 before
+    and after. On production the M3 viewport check passed, and the M4 check drew
+    Realistic (2101 distinct colours, settled after a zoom) and Grid + photo
+    (2195), with no console errors.
+  - Next: M5 (results and release) needs approval.
 - 2026-09-15 — **Owner decisions at the M3 check-in:**
   - The deploy key is `~/.ssh/claude_contabo`, renamed for consistency by
     another agent at the Owner's request. The M3 deploy is unblocked.

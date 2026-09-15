@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-15 at ab1cfaa plus the handover commit that carries this line
+Last verified: 2026-09-15 at 0142872 plus the handover commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -219,8 +219,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **G-036 in progress:** M1–M4 done (D134–D136); M5 (results and release) needs
-  approval. Deploy key: `~/.ssh/claude_contabo`.
+- **G-036:** M1–M4 done and deployed (D134–D136); M5 needs approval. Deploy key: `~/.ssh/claude_contabo`.
 - **PENDING APPROVAL: G-037, symmetry and quick mirror (DRAFT)**, open questions in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
@@ -293,6 +292,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 | 2026-09-15 | 5ab38eb | G-035 M5: identical-output ICM and k-means for large grids (D133) | This container restarted; a concurrent deploy by another session recreated natural-dye-mordant-calculator (00:01:57) and julienika-home (00:03:22), and julienika.cz briefly returned 502, then 200 on three retries; 20 of 20 sites 200 after; live: a Crisp 50 × 31 chart generated, no console errors |
 | 2026-09-15 | b201c9a | G-036 M1–M2: chart parity oracle, `npm run bench:chart`, fast on-screen fills and highlight mask (D134) | Only this container restarted; 20 of 20 sites 200 before and after; live: chart drawn, zoom, highlight and view switches, no console errors |
 | 2026-09-15 | ab1cfaa | G-036 M3: chart frame with a viewport canvas, grid bands on screen (D135) | Only this container restarted (care-card-generator's uptime rolled over an hour); 20 of 20 sites 200 before and after; live: zoomed frame 2700 px, canvas 1680 px, far-corner scroll painted, highlight, views, no console errors |
+| 2026-09-15 | 0142872 | G-036 M4: Realistic view from stitch tiles, less Grid + photo overscan, caches (D136) | Only this container restarted; 20 of 20 sites 200 before and after; live: M3 viewport check passed, Realistic 2101 and Grid + photo 2195 distinct colours, no console errors |
 
 ## Decisions
 
