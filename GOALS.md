@@ -1098,27 +1098,28 @@ escalation-tier, not a routine refactor):
     rules work in chart coordinates.
   - Selection outlines and the chart border stay at chart positions and are
     clipped, not redrawn around the visible part.
+  - Moved from M4 (Owner, 2026-09-15), because a view-sized canvas can't hold
+    the whole chart: every view mode draws only the visible region, and brush,
+    Move and Select previews draw into the viewport canvas.
   - A decision file supersedes D121's full-size canvas.
-  - Gate: the navigation, keyboard-shortcut and interaction suites pass, and
-    the zoom-anchor e2e checks hold on the new structure.
+  - Every frame clears and resets its drawing state; a redraw during a brush
+    stroke draws the stroke's working cells, and Move renders revealed and
+    wrapped content from the pattern, matching today's shifted appearance.
+  - Gate: the navigation, keyboard-shortcut and interaction suites pass, the
+    zoom-anchor e2e checks hold on the new structure, viewport parity holds,
+    and the 192 MB canvas is gone.
 - [ ] **M4 — Viewport canvas: bounded rendering for every mode and gesture.**
   - Codex critique first.
-  - Color, B&W and Grid + photo draw only the visible region plus an overscan
-    wide enough for grid strokes, glyphs and halos, keeping the global grid
-    phase.
-  - Highlight and both photo views are bounded the same way.
+  - Visible-region drawing for every mode and the gesture previews moved to
+    M3. M4 tunes the overscan and redraw scheduling.
   - Realistic-preview generation no longer draws the whole chart on the main
     thread: it is bounded to the view or moved to a worker.
-  - Gestures:
-    - a redraw during a brush stroke draws the stroke's working cells;
-    - Move renders newly revealed and wrapped content from the pattern instead
-      of a whole-canvas snapshot, matching today's shifted appearance;
-    - select and paste previews touch only visible cells.
-  - Every frame clears and resets its drawing state. Stale renders are
-    cancelled, and caches are invalidated on palette, document, zoom and
-    highlight changes.
+  - The selection preview (`compositeSelectionPreview`) and the status-bar
+    stitch count stop costing a whole-chart pass per redraw.
+  - Stale renders are cancelled, and caches are invalidated on palette,
+    document, zoom and highlight changes.
   - Gate: the zoom, view-switch, highlight and scroll targets are met; parity
-    and interaction suites pass; the 192 MB canvas is gone.
+    and interaction suites pass.
 - [ ] **M5 — Results and release.**
   - Rerun every benchmark row and the parity suites. Check exports for
     regressions.
@@ -1127,6 +1128,11 @@ escalation-tier, not a routine refactor):
   - Update HANDOVER; final deploy with a production spot check.
 
 **Progress log** (newest first):
+- 2026-09-15 — **Owner approved M3** ("go to m3") and moving visible-region
+  drawing for every mode and gesture from M4 into M3 ("split is fine").
+  M4–M5 still need approval.
+  M3 is built on branch `g036-m3` in a separate worktree, because another
+  session is committing G-037 plans in the main working tree.
 - 2026-09-15 — **M2: fast on-screen fills and highlight mask; generate and reopen meet 100 ms.**
   - Deployed b201c9a with M1: only this container restarted, 20 of 20 sites
     200 before and after; live check drew a chart, zoomed, toggled highlight
