@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-16 at a634f7c plus the G-038 M2 commit that carries this line
+Last verified: 2026-09-16 at c044c45 plus the G-038 M3 commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -124,7 +124,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
   quantization, admissible-label unary costs in ICM and cleanup, repair after
   merges, and mode-aware finalization (D061–D072). The layer evaluates every
   cell (D132) and converts each source row to OKLab once per job (G-035 M4).
-  Crisp+ (`edgeMode: "crisp-plus"`, G-038, no UI yet) adds blurred-step evidence (D139) and strip snapping (D140).
+  Crisp+ (`edgeMode: "crisp-plus"`, G-038, no UI yet) adds blurred-step evidence (D139), strip snapping (D140), blend pruning (D141).
 - **Threads** (`lib/threads/`): `thread-brands.ts` is the registry. Its
   `matching` field is "direct" for DMC and Cosmo, or "dmc-equivalence" for
   Anchor. `brand-match.ts` does the snapping. Data provenance is in
@@ -218,7 +218,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **G-038 Crisp+ in progress:** M1 and M2 done (D139, D140); M3 awaits the Owner's check-in; plan in `GOALS.md`.
+- **G-038 Crisp+ in progress:** M1–M3 done (D139–D141); M4 (UI and release) awaits the Owner's check-in; plan in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is
@@ -293,6 +293,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 | 2026-09-15 | 4c31ab1 | G-036 M5: results report, export and screen comparison tooling | Only this container restarted (another uptime rolled over an hour); 20 of 20 sites 200 before and after; exports match 919923b; live: M3 and M4 checks passed, no console errors |
 | 2026-09-15 | 2963f3c | G-037 M1–M2: symmetry geometry, toggles, red guide lines, symmetric painting, one-step double-click fill (D137, D138) | Only this container restarted (care-card-generator uptime rolled over an hour); 20 of 20 sites 200 before and after; live: G-036 checks passed; symmetry check passed after correcting its brush-colour assumption, mirrored stitch 1,1 and 48,1, undo removed both, no console errors |
 | 2026-09-15 | 9920aab | G-037 M3: quick mirror actions in the Tools dock, each merging a floating selection and mirroring as one undo step | Only this container restarted; 20 of 20 sites 200 before and after; live: G-036 checks, symmetry check and quick-mirror check passed (left half symmetric, one undo restored 1550 stitches), no console errors |
+| 2026-09-16 | c044c45 | G-038 M1–M2: Crisp+ blurred-step evidence and strip snapping in the pipeline, no UI yet (D139, D140) | Only this container restarted; every site kept its pre-deploy status; live: Edge options still Standard and Crisp, both generated 50 × 31 and recorded their mode, no console errors |
 
 ## Decisions
 

@@ -1079,7 +1079,7 @@ escalation-tier, not a routine refactor):
   - A source-evidence guard keeps real thin lines.
   - Freed slots are reinvested or left free, per a decision file.
   - Gate: criteria 2–5.
-- [ ] **M3 — Label-cost pruning (conditional).**
+- [x] **M3 — Label-cost pruning (conditional).** Done 2026-09-16 (D141).
   - Measure blend palette entries after M2.
   - If any fixture still keeps a blend colour, add greedy pruning with
     reinvestment; otherwise record that it isn't needed.
@@ -1091,6 +1091,42 @@ escalation-tier, not a routine refactor):
   - Deploy, then the Owner's visual check and sign-off.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M3 done; check-in with the Owner before M4.**
+  - **What was built:** `lib/crisp/blend-label-pruning.ts` (D141), after
+    snapping. A thin palette colour whose colour mixes two or three nearby
+    distinct regions is pruned when the photo ramps inside nearly all of its
+    cells (at most 25 % flat, deviation threshold 0.1). Its cells join their
+    largest constituent, and freed slots stay free.
+  - **Sweep** (`docs/reviews/2026-09-16-crisp-plus-calibration.md`): the 0.1
+    threshold is the only one that helps without damage. At 0.06, both thin
+    lines were erased and up to 249 gradient cells reassigned; at 0.15,
+    nothing was pruned.
+  - **Results at blur 1 cell:**
+    - Full range: 8 colours 4 + 3 → 2 + 1 (blend palette entries 4 → 1);
+      16 colours 28 + 30 → 28 + 29.
+    - DMC and Anchor: 8 colours 128 + 204 → 123 + 181; 16 colours
+      145 + 231 → 145 + 209.
+    - Blurs of 0.5 cell or less are unchanged at 0 blends. Controls: no
+      line cell lost, 0 gradient cells reassigned.
+  - **Criterion 2 at blur 1:** the interior ceiling of 5 is met at 8 colours
+    (1) but not at 16 (29), where the blends mix three regions and aren't
+    thin bands.
+  - **Still open:** the DMC and Anchor band thread at half-cell blur (3820
+    rather than 725).
+  - **Verification** (worktree): Crisp+ specs 26/26; full unit suite 975
+    passed, 6 skipped, 0 failed; type-check clean; the one lint error
+    (`const`) fixed.
+  - **Next, M4:** the UI option, files, benchmarks, the real-photo
+    comparison, e2e and release.
+- 2026-09-16 — **Deployed c044c45** (M1–M2; Crisp+ has no UI yet).
+  - Only this container restarted, and every site kept its pre-deploy status.
+  - Live smoke test: Standard and Crisp buttons present, Crisp+ absent; both
+    generated 50 × 31 and recorded their edge mode; no console errors.
+  - The deploy key is `~/.ssh/claude_contabo`, as `INFRASTRUCTURE.md` already
+    states (Owner confirmed).
+- 2026-09-16 — Owner: "deploy and go m3". Deploying master at c044c45, with
+  Crisp+ still invisible to users, then starting M3. Criterion changes from
+  M2 were reported at the check-in with no objection.
 - 2026-09-16 — **M2 done; check-in with the Owner before M3.**
   - **What was built:** `lib/crisp/transition-snap.ts` (D140), a Crisp+
     pass after the palette merge.

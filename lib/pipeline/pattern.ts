@@ -16,6 +16,7 @@ import {
 import { finalizeCrispPalette } from "../crisp/crisp-palette-finalization";
 import { runCrispQuantizationStage } from "../crisp/crisp-quantization-stage";
 import { snapTransitionStrips, type TransitionSnapOptions } from "../crisp/transition-snap";
+import { pruneBlendLabels, type BlendPruneOptions } from "../crisp/blend-label-pruning";
 import { defaultComponentRecolorOptions, fixDiagonalConnections, recolorSmallComponents } from "./contour-cleanup";
 import { runMultiScaleOptimizer, type MultiScaleWeights } from "./local-optimizer";
 import { enhancePixelBuffer, type EnhancementModeId } from "./enhance";
@@ -57,6 +58,8 @@ export interface BuildPatternOptions {
   crispEvidenceLayerOptions?: CrispEvidenceLayerOptions;
   /** Crisp+ transition-strip snapping; defaults to `DEFAULT_TRANSITION_SNAP_OPTIONS` (D140). Ignored in other modes. */
   transitionSnapOptions?: TransitionSnapOptions;
+  /** Crisp+ blend-label pruning; defaults to `DEFAULT_BLEND_PRUNE_OPTIONS` (D141). Ignored in other modes. */
+  blendPruneOptions?: BlendPruneOptions;
   /** Photo enhancement before generation (G-032); defaults to "off", which passes the original buffer through untouched (D112). */
   enhancementMode?: EnhancementModeId;
   onProgress?: (fraction: number) => void;
@@ -154,15 +157,18 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   // empty and before finalization and brand snapping read the labels (G-038 M2, D140).
   // A snapped cell's own colour is still the blend it was averaged from, so in the palette recompute it counts as the
   // colour of the side it joined; otherwise the side colours drift towards the blend (and to a different thread).
+  // Blend colours that only form thin transition bands are then pruned (G-038 M3, D141); their cells count the same way.
   let finalizeOklab: Float64Array = ctx.cellOklab;
   if (edgeMode === "crisp-plus" && shouldOptimize) {
-    const snap = snapTransitionStrips(merged.cellPaletteIndex, gridWidth, gridHeight, merged.palette, colorSource, options.transitionSnapOptions);
-    merged.cellPaletteIndex = snap.cellPaletteIndex;
-    if (snap.changes > 0) {
+    const beforeCrispPlus = merged.cellPaletteIndex;
+    const snap = snapTransitionStrips(beforeCrispPlus, gridWidth, gridHeight, merged.palette, colorSource, options.transitionSnapOptions);
+    const prune = pruneBlendLabels(snap.cellPaletteIndex, gridWidth, gridHeight, merged.palette, colorSource, options.blendPruneOptions);
+    merged.cellPaletteIndex = prune.cellPaletteIndex;
+    if (snap.changes > 0 || prune.pruned.length > 0) {
       finalizeOklab = ctx.cellOklab.slice();
       const labelOklab = merged.palette.map(rgbToOklab);
-      for (let i = 0; i < snap.snapped.length; i++) {
-        if (!snap.snapped[i]) continue;
+      for (let i = 0; i < beforeCrispPlus.length; i++) {
+        if (merged.cellPaletteIndex[i] === beforeCrispPlus[i]) continue;
         const [l, a, b] = labelOklab[merged.cellPaletteIndex[i]];
         finalizeOklab[i * 3] = l;
         finalizeOklab[i * 3 + 1] = a;

@@ -188,3 +188,44 @@ not a blend. It remains open for M3's palette work.
 **Freed palette slots stay free.** Palettes shrink where blend colours emptied,
 for example DMC at a quarter-cell blur goes from 8 to 4 colours; the requested
 count is never exceeded.
+
+## M3: blend-label pruning
+
+From `tests/unit/crisp-plus-prune-sweep.spec.ts`, run with
+`CRISP_PLUS_PRUNE_SWEEP=<file>`, on the full-range region scene at a one-cell
+blur. Cells show blend boundary + interior cells, wrong-region cells (w) and
+blend palette entries (p). "Lines lost" is thin-line cells lost against Crisp
+(1-cell and 2-cell lines together). "Gradient cells" is reassigned cells over
+ramp, radial and sky at 8, 16 and 32 colours, excluding the ramp seam.
+
+| Gradient std | Flat share | Radius | Blur 1 @8 | Lines lost @8 | Blur 1 @16 | Lines lost @16 | Gradient cells |
+|---:|---:|---:|---|---:|---|---:|---:|
+| no pruning | | | 4+3 w5 p4 | 0 | 28+30 w3 p4 | 0 | 0 |
+| 0.06 | 0.1 | 2 | 2+1 w6 p1 | 80 | 28+29 w4 p3 | 42 | 17 |
+| 0.06 | 0.25 | 3 | 2+1 w6 p1 | 80 | 28+29 w4 p3 | 42 | 249 |
+| **0.1** | **0.25** | **2** | **2+1 w6 p1** | **0** | **28+29 w4 p3** | **0** | **0** |
+| 0.1 | 0.1 | 3 | 2+1 w6 p1 | 0 | 28+29 w4 p3 | 0 | 0 |
+| 0.15 | 0.25 | 2 | 4+3 w5 p4 | 0 | 28+30 w3 p4 | 0 | 0 |
+
+- **Chosen (bold):** gradient threshold 0.1, flat share 0.25, radius 2
+  (D141). The other 0.1 rows gave the same numbers.
+- **The first design** averaged the within-cell deviation over all of a
+  colour's cells. It erased both thin lines, 80 and 152 cells, because
+  diagonal-line cells straddle an edge.
+- **Blurs of 0.5 cell or less** are unchanged by pruning: 0 blends at 8 and 16
+  colours.
+- **At a one-cell blur with 16 colours**, pruning barely helps (30 → 29
+  interior). Those blends sit on colours that mix three regions, and their
+  cells are not thin bands, so they are not candidates.
+
+Thread palettes with pruning, blur 1 cell (blend boundary + interior, Crisp+
+before → after pruning):
+
+| Brand | 8 colours | 16 colours |
+|---|---|---|
+| DMC | 128 + 204 → 123 + 181 | 145 + 231 → 145 + 209 |
+| Cosmo | 43 + 1 → 43 + 1 | 60 + 30 → 63 + 28 |
+| Anchor | 128 + 204 → 123 + 181 | 145 + 231 → 145 + 209 |
+
+Blurs of 0.25 and 0.5 cell are unchanged. The DMC and Anchor yellow-band
+thread choice at half-cell blur (3820 rather than 725) remains.
