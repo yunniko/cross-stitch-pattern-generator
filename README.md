@@ -13,7 +13,9 @@ browser's IndexedDB, and no image is ever uploaded. Live at
 - **Choose the palette**: whatever colors the photo needs, or real DMC,
   Cosmo or Anchor threads (Anchor is derived from DMC equivalents and says so).
 - **Choose edge handling**: Standard averages across boundaries; Crisp keeps a
-  hard boundary as two real colors instead of inventing a blend.
+  hard boundary as two real colors instead of inventing a blend; Crisp+ also
+  cleans up slightly soft edges, snapping the in-between colors along a blurred
+  boundary to one side while keeping real thin lines and gradients.
 - **Edit** with brush, fill, rectangle select (copy, paste, move, flip), move,
   pan, zoom and highlight tools. Merge, recolor, rename and re-symbol colors,
   mark stitches as empty, resize the canvas, undo and redo. The color editor

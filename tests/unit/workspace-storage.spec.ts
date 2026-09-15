@@ -86,6 +86,11 @@ describe("workspace-storage", () => {
       expect(loadWorkspaceOptions()).toEqual(DEFAULTS);
     });
 
+    it("keeps edgeMode crisp-plus across a reload (G-038)", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, edgeMode: "crisp-plus" });
+      expect(loadWorkspaceOptions().edgeMode).toBe("crisp-plus");
+    });
+
     it("defaults edgeMode to standard for a workspace saved before G-024 M5 (edgeMode absent entirely)", () => {
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18, sizeUnit: "in", authorName: "Jules" }));
       expect(loadWorkspaceOptions().edgeMode).toBe("standard");

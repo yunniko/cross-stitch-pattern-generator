@@ -61,6 +61,14 @@ describe("project-store", () => {
     expect(pattern!.sourceImage).toBeUndefined();
   });
 
+  it("keeps edgeMode crisp-plus through autosave (G-038)", async () => {
+    const store = createProjectStore(createMemoryKeyValueStore());
+    await store.save(makePattern({ edgeMode: "crisp-plus" }));
+    const { pattern, failure } = await store.load();
+    expect(failure).toBeUndefined();
+    expect(pattern!.edgeMode).toBe("crisp-plus");
+  });
+
   it("stores cellPalette as the typed array itself, not a JSON number array", async () => {
     const kv = createMemoryKeyValueStore();
     await createProjectStore(kv).save(makePattern());

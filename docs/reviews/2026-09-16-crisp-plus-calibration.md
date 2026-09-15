@@ -229,3 +229,65 @@ before → after pruning):
 
 Blurs of 0.25 and 0.5 cell are unchanged. The DMC and Anchor yellow-band
 thread choice at half-cell blur (3820 rather than 725) remains.
+
+## M4: generation time (criterion 6)
+
+From `tests/unit/crisp-plus-timing.spec.ts`, run alone with
+`CRISP_PLUS_TIMING=<file>` on the Owner's machine (Windows 11, Node 22), on
+2026-09-16 at the M3 code. Photo-like synthetic sources; one untimed warm-up
+per mode, then 5 alternating Crisp and Crisp+ runs.
+
+| Configuration | Crisp median | Crisp+ median | Ratio | Target |
+|---|---:|---:|---:|---:|
+| 12 MP (4000×3000) → 100 stitches, 16 colours | 7,333 ms | 7,371 ms | 1.005 | ≤ 1.3 |
+| 1500×1000 → 1000 stitches, 64 colours | 6,205 ms | 6,904 ms | 1.113 | ≤ 1.3 |
+
+Individual runs, in milliseconds:
+- 12 MP: Crisp 7,335 / 7,020 / 7,372 / 7,333 / 7,194; Crisp+ 7,556 / 7,371 /
+  7,655 / 7,334 / 7,366.
+- 1000 stitches: Crisp 6,323 / 6,264 / 6,205 / 6,191 / 6,152; Crisp+ 6,324 /
+  6,949 / 6,904 / 6,874 / 6,664.
+
+## M4: real photos (criterion 7)
+
+From `tests/unit/crisp-plus-real-photos.spec.ts`, run with
+`ENHANCEMENT_PHOTOS_DIR` and `CRISP_PLUS_REAL_PHOTOS`, on the G-032
+calibration photos that show no people (kept outside the repository), at 24
+colours. There is no ground truth here, so nothing is scored: the columns
+report what changed and why.
+
+- **Confident** is the share of cells the evidence layer accepts.
+- **Snap + prune** is the share of cells those two steps move, measured
+  against Crisp+ with both turned off.
+- **Differs from Crisp** is the share of cells assigned a different colour
+  than Crisp gives. It is dominated by palette training, not by the two
+  steps: more confident cells mean more weighted samples, and the quantizer's
+  seed depends on the distinct sample count (D061), so the whole palette can
+  shift. A stage-by-stage run on underexposed-sun at 100 stitches showed
+  17.61 % from evidence alone, 0.48 % added by snapping, and none by pruning.
+
+| Photo | Grid | Confident, Crisp → Crisp+ | Snap + prune | Differs from Crisp | Colours, Crisp → Crisp+ |
+|---|---|---|---:|---:|---|
+| underexposed-sun | 100×67 | 0.06 % → 0.22 % | 0.5 % | 17.9 % | 18 → 19 |
+| underexposed-sun | 250×167 | 0.04 % → 0.19 % | 3.3 % | 26.1 % | 23 → 23 |
+| fog-sailboat | 100×75 | 1.68 % → 1.68 % | 0.05 % | 0.05 % | 23 → 23 |
+| fog-sailboat | 250×188 | 1.40 % → 1.40 % | 0.6 % | 11.3 % | 24 → 23 |
+| backlit-tower | 100×67 | 9.97 % → 11.57 % | 3.3 % | 34.0 % | 24 → 23 |
+| backlit-tower | 250×167 | 8.89 % → 10.42 % | 2.7 % | 23.5 % | 24 → 24 |
+| tree-under | 100×67 | 2.45 % → 2.52 % | 0.5 % | 22.7 % | 24 → 24 |
+| tree-under | 250×167 | 1.28 % → 1.42 % | 8.2 % | 20.3 % | 24 → 19 |
+| fog-brofjorden | 100×67 | 1.22 % → 1.87 % | 2.8 % | 35.3 % | 24 → 24 |
+| fog-eucalypt | 100×75 | 2.09 % → 2.15 % | 2.4 % | 13.6 % | 24 → 24 |
+| backlit-geyser | 100×66 | 3.08 % → 3.20 % | 10.3 % | 35.6 % | 24 → 20 |
+| tree-normal | 100×67 | 2.24 % → 2.33 % | 0.2 % | 23.8 % | 24 → 24 |
+| tree-over | 100×67 | 1.84 % → 1.91 % | 0.3 % | 22.5 % | 24 → 24 |
+| lake-summer | 100×67 | 3.42 % → 3.78 % | 2.0 % | 24.3 % | 24 → 20 |
+| road-mountains | 100×67 | 7.93 % → 8.45 % | 9.3 % | 18.0 % | 24 → 14 |
+
+**Open question for the Owner: fewer colours than requested.** Freed slots
+stay free (D140, D141), so a photo whose blends are removed can end well under
+the requested count: road-mountains keeps 14 of 24, backlit-geyser and
+lake-summer 20. On the fixtures this never mattered, because they hold four
+real colours. Reinvesting the slots was rejected in M2 on fixture evidence
+(refilling by colour error recreates the blends); these photos are the first
+case for revisiting it.

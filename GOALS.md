@@ -1091,6 +1091,7 @@ escalation-tier, not a routine refactor):
   - Deploy, then the Owner's visual check and sign-off.
 
 **Progress log** (newest first):
+- 2026-09-16 — Owner approved M4 ("go ahead with M4").
 - 2026-09-16 — **M3 done; check-in with the Owner before M4.**
   - **What was built:** `lib/crisp/blend-label-pruning.ts` (D141), after
     snapping. A thin palette colour whose colour mixes two or three nearby

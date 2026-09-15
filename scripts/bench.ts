@@ -99,6 +99,7 @@ for (const { label, source, stitches, colors } of CONFIGS) {
     const rows: Array<[string, number]> = [];
     timed(rows, "buildPattern standard", () => buildPattern(source, { longerSideStitches: stitches, colorCount: colors }));
     timed(rows, "buildPattern crisp", () => buildPattern(source, { longerSideStitches: stitches, colorCount: colors, edgeMode: "crisp" }));
+    timed(rows, "buildPattern crisp-plus (G-038)", () => buildPattern(source, { longerSideStitches: stitches, colorCount: colors, edgeMode: "crisp-plus" }));
     timed(rows, "buildPattern standard + DMC", () => buildPattern(source, { longerSideStitches: stitches, colorCount: colors, paletteMode: "dmc" }));
     printTable(`End to end -- ${label}`, rows);
   });

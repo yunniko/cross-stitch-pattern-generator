@@ -70,6 +70,28 @@ test("Crisp edges generates a pattern with a legend and no errors", async ({ pag
   expect(errors).toEqual([]);
 });
 
+test("Crisp+ generates a pattern with a legend and no errors, and the choice survives a reload (G-038)", async ({ page }) => {
+  const errors = collectErrors(page);
+  const names = await generateWith(page, ["Crisp+"]);
+
+  expect(names.length).toBeGreaterThan(0);
+  await expect(page.getByText(/50 × \d+, [\d,]+ stitches, \d+ colors/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Crisp", exact: true })).toHaveAttribute("aria-pressed", "false");
+  expect(errors).toEqual([]);
+
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Crisp+", exact: true })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("Crisp+ combined with a thread palette still produces thread-coded names", async ({ page }) => {
+  const errors = collectErrors(page);
+  const names = await generateWith(page, ["DMC", "Crisp+"]);
+
+  expect(names.length).toBeGreaterThan(0);
+  for (const name of names) expect(name).toMatch(/^[A-Z]*\d+[A-Z]* - \S/);
+  expect(errors).toEqual([]);
+});
+
 test("Crisp edges combined with a thread palette still produces thread-coded names", async ({ page }) => {
   const errors = collectErrors(page);
   const names = await generateWith(page, ["DMC", "Crisp"]);

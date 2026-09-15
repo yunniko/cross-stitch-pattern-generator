@@ -191,7 +191,12 @@ describe("pattern-serialize", () => {
     expect(restored.edgeMode).toBe("crisp");
   });
 
-  it("leaves edgeMode undefined for a file saved before G-024 M5, or any non-\"crisp\" value", () => {
+  it("round-trips edgeMode: \"crisp-plus\" (G-038)", () => {
+    const pattern = { ...makePattern(), edgeMode: "crisp-plus" as const };
+    expect(deserializePattern(serializePattern(pattern)).edgeMode).toBe("crisp-plus");
+  });
+
+  it("leaves edgeMode undefined for a file saved before G-024 M5, or any unknown value", () => {
     const restored = deserializePattern(serializePattern(makePattern()));
     expect(restored.edgeMode).toBeUndefined();
 

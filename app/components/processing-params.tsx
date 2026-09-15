@@ -29,6 +29,11 @@ const PALETTE_OPTIONS: SegmentOption<WorkspaceOptions["paletteMode"]>[] = [
 const EDGE_OPTIONS: SegmentOption<WorkspaceOptions["edgeMode"]>[] = [
   { value: "standard", label: "Standard", title: "Today's default -- averages colors across a boundary" },
   { value: "crisp", label: "Crisp", title: "Preserves hard color boundaries instead of blending them into a manufactured intermediate color (G-024)" },
+  {
+    value: "crisp-plus",
+    label: "Crisp+",
+    title: "Like Crisp, and also cleans up slightly soft edges: in-between colors along a blurred boundary are snapped to one side, while real thin lines and gradients are kept (G-038)",
+  },
 ];
 
 const ENHANCEMENT_OPTIONS: Record<EnhancementModeId, SegmentOption<EnhancementModeId>> = {

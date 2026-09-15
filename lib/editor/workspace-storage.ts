@@ -20,7 +20,7 @@ export interface WorkspaceOptions {
   aidaCount: number;
   sizeUnit: SizeUnit;
   authorName: string;
-  /** The Standard/Crisp choice for the *next* Generate -- a remembered UI preference, unlike `edgeMode` on a `StitchPattern`, which records how that pattern was built. */
+  /** The Standard/Crisp/Crisp+ choice for the *next* Generate -- a remembered UI preference, unlike `edgeMode` on a `StitchPattern`, which records how that pattern was built. */
   edgeMode: EdgeMode;
   /** A4/PDF export overlap; defaults to 5 like `calculateA4Layout` itself. */
   overlapCells: OverlapCells;
@@ -67,7 +67,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       aidaCount: typeof parsed.aidaCount === "number" && parsed.aidaCount > 0 ? parsed.aidaCount : DEFAULT_OPTIONS.aidaCount,
       sizeUnit: parsed.sizeUnit === "in" || parsed.sizeUnit === "cm" ? parsed.sizeUnit : DEFAULT_OPTIONS.sizeUnit,
       authorName: typeof parsed.authorName === "string" ? parsed.authorName : DEFAULT_OPTIONS.authorName,
-      edgeMode: parsed.edgeMode === "crisp" ? "crisp" : DEFAULT_OPTIONS.edgeMode,
+      edgeMode: parsed.edgeMode === "crisp" || parsed.edgeMode === "crisp-plus" ? parsed.edgeMode : DEFAULT_OPTIONS.edgeMode,
       overlapCells: VALID_OVERLAP_CELLS.includes(parsed.overlapCells as OverlapCells) ? (parsed.overlapCells as OverlapCells) : DEFAULT_OPTIONS.overlapCells,
       canvasColor: typeof parsed.canvasColor === "string" && HEX_COLOR_PATTERN.test(parsed.canvasColor) ? parsed.canvasColor : DEFAULT_OPTIONS.canvasColor,
       sizePreset: VALID_SIZE_PRESETS.includes(parsed.sizePreset as SizePresetId) ? (parsed.sizePreset as SizePresetId) : DEFAULT_OPTIONS.sizePreset,
