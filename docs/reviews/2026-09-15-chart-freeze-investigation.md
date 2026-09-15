@@ -45,8 +45,18 @@ Zoomed in, the canvas cap allows 8 px per stitch at 1000 stitches (8000 px ÷ 10
 | `fillRect` per stitch | 391 ms |
 | `fillRect` plus one `fillText` symbol per stitch | 1,446 ms |
 
-Every zoom step changes the cell size and redraws the whole chart, so zooming into a large chart likely freezes for
-about 1.5 s per step. This is inferred from the synthetic timing and was not measured in the app.
+Every zoom step changes the cell size and redraws the whole chart. Measured in the app on the same production build,
+one run each, 1000-stitch chart:
+
+| Action | Canvas | Longest main-thread task |
+|---|---|---:|
+| Zoom in, step 1 (6 px per stitch, symbols appear) | 6000 × 4500 | 1,479 ms |
+| Zoom in, step 2 (8 px per stitch) | 8000 × 6000 | 1,673 ms |
+| Switch to Grid + photo (key 4) | 8000 × 6000 | 1,560 ms |
+| Switch back to Color (key 1) | 8000 × 6000 | 1,432 ms |
+
+Zooming in further, and the first zoom-out step afterwards, left the canvas at its 8000 px cap: nothing was redrawn,
+so there was no freeze, but those steps also changed nothing visible.
 
 Two more measurements for planning (Chromium, 8 px per stitch):
 
@@ -79,5 +89,5 @@ symbol cost.
 ## Confidence and gaps
 
 - Single profile runs on one machine and a synthetic photo; the drawing alternatives use synthetic cells.
-- The zoomed-in freeze is inferred from a synthetic timing, not measured in the app.
+- The zoom and view-switch freezes are single runs on one machine.
 - Option 1's pixel parity, and its effect on exports, are untested.
