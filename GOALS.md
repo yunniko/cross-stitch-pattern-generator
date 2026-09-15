@@ -1180,6 +1180,8 @@ escalation-tier, not a routine refactor):
   - Gate: deployed, live smoke test, and the goal awaits Owner sign-off.
 
 **Progress log** (newest first):
+- 2026-09-15 — **Owner: deploy M1 and start M2** ("deploy and go m2"). M3 still needs
+  approval. Codex remains unavailable until 2026-09-19.
 - 2026-09-15 — **M1: symmetry geometry in `lib/editor/symmetry.ts`, unit-tested (D137).**
   - Axes are signed permutation matrices in doubled centred coordinates. The
     active axes generate a closed group (orders 1, 2, 4 and 8 across all 16
