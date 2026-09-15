@@ -429,12 +429,29 @@ function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: num
  * any color, unlike `drawChart`'s luminance-based text color choice which
  * only has its own flat fill color to contrast against.
  */
-export function drawChartOutline(ctx: CanvasRenderingContext2D, pattern: StitchPattern, cellSize: number, region?: ChartRegion, gridStyle: GridStyle = "stroke") {
+export function drawChartOutline(
+  ctx: CanvasRenderingContext2D,
+  pattern: StitchPattern,
+  cellSize: number,
+  region?: ChartRegion,
+  gridStyle: GridStyle = "stroke",
+  glyphs: "text" | "sprites" = "text"
+) {
   const { width, height, cellPalette, palette } = pattern;
   const { x0, y0, x1, y1 } = region ?? { x0: 0, y0: 0, x1: width, y1: height };
   const drawSymbols = cellSize >= LEGIBILITY_FLOOR_PX;
+  const sprites = drawSymbols && glyphs === "sprites" ? outlineSprites(ctx, pattern, cellSize) : null;
 
-  if (drawSymbols) {
+  if (sprites) {
+    // Each symbol and its halo pre-drawn at the same offset within its cell, blitted per stitch in the same order (D136).
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const paletteIndex = cellPalette[y * width + x];
+        if (paletteIndex === EMPTY_CELL) continue;
+        ctx.drawImage(sprites.images[paletteIndex] as CanvasImageSource, (x - x0) * cellSize - sprites.pad, (y - y0) * cellSize - sprites.pad);
+      }
+    }
+  } else if (drawSymbols) {
     ctx.font = `${Math.round(cellSize * 0.6)}px ${FONT_STACK}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -456,6 +473,44 @@ export function drawChartOutline(ctx: CanvasRenderingContext2D, pattern: StitchP
   }
 
   drawGridLines(ctx, x0, y0, x1, y1, cellSize, 0, 0, gridStyle);
+}
+
+/** Grid + photo symbol sprites per palette and cell size; a new palette array (any colour edit) starts afresh. */
+const outlineSpriteCache = new WeakMap<readonly PaletteColor[], Map<number, { pad: number; images: AnyCanvas[] } | null>>();
+
+/**
+ * Each palette symbol stroked with its white halo and filled, as `drawChartOutline` draws it, into a canvas one cell
+ * plus the paint overhang on each side; null when a canvas can't be created, so the caller draws text instead.
+ */
+function outlineSprites(ctx: CanvasRenderingContext2D, pattern: StitchPattern, cellSize: number): { pad: number; images: AnyCanvas[] } | null {
+  let bySize = outlineSpriteCache.get(pattern.palette);
+  if (!bySize) {
+    bySize = new Map();
+    outlineSpriteCache.set(pattern.palette, bySize);
+  }
+  if (bySize.has(cellSize)) return bySize.get(cellSize)!;
+  let entry: { pad: number; images: AnyCanvas[] } | null = null;
+  try {
+    const pad = chartPaintOverhangPx(ctx, pattern, cellSize, true);
+    const size = cellSize + 2 * pad;
+    const images = pattern.palette.map((color) => {
+      const { canvas, ctx: sprite } = createCanvas(size, size);
+      sprite.font = `${Math.round(cellSize * 0.6)}px ${FONT_STACK}`;
+      sprite.textAlign = "center";
+      sprite.textBaseline = "middle";
+      sprite.lineWidth = Math.max(1, Math.round(cellSize * 0.12));
+      sprite.strokeStyle = "#ffffff";
+      sprite.fillStyle = "#111111";
+      sprite.strokeText(color.symbol, pad + cellSize / 2, pad + cellSize / 2 + 1);
+      sprite.fillText(color.symbol, pad + cellSize / 2, pad + cellSize / 2 + 1);
+      return canvas;
+    });
+    entry = { pad, images };
+  } catch {
+    entry = null;
+  }
+  bySize.set(cellSize, entry);
+  return entry;
 }
 
 // A dark "spotlight" mask over everything *not* highlighted reads more

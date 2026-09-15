@@ -4,6 +4,7 @@ import { chartPaintOverhangPx, drawCell, drawChartOnScreen, drawChartOutline, dr
 import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
 import type { Tool, ViewMode } from "./editor-types";
 import { drawSelectionOutline, PHOTO_UNDERLAY_ALPHA } from "./editor-geometry";
+import { drawRealisticRegion, type StitchTiles } from "./realistic-tiles";
 
 /**
  * What the Image window shows, drawn into the viewport canvas for any rectangle of chart pixels (G-036 M3, D135).
@@ -15,7 +16,8 @@ export interface ChartScene {
   viewMode: ViewMode;
   cellSize: number;
   photo: { dataUrl: string; img: CanvasImageSource } | null;
-  realisticPreview: { canvas: CanvasImageSource; width: number; height: number } | null;
+  /** Stitch tiles for the Realistic view; tiles of another size are drawn scaled until the right ones exist. */
+  realisticTiles: StitchTiles | null;
   activeTool: Tool;
   highlightedColorIndices: ReadonlySet<number>;
   selection: FloatingSelection | null;
@@ -40,6 +42,16 @@ export interface BrushOp {
 /** Color and B&W redraw single stitches in place; the other views have no per-stitch fill to restore. */
 export function incrementalModeOf(viewMode: ViewMode): RenderMode | null {
   return viewMode === "color" || viewMode === "bw" ? viewMode : null;
+}
+
+// The last composited floating selection: scrolling repaints reuse it instead of copying the whole chart again (D136).
+let lastComposite: { pattern: StitchPattern; selection: FloatingSelection; result: StitchPattern } | null = null;
+
+function compositedSelection(pattern: StitchPattern, selection: FloatingSelection): StitchPattern {
+  if (lastComposite?.pattern !== pattern || lastComposite.selection !== selection) {
+    lastComposite = { pattern, selection, result: compositeSelectionPreview(pattern, selection) };
+  }
+  return lastComposite.result;
 }
 
 /** The source photo at the pattern's stitch scale and offset: the same placement in Grid + photo and Original photo. */
@@ -81,7 +93,7 @@ function atRegion(ctx: CanvasRenderingContext2D, region: ChartRegion, cellSize: 
 /** The scene for pattern `p`, painted into `rect` only (chart pixels, integer bounds). */
 export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene: ChartScene, rect: PixelRect) {
   if (isEmptyRect(rect)) return;
-  const { viewMode, cellSize, photo, realisticPreview, activeTool, highlightedColorIndices, selection, canvasColor, selectDragging } = scene;
+  const { viewMode, cellSize, photo, realisticTiles, activeTool, highlightedColorIndices, selection, canvasColor, selectDragging } = scene;
   ctx.save();
   clipTo(ctx, rect);
 
@@ -89,10 +101,17 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
     ctx.fillStyle = canvasColor;
     ctx.fillRect(0, 0, p.width * cellSize, p.height * cellSize);
     if (viewMode === "realistic") {
-      // The preview renders asynchronously at its own resolution; stretching it keeps the view the same size while a
-      // re-render for a new zoom is pending. A preview of a differently sized pattern is never shown.
-      if (realisticPreview && realisticPreview.width === p.width && realisticPreview.height === p.height) {
-        ctx.drawImage(realisticPreview.canvas, 0, 0, p.width * cellSize, p.height * cellSize);
+      // Only the stitches under `rect`: a stitch's texture never reaches past its own cell. Scaled tiles sample their
+      // neighbours, so one more stitch on each side keeps the edges of `rect` as a whole-chart stretch drew them (D136).
+      if (realisticTiles) {
+        const guard = realisticTiles.cellSize === cellSize ? 0 : 1;
+        const region = {
+          x0: Math.max(0, Math.floor(rect.x0 / cellSize) - guard),
+          y0: Math.max(0, Math.floor(rect.y0 / cellSize) - guard),
+          x1: Math.min(p.width, Math.ceil(rect.x1 / cellSize) + guard),
+          y1: Math.min(p.height, Math.ceil(rect.y1 / cellSize) + guard),
+        };
+        drawRealisticRegion(ctx, p, realisticTiles, cellSize, region);
       }
     } else if (p.sourceImage && photo && photo.dataUrl === p.sourceImage.dataUrl) {
       drawSourcePhoto(ctx, photo.img, p.sourceImage, cellSize, 1);
@@ -102,14 +121,14 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
   }
 
   // A floating selection is composited for display only, never into history.
-  const displayPattern = activeTool === "select" && selection && !selectDragging ? compositeSelectionPreview(p, selection) : p;
+  const displayPattern = activeTool === "select" && selection && !selectDragging ? compositedSelection(p, selection) : p;
   const region = regionFor(ctx, displayPattern, scene, rect);
 
   if (viewMode === "photo" && displayPattern.sourceImage) {
     if (photo && photo.dataUrl === displayPattern.sourceImage.dataUrl) {
       drawSourcePhoto(ctx, photo.img, displayPattern.sourceImage, cellSize, PHOTO_UNDERLAY_ALPHA);
     }
-    atRegion(ctx, region, cellSize, () => drawChartOutline(ctx, displayPattern, cellSize, region, "rects"));
+    atRegion(ctx, region, cellSize, () => drawChartOutline(ctx, displayPattern, cellSize, region, "rects", "sprites"));
   } else {
     atRegion(ctx, region, cellSize, () => drawChartOnScreen(ctx, displayPattern, viewMode as RenderMode, cellSize, region, canvasColor));
   }

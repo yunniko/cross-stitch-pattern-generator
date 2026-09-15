@@ -211,3 +211,29 @@ test("zoom and view switches report a completed render on the chart frame (D135)
   await expect(frame(page)).not.toHaveAttribute("data-cell-size", cell ?? "");
   await expect.poll(() => revision(page)).toBeGreaterThan(afterView);
 });
+
+test("the Realistic view draws its stitches from tiles and settles again after a zoom (D136)", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await generateSmallPattern(page);
+  const distinctColours = () =>
+    page.getByRole("main").locator("canvas").evaluate((el: HTMLCanvasElement) => {
+      const { data } = el.getContext("2d")!.getImageData(0, 0, el.width, el.height);
+      const seen = new Set<number>();
+      for (let i = 0; i < data.length; i += 4 * 31) seen.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]);
+      return seen.size;
+    });
+
+  await page.keyboard.press("3");
+  await expect(frame(page)).toHaveAttribute("data-view-mode", "realistic");
+  await expect(frame(page)).toHaveAttribute("data-scene-pending", "", { timeout: 15_000 });
+  // More than the canvas colour: textured stitches in their palette colours.
+  expect(await distinctColours()).toBeGreaterThan(20);
+
+  const cell = await frame(page).getAttribute("data-cell-size");
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  await expect(frame(page)).not.toHaveAttribute("data-cell-size", cell ?? "");
+  await expect(frame(page)).toHaveAttribute("data-scene-pending", "", { timeout: 15_000 });
+  expect(await distinctColours()).toBeGreaterThan(20);
+  expect(errors).toEqual([]);
+});

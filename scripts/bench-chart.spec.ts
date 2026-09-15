@@ -153,6 +153,19 @@ async function chartState(page: Page): Promise<{ cellSize: string; revision: num
   return page.getByTestId("chart-frame").evaluate((el: HTMLElement) => ({ cellSize: el.dataset.cellSize ?? "", revision: Number(el.dataset.renderRevision ?? 0) }));
 }
 
+/** Waits until the chart frame reports a render after `before` with nothing pending (the Realistic view's tiles), then a frame. */
+async function waitForScene(page: Page, before: number) {
+  await page.waitForFunction(
+    (b) => {
+      const frame = document.querySelector('[data-testid="chart-frame"]') as HTMLElement | null;
+      return !!frame && Number(frame.dataset.renderRevision ?? 0) > b && !frame.dataset.scenePending;
+    },
+    before,
+    { polling: 16, timeout: 120_000 }
+  );
+  await afterPaint(page);
+}
+
 /** Waits for a zoom step's new cell size and its paint; returns false at the zoom cap, where nothing changes. */
 async function waitForZoomRendered(page: Page, before: { cellSize: string; revision: number }): Promise<boolean> {
   return page
@@ -228,7 +241,8 @@ test("large-chart operations at 1000 stitches", async ({ page }, testInfo) => {
     // Every view mode, at the zoomed-in size (symbols drawn).
     await main.click({ position: { x: 4, y: 4 } }).catch(() => undefined);
     for (const [key, label] of [["2", "B&W"], ["3", "Realistic"], ["4", "Grid + photo"], ["5", "Original photo"], ["1", "Color"]] as const) {
-      record(`view: ${label} (key ${key})`, await timed(page, client, () => page.keyboard.press(key), () => afterPaint(page)));
+      const before = (await chartState(page)).revision;
+      record(`view: ${label} (key ${key})`, await timed(page, client, () => page.keyboard.press(key), () => waitForScene(page, before)));
     }
 
     // Scrolling: 20 programmatic steps, one per frame.
@@ -256,8 +270,10 @@ test("large-chart operations at 1000 stitches", async ({ page }, testInfo) => {
 
     // Highlight one colour, then turn it off again.
     await page.getByRole("button", { name: "Highlight" }).click();
-    record("highlight on (one colour)", await timed(page, client, () => legendRows.nth(0).click(), () => afterPaint(page)));
-    record("highlight off", await timed(page, client, () => legendRows.nth(0).click(), () => afterPaint(page)));
+    const beforeOn = (await chartState(page)).revision;
+    record("highlight on (one colour)", await timed(page, client, () => legendRows.nth(0).click(), () => waitForScene(page, beforeOn)));
+    const beforeOff = (await chartState(page)).revision;
+    record("highlight off", await timed(page, client, () => legendRows.nth(0).click(), () => waitForScene(page, beforeOff)));
 
     // A rectangle selection drag across part of the view.
     await page.getByRole("button", { name: "Select" }).click();

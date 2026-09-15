@@ -1,4 +1,4 @@
-import { useState, type DragEvent, type MouseEvent, type PointerEvent, type RefObject } from "react";
+import { useMemo, useState, type DragEvent, type MouseEvent, type PointerEvent, type RefObject } from "react";
 import { filledStitchCount, formatStitchCount, type StitchPattern } from "@/lib/types";
 import { isViewOnlyMode, type Tool, type ViewMode } from "../editor-types";
 import type { SourceImageMeta } from "../hooks/use-source-image";
@@ -29,6 +29,8 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
 /** The strip above the Image window: pattern size, view modes, canvas color and zoom. */
 export function ViewBar({ pattern, viewMode, onViewModeChange, canvasColor, onCanvasColorChange, zoomLevel, onZoomIn, onZoomOut, onResetZoom }: ViewBarProps) {
   const noPhotoTitle = pattern?.sourceImage ? undefined : "No source photo is associated with this pattern";
+  // Counted once per pattern, not on every zoom or tool change (G-036 M4).
+  const stitchCount = useMemo(() => (pattern ? filledStitchCount(pattern) : 0), [pattern]);
   const modes: Array<{ mode: ViewMode; label: string; needsPhoto: boolean }> = [
     { mode: "color", label: VIEW_MODE_LABELS.color, needsPhoto: false },
     { mode: "bw", label: VIEW_MODE_LABELS.bw, needsPhoto: false },
@@ -39,7 +41,7 @@ export function ViewBar({ pattern, viewMode, onViewModeChange, canvasColor, onCa
 
   return (
     <div className="flex items-center gap-3 border-b border-zinc-300 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-      <span className="text-sm font-medium">{pattern ? `${pattern.width} × ${pattern.height}, ${formatStitchCount(filledStitchCount(pattern))}, ${pattern.palette.length} colors` : "No pattern yet"}</span>
+      <span className="text-sm font-medium">{pattern ? `${pattern.width} × ${pattern.height}, ${formatStitchCount(stitchCount)}, ${pattern.palette.length} colors` : "No pattern yet"}</span>
       {pattern && (
         <div className="ml-auto flex items-center gap-3 text-sm">
           {modes.map(({ mode, label, needsPhoto }) => {

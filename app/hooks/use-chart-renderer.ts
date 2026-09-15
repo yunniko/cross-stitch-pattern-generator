@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { devicePixelAlignment, needsRepaint, paintedRectFor, visibleChartRect, type PixelRect } from "@/lib/editor/chart-viewport";
-import type { AnyCanvas } from "@/lib/export/canvas-backend";
-import { renderNavigatorPixels, renderStitchPreviewToCanvas } from "@/lib/export/render";
+import { renderNavigatorPixels } from "@/lib/export/render";
 import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
 import { brushOpsIn, drawCellsInto, drawScene, drawSceneWithGesture, incrementalModeOf, type ChartScene, type GesturePreview } from "../chart-scene";
 import type { Tool, ViewMode } from "../editor-types";
 import { chartOrigin } from "../editor-geometry";
+import { buildStitchTiles, tileSizeFor, type StitchTiles } from "../realistic-tiles";
 import { useLatest } from "./use-latest";
 
 export interface ChartRendererInputs {
@@ -42,7 +42,7 @@ const EMPTY_RECT: PixelRect = { x0: 0, y0: 0, x1: 0, y1: 0 };
 export function useChartRenderer(inputs: ChartRendererInputs) {
   const { canvasRef, frameRef, scrollerRef, navigatorCanvasRef, pattern, viewMode, cellSize, activeTool, selection, isSelectDragging, highlightedColorIndices, canvasColor, applyZoomAnchor } = inputs;
   const [photo, setPhoto] = useState<{ dataUrl: string; img: HTMLImageElement } | null>(null);
-  const [realisticPreview, setRealisticPreview] = useState<{ canvas: AnyCanvas; width: number; height: number } | null>(null);
+  const [realisticTiles, setRealisticTiles] = useState<StitchTiles | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewRetryToken, setPreviewRetryToken] = useState(0);
 
@@ -51,13 +51,13 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       viewMode,
       cellSize,
       photo,
-      realisticPreview: realisticPreview as ChartScene["realisticPreview"],
+      realisticTiles,
       activeTool,
       highlightedColorIndices,
       selection,
       canvasColor,
     }),
-    [viewMode, cellSize, photo, realisticPreview, activeTool, highlightedColorIndices, selection, canvasColor]
+    [viewMode, cellSize, photo, realisticTiles, activeTool, highlightedColorIndices, selection, canvasColor]
   );
   // What the last commit asked to show; scroll, resize and gesture handlers paint from it.
   const shownRef = useRef<{ pattern: StitchPattern | null; scene: Omit<ChartScene, "selectDragging"> }>({ pattern: null, scene });
@@ -97,6 +97,11 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     if (!frame) return;
     frame.dataset.renderRevision = String(revisionRef.current);
     frame.dataset.paintedRect = `${r.x0},${r.y0},${r.x1},${r.y1}`;
+    // Tests and the benchmark wait for this to clear: the Realistic view is final once its tiles match zoom and palette.
+    const { scene: shown, pattern: shownPattern } = shownRef.current;
+    const tiles = shown.realisticTiles;
+    const realisticPending = shown.viewMode === "realistic" && (!tiles || tiles.cellSize !== tileSizeFor(shown.cellSize) || tiles.palette !== shownPattern?.palette);
+    frame.dataset.scenePending = realisticPending ? "realistic" : "";
   }
 
   /** A full frame: re-measure, resize and place the canvas (which clears it and resets its state), draw scene and gesture. */
@@ -196,24 +201,28 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     ctx.putImageData(new ImageData(pixels, pattern.width, pattern.height), 0, 0);
   }, [navigatorCanvasRef, pattern, canvasColor]);
 
+  // Stitch tiles for the Realistic view, per palette and tile size; edits to stitches alone reuse them. A superseded build
+  // is ignored, and the previous tiles are drawn scaled until the new ones land (D136).
+  const palette = pattern?.palette;
+  const tileSize = tileSizeFor(cellSize);
   useEffect(() => {
-    if (viewMode !== "realistic" || !pattern) return;
+    if (viewMode !== "realistic" || !palette) return;
     let cancelled = false;
-    renderStitchPreviewToCanvas(pattern, { cellSize })
-      .then((canvas) => {
+    buildStitchTiles(palette, tileSize)
+      .then((tiles) => {
         if (cancelled) return;
         setPreviewError(null);
-        setRealisticPreview({ canvas, width: pattern.width, height: pattern.height });
+        setRealisticTiles(tiles);
       })
       .catch((err) => {
         if (cancelled) return;
-        setRealisticPreview(null);
+        setRealisticTiles(null);
         setPreviewError(err instanceof Error ? err.message : "Couldn't render this preview.");
       });
     return () => {
       cancelled = true;
     };
-  }, [pattern, viewMode, cellSize, previewRetryToken]);
+  }, [palette, viewMode, tileSize, previewRetryToken]);
 
   /** The canvas context with chart coordinates for the painted rectangle, or null before the first paint. */
   function chartContext(): CanvasRenderingContext2D | null {

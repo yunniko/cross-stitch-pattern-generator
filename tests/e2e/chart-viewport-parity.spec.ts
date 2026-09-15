@@ -16,6 +16,8 @@ import { rolldown } from "rolldown";
  */
 
 const ROOT = path.resolve(__dirname, "..", "..");
+// The stitch texture loads from the site root, so the blank page lives on a routed origin that serves it.
+const ORIGIN = "http://parity.test";
 
 async function bundle(): Promise<string> {
   const build = await rolldown({
@@ -53,15 +55,19 @@ interface Result {
 }
 
 async function compare(page: Page, c: Case): Promise<Result> {
-  return page.evaluate((c) => {
+  return page.evaluate(async (c) => {
     type Modules = {
       scene: typeof import("../../app/chart-scene");
       viewport: typeof import("../../lib/editor/chart-viewport");
       reference: typeof import("../unit/reference/chart-scene-pre-g036");
       edit: { compositeSelectionPreview: typeof import("../../lib/editor/pattern-edit").compositeSelectionPreview };
       rectGridContext: typeof import("./fixtures/rect-grid-context").rectGridContext;
+      realistic: {
+        buildStitchTiles: typeof import("../../app/realistic-tiles").buildStitchTiles;
+        renderStitchPreviewToCanvas: typeof import("../unit/reference/render-pre-g036").renderStitchPreviewToCanvas;
+      };
     };
-    const { scene: live, reference, edit, rectGridContext } = (window as unknown as { __viewportParity: Modules }).__viewportParity;
+    const { scene: live, reference, edit, rectGridContext, realistic } = (window as unknown as { __viewportParity: Modules }).__viewportParity;
     const SYMBOLS = "●■▲◆★✚✖♥♣♠☀☂☘♫✿❖◐◑▣▤▥▦▧▨▩☼♦♪⚑⚙⚡✈✉✎✂✓✗✦✧❀❁❂❃❄❅❆❇❈❉❊❋ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz0123456789+=#%&@".split("");
     // Imported files may carry any non-empty, unique string as a symbol: wide and multi-character ones overhang their stitch.
     const LONG = ["WWW", "@@", "Mm", "——", "ẞQ", "%%%", "⌘⌘", "WM"];
@@ -106,16 +112,10 @@ async function compare(page: Page, c: Case): Promise<Result> {
     const sourceImage = { dataUrl: "photo", naturalWidth: photoCanvas.width, naturalHeight: photoCanvas.height, cellSizePx, offsetX: -0.4, offsetY: -0.7 };
     const pattern = { width: c.width, height: c.height, isLandscape: c.width >= c.height, cellPalette, palette, sourceImage };
 
-    // A realistic preview at its own resolution, stretched onto the chart as the view does.
-    const previewCanvas = document.createElement("canvas");
-    previewCanvas.width = c.width * 2 + 1;
-    previewCanvas.height = c.height * 2 + 1;
-    {
-      const qctx = previewCanvas.getContext("2d")!;
-      const img = qctx.createImageData(previewCanvas.width, previewCanvas.height);
-      for (let i = 0; i < img.data.length; i++) img.data[i] = (i & 3) === 3 ? 255 : Math.floor(rng() * 256);
-      qctx.putImageData(img, 0, 0);
-    }
+    // Realistic: the frozen preview (the real stitch texture, per stitch, at the preview's own cell size) against the
+    // live per-colour tiles, at the tile size the view uses.
+    const previewCanvas = c.viewMode === "realistic" ? ((await realistic.renderStitchPreviewToCanvas(pattern as never, { cellSize: c.cellSize })) as HTMLCanvasElement) : null;
+    const tiles = c.viewMode === "realistic" ? await realistic.buildStitchTiles(palette, Math.max(4, c.cellSize)) : null;
 
     const cs = c.cellSize;
     const W = c.width * cs;
@@ -129,14 +129,14 @@ async function compare(page: Page, c: Case): Promise<Result> {
       viewMode: c.viewMode,
       cellSize: cs,
       photo: { dataUrl: "photo", img: photoCanvas },
-      realisticPreview: { canvas: previewCanvas, width: c.width, height: c.height },
+
       activeTool: activeTool as "brush",
       highlightedColorIndices: highlighted,
       selection: c.gesture === "floating" ? selection : null,
       canvasColor: c.canvasColor ?? "#ffffff",
     };
-    const referenceScene = { ...common, isSelectDragging: () => dragging };
-    const liveScene = { ...common, selectDragging: dragging };
+    const referenceScene = { ...common, realisticPreview: previewCanvas ? { canvas: previewCanvas, width: c.width, height: c.height } : null, isSelectDragging: () => dragging };
+    const liveScene = { ...common, realisticTiles: tiles, selectDragging: dragging };
 
     // The brush stroke: a path that revisits a stitch non-consecutively, with the active colour changed mid-stroke
     // (another pointer can pick a legend colour) and a final EMPTY stitch, so each redraw must use its own moment's colour.
@@ -278,7 +278,12 @@ test.beforeAll(async () => {
 });
 
 test.beforeEach(async ({ page }) => {
-  await page.setContent("<!doctype html><html><body></body></html>");
+  await page.route(`${ORIGIN}/**`, (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === "/stitch-texture.png") return route.fulfill({ path: path.join(ROOT, "public", "stitch-texture.png"), contentType: "image/png" });
+    return route.fulfill({ body: "<!doctype html><html><body></body></html>", contentType: "text/html" });
+  });
+  await page.goto(`${ORIGIN}/`);
   await page.addScriptTag({ content: code });
 });
 
