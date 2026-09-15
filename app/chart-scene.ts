@@ -128,7 +128,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
     if (photo && photo.dataUrl === displayPattern.sourceImage.dataUrl) {
       drawSourcePhoto(ctx, photo.img, displayPattern.sourceImage, cellSize, PHOTO_UNDERLAY_ALPHA);
     }
-    atRegion(ctx, region, cellSize, () => drawChartOutline(ctx, displayPattern, cellSize, region, "rects", "sprites"));
+    atRegion(ctx, region, cellSize, () => drawChartOutline(ctx, displayPattern, cellSize, region, "rects"));
   } else {
     atRegion(ctx, region, cellSize, () => drawChartOnScreen(ctx, displayPattern, viewMode as RenderMode, cellSize, region, canvasColor));
   }

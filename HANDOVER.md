@@ -10,7 +10,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs `master` as deployed on 2026-09-15 (last deploy-log row).
-G-036 (charts draw without freezing) is active, M1–M3 done. Signed off: G-035
+G-036 (charts draw without freezing) is active, M1–M4 done. Signed off: G-035
 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap
 cancelled, D130), G-032 enhancement (D118), G-028 OXS (D119). G-033 (swatch-aware
 color editor) is deployed and awaits Owner sign-off.
@@ -51,9 +51,9 @@ color editor) is deployed and awaits Owner sign-off.
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-15**: `tsc --noEmit` and eslint clean; Vitest 906 passed
-(1 opt-in skip); Playwright 288/288 (including 208 parity cases) on a production
-build of G-036 M3 (`84dd062`'s code). CI
+**Checks run 2026-09-15**: `tsc --noEmit` and eslint clean; Vitest 908 passed
+(1 opt-in skip); Playwright 289/289 (including 208 parity cases) on a production
+build of G-036 M4. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
@@ -71,7 +71,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 - Crisp takes about 2.6× Standard's time on a 12 MP photo (7.5 s against 2.9 s),
   because every cell gets the two-mode fit (D132). It falls back to
   Standard behavior for thin lines, junctions and gradual shading (D096).
-- At 1000 stitches the Realistic view still blocks 2.3 s and Grid + photo 115 ms (G-036 M4).
+- At 1000 stitches chart actions stay under 100 ms, but 4× CPU throttling still reaches 480 ms (G-036).
 - Browsers without OffscreenCanvas 2D in workers fall back to main-thread
   exports, which stall the tab between pages (D125).
 - The PDF has no bold face. Whether µ (which extracts as μ) matters in Pattern
@@ -92,7 +92,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
   live in `app/components/`, with shared controls in `app/components/ui.tsx`.
   Tool hooks reach the renderer through a ref assigned after render (D108).
   The chart frame (full chart size) takes layout, input and the zoom anchor; one canvas
-  inside paints the visible part plus overscan (`app/chart-scene.ts`, D135). Realistic
+  inside paints the visible part plus overscan (`app/chart-scene.ts`, D135, D136). Realistic
   and Original photo are view-only, where only Pan and Zoom act.
 - **Generation path**: `app/hooks/use-generation.ts` →
   `lib/pipeline/pattern-client.ts` (one reused worker; discarded after a
@@ -219,8 +219,8 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **G-036 in progress:** M1–M3 done and deployed (D134, D135); M4 approved and under way;
-  M5 needs approval. Deploy key: `~/.ssh/claude_contabo`.
+- **G-036 in progress:** M1–M4 done (D134–D136); M5 (results and release) needs
+  approval. Deploy key: `~/.ssh/claude_contabo`.
 - **PENDING APPROVAL: G-037, symmetry and quick mirror (DRAFT)**, open questions in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.

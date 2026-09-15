@@ -33,10 +33,18 @@ export type ChartRenderer = ReturnType<typeof useChartRenderer>;
 const EMPTY_RECT: PixelRect = { x0: 0, y0: 0, x1: 0, y1: 0 };
 
 /**
+ * How far ahead of the view the canvas is painted on each side, as a share of the view. Grid + photo costs several
+ * times more per pixel (haloed symbols over a translucent photo), so it paints less ahead and repaints more often (D136).
+ */
+function overscanFraction(viewMode: ViewMode): number {
+  return viewMode === "photo" ? 1 / 16 : 1 / 4;
+}
+
+/**
  * Everything drawn into the Image window and the navigator (D135). The chart frame is full chart size; the canvas inside
- * it holds only the painted rectangle: the visible part of the chart plus a quarter of the view on each side, at whole
+ * it holds only the painted rectangle: the visible part of the chart plus a quarter of the view on each side (a sixteenth in Grid + photo), at whole
  * chart pixels, starting on a whole device pixel. It repaints when what is shown changes, when a scroll or resize
- * brings unpainted chart within an eighth of the view, and for every gesture frame, replaying the active gesture so
+ * brings unpainted chart within half that overscan, and for every gesture frame, replaying the active gesture so
  * scrolling and zooming keep its preview. `canvasColor` is display-only.
  */
 export function useChartRenderer(inputs: ChartRendererInputs) {
@@ -111,7 +119,8 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     const geometry = measure();
     if (!canvas || !p || !geometry) return;
     const align = devicePixelAlignment(window.devicePixelRatio || 1);
-    const rect = paintedRectFor(geometry.visible, geometry.viewWidth / 4, geometry.viewHeight / 4, geometry.width, geometry.height, align);
+    const fraction = overscanFraction(shownRef.current.scene.viewMode);
+    const rect = paintedRectFor(geometry.visible, geometry.viewWidth * fraction, geometry.viewHeight * fraction, geometry.width, geometry.height, align);
     alignRef.current = align;
     const w = rect.x1 - rect.x0;
     const h = rect.y1 - rect.y0;
@@ -135,7 +144,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   function ensureCoverage() {
     const geometry = measure();
     if (!geometry) return;
-    const margin = Math.min(geometry.viewWidth, geometry.viewHeight) / 8;
+    const margin = (Math.min(geometry.viewWidth, geometry.viewHeight) * overscanFraction(shownRef.current.scene.viewMode)) / 2;
     const alignmentChanged = devicePixelAlignment(window.devicePixelRatio || 1) !== alignRef.current;
     if (alignmentChanged || needsRepaint(geometry.visible, paintedRef.current, margin, geometry.width, geometry.height)) paint();
   }

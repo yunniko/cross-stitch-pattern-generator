@@ -1108,7 +1108,7 @@ escalation-tier, not a routine refactor):
   - Gate: the navigation, keyboard-shortcut and interaction suites pass, the
     zoom-anchor e2e checks hold on the new structure, viewport parity holds,
     and the 192 MB canvas is gone.
-- [ ] **M4 — Viewport canvas: bounded rendering for every mode and gesture.**
+- [x] **M4 — Viewport canvas: bounded rendering for every mode and gesture.** Done (D136).
   - Codex critique first.
   - Visible-region drawing for every mode and the gesture previews moved to
     M3. M4 tunes the overscan and redraw scheduling.
@@ -1128,6 +1128,48 @@ escalation-tier, not a routine refactor):
   - Update HANDOVER; final deploy with a production spot check.
 
 **Progress log** (newest first):
+- 2026-09-15 — **M4: every chart action at 1000 stitches stays under 100 ms unthrottled.**
+  - Realistic view:
+    - Each palette colour's tinted texture is rasterised once per tile size
+      (`app/realistic-tiles.ts`, at least 4 px as the preview used).
+    - The visible region is assembled from those tiles and drawn in one call;
+      older tiles are drawn scaled while new ones build.
+    - The frame's `data-scene-pending` marks tiles that aren't ready yet.
+    - The PNG export keeps `renderStitchPreviewToCanvas`.
+  - Grid + photo paints a sixteenth of the view ahead on each side; the other
+    views keep a quarter.
+  - Caches: the composited floating selection (one entry) and the view bar's
+    stitch count, per pattern.
+  - Measured and rejected (D136):
+    - haloed-symbol sprites: 107 ms of `drawImage` against 82 ms of `strokeText`;
+    - drawing only the photo sub-rectangle: Grid + photo went from 146 to 114 ms,
+      but Original photo at 5 px exceeded the D135 tolerance in the parity spec.
+  - Codex critique: not run. Codex is at its usage limit until 2026-09-19, so M4
+    proceeded without it, per STANDARDS.md.
+  - Checks:
+    - tsc and eslint clean; Vitest 908 passed plus 1 opt-in skip;
+    - Playwright 289/289 on a production build, including 208 parity cases and
+      6 viewport-canvas tests;
+    - docs-lint passes.
+  - `npm run bench:chart`, 1000 st / 64 col, longest main-thread task (3 runs
+    unthrottled; 1 run at 4× CPU throttling):
+
+    | Operation | After M3 | After M4 | M4, 4× throttled |
+    |---|---:|---:|---:|
+    | Chart shown after regenerating | 0 ms | 0 ms | 135 ms |
+    | Zoom in, step 1 / step 2 | 72 / 0 ms | 64 / 0 ms | 336 / 198 ms |
+    | View: B&W / Color | 0 / 0 ms | 0 / 0 ms | 166 / 175 ms |
+    | View: Realistic | 2,274 ms | 0 ms | 53 ms |
+    | View: Grid + photo | 115 ms | 94 ms | 478 ms |
+    | View: Original photo | 0 ms | 0 ms | 0 ms |
+    | Highlight on / off | 0 / 0 ms | 0 / 0 ms | 191 / 178 ms |
+    | Select drag | 65 ms | 62 ms | 327 ms |
+    | Scroll, 20 steps | 50 ms | 0 ms (max frame gap 33 ms) | 234 ms |
+    | Saved project reopened | 53 ms | 53 ms | 183 ms |
+
+    Grid + photo, at 94 ms, is the closest to the target. The scroll row runs in
+    Color view, so scrolling in Grid + photo isn't timed; M5 adds it.
+  - Next: deploy M4; M5 (results and release) needs approval.
 - 2026-09-15 — **Owner decisions at the M3 check-in:**
   - The deploy key is `~/.ssh/claude_contabo`, renamed for consistency by
     another agent at the Owner's request. The M3 deploy is unblocked.
