@@ -10,7 +10,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs `master` as deployed on 2026-09-15 (last deploy-log row).
-G-036 (charts draw without freezing): M1–M5 done, awaiting sign-off. Signed off: G-035
+Signed off: G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035
 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap
 cancelled, D130), G-032 enhancement (D118), G-028 OXS (D119). G-033 (swatch-aware
 color editor) is deployed and awaits Owner sign-off.
@@ -218,7 +218,6 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **PENDING APPROVAL: G-036 sign-off.** Results in `docs/reviews/2026-09-15-chart-rendering-results.md`.
 - **PENDING APPROVAL: G-037, symmetry and quick mirror (DRAFT)**, open questions in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
