@@ -988,3 +988,160 @@ escalation-tier, not a routine refactor):
     available, about 30 containers, load average 1.3, and no
     `client_max_body_size` in any nginx config.
   No code written.
+
+### G-036 · Large charts draw without freezing the page — DRAFT (2026-09-15)
+- **What:** Showing, reopening, zooming, scrolling and switching views on a
+  large chart no longer blocks the page for a noticeable time. The on-screen
+  chart looks exactly as it does today, and every export is unchanged.
+- **Why:** Owner request (2026-09-15), after the G-035 sign-off. The
+  investigation (`docs/reviews/2026-09-15-chart-freeze-investigation.md`)
+  found that the Image window redraws the whole chart in one main-thread task,
+  with one `fillRect` per stitch and one `fillText` per stitch once symbols are
+  shown. Measured on the Owner's machine at 1000 stitches, production build,
+  one run each:
+
+  | Action | Longest main-thread task |
+  |---|---:|
+  | Chart shown after generating | 589 ms |
+  | Saved project reopened | 595 ms |
+  | Zoom in to 6 px per stitch (symbols appear) | 1,479 ms |
+  | Zoom in to 8 px per stitch | 1,673 ms |
+  | Switch to Grid + photo, then back to Color | 1,560 ms, 1,432 ms |
+
+  The zoomed-in canvas is 8000 × 6000, a 192 MB backing store.
+
+- **Acceptance criteria** (Owner's machine, pinned production build, Chromium,
+  repeated runs; the maximum main-thread task is timed from the action until
+  the last render it triggers has finished, and autosave is reported
+  separately):
+
+  | Operation at 1000 stitches | Target |
+  |---|---:|
+  | Chart shown after generating; saved project reopened | ≤ 100 ms longest task |
+  | One zoom step, at every cell size up to the canvas cap | ≤ 100 ms longest task |
+  | Switching between all five view modes | ≤ 100 ms longest task |
+  | Turning highlight on or off with one or several colours | ≤ 100 ms longest task |
+  | Scrolling or panning across the chart | no frame gap over 100 ms |
+
+  Further criteria:
+  1. Every row also reports p95 latency and frame gaps, unthrottled and under a
+     documented Chromium CPU-throttling profile. Results are recorded with the
+     browser version, build and hardware.
+  2. On-screen pixels are identical to today's rendering. A browser parity test
+     compares full-render crops from a frozen copy of today's renderer against
+     the new output with zero differing bytes, within each tested browser. It
+     covers:
+     - cell sizes 1–112 px, including the 5 → 6 px symbol transition;
+     - all five view modes, EMPTY cells and several canvas colours;
+     - highlights on none, one or several colours;
+     - region and viewport boundaries, and repeated brush edits;
+     - screenshots at device pixel ratios 1, 1.25, 1.5 and 2, and at
+       fractional scroll offsets.
+  3. Exports are unchanged. PNG and A4 bytes and PDF text and pages match the
+     current output, and the shared `ChartDrawingContext` used for vector PDF
+     drawing is not changed.
+  4. Existing interactions keep working: zoom to the pointer (D124), brush,
+     fill, move, select and paste, highlight, Space-pan, touch, keyboard
+     shortcuts and undo. Their e2e suites pass, updated only where a test
+     encodes the old full-size canvas.
+  5. Unit, e2e and golden-hash suites pass, docs-lint passes, decisions are
+     recorded, and each milestone is deployed and logged.
+- **Constraints:**
+  - No new runtime dependencies.
+  - Codex critique before M3 and M4 code (STANDARDS.md).
+  - Chromium is the gate. Playwright Firefox and WebKit parity runs are
+    reported where supported, and Safari itself is claimed only if it is tested
+    in Safari.
+  - Raster comparisons stay outside timed windows, so measuring doesn't cause
+    its own freeze.
+  - Standing deploy approval per milestone; deploys follow
+    `COMPANY/INFRASTRUCTURE_DEPLOY.md`.
+
+**Milestones:**
+- [ ] **M1 — Measurement and parity oracle, no behaviour change.**
+  - Keep verbatim copies of today's renderer and its helpers under
+    `tests/unit/reference/` as the parity oracle.
+  - Build the browser parity harness from criterion 2 by bundling the real
+    modules into the page, as `tests/e2e/decode-parity.spec.ts` does.
+  - Extend `npm run bench:browser` with the operations from the acceptance
+    table. Use timestamped windows, repeated runs, frame-gap sampling and a
+    throttled profile. Report timing as unsupported rather than zero when the
+    browser lacks the API.
+  - Also measure what the investigation didn't: the status bar's full stitch
+    count on each render, realistic-preview generation, the selection preview
+    that copies the whole chart, and autosave.
+  - Gate: baseline numbers for every row, and the harness passing against
+    today's renderer.
+- [ ] **M2 — Fast opaque fills on screen.**
+  - When no symbols are drawn (under 6 px), write one pixel per stitch for the
+    visible region and scale it with nearest-neighbour `drawImage`. Draw grid
+    lines as today, and follow the exact B&W and EMPTY-cell colour rules.
+  - Cache each palette entry's fill style.
+  - The translucent highlight mask is a separate parity gate. It is uploaded to
+    a scratch canvas and composited after the grid, keeping black at 0.6 alpha
+    and highlighted cells transparent. It is never written straight into the
+    visible canvas.
+  - The fast path is region-aware so M4 can reuse it. Exports keep today's
+    drawing.
+  - Gate: generating and reopening at 1000 stitches meet the 100 ms target,
+    with zero-byte parity.
+- [ ] **M3 — Viewport canvas: coordinates, anchoring and input.**
+  - Codex critique first.
+  - The Image window keeps a native scroll container with a spacer at full
+    chart size. A persistent canvas the size of the view is clipped and placed
+    at the scroll offset.
+  - Zoom anchoring works in global chart coordinates. The order is: update the
+    extent, apply the anchor and clamp, work out the visible region, then draw.
+    Centring, padding and rapid wheel input behave as today.
+  - Pointer hit-testing, pointer capture, `touch-none` and the Space-pan focus
+    rules work in chart coordinates.
+  - Selection outlines and the chart border stay at chart positions and are
+    clipped, not redrawn around the visible part.
+  - A decision file supersedes D121's full-size canvas.
+  - Gate: the navigation, keyboard-shortcut and interaction suites pass, and
+    the zoom-anchor e2e checks hold on the new structure.
+- [ ] **M4 — Viewport canvas: bounded rendering for every mode and gesture.**
+  - Codex critique first.
+  - Color, B&W and Grid + photo draw only the visible region plus an overscan
+    wide enough for grid strokes, glyphs and halos, keeping the global grid
+    phase.
+  - Highlight and both photo views are bounded the same way.
+  - Realistic-preview generation no longer draws the whole chart on the main
+    thread: it is bounded to the view or moved to a worker.
+  - Gestures:
+    - a redraw during a brush stroke draws the stroke's working cells;
+    - Move renders newly revealed and wrapped content from the pattern instead
+      of a whole-canvas snapshot, matching today's shifted appearance;
+    - select and paste previews touch only visible cells.
+  - Every frame clears and resets its drawing state. Stale renders are
+    cancelled, and caches are invalidated on palette, document, zoom and
+    highlight changes.
+  - Gate: the zoom, view-switch, highlight and scroll targets are met; parity
+    and interaction suites pass; the 192 MB canvas is gone.
+- [ ] **M5 — Results and release.**
+  - Rerun every benchmark row and the parity suites. Check exports for
+    regressions.
+  - Write `docs/reviews/<date>-chart-rendering-results.md` with before and
+    after tables.
+  - Update HANDOVER; final deploy with a production spot check.
+
+**Progress log** (newest first):
+- 2026-09-15 — **Goal planned; DRAFT until the Owner approves.**
+  - Investigation and measurements in
+    `docs/reviews/2026-09-15-chart-freeze-investigation.md`.
+  - Codex critique (read-only) of the first draft, all points accepted:
+    - freeze today's renderer and helpers as the parity oracle, cover cell
+      sizes to 112 px and the 5 → 6 px transition, and test crops and
+      repeated brush edits;
+    - keep exports and the vector-capable `ChartDrawingContext` untouched,
+      and treat the highlight mask as its own parity gate;
+    - split the viewport work into coordinates and anchoring (M3) and
+      bounded rendering for every mode and gesture (M4);
+    - bound realistic-preview generation too;
+    - handle the brush working state, revealed content for Move, clearing
+      and resetting each frame, crop seams, stale work and bounded caches;
+    - measure with timestamped windows, repeated and throttled runs, frame
+      gaps and unsupported-timing reporting;
+    - claim Safari only when it is tested in Safari.
+    Codex agreed that a small M2 before the viewport work is worth
+    delivering, and that it stays useful after M4 at small cell sizes.

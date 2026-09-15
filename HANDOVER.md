@@ -218,9 +218,9 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **Chart freeze investigated (2026-09-15), fix awaits the Owner's choice.** The
-  whole-canvas redraw issues one `fillRect` per stitch (about 0.5 s at 1000 stitches,
-  likely about 1.5 s per zoom step with symbols); options in
+- **PENDING APPROVAL: G-036, large charts without freezes (DRAFT).** At 1000 stitches
+  the whole-canvas redraw blocks 0.6 s on generate or reopen and 1.4–1.7 s per zoom step
+  or view switch; plan in `GOALS.md`, evidence in
   `docs/reviews/2026-09-15-chart-freeze-investigation.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
