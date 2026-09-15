@@ -9,12 +9,11 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs `master` as deployed on 2026-09-14 (last deploy-log
-row). G-035 (performance) is done and signed off (2026-09-15); results are in
-`docs/reviews/2026-09-15-performance-results.md`. Photos decode in a worker (D128); the photo resolution
-cap was cancelled after failing its quality gates (D130). G-032 (photo enhancement) is done and signed off: every mode is offered
-(D118). G-028 (OXS import and export) is done and signed off (D119). G-033
-(swatch-aware color editor) is deployed and awaits Owner sign-off.
+**Production** runs `master` as deployed on 2026-09-15 (last deploy-log row).
+G-036 (charts draw without freezing) is active, M1–M2 done. Signed off: G-035
+performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap
+cancelled, D130), G-032 enhancement (D118), G-028 OXS (D119). G-033 (swatch-aware
+color editor) is deployed and awaits Owner sign-off.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest
@@ -52,8 +51,9 @@ cap was cancelled after failing its quality gates (D130). G-032 (photo enhanceme
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-15**: `tsc --noEmit` and eslint clean; Vitest 890 passed
-(1 opt-in skip); 75/75 Playwright on a production build of `5ab38eb`. CI
+**Checks run 2026-09-15**: `tsc --noEmit` and eslint clean; Vitest 891 passed
+(1 opt-in skip); Playwright 158 passed plus 1 flaky Space-pan test (18/18 on
+repeat) on a production build of `b201c9a`'s code. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
@@ -69,9 +69,9 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 **Known limitations**:
 - Crisp takes about 2.6× Standard's time on a 12 MP photo (7.5 s against 2.9 s),
-  because every cell gets the two-mode fit (D132).
-- Showing or reopening a 1000-stitch chart blocks the page for about 0.5 s (not profiled). It falls back to
+  because every cell gets the two-mode fit (D132). It falls back to
   Standard behavior for thin lines, junctions and gradual shading (D096).
+- Zoomed-in 1000-stitch charts block 1.3–2.5 s on zoom, views, highlight (G-036).
 - Browsers without OffscreenCanvas 2D in workers fall back to main-thread
   exports, which stall the tab between pages (D125).
 - The PDF has no bold face. Whether µ (which extracts as μ) matters in Pattern
