@@ -989,7 +989,7 @@ escalation-tier, not a routine refactor):
     `client_max_body_size` in any nginx config.
   No code written.
 
-### G-036 · Large charts draw without freezing the page — DRAFT (2026-09-15)
+### G-036 · Large charts draw without freezing the page — ACTIVE (2026-09-15)
 - **What:** Showing, reopening, zooming, scrolling and switching views on a
   large chart no longer blocks the page for a noticeable time. The on-screen
   chart looks exactly as it does today, and every export is unchanged.
@@ -1126,6 +1126,8 @@ escalation-tier, not a routine refactor):
   - Update HANDOVER; final deploy with a production spot check.
 
 **Progress log** (newest first):
+- 2026-09-15 — **Owner approved M1 and M2** ("start m1 and m2"). M3–M5 still
+  need approval.
 - 2026-09-15 — **Goal planned; DRAFT until the Owner approves.**
   - Investigation and measurements in
     `docs/reviews/2026-09-15-chart-freeze-investigation.md`.
@@ -1145,3 +1147,125 @@ escalation-tier, not a routine refactor):
     - claim Safari only when it is tested in Safari.
     Codex agreed that a small M2 before the viewport work is worth
     delivering, and that it stays useful after M4 at small cell sizes.
+
+### G-037 · Symmetry drawing and quick mirror — DRAFT (2026-09-15)
+- **What:** two new editing aids in the Tools dock.
+  - **Symmetry:** four on/off toggle buttons — Vertical, Horizontal,
+    Diagonal ↘ (top-left to bottom-right) and Diagonal ↙ (top-right to
+    bottom-left). They can be on in any combination. While a toggle is on,
+    painting places the same colour at every mirrored cell. Each active axis
+    is drawn on the canvas as a red line. The lines appear in no export.
+  - **Quick mirror:** four one-click actions.
+    - *Left half:* mirrors the left half onto the right half.
+    - *Upper half:* mirrors the upper half down.
+    - *Upper-left corner:* mirrors the top-left quarter to the right, down,
+      and down-right.
+    - *Upper-left half corner:* mirrors the triangle between the left edge
+      and the diagonal onto the triangle next to the top edge. It then
+      mirrors the whole quarter as *Upper-left corner* does, for 8-fold
+      symmetry.
+  - Every axis passes through the canvas centre. The diagonals run from the
+    centre to the corners.
+- **Why:** Owner request (2026-09-15). Symmetric motifs such as mandalas,
+  borders and snowflakes are common in cross stitch, and are slow to draw by
+  hand.
+- **Acceptance criteria:**
+  1. The symmetry toggles are `aria-pressed` buttons, off by default, and
+     work in all 16 on/off combinations. They stay on across documents during
+     the session. They are not saved in the pattern file, autosave or
+     exports.
+  2. With symmetry on, the Brush, Fill tool, brush double-click fill,
+     dropping a colour onto the canvas, and EMPTY painting all affect every
+     cell in the mirror set of the cell they act on. The mirror set is the
+     full symmetry group the active axes generate:
+     - one axis gives 2 cells;
+     - both straight axes, or both diagonals, give 4 (the 180° copy is
+       included);
+     - a straight axis with a diagonal gives 8.
+     Without the full group the result would not stay symmetric. A stroke or
+     a fill stays one undo step. Symmetric fills flood each mirrored cell's
+     region as it was before the fill, so one fill can't feed another.
+  3. Exact cell mirroring: `x → W−1−x` and `y → H−1−y`. On an odd size the
+     middle column or row is the axis and keeps its cells; on an even size
+     the axis falls between two columns or rows. On a square canvas the
+     diagonals map `(x, y) → (y, x)` and `(x, y) → (N−1−y, N−1−x)`.
+     Non-square diagonals follow open question 1.
+  4. Red guide lines are drawn on the axes at chart positions in every view
+     mode. They follow a canvas resize and zoom, are not drawn in the
+     navigator, and don't change any exported byte. A test compares the
+     PNG, A4, PDF, OXS and JSON exports with symmetry on and off.
+  5. Each quick mirror is one undo step. It overwrites only the target part,
+     copying EMPTY cells as they are. A floating selection is merged first.
+     Stitch counts are recomputed, the palette is kept (colours are not
+     removed if they become unused), and the photo underlay isn't mirrored.
+     Running the same mirror twice gives the same result as running it once.
+  6. Select, Move, paste and flip ignore symmetry. Their tooltips don't claim
+     otherwise.
+  7. Unit tests cover the geometry:
+     - every map is an involution and keeps cells on the canvas;
+     - orbit sizes for all 16 combinations, on odd and even sizes;
+     - quick-mirror results are symmetric and idempotent.
+     E2e tests cover painting with several combinations, the red lines in
+     canvas pixels, unchanged exports, and each quick mirror followed by
+     undo. Lint, type-check, the unit and e2e suites and docs-lint pass.
+     The change is deployed and smoke-tested live.
+- **Constraints:** no new dependencies. A Codex critique of the geometry
+  module happens before its code. Standing deploy approval applies.
+  - **Relationship to G-036:** G-036 (DRAFT) replaces the full-size canvas.
+    The guide lines are one overlay drawn in chart coordinates, so they move
+    over with G-036 M3 whichever goal runs first. The lines are off by
+    default, so G-036's parity oracle is unaffected.
+- **Open questions for the Owner:**
+  1. *Diagonals on a non-square canvas.* A diagonal from the centre to the
+     corners is not a true mirror line unless the canvas is square: a
+     reflection across it maps cells outside the canvas. Options:
+     - (a) **Recommended:** the diagonal toggles and *Upper-left half
+       corner* work only on square canvases, and are disabled with a tooltip
+       otherwise. The pixels stay exact.
+     - (b) Stretch the mirror proportionally, so it stays corner to corner.
+       Shapes distort, and one cell maps to several cells or to none, so a
+       brush line gets gaps or thick spots.
+     - (c) Mirror across 45° lines through the centre. Mirroring is exact,
+       but the lines miss the corners, and cells mapped off the canvas are
+       dropped.
+  2. *Combinations:* use the full symmetry group, as in criterion 2
+     (recommended)? The alternative applies only the enabled mirrors and
+     their products, which leaves some combinations asymmetric.
+  3. *Upper-left half corner:* is the source triangle the one next to the
+     left edge, bounded by the left edge, the horizontal centre line and the
+     diagonal, as described above?
+
+**Milestones:**
+- [ ] **M1 — Symmetry geometry, pure and unit-tested.**
+  - Codex critique first.
+  - `lib/editor/symmetry.ts`:
+    - the axis set type;
+    - closure of the group the active axes generate;
+    - `symmetryOrbit(cell, width, height, axes)`;
+    - `applyQuickMirror(pattern, kind)`, which recomputes counts;
+    - the non-square rule from open question 1.
+  - One decision file for the geometry and group-closure rule.
+  - Gate: the unit tests in criterion 7 pass.
+- [ ] **M2 — Symmetry toggles, guide lines and symmetric painting.**
+  - A Symmetry group in the Tools dock: four toggles with axis icons, laid
+    out 2 × 2 so the dock doesn't grow by four rows. Checked at a 768 px
+    viewport height.
+  - The renderer draws the red axis overlay after the chart content, in
+    every view mode.
+  - Brush strokes, their incremental drawing, the Fill tool, double-click
+    fill and drop-to-fill use the orbit, each still one undo step.
+  - Gate: e2e tests for painting, canvas pixels and byte-identical exports
+    pass; deployed; live smoke test.
+- [ ] **M3 — Quick mirror actions and release.**
+  - A Mirror group of four action buttons with icons that shade the source
+    part.
+  - The floating selection is merged first; each action is one undo step.
+  - E2e tests for each action and its undo.
+  - Update the README, HANDOVER and decision index; run docs-lint.
+  - Gate: deployed, live smoke test, and the goal awaits Owner sign-off.
+
+**Progress log** (newest first):
+- 2026-09-15 — **Goal planned; DRAFT until the Owner answers the open
+  questions and approves.** The brush has no between-event interpolation
+  today (`app/hooks/use-canvas-tools.ts`), so mirrored strokes inherit that
+  behaviour; changing it is out of scope.

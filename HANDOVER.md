@@ -222,12 +222,12 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
   the whole-canvas redraw blocks 0.6 s on generate or reopen and 1.4–1.7 s per zoom step
   or view switch; plan in `GOALS.md`, evidence in
   `docs/reviews/2026-09-15-chart-freeze-investigation.md`.
+- **PENDING APPROVAL: G-037, symmetry and quick mirror (DRAFT)**, open questions in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is
-  live (D122, D123); see the G-033 progress log in `GOALS.md`. Out of scope:
-  "+ Add" keeps its old flow, and touch screens pick on tap with no
-  comparison.
+  live (D122, D123); see the G-033 progress log in `GOALS.md`. Out of scope: "+ Add"
+  keeps its old flow, and touch screens pick on tap with no comparison.
 - Left open from G-028: OXS symbols use each reader's own font glyph, and the
   export is untested in PCStitch or WinStitch
   (`docs/reviews/2026-09-13-oxs-format-evidence.md`).
