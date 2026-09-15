@@ -1,105 +1,167 @@
-import { useCallback, useEffect, useLayoutEffect, useState, type RefObject } from "react";
-import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { needsRepaint, paintedRectFor, visibleChartRect, type PixelRect } from "@/lib/editor/chart-viewport";
 import type { AnyCanvas } from "@/lib/export/canvas-backend";
-import { drawCell, drawChartOnScreen, drawChartOutline, drawHighlightOverlayRaster, renderNavigatorPixels, renderStitchPreviewToCanvas, type RenderMode } from "@/lib/export/render";
-import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
+import { renderNavigatorPixels, renderStitchPreviewToCanvas } from "@/lib/export/render";
+import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
+import { brushOpsIn, drawCellsInto, drawScene, drawSceneWithGesture, incrementalModeOf, type ChartScene, type GesturePreview } from "../chart-scene";
 import type { Tool, ViewMode } from "../editor-types";
-import { drawSelectionOutline, PHOTO_UNDERLAY_ALPHA } from "../editor-geometry";
+import { chartOrigin } from "../editor-geometry";
+import { useLatest } from "./use-latest";
 
 export interface ChartRendererInputs {
   canvasRef: RefObject<HTMLCanvasElement | null>;
+  frameRef: RefObject<HTMLDivElement | null>;
+  scrollerRef: RefObject<HTMLDivElement | null>;
   navigatorCanvasRef: RefObject<HTMLCanvasElement | null>;
   pattern: StitchPattern | null;
   viewMode: ViewMode;
   cellSize: number;
   activeTool: Tool;
   selection: FloatingSelection | null;
-  /** Must be stable across renders; while a select drag is active its handler draws the preview itself. */
+  /** Must be stable across renders; while a select drag is active its frames draw the selection themselves. */
   isSelectDragging: () => boolean;
   highlightedColorIndices: ReadonlySet<number>;
   canvasColor: string;
+  /** Scrolls a pending zoom's anchor back under the pointer; run once the frame has its new size, before measuring (D124). */
+  applyZoomAnchor: () => void;
 }
 
-export type SelectDragFrame =
-  | { kind: "rect"; base: StitchPattern; rect: CellRect; snapshot: HTMLCanvasElement | null }
-  | { kind: "piece"; base: StitchPattern; piece: FloatingSelection; snapshot: HTMLCanvasElement | null };
+export type SelectDragFrame = { kind: "rect"; base: StitchPattern; rect: CellRect } | { kind: "piece"; base: StitchPattern; piece: FloatingSelection };
 
 export type ChartRenderer = ReturnType<typeof useChartRenderer>;
 
-/** The source photo at the pattern's stitch scale and offset: the same placement in Grid + photo and Original photo. */
-function drawSourcePhoto(ctx: CanvasRenderingContext2D, img: HTMLImageElement, source: SourceImageRef, cellSize: number, alpha: number) {
-  const { naturalWidth, naturalHeight, cellSizePx, offsetX, offsetY } = source;
-  const scale = cellSize / cellSizePx;
-  ctx.globalAlpha = alpha;
-  ctx.drawImage(img, offsetX * cellSize, offsetY * cellSize, naturalWidth * scale, naturalHeight * scale);
-  ctx.globalAlpha = 1;
-}
+const EMPTY_RECT: PixelRect = { x0: 0, y0: 0, x1: 0, y1: 0 };
 
 /**
- * Everything drawn into the Image window and the navigator: the full redraw whenever what's shown changes, and the
- * incremental drawing gestures use between pointer events (D104). Every view mode draws into the one canvas at
- * pattern size × cellSize, so zoom, scroll and pan are shared by all of them (D121). `canvasColor` is display-only.
+ * Everything drawn into the Image window and the navigator (D135). The chart frame is full chart size; the canvas inside
+ * it holds only the painted rectangle: the visible part of the chart plus a quarter of the view on each side, at whole
+ * chart pixels. It repaints when what is shown changes, when a scroll or resize brings unpainted chart within an eighth
+ * of the view, and for every gesture frame, replaying the active gesture so scrolling and zooming keep its preview.
+ * `canvasColor` is display-only.
  */
 export function useChartRenderer(inputs: ChartRendererInputs) {
-  const { canvasRef, navigatorCanvasRef, pattern, viewMode, cellSize, activeTool, selection, isSelectDragging, highlightedColorIndices, canvasColor } = inputs;
+  const { canvasRef, frameRef, scrollerRef, navigatorCanvasRef, pattern, viewMode, cellSize, activeTool, selection, isSelectDragging, highlightedColorIndices, canvasColor, applyZoomAnchor } = inputs;
   const [photo, setPhoto] = useState<{ dataUrl: string; img: HTMLImageElement } | null>(null);
   const [realisticPreview, setRealisticPreview] = useState<{ canvas: AnyCanvas; width: number; height: number } | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewRetryToken, setPreviewRetryToken] = useState(0);
 
-  const drawCurrentView = useCallback(
-    (ctx: CanvasRenderingContext2D, p: StitchPattern) => {
-      const surfaceWidth = p.width * cellSize;
-      const surfaceHeight = p.height * cellSize;
-
-      if (viewMode === "realistic" || viewMode === "photo-only") {
-        ctx.fillStyle = canvasColor;
-        ctx.fillRect(0, 0, surfaceWidth, surfaceHeight);
-        if (viewMode === "realistic") {
-          // The preview renders asynchronously at its own resolution; stretching it keeps the view the same size while a
-          // re-render for a new zoom is pending. A preview of a differently sized pattern is never shown.
-          if (realisticPreview && realisticPreview.width === p.width && realisticPreview.height === p.height) {
-            ctx.drawImage(realisticPreview.canvas, 0, 0, surfaceWidth, surfaceHeight);
-          }
-        } else if (p.sourceImage && photo && photo.dataUrl === p.sourceImage.dataUrl) {
-          drawSourcePhoto(ctx, photo.img, p.sourceImage, cellSize, 1);
-        }
-        return;
-      }
-
-      // A floating selection is composited for display only, never into history.
-      const dragging = isSelectDragging();
-      const displayPattern = activeTool === "select" && selection && !dragging ? compositeSelectionPreview(p, selection) : p;
-
-      if (viewMode === "photo" && displayPattern.sourceImage) {
-        if (photo && photo.dataUrl === displayPattern.sourceImage.dataUrl) {
-          drawSourcePhoto(ctx, photo.img, displayPattern.sourceImage, cellSize, PHOTO_UNDERLAY_ALPHA);
-        }
-        drawChartOutline(ctx, displayPattern, cellSize);
-      } else {
-        drawChartOnScreen(ctx, displayPattern, viewMode as RenderMode, cellSize, undefined, canvasColor);
-      }
-
-      if (activeTool === "highlight" && highlightedColorIndices.size > 0) {
-        drawHighlightOverlayRaster(ctx, displayPattern, cellSize, highlightedColorIndices);
-      }
-      if (activeTool === "select" && selection && !dragging) {
-        drawSelectionOutline(ctx, selection, cellSize);
-      }
-    },
-    [viewMode, cellSize, photo, realisticPreview, activeTool, highlightedColorIndices, selection, canvasColor, isSelectDragging]
+  const scene = useMemo(
+    (): Omit<ChartScene, "selectDragging"> => ({
+      viewMode,
+      cellSize,
+      photo,
+      realisticPreview: realisticPreview as ChartScene["realisticPreview"],
+      activeTool,
+      highlightedColorIndices,
+      selection,
+      canvasColor,
+    }),
+    [viewMode, cellSize, photo, realisticPreview, activeTool, highlightedColorIndices, selection, canvasColor]
   );
+  // What the last commit asked to show; scroll, resize and gesture handlers paint from it.
+  const shownRef = useRef<{ pattern: StitchPattern | null; scene: Omit<ChartScene, "selectDragging"> }>({ pattern: null, scene });
+  const gestureRef = useRef<GesturePreview | null>(null);
+  const paintedRef = useRef<PixelRect>(EMPTY_RECT);
+  const revisionRef = useRef(0);
+  // The select drag's base scene for the current bitmap, restored under each frame (keyed by everything it shows).
+  const selectBaseRef = useRef<{ key: readonly unknown[]; canvas: HTMLCanvasElement } | null>(null);
 
-  // A layout effect, so the canvas has its new size before paint and before a zoom's anchor is applied (D124).
-  useLayoutEffect(() => {
+  function currentScene(): ChartScene {
+    return { ...shownRef.current.scene, selectDragging: isSelectDragging() };
+  }
+
+  /** The visible chart rectangle and the view size, or null when there is nothing to paint into. */
+  function measure() {
+    const frame = frameRef.current;
+    const scroller = scrollerRef.current;
+    const p = shownRef.current.pattern;
+    if (!frame || !scroller || !p) return null;
+    const cs = shownRef.current.scene.cellSize;
+    const origin = chartOrigin(frame);
+    const box = scroller.getBoundingClientRect();
+    const left = box.left + scroller.clientLeft;
+    const top = box.top + scroller.clientTop;
+    const view = { left, top, right: left + scroller.clientWidth, bottom: top + scroller.clientHeight };
+    const width = p.width * cs;
+    const height = p.height * cs;
+    return { visible: visibleChartRect(origin.left, origin.top, view, width, height), viewWidth: scroller.clientWidth, viewHeight: scroller.clientHeight, width, height };
+  }
+
+  function markRendered() {
+    const frame = frameRef.current;
+    const r = paintedRef.current;
+    revisionRef.current += 1;
+    if (!frame) return;
+    frame.dataset.renderRevision = String(revisionRef.current);
+    frame.dataset.paintedRect = `${r.x0},${r.y0},${r.x1},${r.y1}`;
+  }
+
+  /** A full frame: re-measure, resize and place the canvas (which clears it and resets its state), draw scene and gesture. */
+  function paint() {
     const canvas = canvasRef.current;
-    if (!canvas || !pattern) return;
-    canvas.width = pattern.width * cellSize;
-    canvas.height = pattern.height * cellSize;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    drawCurrentView(ctx, pattern);
-  }, [canvasRef, pattern, viewMode, cellSize, drawCurrentView]);
+    const p = shownRef.current.pattern;
+    const geometry = measure();
+    if (!canvas || !p || !geometry) return;
+    const rect = paintedRectFor(geometry.visible, geometry.viewWidth / 4, geometry.viewHeight / 4, geometry.width, geometry.height);
+    const w = rect.x1 - rect.x0;
+    const h = rect.y1 - rect.y0;
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.left = `${rect.x0}px`;
+    canvas.style.top = `${rect.y0}px`;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    paintedRef.current = rect;
+    selectBaseRef.current = null;
+    const ctx = w > 0 && h > 0 ? canvas.getContext("2d") : null;
+    if (ctx) {
+      ctx.setTransform(1, 0, 0, 1, -rect.x0, -rect.y0);
+      drawSceneWithGesture(ctx, currentScene(), p, gestureRef.current, rect);
+    }
+    markRendered();
+  }
+
+  /** Repaints only when the painted rectangle no longer covers the view plus an eighth of it. */
+  function ensureCoverage() {
+    const geometry = measure();
+    if (!geometry) return;
+    const margin = Math.min(geometry.viewWidth, geometry.viewHeight) / 8;
+    if (needsRepaint(geometry.visible, paintedRef.current, margin, geometry.width, geometry.height)) paint();
+  }
+  const ensureCoverageRef = useLatest(ensureCoverage);
+
+  // One layout effect per change of what is shown: the frame already has its new size, so the zoom anchor is applied,
+  // then the view is measured and painted, all before the browser paints (D124, D135).
+  useLayoutEffect(() => {
+    shownRef.current = { pattern, scene };
+    if (!pattern) return;
+    applyZoomAnchor();
+    paint();
+    // paint reads everything through refs; the effect runs exactly when the shown scene changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pattern, scene, applyZoomAnchor]);
+
+  // Layout changes that move the frame without a scroll or resize (a notice appearing beside it) are caught here.
+  useLayoutEffect(() => {
+    ensureCoverageRef.current?.();
+  });
+
+  const hasPattern = pattern !== null;
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    const frame = frameRef.current;
+    if (!scroller || !hasPattern) return;
+    const onChange = () => ensureCoverageRef.current?.();
+    scroller.addEventListener("scroll", onChange, { passive: true });
+    const observer = new ResizeObserver(onChange);
+    observer.observe(scroller);
+    if (frame) observer.observe(frame);
+    return () => {
+      scroller.removeEventListener("scroll", onChange);
+      observer.disconnect();
+    };
+  }, [scrollerRef, frameRef, hasPattern, ensureCoverageRef]);
 
   // Decodes the embedded photo once per data URL, and only while a view that shows it is active.
   const sourceImage = pattern?.sourceImage;
@@ -148,76 +210,85 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     };
   }, [pattern, viewMode, cellSize, previewRetryToken]);
 
-  const incrementalMode: RenderMode | null = viewMode === "color" || viewMode === "bw" ? viewMode : null;
-
-  function context(): CanvasRenderingContext2D | null {
-    return canvasRef.current?.getContext("2d") ?? null;
+  /** The canvas context with chart coordinates for the painted rectangle, or null before the first paint. */
+  function chartContext(): CanvasRenderingContext2D | null {
+    const rect = paintedRef.current;
+    if (rect.x1 <= rect.x0 || rect.y1 <= rect.y0) return null;
+    const ctx = canvasRef.current?.getContext("2d") ?? null;
+    ctx?.setTransform(1, 0, 0, 1, -rect.x0, -rect.y0);
+    return ctx;
   }
 
-  function redrawWith(p: StitchPattern) {
-    const ctx = context();
-    if (ctx) drawCurrentView(ctx, p);
-  }
-
-  /** One changed cell of a brush stroke. Grid + photo has no per-cell fill to restore, so it redraws everything. */
-  function drawWorkingCell(base: StitchPattern, cells: Uint8Array, cellIndex: number) {
-    if (!incrementalMode) {
-      redrawWith({ ...base, cellPalette: cells });
+  /**
+   * One stitch of a brush stroke, painted with `paletteIndex` into the stroke's working buffer `cells`. It is recorded
+   * so a repaint replays it; Color and B&W redraw just that stitch, Grid + photo draws a clean frame (D104, D135).
+   */
+  function paintBrushCell(base: StitchPattern, cells: Uint8Array, cellIndex: number, paletteIndex: number) {
+    let gesture = gestureRef.current;
+    if (!gesture || gesture.kind !== "brush" || gesture.base !== base || gesture.cells !== cells) {
+      gesture = { kind: "brush", base, cells, ops: [] };
+      gestureRef.current = gesture;
+    }
+    gesture.ops.push({ cellIndex, paletteIndex });
+    const scene = currentScene();
+    const mode = incrementalModeOf(scene.viewMode);
+    const ctx = mode ? chartContext() : null;
+    if (!mode || !ctx) {
+      paint();
       return;
     }
-    const ctx = context();
-    if (!ctx) return;
-    drawCell(ctx, base, incrementalMode, cellSize, cellIndex % base.width, Math.floor(cellIndex / base.width), cells[cellIndex], canvasColor);
+    drawCellsInto(ctx, base, mode, scene, paintedRef.current, brushOpsIn([{ cellIndex, paletteIndex }], base.width));
+    markRendered();
   }
 
-  /** The Move preview: the pre-drag canvas blitted at the shifted position with wrap-around copies, the same cyclic shift `shiftPattern` commits. */
-  function drawShiftedSnapshot(base: StitchPattern, snapshot: HTMLCanvasElement, dx: number, dy: number) {
-    const ctx = context();
-    if (!ctx) return;
-    const w = base.width * cellSize;
-    const h = base.height * cellSize;
-    const ox = (((dx % base.width) + base.width) % base.width) * cellSize;
-    const oy = (((dy % base.height) + base.height) % base.height) * cellSize;
-    ctx.clearRect(0, 0, w, h);
-    ctx.drawImage(snapshot, ox, oy);
-    ctx.drawImage(snapshot, ox - w, oy);
-    ctx.drawImage(snapshot, ox, oy - h);
-    ctx.drawImage(snapshot, ox - w, oy - h);
+  /** The Move preview: the pre-drag chart shifted by (dx, dy) stitches with wrap-around, drawn from the pattern. */
+  function previewMove(base: StitchPattern, dx: number, dy: number) {
+    gestureRef.current = { kind: "move", base, dx, dy };
+    paint();
   }
 
-  /** One frame of a select drag: the snapshot plus the new rectangle, or plus the moved piece's own cells. */
-  function drawSelectionDragFrame(frame: SelectDragFrame) {
-    const ctx = context();
-    if (!ctx) return;
-    if (frame.kind === "rect") {
-      if (frame.snapshot) ctx.drawImage(frame.snapshot, 0, 0);
-      else drawCurrentView(ctx, frame.base);
-      drawSelectionOutline(ctx, frame.rect, cellSize);
+  /** One frame of a select drag: the base scene (restored from its snapshot when unchanged) plus the rectangle or piece. */
+  function previewSelect(frame: SelectDragFrame) {
+    gestureRef.current = frame.kind === "rect" ? { kind: "select-rect", base: frame.base, rect: frame.rect } : { kind: "select-piece", base: frame.base, piece: frame.piece };
+    const scene = currentScene();
+    const canvas = canvasRef.current;
+    const ctx = chartContext();
+    // Grid + photo has translucent pixels, so every frame is drawn clean rather than over a restored snapshot (D135).
+    if (!incrementalModeOf(scene.viewMode) || !canvas || !ctx) {
+      paint();
       return;
     }
-    const { base, piece, snapshot } = frame;
-    if (snapshot && incrementalMode) {
-      ctx.drawImage(snapshot, 0, 0);
-      for (let ly = 0; ly < piece.height; ly++) {
-        const py = piece.y + ly;
-        if (py < 0 || py >= base.height) continue;
-        for (let lx = 0; lx < piece.width; lx++) {
-          const px = piece.x + lx;
-          if (px < 0 || px >= base.width) continue;
-          drawCell(ctx, base, incrementalMode, cellSize, px, py, piece.cells[ly * piece.width + lx], canvasColor);
-        }
-      }
+    const rect = paintedRef.current;
+    const key = [rect.x0, rect.y0, rect.x1, rect.y1, frame.base, shownRef.current.scene];
+    const base = selectBaseRef.current;
+    if (base && base.key.length === key.length && base.key.every((part, i) => part === key[i])) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(base.canvas, 0, 0);
+      ctx.setTransform(1, 0, 0, 1, -rect.x0, -rect.y0);
     } else {
-      drawCurrentView(ctx, compositeSelectionPreview(base, piece));
+      drawScene(ctx, frame.base, scene, rect);
+      const copy = document.createElement("canvas");
+      copy.width = canvas.width;
+      copy.height = canvas.height;
+      copy.getContext("2d")?.drawImage(canvas, 0, 0);
+      selectBaseRef.current = { key, canvas: copy };
     }
-    drawSelectionOutline(ctx, piece, cellSize);
+    drawSceneWithGesture(ctx, scene, frame.base, gestureRef.current, rect, true);
+    markRendered();
+  }
+
+  /** Ends the gesture preview. `repaint` when no state change will follow to redraw the view. */
+  function endGesture(repaint: boolean) {
+    gestureRef.current = null;
+    selectBaseRef.current = null;
+    if (repaint) paint();
   }
 
   return {
-    drawCurrentView,
-    drawWorkingCell,
-    drawShiftedSnapshot,
-    drawSelectionDragFrame,
+    paintBrushCell,
+    previewMove,
+    previewSelect,
+    endGesture,
     previewError,
     retryPreview: () => setPreviewRetryToken((t) => t + 1),
   };

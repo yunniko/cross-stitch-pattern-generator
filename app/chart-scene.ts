@@ -26,10 +26,16 @@ export interface ChartScene {
 
 /** The preview an in-progress gesture adds on top of the scene; every repaint replays it, so scrolling keeps it. */
 export type GesturePreview =
-  | { kind: "brush"; base: StitchPattern; cells: Uint8Array; sequence: number[] }
+  | { kind: "brush"; base: StitchPattern; cells: Uint8Array; ops: BrushOp[] }
   | { kind: "move"; base: StitchPattern; dx: number; dy: number }
   | { kind: "select-rect"; base: StitchPattern; rect: CellRect }
   | { kind: "select-piece"; base: StitchPattern; piece: FloatingSelection };
+
+/** One single-stitch redraw of a brush stroke, with the colour it was painted in at that moment. */
+export interface BrushOp {
+  cellIndex: number;
+  paletteIndex: number;
+}
 
 /** Color and B&W redraw single stitches in place; the other views have no per-stitch fill to restore. */
 export function incrementalModeOf(viewMode: ViewMode): RenderMode | null {
@@ -117,45 +123,48 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
   ctx.restore();
 }
 
-/** Single-stitch redraws of `cellIndices`, in order, skipping stitches whose paint cannot reach `rect`. */
+/**
+ * Single-stitch redraws into `rect`: `eachCell` is given the stitches whose paint can reach `rect` and calls `draw` for
+ * each stitch to redraw, in its own order.
+ */
 export function drawCellsInto(
   ctx: CanvasRenderingContext2D,
   base: StitchPattern,
   mode: RenderMode,
   scene: ChartScene,
   rect: PixelRect,
-  cellIndices: Iterable<number>,
-  valueAt: (cellIndex: number) => number
+  eachCell: (region: ChartRegion, draw: (x: number, y: number, paletteIndex: number) => void) => void
 ) {
   const cs = scene.cellSize;
   const region = regionFor(ctx, base, scene, rect);
   ctx.save();
   clipTo(ctx, rect);
-  for (const cellIndex of cellIndices) {
-    const x = cellIndex % base.width;
-    const y = Math.floor(cellIndex / base.width);
-    if (x < region.x0 || x >= region.x1 || y < region.y0 || y >= region.y1) continue;
-    drawCell(ctx, base, mode, cs, x, y, valueAt(cellIndex), scene.canvasColor);
-  }
+  eachCell(region, (x, y, paletteIndex) => drawCell(ctx, base, mode, cs, x, y, paletteIndex, scene.canvasColor));
   ctx.restore();
 }
 
-/** The row-major indices of a floating piece's stitches that lie on the chart, in the pre-G-036 drawing order. */
-function pieceCellIndices(base: StitchPattern, piece: FloatingSelection): { indices: number[]; values: Map<number, number> } {
-  const indices: number[] = [];
-  const values = new Map<number, number>();
-  for (let ly = 0; ly < piece.height; ly++) {
-    const py = piece.y + ly;
-    if (py < 0 || py >= base.height) continue;
-    for (let lx = 0; lx < piece.width; lx++) {
-      const px = piece.x + lx;
-      if (px < 0 || px >= base.width) continue;
-      const index = py * base.width + px;
-      indices.push(index);
-      values.set(index, piece.cells[ly * piece.width + lx]);
+/** Brush ops inside `region`, in stroke order, each in the colour it was painted with. */
+export function brushOpsIn(ops: readonly BrushOp[], width: number) {
+  return (region: ChartRegion, draw: (x: number, y: number, paletteIndex: number) => void) => {
+    for (const { cellIndex, paletteIndex } of ops) {
+      const x = cellIndex % width;
+      const y = Math.floor(cellIndex / width);
+      if (x >= region.x0 && x < region.x1 && y >= region.y0 && y < region.y1) draw(x, y, paletteIndex);
     }
-  }
-  return { indices, values };
+  };
+}
+
+/** A floating piece's stitches on the chart and inside `region`, row-major as the pre-G-036 frame drew them. */
+function pieceCellsIn(base: StitchPattern, piece: FloatingSelection) {
+  return (region: ChartRegion, draw: (x: number, y: number, paletteIndex: number) => void) => {
+    const ly0 = Math.max(0, region.y0 - piece.y);
+    const ly1 = Math.min(piece.height, region.y1 - piece.y, base.height - piece.y);
+    const lx0 = Math.max(0, region.x0 - piece.x);
+    const lx1 = Math.min(piece.width, region.x1 - piece.x, base.width - piece.x);
+    for (let ly = ly0; ly < ly1; ly++) {
+      for (let lx = lx0; lx < lx1; lx++) draw(piece.x + lx, piece.y + ly, piece.cells[ly * piece.width + lx]);
+    }
+  };
 }
 
 /**
@@ -176,7 +185,7 @@ export function drawSceneWithGesture(ctx: CanvasRenderingContext2D, scene: Chart
         return;
       }
       if (!baseDrawn) drawScene(ctx, gesture.base, scene, rect);
-      drawCellsInto(ctx, gesture.base, mode, scene, rect, gesture.sequence, (i) => gesture.cells[i]);
+      drawCellsInto(ctx, gesture.base, mode, scene, rect, brushOpsIn(gesture.ops, gesture.base.width));
       return;
     case "move": {
       // Four wrap-around copies of the pre-drag chart, each clipped to its destination, as the snapshot blit placed them.
@@ -201,8 +210,7 @@ export function drawSceneWithGesture(ctx: CanvasRenderingContext2D, scene: Chart
     case "select-piece": {
       if (mode) {
         if (!baseDrawn) drawScene(ctx, gesture.base, scene, rect);
-        const { indices, values } = pieceCellIndices(gesture.base, gesture.piece);
-        drawCellsInto(ctx, gesture.base, mode, scene, rect, indices, (i) => values.get(i)!);
+        drawCellsInto(ctx, gesture.base, mode, scene, rect, pieceCellsIn(gesture.base, gesture.piece));
       } else {
         drawScene(ctx, compositeSelectionPreview(gesture.base, gesture.piece), scene, rect);
       }

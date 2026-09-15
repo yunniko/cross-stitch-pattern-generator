@@ -1128,6 +1128,40 @@ escalation-tier, not a routine refactor):
   - Update HANDOVER; final deploy with a production spot check.
 
 **Progress log** (newest first):
+- 2026-09-15 — **M3 in progress: Codex critique, parity limits and Owner decisions.**
+  - Codex critique, two rounds (read-only). Round 1 found 5 blockers and 7
+    majors in the draft; all were conceded:
+    - a paint guard sized from measured symbol, halo and stroke overhang;
+    - Move previews rendered from source coordinates, not `shiftPattern`;
+    - one scene description that includes the active gesture;
+    - a full clear on every frame, and integer bitmap bounds;
+    - one extent → anchor → measure → draw step;
+    - snapshots keyed to the whole scene;
+    - parity checked against crops of the full-size render;
+    - benchmark waits on a render revision;
+    - one content-box coordinate system.
+    Round 2 found that brush replay used each stitch's final colour and that
+    select-piece frames scanned the whole piece. Both are fixed; the other
+    responses were judged sound.
+  - Measured in Chromium 153 (scratchpad primitive experiments):
+    - stroked grid lines anti-alias differently on a smaller canvas even without
+      translation: 92–280 pixels per 1043×793 crop differ, by up to 9 levels;
+    - smoothed image scaling differs at some offsets, up to 14 levels, with three
+      drawing variants;
+    - the dashed selection outline differs by 1 level;
+    - fills, nearest-neighbour images and text match exactly.
+    Grid lines drawn as filled rectangles match exactly at every offset, and
+    differ from today's strokes on 404 of 4.2 million pixels (2380×1764), by up
+    to 9 levels.
+  - **Owner decisions (2026-09-15):**
+    1. on-screen grid lines are drawn as filled rectangles, and the parity
+       reference follows; exports keep strokes;
+    2. image pixels in Realistic, Grid + photo and Original photo may differ by
+       up to 16 levels, and the dashed selection outline by 1; everything else
+       matches exactly;
+    3. Grid + photo drag previews are drawn clean each frame (today they build
+       up over an uncleared canvas);
+    4. a zoom during a Move or Select drag redraws the preview at the new zoom.
 - 2026-09-15 — **Owner approved M3** ("go to m3") and moving visible-region
   drawing for every mode and gesture from M4 into M3 ("split is fine").
   M4–M5 still need approval.

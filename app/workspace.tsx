@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from "react";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
 import { fillCluster, mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from "@/lib/editor/pattern-edit";
 import { oxsImportNotice } from "@/lib/editor/oxs";
@@ -60,21 +60,24 @@ export default function Workspace() {
   const [documentId, setDocumentId] = useState(0);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const navigatorCanvasRef = useRef<HTMLCanvasElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   // The tool hooks need the renderer and the renderer needs the selection they own; they read it through this ref,
   // only inside event handlers, after the effect below has assigned it.
   const rendererRef = useRef<ChartRenderer | null>(null);
 
-  const panZoom = usePanZoom(scrollerRef, pattern !== null);
+  const panZoom = usePanZoom(scrollerRef, frameRef, pattern !== null);
   const cellSize = computeCellSize(pattern, panZoom.zoomLevel);
-  const toolInputs = { canvasRef, rendererRef, pattern, cellSize, commit: history.set };
+  const toolInputs = { frameRef, rendererRef, pattern, cellSize, commit: history.set };
   const select = useSelectTool(toolInputs);
   const brush = useBrushTool({ ...toolInputs, activeColorIndex });
   const move = useMoveTool(toolInputs);
   const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
   const renderer = useChartRenderer({
     canvasRef,
+    frameRef,
+    scrollerRef,
     navigatorCanvasRef,
     pattern: displayedPattern,
     viewMode,
@@ -84,15 +87,12 @@ export default function Workspace() {
     isSelectDragging: select.isDragging,
     highlightedColorIndices,
     canvasColor: options.canvasColor,
+    // The renderer applies a zoom's anchor itself, between sizing the frame and measuring the view (D124, D135).
+    applyZoomAnchor: panZoom.applyZoomAnchor,
   });
   useEffect(() => {
     rendererRef.current = renderer;
   });
-  // Declared after the renderer, whose layout effect resizes the canvas first: keeps a zoom's anchor point in place (D124).
-  const { zoomLevel, applyZoomAnchor } = panZoom;
-  useLayoutEffect(() => {
-    applyZoomAnchor();
-  }, [zoomLevel, applyZoomAnchor]);
 
   function resetDocumentView() {
     setDocumentId((id) => id + 1);
@@ -184,41 +184,41 @@ export default function Workspace() {
     scrollerRef
   );
 
-  function handleCanvasPointerDown(e: PointerEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current;
-    if (!canvas || !pattern) return;
-    // The realistic preview and the original photo only show the pattern: there, the canvas pans and zooms but never edits (D121).
+  function handleCanvasPointerDown(e: PointerEvent<HTMLDivElement>) {
+    const frame = frameRef.current;
+    if (!frame || !pattern) return;
+    // The realistic preview and the original photo only show the pattern: there, the chart pans and zooms but never edits (D121).
     if (isViewOnlyMode(viewMode) && activeTool !== "pan" && activeTool !== "zoom") return;
-    if (activeTool === "pan") panZoom.beginPan(e, canvas);
+    if (activeTool === "pan") panZoom.beginPan(e, frame);
     else if (activeTool === "zoom") panZoom.zoomBy(e.shiftKey || e.altKey ? 1 / ZOOM_STEP : ZOOM_STEP, { clientX: e.clientX, clientY: e.clientY });
-    else if (activeTool === "move") move.onPointerDown(e, canvas);
-    else if (activeTool === "select") select.onPointerDown(e, canvas);
-    else if (activeTool === "fill") brush.fillAt(e, canvas);
-    else if (activeTool === "brush") brush.onPointerDown(e, canvas);
+    else if (activeTool === "move") move.onPointerDown(e, frame);
+    else if (activeTool === "select") select.onPointerDown(e, frame);
+    else if (activeTool === "fill") brush.fillAt(e, frame);
+    else if (activeTool === "brush") brush.onPointerDown(e, frame);
   }
 
-  function handleCanvasPointerMove(e: PointerEvent<HTMLCanvasElement>) {
+  function handleCanvasPointerMove(e: PointerEvent<HTMLDivElement>) {
     if (panZoom.movePan(e) || move.onPointerMove(e) || select.onPointerMove(e)) return;
     brush.onPointerMove(e);
   }
 
-  function handleCanvasPointerUp(e: PointerEvent<HTMLCanvasElement>) {
-    if (panZoom.endPan(e, canvasRef.current) || move.onPointerUp(e) || select.onPointerUp(e)) return;
+  function handleCanvasPointerUp(e: PointerEvent<HTMLDivElement>) {
+    if (panZoom.endPan(e, frameRef.current) || move.onPointerUp(e) || select.onPointerUp(e)) return;
     brush.onPointerUp(e);
   }
 
-  function handleCanvasDoubleClick(e: MouseEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current;
-    if (canvas && activeTool === "brush" && !isViewOnlyMode(viewMode)) brush.onDoubleClick(e, canvas);
+  function handleCanvasDoubleClick(e: MouseEvent<HTMLDivElement>) {
+    const frame = frameRef.current;
+    if (frame && activeTool === "brush" && !isViewOnlyMode(viewMode)) brush.onDoubleClick(e, frame);
   }
 
   /** Dropping a legend color onto the picture fills that cell's 4-connected region with it. */
-  function handleCanvasDrop(e: DragEvent<HTMLCanvasElement>) {
+  function handleCanvasDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     const raw = e.dataTransfer.getData("text/plain");
-    const canvas = canvasRef.current;
-    if (!pattern || raw === "" || !canvas || isViewOnlyMode(viewMode)) return;
-    const cellIndex = cellIndexFromEvent(e, canvas, cellSize, pattern.width, pattern.height);
+    const frame = frameRef.current;
+    if (!pattern || raw === "" || !frame || isViewOnlyMode(viewMode)) return;
+    const cellIndex = cellIndexFromEvent(e, frame, cellSize, pattern.width, pattern.height);
     if (cellIndex !== null) history.set(fillCluster(pattern, cellIndex, Number(raw)));
   }
 
@@ -307,8 +307,10 @@ export default function Workspace() {
           />
           <ImageWindow
             scrollerRef={scrollerRef}
+            frameRef={frameRef}
             canvasRef={canvasRef}
             pattern={pattern}
+            cellSize={cellSize}
             sourceMeta={source.meta}
             viewMode={viewMode}
             activeTool={activeTool}

@@ -1,3 +1,4 @@
+import { cellAtClient } from "@/lib/editor/chart-viewport";
 import type { CellRect, StitchPattern } from "@/lib/types";
 
 // The Image window's target on-screen width: cell size derives from it, so a small pattern isn't tiny and a large one fits.
@@ -23,26 +24,27 @@ export interface PointerPosition {
   clientY: number;
 }
 
-function cellFromEvent(e: PointerPosition, canvas: HTMLCanvasElement, cellSize: number): { x: number; y: number } {
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-  return {
-    x: Math.floor(((e.clientX - rect.left) * scaleX) / cellSize),
-    y: Math.floor(((e.clientY - rect.top) * scaleY) / cellSize),
-  };
+/** The chart frame's content-box origin in client coordinates: chart pixel (0, 0), inside the frame's border (D135). */
+export function chartOrigin(frame: HTMLElement): { left: number; top: number } {
+  const rect = frame.getBoundingClientRect();
+  return { left: rect.left + frame.clientLeft, top: rect.top + frame.clientTop };
+}
+
+function cellFromEvent(e: PointerPosition, frame: HTMLElement, cellSize: number): { x: number; y: number } {
+  const origin = chartOrigin(frame);
+  return cellAtClient(e.clientX, e.clientY, origin.left, origin.top, cellSize);
 }
 
 /** The row-major cell index under the pointer, or null outside the grid. */
-export function cellIndexFromEvent(e: PointerPosition, canvas: HTMLCanvasElement, cellSize: number, width: number, height: number): number | null {
-  const { x, y } = cellFromEvent(e, canvas, cellSize);
+export function cellIndexFromEvent(e: PointerPosition, frame: HTMLElement, cellSize: number, width: number, height: number): number | null {
+  const { x, y } = cellFromEvent(e, frame, cellSize);
   if (x < 0 || x >= width || y < 0 || y >= height) return null;
   return y * width + x;
 }
 
 /** Like `cellIndexFromEvent` but clamped to the grid, so a drag that drifts past the edge keeps tracking. */
-export function clampedCellFromEvent(e: PointerPosition, canvas: HTMLCanvasElement, cellSize: number, width: number, height: number): { x: number; y: number } {
-  const { x, y } = cellFromEvent(e, canvas, cellSize);
+export function clampedCellFromEvent(e: PointerPosition, frame: HTMLElement, cellSize: number, width: number, height: number): { x: number; y: number } {
+  const { x, y } = cellFromEvent(e, frame, cellSize);
   return { x: Math.max(0, Math.min(width - 1, x)), y: Math.max(0, Math.min(height - 1, y)) };
 }
 
@@ -56,15 +58,6 @@ export function pointInRect(x: number, y: number, rect: CellRect): boolean {
   return x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height;
 }
 
-/** A copy of the canvas: the pre-gesture image a Move or Select drag blits back per pointer event (D104). */
-export function snapshotCanvas(source: HTMLCanvasElement): HTMLCanvasElement {
-  const copy = document.createElement("canvas");
-  copy.width = source.width;
-  copy.height = source.height;
-  copy.getContext("2d")?.drawImage(source, 0, 0);
-  return copy;
-}
-
 /** A dashed outline of the current or in-progress selection, in a color distinct from the grid lines. */
 export function drawSelectionOutline(ctx: CanvasRenderingContext2D, rect: CellRect, cellSize: number) {
   if (rect.width <= 0 || rect.height <= 0) return;
@@ -76,6 +69,6 @@ export function drawSelectionOutline(ctx: CanvasRenderingContext2D, rect: CellRe
   ctx.restore();
 }
 
-export function releaseCapture(canvas: HTMLCanvasElement | null, pointerId: number) {
-  if (canvas?.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
+export function releaseCapture(element: HTMLElement | null, pointerId: number) {
+  if (element?.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
 }

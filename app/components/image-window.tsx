@@ -82,8 +82,10 @@ export function ViewBar({ pattern, viewMode, onViewModeChange, canvasColor, onCa
 
 export interface ImageWindowProps {
   scrollerRef: RefObject<HTMLDivElement | null>;
+  frameRef: RefObject<HTMLDivElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   pattern: StitchPattern | null;
+  cellSize: number;
   sourceMeta: SourceImageMeta | null;
   viewMode: ViewMode;
   activeTool: Tool;
@@ -95,11 +97,11 @@ export interface ImageWindowProps {
   enhancedPreviewUrl: string | null;
   isPreparingEnhancedPreview: boolean;
   enhancedPreviewError: string | null;
-  onPointerDown: (e: PointerEvent<HTMLCanvasElement>) => void;
-  onPointerMove: (e: PointerEvent<HTMLCanvasElement>) => void;
-  onPointerUp: (e: PointerEvent<HTMLCanvasElement>) => void;
-  onDoubleClick: (e: MouseEvent<HTMLCanvasElement>) => void;
-  onDrop: (e: DragEvent<HTMLCanvasElement>) => void;
+  onPointerDown: (e: PointerEvent<HTMLDivElement>) => void;
+  onPointerMove: (e: PointerEvent<HTMLDivElement>) => void;
+  onPointerUp: (e: PointerEvent<HTMLDivElement>) => void;
+  onDoubleClick: (e: MouseEvent<HTMLDivElement>) => void;
+  onDrop: (e: DragEvent<HTMLDivElement>) => void;
 }
 
 function cursorFor(activeTool: Tool, activeColorIndex: number | null, viewMode: ViewMode): string {
@@ -110,13 +112,16 @@ function cursorFor(activeTool: Tool, activeColorIndex: number | null, viewMode: 
 }
 
 /**
- * The scrollable Image window: the uploaded photo before generation, then one canvas that every view mode draws into
- * at the same size, so zoom, scroll and pan carry across modes (D121).
+ * The scrollable Image window: the uploaded photo before generation, then the chart. A frame at the chart's full size
+ * is the layout and input surface every view mode shares, so zoom, scroll and pan carry across modes; inside it one
+ * canvas holds only the painted part of the chart, placed and drawn by the chart renderer (D135).
  */
 export function ImageWindow({
   scrollerRef,
+  frameRef,
   canvasRef,
   pattern,
+  cellSize,
   sourceMeta,
   viewMode,
   activeTool,
@@ -166,11 +171,13 @@ export function ImageWindow({
       )}
       {!pattern && !sourceMeta && <p className="text-sm text-zinc-500">Upload an image in the Processing params dock below to get started.</p>}
       {pattern && (
-        <canvas
-          ref={canvasRef}
+        <div
+          ref={frameRef}
           role="img"
           aria-label={`Pattern, ${VIEW_MODE_LABELS[viewMode]} view`}
+          data-testid="chart-frame"
           data-view-mode={viewMode}
+          data-cell-size={cellSize}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -178,8 +185,12 @@ export function ImageWindow({
           onDoubleClick={onDoubleClick}
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDrop}
-          className={`touch-none border border-zinc-300 dark:border-zinc-700 ${cursorFor(activeTool, activeColorIndex, viewMode)}`}
-        />
+          // Content-box sizing: the chart is exactly width × cellSize inside the 1 px border, as the old canvas was.
+          style={{ width: pattern.width * cellSize, height: pattern.height * cellSize }}
+          className={`relative box-content touch-none overflow-hidden border border-zinc-300 dark:border-zinc-700 ${cursorFor(activeTool, activeColorIndex, viewMode)}`}
+        >
+          <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
+        </div>
       )}
       {pattern && viewMode === "realistic" && previewError && (
         <div className="flex items-center gap-3 rounded border border-red-300 p-3 text-sm text-red-600 dark:border-red-800 dark:text-red-400">
