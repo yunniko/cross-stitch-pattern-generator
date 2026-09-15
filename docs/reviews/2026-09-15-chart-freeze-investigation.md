@@ -48,6 +48,16 @@ Zoomed in, the canvas cap allows 8 px per stitch at 1000 stitches (8000 px ÷ 10
 Every zoom step changes the cell size and redraws the whole chart, so zooming into a large chart likely freezes for
 about 1.5 s per step. This is inferred from the synthetic timing and was not measured in the app.
 
+Two more measurements for planning (Chromium, 8 px per stitch):
+
+| Method | Time |
+|---|---:|
+| Each cell pre-rendered once into a sprite, blitted per stitch with `drawImage` | 1,876 ms (median of 3; pixel-identical to `fillText` on a 60 × 40 region, but slower) |
+| Only a 1440 × 900 view's worth of stitches (180 × 113) with `fillRect` + `fillText` | 39 ms (median of 5) |
+
+The full 8000 × 6000 canvas also needs a 192 MB backing store. The highlight overlay and the Grid + photo outline
+loop over every stitch in the same way.
+
 ## Options
 
 1. **Fill with scaled pixels when no symbols are drawn.** Below the symbol floor, write one pixel per stitch and scale
