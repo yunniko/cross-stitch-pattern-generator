@@ -34,6 +34,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   k-means 3.4 s. Both are under the <30 s target without a second
   toolchain. Revisit only if a concrete latency requirement below that
   appears (G-030). See `docs/reviews/2026-09-13-pipeline-performance.md`.
+- **Re-measured 2026-09-15 (G-035 M6) -- still not needed.** Same case,
+  median of 5: Standard 4.9 s and Crisp 6.8 s, with ICM 1.7 s and k-means
+  1.5 s, output byte-identical. See
+  `docs/reviews/2026-09-15-performance-results.md`.
 - **What:** Move the compute-heavy stage
   of the pattern pipeline (k-means
   in OKLab + the ICM/Potts local optimizer, `lib/quantize.ts` +
@@ -1162,7 +1166,8 @@ escalation-tier, not a routine refactor):
     on a noisy photo, against the Crisp acceptance matrix, with a decision
     file.
   - Gate: the Crisp target; the acceptance matrix passing.
-- [ ] **M5 — Large grids: ICM and k-means, identical output.**
+- [x] **M5 — Large grids: ICM and k-means, identical output.** Standard
+  13.7 → 4.7 s and Crisp 21.3 → 6.0 s at 1000 stitches (D133).
   - Codex critique first. Then:
     - cache each cell's eight pair costs once per call;
     - score only neighbour labels plus the best-color label, with the same
@@ -1174,7 +1179,8 @@ escalation-tier, not a routine refactor):
   - Gate: an old-versus-new equivalence test in the style of
     `tests/unit/m3-equivalence.spec.ts`, golden hashes unchanged, and the
     large-grid target.
-- [ ] **M6 — Results and release.**
+- [x] **M6 — Results and release.** Results review written; production
+  verified at 5ab38eb, no redeploy needed (docs only).
   - Rerun every benchmark row.
   - Confirm the temporary resolution switch and its `?compare-resolution`
     flag are gone.
@@ -1193,6 +1199,27 @@ escalation-tier, not a routine refactor):
 - **Answered 2026-09-14:** deploy after each milestone.
 
 **Progress log** (newest first):
+- 2026-09-15 — **M6 done: results and release; the goal awaits Owner sign-off.**
+  - The resolution switch and its flag are gone: nothing in code, tests or
+    the README references them.
+  - `npm run bench` and `npm run bench:browser` rerun at every size, plus
+    medians of 5: 12 MP → 100 st Standard 2.9 s and Crisp 7.5 s;
+    1500×1000 → 1000 st Standard 4.9 s and Crisp 6.8 s.
+  - Browser at 1000 st: generate 6.9 s (was 12.0 s), Pattern Keeper PDF
+    11.1 s (was 86 s), Export all 37.8 s (was 122 s), no main-thread task
+    during any export.
+  - New finding, not profiled: showing a 1000-stitch chart blocks the page
+    for 0.59 s, and reopening one for 0.48 s.
+  - `docs/reviews/2026-09-15-performance-results.md` has the before-and-after
+    tables and the criteria status. G-023 re-measured (still not needed).
+    G-032's 1.5 s enhancement target is still missed at 1.9–2.2 s by mode,
+    noted in its archive entry. README points at the results.
+  - Production: the server runs 5ab38eb, and no app code changed since, so no
+    redeploy. All 20 sites 200; a live Crisp generation passed with no
+    console errors.
+  - PENDING APPROVAL: G-035 goal sign-off — all six milestones done; the
+    browser generate target was unreachable after the cap was cancelled
+    (D130) — logged 2026-09-15.
 - 2026-09-15 — **M5 deployed (5ab38eb); awaiting the Owner's check-in.**
   - Checks: tsc and eslint clean; Vitest 890 passed plus 1 opt-in scale test
     skipped; 75/75 e2e on a production build. Adversarial spec 18 passed
@@ -1213,7 +1240,9 @@ escalation-tier, not a routine refactor):
     retries; all 20 sites 200 afterwards. Live Crisp generation passed with
     no console errors.
   - PENDING APPROVAL: G-035 M5 check-in and M6 start — milestone boundary —
-    logged 2026-09-15.
+    logged 2026-09-15. Owner reply 2026-09-15: "go m5". M5 was already
+    deployed, so this is read as M5 approved and M6 started; the
+    interpretation is noted here for the Owner.
 - 2026-09-15 — **M5 step 2: Crisp's weighted k-means on flat buffers, identical.**
   - Weighted seeding, nearest-centroid assignment and Lloyd read parallel
     Float64 columns in sample order, with the same RNG draws. Weighted

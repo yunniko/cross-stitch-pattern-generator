@@ -10,8 +10,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs `master` as deployed on 2026-09-14 (last deploy-log
-row). G-035 (performance) is active: M1–M4 are signed off and M5 (large
-grids, D133) is deployed, awaiting the Owner's check-in. Photos decode in a worker (D128); the photo resolution
+row). G-035 (performance) is active: all six milestones are done and the
+goal awaits the Owner's sign-off. Photos decode in a worker (D128); the photo resolution
 cap was cancelled after failing its quality gates (D130). G-032 (photo enhancement) is done and signed off: every mode is offered
 (D118). G-028 (OXS import and export) is done and signed off (D119). G-033
 (swatch-aware color editor) is deployed and awaits Owner sign-off.
@@ -58,21 +58,19 @@ cap was cancelled after failing its quality gates (D130). G-032 (photo enhanceme
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
 
-**Performance** (`npm run bench`, Owner's machine, 2026-09-14 after G-035
-M4): a 12 MP photo at 100 stitches / 16 colors takes 3.2 s in Standard and a
-median 8.4 s in Crisp (5 runs), down from 7.8 s and 38.6 s before G-035. At 1500×1000 → 1000 stitches / 64
-colors (G-035 M5, median of 3), Standard takes 4.7 s and Crisp 6.0 s, down from 13.7 s and 21.3 s. In the browser
-(`npm run bench:browser`) a 12 MP photo generates in about 3.5 s at 100 and
-250 stitches. Exports run in a worker and no longer block the page: at 1000
-stitches the Pattern Keeper PDF takes 12.7 s and Export all 45 s, down from
-86 s and 125 s (G-035 M2). Baseline and causes are in
-`docs/reviews/2026-09-14-performance-investigation.md`. Enhancing a 4000×3000
-photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
+**Performance** (G-035 results, 2026-09-15, medians of 5 on the Owner's machine):
+a 12 MP photo at 100 stitches / 16 colors takes 2.9 s in Standard and 7.5 s in
+Crisp, down from 7.7 s and 42.7 s. At 1500×1000 → 1000 stitches / 64 colors,
+Standard takes 4.9 s and Crisp 6.8 s. In the browser at 1000 stitches, generating
+takes 6.9 s, the Pattern Keeper PDF 11.1 s and Export all 37.8 s, with no
+main-thread freeze during exports. Tables are in
+`docs/reviews/2026-09-15-performance-results.md`. Enhancing a 4000×3000 photo
+takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 **Known limitations**:
-- Crisp takes about 2.7× Standard's time on a 12 MP photo (medians 7.9–8.4 s
-  against 2.9–3.2 s across two sessions; 8.7–10.6 s on real photos), because
-  every cell gets the two-mode fit (D132). It falls back to
+- Crisp takes about 2.6× Standard's time on a 12 MP photo (7.5 s against 2.9 s),
+  because every cell gets the two-mode fit (D132).
+- Showing or reopening a 1000-stitch chart blocks the page for about 0.5 s (not profiled). It falls back to
   Standard behavior for thin lines, junctions and gradual shading (D096).
 - Browsers without OffscreenCanvas 2D in workers fall back to main-thread
   exports, which stall the tab between pages (D125).
@@ -220,9 +218,9 @@ photo takes 1.4–1.7 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **PENDING APPROVAL: G-035 M5 check-in and M6 start.** Large grids are identical
-  and faster (1000 st: Standard 4.7 s, Crisp 6.0 s; D133). M6 reruns the benchmarks
-  and makes the final deploy; the browser generate target is unreachable (D130).
+- **PENDING APPROVAL: G-035 sign-off.** All milestones are done; results are in
+  `docs/reviews/2026-09-15-performance-results.md`. The browser generate target
+  was unreachable after the photo cap was cancelled (D130).
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is

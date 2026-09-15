@@ -693,6 +693,11 @@ saved-file embed) also stays the original bytes.
   worker in M2/M4 before choosing it, or before asking the Owner whether
   the target should change.
 
+  Re-measured 2026-09-15 (G-035 M6), `npm run bench`, single run on a
+  4000×3000 source, analysis plus application: Auto 2.15 s, Vivid 2.10 s,
+  Portrait 1.87 s. Criterion 7 is still not met; G-035 did not change the
+  enhancement path (`docs/reviews/2026-09-15-performance-results.md`).
+
   Added to M2/M3 from round 2:
   - Crisp candidate recall is checked against fits on the enhanced photo;
   - release gates measure benefit and retained detail across DMC, Cosmo and

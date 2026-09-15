@@ -46,7 +46,8 @@ npm run bench:browser  # photo load, generation and every export in a real brows
 ```
 
 CI (`.github/workflows/ci.yml`) runs lint, type-check, unit and e2e on every
-push.
+push. Current generation and export timings, with before-and-after tables, are in
+`docs/reviews/2026-09-15-performance-results.md`.
 
 ## Status and documentation
 
