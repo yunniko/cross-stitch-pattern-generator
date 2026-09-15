@@ -268,6 +268,35 @@ test("large-chart operations at 1000 stitches", async ({ page }, testInfo) => {
       )
     );
 
+    // The same 20 steps back again in Grid + photo, the view that costs the most per painted pixel (G-036 M5).
+    const beforePhoto = (await chartState(page)).revision;
+    await page.keyboard.press("4");
+    await waitForScene(page, beforePhoto);
+    record(
+      "scroll 20 steps (Grid + photo)",
+      await timed(
+        page,
+        client,
+        () =>
+          scroller.evaluate(
+            (el) =>
+              new Promise<void>((resolve) => {
+                let i = 0;
+                const stepOnce = () => {
+                  el.scrollBy(-60, -40);
+                  if (++i < 20) requestAnimationFrame(stepOnce);
+                  else resolve();
+                };
+                requestAnimationFrame(stepOnce);
+              })
+          ),
+        () => afterPaint(page)
+      )
+    );
+    const beforeColor = (await chartState(page)).revision;
+    await page.keyboard.press("1");
+    await waitForScene(page, beforeColor);
+
     // Highlight one colour, then turn it off again.
     await page.getByRole("button", { name: "Highlight" }).click();
     const beforeOn = (await chartState(page)).revision;
