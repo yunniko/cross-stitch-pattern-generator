@@ -1272,8 +1272,14 @@ escalation-tier, not a routine refactor):
      or at the centre, has fewer distinct copies, and squares of size 1–3
      never reach 8. Without the full group the result would not stay
      symmetric.
-     - A brush stroke stays one undo step. A brush double-click fill keeps
-       today's 3 undo steps (D086); merging them is out of scope.
+     - A brush stroke stays one undo step.
+     - **A brush double-click fill becomes one undo step (Owner,
+       2026-09-15)**, with or without symmetry. Today it leaves 3 (D086).
+       - One undo returns to the pattern as it was before the first click,
+         and one redo brings the fill back.
+       - If the history no longer holds that pattern, for example because it
+         was trimmed at 50 entries or an unrelated edit came in between, the
+         fill is recorded as an ordinary extra step and nothing is lost.
      - A symmetric fill floods each mirrored cell's region as it was before
        the fill, keeping each tool's connectivity (8-connected for the Fill
        tool and double-click, 4-connected for drop-to-fill), and then paints
@@ -1375,6 +1381,16 @@ escalation-tier, not a routine refactor):
   - The double-click snapshot is dropped when the document, the dimensions,
     the axes or the colour change between the two clicks. Every mirrored seed
     floods against that one snapshot.
+  - Double-click fill as one undo step:
+    - `lib/editor/use-undo-history.ts` gains `replaceSince(anchor, next)`.
+      It finds `anchor` by identity at or before the current position. If
+      only this gesture's two click commits follow it, it drops them and
+      pushes `next`; otherwise it acts like `set`.
+    - Unit tests cover the rewind, a trimmed anchor, an intervening edit and
+      redo after undo. The keyboard-shortcuts e2e test checks one undo and
+      one redo.
+    - A new decision supersedes D086's "3 undo steps", and HANDOVER's known
+      limitation is removed.
   - Live axes are kept outside the undoable pattern snapshots. The saved
     value is the current axes, with the square-only rule applied.
   - Symmetry state is saved in the JSON file and autosave, and restored on
@@ -1395,6 +1411,10 @@ escalation-tier, not a routine refactor):
   - Gate: deployed, live smoke test, and the goal awaits Owner sign-off.
 
 **Progress log** (newest first):
+- 2026-09-15 — Owner: a double-click fill should be one undo step. This
+  reverses the rebuttal below. Criterion 2 and M2 are updated: a history
+  rewind to the pre-first-click pattern, found by identity, not the
+  deferred commit D086 rejected. Plan only; still DRAFT.
 - 2026-09-15 — Codex critique of the geometry design (read-only).
   - It confirmed:
     - the doubled-coordinate matrices and closure (group orders 1/2/4/8
