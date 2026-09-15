@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-15 at 4c31ab1 plus the handover commit that carries this line
+Last verified: 2026-09-15 at eedb455 plus the handover commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -51,9 +51,9 @@ color editor) is deployed and awaits Owner sign-off.
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-15**: `tsc --noEmit` and eslint clean; Vitest 908 passed
-(1 opt-in skip); Playwright 289/289 (including 208 parity cases) on a production
-build of G-036 M4. CI
+**Checks run 2026-09-15**: `tsc --noEmit` and eslint clean; Vitest 930 passed
+(1 opt-in skip) at G-037 M1; Playwright 289/289 (including 208 parity cases) on a
+production build of G-036 M4. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
@@ -218,7 +218,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **PENDING APPROVAL: G-037, symmetry and quick mirror (DRAFT)**, open questions in `GOALS.md`.
+- **G-037 in progress:** M1 done (symmetry geometry in `lib/editor/symmetry.ts`, D137); M2–M3 need approval.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is
