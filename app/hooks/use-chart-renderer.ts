@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState, type RefObject } from "react";
 import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
 import type { AnyCanvas } from "@/lib/export/canvas-backend";
-import { drawCell, drawChart, drawChartOutline, drawHighlightOverlay, renderNavigatorPixels, renderStitchPreviewToCanvas, type RenderMode } from "@/lib/export/render";
+import { drawCell, drawChartOnScreen, drawChartOutline, drawHighlightOverlayRaster, renderNavigatorPixels, renderStitchPreviewToCanvas, type RenderMode } from "@/lib/export/render";
 import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
 import type { Tool, ViewMode } from "../editor-types";
 import { drawSelectionOutline, PHOTO_UNDERLAY_ALPHA } from "../editor-geometry";
@@ -77,11 +77,11 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
         }
         drawChartOutline(ctx, displayPattern, cellSize);
       } else {
-        drawChart(ctx, displayPattern, viewMode as RenderMode, cellSize, undefined, canvasColor);
+        drawChartOnScreen(ctx, displayPattern, viewMode as RenderMode, cellSize, undefined, canvasColor);
       }
 
       if (activeTool === "highlight" && highlightedColorIndices.size > 0) {
-        drawHighlightOverlay(ctx, displayPattern, cellSize, highlightedColorIndices);
+        drawHighlightOverlayRaster(ctx, displayPattern, cellSize, highlightedColorIndices);
       }
       if (activeTool === "select" && selection && !dragging) {
         drawSelectionOutline(ctx, selection, cellSize);

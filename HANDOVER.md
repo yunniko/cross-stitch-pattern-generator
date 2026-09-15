@@ -192,6 +192,8 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 - Crisp boundary evidence must stay identical to its verbatim reference copy:
   `tests/unit/crisp-evidence-equivalence.spec.ts` (G-035 M4).
 - ICM inner loops use no closures or array scans (D044).
+- On-screen chart drawing stays byte-identical to the frozen pre-G-036 renderer:
+  `tests/e2e/chart-render-parity.spec.ts` (D134); exports keep `drawChart`.
 - ICM and both k-means paths stay identical to their pre-M5 copies (D133):
   `tests/unit/m5-equivalence.spec.ts`, `tests/unit/m5-equivalence-adversarial.spec.ts`.
 - Brand-aware UI reads `pattern.threadBrand`. A new brand needs data, a
@@ -218,10 +220,8 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **PENDING APPROVAL: G-036, large charts without freezes (DRAFT).** At 1000 stitches
-  the whole-canvas redraw blocks 0.6 s on generate or reopen and 1.4–1.7 s per zoom step
-  or view switch; plan in `GOALS.md`, evidence in
-  `docs/reviews/2026-09-15-chart-freeze-investigation.md`.
+- **G-036 in progress:** M1 done, M2 under verification (D134); M3–M5 need the Owner's
+  approval. Evidence: `docs/reviews/2026-09-15-chart-freeze-investigation.md`.
 - **PENDING APPROVAL: G-037, symmetry and quick mirror (DRAFT)**, open questions in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.

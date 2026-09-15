@@ -1058,7 +1058,8 @@ escalation-tier, not a routine refactor):
     `COMPANY/INFRASTRUCTURE_DEPLOY.md`.
 
 **Milestones:**
-- [ ] **M1 — Measurement and parity oracle, no behaviour change.**
+- [x] **M1 — Measurement and parity oracle, no behaviour change.** Oracle and
+  `npm run bench:chart` in place; baseline and remaining gaps in the progress log.
   - Keep verbatim copies of today's renderer and its helpers under
     `tests/unit/reference/` as the parity oracle.
   - Build the browser parity harness from criterion 2 by bundling the real
@@ -1072,7 +1073,7 @@ escalation-tier, not a routine refactor):
     that copies the whole chart, and autosave.
   - Gate: baseline numbers for every row, and the harness passing against
     today's renderer.
-- [ ] **M2 — Fast opaque fills on screen.**
+- [x] **M2 — Fast opaque fills on screen.** Gate met unthrottled (D134).
   - When no symbols are drawn (under 6 px), write one pixel per stitch for the
     visible region and scale it with nearest-neighbour `drawImage`. Draw grid
     lines as today, and follow the exact B&W and EMPTY-cell colour rules.
@@ -1126,6 +1127,74 @@ escalation-tier, not a routine refactor):
   - Update HANDOVER; final deploy with a production spot check.
 
 **Progress log** (newest first):
+- 2026-09-15 — **M2: fast on-screen fills and highlight mask; generate and reopen meet 100 ms.**
+  - `drawChartOnScreen` (`lib/export/render.ts`) fills stitches below the 6 px
+    symbol floor from one pixel per stitch, scaled with nearest-neighbour
+    `drawImage`, when the empty-stitch colour is opaque. Otherwise it calls
+    `drawChart` unchanged.
+  - `drawHighlightOverlayRaster` composites the dimming mask the same way at
+    every size.
+  - `drawChart` caches each palette entry's fill and text colour strings.
+    Exports keep `drawChart` (D134).
+  - Parity: 84/84 cases byte-identical to the frozen renderer on both the
+    export path and the screen path. The raster highlight mask differed by 0
+    bytes in all 18 highlight cases (1–112 px; 0, 1, 4 and 16 of 16 colours;
+    1000×750), so it is used on screen.
+  - Checks: tsc and eslint clean; unit tests 891 passed plus 1 opt-in skip.
+    e2e: 158 passed plus 1 flaky (the Space-pan keyboard test, passing on
+    retry); the keyboard suite then passed 18/18 with 3 repeats and no retries.
+  - `npm run bench:chart`, 1000 st / 64 col, longest main-thread task:
+
+    | Operation | Before M2 | After M2 | 4× throttled, before → after |
+    |---|---:|---:|---:|
+    | Chart shown after regenerating | 427 ms | no task over 50 ms | 2,099 → 252 ms |
+    | Saved project reopened | 448 ms | 70 ms | 2,165 → 251 ms |
+    | Zoom in to 6 px / 8 px | 1,479 / 1,520 ms | 1,528 / 1,548 ms | 7,651 / 8,049 → 8,934 / 9,363 ms |
+    | Highlight on / off (zoomed in) | 1,637 / 1,430 ms | 1,303 / 1,560 ms | 8,666 / 7,605 → 8,693 / 9,032 ms |
+
+    Zoomed-in rows still redraw every symbol, which is M3–M4 work. The 4×
+    throttled rows are single runs, and their zoomed-in increase is within
+    what one run varies.
+- 2026-09-15 — **M1: parity oracle and baseline measured.**
+  - Oracle: `tests/unit/reference/render-pre-g036.ts` is a verbatim copy of
+    `lib/export/render.ts`. `tests/e2e/chart-render-parity.spec.ts` bundles it
+    and the live renderer into a blank page and compares canvas bytes for 84
+    cases. Against today's renderer: 84/84 identical. The cases cover:
+    - cell sizes 1–112 px, colour and B&W, and outline;
+    - highlight and single-cell edits, canvas colours and regions;
+    - 1000×750 and 1000×1000 charts with 100 colours.
+  - Benchmark: `npm run bench:chart` (`scripts/bench-chart.spec.ts`) times each
+    operation from the action to the render it triggers. It reports the
+    longest task, median and worst latency, frame gaps and trailing long
+    tasks; `CPU_THROTTLE` and `PROFILE` are optional.
+  - Baseline, 1000 st / 64 col, Chromium 153, longest main-thread task (3 runs
+    unthrottled; 1 run at 4× CPU throttling):
+
+    | Operation | Unthrottled | 4× throttled |
+    |---|---:|---:|
+    | Chart shown after regenerating (4 px) | 427 ms | 2,099 ms |
+    | Saved project reopened | 448 ms | 2,165 ms |
+    | Zoom in to 6 px / 8 px | 1,479 / 1,520 ms | 7,651 / 8,049 ms |
+    | View: B&W / Realistic / Grid + photo / Color | 1,416 / 2,241 / 1,949 / 1,723 ms | 7,490 / 11,773 / 9,911 / 7,613 ms |
+    | View: Original photo | 144 ms | 678 ms |
+    | Highlight on / off | 1,637 / 1,430 ms | 8,666 / 7,605 ms |
+    | Select drag | 1,547 ms | 8,695 ms |
+    | Scroll, 20 steps | 83 ms (max frame gap 67 ms) | 400 ms |
+
+    View, highlight and select rows ran zoomed in, with symbols. The third zoom
+    step is at the canvas cap; its 60 s latency was the wait for a size change
+    that never comes, now detected as a no-op.
+  - Process slip: a dry-run check of the M2 patch wrote it into the tree at
+    12:52 while the baseline chain ran. The parity baseline (finished 12:51)
+    and the unthrottled benchmark's server (built 12:51) predate it. The files
+    were restored at 12:53, before the throttled run rebuilt, and M2 was
+    re-applied only after the chain ended. Both baselines measure pre-M2 code.
+  - Not yet covered, carried to M3–M5: parity for the Realistic and photo
+    views, device-pixel-ratio screenshots and fractional scroll offsets;
+    Firefox and WebKit runs; separate timings for the status-bar count,
+    realistic-preview generation, the selection preview and autosave (only
+    inside the view and select rows). The benchmark is a new script rather
+    than an extension of `bench:browser`, which times photo processing.
 - 2026-09-15 — **Owner approved M1 and M2** ("start m1 and m2"). M3–M5 still
   need approval.
 - 2026-09-15 — **Goal planned; DRAFT until the Owner approves.**

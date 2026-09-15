@@ -1,10 +1,12 @@
-import { createCanvas, type AnyCanvas, type Canvas2D } from "./canvas-backend";
-import type { ChartDrawingContext } from "./chart-drawing-context";
-import { hexToRgb, luminance, rgbToHex } from "../color/color";
-import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, formatFinishedSize, type SizeUnit } from "./finished-size";
-import { formatSkeinEstimate } from "../threads/floss-estimate";
-import { buildTintedTextureSet } from "./stitch-texture";
-import { EMPTY_CELL, filledStitchCount, formatStitchCount, type PaletteColor, type StitchPattern, type RGB } from "../types";
+// Verbatim copy of lib/export/render.ts before G-036 (commit 919923b), kept only as the pixel-parity oracle for
+// tests/e2e/chart-render-parity.spec.ts. Only import paths were changed to absolute aliases. Never edit it.
+import { createCanvas, type AnyCanvas, type Canvas2D } from "@/lib/export/canvas-backend";
+import type { ChartDrawingContext } from "@/lib/export/chart-drawing-context";
+import { hexToRgb, luminance, rgbToHex } from "@/lib/color/color";
+import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, formatFinishedSize, type SizeUnit } from "@/lib/export/finished-size";
+import { formatSkeinEstimate } from "@/lib/threads/floss-estimate";
+import { buildTintedTextureSet } from "@/lib/export/stitch-texture";
+import { EMPTY_CELL, filledStitchCount, formatStitchCount, type PaletteColor, type StitchPattern, type RGB } from "@/lib/types";
 
 export type RenderMode = "color" | "bw";
 
@@ -197,11 +199,6 @@ export function drawChart(
     ctx.textBaseline = "middle";
   }
 
-  // The same strings `fillForCell` and `symbolTextColor` return, built once per palette entry instead of per stitch
-  // (G-036 M2); exports and the screen see identical fill styles.
-  const fills = palette.map((color) => fillForCell(mode, color.rgb));
-  const textColors = drawSymbols ? palette.map((color) => symbolTextColor(mode, color.rgb)) : [];
-
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
       const paletteIndex = cellPalette[y * width + x];
@@ -216,98 +213,18 @@ export function drawChart(
         continue;
       }
 
-      ctx.fillStyle = fills[paletteIndex];
+      const color = palette[paletteIndex];
+      ctx.fillStyle = fillForCell(mode, color.rgb);
       ctx.fillRect(localX, localY, cellSize, cellSize);
 
       if (drawSymbols) {
-        ctx.fillStyle = textColors[paletteIndex];
-        ctx.fillText(palette[paletteIndex].symbol, localX + cellSize / 2, localY + cellSize / 2 + 1);
+        ctx.fillStyle = symbolTextColor(mode, color.rgb);
+        ctx.fillText(color.symbol, localX + cellSize / 2, localY + cellSize / 2 + 1);
       }
     }
   }
 
   drawGridLines(ctx, x0, y0, x1, y1, cellSize);
-}
-
-/** The exact bytes a canvas fills for a CSS colour, read back from a 1×1 probe; `null` unless it is fully opaque. */
-function opaqueCanvasRgb(color: string): RGB | null {
-  let ctx: Canvas2D;
-  try {
-    ({ ctx } = createCanvas(1, 1));
-  } catch {
-    return null;
-  }
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, 1, 1);
-  const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
-  return a === 255 ? [r, g, b] : null;
-}
-
-/** Writes one pixel per stitch of `region` into a scratch canvas and scales it onto `ctx` with nearest-neighbour sampling. */
-function drawStitchPixels(ctx: CanvasRenderingContext2D, region: ChartRegion, cellSize: number, pixelAt: (cellIndex: number, out: Uint8ClampedArray, offset: number) => void, width: number): boolean {
-  const w = region.x1 - region.x0;
-  const h = region.y1 - region.y0;
-  if (w <= 0 || h <= 0) return true;
-  let scratch: AnyCanvas;
-  let sctx: Canvas2D;
-  try {
-    ({ canvas: scratch, ctx: sctx } = createCanvas(w, h));
-  } catch {
-    return false;
-  }
-  const image = sctx.createImageData(w, h);
-  const data = image.data;
-  for (let y = 0; y < h; y++) {
-    const row = (region.y0 + y) * width;
-    for (let x = 0; x < w; x++) pixelAt(row + region.x0 + x, data, (y * w + x) * 4);
-  }
-  sctx.putImageData(image, 0, 0);
-  const smoothing = ctx.imageSmoothingEnabled;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(scratch as CanvasImageSource, 0, 0, w, h, 0, 0, w * cellSize, h * cellSize);
-  ctx.imageSmoothingEnabled = smoothing;
-  return true;
-}
-
-/**
- * The on-screen chart (G-036 M2): identical pixels to `drawChart`, faster below the symbol floor. There every stitch
- * is a solid, opaque, integer-aligned square, so one pixel per stitch scaled up with nearest-neighbour sampling gives
- * the same bytes as one `fillRect` per stitch, in about 20 ms instead of about 370 ms at 1000 × 750. Grid lines are
- * drawn as before. With symbols, or an empty-stitch colour that isn't opaque, it is `drawChart` unchanged. Exports keep
- * `drawChart`. Parity: tests/e2e/chart-render-parity.spec.ts.
- */
-export function drawChartOnScreen(ctx: CanvasRenderingContext2D, pattern: StitchPattern, mode: RenderMode, cellSize: number, region?: ChartRegion, emptyCellColor: string = "#ffffff") {
-  const emptyRgb = cellSize < LEGIBILITY_FLOOR_PX ? opaqueCanvasRgb(emptyCellColor) : null;
-  const { width, height, cellPalette, palette } = pattern;
-  const r = region ?? { x0: 0, y0: 0, x1: width, y1: height };
-  if (!emptyRgb) {
-    drawChart(ctx, pattern, mode, cellSize, region, emptyCellColor);
-    return;
-  }
-  const colors = palette.map((color): RGB => {
-    if (mode === "color") return color.rgb;
-    const gray = bwGray(color.rgb);
-    return [gray, gray, gray];
-  });
-  const drawn = drawStitchPixels(
-    ctx,
-    r,
-    cellSize,
-    (cellIndex, out, o) => {
-      const paletteIndex = cellPalette[cellIndex];
-      const rgb = paletteIndex === EMPTY_CELL ? emptyRgb : colors[paletteIndex];
-      out[o] = rgb[0];
-      out[o + 1] = rgb[1];
-      out[o + 2] = rgb[2];
-      out[o + 3] = 255;
-    },
-    width
-  );
-  if (!drawn) {
-    drawChart(ctx, pattern, mode, cellSize, region, emptyCellColor);
-    return;
-  }
-  drawGridLines(ctx, r.x0, r.y0, r.x1, r.y1, cellSize);
 }
 
 /**
@@ -421,29 +338,6 @@ export function drawChartOutline(ctx: CanvasRenderingContext2D, pattern: StitchP
 // clearly at a glance than brightening the matches themselves would --
 // works the same regardless of which colors/how many are underneath.
 const HIGHLIGHT_MASK_ALPHA = 0.6;
-
-/**
- * Candidate raster highlight mask (G-036 M2): the same dimming as `drawHighlightOverlay`, composited from one pixel
- * per stitch. Used on screen only if tests/e2e/chart-render-parity.spec.ts shows it byte-identical to per-stitch
- * `fillRect` compositing; otherwise `drawHighlightOverlay` stays.
- */
-export function drawHighlightOverlayRaster(ctx: CanvasRenderingContext2D, pattern: StitchPattern, cellSize: number, highlightedIndices: ReadonlySet<number>) {
-  const { width, height, cellPalette } = pattern;
-  const alpha = Math.round(HIGHLIGHT_MASK_ALPHA * 255);
-  const drawn = drawStitchPixels(
-    ctx,
-    { x0: 0, y0: 0, x1: width, y1: height },
-    cellSize,
-    (cellIndex, out, o) => {
-      out[o] = 0;
-      out[o + 1] = 0;
-      out[o + 2] = 0;
-      out[o + 3] = highlightedIndices.has(cellPalette[cellIndex]) ? 0 : alpha;
-    },
-    width
-  );
-  if (!drawn) drawHighlightOverlay(ctx, pattern, cellSize, highlightedIndices);
-}
 
 /**
  * The Highlight tool (G-012): dims every stitch whose color isn't in

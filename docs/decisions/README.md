@@ -142,3 +142,4 @@ remain readable with git show.
 - D131 — Crisp's candidate pre-filter isn't recalibrated for speed — active
 - D132 — Crisp evaluates every cell; the pair-evidence pre-filter is removed — active
 - D133 — Large grids: ICM skips unchanged neighbourhoods and k-means caches distances, output identical — active
+- D134 — The on-screen chart fills small stitches and the highlight mask from scaled pixels — active
