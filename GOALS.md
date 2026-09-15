@@ -1210,3 +1210,102 @@ escalation-tier, not a routine refactor):
 - 2026-09-16 — Goal planned from the 2026-09-15 research; M1 started with a
   Codex critique of the M1 and M2 designs. Crisp+ stays invisible to users
   until M4, so there is no deploy before then.
+
+### G-039 · The Move tool previews only what changed — ACTIVE (2026-09-16)
+- **What:** dragging with the Move tool stays smooth on a large chart. All five
+  options from `docs/reviews/2026-09-16-move-tool-investigation.md` are carried
+  out:
+  1. **Shift the pixels already on screen.** Each frame copies the previous
+     bitmap by the stitch step and redraws only the strip the wrap-around
+     exposes, instead of redrawing the whole view from the pattern. The red
+     symmetry guides move to their own overlay, so a copy cannot drag them
+     along.
+  2. **A drag paints only the visible window**, leaving the surrounding margin
+     to be painted when the drag ends.
+  3. **At most one paint per screen frame**, from the latest pointer position,
+     so several pointer events in one frame cannot queue several repaints.
+  4. **Small fixes:** no canvas resize when the size is unchanged; the scratch
+     canvas and the parsed canvas colour are kept instead of rebuilt per paint;
+     the commit shifts stitches by whole rows.
+  5. **An optional symbol-free drag preview**, built only if the Owner wants it
+     once options 1–4 are measured, since it changes what the user sees.
+- **Why:** Owner report, 2026-09-16: "the movement tool is still slow", after
+  G-036 brought every other chart action under 100 ms. Measured on a 400-stitch
+  chart at 64 colours: one stitch of Move costs 35 ms (Color) and 49 ms (B&W)
+  at an 11 px stitch, against 63 ms for a whole Select drag. Symbols are 55–60 %
+  of that time. Every step repaints the view plus its margin from the pattern,
+  although a Move only shifts pixels that are already drawn.
+- **Acceptance criteria:**
+  1. **Speed.** At 1000 stitches and 64 colours, one stitch of Move takes a
+     median of 16 ms or less and a worst of 25 ms or less, in Color, B&W,
+     Grid + photo and Realistic, at 6 px (the symbol floor), at 11 px, and at
+     the size that fits the window. Measured by M1's benchmark, three runs.
+  2. **Ending a drag** stays under 100 ms, including the redraw and the save.
+  3. **4× throttled timings are reported** for the same cases, as G-036 did.
+     They are reported, not asserted.
+  4. **Pixels.** The preview and the committed chart look as they do today,
+     except where the Owner approves a change (the two questions below). The
+     parity suite covers the Move preview, a wrapped Move, a scroll during a
+     drag and a zoom during a drag.
+  5. **Nothing else regresses.** Brush, Select, highlight, scroll and zoom keep
+     their G-036 timings, and every existing suite passes.
+  6. **Release.** Unit and e2e tests cover the new drawing path; lint,
+     type-check and docs-lint pass; deployed and checked live with no console
+     errors.
+- **Open questions for the Owner** (answered at the M2 check-in, before the
+  drawing path changes in M3):
+  - **Grid lines during a drag.** They currently travel with the design and
+    snap back on release, so the heavy 5th/10th lines jump unless the shift is
+    a multiple of 10. Keeping them fixed would look steadier and would let the
+    release reuse the last preview frame. Changing this changes what is on
+    screen mid-drag.
+  - **Grid + photo previews.** D135 records that they are "drawn clean" every
+    frame. Option 1 copies a clean frame and patches clean strips; the pixels
+    should match, but it is no longer a full redraw per frame.
+  - **Option 5**, decided at M4 on M3's numbers: leave symbols on while
+    dragging, or drop them for speed.
+- **Constraints:**
+  - Code is written in a separate git worktree, because other sessions share
+    this tree.
+  - No new runtime dependencies.
+  - Codex is at its usage limit until 2026-09-19. If it is still unavailable,
+    the critique step is noted and skipped, per STANDARDS.md.
+  - Standing deploy approval.
+
+**Milestones:**
+- [ ] **M1 — A Move benchmark and the baseline.**
+  - `scripts/bench-move.spec.ts` plus its config and an `npm run` script, in
+    the shape of `scripts/bench-chart.spec.ts`: a 1000-stitch, 64-colour chart,
+    a drag of 15 one-stitch steps, per-step and end-of-drag timings, the long
+    tasks, and the top self-time frames.
+  - Every case in criterion 1, unthrottled and at 4×.
+  - Deliverable: the baseline table in
+    `docs/reviews/2026-09-16-move-tool-investigation.md`, replacing the partial
+    400-stitch figures.
+- [ ] **M2 — One paint per frame, the visible window only, and the small fixes
+  (options 2, 3, 4).**
+  - No behaviour change on screen, so this milestone needs no Owner ruling.
+  - Gate: measurable improvement against M1, existing suites and parity pass.
+  - The Owner's answers to the two questions above are collected at this
+    check-in.
+- [ ] **M3 — Shift the pixels already on screen (option 1).**
+  - The gesture keeps an offscreen base frame; guides and the selection
+    outline draw on their own overlay.
+  - Wrap-around, a scroll during a drag and a zoom during a drag keep working.
+  - Gate: criteria 1, 2, 4 and 5.
+- [ ] **M4 — Option 5, then release.**
+  - The Owner decides on the symbol-free preview from M3's numbers; it is built
+    only if wanted.
+  - Benchmarks rerun, decisions written, README and HANDOVER updated, deploy
+    and live check.
+
+**Progress log** (newest first):
+- 2026-09-16 — **Goal planned** from the Owner's report, after a research-only
+  investigation (`docs/reviews/2026-09-16-move-tool-investigation.md`). Measured
+  with a throwaway benchmark: 35 / 49 ms per stitch of Move at 11 px in Color /
+  B&W, 16–17 ms at 4 px, and 41–87 ms to end a drag; symbols are 55–60 % of the
+  time, and the commit's stitch shift only 1.7 ms of it. Two 1000-stitch runs
+  were killed by the OS for low memory, so the baseline is a 400-stitch chart
+  and Realistic and zoomed-in Grid + photo are still unmeasured — M1 closes that
+  gap. Codex was unavailable (usage limit until 2026-09-19), so the plan has had
+  no cross-model critique.
