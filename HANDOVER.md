@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-15 at 2963f3c plus the handover commit that carries this line
+Last verified: 2026-09-15 at 9920aab plus the handover commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -72,8 +72,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
   because every cell gets the two-mode fit (D132). It falls back to
   Standard behavior for thin lines, junctions and gradual shading (D096).
 - At 1000 stitches chart actions stay under 100 ms, but 4× CPU throttling still reaches 480 ms (G-036).
-- Browsers without OffscreenCanvas 2D in workers fall back to main-thread
-  exports, which stall the tab between pages (D125).
+- Without OffscreenCanvas 2D in workers, exports run on the main thread and stall the tab (D125).
 - The PDF has no bold face. Whether µ (which extracts as μ) matters in Pattern
   Keeper is unconfirmed (D074, D097).
 - Highlight does nothing in the realistic preview (D028).
@@ -293,6 +292,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 | 2026-09-15 | 0142872 | G-036 M4: Realistic view from stitch tiles, less Grid + photo overscan, caches (D136) | Only this container restarted; 20 of 20 sites 200 before and after; live: M3 viewport check passed, Realistic 2101 and Grid + photo 2195 distinct colours, no console errors |
 | 2026-09-15 | 4c31ab1 | G-036 M5: results report, export and screen comparison tooling | Only this container restarted (another uptime rolled over an hour); 20 of 20 sites 200 before and after; exports match 919923b; live: M3 and M4 checks passed, no console errors |
 | 2026-09-15 | 2963f3c | G-037 M1–M2: symmetry geometry, toggles, red guide lines, symmetric painting, one-step double-click fill (D137, D138) | Only this container restarted (care-card-generator uptime rolled over an hour); 20 of 20 sites 200 before and after; live: G-036 checks passed; symmetry check passed after correcting its brush-colour assumption, mirrored stitch 1,1 and 48,1, undo removed both, no console errors |
+| 2026-09-15 | 9920aab | G-037 M3: quick mirror actions in the Tools dock, each merging a floating selection and mirroring as one undo step | Only this container restarted; 20 of 20 sites 200 before and after; live: G-036 checks, symmetry check and quick-mirror check passed (left half symmetric, one undo restored 1550 stitches), no console errors |
 
 ## Decisions
 

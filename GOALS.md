@@ -1207,8 +1207,12 @@ escalation-tier, not a routine refactor):
       - a moved floating selection merged into the same step.
   - Codex was unavailable (usage limit until 2026-09-19); no Codex review of G-037
     code.
-  - **PENDING APPROVAL: G-037 sign-off** — every milestone is done; deploy and
-    live check are logged below.
+  - Deployed 9920aab. Only this container restarted; 20 of 20 sites 200 before
+    and after. On production, the G-036 checks and the M2 symmetry check passed,
+    and the M3 check found Mirror left half made the Small chart symmetric and one
+    undo restored all 1550 stitches, with no console errors.
+  - **PENDING APPROVAL: G-037 sign-off** — every milestone is done, deployed and
+    checked live.
 - 2026-09-15 — **Owner approved M3** ("go ahead"). Codex remains unavailable until 2026-09-19.
 - 2026-09-15 — **M2: symmetry toggles, red guide lines, symmetric painting, one-step double-click fill (D138).**
   - Tools dock: a Symmetry group of four `aria-pressed` toggles, 2 × 2. The
