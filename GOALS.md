@@ -1128,6 +1128,8 @@ escalation-tier, not a routine refactor):
   - Update HANDOVER; final deploy with a production spot check.
 
 **Progress log** (newest first):
+- 2026-09-15 — **Owner approved M5** ("go to m5"). Codex remains at its usage limit until
+  2026-09-19, so any critique step in M5 is noted and skipped per STANDARDS.md.
 - 2026-09-15 — **M4: every chart action at 1000 stitches stays under 100 ms unthrottled.**
   - Realistic view:
     - Each palette colour's tinted texture is rasterised once per tile size
