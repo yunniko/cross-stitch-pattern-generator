@@ -10,8 +10,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs `master` as deployed on 2026-09-14 (last deploy-log
-row). G-035 (performance) is active: all six milestones are done and the
-goal awaits the Owner's sign-off. Photos decode in a worker (D128); the photo resolution
+row). G-035 (performance) is done and signed off (2026-09-15); results are in
+`docs/reviews/2026-09-15-performance-results.md`. Photos decode in a worker (D128); the photo resolution
 cap was cancelled after failing its quality gates (D130). G-032 (photo enhancement) is done and signed off: every mode is offered
 (D118). G-028 (OXS import and export) is done and signed off (D119). G-033
 (swatch-aware color editor) is deployed and awaits Owner sign-off.
@@ -218,9 +218,8 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **PENDING APPROVAL: G-035 sign-off.** All milestones are done; results are in
-  `docs/reviews/2026-09-15-performance-results.md`. The browser generate target
-  was unreachable after the photo cap was cancelled (D130).
+- **Owner request (2026-09-15): investigate the page freeze** when a 1000-stitch
+  chart is shown or reopened (about 0.5 s). Investigation first, no fix yet.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is
