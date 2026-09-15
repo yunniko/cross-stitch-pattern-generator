@@ -1161,6 +1161,10 @@ escalation-tier, not a routine refactor):
     pixels differ, almost all by 1 level. At 4 and 28 px a few thousand pixels
     differ by up to 13 levels, at every 595th column, where today's long strokes
     carry their own artefacts.
+  - A third Codex pass, reviewing the finished branch diff, failed after 1 m 21 s:
+    Codex reported its usage limit, available again 2026-09-19. Per
+    STANDARDS.md, M3 went ahead without it. The final review of effect ordering,
+    gesture lifecycles, geometry and export callers was JulAI's own.
   - **Owner decisions (2026-09-15):**
     1. on-screen grid lines are drawn as filled rectangles, and the parity
        reference follows; exports keep strokes;
