@@ -40,8 +40,8 @@ export interface SerializedPattern {
   dmcMode?: boolean;
   /** Absent on files saved before G-029 M1, or when the pattern isn't matched to a thread brand. Replaces the legacy `dmcMode: boolean` above (G-016 originally only ever had one brand to be true/false about). */
   threadBrand?: ThreadBrand;
-  /** Absent on files saved before G-024 M5, or when the pattern wasn't generated with `edgeMode: "crisp"`. */
-  edgeMode?: "crisp";
+  /** Absent on files saved before G-024 M5, or for a Standard pattern. "crisp-plus" is written from G-038 on; older builds read it as Standard. */
+  edgeMode?: "crisp" | "crisp-plus";
   /** The photo enhancement the pattern was generated with; absent for Off and on files saved before G-032. */
   enhancementMode?: Exclude<EnhancementModeId, "off">;
   /**
@@ -204,7 +204,7 @@ export function deserializePatternData(data: unknown): StitchPattern {
     name: typeof d.name === "string" && d.name.trim() !== "" ? d.name : undefined,
     sourceImage: isValidSourceImageRef(d.sourceImage) ? d.sourceImage : undefined,
     threadBrand,
-    edgeMode: d.edgeMode === "crisp" ? "crisp" : undefined,
+    edgeMode: d.edgeMode === "crisp" || d.edgeMode === "crisp-plus" ? d.edgeMode : undefined,
     // Any recognized mode is kept, released or not: the file records how it was built (D113).
     enhancementMode: isEnhancementModeId(d.enhancementMode) && d.enhancementMode !== "off" ? d.enhancementMode : undefined,
   };

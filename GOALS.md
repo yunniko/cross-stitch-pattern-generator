@@ -1018,7 +1018,10 @@ escalation-tier, not a routine refactor):
      footprint.
   3. **Controls are not damaged:**
      - (a) Thin lines 1 and 2 cells wide, whose colour lies between the
-       colours on either side: every line cell keeps its colour.
+       colours on either side: Crisp+ keeps at least as many line cells as
+       Crisp. Amended in M1: at 16 colours Crisp itself loses 38 of the 80
+       cells of the 1-cell line, so "every cell" was unmeasurable against
+       this fixture.
      - (b) Smooth gradients (the research ramp, a radial and a sky-like
        one): at most 1 % of cells differ from Crisp, and no fewer distinct
        colours are used.
@@ -1054,7 +1057,8 @@ escalation-tier, not a routine refactor):
   - Standing deploy approval.
 
 **Milestones:**
-- [ ] **M1 — Blurred-step evidence, Crisp+ in the pipeline, no UI.**
+- [x] **M1 — Blurred-step evidence, Crisp+ in the pipeline, no UI.** Done
+  2026-09-16 (D139).
   - `BoundaryEvidenceOptions` gains an edge model:
     - `"step"`: today's model, the default, bit-identical;
     - `"blurred-step"`: fits `c(t) = α + β·s((t − t0)/w)` along the boundary
@@ -1087,6 +1091,39 @@ escalation-tier, not a routine refactor):
   - Deploy, then the Owner's visual check and sign-off.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M1 done; check-in with the Owner before M2.**
+  - **What was built:**
+    - `edgeModel: "blurred-step"` in the Crisp evidence, used only by the new
+      `edgeMode: "crisp-plus"`. It fits a logistic step (5 widths × 9 centre
+      offsets over 48 projection bins) and keeps whichever explanation is
+      more confident, with plateau means as the modes.
+    - Crisp+ is recorded on patterns and in saved files; there is no UI yet.
+  - **Calibration** (`docs/reviews/2026-09-16-crisp-plus-calibration.md`):
+    - margin 0.75 and threshold 0.7 are kept;
+    - wider margins changed 4,238–4,707 gradient cells and erased the 1-cell
+      line;
+    - lower thresholds cost 8 line cells.
+  - **Results on the blur series** (blend boundary cells, Crisp → Crisp+):
+    - blur 0.25: 91 → 6 at 8 colours, 94 → 6 at 16, which meets criterion
+      2's target of 12 or fewer;
+    - blur 0.5: 110 → 52 and 107 → 53, still above the target of 25 (M2);
+    - blur 1: unchanged at 95 and 121 (M2).
+    - Controls: gradients have 0 changed cells, thin lines keep at least as
+      many cells as Crisp, and confetti stays at 0.
+  - **Verification:**
+    - Full unit suite in the worktree: 960 passed, 3 skipped, 1 failed. The
+      failing new test counted the ramp fixture's real seam as a gradient;
+      after that test-only fix, the Crisp+ specs pass 12/12.
+    - Golden hashes, the Crisp evidence equivalence test and the Crisp
+      acceptance matrix are unchanged (criterion 1).
+    - Type-check and lint are clean.
+  - **Deviations:**
+    - Codex was unavailable: usage limit until 2026-09-19. Per STANDARDS.md
+      the goal proceeds without it, and the M1 design was self-reviewed
+      against the sweep.
+    - Criterion 3a was amended to "no fewer line cells than Crisp".
+  - **Next, M2:** transition-strip snapping for blurs of 0.5–1 cell, guarded
+    against thin lines.
 - 2026-09-16 — Goal planned from the 2026-09-15 research; M1 started with a
   Codex critique of the M1 and M2 designs. Crisp+ stays invisible to users
   until M4, so there is no deploy before then.

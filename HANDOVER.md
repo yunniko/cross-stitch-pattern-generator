@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-15 at 9920aab plus the handover commit that carries this line
+Last verified: 2026-09-16 at e4ee618 plus the G-038 M1 commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -123,8 +123,8 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 - **Crisp mode** (`lib/crisp/`): a frozen evidence layer (D065) feeds weighted
   quantization, admissible-label unary costs in ICM and cleanup, repair after
   merges, and mode-aware finalization (D061–D072). The layer evaluates every
-  cell (D132); its sampling uses typed arrays and converts each source row to
-  OKLab once per job (G-035 M4).
+  cell (D132) and converts each source row to OKLab once per job (G-035 M4).
+  Crisp+ (`edgeMode: "crisp-plus"`, G-038, no UI yet) adds a blurred-step evidence model (D139).
 - **Threads** (`lib/threads/`): `thread-brands.ts` is the registry. Its
   `matching` field is "direct" for DMC and Cosmo, or "dmc-equivalence" for
   Anchor. `brand-match.ts` does the snapping. Data provenance is in
@@ -186,7 +186,8 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 - Crisp consumers use the shared admissible-cost functions or throw. Crisp
   with contour refinement throws (D063, D068).
 - Crisp boundary evidence must stay identical to its verbatim reference copy:
-  `tests/unit/crisp-evidence-equivalence.spec.ts` (G-035 M4).
+  `tests/unit/crisp-evidence-equivalence.spec.ts` (G-035 M4). Crisp+ changes stay behind
+  `edgeModel: "blurred-step"` and `"crisp-plus"`, never Crisp's defaults (D139).
 - ICM inner loops use no closures or array scans (D044).
 - Code e2e specs load in Node takes symmetry types from `lib/editor/symmetry-axes.ts`, not `symmetry.ts` (G-037).
 - Screen drawing = frozen pre-G-036 drawing with band grid lines (photos ±16, outlines ±1),
@@ -217,14 +218,14 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
+- **G-038 Crisp+ in progress:** M1 done (D139); M2 snapping awaits the Owner's check-in; plan in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is
   live (D122, D123); see the G-033 progress log in `GOALS.md`. Out of scope: "+ Add"
   keeps its old flow, and touch screens pick on tap with no comparison.
-- Left open from G-028: OXS symbols use each reader's own font glyph, and the
-  export is untested in PCStitch or WinStitch
-  (`docs/reviews/2026-09-13-oxs-format-evidence.md`).
+- Left open from G-028: OXS symbols use each reader's own font glyph, and the export is untested
+  in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`).
 - Left open from G-032: the 1.5 s enhancement target, and Brighten's
   real-photo calibration.
 - G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.

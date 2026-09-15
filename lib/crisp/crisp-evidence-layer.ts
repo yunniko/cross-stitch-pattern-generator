@@ -38,6 +38,12 @@ export const DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS: CrispEvidenceLayerOptions = {
   requireNeighborAgreement: true,
 };
 
+/** Crisp+ (G-038): the same layer with the blurred-step edge model, so slightly soft real edges count as boundaries (D139). */
+export const CRISP_PLUS_EVIDENCE_LAYER_OPTIONS: CrispEvidenceLayerOptions = {
+  ...DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS,
+  boundaryEvidenceOptions: { ...DEFAULT_BOUNDARY_EVIDENCE_OPTIONS, edgeModel: "blurred-step" },
+};
+
 const EIGHT_NEIGHBOR_OFFSETS: ReadonlyArray<readonly [number, number]> = [
   [1, 0],
   [-1, 0],

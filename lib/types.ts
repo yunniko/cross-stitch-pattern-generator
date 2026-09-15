@@ -110,8 +110,8 @@ export interface StitchPattern {
   sourceImage?: SourceImageRef;
   /** Set when every palette color is a real thread of this brand; drives "+ Add" and the A4 thread section (D92). */
   threadBrand?: ThreadBrand;
-  /** Set when generated in Crisp mode. Informational only; absent means Standard (G-024). */
-  edgeMode?: Extract<EdgeMode, "crisp">;
+  /** Set when generated in Crisp or Crisp+ mode. Informational only; absent means Standard (G-024, G-038). */
+  edgeMode?: Extract<EdgeMode, "crisp" | "crisp-plus">;
   /** The photo enhancement the pattern was generated with (G-032). Informational; absent means Off. */
   enhancementMode?: Exclude<EnhancementModeId, "off">;
 }

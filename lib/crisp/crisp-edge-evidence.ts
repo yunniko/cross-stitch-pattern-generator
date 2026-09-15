@@ -42,7 +42,15 @@ export interface BoundaryEvidenceOptions {
   /** Minimum squared-OKLab distance between the two fitted modes to even consider them distinct -- guards against calling ordinary sampling/anti-aliasing noise within one true region a "boundary." ~1 JND, matching contour-cleanup.ts's own `costCeiling` convention. */
   minModeSeparation: number;
   maxLloydIterations: number;
+  /**
+   * "step" (default, Crisp): sharpness compares a hard two-colour step with an affine ramp. "blurred-step" (Crisp+,
+   * G-038): also fits a logistic step of fitted centre and width, and keeps whichever explanation is more confident,
+   * with the plateau colours on either side as the modes (D139).
+   */
+  edgeModel?: EdgeModel;
 }
+
+export type EdgeModel = "step" | "blurred-step";
 
 export const DEFAULT_BOUNDARY_EVIDENCE_OPTIONS: BoundaryEvidenceOptions = {
   neighborhoodMargin: 0.75,
@@ -370,6 +378,177 @@ function computeEdgeSharpness(s: SampleColumns, dirX: number, dirY: number, midX
   return denom > 0 ? affineResidual / denom : 1;
 }
 
+/** Projection bins for the blurred-step fit: models are compared on bin means plus the within-bin scatter every model shares. */
+const BLUR_BINS = 48;
+/** Logistic scales tried, in neighborhood-normalized units (the neighborhood spans 2.5 cells at the default margin). */
+const BLUR_WIDTHS = [0.02, 0.04, 0.07, 0.1, 0.14];
+/** Offsets of the logistic centre from the two spatial centroids' midpoint, in the same units. */
+const BLUR_CENTRE_OFFSETS = [-0.12, -0.09, -0.06, -0.03, 0, 0.03, 0.06, 0.09, 0.12];
+/** A sample is on a plateau when the fitted logistic is below this value or above 1 minus it. */
+const PLATEAU_LEVEL = 0.12;
+/** Each plateau must hold at least this share of the neighborhood's weight for its colour to be trusted. */
+const MIN_PLATEAU_SHARE = 0.08;
+
+const bins = {
+  w: new Float64Array(BLUR_BINS),
+  t: new Float64Array(BLUR_BINS),
+  L: new Float64Array(BLUR_BINS),
+  A: new Float64Array(BLUR_BINS),
+  B: new Float64Array(BLUR_BINS),
+};
+
+interface BlurredStepFit {
+  modes: [Oklab, Oklab];
+  coverage: [number, number];
+  spread: [number, number];
+  edgeSharpness: number;
+}
+
+const logistic = (x: number) => 1 / (1 + Math.exp(-x));
+
+/**
+ * The blurred-step explanation of one neighborhood (G-038, D139). Samples are binned by their projection onto the
+ * boundary direction, which `computeEdgeSharpness` has already written into `s.projection`. Each channel is regressed on
+ * `logistic((t − t0) / w)` over a small grid of centres and widths, and on `t` itself for the affine ramp; both see the
+ * same bins, so the comparison is like for like. Plateau colours are weighted means of the samples the best logistic
+ * puts clearly on either side, never extrapolated. Returns null when either plateau is too thin to trust.
+ */
+function fitBlurredStep(s: SampleColumns, midT: number): BlurredStepFit | null {
+  const n = s.count;
+  const { L, A, B, weight, projection, cellWeight } = s;
+  let tMin = Infinity;
+  let tMax = -Infinity;
+  for (let i = 0; i < n; i++) {
+    if (weight[i] <= 0) continue;
+    if (projection[i] < tMin) tMin = projection[i];
+    if (projection[i] > tMax) tMax = projection[i];
+  }
+  if (!(tMax > tMin)) return null;
+
+  bins.w.fill(0);
+  bins.t.fill(0);
+  bins.L.fill(0);
+  bins.A.fill(0);
+  bins.B.fill(0);
+  const binScale = BLUR_BINS / (tMax - tMin);
+  let totalW = 0;
+  let totalSq = 0;
+  for (let i = 0; i < n; i++) {
+    const w = weight[i];
+    if (w <= 0) continue;
+    const b = Math.min(BLUR_BINS - 1, Math.floor((projection[i] - tMin) * binScale));
+    bins.w[b] += w;
+    bins.t[b] += w * projection[i];
+    bins.L[b] += w * L[i];
+    bins.A[b] += w * A[i];
+    bins.B[b] += w * B[i];
+    totalW += w;
+    totalSq += w * (L[i] * L[i] + A[i] * A[i] + B[i] * B[i]);
+  }
+  if (totalW <= 0) return null;
+
+  // Every model's residual = within-bin scatter (shared) + the regression residual of the bin means.
+  let meanL = 0;
+  let meanA = 0;
+  let meanB = 0;
+  let betweenSq = 0;
+  for (let b = 0; b < BLUR_BINS; b++) {
+    const w = bins.w[b];
+    if (w <= 0) continue;
+    bins.t[b] /= w;
+    bins.L[b] /= w;
+    bins.A[b] /= w;
+    bins.B[b] /= w;
+    meanL += w * bins.L[b];
+    meanA += w * bins.A[b];
+    meanB += w * bins.B[b];
+    betweenSq += w * (bins.L[b] * bins.L[b] + bins.A[b] * bins.A[b] + bins.B[b] * bins.B[b]);
+  }
+  meanL /= totalW;
+  meanA /= totalW;
+  meanB /= totalW;
+  const meanSq = meanL * meanL + meanA * meanA + meanB * meanB;
+  const withinScatter = Math.max(0, totalSq - betweenSq);
+  const betweenScatter = Math.max(0, betweenSq - totalW * meanSq);
+
+  /** Residual per unit weight of regressing the bin means on `feature(t)`. */
+  const residualFor = (feature: (t: number) => number) => {
+    let xMean = 0;
+    for (let b = 0; b < BLUR_BINS; b++) if (bins.w[b] > 0) xMean += bins.w[b] * feature(bins.t[b]);
+    xMean /= totalW;
+    let sxx = 0;
+    let sxL = 0;
+    let sxA = 0;
+    let sxB = 0;
+    for (let b = 0; b < BLUR_BINS; b++) {
+      const w = bins.w[b];
+      if (w <= 0) continue;
+      const dx = feature(bins.t[b]) - xMean;
+      sxx += w * dx * dx;
+      sxL += w * dx * (bins.L[b] - meanL);
+      sxA += w * dx * (bins.A[b] - meanA);
+      sxB += w * dx * (bins.B[b] - meanB);
+    }
+    const explained = sxx > 0 ? (sxL * sxL + sxA * sxA + sxB * sxB) / sxx : 0;
+    return (withinScatter + Math.max(0, betweenScatter - explained)) / totalW;
+  };
+
+  const affineResidual = residualFor((t) => t);
+  let bestResidual = Infinity;
+  let bestT0 = midT;
+  let bestWidth = BLUR_WIDTHS[0];
+  for (const width of BLUR_WIDTHS) {
+    for (const offset of BLUR_CENTRE_OFFSETS) {
+      const t0 = midT + offset;
+      const residual = residualFor((t) => logistic((t - t0) / width));
+      if (residual < bestResidual) {
+        bestResidual = residual;
+        bestT0 = t0;
+        bestWidth = width;
+      }
+    }
+  }
+
+  const sums = [
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+  ]; // per side: weight, L, A, B, squared norm
+  let inCell0 = 0;
+  let inCell1 = 0;
+  for (let i = 0; i < n; i++) {
+    const w = weight[i];
+    if (w > 0) {
+      const level = logistic((projection[i] - bestT0) / bestWidth);
+      const side = level < PLATEAU_LEVEL ? sums[0] : level > 1 - PLATEAU_LEVEL ? sums[1] : null;
+      if (side) {
+        side[0] += w;
+        side[1] += w * L[i];
+        side[2] += w * A[i];
+        side[3] += w * B[i];
+        side[4] += w * (L[i] * L[i] + A[i] * A[i] + B[i] * B[i]);
+      }
+    }
+    if (projection[i] < bestT0) inCell0 += cellWeight[i];
+    else inCell1 += cellWeight[i];
+  }
+  if (sums[0][0] < MIN_PLATEAU_SHARE * totalW || sums[1][0] < MIN_PLATEAU_SHARE * totalW) return null;
+  const inCell = inCell0 + inCell1;
+  if (inCell <= 0) return null;
+
+  const modes = sums.map(([w, sl, sa, sb]) => [sl / w, sa / w, sb / w] as Oklab) as [Oklab, Oklab];
+  const spread = sums.map(([w, , , , sq], k) => {
+    const m = modes[k];
+    return Math.max(0, sq / w - (m[0] * m[0] + m[1] * m[1] + m[2] * m[2]));
+  }) as [number, number];
+  const denom = affineResidual + bestResidual;
+  return {
+    modes,
+    coverage: [inCell0 / inCell, inCell1 / inCell],
+    spread,
+    edgeSharpness: denom > 0 ? affineResidual / denom : 1,
+  };
+}
+
 /** The whole neighborhood's weighted mean color, the single mode reported when no genuine second mode is found. */
 function weightedMean(s: SampleColumns): Oklab {
   let sumL = 0;
@@ -488,6 +667,30 @@ export function extractBoundaryEvidence(
   const colorConfidence = separation / (separation + maxSpread);
   const spatialConfidence = Math.min(1, spatialSeparation / 0.5);
   const confidence = colorConfidence * spatialConfidence * edgeSharpness;
+
+  if (options.edgeModel === "blurred-step" && boundaryDirection) {
+    // `computeEdgeSharpness` projected every sample relative to the centroids' midpoint, so that midpoint is t = 0.
+    const blurred = fitBlurredStep(s, 0);
+    if (blurred) {
+      const [m0, m1] = blurred.modes;
+      const plateauSeparation = (m0[0] - m1[0]) ** 2 + (m0[1] - m1[1]) ** 2 + (m0[2] - m1[2]) ** 2;
+      const plateauSpread = Math.max(blurred.spread[0], blurred.spread[1]);
+      if (plateauSeparation >= options.minModeSeparation) {
+        const blurredConfidence = (plateauSeparation / (plateauSeparation + plateauSpread)) * spatialConfidence * blurred.edgeSharpness;
+        if (blurredConfidence > confidence) {
+          return {
+            modes: blurred.modes,
+            coverage: blurred.coverage,
+            spread: blurred.spread,
+            spatialSeparation,
+            boundaryDirection,
+            edgeSharpness: blurred.edgeSharpness,
+            confidence: blurredConfidence,
+          };
+        }
+      }
+    }
+  }
 
   return { modes: [c0, c1], coverage, spread, spatialSeparation, boundaryDirection, edgeSharpness, confidence };
 }

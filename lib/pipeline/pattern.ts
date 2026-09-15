@@ -8,6 +8,7 @@ import {
   allCellIndices,
   repairCrispAssignments,
   selectWeightedQuantizer,
+  CRISP_PLUS_EVIDENCE_LAYER_OPTIONS,
   DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS,
   type CrispEvidenceLayer,
   type CrispEvidenceLayerOptions,
@@ -31,7 +32,12 @@ import type { PaletteColor, PixelBuffer, RGB, StitchPattern } from "../types";
 export type PaletteMode = "full" | ThreadBrand;
 
 /** "standard" = today's exact behavior (default). "crisp" = the G-024 Crisp Edges feature (HANDOVER.md D57-D71): preserves hard color boundaries the standard averaging pipeline would otherwise blend into a manufactured intermediate color. */
-export type EdgeMode = "standard" | "crisp";
+export type EdgeMode = "standard" | "crisp" | "crisp-plus";
+
+/** Crisp+ (G-038) runs every Crisp stage with its own evidence options, plus the passes that only it adds. */
+export function isCrispEdgeMode(edgeMode: EdgeMode): edgeMode is "crisp" | "crisp-plus" {
+  return edgeMode === "crisp" || edgeMode === "crisp-plus";
+}
 
 export interface BuildPatternOptions {
   longerSideStitches: number;
@@ -55,10 +61,11 @@ export interface BuildPatternOptions {
 
 export function buildPattern(imageData: PixelBuffer, options: BuildPatternOptions): StitchPattern {
   const edgeMode = options.edgeMode ?? "standard";
-  if (edgeMode === "crisp" && options.contourRefinement) {
+  const crisp = isCrispEdgeMode(edgeMode);
+  if (crisp && options.contourRefinement) {
     // Fail before doing any work; runContourRefinement repeats this guard for direct callers (D68).
     throw new Error(
-      "edgeMode: \"crisp\" does not support contourRefinement: its candidate search has no admissibility awareness and could overwrite a confident cell's supported color. Disable one of the two options."
+      `edgeMode: "${edgeMode}" does not support contourRefinement: its candidate search has no admissibility awareness and could overwrite a confident cell's supported color. Disable one of the two options.`
     );
   }
 
@@ -82,12 +89,13 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
 
   // Needed by ICM. Crisp still computes it without `optimize`, as it did while it fed the removed pre-filter (D72, D132).
   const shouldOptimize = options.optimize ?? true;
-  const pairEvidence: Float32Array | undefined = edgeMode === "crisp" || shouldOptimize ? computePairEdgeEvidence(imageData, gridWidth, gridHeight) : undefined;
+  const pairEvidence: Float32Array | undefined = crisp || shouldOptimize ? computePairEdgeEvidence(imageData, gridWidth, gridHeight) : undefined;
 
   let evidenceLayer: CrispEvidenceLayer | undefined;
-  if (edgeMode === "crisp") {
+  if (crisp) {
     // Every cell is evaluated: no cheap pre-filter kept every confident cell on real photos (D132).
-    evidenceLayer = buildCrispEvidenceLayer(colorSource, gridWidth, gridHeight, allCellIndices(gridWidth, gridHeight), options.crispEvidenceLayerOptions ?? DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS);
+    const defaultLayerOptions = edgeMode === "crisp-plus" ? CRISP_PLUS_EVIDENCE_LAYER_OPTIONS : DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS;
+    evidenceLayer = buildCrispEvidenceLayer(colorSource, gridWidth, gridHeight, allCellIndices(gridWidth, gridHeight), options.crispEvidenceLayerOptions ?? defaultLayerOptions);
   }
 
   // Every later stage reads the true cells, their OKLab, importance, pair
@@ -101,7 +109,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   const quantizer = options.quantizer ?? kMeansQuantizer;
   let quantized: Uint8Array;
   let rawPalette: RGB[];
-  if (edgeMode === "crisp" && evidenceLayer) {
+  if (crisp && evidenceLayer) {
     const quantizerFn = selectWeightedQuantizer(quantizer);
     const crispResult = runCrispQuantizationStage(denoised.cells, options.colorCount, importance, evidenceLayer, quantizerFn, undefined, denoised.cellOklab);
     quantized = crispResult.cellPaletteIndex;
@@ -134,7 +142,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   const merged = shouldOptimize ? mergeSimilarColors(optimized, rawPalette) : { cellPaletteIndex: optimized, palette: rawPalette };
 
   // The merge remap can leave a crisp cell on a label none of its modes supports; repair against the merged palette (D69).
-  if (edgeMode === "crisp" && evidenceLayer && shouldOptimize) {
+  if (crisp && evidenceLayer && shouldOptimize) {
     const mergedPaletteOklab = merged.palette.map(rgbToOklab);
     merged.cellPaletteIndex = repairCrispAssignments(merged.cellPaletteIndex, evidenceLayer, mergedPaletteOklab);
   }
@@ -175,7 +183,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   // mean, the correct centroid for the squared-OKLab objective (code review 2026-09-09, finding 3).
   let finalCellPaletteIndex: Uint8Array = compactCellPaletteIndex;
   let compactPalette: RGB[];
-  if (edgeMode === "crisp" && evidenceLayer) {
+  if (crisp && evidenceLayer) {
     // G-024 M4.7 (HANDOVER.md D70): a crisp cell contributes its selected
     // supporting mode's color instead of its raw, still-manufactured
     // averaged color -- see `finalizeCrispPalette`'s own doc comment for
@@ -252,7 +260,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     // `threadBrand` does (G-024 M5) -- `applyBrandPalette`'s own
     // `{...pattern, ...}` spread below carries this through to the brand-
     // matched return path too.
-    edgeMode: edgeMode === "crisp" ? "crisp" : undefined,
+    edgeMode: crisp ? edgeMode : undefined,
     enhancementMode: enhancementMode === "off" ? undefined : enhancementMode,
   };
 
