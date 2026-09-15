@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-15 at b201c9a plus the handover commit that carries this line
+Last verified: 2026-09-15 at ab1cfaa plus the handover commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs `b201c9a` (last deploy-log row); `master` is ahead with G-036 M3.
+**Production** runs `master` as deployed on 2026-09-15 (last deploy-log row).
 G-036 (charts draw without freezing) is active, M1–M3 done. Signed off: G-035
 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap
 cancelled, D130), G-032 enhancement (D118), G-028 OXS (D119). G-033 (swatch-aware
@@ -161,8 +161,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 - The Owner gave standing push and deploy approval for this project on
   2026-09-13: deploy verified work without asking, unless something needs
   the Owner's attention. Deploys still follow `COMPANY/INFRASTRUCTURE_DEPLOY.md`.
-- Keep one session per working tree. A stale `next dev` (PID 17476, from
-  2026-09-12) belongs to another session; don't stop it.
+- One session per working tree; don't stop another session's `next dev` (PID 17476, 2026-09-12).
 - A goal isn't DONE with a dirty tree, placeholders, or no logged Owner
   sign-off (OPERATIONS.md §5, D098).
 - E2E runs against a production build on port 30200 (D102). Locally an
@@ -220,8 +219,8 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **G-036:** M1–M3 done (D134, D135); **BLOCKED:** M3 isn't deployed, the deploy key is missing.
-  Open for the Owner: fractional-DPR screen differences; M4–M5 need approval (GOALS.md).
+- **G-036 in progress:** M1–M3 done and deployed (D134, D135); M4 approved and under way;
+  M5 needs approval. Deploy key: `~/.ssh/claude_contabo`.
 - **PENDING APPROVAL: G-037, symmetry and quick mirror (DRAFT)**, open questions in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
@@ -293,6 +292,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 | 2026-09-14 | 3085e6c | Crisp evaluates every cell; the lossy pre-filter is removed (D132) | Only this container restarted; 20 of 20 sites 200; live: a Crisp 50 × 31 chart generated, no decode fallback, no console errors |
 | 2026-09-15 | 5ab38eb | G-035 M5: identical-output ICM and k-means for large grids (D133) | This container restarted; a concurrent deploy by another session recreated natural-dye-mordant-calculator (00:01:57) and julienika-home (00:03:22), and julienika.cz briefly returned 502, then 200 on three retries; 20 of 20 sites 200 after; live: a Crisp 50 × 31 chart generated, no console errors |
 | 2026-09-15 | b201c9a | G-036 M1–M2: chart parity oracle, `npm run bench:chart`, fast on-screen fills and highlight mask (D134) | Only this container restarted; 20 of 20 sites 200 before and after; live: chart drawn, zoom, highlight and view switches, no console errors |
+| 2026-09-15 | ab1cfaa | G-036 M3: chart frame with a viewport canvas, grid bands on screen (D135) | Only this container restarted (care-card-generator's uptime rolled over an hour); 20 of 20 sites 200 before and after; live: zoomed frame 2700 px, canvas 1680 px, far-corner scroll painted, highlight, views, no console errors |
 
 ## Decisions
 

@@ -1167,7 +1167,10 @@ escalation-tier, not a routine refactor):
     Unthrottled (3 runs), the 100 ms targets are met except Grid + photo
     (115 ms) and Realistic, whose preview generation is M4 work. Throttled
     rows are single runs.
-  - Pushed to master as ad8a1c6.
+  - Pushed to master as ad8a1c6. Deployed ab1cfaa with `claude_contabo`: only this
+    container restarted; 20 of 20 sites 200 before and after. The live check
+    drew the zoomed chart (frame 2700 px, canvas 1680 px), covered a far-corner
+    scroll, and ran highlight and views with no console errors.
   - ~~BLOCKED~~ (resolved below): deploy of M3. The deploy key `~/.ssh/claude_canis_lunaris` is
     missing: the `.ssh` folder was changed at 13:39 today, after this morning's
     deploys used the key. ssh gets `Permission denied (publickey)`. The only
