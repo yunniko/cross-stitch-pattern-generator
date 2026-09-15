@@ -1128,6 +1128,15 @@ escalation-tier, not a routine refactor):
   - Update HANDOVER; final deploy with a production spot check.
 
 **Progress log** (newest first):
+- 2026-09-15 — **Owner decisions at the M3 check-in:**
+  - The deploy key is `~/.ssh/claude_contabo`, renamed for consistency by
+    another agent at the Owner's request. The M3 deploy is unblocked.
+  - The fractional-DPR screen differences (up to 10 levels on grid-line edge
+    pixels, about 1% of pixels) are accepted. They amend criterion 2 at
+    fractional device pixel ratios; the canvas bytes still match.
+  - M4 approved ("go to m4").
+  - Codex is at its usage limit until 2026-09-19, so M4's critique step can't
+    run. Per STANDARDS.md, M4 proceeds without it.
 - 2026-09-15 — **M3: viewport canvas; zoom, views, highlight and select no longer freeze.**
   - `app/chart-scene.ts` draws any chart rectangle from the scene plus the
     active gesture. `app/hooks/use-chart-renderer.ts` sizes, places and repaints
@@ -1159,7 +1168,7 @@ escalation-tier, not a routine refactor):
     (115 ms) and Realistic, whose preview generation is M4 work. Throttled
     rows are single runs.
   - Pushed to master as ad8a1c6.
-  - **BLOCKED: deploy of M3.** The deploy key `~/.ssh/claude_canis_lunaris` is
+  - ~~BLOCKED~~ (resolved below): deploy of M3. The deploy key `~/.ssh/claude_canis_lunaris` is
     missing: the `.ssh` folder was changed at 13:39 today, after this morning's
     deploys used the key. ssh gets `Permission denied (publickey)`. The only
     other key, `claude_contabo`, isn't documented for this host, so it wasn't
