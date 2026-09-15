@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import type { SymmetryAxes, SymmetryAxis } from "@/lib/editor/symmetry";
 import type { Tool } from "../editor-types";
 
 // Original stroke-based SVGs rather than an icon-library dependency. Every
@@ -103,13 +104,13 @@ const TOOL_GROUPS = [
     {
       tool: "select" as const,
       label: "Select",
-      title: "Drag a rectangle to select it -- then copy/paste/move/flip it before it merges back into the picture",
+      title: "Drag a rectangle to select it -- then copy/paste/move/flip it before it merges back into the picture. Ignores symmetry.",
       Icon: SelectIcon,
     },
     {
       tool: "move" as const,
       label: "Move",
-      title: "Drag to reposition the whole design (and its photo underlay) within the canvas",
+      title: "Drag to reposition the whole design (and its photo underlay) within the canvas. Ignores symmetry.",
       Icon: MoveIcon,
     },
   ],
@@ -120,13 +121,36 @@ const TOOL_GROUPS = [
   ],
 ];
 
+/** A square with the axis drawn across it, as the red guide line appears on the chart. */
+function AxisIcon({ axis }: { axis: SymmetryAxis }) {
+  const line = { vertical: [12, 3, 12, 21], horizontal: [3, 12, 21, 12], diagonal: [4, 4, 20, 20], antidiagonal: [20, 4, 4, 20] }[axis];
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" strokeLinecap="round" aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="1" stroke="currentColor" strokeWidth="1.4" opacity="0.5" />
+      <line x1={line[0]} y1={line[1]} x2={line[2]} y2={line[3]} stroke="#dc2626" strokeWidth="2.2" />
+    </svg>
+  );
+}
+
+/** The symmetry toggles, 2 × 2 so the dock stays short enough for a 768 px window (G-037). */
+const SYMMETRY_TOGGLES: Array<{ axis: SymmetryAxis; label: string; title: string }> = [
+  { axis: "vertical", label: "Vertical symmetry", title: "Paint mirrored across the vertical centre line" },
+  { axis: "horizontal", label: "Horizontal symmetry", title: "Paint mirrored across the horizontal centre line" },
+  { axis: "diagonal", label: "Diagonal symmetry ↘", title: "Paint mirrored across the diagonal from top left to bottom right" },
+  { axis: "antidiagonal", label: "Diagonal symmetry ↙", title: "Paint mirrored across the diagonal from top right to bottom left" },
+];
+
 export interface ToolsDockProps {
   activeTool: Tool;
   disabled: boolean;
   onSelect: (tool: Tool) => void;
+  symmetry: SymmetryAxes;
+  /** Diagonal symmetry exists only on a square canvas. */
+  squareCanvas: boolean;
+  onToggleSymmetry: (axis: SymmetryAxis) => void;
 }
 
-export function ToolsDock({ activeTool, disabled, onSelect }: ToolsDockProps) {
+export function ToolsDock({ activeTool, disabled, onSelect, symmetry, squareCanvas, onToggleSymmetry }: ToolsDockProps) {
   return (
     <aside className="flex w-16 shrink-0 flex-col items-center gap-2 border-r border-zinc-300 bg-white py-3 dark:border-zinc-800 dark:bg-zinc-900">
       <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">Tools</span>
@@ -151,6 +175,31 @@ export function ToolsDock({ activeTool, disabled, onSelect }: ToolsDockProps) {
           ))}
         </Fragment>
       ))}
+      <div className="my-1 h-px w-8 shrink-0 bg-zinc-300 dark:bg-zinc-700" aria-hidden="true" />
+      <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400" id="symmetry-heading">
+        Symmetry
+      </span>
+      <div role="group" aria-labelledby="symmetry-heading" className="grid grid-cols-2 gap-1">
+        {SYMMETRY_TOGGLES.map(({ axis, label, title }) => {
+          const needsSquare = (axis === "diagonal" || axis === "antidiagonal") && !squareCanvas;
+          return (
+            <button
+              key={axis}
+              type="button"
+              onClick={() => onToggleSymmetry(axis)}
+              disabled={disabled || needsSquare}
+              title={needsSquare ? `${title}. Needs a square canvas.` : title}
+              aria-label={label}
+              aria-pressed={symmetry[axis]}
+              className={`flex h-7 w-7 items-center justify-center rounded border disabled:cursor-not-allowed disabled:opacity-40 ${
+                symmetry[axis] ? "border-red-600 bg-red-50 dark:bg-red-950" : "border-zinc-300 dark:border-zinc-700"
+              }`}
+            >
+              <AxisIcon axis={axis} />
+            </button>
+          );
+        })}
+      </div>
     </aside>
   );
 }

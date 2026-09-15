@@ -1,4 +1,5 @@
-import { deserializePattern, deserializePatternData, FORMAT_VERSION } from "./pattern-serialize";
+import { deserializePattern, deserializePatternData, FORMAT_VERSION, readSymmetry, serializeSymmetry, type SerializedSymmetry } from "./pattern-serialize";
+import { NO_SYMMETRY, type SymmetryAxes } from "./symmetry-axes";
 import type { RGB, SourceImageRef, StitchPattern, ThreadSwatchRef } from "../types";
 
 /**
@@ -53,6 +54,8 @@ export interface StoredProjectRecord {
   edgeMode?: StitchPattern["edgeMode"];
   enhancementMode?: StitchPattern["enhancementMode"];
   sourceImage?: StoredSourceImage;
+  /** The symmetry axes that were on (G-037); absent when none were, and on records written before G-037. */
+  symmetry?: SerializedSymmetry;
 }
 
 export interface ProjectLoadFailure {
@@ -63,14 +66,16 @@ export interface ProjectLoadFailure {
 
 export interface ProjectLoadResult {
   pattern: StitchPattern | null;
+  /** The symmetry axes saved with the project; off when absent or unreadable. */
+  symmetry?: SymmetryAxes;
   /** Set when a saved project existed but couldn't be restored; the corrupt slot has been cleared so it won't fail again on the next load. */
   failure?: ProjectLoadFailure;
 }
 
 export interface ProjectStore {
   load(): Promise<ProjectLoadResult>;
-  /** Saves `pattern`, or clears the slot (and any stored photo) when null. Rejects when the underlying storage fails. */
-  save(pattern: StitchPattern | null): Promise<void>;
+  /** Saves `pattern` with its symmetry axes, or clears the slot (and any stored photo) when null. Rejects when the underlying storage fails. */
+  save(pattern: StitchPattern | null, symmetry?: SymmetryAxes): Promise<void>;
 }
 
 export function createProjectStore(kv: KeyValueStore): ProjectStore {
@@ -81,19 +86,20 @@ export function createProjectStore(kv: KeyValueStore): ProjectStore {
       const photoKey = photoKeyOf(record);
       const photo = photoKey ? await kv.get(photoKey) : undefined;
       try {
-        return { pattern: decodeRecord(record, photo) };
+        const pattern = decodeRecord(record, photo);
+        return { pattern, symmetry: readSymmetry((record as { symmetry?: unknown }).symmetry, pattern.width, pattern.height) };
       } catch (error) {
         await kv.delete(CURRENT_PROJECT_KEY).catch(() => {});
         return { pattern: null, failure: { error, payload: describeRecord(record, photo) } };
       }
     },
-    async save(pattern) {
+    async save(pattern, symmetry = NO_SYMMETRY) {
       if (!pattern) {
         await kv.delete(CURRENT_PROJECT_KEY);
         await prunePhotos(kv, null);
         return;
       }
-      const { record, photo } = await encodeRecord(pattern);
+      const { record, photo } = await encodeRecord(pattern, symmetry);
       // Photo first, then the record that references it: a failure in
       // between leaves an orphan photo (pruned on the next save), never a
       // record pointing at a missing photo.
@@ -110,7 +116,7 @@ async function prunePhotos(kv: KeyValueStore, keep: string | null): Promise<void
   }
 }
 
-async function encodeRecord(pattern: StitchPattern): Promise<{ record: StoredProjectRecord; photo?: { key: string; dataUrl: string } }> {
+async function encodeRecord(pattern: StitchPattern, symmetry: SymmetryAxes): Promise<{ record: StoredProjectRecord; photo?: { key: string; dataUrl: string } }> {
   const record: StoredProjectRecord = {
     storeVersion: STORE_VERSION,
     // Still store version 1, so an older open tab can read the record; `formatVersion` tells legacy records apart (D122).
@@ -125,6 +131,8 @@ async function encodeRecord(pattern: StitchPattern): Promise<{ record: StoredPro
     edgeMode: pattern.edgeMode,
     enhancementMode: pattern.enhancementMode,
   };
+  const storedSymmetry = serializeSymmetry(symmetry);
+  if (storedSymmetry) record.symmetry = storedSymmetry;
   if (!pattern.sourceImage) return { record };
   const { dataUrl, ...rest } = pattern.sourceImage;
   const key = PHOTO_KEY_PREFIX + (await hashDataUrl(dataUrl));

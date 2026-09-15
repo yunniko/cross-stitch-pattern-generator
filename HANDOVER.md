@@ -51,8 +51,8 @@ color editor) is deployed and awaits Owner sign-off.
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-15**: `tsc --noEmit` and eslint clean; Vitest 930 passed
-(1 opt-in skip) at G-037 M1; Playwright 289/289 (including 208 parity cases) on a
+**Checks run 2026-09-15**: `tsc --noEmit` and eslint clean; Vitest 946 passed
+(1 opt-in skip) at G-037 M2; Playwright 289/289 (including 208 parity cases) on a
 production build of G-036 M4. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
@@ -76,8 +76,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
   exports, which stall the tab between pages (D125).
 - The PDF has no bold face. Whether µ (which extracts as μ) matters in Pattern
   Keeper is unconfirmed (D074, D097).
-- A double-click fill leaves 3 undo steps (D086). Highlight does nothing in
-  the realistic preview (D028).
+- Highlight does nothing in the realistic preview (D028).
 - Contour refinement exists but isn't adopted (D055).
 
 ## How things fit together
@@ -190,6 +189,8 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 - Crisp boundary evidence must stay identical to its verbatim reference copy:
   `tests/unit/crisp-evidence-equivalence.spec.ts` (G-035 M4).
 - ICM inner loops use no closures or array scans (D044).
+- Modules e2e specs load in Node (the project store, serializer, import, exports) take symmetry types from
+  `lib/editor/symmetry-axes.ts`, never `symmetry.ts`: its `pattern-edit` chain crashes Playwright (G-037).
 - Screen drawing = frozen pre-G-036 drawing with band grid lines (photos ±16, outlines ±1),
   per `tests/e2e/chart-viewport-parity.spec.ts`; exports keep stroked grid lines (D135).
 - ICM and both k-means paths stay identical to their pre-M5 copies (D133):
@@ -218,7 +219,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **G-037 in progress:** M1 done (symmetry geometry in `lib/editor/symmetry.ts`, D137); M2–M3 need approval.
+- **G-037 in progress:** M1–M2 done (symmetry geometry, toggles, guide lines, D137, D138); M3 needs approval.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is

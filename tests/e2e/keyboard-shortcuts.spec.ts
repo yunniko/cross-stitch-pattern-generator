@@ -126,10 +126,18 @@ test("double-clicking with Brush active flood-fills the whole region that was th
   const color1Before = await countFor(1);
   await canvas.dblclick({ position: { x: 15, y: 5 } });
 
+  await expect.poll(() => countFor(0)).toBeLessThanOrEqual(color0Before - 2); // the whole stroke left color 0, not just 1 cell
   const color0After = await countFor(0);
   const color1After = await countFor(1);
-  expect(color0After).toBeLessThanOrEqual(color0Before - 2); // the whole stroke left color 0, not just 1 cell
   expect(color1After).toBeGreaterThanOrEqual(color1Before + 2); // ...and landed on color 1 as a block
+
+  // The double-click is one undo step (D138): one undo returns to before its first click, one redo brings the fill back.
+  await page.keyboard.press("Control+z");
+  await expect.poll(() => countFor(0)).toBe(color0Before);
+  expect(await countFor(1)).toBe(color1Before);
+  await page.keyboard.press("Control+y");
+  await expect.poll(() => countFor(0)).toBe(color0After);
+  expect(await countFor(1)).toBe(color1After);
 });
 
 test("dragging a color onto Empty merges it away: its stitches become empty and it's removed from the palette", async ({ page }) => {

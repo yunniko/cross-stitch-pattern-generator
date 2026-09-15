@@ -1,5 +1,6 @@
 import { isEnhancementModeId, type EnhancementModeId } from "../pipeline/enhance";
 import { findThread, formatThreadName, THREAD_BRANDS, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
+import { effectiveSymmetryAxes, NO_SYMMETRY, SYMMETRY_AXES, type SymmetryAxes, type SymmetryAxis } from "./symmetry-axes";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern, type ThreadSwatchRef } from "../types";
 
 // Plain JSON, not a PNG with embedded data (Owner decision, 2026-09-09,
@@ -43,10 +44,39 @@ export interface SerializedPattern {
   edgeMode?: "crisp";
   /** The photo enhancement the pattern was generated with; absent for Off and on files saved before G-032. */
   enhancementMode?: Exclude<EnhancementModeId, "off">;
+  /**
+   * The symmetry axes that were on when the file was saved (G-037); absent when none were. An optional field that
+   * older builds ignore, so the format version stays the same (D138).
+   */
+  symmetry?: SerializedSymmetry;
 }
 
-/** `count`/`index` are left out -- both are derived from `cellPalette` and recomputed on load, not stored. */
-export function serializePattern(pattern: StitchPattern): string {
+/** Only the axes that are on, each `true`. */
+export type SerializedSymmetry = Partial<Record<SymmetryAxis, true>>;
+
+/** The on axes as stored in a file or autosave record, or undefined when none are on. */
+export function serializeSymmetry(symmetry: SymmetryAxes): SerializedSymmetry | undefined {
+  const on = SYMMETRY_AXES.filter((axis) => symmetry[axis]);
+  return on.length === 0 ? undefined : Object.fromEntries(on.map((axis) => [axis, true]));
+}
+
+/**
+ * Reads a stored symmetry value leniently: only axes stored as `true` are on, anything unreadable is off, and the
+ * diagonals are off on a non-square canvas (G-037 criteria 1 and 3). Nothing is reported for a missing or bad field.
+ */
+export function readSymmetry(value: unknown, width: number, height: number): SymmetryAxes {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return NO_SYMMETRY;
+  const stored = value as Record<string, unknown>;
+  const axes = Object.fromEntries(SYMMETRY_AXES.map((axis) => [axis, stored[axis] === true])) as Record<SymmetryAxis, boolean>;
+  if (!SYMMETRY_AXES.some((axis) => axes[axis])) return NO_SYMMETRY;
+  return effectiveSymmetryAxes(axes, width, height);
+}
+
+/**
+ * `count`/`index` are left out -- both are derived from `cellPalette` and recomputed on load, not stored. `symmetry` is
+ * written only when an axis is on, so a file saved with symmetry off is byte-identical to one saved before G-037.
+ */
+export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes = NO_SYMMETRY): string {
   const data: SerializedPattern = {
     formatVersion: FORMAT_VERSION,
     width: pattern.width,
@@ -61,8 +91,21 @@ export function serializePattern(pattern: StitchPattern): string {
     threadBrand: pattern.threadBrand,
     edgeMode: pattern.edgeMode,
     enhancementMode: pattern.enhancementMode,
+    symmetry: serializeSymmetry(effectiveSymmetryAxes(symmetry, pattern.width, pattern.height)),
   };
   return JSON.stringify(data);
+}
+
+/** A saved file: its pattern plus the symmetry axes stored with it (off when absent or unreadable). */
+export function parsePatternDocument(json: string): { pattern: StitchPattern; symmetry: SymmetryAxes } {
+  let data: unknown;
+  try {
+    data = JSON.parse(json);
+  } catch {
+    throw new Error("That file isn't valid JSON.");
+  }
+  const pattern = deserializePatternData(data);
+  return { pattern, symmetry: readSymmetry((data as { symmetry?: unknown }).symmetry, pattern.width, pattern.height) };
 }
 
 /** Throws a descriptive error on malformed/tampered input rather than producing a silently-broken pattern. */

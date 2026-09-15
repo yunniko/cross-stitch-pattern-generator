@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
 import {
-  fillClusterDiagonal,
   flipSelectionHorizontal,
   flipSelectionVertical,
   liftSelection,
@@ -9,6 +8,7 @@ import {
   shiftPattern,
   withCellPalette,
 } from "@/lib/editor/pattern-edit";
+import { fillSymmetric, symmetryOrbit, type SymmetryAxes } from "@/lib/editor/symmetry";
 import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
 import { cellIndexFromEvent, clampedCellFromEvent, pointInRect, rectFromCorners, releaseCapture, type PointerPosition } from "../editor-geometry";
 import type { ChartRenderer } from "./use-chart-renderer";
@@ -32,50 +32,93 @@ export interface CanvasToolInputs {
 /** How close in time two brush clicks on one cell must be to count as the start of a double-click. */
 const DOUBLE_CLICK_WINDOW_MS = 400;
 
-export function useBrushTool({ frameRef, rendererRef, pattern, cellSize, commit, activeColorIndex }: CanvasToolInputs & { activeColorIndex: number | null }) {
-  const strokeRef = useRef<{ base: StitchPattern; cells: Uint8Array; lastCell: number | null } | null>(null);
-  const preDoubleClickPatternRef = useRef<StitchPattern | null>(null);
-  const lastClickRef = useRef<{ time: number; cellIndex: number } | null>(null);
+/** What a click remembers so a following click on the same stitch can turn into a one-step double-click fill (D138). */
+interface ClickRecord {
+  time: number;
+  cellIndex: number;
+  /** The pattern before the first click: the fill floods from it, and undo returns to it. */
+  anchor: StitchPattern;
+  axes: SymmetryAxes;
+  color: number;
+  /** The patterns the clicks committed, in order: the steps the fill replaces. */
+  commits: StitchPattern[];
+}
+
+export function useBrushTool({
+  frameRef,
+  rendererRef,
+  pattern,
+  cellSize,
+  commit,
+  activeColorIndex,
+  symmetry,
+  replaceSince,
+}: CanvasToolInputs & {
+  activeColorIndex: number | null;
+  /** The symmetry axes in effect; a stroke keeps the axes it started with. */
+  symmetry: SymmetryAxes;
+  replaceSince: (anchor: StitchPattern, since: readonly StitchPattern[], next: StitchPattern) => void;
+}) {
+  const strokeRef = useRef<{ base: StitchPattern; cells: Uint8Array; lastCell: number | null; axes: SymmetryAxes; color: number; click: ClickRecord } | null>(null);
+  const lastClickRef = useRef<ClickRecord | null>(null);
 
   function cellAt(e: PointerPosition, frame: HTMLElement): number | null {
     return pattern ? cellIndexFromEvent(e, frame, cellSize, pattern.width, pattern.height) : null;
   }
 
-  /** The Fill tool's click: floods the clicked cell's 8-connected same-color region. */
+  /** Paints `cellIndex` and its mirror copies into the stroke buffer and hands them to the renderer as one batch. */
+  function paintOrbit(base: StitchPattern, cells: Uint8Array, cellIndex: number, axes: SymmetryAxes, color: number) {
+    const orbit = symmetryOrbit(cellIndex, base.width, base.height, axes);
+    for (const cell of orbit) cells[cell] = color;
+    rendererRef.current?.paintBrushCells(
+      base,
+      cells,
+      orbit.map((cell) => ({ cellIndex: cell, paletteIndex: color }))
+    );
+  }
+
+  /** The Fill tool's click: floods the clicked cell's 8-connected same-color region, and its mirror copies' regions. */
   function fillAt(e: PointerPosition, frame: HTMLElement) {
     if (!pattern || activeColorIndex === null) return;
     const cellIndex = cellAt(e, frame);
-    if (cellIndex !== null) commit(fillClusterDiagonal(pattern, cellIndex, activeColorIndex));
+    if (cellIndex !== null) commit(fillSymmetric(pattern, cellIndex, symmetry, activeColorIndex, 8));
   }
 
   function onPointerDown(e: PointerLike, frame: HTMLElement) {
     if (!pattern || activeColorIndex === null) return;
     const cellIndex = cellAt(e, frame);
     if (cellIndex === null) return;
-    // A second click on the same cell within the window keeps the first click's snapshot, so a double-click fill starts
-    // from the region as it was before either click painted. Timing, not `detail`, which isn't reliable for pointers.
+    // A second click on the same stitch within the window, on the pattern the first click produced, with the same axes
+    // and colour, keeps the first click's record, so a double-click fill starts from the region as it was before either
+    // click painted. Timing, not `detail`, which isn't reliable for pointers. Anything else starts a new record.
     const now = Date.now();
     const last = lastClickRef.current;
-    const isSecondClick = last !== null && now - last.time < DOUBLE_CLICK_WINDOW_MS && last.cellIndex === cellIndex;
-    if (!isSecondClick) preDoubleClickPatternRef.current = pattern;
-    lastClickRef.current = { time: now, cellIndex };
+    const isSecondClick =
+      last !== null &&
+      now - last.time < DOUBLE_CLICK_WINDOW_MS &&
+      last.cellIndex === cellIndex &&
+      last.color === activeColorIndex &&
+      last.axes === symmetry &&
+      last.commits.length > 0 &&
+      last.commits[last.commits.length - 1] === pattern;
+    const click: ClickRecord = isSecondClick ? last : { time: now, cellIndex, anchor: pattern, axes: symmetry, color: activeColorIndex, commits: [] };
+    click.time = now;
+    lastClickRef.current = click;
     const cells = pattern.cellPalette.slice();
-    cells[cellIndex] = activeColorIndex;
-    strokeRef.current = { base: pattern, cells, lastCell: cellIndex };
-    rendererRef.current?.paintBrushCell(pattern, cells, cellIndex, activeColorIndex);
+    strokeRef.current = { base: pattern, cells, lastCell: cellIndex, axes: symmetry, color: activeColorIndex, click };
+    paintOrbit(pattern, cells, cellIndex, symmetry, activeColorIndex);
     frame.setPointerCapture(e.pointerId);
   }
 
   function onPointerMove(e: PointerLike): boolean {
     const stroke = strokeRef.current;
-    if (!stroke || activeColorIndex === null) return false;
+    if (!stroke) return false;
     const frame = frameRef.current;
     if (!frame) return true;
     const cellIndex = cellIndexFromEvent(e, frame, cellSize, stroke.base.width, stroke.base.height);
     if (cellIndex === null || cellIndex === stroke.lastCell) return true;
-    stroke.cells[cellIndex] = activeColorIndex;
     stroke.lastCell = cellIndex;
-    rendererRef.current?.paintBrushCell(stroke.base, stroke.cells, cellIndex, activeColorIndex);
+    paintOrbit(stroke.base, stroke.cells, cellIndex, stroke.axes, stroke.color);
     return true;
   }
 
@@ -85,16 +128,28 @@ export function useBrushTool({ frameRef, rendererRef, pattern, cellSize, commit,
     strokeRef.current = null;
     // The commit re-renders and repaints from the new pattern.
     rendererRef.current?.endGesture(false);
-    commit(withCellPalette(stroke.base, stroke.cells));
+    const next = withCellPalette(stroke.base, stroke.cells);
+    stroke.click.commits.push(next);
+    commit(next);
     releaseCapture(frameRef.current, e.pointerId);
     return true;
   }
 
-  /** Double-click with the brush flood-fills from the pattern as it was before the double-click's own two paints (Owner request, 2026-09-12). */
+  /**
+   * Double-click with the brush flood-fills, with symmetry, from the pattern as it was before the double-click's own two
+   * paints (Owner request, 2026-09-12), and replaces those two paints in the history, so it is one undo step (D138).
+   */
   function onDoubleClick(e: PointerPosition, frame: HTMLElement) {
     if (!pattern || activeColorIndex === null) return;
     const cellIndex = cellAt(e, frame);
-    if (cellIndex !== null) commit(fillClusterDiagonal(preDoubleClickPatternRef.current ?? pattern, cellIndex, activeColorIndex));
+    if (cellIndex === null) return;
+    const click = lastClickRef.current;
+    lastClickRef.current = null;
+    if (click && click.cellIndex === cellIndex && click.color === activeColorIndex && click.commits.length > 0) {
+      replaceSince(click.anchor, click.commits, fillSymmetric(click.anchor, cellIndex, click.axes, click.color, 8));
+    } else {
+      commit(fillSymmetric(pattern, cellIndex, symmetry, activeColorIndex, 8));
+    }
   }
 
   return { fillAt, onPointerDown, onPointerMove, onPointerUp, onDoubleClick };

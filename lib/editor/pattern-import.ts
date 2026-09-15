@@ -1,11 +1,14 @@
 import JSZip from "jszip";
 import { looksLikeOxs, MAX_OXS_TEXT_LENGTH, parseOxs, type OxsImportReport } from "./oxs";
-import { deserializePattern } from "./pattern-serialize";
+import { parsePatternDocument } from "./pattern-serialize";
+import { NO_SYMMETRY, type SymmetryAxes } from "./symmetry-axes";
 import type { StitchPattern } from "../types";
 
 export interface LoadedPatternFile {
   pattern: StitchPattern;
   format: "json" | "zip" | "oxs";
+  /** The symmetry axes saved with this app's own files (G-037); off for OXS and for files without the field. */
+  symmetry: SymmetryAxes;
   /** What an OXS import couldn't carry over; absent for this app's own formats, which lose nothing. */
   oxsReport?: OxsImportReport;
 }
@@ -29,7 +32,7 @@ export async function loadPatternFromFile(file: File, options: LoadPatternOption
   if (looksLikeOxs(await file.slice(0, SNIFF_BYTES).text())) {
     if (file.size > maxOxsBytes) throw new Error(`That OXS file is ${formatSize(file.size)}, larger than the ${formatSize(maxOxsBytes)} this app can open.`);
     const { pattern, report } = parseOxs(await file.text());
-    return { pattern, format: "oxs", oxsReport: report };
+    return { pattern, format: "oxs", symmetry: NO_SYMMETRY, oxsReport: report };
   }
 
   const buffer = await file.arrayBuffer();
@@ -38,7 +41,7 @@ export async function loadPatternFromFile(file: File, options: LoadPatternOption
     const entries = Object.values(zip.files).filter((entry) => !entry.dir);
     for (const entry of entries.filter((e) => /\.json$/i.test(e.name))) {
       try {
-        return { pattern: deserializePattern(await entry.async("string")), format: "zip" };
+        return { ...parsePatternDocument(await entry.async("string")), format: "zip" };
       } catch {
         // Not a valid pattern -- keep looking at the archive's other entries.
       }
@@ -52,7 +55,7 @@ export async function loadPatternFromFile(file: File, options: LoadPatternOption
       }
       try {
         const { pattern, report } = parseOxs(text);
-        return { pattern, format: "oxs", oxsReport: report };
+        return { pattern, format: "oxs", symmetry: NO_SYMMETRY, oxsReport: report };
       } catch (err) {
         oxsError = err;
       }
@@ -61,7 +64,7 @@ export async function loadPatternFromFile(file: File, options: LoadPatternOption
     throw new Error("No valid pattern (.json or .oxs) file was found inside that archive.");
   }
 
-  return { pattern: deserializePattern(new TextDecoder().decode(buffer)), format: "json" };
+  return { ...parsePatternDocument(new TextDecoder().decode(buffer)), format: "json" };
 }
 
 function formatSize(bytes: number): string {

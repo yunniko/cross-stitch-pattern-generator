@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from "react";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
-import { fillCluster, mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from "@/lib/editor/pattern-edit";
+import { mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from "@/lib/editor/pattern-edit";
+import { effectiveSymmetryAxes, fillSymmetric, NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry";
 import { oxsImportNotice } from "@/lib/editor/oxs";
 import { loadPatternFromFile } from "@/lib/editor/pattern-import";
 import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
@@ -48,6 +49,14 @@ export default function Workspace() {
   const [activeTool, setActiveTool] = useState<Tool>("brush");
   const [activeColorIndex, setActiveColorIndex] = useState<number | null>(null);
   const [highlightedColorIndices, setHighlightedColorIndices] = useState<ReadonlySet<number>>(new Set());
+  // Symmetry axes live outside the undo history: a toggle is not an undo step, and undo or redo leaves them as they
+  // are (G-037). Diagonals exist only on a square canvas, so a resize, undo, redo or open that makes the canvas
+  // non-square turns them off for good, adjusted during render like other derived state.
+  const [symmetry, setSymmetry] = useState<SymmetryAxes>(NO_SYMMETRY);
+  if (pattern && pattern.width !== pattern.height && (symmetry.diagonal || symmetry.antidiagonal)) {
+    setSymmetry({ ...symmetry, diagonal: false, antidiagonal: false });
+  }
+  const liveSymmetry = pattern ? effectiveSymmetryAxes(symmetry, pattern.width, pattern.height) : NO_SYMMETRY;
   const [showOptionsPanel, setShowOptionsPanel] = useState(false);
   // null while closed; a new key on every "Resize canvas…" click remounts the panel with fresh fields.
   const [resizePanelKey, setResizePanelKey] = useState<number | null>(null);
@@ -71,7 +80,7 @@ export default function Workspace() {
   const cellSize = computeCellSize(pattern, panZoom.zoomLevel);
   const toolInputs = { frameRef, rendererRef, pattern, cellSize, commit: history.set };
   const select = useSelectTool(toolInputs);
-  const brush = useBrushTool({ ...toolInputs, activeColorIndex });
+  const brush = useBrushTool({ ...toolInputs, activeColorIndex, symmetry: liveSymmetry, replaceSince: history.replaceSince });
   const move = useMoveTool(toolInputs);
   const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
   const renderer = useChartRenderer({
@@ -87,6 +96,7 @@ export default function Workspace() {
     isSelectDragging: select.isDragging,
     highlightedColorIndices,
     canvasColor: options.canvasColor,
+    symmetryAxes: liveSymmetry,
     // The renderer applies a zoom's anchor itself, between sizing the frame and measuring the view (D124, D135).
     applyZoomAnchor: panZoom.applyZoomAnchor,
   });
@@ -96,6 +106,7 @@ export default function Workspace() {
 
   function resetDocumentView() {
     setDocumentId((id) => id + 1);
+    setSymmetry(NO_SYMMETRY);
     setActiveColorIndex(null);
     panZoom.resetZoom();
     setHighlightedColorIndices(new Set());
@@ -104,16 +115,17 @@ export default function Workspace() {
   }
 
   /** Lands a restored or opened pattern in every piece of state that depends on it, including its embedded photo. */
-  async function loadPatternIntoWorkspace(loaded: StitchPattern, fallbackName: string) {
+  async function loadPatternIntoWorkspace(loaded: StitchPattern, fallbackName: string, savedSymmetry: SymmetryAxes = NO_SYMMETRY) {
     const withName = { ...loaded, name: loaded.name ?? fallbackName };
     history.reset(withName);
     resetDocumentView();
+    setSymmetry(savedSymmetry);
     await source.adoptPatternPhoto(withName, fallbackName);
   }
 
-  const restore = useProjectRestore((restored) => void loadPatternIntoWorkspace(restored, restored.name ?? "cross-stitch-pattern"));
-  const autosaveStatus = useProjectAutosave(pattern, restore.restored, getProjectStore());
-  const exports = useExports(pattern, options);
+  const restore = useProjectRestore((restored, savedSymmetry) => void loadPatternIntoWorkspace(restored, restored.name ?? "cross-stitch-pattern", savedSymmetry));
+  const autosaveStatus = useProjectAutosave(pattern, restore.restored, getProjectStore(), liveSymmetry);
+  const exports = useExports(pattern, options, liveSymmetry);
   const generation = useGeneration({
     options,
     pixelBuffer: source.pixelBuffer,
@@ -126,7 +138,11 @@ export default function Workspace() {
       select.clear();
       setDocumentId((id) => id + 1);
       // The first generate is the undo baseline; a regenerate is an ordinary undoable step (G-012).
-      if (isFirst) history.reset(next);
+      if (isFirst) {
+        // A first Generate starts a new document with every symmetry toggle off (G-037).
+        setSymmetry(NO_SYMMETRY);
+        history.reset(next);
+      }
       else history.set(next);
     },
   });
@@ -148,8 +164,8 @@ export default function Workspace() {
     setOpenError(null);
     setOpenNotice(null);
     loadPatternFromFile(file)
-      .then(async ({ pattern: loaded, oxsReport }) => {
-        await loadPatternIntoWorkspace(loaded, file.name.replace(/\.[^.]+$/, "").replace(/[-_]editable$/, ""));
+      .then(async ({ pattern: loaded, oxsReport, symmetry: savedSymmetry }) => {
+        await loadPatternIntoWorkspace(loaded, file.name.replace(/\.[^.]+$/, "").replace(/[-_]editable$/, ""), savedSymmetry);
         if (oxsReport) {
           const notice = oxsImportNotice(oxsReport, options.aidaCount, STANDARD_AIDA_COUNTS);
           if (notice.aidaCount !== undefined) updateOption("aidaCount", notice.aidaCount);
@@ -219,7 +235,8 @@ export default function Workspace() {
     const frame = frameRef.current;
     if (!pattern || raw === "" || !frame || isViewOnlyMode(viewMode)) return;
     const cellIndex = cellIndexFromEvent(e, frame, cellSize, pattern.width, pattern.height);
-    if (cellIndex !== null) history.set(fillCluster(pattern, cellIndex, Number(raw)));
+    const paletteIndex = Number(raw);
+    if (cellIndex !== null && Number.isInteger(paletteIndex)) history.set(fillSymmetric(pattern, cellIndex, liveSymmetry, paletteIndex, 4));
   }
 
   function handleMergeColors(sourceIndex: number, targetIndex: number) {
@@ -292,7 +309,14 @@ export default function Workspace() {
       {resizePanelKey !== null && pattern && <ResizePanel key={resizePanelKey} pattern={pattern} onApply={applyResize} onCancel={() => setResizePanelKey(null)} />}
 
       <div className="flex flex-1 overflow-hidden">
-        <ToolsDock activeTool={activeTool} disabled={!pattern} onSelect={switchTool} />
+        <ToolsDock
+          activeTool={activeTool}
+          disabled={!pattern}
+          onSelect={switchTool}
+          symmetry={liveSymmetry}
+          squareCanvas={pattern !== null && pattern.width === pattern.height}
+          onToggleSymmetry={(axis) => setSymmetry((current) => ({ ...current, [axis]: !current[axis] }))}
+        />
         <main className="flex flex-1 flex-col overflow-hidden">
           <ViewBar
             pattern={pattern}

@@ -1135,7 +1135,7 @@ escalation-tier, not a routine refactor):
       canvas, and a destination that is a palette index or EMPTY.
   - One decision file for the geometry and group-closure rule.
   - Gate: the unit tests in criterion 7 pass.
-- [ ] **M2 — Symmetry toggles, guide lines and symmetric painting.**
+- [x] **M2 — Symmetry toggles, guide lines and symmetric painting.** Done (D138).
   - A Symmetry group in the Tools dock: four toggles with axis icons, laid
     out 2 × 2 so the dock doesn't grow by four rows. Checked at a 768 px
     viewport height.
@@ -1180,6 +1180,51 @@ escalation-tier, not a routine refactor):
   - Gate: deployed, live smoke test, and the goal awaits Owner sign-off.
 
 **Progress log** (newest first):
+- 2026-09-15 — **M2: symmetry toggles, red guide lines, symmetric painting, one-step double-click fill (D138).**
+  - Tools dock: a Symmetry group of four `aria-pressed` toggles, 2 × 2. The
+    diagonals are disabled with a tooltip on a non-square canvas. It fits a
+    768 px tall window (e2e).
+  - Canvas: `drawSymmetryGuides` (`app/chart-scene.ts`) strokes the active axes
+    in red after every view and gesture frame, in one path. A batched brush
+    redraw draws them again only over the repainted stitches.
+  - Painting:
+    - the brush captures axes and colour at pointer-down and paints each
+      pointer cell's whole orbit as one batch;
+    - the Fill tool and double-click fill use `fillSymmetric` 8-connected,
+      and drop-to-fill uses it 4-connected.
+  - One-step double-click fill:
+    - the brush records the pattern before the first click and the patterns
+      its clicks commit;
+    - `replaceSince` in `lib/editor/use-undo-history.ts` swaps exactly those
+      steps for the fill, and otherwise adds it as an ordinary step;
+    - the double-click snapshot is dropped when the document, the colour or
+      the axes change between clicks;
+    - HANDOVER's known limitation is removed, and D086 is partly superseded.
+  - State and saving:
+    - symmetry lives outside the undo history;
+    - diagonals turn off when a resize, undo, redo or open makes the canvas
+      non-square, and stay off when it becomes square again;
+    - a new photo or a first Generate turns every toggle off, and an OXS
+      import opens with symmetry off;
+    - the JSON file, Export all and autosave carry an optional `symmetry`
+      field, written only when an axis is on, so the format version stays 7;
+    - opening JSON, ZIP or `.cspzip` files and reloading restore it, and a
+      missing or unreadable field means off.
+  - Deviation from the plan: the axis type, the axis list and the square-only
+    rule moved to `lib/editor/symmetry-axes.ts`. `autosave.spec.ts` loads the
+    project store in Node, and a chain through `pattern-edit` to
+    `color-name-list` crashed Playwright on load.
+  - An e2e test first assumed the brush colour was that of stitch (0, 0). It now
+    learns the colour from a throwaway stitch and checks stitches whose mirror
+    copies all differ from it.
+  - Checks:
+    - tsc, eslint and docs-lint clean; Vitest 946 passed | 1 skipped (947);
+    - Playwright 297 passed (1.2m) on a production build, including 8 symmetry e2e
+      tests and the double-click one-undo/one-redo check;
+    - `tests/unit/undo-history.spec.ts` (7) and
+      `tests/unit/symmetry-persistence.spec.ts` (9).
+  - Codex was unavailable (usage limit until 2026-09-19).
+  - Next: deploy M2; M3 (quick mirror actions and release) awaits approval.
 - 2026-09-15 — **Owner: deploy M1 and start M2** ("deploy and go m2"). M3 still needs
   approval. Codex remains unavailable until 2026-09-19.
 - 2026-09-15 — **M1: symmetry geometry in `lib/editor/symmetry.ts`, unit-tested (D137).**

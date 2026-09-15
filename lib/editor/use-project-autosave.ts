@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ProjectStore } from "./project-store";
+import { NO_SYMMETRY, type SymmetryAxes } from "./symmetry-axes";
 import type { StitchPattern } from "../types";
 
 export type AutosaveStatus = "idle" | "saving" | "saved" | "unavailable";
@@ -9,6 +10,7 @@ export const AUTOSAVE_DEBOUNCE_MS = 500;
 
 interface SaveOutcome {
   pattern: StitchPattern | null;
+  symmetry: SymmetryAxes;
   ok: boolean;
 }
 
@@ -23,10 +25,11 @@ interface SaveOutcome {
  * pending, "saved" only once *this* pattern is stored, "unavailable" after
  * a storage failure until the next edit retries. See D100.
  */
-export function useProjectAutosave(pattern: StitchPattern | null, enabled: boolean, store: ProjectStore): AutosaveStatus {
+export function useProjectAutosave(pattern: StitchPattern | null, enabled: boolean, store: ProjectStore, symmetry: SymmetryAxes = NO_SYMMETRY): AutosaveStatus {
   const [baseline, setBaseline] = useState<SaveOutcome | null>(null);
   const [lastOutcome, setLastOutcome] = useState<SaveOutcome | null>(null);
-  const latestRef = useRef<StitchPattern | null>(pattern);
+  // The symmetry axes are saved with the pattern; toggling one alone schedules a save too (G-037).
+  const latestRef = useRef<{ pattern: StitchPattern | null; symmetry: SymmetryAxes }>({ pattern, symmetry });
   const dirtyRef = useRef(false);
   const everScheduledRef = useRef(false);
   const timerRef = useRef<number | null>(null);
@@ -35,7 +38,7 @@ export function useProjectAutosave(pattern: StitchPattern | null, enabled: boole
   // Adjusting state during render (React's own pattern for derived state)
   // rather than in an effect: the baseline must exist before the save
   // effect below evaluates it in this same commit.
-  if (enabled && baseline === null) setBaseline({ pattern, ok: true });
+  if (enabled && baseline === null) setBaseline({ pattern, symmetry, ok: true });
 
   const flush = useCallback(() => {
     if (timerRef.current !== null) {
@@ -46,26 +49,26 @@ export function useProjectAutosave(pattern: StitchPattern | null, enabled: boole
     dirtyRef.current = false;
     const snapshot = latestRef.current;
     queueRef.current = queueRef.current
-      .then(() => store.save(snapshot))
+      .then(() => store.save(snapshot.pattern, snapshot.symmetry))
       .then(
-        () => setLastOutcome({ pattern: snapshot, ok: true }),
+        () => setLastOutcome({ ...snapshot, ok: true }),
         (error: unknown) => {
           console.error("[cross-stitch-pattern-generator] Autosave failed:", error);
-          setLastOutcome({ pattern: snapshot, ok: false });
+          setLastOutcome({ ...snapshot, ok: false });
         }
       );
   }, [store]);
 
   useEffect(() => {
-    latestRef.current = pattern;
+    latestRef.current = { pattern, symmetry };
     if (!enabled || baseline === null) return;
     // Until something has actually been written, the restored baseline needs no save.
-    if (pattern === baseline.pattern && !everScheduledRef.current) return;
+    if (pattern === baseline.pattern && symmetry === baseline.symmetry && !everScheduledRef.current) return;
     everScheduledRef.current = true;
     dirtyRef.current = true;
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
-  }, [pattern, enabled, baseline, flush]);
+  }, [pattern, symmetry, enabled, baseline, flush]);
 
   useEffect(() => {
     function onVisibilityChange() {
@@ -81,7 +84,7 @@ export function useProjectAutosave(pattern: StitchPattern | null, enabled: boole
 
   if (!enabled) return "idle";
   const outcome = lastOutcome ?? baseline;
-  if (!outcome || outcome.pattern !== pattern) return pattern ? "saving" : "idle";
+  if (!outcome || outcome.pattern !== pattern || outcome.symmetry !== symmetry) return pattern ? "saving" : "idle";
   if (!outcome.ok) return "unavailable";
   return pattern ? "saved" : "idle";
 }

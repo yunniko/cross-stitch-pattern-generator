@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { devicePixelAlignment, needsRepaint, paintedRectFor, visibleChartRect, type PixelRect } from "@/lib/editor/chart-viewport";
+import { devicePixelAlignment, intersectRects, isEmptyRect, needsRepaint, paintedRectFor, visibleChartRect, type PixelRect } from "@/lib/editor/chart-viewport";
+import type { SymmetryAxes } from "@/lib/editor/symmetry";
 import { renderNavigatorPixels } from "@/lib/export/render";
 import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
-import { brushOpsIn, drawCellsInto, drawScene, drawSceneWithGesture, incrementalModeOf, type ChartScene, type GesturePreview } from "../chart-scene";
+import { brushOpsIn, drawCellsInto, drawScene, drawSceneWithGesture, drawSymmetryGuides, incrementalModeOf, type BrushOp, type ChartScene, type GesturePreview } from "../chart-scene";
 import type { Tool, ViewMode } from "../editor-types";
 import { chartOrigin } from "../editor-geometry";
 import { buildStitchTiles, tileSizeFor, type StitchTiles } from "../realistic-tiles";
@@ -22,6 +23,8 @@ export interface ChartRendererInputs {
   isSelectDragging: () => boolean;
   highlightedColorIndices: ReadonlySet<number>;
   canvasColor: string;
+  /** The symmetry axes in effect, drawn as red guide lines in every view (G-037). */
+  symmetryAxes: SymmetryAxes;
   /** Scrolls a pending zoom's anchor back under the pointer; run once the frame has its new size, before measuring (D124). */
   applyZoomAnchor: () => void;
 }
@@ -48,7 +51,7 @@ function overscanFraction(viewMode: ViewMode): number {
  * scrolling and zooming keep its preview. `canvasColor` is display-only.
  */
 export function useChartRenderer(inputs: ChartRendererInputs) {
-  const { canvasRef, frameRef, scrollerRef, navigatorCanvasRef, pattern, viewMode, cellSize, activeTool, selection, isSelectDragging, highlightedColorIndices, canvasColor, applyZoomAnchor } = inputs;
+  const { canvasRef, frameRef, scrollerRef, navigatorCanvasRef, pattern, viewMode, cellSize, activeTool, selection, isSelectDragging, highlightedColorIndices, canvasColor, applyZoomAnchor, symmetryAxes } = inputs;
   const [photo, setPhoto] = useState<{ dataUrl: string; img: HTMLImageElement } | null>(null);
   const [realisticTiles, setRealisticTiles] = useState<StitchTiles | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -64,8 +67,9 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       highlightedColorIndices,
       selection,
       canvasColor,
+      symmetryAxes,
     }),
-    [viewMode, cellSize, photo, realisticTiles, activeTool, highlightedColorIndices, selection, canvasColor]
+    [viewMode, cellSize, photo, realisticTiles, activeTool, highlightedColorIndices, selection, canvasColor, symmetryAxes]
   );
   // What the last commit asked to show; scroll, resize and gesture handlers paint from it.
   const shownRef = useRef<{ pattern: StitchPattern | null; scene: Omit<ChartScene, "selectDragging"> }>({ pattern: null, scene });
@@ -243,16 +247,17 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   }
 
   /**
-   * One stitch of a brush stroke, painted with `paletteIndex` into the stroke's working buffer `cells`. It is recorded
-   * so a repaint replays it; Color and B&W redraw just that stitch, Grid + photo draws a clean frame (D104, D135).
+   * The stitches one brush pointer event painted into the working buffer `cells` (a stitch and its mirror copies under
+   * symmetry), each with its colour. They are recorded so a repaint replays them. Color and B&W redraw just those
+   * stitches in one batch and draw the guide lines again over them; Grid + photo draws a clean frame (D104, D135, G-037).
    */
-  function paintBrushCell(base: StitchPattern, cells: Uint8Array, cellIndex: number, paletteIndex: number) {
+  function paintBrushCells(base: StitchPattern, cells: Uint8Array, ops: readonly BrushOp[]) {
     let gesture = gestureRef.current;
     if (!gesture || gesture.kind !== "brush" || gesture.base !== base || gesture.cells !== cells) {
       gesture = { kind: "brush", base, cells, ops: [] };
       gestureRef.current = gesture;
     }
-    gesture.ops.push({ cellIndex, paletteIndex });
+    gesture.ops.push(...ops);
     const scene = currentScene();
     const mode = incrementalModeOf(scene.viewMode);
     const ctx = mode ? chartContext() : null;
@@ -260,7 +265,15 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       paint();
       return;
     }
-    drawCellsInto(ctx, base, mode, scene, paintedRef.current, brushOpsIn([{ cellIndex, paletteIndex }], base.width));
+    const rect = paintedRef.current;
+    drawCellsInto(ctx, base, mode, scene, rect, brushOpsIn(ops, base.width));
+    const cs = scene.cellSize;
+    for (const { cellIndex } of ops) {
+      const x = cellIndex % base.width;
+      const y = Math.floor(cellIndex / base.width);
+      const cell = intersectRects(rect, { x0: x * cs, y0: y * cs, x1: (x + 1) * cs, y1: (y + 1) * cs });
+      if (!isEmptyRect(cell)) drawSymmetryGuides(ctx, base.width, base.height, scene, cell);
+    }
     markRendered();
   }
 
@@ -308,7 +321,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   }
 
   return {
-    paintBrushCell,
+    paintBrushCells,
     previewMove,
     previewSelect,
     endGesture,

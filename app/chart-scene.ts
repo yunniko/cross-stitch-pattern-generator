@@ -1,5 +1,6 @@
 import { intersectRects, isEmptyRect, moveTileOffsets, type PixelRect } from "@/lib/editor/chart-viewport";
 import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
+import type { SymmetryAxes } from "@/lib/editor/symmetry";
 import { chartPaintOverhangPx, drawCell, drawChartOnScreen, drawChartOutline, drawHighlightOverlayRaster, type ChartRegion, type RenderMode } from "@/lib/export/render";
 import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
 import type { Tool, ViewMode } from "./editor-types";
@@ -24,6 +25,53 @@ export interface ChartScene {
   canvasColor: string;
   /** While a select drag runs, the floating selection is neither composited nor outlined: the drag frame draws it. */
   selectDragging: boolean;
+  /** The symmetry axes in effect, drawn as red guide lines over everything (G-037); never part of any export. */
+  symmetryAxes: SymmetryAxes;
+}
+
+/** The red of the symmetry guide lines. */
+export const SYMMETRY_GUIDE_COLOR = "#dc2626";
+
+/**
+ * The active symmetry axes as red lines through the centre of a `width` × `height` pattern, clipped to `rect`, in one
+ * stroke so crossing lines are drawn once. Diagonals are drawn on a square canvas only.
+ */
+export function drawSymmetryGuides(ctx: CanvasRenderingContext2D, width: number, height: number, scene: ChartScene, rect: PixelRect) {
+  const axes = scene.symmetryAxes;
+  if (!axes || isEmptyRect(rect)) return;
+  const square = width === height;
+  const vertical = axes.vertical;
+  const horizontal = axes.horizontal;
+  const diagonal = square && axes.diagonal;
+  const antidiagonal = square && axes.antidiagonal;
+  if (!vertical && !horizontal && !diagonal && !antidiagonal) return;
+  const w = width * scene.cellSize;
+  const h = height * scene.cellSize;
+  ctx.save();
+  clipTo(ctx, rect);
+  ctx.globalAlpha = 1;
+  ctx.setLineDash([]);
+  ctx.strokeStyle = SYMMETRY_GUIDE_COLOR;
+  ctx.lineWidth = Math.max(2, Math.round(scene.cellSize * 0.15));
+  ctx.beginPath();
+  if (vertical) {
+    ctx.moveTo(w / 2, 0);
+    ctx.lineTo(w / 2, h);
+  }
+  if (horizontal) {
+    ctx.moveTo(0, h / 2);
+    ctx.lineTo(w, h / 2);
+  }
+  if (diagonal) {
+    ctx.moveTo(0, 0);
+    ctx.lineTo(w, h);
+  }
+  if (antidiagonal) {
+    ctx.moveTo(w, 0);
+    ctx.lineTo(0, h);
+  }
+  ctx.stroke();
+  ctx.restore();
 }
 
 /** The preview an in-progress gesture adds on top of the scene; every repaint replays it, so scrolling keeps it. */
@@ -191,6 +239,12 @@ function pieceCellsIn(base: StitchPattern, piece: FloatingSelection) {
  * the bitmap (a restored snapshot), so only the gesture's own paint is added.
  */
 export function drawSceneWithGesture(ctx: CanvasRenderingContext2D, scene: ChartScene, pattern: StitchPattern, gesture: GesturePreview | null, rect: PixelRect, baseDrawn = false) {
+  drawGestureContent(ctx, scene, pattern, gesture, rect, baseDrawn);
+  const shown = gesture?.base ?? pattern;
+  drawSymmetryGuides(ctx, shown.width, shown.height, scene, rect);
+}
+
+function drawGestureContent(ctx: CanvasRenderingContext2D, scene: ChartScene, pattern: StitchPattern, gesture: GesturePreview | null, rect: PixelRect, baseDrawn: boolean) {
   if (isEmptyRect(rect)) return;
   const mode = incrementalModeOf(scene.viewMode);
   if (!gesture) {

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { downloadBlob } from "@/lib/export/a4-export";
 import { calculateA4Layout } from "@/lib/export/a4-layout";
@@ -16,9 +17,10 @@ export function paginatesAsA4(kind: ExportKind): boolean {
 
 /**
  * The Export dropdown, Export, and Export all. Raster and PDF exports are built in the export worker, so the page stays
- * responsive and shows page progress (D125); the busy label paints before any work starts.
+ * responsive and shows page progress (D125); the busy label paints before any work starts. The symmetry axes travel
+ * with every request but only reach the editable JSON (G-037).
  */
-export function useExports(pattern: StitchPattern | null, options: WorkspaceOptions) {
+export function useExports(pattern: StitchPattern | null, options: WorkspaceOptions, symmetry: SymmetryAxes = NO_SYMMETRY) {
   const [exportKind, setExportKind] = useState<ExportKind>("editable");
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingAll, setIsExportingAll] = useState(false);
@@ -37,7 +39,7 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
     try {
       // Let the busy label paint first; on the main-thread fallback the export itself would block that paint.
       await new Promise((resolve) => setTimeout(resolve, 0));
-      const { blob, filename } = await runExport({ kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells }, setProgress);
+      const { blob, filename } = await runExport({ kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, symmetry }, setProgress);
       downloadBlob(blob, filename);
     } catch (err) {
       setExportError(err instanceof Error ? err.message : fallbackMessage);

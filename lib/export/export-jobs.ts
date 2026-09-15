@@ -1,6 +1,7 @@
 import { serializeOxs } from "../editor/oxs";
 import { compactUnusedColors } from "../editor/pattern-edit";
 import { serializePattern } from "../editor/pattern-serialize";
+import type { SymmetryAxes } from "../editor/symmetry-axes";
 import type { StitchPattern } from "../types";
 import { generateA4Export } from "./a4-export";
 import type { OverlapCells } from "./a4-layout";
@@ -25,6 +26,8 @@ export interface ExportJobRequest {
   sizeUnit: SizeUnit;
   authorName: string;
   overlapCells: OverlapCells;
+  /** Written into the editable JSON, alone and inside Export all (G-037); rendered exports ignore it. */
+  symmetry?: SymmetryAxes;
 }
 
 export interface ExportJobResult {
@@ -58,9 +61,9 @@ function modeOf(kind: "png-color" | "png-bw" | "a4-color" | "a4-bw" | "pdf-color
  * colors are compacted away for every export except the editable JSON, which keeps the palette as edited.
  */
 export async function runExportJob(request: ExportJobRequest, onProgress?: ExportProgressCallback): Promise<ExportJobResult> {
-  const { kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells } = request;
+  const { kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, symmetry } = request;
   if (kind === "editable") {
-    return { blob: new Blob([serializePattern(pattern)], { type: "application/json" }), filename: `${baseName}_editable.json` };
+    return { blob: new Blob([serializePattern(pattern, symmetry)], { type: "application/json" }), filename: `${baseName}_editable.json` };
   }
 
   const compacted = compactUnusedColors(pattern);
@@ -86,7 +89,7 @@ export async function runExportJob(request: ExportJobRequest, onProgress?: Expor
       return { blob: new Blob([new Uint8Array(bytes)], { type: "application/pdf" }), filename: `${baseName}_patternkeeper.pdf` };
     }
     case "all":
-      return generateExportAllZip(compacted, { baseName, aidaCount, sizeUnit, authorName, overlapCells, fontBytes: await fetchPdfFontBytes(), onProgress });
+      return generateExportAllZip(compacted, { baseName, aidaCount, sizeUnit, authorName, overlapCells, symmetry, fontBytes: await fetchPdfFontBytes(), onProgress });
     default: {
       const unhandled: never = kind;
       throw new Error(`Unknown export kind: ${String(unhandled)}`);

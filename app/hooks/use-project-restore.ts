@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { logPatternLoadFailure } from "@/lib/editor/error-report";
 import { getProjectStore, restoreProject, type ProjectLoadFailure, type ProjectLoadResult } from "@/lib/editor/project-store";
+import { NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry";
 import { legacyProjectSlot } from "@/lib/editor/workspace-storage";
 import type { StitchPattern } from "@/lib/types";
 import { useLatest } from "./use-latest";
 
 /**
- * Restores the autosaved project once on mount (D100, D101). `restored` gates autosave, so the first render can't
- * overwrite the saved project before it has been read back. A failure is logged at once and kept for the banner.
+ * Restores the autosaved project once on mount (D100, D101), with the symmetry axes saved alongside it (G-037).
+ * `restored` gates autosave, so the first render can't overwrite the saved project before it has been read back. A
+ * failure is logged at once and kept for the banner.
  */
-export function useProjectRestore(onRestored: (pattern: StitchPattern) => void) {
+export function useProjectRestore(onRestored: (pattern: StitchPattern, symmetry: SymmetryAxes) => void) {
   const [restored, setRestored] = useState(false);
   const [failure, setFailure] = useState<ProjectLoadFailure | null>(null);
   const onRestoredRef = useLatest(onRestored);
@@ -24,7 +26,7 @@ export function useProjectRestore(onRestored: (pattern: StitchPattern) => void) 
           logPatternLoadFailure({ source: "auto-restore", error: result.failure.error });
           setFailure(result.failure);
         }
-        if (result.pattern) onRestoredRef.current(result.pattern);
+        if (result.pattern) onRestoredRef.current(result.pattern, result.symmetry ?? NO_SYMMETRY);
         setRestored(true);
       });
     return () => {

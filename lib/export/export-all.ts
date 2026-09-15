@@ -6,6 +6,7 @@ import { canvasToPngBlob } from "./canvas-backend";
 import type { ExportProgressCallback } from "./export-progress";
 import { serializeOxs } from "../editor/oxs";
 import { serializePattern } from "../editor/pattern-serialize";
+import type { SymmetryAxes } from "../editor/symmetry-axes";
 import { buildPatternKeeperPdf } from "./pattern-keeper-pdf";
 import { renderPatternToCanvas, renderStitchPreviewToCanvas } from "./render";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
@@ -23,6 +24,8 @@ export interface ExportAllOptions {
   sizeUnit?: SizeUnit;
   authorName?: string;
   overlapCells?: OverlapCells;
+  /** Saved into the bundled editable JSON only (G-037). */
+  symmetry?: SymmetryAxes;
   /** The embedded font's raw bytes for the bundled Pattern Keeper PDF, passed in so this works in a page, a worker and tests. */
   fontBytes: Uint8Array;
   onProgress?: ExportProgressCallback;
@@ -41,7 +44,7 @@ function a4PageCount(pattern: StitchPattern, overlapCells: OverlapCells, info: {
 }
 
 export async function generateExportAllZip(pattern: StitchPattern, options: ExportAllOptions): Promise<ExportAllResult> {
-  const { baseName = "pattern", aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", overlapCells = 5, fontBytes, onProgress } = options;
+  const { baseName = "pattern", aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", overlapCells = 5, symmetry, fontBytes, onProgress } = options;
   const info = { aidaCount, sizeUnit, authorName };
 
   const pdfPages = a4PageCount(pattern, overlapCells, info, 72);
@@ -56,7 +59,7 @@ export async function generateExportAllZip(pattern: StitchPattern, options: Expo
 
   const zip = new JSZip();
 
-  zip.file(`${baseName}_editable.json`, serializePattern(pattern));
+  zip.file(`${baseName}_editable.json`, serializePattern(pattern, symmetry));
   zip.file(`${baseName}.oxs`, serializeOxs(pattern, { authorName, aidaCount }));
   await step("Editable file and OXS", 2);
 

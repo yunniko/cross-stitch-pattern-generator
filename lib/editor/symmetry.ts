@@ -1,6 +1,9 @@
 import { labelRegions } from "../pipeline/regions";
 import { EMPTY_CELL, type StitchPattern } from "../types";
 import { withCellPalette } from "./pattern-edit";
+import { effectiveSymmetryAxes, SYMMETRY_AXES, type SymmetryAxes, type SymmetryAxis } from "./symmetry-axes";
+
+export { effectiveSymmetryAxes, NO_SYMMETRY, SYMMETRY_AXES, type SymmetryAxes, type SymmetryAxis } from "./symmetry-axes";
 
 /**
  * Symmetry geometry for drawing and quick mirror (G-037, D137). Every axis passes through the canvas centre:
@@ -10,14 +13,6 @@ import { withCellPalette } from "./pattern-edit";
  * - `antidiagonal`: top-right to bottom-left, `(x, y) → (N−1−y, N−1−x)`, square canvases only.
  * The active axes generate a group (order 1, 2, 4 or 8); a cell's orbit under it is every cell one action touches.
  */
-export type SymmetryAxis = "vertical" | "horizontal" | "diagonal" | "antidiagonal";
-
-export const SYMMETRY_AXES: readonly SymmetryAxis[] = ["vertical", "horizontal", "diagonal", "antidiagonal"];
-
-export type SymmetryAxes = Readonly<Record<SymmetryAxis, boolean>>;
-
-export const NO_SYMMETRY: SymmetryAxes = { vertical: false, horizontal: false, diagonal: false, antidiagonal: false };
-
 /**
  * A transform of doubled centred coordinates `u = 2x − (W−1)`, `v = 2y − (H−1)`, which keeps every reflection an exact
  * integer map: `u' = a·u + b·v`, `v' = c·u + d·v`. Only signed permutation matrices occur.
@@ -62,12 +57,6 @@ export function symmetryGroup(axes: SymmetryAxes): readonly SymmetryMatrix[] {
   }
   groupCache.set(mask, group);
   return group;
-}
-
-/** The axes that apply on a `width` × `height` canvas: diagonals only exist on a square one (Owner, 2026-09-15). */
-export function effectiveSymmetryAxes(axes: SymmetryAxes, width: number, height: number): SymmetryAxes {
-  if (width === height || (!axes.diagonal && !axes.antidiagonal)) return axes;
-  return { ...axes, diagonal: false, antidiagonal: false };
 }
 
 function assertDimensions(width: number, height: number) {

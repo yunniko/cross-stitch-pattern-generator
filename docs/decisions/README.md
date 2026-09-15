@@ -94,7 +94,7 @@ remain readable with git show.
 - D083 — The Fill tool icon is a paint bucket — active
 - D084 — The Brush tool icon shows a handle, a bristle head and a stroke — active
 - D085 — The export dropdown defaults to editable JSON and groups formats under Color and Black & white — active
-- D086 — Global keyboard shortcuts skip typing targets; brush double-click fills from the pre-click pattern — partly superseded (superseded by: D103)
+- D086 — Global keyboard shortcuts skip typing targets; brush double-click fills from the pre-click pattern — partly superseded (superseded by: D103; D138)
 - D087 — Keys 1–5 switch views, including an original-photo view; canvas color is view-only — active
 - D088 — Dropping a color on the Empty row merges it into no-stitch — active
 - D089 — Pattern size, color count, algorithm and palette persist, each validated field by field — active
@@ -146,3 +146,4 @@ remain readable with git show.
 - D135 — The Image window paints a viewport canvas inside a chart-sized frame — active
 - D136 — Realistic view from per-colour stitch tiles; Grid + photo paints less overscan — active
 - D137 — Symmetry is the group the active axes generate, computed in doubled centred coordinates — active
+- D138 — A brush double-click fill is one undo step; symmetry is saved as an optional file field — active
