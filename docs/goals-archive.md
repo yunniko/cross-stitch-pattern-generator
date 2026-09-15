@@ -5,6 +5,362 @@ file holds only draft, active and blocked goals. Entries are unchanged from
 their last state in `GOALS.md`; decision references (Dnn) now resolve to
 `docs/decisions/`.
 
+### G-037 · Symmetry drawing and quick mirror — DONE (2026-09-16, Owner sign-off 2026-09-16)
+- **What:** two new editing aids in the Tools dock.
+  - **Symmetry:** four on/off toggle buttons — Vertical, Horizontal,
+    Diagonal ↘ (top-left to bottom-right) and Diagonal ↙ (top-right to
+    bottom-left). They can be on in any combination. While a toggle is on,
+    painting places the same colour at every mirrored cell. Each active axis
+    is drawn on the canvas as a red line. The lines appear in no export.
+  - **Quick mirror:** four one-click actions.
+    - *Left half:* mirrors the left half onto the right half.
+    - *Upper half:* mirrors the upper half down.
+    - *Upper-left corner:* mirrors the top-left quarter to the right, down,
+      and down-right.
+    - *Upper-left half corner:* mirrors the triangle between the left edge
+      and the diagonal onto the triangle next to the top edge. It then
+      mirrors the whole quarter as *Upper-left corner* does, for 8-fold
+      symmetry.
+  - Every axis passes through the canvas centre. The diagonals run from the
+    centre to the corners.
+- **Why:** Owner request (2026-09-15). Symmetric motifs such as mandalas,
+  borders and snowflakes are common in cross stitch, and are slow to draw by
+  hand.
+- **Acceptance criteria:**
+  1. The symmetry toggles are `aria-pressed` buttons and work in all 16
+     on/off combinations.
+     - **Saved with the document (Owner, 2026-09-15).** The JSON file carries
+       an optional `symmetry` field, and so do autosave and the `.cspzip`
+       bundle, which embeds the JSON.
+     - **Opening a document sets the toggles from the document.** This covers
+       opening a JSON, ZIP or `.cspzip` file and restoring the autosaved
+       project on reload. If the field is present, it is restored. If it is
+       missing, as in older files, or unreadable, symmetry is off and
+       nothing is reported.
+     - A new photo, an `.oxs` import or a first Generate starts with every
+       toggle off.
+     - A toggle is not an undo step, and undo and redo leave the toggles as
+       they are.
+     - The field is ignored by rendered exports (PNG, A4, PDF, OXS).
+     - Whether it needs a format-version bump follows the parser's rules for
+       an optional field, decided in M2 with a unit test.
+  2. With symmetry on, the Brush, Fill tool, brush double-click fill,
+     dropping a colour onto the canvas, and EMPTY painting all affect every
+     cell in the mirror set of the cell they act on. The mirror set is the
+     full symmetry group the active axes generate:
+     - one axis: a group of 2;
+     - both straight axes, or both diagonals: a group of 4 (the 180° copy is
+       included);
+     - a straight axis with a diagonal: a group of 8 (it includes 90°
+       rotations).
+     These are the most cells one action can touch. A cell lying on an axis,
+     or at the centre, has fewer distinct copies, and squares of size 1–3
+     never reach 8. Without the full group the result would not stay
+     symmetric.
+     - A brush stroke stays one undo step.
+     - **A brush double-click fill becomes one undo step (Owner,
+       2026-09-15)**, with or without symmetry. Today it leaves 3 (D086).
+       - One undo returns to the pattern as it was before the first click,
+         and one redo brings the fill back.
+       - If the history no longer holds that pattern, for example because it
+         was trimmed at 50 entries or an unrelated edit came in between, the
+         fill is recorded as an ordinary extra step and nothing is lost.
+     - A symmetric fill floods each mirrored cell's region as it was before
+       the fill, keeping each tool's connectivity (8-connected for the Fill
+       tool and double-click, 4-connected for drop-to-fill), and then paints
+       the union.
+     - On a pattern that isn't already symmetric, the filled regions differ,
+       so the result can be asymmetric. For example, filling `[a,a,b,a]`
+       from cell 0 with a vertical axis gives `[c,c,b,c]`. This is expected
+       behaviour and is tested.
+  3. Exact cell mirroring: `x → W−1−x` and `y → H−1−y`. On an odd size the
+     middle column or row is the axis and keeps its cells; on an even size
+     the axis falls between two columns or rows. On a square canvas the
+     diagonals map `(x, y) → (y, x)` and `(x, y) → (N−1−y, N−1−x)`.
+     On a non-square canvas both diagonal toggles and *Upper-left half
+     corner* are disabled, with a tooltip saying they need a square canvas.
+     Opening a saved file with a diagonal on a non-square canvas, or
+     resizing to a non-square canvas, turns the diagonal toggles off. They
+     don't stay on invisibly. The same applies when undo or redo makes the
+     canvas non-square, and undoing back to a square doesn't turn them on
+     again. The geometry never rounds or clamps an off-canvas result; it
+     applies the square-only rule itself instead of trusting the UI state.
+  4. Red guide lines are drawn on the axes at chart positions in every view
+     mode. They follow a canvas resize and zoom, are not drawn in the
+     navigator, and don't change any rendered export. A test compares the
+     PNG, A4, PDF and OXS exports with symmetry on and off. The JSON differs
+     only by its `symmetry` field.
+  5. Each quick mirror is one undo step. It overwrites only the target part,
+     copying EMPTY cells as they are. A floating selection is merged into
+     the same step: the merge and the mirror are computed together and
+     committed once.
+     Stitch counts are recomputed, the palette is kept (colours are not
+     removed if they become unused), and the photo underlay isn't mirrored.
+     Running the same mirror twice gives the same result as running it once.
+  6. Select, Move, paste and flip ignore symmetry. Their tooltips don't claim
+     otherwise.
+  7. Unit tests cover the geometry:
+     - the four reflections are involutions;
+     - group closure, inverses and group orders for all 16 combinations
+       (1, 2, 4 or 8); rotations are not involutions;
+     - every element keeps cells on the canvas;
+     - orbit sizes at the centre, on axes and diagonals, on odd, even and
+       mixed-parity rectangles, and on squares of size 1–3;
+     - quick-mirror results are symmetric and idempotent, EMPTY cells are
+       copied, and unused palette entries are kept;
+     - the asymmetric-fill case from criterion 2, and rejected invalid input.
+     E2e tests cover painting with several combinations, the red lines in
+     canvas pixels, unchanged exports, and each quick mirror followed by
+     undo. Lint, type-check, the unit and e2e suites and docs-lint pass.
+     The change is deployed and smoke-tested live.
+- **Constraints:** no new dependencies. A Codex critique of the geometry
+  module happens before its code. Standing deploy approval applies.
+  - **Relationship to G-036:** G-036 (DRAFT) replaces the full-size canvas.
+    The guide lines are one overlay drawn in chart coordinates, so they move
+    over with G-036 M3 whichever goal runs first. The lines are off by
+    default, so G-036's parity oracle is unaffected.
+- **Owner decisions (2026-09-15):**
+  1. *Diagonals on a non-square canvas:* option (a). Diagonals work only on
+     square canvases, so the pixels stay exact. Rejected: (b) a proportional
+     stretch, which distorts shapes and leaves gaps or doubled cells in
+     brush lines; (c) 45° lines, which miss the corners and drop cells that
+     land off the canvas.
+  2. *Combinations:* the full symmetry group the active axes generate, as in
+     criterion 2.
+  3. *Upper-left half corner:* the source is the triangle next to the left
+     edge, bounded by the left edge, the horizontal centre line and the
+     diagonal.
+
+**Milestones:**
+- [x] **M1 — Symmetry geometry, pure and unit-tested.** Done (D137).
+  - Codex critique first.
+  - `lib/editor/symmetry.ts`:
+    - the axis set type;
+    - closure of the group the active axes generate;
+    - `symmetryOrbit(cell, width, height, axes)`, which applies the
+      square-only rule itself;
+    - reflections as signed permutation matrices in doubled centred
+      coordinates (`u = 2x − (W−1)`), with groups cached by axis mask;
+    - `applyQuickMirror(pattern, kind)`: reads the original buffer, writes a
+      fresh one, and commits it with `withCellPalette`, which recounts;
+    - `fillSymmetric(pattern, orbitSeeds, paletteIndex, connectivity)`: the
+      seeds must be a complete orbit. Regions are labelled once for
+      4-connected fills, and 8-connected floods share one mask, so a large
+      region is traversed once.
+    - Input is validated: dimensions, buffer length, integer seeds on the
+      canvas, and a destination that is a palette index or EMPTY.
+  - One decision file for the geometry and group-closure rule.
+  - Gate: the unit tests in criterion 7 pass.
+- [x] **M2 — Symmetry toggles, guide lines and symmetric painting.** Done (D138).
+  - A Symmetry group in the Tools dock: four toggles with axis icons, laid
+    out 2 × 2 so the dock doesn't grow by four rows. Checked at a 768 px
+    viewport height.
+  - The renderer draws the red axis overlay after the chart content, in
+    every view mode.
+  - Brush strokes, their incremental drawing, the Fill tool, double-click
+    fill and drop-to-fill use the orbit.
+  - A stroke captures its axes, dimensions and colour at pointer-down. Each
+    pointer cell writes its whole orbit, which is then drawn with one batched
+    redraw rather than one per cell (Grid + photo redraws fully), with the
+    guide lines restored.
+  - The double-click snapshot is dropped when the document, the dimensions,
+    the axes or the colour change between the two clicks. Every mirrored seed
+    floods against that one snapshot.
+  - Double-click fill as one undo step:
+    - `lib/editor/use-undo-history.ts` gains `replaceSince(anchor, next)`.
+      It finds `anchor` by identity at or before the current position. If
+      only this gesture's two click commits follow it, it drops them and
+      pushes `next`; otherwise it acts like `set`.
+    - Unit tests cover the rewind, a trimmed anchor, an intervening edit and
+      redo after undo. The keyboard-shortcuts e2e test checks one undo and
+      one redo.
+    - A new decision supersedes D086's "3 undo steps", and HANDOVER's known
+      limitation is removed.
+  - Live axes are kept outside the undoable pattern snapshots. The saved
+    value is the current axes, with the square-only rule applied.
+  - Symmetry state is saved in the JSON file and autosave, and restored on
+    open or reload, or reset to off when absent.
+    - Tests: a serialize round trip, a file without the field, a malformed
+      field, and project-store restore.
+  - Gate:
+    - e2e tests pass for painting, canvas pixels, unchanged rendered
+      exports, and the toggles after save, reopen and reload;
+    - deployed, with a live smoke test.
+- [x] **M3 — Quick mirror actions and release.** Done; awaiting the Owner's sign-off.
+  - A Mirror group of four action buttons with icons that shade the source
+    part.
+  - Each action computes `mergeSelection` (not the display-only
+    `compositeSelectionPreview`) and then the mirror, and commits once.
+  - E2e tests for each action and its undo.
+  - Update the README, HANDOVER and decision index; run docs-lint.
+  - Gate: deployed, live smoke test, and the goal awaits Owner sign-off.
+
+**Progress log** (newest first):
+- 2026-09-16 — **Owner signed off** ("everything is ok"); G-037 moved to
+  `docs/goals-archive.md`.
+- 2026-09-15 — **M3: quick mirror actions; G-037 awaits the Owner's sign-off.**
+  - Tools dock: a Mirror group of four buttons, 2 × 2, below Symmetry. Their
+    icons shade the source part and mark the mirror lines in red. The half
+    corner is disabled on a non-square canvas, with a tooltip. The Symmetry and
+    Mirror groups fit a 768 px tall window (e2e).
+  - `applyQuickMirrorWithSelection` (`lib/editor/symmetry.ts`) merges a
+    floating selection with `mergeSelection`, then mirrors. The workspace
+    commits that once and releases the selection without touching the
+    clipboard. The palette is kept, counts are recomputed, and the photo
+    underlay is not mirrored.
+  - Select, Move, paste and flip ignore symmetry, and their tooltips say so.
+  - README describes symmetric drawing and quick mirror.
+  - Existing tests: the first full run failed two resize-canvas tests, because
+    `getByLabel("Left")` matches by substring and the new "Mirror left half"
+    and "Mirror upper-left …" labels matched too. The resize spec now matches
+    "Left" exactly; the app labels are unchanged.
+  - Checks:
+    - tsc, eslint and docs-lint clean; Vitest 949 passed | 1 skipped (950), including
+      `tests/unit/quick-mirror-selection.spec.ts` (3);
+    - Playwright 300 passed (1.1m) on a production build.
+    - `tests/e2e/quick-mirror.spec.ts` covers:
+      - the three straight mirrors, each symmetric and undone in one step;
+      - the half corner, disabled on a rectangle and giving 8-fold symmetry on
+        a square;
+      - a moved floating selection merged into the same step.
+  - Codex was unavailable (usage limit until 2026-09-19); no Codex review of G-037
+    code.
+  - Deployed 9920aab. Only this container restarted; 20 of 20 sites 200 before
+    and after. On production, the G-036 checks and the M2 symmetry check passed,
+    and the M3 check found Mirror left half made the Small chart symmetric and one
+    undo restored all 1550 stitches, with no console errors.
+  - **PENDING APPROVAL: G-037 sign-off** — every milestone is done, deployed and
+    checked live.
+- 2026-09-15 — **Owner approved M3** ("go ahead"). Codex remains unavailable until 2026-09-19.
+- 2026-09-15 — **M2: symmetry toggles, red guide lines, symmetric painting, one-step double-click fill (D138).**
+  - Tools dock: a Symmetry group of four `aria-pressed` toggles, 2 × 2. The
+    diagonals are disabled with a tooltip on a non-square canvas. It fits a
+    768 px tall window (e2e).
+  - Canvas: `drawSymmetryGuides` (`app/chart-scene.ts`) strokes the active axes
+    in red after every view and gesture frame, in one path. A batched brush
+    redraw draws them again only over the repainted stitches.
+  - Painting:
+    - the brush captures axes and colour at pointer-down and paints each
+      pointer cell's whole orbit as one batch;
+    - the Fill tool and double-click fill use `fillSymmetric` 8-connected,
+      and drop-to-fill uses it 4-connected.
+  - One-step double-click fill:
+    - the brush records the pattern before the first click and the patterns
+      its clicks commit;
+    - `replaceSince` in `lib/editor/use-undo-history.ts` swaps exactly those
+      steps for the fill, and otherwise adds it as an ordinary step;
+    - the double-click snapshot is dropped when the document, the colour or
+      the axes change between clicks;
+    - HANDOVER's known limitation is removed, and D086 is partly superseded.
+  - State and saving:
+    - symmetry lives outside the undo history;
+    - diagonals turn off when a resize, undo, redo or open makes the canvas
+      non-square, and stay off when it becomes square again;
+    - a new photo or a first Generate turns every toggle off, and an OXS
+      import opens with symmetry off;
+    - the JSON file, Export all and autosave carry an optional `symmetry`
+      field, written only when an axis is on, so the format version stays 7;
+    - opening JSON, ZIP or `.cspzip` files and reloading restore it, and a
+      missing or unreadable field means off.
+  - Deviation from the plan: the axis type, the axis list and the square-only
+    rule moved to `lib/editor/symmetry-axes.ts`. `autosave.spec.ts` loads the
+    project store in Node, and a chain through `pattern-edit` to
+    `color-name-list` crashed Playwright on load.
+  - An e2e test first assumed the brush colour was that of stitch (0, 0). It now
+    learns the colour from a throwaway stitch and checks stitches whose mirror
+    copies all differ from it.
+  - Checks:
+    - tsc, eslint and docs-lint clean; Vitest 946 passed | 1 skipped (947);
+    - Playwright 297 passed (1.2m) on a production build, including 8 symmetry e2e
+      tests and the double-click one-undo/one-redo check;
+    - `tests/unit/undo-history.spec.ts` (7) and
+      `tests/unit/symmetry-persistence.spec.ts` (9).
+  - Codex was unavailable (usage limit until 2026-09-19).
+  - Deployed 2963f3c (rebased on the other session's research commit 5d31381,
+    which touched only `docs/reviews/`). Only this container restarted; 20 of 20
+    sites 200 before and after; the G-036 production checks passed.
+  - The first symmetry production check failed on its own assumption, the same
+    one the e2e test had: it expected the colour of stitch (0, 0), 228,124,132,
+    where the brush paints 160,111,72. Its toggle and red guide line checks
+    passed. A corrected check learned the brush colour from a throwaway stitch;
+    on production it painted stitch 1,1 and its mirror 48,1, one undo removed
+    both, and there were no console errors.
+  - Next: M3 (quick mirror actions and release) awaits approval.
+- 2026-09-15 — **Owner: deploy M1 and start M2** ("deploy and go m2"). M3 still needs
+  approval. Codex remains unavailable until 2026-09-19.
+- 2026-09-15 — **M1: symmetry geometry in `lib/editor/symmetry.ts`, unit-tested (D137).**
+  - Axes are signed permutation matrices in doubled centred coordinates. The
+    active axes generate a closed group (orders 1, 2, 4 and 8 across all 16
+    combinations), cached per axis set.
+  - `effectiveSymmetryAxes` drops the diagonals on a non-square canvas, and
+    `symmetryOrbit` applies it itself.
+  - `applyQuickMirror` covers the four mirrors. Each reads the original buffer
+    and recounts through `withCellPalette`, and the half corner rejects a
+    non-square canvas.
+  - `fillSymmetric` floods each orbit cell region of the pre-fill pattern and
+    paints the union: one labelling pass for 4-connected fills, one shared mask
+    for 8-connected ones.
+  - Deviation from the plan: `fillSymmetric` takes the seed cell and the axes,
+    not a caller-built orbit, so its seeds are always a complete orbit.
+  - Checks:
+    - `tests/unit/symmetry.spec.ts`: 22 tests covering criterion 7, including
+      involutions, closure, inverses and non-involution rotations, orbits on odd,
+      even and mixed rectangles and on squares 1–3, idempotent quick mirrors,
+      EMPTY copying, kept palettes, the asymmetric-fill case and invalid input;
+    - the full unit suite passes (counts in the commit);
+    - tsc (after `next typegen`), eslint and docs-lint clean.
+  - Next: M2 (toggles, guide lines, symmetric painting, one-step double-click
+    fill), awaiting approval.
+- 2026-09-15 — **Owner approved the plan** ("proceed g-37"); G-037 is ACTIVE and M1
+  starts. Work happens on branch `g037` in a separate worktree. The planned Codex
+  critique before the geometry code can not run: Codex is at its usage limit until
+  2026-09-19. The design critique above stands, and per STANDARDS.md M1 proceeds.
+- 2026-09-15 — Owner: a double-click fill should be one undo step. This
+  reverses the rebuttal below. Criterion 2 and M2 are updated: a history
+  rewind to the pre-first-click pattern, found by identity, not the
+  deferred commit D086 rejected. Plan only; still DRAFT.
+- 2026-09-15 — Codex critique of the geometry design (read-only).
+  - It confirmed:
+    - the doubled-coordinate matrices and closure (group orders 1/2/4/8
+      across the 16 combinations);
+    - all four quick-mirror formulas, including the left-edge triangle
+      `0 ≤ x ≤ y`;
+    - turning diagonals off, rather than keeping them hidden.
+  - Accepted into the plan:
+    - test only the reflections as involutions, since the full group
+      includes 90° rotations;
+    - 2/4/8 are group orders, and orbits on axes are smaller;
+    - the square-only rule applies inside the geometry;
+    - diagonals are cleared when undo or redo makes the canvas non-square;
+    - asymmetric fills are documented and tested;
+    - regions are labelled once and floods share one mask;
+    - input is validated;
+    - selection merge and mirror form one step;
+    - strokes capture their settings and draw each orbit in one batch;
+    - the double-click snapshot is invalidated.
+  - Rebutted in part:
+    - the critique asked to merge double-click fill into one undo step. That
+      is D086's existing 3-step behaviour, now out of scope, and criterion 2
+      no longer claims one step.
+    - It noted that sequential fills with one colour would give the same
+      result as the union. Base regions are kept because they are simpler
+      to reason about, and the plan no longer says a fill could "feed"
+      another.
+- 2026-09-15 — Owner answered all three open questions: 1a (square only),
+  2 yes (full group), 3 yes (left-edge triangle); recorded under Owner
+  decisions. A diagonal toggle turns off on a non-square canvas rather than
+  staying on invisibly (criterion 3). **Plan only, as the Owner asked; stays
+  DRAFT until the Owner says to start.**
+- 2026-09-15 — Owner: symmetry is off when a document opens, stays in the
+  JSON file, is restored if present and skipped if not. Criterion 1 and M2
+  are updated to match. Open questions 1–3 are still unanswered. Resolving
+  question 1 also has to settle what happens when a file with a diagonal on
+  opens on, or is resized to, a non-square canvas.
+- 2026-09-15 — **Goal planned; DRAFT until the Owner answers the open
+  questions and approves.** The brush has no between-event interpolation
+  today (`app/hooks/use-canvas-tools.ts`), so mirrored strokes inherit that
+  behaviour; changing it is out of scope.
+
 ### G-036 · Large charts draw without freezing the page — DONE (2026-09-15, Owner sign-off 2026-09-15)
 - **What:** Showing, reopening, zooming, scrolling and switching views on a
   large chart no longer blocks the page for a noticeable time. The on-screen
