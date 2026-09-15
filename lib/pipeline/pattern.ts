@@ -15,6 +15,7 @@ import {
 } from "../crisp/crisp-evidence-layer";
 import { finalizeCrispPalette } from "../crisp/crisp-palette-finalization";
 import { runCrispQuantizationStage } from "../crisp/crisp-quantization-stage";
+import { snapTransitionStrips, type TransitionSnapOptions } from "../crisp/transition-snap";
 import { defaultComponentRecolorOptions, fixDiagonalConnections, recolorSmallComponents } from "./contour-cleanup";
 import { runMultiScaleOptimizer, type MultiScaleWeights } from "./local-optimizer";
 import { enhancePixelBuffer, type EnhancementModeId } from "./enhance";
@@ -54,6 +55,8 @@ export interface BuildPatternOptions {
   /** Crisp Edges (G-024, D57-D71); defaults to "standard". */
   edgeMode?: EdgeMode;
   crispEvidenceLayerOptions?: CrispEvidenceLayerOptions;
+  /** Crisp+ transition-strip snapping; defaults to `DEFAULT_TRANSITION_SNAP_OPTIONS` (D140). Ignored in other modes. */
+  transitionSnapOptions?: TransitionSnapOptions;
   /** Photo enhancement before generation (G-032); defaults to "off", which passes the original buffer through untouched (D112). */
   enhancementMode?: EnhancementModeId;
   onProgress?: (fraction: number) => void;
@@ -147,6 +150,27 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     merged.cellPaletteIndex = repairCrispAssignments(merged.cellPaletteIndex, evidenceLayer, mergedPaletteOklab);
   }
 
+  // Crisp+ only: thin blend strips the evidence couldn't claim snap to a side, before compaction drops any colour they
+  // empty and before finalization and brand snapping read the labels (G-038 M2, D140).
+  // A snapped cell's own colour is still the blend it was averaged from, so in the palette recompute it counts as the
+  // colour of the side it joined; otherwise the side colours drift towards the blend (and to a different thread).
+  let finalizeOklab: Float64Array = ctx.cellOklab;
+  if (edgeMode === "crisp-plus" && shouldOptimize) {
+    const snap = snapTransitionStrips(merged.cellPaletteIndex, gridWidth, gridHeight, merged.palette, colorSource, options.transitionSnapOptions);
+    merged.cellPaletteIndex = snap.cellPaletteIndex;
+    if (snap.changes > 0) {
+      finalizeOklab = ctx.cellOklab.slice();
+      const labelOklab = merged.palette.map(rgbToOklab);
+      for (let i = 0; i < snap.snapped.length; i++) {
+        if (!snap.snapped[i]) continue;
+        const [l, a, b] = labelOklab[merged.cellPaletteIndex[i]];
+        finalizeOklab[i * 3] = l;
+        finalizeOklab[i * 3 + 1] = a;
+        finalizeOklab[i * 3 + 2] = b;
+      }
+    }
+  }
+
   // G-022 M5.5 contour-pacing refinement (HANDOVER.md D48/D54) -- placed
   // after structural cleanup and palette merging, before the final
   // palette-color recompute below, per the critique's own explicit
@@ -189,7 +213,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     // averaged color -- see `finalizeCrispPalette`'s own doc comment for
     // the full rationale and its bounded repair-and-recompute loop.
     const preRecomputePalette = usedIndices.map((originalIndex) => merged.palette[originalIndex]);
-    const finalized = finalizeCrispPalette(ctx.cellOklab, compactCellPaletteIndex, preRecomputePalette, evidenceLayer);
+    const finalized = finalizeCrispPalette(finalizeOklab, compactCellPaletteIndex, preRecomputePalette, evidenceLayer);
 
     // Defensive: `finalizeCrispPalette`'s own repair rounds could, in
     // principle, move every cell away from some label -- re-run the same

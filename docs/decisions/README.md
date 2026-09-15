@@ -148,3 +148,4 @@ remain readable with git show.
 - D137 — Symmetry is the group the active axes generate, computed in doubled centred coordinates — active
 - D138 — A brush double-click fill is one undo step; symmetry is saved as an optional file field — active
 - D139 — Crisp+ evidence also fits a blurred step, keeping Crisp's margin and threshold — active
+- D140 — Crisp+ snaps thin blend strips that the source confirms as a blurred edge — active

@@ -1,4 +1,6 @@
 import { oklabDistanceSquared, rgbToOklab } from "@/lib/color/color";
+import { nearestColorInBrand } from "@/lib/threads/brand-match";
+import type { ThreadBrand } from "@/lib/threads/thread-brands";
 import { EMPTY_CELL, type PixelBuffer, type RGB, type StitchPattern } from "@/lib/types";
 import { pseudoNoise } from "./fixtures";
 
@@ -196,6 +198,15 @@ export function noiseScene(): PixelBuffer {
   return { data, width: W, height: H };
 }
 
+/**
+ * The same scene judged against thread colours: each true colour replaced by its nearest thread, so a thread pattern's
+ * colours can match. Anchor patterns carry DMC RGB (D092), so Anchor uses the nearest DMC thread.
+ */
+export function withThreadColors(scene: LabelledScene, brand: ThreadBrand): LabelledScene {
+  const lookupBrand: ThreadBrand = brand === "anchor" ? "dmc" : brand;
+  return { ...scene, colors: scene.colors.map((c) => nearestColorInBrand(c, lookupBrand).rgb) };
+}
+
 /** For each cell, the distinct labels its source footprint contains. */
 export function cellLabelSets(scene: LabelledScene): number[][] {
   const sets: number[][] = [];
@@ -237,6 +248,37 @@ export function matchTrueColor(rgb: RGB, colors: readonly RGB[]): number {
   });
   return best;
 }
+
+/**
+ * How two patterns of the same grid differ in their assignments: `other`'s colours are mapped to the nearest colour of
+ * `base`, so a palette colour that only moved slightly in a recompute doesn't count as a changed cell.
+ */
+export function compareAssignments(base: StitchPattern, other: StitchPattern, ignoreRows: readonly number[] = []): { relabelled: number; maxPaletteShift: number; cells: number } {
+  const nearest = other.palette.map((p) => {
+    let best = 0;
+    let bestDistance = Infinity;
+    base.palette.forEach((c, j) => {
+      const d = (p.rgb[0] - c.rgb[0]) ** 2 + (p.rgb[1] - c.rgb[1]) ** 2 + (p.rgb[2] - c.rgb[2]) ** 2;
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = j;
+      }
+    });
+    return best;
+  });
+  const maxPaletteShift = Math.max(0, ...other.palette.map((p, i) => Math.max(...[0, 1, 2].map((k) => Math.abs(p.rgb[k] - base.palette[nearest[i]].rgb[k])))));
+  let relabelled = 0;
+  let cells = 0;
+  for (let i = 0; i < base.cellPalette.length; i++) {
+    if (ignoreRows.includes(Math.floor(i / base.width))) continue;
+    cells++;
+    if (nearest[other.cellPalette[i]] !== base.cellPalette[i]) relabelled++;
+  }
+  return { relabelled, maxPaletteShift, cells };
+}
+
+/** Grid rows of `gradientScene("ramp")` near its mid-height seam, where two ramps meet in a real colour jump. */
+export const RAMP_SEAM_ROWS: readonly number[] = [16, 17, 18, 19, 20, 21, 22, 23, 24];
 
 export interface BlendCounts {
   /** Cells containing two or more regions whose colour matches no true colour. */

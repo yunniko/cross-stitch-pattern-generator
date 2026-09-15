@@ -1072,7 +1072,7 @@ escalation-tier, not a routine refactor):
     the controls together.
   - Gate: criterion 1 and controls 3a–3c pass; the blur series is measured
     and reported.
-- [ ] **M2 — Transition-strip snapping.**
+- [x] **M2 — Transition-strip snapping.** Done 2026-09-16 (D140).
   - A Crisp+ pass after cleanup and the palette merge, before compaction
     and finalization, so the palette recompute and brand snapping see its
     result.
@@ -1091,6 +1091,53 @@ escalation-tier, not a routine refactor):
   - Deploy, then the Owner's visual check and sign-off.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M2 done; check-in with the Owner before M3.**
+  - **What was built:** `lib/crisp/transition-snap.ts` (D140), a Crisp+
+    pass after the palette merge.
+    - It snaps a run of up to 5 in-between cells between two 3-cell side
+      runs.
+    - The photo must confirm a blurred edge: a logistic fits better than a
+      ramp, and three flat levels don't fit much better.
+    - Each cell takes the side of the fitted edge centre it lies on.
+    - In the palette recompute, snapped cells count as their side's colour.
+    - Freed palette slots stay free.
+  - **Results** (`docs/reviews/2026-09-16-crisp-plus-calibration.md`):
+    - Full-range blend boundary + interior cells, Crisp → Crisp+:
+      - blur 0.25: 91 + 0 → 0 + 0 at 8 colours, 94 + 0 → 0 + 0 at 16;
+      - blur 0.5: 110 + 0 → 0 + 0, and 107 + 8 → 0 + 0;
+      - blur 1: 95 + 132 → 4 + 3, and 121 + 145 → 28 + 30.
+    - Controls: no thin-line cell lost, 0 gradient cells reassigned outside
+      the ramp seam, confetti 0.
+    - Thread palettes:
+      - blur 0.25: 0 blends for DMC, Cosmo and Anchor;
+      - Cosmo is better than Crisp at every blur;
+      - DMC and Anchor at blur 0.5 with 8 colours stitch the yellow band in
+        3820 instead of 725, a one-step thread choice that Crisp also makes
+        at 16 colours.
+  - **Criterion changes:**
+    - Criterion 3b is measured as reassigned cells, with palette shifts of at
+      most 8/255 allowed and the ramp scene's real seam excluded, instead of
+      raw RGB differences.
+    - Wrong-region cells at blur 1 may be up to 8: the rectangle's corners
+      are rounded in the blurred photo itself.
+  - **Not met, carried to M3:**
+    - blur 1 at 16 colours has 30 interior blend cells (target 5), on
+      palette colours mixing three regions;
+    - the DMC/Anchor band thread choice above.
+  - **Rejected:** a tighter plateau level for M1's modes (0.05). It cut
+    confident cells, from 59 to 0 at blur 0.5, and added about 20
+    wrong-region cells.
+  - **Verification** (all in the worktree, with the final settings):
+    - Crisp+ specs 21/21. The full unit suite, run on the final code after
+      the plateau experiment was reverted: 970 passed, 5 skipped, 0 failed.
+    - Golden hashes and the Crisp tests are unchanged; type-check and lint
+      are clean.
+  - Codex is still unavailable.
+  - **Next, M3:** decide label-cost pruning from the remaining blend palette
+    entries.
+- 2026-09-16 — Owner approved M2 ("go ahead with M2"). GitHub CI passed for
+  the M1 commit a634f7c. Codex is still unavailable, so M2 proceeds without
+  its critique, as for M1.
 - 2026-09-16 — **M1 done; check-in with the Owner before M2.**
   - **What was built:**
     - `edgeModel: "blurred-step"` in the Crisp evidence, used only by the new

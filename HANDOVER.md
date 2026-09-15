@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-16 at e4ee618 plus the G-038 M1 commit that carries this line
+Last verified: 2026-09-16 at a634f7c plus the G-038 M2 commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -124,7 +124,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
   quantization, admissible-label unary costs in ICM and cleanup, repair after
   merges, and mode-aware finalization (D061–D072). The layer evaluates every
   cell (D132) and converts each source row to OKLab once per job (G-035 M4).
-  Crisp+ (`edgeMode: "crisp-plus"`, G-038, no UI yet) adds a blurred-step evidence model (D139).
+  Crisp+ (`edgeMode: "crisp-plus"`, G-038, no UI yet) adds blurred-step evidence (D139) and strip snapping (D140).
 - **Threads** (`lib/threads/`): `thread-brands.ts` is the registry. Its
   `matching` field is "direct" for DMC and Cosmo, or "dmc-equivalence" for
   Anchor. `brand-match.ts` does the snapping. Data provenance is in
@@ -218,7 +218,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **G-038 Crisp+ in progress:** M1 done (D139); M2 snapping awaits the Owner's check-in; plan in `GOALS.md`.
+- **G-038 Crisp+ in progress:** M1 and M2 done (D139, D140); M3 awaits the Owner's check-in; plan in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is
