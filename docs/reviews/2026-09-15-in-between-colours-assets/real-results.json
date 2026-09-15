@@ -1,0 +1,98 @@
+[
+  {
+    "name": "underexposed-sun",
+    "size": "4000x2667",
+    "grid": "100x67",
+    "sourcePxPerCell": "40.0",
+    "crispConfidentShare": "0.0006",
+    "snapCandidateShare": "0.0110"
+  },
+  {
+    "name": "underexposed-sun",
+    "size": "4000x2667",
+    "grid": "250x167",
+    "sourcePxPerCell": "16.0",
+    "crispConfidentShare": "0.0004",
+    "snapCandidateShare": "0.0066"
+  },
+  {
+    "name": "underexposed-sun",
+    "size": "4000x2667",
+    "grid": "500x333",
+    "sourcePxPerCell": "8.0",
+    "crispConfidentShare": "0.0001",
+    "snapCandidateShare": "0.0048"
+  },
+  {
+    "name": "fog-sailboat",
+    "size": "4000x3000",
+    "grid": "100x75",
+    "sourcePxPerCell": "40.0",
+    "crispConfidentShare": "0.0168",
+    "snapCandidateShare": "0.0049"
+  },
+  {
+    "name": "fog-sailboat",
+    "size": "4000x3000",
+    "grid": "250x188",
+    "sourcePxPerCell": "16.0",
+    "crispConfidentShare": "0.0140",
+    "snapCandidateShare": "0.0025"
+  },
+  {
+    "name": "fog-sailboat",
+    "size": "4000x3000",
+    "grid": "500x375",
+    "sourcePxPerCell": "8.0",
+    "crispConfidentShare": "0.0137",
+    "snapCandidateShare": "0.0034"
+  },
+  {
+    "name": "backlit-tower",
+    "size": "4000x2667",
+    "grid": "100x67",
+    "sourcePxPerCell": "40.0",
+    "crispConfidentShare": "0.0997",
+    "snapCandidateShare": "0.0351"
+  },
+  {
+    "name": "backlit-tower",
+    "size": "4000x2667",
+    "grid": "250x167",
+    "sourcePxPerCell": "16.0",
+    "crispConfidentShare": "0.0889",
+    "snapCandidateShare": "0.0256"
+  },
+  {
+    "name": "backlit-tower",
+    "size": "4000x2667",
+    "grid": "500x333",
+    "sourcePxPerCell": "8.0",
+    "crispConfidentShare": "0.0638",
+    "snapCandidateShare": "0.0208"
+  },
+  {
+    "name": "tree-under",
+    "size": "1500x1000",
+    "grid": "100x67",
+    "sourcePxPerCell": "15.0",
+    "crispConfidentShare": "0.0245",
+    "snapCandidateShare": "0.0199"
+  },
+  {
+    "name": "tree-under",
+    "size": "1500x1000",
+    "grid": "250x167",
+    "sourcePxPerCell": "6.0",
+    "crispConfidentShare": "0.0128",
+    "snapCandidateShare": "0.0190"
+  },
+  {
+    "name": "tree-under",
+    "size": "1500x1000",
+    "grid": "500x333",
+    "sourcePxPerCell": "3.0",
+    "crispConfidentShare": "0.0097",
+    "snapCandidateShare": "0.0172"
+  }
+]
