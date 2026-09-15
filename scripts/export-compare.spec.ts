@@ -6,8 +6,8 @@ import path from "node:path";
 /**
  * G-036 M5 export comparison (criterion 3): every export kind and Export all, downloaded from the build before G-036
  * (REFERENCE_URL) and the current build (CANDIDATE_URL) after generating the same pattern, must match. PNG bytes and
- * ZIP entries are compared exactly, PDFs by page count and per-page text (and by bytes once their creation and
- * modification dates are removed), OXS as text and JSON as data, ignoring only timestamp fields.
+ * ZIP entries are compared exactly, PDFs by page count and per-page text, OXS as text and JSON as data, ignoring only
+ * timestamp fields.
  *
  * Usage: serve both builds, then
  *   REFERENCE_URL=http://127.0.0.1:30220 CANDIDATE_URL=http://127.0.0.1:30210 npm run compare:exports
@@ -64,8 +64,6 @@ async function pdfSummary(bytes: Buffer): Promise<{ pages: number; text: string[
   return { pages: doc.numPages, text };
 }
 
-const withoutPdfDates = (bytes: Buffer) => bytes.toString("latin1").replace(/\/(CreationDate|ModDate)\s*\(D:[^)]*\)/g, "/$1()");
-
 function withoutTimestamps(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutTimestamps);
   if (value && typeof value === "object") {
@@ -77,13 +75,14 @@ function withoutTimestamps(value: unknown): unknown {
 /** Differences between two files of the same name, as readable lines; empty when they match. */
 async function compareFile(name: string, a: Buffer, b: Buffer): Promise<string[]> {
   if (name.endsWith(".pdf")) {
+    // Pages and text only: two downloads from the same build already differ in bytes, because pdf-lib compresses the
+    // document dates into an object stream (measured on both builds, 2026-09-15).
     const [x, y] = await Promise.all([pdfSummary(a), pdfSummary(b)]);
     const problems: string[] = [];
     if (x.pages !== y.pages) problems.push(`${name}: ${x.pages} pages vs ${y.pages}`);
     x.text.forEach((t, i) => {
       if (t !== y.text[i]) problems.push(`${name}: text of page ${i + 1} differs`);
     });
-    if (problems.length === 0 && withoutPdfDates(a) !== withoutPdfDates(b)) problems.push(`${name}: text and pages match, bytes differ beyond dates (${a.length} vs ${b.length})`);
     return problems;
   }
   if (name.endsWith(".zip") || name.endsWith(".cspzip")) {

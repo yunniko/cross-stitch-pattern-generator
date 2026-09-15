@@ -1120,7 +1120,7 @@ escalation-tier, not a routine refactor):
     document, zoom and highlight changes.
   - Gate: the zoom, view-switch, highlight and scroll targets are met; parity
     and interaction suites pass.
-- [ ] **M5 — Results and release.**
+- [x] **M5 — Results and release.** Done; awaiting the Owner's sign-off.
   - Rerun every benchmark row and the parity suites. Check exports for
     regressions.
   - Write `docs/reviews/<date>-chart-rendering-results.md` with before and
@@ -1128,6 +1128,29 @@ escalation-tier, not a routine refactor):
   - Update HANDOVER; final deploy with a production spot check.
 
 **Progress log** (newest first):
+- 2026-09-15 — **M5: results written; G-036 awaits the Owner's sign-off.**
+  - Report: `docs/reviews/2026-09-15-chart-rendering-results.md`.
+  - Final benchmark, 1000 st / 64 col, longest main-thread task, before → after:
+    - chart shown after regenerating 427 ms → 0 ms; reopened 448 ms → 0 ms;
+    - zoom 1,479 / 1,520 ms → 68 / 0 ms;
+    - views: Realistic 2,241 ms → 0 ms, Grid + photo 1,949 ms → 101 ms (94 ms in
+      M4), the others → 0 ms;
+    - highlight 1,637 / 1,430 ms → 0 / 0 ms; select drag 1,547 ms → 63 ms;
+    - scroll: max frame gap 50 ms, in Color and in the new Grid + photo row.
+    Under 4× throttling the heaviest operations still take 170–480 ms.
+  - Screen comparison against `919923b` passes at ratios 1, 1.25, 1.5 and 2. The
+    largest differences are at 1.25: Grid + photo 11 levels on 0.4% of pixels,
+    the far corner 10 levels on 1.1%.
+  - Export comparison (`npm run compare:exports`) against `919923b`:
+    - JSON, OXS, all PNGs, both A4 ZIPs and every Export all entry match byte for
+      byte;
+    - both Pattern Keeper PDFs match in pages and text. Their bytes vary between
+      two downloads from the same build, because pdf-lib compresses the dates
+      into an object stream, so the comparison checks pages and text.
+  - Checks: Playwright 289/289; Vitest 908 passed plus 1 opt-in skip; tsc,
+    eslint and docs-lint clean.
+  - Not done: Firefox and WebKit parity, whose browsers aren't installed. Grid +
+    photo sits at the 100 ms limit.
 - 2026-09-15 — **Owner approved M5** ("go to m5"). Codex remains at its usage limit until
   2026-09-19, so any critique step in M5 is noted and skipped per STANDARDS.md.
 - 2026-09-15 — **M4: every chart action at 1000 stitches stays under 100 ms unthrottled.**
