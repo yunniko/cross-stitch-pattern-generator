@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs `master` as deployed on 2026-09-15 (last deploy-log row).
+**Production** runs `b201c9a` (last deploy-log row); `master` is ahead with G-036 M3.
 G-036 (charts draw without freezing) is active, M1–M3 done. Signed off: G-035
 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap
 cancelled, D130), G-032 enhancement (D118), G-028 OXS (D119). G-033 (swatch-aware
@@ -220,8 +220,8 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **G-036 in progress:** M1–M3 done (D134, D135); M4–M5 need approval. Open for the
-  Owner: screen differences at fractional device pixel ratios (GOALS.md G-036 log).
+- **G-036:** M1–M3 done (D134, D135); **BLOCKED:** M3 isn't deployed, the deploy key is missing.
+  Open for the Owner: fractional-DPR screen differences; M4–M5 need approval (GOALS.md).
 - **PENDING APPROVAL: G-037, symmetry and quick mirror (DRAFT)**, open questions in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.

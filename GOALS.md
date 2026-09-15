@@ -1158,6 +1158,12 @@ escalation-tier, not a routine refactor):
     Unthrottled (3 runs), the 100 ms targets are met except Grid + photo
     (115 ms) and Realistic, whose preview generation is M4 work. Throttled
     rows are single runs.
+  - Pushed to master as ad8a1c6.
+  - **BLOCKED: deploy of M3.** The deploy key `~/.ssh/claude_canis_lunaris` is
+    missing: the `.ssh` folder was changed at 13:39 today, after this morning's
+    deploys used the key. ssh gets `Permission denied (publickey)`. The only
+    other key, `claude_contabo`, isn't documented for this host, so it wasn't
+    tried. Production still runs b201c9a. Logged 2026-09-15.
   - Open for the Owner: screen differences at fractional device pixel ratios
     (entry below). Next: M4, awaiting approval.
 - 2026-09-15 — **M3 in progress: Codex critique, parity limits and Owner decisions.**
