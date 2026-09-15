@@ -218,8 +218,10 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **Owner request (2026-09-15): investigate the page freeze** when a 1000-stitch
-  chart is shown or reopened (about 0.5 s). Investigation first, no fix yet.
+- **Chart freeze investigated (2026-09-15), fix awaits the Owner's choice.** The
+  whole-canvas redraw issues one `fillRect` per stitch (about 0.5 s at 1000 stitches,
+  likely about 1.5 s per zoom step with symbols); options in
+  `docs/reviews/2026-09-15-chart-freeze-investigation.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
   verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is
