@@ -1150,9 +1150,17 @@ escalation-tier, not a routine refactor):
       drawing variants;
     - the dashed selection outline differs by 1 level;
     - fills, nearest-neighbour images and text match exactly.
-    Grid lines drawn as filled rectangles match exactly at every offset, and
-    differ from today's strokes on 404 of 4.2 million pixels (2380×1764), by up
-    to 9 levels.
+    Grid lines drawn as filled rectangles match exactly at every offset.
+  - Correction, reported to the Owner: the "404 of 4.2 million pixels, up to 9
+    levels" given when the Owner chose filled rectangles was measured over a
+    single-colour background. Over varied cell colours, anti-aliased rectangles
+    also differ by 1 level on many pixels, and they drift by 1 level with canvas
+    size, which broke exact parity (run 2). The shipped bands fill whole pixels
+    and draw odd widths' half pixels at alpha 127/255, with no anti-aliasing.
+    Against today's strokes on a 2380×1764 chart, 2.6% (28 px) to 18% (4 px) of
+    pixels differ, almost all by 1 level. At 4 and 28 px a few thousand pixels
+    differ by up to 13 levels, at every 595th column, where today's long strokes
+    carry their own artefacts.
   - **Owner decisions (2026-09-15):**
     1. on-screen grid lines are drawn as filled rectangles, and the parity
        reference follows; exports keep strokes;

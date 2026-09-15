@@ -1,6 +1,6 @@
 /**
  * Wraps a 2D context so every straight single-segment stroke is drawn as the filled rectangle it covers: butt caps,
- * `lineWidth` wide, in the stroke colour, with half-pixel edges at 50% alpha instead of anti-aliasing. The frozen
+ * `lineWidth` wide, in the stroke colour, with half-pixel edges at alpha 127/255 instead of anti-aliasing. The frozen
  * pre-G-036 renderer draws its grid lines as such strokes, so drawing it through this wrapper gives the on-screen
  * reference with grid lines as filled rectangles (D135) without editing it.
  */
@@ -27,7 +27,7 @@ export function rectGridContext(ctx: CanvasRenderingContext2D): CanvasRenderingC
             target.stroke();
             return;
           }
-          // Whole pixels opaque; an odd width's half pixel on each side at 50% alpha, with no anti-aliasing (D135).
+          // Whole pixels opaque; an odd width's half pixel on each side at alpha 127/255, with no anti-aliasing (D135).
           const w = target.lineWidth;
           const vertical = a[0] === b[0];
           const centre = vertical ? a[0] : a[1];
@@ -41,7 +41,7 @@ export function rectGridContext(ctx: CanvasRenderingContext2D): CanvasRenderingC
             rect(centre - w / 2, w);
           } else {
             if (w > 1) rect(centre - (w - 1) / 2, w - 1);
-            target.globalAlpha = alpha * 0.5;
+            target.globalAlpha = (alpha * 127) / 255;
             rect(centre - (w + 1) / 2, 1);
             rect(centre + (w - 1) / 2, 1);
             target.globalAlpha = alpha;

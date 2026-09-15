@@ -77,6 +77,8 @@ export const GRID_LINE_COLOR = "#333333";
 const MINOR_LINE_RATIO = 1 / 24;
 const MEDIUM_LINE_RATIO = 2 / 24;
 const MAJOR_LINE_RATIO = 3 / 24;
+// The on-screen grid's half-pixel edge alpha (D135): 127/255 lands within one level of an anti-aliased stroke's edge.
+const HALF_PIXEL_ALPHA = 127 / 255;
 
 // Tall enough for two text lines (name, then hex/count) next to the swatch —
 // was 28px/one line before names were added.
@@ -371,7 +373,8 @@ function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: num
 
   if (style === "rects") {
     // The rectangle each butt-capped stroke below covers, filled without anti-aliasing: whole pixels opaque and, for an
-    // odd width, the half pixel on each side at 50% alpha. Nothing then depends on the canvas size or offset (D135).
+    // odd width, the half pixel on each side at alpha 127/255, the value closest to Chromium's own half-pixel coverage.
+    // Nothing then depends on the canvas size or offset (D135).
     // On-screen only, so the context is always a canvas.
     const canvasCtx = ctx as CanvasRenderingContext2D;
     const fill = canvasCtx.fillStyle;
@@ -384,7 +387,7 @@ function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: num
         return;
       }
       if (w > 1) rect(centre - (w - 1) / 2, w - 1);
-      canvasCtx.globalAlpha = alpha * 0.5;
+      canvasCtx.globalAlpha = alpha * HALF_PIXEL_ALPHA;
       rect(centre - (w + 1) / 2, 1);
       rect(centre + (w - 1) / 2, 1);
       canvasCtx.globalAlpha = alpha;
