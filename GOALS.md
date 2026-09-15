@@ -1180,6 +1180,7 @@ escalation-tier, not a routine refactor):
   - Gate: deployed, live smoke test, and the goal awaits Owner sign-off.
 
 **Progress log** (newest first):
+- 2026-09-15 — **Owner approved M3** ("go ahead"). Codex remains unavailable until 2026-09-19.
 - 2026-09-15 — **M2: symmetry toggles, red guide lines, symmetric painting, one-step double-click fill (D138).**
   - Tools dock: a Symmetry group of four `aria-pressed` toggles, 2 × 2. The
     diagonals are disabled with a tooltip on a non-square canvas. It fits a
