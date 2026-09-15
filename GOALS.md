@@ -1128,6 +1128,9 @@ escalation-tier, not a routine refactor):
 
 **Progress log** (newest first):
 - 2026-09-15 — **M2: fast on-screen fills and highlight mask; generate and reopen meet 100 ms.**
+  - Deployed b201c9a with M1: only this container restarted, 20 of 20 sites
+    200 before and after; live check drew a chart, zoomed, toggled highlight
+    and switched views with no console errors. Next: M3, awaiting approval.
   - `drawChartOnScreen` (`lib/export/render.ts`) fills stitches below the 6 px
     symbol floor from one pixel per stitch, scaled with nearest-neighbour
     `drawImage`, when the empty-stitch colour is opaque. Otherwise it calls
@@ -1239,10 +1242,23 @@ escalation-tier, not a routine refactor):
   borders and snowflakes are common in cross stitch, and are slow to draw by
   hand.
 - **Acceptance criteria:**
-  1. The symmetry toggles are `aria-pressed` buttons, off by default, and
-     work in all 16 on/off combinations. They stay on across documents during
-     the session. They are not saved in the pattern file, autosave or
-     exports.
+  1. The symmetry toggles are `aria-pressed` buttons and work in all 16
+     on/off combinations.
+     - **Saved with the document (Owner, 2026-09-15).** The JSON file carries
+       an optional `symmetry` field, and so do autosave and the `.cspzip`
+       bundle, which embeds the JSON.
+     - **Opening a document sets the toggles from the document.** This covers
+       opening a JSON, ZIP or `.cspzip` file and restoring the autosaved
+       project on reload. If the field is present, it is restored. If it is
+       missing, as in older files, or unreadable, symmetry is off and
+       nothing is reported.
+     - A new photo, an `.oxs` import or a first Generate starts with every
+       toggle off.
+     - A toggle is not an undo step, and undo and redo leave the toggles as
+       they are.
+     - The field is ignored by rendered exports (PNG, A4, PDF, OXS).
+     - Whether it needs a format-version bump follows the parser's rules for
+       an optional field, decided in M2 with a unit test.
   2. With symmetry on, the Brush, Fill tool, brush double-click fill,
      dropping a colour onto the canvas, and EMPTY painting all affect every
      cell in the mirror set of the cell they act on. The mirror set is the
@@ -1261,8 +1277,9 @@ escalation-tier, not a routine refactor):
      Non-square diagonals follow open question 1.
   4. Red guide lines are drawn on the axes at chart positions in every view
      mode. They follow a canvas resize and zoom, are not drawn in the
-     navigator, and don't change any exported byte. A test compares the
-     PNG, A4, PDF, OXS and JSON exports with symmetry on and off.
+     navigator, and don't change any rendered export. A test compares the
+     PNG, A4, PDF and OXS exports with symmetry on and off. The JSON differs
+     only by its `symmetry` field.
   5. Each quick mirror is one undo step. It overwrites only the target part,
      copying EMPTY cells as they are. A floating selection is merged first.
      Stitch counts are recomputed, the palette is kept (colours are not
@@ -1323,8 +1340,14 @@ escalation-tier, not a routine refactor):
     every view mode.
   - Brush strokes, their incremental drawing, the Fill tool, double-click
     fill and drop-to-fill use the orbit, each still one undo step.
-  - Gate: e2e tests for painting, canvas pixels and byte-identical exports
-    pass; deployed; live smoke test.
+  - Symmetry state is saved in the JSON file and autosave, and restored on
+    open or reload, or reset to off when absent.
+    - Tests: a serialize round trip, a file without the field, a malformed
+      field, and project-store restore.
+  - Gate:
+    - e2e tests pass for painting, canvas pixels, unchanged rendered
+      exports, and the toggles after save, reopen and reload;
+    - deployed, with a live smoke test.
 - [ ] **M3 — Quick mirror actions and release.**
   - A Mirror group of four action buttons with icons that shade the source
     part.
@@ -1334,6 +1357,11 @@ escalation-tier, not a routine refactor):
   - Gate: deployed, live smoke test, and the goal awaits Owner sign-off.
 
 **Progress log** (newest first):
+- 2026-09-15 — Owner: symmetry is off when a document opens, stays in the
+  JSON file, is restored if present and skipped if not. Criterion 1 and M2
+  are updated to match. Open questions 1–3 are still unanswered. Resolving
+  question 1 also has to settle what happens when a file with a diagonal on
+  opens on, or is resized to, a non-square canvas.
 - 2026-09-15 — **Goal planned; DRAFT until the Owner answers the open
   questions and approves.** The brush has no between-event interpolation
   today (`app/hooks/use-canvas-tools.ts`), so mirrored strokes inherit that

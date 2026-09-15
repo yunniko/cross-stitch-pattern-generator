@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-15 at 5ab38eb plus the handover commit that carries this line
+Last verified: 2026-09-15 at b201c9a plus the handover commit that carries this line
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -220,7 +220,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **G-036 in progress:** M1 done, M2 under verification (D134); M3–M5 need the Owner's
+- **G-036 in progress:** M1–M2 done and deployed (D134); M3–M5 need the Owner's
   approval. Evidence: `docs/reviews/2026-09-15-chart-freeze-investigation.md`.
 - **PENDING APPROVAL: G-037, symmetry and quick mirror (DRAFT)**, open questions in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and
@@ -292,6 +292,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 | 2026-09-14 | f31b2c1 | G-035 M4: Crisp evidence on typed arrays with a per-row OKLab cache, identical output | Only this container restarted; 20 of 20 sites 200; live: a Crisp 50 × 31 chart generated, no decode fallback, no console errors |
 | 2026-09-14 | 3085e6c | Crisp evaluates every cell; the lossy pre-filter is removed (D132) | Only this container restarted; 20 of 20 sites 200; live: a Crisp 50 × 31 chart generated, no decode fallback, no console errors |
 | 2026-09-15 | 5ab38eb | G-035 M5: identical-output ICM and k-means for large grids (D133) | This container restarted; a concurrent deploy by another session recreated natural-dye-mordant-calculator (00:01:57) and julienika-home (00:03:22), and julienika.cz briefly returned 502, then 200 on three retries; 20 of 20 sites 200 after; live: a Crisp 50 × 31 chart generated, no console errors |
+| 2026-09-15 | b201c9a | G-036 M1–M2: chart parity oracle, `npm run bench:chart`, fast on-screen fills and highlight mask (D134) | Only this container restarted; 20 of 20 sites 200 before and after; live: chart drawn, zoom, highlight and view switches, no console errors |
 
 ## Decisions
 
