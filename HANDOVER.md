@@ -17,10 +17,10 @@ cancelled, D130), G-032 enhancement (D118), G-028 OXS (D119). G-033 (swatch-awar
 color editor) is deployed and awaits Owner sign-off.
 
 **What works** (verified in this session unless marked otherwise):
-- Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest
-  or Original clustering, Full range, DMC, Cosmo or Anchor palettes, and
-  Standard, Crisp or Crisp+ edges. It runs in a reused Web Worker with progress and
-  cancellation.
+- Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest or Original clustering, Full range,
+  DMC, Cosmo or Anchor palettes, and Standard, Crisp or Crisp+ edges, in a reused Web Worker with progress and
+  cancellation. A chart can also start blank ("New blank chart…"): a chosen size, every stitch empty, no colours,
+  and no photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
 - Editing: brush (a double-click fill is one undo step, D138), 8-connected fill, symmetric
   painting on up to four axes and quick mirror (D137), rectangle select with copy, paste,
   move and flip, move, pan, zoom, highlight; merge, recolor, rename, symbol swap, add
@@ -52,9 +52,9 @@ color editor) is deployed and awaits Owner sign-off.
   experimental: none passed its real-photo rule
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-16**: `tsc --noEmit` and eslint clean; Vitest 984 passed
-(8 opt-in skips) at G-038 M5; Playwright 302/302 (including 208 parity cases) on a
-production build of `bf594f5`. CI
+**Checks run 2026-09-16**: `tsc --noEmit` and eslint clean; Vitest 998 passed
+(8 opt-in skips) at G-040 M3; Playwright 307/307 (including 208 parity cases) on a
+production build of that work. CI
 (`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
 because route types such as `LayoutProps` are generated and git-ignored.
 It passed on GitHub for `fb28d4e`.
@@ -221,7 +221,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 - **G-039 Move tool speed planned:** the investigation and the five-option plan are in `docs/reviews/2026-09-16-move-tool-investigation.md` and `GOALS.md`; M1 (benchmark) has not started.
 - Left open from G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142).
-- **G-040 blank charts in progress:** M1–M2 done — creation, the photo-free rule, empty-palette files (D143) and the New blank chart panel; M3 (files, exports, release) is next. Plan in `GOALS.md`.
+- **G-040 blank charts in progress:** M1–M3 built — creation, the photo-free rule, empty-palette files (D143), the New blank chart panel, autosave and exports; deploy and sign-off next. Plan in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is live (D122, D123); see its progress log in `GOALS.md`.
   Out of scope: "+ Add" keeps its old flow, and touch screens pick on tap with no comparison.

@@ -1144,6 +1144,21 @@ escalation-tier, not a routine refactor):
   and a live smoke test; then the Owner's sign-off.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M3 built; deploy next.**
+  - Autosave round-trips a blank chart with its empty palette and no photo,
+    verified both in the store's own unit test and by reloading the live page
+    mid-edit; no change to the store was needed.
+  - Every export works on a chart that is still entirely empty: "Export all"
+    produces its `.cspzip` with no colours in the palette.
+  - **Verification:** unit suite 998 passed, 8 skipped; browser suite 307
+    passed, including five blank-chart tests (creation and the missing photo
+    controls, the size dialog, exports on an empty chart, autosave across a
+    reload, and painting then saving and reopening photo-free); type-check
+    and lint clean.
+  - One more test correction: "Export all" is its own button, not an option
+    in the Export dropdown.
+  - **Next:** deploy, a live check of the new panel, then the Owner's
+    sign-off.
 - 2026-09-16 — **M2 done; check-in before files and release.**
   - **New blank chart…** sits beside Open and opens a panel with width and
     height in stitches, the finished fabric size updating as they change, and

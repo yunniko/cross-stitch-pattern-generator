@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createBlankPattern, describeBlankSizeProblem, isPhotoFree, isValidBlankSize } from "@/lib/editor/blank-pattern";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
+import { createMemoryKeyValueStore, createProjectStore } from "@/lib/editor/project-store";
 import { EMPTY_CELL, MAX_STITCHES, MIN_STITCHES } from "@/lib/types";
 
 /** G-040 M1: charts started from nothing, and the rule that a chart without a photo can never be generated. */
@@ -75,6 +76,20 @@ describe("saving a blank chart", () => {
   it("still refuses a file whose stitches name a colour its palette doesn't have", () => {
     const tampered = JSON.stringify({ ...JSON.parse(serializePattern(createBlankPattern(10, 10))), cellPalette: [0, ...new Array(99).fill(EMPTY_CELL)] });
     expect(() => deserializePattern(tampered)).toThrow(/isn't in its own palette/);
+  });
+
+  it("round-trips through autosave with its empty palette and no photo", async () => {
+    const store = createProjectStore(createMemoryKeyValueStore());
+    await store.save(createBlankPattern(30, 20, "Sampler"));
+
+    const { pattern, failure } = await store.load();
+    expect(failure).toBeUndefined();
+    expect(pattern!.width).toBe(30);
+    expect(pattern!.height).toBe(20);
+    expect(pattern!.palette).toEqual([]);
+    expect(pattern!.cellPalette.every((cell) => cell === EMPTY_CELL)).toBe(true);
+    expect(isPhotoFree(pattern!)).toBe(true);
+    expect(pattern!.name).toBe("Sampler");
   });
 
   it("still refuses a file with no palette field at all", () => {

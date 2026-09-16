@@ -49,6 +49,36 @@ test("the size dialog shows the finished fabric size and refuses a size outside 
   await expect(page.getByRole("button", { name: "Create", exact: true })).toBeDisabled();
 });
 
+test("every export works on a chart that is still entirely empty", async ({ page }) => {
+  const errors = collectErrors(page);
+  await createBlankChart(page, 20, 15);
+
+  // "Export all" is its own button; the Export dropdown only lists the single-file kinds.
+  const [bundle] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export all" }).click()]);
+  expect(await bundle.path()).toBeTruthy();
+  expect(bundle.suggestedFilename()).toMatch(/\.cspzip$/);
+  expect(errors).toEqual([]);
+});
+
+test("an autosaved blank chart comes back after a reload, still photo-free", async ({ page }) => {
+  const errors = collectErrors(page);
+  await createBlankChart(page, 26, 18);
+
+  await page.getByRole("button", { name: "+ Add" }).click();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByTestId("legend-color-row").click();
+  const frame = page.getByTestId("chart-frame");
+  const box = (await frame.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(page.getByText(/26 × 18, 1 stitch, 1 color/)).toBeVisible();
+  await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved");
+
+  await page.reload();
+  await expect(page.getByText(/26 × 18, 1 stitch, 1 color/)).toBeVisible();
+  await expect(page.getByTestId("photo-free-note")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test("a blank chart paints after adding a color, and survives saving and reopening photo-free", async ({ page }) => {
   const errors = collectErrors(page);
   await createBlankChart(page, 30, 20);
