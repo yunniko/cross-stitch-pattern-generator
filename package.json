@@ -14,6 +14,7 @@
     "bench": "vitest run --config vitest.bench.config.ts",
     "bench:browser": "playwright test --config scripts/playwright.bench.config.ts",
     "bench:chart": "playwright test --config scripts/playwright.bench-chart.config.ts",
+    "bench:move": "playwright test --config scripts/playwright.bench-move.config.ts",
     "compare:screen": "playwright test --config scripts/playwright.screen-compare.config.ts",
     "compare:exports": "playwright test --config scripts/playwright.export-compare.config.ts",
     "calibrate:enhancement": "vitest run --config vitest.calibrate.config.ts"

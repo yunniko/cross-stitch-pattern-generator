@@ -514,7 +514,7 @@ escalation-tier, not a routine refactor):
   - Standing deploy approval.
 
 **Milestones:**
-- [ ] **M1 — A Move benchmark and the baseline.**
+- [x] **M1 — A Move benchmark and the baseline.** Done 2026-09-16.
   - `scripts/bench-move.spec.ts` plus its config and an `npm run` script, in
     the shape of `scripts/bench-chart.spec.ts`: a 1000-stitch, 64-colour chart,
     a drag of 15 one-stitch steps, per-step and end-of-drag timings, the long
@@ -541,6 +541,38 @@ escalation-tier, not a routine refactor):
     and live check.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M1 done: the Move benchmark and the baseline.**
+  - `npm run bench:move` (`scripts/bench-move.spec.ts` + its config) drags one
+    stitch diagonally 15 times per case and reports the per-step cost, the frame
+    gaps, the longest task, the top self-time frames and the cost of ending the
+    drag. `RUNS`, `STITCHES`, `COLORS`, `CPU_THROTTLE`, `PHOTO`, `VIEWS`, `CELLS`
+    and `STEPS` select a case, so one row can be rerun on its own.
+  - **Baseline** (1000 stitches, 64 colours, 3 runs; full table in
+    `docs/reviews/2026-09-16-move-tool-investigation.md`): one stitch of Move
+    costs 94 / 97 / 79 ms at a 6 px stitch (Color / B&W / Grid + photo) and
+    54 / 65 / 50 ms at 8 px, against the 16 ms target; ending a drag takes
+    95–134 ms against the 100 ms target. At 100 % zoom (4 px, no symbols) a step
+    is 16–17 ms and already passes. At 4× throttling: 306–369 ms per step at
+    6 px, 187–229 ms at 8 px. No page or console errors.
+  - **Two findings that change criterion 1, and need the Owner's word before the
+    criteria are rewritten:**
+    - 11 px per stitch is unreachable at 1000 stitches: `computeCellSize` caps
+      the chart at 8000 px, fixing the maximum at 8 px. The reachable sizes are
+      4, 6 and 8 px.
+    - Only Color, B&W and Grid + photo can be dragged; the Realistic preview and
+      Original photo pan and zoom but never edit (D121), so a Move there is a
+      no-op. The benchmark now skips them. An earlier report of a "Realistic
+      stall" was this no-op, not a defect; it is corrected in the review.
+  - **Verification:** type-check and lint clean; the benchmark ran to completion
+    unthrottled (3 runs) and at 4×. Four earlier runs were killed by the OS for
+    low memory, which is why both waits are now time-boxed and a stalled view is
+    recorded rather than fatal. The machine had 0.4–2.4 GB free throughout, so
+    the numbers should be re-taken on a quiet machine before they gate anything.
+  - Codex remains at its usage limit until 2026-09-19, so M1 had no cross-model
+    critique.
+  - **Next, M2:** one paint per frame, the visible window only, and the small
+    fixes — no visible change, so it needs no ruling; the two questions above and
+    the two in the goal are collected at that check-in.
 - 2026-09-16 — **Goal planned** from the Owner's report, after a research-only
   investigation (`docs/reviews/2026-09-16-move-tool-investigation.md`). Measured
   with a throwaway benchmark: 35 / 49 ms per stitch of Move at 11 px in Color /

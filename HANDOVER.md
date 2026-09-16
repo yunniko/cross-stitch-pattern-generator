@@ -219,7 +219,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **G-039 Move tool speed planned:** the investigation and the five-option plan are in `docs/reviews/2026-09-16-move-tool-investigation.md` and `GOALS.md`; M1 (benchmark) has not started.
+- **G-039 Move tool speed:** M1 done — `npm run bench:move` (`scripts/bench-move.spec.ts`) and the baseline in `docs/reviews/2026-09-16-move-tool-investigation.md`: one stitch of Move costs 50–97 ms with symbols drawn, against a 16 ms target. M2 (one paint per frame, visible window only, small fixes) is next; two amendments to the goal's criterion 1 await the Owner.
 - Left open from G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142).
 - Left open from G-033: "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.
