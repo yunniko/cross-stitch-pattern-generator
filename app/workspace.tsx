@@ -330,6 +330,10 @@ export default function Workspace() {
           onPaste={select.paste}
           onFlipHorizontal={select.flipHorizontal}
           onFlipVertical={select.flipVertical}
+          onRotateClockwise={select.rotateClockwise}
+          onRotateAnticlockwise={select.rotateAnticlockwise}
+          onCrop={select.crop}
+          onCancel={select.cancel}
           onDeselect={select.merge}
         />
       )}

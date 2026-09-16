@@ -20,6 +20,9 @@ import {
   resizeCanvas,
   setColorSymbol,
   shiftPattern,
+  rotateSelectionClockwise,
+  rotateSelectionAnticlockwise,
+  cropToSelection,
 } from "@/lib/editor/pattern-edit";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type FloatingSelection, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
@@ -418,6 +421,93 @@ describe("shiftPattern", () => {
       [20, 20, 20],
     ]);
     expect(shiftPattern(pattern, 1, 0).sourceImage).toBeUndefined();
+  });
+});
+
+describe("rotateSelection (G-042)", () => {
+  const piece = () =>
+    liftSelection(
+      makePattern(3, 2, [0, 1, 2, 3, 4, 5], [
+        [10, 10, 10],
+        [20, 20, 20],
+        [30, 30, 30],
+        [40, 40, 40],
+        [50, 50, 50],
+        [60, 60, 60],
+      ]),
+      { x: 0, y: 0, width: 3, height: 2 }
+    );
+
+  it("turns a piece clockwise, swapping its width and height", () => {
+    // [[0,1,2],[3,4,5]] turned clockwise is [[3,0],[4,1],[5,2]].
+    const turned = rotateSelectionClockwise(piece());
+    expect([turned.width, turned.height]).toEqual([2, 3]);
+    expect(Array.from(turned.cells)).toEqual([3, 0, 4, 1, 5, 2]);
+  });
+
+  it("turns a piece anticlockwise, the other way round", () => {
+    // [[0,1,2],[3,4,5]] turned anticlockwise is [[2,5],[1,4],[0,3]].
+    const turned = rotateSelectionAnticlockwise(piece());
+    expect([turned.width, turned.height]).toEqual([2, 3]);
+    expect(Array.from(turned.cells)).toEqual([2, 5, 1, 4, 0, 3]);
+  });
+
+  it("returns the piece exactly after four clockwise turns", () => {
+    const original = piece();
+    let turned = original;
+    for (let i = 0; i < 4; i++) turned = rotateSelectionClockwise(turned);
+    expect([turned.width, turned.height]).toEqual([original.width, original.height]);
+    expect(Array.from(turned.cells)).toEqual(Array.from(original.cells));
+  });
+
+  it("is reversible: anticlockwise undoes clockwise", () => {
+    const original = piece();
+    const back = rotateSelectionAnticlockwise(rotateSelectionClockwise(original));
+    expect(Array.from(back.cells)).toEqual(Array.from(original.cells));
+  });
+
+  it("keeps a pasted piece's absent originRect, so it vacates nothing when it merges", () => {
+    const pasted = { ...piece(), originRect: undefined };
+    expect(rotateSelectionClockwise(pasted).originRect).toBeUndefined();
+  });
+});
+
+describe("cropToSelection (G-042)", () => {
+  const base = () =>
+    makePattern(4, 3, [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0], [
+      [10, 10, 10],
+      [20, 20, 20],
+    ]);
+
+  it("reduces the chart to the selection's rectangle, keeping those stitches", () => {
+    const pattern = base();
+    const selection = liftSelection(pattern, { x: 1, y: 1, width: 2, height: 1 });
+    const cropped = cropToSelection(pattern, selection);
+    expect([cropped.width, cropped.height]).toEqual([2, 1]);
+    expect(Array.from(cropped.cellPalette)).toEqual([1, 1]);
+  });
+
+  it("recomputes the stitch counts for what survives", () => {
+    const pattern = base();
+    const selection = liftSelection(pattern, { x: 1, y: 1, width: 2, height: 1 });
+    const cropped = cropToSelection(pattern, selection);
+    expect(cropped.palette.map((c) => c.count)).toEqual([0, 2]);
+  });
+
+  it("keeps the photo underlay aligned with the stitches that remain", () => {
+    const pattern = { ...base(), sourceImage: { dataUrl: "data:image/png;base64,AA", naturalWidth: 40, naturalHeight: 30, cellSizePx: 10, offsetX: 0, offsetY: 0 } };
+    const selection = liftSelection(pattern, { x: 1, y: 1, width: 2, height: 1 });
+    const cropped = cropToSelection(pattern, selection);
+    expect(cropped.sourceImage).toEqual({ ...pattern.sourceImage, offsetX: -1, offsetY: -1 });
+  });
+
+  it("merges the floating piece where it sits before cropping", () => {
+    const pattern = base();
+    // Lift the two stitches of colour 1, move them one row up, then crop to where they now are.
+    const moved = moveSelection(liftSelection(pattern, { x: 1, y: 1, width: 2, height: 1 }), 0, -1);
+    const cropped = cropToSelection(pattern, moved);
+    expect([cropped.width, cropped.height]).toEqual([2, 1]);
+    expect(Array.from(cropped.cellPalette)).toEqual([1, 1]);
   });
 });
 

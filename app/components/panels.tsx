@@ -138,10 +138,26 @@ export interface SelectionBarProps {
   onPaste: () => void;
   onFlipHorizontal: () => void;
   onFlipVertical: () => void;
+  onRotateClockwise: () => void;
+  onRotateAnticlockwise: () => void;
+  onCrop: () => void;
+  onCancel: () => void;
   onDeselect: () => void;
 }
 
-export function SelectionBar({ hasSelection, hasClipboard, onCopy, onPaste, onFlipHorizontal, onFlipVertical, onDeselect }: SelectionBarProps) {
+export function SelectionBar({
+  hasSelection,
+  hasClipboard,
+  onCopy,
+  onPaste,
+  onFlipHorizontal,
+  onFlipVertical,
+  onRotateClockwise,
+  onRotateAnticlockwise,
+  onCrop,
+  onCancel,
+  onDeselect,
+}: SelectionBarProps) {
   return (
     <PanelBar gap="gap-2">
       <span className="text-sm font-medium">Selection</span>
@@ -160,6 +176,18 @@ export function SelectionBar({ hasSelection, hasClipboard, onCopy, onPaste, onFl
         </PillButton>
         <PillButton onClick={onFlipVertical} disabled={!hasSelection}>
           Flip vertical
+        </PillButton>
+        <PillButton onClick={onRotateClockwise} disabled={!hasSelection}>
+          Rotate right
+        </PillButton>
+        <PillButton onClick={onRotateAnticlockwise} disabled={!hasSelection}>
+          Rotate left
+        </PillButton>
+        <PillButton onClick={onCrop} disabled={!hasSelection}>
+          Crop
+        </PillButton>
+        <PillButton onClick={onCancel} disabled={!hasSelection}>
+          Cancel
         </PillButton>
         <PillButton onClick={onDeselect} disabled={!hasSelection}>
           Deselect

@@ -416,6 +416,49 @@ export function flipSelectionVertical(selection: FloatingSelection): FloatingSel
   return { ...selection, cells: flipCells(selection.cells, selection.width, selection.height, "vertical") };
 }
 
+/**
+ * Turns a floating selection a quarter turn (G-042). Width and height swap; the piece keeps its top-left corner, so a
+ * rotation grows it down and to the right rather than around its centre. `originRect` is untouched: a lifted piece
+ * still vacates where it came from when it merges.
+ */
+function rotateCells(cells: Uint8Array, width: number, height: number, clockwise: boolean): Uint8Array {
+  const rotated = new Uint8Array(cells.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      // Clockwise sends (x, y) to (height - 1 - y, x) in a height x width grid; anticlockwise sends it to (y, width - 1 - x).
+      const nx = clockwise ? height - 1 - y : y;
+      const ny = clockwise ? x : width - 1 - x;
+      rotated[ny * height + nx] = cells[y * width + x];
+    }
+  }
+  return rotated;
+}
+
+export function rotateSelectionClockwise(selection: FloatingSelection): FloatingSelection {
+  return { ...selection, width: selection.height, height: selection.width, cells: rotateCells(selection.cells, selection.width, selection.height, true) };
+}
+
+export function rotateSelectionAnticlockwise(selection: FloatingSelection): FloatingSelection {
+  return { ...selection, width: selection.height, height: selection.width, cells: rotateCells(selection.cells, selection.width, selection.height, false) };
+}
+
+/**
+ * Crops the chart to a floating selection (G-042): the piece is merged where it sits, then everything outside its
+ * rectangle is discarded. Delegates the arithmetic to `resizeCanvas`, so counts, the size guards and the photo
+ * underlay's alignment behave exactly as the Resize canvas panel does (D109).
+ */
+export function cropToSelection(pattern: StitchPattern, selection: FloatingSelection): StitchPattern {
+  const merged = mergeSelection(pattern, selection);
+  const rect = clampRectToBounds({ x: selection.x, y: selection.y, width: selection.width, height: selection.height }, merged.width, merged.height);
+  if (rect.width < 1 || rect.height < 1) throw new Error("Can't crop away the entire pattern.");
+  return resizeCanvas(merged, {
+    left: -rect.x,
+    top: -rect.y,
+    right: -(merged.width - rect.x - rect.width),
+    bottom: -(merged.height - rect.y - rect.height),
+  });
+}
+
 function stampSelection(cellPalette: Uint8Array, width: number, height: number, selection: FloatingSelection): void {
   for (let ly = 0; ly < selection.height; ly++) {
     const py = selection.y + ly;
