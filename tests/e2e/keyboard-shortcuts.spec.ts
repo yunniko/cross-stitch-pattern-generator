@@ -140,6 +140,53 @@ test("double-clicking with Brush active flood-fills the whole region that was th
   expect(await countFor(1)).toBe(color1After);
 });
 
+test("with the Options switch off, a double-click paints only the stitch under it, as two ordinary clicks (G-041)", async ({ page }) => {
+  await generateSmallPattern(page);
+  const legendRows = page.locator('[data-testid="legend-color-row"]');
+  const canvas = page.getByTestId("chart-frame");
+  await canvas.scrollIntoViewIfNeeded();
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("canvas not visible");
+
+  async function countFor(rowIndex: number): Promise<number> {
+    const text = await legendRows.nth(rowIndex).innerText();
+    const match = text.match(/(\d+)\s*sts/);
+    if (!match) throw new Error(`Couldn't find a stitch count in legend row text: ${text}`);
+    return Number(match[1]);
+  }
+
+  // Switch the fill off; the checkbox is on by default.
+  await page.getByRole("button", { name: "Options…" }).click();
+  const fillSwitch = page.getByRole("checkbox", { name: "Double-click fills a region" });
+  await expect(fillSwitch).toBeChecked();
+  await fillSwitch.uncheck();
+  await page.getByRole("button", { name: "Close" }).click();
+
+  // The same deterministic 3-cell stroke the flood-fill test paints.
+  await legendRows.nth(0).click();
+  await page.mouse.move(box.x + 5, box.y + 5);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 15, box.y + 5, { steps: 2 });
+  await page.mouse.move(box.x + 25, box.y + 5, { steps: 2 });
+  await page.mouse.up();
+  const color0Before = await countFor(0);
+
+  await legendRows.nth(1).click();
+  const color1Before = await countFor(1);
+  await canvas.dblclick({ position: { x: 15, y: 5 } });
+
+  // Only the double-clicked stitch changes hands: the stroke keeps its other two cells.
+  await expect.poll(() => countFor(0)).toBe(color0Before - 1);
+  expect(await countFor(1)).toBe(color1Before + 1);
+
+  // Two clicks are two undo steps -- the fill's single step (D138) belongs to the switched-on behaviour only.
+  await page.keyboard.press("Control+z");
+  await expect.poll(() => countFor(0)).toBe(color0Before - 1);
+  await page.keyboard.press("Control+z");
+  await expect.poll(() => countFor(0)).toBe(color0Before);
+  expect(await countFor(1)).toBe(color1Before);
+});
+
 test("dragging a color onto Empty merges it away: its stitches become empty and it's removed from the palette", async ({ page }) => {
   await generateSmallPattern(page);
   const legendRows = page.locator('[data-testid="legend-color-row"]');

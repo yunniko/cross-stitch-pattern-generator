@@ -228,7 +228,8 @@ export default function Workspace() {
 
   function handleCanvasDoubleClick(e: MouseEvent<HTMLDivElement>) {
     const frame = frameRef.current;
-    if (frame && activeTool === "brush" && !isViewOnlyMode(viewMode)) brush.onDoubleClick(e, frame);
+    // Switched off in Options, a double-click stays two ordinary clicks (G-041).
+    if (frame && activeTool === "brush" && !isViewOnlyMode(viewMode) && options.doubleClickFill) brush.onDoubleClick(e, frame);
   }
 
   /** Dropping a legend color onto the picture fills that cell's 4-connected region with it. */

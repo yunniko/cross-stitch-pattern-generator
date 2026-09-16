@@ -48,6 +48,7 @@ describe("workspace-storage", () => {
       generationMode: "latest",
       paletteMode: "full",
       enhancementMode: "off",
+      doubleClickFill: true,
     } as const;
 
     it("returns defaults (14-count, cm, no author, Standard edges, overlap 5, white canvas, Medium/16 colors/Latest/Full range) when nothing is stored", () => {
@@ -68,6 +69,7 @@ describe("workspace-storage", () => {
         generationMode: "original" as const,
         paletteMode: "dmc" as const,
         enhancementMode: "off" as const,
+        doubleClickFill: false,
       };
       saveWorkspaceOptions(saved);
       expect(loadWorkspaceOptions()).toEqual(saved);
@@ -99,6 +101,21 @@ describe("workspace-storage", () => {
     it("defaults overlapCells to 5 for a workspace saved before G-027 (overlapCells absent entirely)", () => {
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18, sizeUnit: "in", authorName: "Jules", edgeMode: "crisp" }));
       expect(loadWorkspaceOptions().overlapCells).toBe(5);
+    });
+
+    it("defaults doubleClickFill to true for a workspace saved before G-041 (the field absent entirely)", () => {
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18, sizeUnit: "in", authorName: "Jules", edgeMode: "crisp" }));
+      expect(loadWorkspaceOptions().doubleClickFill).toBe(true);
+    });
+
+    it("keeps doubleClickFill switched off across a reload (G-041)", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, doubleClickFill: false });
+      expect(loadWorkspaceOptions().doubleClickFill).toBe(false);
+    });
+
+    it("falls back to the default when doubleClickFill is not a boolean", () => {
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, doubleClickFill: "no" }));
+      expect(loadWorkspaceOptions().doubleClickFill).toBe(true);
     });
 
     it("accepts every valid overlapCells value (0, 5, 10)", () => {

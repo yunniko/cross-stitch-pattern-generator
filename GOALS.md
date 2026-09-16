@@ -491,7 +491,7 @@ escalation-tier, not a routine refactor):
   - Standing deploy approval.
 
 **Milestones:**
-- [ ] **M1 — The option and the gate.**
+- [x] **M1 — The option and the gate.** Done 2026-09-16 (D146).
   - `doubleClickFill` added to `WorkspaceOptions`, its default, and its
     validation in `loadWorkspaceOptions`.
   - The switch in `OptionsPanel`, in the style of the controls beside it.
@@ -503,6 +503,31 @@ escalation-tier, not a routine refactor):
   - Full suites, deploy, live check, then the Owner's sign-off.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M1 done: the option, the switch and the gate (D146).**
+  - `doubleClickFill` joins `WorkspaceOptions`, defaulting to **on**, validated
+    on load like every other field, so options stored before today load clean.
+  - A "Double-click fills a region" checkbox in the Options panel, with a
+    tooltip describing both states; `handleCanvasDoubleClick` consults it, so
+    with it off the handler never runs.
+  - **The default was the Company's call**, not the Owner's: on, so nothing
+    changes for anyone who has not asked, with the switch one click away. Say
+    the word to flip it.
+  - **A finding, from a test of mine that failed:** with the switch off a
+    double-click is two ordinary click commits, so two undos reverse it — the
+    first version of the test asserted a one-step undo, which was my assumption,
+    not the app's behaviour (colour 0 read 157 against an expected 158 after one
+    Ctrl+Z). The test now asserts what happens, and D146 records it.
+  - **Verification:** type-check, lint and docs-lint clean; Vitest 1002 passed,
+    8 skipped (three new storage cases: the field absent in an older blob, a
+    stored `false` surviving a reload, a non-boolean falling back); Playwright
+    308 passed across every spec, no failures, run one spec per process because
+    this machine kept killing larger runs for memory.
+  - README needs no change: it lists the editing tools generically and never
+    claimed the double-click behaviour. HANDOVER's editing bullet now says the
+    fill is one undo step *when the switch is on*.
+  - Codex remains at its usage limit until 2026-09-19, so M1 had no cross-model
+    critique.
+  - **Next, M2:** deploy, live check, then the Owner's sign-off.
 - 2026-09-16 — Goal planned from the Owner's request ("make double click filling
   optional and being set up in options"). The fill has one gate point,
   `handleCanvasDoubleClick` (`app/workspace.tsx`) into `onDoubleClick`

@@ -21,7 +21,7 @@ swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the revi
   DMC, Cosmo or Anchor palettes, and Standard, Crisp or Crisp+ edges, in a reused Web Worker with progress and
   cancellation. A chart can also start blank ("New blank chart…"): a chosen size, every stitch empty, no colours,
   and no photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
-- Editing: brush (a double-click fill is one undo step, D138), 8-connected fill, symmetric
+- Editing: brush (a double-click fills a region as one undo step when the Options switch is on, D138, D146), 8-connected fill, symmetric
   painting on up to four axes and quick mirror (D137), rectangle select with copy, paste,
   move and flip, move, pan, zoom, highlight; merge, recolor, rename, symbol swap, add
   color, empty stitches, canvas resize, and one undo history covering regeneration.
@@ -219,6 +219,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
+- **G-041 double-click fill optional:** M1 done (D146) — a `doubleClickFill` option, on by default, switched in Options; with it off a double-click is two ordinary click steps. M2 (deploy, live check, sign-off) is next.
 - Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, and a drag's first frame paints in full (34–77 ms); a drag with symmetry on keeps the pre-M3 cost by design (D145).
 - Left open from G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142).
 - Left open from G-033: "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.

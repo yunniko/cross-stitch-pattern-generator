@@ -111,6 +111,18 @@ export function OptionsPanel({ options, onChange, onClose }: { options: Workspac
           <option value={10}>10</option>
         </select>
       </label>
+      <label
+        className="flex items-center gap-1.5 text-sm"
+        title="On: double-clicking with the Brush fills the whole region under the pointer, as one undo step. Off: a double-click just paints the two stitches you clicked."
+      >
+        <input
+          type="checkbox"
+          checked={options.doubleClickFill}
+          onChange={(e) => onChange("doubleClickFill", e.target.checked)}
+          className="h-3.5 w-3.5 accent-zinc-700 dark:accent-zinc-300"
+        />
+        Double-click fills a region
+      </label>
       <span className="text-xs text-zinc-500">Saved automatically in this browser.</span>
       <PillButton size="md" onClick={onClose} className="ml-auto">
         Close

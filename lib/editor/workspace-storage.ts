@@ -35,6 +35,8 @@ export interface WorkspaceOptions {
   paletteMode: PaletteMode;
   /** Photo enhancement for the next Generate. Only released modes survive a reload (D113). */
   enhancementMode: EnhancementModeId;
+  /** Whether a Brush double-click floods the region under it as one undo step (D138); off leaves the two clicks as themselves. */
+  doubleClickFill: boolean;
 }
 
 export const DEFAULT_OPTIONS: WorkspaceOptions = {
@@ -50,6 +52,7 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   generationMode: "latest",
   paletteMode: "full",
   enhancementMode: "off",
+  doubleClickFill: true,
 };
 
 const VALID_OVERLAP_CELLS: readonly OverlapCells[] = [0, 5, 10];
@@ -86,6 +89,8 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
           ? (parsed.paletteMode as PaletteMode)
           : DEFAULT_OPTIONS.paletteMode,
       enhancementMode: isReleasedEnhancementMode(parsed.enhancementMode) ? parsed.enhancementMode : DEFAULT_OPTIONS.enhancementMode,
+      // Absent in options stored before G-041, so anything that is not a boolean falls back to the default.
+      doubleClickFill: typeof parsed.doubleClickFill === "boolean" ? parsed.doubleClickFill : DEFAULT_OPTIONS.doubleClickFill,
     };
   } catch {
     return DEFAULT_OPTIONS;
