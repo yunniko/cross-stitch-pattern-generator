@@ -221,7 +221,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 - **G-039 Move tool speed planned:** the investigation and the five-option plan are in `docs/reviews/2026-09-16-move-tool-investigation.md` and `GOALS.md`; M1 (benchmark) has not started.
 - Left open from G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142).
-- **G-040 blank charts in progress:** M1 done — creation, the photo-free rule and empty-palette files (D143); the UI is next. Plan in `GOALS.md`.
+- **G-040 blank charts in progress:** M1–M2 done — creation, the photo-free rule, empty-palette files (D143) and the New blank chart panel; M3 (files, exports, release) is next. Plan in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is live (D122, D123); see its progress log in `GOALS.md`.
   Out of scope: "+ Add" keeps its old flow, and touch screens pick on tap with no comparison.

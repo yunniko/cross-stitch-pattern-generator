@@ -1144,6 +1144,28 @@ escalation-tier, not a routine refactor):
   and a live smoke test; then the Owner's sign-off.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M2 done; check-in before files and release.**
+  - **New blank chart…** sits beside Open and opens a panel with width and
+    height in stitches, the finished fabric size updating as they change, and
+    Create disabled while a size is out of range.
+  - Creating one resets the history to the blank chart, clears the loaded
+    photo through `adoptPatternPhoto` (which also cancels any generation or
+    preview still running) and starts a fresh document.
+  - A photo-free chart hides the photo-only settings and Generate, and says
+    why in one line; the colours dock explains how to add the first colour
+    while the palette is empty.
+  - **Verification:** unit suite 997 passed, 8 skipped; browser suite 305
+    passed, including three new blank-chart tests (creation and the missing
+    photo controls, the size dialog's live finished size and its refusal of
+    an out-of-range size, and painting after adding a colour then saving and
+    reopening photo-free); type-check and lint clean.
+  - Two test corrections along the way: the size fixtures had used a 4 × 4
+    chart, under the 10-stitch minimum, and the add-colour step assumed a
+    brand picker, but a blank chart has no brand lock, so "+ Add" opens the
+    free colour picker.
+  - **Next, M3:** autosave and reopen, an export pass including a chart that
+    is still entirely empty, README and HANDOVER, then deploy and a live
+    check.
 - 2026-09-16 — **M1 done; check-in before the UI.**
   - `lib/editor/blank-pattern.ts`: `createBlankPattern`, which validates the
     size against the same 10–1000 limits as a generated chart and returns a

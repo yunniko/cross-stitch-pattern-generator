@@ -15,7 +15,8 @@ import type { StitchPattern } from "@/lib/types";
 import { ColorsDock } from "./components/colors-dock";
 import { ImageWindow, ViewBar } from "./components/image-window";
 import { isViewOnlyMode } from "./editor-types";
-import { OptionsPanel, ResizePanel, SelectionBar, WorkspaceNotices } from "./components/panels";
+import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
+import { NewChartPanel, OptionsPanel, ResizePanel, SelectionBar, WorkspaceNotices } from "./components/panels";
 import { ProcessingParams } from "./components/processing-params";
 import { ToolsDock } from "./components/tools-dock";
 import { TopBar } from "./components/top-bar";
@@ -60,6 +61,8 @@ export default function Workspace() {
   const [showOptionsPanel, setShowOptionsPanel] = useState(false);
   // null while closed; a new key on every "Resize canvas…" click remounts the panel with fresh fields.
   const [resizePanelKey, setResizePanelKey] = useState<number | null>(null);
+  // Same pattern for "New blank chart…" (G-040).
+  const [newChartPanelKey, setNewChartPanelKey] = useState<number | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
   const [openNotice, setOpenNotice] = useState<string | null>(null);
   // A color editor's live draft (G-033): shown only while it was derived from the current pattern, so any real edit,
@@ -264,6 +267,21 @@ export default function Workspace() {
     });
   }
 
+  /**
+   * Starts a chart from an empty canvas (G-040). `adoptPatternPhoto` clears the loaded photo, because the new chart has
+   * none, which also cancels any generation or preview still running for the previous photo.
+   */
+  async function createBlankChart(width: number, height: number) {
+    const blank = createBlankPattern(width, height);
+    generation.setError(null);
+    setOpenError(null);
+    setOpenNotice(null);
+    history.reset(blank);
+    resetDocumentView();
+    setNewChartPanelKey(null);
+    await source.adoptPatternPhoto(blank, blank.name ?? "cross-stitch-pattern");
+  }
+
   function applyResize(delta: CanvasResizeDelta) {
     if (!pattern) return;
     history.set(resizeCanvas(pattern, delta)); // throws on an invalid size; the panel shows the message
@@ -282,6 +300,7 @@ export default function Workspace() {
         onRedo={history.redo}
         autosaveStatus={autosaveStatus}
         onOpenPattern={handleOpenPattern}
+        onNewBlankChart={() => setNewChartPanelKey((key) => (key ?? 0) + 1)}
         onToggleOptions={() => setShowOptionsPanel((shown) => !shown)}
         onOpenResize={() => setResizePanelKey((key) => (key ?? 0) + 1)}
         exportKind={exports.exportKind}
@@ -312,6 +331,9 @@ export default function Workspace() {
           onFlipVertical={select.flipVertical}
           onDeselect={select.merge}
         />
+      )}
+      {newChartPanelKey !== null && (
+        <NewChartPanel key={newChartPanelKey} options={options} onCreate={(width, height) => void createBlankChart(width, height)} onCancel={() => setNewChartPanelKey(null)} />
       )}
       {resizePanelKey !== null && pattern && <ResizePanel key={resizePanelKey} pattern={pattern} onApply={applyResize} onCancel={() => setResizePanelKey(null)} />}
 
@@ -369,6 +391,7 @@ export default function Workspace() {
             sourceFileName={source.fileName}
             hasPattern={pattern !== null}
             hasSourcePhoto={source.hasPhoto}
+            photoFree={isPhotoFree(pattern)}
             onGenerate={() => void generation.generate()}
             error={generation.error}
           />

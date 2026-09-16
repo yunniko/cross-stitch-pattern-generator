@@ -56,12 +56,14 @@ export interface ProcessingParamsProps {
   sourceFileName: string | null;
   hasPattern: boolean;
   hasSourcePhoto: boolean;
+  /** A chart started from an empty canvas: it has no photo and never will, so nothing here can generate it (G-040). */
+  photoFree: boolean;
   onGenerate: () => void;
   error: string | null;
 }
 
 /** The dock under the Image window: photo input, pattern size, color count, algorithm/palette/edge modes and Generate. */
-export function ProcessingParams({ options, onChange, onImageFile, isLoadingImage, isProcessing, progress, sourceFileName, hasPattern, hasSourcePhoto, onGenerate, error }: ProcessingParamsProps) {
+export function ProcessingParams({ options, onChange, onImageFile, isLoadingImage, isProcessing, progress, sourceFileName, hasPattern, hasSourcePhoto, photoFree, onGenerate, error }: ProcessingParamsProps) {
   const longerSide = longerSideFor(options);
   // Only released modes are offered; with Off the only one, the control stays hidden (D113, D118).
   const photoOptions = releasedEnhancementModes().map((mode) => ENHANCEMENT_OPTIONS[mode]);
@@ -83,6 +85,13 @@ export function ProcessingParams({ options, onChange, onImageFile, isLoadingImag
         {sourceFileName && <p className="text-xs text-zinc-500">Loaded: {sourceFileName}</p>}
       </div>
 
+      {photoFree ? (
+        <p data-testid="photo-free-note" className="max-w-xl self-center text-sm text-zinc-600 dark:text-zinc-400">
+          This chart started from an empty canvas, so there is no photo to generate from — paint it with the tools on the left. Choosing an image above starts a new
+          chart from that photo instead.
+        </p>
+      ) : (
+        <>
       <div className="flex flex-col gap-1">
         <span className={LABEL}>Pattern size (longer side)</span>
         <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -151,6 +160,8 @@ export function ProcessingParams({ options, onChange, onImageFile, isLoadingImag
       <PillButton variant="primary" size="lg" onClick={onGenerate} disabled={!hasSourcePhoto || isProcessing || isLoadingImage}>
         {isProcessing ? `${hasPattern ? "Regenerating" : "Generating"}… ${Math.round(progress * 100)}%` : hasPattern ? "Regenerate" : "Generate pattern"}
       </PillButton>
+        </>
+      )}
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );

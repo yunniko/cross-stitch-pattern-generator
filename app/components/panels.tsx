@@ -4,8 +4,9 @@ import type { CanvasResizeDelta } from "@/lib/editor/pattern-edit";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import type { calculateA4Layout, OverlapCells } from "@/lib/export/a4-layout";
-import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
-import type { StitchPattern } from "@/lib/types";
+import { describeBlankSizeProblem } from "@/lib/editor/blank-pattern";
+import { formatFinishedSize, STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
+import { MAX_STITCHES, MIN_STITCHES, type StitchPattern } from "@/lib/types";
 import { NoticeBar, PanelBar, PillButton, SegmentedControl } from "./ui";
 
 export interface WorkspaceNoticesProps {
@@ -152,6 +153,53 @@ export function SelectionBar({ hasSelection, hasClipboard, onCopy, onPaste, onFl
           Deselect
         </PillButton>
       </div>
+    </PanelBar>
+  );
+}
+
+/**
+ * Starting a chart from nothing (G-040): width and height in stitches, with the finished fabric size shown as they
+ * change. Mounted with a new `key` on every open request, like `ResizePanel`, so reopening it resets the fields.
+ */
+export function NewChartPanel({ options, onCreate, onCancel }: { options: WorkspaceOptions; onCreate: (width: number, height: number) => void; onCancel: () => void }) {
+  const [width, setWidth] = useState(100);
+  const [height, setHeight] = useState(100);
+  const problem = describeBlankSizeProblem(width, height);
+
+  return (
+    <PanelBar>
+      <span className="text-sm font-medium">New blank chart</span>
+      {(
+        [
+          ["Width", width, setWidth],
+          ["Height", height, setHeight],
+        ] as const
+      ).map(([label, value, setValue]) => (
+        <label key={label} className="flex items-center gap-1.5 text-sm">
+          {label}
+          <input
+            type="number"
+            min={MIN_STITCHES}
+            max={MAX_STITCHES}
+            value={value}
+            onChange={(e) => setValue(Math.round(Number(e.target.value)))}
+            aria-label={`${label} in stitches`}
+            className="w-20 rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          />
+        </label>
+      ))}
+      <span className="text-xs text-zinc-500" data-testid="new-chart-size">
+        {problem === null
+          ? `→ ${width} × ${height} stitches, ≈ ${formatFinishedSize(width, height, options.aidaCount, options.sizeUnit)} at ${options.aidaCount}-count Aida`
+          : "→ enter a size to see the finished fabric size"}
+      </span>
+      <PillButton variant="primary" size="md" onClick={() => onCreate(width, height)} disabled={problem !== null}>
+        Create
+      </PillButton>
+      <PillButton size="md" onClick={onCancel}>
+        Cancel
+      </PillButton>
+      {problem && <p className="w-full text-sm text-red-600 dark:text-red-400">{problem}</p>}
     </PanelBar>
   );
 }

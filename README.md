@@ -10,6 +10,10 @@ browser's IndexedDB, and no image is ever uploaded. Live at
 - **Generate** a chart from a photo at 10–1000 stitches and 2–100 colors.
   The pipeline downsamples in linear light, clusters in OKLab, then smooths
   regions with an edge-aware optimizer so the chart has few stray stitches.
+- **Start from nothing**: "New blank chart" asks for a width and height in
+  stitches, shows the finished fabric size, and opens an empty canvas with no
+  colors yet. A chart with no photo behind it is never generated from one, so
+  the photo settings and Generate stay out of the way.
 - **Choose the palette**: whatever colors the photo needs, or real DMC,
   Cosmo or Anchor threads (Anchor is derived from DMC equivalents and says so).
 - **Choose edge handling**: Standard averages across boundaries; Crisp keeps a

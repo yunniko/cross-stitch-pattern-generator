@@ -353,8 +353,14 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
         </PillButton>
       </div>
       <p className="text-xs text-zinc-500">
-        Drag a color onto another to merge them. Drag a color onto the picture to fill that region. Click a color to select it (Brush), then click or drag
-        across the picture to paint. Double-click a name to rename it.
+        {pattern && pattern.palette.length === 0 ? (
+          <span data-testid="empty-palette-note">This chart has no colors yet. Press &quot;+ Add&quot; to pick the first one, then click it and paint on the picture.</span>
+        ) : (
+          <>
+            Drag a color onto another to merge them. Drag a color onto the picture to fill that region. Click a color to select it (Brush), then click or drag
+            across the picture to paint. Double-click a name to rename it.
+          </>
+        )}
       </p>
 
       {pattern && (

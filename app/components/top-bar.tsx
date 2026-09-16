@@ -49,6 +49,8 @@ export interface TopBarProps {
   onRedo: () => void;
   autosaveStatus: AutosaveStatus;
   onOpenPattern: (file: File) => void;
+  /** Opens the panel that starts a chart from an empty canvas (G-040). */
+  onNewBlankChart: () => void;
   onToggleOptions: () => void;
   onOpenResize: () => void;
   exportKind: ExportKind;
@@ -109,6 +111,9 @@ export function TopBar(props: TopBarProps) {
         {autosaveStatus === "saved" && !hasPattern ? "" : AUTOSAVE_LABELS[autosaveStatus]}
       </span>
       <div className="ml-auto flex items-center gap-2">
+        <PillButton onClick={props.onNewBlankChart} title="Start a chart from an empty canvas, with no photo behind it. Such a chart is never generated from a photo.">
+          New blank chart…
+        </PillButton>
         <PillButton
           onClick={() => openInputRef.current?.click()}
           title="Accepts a .json pattern file, a .cspzip/.zip export-all bundle (searched for a valid pattern inside), or an .oxs chart from another cross-stitch program"
