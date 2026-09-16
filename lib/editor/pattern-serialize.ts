@@ -151,7 +151,9 @@ export function deserializePatternData(data: unknown): StitchPattern {
   }
 
   const rawPalette = d.palette;
-  if (!Array.isArray(rawPalette) || rawPalette.length === 0) {
+  // An empty palette is legal only for a chart with nothing stitched yet (G-040): the per-cell check below then accepts
+  // `EMPTY_CELL` alone, so a file that names a colour it doesn't carry is still refused.
+  if (!Array.isArray(rawPalette)) {
     throw new Error("That file has no color palette.");
   }
   if (rawPalette.length > MAX_COLORS) {

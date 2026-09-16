@@ -1144,5 +1144,18 @@ escalation-tier, not a routine refactor):
   and a live smoke test; then the Owner's sign-off.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M1 done; check-in before the UI.**
+  - `lib/editor/blank-pattern.ts`: `createBlankPattern`, which validates the
+    size against the same 10–1000 limits as a generated chart and returns a
+    message the creation form can show, plus `isPhotoFree`.
+  - **Files:** an empty palette is now legal when nothing is stitched (D143).
+    A file naming a colour it doesn't carry is still refused, and the format
+    version stays 7, so older files are unaffected.
+  - **Verification:** full unit suite 997 passed, 8 skipped; docs-lint,
+    type-check and lint clean. A blank chart saves and reopens with its size,
+    empty stitches, empty palette and no photo.
+  - **Next, M2:** the New blank chart action beside Open, the size dialog
+    with its live finished size and validation, the photo-only controls
+    disabled with one line of explanation, and the empty-palette message.
 - 2026-09-16 — Goal drafted from the Owner's request and four answers above.
   No code yet.
