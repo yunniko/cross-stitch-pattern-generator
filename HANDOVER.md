@@ -23,7 +23,7 @@ swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the revi
   and no photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
 - Editing: brush (a double-click fills a region as one undo step when the Options switch is on, D138, D146), 8-connected fill, symmetric
   painting on up to four axes and quick mirror (D137), rectangle select with copy, paste,
-  move and flip, move, pan, zoom, highlight; merge, recolor, rename, symbol swap, add
+  move, flip, rotate, crop and cancel (D147), move, pan, zoom, highlight; merge, recolor, rename, symbol swap, add
   color, empty stitches, canvas resize, and one undo history covering regeneration.
 - Color editor: opens under its legend row on the color's remembered thread
   swatch (D122), marked and scrolled into view; hovering or focusing a swatch
@@ -219,7 +219,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, a drag's first frame paints in full (34–77 ms), and a drag with symmetry on keeps the pre-M3 cost (D145).
+- **G-042 in progress:** M1–M2 done (D147) — a floating selection rotates, crops the chart to itself and cancels its whole session; selection buttons are icons; the swatch readout is code, name and the two differences; the photo input is in the top bar; a photo-free chart shows no regenerate panel. M3 (deploy and live check) is next. Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, a drag's first frame paints in full (34–77 ms), and a drag with symmetry on keeps the pre-M3 cost (D145).
 - Left open from G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142).
 - Left open from G-033: "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.

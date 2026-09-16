@@ -13,14 +13,15 @@ browser's IndexedDB, and no image is ever uploaded. Live at
 - **Start from nothing**: "New blank chart" asks for a width and height in
   stitches, shows the finished fabric size, and opens an empty canvas with no
   colors yet. A chart with no photo behind it is never generated from one, so
-  the photo settings and Generate stay out of the way.
+  the whole photo-and-Generate panel stays away for its whole life.
 - **Choose the palette**: whatever colors the photo needs, or real DMC,
   Cosmo or Anchor threads (Anchor is derived from DMC equivalents and says so).
 - **Choose edge handling**: Standard averages across boundaries; Crisp keeps a
   hard boundary as two real colors instead of inventing a blend; Crisp+ also
   cleans up slightly soft edges, snapping the in-between colors along a blurred
   boundary to one side while keeping real thin lines and gradients.
-- **Edit** with brush, fill, rectangle select (copy, paste, move, flip), move,
+- **Edit** with brush, fill, rectangle select (copy, paste, move, flip, rotate,
+  crop to the selection, or cancel everything the selection did), move,
   pan, zoom and highlight tools. Merge, recolor, rename and re-symbol colors,
   mark stitches as empty, resize the canvas, undo and redo. The color editor
   opens on a color's own thread swatch, shows how other swatches compare

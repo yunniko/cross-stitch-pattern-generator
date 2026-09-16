@@ -509,6 +509,11 @@ escalation-tier, not a routine refactor):
   live check, then the Owner's sign-off.
 
 **Progress log** (newest first):
+- 2026-09-16 — **Full suite green before release:** Playwright 313 passed, 0
+  failed across all 25 specs, one spec per process, including 84 chart-render
+  and 124 viewport-parity cases — the icon buttons, the moved photo input and the
+  hidden panel disturbed nothing. README corrected: the selection's operations
+  and the photo-free chart's behaviour were both understated.
 - 2026-09-16 — **M2 done: icons, a leaner readout, the photo button moved, and no
   panel for a photo-free chart (D147).**
   - Nine icon buttons in the selection bar, each keeping its old words as its
