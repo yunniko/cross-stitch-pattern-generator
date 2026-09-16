@@ -451,3 +451,68 @@ escalation-tier, not a routine refactor):
     available, about 30 containers, load average 1.3, and no
     `client_max_body_size` in any nginx config.
   No code written.
+
+### G-042 · Selection actions, icon buttons and leaner chrome — ACTIVE (2026-09-16)
+- **What:** five changes the Owner asked for (2026-09-16):
+  1. A floating selection gains **rotate clockwise**, **rotate anticlockwise**,
+     **crop** and **cancel**. Cancel discards everything the selection session
+     did; it covers a pasted piece too.
+  2. The selection bar's buttons become **icons**, not words.
+  3. The colour editor's compare line shows only **number, name, x% darker or
+     lighter, y% more or less saturated** — no brand prefix, no colon.
+  4. The **photo button moves to the top panel**.
+  5. A chart created **without a photo shows no regenerate panel at all**; once a
+     photo is chosen, or a pattern that has one is opened, the panel appears as
+     it does today.
+- **Why:** Owner request. The selection needed a way out that does not apply its
+  edits, and rotation and crop are the two obvious gaps beside flip; the rest is
+  chrome that reads cluttered.
+- **Decided by the Company, open to correction:** "crop" means the **chart** is
+  cropped to the selection's rectangle, discarding everything outside, with the
+  floating piece merged first — the natural reading beside "Resize canvas…".
+- **Acceptance criteria:**
+  1. **Rotation.** Clockwise and anticlockwise turn the piece 90°, swapping its
+     width and height; four turns return it exactly; it works on a pasted piece;
+     like flip, it changes the floating piece only, and merges as one step.
+  2. **Crop.** The chart becomes the selection's rectangle: stitches outside are
+     gone, the piece is merged in place first, counts are recomputed, the photo
+     underlay keeps its alignment, and the whole thing is one undo step.
+  3. **Cancel.** The chart returns to exactly how it was when the rectangle was
+     drawn, or when the piece was pasted — moves, flips, rotations and crops in
+     that session included — as one undo step. The clipboard survives.
+  4. **Icons.** Every selection action is an icon button with an accessible name
+     and a tooltip; names keep today's words, so existing tests still find them.
+  5. **Compare line.** Reads "3865 - Winter White 12% lighter 5% less saturated"
+     — number when the colour has one, name, then each difference. No "DMC", no
+     colon. A colour with no difference shows just number and name.
+  6. **Photo button.** Lives in the top panel, next to Open pattern…; choosing an
+     image loads and generates exactly as before.
+  7. **Regenerate panel.** Absent for a photo-free chart, present and unchanged
+     otherwise. The photo-free note goes away with it.
+  8. **Tests and release.** Unit for rotation, crop, cancel and the compare line;
+     e2e for the selection actions and for both panel states. Lint, type-check,
+     unit, e2e and docs-lint pass, then deploy and a live check.
+- **Constraints:**
+  - A separate worktree; other sessions share this tree.
+  - No new runtime dependencies.
+  - Codex is at its usage limit until 2026-09-19; note and skip if still down.
+  - Standing deploy approval.
+
+**Milestones:**
+- [ ] **M1 — Selection actions.** Rotation both ways, crop, and a cancel that
+  restores the session's starting chart, with the pasted-piece case covered.
+  Gate: criteria 1–3 with unit and e2e.
+- [ ] **M2 — The chrome.** Icon buttons, the compare line, the photo button in
+  the top panel, and the regenerate panel hidden for photo-free charts.
+  Gate: criteria 4–7 with e2e for both panel states.
+- [ ] **M3 — Release.** Decision file, README and HANDOVER, full suites, deploy,
+  live check, then the Owner's sign-off.
+
+**Progress log** (newest first):
+- 2026-09-16 — Goal planned. The Owner settled two points up front: the colour
+  text to trim is the editor's compare line (not the legend row, whose "Dark" is
+  part of DMC's own colour name), and cancel undoes the whole selection session
+  rather than only dropping the floating piece. `FloatingSelection` already
+  carries cells plus width and height, so rotation follows `flipCells`; cancel
+  needs a snapshot taken when the session starts, because `paste` merges
+  whatever was floating before it.
