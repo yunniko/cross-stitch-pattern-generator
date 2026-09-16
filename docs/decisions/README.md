@@ -153,3 +153,4 @@ remain readable with git show.
 - D142 — Crisp+ refills only the slots it frees, splitting interior cells, never into a blend — active
 - D143 — An empty palette is legal only for a chart with nothing stitched — active
 - D144 — A Move drag paints the visible view only, at most once per animation frame — active
+- D145 — A Move frame shifts the pixels already drawn and patches the exposed strips — active

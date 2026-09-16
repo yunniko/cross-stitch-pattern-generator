@@ -84,6 +84,8 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   const gestureRef = useRef<GesturePreview | null>(null);
   /** The animation frame a Move preview has already scheduled, so pointer events coalesce into one paint. */
   const moveFrameRef = useRef<number | null>(null);
+  /** What the canvas currently shows for a Move preview, so the next frame can shift those pixels instead of redrawing (D145). */
+  const moveBlitRef = useRef<{ rect: PixelRect; scene: Omit<ChartScene, "selectDragging">; base: StitchPattern; dx: number; dy: number } | null>(null);
   const paintedRef = useRef<PixelRect>(EMPTY_RECT);
   // The device-pixel step the painted rectangle was aligned to; a changed device pixel ratio (browser zoom) repaints.
   const alignRef = useRef(1);
@@ -164,6 +166,9 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       ctx.setTransform(1, 0, 0, 1, -rect.x0, -rect.y0);
       drawSceneWithGesture(ctx, currentScene(), p, gestureRef.current, rect);
     }
+    const gesture = gestureRef.current;
+    moveBlitRef.current =
+      ctx && gesture?.kind === "move" ? { rect, scene: shownRef.current.scene, base: gesture.base, dx: gesture.dx, dy: gesture.dy } : null;
     markRendered();
   }
 
@@ -300,6 +305,55 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     markRendered();
   }
 
+  /**
+   * The next Move frame from the pixels already on screen: the canvas is copied onto itself by the stitches moved
+   * since the last frame, and only the strips that exposes are drawn from the pattern. Returns false when the frame
+   * cannot be reused -- a scroll, zoom, view or pattern change, a shift past the canvas, or symmetry guides, which are
+   * chart-fixed and would travel with the copy (D145).
+   */
+  function paintMoveShifted(gesture: Extract<GesturePreview, { kind: "move" }>): boolean {
+    const cache = moveBlitRef.current;
+    const canvas = canvasRef.current;
+    const p = shownRef.current.pattern;
+    const scene = shownRef.current.scene;
+    if (!cache || !canvas || !p || cache.base !== gesture.base || cache.scene !== scene) return false;
+    if (Object.values(scene.symmetryAxes).some(Boolean)) return false;
+    const geometry = measure();
+    if (!geometry) return false;
+    // The view must not have moved: the cached rectangle has to be the one this frame would paint into.
+    const align = devicePixelAlignment(window.devicePixelRatio || 1);
+    const fraction = overscanFraction(scene.viewMode, true);
+    const rect = paintedRectFor(geometry.visible, geometry.viewWidth * fraction, geometry.viewHeight * fraction, geometry.width, geometry.height, align);
+    const { rect: cached } = cache;
+    if (align !== alignRef.current || rect.x0 !== cached.x0 || rect.y0 !== cached.y0 || rect.x1 !== cached.x1 || rect.y1 !== cached.y1) return false;
+
+    const cs = scene.cellSize;
+    const shiftX = (gesture.dx - cache.dx) * cs;
+    const shiftY = (gesture.dy - cache.dy) * cs;
+    const w = rect.x1 - rect.x0;
+    const h = rect.y1 - rect.y0;
+    if (Math.abs(shiftX) >= w || Math.abs(shiftY) >= h) return false; // nothing worth keeping
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return false;
+    if (shiftX !== 0 || shiftY !== 0) {
+      // "copy" leaves the newly exposed strips empty rather than blending the old pixels through them.
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalCompositeOperation = "copy";
+      ctx.drawImage(canvas, shiftX, shiftY);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.setTransform(1, 0, 0, 1, -rect.x0, -rect.y0);
+      const strips: PixelRect[] = [];
+      if (shiftX > 0) strips.push({ x0: rect.x0, y0: rect.y0, x1: rect.x0 + shiftX, y1: rect.y1 });
+      else if (shiftX < 0) strips.push({ x0: rect.x1 + shiftX, y0: rect.y0, x1: rect.x1, y1: rect.y1 });
+      if (shiftY > 0) strips.push({ x0: rect.x0, y0: rect.y0, x1: rect.x1, y1: rect.y0 + shiftY });
+      else if (shiftY < 0) strips.push({ x0: rect.x0, y0: rect.y1 + shiftY, x1: rect.x1, y1: rect.y1 });
+      for (const strip of strips) drawSceneWithGesture(ctx, currentScene(), p, gesture, strip);
+    }
+    moveBlitRef.current = { rect, scene, base: gesture.base, dx: gesture.dx, dy: gesture.dy };
+    markRendered();
+    return true;
+  }
+
   /** The Move preview: the pre-drag chart shifted by (dx, dy) stitches with wrap-around, drawn from the pattern. */
   function previewMove(base: StitchPattern, dx: number, dy: number) {
     gestureRef.current = { kind: "move", base, dx, dy };
@@ -308,7 +362,9 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     if (moveFrameRef.current !== null) return;
     moveFrameRef.current = requestAnimationFrame(() => {
       moveFrameRef.current = null;
-      if (isMovePreview(gestureRef.current)) paint();
+      const gesture = gestureRef.current;
+      if (gesture?.kind !== "move") return;
+      if (!paintMoveShifted(gesture)) paint();
     });
   }
 
@@ -345,6 +401,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   /** Ends the gesture preview. `repaint` when no state change will follow to redraw the view. */
   function endGesture(repaint: boolean) {
     cancelPendingMoveFrame();
+    moveBlitRef.current = null;
     gestureRef.current = null;
     selectBaseRef.current = null;
     if (repaint) paint();

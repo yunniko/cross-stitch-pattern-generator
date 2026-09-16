@@ -531,7 +531,7 @@ escalation-tier, not a routine refactor):
   - Gate: measurable improvement against M1, existing suites and parity pass.
   - The Owner's answers to the two questions above are collected at this
     check-in.
-- [ ] **M3 — Shift the pixels already on screen (option 1).**
+- [x] **M3 — Shift the pixels already on screen (option 1).** Done 2026-09-16 (D145).
   - The gesture keeps an offscreen base frame; guides and the selection
     outline draw on their own overlay.
   - Wrap-around, a scroll during a drag and a zoom during a drag keep working.
@@ -543,6 +543,41 @@ escalation-tier, not a routine refactor):
     and live check.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M3 done: a Move frame shifts the pixels already drawn (D145).**
+  - **The Owner left both open questions to the Company** ("decide what makes
+    more sense"), and D145 settles them: grid lines keep travelling with the
+    design during a drag, because that keeps a frame a pure translation, which
+    is what makes the copy cheap and pixel-exact; pinning them would force a
+    content/grid split and a new parity oracle to remove a jump seen only on
+    shifts off the 10-stitch grid. Grid + photo frames may be copied, since
+    D135's "drawn clean" rule guards against accumulation, which a clean copy
+    plus clean strips avoids.
+  - **What changed** (`app/hooks/use-chart-renderer.ts`): a Move frame copies the
+    canvas onto itself by the stitches moved since the last frame and draws only
+    the strips that exposes. A scroll, zoom, view or pattern change, a shift past
+    the canvas, or an active symmetry axis falls back to a full paint.
+  - **Result** (1000 stitches, 64 colours, 3 runs; tables in the review): every
+    case has a 17 ms median — one display frame per stitch — in all three views
+    at 4, 6 and 8 px, against M1's 94 / 97 / 79 ms at 6 px and M2's 50 / 50 / 66.
+    At 4×: 33 ms at 6 px and 8 px, against M1's 306–369 ms.
+  - **Criterion 1, proposed reading:** the median target is met everywhere, and
+    378 of 378 steps after each drag's first came in at or under the 25 ms worst
+    target. Only the opening frame exceeds it (34–77 ms; 130–275 ms at 4×),
+    because nothing exists to shift until a frame has been painted. The Owner is
+    asked to read the worst-case target as "worst after the opening frame".
+  - **Not improved:** ending a drag is unchanged at 86–132 ms, over the 100 ms
+    target at 6 px, since the release redraws the committed chart from the
+    pattern; a drag with symmetry on keeps M2's cost by design.
+  - **Verification:** type-check and lint clean; Vitest 999 passed, 8 skipped;
+    Playwright 307 passed across 24 specs, including 124 of 124 viewport-parity
+    cases, so the shifted frame is byte-identical to a full redraw. The suite and
+    the throttled benchmark ran in chunks: seven runs were killed by the OS for
+    memory during this goal.
+  - Codex remains at its usage limit until 2026-09-19, so M3 had no cross-model
+    critique.
+  - **Next, M4:** the Owner decides on the symbol-free preview (option 5) from
+    these numbers, and the release — benchmarks, README, deploy and live check.
+    Ending a drag is the remaining candidate over target.
 - 2026-09-16 — **M2 done: one paint per frame, the visible view only, and the
   small fixes (D144).**
   - **What changed** (`app/hooks/use-chart-renderer.ts`, `lib/export/render.ts`,

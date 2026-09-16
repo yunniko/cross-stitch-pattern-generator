@@ -96,6 +96,50 @@ Notes:
 - **Pixels are unchanged:** 124 of 124 viewport-parity cases pass, because parity draws through
   `drawSceneWithGesture` rather than `paint()` (D144).
 
+## M3 result (shift the pixels already drawn)
+
+Same benchmark, after D145. Unthrottled medians across 3 runs; the throttled pass is single runs, taken one stitch
+size at a time from a 1200 x 900 source photo, because full runs were killed for memory (see the note at the end).
+
+| Case | Step median, M1 → M2 → M3 | Worst step after the drag's first | Worst frame gap | End of drag |
+|---|---:|---:|---:|---:|
+| Color @ 6 px | 94 → 50 → **17 ms** | 23 ms | 33 ms | 132 ms |
+| B&W @ 6 px | 97 → 50 → **17 ms** | 18 ms | 33 ms | 126 ms |
+| Grid + photo @ 6 px | 79 → 66 → **17 ms** | 18 ms | 50 ms | 116 ms |
+| Color @ 8 px | 54 → 33 → **17 ms** | 18 ms | 17 ms | 94 ms |
+| B&W @ 8 px | 65 → 33 → **17 ms** | 18 ms | 17 ms | 94 ms |
+| Grid + photo @ 8 px | 50 → 48 → **17 ms** | 19 ms | 33 ms | 86 ms |
+| Color @ 4 px (100 % zoom) | 17 → 16 → **17 ms** | 18 ms | 17 ms | 51 ms |
+| B&W @ 4 px (100 % zoom) | 17 → 17 → **17 ms** | 18 ms | 17 ms | 42 ms |
+| Grid + photo @ 4 px (100 % zoom) | 16 → 16 → **17 ms** | 18 ms | 17 ms | 43 ms |
+
+At 4× throttling, step medians M1 → M2 → M3: 357 → 181 → **33**, 369 → 182 → **33** and 306 → 248 → **33** ms at
+6 px; 229 → 115 → **33**, 228 → 115 → **32** and 187 → 151 → **33** ms at 8 px; 34 → 27 → **18**, 33 → 33 → **17**
+and 33 → 34 → **17** ms at 100 % zoom.
+
+A stitch of Move now costs one display frame in every view at every reachable zoom, throttled or not.
+
+### The one step that is not one frame
+
+Every drag's first step still paints in full — there are no pixels to shift until a frame exists — at 34–77 ms
+unthrottled and 130–275 ms at 4×. After that opening frame, **378 of 378 measured steps came in at 25 ms or under**,
+almost all at 16–18 ms. Criterion 1's median target is met everywhere; its 25 ms worst-case target is met for every
+step except each drag's first, which is inherent to the approach rather than a tuning problem.
+
+### What did not improve
+
+- **Ending a drag is unchanged** at 86–132 ms (356–372 ms at 4×), because the release redraws the committed chart
+  from the pattern. At 6 px this is the one figure still over the goal's 100 ms target.
+- **A drag with any symmetry axis on keeps M2's cost.** The guides are chart-fixed and would travel with the copy,
+  so that case deliberately falls back to a full paint (D145).
+
+### Measuring notes
+
+Unthrottled figures are 3 runs of 15 steps per case on a 2000 x 1500 photo. The throttled figures are single runs in
+three chunks on a 1200 x 900 photo: seven full runs were killed by the OS for memory during G-039, with 1.5–2.4 GB
+free on a machine shared with other work. The chart, window and step pattern are identical across all of them, and
+no run reported a page or console error.
+
 ## Options (G-039)
 
 1. **Shift the pixels already on screen, redraw only the uncovered strips.** Per frame: copy the previous bitmap by

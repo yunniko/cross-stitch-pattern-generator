@@ -219,7 +219,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **G-039 Move tool speed:** M1–M2 done (D144). A Move drag now paints once per animation frame, view only: a step costs 33–66 ms with symbols drawn, down from 50–97 ms, and the worst frame gap 33 ms, down from 100 ms (`docs/reviews/2026-09-16-move-tool-investigation.md`). The 16 ms target needs M3, which shifts the pixels already drawn; two questions await the Owner (grid lines during a drag; Grid + photo previews by copy).
+- **G-039 Move tool speed:** M1–M3 done (D144, D145). A Move frame now shifts the pixels already drawn and patches the strips that exposes: one stitch costs 17 ms — one display frame — in every view at 4, 6 and 8 px, down from 94 ms, and 33 ms at 4× throttling (`docs/reviews/2026-09-16-move-tool-investigation.md`). Each drag's first frame still paints in full (34–77 ms), and ending a drag is unchanged at 86–132 ms. M4 (the Owner's call on symbols while dragging, then release) is next.
 - Left open from G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142).
 - Left open from G-033: "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.
