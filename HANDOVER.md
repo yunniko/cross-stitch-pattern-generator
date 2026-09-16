@@ -9,8 +9,9 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs `master` as deployed on 2026-09-15 (last deploy-log row).
-Signed off: G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035
+**Production** runs `master` as deployed on 2026-09-16 (last deploy-log row).
+Signed off: G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror,
+G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035
 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap
 cancelled, D130), G-032 enhancement (D118), G-028 OXS (D119). G-033 (swatch-aware
 color editor) is deployed and awaits Owner sign-off.
@@ -219,13 +220,12 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 ## Next steps and open questions
 
 - **G-039 Move tool speed planned:** the investigation and the five-option plan are in `docs/reviews/2026-09-16-move-tool-investigation.md` and `GOALS.md`; M1 (benchmark) has not started.
-- **G-038 Crisp+ in progress:** M1–M5 built (D139–D142), awaiting the Owner's visual check; see `GOALS.md`. A busy photo can still end
-  under the requested colour count (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142); measurements in `docs/reviews/2026-09-16-crisp-plus-calibration.md`.
+- Left open from G-038: a busy photo can end under the requested colour count in Crisp+ (road-mountains 14 of 24),
+  since a refill split learns only from cells inside a colour (D142); measurements in `docs/reviews/2026-09-16-crisp-plus-calibration.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is live (D122, D123); see its progress log in `GOALS.md`.
   Out of scope: "+ Add" keeps its old flow, and touch screens pick on tap with no comparison.
-- Left open from G-028: OXS symbols use each reader's own font glyph, and the export is untested
-  in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`).
+- Left open from G-028: OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`).
 - Left open from G-032: the 1.5 s enhancement target, and Brighten's real-photo calibration.
 - G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
