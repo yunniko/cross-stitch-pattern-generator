@@ -302,6 +302,10 @@ export default function Workspace() {
         autosaveStatus={autosaveStatus}
         onOpenPattern={handleOpenPattern}
         onNewBlankChart={() => setNewChartPanelKey((key) => (key ?? 0) + 1)}
+        onImageFile={handleImageFile}
+        isLoadingImage={source.isLoading}
+        isProcessing={generation.isProcessing}
+        sourceFileName={source.fileName}
         onToggleOptions={() => setShowOptionsPanel((shown) => !shown)}
         onOpenResize={() => setResizePanelKey((key) => (key ?? 0) + 1)}
         exportKind={exports.exportKind}
@@ -386,20 +390,19 @@ export default function Workspace() {
             onDoubleClick={handleCanvasDoubleClick}
             onDrop={handleCanvasDrop}
           />
-          <ProcessingParams
-            options={options}
-            onChange={updateOption}
-            onImageFile={handleImageFile}
-            isLoadingImage={source.isLoading}
-            isProcessing={generation.isProcessing}
-            progress={generation.progress}
-            sourceFileName={source.fileName}
-            hasPattern={pattern !== null}
-            hasSourcePhoto={source.hasPhoto}
-            photoFree={isPhotoFree(pattern)}
-            onGenerate={() => void generation.generate()}
-            error={generation.error}
-          />
+          {!isPhotoFree(pattern) && (
+            <ProcessingParams
+              options={options}
+              onChange={updateOption}
+              isLoadingImage={source.isLoading}
+              isProcessing={generation.isProcessing}
+              progress={generation.progress}
+              hasPattern={pattern !== null}
+              hasSourcePhoto={source.hasPhoto}
+              onGenerate={() => void generation.generate()}
+              error={generation.error}
+            />
+          )}
         </main>
         <ColorsDock
           pattern={pattern}

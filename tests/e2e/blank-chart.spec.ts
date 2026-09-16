@@ -28,9 +28,10 @@ test("a blank chart is created at the asked size, with no photo settings and no 
   await createBlankChart(page, 40, 25);
 
   await expect(page.getByText(/40 × 25, 0 stitches, 0 colors/)).toBeVisible();
-  await expect(page.getByTestId("photo-free-note")).toBeVisible();
+  await expect(page.getByText("Pattern size (longer side)"), "no regenerate panel at all (G-042)").toHaveCount(0);
   await expect(page.getByTestId("empty-palette-note")).toBeVisible();
   await expect(page.getByRole("button", { name: /Generate pattern|Regenerate/ })).toHaveCount(0);
+  await expect(page.getByLabel("Image"), "a photo can still be chosen, from the top bar").toBeVisible();
   await expect(page.getByRole("button", { name: "Crisp", exact: true })).toHaveCount(0);
   await expect(page.getByRole("radio", { name: /Small/ })).toHaveCount(0);
   expect(errors).toEqual([]);
@@ -75,7 +76,7 @@ test("an autosaved blank chart comes back after a reload, still photo-free", asy
 
   await page.reload();
   await expect(page.getByText(/26 × 18, 1 stitch, 1 color/)).toBeVisible();
-  await expect(page.getByTestId("photo-free-note")).toBeVisible();
+  await expect(page.getByText("Pattern size (longer side)"), "still photo-free: no regenerate panel").toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -99,6 +100,6 @@ test("a blank chart paints after adding a color, and survives saving and reopeni
   await page.goto("/");
   await page.getByLabel("Open pattern file").setInputFiles(await download.path());
   await expect(page.getByText(/30 × 20, 1 stitch, 1 color/)).toBeVisible();
-  await expect(page.getByTestId("photo-free-note")).toBeVisible();
+  await expect(page.getByText("Pattern size (longer side)"), "still photo-free: no regenerate panel").toHaveCount(0);
   expect(errors).toEqual([]);
 });

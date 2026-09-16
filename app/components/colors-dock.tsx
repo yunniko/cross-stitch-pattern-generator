@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type RefObject } from "react";
 import { HexColorPicker } from "react-colorful";
 import { hexToRgb, luminance, rgbToHex } from "@/lib/color/color";
-import { describeSwatchComparison } from "@/lib/color/swatch-comparison";
+import { swatchComparisonParts } from "@/lib/color/swatch-comparison";
 import { SYMBOL_SET } from "@/lib/color/symbols";
 import { addBrandColor, addColor, editColorRgb, editColorToBrandColor, renameColor, restoreColor, setColorSymbol } from "@/lib/editor/pattern-edit";
 import { formatSkeinEstimate } from "@/lib/threads/floss-estimate";
@@ -110,7 +110,21 @@ function BrandColorPicker({ brand, query, onQueryChange, onPick, currentCode, co
       {compareWith && (
         // A fixed line rather than a native tooltip: tooltips are delayed and never shown for keyboard focus (G-033).
         <p data-testid="swatch-comparison" aria-live="polite" className="min-h-[2.5em] text-xs text-zinc-600 dark:text-zinc-400">
-          {inspected ? describeSwatchComparison(`${label} ${formatThreadName(inspected)}`, compareWith, inspected.rgb) : COMPARE_HINT}
+          {inspected ? (
+            // Real spaces between the parts, not a flex gap: the gap spaces them on screen but leaves the read-aloud
+            // and copied text running together ("Dark7% lighter").
+            swatchComparisonParts(formatThreadName(inspected), compareWith, inspected.rgb).map((part, i) =>
+              i === 0 ? (
+                <span key={part} className="font-medium text-foreground">
+                  {part}
+                </span>
+              ) : (
+                <span key={part}>{` ${part}`}</span>
+              )
+            )
+          ) : (
+            <span>{COMPARE_HINT}</span>
+          )}
         </p>
       )}
     </>

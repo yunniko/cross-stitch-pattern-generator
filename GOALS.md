@@ -502,13 +502,39 @@ escalation-tier, not a routine refactor):
 - [ ] **M1 — Selection actions.** Rotation both ways, crop, and a cancel that
   restores the session's starting chart, with the pasted-piece case covered.
   Gate: criteria 1–3 with unit and e2e.
-- [ ] **M2 — The chrome.** Icon buttons, the compare line, the photo button in
+- [x] **M2 — The chrome.** Done 2026-09-16 (D147). Icon buttons, the compare line, the photo button in
   the top panel, and the regenerate panel hidden for photo-free charts.
   Gate: criteria 4–7 with e2e for both panel states.
 - [ ] **M3 — Release.** Decision file, README and HANDOVER, full suites, deploy,
   live check, then the Owner's sign-off.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M2 done: icons, a leaner readout, the photo button moved, and no
+  panel for a photo-free chart (D147).**
+  - Nine icon buttons in the selection bar, each keeping its old words as its
+    `aria-label`, so every existing test still finds it.
+  - The swatch readout is the thread's code and name, then each difference, with
+    no brand word and no colon; `describeSwatchComparison` became
+    `swatchComparisonParts`.
+  - The photo input lives in the top bar, keeping `id="image-input"` and its
+    "Image" label, so everything that uploads still works.
+  - `ProcessingParams` is not rendered at all for a photo-free chart; the
+    photo-free note went with it, and `blank-chart.spec.ts` now asserts the
+    panel's absence instead.
+  - **Two defects I introduced and fixed**, both caught by the suite:
+    - the readout's parts were spaced by a flex gap alone, so the accessible and
+      copied text ran together ("Dark7% lighter"); they now carry real spaces;
+    - the relocated photo input lost `isProcessing`, dropping the guard a
+      2026-09-09 code review added against swapping the photo mid-generation.
+  - **A reporting failure of mine:** I first reported these four specs as "18
+    passed, no failures". My loop matched the word "failed" on the summary line,
+    but Playwright prints "1 failed" and "4 passed" separately, so two real
+    failures went unreported until a test-count discrepancy exposed them. The
+    loop now counts each figure on its own line.
+  - **Verification:** type-check, lint and docs-lint clean; Vitest 1011 passed,
+    8 skipped; colour-editor 5, blank-chart 5, selection-actions 5,
+    generate-pattern 5, all passing after the fixes.
+  - **Next, M3:** README and HANDOVER, the full suites, deploy and live check.
 - 2026-09-16 — Goal planned. The Owner settled two points up front: the colour
   text to trim is the editor's compare line (not the legend row, whose "Dark" is
   part of DMC's own colour name), and cancel undoes the whole selection session

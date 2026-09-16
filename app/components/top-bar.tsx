@@ -51,6 +51,12 @@ export interface TopBarProps {
   onOpenPattern: (file: File) => void;
   /** Opens the panel that starts a chart from an empty canvas (G-040). */
   onNewBlankChart: () => void;
+  /** The photo to generate from; it lives here rather than in the regenerate panel (G-042). */
+  onImageFile: (file: File) => void;
+  isLoadingImage: boolean;
+  /** A generation in flight: swapping the photo now would race it. */
+  isProcessing: boolean;
+  sourceFileName: string | null;
   onToggleOptions: () => void;
   onOpenResize: () => void;
   exportKind: ExportKind;
@@ -132,6 +138,24 @@ export function TopBar(props: TopBarProps) {
           }}
           className="hidden"
         />
+        <label className="flex items-center gap-1.5 text-sm" title="Choose a photo to generate a chart from">
+          <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400" id="image-input-label">
+            Image
+          </span>
+          <input
+            id="image-input"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) props.onImageFile(file);
+            }}
+            disabled={props.isLoadingImage || props.isProcessing}
+            className="w-44 text-xs"
+          />
+        </label>
+        {props.isLoadingImage && <span className="text-xs text-zinc-500">Reading image…</span>}
+        {props.sourceFileName && !props.isLoadingImage && <span className="max-w-[12rem] truncate text-xs text-zinc-500">Loaded: {props.sourceFileName}</span>}
         <PillButton onClick={props.onToggleOptions}>Options…</PillButton>
         <PillButton onClick={props.onOpenResize} disabled={!hasPattern}>
           Resize canvas…

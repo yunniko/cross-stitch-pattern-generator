@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareSwatch, describeDifference, describeSwatchComparison, roundDifferencePoints } from "@/lib/color/swatch-comparison";
+import { compareSwatch, describeDifference, roundDifferencePoints, swatchComparisonParts } from "@/lib/color/swatch-comparison";
 
 /** G-033: the swatch comparison readout's rounding and wording. */
 
@@ -29,13 +29,13 @@ describe("describeDifference", () => {
   });
 });
 
-describe("describeSwatchComparison", () => {
+describe("swatchComparisonParts", () => {
   it("shows only the name when the candidate matches the current colour", () => {
-    expect(describeSwatchComparison("DMC 310 - Black", [0, 0, 0], [0, 0, 0])).toBe("DMC 310 - Black");
+    expect(swatchComparisonParts("310 - Black", [0, 0, 0], [0, 0, 0])).toEqual(["310 - Black"]);
   });
 
   it("compares lightness and saturation in Okhsl, not HSL", () => {
-    expect(describeSwatchComparison("White", [0, 0, 0], [255, 255, 255])).toBe("White: 100% lighter");
+    expect(swatchComparisonParts("White", [0, 0, 0], [255, 255, 255])).toEqual(["White", "100% lighter"]);
     // Pure yellow is far lighter than pure blue in Okhsl (HSL would call them equally light), both fully saturated.
     const yellowVsBlue = compareSwatch([0, 0, 255], [255, 255, 0]);
     expect(yellowVsBlue.lightness).toBeGreaterThan(50);

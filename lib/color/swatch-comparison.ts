@@ -35,10 +35,16 @@ export function describeDifference(difference: SwatchDifference): string {
   return parts.join(", ");
 }
 
-/** The readout line: "DMC 3865 - Winter White: 12% lighter, 5% less saturated", or just the name when nothing differs. */
-export function describeSwatchComparison(candidateName: string, current: RGB, candidate: RGB): string {
-  const detail = describeDifference(compareSwatch(current, candidate));
-  return detail ? `${candidateName}: ${detail}` : candidateName;
+/**
+ * The readout's parts: the thread's number and name, then each difference on its own -- ["3865 - Winter White",
+ * "12% lighter", "5% less saturated"]. No brand prefix and no labels: the Owner asked for the bare facts (G-042).
+ */
+export function swatchComparisonParts(candidateName: string, current: RGB, candidate: RGB): string[] {
+  const difference = compareSwatch(current, candidate);
+  const parts = [candidateName];
+  if (difference.lightness !== 0) parts.push(`${Math.abs(difference.lightness)}% ${difference.lightness > 0 ? "lighter" : "darker"}`);
+  if (difference.saturation !== 0) parts.push(`${Math.abs(difference.saturation)}% ${difference.saturation > 0 ? "more" : "less"} saturated`);
+  return parts;
 }
 
 /** Exposed for tests: the rounding applied to a lightness or saturation difference given as a 0–1 fraction. */

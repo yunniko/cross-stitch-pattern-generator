@@ -131,6 +131,77 @@ export function OptionsPanel({ options, onChange, onClose }: { options: Workspac
   );
 }
 
+/** Selection-bar icons, drawn like the tools dock's (G-042): a 24-box outline, sized to the pill. */
+const ACTION_ICON_PROPS = { viewBox: "0 0 24 24", className: "h-4 w-4", fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true } as const;
+
+function CopyIcon() {
+  return (
+    <svg {...ACTION_ICON_PROPS}>
+      <rect x="9" y="9" width="11" height="11" rx="1.5" />
+      <path d="M15 5.5A1.5 1.5 0 0 0 13.5 4H5.5A1.5 1.5 0 0 0 4 5.5v8A1.5 1.5 0 0 0 5.5 15" />
+    </svg>
+  );
+}
+
+function PasteIcon() {
+  return (
+    <svg {...ACTION_ICON_PROPS}>
+      <path d="M9 4h6v3H9z" />
+      <path d="M9 5.5H6.5A1.5 1.5 0 0 0 5 7v12.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V7a1.5 1.5 0 0 0-1.5-1.5H15" />
+    </svg>
+  );
+}
+
+function FlipIcon({ axis }: { axis: "horizontal" | "vertical" }) {
+  const vertical = axis === "vertical";
+  return (
+    <svg {...ACTION_ICON_PROPS}>
+      {vertical ? <line x1="3" y1="12" x2="21" y2="12" strokeDasharray="3 2" /> : <line x1="12" y1="3" x2="12" y2="21" strokeDasharray="3 2" />}
+      {vertical ? <path d="M7 9.5 12 5l5 4.5z" /> : <path d="M9.5 7 5 12l4.5 5z" />}
+      {vertical ? <path d="M7 14.5 12 19l5-4.5z" fill="currentColor" opacity="0.35" /> : <path d="M14.5 7 19 12l-4.5 5z" fill="currentColor" opacity="0.35" />}
+    </svg>
+  );
+}
+
+function RotateIcon({ clockwise }: { clockwise: boolean }) {
+  return (
+    <svg {...ACTION_ICON_PROPS}>
+      <g transform={clockwise ? undefined : "scale(-1 1) translate(-24 0)"}>
+        <path d="M5 12a7 7 0 1 1 2.5 5.4" />
+        <path d="M5 6.5V12h5.5" />
+      </g>
+    </svg>
+  );
+}
+
+function CropIcon() {
+  return (
+    <svg {...ACTION_ICON_PROPS}>
+      <path d="M7 2.5V17h14" />
+      <path d="M3 7h14v14.5" />
+    </svg>
+  );
+}
+
+function CancelIcon() {
+  return (
+    <svg {...ACTION_ICON_PROPS}>
+      <circle cx="12" cy="12" r="8.5" />
+      <line x1="8.5" y1="8.5" x2="15.5" y2="15.5" />
+      <line x1="15.5" y1="8.5" x2="8.5" y2="15.5" />
+    </svg>
+  );
+}
+
+function DeselectIcon() {
+  return (
+    <svg {...ACTION_ICON_PROPS}>
+      <rect x="4" y="4" width="16" height="16" rx="1" strokeDasharray="4 3" />
+      <path d="M8.5 12.5 11 15l4.5-5.5" />
+    </svg>
+  );
+}
+
 export interface SelectionBarProps {
   hasSelection: boolean;
   hasClipboard: boolean;
@@ -164,34 +235,24 @@ export function SelectionBar({
       <span className="text-xs text-zinc-500">
         {hasSelection ? "Drag inside it to move, or drag elsewhere to start a new selection." : "Drag a rectangle on the Image window to select it."}
       </span>
-      <div className="ml-auto flex items-center gap-2">
-        <PillButton onClick={onCopy} disabled={!hasSelection}>
-          Copy
-        </PillButton>
-        <PillButton onClick={onPaste} disabled={!hasClipboard}>
-          Paste
-        </PillButton>
-        <PillButton onClick={onFlipHorizontal} disabled={!hasSelection}>
-          Flip horizontal
-        </PillButton>
-        <PillButton onClick={onFlipVertical} disabled={!hasSelection}>
-          Flip vertical
-        </PillButton>
-        <PillButton onClick={onRotateClockwise} disabled={!hasSelection}>
-          Rotate right
-        </PillButton>
-        <PillButton onClick={onRotateAnticlockwise} disabled={!hasSelection}>
-          Rotate left
-        </PillButton>
-        <PillButton onClick={onCrop} disabled={!hasSelection}>
-          Crop
-        </PillButton>
-        <PillButton onClick={onCancel} disabled={!hasSelection}>
-          Cancel
-        </PillButton>
-        <PillButton onClick={onDeselect} disabled={!hasSelection}>
-          Deselect
-        </PillButton>
+      <div className="ml-auto flex items-center gap-1.5">
+        {(
+          [
+            ["Copy", "Copy the selected piece", <CopyIcon key="i" />, onCopy, !hasSelection],
+            ["Paste", "Paste the copied piece as a new floating selection", <PasteIcon key="i" />, onPaste, !hasClipboard],
+            ["Flip horizontal", "Mirror the piece left to right", <FlipIcon key="i" axis="horizontal" />, onFlipHorizontal, !hasSelection],
+            ["Flip vertical", "Mirror the piece top to bottom", <FlipIcon key="i" axis="vertical" />, onFlipVertical, !hasSelection],
+            ["Rotate right", "Turn the piece a quarter turn clockwise", <RotateIcon key="i" clockwise />, onRotateClockwise, !hasSelection],
+            ["Rotate left", "Turn the piece a quarter turn anticlockwise", <RotateIcon key="i" clockwise={false} />, onRotateAnticlockwise, !hasSelection],
+            ["Crop", "Cut the chart down to this rectangle, discarding everything outside it", <CropIcon key="i" />, onCrop, !hasSelection],
+            ["Cancel", "Put the chart back as it was when this selection started, discarding its changes", <CancelIcon key="i" />, onCancel, !hasSelection],
+            ["Deselect", "Merge the piece into the picture where it sits", <DeselectIcon key="i" />, onDeselect, !hasSelection],
+          ] as const
+        ).map(([label, title, icon, onClick, isDisabled]) => (
+          <PillButton key={label} aria-label={label} title={title} onClick={onClick} disabled={isDisabled} className="px-2">
+            {icon}
+          </PillButton>
+        ))}
       </div>
     </PanelBar>
   );

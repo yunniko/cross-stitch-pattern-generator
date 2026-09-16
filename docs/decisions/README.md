@@ -155,3 +155,4 @@ remain readable with git show.
 - D144 — A Move drag paints the visible view only, at most once per animation frame — active
 - D145 — A Move frame shifts the pixels already drawn and patches the exposed strips — active
 - D146 — The Brush double-click fill is a workspace option, on by default — active
+- D147 — Selection actions, icon buttons, and chrome a photo-free chart does not need — active

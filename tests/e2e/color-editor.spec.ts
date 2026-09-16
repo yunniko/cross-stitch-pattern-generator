@@ -59,12 +59,15 @@ test("a DMC color opens on its marked swatch, inside the grid's view; hover and 
   const hovered = candidates.nth(4);
   await hovered.hover();
   const hoveredLabel = (await hovered.getAttribute("aria-label"))!;
-  await expect(readout).toHaveText(new RegExp(`^${hoveredLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(: .+)?$`));
-  await expect(readout).toContainText(/% (lighter|darker|more saturated|less saturated)|^DMC /);
+  // The readout carries the thread's own code and name, then each difference: no brand word, no colon (G-042).
+  const threadOf = (label: string) => label.replace(/^\S+\s/, "");
+  const hoveredThread = threadOf(hoveredLabel);
+  await expect(readout).toHaveText(new RegExp(`^${hoveredThread.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}( \\d+% [a-z ]+?)*$`));
+  await expect(readout).not.toContainText("DMC ");
 
   const focused = candidates.nth(9);
   await focused.focus();
-  await expect(readout).toContainText((await focused.getAttribute("aria-label"))!);
+  await expect(readout).toContainText(threadOf((await focused.getAttribute("aria-label"))!));
 
   const pickedLabel = (await hovered.getAttribute("aria-label"))!;
   await hovered.click();
