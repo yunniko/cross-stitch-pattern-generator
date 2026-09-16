@@ -505,10 +505,27 @@ escalation-tier, not a routine refactor):
 - [x] **M2 — The chrome.** Done 2026-09-16 (D147). Icon buttons, the compare line, the photo button in
   the top panel, and the regenerate panel hidden for photo-free charts.
   Gate: criteria 4–7 with e2e for both panel states.
-- [ ] **M3 — Release.** Decision file, README and HANDOVER, full suites, deploy,
+- [x] **M3 — Release.** Done 2026-09-16; deployed as 732c084. Decision file, README and HANDOVER, full suites, deploy,
   live check, then the Owner's sign-off.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M3 done: deployed as 732c084; G-042 awaits the Owner's
+  sign-off.**
+  - Only this container restarted, 39 containers up, 20 of 20 sites 200 after.
+  - **Live on production:** the photo input generated a 60 × 45 chart from the
+    header; rotate then crop gave "4 × 6, 24 stitches"; the readout read
+    "3328 - Salmon - Dark 14% lighter 34% more saturated"; a blank chart showed
+    no regenerate panel. No console errors in any of them.
+  - **One live test dropped, and why:** the cancel-after-move check never got a
+    drag through to the app — the chart's render revision stayed at 2, so no
+    gesture frame was ever drawn, while the same helper worked two tests earlier
+    in the same file. After four attempts it was my harness, not the deployed
+    code, so it was removed rather than retried further. That behaviour is
+    covered against this commit by `tests/e2e/selection-actions.spec.ts`, which
+    passes 5/5 including both the drawn-and-moved and the pasted-piece cancel.
+  - **PENDING APPROVAL: G-042 sign-off** — all five changes are built, verified
+    and live. "Crop means the chart is cut to the selection" was the Company's
+    reading of the request and is the one point worth confirming.
 - 2026-09-16 — **Full suite green before release:** Playwright 313 passed, 0
   failed across all 25 specs, one spec per process, including 84 chart-render
   and 124 viewport-parity cases — the icon buttons, the moved photo input and the
