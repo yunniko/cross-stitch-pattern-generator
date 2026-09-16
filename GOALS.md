@@ -498,11 +498,25 @@ escalation-tier, not a routine refactor):
   - `handleCanvasDoubleClick` honours it; with it off the handler does nothing,
     so the two clicks stand as themselves.
   - Gate: criteria 1–5, unit and e2e for both states.
-- [ ] **M2 — Release.**
+- [x] **M2 — Release.** Done 2026-09-16; deployed as 890a923.
   - Decision file, README if the switch deserves a line, HANDOVER.
   - Full suites, deploy, live check, then the Owner's sign-off.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M2 done: released and live; G-041 awaits the Owner's sign-off.**
+  - Deployed 890a923. Only this container restarted, 39 containers up, and 20 of
+    20 sites returned 200 after the deploy.
+  - **Live check** (`scratchpad` spec, production): the switch defaulted to on;
+    switched off, a double-click painted one stitch (1854 → 1853); switched back
+    on, the same double-click flooded the region (1854 → 1850); no console
+    errors.
+  - Two live-check failures along the way were both faults in the check, not the
+    app: it first uploaded through the hidden "Open pattern file" input, and
+    then tracked colours by legend row index, which reorders by stitch count. It
+    now uploads through `#image-input` and tracks colours by name.
+  - **PENDING APPROVAL: G-041 sign-off** — both milestones are done, deployed and
+    verified live. The default (on) was the Company's call and is one line to
+    flip if the Owner prefers off.
 - 2026-09-16 — **M1 done: the option, the switch and the gate (D146).**
   - `doubleClickFill` joins `WorkspaceOptions`, defaulting to **on**, validated
     on load like every other field, so options stored before today load clean.
