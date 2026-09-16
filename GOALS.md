@@ -1144,6 +1144,24 @@ escalation-tier, not a routine refactor):
   and a live smoke test; then the Owner's sign-off.
 
 **Progress log** (newest first):
+- 2026-09-16 — **Deployed, and a bug the live check found is fixed.**
+  - Blank charts went live at 13bd0fc: only this container restarted, the
+    non-200 sites were the usual three, and the live check created a 40 × 25
+    chart with no colours, no photo settings and no Generate, then painted a
+    stitch after adding a colour.
+  - That check exposed a header reading "1 stitch, 1 colors". A shared
+    `formatColorCount` now serves the on-screen header and the A4 chart info,
+    so they can't drift apart; deployed at be5e10f and confirmed live as
+    "40 × 25, 1 stitch, 1 color".
+  - The first browser run for that fix was killed when the machine fell to
+    about 2 GB free with 38 node processes from other sessions; the retry
+    passed after clearing the build cache. Nothing belonging to another
+    session was stopped.
+  - **Verification:** unit suite 999 passed, 8 skipped; browser suite 307
+    passed on a production build; type-check, lint, docs-lint clean; golden
+    hashes unchanged.
+  - **PENDING APPROVAL: G-040 sign-off** — the Owner's judgement of blank
+    charts on the live site.
 - 2026-09-16 — **M3 built; deploy next.**
   - Autosave round-trips a blank chart with its empty palette and no photo,
     verified both in the store's own unit test and by reloading the live page

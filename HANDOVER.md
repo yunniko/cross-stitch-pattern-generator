@@ -224,8 +224,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 - **G-040 blank charts in progress:** M1–M3 built — creation, the photo-free rule, empty-palette files (D143), the New blank chart panel, autosave and exports; deploy and sign-off next. Plan in `GOALS.md`.
 - **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and verified; see the G-031 progress log in `GOALS.md`.
 - **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is live (D122, D123); see its progress log in `GOALS.md`. Out of scope: "+ Add" keeps its old flow, and touch screens pick on tap without comparison.
-- Left open from G-028: OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`).
-- Left open from G-032: the 1.5 s enhancement target, and Brighten's real-photo calibration.
+- Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.
 - G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
@@ -293,6 +292,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 | 2026-09-16 | c044c45 | G-038 M1–M2: Crisp+ blurred-step evidence and strip snapping in the pipeline, no UI yet (D139, D140) | Only this container restarted; every site kept its pre-deploy status; live: Edge options still Standard and Crisp, both generated 50 × 31 and recorded their mode, no console errors |
 | 2026-09-16 | bf594f5 | G-038 M3–M5: blend pruning, the Crisp+ option in the Edge control, and refilling freed colour slots (D141, D142) | Playwright 302/302 on a production build, Vitest 984, CI green; only this container restarted, others' uptimes unchanged, and sites that timed out in one snapshot returned 200 on recheck; live: Crisp+ generated 50 × 31, recorded "crisp-plus", survived a reload, no console errors |
 | 2026-09-16 | 13bd0fc | G-040 M1–M3: blank charts — creation, the photo-free rule, empty-palette files (D143), the New blank chart panel, autosave and exports | Vitest 998, Playwright 307/307 on a production build; only this container restarted (8 h → 1 s), other containers unchanged, non-200 sites the usual three; live: the panel showed "40 × 25 stitches, ≈ 7.3 × 4.5 cm at 14-count Aida", the chart came up 40 × 25 with 0 stitches and 0 colours, photo settings and Generate absent, painting after adding a colour gave 1 stitch, no console errors |
+| 2026-09-16 | be5e10f | Chart headers and the A4 chart info say "1 color", not "1 colors", through a shared `formatColorCount` | Vitest 999, Playwright 307/307 on a production build, golden hashes unchanged; only this container restarted, non-200 sites the usual three; live: a one-colour blank chart reads "40 × 25, 1 stitch, 1 color", no console errors |
 
 ## Decisions
 
