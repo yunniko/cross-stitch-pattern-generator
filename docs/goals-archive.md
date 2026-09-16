@@ -5,6 +5,105 @@ file holds only draft, active and blocked goals. Entries are unchanged from
 their last state in `GOALS.md`; decision references (Dnn) now resolve to
 `docs/decisions/`.
 
+### G-041 · Double-click fill is optional, switched in Options — DONE (2026-09-16, Owner sign-off 2026-09-16)
+- **What:** double-clicking with the Brush no longer always floods a region. An
+  Options switch decides whether it does, and the choice is remembered per
+  browser like every other workspace preference.
+- **Why:** Owner request (2026-09-16). A double-click fill is easy to trigger by
+  accident while painting stitch by stitch, and undoing it costs a step even
+  though it is one (D138).
+- **Acceptance criteria:**
+  1. **The switch exists** in the Options panel, reads clearly on its own (for
+     example "Double-click fills a region"), and carries a tooltip saying what
+     it does.
+  2. **Off means nothing happens.** With the switch off, a double-click with the
+     Brush paints exactly what two single clicks paint: the two stitches under
+     the pointer, no flood, no extra undo step.
+  3. **On behaves exactly as today** (D138): the region floods from the
+     pre-fill pattern, symmetry applies, and the whole thing is one undo step
+     that one Ctrl+Z removes and one Ctrl+Y restores.
+  4. **The choice persists** across a reload, and an older stored options blob
+     without the field loads without error.
+  5. **Nothing else changes:** the Fill tool, drag-to-fill from the Colors dock,
+     and single-click painting are untouched in both states.
+  6. **Tests and release.** Unit cover the stored field and its validation; e2e
+     cover both states, including the one-undo-step rule when on. Lint,
+     type-check, unit, e2e and docs-lint pass, then deploy and a live check.
+- **Open question for the Owner:** should the switch default to **on** (today's
+  behaviour, no surprise for existing users) or **off** (the accident cannot
+  happen until asked for)? The plan assumes **on** unless the Owner says
+  otherwise.
+- **Constraints:**
+  - Code is written in a separate git worktree, because other sessions share
+    this tree.
+  - No new runtime dependencies.
+  - D138 stays in force when the switch is on; a new decision records the switch
+    and its default.
+  - Codex is at its usage limit until 2026-09-19; if still unavailable, the
+    critique step is noted and skipped per STANDARDS.md.
+  - Standing deploy approval.
+
+**Milestones:**
+- [x] **M1 — The option and the gate.** Done 2026-09-16 (D146).
+  - `doubleClickFill` added to `WorkspaceOptions`, its default, and its
+    validation in `loadWorkspaceOptions`.
+  - The switch in `OptionsPanel`, in the style of the controls beside it.
+  - `handleCanvasDoubleClick` honours it; with it off the handler does nothing,
+    so the two clicks stand as themselves.
+  - Gate: criteria 1–5, unit and e2e for both states.
+- [x] **M2 — Release.** Done 2026-09-16; deployed as 890a923.
+  - Decision file, README if the switch deserves a line, HANDOVER.
+  - Full suites, deploy, live check, then the Owner's sign-off.
+
+**Progress log** (newest first):
+- 2026-09-16 — **Owner signed off** ("sign off"), leaving the default on;
+  G-041 moved to `docs/goals-archive.md`.
+- 2026-09-16 — **M2 done: released and live; G-041 awaits the Owner's sign-off.**
+  - Deployed 890a923. Only this container restarted, 39 containers up, and 20 of
+    20 sites returned 200 after the deploy.
+  - **Live check** (`scratchpad` spec, production): the switch defaulted to on;
+    switched off, a double-click painted one stitch (1854 → 1853); switched back
+    on, the same double-click flooded the region (1854 → 1850); no console
+    errors.
+  - Two live-check failures along the way were both faults in the check, not the
+    app: it first uploaded through the hidden "Open pattern file" input, and
+    then tracked colours by legend row index, which reorders by stitch count. It
+    now uploads through `#image-input` and tracks colours by name.
+  - **PENDING APPROVAL: G-041 sign-off** — both milestones are done, deployed and
+    verified live. The default (on) was the Company's call and is one line to
+    flip if the Owner prefers off.
+- 2026-09-16 — **M1 done: the option, the switch and the gate (D146).**
+  - `doubleClickFill` joins `WorkspaceOptions`, defaulting to **on**, validated
+    on load like every other field, so options stored before today load clean.
+  - A "Double-click fills a region" checkbox in the Options panel, with a
+    tooltip describing both states; `handleCanvasDoubleClick` consults it, so
+    with it off the handler never runs.
+  - **The default was the Company's call**, not the Owner's: on, so nothing
+    changes for anyone who has not asked, with the switch one click away. Say
+    the word to flip it.
+  - **A finding, from a test of mine that failed:** with the switch off a
+    double-click is two ordinary click commits, so two undos reverse it — the
+    first version of the test asserted a one-step undo, which was my assumption,
+    not the app's behaviour (colour 0 read 157 against an expected 158 after one
+    Ctrl+Z). The test now asserts what happens, and D146 records it.
+  - **Verification:** type-check, lint and docs-lint clean; Vitest 1002 passed,
+    8 skipped (three new storage cases: the field absent in an older blob, a
+    stored `false` surviving a reload, a non-boolean falling back); Playwright
+    308 passed across every spec, no failures, run one spec per process because
+    this machine kept killing larger runs for memory.
+  - README needs no change: it lists the editing tools generically and never
+    claimed the double-click behaviour. HANDOVER's editing bullet now says the
+    fill is one undo step *when the switch is on*.
+  - Codex remains at its usage limit until 2026-09-19, so M1 had no cross-model
+    critique.
+  - **Next, M2:** deploy, live check, then the Owner's sign-off.
+- 2026-09-16 — Goal planned from the Owner's request ("make double click filling
+  optional and being set up in options"). The fill has one gate point,
+  `handleCanvasDoubleClick` (`app/workspace.tsx`) into `onDoubleClick`
+  (`app/hooks/use-canvas-tools.ts`), and options are a flat localStorage blob
+  with per-field validation, so both halves are contained. Awaiting the Owner's
+  approval of the plan and the default.
+
 ### G-039 · The Move tool previews only what changed — DONE (2026-09-16, Owner sign-off 2026-09-16)
 - **What:** dragging with the Move tool stays smooth on a large chart. All five
   options from `docs/reviews/2026-09-16-move-tool-investigation.md` are carried
