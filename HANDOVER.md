@@ -10,11 +10,11 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs `master` as deployed on 2026-09-16 (last deploy-log row).
-Signed off: G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror,
-G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035
-performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap
-cancelled, D130), G-032 enhancement (D118), G-028 OXS (D119). G-033 (swatch-aware
-color editor) is deployed and awaits Owner sign-off.
+Signed off: G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`),
+G-037 symmetry and quick mirror, G-036 charts without freezing
+(`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance
+(`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the
+swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest or Original clustering, Full range,
@@ -221,9 +221,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 - **G-039 Move tool speed planned:** the investigation and the five-option plan are in `docs/reviews/2026-09-16-move-tool-investigation.md` and `GOALS.md`; M1 (benchmark) has not started.
 - Left open from G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142).
-- **G-040 blank charts in progress:** M1–M3 built — creation, the photo-free rule, empty-palette files (D143), the New blank chart panel, autosave and exports; deploy and sign-off next. Plan in `GOALS.md`.
-- **PENDING APPROVAL: G-031 sign-off.** All five milestones are done and verified; see the G-031 progress log in `GOALS.md`.
-- **PENDING APPROVAL: G-033 sign-off.** The swatch-aware color editor is live (D122, D123); see its progress log in `GOALS.md`. Out of scope: "+ Add" keeps its old flow, and touch screens pick on tap without comparison.
+- Left open from G-033: "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.
 - G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.

@@ -6777,3 +6777,670 @@ change. Acceptance criterion 4 is amended accordingly:
 - 2026-09-16 — Goal planned from the 2026-09-15 research; M1 started with a
   Codex critique of the M1 and M2 designs. Crisp+ stays invisible to users
   until M4, so there is no deploy before then.
+
+### G-031 · Act on the 2026-09-12 architecture/code/process review — DONE (signed off 2026-09-16)
+- **What:** Fix every confirmed bug, take the measured pipeline
+  speed-ups, restructure the UI/library, and repair the documentation
+  and process gaps found by the independent review in
+  [`docs/reviews/2026-09-12-architecture-and-code-review.md`](docs/reviews/2026-09-12-architecture-and-code-review.md)
+  (the review's finding IDs — B1–B9, E1–E7, A1–A7, S1–S5, P1–P6 — are
+  used below; read that document in full before starting; it carries
+  the line references, the reproduction probes and the measured
+  numbers, none of which are repeated here).
+- **Why:** The review found (a) two silent data-loss paths reachable by
+  an ordinary user (autosave dies above the localStorage quota; the
+  file loader accepts palettes that corrupt cell indices), (b) the
+  largest supported generation takes ~170 s, not the 13.4 s the
+  handover claims, with ~91 % of that in avoidable ICM work, (c) a
+  2,384-line UI component whose hand-pruned effect dependencies are
+  already producing bugs, and (d) a 7,000-line handover whose "current
+  state" is wrong — the same defect the 2026-09-09 review flagged.
+  Fixing these now is cheaper than carrying them under G-023/G-028/
+  G-030, and M3 decides whether G-023 (Rust sidecar) is needed at all.
+- **Acceptance criteria:**
+  1. Bugs B1–B7 fixed with a unit or e2e test each that fails on the
+     pre-fix code; B8–B9 fixed or explicitly declined with a logged
+     reason.
+  2. `buildPattern` at 1500×1000 source → 1000 stitches / 64 colors
+     (Standard, Latest, Full range) completes in **under 30 s** on the
+     Owner's machine via a committed `npm run bench`, and Standard-mode
+     output is **byte-identical** to the pre-M3 pipeline on every
+     existing golden/regression fixture (the existing `regression.spec.ts`,
+     `shape-regression.spec.ts`, `pattern.spec.ts` and `pattern-crisp.spec.ts`
+     suites pass unmodified; add an explicit old-vs-new equivalence test
+     for the ICM rewrite).
+  3. `app/workspace.tsx` under 600 lines, no
+     `eslint-disable-next-line react-hooks/exhaustive-deps` left in
+     `app/`; `lib/` grouped into subfolders; no module in `lib/` that is
+     imported only by tests (moved to `lib/experimental/` with a status
+     note, or deleted).
+  4. Comment-line share under 30 % in every `lib/` file; no comment
+     that says "not wired in yet" about something that is wired in; no
+     reference to `app/page.tsx`.
+  5. `HANDOVER.md` "Current state" / "How things fit together" / "Next
+     steps" rewritten accurately in under 300 lines with a
+     "last verified" date; decision record moved to `docs/decisions/`
+     (one file per decision, append-only); completed goals moved to
+     `docs/goals-archive.md`; `.dockerignore` present; a CI workflow
+     runs lint, `tsc`, unit and e2e on push; e2e coverage exists for
+     each palette mode (DMC, Cosmo, Anchor) and for Crisp.
+  6. Every milestone verified by running (tests, bench, browser), not by
+     reading; results logged with numbers in the progress log.
+- **Constraints:**
+  - **One session per worktree.** The review found two sessions editing
+    this checkout at once (files renamed mid-review; Playwright unable
+    to start because another `next dev` held the directory). Before
+    starting any milestone: `git status` must be clean or every dirty
+    file must be yours; if not, stop and log `BLOCKED:`. Use
+    `git worktree add` if another session is active.
+  - No goal or milestone may be reported complete while its files are
+    uncommitted or a deliverable contains placeholder markers (the
+    G-024 delivery doc's empty `<!-- BENCHMARK_RESULTS -->` sections are
+    the precedent to avoid — fill them in M3 from the new bench).
+  - Standard-mode generation output must not change in M3. Any measured
+    quality change is a bug, not a trade-off, for this goal.
+  - Codex critique exchange (STANDARDS.md) for the M3 ICM redesign and
+    the M4 component split, if the plugin is working; otherwise note it
+    and proceed.
+  - No new runtime dependencies without logging why. IndexedDB access
+    is a small hand-written wrapper, not a library, unless one is
+    already in the portfolio.
+  - Standard OPERATIONS.md check-in at every milestone boundary; M1 and
+    M2 may be presented together at one check-in since both are small.
+
+**Milestones:**
+- [x] **M1 — Data safety (B1, B2, B3, B6).** Move the autosaved project
+      to IndexedDB via a small async wrapper (`lib/editor/project-store.ts`),
+      store `cellPalette` as base64, store the source photo once keyed by
+      a content hash (one entry shared by autosave and undo snapshots),
+      debounce saves (~500 ms), keep `localStorage` only for
+      `WorkspaceOptions`, and surface a visible "autosave unavailable"
+      state on write failure. Wrap the remaining unguarded
+      `localStorage.getItem`. In `deserializePattern`: reject
+      `palette.length > MAX_COLORS`, validate each entry (`rgb` = three
+      integers 0–255, `symbol` non-empty string, `name` string, symbols
+      unique), and add a fuzz test (seeded, ~200 mutated files) proving
+      it either returns a valid pattern or throws — never a pattern that
+      later crashes render. Deliverable: tests + a manual check that a
+      pattern generated from a >4 MB photo survives a reload.
+- [x] **M2 — Interaction correctness (B4, B5, B7, B8).** Extract the
+      keyboard shortcuts into `useKeyboardShortcuts` reading live state
+      through refs (no stale `selection`/`pattern`); claim Space only
+      when focus is on `body` or the canvas scroller; add Ctrl+Shift+Z
+      → redo. Make brush/move/select drags incremental: one working
+      `Uint8Array` per gesture, draw only changed cells during the
+      gesture, build the pattern and recount once on pointer-up. Add a
+      Playwright test that paints a 50-cell stroke on a 1000-stitch
+      pattern and asserts the gesture completes within a bounded time,
+      and e2e tests for Space-while-selecting and Space-on-focused-button.
+- [x] **M3 — Pipeline performance (E1–E7, A3), byte-identical.**
+      (1) Commit `scripts/bench.mjs` + `npm run bench` (the review's
+      ad-hoc stage timer, ~40 lines: per-stage ms at 300/24 and 1000/64)
+      and record the baseline. (2) Introduce a `PipelineContext`
+      (`cells`, `cellOklab: Float32Array(3n)`, `importance`,
+      `pairEvidence`, `evidenceLayer`, `width`, `height`) built once in
+      `buildPattern` and passed to every stage; delete the nine per-stage
+      `rgbToOklab(cellRgb(...))` loops and the `Array<Oklab>` tuples.
+      (3) Rewrite the ICM loop: precompute `w·q(edge)` per directed pair
+      once per call into a `Float32Array(8n)`, score labels as
+      `color·d(c) + T − S[c]`, replace the per-cell `neighbors` object
+      array with index/weight typed arrays; keep the crisp admissible-
+      label branch and its tie-break rule intact. (4) Replace the
+      per-window derivative scan in `computePairEdgeEvidence` with
+      per-pixel structure-tensor terms + summed-area tables. (5)
+      Histogram percentile in `computeEdgeMagnitude`; per-color partial
+      ranking in `nameColors`; reuse the worker between jobs. (6) Only
+      if still needed for the <30 s target: sampled/mini-batch Lloyd for
+      grids above ~200k cells with one full assignment pass. Gate:
+      existing regression suites unmodified and green, plus a new
+      equivalence test that runs the pre-M3 `runLocalOptimizer` (kept
+      temporarily as a test-only reference) and the new one on the
+      golden fixtures and asserts identical output. Then fill the
+      G-024 delivery doc's benchmark placeholders from the new bench,
+      update G-023's entry with the measured result and a
+      recommendation (proceed / not needed).
+- [x] **M4 — Structure (A1, A2, A4, A5, S1–S3).** Split
+      `app/workspace.tsx` into hooks (`useWorkspaceOptions`, `usePanZoom`,
+      `useBrushTool`, `useSelectTool`, `useMoveTool`,
+      `useKeyboardShortcuts` from M2, `useExports`) and components
+      (`TopBar`, `OptionsPanel`, `ResizePanel`, `ToolsDock`, `ImageWindow`,
+      `ProcessingParams`, `ColorsDock`, `BrandColorPicker`, `PillButton`,
+      `SegmentedControl`). Regroup `lib/` into `pipeline/`, `crisp/`,
+      `threads/`, `export/`, `editor/`, `color/`; move
+      `simulated-annealing`, `boundary-chains`, `contour-refinement`,
+      `diagnostics` to `lib/experimental/` (or delete) with a status
+      note. Replace the hand-synced `threadBrand`/`edgeMode` unions with
+      type-only imports. Rename `*Dmc*` identifiers that handle any brand.
+      Trim comments to invariant + one-line reason + `See Dxx` pointer;
+      delete every stale "not wired in yet" and `app/page.tsx` reference.
+      Gate: all tests green, `tsc`/eslint clean, every e2e test passes
+      unchanged (the split must not change behavior or accessible names).
+- [x] **M5 — Documentation and process (P1–P5, A7).** Rewrite the three
+      HANDOVER summary sections (accurate, <300 lines, "last verified"
+      date); move D1–D95 to `docs/decisions/Dxx-<slug>.md` with an index;
+      move completed goals to `docs/goals-archive.md`; add a one-line
+      deploy-log table replacing narrative deploy entries going forward.
+      Add `.dockerignore` (`node_modules`, `.next`, `.git`,
+      `test-results`, `playwright-report`, `docs/reviews/*assets*`).
+      Add `.github/workflows/ci.yml` (lint, `tsc --noEmit`, `vitest run`,
+      Playwright against `next build && next start`, Node 22). Change
+      `playwright.config.ts` to run against a production build on its own
+      port so a running dev server never blocks it. Add e2e tests for
+      DMC, Cosmo, Anchor and Crisp generation (legend naming, no console
+      errors). Follow the handover format now in `COMPANY/STANDARDS.md`
+      → Documentation (300-line snapshot with a `Last verified` line,
+      one `docs/decisions/Dnnn-<slug>.md` per existing `Dnn` entry using
+      the template, deploy-log table, `docs/goals-archive.md`) and
+      finish with `node E:\CLAUDE\COMPANY\scripts\docs-lint.mjs .`
+      passing (it currently reports the 7,138-line handover, the missing
+      `Last verified` line, and a stale reference to
+      `tests/e2e/pattern-editor.spec.ts`). The "no DONE with a dirty
+      tree or placeholders" and "one session per worktree" rules are now
+      company-wide (`COMPANY/OPERATIONS.md` §3/§5); list them under the
+      handover's "Rules in force".
+
+**Progress log** (newest first):
+- 2026-09-16 — **Owner signed off the goal** ("sign off everything").
+- 2026-09-13 — **Pushed and deployed** (Owner: "push and deploy").
+  `1380bd3` live: only the cross-stitch container restarted (31 containers,
+  diff before/after), 5 sites HTTP 200. Live checks on production: 1000 ×
+  667 stitches / 26 colors generated in 8.5 s with no console errors; the
+  50-cell brush stroke on a 1000-stitch pattern took 1,248 ms; the >4 MB
+  photo autosave, palette-mode and generation e2e tests passed against the
+  live site (9/9). The first CI run failed at `tsc` (generated `LayoutProps`
+  missing on a fresh checkout); fixed by `npx next typegen` before `tsc`,
+  reproduced and verified in a fresh clone. Owner follow-ups in the same
+  session: canvas resize expands with empty stitches (D109) and control text
+  is unselectable (D110). Owner sign-off on G-031 still outstanding.
+- 2026-09-13 — **M5 done; all milestones complete. PENDING APPROVAL: Owner
+  sign-off on G-031, and approval to push `master` and deploy — nothing
+  leaves the workspace without it — logged 2026-09-13.** `HANDOVER.md`
+  rewritten from 7,138 to 200 lines (current state, architecture, rules in
+  force incl. one-session-per-worktree and no-DONE-without-sign-off, next
+  steps, a 34-row deploy log). Removed from it: every narrative decision
+  entry (now files), the stale G-012-era state and M6–M9a next steps, the
+  obsolete 13.4 s perf note, the stale Codex-credit Owner actions, and the
+  review/research summaries (now links only). D1–D98 migrated to
+  `docs/decisions/D001`–`D098` in the template (D060 was never assigned) with
+  a generated index. 27 completed goals moved to `docs/goals-archive.md`
+  (`GOALS.md` 5,148 → 812 lines). Added `.dockerignore` (local
+  `docker build` succeeds, context 2.96 MB), `.github/workflows/ci.yml`
+  (lint, tsc, unit, Playwright on a build, Node 22; YAML parses, never run
+  since nothing is pushed), and `tests/e2e/palette-modes.spec.ts` (DMC,
+  Cosmo, Anchor legend naming, Anchor disclosure, Crisp, Crisp + DMC, no
+  console errors). README rewritten. Verified: `tsc`/eslint clean; 653/653
+  unit; 55/55 e2e on a fresh production build; `docs-lint` ok. No Codex
+  exchange for M5 (documentation only).
+- 2026-09-13 — **M4 done.** `lib/` grouped into `pipeline/`, `crisp/`,
+  `threads/`, `export/`, `editor/`, `color/`; the four test-only modules
+  moved to `lib/experimental/` with a status README (`75c91bb`). Comments
+  trimmed to invariant + reason + `See Dxx`; every `lib/` file under 30 %
+  comment lines; no "not wired" or `app/page.tsx` references (`e316f39`).
+  `app/workspace.tsx` 2,448 → 319 lines: ten hook files in `app/hooks/`, seven
+  component files in `app/components/` (D108); no `exhaustive-deps`
+  disable left in `app/`. Brand unions are type-only imports; the shared
+  thread-color shape is `ThreadColor` (`lib/threads/thread-color.ts`), and
+  `dmc-match` became `brand-match`. Decision files renumbered D099–D108
+  because `HANDOVER.md` already used D97/D98. Codex critique of the split
+  hit its usage limit after a partial answer (palette-editor state across
+  loads, resize panel resetting on re-click); both handled. One e2e race
+  fixed: the corrupt-autosave test seeds from a page without the workspace,
+  since the page's own restore could consume the record first (25/25 on
+  `--repeat-each=5`). Verified: `tsc`/eslint clean; 653/653 unit; 49/49
+  e2e unchanged on a fresh production build. Next: M5.
+- 2026-09-13 — **M3 done.** `npm run bench` committed (D105); baseline
+  on `8f0b78f`: 1000 st / 64 col Standard 280.8 s (ICM 277.4 s). Shared
+  `PipelineContext` (D106); ICM O(8+k) per cell, row-cached pair-evidence
+  derivatives, histogram percentile, k+1-nearest color naming, typed Lloyd
+  buffers, worker reuse -- all byte-identical (D107). After: Standard
+  **14.6 s** (target <30 s), Crisp 27.4 s, Standard+DMC 18.5 s; 300 st /
+  24 col Standard 11.1 s → 1.7 s. Gates: 18 golden hashes recorded from
+  the pre-M3 code all unchanged; old-vs-new optimizer equivalence spec
+  against a verbatim reference copy; regression/shape-regression/pattern/
+  pattern-crisp suites unmodified and green. Codex critique exchange: the
+  first design critique launched but its result couldn't be retrieved
+  from this session (plugin status/result commands are user-only); a
+  second, foreground review of the implemented diff confirmed the ICM/
+  denoise/pair-evidence/finalization rewrites bit-identical and found
+  three edge cases (`selectKth` with NaN/−0, `nameColors` with a NaN
+  color, a natively-errored worker being reused) -- all conceded, fixed
+  and tested; its `stamp` overflow note is outside the supported grid
+  size (≤8 M visits) and left as is. Verified: `tsc`/eslint clean; 653/653
+  unit; 49/49 e2e on a fresh production build. G-024 delivery doc points
+  to the new numbers; G-023 marked "not needed" with the measurement.
+  Numbers: `docs/reviews/2026-09-13-pipeline-performance.md`. Next: M4.
+- 2026-09-13 — **M2 done.** B4/B5/B8: shortcuts extracted to
+  `app/hooks/use-keyboard-shortcuts.ts`, reading live state through a ref
+  (D103); Space claimed only with focus on body/canvas scroller;
+  Ctrl+Shift+Z = redo; Escape merge moved into the hook; no
+  `exhaustive-deps` disable left for shortcuts. B7: brush strokes paint a
+  working `Uint8Array` and redraw one cell via new `drawCell`; Move/Select
+  blit a pointer-down snapshot per event (D104). Verified: `tsc`/eslint
+  clean; 623/623 unit (+4 `drawCell` geometry/weight tests); 49/49 e2e
+  (+5 in `tests/e2e/interaction-correctness.spec.ts`; on the pre-fix build
+  B4 and B8 fail and the 50-cell stroke on a 1000×625 pattern took
+  21,126 ms — now 1,261 ms, bound 5 s). Next: M3.
+- 2026-09-13 — **M1 done** (Owner instruction this session: work through
+  the milestones without check-ins unless a decision needs them).
+  Started from a clean tree after committing the earlier sessions'
+  carry-over (`3553795`). B1/B6: autosave moved to IndexedDB via
+  `lib/editor/project-store.ts` (photo stored once by SHA-256, typed-array
+  cells, 500 ms debounce, `pagehide` flush, one-time migration off the
+  localStorage slot, every localStorage access wrapped) with a visible
+  "Autosave unavailable" status (D100). B2/B3: `deserializePattern`
+  validates every palette field, `MAX_COLORS`, integer dimensions/indices
+  and unique symbols (D099). B9: corrupt autosave → banner with an
+  on-demand "Download error report" button, no page-load download (D101).
+  Pulled M5's Playwright change forward: e2e now runs against
+  `next build && next start` (D102) because a stale `next dev` from
+  2026-09-12 (PID 17476) still holds this directory. Verified: `tsc`
+  and eslint clean; 619/619 unit tests (was 587; +32: store, fuzz with 200
+  seeded mutations, validation cases — 14 of them fail on the pre-fix
+  deserializer, checked by swapping the old file in); 44/44 e2e including
+  five new autosave tests (edited pattern + photo survive a reload, a
+  >4 MB noise photo survives a reload, corrupt autosave banner/report,
+  legacy-slot migration, throwing `localStorage` getter). `docs-lint`
+  reports only the pre-existing HANDOVER.md items (M5). Next: M2.
+- 2026-09-12 — Goal created from the review's "Prioritized
+  recommendations" section at the Owner's instruction ("make a plan
+  according to your recommendations and put it into a new goal for other
+  agent execution"). Review verification state at creation: tsc/eslint
+  clean, 587/587 unit tests, e2e not runnable (another session's dev
+  server held the directory), measured 1000-stitch/64-color generation
+  ≈170 s (ICM 154.6 s). Working tree was dirty with another session's
+  uncommitted G-024 M6 work at creation time — the executing agent must
+  resolve that (commit or worktree) before M1, per the constraints above.
+
+### G-033 · Swatch-aware color editor: remembered source, marked current, comparison on hover — DONE (signed off 2026-09-16)
+- **What:** Every legend color remembers which thread swatch it was
+  picked from (brand + code), or that it is a custom color. Opening that
+  color's editor opens the matching swatch tab, scrolls the swatch grid
+  to the color and marks it as current. Hovering or focusing any other
+  swatch shows how it compares with the current color: "X% lighter" or
+  "X% darker", and "X% more saturated" or "X% less saturated", each part
+  omitted when there is no difference. Picking a color applies it
+  immediately and leaves the editor open. The editor closes only when
+  the user clicks somewhere outside it (or presses Escape).
+- **Why:** Adjusting a thread today means reopening the editor, finding
+  the tab by hand, searching for the current code, and judging "one
+  shade lighter" by eye, and the editor closes after every pick. Stitchers
+  constantly swap a thread for its neighbor in the same family; the
+  remembered source, the marked current swatch and the numeric
+  comparison make that a one-glance, repeatable action.
+
+**Design.**
+1. **Data model.** `PaletteColor.source?: { brand: ThreadBrand; code: string }`.
+   Absent means a custom color. It is set by `applyBrandPalette`
+   (generation with a brand), `editColorToBrandColor`, `addBrandColor`,
+   and OXS import when a brand is detected (after G-028 lands). It is
+   cleared by `editColorRgb`. `mergeColors`, `renameColor` and
+   `setColorSymbol` keep the surviving color's source, since they spread
+   the existing entry. The swatch is looked up **by code, never by RGB**:
+   Anchor entries carry the nearest DMC thread's RGB, not the Anchor
+   table's approximate RGB (`lib/threads/brand-match.ts`).
+2. **Saved files.** Format version 7 adds an optional `source` per
+   palette entry. A malformed `source` rejects the file, consistent with
+   D099. A well-formed source naming a code that is no longer in the
+   thread table is dropped and the color keeps its RGB and name. Files
+   from version 6 and earlier infer the source on load: with
+   `threadBrand` set, match the name against that brand's
+   `formatThreadName`; without it, infer only when the name matches
+   exactly one thread across all brands **and** the RGB equals that
+   thread's RGB. Otherwise the color stays custom. The IndexedDB
+   autosave path is checked to go through the same code.
+3. **Which tab opens.** The color's `source.brand`; otherwise the
+   pattern's `threadBrand`; otherwise Full range. A brand-locked pattern
+   still shows only its own brand.
+4. **Scroll and mark.** The editor panel renders directly under the row
+   being edited, not at the bottom of a list of up to 100 rows. On open,
+   the search is cleared and the grid's own scroll container is scrolled
+   so the current swatch is centred. This sets `scrollTop` on the grid,
+   not `scrollIntoView`, which would also scroll the dock. The current
+   swatch gets a visible ring and a check mark, plus `aria-pressed`. On
+   another brand's tab, or when the search hides it, nothing is marked.
+5. **Comparison readout.** A fixed line inside the panel, not a native
+   `title` tooltip, which is delayed and invisible to keyboard users.
+   It is shown on hover and on keyboard focus, for example
+   "DMC 3865 - Winter White: 12% lighter, 5% less saturated". The
+   metric is **Okhsl** lightness and saturation (Ottosson 2021, both
+   0–1), and the difference is shown in percentage points, rounded to
+   a whole number. A part rounding to 0 is omitted. When both round to
+   0, only the name is shown. Okhsl rather than HSL, because HSL calls
+   pure yellow and pure blue equally light and near-black colors fully
+   saturated. Percentage points rather than a ratio, because a ratio
+   explodes near black (L 2 → 4 would read "100% lighter"). Hue is not
+   compared (not requested). Touch devices have no hover and a tap picks
+   immediately, so there the comparison isn't available before choosing;
+   this limitation is documented rather than solved with long-press.
+   New module `lib/color/okhsl.ts`, ported from Ottosson's reference
+   code (MIT, "Copyright (c) 2021 Björn Ottosson", retrieved
+   2026-09-13 from https://bottosson.github.io/posts/colorpicker/),
+   with the notice kept in the file and the attribution recorded in the
+   README. It reuses the OKLab maths already in `lib/color/color.ts`.
+6. **Stay open, close on outside click.** A swatch click commits one
+   undo step and the panel stays open with the new swatch marked; the
+   readout then compares against the new current color. On the Full
+   range tab, the chart previews the draft live while dragging, and
+   one undo step is committed per gesture (pointer-up, or the end of a
+   keyboard adjustment), since `useUndoHistory` only has `set` and
+   would otherwise record 50 steps per drag. Done and Cancel buttons are
+   removed; a "Revert" button restores the color it had when the panel
+   opened, as one undo step. A small `useDismissOnOutsidePointer` hook
+   listens for `pointerdown` in the capture phase on `document` and
+   closes the panel when the target is outside it. Clicking another
+   row's swatch button retargets the editor to that color rather than
+   closing it. Escape also closes, for keyboard users. The panel also
+   closes when the edited color disappears (a merge, an undo past its
+   creation, a new document), because palette indices shift.
+7. **Out of scope:** the "+ Add" and symbol panels keep today's
+   behavior. "+ Add" reuses the upgraded swatch grid, with no current
+   color and no readout.
+
+- **Acceptance criteria:**
+  1. Unit tests: `source` is set, kept or cleared correctly by every
+     mutation in `lib/editor/pattern-edit.ts` and by brand generation;
+     version-7 round-trip; version-6 inference, including the ambiguous
+     cases that must stay custom; the fuzz test still passes with the
+     new field.
+  2. `lib/color/okhsl.ts` matches Ottosson's reference implementation to
+     within 1e-4 on a fixed set of colors, including black, white,
+     grays, sRGB primaries and several thread colors. The readout
+     formatter is tested at rounding boundaries (0.49 → omitted, 0.5 →
+     "1%") and for each wording branch.
+  3. Playwright e2e against the production build:
+     - a DMC pattern's color opens on the DMC tab with its swatch marked
+       and inside the grid's visible scroll area;
+     - hovering and focusing another swatch shows the expected readout;
+     - clicking a swatch changes the legend row and leaves the panel
+       open with the new swatch marked;
+     - clicking outside closes it, and so does Escape;
+     - clicking another row's swatch retargets the panel;
+     - a Full range drag produces exactly one undo step;
+     - Revert restores the original color;
+     - a custom color opens on Full range;
+     - a saved file reopens with the same tab behavior.
+  4. Generation output is unchanged except for the new `source` field.
+     If `tests/unit/fixtures/golden-hashes.json` covers palette entries,
+     it is regenerated once with a decision file (D107), and a test shows
+     the grid and RGB values are identical.
+  5. `tsc`, eslint, all unit and e2e tests green; README, HANDOVER and
+     decision files updated; docs-lint green; committed; deployed after
+     Owner approval; Owner sign-off logged.
+- **Constraints:**
+  - **Starts after G-028 is committed.** G-028 is active in this working
+    tree with uncommitted files in `lib/editor/`, and this goal edits
+    `lib/editor/pattern-serialize.ts`, `lib/editor/pattern-edit.ts` and
+    OXS import. Starting earlier needs a separate worktree and the
+    Owner's go-ahead (OPERATIONS.md §3, one session per working tree).
+  - No new runtime dependencies. The Okhsl port is a few dozen lines.
+  - Codex critique exchange on the data model and the version-6
+    inference rules before M1 code is written; outcome logged in a
+    decision file. No domain-expert review: the readout compares the
+    catalogue sRGB values shown on screen, which is a colour-space
+    question the Okhsl source settles, not a real-thread physical
+    claim. The panel says "on screen" in its help text so the numbers
+    aren't read as a statement about the physical floss.
+  - Standard OPERATIONS.md check-in at every milestone boundary.
+
+**Milestones:**
+- [x] **M1 — Swatch source in the data model.** Codex critique of the
+      design in items 1–2. `PaletteColor.source`, every mutation,
+      `applyBrandPalette`, OXS import, serializer version 7 with
+      validation and version-6 inference, fuzz-test update, golden-hash
+      handling per criterion 4. Deliverable: green unit suite and an
+      old saved file reopening with inferred sources.
+- [x] **M2 — Editor behavior.** Panel under the row, tab from source,
+      scrolled and marked current swatch, stay open on pick, live Full
+      range preview with one undo step per gesture, Revert, outside-
+      click and Escape dismissal, retargeting and close-on-disappear.
+      E2E tests for each. Deliverable: the new editing flow usable in
+      the browser.
+- [x] **M3 — Comparison readout and release.** `lib/color/okhsl.ts`,
+      the readout formatter, hover and focus readout, e2e for the
+      readout, README attribution, HANDOVER regenerated, docs-lint,
+      deploy after Owner approval, deploy-log row.
+
+**Owner answers (2026-09-13), replacing design item 6's buttons:**
+- A chart click while the editor is open closes it **and** acts as a normal
+  click (close and paint).
+- **Done and Cancel stay; no Revert button.** Picks still apply
+  immediately and the editor stays open. Done closes and keeps the current
+  colour. Cancel closes and returns the colour to what it was when the
+  editor opened, as one undo step. Clicking outside closes like Done.
+  Escape acts as Cancel, as dialogs conventionally do.
+- No milestone check-ins; deploy when verified under the standing
+  approval; Owner sign-off at the end.
+
+**Progress log** (newest first):
+- 2026-09-16 — **Owner signed off the goal** ("sign off everything").
+- 2026-09-13 — **M2 and M3 done; all milestones complete.**
+
+  Editor (M2), in `app/components/colors-dock.tsx`:
+  - The panel opens under its legend row. The tab comes from the colour's
+    source, then the pattern's lock, then Full range.
+  - The current swatch is marked with a ring, a check, `aria-pressed` and
+    `data-current`. On opening, the grid's own scroll area centres it.
+  - A thread pick applies as one undo step and the editor stays open.
+    Re-picking the current thread does nothing.
+  - Full range previews the draft live on the chart through a workspace
+    preview keyed to its base pattern, and commits once per drag or key
+    press.
+  - Done keeps the colour. Cancel and Escape restore its RGB, name and
+    source as one step.
+  - A click outside closes the editor like Done, and the click still acts
+    (`app/hooks/use-dismiss-on-outside-pointer.ts`).
+  - Clicking another colour's swatch button retargets the editor. A new
+    document, a generation or a change in palette size closes it.
+
+  Readout (M3):
+  - A fixed line shows the Okhsl comparison on hover and keyboard focus
+    ("DMC 3865 - Winter White: 12% lighter, 5% less saturated"), with
+    "on screen" help text (D123).
+  - The README credits Ottosson's MIT code.
+
+  Found by e2e and fixed: swatches reported `aria-pressed` only when a
+  current swatch existed, so a custom colour switched to a brand tab
+  exposed no state. Every editor swatch now reports it.
+
+  Verified: `tsc` and eslint clean; 850/850 unit; 67/67 e2e on a
+  production build, one worker, including `tests/e2e/color-editor.spec.ts`
+  (5 tests covering criterion 3). The first full e2e run was killed by low
+  memory on this machine and was re-run with one worker.
+
+  Out of scope, as planned: "+ Add" keeps today's flow, and on touch
+  screens a tap picks without a comparison.
+
+  **PENDING APPROVAL: G-033 sign-off.**
+- 2026-09-13 — **M1 done.** `PaletteColor.source` (D122).
+  - Set by brand generation (DMC, Cosmo, Anchor), thread picks, adding a
+    thread, and OXS import for every resolved entry. Dropped by a manual
+    RGB edit. Kept by rename, symbol change, merge and compaction.
+  - `restoreColor` is ready for M2's Cancel.
+  - Custom or cross-brand edits on a locked pattern throw.
+  - Saved files are format 7. Autosave records carry `formatVersion`
+    (store version still 1). Legacy data infers within its lock by exact
+    name; version 7 never infers. A malformed or unknown source is dropped;
+    a lock that can't be established is cleared.
+  - OXS numbers and A4/PDF printed codes come from `source`.
+  - The copy clipboard is cleared on document replacement and after a
+    merge.
+  - Existing tests that locked patterns of custom colours now use real
+    threads with sources. The format-version expectations moved from 6 to
+    7.
+
+  Verified: `tsc` and eslint clean; 850/850 unit tests, including the new
+  `tests/unit/thread-source.spec.ts` and a fuzz test extended with sources;
+  62/62 e2e on a production build.
+- 2026-09-13 — **Codex critique of the M1 data model, and its outcome (D122).**
+  Conceded:
+  - Autosave records couldn't tell legacy data from a deliberately custom
+    colour, so records and files carry `formatVersion`, and version 7
+    never infers.
+  - Cross-brand inference by name and RGB is dropped. Legacy data infers
+    only within its `threadBrand`, by exact thread name, as best effort.
+  - The brand lock is an invariant: custom or cross-brand edits on a
+    locked pattern throw, and a load that can't establish it clears the
+    lock.
+  - OXS export takes numbers only from `source`, and import sets canonical
+    sources in both branches.
+  - Sources are immutable.
+  - The fuzz test covers sources, and generation gets per-brand source
+    assertions.
+  - A4 and PDF print codes from `source`.
+  - The copy clipboard is cleared when its palette indices go stale.
+
+  Rebutted: rejecting a file with a malformed `source`, because the
+  autosave loader deletes unreadable records and optional metadata already
+  falls back to absence. Such a source is dropped instead.
+
+  Carried into M2:
+  - Comparisons use the palette's actual RGB.
+  - Picking the swatch that is already current is a no-op.
+  - Cancel restores RGB, name and source together.
+
+  Also done ahead of M3: `lib/color/okhsl.ts` matches `ok_color.h`
+  (compiled locally) within 1e-4 on 18 colours, and
+  `lib/color/swatch-comparison.ts` is tested at its rounding boundaries
+  (33 tests).
+- 2026-09-13 — **Started on the Owner's direction** ("proceed to goal 33").
+  - G-028 is archived, so the start gate is met.
+  - The Owner's answers are recorded above: close and paint, Done and
+    Cancel kept, no check-ins.
+  - `tests/unit/fixtures/golden-hashes.json` hashes each colour's index,
+    RGB, symbol, name and count, not `source`, so criterion 4 needs no
+    regeneration as long as those stay identical.
+- 2026-09-13 — Goal drafted at the Owner's request ("make plan of
+  improving color selection …"). Planned from a read of
+  `app/components/colors-dock.tsx`, `lib/editor/pattern-edit.ts`,
+  `lib/editor/pattern-serialize.ts`, `lib/threads/brand-match.ts`,
+  `lib/threads/thread-brands.ts`, `lib/editor/use-undo-history.ts`, the
+  active G-028 OXS code and the e2e suite (no test covers the color
+  editor today). Okhsl licence verified at its source. No code written.
+
+### G-040 · Start a chart from a blank canvas, with no photo — DONE (signed off 2026-09-16)
+- **What:** a way to begin a chart without a photo: choose its width and
+  height in stitches, see the finished fabric size as you type, and start on
+  an empty canvas with no colours yet. Such a chart never offers Generate.
+- **Why:** Owner request (2026-09-16): design from scratch, not only from a
+  photo. "No photo, no regeneration."
+- **Owner's answers (2026-09-16):**
+  - size is entered as width and height in stitches, with the finished size
+    shown alongside;
+  - the canvas starts with every stitch empty;
+  - the palette starts empty, and colours are added as you go;
+  - a photo can never be added later: the chart stays photo-free.
+- **Acceptance criteria:**
+  1. **Creating one.** A "New blank chart" action sits beside Open. It asks
+     for width and height in stitches, within the existing 10–1000 limits,
+     and shows the finished size for the current fabric count and unit,
+     updating as the numbers change. Out-of-range values explain themselves
+     and block creation.
+  2. **What you get.** A chart of exactly that size, every stitch empty, no
+     palette colours, a default name you can rename, and no photo. It is the
+     undo baseline: undo cannot go back past creation.
+  3. **Photo-free for life.** Generate and every photo-only control (size
+     preset, colour count, algorithm, palette mode, edge handling, photo
+     enhancement) and the two photo view modes are unavailable, with one line
+     saying why. Colour, B&W and Realistic views work.
+  4. **Editing is unchanged.** Brush, fill, select with copy, paste, move and
+     flip, symmetry and quick mirror, canvas resize, undo and redo, and every
+     colour action behave as on a generated chart.
+  5. **Empty palette.** "+ Add" adds the first colour, from the full range or
+     a thread brand. Painting with no colours explains what to do instead of
+     failing silently.
+  6. **Files.** Saving, autosave and reopening keep the chart photo-free, and
+     older files keep opening exactly as they do today.
+  7. **Exports.** Every export works, counting only filled stitches (D120),
+     including a chart that is still entirely empty.
+  8. **Checks.** Unit tests for creation and the photo-free rule; an e2e test
+     that creates a blank chart, paints, saves, reopens and finds Generate
+     still unavailable; lint, type-check, unit, e2e and docs-lint pass;
+     deployed and smoke-tested.
+- **Constraints:** no new dependencies; generated charts and Crisp/Crisp+ are
+  untouched; standing deploy approval.
+
+**Milestones:**
+- [ ] **M1 — The photo-free document.** A pure `createBlankPattern(width,
+  height)`, the rule that a chart with no photo can never generate, and how
+  that survives saving and reopening. Unit tests for creation, the rule, and
+  files old and new.
+- [ ] **M2 — Creating one in the app.** The action beside Open, the size
+  dialog with its live finished size and validation, the disabled controls
+  with their explanation, and the empty-palette message. E2e for creating,
+  painting and the unavailable Generate.
+- [ ] **M3 — Files, exports and release.** Save, autosave and reopen; an
+  export pass including an entirely empty chart; README and HANDOVER; deploy
+  and a live smoke test; then the Owner's sign-off.
+
+**Progress log** (newest first):
+- 2026-09-16 — **Owner signed off the goal** ("sign off everything").
+- 2026-09-16 — **Deployed, and a bug the live check found is fixed.**
+  - Blank charts went live at 13bd0fc: only this container restarted, the
+    non-200 sites were the usual three, and the live check created a 40 × 25
+    chart with no colours, no photo settings and no Generate, then painted a
+    stitch after adding a colour.
+  - That check exposed a header reading "1 stitch, 1 colors". A shared
+    `formatColorCount` now serves the on-screen header and the A4 chart info,
+    so they can't drift apart; deployed at be5e10f and confirmed live as
+    "40 × 25, 1 stitch, 1 color".
+  - The first browser run for that fix was killed when the machine fell to
+    about 2 GB free with 38 node processes from other sessions; the retry
+    passed after clearing the build cache. Nothing belonging to another
+    session was stopped.
+  - **Verification:** unit suite 999 passed, 8 skipped; browser suite 307
+    passed on a production build; type-check, lint, docs-lint clean; golden
+    hashes unchanged.
+  - **PENDING APPROVAL: G-040 sign-off** — the Owner's judgement of blank
+    charts on the live site.
+- 2026-09-16 — **M3 built; deploy next.**
+  - Autosave round-trips a blank chart with its empty palette and no photo,
+    verified both in the store's own unit test and by reloading the live page
+    mid-edit; no change to the store was needed.
+  - Every export works on a chart that is still entirely empty: "Export all"
+    produces its `.cspzip` with no colours in the palette.
+  - **Verification:** unit suite 998 passed, 8 skipped; browser suite 307
+    passed, including five blank-chart tests (creation and the missing photo
+    controls, the size dialog, exports on an empty chart, autosave across a
+    reload, and painting then saving and reopening photo-free); type-check
+    and lint clean.
+  - One more test correction: "Export all" is its own button, not an option
+    in the Export dropdown.
+  - **Next:** deploy, a live check of the new panel, then the Owner's
+    sign-off.
+- 2026-09-16 — **M2 done; check-in before files and release.**
+  - **New blank chart…** sits beside Open and opens a panel with width and
+    height in stitches, the finished fabric size updating as they change, and
+    Create disabled while a size is out of range.
+  - Creating one resets the history to the blank chart, clears the loaded
+    photo through `adoptPatternPhoto` (which also cancels any generation or
+    preview still running) and starts a fresh document.
+  - A photo-free chart hides the photo-only settings and Generate, and says
+    why in one line; the colours dock explains how to add the first colour
+    while the palette is empty.
+  - **Verification:** unit suite 997 passed, 8 skipped; browser suite 305
+    passed, including three new blank-chart tests (creation and the missing
+    photo controls, the size dialog's live finished size and its refusal of
+    an out-of-range size, and painting after adding a colour then saving and
+    reopening photo-free); type-check and lint clean.
+  - Two test corrections along the way: the size fixtures had used a 4 × 4
+    chart, under the 10-stitch minimum, and the add-colour step assumed a
+    brand picker, but a blank chart has no brand lock, so "+ Add" opens the
+    free colour picker.
+  - **Next, M3:** autosave and reopen, an export pass including a chart that
+    is still entirely empty, README and HANDOVER, then deploy and a live
+    check.
+- 2026-09-16 — **M1 done; check-in before the UI.**
+  - `lib/editor/blank-pattern.ts`: `createBlankPattern`, which validates the
+    size against the same 10–1000 limits as a generated chart and returns a
+    message the creation form can show, plus `isPhotoFree`.
+  - **Files:** an empty palette is now legal when nothing is stitched (D143).
+    A file naming a colour it doesn't carry is still refused, and the format
+    version stays 7, so older files are unaffected.
+  - **Verification:** full unit suite 997 passed, 8 skipped; docs-lint,
+    type-check and lint clean. A blank chart saves and reopens with its size,
+    empty stitches, empty palette and no photo.
+  - **Next, M2:** the New blank chart action beside Open, the size dialog
+    with its live finished size and validation, the photo-only controls
+    disabled with one line of explanation, and the empty-palette message.
+- 2026-09-16 — Goal drafted from the Owner's request and four answers above.
+  No code yet.
