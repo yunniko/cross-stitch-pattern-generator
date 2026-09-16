@@ -152,3 +152,4 @@ remain readable with git show.
 - D141 — Crisp+ prunes thin mix colours whose cells ramp in the photo; freed slots stay free — superseded (superseded by: D142 for the freed slots)
 - D142 — Crisp+ refills only the slots it frees, splitting interior cells, never into a blend — active
 - D143 — An empty palette is legal only for a chart with nothing stitched — active
+- D144 — A Move drag paints the visible view only, at most once per animation frame — active

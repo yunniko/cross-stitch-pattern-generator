@@ -62,6 +62,40 @@ numbers (35 ms per step in Color at 11 px, 49 ms in B&W) are superseded by the t
 shift was measured separately at 1.74 ms for a 1000 × 750 chart, with a row-copy variant at 0.28 ms and identical
 output — that is, the shift is not the cost; the repaint is.
 
+## M2 result (one paint per frame, visible view only, small fixes)
+
+Same benchmark and machine, after D144. Unthrottled medians across 3 runs, M1 → M2:
+
+| Case | Step | Worst frame gap | Longest task | End of drag |
+|---|---:|---:|---:|---:|
+| Color @ 6 px | 94 → 50 ms | 100 → 33 ms | 100 → 0 ms | 127 → 134 ms |
+| B&W @ 6 px | 97 → 50 ms | 100 → 33 ms | 110 → 0 ms | 134 → 124 ms |
+| Grid + photo @ 6 px | 79 → 66 ms | 83 → 50 ms | 97 → 59 ms | 129 → 116 ms |
+| Color @ 8 px | 54 → 33 ms | 50 → 17 ms | 65 → 0 ms | 100 → 93 ms |
+| B&W @ 8 px | 65 → 33 ms | 50 → 17 ms | 63 → 0 ms | 95 → 90 ms |
+| Grid + photo @ 8 px | 50 → 48 ms | 34 → 33 ms | 0 → 0 ms | 101 → 82 ms |
+| Color @ 4 px (100 % zoom) | 17 → 16 ms | 17 → 17 ms | 0 → 0 ms | 44 → 52 ms |
+| B&W @ 4 px (100 % zoom) | 17 → 17 ms | 17 → 17 ms | 0 → 0 ms | 49 → 45 ms |
+| Grid + photo @ 4 px (100 % zoom) | 16 → 16 ms | 17 → 17 ms | 0 → 0 ms | 55 → 42 ms |
+
+At 4× throttling (single runs), step medians M1 → M2: 357 → 181, 369 → 182 and 306 → 248 ms at 6 px; 229 → 115,
+228 → 115 and 187 → 151 ms at 8 px; 34 → 27, 33 → 33 and 33 → 34 ms at 100 % zoom. Ending a drag stays within its
+old range there (457–517 ms at 6 px against 478–503 before), which is a single run either side and inside the noise.
+
+How to read a step time now: with paints coalesced to one per animation frame, the measured step returns before the
+paint runs, so **the worst frame gap and the longest task are the honest metrics**. The gap tells the story — a drag
+at 6 px dropped about six frames per stitch before and drops one or two now.
+
+Notes:
+
+- **Grid + photo gained least** (79 → 66 ms at 6 px). It already painted only a sixteenth of the view as overscan,
+  so option 2 had little to give; what remains is the translucent photo under haloed symbols, which only option 1
+  addresses.
+- **Nothing meets the 16 ms target yet** except the 4 px case, which passed before M2. M2 was the cheap half of the
+  plan; the target depends on M3 shifting the pixels already drawn.
+- **Pixels are unchanged:** 124 of 124 viewport-parity cases pass, because parity draws through
+  `drawSceneWithGesture` rather than `paint()` (D144).
+
 ## Options (G-039)
 
 1. **Shift the pixels already on screen, redraw only the uncovered strips.** Per frame: copy the previous bitmap by

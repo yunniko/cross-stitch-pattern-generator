@@ -478,9 +478,11 @@ escalation-tier, not a routine refactor):
   although a Move only shifts pixels that are already drawn.
 - **Acceptance criteria:**
   1. **Speed.** At 1000 stitches and 64 colours, one stitch of Move takes a
-     median of 16 ms or less and a worst of 25 ms or less, in Color, B&W,
-     Grid + photo and Realistic, at 6 px (the symbol floor), at 11 px, and at
-     the size that fits the window. Measured by M1's benchmark, three runs.
+     median of 16 ms or less and a worst of 25 ms or less, in Color, B&W and
+     Grid + photo, at 4 px (100% zoom), 6 px (the symbol floor) and 8 px.
+     Measured by M1's benchmark, three runs. Amended 2026-09-16 with the
+     Owner's approval: 11 px is unreachable at 1000 stitches (the 8000 px chart
+     cap), and the Realistic preview and Original photo never edit (D121).
   2. **Ending a drag** stays under 100 ms, including the redraw and the save.
   3. **4× throttled timings are reported** for the same cases, as G-036 did.
      They are reported, not asserted.
@@ -523,8 +525,8 @@ escalation-tier, not a routine refactor):
   - Deliverable: the baseline table in
     `docs/reviews/2026-09-16-move-tool-investigation.md`, replacing the partial
     400-stitch figures.
-- [ ] **M2 — One paint per frame, the visible window only, and the small fixes
-  (options 2, 3, 4).**
+- [x] **M2 — One paint per frame, the visible window only, and the small fixes
+  (options 2, 3, 4).** Done 2026-09-16 (D144).
   - No behaviour change on screen, so this milestone needs no Owner ruling.
   - Gate: measurable improvement against M1, existing suites and parity pass.
   - The Owner's answers to the two questions above are collected at this
@@ -541,6 +543,39 @@ escalation-tier, not a routine refactor):
     and live check.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M2 done: one paint per frame, the visible view only, and the
+  small fixes (D144).**
+  - **What changed** (`app/hooks/use-chart-renderer.ts`, `lib/export/render.ts`,
+    `lib/editor/pattern-edit.ts`): a Move preview schedules one
+    `requestAnimationFrame` paint that later pointer positions replace, and its
+    frames paint the visible rectangle with no overscan, which returns on the
+    frame that ends the drag. Coalescing is scoped to Move, since a brush
+    stroke's mid-stroke pixels are asserted per event. Also: clear the bitmap
+    instead of reassigning an unchanged `canvas.width`/`height`, cache
+    `opaqueCanvasRgb` per colour, reuse one `drawStitchPixels` scratch canvas and
+    buffer per size, and shift stitches by whole rows.
+  - **Result** (1000 stitches, 64 colours, 3 runs; full table in the review):
+    a step costs 50 / 50 / 66 ms at 6 px (Color / B&W / Grid + photo), down from
+    94 / 97 / 79, and 33 / 33 / 48 ms at 8 px, down from 54 / 65 / 50. The worst
+    frame gap falls from 100 to 33 ms at 6 px, and the long tasks disappear
+    (0 ms where M1 had 63–110 ms). At 4×: 181 / 182 / 248 ms at 6 px, down from
+    357 / 369 / 306. Ending a drag is unchanged within noise.
+  - **Not yet met:** only the 4 px case meets the 16 ms target, and it did before
+    M2. Grid + photo gained least, since it already painted a sixteenth of the
+    view as overscan. The target depends on M3.
+  - **Verification:** type-check and lint clean; Vitest 999 passed, 8 skipped;
+    Playwright 307 passed across three chunks (24 specs), including 124 of 124
+    viewport-parity cases, so no pixel changed. The suite was run in chunks at
+    one worker because a full parallel run was killed for memory, as five runs
+    were during M1.
+  - Codex remains at its usage limit until 2026-09-19, so M2 had no cross-model
+    critique.
+  - **Next, M3:** shift the pixels already on screen and redraw only the strips
+    the wrap exposes, with the guides on their own overlay. The Owner's two
+    questions (grid lines during a drag; Grid + photo previews by copy) are
+    answered at this check-in, before that code is written.
+- 2026-09-16 — **Owner approved M1's two amendments** ("1 and 2 yes") and M2.
+  Criterion 1 now reads 4, 6 and 8 px across Color, B&W and Grid + photo.
 - 2026-09-16 — **M1 done: the Move benchmark and the baseline.**
   - `npm run bench:move` (`scripts/bench-move.spec.ts` + its config) drags one
     stitch diagonally 15 times per case and reports the per-step cost, the frame

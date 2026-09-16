@@ -117,13 +117,14 @@ export function shiftPattern(pattern: StitchPattern, dx: number, dy: number): St
   if (dx === 0 && dy === 0) return pattern;
 
   const shifted = new Uint8Array(cellPalette.length);
+  // Two whole-row copies per row rather than a modulo per cell: the tail of the source row wraps to the front
+  // (G-039 M2, same bytes as the per-cell form).
+  const offsetX = (((dx % width) + width) % width);
   for (let y = 0; y < height; y++) {
     const srcY = ((((y - dy) % height) + height) % height) * width;
     const destY = y * width;
-    for (let x = 0; x < width; x++) {
-      const srcX = (((x - dx) % width) + width) % width;
-      shifted[destY + x] = cellPalette[srcY + srcX];
-    }
+    shifted.set(cellPalette.subarray(srcY + width - offsetX, srcY + width), destY);
+    shifted.set(cellPalette.subarray(srcY, srcY + width - offsetX), destY + offsetX);
   }
 
   return {

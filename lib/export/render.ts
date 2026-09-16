@@ -239,7 +239,12 @@ export function drawChart(
 }
 
 /** The exact bytes a canvas fills for a CSS colour, read back from a 1×1 probe; `null` unless it is fully opaque. */
+// Parsing a CSS colour means a 1 x 1 canvas and a readback; a drag asks for the same colour on every frame (G-039 M2).
+const opaqueRgbCache = new Map<string, RGB | null>();
+
 function opaqueCanvasRgb(color: string): RGB | null {
+  const cached = opaqueRgbCache.get(color);
+  if (cached !== undefined) return cached;
   let ctx: Canvas2D;
   try {
     ({ ctx } = createCanvas(1, 1));
@@ -249,8 +254,13 @@ function opaqueCanvasRgb(color: string): RGB | null {
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, 1, 1);
   const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
-  return a === 255 ? [r, g, b] : null;
+  const rgb = a === 255 ? ([r, g, b] as RGB) : null;
+  opaqueRgbCache.set(color, rgb);
+  return rgb;
 }
+
+/** The reused scratch canvas and pixel buffer for `drawStitchPixels`, keyed by the size it was made for. */
+let stitchScratch: { canvas: AnyCanvas; ctx: Canvas2D; w: number; h: number; image: ImageData } | null = null;
 
 /** Writes one pixel per stitch of `region` into a scratch canvas and scales it onto `ctx` with nearest-neighbour sampling. */
 function drawStitchPixels(ctx: CanvasRenderingContext2D, region: ChartRegion, cellSize: number, pixelAt: (cellIndex: number, out: Uint8ClampedArray, offset: number) => void, width: number): boolean {
@@ -259,12 +269,19 @@ function drawStitchPixels(ctx: CanvasRenderingContext2D, region: ChartRegion, ce
   if (w <= 0 || h <= 0) return true;
   let scratch: AnyCanvas;
   let sctx: Canvas2D;
-  try {
-    ({ canvas: scratch, ctx: sctx } = createCanvas(w, h));
-  } catch {
-    return false;
+  // One scratch canvas and one buffer per size, reused across frames: a drag redraws the same rectangle every time,
+  // and each frame would otherwise allocate both again (G-039 M2).
+  if (stitchScratch && stitchScratch.w === w && stitchScratch.h === h) {
+    ({ canvas: scratch, ctx: sctx } = stitchScratch);
+  } else {
+    try {
+      ({ canvas: scratch, ctx: sctx } = createCanvas(w, h));
+    } catch {
+      return false;
+    }
+    stitchScratch = { canvas: scratch, ctx: sctx, w, h, image: sctx.createImageData(w, h) };
   }
-  const image = sctx.createImageData(w, h);
+  const image = stitchScratch.image;
   const data = image.data;
   for (let y = 0; y < h; y++) {
     const row = (region.y0 + y) * width;

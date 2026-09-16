@@ -39,8 +39,16 @@ const EMPTY_RECT: PixelRect = { x0: 0, y0: 0, x1: 0, y1: 0 };
  * How far ahead of the view the canvas is painted on each side, as a share of the view. Grid + photo costs several
  * times more per pixel (haloed symbols over a translucent photo), so it paints less ahead and repaints more often (D136).
  */
-function overscanFraction(viewMode: ViewMode): number {
+function overscanFraction(viewMode: ViewMode, movePreview = false): number {
+  // A Move drag repaints the whole rectangle for every stitch crossed, so its frames paint the view alone; the
+  // overscan comes back with the frame that ends the drag (G-039 M2).
+  if (movePreview) return 0;
   return viewMode === "photo" ? 1 / 16 : 1 / 4;
+}
+
+/** True while a Move drag is previewing, the one gesture whose every frame redraws the whole rectangle. */
+function isMovePreview(gesture: GesturePreview | null): boolean {
+  return gesture?.kind === "move";
 }
 
 /**
@@ -74,12 +82,20 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   // What the last commit asked to show; scroll, resize and gesture handlers paint from it.
   const shownRef = useRef<{ pattern: StitchPattern | null; scene: Omit<ChartScene, "selectDragging"> }>({ pattern: null, scene });
   const gestureRef = useRef<GesturePreview | null>(null);
+  /** The animation frame a Move preview has already scheduled, so pointer events coalesce into one paint. */
+  const moveFrameRef = useRef<number | null>(null);
   const paintedRef = useRef<PixelRect>(EMPTY_RECT);
   // The device-pixel step the painted rectangle was aligned to; a changed device pixel ratio (browser zoom) repaints.
   const alignRef = useRef(1);
   const revisionRef = useRef(0);
   // The select drag's base scene for the current bitmap, restored under each frame (keyed by everything it shows).
   const selectBaseRef = useRef<{ key: readonly unknown[]; canvas: HTMLCanvasElement } | null>(null);
+
+  function cancelPendingMoveFrame() {
+    if (moveFrameRef.current === null) return;
+    cancelAnimationFrame(moveFrameRef.current);
+    moveFrameRef.current = null;
+  }
 
   function currentScene(): ChartScene {
     return { ...shownRef.current.scene, selectDragging: isSelectDragging() };
@@ -123,13 +139,20 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     const geometry = measure();
     if (!canvas || !p || !geometry) return;
     const align = devicePixelAlignment(window.devicePixelRatio || 1);
-    const fraction = overscanFraction(shownRef.current.scene.viewMode);
+    const fraction = overscanFraction(shownRef.current.scene.viewMode, isMovePreview(gestureRef.current));
     const rect = paintedRectFor(geometry.visible, geometry.viewWidth * fraction, geometry.viewHeight * fraction, geometry.width, geometry.height, align);
     alignRef.current = align;
     const w = rect.x1 - rect.x0;
     const h = rect.y1 - rect.y0;
-    canvas.width = w;
-    canvas.height = h;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    } else {
+      // Assigning the same size still reallocates and clears the bitmap; clearing it is enough (G-039 M2).
+      const previous = canvas.getContext("2d");
+      previous?.setTransform(1, 0, 0, 1, 0, 0);
+      previous?.clearRect(0, 0, w, h);
+    }
     canvas.style.left = `${rect.x0}px`;
     canvas.style.top = `${rect.y0}px`;
     canvas.style.width = `${w}px`;
@@ -148,7 +171,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   function ensureCoverage() {
     const geometry = measure();
     if (!geometry) return;
-    const margin = (Math.min(geometry.viewWidth, geometry.viewHeight) * overscanFraction(shownRef.current.scene.viewMode)) / 2;
+    const margin = (Math.min(geometry.viewWidth, geometry.viewHeight) * overscanFraction(shownRef.current.scene.viewMode, isMovePreview(gestureRef.current))) / 2;
     const alignmentChanged = devicePixelAlignment(window.devicePixelRatio || 1) !== alignRef.current;
     if (alignmentChanged || needsRepaint(geometry.visible, paintedRef.current, margin, geometry.width, geometry.height)) paint();
   }
@@ -280,7 +303,13 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   /** The Move preview: the pre-drag chart shifted by (dx, dy) stitches with wrap-around, drawn from the pattern. */
   function previewMove(base: StitchPattern, dx: number, dy: number) {
     gestureRef.current = { kind: "move", base, dx, dy };
-    paint();
+    // At most one paint per animation frame: pointer events can outrun the display, and only the latest position is
+    // worth drawing, so extra events replace the pending frame instead of queueing another full repaint (G-039 M2).
+    if (moveFrameRef.current !== null) return;
+    moveFrameRef.current = requestAnimationFrame(() => {
+      moveFrameRef.current = null;
+      if (isMovePreview(gestureRef.current)) paint();
+    });
   }
 
   /** One frame of a select drag: the base scene (restored from its snapshot when unchanged) plus the rectangle or piece. */
@@ -315,6 +344,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
 
   /** Ends the gesture preview. `repaint` when no state change will follow to redraw the view. */
   function endGesture(repaint: boolean) {
+    cancelPendingMoveFrame();
     gestureRef.current = null;
     selectBaseRef.current = null;
     if (repaint) paint();
