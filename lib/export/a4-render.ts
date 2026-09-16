@@ -7,7 +7,7 @@ import { formatFinishedSize, type SizeUnit } from "./finished-size";
 import { estimateSkeins } from "../threads/floss-estimate";
 import { drawChart, FONT_STACK, GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX, truncateToWidth, type RenderMode } from "./render";
 import { THREAD_BRANDS } from "../threads/thread-brands";
-import { filledStitchCount, formatStitchCount, type PaletteColor, type StitchPattern } from "../types";
+import { filledStitchCount, formatColorCount, formatStitchCount, type PaletteColor, type StitchPattern } from "../types";
 
 // Physical text sizes for print, independent of cell size (unlike the
 // on-screen single-PNG chart, where number/label font sizes scale with
@@ -349,7 +349,7 @@ export function buildDetailRows(pattern: StitchPattern, aidaCount: number, sizeU
     ["Fabric", `${aidaCount}-count Aida`],
   ];
   if (pattern.threadBrand) rows.push(["Thread", THREAD_BRANDS[pattern.threadBrand].label]);
-  rows.push(["Color count", `${pattern.palette.length} colors`]);
+  rows.push(["Color count", formatColorCount(pattern.palette.length)]);
   return rows;
 }
 

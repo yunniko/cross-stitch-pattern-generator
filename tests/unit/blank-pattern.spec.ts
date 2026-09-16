@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createBlankPattern, describeBlankSizeProblem, isPhotoFree, isValidBlankSize } from "@/lib/editor/blank-pattern";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
 import { createMemoryKeyValueStore, createProjectStore } from "@/lib/editor/project-store";
-import { EMPTY_CELL, MAX_STITCHES, MIN_STITCHES } from "@/lib/types";
+import { EMPTY_CELL, formatColorCount, MAX_STITCHES, MIN_STITCHES } from "@/lib/types";
 
 /** G-040 M1: charts started from nothing, and the rule that a chart without a photo can never be generated. */
 
@@ -45,6 +45,15 @@ describe("createBlankPattern", () => {
 
   it("accepts a valid size with no complaint", () => {
     expect(describeBlankSizeProblem(100, 100)).toBeNull();
+  });
+});
+
+describe("formatColorCount", () => {
+  it("says color for one and colors for none or many, with thousands separated", () => {
+    expect(formatColorCount(0)).toBe("0 colors");
+    expect(formatColorCount(1)).toBe("1 color");
+    expect(formatColorCount(24)).toBe("24 colors");
+    expect(formatColorCount(1000)).toBe("1,000 colors");
   });
 });
 

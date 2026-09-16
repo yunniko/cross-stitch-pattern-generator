@@ -115,7 +115,7 @@ describe("buildDetailRows (G-016)", () => {
     expect(byLabel["Finished size"]).toContain("25.4 cm");
     expect(byLabel["Fabric"]).toBe("14-count Aida");
     expect(byLabel["Thread"]).toBeUndefined();
-    expect(byLabel["Color count"]).toBe("1 colors");
+    expect(byLabel["Color count"]).toBe("1 color");
   });
 
   it("counts only filled stitches, keeping the canvas size and the finished size it gives (D120)", () => {

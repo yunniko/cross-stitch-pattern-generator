@@ -1,5 +1,5 @@
 import { useMemo, useState, type DragEvent, type MouseEvent, type PointerEvent, type RefObject } from "react";
-import { filledStitchCount, formatStitchCount, type StitchPattern } from "@/lib/types";
+import { filledStitchCount, formatColorCount, formatStitchCount, type StitchPattern } from "@/lib/types";
 import { isViewOnlyMode, type Tool, type ViewMode } from "../editor-types";
 import type { SourceImageMeta } from "../hooks/use-source-image";
 import { PillButton } from "./ui";
@@ -41,7 +41,7 @@ export function ViewBar({ pattern, viewMode, onViewModeChange, canvasColor, onCa
 
   return (
     <div className="flex items-center gap-3 border-b border-zinc-300 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-      <span className="text-sm font-medium">{pattern ? `${pattern.width} × ${pattern.height}, ${formatStitchCount(stitchCount)}, ${pattern.palette.length} colors` : "No pattern yet"}</span>
+      <span className="text-sm font-medium">{pattern ? `${pattern.width} × ${pattern.height}, ${formatStitchCount(stitchCount)}, ${formatColorCount(pattern.palette.length)}` : "No pattern yet"}</span>
       {pattern && (
         <div className="ml-auto flex items-center gap-3 text-sm">
           {modes.map(({ mode, label, needsPhoto }) => {

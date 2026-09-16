@@ -62,6 +62,11 @@ export function formatStitchCount(count: number): string {
   return `${count.toLocaleString("en-US")} ${count === 1 ? "stitch" : "stitches"}`;
 }
 
+/** "0 colors", "1 color", "24 colors"; shared by the on-screen header and the exported chart info, so they can't drift apart. */
+export function formatColorCount(count: number): string {
+  return `${count.toLocaleString("en-US")} ${count === 1 ? "color" : "colors"}`;
+}
+
 /** A catalogue thread a palette color was taken from, by brand and canonical table code (G-033, D122). Immutable: replace it, never mutate it. */
 export interface ThreadSwatchRef {
   readonly brand: ThreadBrand;
