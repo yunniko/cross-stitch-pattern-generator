@@ -140,6 +140,32 @@ three chunks on a 1200 x 900 photo: seven full runs were killed by the OS for me
 free on a machine shared with other work. The chart, window and step pattern are identical across all of them, and
 no run reported a page or console error.
 
+## M4: the release frame, measured and rejected
+
+Ending a drag was the one figure left over target (86–132 ms unthrottled, against 100 ms). The release repaints the
+committed chart from the pattern, over the view plus its margin, so the attempt was to paint the visible view alone
+on that frame and add the margin on the next animation frame.
+
+Measured, it was worse, not better (unthrottled medians, 3 runs, M3 → the attempt):
+
+| Case | End of drag |
+|---|---:|
+| Color @ 6 px | 132 → 231 ms |
+| B&W @ 6 px | 126 → 226 ms |
+| Grid + photo @ 6 px | 116 → 208 ms |
+| Color @ 8 px | 94 → 154 ms |
+| B&W @ 8 px | 94 → 159 ms |
+| Grid + photo @ 8 px | 86 → 143 ms |
+
+Two paints replaced one, and both fall inside the window between releasing the pointer and the chart settling. The
+first pixels do arrive sooner, but the chart takes about twice as long to finish, which is the opposite of what the
+change was for. It was reverted; the renderer is byte-identical to the M3 code.
+
+**So criterion 2 is not met at a 6 px stitch.** Ending a drag costs 116–132 ms there, 86–94 ms at 8 px and 42–59 ms
+at 100 % zoom. The cost is one full redraw of the committed chart, which nothing in G-039's approach removes: the
+preview shows the *base* pattern translated, while the committed chart draws the *shifted* pattern with grid lines
+back at their chart positions, so the last preview frame cannot be reused (D145).
+
 ## Options (G-039)
 
 1. **Shift the pixels already on screen, redraw only the uncovered strips.** Per frame: copy the previous bitmap by

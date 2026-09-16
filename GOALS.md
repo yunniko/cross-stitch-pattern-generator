@@ -536,13 +536,46 @@ escalation-tier, not a routine refactor):
     outline draw on their own overlay.
   - Wrap-around, a scroll during a drag and a zoom during a drag keep working.
   - Gate: criteria 1, 2, 4 and 5.
-- [ ] **M4 — Option 5, then release.**
+- [x] **M4 — Option 5, then release.** Done 2026-09-16; option 5 skipped by the Owner.
   - The Owner decides on the symbol-free preview from M3's numbers; it is built
     only if wanted.
   - Benchmarks rerun, decisions written, README and HANDOVER updated, deploy
     and live check.
 
 **Progress log** (newest first):
+- 2026-09-16 — **M4 done: the release frame was tried, measured and rejected;
+  G-039 awaits the Owner's sign-off.**
+  - **Option 5 is not built** (Owner: "ok, let's skip"), since a stitch already
+    costs one display frame with symbols drawn.
+  - **The one remaining gap was ending a drag** (86–132 ms against 100 ms). The
+    attempt painted the visible view alone on the committed frame and added the
+    margin on the next animation frame. Measured, it was worse: 132 → 231,
+    126 → 226 and 116 → 208 ms at 6 px, 94 → 154, 94 → 159 and 86 → 143 ms at
+    8 px, because two paints replaced one and both fall inside the settle
+    window. It was reverted; the renderer is byte-identical to the M3 code
+    (`git diff origin/master` empty), so M3's verification stands.
+  - **Criterion 2 is therefore not met at 6 px:** ending a drag costs 116–132 ms
+    there, 86–94 ms at 8 px, 42–59 ms at 100 % zoom. The release must redraw the
+    committed chart once, and the last preview frame cannot be reused, because
+    the preview shows the base pattern translated while the commit draws the
+    shifted pattern with grid lines back at their chart positions (D145).
+  - **Criterion 1 is met on medians everywhere** (17 ms, one display frame, in
+    all three views at 4, 6 and 8 px) and on the worst case for every step after
+    each drag's first; only the opening frame exceeds 25 ms, at 34–77 ms.
+  - **Verification, this milestone:** type-check and lint clean; Vitest 999
+    passed, 8 skipped; Playwright 307 passed across all 24 specs (9 Move-critical
+    + 124 parity + 119 + 55), no failures. Eleven runs were killed by the OS for
+    memory during G-039, so the suite ran in chunks and the throttled benchmark
+    one stitch size at a time; every reported number comes from a run that
+    completed normally.
+  - Codex was unavailable for the whole goal (usage limit until 2026-09-19), so
+    no milestone had a cross-model critique.
+  - **PENDING APPROVAL: G-039 sign-off** — M1–M4 are done and deployed; criterion
+    2 at 6 px is the one target not met, with the reason recorded above.
+- 2026-09-16 — **Owner skipped option 5** ("ok, let's skip"): symbols stay on
+  while dragging, since a stitch already costs one display frame with them
+  drawn. M4 is therefore: bring the end of a drag under 100 ms if it can be
+  done honestly, then README, deploy and live check.
 - 2026-09-16 — **M3 done: a Move frame shifts the pixels already drawn (D145).**
   - **The Owner left both open questions to the Company** ("decide what makes
     more sense"), and D145 settles them: grid lines keep travelling with the
