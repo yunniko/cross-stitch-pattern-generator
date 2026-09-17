@@ -21,7 +21,7 @@ browser's IndexedDB, and no image is ever uploaded. Live at
   cleans up slightly soft edges, snapping the in-between colors along a blurred
   boundary to one side while keeping real thin lines and gradients.
 - **Edit** with brush, fill, rectangle select (copy, paste, move, flip, rotate,
-  crop to the selection, or cancel everything the selection did), move,
+  crop the chart to the selection, or cancel the piece you are holding), move,
   pan, zoom and highlight tools. Merge, recolor, rename and re-symbol colors,
   mark stitches as empty, resize the canvas, undo and redo. The color editor
   opens on a color's own thread swatch, shows how other swatches compare

@@ -96,27 +96,34 @@ test("Cancel after drawing and moving a selection leaves the chart exactly as it
   await expect(page.getByRole("button", { name: "Undo" }), "nothing was committed").toBeDisabled();
 });
 
-test("Cancel after pasting undoes the paste's merge too, and keeps the clipboard", async ({ page }) => {
+test("Cancel drops the pasted piece but leaves an earlier merge alone (G-043)", async ({ page }) => {
   await generateSmallPattern(page);
 
   const { box, cell } = await drawSelection(page, 2, 2, 7, 5);
   await page.getByRole("button", { name: "Copy" }).click();
-
-  // Merge this piece by deselecting, so the chart before the paste is a settled state.
   await page.getByRole("button", { name: "Deselect" }).click();
-  const beforePaste = await stitchCount(page);
 
+  // Paste a copy, drag it somewhere else, and merge it: that stamps its stitches over other colours, so the chart really
+  // changes. This is the committed edit Cancel must leave alone.
   await page.getByRole("button", { name: "Paste" }).click();
-  await expect(page.getByRole("button", { name: "Deselect" })).toBeEnabled();
-  // Move the pasted piece somewhere else, then merge it, so the paste has really changed the chart.
   await page.mouse.move(box.x + cell * 6, box.y + cell * 6);
   await page.mouse.down();
-  await page.mouse.move(box.x + cell * 22, box.y + cell * 14, { steps: 6 });
+  await page.mouse.move(box.x + cell * 24, box.y + cell * 16, { steps: 6 });
+  await page.mouse.up();
+  await page.getByRole("button", { name: "Deselect" }).click();
+  const afterFirstPaste = await stitchCount(page);
+
+  // A second paste, moved and then cancelled: the piece goes, the merge above stays.
+  await page.getByRole("button", { name: "Paste" }).click();
+  await expect(page.getByRole("button", { name: "Deselect" })).toBeEnabled();
+  await page.mouse.move(box.x + cell * 6, box.y + cell * 6);
+  await page.mouse.down();
+  await page.mouse.move(box.x + cell * 30, box.y + cell * 8, { steps: 6 });
   await page.mouse.up();
 
   await page.getByRole("button", { name: "Cancel" }).click();
 
   await expect(page.getByRole("button", { name: "Deselect" })).toBeDisabled();
-  expect(await stitchCount(page), "the chart is back to before the paste").toBe(beforePaste);
+  expect(await stitchCount(page), "the earlier merge stands").toBe(afterFirstPaste);
   await expect(page.getByRole("button", { name: "Paste" }), "the clipboard survives a cancel").toBeEnabled();
 });

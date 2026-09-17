@@ -213,8 +213,6 @@ type SelectDrag =
 export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit }: CanvasToolInputs) {
   const [selection, setSelection] = useState<FloatingSelection | null>(null);
   const [clipboard, setClipboard] = useState<FloatingSelection | null>(null);
-  /** The chart as it stood when this selection session began -- what Cancel restores (G-042). */
-  const sessionBaseRef = useRef<StitchPattern | null>(null);
   const dragRef = useRef<SelectDrag | null>(null);
   const isDragging = useCallback(() => dragRef.current !== null, []);
 
@@ -239,7 +237,6 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
     if (!selection || !pattern) return;
     commit(mergeSelection(pattern, selection));
     setSelection(null);
-    sessionBaseRef.current = null;
   }
 
   /** Drops the selection, and the copied cells whose palette indices belong to it, without merging -- for when the pattern is replaced. */
@@ -247,7 +244,6 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
     setClipboard(null);
     setSelection(null);
     dragRef.current = null;
-    sessionBaseRef.current = null;
   }
 
   function onPointerDown(e: PointerLike, frame: HTMLElement) {
@@ -294,7 +290,6 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
     dragRef.current = null;
     // Repaint now: the new selection may equal the old one, in which case no state change would redraw the view.
     rendererRef.current?.endGesture(true);
-    if (drag.mode === "drawing") sessionBaseRef.current = drag.basePattern;
     setSelection(drag.mode === "drawing" ? liftSelection(drag.basePattern, drag.rect) : moveSelection(drag.selection, drag.lastDx, drag.lastDy));
     releaseCapture(frameRef.current, e.pointerId);
     return true;
@@ -313,9 +308,7 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
     copy: () => selection && setClipboard(selection),
     paste: () => {
       if (!clipboard || !pattern) return;
-      const sessionBase = pattern;
       merge(); // never silently discard what's floating
-      sessionBaseRef.current = sessionBase;
       // Offset from the copy's origin so the paste is visibly a new piece.
       setSelection(moveSelection({ ...clipboard, originRect: undefined }, 3, 3));
     },
@@ -328,15 +321,12 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
       if (!selection || !pattern) return;
       commit(cropToSelection(pattern, selection));
       setSelection(null);
-      sessionBaseRef.current = null;
     },
-    /** Puts the chart back as it was when this selection session began, discarding everything it did (G-042). */
-    cancel: () => {
-      const sessionBase = sessionBaseRef.current;
-      sessionBaseRef.current = null;
-      setSelection(null);
-      if (sessionBase && pattern && sessionBase !== pattern) commit(sessionBase);
-    },
+    /**
+     * Drops the floating piece without merging it: only the selection in hand is cancelled, and edits already committed
+     * -- a previous piece merged by a paste, a crop -- stand (D148, narrowing D147 at the Owner's request).
+     */
+    cancel: () => setSelection(null),
     onPointerDown,
     onPointerMove,
     onPointerUp,

@@ -451,3 +451,59 @@ escalation-tier, not a routine refactor):
     available, about 30 containers, load average 1.3, and no
     `client_max_body_size` in any nginx config.
   No code written.
+
+### G-043 · Cancel drops only the selection in hand — ACTIVE (2026-09-17)
+- **What:** the selection bar's Cancel discards the floating piece and nothing
+  else. Edits already committed during the same spell of selecting — a previous
+  piece merged by a paste, a crop — stay done.
+- **Why:** Owner request (2026-09-17), narrowing the ruling they gave a day
+  earlier: "Cancel only current selection operation". G-042 shipped the wider
+  behaviour (D147), where Cancel also undid the merge a paste had performed.
+- **Acceptance criteria:**
+  1. **A drawn piece.** Draw, move, flip, rotate, then Cancel: the chart is
+     untouched and nothing was committed, exactly as today.
+  2. **A pasted piece.** Copy, deselect, paste, move, then Cancel: the pasted
+     piece vanishes, the merge the paste performed **stays**, and the clipboard
+     survives.
+  3. **Other actions are unaffected:** crop still commits, Deselect still merges,
+     and Undo still walks the history it always did.
+  4. **Docs.** A decision records the narrowing and marks D147 partly superseded;
+     the README stops claiming Cancel undoes everything the selection did.
+  5. **Tests and release.** The e2e cancel tests cover both cases; lint,
+     type-check, unit, e2e and docs-lint pass; deployed and checked live.
+- **Constraints:**
+  - A separate worktree; other sessions share this tree.
+  - No new runtime dependencies.
+  - Codex is at its usage limit until 2026-09-19; note and skip if still down.
+  - Standing deploy approval.
+
+**Milestones:**
+- [x] **M1 — Narrow Cancel.** Done 2026-09-17 (D148). The hook drops the session snapshot; the pasted-
+  piece test inverts; README and decisions updated. Gate: criteria 1–4 with the
+  suites green.
+- [ ] **M2 — Release.** Deploy, live check, then the Owner's sign-off.
+
+**Progress log** (newest first):
+- 2026-09-17 — **M1 done: Cancel drops only the piece in hand (D148).**
+  - `cancel` is now `setSelection(null)`. The session snapshot (`sessionBaseRef`)
+    and the copy `paste` took before merging are gone, since nothing else used
+    them. A lifted piece behaves as before: a lift commits nothing, so Cancel
+    leaves the chart untouched and Undo stays where it was.
+  - D148 records the narrowing; D147 is marked partly superseded for Cancel. The
+    README now says "cancel the piece you are holding".
+  - **A test of mine that could not have proved its point:** the first rewrite of
+    the pasted-piece case asserted that the paste's merge had changed the chart,
+    but the piece had already been merged by Deselect before being copied, so
+    pasting identical stitches over identical stitches left the count at 1550
+    either way. It now pastes, drags the piece onto other colours and merges it —
+    a real committed edit — then pastes again and cancels, so "the earlier merge
+    stands" is something the chart can actually show.
+  - **Verification:** type-check, lint and docs-lint clean; Vitest 1011 passed,
+    8 skipped; Playwright selection-actions 5/5, plus interaction-correctness,
+    editing and keyboard-shortcuts 17/17 — the specs most likely to feel a change
+    to shared selection state.
+  - **Next, M2:** the full suite, deploy, live check, then the Owner's sign-off.
+- 2026-09-17 — Goal planned from the Owner's correction. The change is contained:
+  `sessionBaseRef` and the snapshot `paste` took exist only for the wider
+  behaviour, so Cancel becomes `setSelection(null)` and the lifted-piece case is
+  unchanged (a lift never committed anything to undo).
