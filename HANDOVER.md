@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-17 at aeb1678 (G-034 M3, built and verified locally; none of it deployed)
+Last verified: 2026-09-17 at ab8497b (G-034 M4, built and verified locally; none of it deployed)
 
 Photo → editable, printable cross-stitch chart, entirely client-side. A
 standalone Owner project (not svc-lab, no monetization), live at
