@@ -157,3 +157,5 @@ remain readable with git show.
 - D146 — The Brush double-click fill is a workspace option, on by default — active
 - D147 — Selection actions, icon buttons, and chrome a photo-free chart does not need — partly superseded (D148 for Cancel)
 - D148 — Cancel drops only the floating piece — active
+- D149 — The processor runs three workers inside a 3-CPU, 2 GiB cap — active
+- D150 — The server decodes photos with @napi-rs/canvas — active

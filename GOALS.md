@@ -217,20 +217,22 @@ milestone's own result justifies continuing):
 - The box: 6 vCPU (AMD EPYC), 11 GiB RAM with **7.6 GiB available**, 2 GiB swap,
   130 GB disk free. Load average 1.20 — about **83 % of the CPU is idle**. All
   ~40 existing containers together use **1.7 GiB**.
-- **The server runs this pipeline's work about 2.0× slower per core** than the
-  machine every benchmark came from (`scratchpad` probe: three loops shaped like
-  the hot paths, 274 ms against 135 ms; the ratio held at 1.9–2.0× on each).
-- Per job, one core, doubling the measured Node benchmarks
+- **Measured 2026-09-17 inside the caps** (M1,
+  `docs/reviews/2026-09-17-server-processing-capacity.md`): the real pipeline runs
+  **about 3.4× slower per core** than the benchmark machine — 12.1 s against 3.6 s
+  for the largest Standard generation. A synthetic probe had predicted 2.0×, so the
+  first estimates were optimistic by roughly 70 %.
+- Per job, one core — **measured** on the host, earlier estimate in brackets:
   (`docs/reviews/2026-09-15-performance-results.md`):
 
-  | Job | Laptop | Server |
-  |---|---:|---:|
-  | Generate, 12 MP → 100 st, Standard | 2.9 s | ~6 s |
-  | Generate, 12 MP → 100 st, Crisp | 7.5 s | ~15 s |
-  | Generate, 1.5 MP → 1000 st, Standard | 4.9 s | ~10 s |
-  | Generate, 1.5 MP → 1000 st, Crisp | 6.8 s | ~14 s |
-  | Pattern Keeper PDF, 1000 st | 11.1 s | ~22 s |
-  | Export all, 1000 st | 37.8 s | ~76 s |
+  | Job | Server, measured | Peak RSS | (estimate) |
+  |---|---:|---:|---:|
+  | Generate, 12 MP → 100 st, Standard | 7.2 s | 113 MB | (~6 s) |
+  | Generate, 12 MP → 100 st, Crisp | 15.1 s | 122 MB | (~15 s) |
+  | Generate, 1.5 MP → 1000 st, Standard | 12.1 s | 228 MB | (~10 s) |
+  | Generate, 1.5 MP → 1000 st, Crisp | 14.7 s | 234 MB | (~14 s) |
+  | Pattern Keeper PDF, 1000 st | not yet measured | — | (~22 s) |
+  | Export all, 1000 st | not yet measured | — | (~76 s) |
 
 - **This supersedes the 2026-09-13 estimate of "2–3 heavy jobs".** That used
   pre-G-035 timings and is stale by roughly 3×.
@@ -249,13 +251,14 @@ milestone's own result justifies continuing):
   that is a worst wait of about 40 s, which the client shows as a queue position.
 - **Deadlines:** 45 s for a generation or a single export, 150 s for Export all.
   A job over its deadline is killed and its worker replaced.
-- **Memory budget:** a job is estimated at 250–400 MB (a 4000×3000 decode is
-  48 MB, plus float grids over 750k cells, plus export canvases). Three at once
-  fits 2 GiB with room to spare — **M1 measures this rather than assuming it**,
-  and the pool size follows the measurement if it is worse.
-- **Throughput at these caps:** about 30 small generations a minute, about 18 at
-  1000 stitches Standard, roughly half that for Crisp. One "Export all" at 1000
-  stitches occupies a worker for over a minute.
+- **Memory, measured (D149):** 113–234 MB per job, better than the 250–400 MB the
+  plan inferred. Three concurrent jobs peaked at 209–235 MB each, ~650 MB together,
+  well inside the 2 GiB cap.
+- **Contention, measured:** three jobs at once cost about 15 % more each (13.8–13.9 s
+  against 12.1 s solo), so a pool of three inside a 3-CPU cap holds up.
+- **Throughput at these caps:** about **12–13 large generations a minute**, not the 18
+  first estimated, so the client shows a queue position. A 12-deep queue implies a
+  worst wait near 60 s.
 
 **Consequences that remain** (privacy is no longer one of them)
 - **Two site claims become false and must change with the behaviour:**
@@ -283,10 +286,10 @@ caps)
    checks the header's dimensions before decoding, and keeps the decoded buffer
    in memory keyed by SHA-256 with a 30-minute idle TTL and LRU eviction inside
    the memory cap.
-4. Decoding must match Chrome's (EXIF orientation, ICC to sRGB) or the same
-   photo yields a different pattern. M1 measures `@napi-rs/canvas` against
-   `sharp` on a photo set before choosing; either is new to the portfolio and
-   needs a decision file.
+4. Decoding must match Chrome's (EXIF orientation, ICC to sRGB) or the same photo
+   yields a different pattern. **Settled in M1 (D150): `@napi-rs/canvas`**, which
+   matched Chrome exactly on every case measured; `sharp` failed EXIF orientation
+   and an embedded ICC profile.
 5. `POST /api/jobs` returns a job id; `GET /api/jobs/:id/events` streams
    progress; `DELETE /api/jobs/:id` cancels. Results are a versioned binary
    payload.
@@ -350,7 +353,7 @@ caps)
   - Standing deploy approval; OPERATIONS.md check-in at every milestone.
 
 **Milestones:**
-- [ ] **M1 — Measure inside the caps, then decide.** Stand the caps up on the
+- [x] **M1 — Measure inside the caps, then decide.** Done 2026-09-17 (D149, D150). Stand the caps up on the
   production host with a throwaway container: measure real per-job CPU and
   **peak RSS** for the largest generation, a Crisp run, a Pattern Keeper PDF and
   Export all, and set the pool size, queue length and deadlines from what is
@@ -376,6 +379,25 @@ caps)
   deploy-log row.
 
 **Progress log** (newest first):
+- 2026-09-17 — **M1 done: measured inside the caps; the estimates were wrong in both
+  directions (D149, D150).**
+  - **Speed:** ~3.4× slower per core than the benchmark machine, not the 2.0× a
+    synthetic probe predicted — 12.1 s for the largest Standard generation, 14.7 s
+    Crisp, 7.2 s for a 12 MP photo at 100 stitches.
+  - **Memory:** better than inferred — 113–234 MB per job against an assumed
+    250–400 MB.
+  - **Contention:** three jobs at once cost ~15 % more each, so a pool of three in a
+    3-CPU cap holds up (D149); throughput is ~12–13 large generations a minute.
+  - **Decoder:** `@napi-rs/canvas` matched Chrome exactly on all five cases; `sharp`
+    returned the wrong size for EXIF orientation 6 and left 100 % of pixels differing
+    on an embedded ICC profile, so it is rejected (D150) despite a faster 12 MP
+    decode.
+  - **Method:** the pipeline was bundled into one file and run on the host in a
+    throwaway `--cpus=3 --memory=2g` container, one case per process. Nothing was
+    installed there and the production checkout was untouched. The host was not idle
+    (load 1.9→2.4), so these are working-day figures.
+  - **Still unmeasured:** export costs, which need the canvas-factory change and so
+    belong to M2. No production code written and no dependency added to the repo yet.
 - 2026-09-17 — **Re-planned at the Owner's request**, after they confirmed
   privacy was never a requirement.
   - Privacy drops out of the blockers and out of the acceptance criteria; what
@@ -383,7 +405,8 @@ caps)
     false and must change with the behaviour.
   - Capacity re-measured on the host today (6 vCPU, 7.6 GiB available, 83 %
     idle, other containers 1.7 GiB) and against a like-for-like CPU probe: the
-    server is **2.0× slower per core** than the benchmark machine. The plan now
+    server is 2.0× slower per core on a synthetic probe — **corrected to ~3.4× by
+    M1's real-pipeline measurement**. The plan now
     carries per-job server estimates and **4 concurrent heavy jobs**, replacing
     the stale "2–3".
   - The plan is sized to explicit caps — `processor` 3 CPU / 2 GiB, `app` 1 CPU
