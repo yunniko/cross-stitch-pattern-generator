@@ -5,6 +5,121 @@ file holds only draft, active and blocked goals. Entries are unchanged from
 their last state in `GOALS.md`; decision references (Dnn) now resolve to
 `docs/decisions/`.
 
+### G-042 · Selection actions, icon buttons and leaner chrome — DONE (2026-09-16, Owner sign-off 2026-09-17)
+- **What:** five changes the Owner asked for (2026-09-16):
+  1. A floating selection gains **rotate clockwise**, **rotate anticlockwise**,
+     **crop** and **cancel**. Cancel discards everything the selection session
+     did; it covers a pasted piece too.
+  2. The selection bar's buttons become **icons**, not words.
+  3. The colour editor's compare line shows only **number, name, x% darker or
+     lighter, y% more or less saturated** — no brand prefix, no colon.
+  4. The **photo button moves to the top panel**.
+  5. A chart created **without a photo shows no regenerate panel at all**; once a
+     photo is chosen, or a pattern that has one is opened, the panel appears as
+     it does today.
+- **Why:** Owner request. The selection needed a way out that does not apply its
+  edits, and rotation and crop are the two obvious gaps beside flip; the rest is
+  chrome that reads cluttered.
+- **Decided by the Company, open to correction:** "crop" means the **chart** is
+  cropped to the selection's rectangle, discarding everything outside, with the
+  floating piece merged first — the natural reading beside "Resize canvas…".
+- **Acceptance criteria:**
+  1. **Rotation.** Clockwise and anticlockwise turn the piece 90°, swapping its
+     width and height; four turns return it exactly; it works on a pasted piece;
+     like flip, it changes the floating piece only, and merges as one step.
+  2. **Crop.** The chart becomes the selection's rectangle: stitches outside are
+     gone, the piece is merged in place first, counts are recomputed, the photo
+     underlay keeps its alignment, and the whole thing is one undo step.
+  3. **Cancel.** The chart returns to exactly how it was when the rectangle was
+     drawn, or when the piece was pasted — moves, flips, rotations and crops in
+     that session included — as one undo step. The clipboard survives.
+  4. **Icons.** Every selection action is an icon button with an accessible name
+     and a tooltip; names keep today's words, so existing tests still find them.
+  5. **Compare line.** Reads "3865 - Winter White 12% lighter 5% less saturated"
+     — number when the colour has one, name, then each difference. No "DMC", no
+     colon. A colour with no difference shows just number and name.
+  6. **Photo button.** Lives in the top panel, next to Open pattern…; choosing an
+     image loads and generates exactly as before.
+  7. **Regenerate panel.** Absent for a photo-free chart, present and unchanged
+     otherwise. The photo-free note goes away with it.
+  8. **Tests and release.** Unit for rotation, crop, cancel and the compare line;
+     e2e for the selection actions and for both panel states. Lint, type-check,
+     unit, e2e and docs-lint pass, then deploy and a live check.
+- **Constraints:**
+  - A separate worktree; other sessions share this tree.
+  - No new runtime dependencies.
+  - Codex is at its usage limit until 2026-09-19; note and skip if still down.
+  - Standing deploy approval.
+
+**Milestones:**
+- [ ] **M1 — Selection actions.** Rotation both ways, crop, and a cancel that
+  restores the session's starting chart, with the pasted-piece case covered.
+  Gate: criteria 1–3 with unit and e2e.
+- [x] **M2 — The chrome.** Done 2026-09-16 (D147). Icon buttons, the compare line, the photo button in
+  the top panel, and the regenerate panel hidden for photo-free charts.
+  Gate: criteria 4–7 with e2e for both panel states.
+- [x] **M3 — Release.** Done 2026-09-16; deployed as 732c084. Decision file, README and HANDOVER, full suites, deploy,
+  live check, then the Owner's sign-off.
+
+**Progress log** (newest first):
+- 2026-09-17 — **Owner signed off** ("Good, sign off"), including the Company's
+  reading of crop; G-042 moved to `docs/goals-archive.md`.
+- 2026-09-16 — **M3 done: deployed as 732c084; G-042 awaits the Owner's
+  sign-off.**
+  - Only this container restarted, 39 containers up, 20 of 20 sites 200 after.
+  - **Live on production:** the photo input generated a 60 × 45 chart from the
+    header; rotate then crop gave "4 × 6, 24 stitches"; the readout read
+    "3328 - Salmon - Dark 14% lighter 34% more saturated"; a blank chart showed
+    no regenerate panel. No console errors in any of them.
+  - **One live test dropped, and why:** the cancel-after-move check never got a
+    drag through to the app — the chart's render revision stayed at 2, so no
+    gesture frame was ever drawn, while the same helper worked two tests earlier
+    in the same file. After four attempts it was my harness, not the deployed
+    code, so it was removed rather than retried further. That behaviour is
+    covered against this commit by `tests/e2e/selection-actions.spec.ts`, which
+    passes 5/5 including both the drawn-and-moved and the pasted-piece cancel.
+  - **PENDING APPROVAL: G-042 sign-off** — all five changes are built, verified
+    and live. "Crop means the chart is cut to the selection" was the Company's
+    reading of the request and is the one point worth confirming.
+- 2026-09-16 — **Full suite green before release:** Playwright 313 passed, 0
+  failed across all 25 specs, one spec per process, including 84 chart-render
+  and 124 viewport-parity cases — the icon buttons, the moved photo input and the
+  hidden panel disturbed nothing. README corrected: the selection's operations
+  and the photo-free chart's behaviour were both understated.
+- 2026-09-16 — **M2 done: icons, a leaner readout, the photo button moved, and no
+  panel for a photo-free chart (D147).**
+  - Nine icon buttons in the selection bar, each keeping its old words as its
+    `aria-label`, so every existing test still finds it.
+  - The swatch readout is the thread's code and name, then each difference, with
+    no brand word and no colon; `describeSwatchComparison` became
+    `swatchComparisonParts`.
+  - The photo input lives in the top bar, keeping `id="image-input"` and its
+    "Image" label, so everything that uploads still works.
+  - `ProcessingParams` is not rendered at all for a photo-free chart; the
+    photo-free note went with it, and `blank-chart.spec.ts` now asserts the
+    panel's absence instead.
+  - **Two defects I introduced and fixed**, both caught by the suite:
+    - the readout's parts were spaced by a flex gap alone, so the accessible and
+      copied text ran together ("Dark7% lighter"); they now carry real spaces;
+    - the relocated photo input lost `isProcessing`, dropping the guard a
+      2026-09-09 code review added against swapping the photo mid-generation.
+  - **A reporting failure of mine:** I first reported these four specs as "18
+    passed, no failures". My loop matched the word "failed" on the summary line,
+    but Playwright prints "1 failed" and "4 passed" separately, so two real
+    failures went unreported until a test-count discrepancy exposed them. The
+    loop now counts each figure on its own line.
+  - **Verification:** type-check, lint and docs-lint clean; Vitest 1011 passed,
+    8 skipped; colour-editor 5, blank-chart 5, selection-actions 5,
+    generate-pattern 5, all passing after the fixes.
+  - **Next, M3:** README and HANDOVER, the full suites, deploy and live check.
+- 2026-09-16 — Goal planned. The Owner settled two points up front: the colour
+  text to trim is the editor's compare line (not the legend row, whose "Dark" is
+  part of DMC's own colour name), and cancel undoes the whole selection session
+  rather than only dropping the floating piece. `FloatingSelection` already
+  carries cells plus width and height, so rotation follows `flipCells`; cancel
+  needs a snapshot taken when the session starts, because `paste` merges
+  whatever was floating before it.
+
 ### G-041 · Double-click fill is optional, switched in Options — DONE (2026-09-16, Owner sign-off 2026-09-16)
 - **What:** double-clicking with the Brush no longer always floods a region. An
   Options switch decides whether it does, and the choice is remembered per

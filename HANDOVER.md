@@ -10,7 +10,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs `master` as deployed on 2026-09-16 (last deploy-log row).
-Signed off: G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`),
+Signed off: G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`),
 G-037 symmetry and quick mirror, G-036 charts without freezing
 (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance
 (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the
@@ -218,7 +218,7 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
 
 ## Next steps and open questions
 
-- **PENDING APPROVAL: G-042 sign-off.** Selection rotate/crop/cancel, icon buttons, the trimmed readout, the photo input in the top bar and no regenerate panel for a photo-free chart are live (D147). Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, a drag's first frame paints in full (34–77 ms), and a drag with symmetry on keeps the pre-M3 cost (D145).
+- Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, a drag's first frame paints in full (34–77 ms), and a drag with symmetry on keeps the pre-M3 cost (D145).
 - Left open from G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142).
 - Left open from G-033: "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.
