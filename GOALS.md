@@ -366,7 +366,7 @@ caps)
   `/api/photos` and `/api/jobs` with progress and cancel; Origin check, rate
   limit, logging. Golden hashes through the pool; overload, cap and security
   tests. Client generation behind the flag.
-- [ ] **M3 — Preview and client cutover.** Server enhancement preview; client
+- [x] **M3 — Preview and client cutover.** Done 2026-09-17 (D152). Server enhancement preview; client
   upload with re-upload on 410; clear messages for a busy server, a network
   failure and an expired photo. Full e2e green in server mode.
 - [ ] **M4 — Exports.** Canvas-factory injection in the shared drawing code with
@@ -379,6 +379,29 @@ caps)
   deploy-log row.
 
 **Progress log** (newest first):
+- 2026-09-17 — **M3 done: the whole e2e suite passes against a server-processing build (D152).**
+  - **Server preview:** its own worker, queue and deadline (D152, mirroring D116), WebP cached per photo and
+    mode — 461 ms cold, 1 ms cached, ~6 KB. Its output is byte-for-byte what the in-process pipeline produces.
+  - **Client cutover:** one shared upload keyed by content hash, re-upload and retry on a 410, and separate
+    messages for a busy server, an unreachable one and an expired photo.
+  - **E2E in server mode: 313 passed across all 25 specs**, matching the 313 the config collects — run one spec
+    per process, since the 6-worker default was killed for memory. The processor served **81 jobs and 3
+    previews** during the run, so the specs really did use the server path.
+  - **Checks:** Vitest 1047 passed, 8 skipped; `tsc` clean; `npm run lint` 0 errors.
+  - **Four defects found, three of them mine from earlier milestones:**
+    1. The processor validated `paletteMode` as "free" when the type says "full", so **every default generation
+       was rejected** with a 400 the editor reported as a bad photo. Validation now derives from the type unions;
+       `tests/unit/processor-settings-validation.spec.ts` fails against the old list.
+    2. A terminated worker still emits `exit`, which was charged to whichever job took its slot — in both the pool
+       and the preview runner. My first recovery test hid it by using a fresh pool; it now reuses the same one.
+    3. **CI was broken since M2:** it ran `test:unit` without `build:processor`, and `dist/` is git-ignored
+       (reproduced: 14 failed without the bundle, 18 with it).
+    4. M2's "eslint clean" was scoped wrong — I linted explicit paths and skipped `scripts/`, where a `require()`
+       from M1 was failing `npm run lint`.
+  - **Also:** rate-limit capacities are now env-overridable (production defaults unchanged, nonsensical values
+    ignored), because the suite generates far more often than a person does.
+  - **Not done here:** nothing deployed; the default build still generates in the browser.
+  - **Next (M4):** exports — canvas-factory injection, server fonts and textures, every export kind, parity tests.
 - 2026-09-17 — **M2 done: the processor generates patterns behind the app, inside its caps (D151).**
   - **Built:** a `processor` container — pool of 3, queue of 12, 45 s deadlines, and a SHA-256-keyed
     photo store with a 30-minute idle TTL and LRU eviction inside 512 MB — publishing no port, so the

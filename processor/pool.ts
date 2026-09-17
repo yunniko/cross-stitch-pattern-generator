@@ -56,11 +56,17 @@ export class GenerationPool {
 
   private spawn(index: number): Worker {
     const worker = new Worker(this.workerPath);
-    worker.on("message", (message: WorkerMessage) => this.onMessage(index, message));
-    worker.on("error", (err) => this.onWorkerGone(index, err.message));
+    // A worker we have already replaced still emits `exit` (terminating one exits with code 1). Without this guard
+    // that late event would fail whichever job took over its slot, not the one that was killed.
+    const isCurrent = () => this.workers[index]?.worker === worker;
+    worker.on("message", (message: WorkerMessage) => {
+      if (isCurrent()) this.onMessage(index, message);
+    });
+    worker.on("error", (err) => {
+      if (isCurrent()) this.onWorkerGone(index, err.message);
+    });
     worker.on("exit", (code) => {
-      // A clean exit only happens when we terminate it ourselves, which the caller has already accounted for.
-      if (code !== 0) this.onWorkerGone(index, `worker exited with code ${code}`);
+      if (code !== 0 && isCurrent()) this.onWorkerGone(index, `worker exited with code ${code}`);
     });
     worker.unref();
     return worker;

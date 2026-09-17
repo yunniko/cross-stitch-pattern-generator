@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { buildPattern } from "@/lib/pipeline/pattern";
 import { makePhotoLikeBuffer } from "../tests/unit/helpers/fixtures";
 import type { EdgeMode } from "@/lib/pipeline/pattern.worker";
@@ -60,7 +61,6 @@ console.log("");
 
 function readCgroupLimits(): string {
   try {
-    const fs = require("node:fs") as typeof import("node:fs");
     const mem = fs.readFileSync("/sys/fs/cgroup/memory.max", "utf8").trim();
     const cpu = fs.readFileSync("/sys/fs/cgroup/cpu.max", "utf8").trim();
     return `memory.max=${mem}, cpu.max=${cpu}`;

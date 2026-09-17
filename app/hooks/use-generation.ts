@@ -3,7 +3,8 @@ import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { isReleasedEnhancementMode } from "@/lib/pipeline/enhance";
 import { isServerProcessing } from "@/lib/pipeline/generation-mode";
 import { runPatternJob } from "@/lib/pipeline/pattern-client";
-import { runServerPatternJob, ServerBusyError } from "@/lib/pipeline/pattern-server";
+import { runServerPatternJob } from "@/lib/pipeline/pattern-server";
+import { PhotoExpiredError, ProcessorUnreachableError, ServerBusyError } from "@/lib/pipeline/server-errors";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, type PixelBuffer, type StitchPattern } from "@/lib/types";
 import type { SourceImageMeta } from "./use-source-image";
 
@@ -27,6 +28,17 @@ function queueText(position: number, estimatedWaitMs: number): string {
   const ordinal = position === 1 ? "1st" : position === 2 ? "2nd" : position === 3 ? "3rd" : `${position}th`;
   const seconds = Math.round(estimatedWaitMs / 1000);
   return seconds > 0 ? `Waiting for a free slot — ${ordinal} in line, about ${seconds} s.` : `Waiting for a free slot — ${ordinal} in line.`;
+}
+
+/** Each failure says what the reader can do about it, rather than one message for every cause (G-034 M3). */
+function messageFor(error: unknown): string {
+  if (error instanceof ServerBusyError) return `The pattern service is busy. Try again in about ${error.retryAfterSeconds} seconds.`;
+  if (error instanceof ProcessorUnreachableError) return "Couldn't reach the pattern service. Check your connection and try again.";
+  if (error instanceof PhotoExpiredError) return "The server no longer has that photo. Choose it again, then generate.";
+  // Anything else is a fault rather than something the reader can act on, so the wording stays general — but the
+  // underlying error is logged, because swallowing it once hid a plain server-side rejection behind this sentence.
+  console.error("Pattern generation failed:", error);
+  return "Couldn't generate a pattern from that image.";
 }
 
 /** Generate / Regenerate: validates the settings, runs the job on whichever side this build uses, and hands back a pattern carrying the photo reference and name. */
@@ -108,12 +120,7 @@ export function useGeneration(inputs: GenerationInputs) {
     } catch (failure) {
       // A newer photo cancels this job on purpose; only a still-relevant failure is shown.
       if (revisionRef.current !== myRevision) return;
-      // Being turned away because the server is full is a wait, not a broken photo, so it says so.
-      if (failure instanceof ServerBusyError) {
-        setError(`The pattern service is busy. Try again in about ${failure.retryAfterSeconds} seconds.`);
-      } else {
-        setError("Couldn't generate a pattern from that image.");
-      }
+      setError(messageFor(failure));
     } finally {
       setIsProcessing(false);
       setQueueMessage(null);

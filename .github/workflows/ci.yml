@@ -23,6 +23,9 @@ jobs:
       # Route/layout types (e.g. LayoutProps) and next-env.d.ts are generated and git-ignored; a fresh checkout lacks them.
       - run: npx next typegen
       - run: npx tsc --noEmit
+      # The processor's worker bundle is git-ignored, and the unit suite runs the pool and preview specs against it
+      # (G-034 M2, M3), so it must be built before the tests rather than assumed present.
+      - run: npm run build:processor
       - run: npm run test:unit
 
       - run: npx playwright install --with-deps chromium

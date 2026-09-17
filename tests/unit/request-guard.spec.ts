@@ -3,7 +3,8 @@ import { clientIp, guardMutation, originRejected, rateLimited, resetRateLimits }
 
 /**
  * The two checks standing in front of the processor (G-034 M2, acceptance criterion 6): a state-changing request must
- * come from this site, and one address may not spend the pool at will.
+ * come from this site, and one address may not spend the pool at will. Previews carry their own, larger allowance
+ * (G-034 M3), because switching modes several times is normal use.
  */
 
 const SITE = "http://localhost:3000";
@@ -58,6 +59,48 @@ describe("rate limit", () => {
     // Behind nginx the header is "client, proxy1, proxy2" -- taking the last entry would rate-limit the proxy instead.
     expect(clientIp(request({ ip: "203.0.113.7, 10.0.0.1" }))).toBe("203.0.113.7");
   });
+
+  it("gives previews their own, larger allowance", () => {
+    // Spending the whole generation budget must not stop the same person from looking at enhancement modes.
+    for (let i = 0; i < 6; i++) rateLimited(request({ ip: "203.0.113.8" }));
+    expect(rateLimited(request({ ip: "203.0.113.8" }))?.status).toBe(429);
+
+    const previews = Array.from({ length: 30 }, () => rateLimited(request({ ip: "203.0.113.8" }), "preview"));
+    expect(previews.every((result) => result === null)).toBe(true);
+    expect(rateLimited(request({ ip: "203.0.113.8" }), "preview")?.status).toBe(429);
+  });
+});
+
+describe("configurable capacity", () => {
+  it("uses the production default when no override is set", () => {
+    delete process.env.RATE_LIMIT_JOBS_PER_MINUTE;
+    const results = Array.from({ length: 7 }, () => rateLimited(request({ ip: "203.0.113.20" })));
+    expect(results.filter((r) => r === null)).toHaveLength(6);
+    expect(results[6]?.status).toBe(429);
+  });
+
+  it("honours an override, so a test run is not refused for behaving unlike a person", () => {
+    process.env.RATE_LIMIT_JOBS_PER_MINUTE = "50";
+    try {
+      const results = Array.from({ length: 20 }, () => rateLimited(request({ ip: "203.0.113.21" })));
+      expect(results.every((r) => r === null)).toBe(true);
+    } finally {
+      delete process.env.RATE_LIMIT_JOBS_PER_MINUTE;
+    }
+  });
+
+  it("ignores a nonsensical override rather than disabling the limit", () => {
+    for (const bad of ["0", "-5", "not-a-number", ""]) {
+      process.env.RATE_LIMIT_JOBS_PER_MINUTE = bad;
+      resetRateLimits();
+      try {
+        const results = Array.from({ length: 7 }, () => rateLimited(request({ ip: "203.0.113.22" })));
+        expect(results.filter((r) => r === null), `override ${JSON.stringify(bad)}`).toHaveLength(6);
+      } finally {
+        delete process.env.RATE_LIMIT_JOBS_PER_MINUTE;
+      }
+    }
+  });
 });
 
 describe("guardMutation", () => {
@@ -70,5 +113,11 @@ describe("guardMutation", () => {
 
   it("passes a same-origin request within its rate", () => {
     expect(guardMutation(request({ origin: SITE, ip: "203.0.113.11" }))).toBeNull();
+  });
+
+  it("applies the preview allowance when asked for one", () => {
+    const allowed = Array.from({ length: 30 }, () => guardMutation(request({ origin: SITE, ip: "203.0.113.12" }), "preview"));
+    expect(allowed.every((result) => result === null)).toBe(true);
+    expect(guardMutation(request({ origin: SITE, ip: "203.0.113.12" }), "preview")?.status).toBe(429);
   });
 });

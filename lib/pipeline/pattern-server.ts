@@ -3,15 +3,16 @@ import type { StitchPattern } from "../types";
 import type { EnhancementModeId } from "./enhance";
 import type { EdgeMode, GenerationMode, PaletteMode } from "./pattern.worker";
 import { PatternJobCancelledError } from "./pattern-client";
+import { ensurePhotoUploaded, forgetPhoto } from "./photo-upload";
+import { errorFromResponse, isNetworkFailure, PhotoExpiredError, ProcessorUnreachableError } from "./server-errors";
 
 /**
  * Generation on the server (G-034 M2): the same job `pattern-client.ts` runs in a Web Worker, run by the processor
- * instead. Which of the two the editor uses is decided by `NEXT_PUBLIC_PROCESSING`, so both paths exist side by side
- * until M5 retires the browser one.
+ * instead. Which of the two the editor uses is decided by `NEXT_PUBLIC_PROCESSING` (D151), so both paths exist side by
+ * side until M5 retires the browser one.
  *
- * The photo is uploaded once and then referred to by content hash, so Regenerate at a different size or colour count
- * re-sends nothing. The bytes uploaded are the file's own, which is what makes the server's decode match the browser's
- * (D150) — a re-encode here would quietly produce a different pattern from the same photo.
+ * The photo is uploaded once by `photo-upload.ts` and then referred to by content hash, so Regenerate at a different
+ * size or colour count re-sends nothing.
  */
 
 export interface RunServerPatternJobOptions {
@@ -27,19 +28,6 @@ export interface RunServerPatternJobOptions {
   /** Called while the job is waiting for a worker, so the editor can say where in the queue it is rather than just "working". */
   onQueued?: (position: number, estimatedWaitMs: number) => void;
 }
-
-/** The server is at capacity. Carries what the processor said to wait, so the editor can offer a sensible retry. */
-export class ServerBusyError extends Error {
-  readonly retryAfterSeconds: number;
-  constructor(retryAfterSeconds: number) {
-    super("The pattern service is busy right now.");
-    this.name = "ServerBusyError";
-    this.retryAfterSeconds = retryAfterSeconds;
-  }
-}
-
-/** Photo bytes already uploaded this session, by data URL, so the same photo is sent once however often it is used. */
-const uploadedHashes = new Map<string, string>();
 
 let activeController: AbortController | null = null;
 let activeJobId: string | null = null;
@@ -57,39 +45,23 @@ export function cancelServerPatternJob(): void {
   }
 }
 
-async function uploadPhoto(dataUrl: string, signal: AbortSignal): Promise<string> {
-  const blob = await (await fetch(dataUrl)).blob();
-  const res = await fetch("/api/photos", { method: "POST", body: blob, signal });
-  if (!res.ok) throw await errorFrom(res, "That photo could not be uploaded.");
-  const { hash } = (await res.json()) as { hash: string };
-  uploadedHashes.set(dataUrl, hash);
-  return hash;
-}
-
-async function errorFrom(res: Response, fallback: string): Promise<Error> {
-  if (res.status === 503) {
-    const retryAfter = Number(res.headers.get("retry-after"));
-    return new ServerBusyError(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 30);
-  }
+async function post(url: string, body: string, signal: AbortSignal): Promise<Response> {
   try {
-    const body = (await res.json()) as { error?: string };
-    return new Error(body.error ?? fallback);
-  } catch {
-    return new Error(fallback);
+    return await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, signal, body });
+  } catch (error) {
+    if (isNetworkFailure(error)) throw new ProcessorUnreachableError();
+    throw error;
   }
 }
 
-/** Submits the job, re-uploading the photo once if the server has since dropped it from its cache. */
+/** Submits the job, re-uploading the photo once if the server has since dropped it. */
 async function submit(options: RunServerPatternJobOptions, signal: AbortSignal): Promise<string> {
-  let hash = uploadedHashes.get(options.photoDataUrl) ?? (await uploadPhoto(options.photoDataUrl, signal));
-
   for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await fetch("/api/jobs", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      signal,
-      body: JSON.stringify({
-        photoHash: hash,
+    const photoHash = await ensurePhotoUploaded(options.photoDataUrl, signal);
+    const res = await post(
+      "/api/jobs",
+      JSON.stringify({
+        photoHash,
         longerSideStitches: options.longerSideStitches,
         colorCount: options.colorCount,
         generationMode: options.generationMode,
@@ -97,17 +69,17 @@ async function submit(options: RunServerPatternJobOptions, signal: AbortSignal):
         edgeMode: options.edgeMode,
         enhancementMode: options.enhancementMode,
       }),
-    });
+      signal
+    );
     if (res.status === 410 && attempt === 0) {
       // The photo aged out of the server's cache; send it again and retry once.
-      uploadedHashes.delete(options.photoDataUrl);
-      hash = await uploadPhoto(options.photoDataUrl, signal);
+      forgetPhoto(options.photoDataUrl);
       continue;
     }
-    if (!res.ok) throw await errorFrom(res, "That pattern could not be generated.");
+    if (!res.ok) throw await errorFromResponse(res, "That pattern could not be generated.");
     return ((await res.json()) as { jobId: string }).jobId;
   }
-  throw new Error("That pattern could not be generated.");
+  throw new PhotoExpiredError();
 }
 
 interface JobStatusMessage {
@@ -120,8 +92,14 @@ interface JobStatusMessage {
 
 /** Reads the progress stream to its end, reporting each update; resolves with the final state. */
 async function follow(jobId: string, options: RunServerPatternJobOptions, signal: AbortSignal): Promise<JobStatusMessage> {
-  const res = await fetch(`/api/jobs/${jobId}/events`, { signal });
-  if (!res.ok || !res.body) throw await errorFrom(res, "Lost contact with the pattern service.");
+  let res: Response;
+  try {
+    res = await fetch(`/api/jobs/${jobId}/events`, { signal });
+  } catch (error) {
+    if (isNetworkFailure(error)) throw new ProcessorUnreachableError();
+    throw error;
+  }
+  if (!res.ok || !res.body) throw await errorFromResponse(res, "Lost contact with the pattern service.");
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -163,11 +141,12 @@ export async function runServerPatternJob(options: RunServerPatternJobOptions): 
     if (final.state !== "done") throw new Error(final.message ?? "That pattern could not be generated.");
 
     const res = await fetch(`/api/jobs/${jobId}/result`, { signal: controller.signal });
-    if (!res.ok) throw await errorFrom(res, "The finished pattern could not be collected.");
+    if (!res.ok) throw await errorFromResponse(res, "The finished pattern could not be collected.");
     // The same parser that opens a saved file, so a malformed or tampered payload is refused rather than rendered.
     return deserializePatternData(await res.json());
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw new PatternJobCancelledError();
+    if (isNetworkFailure(error)) throw new ProcessorUnreachableError();
     throw error;
   } finally {
     if (activeController === controller) {

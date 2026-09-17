@@ -34,6 +34,18 @@ export type WorkerMessage =
   | { type: "done"; jobId: string; pattern: StitchPattern }
   | { type: "error"; jobId: string; message: string };
 
+/** What the preview worker is asked for: the decoded photo, the mode to analyse it in, and the size to return. */
+export interface PreviewJob {
+  requestId: string;
+  imageData: PixelBuffer;
+  mode: Exclude<EnhancementModeId, "off">;
+  maxSide: number;
+}
+
+export type PreviewMessage =
+  | { type: "done"; requestId: string; preview: PixelBuffer }
+  | { type: "error"; requestId: string; message: string };
+
 /** A job's life, as the client sees it over the event stream. */
 export type JobState = "queued" | "running" | "done" | "error" | "cancelled";
 
@@ -63,6 +75,12 @@ export const LIMITS = {
   uploadBytes: 25 * 1024 * 1024,
   /** Refused before decoding: a decompression-bomb guard. */
   maxPhotoPixels: 50_000_000,
+  /** Previews run on their own worker, so one never waits behind a generation (D152, mirroring D116). */
+  previewQueueLength: 8,
+  /** A preview is small work; past this it is abandoned rather than left holding the worker. */
+  previewDeadlineMs: 15_000,
+  /** Encoded previews held per photo and mode, evicted least-recently-used. */
+  previewCacheBytes: 64 * 1024 * 1024,
 } as const;
 
 /** The measured rate a queue wait is estimated from: ~14 s a job across three workers (D149). */

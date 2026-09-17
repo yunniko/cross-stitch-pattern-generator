@@ -94,19 +94,18 @@ describe("processor pool limits", () => {
     }
   }, 120_000);
 
-  it("replaces the killed worker, so the next job still runs", async () => {
-    // A generous deadline for the second job: the point is that the pool recovered, not how fast it is.
-    const pool = new GenerationPool(WORKER, 1, 40);
+  it("keeps serving on the same pool after a job is killed mid-run", async () => {
+    // Deliberately the same pool: killing a job terminates its worker, and that worker's late `exit` event must not
+    // be charged to the job that takes over its slot. Testing this with a fresh pool would prove nothing.
+    const pool = new GenerationPool(WORKER, 1);
     try {
-      await waitForSettled(pool, pool.submit({ longerSideStitches: 300, colorCount: 64 }, slow));
-      const replacement = new GenerationPool(WORKER, 1);
-      try {
-        const jobId = replacement.submit({ longerSideStitches: 60, colorCount: 8 }, small);
-        expect(await waitForSettled(replacement, jobId)).toBe("done");
-        expect(replacement.result(jobId)).not.toBeNull();
-      } finally {
-        await replacement.close();
-      }
+      const doomed = pool.submit({ longerSideStitches: 300, colorCount: 64 }, slow);
+      expect(pool.cancel(doomed)).toBe(true);
+      expect(pool.status(doomed)?.state).toBe("cancelled");
+
+      const jobId = pool.submit({ longerSideStitches: 60, colorCount: 8 }, small);
+      expect(await waitForSettled(pool, jobId)).toBe("done");
+      expect(pool.result(jobId)).not.toBeNull();
     } finally {
       await pool.close();
     }

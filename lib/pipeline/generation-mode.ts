@@ -1,8 +1,10 @@
+import { cancelEnhancePreview } from "./enhance-preview-client";
+import { cancelServerEnhancePreview } from "./enhance-preview-server";
 import { cancelPatternJob } from "./pattern-client";
 import { cancelServerPatternJob } from "./pattern-server";
 
 /**
- * Which side runs generation (G-034 M2, D151).
+ * Which side runs generation and the photo preview (G-034 M2, D151).
  *
  * `NEXT_PUBLIC_PROCESSING` is inlined by `next build`, so this is a build-time choice, not a runtime one: an image is
  * built either for the browser path or the server path. Both paths exist until M5 retires the browser workers.
@@ -18,4 +20,10 @@ export function isServerProcessing(): boolean {
 export function cancelActiveGeneration(): void {
   cancelPatternJob();
   cancelServerPatternJob();
+}
+
+/** The same, for the enhancement preview. */
+export function cancelActivePreview(): void {
+  cancelEnhancePreview();
+  cancelServerEnhancePreview();
 }

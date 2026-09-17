@@ -44,7 +44,7 @@ export default function Workspace() {
   const source = useSourceImage();
   // The enhanced preview replaces the plain photo only before the first Generate; afterwards the grid views take over.
   const enhancementMode = isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off";
-  const photoPreview = useEnhancePreview(source.pixelBuffer, enhancementMode, pattern === null);
+  const photoPreview = useEnhancePreview(source.pixelBuffer, source.meta?.dataUrl ?? null, enhancementMode, pattern === null);
 
   const [viewMode, setViewMode] = useState<ViewMode>("color");
   const [activeTool, setActiveTool] = useState<Tool>("brush");

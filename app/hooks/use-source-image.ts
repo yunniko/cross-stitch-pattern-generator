@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import { decodeSourceImage, loadImageAsPixelBuffer, type DecodedImage } from "@/lib/editor/load-image";
-import { cancelEnhancePreview } from "@/lib/pipeline/enhance-preview-client";
-import { cancelActiveGeneration } from "@/lib/pipeline/generation-mode";
+import { cancelActiveGeneration, cancelActivePreview } from "@/lib/pipeline/generation-mode";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
 
 export interface SourceImageMeta {
@@ -36,7 +35,7 @@ export function useSourceImage() {
   async function loadFile(file: File, handlers: { onLoaded: () => void; onFailed: () => void }) {
     const myRevision = ++revisionRef.current;
     cancelActiveGeneration(); // any in-flight generation or preview was for a superseded photo
-    cancelEnhancePreview();
+    cancelActivePreview();
     setIsLoading(true);
     try {
       const decoded = await loadImageAsPixelBuffer(file);
@@ -54,7 +53,7 @@ export function useSourceImage() {
   /** Adopts a loaded pattern's embedded photo, or clears the photo when it has none, so Regenerate, Move and the underlay keep working (G-012). */
   async function adoptPatternPhoto(pattern: StitchPattern, fallbackName: string) {
     cancelActiveGeneration();
-    cancelEnhancePreview();
+    cancelActivePreview();
     ++revisionRef.current;
     if (!pattern.sourceImage) {
       clear();
