@@ -361,7 +361,7 @@ caps)
   `@napi-rs/canvas` and `sharp`. Deliverables: decision files for the container
   layout, decoder and limits, plus
   `docs/reviews/<date>-server-processing-capacity.md`.
-- [ ] **M2 — Processor, photo store and generation.** The `processor` container
+- [x] **M2 — Processor, photo store and generation.** Done 2026-09-17 (D151). The `processor` container
   with its caps, pool, bounded queue and deadlines; the in-memory photo store;
   `/api/photos` and `/api/jobs` with progress and cancel; Origin check, rate
   limit, logging. Golden hashes through the pool; overload, cap and security
@@ -379,6 +379,27 @@ caps)
   deploy-log row.
 
 **Progress log** (newest first):
+- 2026-09-17 — **M2 done: the processor generates patterns behind the app, inside its caps (D151).**
+  - **Built:** a `processor` container — pool of 3, queue of 12, 45 s deadlines, and a SHA-256-keyed
+    photo store with a 30-minute idle TTL and LRU eviction inside 512 MB — publishing no port, so the
+    app's Route Handlers (`app/api/photos`, `app/api/jobs`, progress over SSE, cancel) are its only
+    caller. They carry an Origin check and a per-address token bucket. Generation runs on either side
+    behind `NEXT_PUBLIC_PROCESSING`, which still defaults to the browser.
+  - **Parity:** golden hashes pass through the real worker pool, and again after the
+    serialize/deserialize round trip the result endpoint performs. Proven falsifiable: corrupting the
+    expected hash failed all five cases, so the comparison is real.
+  - **Overload, measured on the capped container:** 20 simultaneous 1000-stitch generations gave
+    15 accepted (3 running, 12 queued) and 5 refused with `Retry-After: 23` in 116 ms — never queued
+    indefinitely. CPU ~250 % of the 300 % cap; memory peaked at 684 MiB of 2 GiB. Docker applied the
+    caps (`NanoCpus=3e9`, `Memory=2 GiB`).
+  - **Result format:** the processor returns the project's own editable-JSON save format rather than a
+    second encoding, because `cellPalette` is a `Uint8Array` that `JSON.stringify` would corrupt.
+  - **Checks:** Vitest 1031 passed, 8 skipped; `tsc --noEmit` and eslint clean; `next build` green with
+    all five `/api` routes. Playwright not re-run this milestone.
+  - **Not done here:** nothing deployed, and the default build still generates in the browser, so the
+    README and `INFRASTRUCTURE_DEPLOY.md` claims about client-side processing remain true for now.
+  - **Next (M3):** server enhancement preview, the client cutover with its error messages, and e2e in
+    server mode.
 - 2026-09-17 — **M1 done: measured inside the caps; the estimates were wrong in both
   directions (D149, D150).**
   - **Speed:** ~3.4× slower per core than the benchmark machine, not the 2.0× a

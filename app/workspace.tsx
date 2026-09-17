@@ -397,6 +397,7 @@ export default function Workspace() {
               isLoadingImage={source.isLoading}
               isProcessing={generation.isProcessing}
               progress={generation.progress}
+              queueMessage={generation.queueMessage}
               hasPattern={pattern !== null}
               hasSourcePhoto={source.hasPhoto}
               onGenerate={() => void generation.generate()}

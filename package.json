@@ -17,9 +17,11 @@
     "bench:move": "playwright test --config scripts/playwright.bench-move.config.ts",
     "compare:screen": "playwright test --config scripts/playwright.screen-compare.config.ts",
     "compare:exports": "playwright test --config scripts/playwright.export-compare.config.ts",
-    "calibrate:enhancement": "vitest run --config vitest.calibrate.config.ts"
+    "calibrate:enhancement": "vitest run --config vitest.calibrate.config.ts",
+    "build:processor": "node scripts/build-processor.mjs"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.9",
     "@pdf-lib/fontkit": "^1.1.1",
     "color-name-list": "^14.49.0",
     "jszip": "^3.10.2",
@@ -38,6 +40,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "pdfjs-dist": "^6.3.289",
+    "rolldown": "^1.2.7",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

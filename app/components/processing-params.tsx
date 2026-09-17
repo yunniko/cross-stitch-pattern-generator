@@ -52,6 +52,8 @@ export interface ProcessingParamsProps {
   isLoadingImage: boolean;
   isProcessing: boolean;
   progress: number;
+  /** Set only while a server job is waiting for a free worker; null when it is running or idle (G-034). */
+  queueMessage: string | null;
   hasPattern: boolean;
   hasSourcePhoto: boolean;
   onGenerate: () => void;
@@ -59,7 +61,7 @@ export interface ProcessingParamsProps {
 }
 
 /** The dock under the Image window: photo input, pattern size, color count, algorithm/palette/edge modes and Generate. */
-export function ProcessingParams({ options, onChange, isLoadingImage, isProcessing, progress, hasPattern, hasSourcePhoto, onGenerate, error }: ProcessingParamsProps) {
+export function ProcessingParams({ options, onChange, isLoadingImage, isProcessing, progress, queueMessage, hasPattern, hasSourcePhoto, onGenerate, error }: ProcessingParamsProps) {
   const longerSide = longerSideFor(options);
   // Only released modes are offered; with Off the only one, the control stays hidden (D113, D118).
   const photoOptions = releasedEnhancementModes().map((mode) => ENHANCEMENT_OPTIONS[mode]);
@@ -133,8 +135,16 @@ export function ProcessingParams({ options, onChange, isLoadingImage, isProcessi
       </div>
 
       <PillButton variant="primary" size="lg" onClick={onGenerate} disabled={!hasSourcePhoto || isProcessing || isLoadingImage}>
-        {isProcessing ? `${hasPattern ? "Regenerating" : "Generating"}… ${Math.round(progress * 100)}%` : hasPattern ? "Regenerate" : "Generate pattern"}
+        {/* A queued job has no progress to report yet: it is waiting for a worker, not running slowly. */}
+        {isProcessing
+          ? queueMessage
+            ? "Waiting…"
+            : `${hasPattern ? "Regenerating" : "Generating"}… ${Math.round(progress * 100)}%`
+          : hasPattern
+            ? "Regenerate"
+            : "Generate pattern"}
       </PillButton>
+      {queueMessage && <p className="text-sm text-zinc-600 dark:text-zinc-400">{queueMessage}</p>}
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );

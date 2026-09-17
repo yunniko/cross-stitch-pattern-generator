@@ -1,7 +1,9 @@
 import { useState, type RefObject } from "react";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { isReleasedEnhancementMode } from "@/lib/pipeline/enhance";
+import { isServerProcessing } from "@/lib/pipeline/generation-mode";
 import { runPatternJob } from "@/lib/pipeline/pattern-client";
+import { runServerPatternJob, ServerBusyError } from "@/lib/pipeline/pattern-server";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, type PixelBuffer, type StitchPattern } from "@/lib/types";
 import type { SourceImageMeta } from "./use-source-image";
 
@@ -20,11 +22,20 @@ export interface GenerationInputs {
   onGenerated: (pattern: StitchPattern, isFirst: boolean) => void;
 }
 
-/** Generate / Regenerate: validates the settings, runs the worker job, and hands back a pattern carrying the photo reference and name. */
+/** "2nd in line, about 30 s" — a queued job is waiting for a worker, which is not the same as one running slowly. */
+function queueText(position: number, estimatedWaitMs: number): string {
+  const ordinal = position === 1 ? "1st" : position === 2 ? "2nd" : position === 3 ? "3rd" : `${position}th`;
+  const seconds = Math.round(estimatedWaitMs / 1000);
+  return seconds > 0 ? `Waiting for a free slot — ${ordinal} in line, about ${seconds} s.` : `Waiting for a free slot — ${ordinal} in line.`;
+}
+
+/** Generate / Regenerate: validates the settings, runs the job on whichever side this build uses, and hands back a pattern carrying the photo reference and name. */
 export function useGeneration(inputs: GenerationInputs) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  /** Set only while the server has the job queued behind others; null whenever it is running or idle. */
+  const [queueMessage, setQueueMessage] = useState<string | null>(null);
 
   async function generate() {
     const { options, pixelBuffer, sourceMeta, sourceFileName, revisionRef, currentPattern, onGenerated } = inputs;
@@ -41,13 +52,19 @@ export function useGeneration(inputs: GenerationInputs) {
       setError(`Color count must be between ${MIN_COLORS} and ${MAX_COLORS}.`);
       return;
     }
+    // The server works from the photo's own file bytes, which only `sourceMeta` carries; the decoded buffer above is
+    // the browser's copy, and re-encoding it would not decode to the same pixels on the other side (D150).
+    if (isServerProcessing() && !sourceMeta) {
+      setError("Upload an image first.");
+      return;
+    }
     const myRevision = revisionRef.current;
     setError(null);
+    setQueueMessage(null);
     setIsProcessing(true);
     setProgress(0);
     try {
-      const result = await runPatternJob({
-        imageData: pixelBuffer,
+      const settings = {
         longerSideStitches,
         colorCount: options.colorCount,
         generationMode: options.generationMode,
@@ -55,8 +72,19 @@ export function useGeneration(inputs: GenerationInputs) {
         edgeMode: options.edgeMode,
         // Release eligibility is resolved at Generate time, so a preference for a withdrawn mode can't run it (D113).
         enhancementMode: isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off",
-        onProgress: setProgress,
-      });
+        onProgress: (fraction: number) => {
+          setQueueMessage(null); // it has a worker now
+          setProgress(fraction);
+        },
+      };
+      const result =
+        isServerProcessing() && sourceMeta
+          ? await runServerPatternJob({
+              ...settings,
+              photoDataUrl: sourceMeta.dataUrl,
+              onQueued: (position, estimatedWaitMs) => setQueueMessage(queueText(position, estimatedWaitMs)),
+            })
+          : await runPatternJob({ ...settings, imageData: pixelBuffer });
       if (revisionRef.current !== myRevision) return; // a different photo was chosen meanwhile
       const naturalLonger = sourceMeta ? Math.max(sourceMeta.naturalWidth, sourceMeta.naturalHeight) : null;
       onGenerated(
@@ -77,13 +105,20 @@ export function useGeneration(inputs: GenerationInputs) {
         },
         currentPattern === null
       );
-    } catch {
+    } catch (failure) {
       // A newer photo cancels this job on purpose; only a still-relevant failure is shown.
-      if (revisionRef.current === myRevision) setError("Couldn't generate a pattern from that image.");
+      if (revisionRef.current !== myRevision) return;
+      // Being turned away because the server is full is a wait, not a broken photo, so it says so.
+      if (failure instanceof ServerBusyError) {
+        setError(`The pattern service is busy. Try again in about ${failure.retryAfterSeconds} seconds.`);
+      } else {
+        setError("Couldn't generate a pattern from that image.");
+      }
     } finally {
       setIsProcessing(false);
+      setQueueMessage(null);
     }
   }
 
-  return { isProcessing, progress, error, setError, generate };
+  return { isProcessing, progress, error, queueMessage, setError, generate };
 }

@@ -1,11 +1,11 @@
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildPattern, type BuildPatternOptions } from "@/lib/pipeline/pattern";
 import { plainKMeansQuantizer } from "@/lib/pipeline/quantize";
-import type { PixelBuffer, StitchPattern } from "@/lib/types";
+import type { PixelBuffer } from "@/lib/types";
 import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "./helpers/fixtures";
+import { hashPattern } from "./helpers/pattern-hash";
 
 /**
  * Byte-identity guard for the whole generation pipeline (G-031 M3). Each
@@ -18,17 +18,6 @@ import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "./helpers/fixtures
  */
 
 const HASH_FILE = path.join(__dirname, "fixtures", "golden-hashes.json");
-
-function hashPattern(pattern: StitchPattern): string {
-  const hash = createHash("sha256");
-  hash.update(`${pattern.width}x${pattern.height};`);
-  hash.update(pattern.cellPalette);
-  for (const color of pattern.palette) hash.update(`${color.index}:${color.rgb.join(",")}:${color.symbol}:${color.name}:${color.count};`);
-  hash.update(`${pattern.threadBrand ?? ""};${pattern.edgeMode ?? ""}`);
-  // Appended only when set, so every hash recorded before G-032 still applies to Off.
-  if (pattern.enhancementMode) hash.update(`;${pattern.enhancementMode}`);
-  return hash.digest("hex");
-}
 
 const twoRegion = makeBuffer(60, 40, (x, y) => {
   const base = x < 30 ? [200, 150, 100] : [80, 120, 90];

@@ -1,14 +1,39 @@
-# No database -- this tool is fully stateless (all processing happens
-# client-side in the browser). See HANDOVER.md for why.
+# Two services, both from this repo's Dockerfile: the Next app, and the processor that does photo
+# decoding and pattern generation (G-034). The caps are D149's, measured on the production host --
+# this box runs ~20 other sites, so neither service may take more than its share.
 services:
   # Production-style app container -- opt in with:
   #   docker compose --profile app up -d --build
   # (dev flow is just `npm run dev`, no compose needed)
   app:
     profiles: ["app"]
-    build: .
+    build:
+      context: .
+      target: runtime
+      args:
+        # "server" sends generation to the processor; "browser" keeps the Web Worker path.
+        NEXT_PUBLIC_PROCESSING: ${NEXT_PUBLIC_PROCESSING:-browser}
     restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 768m
     environment:
       APP_URL: ${APP_URL:-http://localhost:3000}
+      PROCESSOR_URL: http://processor:8081
+    depends_on:
+      - processor
     ports:
       - "127.0.0.1:30150:3000"
+
+  processor:
+    profiles: ["app"]
+    build:
+      context: .
+      target: processor
+    restart: unless-stopped
+    # Three pool workers, one core each (D149).
+    cpus: 3.0
+    mem_limit: 2g
+    environment:
+      PROCESSOR_PORT: 8081
+    # Deliberately no `ports`: reachable only on the internal network, so the app's Route Handlers --
+    # which hold the Origin check and the rate limit -- are its only caller.

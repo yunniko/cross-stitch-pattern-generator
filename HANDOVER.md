@@ -9,12 +9,12 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs `master` as deployed on 2026-09-17 (last deploy-log row).
-Signed off: G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`),
-G-037 symmetry and quick mirror, G-036 charts without freezing
-(`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance
-(`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the
-swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
+**Production** runs `master` as deployed on 2026-09-17 (last deploy-log row), still generating in the browser.
+Signed off: G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
+
+**In progress — G-034, moving processing to the server.** M1 measured the caps (D149, D150); M2 built
+the `processor` service, its API and the client switch (D151). Nothing is deployed, and
+`NEXT_PUBLIC_PROCESSING` still defaults to the browser path, so live behaviour is unchanged.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest or Original clustering, Full range,
@@ -25,59 +25,48 @@ swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the revi
   painting on up to four axes and quick mirror (D137), rectangle select with copy, paste,
   move, flip, rotate, crop and cancel (D147), move, pan, zoom, highlight; merge, recolor, rename, symbol swap, add
   color, empty stitches, canvas resize, and one undo history covering regeneration.
-- Color editor: opens under its legend row on the color's remembered thread
-  swatch (D122), marked and scrolled into view; hovering or focusing a swatch
-  shows an Okhsl comparison (D123); picks apply at once and the editor stays
-  open, Full range drags are one undo step, Done keeps and Cancel or Escape
+- Color editor: opens under its legend row on the color's remembered thread swatch (D122), marked and
+  scrolled into view; hovering or focusing a swatch shows an Okhsl comparison (D123); picks apply at
+  once and the editor stays open, Full range drags are one undo step, Done keeps and Cancel or Escape
   restores, and a click outside closes it while still acting.
-- Wheel and Zoom-tool zoom keep the stitch under the cursor in place; the
-  zoom buttons keep the view's centre (D124).
-- Five view modes (keys 1–5) and a view-only canvas color. Shortcuts: Ctrl+Z,
+- Wheel and Zoom-tool zoom keep the stitch under the cursor in place; the zoom buttons keep the
+  view's centre (D124). Five view modes (keys 1–5) and a view-only canvas color. Shortcuts: Ctrl+Z,
   Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, and Escape to merge a selection.
-- Exports: editable JSON (format version 7, embeds the source photo and each
-  color's thread swatch), realistic preview PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern
-  Keeper PDF (the Owner re-confirmed a real import after G-035 M2), an OXS chart, and "Export
-  all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs`, detected by
-  content; an OXS import shows a notice listing everything it couldn't keep.
+- Exports: editable JSON (format version 7, embeds the source photo and each color's thread swatch),
+  realistic preview PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF (the Owner
+  re-confirmed a real import after G-035 M2), an OXS chart, and "Export all" `.cspzip`. Open accepts
+  JSON, ZIP, `.cspzip` and `.oxs`, detected by content; an OXS import lists what it couldn't keep.
 - Photo upload and reopening a save decode in a worker, with the old decode
   as a logged fallback; a 12 MP upload showed no main-thread task over 50 ms
   (D128).
 - Persistence: the open project autosaves to IndexedDB (photo stored once by
   SHA-256, 500 ms debounce) and restores on reload. A corrupt record shows a
   banner with an on-demand error report. Options persist in localStorage.
-- Photo enhancement: a Photo control (Off, Brighten, Auto, Vivid,
-  Portrait), an enhanced preview with "Compare with original" before
-  Generate, and the mode recorded in saved files. Brighten is a cautious
-  exposure fix for dark or flat photos only. The other three are
-  experimental: none passed its real-photo rule
-  (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
+- Photo enhancement: a Photo control (Off, Brighten, Auto, Vivid, Portrait), an enhanced preview with
+  "Compare with original" before Generate, and the mode recorded in saved files. Brighten is a
+  cautious exposure fix for dark or flat photos only; the other three are experimental and none
+  passed its real-photo rule (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-16**: `tsc --noEmit` and eslint clean; Vitest 998 passed
-(8 opt-in skips) at G-040 M3; Playwright 307/307 (including 208 parity cases) on a
-production build of that work. CI
-(`.github/workflows/ci.yml`) runs `next typegen` before the type-check,
-because route types such as `LayoutProps` are generated and git-ignored.
-It passed on GitHub for `fb28d4e`.
+**Checks run 2026-09-17**: `tsc --noEmit` and eslint clean; Vitest 1031 passed (8 opt-in skips);
+`next build` green with the five `/api` routes. Playwright was last run at G-043 (313 passed). CI
+(`.github/workflows/ci.yml`) runs `next typegen` before the type-check, because route types such as
+`LayoutProps` are generated and git-ignored.
 
-**Performance** (G-035 results, 2026-09-15, medians of 5 on the Owner's machine):
-a 12 MP photo at 100 stitches / 16 colors takes 2.9 s in Standard and 7.5 s in
-Crisp, down from 7.7 s and 42.7 s. At 1500×1000 → 1000 stitches / 64 colors,
-Standard takes 4.9 s and Crisp 6.8 s. In the browser at 1000 stitches, generating
-takes 6.9 s, the Pattern Keeper PDF 11.1 s and Export all 37.8 s, with no
-main-thread freeze during exports. Tables are in
-`docs/reviews/2026-09-15-performance-results.md`. Enhancing a 4000×3000 photo
-takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
+**Performance** (G-035 results, 2026-09-15, medians of 5 on the Owner's machine): a 12 MP photo at
+100 stitches / 16 colors takes 2.9 s in Standard and 7.5 s in Crisp, down from 7.7 s and 42.7 s. At
+1500×1000 → 1000 stitches / 64 colors, Standard takes 4.9 s and Crisp 6.8 s. In the browser at 1000
+stitches, generating takes 6.9 s, the Pattern Keeper PDF 11.1 s and Export all 37.8 s, with no
+main-thread freeze. Tables: `docs/reviews/2026-09-15-performance-results.md`. Enhancing a 4000×3000
+photo takes 1.9–2.2 s, above G-032's 1.5 s target. The server is ~3.4× slower per core (D149).
 
 **Known limitations**:
-- Crisp takes about 2.6× Standard's time on a 12 MP photo (7.5 s against 2.9 s),
-  because every cell gets the two-mode fit (D132). It falls back to
-  Standard behavior for thin lines, junctions and gradual shading (D096).
+- Crisp takes about 2.6× Standard's time on a 12 MP photo (7.5 s against 2.9 s), because every cell
+  gets the two-mode fit (D132); it falls back to Standard for thin lines, junctions and shading (D096).
 - At 1000 stitches chart actions stay under 100 ms, but 4× CPU throttling still reaches 480 ms (G-036).
 - Without OffscreenCanvas 2D in workers, exports run on the main thread and stall the tab (D125).
-- The PDF has no bold face. Whether µ (which extracts as μ) matters in Pattern
-  Keeper is unconfirmed (D074, D097).
-- Highlight does nothing in the realistic preview (D028).
-- Contour refinement exists but isn't adopted (D055).
+- The PDF has no bold face; whether µ (which extracts as μ) matters in Pattern Keeper is unconfirmed
+  (D074, D097). Highlight does nothing in the realistic preview (D028), and contour refinement
+  exists but isn't adopted (D055).
 
 ## How things fit together
 
@@ -93,10 +82,15 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
   The chart frame (full chart size) takes layout, input and the zoom anchor; one canvas
   inside paints the visible part plus overscan (`app/chart-scene.ts`, D135, D136). Realistic
   and Original photo are view-only, where only Pan and Zoom act.
-- **Generation path**: `app/hooks/use-generation.ts` →
+- **Generation path (browser)**: `app/hooks/use-generation.ts` →
   `lib/pipeline/pattern-client.ts` (one reused worker; discarded after a
   native error) → `lib/pipeline/pattern.worker.ts` → `buildPattern` in
   `lib/pipeline/pattern.ts`.
+- **Generation path (server, G-034 M2, D151)**: the same hook → `lib/pipeline/pattern-server.ts` →
+  the Route Handlers in `app/api/` → the `processor` container (`processor/server.ts`, its pool in
+  `processor/pool.ts`, decoded photos in `processor/photo-store.ts`), which runs the identical
+  `buildPattern` in `processor/pool-worker.ts`. `lib/pipeline/generation-mode.ts` chooses the path;
+  `scripts/build-processor.mjs` bundles the service.
 - **Photo decode**: `lib/editor/load-image.ts` sends the file or data URL to
   `lib/editor/decode-image.worker.ts`; `lib/editor/decode-main-thread.ts` is
   the fallback, and both size through `lib/editor/decode-bitmap.ts` (D128).
@@ -151,9 +145,9 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
   E2E specs are in `tests/e2e/`. `npm run bench` runs `scripts/bench.ts`; `npm run bench:browser` runs
   `scripts/bench-browser.spec.ts` against a production build and writes to the
   OS temp folder.
-- **Deploy**: `Dockerfile` (standalone build) and `docker-compose.yml`
-  (profile `app`, `127.0.0.1:30150`). Recipe and shared-host rules are in
-  `COMPANY/INFRASTRUCTURE_DEPLOY.md`; verification per D027.
+- **Deploy**: `Dockerfile` builds two targets (`runtime` for the app, `processor` for generation) and
+  `docker-compose.yml` runs both under D149's caps (app on `127.0.0.1:30150`; the processor publishes
+  no port). Recipe and shared-host rules: `COMPANY/INFRASTRUCTURE_DEPLOY.md`; verification per D027.
 
 ## Rules in force
 
@@ -215,12 +209,16 @@ takes 1.9–2.2 s by mode, above G-032's 1.5 s target.
   `tests/e2e/decode-parity.spec.ts` (D128).
 - Generation reads the full decoded photo; a future cap starts from D129's
   findings, not from a shrink alone (D130).
+- The processor publishes no port and is reached only through `app/api/`, which holds the Origin
+  check and the rate limit. Job results travel in the editable-JSON save format, so a change to
+  `pattern-serialize.ts` changes the wire format too (D151).
 
 ## Next steps and open questions
 
 - Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, a drag's first frame paints in full (34–77 ms), and a drag with symmetry on keeps the pre-M3 cost (D145).
 - Left open from G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142). From G-033: "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.
+- G-034 continues at M3: the server enhancement preview, the client cutover and its error messages, and e2e in server mode. Nothing of G-034 is deployed yet.
 - G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
