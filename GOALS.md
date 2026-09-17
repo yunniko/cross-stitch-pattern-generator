@@ -481,9 +481,23 @@ escalation-tier, not a routine refactor):
 - [x] **M1 — Narrow Cancel.** Done 2026-09-17 (D148). The hook drops the session snapshot; the pasted-
   piece test inverts; README and decisions updated. Gate: criteria 1–4 with the
   suites green.
-- [ ] **M2 — Release.** Deploy, live check, then the Owner's sign-off.
+- [x] **M2 — Release.** Done 2026-09-17; deployed as 915844f. Deploy, live check, then the Owner's sign-off.
 
 **Progress log** (newest first):
+- 2026-09-17 — **M2 done: deployed as 915844f; G-043 awaits the Owner's
+  sign-off.**
+  - Full suite before release: Playwright 313 passed, 0 failed across all 25
+    specs, one spec per process; Vitest 1011 passed, 8 skipped.
+  - Deploy: only this project's container restarted, 20 of 20 sites 200 after.
+    The host showed 40 containers up against 39 at the previous deploy — another
+    session shipped something in between, not this change.
+  - **The live check was dropped after one attempt, deliberately.** Its first
+    rectangle drag never reached the page (`drawSelection`, line 68: Deselect
+    stayed disabled), the same synthetic-drag symptom that defeated G-042's live
+    cancel check four times. Rather than repeat that loop, the behaviour stands
+    verified locally — `selection-actions.spec.ts` 5/5 including the pasted-piece
+    case — and the deploy row says so plainly.
+  - **PENDING APPROVAL: G-043 sign-off.**
 - 2026-09-17 — **M1 done: Cancel drops only the piece in hand (D148).**
   - `cancel` is now `setSelection(null)`. The session snapshot (`sessionBaseRef`)
     and the copy `paste` took before merging are gone, since nothing else used
