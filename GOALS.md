@@ -194,260 +194,214 @@ milestone's own result justifies continuing):
   Rust work first. Not a decision, just a fact worth not re-deriving
   later.
 
-### G-034 · Move photo processing and every export to the server — DRAFT (2026-09-13)
-- **What:** Photo decoding, photo enhancement and its preview, pattern
-  generation, and every export (Color, B&W and realistic PNG, A4 ZIPs,
-  Pattern Keeper PDFs, editable JSON, OXS, Export all) run on the
-  server instead of in the browser. The browser keeps what is
-  interactive: the editor and its tools, on-screen chart views, undo, and
-  IndexedDB autosave. It uploads the photo once, then asks the server to
-  preview, generate and export.
-- **Why:** Owner request (2026-09-13). The motivation isn't recorded
-  yet, and it matters for the design (see the open questions). Likely
-  benefits: weak phones stop doing 15–30 s of CPU work; the algorithms
-  stop shipping to every visitor as JavaScript; exports stop freezing
-  the tab (D079); and it lays groundwork for G-030's account-based
-  features.
+### G-034 · Photo processing and every export move to the server — DRAFT, re-planned (2026-09-17)
+- **What:** photo decoding, enhancement and its preview, pattern generation and
+  every export run on the server. The browser keeps what is interactive — the
+  editor, the on-screen chart, undo, IndexedDB autosave — and keeps its own
+  editable-JSON save, so work can always be saved when the server is busy or
+  down (Owner, 2026-09-14).
+- **Why:** to monetize access (Owner, 2026-09-14). The algorithms stop shipping
+  to every visitor as JavaScript, weak phones stop doing seconds of CPU work,
+  and it lays the groundwork for G-030's accounts.
 
-**Consequences the Owner must accept before M1** (why this is
-escalation-tier, not a routine refactor):
-- **Privacy promise reversed.** README, the live site and
-  `COMPANY/INFRASTRUCTURE_DEPLOY.md` all say no image is ever uploaded.
-  Photos commonly show identifiable people. The server would then
-  process personal data from EU visitors, so the site needs a privacy
-  notice and a retention rule (VALUES.md → Integrity of work). This
-  plan is not legal advice. The wording is the Owner's call.
-- **Shared-host capacity.** Production is one VPS with 6 shared vCPUs
-  (AMD EPYC, 1 thread per core) and about 8 GiB free memory, hosting
-  about 30 other containers (checked live 2026-09-13). One largest
-  generation takes 14.6 s Standard and 27.4 s Crisp of one core on the
-  Owner's machine. So only 2–3 heavy jobs can run at once without
-  slowing other sites. Busy periods mean queueing, and more capacity
-  means spending money.
-- **Online-only.** Today a loaded page generates and exports offline.
-  Afterwards, a server outage or a slow connection blocks those actions.
-- **Abuse surface.** A public, unauthenticated endpoint doing seconds of
-  CPU work per request is an easy denial-of-service target on a host
-  shared with other sites.
+**Owner decisions already recorded**
+- **Privacy is not a requirement** (2026-09-17): uploading photos is acceptable,
+  and the in-memory photo cache is fine. No privacy notice is required.
+- The browser may shrink or compress a photo before uploading it.
+- Editable JSON and OXS may run on either side; the browser keeps its own save.
+- "Optimise the current timings first" (2026-09-14) is **done**: G-035 cut the
+  largest generation from 13.4 s to 4.9 s, and G-036 and G-039 took every chart
+  interaction under 100 ms.
 
-**Architecture (proposal, to be critiqued in M1).**
-1. **Two containers from this repo.** The existing `app` container
-   (Next.js, `127.0.0.1:30150`) serves the UI and Route Handlers under
-   `app/api/`. A new `processor` container runs a small Node HTTP
-   server with a bounded `worker_threads` pool. It is reachable only
-   on the internal Docker network with no published port, and has
-   `cpus` and `mem_limit` caps in `docker-compose.yml`. The separate
-   container means CPU-heavy work can neither stall page responses nor
-   exceed its CPU share on the shared host. Route Handlers forward
-   streams to it. Server Actions are not used, because of their body-size
-   limits (G-023 critique).
-2. **The pure pipeline runs unchanged.** `buildPattern` and
-   `lib/pipeline/enhance.ts` are already free of browser APIs, so the
-   pool workers call them directly. Same buffer in, same pattern out,
-   proven by the existing golden hashes (D107).
-3. **Photo store.** `POST /api/photos` streams the upload, enforces a
-   size cap while reading, checks the image header's dimensions before
-   decoding (decompression-bomb guard), and decodes with the existing
-   4000 px cap. The decoded buffer is kept **in memory only**, keyed by
-   SHA-256, with an idle TTL (proposed 30 min) and a total-memory cap
-   with least-recently-used eviction. It is never written to disk or
-   logs. `HEAD /api/photos/:hash` lets a restored project skip
-   re-uploading. An expired photo returns 410, and the client re-uploads
-   from its IndexedDB copy without troubling the user.
-4. **Decoding must match the browser.** Chrome applies EXIF orientation
-   and converts embedded ICC profiles (such as iPhone Display P3) to
-   sRGB when decoding. A server decoder that skips either produces
-   different pixels, and so different patterns, for the same photo.
-   Candidates: `@napi-rs/canvas` (Skia, prebuilt for Alpine/musl, and
-   also gives the 2D canvas the exports need) or `sharp` (libvips, strong
-   ICC and EXIF handling, but a second native dependency). M1 measures
-   both on a photo set before choosing. Either is new to the portfolio,
-   which needs a decision file.
-5. **Generation jobs.** `POST /api/jobs` with photo hash and settings
-   returns a job id. `GET /api/jobs/:id/events` streams progress with
-   server-sent events. `DELETE /api/jobs/:id` cancels by terminating
-   that pool worker, the same blunt cancellation the browser worker uses
-   today. The result is a versioned binary payload: header, palette,
-   then cell bytes. The queue is bounded: when full, the server answers
-   503 with `Retry-After` immediately. Each job has a hard deadline
-   (proposed 90 s), after which its worker is killed.
-6. **Enhancement preview.** `POST /api/photos/:hash/preview?mode=` returns
-   a ≤ 1200 px WebP, cached per photo and mode. This replaces
-   `lib/pipeline/enhance-preview.worker.ts`.
-7. **Exports.** `POST /api/exports/:kind` takes the edited pattern (the
-   D099 deserializer validates it), export options and the photo hash
-   where needed, and streams the file back. The drawing code in
-   `lib/export/render.ts` and `lib/export/a4-render.ts` is also used by
-   the on-screen chart (`app/hooks/use-chart-renderer.ts`). So it
-   becomes environment-neutral: callers inject a canvas factory (DOM
-   canvas in the browser, server canvas on the server) instead of calling
-   `document.createElement`. Text needs the bundled DejaVu font
-   registered on the server, and the stitch texture loads from the
-   file system. Download helpers stay in the browser.
-8. **Protection.** Origin check on every API route. A per-IP token
-   bucket in the app, plus nginx `limit_req` if the Owner agrees (root
-   change). Streaming size limits on every body. nginx
-   `client_max_body_size` is unset for this vhost today, so nginx's
-   1 MB default would reject photos. The Owner must raise it, plus
-   `proxy_read_timeout` and `proxy_buffering off` for the progress
-   stream. Logs hold per-stage timings, queue wait, rejections and
-   errors, never pixels, photos or pattern contents.
-9. **Client.** `use-source-image` uploads and keeps the local original
-   for display, the photo underlay and autosave. `use-generation`,
-   `use-enhance-preview` and `use-exports` call the API with today's
-   cancel and progress semantics. A `NEXT_PUBLIC_PROCESSING` flag
-   (`client` or `server`) runs both paths during M2–M4 for comparison.
-   M5 deletes the browser workers and the flag, so two implementations
-   are not maintained.
+**Capacity, measured on the production host 2026-09-17**
+- The box: 6 vCPU (AMD EPYC), 11 GiB RAM with **7.6 GiB available**, 2 GiB swap,
+  130 GB disk free. Load average 1.20 — about **83 % of the CPU is idle**. All
+  ~40 existing containers together use **1.7 GiB**.
+- **The server runs this pipeline's work about 2.0× slower per core** than the
+  machine every benchmark came from (`scratchpad` probe: three loops shaped like
+  the hot paths, 274 ms against 135 ms; the ratio held at 1.9–2.0× on each).
+- Per job, one core, doubling the measured Node benchmarks
+  (`docs/reviews/2026-09-15-performance-results.md`):
+
+  | Job | Laptop | Server |
+  |---|---:|---:|
+  | Generate, 12 MP → 100 st, Standard | 2.9 s | ~6 s |
+  | Generate, 12 MP → 100 st, Crisp | 7.5 s | ~15 s |
+  | Generate, 1.5 MP → 1000 st, Standard | 4.9 s | ~10 s |
+  | Generate, 1.5 MP → 1000 st, Crisp | 6.8 s | ~14 s |
+  | Pattern Keeper PDF, 1000 st | 11.1 s | ~22 s |
+  | Export all, 1000 st | 37.8 s | ~76 s |
+
+- **This supersedes the 2026-09-13 estimate of "2–3 heavy jobs".** That used
+  pre-G-035 timings and is stale by roughly 3×.
+
+**The caps this plan is sized to** (the app container has none today:
+`NanoCpus=0`, `Memory=0` — verified live)
+
+| Service | `cpus` | `mem_limit` | Why |
+|---|---:|---:|---|
+| `processor` (new) | 3.0 | 2g | 3 pool workers, one core each |
+| `app` (existing) | 1.0 | 768m | Next.js serving pages and routing |
+| left for the other ~20 sites | ~2.0 | ~5 GiB | they use 1.7 GiB and little CPU today |
+
+- **Pool of 3**, one job per worker, so a full pool never exceeds the cap.
+- **Queue of 12**; when full, 503 with `Retry-After` immediately. At ~10 s a job
+  that is a worst wait of about 40 s, which the client shows as a queue position.
+- **Deadlines:** 45 s for a generation or a single export, 150 s for Export all.
+  A job over its deadline is killed and its worker replaced.
+- **Memory budget:** a job is estimated at 250–400 MB (a 4000×3000 decode is
+  48 MB, plus float grids over 750k cells, plus export canvases). Three at once
+  fits 2 GiB with room to spare — **M1 measures this rather than assuming it**,
+  and the pool size follows the measurement if it is worse.
+- **Throughput at these caps:** about 30 small generations a minute, about 18 at
+  1000 stitches Standard, roughly half that for Crisp. One "Export all" at 1000
+  stitches occupies a worker for over a minute.
+
+**Consequences that remain** (privacy is no longer one of them)
+- **Two site claims become false and must change with the behaviour:**
+  `README.md` ("no image is ever uploaded") and the
+  `COMPANY/INFRASTRUCTURE_DEPLOY.md` row ("all image processing runs
+  client-side").
+- **Online-only.** A loaded page generates and exports offline today; afterwards
+  a server outage or a slow connection blocks both. The browser keeps its
+  editable-JSON save so work is never trapped.
+- **Abuse surface.** A public endpoint doing seconds of CPU work per request is
+  an easy denial-of-service target on a shared host. The caps above bound the
+  damage; the Origin check, per-IP token bucket and nginx `limit_req` block the
+  cheap cases.
+- **If measured capacity falls short**, that is a cost decision for the Owner,
+  not something to solve by taking more of the shared box.
+
+**Architecture** (unchanged in shape from the 2026-09-13 draft, now sized to the
+caps)
+1. Two containers from this repo: the existing `app`, and a `processor` with a
+   bounded `worker_threads` pool, reachable only on the internal Docker network
+   with no published port, both carrying the caps above.
+2. The pure pipeline runs unchanged: `buildPattern` and `lib/pipeline/enhance.ts`
+   are already free of browser APIs, so the golden hashes (D107) prove parity.
+3. `POST /api/photos` streams the upload, enforces a size cap while reading,
+   checks the header's dimensions before decoding, and keeps the decoded buffer
+   in memory keyed by SHA-256 with a 30-minute idle TTL and LRU eviction inside
+   the memory cap.
+4. Decoding must match Chrome's (EXIF orientation, ICC to sRGB) or the same
+   photo yields a different pattern. M1 measures `@napi-rs/canvas` against
+   `sharp` on a photo set before choosing; either is new to the portfolio and
+   needs a decision file.
+5. `POST /api/jobs` returns a job id; `GET /api/jobs/:id/events` streams
+   progress; `DELETE /api/jobs/:id` cancels. Results are a versioned binary
+   payload.
+6. `POST /api/photos/:hash/preview?mode=` returns a ≤ 1200 px WebP, cached per
+   photo and mode.
+7. `POST /api/exports/:kind` streams the file back. The shared drawing code
+   takes an injected canvas factory, so the on-screen chart is untouched.
+8. Protection: Origin check, per-IP token bucket, streaming size limits, and the
+   nginx directives the Owner applies (`client_max_body_size`,
+   `proxy_read_timeout`, `proxy_buffering off`, `limit_req`).
+9. A `NEXT_PUBLIC_PROCESSING` flag runs both paths during M2–M4; M5 deletes the
+   browser workers, keeping the browser's editable-JSON save.
 
 - **Acceptance criteria:**
-  1. **Byte-identical pipeline.** `tests/unit/fixtures/golden-hashes.json`
-     passes unchanged when every configuration runs through the
-     processor's worker pool.
-  2. **Decode parity, measured.** On a committed synthetic set (all 8
-     EXIF orientations, PNG with alpha, grayscale, CMYK JPEG) plus local,
-     uncommitted real photos (including a Display P3 iPhone photo), the
-     server-decoded buffer matches Chrome's decode: identical orientation
-     and dimensions, and mean absolute difference ≤ 1 level per channel.
-     Any case that can't meet this has a decision file with the measured
-     difference and its effect on the generated pattern.
-  3. **Latency on the production host**, one job at a time, measured and
-     logged:
-     - largest generation (1500×1000 source, 1000 stitches, 64 colors,
-       Standard) ≤ 30 s of server time;
-     - enhancement preview ≤ 1 s, excluding the one-time upload;
-     - each export ≤ 10 s for a 250-stitch pattern.
-     Every measurement run on the shared host is short, single-job, at a
-     quiet hour, and noted in the progress log.
-  4. **Overload behavior**, tested on the local compose stack with the
-     production CPU and memory caps:
-     - a burst of 20 generation requests fills the queue, and the rest
-       get 503 with `Retry-After` within 1 s;
-     - a job over its deadline is killed and its memory is released;
-     - page requests to the `app` container stay under 500 ms p95
-       throughout.
-  5. **Security tests:**
-     - an over-limit upload is rejected before it is fully read;
-     - a bomb header (for example 50 000 × 50 000) is rejected before
-       decoding;
-     - malformed pattern payloads are rejected;
-     - a cross-origin request is refused;
-     - a log-capture test finds no image or pixel data.
-  6. **Privacy:**
-     - photos live only in memory and are evicted by TTL or the memory
-       cap, verified by a test that inspects the store and the
-       container's writable paths;
-     - a notice shows before the first upload;
-     - README, HANDOVER and the `INFRASTRUCTURE_DEPLOY.md` row are
-       updated;
-     - the Owner approves the notice wording.
-  7. **Export parity** against today's browser exports on the fixture
-     patterns:
-     - editable JSON and OXS are byte-identical;
-     - PDFs have identical page count, text and legend (read with
-       `pdfjs-dist`), and the Owner re-confirms a Pattern Keeper import
-       if the PDF bytes differ;
-     - PNGs and A4 pages have identical dimensions, and at most a
-       measured, logged share of pixels differs, from text anti-aliasing
-       only;
-     - the Export all bundle has the same file list.
-  8. **Wrap-up:**
-     - full unit and e2e suites pass in server mode against the
-       production build with the processor running, and CI starts the
-       processor;
-     - the browser workers and the flag are removed;
-     - docs-lint passes and everything is committed;
-     - it is deployed after Owner approval, with other sites checked for
-       200 responses and host load watched;
-     - Owner sign-off is logged.
+  1. **Byte-identical pipeline.** The golden hashes pass unchanged through the
+     processor's pool.
+  2. **Decode parity, measured.** Against Chrome on a committed synthetic set
+     (all 8 EXIF orientations, PNG with alpha, grayscale, CMYK JPEG) plus real
+     photos: identical orientation and dimensions, mean absolute difference ≤ 1
+     level per channel. Exceptions get a decision file with the measured effect.
+  3. **Latency on the production host**, single job, inside the caps: the
+     largest generation (1500×1000 → 1000 stitches, Standard) ≤ 20 s; Crisp
+     ≤ 30 s; an enhancement preview ≤ 2 s excluding upload; each export ≤ 10 s
+     for a 250-stitch pattern; Export all at 1000 stitches ≤ 150 s.
+  4. **The caps hold under load**, tested on the local compose stack with the
+     production caps set:
+     - 20 simultaneous generations: 3 run, the queue holds 12, the rest get 503
+       with `Retry-After` within 1 s;
+     - the `processor` container never exceeds its `cpus` or `mem_limit`,
+       measured with `docker stats` through the burst;
+     - a job over its deadline is killed and its memory released;
+     - `app` page responses stay under 500 ms p95 throughout.
+  5. **The other sites are unaffected**, measured on the production host during
+     a burst: a sample of three other sites keeps its response time within 20 %
+     of its quiet-hour baseline, and the host's load average stays below 5.
+  6. **Security:** an over-limit upload is rejected before it is fully read; a
+     bomb header is rejected before decoding; malformed pattern payloads are
+     rejected; cross-origin requests are refused; no image or pixel data reaches
+     the logs.
+  7. **Export parity** against today's browser exports: editable JSON and OXS
+     byte-identical; PDFs identical in page count, text and legend; PNGs and A4
+     pages identical in dimensions with only anti-aliasing differences, measured
+     and logged; the Export all bundle has the same file list.
+  8. **Truthful documentation:** the README line and the
+     `INFRASTRUCTURE_DEPLOY.md` row are corrected in the same release that ships
+     the behaviour.
+  9. **Wrap-up:** full unit and e2e suites pass in server mode against a
+     production build with the processor running; CI starts the processor; the
+     browser workers and the flag are removed while the browser keeps its
+     editable-JSON save; docs-lint passes; deployed with the other sites checked
+     and host load watched; Owner sign-off logged.
 - **Constraints:**
-  - **Do not start without explicit Owner answers to the questions
-    below.** Reversing a public privacy promise and processing personal
-    data are escalation items (OPERATIONS.md §4).
-  - Starts after G-033 is signed off and this working tree is clean (one
-    session per working tree).
-  - The Owner runs anything needing root (the nginx vhost directives,
-    `limit_req`) from an exact command list. The new container follows
-    `COMPANY/INFRASTRUCTURE_DEPLOY.md`, which is read in full before M5,
-    with ports and containers re-verified live.
-  - No accounts, paid services or extra servers. If measured capacity
-    isn't enough, that goes to the Owner as a cost decision.
-  - New dependencies: the chosen decoder and canvas library only, each
-    with a decision file. No job-queue library: the pool and queue are
-    a few hundred lines on `worker_threads`.
-  - Rust stays out of scope. G-023's measurement still holds, and its
-    service-engineering guidance is reused here.
-  - Codex critique exchange on the architecture (items 1–5 and 7) in
-    M1, and on the security design before M2 ships. No domain-expert
-    review, because no domain logic changes.
-  - Standard OPERATIONS.md check-in at every milestone boundary.
+  - Code is written in a separate worktree; other sessions share this tree.
+  - The Owner runs anything needing root (nginx directives, `limit_req`) from an
+    exact command list.
+  - No accounts, paid services or extra servers inside this goal.
+  - New dependencies: the chosen decoder and canvas library only, each with a
+    decision file. No job-queue library.
+  - Codex critique of the architecture and the security design before the code
+    they cover ships, if it is available (usage limit until 2026-09-19).
+  - Standing deploy approval; OPERATIONS.md check-in at every milestone.
 
 **Milestones:**
-- [ ] **M1 — Decision gate and measurements.** Record the Owner's
-      answers. Codex critique of the architecture. A decode-parity spike
-      comparing `@napi-rs/canvas` and `sharp` against Chrome (criterion
-      2). Single-job timings inside a CPU-capped container on the
-      production host, to set the pool size, queue length and deadline.
-      Deliverable: decision files for container layout, decoder and
-      canvas library, protocol and limits, with measured numbers in
-      `docs/reviews/<date>-server-processing-capacity.md`.
-- [ ] **M2 — Processor, photo store and generation.** `processor`
-      container, worker pool, bounded queue, deadlines, in-memory photo
-      store, `/api/photos`, `/api/jobs` with progress stream and cancel,
-      binary result payload, Origin check, rate limit, logging. Golden
-      hashes through the pool (criterion 1), overload and security tests
-      (criteria 4–5). Client generation behind the flag.
-- [ ] **M3 — Preview and client cutover.** Server enhancement preview.
-      Client upload, re-upload on 410, and clear messages for busy
-      server, network failure and expired photo. Privacy notice. Full
-      e2e suite green in server mode. Deliverable: generate and preview
-      working end to end against the local compose stack.
-- [ ] **M4 — Exports.** Canvas-factory injection in the shared drawing
-      code, with the on-screen chart unchanged and its e2e tests
-      passing. Server font and texture loading. All nine export kinds
-      and Export all as endpoints. Parity tests (criterion 7).
-- [ ] **M5 — Cleanup and release.** Delete the browser workers, the
-      client export paths and the flag. README, HANDOVER, decision index
-      and `INFRASTRUCTURE_DEPLOY.md` row updated. The Owner applies the
-      nginx changes. Deploy after approval, verify other sites and host
-      load, run a production latency check (criterion 3), add a
-      deploy-log row.
-
-**Open questions for the Owner (answered 2026-09-14, see the progress log):**
-- **What is the main reason for the move?** If it's weak devices or tab
-  freezes, a hybrid might be enough: the browser by default, the server
-  for large jobs or on request. That keeps the privacy promise for
-  most users but means two code paths. If it's protecting the
-  algorithms, or accounts under G-030, then everything moves, as
-  planned here.
-- Do you accept reversing "no image is ever uploaded", with a privacy
-  notice? Is a 30-minute in-memory retention acceptable?
-- Should editable JSON and OXS also move? They are plain serialization
-  with no image processing, and the editable JSON embeds the original
-  photo. The plan moves them, as requested. Keeping them in the browser
-  would save a round trip and an upload.
-- Is it acceptable that generation and export stop working when the
-  server is down or busy, with no browser fallback? The plan assumes
-  yes.
+- [ ] **M1 — Measure inside the caps, then decide.** Stand the caps up on the
+  production host with a throwaway container: measure real per-job CPU and
+  **peak RSS** for the largest generation, a Crisp run, a Pattern Keeper PDF and
+  Export all, and set the pool size, queue length and deadlines from what is
+  measured rather than from this estimate. Decode-parity spike comparing
+  `@napi-rs/canvas` and `sharp`. Deliverables: decision files for the container
+  layout, decoder and limits, plus
+  `docs/reviews/<date>-server-processing-capacity.md`.
+- [ ] **M2 — Processor, photo store and generation.** The `processor` container
+  with its caps, pool, bounded queue and deadlines; the in-memory photo store;
+  `/api/photos` and `/api/jobs` with progress and cancel; Origin check, rate
+  limit, logging. Golden hashes through the pool; overload, cap and security
+  tests. Client generation behind the flag.
+- [ ] **M3 — Preview and client cutover.** Server enhancement preview; client
+  upload with re-upload on 410; clear messages for a busy server, a network
+  failure and an expired photo. Full e2e green in server mode.
+- [ ] **M4 — Exports.** Canvas-factory injection in the shared drawing code with
+  the on-screen chart unchanged; server font and texture loading; all export
+  kinds as endpoints; parity tests.
+- [ ] **M5 — Cleanup and release.** Delete the browser workers and the flag,
+  keeping the browser's editable-JSON save. Correct the README and the
+  `INFRASTRUCTURE_DEPLOY.md` row. The Owner applies the nginx changes. Deploy,
+  verify the other sites and host load, run the production latency check, add a
+  deploy-log row.
 
 **Progress log** (newest first):
-- 2026-09-14 — Owner answers to the open questions. Still a plan, not
-  started.
+- 2026-09-17 — **Re-planned at the Owner's request**, after they confirmed
+  privacy was never a requirement.
+  - Privacy drops out of the blockers and out of the acceptance criteria; what
+    remains is factual: two site claims about client-side processing become
+    false and must change with the behaviour.
+  - Capacity re-measured on the host today (6 vCPU, 7.6 GiB available, 83 %
+    idle, other containers 1.7 GiB) and against a like-for-like CPU probe: the
+    server is **2.0× slower per core** than the benchmark machine. The plan now
+    carries per-job server estimates and **4 concurrent heavy jobs**, replacing
+    the stale "2–3".
+  - The plan is sized to explicit caps — `processor` 3 CPU / 2 GiB, `app` 1 CPU
+    / 768 MiB, ~2 CPU left for the other sites — with the pool, queue and
+    deadlines derived from them, and M1 re-scoped to measure inside those caps
+    (especially peak RSS, the one number here that is inferred).
+  - Not started: no code, no dependencies added.
+- 2026-09-14 — Owner answers to the open questions. Still a plan, not started.
   - Reason for the move: monetizing access.
   - Privacy is not a big concern; the in-memory photo cache is fine.
   - The browser may shrink or compress the photo before uploading it.
   - Editable JSON and OXS may run on either side. Keep or duplicate the
-    editable JSON save in the browser, so work can be saved when the
-    server has problems.
-  - The Owner redirected effort to investigating and optimizing the
-    current processes' timings first.
-- 2026-09-13 — Goal drafted at the Owner's request ("make plan to move
-  export and all photo processing functions to server side"). Planned
-  from:
-  - the export, pipeline, enhancement-preview and generation hooks;
-  - `Dockerfile`, `docker-compose.yml` and `next.config.ts`;
-  - G-023's critique exchange;
-  - a live read-only check of the host: 6 vCPU AMD EPYC, 8 GiB memory
-    available, about 30 containers, load average 1.3, and no
-    `client_max_body_size` in any nginx config.
-  No code written.
+    editable JSON save in the browser, so work can be saved when the server has
+    problems.
+  - The Owner redirected effort to investigating and optimizing the current
+    processes' timings first.
+- 2026-09-13 — Goal drafted at the Owner's request ("make plan to move export
+  and all photo processing functions to server side"). Planned from the export,
+  pipeline, enhancement-preview and generation hooks; `Dockerfile`,
+  `docker-compose.yml` and `next.config.ts`; G-023's critique exchange; and a
+  live read-only check of the host. No code written.
