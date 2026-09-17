@@ -17,6 +17,8 @@
 
 # next.js
 /.next/
+# Alternate build outputs (NEXT_DIST_DIR), used to serve two processing modes at once for export parity.
+/.next-*/
 /out/
 
 # production

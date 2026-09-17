@@ -19,7 +19,8 @@
     "compare:exports": "playwright test --config scripts/playwright.export-compare.config.ts",
     "calibrate:enhancement": "vitest run --config vitest.calibrate.config.ts",
     "build:processor": "node scripts/build-processor.mjs",
-    "test:e2e:server": "playwright test --config scripts/playwright.server-mode.config.ts"
+    "test:e2e:server": "playwright test --config scripts/playwright.server-mode.config.ts",
+    "compare:export-parity": "playwright test --config scripts/playwright.export-parity.config.ts"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.9",

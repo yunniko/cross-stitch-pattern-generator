@@ -41,6 +41,8 @@ COPY --from=build /app/dist/processor ./processor
 # @napi-rs/canvas is a native addon (D150), so it is installed rather than bundled. The musl builds come
 # from the same alpine `deps` stage, so the binary matches this image's libc.
 COPY --from=deps /app/node_modules/@napi-rs ./node_modules/@napi-rs
+# The export font and the stitch texture come with the bundle: `npm run build:processor` copies them into
+# `dist/processor/assets`, so the same layout works here and wherever else the bundle runs (D153).
 
 EXPOSE 8081
 CMD ["node", "processor/server.mjs"]

@@ -5,7 +5,7 @@ import type { SymmetryAxes } from "../editor/symmetry-axes";
 import type { StitchPattern } from "../types";
 import { generateA4Export } from "./a4-export";
 import type { OverlapCells } from "./a4-layout";
-import { canvasToPngBlob } from "./canvas-backend";
+import { canvasToPngBlob, loadExportFontBytes } from "./canvas-backend";
 import { generateExportAllZip } from "./export-all";
 import type { ExportProgressCallback } from "./export-progress";
 import type { SizeUnit } from "./finished-size";
@@ -43,13 +43,11 @@ export function runsOnMainThread(kind: ExportJobKind): boolean {
   return kind === "editable";
 }
 
-const FONT_URL = "/fonts/DejaVuSans.ttf";
+export const FONT_URL = "/fonts/DejaVuSans.ttf";
 
-/** Fetched on demand rather than bundled into the app's JavaScript; works from the page and from the worker. */
-async function fetchPdfFontBytes(): Promise<Uint8Array> {
-  const response = await fetch(FONT_URL);
-  if (!response.ok) throw new Error("Couldn't load the PDF font.");
-  return new Uint8Array(await response.arrayBuffer());
+/** Loaded on demand rather than bundled into the app's JavaScript; the backend decides where from (G-034 M4). */
+function fetchPdfFontBytes(): Promise<Uint8Array> {
+  return loadExportFontBytes(FONT_URL);
 }
 
 function modeOf(kind: "png-color" | "png-bw" | "a4-color" | "a4-bw" | "pdf-color" | "pdf-bw"): RenderMode {

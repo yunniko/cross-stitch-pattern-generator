@@ -6,6 +6,9 @@ import { calculateA4Layout } from "@/lib/export/a4-layout";
 import { runExport } from "@/lib/export/export-client";
 import type { ExportJobKind, ExportKind } from "@/lib/export/export-jobs";
 import type { ExportProgress } from "@/lib/export/export-progress";
+import { runServerExport } from "@/lib/export/export-server";
+import { isServerProcessing } from "@/lib/pipeline/generation-mode";
+import { ProcessorUnreachableError, ServerBusyError } from "@/lib/pipeline/server-errors";
 import type { StitchPattern } from "@/lib/types";
 
 export type { ExportKind };
@@ -13,6 +16,14 @@ export type { ExportKind };
 /** A4 and PDF kinds paginate with the layout the overlap option affects. */
 export function paginatesAsA4(kind: ExportKind): boolean {
   return kind.startsWith("a4-") || kind.startsWith("pdf-");
+}
+
+/** A server export fails in ways a browser one cannot, and each says what the reader can do about it (G-034 M4). */
+function messageForExport(error: unknown, fallback: string): string {
+  if (error instanceof ServerBusyError) return `The export service is busy. Try again in about ${error.retryAfterSeconds} seconds.`;
+  if (error instanceof ProcessorUnreachableError) return "Couldn't reach the export service. Check your connection and try again.";
+  // Anything with its own wording — a chart too large for one image, a refused request — is shown as it came.
+  return error instanceof Error ? error.message : fallback;
 }
 
 /**
@@ -39,10 +50,11 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
     try {
       // Let the busy label paint first; on the main-thread fallback the export itself would block that paint.
       await new Promise((resolve) => setTimeout(resolve, 0));
-      const { blob, filename } = await runExport({ kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, symmetry }, setProgress);
+      const request = { kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, symmetry };
+      const { blob, filename } = isServerProcessing() ? await runServerExport(request, setProgress) : await runExport(request, setProgress);
       downloadBlob(blob, filename);
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : fallbackMessage);
+      setExportError(messageForExport(err, fallbackMessage));
     } finally {
       setBusy(false);
       setProgress(null);

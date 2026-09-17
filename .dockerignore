@@ -1,6 +1,8 @@
 # Keeps the build context small: the Dockerfile's `COPY . .` would otherwise send these to the daemon.
 node_modules
 .next
+.next-*
+dist
 .git
 test-results
 playwright-report

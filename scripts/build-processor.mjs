@@ -1,4 +1,4 @@
-import { rm } from "node:fs/promises";
+import { cp, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "rolldown";
@@ -38,4 +38,12 @@ await build({
   },
 });
 
-console.log(`processor bundled to ${path.relative(ROOT, OUT)}`);
+/**
+ * The export font and the stitch texture travel with the bundle (D153). Copied here rather than only in the
+ * Dockerfile, so `dist/processor` is self-contained wherever it runs: the image, a test, or a local processor. Leaving
+ * this to the image alone meant every local export failed with a missing font.
+ */
+await cp(path.join(ROOT, "public", "fonts"), path.join(OUT, "assets", "fonts"), { recursive: true });
+await cp(path.join(ROOT, "public", "stitch-texture.png"), path.join(OUT, "assets", "stitch-texture.png"));
+
+console.log(`processor bundled to ${path.relative(ROOT, OUT)}, with its export assets`);

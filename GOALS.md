@@ -369,7 +369,7 @@ caps)
 - [x] **M3 — Preview and client cutover.** Done 2026-09-17 (D152). Server enhancement preview; client
   upload with re-upload on 410; clear messages for a busy server, a network
   failure and an expired photo. Full e2e green in server mode.
-- [ ] **M4 — Exports.** Canvas-factory injection in the shared drawing code with
+- [x] **M4 — Exports.** Done 2026-09-17 (D153). Canvas-factory injection in the shared drawing code with
   the on-screen chart unchanged; server font and texture loading; all export
   kinds as endpoints; parity tests.
 - [ ] **M5 — Cleanup and release.** Delete the browser workers and the flag,
@@ -379,6 +379,28 @@ caps)
   deploy-log row.
 
 **Progress log** (newest first):
+- 2026-09-17 — **M4 done: every export runs on the server, from the same code the browser runs (D153).**
+  - **Injection:** the drawing code asks `lib/export/canvas-backend.ts` for its canvas, PNG encoding, images and PDF
+    font; the server installs `@napi-rs/canvas` behind that. `FONT_STACK` and the on-screen chart are untouched, and
+    the two browser cases are unchanged.
+  - **Fonts:** the image ships no fonts at all, so `measureText` returned 0 and charts would have been structurally
+    wrong. The processor registers the DejaVu Sans it already ships for the PDF; a registered font satisfies the
+    existing stack, so no drawing code changed (D153). The Owner chose this over shipping Liberation Sans.
+  - **Exports share the generation pool**, so the container never runs more than the three concurrent jobs D149 sized
+    it for. `POST /api/exports` takes the chart itself; the existing job routes stream progress and return the file.
+  - **Parity (criterion 7), measured against a browser build:** editable JSON identical as data, OXS byte-identical,
+    PDFs 3 pages with identical text, every archive's file list equal, every PNG's dimensions equal. Raster pixels
+    differ by a mean of 1.08–3.85 levels per channel from two causes — the font, and different texture resampling in
+    the realistic preview, which D153 does not cover. Both are recorded and bounded:
+    `docs/reviews/2026-09-17-export-parity.md`.
+  - **Two defects the e2e caught, both mine:** server-mode A4 exports had lost per-page progress (`JobStatus` collapsed
+    the exporter's `{completed, total, label}` into a fraction); and paginated exports were killed by a single-image
+    45 s deadline — a 1000-stitch A4 export died at 45.6 s and now completes in 69.8 s.
+  - **Checks:** Vitest 1069 passed, 8 skipped; `tsc` and `npm run lint` clean; server-mode e2e for every spec M4
+    touched — 19 passed across seven specs, with the processor serving the exports and generations.
+  - **Not done here:** nothing deployed, and the default build still exports in the browser.
+  - **Next (M5):** delete the browser workers and the flag, correct the README and the `INFRASTRUCTURE_DEPLOY.md` row,
+    the Owner applies the nginx changes, then deploy.
 - 2026-09-17 — **M3 done: the whole e2e suite passes against a server-processing build (D152).**
   - **Server preview:** its own worker, queue and deadline (D152, mirroring D116), WebP cached per photo and
     mode — 461 ms cold, 1 ms cached, ~6 KB. Its output is byte-for-byte what the in-process pipeline produces.

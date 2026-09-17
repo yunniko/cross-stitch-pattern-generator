@@ -55,7 +55,8 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   doubleClickFill: true,
 };
 
-const VALID_OVERLAP_CELLS: readonly OverlapCells[] = [0, 5, 10];
+/** The overlaps the A4 layout can actually paginate with; shared so the processor validates against the same list. */
+export const VALID_OVERLAP_CELLS: readonly OverlapCells[] = [0, 5, 10];
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const VALID_SIZE_PRESETS: readonly SizePresetId[] = ["small", "medium", "large", "xl", "xxl", "custom"];
 

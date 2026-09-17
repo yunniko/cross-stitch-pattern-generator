@@ -6,6 +6,7 @@ import { serializePattern } from "@/lib/editor/pattern-serialize";
 import { ENHANCEMENT_PRESETS, type EnhancementModeId } from "@/lib/pipeline/enhance";
 import { ENHANCEMENT_PREVIEW_MAX_SIDE } from "@/lib/pipeline/enhance-preview";
 import { settingsError } from "./validate-settings";
+import { exportRequestError, toExportPayload } from "./validate-export";
 import { GenerationPool, QueueFullError } from "./pool";
 import { PhotoStore, PhotoTooLargeError } from "./photo-store";
 import { PreviewCache } from "./preview-cache";
@@ -155,6 +156,26 @@ async function handleJobEvents(res: ServerResponse, jobId: string): Promise<void
   res.end();
 }
 
+/** Starts an export on the same pool the generations use, so the container never exceeds what D149 sized it for. */
+async function handleExportCreate(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  let body: unknown;
+  try {
+    body = JSON.parse((await readCapped(req, LIMITS.exportRequestBytes)).toString("utf8"));
+  } catch {
+    send(res, 400, { error: "That request body is not valid JSON." });
+    return;
+  }
+  const invalid = exportRequestError(body);
+  if (invalid) {
+    send(res, 400, { error: invalid });
+    return;
+  }
+  const payload = toExportPayload(body);
+  const jobId = pool.submitExport(payload);
+  console.log(`export ${jobId.slice(0, 8)} queued: ${payload.kind}, ${payload.pattern.width}x${payload.pattern.height}`);
+  send(res, 202, pool.status(jobId), { location: `/jobs/${jobId}` });
+}
+
 function handleJobResult(res: ServerResponse, jobId: string): void {
   const status = pool.status(jobId);
   if (!status) {
@@ -163,6 +184,17 @@ function handleJobResult(res: ServerResponse, jobId: string): void {
   }
   if (status.state !== "done") {
     send(res, 409, { error: `That job is ${status.state}.`, status });
+    return;
+  }
+  // An export's result is a file, not a pattern; the same job routes serve both because they share the pool.
+  const exported = pool.exportResult(jobId);
+  if (exported) {
+    res.writeHead(200, {
+      "content-type": exported.contentType,
+      "content-length": exported.bytes.byteLength,
+      "content-disposition": `attachment; filename="${exported.filename.replace(/"/g, "")}"`,
+    });
+    res.end(Buffer.from(exported.bytes));
     return;
   }
   const pattern = pool.result(jobId);
@@ -200,6 +232,8 @@ const server = createServer((req, res) => {
         await handlePreview(res, previewMatch[1], url.searchParams.get("mode") ?? "");
       } else if (req.method === "HEAD" && /^\/photos\/[0-9a-f]{64}$/.test(url.pathname)) {
         res.writeHead(photos.has(url.pathname.slice("/photos/".length)) ? 200 : 404).end();
+      } else if (req.method === "POST" && url.pathname === "/exports") {
+        await handleExportCreate(req, res);
       } else if (req.method === "POST" && url.pathname === "/jobs") {
         await handleJobCreate(req, res);
       } else if (req.method === "GET" && jobMatch?.[2] === "/events") {
@@ -220,6 +254,9 @@ const server = createServer((req, res) => {
         send(res, 503, { error: err.message }, { "retry-after": String(err.retryAfterSeconds) });
       } else if (err instanceof PhotoTooLargeError) {
         send(res, 413, { error: err.message });
+      } else if (err instanceof Error && err.name === "ChartTooLargeError") {
+        // The caller's chart exceeds what a single image can hold — their request to change, not a server fault.
+        send(res, 422, { error: err.message });
       } else {
         console.error(`request failed: ${err instanceof Error ? err.message : "unknown"}`);
         if (!res.headersSent) send(res, 500, { error: "Something went wrong handling that." });

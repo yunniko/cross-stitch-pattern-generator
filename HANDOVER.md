@@ -13,23 +13,24 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 Signed off: G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
 **In progress — G-034, moving processing to the server.** M1 measured the caps (D149, D150); M2 built the
-`processor` service, its API and the client switch (D151); M3 added the server photo preview and the client
-cutover (D152), with the whole e2e suite passing against a server build. Nothing is deployed, and
-`NEXT_PUBLIC_PROCESSING` still defaults to the browser path, so live behaviour is unchanged.
+`processor` service, its API and the client switch (D151); M3 added the server photo preview and the client cutover
+(D152); M4 moved every export there too, drawing with DejaVu because the image has no fonts (D153), with parity
+measured in `docs/reviews/2026-09-17-export-parity.md`. Nothing is deployed, and `NEXT_PUBLIC_PROCESSING` still
+defaults to the browser path, so live behaviour is unchanged.
 
 **What works** (verified in this session unless marked otherwise):
-- Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest or Original clustering, Full range,
-  DMC, Cosmo or Anchor palettes, and Standard, Crisp or Crisp+ edges, in a reused Web Worker with progress and
-  cancellation. A chart can also start blank ("New blank chart…"): a chosen size, every stitch empty, no colours
-  and no photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
-- Editing: brush (a double-click fills a region as one undo step when the Options switch is on, D138, D146),
-  8-connected fill, symmetric painting on up to four axes and quick mirror (D137), rectangle select with copy,
-  paste, move, flip, rotate, crop and cancel (D147), move, pan, zoom, highlight; merge, recolor, rename, symbol
-  swap, add color, empty stitches, canvas resize, and one undo history covering regeneration.
-- Color editor: opens under its legend row on the color's remembered thread swatch (D122), marked and
-  scrolled into view; hovering or focusing a swatch shows an Okhsl comparison (D123); picks apply at
-  once and the editor stays open, Full range drags are one undo step, Done keeps and Cancel or Escape
-  restores, and a click outside closes it while still acting.
+- Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest or Original clustering, Full range, DMC,
+  Cosmo or Anchor palettes, and Standard, Crisp or Crisp+ edges, in a reused Web Worker with progress and
+  cancellation. A chart can also start blank: every stitch empty, no colours and no photo, so Generate and the photo
+  settings stay away for its whole life (G-040, D143).
+- Editing: brush (double-click fills a region as one undo step when the Options switch is on, D138, D146),
+  8-connected fill, symmetry on up to four axes and quick mirror (D137), rectangle select with copy, paste, move,
+  flip, rotate, crop and cancel (D147), pan, zoom, highlight; merge, recolor, rename, symbol swap, add color, empty
+  stitches, canvas resize, and one undo history covering regeneration.
+- Color editor: opens under its legend row on the color's remembered thread swatch (D122), marked and scrolled into
+  view; hovering or focusing a swatch shows an Okhsl comparison (D123); picks apply at once and the editor stays
+  open, Full range drags are one undo step, Done keeps and Cancel or Escape restores, and a click outside closes it
+  while still acting.
 - Wheel and Zoom-tool zoom keep the stitch under the cursor in place; the zoom buttons keep the
   view's centre (D124). Five view modes (keys 1–5) and a view-only canvas color. Shortcuts: Ctrl+Z,
   Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, and Escape to merge a selection.
@@ -42,22 +43,22 @@ cutover (D152), with the whole e2e suite passing against a server build. Nothing
 - Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and
   restores on reload. A corrupt record shows a banner with an on-demand error report; options live in
   localStorage.
-- Photo enhancement: a Photo control (Off, Brighten, Auto, Vivid, Portrait), an enhanced preview with
-  "Compare with original" before Generate, and the mode recorded in saved files. Brighten is a cautious
-  exposure fix; the other three stay experimental (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
+- Photo enhancement: a Photo control (Off, Brighten, Auto, Vivid, Portrait), an enhanced preview with "Compare with
+  original", and the mode recorded in saved files; only Brighten is released
+  (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-17**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1047 passed (8 opt-in
-skips); Playwright 313 passed across all 25 specs against a **server-processing** build
-(`npm run test:e2e:server`), one spec per process. CI (`.github/workflows/ci.yml`) runs `next typegen`
-before the type-check, and `build:processor` before the unit tests, because the worker bundle is
-git-ignored and the pool and preview specs run against it.
+**Checks run 2026-09-17**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1069 passed (8 opt-in skips).
+Playwright against a **server-processing** build, one spec per process: 313 across all 25 specs at M3; at M4 only the
+seven specs exports touch (19 passed), because this machine could not hold the full suite. Export parity:
+`docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the type-check and `build:processor` before
+the unit tests, because the worker bundle is git-ignored and the pool, preview and export specs run against it.
 
-**Performance** (G-035 results, 2026-09-15, medians of 5 on the Owner's machine): a 12 MP photo at
-100 stitches / 16 colors takes 2.9 s in Standard and 7.5 s in Crisp, down from 7.7 s and 42.7 s. At
-1500×1000 → 1000 stitches / 64 colors, Standard takes 4.9 s and Crisp 6.8 s. In the browser at 1000
-stitches, generating takes 6.9 s, the Pattern Keeper PDF 11.1 s and Export all 37.8 s, with no
-main-thread freeze. Tables: `docs/reviews/2026-09-15-performance-results.md`. Enhancing a 4000×3000
-photo takes 1.9–2.2 s, above G-032's 1.5 s target. The server is ~3.4× slower per core (D149).
+**Performance** (G-035, 2026-09-15, medians of 5 on the Owner's machine; tables in
+`docs/reviews/2026-09-15-performance-results.md`): a 12 MP photo at 100 stitches / 16 colors takes 2.9 s Standard
+and 7.5 s Crisp, down from 7.7 s and 42.7 s; at 1000 stitches / 64 colors, 4.9 s and 6.8 s. In the browser at 1000
+stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no main-thread freeze. Enhancing a
+4000×3000 photo takes 1.9–2.2 s, above G-032's 1.5 s target. The server is ~3.4× slower per core (D149), and a
+1000-stitch A4 export there takes about 70 s.
 
 **Known limitations**:
 - Crisp takes about 2.6× Standard's time on a 12 MP photo (7.5 s against 2.9 s), because every cell
@@ -79,10 +80,8 @@ photo takes 1.9–2.2 s, above G-032's 1.5 s target. The server is ~3.4× slower
   ref assigned after render (D108). The chart frame (full chart size) takes layout, input and the zoom anchor;
   one canvas inside paints the visible part plus overscan (`app/chart-scene.ts`, D135, D136). Realistic and
   Original photo are view-only, where only Pan and Zoom act.
-- **Generation path (browser)**: `app/hooks/use-generation.ts` →
-  `lib/pipeline/pattern-client.ts` (one reused worker; discarded after a
-  native error) → `lib/pipeline/pattern.worker.ts` → `buildPattern` in
-  `lib/pipeline/pattern.ts`.
+- **Generation path (browser)**: `app/hooks/use-generation.ts` → `lib/pipeline/pattern-client.ts` (one reused worker,
+  discarded after a native error) → `lib/pipeline/pattern.worker.ts` → `buildPattern` in `lib/pipeline/pattern.ts`.
 - **Generation path (server, G-034 M2, D151)**: the same hook → `lib/pipeline/pattern-server.ts` →
   the Route Handlers in `app/api/` → the `processor` container (`processor/server.ts`, its pool in
   `processor/pool.ts`, decoded photos in `processor/photo-store.ts`), which runs the identical
@@ -93,30 +92,25 @@ photo takes 1.9–2.2 s, above G-032's 1.5 s target. The server is ~3.4× slower
 - **Preview path (server, G-034 M3, D152)**: `app/hooks/use-enhance-preview.ts` →
   `lib/pipeline/enhance-preview-server.ts` → `app/api/photos/[hash]/preview/route.ts` → its own worker
   (`processor/preview-runner.ts`, `processor/preview-worker.ts`), cached as WebP in `processor/preview-cache.ts`.
+- **Export path (server, G-034 M4, D153)**: `app/hooks/use-exports.ts` → `lib/export/export-server.ts` →
+  `app/api/exports/route.ts` → the same pool as generation, so concurrency stays inside D149's cap. The drawing code
+  is unchanged: it asks `lib/export/canvas-backend.ts` for canvases, PNG encoding, images and the PDF font, and
+  `processor/export-backend.ts` answers with `@napi-rs/canvas`. Requests are checked by
+  `processor/validate-export.ts`; page progress and the finished file come back over the job routes.
 - **Photo decode**: `lib/editor/load-image.ts` sends the file or data URL to
   `lib/editor/decode-image.worker.ts`; `lib/editor/decode-main-thread.ts` is the fallback, and both size
   through `lib/editor/decode-bitmap.ts` (D128), which the server reuses (D150).
-- **Pipeline order** in `buildPattern`:
-  1. Area-weighted linear-light downsample.
-  2. Sobel importance and per-pair color structure-tensor evidence (D044).
-  3. One shared `PipelineContext` holding cell OKLab (D106).
-  4. Importance-gated medoid pre-filter for the quantizer only (D041, D051).
-  5. OKLab k-means: plain (Original) or merge-and-reinvest (Latest) (D018, D039).
-  6. Coarse then fine ICM on an 8-neighbor stencil (D043, D045); a cell is
-     re-evaluated only after a neighbour changes (D133).
-  7. Small-component recolor and diagonal-pinch fixes.
-  8. Palette merge, zero-count compaction, then OKLab palette recompute.
-  9. Thread-brand snap with a re-run of fine ICM (D056), then dark-to-light
-     sort, symbols and unique names.
-- **Photo enhancement** (`lib/pipeline/enhance.ts`): a preset is analysed
-  from the photo (white balance, levels and gamma, CLAHE, vibrance) and then
-  applied per pixel. `buildPattern` enhances once. Downsampling and Crisp's
-  colour fits read the enhanced photo; importance and pair evidence read the
-  original (D112). Off returns the input untouched. The preview has its own
-  worker (`lib/pipeline/enhance-preview.worker.ts`, D116).
-  `releasedEnhancementModes()` decides what the UI offers; files may record
-  any recognized mode (D113). If every stage abstains, the source buffer
-  itself is returned (D118).
+- **Pipeline order** in `buildPattern`, in sequence: area-weighted linear-light downsample; Sobel importance and
+  per-pair structure-tensor evidence (D044); one shared `PipelineContext` of cell OKLab (D106); importance-gated
+  medoid pre-filter for the quantizer only (D041, D051); OKLab k-means, plain for Original or merge-and-reinvest for
+  Latest (D018, D039); coarse then fine ICM on an 8-neighbour stencil, re-evaluating a cell only after a neighbour
+  changes (D043, D045, D133); small-component recolor and diagonal-pinch fixes; palette merge, zero-count compaction
+  and OKLab recompute; thread-brand snap with fine ICM re-run (D056), then dark-to-light sort, symbols and names.
+- **Photo enhancement** (`lib/pipeline/enhance.ts`): a preset is analysed from the photo (white balance, levels and
+  gamma, CLAHE, vibrance) then applied per pixel, once, inside `buildPattern`. Downsampling and Crisp's colour fits
+  read the enhanced photo; importance and pair evidence read the original (D112). Off, or every stage abstaining,
+  returns the input untouched (D118). The preview has its own worker (D116); `releasedEnhancementModes()` decides
+  what the UI offers, while files may record any recognized mode (D113).
 - **Crisp mode** (`lib/crisp/`): a frozen evidence layer (D065) feeds weighted quantization, admissible-label
   unary costs in ICM and cleanup, repair after merges, and mode-aware finalization (D061–D072). The layer
   evaluates every cell (D132) and converts each source row to OKLab once per job (G-035 M4). Crisp+
@@ -211,8 +205,14 @@ photo takes 1.9–2.2 s, above G-032's 1.5 s target. The server is ~3.4× slower
 - The processor publishes no port and is reached only through `app/api/`, which holds the Origin
   check and the rate limit. Job results travel in the editable-JSON save format, so a change to
   `pattern-serialize.ts` changes the wire format too (D151).
-- What the processor accepts is derived from the type unions in `processor/validate-settings.ts`, never
-  retyped: a hand-written copy once spelled `PaletteMode`'s "full" as "free" and rejected every generation.
+- What the processor accepts is derived from the type unions in `processor/validate-settings.ts` and
+  `processor/validate-export.ts`, never retyped: a hand-written copy once spelled `PaletteMode`'s "full" as "free"
+  and rejected every generation.
+- The export font and stitch texture travel with the bundle: `npm run build:processor` copies them into
+  `dist/processor/assets`, so `dist/processor` runs anywhere. The image carries no fonts of its own, and without a
+  registered one every measured text width is zero (D153).
+- Paginated exports (A4, PDF) get their own deadline, not a single image's: a 1000-stitch A4 export takes about 70 s
+  and was being killed at 45 s (`processor/job-protocol.ts`, `exportDeadlineFor`).
 - Rate-limit capacities default to production values and are overridable by environment variable
   (`RATE_LIMIT_JOBS_PER_MINUTE`, `RATE_LIMIT_PREVIEWS_PER_MINUTE`) so the e2e suite is not refused; a zero or
   malformed value falls back to the default rather than disabling the limit.
@@ -221,7 +221,8 @@ photo takes 1.9–2.2 s, above G-032's 1.5 s target. The server is ~3.4× slower
 
 - Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, a drag's first frame paints in full (34–77 ms), and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142). From G-033: "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.
-- G-034 continues at M4 (exports: canvas-factory injection, server fonts and textures, parity tests). Nothing of G-034 is deployed yet.
+- G-034 continues at M5: delete the browser workers and the `NEXT_PUBLIC_PROCESSING` flag, correct the README line and the `INFRASTRUCTURE_DEPLOY.md` row, have the Owner apply the nginx changes, then deploy. Nothing of G-034 is deployed yet.
+- Open from M4, for the Owner: the Origin check treats `127.0.0.1` and `localhost` as different sites, and `APP_URL` sits at its `localhost:3000` compose default while the site runs at `cross-stitch.craftodejnice.cz`, so only the request-derived origin is ever matched. Harmless today (a browser sends the origin it loaded from) but worth settling in M5.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
 - G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.

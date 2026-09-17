@@ -1,11 +1,11 @@
 import { luminance } from "../color/color";
 import type { PaletteColor, RGB } from "../types";
-import { createCanvas, type AnyCanvas } from "./canvas-backend";
+import { createCanvas, loadExportImage, onExportBackendChange, type AnyCanvas } from "./canvas-backend";
 
 // Single swappable texture asset -- a photographed/rendered cross-stitch
 // with real shading (highlights/shadows) and soft alpha edges. Swap the file
 // at this path to change the look; nothing else needs to change.
-const TEXTURE_URL = "/stitch-texture.png";
+export const TEXTURE_URL = "/stitch-texture.png";
 
 // The source image can be much higher-res than any cell will ever be drawn
 // at (canvas scales it down via drawImage regardless) -- sampling it down to
@@ -15,10 +15,15 @@ const TEXTURE_SAMPLE_SIZE = 64;
 
 let cachedImage: Promise<CanvasImageSource> | null = null;
 
-/** The texture as a drawable image: an <img> on the main thread, an ImageBitmap in the export worker, which has no Image (G-035 M2). */
+// A decoded image belongs to the environment that decoded it, so switching backends must not reuse it (G-034 M4).
+onExportBackendChange(() => {
+  cachedImage = null;
+});
+
+/** The texture as a drawable image; how it is loaded is the backend's business (`canvas-backend.ts`). */
 function loadTextureImage(): Promise<CanvasImageSource> {
   if (!cachedImage) {
-    cachedImage = (typeof Image !== "undefined" ? loadWithImageElement() : loadAsBitmap()).catch((err: unknown) => {
+    cachedImage = loadExportImage(TEXTURE_URL).catch((err: unknown) => {
       // Clear the cache on failure so a later call retries fresh, instead of returning the same rejection until a page
       // reload (code-review 2026-09-09, finding 6).
       cachedImage = null;
@@ -26,21 +31,6 @@ function loadTextureImage(): Promise<CanvasImageSource> {
     });
   }
   return cachedImage;
-}
-
-function loadWithImageElement(): Promise<CanvasImageSource> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load stitch texture at ${TEXTURE_URL}`));
-    img.src = TEXTURE_URL;
-  });
-}
-
-async function loadAsBitmap(): Promise<CanvasImageSource> {
-  const response = await fetch(TEXTURE_URL);
-  if (!response.ok) throw new Error(`Failed to load stitch texture at ${TEXTURE_URL}`);
-  return createImageBitmap(await response.blob());
 }
 
 /**

@@ -49,8 +49,9 @@ const MIN_CHART_CELL_SIZE_PX = 4;
 /** Thrown when no cell size -- down to the legibility/practical floor -- keeps the complete chart within the size budgets above. */
 export class ChartTooLargeError extends Error {
   constructor() {
+    // Wording kept true wherever it is thrown: the same limit applies to the server's exports (G-034 M4).
     super(
-      'This pattern is too large to render as a single image in your browser. Try a smaller pattern size, fewer colors, or use "Export as A4 pages" instead, which renders one printable page at a time.'
+      'This pattern is too large to render as a single image. Try a smaller pattern size, fewer colors, or use "Export as A4 pages" instead, which renders one printable page at a time.'
     );
     this.name = "ChartTooLargeError";
   }

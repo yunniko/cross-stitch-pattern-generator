@@ -1,24 +1,70 @@
 import { parentPort } from "node:worker_threads";
+import { readSymmetry } from "@/lib/editor/pattern-serialize";
+import { runExportJob } from "@/lib/export/export-jobs";
 import { buildPattern } from "@/lib/pipeline/pattern";
 import { kMeansQuantizer, plainKMeansQuantizer } from "@/lib/pipeline/quantize";
+import { installServerExportBackend } from "./export-backend";
 import type { WorkerJob, WorkerMessage } from "./job-protocol";
 
 /**
- * One pool worker (G-034 M2): the server-side twin of `lib/pipeline/pattern.worker.ts`.
+ * One pool worker (G-034 M2, M4): the server-side twin of `lib/pipeline/pattern.worker.ts` and of the export worker.
  *
- * It calls `buildPattern` with the same arguments the browser worker does — including the same quantizer choice for
- * "original" — so the golden hashes (D107) hold on both sides. Cancellation is blunt: the pool terminates the thread,
- * exactly as the browser client terminates its worker, because `buildPattern`'s hot loops are not checkpointed.
+ * Generations call `buildPattern` with the same arguments the browser worker does — including the same quantizer for
+ * "original" — so the golden hashes (D107) hold on both sides. Exports call the very same `runExportJob` the browser
+ * runs, with the canvas, font and texture supplied by the server backend (D153), so the two cannot drift into separate
+ * implementations. Cancellation is blunt for both: the pool terminates the thread, because neither has interruption
+ * points.
  */
 
 if (!parentPort) throw new Error("pool-worker must run as a worker thread");
 const port = parentPort;
 
+let exportBackendReady = false;
+
+/**
+ * Installed on the first export, not at startup: without its font every measured width would be zero, but a generation
+ * needs neither the font nor the texture, and making every worker demand them at spawn killed the whole pool wherever
+ * the assets were not beside the bundle.
+ */
+function ensureExportBackend(): void {
+  if (exportBackendReady) return;
+  installServerExportBackend();
+  exportBackendReady = true;
+}
+
 function post(message: WorkerMessage): void {
+  // Not transferred: an export's bytes are copied once per finished job, which is far cheaper than the risk of handing
+  // out a detached buffer, and Node's transfer list is a different union from the DOM one anyway.
   port.postMessage(message);
 }
 
+async function runExport(job: Extract<WorkerJob, { kind: "export" }>): Promise<void> {
+  const { jobId, payload } = job;
+  ensureExportBackend();
+  const result = await runExportJob(
+    {
+      kind: payload.kind,
+      pattern: payload.pattern,
+      baseName: payload.baseName,
+      aidaCount: payload.aidaCount,
+      sizeUnit: payload.sizeUnit,
+      authorName: payload.authorName,
+      overlapCells: payload.overlapCells,
+      // The wire carries only the axes that are on (`SerializedSymmetry`); this is the same reader a saved file goes
+      // through, so the editable JSON inside an export records exactly what the editor had set.
+      symmetry: readSymmetry(payload.symmetry, payload.pattern.width, payload.pattern.height),
+    },
+    (progress) => post({ type: "export-progress", jobId, progress })
+  );
+  const bytes = new Uint8Array(await result.blob.arrayBuffer());
+  post({ type: "export-done", jobId, bytes, filename: result.filename, contentType: result.blob.type || "application/octet-stream" });
+}
+
 port.on("message", (job: WorkerJob) => {
+  if (job.kind === "export") {
+    runExport(job).catch((err: unknown) => post({ type: "error", jobId: job.jobId, message: err instanceof Error ? err.message : "Couldn't complete that export." }));
+    return;
+  }
   try {
     const pattern = buildPattern(job.imageData, {
       longerSideStitches: job.settings.longerSideStitches,

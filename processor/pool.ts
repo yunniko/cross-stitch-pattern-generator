@@ -1,6 +1,7 @@
 import { Worker } from "node:worker_threads";
 import { randomUUID } from "node:crypto";
-import { LIMITS, type JobSettings, type JobStatus, type WorkerJob, type WorkerMessage } from "./job-protocol";
+import { exportDeadlineFor, LIMITS, type ExportJobPayload, type JobSettings, type JobStatus, type WorkerJob, type WorkerMessage } from "./job-protocol";
+import type { ExportProgress } from "@/lib/export/export-progress";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
 
 /**
@@ -21,14 +22,25 @@ export class QueueFullError extends Error {
   }
 }
 
+/** A finished export, held for collection exactly as a finished pattern is. */
+export interface ExportResult {
+  bytes: Uint8Array;
+  filename: string;
+  contentType: string;
+}
+
 interface Job {
   id: string;
-  settings: Omit<JobSettings, "photoHash">;
-  imageData: PixelBuffer;
+  /** What the worker is asked to do; exports and generations share the pool so the CPU cap holds (D149). */
+  work: WorkerJob;
   state: JobStatus["state"];
   progress: number;
+  /** Set for exports only: pages done out of pages total, which is what the editor shows. */
+  exportProgress?: ExportProgress;
   message?: string;
   pattern?: StitchPattern;
+  exportResult?: ExportResult;
+  deadlineMs: number;
   /** Resolved whenever the job's state or progress changes, so the event stream can await the next update. */
   changed: Array<() => void>;
   deadlineTimer?: NodeJS.Timeout;
@@ -72,13 +84,25 @@ export class GenerationPool {
     return worker;
   }
 
-  /** Accepts a job, or refuses it when the queue is full. */
+  /** Accepts a generation, or refuses it when the queue is full. */
   submit(settings: Omit<JobSettings, "photoHash">, imageData: PixelBuffer): string {
+    return this.enqueue((jobId) => ({ kind: "generate", jobId, settings, imageData }), this.deadlineMs);
+  }
+
+  /**
+   * Accepts an export onto the same workers (G-034 M4). Export all renders every format in one job, so it gets the
+   * longer deadline; a single export gets a generation's.
+   */
+  submitExport(payload: ExportJobPayload): string {
+    return this.enqueue((jobId) => ({ kind: "export", jobId, payload }), exportDeadlineFor(payload.kind));
+  }
+
+  private enqueue(build: (jobId: string) => WorkerJob, deadlineMs: number): string {
     if (this.queue.length >= LIMITS.queueLength) {
       throw new QueueFullError(Math.ceil((LIMITS.jobDeadlineMs / 1000) / 2));
     }
     const id = randomUUID();
-    this.jobs.set(id, { id, settings, imageData, state: "queued", progress: 0, changed: [] });
+    this.jobs.set(id, { id, work: build(id), state: "queued", progress: 0, deadlineMs, changed: [] });
     this.queue.push(id);
     this.pump();
     return id;
@@ -92,6 +116,8 @@ export class GenerationPool {
       jobId,
       state: job.state,
       progress: job.state === "running" ? job.progress : undefined,
+      // Exports report pages; the editor needs those, not just the fraction derived from them.
+      exportProgress: job.state === "running" ? job.exportProgress : undefined,
       queuePosition: queuePosition && queuePosition > 0 ? queuePosition : undefined,
       message: job.message,
     };
@@ -99,6 +125,11 @@ export class GenerationPool {
 
   result(jobId: string): StitchPattern | null {
     return this.jobs.get(jobId)?.pattern ?? null;
+  }
+
+  /** The finished file of an export job, or null while it is unfinished or if it was a generation. */
+  exportResult(jobId: string): ExportResult | null {
+    return this.jobs.get(jobId)?.exportResult ?? null;
   }
 
   /** Resolves the next time this job's state or progress changes, or immediately once it has finished. */
@@ -137,10 +168,9 @@ export class GenerationPool {
       job.workerIndex = free;
       job.state = "running";
       job.progress = 0;
-      job.deadlineTimer = setTimeout(() => this.killJobWorker(job, "error", "The job ran past its time limit."), this.deadlineMs);
+      job.deadlineTimer = setTimeout(() => this.killJobWorker(job, "error", "The job ran past its time limit."), job.deadlineMs);
       job.deadlineTimer.unref();
-      const message: WorkerJob = { jobId: id, settings: job.settings, imageData: job.imageData };
-      this.workers[free].worker.postMessage(message);
+      this.workers[free].worker.postMessage(job.work);
       this.notify(job);
     }
   }
@@ -153,9 +183,18 @@ export class GenerationPool {
       this.notify(job);
       return;
     }
+    if (message.type === "export-progress") {
+      job.exportProgress = message.progress;
+      job.progress = message.progress.total > 0 ? message.progress.completed / message.progress.total : 0;
+      this.notify(job);
+      return;
+    }
     this.workers[index].jobId = null;
     if (message.type === "done") {
       job.pattern = message.pattern;
+      this.finish(job, "done");
+    } else if (message.type === "export-done") {
+      job.exportResult = { bytes: message.bytes, filename: message.filename, contentType: message.contentType };
       this.finish(job, "done");
     } else {
       this.finish(job, "error", message.message);
@@ -189,8 +228,9 @@ export class GenerationPool {
     job.message = message;
     job.finishedAt = Date.now();
     job.workerIndex = undefined;
-    // The pixels are the biggest thing a finished job holds; the photo store still owns its own copy.
-    job.imageData = { data: new Uint8ClampedArray(0), width: 0, height: 0 };
+    // The inputs are the biggest thing a finished job holds — a generation's pixels, an export's whole chart and photo.
+    // The photo store still owns its own copy, and the finished file is kept separately.
+    job.work = { kind: "generate", jobId: job.id, settings: { longerSideStitches: 0, colorCount: 0 }, imageData: { data: new Uint8ClampedArray(0), width: 0, height: 0 } };
     this.notify(job);
   }
 

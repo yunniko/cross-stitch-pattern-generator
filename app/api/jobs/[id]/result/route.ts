@@ -18,7 +18,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!JOB_ID.test(id)) return NextResponse.json({ error: "That is not a job id." }, { status: 400 });
   try {
     const upstream = await fetch(processorUrl(`/jobs/${id}/result`));
-    return new NextResponse(upstream.body, { status: upstream.status, headers: { "content-type": "application/json" } });
+    // A generation's result is JSON, an export's is a file: the upstream type and filename are passed through rather
+    // than assumed, or an export downloads as "sample.dat" served as application/json (G-034 M4).
+    const headers: Record<string, string> = { "content-type": upstream.headers.get("content-type") ?? "application/json" };
+    const disposition = upstream.headers.get("content-disposition");
+    if (disposition) headers["content-disposition"] = disposition;
+    return new NextResponse(upstream.body, { status: upstream.status, headers });
   } catch {
     return processorUnreachable();
   }

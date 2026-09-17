@@ -161,3 +161,4 @@ remain readable with git show.
 - D150 — The server decodes photos with @napi-rs/canvas — active
 - D151 — Generation runs in a processor service that only the app can reach — active
 - D152 — The enhancement preview gets its own worker on the server — active
+- D153 — Server exports draw their text with DejaVu Sans — active
