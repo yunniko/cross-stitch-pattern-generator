@@ -215,7 +215,7 @@ export function SelectionBar({
               title={title}
               onClick={onClick}
               disabled={isDisabled}
-              className={named ? "flex items-center gap-1.5 px-2.5" : "px-2"}
+              className={named ? "flex items-center gap-1.5 px-2.5 whitespace-nowrap" : "px-2"}
             >
               {icon}
               {named && label}
