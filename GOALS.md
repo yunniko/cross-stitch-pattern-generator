@@ -108,6 +108,24 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M5 — Specs, documentation and deploy. Done 2026-09-18.
 
 **Progress log** (newest first):
+- 2026-09-18 — **One disabled look per control shape, and a start screen that touches nothing.**
+  - **The Owner's test was appearance, not attributes.** Three disabled treatments had grown side by side (40%, 50%,
+    and none at all on the zoom controls) and eight disabled controls still lit under the pointer. `app/components/ui.tsx`
+    now exports DISABLED_ICON and DISABLED_TEXT, and every hover on a control that can be disabled is written
+    `enabled:hover:`, so a disabled one cannot answer the pointer rather than being overridden back out (D164).
+  - **The start screen stops reaching the chart behind it.** One startScreenVisible feeds the rail, the status bar,
+    the inspector and New; the inspector forces 1b's Photo pane and drops its footer rather than leaving sixteen
+    thread rows disabled; Undo and Redo leave, since 1b draws none there; the status bar stops counting the covered chart.
+  - **Measured, not asserted by presence:** 21 controls drawn, 17 disabled in exactly two looks, 0 lit under the
+    pointer, the chart still painted behind — the same probe re-run against production after the deploy. Playwright
+    317 passed (a new D164 spec pins it), Vitest 1061 passed, 8 skipped. Deployed as 6d84192.
+  - **One flaky failure, not a regression:** an earlier full run failed viewport-canvas's Realistic test (D136) on a
+    keypress that did not take effect; a clean re-run passed it in 737 ms, and this change touches no view-mode,
+    shortcut or focus code. Its exit code had also been masked by a `tail` pipe — the run was read as green before the
+    output was read properly.
+  - **Condensed from HANDOVER:** the account of repairing 28 e2e specs during M5, which is history rather than state.
+  - **Next:** the start page's empty-grid card — the blank-chart settings move inside the option box, retiring the
+    separate top panel (Owner, 2026-09-18). Sign-off comes after that; G-045 stays ACTIVE until it is logged.
 - 2026-09-18 — **New leaves the logo for the tools, and replacing a chart now asks first.**
   - **The design changed and the rail followed it.** The mark and its file menu are gone; a bordered **New** button
     leads the tools and opens the start screen, where the three ways into a chart already live (D162).

@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-18 at 0ef8868 (G-045: the chart frame hides rather than unmounts, deployed and verified live)
+Last verified: 2026-09-18 at 6d84192 (G-045: one disabled look per control shape and a start screen that touches nothing, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 0ef8868 (2026-09-18), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
+**Production** runs 6d84192 (2026-09-18), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
 Signed off: G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
 **G-034, processing moved to the server — signed off 2026-09-18.** M1 measured the caps (D149, D150); M2 built the
@@ -283,6 +283,8 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
 - G-034 is signed off (2026-09-18) and archived in `docs/goals-archive.md`. The one acceptance criterion not met is Export all at 1000 stitches, shipped as a documented limitation (D155): Export all and the Pattern Keeper PDF fail on charts near 1000 stitches. The fix not yet made is batching same-colour runs in the PDF adapter, which would cut both memory and file size. No goal is open for it (Owner, 2026-09-18).
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
+- G-045 continues: the start page's empty-grid card takes the blank-chart settings inside the option box, retiring the separate
+  top panel and the NewChartPanel with it (Owner, 2026-09-18). Not started.
 - G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
@@ -292,6 +294,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-18 | 6d84192 | G-045: one disabled look per control shape (D164) -- an icon fades to 40%, a label drops to --at-faint, and every hover on a control that can be disabled is written `enabled:hover:` -- and a start screen that leaves nothing live over the chart it covers | Playwright 317 passed, 0 failed across all 26 specs; Vitest 1061 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Only the app container was recreated; 41 containers before and after with an identical name set, 34 of 37 sites 200, every site's status identical to the pre-deploy baseline. Live on production: 21 controls drawn, 17 disabled wearing exactly two looks, 0 lit under the pointer, the chart still painted behind at `data-painted-rect=0,0,700,700` |
 | 2026-09-18 | 0ef8868 | G-045: the chart frame hides instead of unmounting, so Back returns it painted (D163) | Playwright 316 passed, 0 failed across all 26 specs; tsc, eslint and docs-lint clean. Only the app container was recreated; 41 containers before and after, 34 of 36 sites 200, identical to the pre-deploy baseline. Live: all 37 shell checks, the decisive one reading 3132 painted pixels after Back |
 | 2026-09-18 | 44937a9 | G-045: New leaves the logo for the tools; choosing a start-screen card with a chart open asks first (D162) | Playwright 316 passed, 0 failed across all 26 specs; Vitest 1061 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Only the app container was recreated; 41 containers before and after, 34 of 36 sites 200, identical to the pre-deploy baseline. Live: all 36 shell checks, including the start screen covering the chart, the confirm naming what it would replace, and Back returning it intact |
-| 2026-09-18 | 66fdc1e | G-045: the brush colour opens the top panel, the rail stops clipping its own file menu, Export all gains its extension, Apply here precedes Cancel, the thread light moves right (D161), and the first-run screen is 1b's | Playwright 312 passed, 0 failed across all 25 specs; Vitest 1061 passed, 8 skipped. Only the app container was recreated; 41 containers before and after, 34 of 36 sites 200. Live: all 30 shell checks — the file menu measured 240 of 240px where it had been 56 |
