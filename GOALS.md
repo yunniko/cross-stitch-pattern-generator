@@ -32,9 +32,25 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   refused. Standing deploy approval applies.
 
 **Milestones:**
-- [ ] M1 — Fix, covered by tests, deployed, with the live Origin check re-probed.
+- [x] M1 — Fix, covered by tests, deployed, with the live Origin check re-probed. Done 2026-09-18 (D156).
 
 **Progress log** (newest first):
+- 2026-09-18 — **M1 done: deployed and verified live; awaiting sign-off.**
+  - **The fix:** origins are compared in a canonical form that folds `localhost`, `127.0.0.1` and `[::1]` into one
+    host, leaving scheme and port significant, and an origin that cannot be parsed is dropped rather than compared.
+    `APP_URL` loses its `http://localhost:3000` compose default (D156).
+  - **A premise that did not hold.** The item this goal closed said `APP_URL` sat at that default in production. It
+    does not: the deploy `.env` has set it to the site URL since 2026-09-09, as `COMPANY/INFRASTRUCTURE_DEPLOY.md`
+    prescribes. A live probe showed the check already refusing localhost origins, so the hole described in the old
+    note was never open. What was real is that the default made production depend on one untracked file.
+  - **Checks:** `tests/unit/request-guard.spec.ts` gains six cases and the loopback one fails against the previous
+    code; Vitest 1061 passed, 8 skipped; lint and production build clean.
+  - **Live after deploying 44741b6:** the site origin passes, while the same host over `http`, a suffix lookalike,
+    all three loopback spellings, a foreign origin and a missing `Origin` are each refused. A 250-stitch
+    end-to-end run was unaffected; 41 containers up, 20 of 20 sites 200, no neighbour restarted.
+  - **Found, not fixed:** malformed upload bytes reach the decoder and surface as 500 rather than a 400. Unrelated
+    to this goal and left for the Owner to direct.
+  - **Next:** Owner sign-off, then G-044 moves to `docs/goals-archive.md`.
 - 2026-09-18 — goal created at the Owner's instruction.
 
 ### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT, possibly relevant to G-030 (2026-09-12)

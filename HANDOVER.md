@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-18 at c2b1123 (G-034 M5, deployed and verified live)
+Last verified: 2026-09-18 at 44741b6 (G-044 M1, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs c2b1123 (2026-09-18), the last deployed commit; anything after it on `master` is documentation only: generation, the enhancement preview and every export but the editable save run in the `processor` container.
+**Production** runs 44741b6 (2026-09-18), the last deployed commit; anything after it on `master` is documentation only: generation, the enhancement preview and every export but the editable save run in the `processor` container.
 Signed off: G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
 **G-034, processing moved to the server — signed off 2026-09-18.** M1 measured the caps (D149, D150); M2 built the
@@ -215,6 +215,9 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
   registered one every measured text width is zero (D153).
 - Paginated exports (A4, PDF) get their own deadline, not a single image's: a 1000-stitch A4 export takes about 70 s
   and was being killed at 45 s (`processor/job-protocol.ts`, `exportDeadlineFor`).
+- The Origin check compares canonical origins: `localhost`, `127.0.0.1` and `[::1]` on one scheme and port are
+  one site, while scheme and port still separate origins and an unparseable origin is dropped rather than
+  compared. `APP_URL` has no default, so leaving it unset trusts only the origin a request arrived at (D156).
 - A job event stream carries an SSE comment frame every 15 s so an idle or queued job is not dropped by a proxy.
   Both clients must take the frame's data line and skip anything else: parsing every frame as JSON broke
   generation and exports in production (`tests/unit/job-stream-keepalive.spec.ts`).
@@ -229,7 +232,7 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
 - Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, a drag's first frame paints in full (34–77 ms), and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142). From G-033: "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.
 - G-034 is signed off (2026-09-18) and archived in `docs/goals-archive.md`. The one acceptance criterion not met is Export all at 1000 stitches, shipped as a documented limitation (D155): Export all and the Pattern Keeper PDF fail on charts near 1000 stitches. The fix not yet made is batching same-colour runs in the PDF adapter, which would cut both memory and file size. No goal is open for it (Owner, 2026-09-18).
-- Open from M4, for the Owner: the Origin check treats `127.0.0.1` and `localhost` as different sites, and `APP_URL` sits at its `localhost:3000` compose default while the site runs at `cross-stitch.craftodejnice.cz`, so only the request-derived origin is ever matched. Harmless today (a browser sends the origin it loaded from) but worth settling in M5.
+- Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
 - G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
@@ -240,6 +243,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-18 | 44741b6 | G-044: the Origin check compares canonical origins, so the loopback spellings are one site, and `APP_URL` loses its localhost default (D156) | Vitest 1061 passed, 8 skipped; lint and build clean. Only the app container was recreated; 41 containers up, 20 of 20 sites 200, no neighbour restarted. Live: the site origin passes, while the same host over http, a suffix lookalike, all three loopback spellings, a foreign origin and a missing Origin are each refused; a 250-stitch end-to-end run was unaffected |
 | 2026-09-18 | c2b1123 | G-034: ships with its one failure documented (D155 supersedes D154's reasoning); `PROCESSOR_WORKER_HEAP_MB` reproduces the PDF memory failure off the server | Vitest 1055, lint and docs-lint clean; both containers recreated; 20 of 20 sites 200, no neighbour restarted. Live on a cold processor: preview 1.9 s, a 250-stitch generation 2.4 s, colour PNG 3.8 s, editable save local, no console errors |
 | 2026-09-18 | df92cc4 | G-034: the Export all deadline rises to 900 s (D154, its reasoning corrected by D155) | Vitest 1055, lint and build clean; both containers recreated; 41 containers up, 20 of 20 sites 200. Live at 1000 stitches: generation 10.5 s, Crisp 13.2 s, colour PNG 20.6 s. Export all and the PDF still fail there with a worker heap OOM (D155) |
-| 2026-09-18 | d33894d | G-034: both job-stream clients take the frame's data line and skip the processor's SSE keepalive comment | `tests/unit/job-stream-keepalive.spec.ts` fails against the previous code; Vitest 1054. Only the app container was recreated, the processor image being unchanged. Live: a 1000-stitch colour PNG exported in 20.6 s, past the 15 s keepalive that broke it |
