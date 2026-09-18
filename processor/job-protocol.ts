@@ -103,7 +103,7 @@ export const LIMITS = {
    */
   exportDeadlineMs: 45_000,
   paginatedExportDeadlineMs: 150_000,
-  exportAllDeadlineMs: 150_000,
+  exportAllDeadlineMs: 900_000,
   /** An export request carries the whole edited chart: ~2.9 MB of cell data at 1000 stitches, plus its photo. */
   exportRequestBytes: 32 * 1024 * 1024,
   /** A decoded photo is dropped this long after its last use. */

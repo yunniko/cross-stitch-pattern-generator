@@ -162,3 +162,4 @@ remain readable with git show.
 - D151 — Generation runs in a processor service that only the app can reach — active
 - D152 — The enhancement preview gets its own worker on the server — active
 - D153 — Server exports draw their text with DejaVu Sans — active
+- D154 — Export all gets a fifteen-minute deadline — active

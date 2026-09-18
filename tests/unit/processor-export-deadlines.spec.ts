@@ -40,4 +40,15 @@ describe("export deadlines", () => {
     // With room to spare, but not so much that a wedged job holds a worker for minutes.
     expect(LIMITS.paginatedExportDeadlineMs).toBeLessThan(needed * 3);
   });
+
+  it("allows for the measured cost of the whole bundle", () => {
+    // Measured on this machine: the nine exports of a 1000-stitch chart took 149 s together and came to 81.8 MB.
+    // The production host runs about 3.4x slower per core (G-034 M1), which is what the allowance has to cover.
+    const measuredLocallyMs = 149_000;
+    const productionCoreFactor = 3.4;
+    const needed = measuredLocallyMs * productionCoreFactor;
+    expect(LIMITS.exportAllDeadlineMs).toBeGreaterThan(needed);
+    // Room to spare, but bounded: the bundle holds one of three workers for as long as it runs.
+    expect(LIMITS.exportAllDeadlineMs).toBeLessThan(needed * 3);
+  });
 });
