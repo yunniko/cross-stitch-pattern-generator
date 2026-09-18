@@ -372,13 +372,30 @@ caps)
 - [x] **M4 — Exports.** Done 2026-09-17 (D153). Canvas-factory injection in the shared drawing code with
   the on-screen chart unchanged; server font and texture loading; all export
   kinds as endpoints; parity tests.
-- [ ] **M5 — Cleanup and release.** Delete the browser workers and the flag,
+- [x] **M5 — Cleanup and release.** Done 2026-09-18 (D154, D155). Delete the browser workers and the flag,
   keeping the browser's editable-JSON save. Correct the README and the
   `INFRASTRUCTURE_DEPLOY.md` row. The Owner applies the nginx changes. Deploy,
   verify the other sites and host load, run the production latency check, add a
   deploy-log row.
 
 **Progress log** (newest first):
+- 2026-09-18 — **M5 deployed and verified live. G-034 ships with one documented limitation; awaiting sign-off.**
+  - **Three deploys**, rows in `docs/deploy-log.md`: b3ee02d (M1–M5), d33894d (the keepalive fix), df92cc4 (the
+    Export all deadline). Both containers run inside D149's caps and the processor still publishes no port.
+  - **The deploy exposed a bug M5 introduced.** The 15-second stream keepalive broke both job-stream clients,
+    which parsed every frame as JSON and threw on the comment line. It struck any job silent for 15 s — a
+    generation queued behind others, or a single-image export — and reached the reader as `Unexpected token ':'`.
+    Both clients now take the frame's data line; `tests/unit/job-stream-keepalive.spec.ts` fails without the fix.
+    It surfaced only because the live check exported a 1000-stitch chart instead of pinging a health route.
+  - **Latency (criterion 3), measured live:** largest generation 10.5 s (≤ 20 s), Crisp 13.2 s (≤ 30 s),
+    enhancement preview 1.69 s server-side (≤ 2 s), and every export kind inside 10 s at 250 stitches.
+  - **Criterion 3's Export all figure is not met.** At 1000 stitches Export all and the Pattern Keeper PDF fail
+    with a worker JS-heap OOM — unbounded, failing alike at 512, 768, 1024 and 1536 MB, because the PDF adapter
+    retains three operators per cell across 154 pages. Both worked in the browser. Shipped as a documented
+    limitation at the Owner's decision (D155); D154's deadline stands, its reasoning corrected.
+  - **Neighbours:** 20 of 20 sites 200 after every deploy, no other container's uptime reset, 41 containers up,
+    host load 1.10 on the fifteen-minute average against a 1.33 baseline.
+  - **Next:** Owner sign-off, then G-034 moves to `docs/goals-archive.md`.
 - 2026-09-18 — **M5 code-complete: the browser workers and the flag are gone; deploy waits on the Owner.**
   - **Deleted** the generation, preview and export workers with their clients, and `NEXT_PUBLIC_PROCESSING` — 616
     lines. `GenerationMode` moved to `lib/pipeline/pattern.ts` and both cancellation errors to their server
@@ -397,7 +414,7 @@ caps)
   - **Checks:** Vitest 1052 passed, 8 skipped (the deleted worker specs account for the drop from 1069); Playwright
     **313 passed across all 25 specs** against the single-path build, one spec per process, with the processor
     serving 107 jobs, exports and previews; `tsc` and `npm run lint` clean.
-  - **PENDING APPROVAL:** the vhost needs `client_max_body_size 40M` (currently 5M, against a 25 MB photo cap and
+  - **PENDING APPROVAL — satisfied 2026-09-18** (Owner applied it; verified live at server level, with 300 s proxy reads): the vhost needs `client_max_body_size 40M` (currently 5M, against a 25 MB photo cap and
     32 MB export requests) and `proxy_read_timeout 300s` (default 60 s cuts a 150 s paginated export) — root-owned
     work, handed to the Owner as an exact command list on 2026-09-18. Deploying before it would ship a site that
     rejects ordinary photos, so the deploy is held rather than attempted.

@@ -67,7 +67,10 @@ export class GenerationPool {
   }
 
   private spawn(index: number): Worker {
-    const worker = new Worker(this.workerPath);
+    // V8 sizes a worker heap from the host unless told otherwise, so a bundle that fits on a developer machine can
+    // exhaust the heap inside the container cap. An explicit ceiling makes the limit the same everywhere.
+    const heapMb = Number(process.env.PROCESSOR_WORKER_HEAP_MB ?? 0);
+    const worker = new Worker(this.workerPath, heapMb > 0 ? { resourceLimits: { maxOldGenerationSizeMb: heapMb } } : undefined);
     // A worker we have already replaced still emits `exit` (terminating one exits with code 1). Without this guard
     // that late event would fail whichever job took over its slot, not the one that was killed.
     const isCurrent = () => this.workers[index]?.worker === worker;
