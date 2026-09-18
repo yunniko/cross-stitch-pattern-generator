@@ -5,6 +5,348 @@ file holds only draft, active and blocked goals. Entries are unchanged from
 their last state in `GOALS.md`; decision references (Dnn) now resolve to
 `docs/decisions/`.
 
+### G-034 · Photo processing and every export move to the server — DONE (2026-09-18, Owner sign-off 2026-09-18)
+- **What:** photo decoding, enhancement and its preview, pattern generation and
+  every export run on the server. The browser keeps what is interactive — the
+  editor, the on-screen chart, undo, IndexedDB autosave — and keeps its own
+  editable-JSON save, so work can always be saved when the server is busy or
+  down (Owner, 2026-09-14).
+- **Why:** to monetize access (Owner, 2026-09-14). The algorithms stop shipping
+  to every visitor as JavaScript, weak phones stop doing seconds of CPU work,
+  and it lays the groundwork for G-030's accounts.
+
+**Owner decisions already recorded**
+- **Privacy is not a requirement** (2026-09-17): uploading photos is acceptable,
+  and the in-memory photo cache is fine. No privacy notice is required.
+- The browser may shrink or compress a photo before uploading it.
+- Editable JSON and OXS may run on either side; the browser keeps its own save.
+- "Optimise the current timings first" (2026-09-14) is **done**: G-035 cut the
+  largest generation from 13.4 s to 4.9 s, and G-036 and G-039 took every chart
+  interaction under 100 ms.
+
+**Capacity, measured on the production host 2026-09-17**
+- The box: 6 vCPU (AMD EPYC), 11 GiB RAM with **7.6 GiB available**, 2 GiB swap,
+  130 GB disk free. Load average 1.20 — about **83 % of the CPU is idle**. All
+  ~40 existing containers together use **1.7 GiB**.
+- **Measured 2026-09-17 inside the caps** (M1,
+  `docs/reviews/2026-09-17-server-processing-capacity.md`): the real pipeline runs
+  **about 3.4× slower per core** than the benchmark machine — 12.1 s against 3.6 s
+  for the largest Standard generation. A synthetic probe had predicted 2.0×, so the
+  first estimates were optimistic by roughly 70 %.
+- Per job, one core — **measured** on the host, earlier estimate in brackets:
+  (`docs/reviews/2026-09-15-performance-results.md`):
+
+  | Job | Server, measured | Peak RSS | (estimate) |
+  |---|---:|---:|---:|
+  | Generate, 12 MP → 100 st, Standard | 7.2 s | 113 MB | (~6 s) |
+  | Generate, 12 MP → 100 st, Crisp | 15.1 s | 122 MB | (~15 s) |
+  | Generate, 1.5 MP → 1000 st, Standard | 12.1 s | 228 MB | (~10 s) |
+  | Generate, 1.5 MP → 1000 st, Crisp | 14.7 s | 234 MB | (~14 s) |
+  | Pattern Keeper PDF, 1000 st | not yet measured | — | (~22 s) |
+  | Export all, 1000 st | not yet measured | — | (~76 s) |
+
+- **This supersedes the 2026-09-13 estimate of "2–3 heavy jobs".** That used
+  pre-G-035 timings and is stale by roughly 3×.
+
+**The caps this plan is sized to** (the app container has none today:
+`NanoCpus=0`, `Memory=0` — verified live)
+
+| Service | `cpus` | `mem_limit` | Why |
+|---|---:|---:|---|
+| `processor` (new) | 3.0 | 2g | 3 pool workers, one core each |
+| `app` (existing) | 1.0 | 768m | Next.js serving pages and routing |
+| left for the other ~20 sites | ~2.0 | ~5 GiB | they use 1.7 GiB and little CPU today |
+
+- **Pool of 3**, one job per worker, so a full pool never exceeds the cap.
+- **Queue of 12**; when full, 503 with `Retry-After` immediately. At ~10 s a job
+  that is a worst wait of about 40 s, which the client shows as a queue position.
+- **Deadlines:** 45 s for a generation or a single export, 150 s for Export all.
+  A job over its deadline is killed and its worker replaced.
+- **Memory, measured (D149):** 113–234 MB per job, better than the 250–400 MB the
+  plan inferred. Three concurrent jobs peaked at 209–235 MB each, ~650 MB together,
+  well inside the 2 GiB cap.
+- **Contention, measured:** three jobs at once cost about 15 % more each (13.8–13.9 s
+  against 12.1 s solo), so a pool of three inside a 3-CPU cap holds up.
+- **Throughput at these caps:** about **12–13 large generations a minute**, not the 18
+  first estimated, so the client shows a queue position. A 12-deep queue implies a
+  worst wait near 60 s.
+
+**Consequences that remain** (privacy is no longer one of them)
+- **Two site claims become false and must change with the behaviour:**
+  `README.md` ("no image is ever uploaded") and the
+  `COMPANY/INFRASTRUCTURE_DEPLOY.md` row ("all image processing runs
+  client-side").
+- **Online-only.** A loaded page generates and exports offline today; afterwards
+  a server outage or a slow connection blocks both. The browser keeps its
+  editable-JSON save so work is never trapped.
+- **Abuse surface.** A public endpoint doing seconds of CPU work per request is
+  an easy denial-of-service target on a shared host. The caps above bound the
+  damage; the Origin check, per-IP token bucket and nginx `limit_req` block the
+  cheap cases.
+- **If measured capacity falls short**, that is a cost decision for the Owner,
+  not something to solve by taking more of the shared box.
+
+**Architecture** (unchanged in shape from the 2026-09-13 draft, now sized to the
+caps)
+1. Two containers from this repo: the existing `app`, and a `processor` with a
+   bounded `worker_threads` pool, reachable only on the internal Docker network
+   with no published port, both carrying the caps above.
+2. The pure pipeline runs unchanged: `buildPattern` and `lib/pipeline/enhance.ts`
+   are already free of browser APIs, so the golden hashes (D107) prove parity.
+3. `POST /api/photos` streams the upload, enforces a size cap while reading,
+   checks the header's dimensions before decoding, and keeps the decoded buffer
+   in memory keyed by SHA-256 with a 30-minute idle TTL and LRU eviction inside
+   the memory cap.
+4. Decoding must match Chrome's (EXIF orientation, ICC to sRGB) or the same photo
+   yields a different pattern. **Settled in M1 (D150): `@napi-rs/canvas`**, which
+   matched Chrome exactly on every case measured; `sharp` failed EXIF orientation
+   and an embedded ICC profile.
+5. `POST /api/jobs` returns a job id; `GET /api/jobs/:id/events` streams
+   progress; `DELETE /api/jobs/:id` cancels. Results are a versioned binary
+   payload.
+6. `POST /api/photos/:hash/preview?mode=` returns a ≤ 1200 px WebP, cached per
+   photo and mode.
+7. `POST /api/exports/:kind` streams the file back. The shared drawing code
+   takes an injected canvas factory, so the on-screen chart is untouched.
+8. Protection: Origin check, per-IP token bucket, streaming size limits, and the
+   nginx directives the Owner applies (`client_max_body_size`,
+   `proxy_read_timeout`, `proxy_buffering off`, `limit_req`).
+9. A `NEXT_PUBLIC_PROCESSING` flag runs both paths during M2–M4; M5 deletes the
+   browser workers, keeping the browser's editable-JSON save.
+
+- **Acceptance criteria:**
+  1. **Byte-identical pipeline.** The golden hashes pass unchanged through the
+     processor's pool.
+  2. **Decode parity, measured.** Against Chrome on a committed synthetic set
+     (all 8 EXIF orientations, PNG with alpha, grayscale, CMYK JPEG) plus real
+     photos: identical orientation and dimensions, mean absolute difference ≤ 1
+     level per channel. Exceptions get a decision file with the measured effect.
+  3. **Latency on the production host**, single job, inside the caps: the
+     largest generation (1500×1000 → 1000 stitches, Standard) ≤ 20 s; Crisp
+     ≤ 30 s; an enhancement preview ≤ 2 s excluding upload; each export ≤ 10 s
+     for a 250-stitch pattern; Export all at 1000 stitches ≤ 150 s.
+  4. **The caps hold under load**, tested on the local compose stack with the
+     production caps set:
+     - 20 simultaneous generations: 3 run, the queue holds 12, the rest get 503
+       with `Retry-After` within 1 s;
+     - the `processor` container never exceeds its `cpus` or `mem_limit`,
+       measured with `docker stats` through the burst;
+     - a job over its deadline is killed and its memory released;
+     - `app` page responses stay under 500 ms p95 throughout.
+  5. **The other sites are unaffected**, measured on the production host during
+     a burst: a sample of three other sites keeps its response time within 20 %
+     of its quiet-hour baseline, and the host's load average stays below 5.
+  6. **Security:** an over-limit upload is rejected before it is fully read; a
+     bomb header is rejected before decoding; malformed pattern payloads are
+     rejected; cross-origin requests are refused; no image or pixel data reaches
+     the logs.
+  7. **Export parity** against today's browser exports: editable JSON and OXS
+     byte-identical; PDFs identical in page count, text and legend; PNGs and A4
+     pages identical in dimensions with only anti-aliasing differences, measured
+     and logged; the Export all bundle has the same file list.
+  8. **Truthful documentation:** the README line and the
+     `INFRASTRUCTURE_DEPLOY.md` row are corrected in the same release that ships
+     the behaviour.
+  9. **Wrap-up:** full unit and e2e suites pass in server mode against a
+     production build with the processor running; CI starts the processor; the
+     browser workers and the flag are removed while the browser keeps its
+     editable-JSON save; docs-lint passes; deployed with the other sites checked
+     and host load watched; Owner sign-off logged.
+- **Constraints:**
+  - Code is written in a separate worktree; other sessions share this tree.
+  - The Owner runs anything needing root (nginx directives, `limit_req`) from an
+    exact command list.
+  - No accounts, paid services or extra servers inside this goal.
+  - New dependencies: the chosen decoder and canvas library only, each with a
+    decision file. No job-queue library.
+  - Codex critique of the architecture and the security design before the code
+    they cover ships, if it is available (usage limit until 2026-09-19).
+  - Standing deploy approval; OPERATIONS.md check-in at every milestone.
+
+**Milestones:**
+- [x] **M1 — Measure inside the caps, then decide.** Done 2026-09-17 (D149, D150). Stand the caps up on the
+  production host with a throwaway container: measure real per-job CPU and
+  **peak RSS** for the largest generation, a Crisp run, a Pattern Keeper PDF and
+  Export all, and set the pool size, queue length and deadlines from what is
+  measured rather than from this estimate. Decode-parity spike comparing
+  `@napi-rs/canvas` and `sharp`. Deliverables: decision files for the container
+  layout, decoder and limits, plus
+  `docs/reviews/<date>-server-processing-capacity.md`.
+- [x] **M2 — Processor, photo store and generation.** Done 2026-09-17 (D151). The `processor` container
+  with its caps, pool, bounded queue and deadlines; the in-memory photo store;
+  `/api/photos` and `/api/jobs` with progress and cancel; Origin check, rate
+  limit, logging. Golden hashes through the pool; overload, cap and security
+  tests. Client generation behind the flag.
+- [x] **M3 — Preview and client cutover.** Done 2026-09-17 (D152). Server enhancement preview; client
+  upload with re-upload on 410; clear messages for a busy server, a network
+  failure and an expired photo. Full e2e green in server mode.
+- [x] **M4 — Exports.** Done 2026-09-17 (D153). Canvas-factory injection in the shared drawing code with
+  the on-screen chart unchanged; server font and texture loading; all export
+  kinds as endpoints; parity tests.
+- [x] **M5 — Cleanup and release.** Done 2026-09-18 (D154, D155). Delete the browser workers and the flag,
+  keeping the browser's editable-JSON save. Correct the README and the
+  `INFRASTRUCTURE_DEPLOY.md` row. The Owner applies the nginx changes. Deploy,
+  verify the other sites and host load, run the production latency check, add a
+  deploy-log row.
+
+**Progress log** (newest first):
+- 2026-09-18 — **Owner sign-off. G-034 is done.** Export all and the Pattern Keeper PDF fail on charts near
+  1000 stitches and ship as a documented limitation (D155); the Owner opened no follow-up goal for the fix.
+- 2026-09-18 — **M5 deployed and verified live. G-034 ships with one documented limitation; awaiting sign-off.**
+  - **Three deploys**, rows in `docs/deploy-log.md`: b3ee02d (M1–M5), d33894d (the keepalive fix), df92cc4 (the
+    Export all deadline). Both containers run inside D149's caps and the processor still publishes no port.
+  - **The deploy exposed a bug M5 introduced.** The 15-second stream keepalive broke both job-stream clients,
+    which parsed every frame as JSON and threw on the comment line. It struck any job silent for 15 s — a
+    generation queued behind others, or a single-image export — and reached the reader as `Unexpected token ':'`.
+    Both clients now take the frame's data line; `tests/unit/job-stream-keepalive.spec.ts` fails without the fix.
+    It surfaced only because the live check exported a 1000-stitch chart instead of pinging a health route.
+  - **Latency (criterion 3), measured live:** largest generation 10.5 s (≤ 20 s), Crisp 13.2 s (≤ 30 s),
+    enhancement preview 1.69 s server-side (≤ 2 s), and every export kind inside 10 s at 250 stitches.
+  - **Criterion 3's Export all figure is not met.** At 1000 stitches Export all and the Pattern Keeper PDF fail
+    with a worker JS-heap OOM — unbounded, failing alike at 512, 768, 1024 and 1536 MB, because the PDF adapter
+    retains three operators per cell across 154 pages. Both worked in the browser. Shipped as a documented
+    limitation at the Owner's decision (D155); D154's deadline stands, its reasoning corrected.
+  - **Neighbours:** 20 of 20 sites 200 after every deploy, no other container's uptime reset, 41 containers up,
+    host load 1.10 on the fifteen-minute average against a 1.33 baseline.
+  - **Next:** Owner sign-off, then G-034 moves to `docs/goals-archive.md`.
+- 2026-09-18 — **M5 code-complete: the browser workers and the flag are gone; deploy waits on the Owner.**
+  - **Deleted** the generation, preview and export workers with their clients, and `NEXT_PUBLIC_PROCESSING` — 616
+    lines. `GenerationMode` moved to `lib/pipeline/pattern.ts` and both cancellation errors to their server
+    counterparts first, so nothing was orphaned. Two functions left dead by the deletions were removed.
+  - **The editable JSON save stays in the browser** (Owner, 2026-09-14): `use-exports.ts` serialises it directly, so
+    work can be saved when the server is busy, and the export pipeline stays out of the page's JavaScript.
+  - **Client bundle 2370 KB → 1129 KB (−52 %)**, the 1313 KB pipeline chunk gone — the goal's stated purpose, that
+    the algorithms stop shipping to every visitor.
+  - **Truthfulness (criterion 8):** the README no longer says "no image is ever uploaded" and the
+    `INFRASTRUCTURE_DEPLOY.md` row no longer says processing is client-side. Both corrected before the release, not
+    after.
+  - **One config, one path:** `playwright.config.ts` now starts the processor and the app, `test:e2e:server` is
+    retired, and CI no longer backgrounds the processor in a step it would not survive.
+  - **Added** a 15-second keepalive to the job event stream, so a job queued behind others cannot go silent and be
+    dropped by a proxy.
+  - **Checks:** Vitest 1052 passed, 8 skipped (the deleted worker specs account for the drop from 1069); Playwright
+    **313 passed across all 25 specs** against the single-path build, one spec per process, with the processor
+    serving 107 jobs, exports and previews; `tsc` and `npm run lint` clean.
+  - **PENDING APPROVAL — satisfied 2026-09-18** (Owner applied it; verified live at server level, with 300 s proxy reads): the vhost needs `client_max_body_size 40M` (currently 5M, against a 25 MB photo cap and
+    32 MB export requests) and `proxy_read_timeout 300s` (default 60 s cuts a 150 s paginated export) — root-owned
+    work, handed to the Owner as an exact command list on 2026-09-18. Deploying before it would ship a site that
+    rejects ordinary photos, so the deploy is held rather than attempted.
+- 2026-09-17 — **M4 done: every export runs on the server, from the same code the browser runs (D153).**
+  - **Injection:** the drawing code asks `lib/export/canvas-backend.ts` for its canvas, PNG encoding, images and PDF
+    font; the server installs `@napi-rs/canvas` behind that. `FONT_STACK` and the on-screen chart are untouched, and
+    the two browser cases are unchanged.
+  - **Fonts:** the image ships no fonts at all, so `measureText` returned 0 and charts would have been structurally
+    wrong. The processor registers the DejaVu Sans it already ships for the PDF; a registered font satisfies the
+    existing stack, so no drawing code changed (D153). The Owner chose this over shipping Liberation Sans.
+  - **Exports share the generation pool**, so the container never runs more than the three concurrent jobs D149 sized
+    it for. `POST /api/exports` takes the chart itself; the existing job routes stream progress and return the file.
+  - **Parity (criterion 7), measured against a browser build:** editable JSON identical as data, OXS byte-identical,
+    PDFs 3 pages with identical text, every archive's file list equal, every PNG's dimensions equal. Raster pixels
+    differ by a mean of 1.08–3.85 levels per channel from two causes — the font, and different texture resampling in
+    the realistic preview, which D153 does not cover. Both are recorded and bounded:
+    `docs/reviews/2026-09-17-export-parity.md`.
+  - **Two defects the e2e caught, both mine:** server-mode A4 exports had lost per-page progress (`JobStatus` collapsed
+    the exporter's `{completed, total, label}` into a fraction); and paginated exports were killed by a single-image
+    45 s deadline — a 1000-stitch A4 export died at 45.6 s and now completes in 69.8 s.
+  - **Checks:** Vitest 1069 passed, 8 skipped; `tsc` and `npm run lint` clean; server-mode e2e for every spec M4
+    touched — 19 passed across seven specs, with the processor serving the exports and generations.
+  - **Not done here:** nothing deployed, and the default build still exports in the browser.
+  - **Next (M5):** delete the browser workers and the flag, correct the README and the `INFRASTRUCTURE_DEPLOY.md` row,
+    the Owner applies the nginx changes, then deploy.
+- 2026-09-17 — **M3 done: the whole e2e suite passes against a server-processing build (D152).**
+  - **Server preview:** its own worker, queue and deadline (D152, mirroring D116), WebP cached per photo and
+    mode — 461 ms cold, 1 ms cached, ~6 KB. Its output is byte-for-byte what the in-process pipeline produces.
+  - **Client cutover:** one shared upload keyed by content hash, re-upload and retry on a 410, and separate
+    messages for a busy server, an unreachable one and an expired photo.
+  - **E2E in server mode: 313 passed across all 25 specs**, matching the 313 the config collects — run one spec
+    per process, since the 6-worker default was killed for memory. The processor served **81 jobs and 3
+    previews** during the run, so the specs really did use the server path.
+  - **Checks:** Vitest 1047 passed, 8 skipped; `tsc` clean; `npm run lint` 0 errors.
+  - **Four defects found, three of them mine from earlier milestones:**
+    1. The processor validated `paletteMode` as "free" when the type says "full", so **every default generation
+       was rejected** with a 400 the editor reported as a bad photo. Validation now derives from the type unions;
+       `tests/unit/processor-settings-validation.spec.ts` fails against the old list.
+    2. A terminated worker still emits `exit`, which was charged to whichever job took its slot — in both the pool
+       and the preview runner. My first recovery test hid it by using a fresh pool; it now reuses the same one.
+    3. **CI was broken since M2:** it ran `test:unit` without `build:processor`, and `dist/` is git-ignored
+       (reproduced: 14 failed without the bundle, 18 with it).
+    4. M2's "eslint clean" was scoped wrong — I linted explicit paths and skipped `scripts/`, where a `require()`
+       from M1 was failing `npm run lint`.
+  - **Also:** rate-limit capacities are now env-overridable (production defaults unchanged, nonsensical values
+    ignored), because the suite generates far more often than a person does.
+  - **Not done here:** nothing deployed; the default build still generates in the browser.
+  - **Next (M4):** exports — canvas-factory injection, server fonts and textures, every export kind, parity tests.
+- 2026-09-17 — **M2 done: the processor generates patterns behind the app, inside its caps (D151).**
+  - **Built:** a `processor` container — pool of 3, queue of 12, 45 s deadlines, and a SHA-256-keyed
+    photo store with a 30-minute idle TTL and LRU eviction inside 512 MB — publishing no port, so the
+    app's Route Handlers (`app/api/photos`, `app/api/jobs`, progress over SSE, cancel) are its only
+    caller. They carry an Origin check and a per-address token bucket. Generation runs on either side
+    behind `NEXT_PUBLIC_PROCESSING`, which still defaults to the browser.
+  - **Parity:** golden hashes pass through the real worker pool, and again after the
+    serialize/deserialize round trip the result endpoint performs. Proven falsifiable: corrupting the
+    expected hash failed all five cases, so the comparison is real.
+  - **Overload, measured on the capped container:** 20 simultaneous 1000-stitch generations gave
+    15 accepted (3 running, 12 queued) and 5 refused with `Retry-After: 23` in 116 ms — never queued
+    indefinitely. CPU ~250 % of the 300 % cap; memory peaked at 684 MiB of 2 GiB. Docker applied the
+    caps (`NanoCpus=3e9`, `Memory=2 GiB`).
+  - **Result format:** the processor returns the project's own editable-JSON save format rather than a
+    second encoding, because `cellPalette` is a `Uint8Array` that `JSON.stringify` would corrupt.
+  - **Checks:** Vitest 1031 passed, 8 skipped; `tsc --noEmit` and eslint clean; `next build` green with
+    all five `/api` routes. Playwright not re-run this milestone.
+  - **Not done here:** nothing deployed, and the default build still generates in the browser, so the
+    README and `INFRASTRUCTURE_DEPLOY.md` claims about client-side processing remain true for now.
+  - **Next (M3):** server enhancement preview, the client cutover with its error messages, and e2e in
+    server mode.
+- 2026-09-17 — **M1 done: measured inside the caps; the estimates were wrong in both
+  directions (D149, D150).**
+  - **Speed:** ~3.4× slower per core than the benchmark machine, not the 2.0× a
+    synthetic probe predicted — 12.1 s for the largest Standard generation, 14.7 s
+    Crisp, 7.2 s for a 12 MP photo at 100 stitches.
+  - **Memory:** better than inferred — 113–234 MB per job against an assumed
+    250–400 MB.
+  - **Contention:** three jobs at once cost ~15 % more each, so a pool of three in a
+    3-CPU cap holds up (D149); throughput is ~12–13 large generations a minute.
+  - **Decoder:** `@napi-rs/canvas` matched Chrome exactly on all five cases; `sharp`
+    returned the wrong size for EXIF orientation 6 and left 100 % of pixels differing
+    on an embedded ICC profile, so it is rejected (D150) despite a faster 12 MP
+    decode.
+  - **Method:** the pipeline was bundled into one file and run on the host in a
+    throwaway `--cpus=3 --memory=2g` container, one case per process. Nothing was
+    installed there and the production checkout was untouched. The host was not idle
+    (load 1.9→2.4), so these are working-day figures.
+  - **Still unmeasured:** export costs, which need the canvas-factory change and so
+    belong to M2. No production code written and no dependency added to the repo yet.
+- 2026-09-17 — **Re-planned at the Owner's request**, after they confirmed
+  privacy was never a requirement.
+  - Privacy drops out of the blockers and out of the acceptance criteria; what
+    remains is factual: two site claims about client-side processing become
+    false and must change with the behaviour.
+  - Capacity re-measured on the host today (6 vCPU, 7.6 GiB available, 83 %
+    idle, other containers 1.7 GiB) and against a like-for-like CPU probe: the
+    server is 2.0× slower per core on a synthetic probe — **corrected to ~3.4× by
+    M1's real-pipeline measurement**. The plan now
+    carries per-job server estimates and **4 concurrent heavy jobs**, replacing
+    the stale "2–3".
+  - The plan is sized to explicit caps — `processor` 3 CPU / 2 GiB, `app` 1 CPU
+    / 768 MiB, ~2 CPU left for the other sites — with the pool, queue and
+    deadlines derived from them, and M1 re-scoped to measure inside those caps
+    (especially peak RSS, the one number here that is inferred).
+  - Not started: no code, no dependencies added.
+- 2026-09-14 — Owner answers to the open questions. Still a plan, not started.
+  - Reason for the move: monetizing access.
+  - Privacy is not a big concern; the in-memory photo cache is fine.
+  - The browser may shrink or compress the photo before uploading it.
+  - Editable JSON and OXS may run on either side. Keep or duplicate the
+    editable JSON save in the browser, so work can be saved when the server has
+    problems.
+  - The Owner redirected effort to investigating and optimizing the current
+    processes' timings first.
+- 2026-09-13 — Goal drafted at the Owner's request ("make plan to move export
+  and all photo processing functions to server side"). Planned from the export,
+  pipeline, enhancement-preview and generation hooks; `Dockerfile`,
+  `docker-compose.yml` and `next.config.ts`; G-023's critique exchange; and a
+  live read-only check of the host. No code written.
+
 ### G-043 · Cancel drops only the selection in hand — DONE (2026-09-17, Owner sign-off 2026-09-17)
 - **What:** the selection bar's Cancel discards the floating piece and nothing
   else. Edits already committed during the same spell of selecting — a previous
