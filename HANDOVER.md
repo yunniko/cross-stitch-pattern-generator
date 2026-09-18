@@ -10,7 +10,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs f1cfa8b (2026-09-18), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
-Signed off: G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
+Signed off: G-045 the Atelier redesign in direction 1b (D157-D167), G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
 **G-034, processing moved to the server — signed off 2026-09-18.** M1 measured the caps (D149, D150); M2 built the
 `processor` service and its API (D151); M3 added the server photo preview (D152); M4 moved every export there,
@@ -19,7 +19,7 @@ drawing with DejaVu because the image has no fonts (D153), parity measured in
 bundle (2370 KB to 1129 KB). **Deployed and verified live on 2026-09-18**, after the Owner's nginx change (40 MB bodies, 300 s proxy reads).
 Export all and the Pattern Keeper PDF fail on charts near 1000 stitches, shipped as a documented limitation (D155).
 
-**G-045, the Atelier redesign (direction 1b) — M1-M5 done 2026-09-18.** The four stacked bars above the chart are
+**G-045, the Atelier redesign (direction 1b) — signed off 2026-09-18.** The four stacked bars above the chart are
 gone: a 64px tool rail led by New, a context bar that changes with the document, the
 chart in a ruled well, a status bar, and a 360px inspector showing one of Photo, Chart or Threads at a time (D157).
 Highlight left the tool union to become Isolate, a view mode that survives picking up a brush, with its own light on
