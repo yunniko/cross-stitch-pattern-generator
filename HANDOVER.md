@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-18 at df92cc4 (G-034 M5, deployed and verified live)
+Last verified: 2026-09-18 at c2b1123 (G-034 M5, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -240,6 +240,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-18 | c2b1123 | G-034: ships with its one failure documented (D155 supersedes D154's reasoning); `PROCESSOR_WORKER_HEAP_MB` reproduces the PDF memory failure off the server | Vitest 1055, lint and docs-lint clean; both containers recreated; 20 of 20 sites 200, no neighbour restarted. Live on a cold processor: preview 1.9 s, a 250-stitch generation 2.4 s, colour PNG 3.8 s, editable save local, no console errors |
 | 2026-09-18 | df92cc4 | G-034: the Export all deadline rises to 900 s (D154, its reasoning corrected by D155) | Vitest 1055, lint and build clean; both containers recreated; 41 containers up, 20 of 20 sites 200. Live at 1000 stitches: generation 10.5 s, Crisp 13.2 s, colour PNG 20.6 s. Export all and the PDF still fail there with a worker heap OOM (D155) |
 | 2026-09-18 | d33894d | G-034: both job-stream clients take the frame's data line and skip the processor's SSE keepalive comment | `tests/unit/job-stream-keepalive.spec.ts` fails against the previous code; Vitest 1054. Only the app container was recreated, the processor image being unchanged. Live: a 1000-stitch colour PNG exported in 20.6 s, past the 15 s keepalive that broke it |
-| 2026-09-18 | b3ee02d | G-034 M1–M5: decoding, the preview, generation and every export move to the capped `processor` service; the browser workers and the build flag are gone (D149–D153) | Vitest 1052, Playwright 313. D149's caps applied for the first time; the processor publishes no port; 20 of 20 sites 200, no neighbour's uptime reset. A 1000-stitch colour PNG export failed on this commit — fixed in d33894d |
