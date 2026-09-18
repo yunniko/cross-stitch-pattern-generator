@@ -193,6 +193,7 @@ export function ToolRail({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const openInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   useDismissOnOutsidePointer(menuRef, menuOpen, { onOutsidePointer: () => setMenuOpen(false), onEscape: () => setMenuOpen(false) });
 
   return (
@@ -208,25 +209,52 @@ export function ToolRail({
         >
           ×÷
         </button>
+        {/*
+          Both inputs stay mounted whether the menu is open or not. A control that exists only while a menu is open
+          cannot be reached by assistive technology, by a script, or by anything that addresses it by name -- and the
+          bar these replaced always had them mounted. The menu's items click them.
+        */}
+        <label className="hidden" title="Choose a photo to generate a chart from">
+          <span id="image-input-label">Image</span>
+          <input
+            ref={imageInputRef}
+            id="image-input"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              setMenuOpen(false);
+              if (file) onImageFile(file);
+            }}
+            disabled={isLoadingImage || isProcessing}
+          />
+        </label>
+        <input
+          ref={openInputRef}
+          type="file"
+          aria-label="Open pattern file"
+          accept=".json,.zip,.cspzip,.oxs,application/json,application/zip"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            setMenuOpen(false);
+            if (file) onOpenPattern(file);
+          }}
+          className="hidden"
+        />
+
         {menuOpen && (
           <div className="absolute top-full left-2 z-20 flex w-60 flex-col gap-1 rounded-lg border border-line bg-surface p-2 shadow-xl">
-            <label className="flex cursor-pointer flex-col gap-1 rounded-md px-2 py-1.5 text-xs hover:bg-raised" title="Choose a photo to generate a chart from">
-              <span className="text-[13px] text-ink" id="image-input-label">
-                Image
-              </span>
-              <input
-                id="image-input"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) onImageFile(file);
-                  setMenuOpen(false);
-                }}
-                disabled={isLoadingImage || isProcessing}
-                className="w-full text-[11px] text-muted"
-              />
-            </label>
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              disabled={isLoadingImage || isProcessing}
+              className="rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-raised disabled:cursor-not-allowed disabled:text-faint"
+              title="Choose a photo to generate a chart from"
+            >
+              Choose a photo…
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -246,19 +274,6 @@ export function ToolRail({
             >
               Open pattern…
             </button>
-            <input
-              ref={openInputRef}
-              type="file"
-              aria-label="Open pattern file"
-              accept=".json,.zip,.cspzip,.oxs,application/json,application/zip"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                setMenuOpen(false);
-                if (file) onOpenPattern(file);
-              }}
-              className="hidden"
-            />
           </div>
         )}
       </div>

@@ -62,6 +62,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   - **Checks:** build and lint clean; Vitest 1061 passed, 8 skipped; the shell shot from a production
     server that confirmed its own readiness, no failed requests. **The Playwright suite has not been run
     against the moved shell** — M5 owns the spec updates, so the damage there is still unmeasured.
+  - **Caught at the boundary:** the rail rendered both file inputs inside the menu, so `#image-input` and
+    `Open pattern file` existed only while it was open — unreachable by assistive technology, by a script, or
+    by the 38 specs that address them by name, where the bar they replaced had always kept them mounted. Both
+    are now permanently mounted and hidden, proved by loading a photo through the hidden input with the menu
+    shut.
   - **Next:** M3, the three panes as 1b draws them, with the generating and colour-editor states.
 - 2026-09-18 — **M1 done: the palette, type and skin are in place; the layout is untouched.**
   - **Tokens:** the colours of direction 1b are CSS variables in `app/globals.css`, mapped into Tailwind theme
