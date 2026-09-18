@@ -17,9 +17,7 @@ async function generateSmallPattern(page: Page) {
 /** Every stitch colour from the navigator (one pixel per stitch), row-major. */
 async function stitches(page: Page): Promise<string[]> {
   return page
-    .getByRole("complementary")
-    .filter({ hasText: "Navigator" })
-    .locator("canvas")
+    .getByTestId("navigator-raster")
     .evaluate((el: HTMLCanvasElement) => {
       const { data } = el.getContext("2d")!.getImageData(0, 0, el.width, el.height);
       const out: string[] = [];

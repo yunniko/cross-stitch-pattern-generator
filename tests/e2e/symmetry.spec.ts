@@ -56,9 +56,7 @@ async function afterFrames(page: Page) {
 /** The navigator's pixel for stitch (x, y): the stitch's colour, one pixel per stitch. */
 async function stitch(page: Page, x: number, y: number): Promise<string> {
   return page
-    .getByRole("complementary")
-    .filter({ hasText: "Navigator" })
-    .locator("canvas")
+    .getByTestId("navigator-raster")
     .evaluate((el: HTMLCanvasElement, [x, y]) => Array.from(el.getContext("2d")!.getImageData(x, y, 1, 1).data).join(","), [x, y]);
 }
 

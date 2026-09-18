@@ -502,9 +502,9 @@ export default function Workspace() {
       {/*
         The navigator is gone from the interface (Owner, 2026-09-18), but three specs read this canvas as their way of
         seeing which stitches got painted -- one pixel per stitch, true colours, independent of zoom and scroll. It is
-        kept off-screen rather than hidden: `display:none` would take it out of the accessibility tree the specs use to
-        find it, while its backing store (set directly by the renderer) is unaffected by being positioned away. M5
-        moves those specs onto the testid and this goes.
+        kept off-screen rather than hidden, because `display:none` would stop the renderer painting it at all, while a
+        backing store set directly by the renderer is unaffected by being positioned away. Since G-045 M5 the specs
+        address it by `data-testid`, so neither this element's role nor its text is load-bearing.
       */}
       <aside className="pointer-events-none fixed top-0 left-0 h-px w-px overflow-hidden">
         Navigator

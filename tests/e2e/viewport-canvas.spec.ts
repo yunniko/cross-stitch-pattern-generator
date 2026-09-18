@@ -79,9 +79,7 @@ async function chartPixel(page: Page, x: number, y: number): Promise<number[]> {
 /** The navigator's colour for stitch (x, y): one pixel per stitch, the stitch's fill colour. */
 async function stitchColour(page: Page, x: number, y: number): Promise<number[]> {
   return page
-    .getByRole("complementary")
-    .filter({ hasText: "Navigator" })
-    .locator("canvas")
+    .getByTestId("navigator-raster")
     .evaluate((el: HTMLCanvasElement, [x, y]) => Array.from(el.getContext("2d")!.getImageData(x, y, 1, 1).data), [x, y]);
 }
 
