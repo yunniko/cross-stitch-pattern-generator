@@ -1,7 +1,7 @@
 import { useState, type RefObject } from "react";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { isReleasedEnhancementMode } from "@/lib/pipeline/enhance";
-import { runServerPatternJob } from "@/lib/pipeline/pattern-server";
+import { cancelServerPatternJob, PatternJobCancelledError, runServerPatternJob } from "@/lib/pipeline/pattern-server";
 import { PhotoExpiredError, ProcessorUnreachableError, ServerBusyError } from "@/lib/pipeline/server-errors";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, type PixelBuffer, type StitchPattern } from "@/lib/types";
 import type { SourceImageMeta } from "./use-source-image";
@@ -115,6 +115,9 @@ export function useGeneration(inputs: GenerationInputs) {
     } catch (failure) {
       // A newer photo cancels this job on purpose; only a still-relevant failure is shown.
       if (revisionRef.current !== myRevision) return;
+      // So does pressing Cancel. Stopping on purpose is not a failure, and reporting it as one would put
+      // "Couldn't generate a pattern from that image" in front of someone who asked for it to stop (G-045 M3).
+      if (failure instanceof PatternJobCancelledError) return;
       setError(messageFor(failure));
     } finally {
       setIsProcessing(false);
@@ -122,5 +125,13 @@ export function useGeneration(inputs: GenerationInputs) {
     }
   }
 
-  return { isProcessing, progress, error, queueMessage, setError, generate };
+  /**
+   * Stops the job in flight, here and on the server, so a cancelled generation stops occupying a worker rather than
+   * running on unwatched. The job's own promise rejects with `PatternJobCancelledError`, which `generate` swallows.
+   */
+  function cancel() {
+    cancelServerPatternJob();
+  }
+
+  return { isProcessing, progress, error, queueMessage, setError, generate, cancel };
 }

@@ -148,7 +148,7 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
 - The Owner gave standing push and deploy approval for this project on
   2026-09-13: deploy verified work without asking, unless something needs
   the Owner's attention. Deploys still follow `COMPANY/INFRASTRUCTURE_DEPLOY.md`.
-- One session per working tree; don't stop another session's `next dev` (PID 17476, 2026-09-12).
+- One session per working tree. Never force-kill node processes you did not start: find the owner of the port you actually need and check its start time first. A rule naming a fixed PID goes stale within days and PIDs are recycled -- the number this rule used to carry (17476, 2026-09-12) was long gone by 2026-09-18 and only caused a later session to believe it had killed someone else's server.
 - A goal isn't DONE with a dirty tree, placeholders, or no logged Owner
   sign-off (OPERATIONS.md §5, D098).
 - E2E runs against a production build on port 30200 (D102). Locally an

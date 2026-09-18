@@ -1,23 +1,17 @@
-import { Fragment, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type RefObject } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import { hexToRgb, luminance, rgbToHex } from "@/lib/color/color";
 import { swatchComparisonParts } from "@/lib/color/swatch-comparison";
 import { SYMBOL_SET } from "@/lib/color/symbols";
 import { addBrandColor, addColor, editColorRgb, editColorToBrandColor, renameColor, restoreColor, setColorSymbol } from "@/lib/editor/pattern-edit";
-import { formatSkeinEstimate } from "@/lib/threads/floss-estimate";
 import { THREAD_BRANDS, THREAD_BRAND_IDS, formatThreadName, type ThreadBrand, type ThreadColor } from "@/lib/threads/thread-brands";
-import { EMPTY_CELL, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
-import type { Tool } from "../editor-types";
+import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
 import { DISMISS_RETARGET_ATTRIBUTE, useDismissOnOutsidePointer } from "../hooks/use-dismiss-on-outside-pointer";
 import { useLatest } from "../hooks/use-latest";
+import { ThreadRows, threadsSummary } from "./threads-pane";
 import { PillButton, SegmentedControl } from "./ui";
 
-/** Large enough to orient by, small enough to stay a glance; the canvas inside is true 1 px per stitch and scrolls if larger. */
-const NAVIGATOR_MAX_SIZE_PX = 180;
-
-const PANEL = "flex flex-col gap-2 rounded border border-line p-3";
-const ROW_IDLE = "border-transparent hover:bg-raised";
-const ROW_ACTIVE = "border-accent bg-raised";
+const PANEL = "flex flex-col gap-2 rounded-lg border border-line p-3";
 const COMPARE_HINT = "Hover or focus a swatch to compare it with the current color on screen.";
 
 /** A brand's thread line filtered by code or name substring, case-insensitive. */
@@ -156,12 +150,13 @@ function sameAppearance(color: Pick<PaletteColor, "rgb" | "name" | "source">, ot
 
 export interface ColorsDockProps {
   pattern: StitchPattern | null;
-  navigatorCanvasRef: RefObject<HTMLCanvasElement | null>;
-  activeTool: Tool;
+  /** Dimmed while a floating selection is in hand, as 1b draws its select state. */
+  dimmed?: boolean;
   activeColorIndex: number | null;
   onActiveColorChange: (index: number | null) => void;
-  highlightedColorIndices: ReadonlySet<number>;
-  onToggleHighlight: (index: number) => void;
+  /** The threads lit for Isolate. Lighting one is independent of which colour is selected for painting. */
+  litColorIndices: ReadonlySet<number>;
+  onToggleLit: (index: number) => void;
   aidaCount: number;
   /** Pushes an edited pattern as an undoable step. */
   onChange: (next: StitchPattern) => void;
@@ -177,7 +172,7 @@ export interface ColorsDockProps {
  * editor and "+ Add" panels. The color editor opens under its row on the color's own swatch; picks apply at once and
  * the editor stays open until Done, Cancel, Escape or a click outside it (G-033).
  */
-export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColorIndex, onActiveColorChange, highlightedColorIndices, onToggleHighlight, aidaCount, onChange, onPreviewChange, documentId, onMergeColors }: ColorsDockProps) {
+export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActiveColorChange, litColorIndices, onToggleLit, aidaCount, onChange, onPreviewChange, documentId, onMergeColors }: ColorsDockProps) {
   const [editor, setEditor] = useState<ColorEditorState | null>(null);
   const [addingColor, setAddingColor] = useState(false);
   const [addColorDraftHex, setAddColorDraftHex] = useState("#808080");
@@ -193,14 +188,6 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
   if (editor && !editing) setEditor(null);
 
   const latest = useLatest({ editing, pattern });
-
-  function dropOnto(targetIndex: number) {
-    return (e: DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      const raw = e.dataTransfer.getData("text/plain");
-      if (raw !== "") onMergeColors(Number(raw), targetIndex);
-    };
-  }
 
   /** Commits a pending Full range draft as one undo step and clears the preview. Reads the latest state, so window listeners can call it. */
   function commitDraft() {
@@ -340,20 +327,9 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
   }
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col gap-2 overflow-y-auto border-l border-line bg-surface p-3">
-      {pattern && (
-        <div className="flex flex-col gap-1 border-b border-line pb-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-muted">Navigator</span>
-          <div className="overflow-auto rounded border border-line" style={{ maxWidth: NAVIGATOR_MAX_SIZE_PX, maxHeight: NAVIGATOR_MAX_SIZE_PX }}>
-            <canvas ref={navigatorCanvasRef} style={{ imageRendering: "pixelated" }} className="block" />
-          </div>
-          <p className="text-[11px] text-muted">
-            {pattern.width} × {pattern.height} px, true scale
-          </p>
-        </div>
-      )}
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted">Colors</span>
+    <div className="flex flex-col">
+      <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
+        <span className="font-mono text-xs text-muted">{pattern ? threadsSummary(pattern, aidaCount) : "No threads yet"}</span>
         <PillButton
           size="xs"
           onClick={() => {
@@ -366,115 +342,61 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
           + Add
         </PillButton>
       </div>
-      <p className="text-xs text-muted">
-        {pattern && pattern.palette.length === 0 ? (
-          <span data-testid="empty-palette-note">This chart has no colors yet. Press &quot;+ Add&quot; to pick the first one, then click it and paint on the picture.</span>
-        ) : (
-          <>
-            Drag a color onto another to merge them. Drag a color onto the picture to fill that region. Click a color to select it (Brush), then click or drag
-            across the picture to paint. Double-click a name to rename it.
-          </>
-        )}
-      </p>
 
-      {pattern && (
-        <div
-          draggable
-          onDragStart={(e) => e.dataTransfer.setData("text/plain", String(EMPTY_CELL))}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={dropOnto(EMPTY_CELL)}
-          onClick={() => onActiveColorChange(activeColorIndex === EMPTY_CELL ? null : EMPTY_CELL)}
-          title="No stitch -- marks cells that shouldn't be stitched at all. Never appears in the legend or exports' stitch counts. Drag a color here to merge it into empty (its stitches become empty and it's removed from the palette)."
-          className={`flex cursor-pointer items-center gap-2 rounded border px-2 py-1 text-sm transition-colors ${activeColorIndex === EMPTY_CELL ? ROW_ACTIVE : ROW_IDLE}`}
-        >
-          <span
-            className="h-5 w-5 shrink-0 rounded border border-line bg-[repeating-conic-gradient(#9ca3af_0_25%,transparent_0_50%)] bg-[length:8px_8px]"
-            aria-hidden
-          />
-          <span className="flex-1 text-muted">Empty (no stitch)</span>
-        </div>
+      {pattern && pattern.palette.length === 0 && (
+        <p className="px-4 pb-2 text-xs text-muted">
+          <span data-testid="empty-palette-note">This chart has no colors yet. Press &quot;+ Add&quot; to pick the first one, then click it and paint on the picture.</span>
+        </p>
       )}
 
-      {pattern &&
-        [...pattern.palette]
-          .sort((a, b) => b.count - a.count)
-          .map((color) => {
-            const rowState =
-              activeTool === "highlight"
-                ? highlightedColorIndices.has(color.index)
-                  ? "border-amber-500 bg-amber-950/600/10"
-                  : ROW_IDLE
-                : activeColorIndex === color.index
-                  ? ROW_ACTIVE
-                  : ROW_IDLE;
+      {pattern && (
+        <ThreadRows
+          pattern={pattern}
+          aidaCount={aidaCount}
+          activeColorIndex={activeColorIndex}
+          // Selecting a colour to paint with and lighting it for Isolate are different intentions, so the row does
+          // the first and the eye does the second. Neither disables the other (G-045 M4).
+          onRowActivate={(index) => onActiveColorChange(activeColorIndex === index ? null : index)}
+          onEditColor={openColorEditor}
+          onEditSymbol={(index) => setEditingSymbolIndex(editingSymbolIndex === index ? null : index)}
+          editingSymbolIndex={editingSymbolIndex}
+          editingColorIndex={editing?.index ?? null}
+          onMergeColors={onMergeColors}
+          dimmed={dimmed}
+          swatchProps={{ [DISMISS_RETARGET_ATTRIBUTE]: "" }}
+          renderLight={(color) => {
+            const lit = litColorIndices.has(color.index);
             return (
-              <Fragment key={color.index}>
-                <div
-                  draggable
-                  data-testid="legend-color-row"
-                  onDragStart={(e) => e.dataTransfer.setData("text/plain", String(color.index))}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={dropOnto(color.index)}
-                  onClick={() => (activeTool === "highlight" ? onToggleHighlight(color.index) : onActiveColorChange(activeColorIndex === color.index ? null : color.index))}
-                  className={`flex cursor-pointer items-center gap-2 rounded border px-2 py-1 text-sm transition-colors ${rowState}`}
-                >
-                  <button
-                    type="button"
-                    {...{ [DISMISS_RETARGET_ATTRIBUTE]: "" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openColorEditor(color.index);
-                    }}
-                    style={{ backgroundColor: rgbToHex(color.rgb) }}
-                    className="h-5 w-5 shrink-0 rounded border border-line"
-                    aria-label={`Edit ${color.name}`}
-                    aria-expanded={editing?.index === color.index}
-                  />
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingSymbolIndex(editingSymbolIndex === color.index ? null : color.index);
-                    }}
-                    className={`w-5 shrink-0 rounded text-center hover:bg-raised ${editingSymbolIndex === color.index ? "bg-raised" : ""}`}
-                    title="Click to change this color's symbol"
-                  >
-                    {color.symbol}
-                  </button>
-                  {renamingIndex === color.index ? (
-                    <input
-                      autoFocus
-                      value={renameDraft}
-                      onChange={(e) => setRenameDraft(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      onBlur={commitRename}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") e.currentTarget.blur();
-                        if (e.key === "Escape") setRenamingIndex(null);
-                      }}
-                      className="w-0 min-w-0 flex-1 rounded border border-line bg-transparent px-1"
-                    />
-                  ) : (
-                    <span
-                      className="flex-1 truncate"
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setRenameDraft(color.name);
-                        setRenamingIndex(color.index);
-                      }}
-                      title="Double-click to rename"
-                    >
-                      {color.name}
-                    </span>
-                  )}
-                  <span className="shrink-0 text-xs text-muted" title="Estimated floss needed, biased to overestimate -- see docs/domain-reference.md">
-                    {color.count} sts · {formatSkeinEstimate(color.count, aidaCount)}
-                  </span>
-                </div>
-                {editing?.index === color.index && renderColorEditor()}
-              </Fragment>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleLit(color.index);
+                }}
+                aria-pressed={lit}
+                aria-label={`Show only ${color.name}`}
+                title={lit ? "Lit — shown at full strength while Isolate is on" : "Light this thread while Isolate is on"}
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded ${lit ? "bg-accent/20 text-accent" : "text-faint hover:bg-raised hover:text-muted"}`}
+              >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="2.5" />
+                </svg>
+              </button>
             );
-          })}
+          }}
+          renderUnderRow={(color) => (editing?.index === color.index ? renderColorEditor() : null)}
+          renameDraft={renameDraft}
+          renamingIndex={renamingIndex}
+          onRenameDraftChange={setRenameDraft}
+          onStartRename={(index, name) => {
+            setRenameDraft(name);
+            setRenamingIndex(index);
+          }}
+          onCommitRename={commitRename}
+          onCancelRename={() => setRenamingIndex(null)}
+        />
+      )}
 
       {editingSymbolIndex !== null && pattern && (
         <div className={PANEL}>
@@ -531,6 +453,6 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
           </div>
         </div>
       )}
-    </aside>
+    </div>
   );
 }

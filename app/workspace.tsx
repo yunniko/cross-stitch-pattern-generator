@@ -12,6 +12,7 @@ import { useProjectAutosave } from "@/lib/editor/use-project-autosave";
 import { useUndoHistory } from "@/lib/editor/use-undo-history";
 import { isReleasedEnhancementMode } from "@/lib/pipeline/enhance";
 import type { StitchPattern } from "@/lib/types";
+import { ChartPane } from "./components/chart-pane";
 import { ColorsDock } from "./components/colors-dock";
 import { ContextBar } from "./components/context-bar";
 import { ExportControls } from "./components/export-controls";
@@ -19,8 +20,8 @@ import { ImageWindow } from "./components/image-window";
 import { Inspector, type InspectorTab } from "./components/inspector";
 import { isViewOnlyMode } from "./editor-types";
 import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
-import { NewChartPanel, OptionsPanel, ResizePanel, SelectionBar, WorkspaceNotices } from "./components/panels";
-import { ProcessingParams } from "./components/processing-params";
+import { NewChartPanel, SelectionBar, WorkspaceNotices } from "./components/panels";
+import { PhotoPane } from "./components/photo-pane";
 import { StatusBar } from "./components/status-bar";
 import { ToolRail } from "./components/tool-rail";
 import { PillButton } from "./components/ui";
@@ -40,12 +41,12 @@ import { useWorkspaceOptions } from "./hooks/use-workspace-options";
 const DEFAULT_NAME = "cross-stitch-pattern";
 
 /**
- * The editor shell (G-012; restructured to direction 1b in G-045 M2): the pattern's undo history plus the state
- * several panes share, wired to the hooks in app/hooks and the components in app/components (D108). Every edit goes
- * through `history.set` as one undo step.
+ * The editor shell (G-012; restructured to direction 1b in G-045): the pattern's undo history plus the state several
+ * panes share, wired to the hooks in app/hooks and the components in app/components (D108). Every edit goes through
+ * `history.set` as one undo step.
  *
  * The frame is 1b's: a tool rail, a context bar over the chart well with a status bar beneath it, and one inspector on
- * the right showing a single pane at a time. M3 rebuilds what those panes contain.
+ * the right showing a single pane at a time.
  */
 export default function Workspace() {
   const history = useUndoHistory<StitchPattern | null>(null);
@@ -59,7 +60,12 @@ export default function Workspace() {
   const [viewMode, setViewMode] = useState<ViewMode>("color");
   const [activeTool, setActiveTool] = useState<Tool>("brush");
   const [activeColorIndex, setActiveColorIndex] = useState<number | null>(null);
-  const [highlightedColorIndices, setHighlightedColorIndices] = useState<ReadonlySet<number>>(new Set());
+  /**
+   * Isolate and the threads lit for it (G-045 M4). Isolate is a way of looking at the chart rather than a tool, so it
+   * stays on while you paint, and lighting a thread is independent of choosing one to paint with.
+   */
+  const [isolate, setIsolate] = useState(false);
+  const [litColorIndices, setLitColorIndices] = useState<ReadonlySet<number>>(new Set());
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("photo");
   // Symmetry axes live outside the undo history: a toggle is not an undo step, and undo or redo leaves them as they
   // are (G-037). Diagonals exist only on a square canvas, so a resize, undo, redo or open that makes the canvas
@@ -69,10 +75,7 @@ export default function Workspace() {
     setSymmetry({ ...symmetry, diagonal: false, antidiagonal: false });
   }
   const liveSymmetry = pattern ? effectiveSymmetryAxes(symmetry, pattern.width, pattern.height) : NO_SYMMETRY;
-  const [showOptionsPanel, setShowOptionsPanel] = useState(false);
-  // null while closed; a new key on every "Resize canvas…" click remounts the panel with fresh fields.
-  const [resizePanelKey, setResizePanelKey] = useState<number | null>(null);
-  // Same pattern for "New blank chart…" (G-040).
+  // Same pattern for "New blank chart…" (G-040): a new key on every request remounts the panel with fresh fields.
   const [newChartPanelKey, setNewChartPanelKey] = useState<number | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
   const [openNotice, setOpenNotice] = useState<string | null>(null);
@@ -117,7 +120,8 @@ export default function Workspace() {
     activeTool,
     selection: select.selection,
     isSelectDragging: select.isDragging,
-    highlightedColorIndices,
+    isolate,
+    litColorIndices,
     canvasColor: options.canvasColor,
     symmetryAxes: liveSymmetry,
     // The renderer applies a zoom's anchor itself, between sizing the frame and measuring the view (D124, D135).
@@ -132,9 +136,8 @@ export default function Workspace() {
     setSymmetry(NO_SYMMETRY);
     setActiveColorIndex(null);
     panZoom.resetZoom();
-    setHighlightedColorIndices(new Set());
+    setLitColorIndices(new Set());
     select.clear();
-    setResizePanelKey(null);
   }
 
   /** Lands a restored or opened pattern in every piece of state that depends on it, including its embedded photo. */
@@ -271,8 +274,8 @@ export default function Workspace() {
     history.set(mergeColors(pattern, sourceIndex, targetIndex));
     select.invalidateClipboard();
     if (activeColorIndex === sourceIndex) setActiveColorIndex(null);
-    // A merge renumbers palette indices, so highlighted indices could now point at other colors.
-    if (highlightedColorIndices.size > 0) setHighlightedColorIndices(new Set());
+    // A merge renumbers palette indices, so lit indices could now point at other colors.
+    if (litColorIndices.size > 0) setLitColorIndices(new Set());
   }
 
   /** A quick mirror (G-037): any floating selection is merged and the mirror applied, committed as one undo step. */
@@ -282,11 +285,15 @@ export default function Workspace() {
     select.release();
   }
 
-  function toggleHighlight(index: number) {
-    setHighlightedColorIndices((prev) => {
+  /** Lights or unlights one thread for Isolate. Turning the first one on turns Isolate on, so the eye does something visible. */
+  function toggleLit(index: number) {
+    setLitColorIndices((prev) => {
       const next = new Set(prev);
       if (next.has(index)) next.delete(index);
-      else next.add(index);
+      else {
+        next.add(index);
+        setIsolate(true);
+      }
       return next;
     });
   }
@@ -309,42 +316,10 @@ export default function Workspace() {
 
   function applyResize(delta: CanvasResizeDelta) {
     if (!pattern) return;
-    history.set(resizeCanvas(pattern, delta)); // throws on an invalid size; the panel shows the message
-    setResizePanelKey(null);
+    history.set(resizeCanvas(pattern, delta)); // throws on an invalid size; the pane shows the message
   }
 
-  /**
-   * The Chart pane until M3 builds it out: the document's own settings, and the panels that were reachable from the
-   * top bar. The name field keeps its label, so what finds it by name still does.
-   */
-  const chartPane = (
-    <div className="flex flex-col gap-4 p-4">
-      <label className="flex flex-col gap-1.5 text-xs text-muted">
-        Name
-        <input
-          type="text"
-          value={nameDraft}
-          onChange={(e) => setNameDraft(e.target.value)}
-          onBlur={() => pattern && history.set(renamePattern(pattern, nameDraft))}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-          }}
-          disabled={pattern === null}
-          className="rounded-lg border border-line bg-sunken px-2.5 py-1.5 text-[13px] text-ink disabled:opacity-50"
-          aria-label="Pattern name"
-        />
-      </label>
-      <div className="flex flex-wrap gap-2">
-        <PillButton size="md" onClick={() => setShowOptionsPanel((shown) => !shown)}>
-          Options…
-        </PillButton>
-        <PillButton size="md" onClick={() => setResizePanelKey((key) => (key ?? 0) + 1)} disabled={pattern === null}>
-          Resize canvas…
-        </PillButton>
-      </div>
-      <p className="text-xs text-muted">Fabric count, unit, canvas colour and the rest move onto this tab in M3.</p>
-    </div>
-  );
+  const photoFree = isPhotoFree(pattern);
 
   return (
     <div className="flex h-screen bg-app font-sans text-ink">
@@ -377,6 +352,9 @@ export default function Workspace() {
           sourceFileName={source.fileName}
           isLoadingImage={source.isLoading}
           hasSourcePhoto={source.hasPhoto}
+          isolate={isolate}
+          onIsolateChange={setIsolate}
+          litCount={litColorIndices.size}
         />
         <WorkspaceNotices
           restoreFailure={restore.failure}
@@ -387,7 +365,6 @@ export default function Workspace() {
           exportError={exports.exportError}
           a4Layout={paginatesAsA4(exports.exportKind) ? exports.a4LayoutPreview : null}
         />
-        {showOptionsPanel && <OptionsPanel options={options} onChange={updateOption} onClose={() => setShowOptionsPanel(false)} />}
         {activeTool === "select" && pattern && (
           <SelectionBar
             hasSelection={select.selection !== null}
@@ -406,7 +383,6 @@ export default function Workspace() {
         {newChartPanelKey !== null && (
           <NewChartPanel key={newChartPanelKey} options={options} onCreate={(width, height) => void createBlankChart(width, height)} onCancel={() => setNewChartPanelKey(null)} />
         )}
-        {resizePanelKey !== null && pattern && <ResizePanel key={resizePanelKey} pattern={pattern} onApply={applyResize} onCancel={() => setResizePanelKey(null)} />}
 
         <ImageWindow
           scrollerRef={scrollerRef}
@@ -449,33 +425,40 @@ export default function Workspace() {
         onTabChange={setInspectorTab}
         disabled={{ chart: pattern === null, threads: pattern === null }}
         photo={
-          isPhotoFree(pattern) ? (
+          photoFree ? (
             <p className="p-4 text-[13px] text-muted">This chart was started from an empty canvas, so it has no photo settings.</p>
           ) : (
-            <ProcessingParams
+            <PhotoPane
               options={options}
               onChange={updateOption}
-              isLoadingImage={source.isLoading}
               isProcessing={generation.isProcessing}
               progress={generation.progress}
               queueMessage={generation.queueMessage}
               hasPattern={pattern !== null}
-              hasSourcePhoto={source.hasPhoto}
-              onGenerate={() => void generation.generate()}
+              onCancel={generation.cancel}
               error={generation.error}
             />
           )
         }
-        chart={chartPane}
+        chart={
+          <ChartPane
+            pattern={pattern}
+            options={options}
+            onChange={updateOption}
+            name={nameDraft}
+            onNameChange={setNameDraft}
+            onNameCommit={() => pattern && history.set(renamePattern(pattern, nameDraft))}
+            onResize={applyResize}
+          />
+        }
         threads={
           <ColorsDock
             pattern={pattern}
-            navigatorCanvasRef={navigatorCanvasRef}
-            activeTool={activeTool}
+            dimmed={select.selection !== null}
             activeColorIndex={activeColorIndex}
             onActiveColorChange={setActiveColorIndex}
-            highlightedColorIndices={highlightedColorIndices}
-            onToggleHighlight={toggleHighlight}
+            litColorIndices={litColorIndices}
+            onToggleLit={toggleLit}
             aidaCount={options.aidaCount}
             onChange={history.set}
             onPreviewChange={setColorPreview}
@@ -495,9 +478,31 @@ export default function Workspace() {
               isExportingAll={exports.isExportingAll}
               exportProgressText={exports.exportProgressText}
             />
+          ) : inspectorTab === "photo" && !photoFree ? (
+            <PillButton
+              variant="primary"
+              size="lg"
+              className="w-full"
+              onClick={() => void generation.generate()}
+              disabled={!source.hasPhoto || generation.isProcessing || source.isLoading}
+            >
+              {pattern ? "Regenerate" : "Generate pattern"}
+            </PillButton>
           ) : null
         }
       />
+
+      {/*
+        The navigator is gone from the interface (Owner, 2026-09-18), but three specs read this canvas as their way of
+        seeing which stitches got painted -- one pixel per stitch, true colours, independent of zoom and scroll. It is
+        kept off-screen rather than hidden: `display:none` would take it out of the accessibility tree the specs use to
+        find it, while its backing store (set directly by the renderer) is unaffected by being positioned away. M5
+        moves those specs onto the testid and this goes.
+      */}
+      <aside className="pointer-events-none fixed top-0 left-0 h-px w-px overflow-hidden">
+        Navigator
+        <canvas ref={navigatorCanvasRef} data-testid="navigator-raster" />
+      </aside>
     </div>
   );
 }

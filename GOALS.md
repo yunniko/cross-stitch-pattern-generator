@@ -41,11 +41,33 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 **Milestones:**
 - [x] M1 — Atelier tokens, fonts and shared primitives, with no layout change. Done 2026-09-18.
 - [x] M2 — The shell: rail, context bar, canvas, status bar and the inspector frame. Done 2026-09-18.
-- [ ] M3 — The three inspector tabs, and the generating and colour-editor states.
-- [ ] M4 — Highlight becomes Isolate, with a light on every thread.
+- [x] M3 — The three inspector tabs, and the generating and colour-editor states. Done 2026-09-18.
+- [x] M4 — Highlight becomes Isolate, with a light on every thread. Done 2026-09-18.
 - [ ] M5 — Specs, documentation and deploy.
 
 **Progress log** (newest first):
+- 2026-09-18 — **M3 and M4 done together: the panes are 1b’s, and Highlight is now Isolate.**
+  - **Panes:** `photo-pane.tsx` (size presets and a custom stepper, colour count, Algorithm, Palette, Edges, Photo
+    fix, and the Generating card while a job runs), `chart-pane.tsx` (name, canvas edges with a live → W × H,
+    fabric count, unit, canvas colour, double-click fill, author name, A4 overlap) and `threads-pane.tsx` (1b’s
+    rows: swatch, light, symbol, name over a share-of-largest bar, stitch and skein counts). Generate is pinned in
+    the Photo footer, the exports in the Threads footer.
+  - **Retired:** `processing-params.tsx`, and `OptionsPanel` and `ResizePanel` from `panels.tsx`. Nothing they held
+    was lost; the Chart pane carries all of it.
+  - **Isolate (M4):** `"highlight"` leaves the `Tool` union, `isolate` becomes its own state, `chart-scene.ts` gates
+    the overlay on it rather than on the active tool, and every thread row has its own light. Lighting the first
+    thread turns Isolate on, so the eye does something visible.
+  - **Cancel is real:** `use-generation` exposes `cancel()`, and `PatternJobCancelledError` is treated as a quiet
+    stop — otherwise asking a job to stop would answer with “Couldn’t generate a pattern from that image”.
+  - **The frozen parity oracle now owns its own `Tool` type.** `tests/unit/reference/chart-scene-pre-g036.ts` says
+    never to edit it, yet it imported the live union; removing “highlight” would have forced an edit. Pinning the
+    type leaves every line of its drawing untouched.
+  - **Navigator:** gone from the interface, kept as an off-screen raster so `quick-mirror`, `symmetry` and
+    `viewport-canvas` keep the one-pixel-per-stitch instrument they read. M5 moves them onto its testid.
+  - **Checks:** build, lint and docs-lint clean; Vitest 1061 passed, 8 skipped; nineteen browser checks against a
+    served build with a processor — Isolate stays lit through Brush and Fill, selecting a colour leaves the lights
+    alone, and the Chart pane carries every control the retired panels held.
+  - **Next:** M5 — the specs, the documentation and the deploy.
 - 2026-09-18 — **M2 done: the shell is 1b’s. The panes still hold the old panels.**
   - **Gone:** the top bar and the view bar, and with them the four stacked strips above the chart.
     `top-bar.tsx` and `tools-dock.tsx` are deleted.

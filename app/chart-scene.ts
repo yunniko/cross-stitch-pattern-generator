@@ -20,7 +20,10 @@ export interface ChartScene {
   /** Stitch tiles for the Realistic view; tiles of another size are drawn scaled until the right ones exist. */
   realisticTiles: StitchTiles | null;
   activeTool: Tool;
-  highlightedColorIndices: ReadonlySet<number>;
+  /** Isolate dims every thread but the lit ones. It is not a tool, so it stays on while you paint (G-045 M4). */
+  isolate: boolean;
+  /** The threads shown at full strength while Isolate is on. */
+  litColorIndices: ReadonlySet<number>;
   selection: FloatingSelection | null;
   canvasColor: string;
   /** While a select drag runs, the floating selection is neither composited nor outlined: the drag frame draws it. */
@@ -141,7 +144,7 @@ function atRegion(ctx: CanvasRenderingContext2D, region: ChartRegion, cellSize: 
 /** The scene for pattern `p`, painted into `rect` only (chart pixels, integer bounds). */
 export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene: ChartScene, rect: PixelRect) {
   if (isEmptyRect(rect)) return;
-  const { viewMode, cellSize, photo, realisticTiles, activeTool, highlightedColorIndices, selection, canvasColor, selectDragging } = scene;
+  const { viewMode, cellSize, photo, realisticTiles, activeTool, isolate, litColorIndices, selection, canvasColor, selectDragging } = scene;
   ctx.save();
   clipTo(ctx, rect);
 
@@ -181,8 +184,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
     atRegion(ctx, region, cellSize, () => drawChartOnScreen(ctx, displayPattern, viewMode as RenderMode, cellSize, region, canvasColor));
   }
 
-  if (activeTool === "highlight" && highlightedColorIndices.size > 0) {
-    atRegion(ctx, region, cellSize, () => drawHighlightOverlayRaster(ctx, displayPattern, cellSize, highlightedColorIndices, region));
+  if (isolate && litColorIndices.size > 0) {
+    atRegion(ctx, region, cellSize, () => drawHighlightOverlayRaster(ctx, displayPattern, cellSize, litColorIndices, region));
   }
   if (activeTool === "select" && selection && !selectDragging) {
     drawSelectionOutline(ctx, selection, cellSize);

@@ -3,7 +3,15 @@
 // `drawSelectionOutline`, `snapshotCanvas` and `PHOTO_UNDERLAY_ALPHA` from app/editor-geometry.ts. The hook's closure
 // values are lifted into a `scene` argument; nothing else is changed. It draws with the frozen renderer and is the
 // parity oracle for the viewport canvas (tests/e2e/chart-render-parity.spec.ts). Never edit it.
-import type { Tool, ViewMode } from "@/app/editor-types";
+import type { ViewMode } from "@/app/editor-types";
+
+/**
+ * The tool union as it stood when this snapshot was taken, kept here rather than imported. A frozen oracle that
+ * borrows a live type stops being frozen the moment the app's vocabulary moves: G-045 M4 removed "highlight" from the
+ * app's `Tool` when Isolate became a view mode, which would otherwise have forced an edit to a file whose whole value
+ * is that it is never edited. The drawing below is untouched, including its highlight branch.
+ */
+type Tool = "brush" | "pan" | "zoom" | "move" | "highlight" | "select" | "fill";
 import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
 import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
 import { drawCell, drawChart, drawChartOutline, drawHighlightOverlay, type RenderMode } from "./render-pre-g036";

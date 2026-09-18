@@ -11,4 +11,8 @@ export function isViewOnlyMode(mode: ViewMode): boolean {
   return mode === "realistic" || mode === "photo-only";
 }
 
-export type Tool = "brush" | "pan" | "zoom" | "move" | "highlight" | "select" | "fill";
+/**
+ * Isolate is not here on purpose (G-045 M4): dimming the threads you are not working on is a way of *looking* at the
+ * chart, not a thing you do to it, so it stays on while you paint with any of these.
+ */
+export type Tool = "brush" | "pan" | "zoom" | "move" | "select" | "fill";

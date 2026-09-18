@@ -1,13 +1,11 @@
 import { useState } from "react";
 import type { ProjectLoadFailure } from "@/lib/editor/project-store";
-import type { CanvasResizeDelta } from "@/lib/editor/pattern-edit";
-import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
-import type { calculateA4Layout, OverlapCells } from "@/lib/export/a4-layout";
+import type { calculateA4Layout } from "@/lib/export/a4-layout";
 import { describeBlankSizeProblem } from "@/lib/editor/blank-pattern";
-import { formatFinishedSize, STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
-import { MAX_STITCHES, MIN_STITCHES, type StitchPattern } from "@/lib/types";
-import { NoticeBar, PanelBar, PillButton, SegmentedControl } from "./ui";
+import { formatFinishedSize } from "@/lib/export/finished-size";
+import { MAX_STITCHES, MIN_STITCHES } from "@/lib/types";
+import { NoticeBar, PanelBar, PillButton } from "./ui";
 
 export interface WorkspaceNoticesProps {
   restoreFailure: ProjectLoadFailure | null;
@@ -57,77 +55,6 @@ export function WorkspaceNotices({ restoreFailure, onDownloadRestoreReport, onDi
         </NoticeBar>
       )}
     </>
-  );
-}
-
-export function OptionsPanel({ options, onChange, onClose }: { options: WorkspaceOptions; onChange: UpdateWorkspaceOption; onClose: () => void }) {
-  return (
-    <PanelBar>
-      <span className="text-sm font-medium">Options</span>
-      <label className="flex items-center gap-1.5 text-sm">
-        Fabric count
-        <select
-          value={options.aidaCount}
-          onChange={(e) => onChange("aidaCount", Number(e.target.value))}
-          className="rounded border border-line px-1.5 py-0.5 text-sm bg-sunken"
-        >
-          {STANDARD_AIDA_COUNTS.map((count) => (
-            <option key={count} value={count}>
-              {count}-count
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="flex items-center gap-1.5 text-sm">
-        Unit
-        <SegmentedControl
-          options={[
-            { value: "in", label: "in" },
-            { value: "cm", label: "cm" },
-          ]}
-          value={options.sizeUnit}
-          onChange={(unit) => onChange("sizeUnit", unit)}
-        />
-      </div>
-      <label className="flex items-center gap-1.5 text-sm">
-        Author name
-        <input
-          type="text"
-          value={options.authorName}
-          onChange={(e) => onChange("authorName", e.target.value)}
-          placeholder="(shown on exported charts)"
-          className="w-56 rounded border border-line px-1.5 py-0.5 text-sm bg-sunken"
-        />
-      </label>
-      <label className="flex items-center gap-1.5 text-sm" title="How many stitches of overlap the A4/PDF page exports repeat between adjacent pages, so they can be lined up when printed">
-        A4/PDF overlap
-        <select
-          value={options.overlapCells}
-          onChange={(e) => onChange("overlapCells", Number(e.target.value) as OverlapCells)}
-          className="rounded border border-line px-1.5 py-0.5 text-sm bg-sunken"
-        >
-          <option value={0}>0</option>
-          <option value={5}>5</option>
-          <option value={10}>10</option>
-        </select>
-      </label>
-      <label
-        className="flex items-center gap-1.5 text-sm"
-        title="On: double-clicking with the Brush fills the whole region under the pointer, as one undo step. Off: a double-click just paints the two stitches you clicked."
-      >
-        <input
-          type="checkbox"
-          checked={options.doubleClickFill}
-          onChange={(e) => onChange("doubleClickFill", e.target.checked)}
-          className="h-3.5 w-3.5 accent-[var(--at-accent)]"
-        />
-        Double-click fills a region
-      </label>
-      <span className="text-xs text-muted">Saved automatically in this browser.</span>
-      <PillButton size="md" onClick={onClose} className="ml-auto">
-        Close
-      </PillButton>
-    </PanelBar>
   );
 }
 
@@ -305,54 +232,3 @@ export function NewChartPanel({ options, onCreate, onCancel }: { options: Worksp
   );
 }
 
-const RESIZE_EDGES = [
-  { key: "top", label: "Top" },
-  { key: "bottom", label: "Bottom" },
-  { key: "left", label: "Left" },
-  { key: "right", label: "Right" },
-] as const;
-
-/**
- * Crop or expand any edge in one step (G-012 M4). Mount it with a new `key` on every open request: clicking
- * "Resize canvas…" while it is already open resets its fields.
- */
-export function ResizePanel({ pattern, onApply, onCancel }: { pattern: StitchPattern; onApply: (delta: CanvasResizeDelta) => void; onCancel: () => void }) {
-  const [delta, setDelta] = useState<CanvasResizeDelta>({ left: 0, right: 0, top: 0, bottom: 0 });
-  const [error, setError] = useState<string | null>(null);
-
-  function apply() {
-    try {
-      onApply(delta);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't resize the canvas.");
-    }
-  }
-
-  return (
-    <PanelBar>
-      <span className="text-sm font-medium">Resize canvas</span>
-      {RESIZE_EDGES.map(({ key, label }) => (
-        <label key={key} className="flex items-center gap-1.5 text-sm">
-          {label}
-          <input
-            type="number"
-            value={delta[key]}
-            onChange={(e) => setDelta((prev) => ({ ...prev, [key]: Number(e.target.value) || 0 }))}
-            className="w-16 rounded border border-line px-1.5 py-0.5 text-sm bg-sunken"
-          />
-        </label>
-      ))}
-      <span className="text-xs text-muted">(positive expands with empty stitches, negative crops)</span>
-      <span className="text-xs text-muted">
-        → {pattern.width + delta.left + delta.right} × {pattern.height + delta.top + delta.bottom} stitches
-      </span>
-      <PillButton variant="primary" size="md" onClick={apply}>
-        Apply
-      </PillButton>
-      <PillButton size="md" onClick={onCancel}>
-        Cancel
-      </PillButton>
-      {error && <p className="w-full text-sm text-red-300">{error}</p>}
-    </PanelBar>
-  );
-}

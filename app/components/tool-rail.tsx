@@ -85,16 +85,6 @@ function ZoomIcon() {
   );
 }
 
-/** Kept until M4 turns Highlight into the Isolate view mode; 1b has no Highlight tool. */
-function HighlightIcon() {
-  return (
-    <svg {...TOOL_ICON_PROPS}>
-      <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" />
-      <circle cx="12" cy="12" r="2.5" />
-    </svg>
-  );
-}
-
 /** 1b groups the rail as paint, piece, view; the dividers are the grouping. */
 const TOOL_GROUPS = [
   [
@@ -108,7 +98,6 @@ const TOOL_GROUPS = [
   [
     { tool: "pan" as const, label: "Pan", title: "Drag to scroll the chart (or hold Space with any tool active)", Icon: PanIcon },
     { tool: "zoom" as const, label: "Zoom", title: "Click to zoom in, Shift-click to zoom out (the wheel always zooms too)", Icon: ZoomIcon },
-    { tool: "highlight" as const, label: "Highlight", title: "Click colors in the Threads list to dim everything else", Icon: HighlightIcon },
   ],
 ];
 

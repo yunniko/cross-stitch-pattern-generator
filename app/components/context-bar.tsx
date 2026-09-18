@@ -35,6 +35,10 @@ export interface ContextBarProps {
   sourceFileName: string | null;
   isLoadingImage: boolean;
   hasSourcePhoto: boolean;
+  /** Isolate: dim every thread except the ones lit in the Threads list. Not a tool -- it stays on while you paint. */
+  isolate: boolean;
+  onIsolateChange: (on: boolean) => void;
+  litCount: number;
 }
 
 export function ContextBar({
@@ -50,6 +54,9 @@ export function ContextBar({
   sourceFileName,
   isLoadingImage,
   hasSourcePhoto,
+  isolate,
+  onIsolateChange,
+  litCount,
 }: ContextBarProps) {
   const photoActive = viewMode === "photo" || viewMode === "photo-only";
   const chartView: ChartView = viewMode === "bw" ? "bw" : viewMode === "realistic" ? "realistic" : "color";
@@ -94,6 +101,22 @@ export function ContextBar({
         <>
           {sourceFileName && !isLoadingImage && <span className="max-w-[12rem] truncate text-xs text-muted">Loaded: {sourceFileName}</span>}
           <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onIsolateChange(!isolate)}
+              aria-pressed={isolate}
+              aria-label="Isolate lit threads"
+              title="Isolate: dim every thread except the ones lit in the Threads list. Stays on while you paint."
+              className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs transition-colors ${
+                isolate ? "border-accent bg-accent/15 text-ink" : "border-line text-muted hover:bg-raised hover:text-ink"
+              }`}
+            >
+              <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke={isolate ? "var(--at-accent)" : "currentColor"} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="2.5" />
+              </svg>
+              <span className={`font-mono text-[11px] ${isolate ? "text-accent" : "text-muted"}`}>{litCount}</span>
+            </button>
             <label
               className="flex items-center gap-1.5 text-xs text-muted"
               title="Shown behind empty stitches in Color/B&W view and behind the realistic preview -- display only, never affects any export"

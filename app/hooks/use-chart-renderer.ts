@@ -21,7 +21,9 @@ export interface ChartRendererInputs {
   selection: FloatingSelection | null;
   /** Must be stable across renders; while a select drag is active its frames draw the selection themselves. */
   isSelectDragging: () => boolean;
-  highlightedColorIndices: ReadonlySet<number>;
+  /** Isolate is a way of looking at the chart, so it is independent of the active tool (G-045 M4). */
+  isolate: boolean;
+  litColorIndices: ReadonlySet<number>;
   canvasColor: string;
   /** The symmetry axes in effect, drawn as red guide lines in every view (G-037). */
   symmetryAxes: SymmetryAxes;
@@ -59,7 +61,7 @@ function isMovePreview(gesture: GesturePreview | null): boolean {
  * scrolling and zooming keep its preview. `canvasColor` is display-only.
  */
 export function useChartRenderer(inputs: ChartRendererInputs) {
-  const { canvasRef, frameRef, scrollerRef, navigatorCanvasRef, pattern, viewMode, cellSize, activeTool, selection, isSelectDragging, highlightedColorIndices, canvasColor, applyZoomAnchor, symmetryAxes } = inputs;
+  const { canvasRef, frameRef, scrollerRef, navigatorCanvasRef, pattern, viewMode, cellSize, activeTool, selection, isSelectDragging, isolate, litColorIndices, canvasColor, applyZoomAnchor, symmetryAxes } = inputs;
   const [photo, setPhoto] = useState<{ dataUrl: string; img: HTMLImageElement } | null>(null);
   const [realisticTiles, setRealisticTiles] = useState<StitchTiles | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -72,12 +74,13 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       photo,
       realisticTiles,
       activeTool,
-      highlightedColorIndices,
+      isolate,
+      litColorIndices,
       selection,
       canvasColor,
       symmetryAxes,
     }),
-    [viewMode, cellSize, photo, realisticTiles, activeTool, highlightedColorIndices, selection, canvasColor, symmetryAxes]
+    [viewMode, cellSize, photo, realisticTiles, activeTool, isolate, litColorIndices, selection, canvasColor, symmetryAxes]
   );
   // What the last commit asked to show; scroll, resize and gesture handlers paint from it.
   const shownRef = useRef<{ pattern: StitchPattern | null; scene: Omit<ChartScene, "selectDragging"> }>({ pattern: null, scene });
