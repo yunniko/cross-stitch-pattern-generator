@@ -77,6 +77,10 @@ export default function Workspace() {
   const liveSymmetry = pattern ? effectiveSymmetryAxes(symmetry, pattern.width, pattern.height) : NO_SYMMETRY;
   // Same pattern for "New blank chart…" (G-040): a new key on every request remounts the panel with fresh fields.
   const [newChartPanelKey, setNewChartPanelKey] = useState<number | null>(null);
+  // The rail renders both file inputs; the workspace holds their refs so the first-run cards click the very same
+  // elements rather than carrying a second pair (and the specs keep finding them where they always were).
+  const openInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [openError, setOpenError] = useState<string | null>(null);
   const [openNotice, setOpenNotice] = useState<string | null>(null);
   // A color editor's live draft (G-033): shown only while it was derived from the current pattern, so any real edit,
@@ -336,6 +340,8 @@ export default function Workspace() {
         onSelect={switchTool}
         squareCanvas={pattern !== null && pattern.width === pattern.height}
         onMirror={applyMirror}
+        openInputRef={openInputRef}
+        imageInputRef={imageInputRef}
         onOpenPattern={handleOpenPattern}
         onNewBlankChart={() => setNewChartPanelKey((key) => (key ?? 0) + 1)}
         onImageFile={handleImageFile}
@@ -383,6 +389,7 @@ export default function Workspace() {
             symmetry={liveSymmetry}
             squareCanvas={pattern !== null && pattern.width === pattern.height}
             onToggleSymmetry={(axis) => setSymmetry((current) => ({ ...current, [axis]: !current[axis] }))}
+            activeColorIndex={activeColorIndex}
           />
         )}
         <WorkspaceNotices
@@ -408,6 +415,10 @@ export default function Workspace() {
           viewMode={viewMode}
           activeTool={activeTool}
           activeColorIndex={activeColorIndex}
+          onChoosePhoto={() => imageInputRef.current?.click()}
+          onNewBlankChart={() => setNewChartPanelKey((key) => (key ?? 0) + 1)}
+          onOpenPatternFile={() => openInputRef.current?.click()}
+          isLoadingImage={source.isLoading}
           previewError={renderer.previewError}
           onRetryPreview={renderer.retryPreview}
           enhancementActive={pattern === null && enhancementMode !== "off"}
@@ -449,6 +460,8 @@ export default function Workspace() {
               progress={generation.progress}
               queueMessage={generation.queueMessage}
               hasPattern={pattern !== null}
+              hasPhoto={source.hasPhoto}
+              isLoadingImage={source.isLoading}
               onCancel={generation.cancel}
               error={generation.error}
             />

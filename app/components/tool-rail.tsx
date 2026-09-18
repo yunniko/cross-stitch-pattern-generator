@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useRef, useState, type RefObject } from "react";
 import type { QuickMirror } from "@/lib/editor/symmetry";
 import type { Tool } from "../editor-types";
 import { useDismissOnOutsidePointer } from "../hooks/use-dismiss-on-outside-pointer";
@@ -138,7 +138,10 @@ export interface ToolRailProps {
   onSelect: (tool: Tool) => void;
   squareCanvas: boolean;
   onMirror: (kind: QuickMirror) => void;
-  /** The file actions behind the mark. */
+  /** The file actions behind the mark. The refs are owned by the workspace, so the first-run cards click these
+   * same inputs rather than carrying a second copy of them. */
+  openInputRef: RefObject<HTMLInputElement | null>;
+  imageInputRef: RefObject<HTMLInputElement | null>;
   onOpenPattern: (file: File) => void;
   onNewBlankChart: () => void;
   onImageFile: (file: File) => void;
@@ -152,6 +155,8 @@ export function ToolRail({
   onSelect,
   squareCanvas,
   onMirror,
+  openInputRef,
+  imageInputRef,
   onOpenPattern,
   onNewBlankChart,
   onImageFile,
@@ -160,12 +165,10 @@ export function ToolRail({
 }: ToolRailProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const openInputRef = useRef<HTMLInputElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
   useDismissOnOutsidePointer(menuRef, menuOpen, { onOutsidePointer: () => setMenuOpen(false), onEscape: () => setMenuOpen(false) });
 
   return (
-    <aside className="flex w-16 shrink-0 flex-col items-stretch gap-0.5 overflow-y-auto border-r border-line bg-surface py-2.5">
+    <aside className="flex w-16 shrink-0 flex-col items-stretch gap-0.5 border-r border-line bg-surface py-2.5">
       <div ref={menuRef} className="relative flex justify-center pb-2.5">
         <button
           type="button"
@@ -246,6 +249,12 @@ export function ToolRail({
         )}
       </div>
 
+      {/*
+        Only the tools scroll. The scroll container used to be the rail itself, but `overflow-y` makes `overflow-x`
+        compute to `auto` too, which clipped the file menu -- absolutely positioned and 240px wide -- to the rail's
+        64px, leaving 56px of it readable. Keeping the menu outside any scroll container lets it overhang the chart.
+      */}
+      <div className="flex min-h-0 flex-1 flex-col items-stretch gap-0.5 overflow-y-auto">
       {TOOL_GROUPS.map((group, groupIndex) => (
         <Fragment key={groupIndex}>
           {groupIndex > 0 && <div className="mx-3.5 my-1.5 h-px shrink-0 bg-line" aria-hidden="true" />}
@@ -293,6 +302,7 @@ export function ToolRail({
             </button>
           );
         })}
+      </div>
       </div>
     </aside>
   );

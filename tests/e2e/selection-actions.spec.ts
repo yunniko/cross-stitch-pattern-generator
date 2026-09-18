@@ -89,7 +89,7 @@ test("Cancel after drawing and moving a selection leaves the chart exactly as it
   await page.mouse.move(box.x + cell * 20, box.y + cell * 12, { steps: 6 });
   await page.mouse.up();
 
-  await page.getByRole("button", { name: "Discard" }).click();
+  await page.getByRole("button", { name: "Cancel" }).click();
 
   await expect(page.getByRole("button", { name: "Apply here" })).toBeDisabled();
   expect(await stitchCount(page), "no stitches moved or lost").toBe(before);
@@ -121,7 +121,7 @@ test("Cancel drops the pasted piece but leaves an earlier merge alone (G-043)", 
   await page.mouse.move(box.x + cell * 30, box.y + cell * 8, { steps: 6 });
   await page.mouse.up();
 
-  await page.getByRole("button", { name: "Discard" }).click();
+  await page.getByRole("button", { name: "Cancel" }).click();
 
   await expect(page.getByRole("button", { name: "Apply here" })).toBeDisabled();
   expect(await stitchCount(page), "the earlier merge stands").toBe(afterFirstPaste);

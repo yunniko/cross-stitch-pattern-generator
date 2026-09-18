@@ -2,6 +2,7 @@ import { useState, type DragEvent, type MouseEvent, type PointerEvent, type RefO
 import type { StitchPattern } from "@/lib/types";
 import { isViewOnlyMode, type Tool, type ViewMode } from "../editor-types";
 import type { SourceImageMeta } from "../hooks/use-source-image";
+import { FirstRun } from "./first-run";
 import { PillButton } from "./ui";
 
 const VIEW_MODE_LABELS: Record<ViewMode, string> = {
@@ -13,6 +14,11 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
 };
 
 export interface ImageWindowProps {
+  /** First run: the three ways into a chart, offered where the chart will be. */
+  onChoosePhoto: () => void;
+  onNewBlankChart: () => void;
+  onOpenPatternFile: () => void;
+  isLoadingImage: boolean;
   scrollerRef: RefObject<HTMLDivElement | null>;
   frameRef: RefObject<HTMLDivElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -59,6 +65,10 @@ export function ImageWindow({
   viewMode,
   activeTool,
   activeColorIndex,
+  onChoosePhoto,
+  onNewBlankChart,
+  onOpenPatternFile,
+  isLoadingImage,
   previewError,
   onRetryPreview,
   enhancementActive,
@@ -103,10 +113,7 @@ export function ImageWindow({
         </figure>
       )}
       {!pattern && !sourceMeta && (
-        <div className="flex max-w-lg flex-col gap-2 text-center">
-          <p className="text-lg font-medium text-ink">A photo in, a stitchable chart out.</p>
-          <p className="text-sm text-muted">Choose a photo, start an empty grid, or open a saved pattern from the menu at the top left.</p>
-        </div>
+        <FirstRun onChoosePhoto={onChoosePhoto} onNewBlankChart={onNewBlankChart} onOpenPattern={onOpenPatternFile} busy={isLoadingImage} />
       )}
       {pattern && (
         <div

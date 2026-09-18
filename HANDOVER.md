@@ -26,9 +26,11 @@ Highlight left the tool union to become Isolate, a view mode that survives picki
 every thread (D158); the view chips stay `aria-pressed` buttons rather than a radiogroup (D159). The e2e suite moved
 with the product: 28 specs failed against the new vocabulary, each was fixed from the run's own evidence, and that
 surfaced two real defects — Isolate stayed pressed with nothing lit, and the shell had had no heading at any level
-since the top bar was deleted. A later pass on the Owner's reading of the design put symmetry in the top panel, made
-the Select tool replace that panel rather than stack under it (D160), opened the symbol picker under the row it edits
-as the colour editor already did, and gave Export all the download mark 1b draws on it.
+since the top bar was deleted. Later passes on the Owner's reading of the design put symmetry and the brush's own
+thread in the top panel, made the Select tool replace that panel rather than stack under it (D160), opened the symbol
+picker under the row it edits as the colour editor already did, marked and named Export all as 1b draws it, stopped
+the rail clipping its own file menu, and built the first-run screen: three cards where the chart will be, over the
+three steps in the Photo tab. Two details depart from 1b at the Owner's direction (D161).
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest or Original clustering, Full range, DMC,
@@ -37,7 +39,7 @@ as the colour editor already did, and gave Export all the download mark 1b draws
   photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
 - Editing: brush (double-click fills a region as one undo step when the Chart pane's switch is on, D138, D146),
   8-connected fill, symmetry on up to four axes and quick mirror (D137), rectangle select with copy, paste, move,
-  flip, rotate, crop, "Apply here" and "Discard" (D147, D148), pan, zoom; Isolate dims every thread but the lit
+  flip, rotate, crop, "Apply here" and "Cancel" (D147, D148), pan, zoom; Isolate dims every thread but the lit
   ones and stays on while another tool is active (D158); merge, recolor, rename, symbol swap, add color, empty
   stitches, canvas resize, and one undo history covering regeneration.
 - Color editor: opens under its legend row on the color's remembered thread swatch (D122), marked and scrolled into
@@ -223,6 +225,13 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
   reaching for one needs an open chart, not merely a loaded photo.
 - The colour editor and the symbol picker both open under the row they edit, one at a time: opening either closes the
   other, and both dismiss on Escape or a pointer outside them.
+- Names are no longer unique across panels, so address a control inside the panel that owns it. "Cancel" is shared by
+  the selection bar, the colour editor, both "+ Add" flows, the canvas stepper, the new-chart panel and the Generating
+  card; and the top panel echoes the brush's thread name, so a thread's label — "Empty (no stitch)" included — now
+  appears both there and in the Threads list. `tests/e2e/color-editor.spec.ts` and `tests/e2e/empty-stitch.spec.ts`
+  show the scoping that survives this.
+- The tool rail must not be a scroll container: `overflow-y` makes `overflow-x` compute to `auto`, which clips the
+  absolutely positioned file menu to the rail's 64px. Only the tools below the mark scroll.
 - `npm ci --legacy-peer-deps` is required (npm arborist crash).
 - On this Windows host, stopping a background task can leave node running;
   check the process list (D096).

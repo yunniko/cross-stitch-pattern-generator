@@ -169,3 +169,4 @@ remain readable with git show.
 - D158 — Isolate is a way of looking, not a tool — active
 - D159 — The view chips stay toggle buttons, not a radiogroup — active
 - D160 — The top panel is one strip, and the select tool takes it over — active
+- D161 — Two 1b details the Owner overrode — active

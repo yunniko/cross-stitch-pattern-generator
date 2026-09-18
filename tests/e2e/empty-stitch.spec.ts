@@ -16,7 +16,9 @@ test("painting a stitch empty doesn't add it to the legend or its stitch counts 
 
   const legendRows = page.locator('[data-testid="legend-color-row"]'); // real colors only -- the fixed "Empty" row has no testid
   const initialCount = await legendRows.count();
-  const emptyRow = page.getByText("Empty (no stitch)");
+  // Scoped to the Threads pane: the top panel echoes the brush's thread, so once this row is selected the
+  // same text appears twice (G-045, the brush-colour readout).
+  const emptyRow = page.getByRole("tabpanel", { name: "Threads" }).getByText("Empty (no stitch)");
   await expect(emptyRow).toBeVisible();
 
   const canvas = page.getByTestId("chart-frame");
@@ -31,7 +33,9 @@ test("painting a stitch empty doesn't add it to the legend or its stitch counts 
 test("an empty-painted stitch renders as blank white on the live canvas, in color and B&W alike (G-012 M5)", async ({ page }) => {
   await generateSmallPattern(page);
 
-  const emptyRow = page.getByText("Empty (no stitch)");
+  // Scoped to the Threads pane: the top panel echoes the brush's thread, so once this row is selected the
+  // same text appears twice (G-045, the brush-colour readout).
+  const emptyRow = page.getByRole("tabpanel", { name: "Threads" }).getByText("Empty (no stitch)");
   const canvas = page.getByTestId("chart-frame");
   await emptyRow.click();
 
@@ -62,7 +66,9 @@ test("Grid + photo mode leaves an empty-painted cell showing only the photo unde
   const photoRadio = page.getByRole("button", { name: "Show the photo behind the chart" });
   await photoRadio.click();
 
-  const emptyRow = page.getByText("Empty (no stitch)");
+  // Scoped to the Threads pane: the top panel echoes the brush's thread, so once this row is selected the
+  // same text appears twice (G-045, the brush-colour readout).
+  const emptyRow = page.getByRole("tabpanel", { name: "Threads" }).getByText("Empty (no stitch)");
   const canvas = page.getByTestId("chart-frame");
   await emptyRow.click();
   await canvas.click({ position: { x: 20, y: 20 } });

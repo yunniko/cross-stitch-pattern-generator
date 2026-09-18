@@ -51,7 +51,8 @@ export function StatusBar({ pattern, aidaCount, sizeUnit, autosaveStatus, hasPat
           </span>
         </>
       ) : (
-        <span className="font-sans">No chart yet</span>
+        // 1b's first run reassures rather than counts: the work stays in this browser even though generation does not.
+        <span className="font-sans">{hasPattern ? "No chart yet" : "Editing, undo and autosave stay in this browser"}</span>
       )}
 
       <span

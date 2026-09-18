@@ -65,6 +65,10 @@ export interface PhotoPaneProps {
   /** Set only while a server job is waiting for a free worker; null when it is running or idle (G-034). */
   queueMessage: string | null;
   hasPattern: boolean;
+  /** A photo has been decoded; before that the pane has nothing to configure. */
+  hasPhoto: boolean;
+  /** A chosen photo is still decoding: not yet `hasPhoto`, but no longer first run. */
+  isLoadingImage: boolean;
   onCancel: () => void;
   error: string | null;
 }
@@ -94,8 +98,20 @@ function GeneratingCard({ progress, queueMessage, hasPattern, onCancel }: { prog
   );
 }
 
-export function PhotoPane({ options, onChange, isProcessing, progress, queueMessage, hasPattern, onCancel, error }: PhotoPaneProps) {
+export function PhotoPane({ options, onChange, isProcessing, progress, queueMessage, hasPattern, hasPhoto, isLoadingImage, onCancel, error }: PhotoPaneProps) {
   if (isProcessing) return <GeneratingCard progress={progress} queueMessage={queueMessage} hasPattern={hasPattern} onCancel={onCancel} />;
+  // First run: nothing to size or colour yet, so 1b shows what the three steps will be instead of dead controls.
+  if (!hasPhoto && !hasPattern && !isLoadingImage)
+    return (
+      <div className="flex flex-col gap-4 p-4">
+        <p className="m-0 text-[13px] leading-[19px] text-muted">Nothing loaded yet. Once a photo is here, size and color settings appear on this tab.</p>
+        <div className="flex flex-col gap-2.5 rounded-[10px] border border-dashed border-line p-3.5 font-mono text-[11px] text-muted">
+          <span>01 · photo</span>
+          <span>02 · size &amp; colors → generate</span>
+          <span>03 · edit &amp; export</span>
+        </div>
+      </div>
+    );
 
   const longerSide = longerSideFor(options);
   // Only released modes are offered; with Off the only one, the control stays hidden (D113, D118).

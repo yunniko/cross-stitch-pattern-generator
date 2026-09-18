@@ -116,7 +116,6 @@ export function ThreadRows({
                 aria-label={`Edit ${color.name}`}
                 aria-expanded={editingColorIndex === color.index}
               />
-              {renderLight?.(color)}
               <button
                 type="button"
                 {...symbolProps}
@@ -168,6 +167,8 @@ export function ThreadRows({
                   {formatSkeinEstimate(color.count, aidaCount)}
                 </span>
               </span>
+              {/* The light sits at the right-hand end of the row (Owner, 2026-09-18); 1b draws it beside the swatch. */}
+              {renderLight?.(color)}
             </div>
             {renderUnderRow?.(color)}
           </div>

@@ -97,7 +97,7 @@ export function ExportControls({ hasPattern, exportKind, onExportKindChange, onE
           <path d="M8 11l4 4 4-4" />
           <path d="M4 17.5V19a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 19v-1.5" />
         </svg>
-        {isExportingAll ? (exportProgressText ?? "Building…") : "Export all"}
+        {isExportingAll ? (exportProgressText ?? "Building…") : "Export all (.cspzip)"}
       </PillButton>
     </div>
   );

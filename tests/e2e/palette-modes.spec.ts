@@ -58,6 +58,9 @@ for (const brand of ["Cosmo", "Anchor"]) {
 
 test("the Anchor palette button discloses that its colors are derived from DMC", async ({ page }) => {
   await page.goto("/");
+  // 1b's Photo tab holds the three steps until a photo is in, so the palette buttons need one to exist at all.
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
   await expect(page.getByRole("button", { name: "Anchor", exact: true })).toHaveAttribute("title", /not independently measured/);
 });
 
@@ -80,7 +83,10 @@ test("Crisp+ generates a pattern with a legend and no errors, and the choice sur
   await expect(page.getByRole("button", { name: "Crisp", exact: true })).toHaveAttribute("aria-pressed", "false");
   expect(errors).toEqual([]);
 
+  // The choice is remembered in localStorage, but the pane that shows it only appears once the chart is back.
+  await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();
+  await expect(page.getByTestId("chart-frame")).toBeVisible({ timeout: 15_000 });
   await page.getByRole("tab", { name: "Photo" }).click();
   await expect(page.getByRole("button", { name: "Crisp+", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
