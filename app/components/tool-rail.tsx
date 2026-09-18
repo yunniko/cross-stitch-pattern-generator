@@ -1,17 +1,15 @@
 "use client";
 
-import { Fragment, useRef, useState, type RefObject } from "react";
+import { Fragment } from "react";
 import type { QuickMirror } from "@/lib/editor/symmetry";
 import type { Tool } from "../editor-types";
-import { useDismissOnOutsidePointer } from "../hooks/use-dismiss-on-outside-pointer";
 
 /**
- * The left rail (G-045 M2, direction 1b): the mark, the file menu behind it, and the tools. 64px wide, each tool an
- * icon over its name, the active one marked by an accent edge rather than a box.
+ * The left rail (direction 1b): New, then the tools. 64px wide, each tool an icon over its name, the active one
+ * marked by an accent edge rather than a box.
  *
- * The file actions live behind the mark because 1b draws them only on its first-run screen, which would leave no way
- * to open another chart once one is open (Owner decision, 2026-09-18). Their labels are unchanged, so the e2e suite
- * still finds them by name.
+ * New replaced the mark and its file menu when the design moved the file actions onto the start screen (Owner,
+ * 2026-09-18). The file inputs those menu items clicked now live in the workspace, still mounted and still named.
  */
 
 const TOOL_ICON_PROPS = {
@@ -138,15 +136,8 @@ export interface ToolRailProps {
   onSelect: (tool: Tool) => void;
   squareCanvas: boolean;
   onMirror: (kind: QuickMirror) => void;
-  /** The file actions behind the mark. The refs are owned by the workspace, so the first-run cards click these
-   * same inputs rather than carrying a second copy of them. */
-  openInputRef: RefObject<HTMLInputElement | null>;
-  imageInputRef: RefObject<HTMLInputElement | null>;
-  onOpenPattern: (file: File) => void;
-  onNewBlankChart: () => void;
-  onImageFile: (file: File) => void;
-  isLoadingImage: boolean;
-  isProcessing: boolean;
+  /** Opens the start screen, where the three ways into a chart live (Atelier). */
+  onNewChart: () => void;
 }
 
 export function ToolRail({
@@ -155,105 +146,28 @@ export function ToolRail({
   onSelect,
   squareCanvas,
   onMirror,
-  openInputRef,
-  imageInputRef,
-  onOpenPattern,
-  onNewBlankChart,
-  onImageFile,
-  isLoadingImage,
-  isProcessing,
+  onNewChart,
 }: ToolRailProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  useDismissOnOutsidePointer(menuRef, menuOpen, { onOutsidePointer: () => setMenuOpen(false), onEscape: () => setMenuOpen(false) });
 
   return (
     <aside className="flex w-16 shrink-0 flex-col items-stretch gap-0.5 border-r border-line bg-surface py-2.5">
-      <div ref={menuRef} className="relative flex justify-center pb-2.5">
+      <div className="flex justify-center pb-2.5">
         <button
           type="button"
-          aria-label="File actions"
-          aria-expanded={menuOpen}
-          title="Open a pattern, start a blank chart, or choose a photo"
-          onClick={() => setMenuOpen((open) => !open)}
-          className="rounded-md px-2 py-0.5 font-mono text-[13px] text-accent hover:bg-raised"
+          onClick={onNewChart}
+          aria-label="New chart"
+          title="New chart — opens the start screen, where you pick a photo, an empty grid or a saved file"
+          className="flex flex-col items-center gap-[3px] self-center rounded-[7px] border border-line px-2.5 py-1.5 text-muted transition-colors hover:bg-raised hover:text-ink"
         >
-          ×÷
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
+            <path d="M12 8.5v7M8.5 12h7" />
+          </svg>
+          <span className="text-[10px] leading-[13px]">New</span>
         </button>
-        {/*
-          Both inputs stay mounted whether the menu is open or not. A control that exists only while a menu is open
-          cannot be reached by assistive technology, by a script, or by anything that addresses it by name -- and the
-          bar these replaced always had them mounted. The menu's items click them.
-        */}
-        <label className="hidden" title="Choose a photo to generate a chart from">
-          <span id="image-input-label">Image</span>
-          <input
-            ref={imageInputRef}
-            id="image-input"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              setMenuOpen(false);
-              if (file) onImageFile(file);
-            }}
-            disabled={isLoadingImage || isProcessing}
-          />
-        </label>
-        <input
-          ref={openInputRef}
-          type="file"
-          aria-label="Open pattern file"
-          accept=".json,.zip,.cspzip,.oxs,application/json,application/zip"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            setMenuOpen(false);
-            if (file) onOpenPattern(file);
-          }}
-          className="hidden"
-        />
-
-        {menuOpen && (
-          <div className="absolute top-full left-2 z-20 flex w-60 flex-col gap-1 rounded-lg border border-line bg-surface p-2 shadow-xl">
-            <button
-              type="button"
-              onClick={() => imageInputRef.current?.click()}
-              disabled={isLoadingImage || isProcessing}
-              className="rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-raised disabled:cursor-not-allowed disabled:text-faint"
-              title="Choose a photo to generate a chart from"
-            >
-              Choose a photo…
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                onNewBlankChart();
-              }}
-              className="rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-raised"
-              title="Start a chart from an empty canvas, with no photo behind it."
-            >
-              New blank chart…
-            </button>
-            <button
-              type="button"
-              onClick={() => openInputRef.current?.click()}
-              className="rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-raised"
-              title="Accepts a .json pattern file, a .cspzip/.zip bundle, or an .oxs chart from another program"
-            >
-              Open pattern…
-            </button>
-          </div>
-        )}
       </div>
 
-      {/*
-        Only the tools scroll. The scroll container used to be the rail itself, but `overflow-y` makes `overflow-x`
-        compute to `auto` too, which clipped the file menu -- absolutely positioned and 240px wide -- to the rail's
-        64px, leaving 56px of it readable. Keeping the menu outside any scroll container lets it overhang the chart.
-      */}
+      {/* Only the tools scroll, so New keeps its place at the top however long the tool list grows. */}
       <div className="flex min-h-0 flex-1 flex-col items-stretch gap-0.5 overflow-y-auto">
       {TOOL_GROUPS.map((group, groupIndex) => (
         <Fragment key={groupIndex}>

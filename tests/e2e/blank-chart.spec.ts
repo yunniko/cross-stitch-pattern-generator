@@ -16,8 +16,8 @@ function collectErrors(page: Page): string[] {
 
 async function createBlankChart(page: Page, width: number, height: number) {
   await page.goto("/");
-  await page.getByRole("button", { name: "File actions" }).click();
-  await page.getByRole("button", { name: "New blank chart…" }).click();
+  // A fresh page opens on the start screen, so the card is the way in -- the rail's menu is gone.
+  await page.getByRole("button", { name: /^Start an empty grid/ }).click();
   await page.getByLabel("Width in stitches").fill(String(width));
   await page.getByLabel("Height in stitches").fill(String(height));
   await page.getByRole("button", { name: "Create", exact: true }).click();
@@ -32,9 +32,9 @@ test("a blank chart is created at the asked size, with no photo settings and no 
   await expect(page.getByText("Pattern size (longer side)"), "no regenerate panel at all (G-042)").toHaveCount(0);
   await expect(page.getByTestId("empty-palette-note")).toBeVisible();
   await expect(page.getByRole("button", { name: /Generate pattern|Regenerate/ })).toHaveCount(0);
-  await page.getByRole("button", { name: "File actions" }).click();
-  await expect(page.getByRole("button", { name: "Choose a photo…" }), "a photo can still be chosen, from the file menu on the rail").toBeEnabled();
-  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "New chart" }).click();
+  await expect(page.getByRole("button", { name: /^Choose a photo/ }), "a photo can still be chosen, from the start screen").toBeEnabled();
+  await page.getByRole("button", { name: /^Back to / }).click();
   await expect(page.getByRole("button", { name: "Crisp", exact: true })).toHaveCount(0);
   await expect(page.getByRole("radio", { name: /Small/ })).toHaveCount(0);
   expect(errors).toEqual([]);
@@ -42,8 +42,7 @@ test("a blank chart is created at the asked size, with no photo settings and no 
 
 test("the size dialog shows the finished fabric size and refuses a size outside the limits", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "File actions" }).click();
-  await page.getByRole("button", { name: "New blank chart…" }).click();
+  await page.getByRole("button", { name: /^Start an empty grid/ }).click();
   await page.getByLabel("Width in stitches").fill("140");
   await page.getByLabel("Height in stitches").fill("70");
   await expect(page.getByTestId("new-chart-size")).toContainText("140 × 70 stitches");

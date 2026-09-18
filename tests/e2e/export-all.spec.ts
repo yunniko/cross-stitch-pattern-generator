@@ -54,11 +54,8 @@ test("a .cspzip from Export all round-trips back into the app via Open pattern",
   await download.saveAs(savedPath);
 
   await page.goto("/");
-  const fileChooserPromise = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "File actions" }).click();
-  await page.getByRole("button", { name: "Open pattern…" }).click();
-  const fileChooser = await fileChooserPromise;
-  await fileChooser.setFiles(savedPath);
+  // The file input stays mounted whatever screen is up; the New -> confirm -> card path has its own test.
+  await page.getByLabel("Open pattern file").setInputFiles(savedPath);
 
   await expect(page.getByRole("main").locator("canvas")).toBeVisible();
   await expect(legendRows).toHaveCount(initialCount);
@@ -82,11 +79,10 @@ test("opening a file with no valid pattern inside shows a clear error instead of
   const badZipPath = test.info().outputPath("empty.cspzip");
   await import("node:fs/promises").then((fs) => fs.writeFile(badZipPath, bytes));
 
-  const fileChooserPromise = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "File actions" }).click();
-  await page.getByRole("button", { name: "Open pattern…" }).click();
-  const fileChooser = await fileChooserPromise;
-  const [download] = await Promise.all([page.waitForEvent("download"), fileChooser.setFiles(badZipPath)]);
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByLabel("Open pattern file").setInputFiles(badZipPath),
+  ]);
 
   await expect(page.getByText("No valid pattern (.json or .oxs) file was found inside that archive.")).toBeVisible();
 

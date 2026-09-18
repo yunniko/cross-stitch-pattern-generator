@@ -14,6 +14,7 @@ import { isReleasedEnhancementMode } from "@/lib/pipeline/enhance";
 import type { StitchPattern } from "@/lib/types";
 import { ChartPane } from "./components/chart-pane";
 import { ColorsDock } from "./components/colors-dock";
+import { ConfirmNewChart } from "./components/confirm-new-chart";
 import { ContextBar } from "./components/context-bar";
 import { ExportControls } from "./components/export-controls";
 import { ImageWindow } from "./components/image-window";
@@ -75,12 +76,16 @@ export default function Workspace() {
     setSymmetry({ ...symmetry, diagonal: false, antidiagonal: false });
   }
   const liveSymmetry = pattern ? effectiveSymmetryAxes(symmetry, pattern.width, pattern.height) : NO_SYMMETRY;
-  // Same pattern for "New blank chart…" (G-040): a new key on every request remounts the panel with fresh fields.
+  // The empty-grid panel (G-040): a new key on every request remounts it with fresh fields.
   const [newChartPanelKey, setNewChartPanelKey] = useState<number | null>(null);
   // The rail renders both file inputs; the workspace holds their refs so the first-run cards click the very same
   // elements rather than carrying a second pair (and the specs keep finding them where they always were).
   const openInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  /** The start screen, reached from New while a chart is open. Getting there costs nothing; the confirm comes when a
+   *  card is actually chosen, which is what replaces the one autosaved chart. */
+  const [startingNew, setStartingNew] = useState(false);
+  const [pendingStart, setPendingStart] = useState<null | (() => void)>(null);
   const [openError, setOpenError] = useState<string | null>(null);
   const [openNotice, setOpenNotice] = useState<string | null>(null);
   // A color editor's live draft (G-033): shown only while it was derived from the current pattern, so any real edit,
@@ -151,6 +156,7 @@ export default function Workspace() {
     resetDocumentView();
     setSymmetry(savedSymmetry);
     setInspectorTab("threads");
+    setStartingNew(false);
     await source.adoptPatternPhoto(withName, fallbackName);
   }
 
@@ -179,6 +185,30 @@ export default function Workspace() {
     },
   });
 
+  /**
+   * Reaching the start screen costs nothing; choosing a card is what replaces the one autosaved chart, so that is
+   * where the confirm sits (Atelier, B - Confirm new chart). With no chart open there is nothing to lose: act at once.
+   */
+  function startNewChart(action: () => void) {
+    if (!pattern) {
+      action();
+      return;
+    }
+    setPendingStart(() => action); // a function in state needs the updater form, or React would call it
+  }
+
+  function discardForNewChart() {
+    void getProjectStore().save(null);
+    history.reset(null);
+    resetDocumentView();
+    select.clear();
+    setLitColorIndices(new Set());
+    setActiveColorIndex(null);
+    generation.setError(null);
+    setOpenError(null);
+    setOpenNotice(null);
+  }
+
   function handleImageFile(file: File) {
     generation.setError(null);
     setOpenNotice(null);
@@ -188,6 +218,7 @@ export default function Workspace() {
         history.reset(null);
         resetDocumentView();
         setInspectorTab("photo");
+        setStartingNew(false);
       },
       onFailed: () => generation.setError("Couldn't read that image. Try a different file (JPEG, PNG, or WebP)."),
     });
@@ -319,6 +350,7 @@ export default function Workspace() {
     history.reset(blank);
     resetDocumentView();
     setNewChartPanelKey(null);
+    setStartingNew(false);
     setInspectorTab("threads");
     await source.adoptPatternPhoto(blank, blank.name ?? "cross-stitch-pattern");
   }
@@ -340,13 +372,40 @@ export default function Workspace() {
         onSelect={switchTool}
         squareCanvas={pattern !== null && pattern.width === pattern.height}
         onMirror={applyMirror}
-        openInputRef={openInputRef}
-        imageInputRef={imageInputRef}
-        onOpenPattern={handleOpenPattern}
-        onNewBlankChart={() => setNewChartPanelKey((key) => (key ?? 0) + 1)}
-        onImageFile={handleImageFile}
-        isLoadingImage={source.isLoading}
-        isProcessing={generation.isProcessing}
+        onNewChart={() => setStartingNew(true)}
+      />
+
+      {/*
+        Both inputs stay mounted and keep their names. They used to live behind the rail's menu; with that gone they
+        belong to the workspace, which owns their refs -- a control that exists only inside a transient screen cannot
+        be reached by assistive technology, by a script, or by anything addressing it by name.
+      */}
+      <label className="hidden" title="Choose a photo to generate a chart from">
+        <span id="image-input-label">Image</span>
+        <input
+          ref={imageInputRef}
+          id="image-input"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) handleImageFile(file);
+          }}
+          disabled={source.isLoading || generation.isProcessing}
+        />
+      </label>
+      <input
+        ref={openInputRef}
+        type="file"
+        aria-label="Open pattern file"
+        accept=".json,.zip,.cspzip,.oxs,application/json,application/zip"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) handleOpenPattern(file);
+        }}
+        className="hidden"
       />
 
       <main className="flex flex-1 flex-col overflow-hidden">
@@ -390,6 +449,8 @@ export default function Workspace() {
             squareCanvas={pattern !== null && pattern.width === pattern.height}
             onToggleSymmetry={(axis) => setSymmetry((current) => ({ ...current, [axis]: !current[axis] }))}
             activeColorIndex={activeColorIndex}
+            startingNew={startingNew}
+            onBackToChart={() => setStartingNew(false)}
           />
         )}
         <WorkspaceNotices
@@ -401,6 +462,19 @@ export default function Workspace() {
           exportError={exports.exportError}
           a4Layout={paginatesAsA4(exports.exportKind) ? exports.a4LayoutPreview : null}
         />
+        {pendingStart !== null && pattern && (
+          <ConfirmNewChart
+            pattern={pattern}
+            onExportEditable={exports.exportEditableNow}
+            onKeepEditing={() => setPendingStart(null)}
+            onStartNew={() => {
+              const action = pendingStart;
+              setPendingStart(null);
+              discardForNewChart();
+              action();
+            }}
+          />
+        )}
         {newChartPanelKey !== null && (
           <NewChartPanel key={newChartPanelKey} options={options} onCreate={(width, height) => void createBlankChart(width, height)} onCancel={() => setNewChartPanelKey(null)} />
         )}
@@ -415,9 +489,10 @@ export default function Workspace() {
           viewMode={viewMode}
           activeTool={activeTool}
           activeColorIndex={activeColorIndex}
-          onChoosePhoto={() => imageInputRef.current?.click()}
-          onNewBlankChart={() => setNewChartPanelKey((key) => (key ?? 0) + 1)}
-          onOpenPatternFile={() => openInputRef.current?.click()}
+          startingNew={startingNew}
+          onChoosePhoto={() => startNewChart(() => imageInputRef.current?.click())}
+          onNewBlankChart={() => startNewChart(() => setNewChartPanelKey((key) => (key ?? 0) + 1))}
+          onOpenPatternFile={() => startNewChart(() => openInputRef.current?.click())}
           isLoadingImage={source.isLoading}
           previewError={renderer.previewError}
           onRetryPreview={renderer.retryPreview}
@@ -460,8 +535,8 @@ export default function Workspace() {
               progress={generation.progress}
               queueMessage={generation.queueMessage}
               hasPattern={pattern !== null}
-              hasPhoto={source.hasPhoto}
-              isLoadingImage={source.isLoading}
+              hasPhoto={!startingNew && source.hasPhoto}
+              isLoadingImage={!startingNew && source.isLoading}
               onCancel={generation.cancel}
               error={generation.error}
             />

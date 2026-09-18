@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-18 at 38b3f51 (G-045 corrections, deployed and verified live)
+Last verified: 2026-09-18 at 66fdc1e (G-045: the brush colour and the first-run screen, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 38b3f51 (2026-09-18), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
+**Production** runs 66fdc1e (2026-09-18), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
 Signed off: G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
 **G-034, processing moved to the server — signed off 2026-09-18.** M1 measured the caps (D149, D150); M2 built the
@@ -20,7 +20,7 @@ bundle (2370 KB to 1129 KB). **Deployed and verified live on 2026-09-18**, after
 Export all and the Pattern Keeper PDF fail on charts near 1000 stitches, shipped as a documented limitation (D155).
 
 **G-045, the Atelier redesign (direction 1b) — M1-M5 done 2026-09-18.** The four stacked bars above the chart are
-gone: a 64px tool rail with the file actions behind its mark, a context bar that changes with the document, the
+gone: a 64px tool rail led by New, a context bar that changes with the document, the
 chart in a ruled well, a status bar, and a 360px inspector showing one of Photo, Chart or Threads at a time (D157).
 Highlight left the tool union to become Isolate, a view mode that survives picking up a brush, with its own light on
 every thread (D158); the view chips stay `aria-pressed` buttons rather than a radiogroup (D159). The e2e suite moved
@@ -63,9 +63,10 @@ three steps in the Photo tab. Two details depart from 1b at the Owner's directio
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
 **Checks run 2026-09-18**: `tsc --noEmit` clean, `npm run lint` 0 errors, production build clean; Vitest 1061
-passed (8 opt-in skips); Playwright **312 passed, 0 failed across all 25 specs**, one spec per process, against the
-single-path build, with the processor serving generation, exports and previews. The count fell from 313 because
-G-045 retired the navigator dock's own test along with the dock (D157). Export parity:
+passed (8 opt-in skips); Playwright **316 passed, 0 failed across all 26 specs**, one spec per process, against the
+single-path build, with the processor serving generation, exports and previews. The count moved twice under G-045:
+down to 312 when the navigator dock's own test retired with the dock (D157), then up to 316 with
+`tests/e2e/new-chart.spec.ts`, which covers the confirm that guards replacing the one autosaved chart (D162). Export parity:
 `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the type-check and `build:processor` before
 the unit tests, because the worker bundle is git-ignored and the pool, preview and export specs run against it.
 
@@ -230,8 +231,11 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
   card; and the top panel echoes the brush's thread name, so a thread's label — "Empty (no stitch)" included — now
   appears both there and in the Threads list. `tests/e2e/color-editor.spec.ts` and `tests/e2e/empty-stitch.spec.ts`
   show the scoping that survives this.
-- The tool rail must not be a scroll container: `overflow-y` makes `overflow-x` compute to `auto`, which clips the
-  absolutely positioned file menu to the rail's 64px. Only the tools below the mark scroll.
+- The file actions are not on the rail. New opens the start screen and the three ways into a chart live there
+  (D162); the two file inputs are mounted in `app/workspace.tsx`, still named "Image" and "Open pattern file", so
+  anything addressing them by name reaches them whatever screen is up.
+- Choosing a start-screen card with a chart open asks first, because it replaces the one autosaved chart. Reaching
+  the screen itself costs nothing — that is what "Back to <chart>" is for.
 - `npm ci --legacy-peer-deps` is required (npm arborist crash).
 - On this Windows host, stopping a background task can leave node running;
   check the process list (D096).

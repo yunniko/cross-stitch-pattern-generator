@@ -38,11 +38,8 @@ test("generate, merge two colors, undo/redo, download editable, and reopen it", 
   await download.saveAs(savedPath);
 
   await page.goto("/");
-  const fileChooserPromise = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "File actions" }).click();
-  await page.getByRole("button", { name: "Open pattern…" }).click();
-  const fileChooser = await fileChooserPromise;
-  await fileChooser.setFiles(savedPath);
+  // The file input is mounted whatever screen is up; the New -> confirm -> card path has its own test.
+  await page.getByLabel("Open pattern file").setInputFiles(savedPath);
   await expect(page.getByRole("main").locator("canvas")).toBeVisible();
   await expect(legendRows).toHaveCount(initialCount - 1);
 });

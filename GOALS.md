@@ -108,6 +108,24 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M5 — Specs, documentation and deploy. Done 2026-09-18.
 
 **Progress log** (newest first):
+- 2026-09-18 — **New leaves the logo for the tools, and replacing a chart now asks first.**
+  - **The design changed and the rail followed it.** The mark and its file menu are gone; a bordered **New** button
+    leads the tools and opens the start screen, where the three ways into a chart already live (D162).
+  - **The confirm guards the card, not the button.** Reaching the start screen costs nothing — that is what
+    "Back to <chart>" is for — so the dialog appears when a card is chosen with a chart open: it names the chart it
+    would replace, offers the editable save as a way out, and puts Keep editing left of Start new chart.
+  - **Starting new really clears.** `save(null)` drops the record and its stored photo, and the in-memory history,
+    selection and lights go with it; a reload afterwards still shows the new chart, not the old one.
+  - **The inputs outlived their menu.** Both file inputs moved to the workspace, still mounted and still named, so
+    anything addressing them by name reaches them whatever screen is up.
+  - **Nine call sites rerouted.** Six specs now address the file input directly; `tests/e2e/new-chart.spec.ts` keeps
+    the real path — New, the confirm, Keep editing, Back and the discard — under test.
+  - **One spec followed the product.** A first Generate is the undo baseline, so Undo says nothing about whether a
+    chart survived; that test now compares the chart's own `data-cell-size` instead.
+  - **Checks:** Playwright **316 passed, 0 failed across all 26 specs** (312 before: the new spec adds four); Vitest
+    1061 passed, 8 skipped; `tsc --noEmit`, `eslint` and `docs-lint` clean.
+  - **Still open:** the design's "edited a minute ago" is omitted from the dialog at the Owner's direction — no
+    timestamp is stored, and adding one would change a versioned record for one line of prose.
 - 2026-09-18 — **Five corrections from the Owner's reading of the design, all verified.**
   - **Export all** carries 1b's download mark; the single Export beside the select has none, as drawn. The design
     also labels it "Export all (.cspzip)" — the icon was what was asked for, so the label is left alone.

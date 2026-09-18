@@ -39,10 +39,8 @@ async function squarePatternFile(testInfo: import("@playwright/test").TestInfo, 
 }
 
 async function openPattern(page: Page, file: string) {
-  const chooser = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "File actions" }).click();
-  await page.getByRole("button", { name: "Open pattern…" }).click();
-  await (await chooser).setFiles(file);
+  // The file input stays mounted whatever screen is up; the New -> confirm -> card path has its own test.
+  await page.getByLabel("Open pattern file").setInputFiles(file);
   await expect(page.getByTestId("chart-frame")).toBeVisible({ timeout: 15_000 });
 }
 

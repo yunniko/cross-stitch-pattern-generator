@@ -13,7 +13,7 @@ async function generateSmallPattern(page: Page) {
   await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
 }
 
-/** A synthetic editable-pattern file at the maximum supported width, opened via "Open pattern…" so the test doesn't pay for a 1000-stitch generation. */
+/** A synthetic editable-pattern file at the maximum supported width, opened through the file input so the test doesn't pay for a 1000-stitch generation. */
 function largePatternJson(width: number, height: number, colors: number): string {
   const palette = Array.from({ length: colors }, (_, i) => ({ rgb: [(i * 37) % 256, (i * 91) % 256, (i * 151) % 256], symbol: String.fromCharCode(65 + i), name: `Color ${i}` }));
   const cellPalette = new Array<number>(width * height);
@@ -98,11 +98,8 @@ test("Ctrl+Shift+Z redoes, alongside Ctrl+Y (B8)", async ({ page }) => {
 test("a 50-cell brush stroke on a 1000-stitch pattern completes within a bounded time (B7)", async ({ page }) => {
   test.slow();
   await page.goto("/");
-  const fileChooserPromise = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "File actions" }).click();
-  await page.getByRole("button", { name: "Open pattern…" }).click();
-  const fileChooser = await fileChooserPromise;
-  await fileChooser.setFiles({ name: "large_editable.json", mimeType: "application/json", buffer: Buffer.from(largePatternJson(1000, 625, 16)) });
+  // The file input stays mounted whatever screen is up; the New -> confirm -> card path has its own test.
+  await page.getByLabel("Open pattern file").setInputFiles({ name: "large_editable.json", mimeType: "application/json", buffer: Buffer.from(largePatternJson(1000, 625, 16)) });
   const canvas = page.getByTestId("chart-frame");
   await expect(canvas).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/1000 × 625, [\d,]+ stitch/)).toBeVisible();

@@ -19,6 +19,8 @@ export interface ImageWindowProps {
   onNewBlankChart: () => void;
   onOpenPatternFile: () => void;
   isLoadingImage: boolean;
+  /** New was pressed with a chart open: the start screen covers it until a card is chosen or Back is pressed. */
+  startingNew: boolean;
   scrollerRef: RefObject<HTMLDivElement | null>;
   frameRef: RefObject<HTMLDivElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -69,6 +71,7 @@ export function ImageWindow({
   onNewBlankChart,
   onOpenPatternFile,
   isLoadingImage,
+  startingNew,
   previewError,
   onRetryPreview,
   enhancementActive,
@@ -91,7 +94,7 @@ export function ImageWindow({
       // once zoomed content outgrows the container.
       className="at-well grid flex-1 place-items-center overflow-auto p-6"
     >
-      {!pattern && sourceMeta && (
+      {!startingNew && !pattern && sourceMeta && (
         <figure className="flex max-h-full max-w-full flex-col items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize */}
           <img
@@ -112,10 +115,10 @@ export function ImageWindow({
           )}
         </figure>
       )}
-      {!pattern && !sourceMeta && (
+      {(startingNew || (!pattern && !sourceMeta)) && (
         <FirstRun onChoosePhoto={onChoosePhoto} onNewBlankChart={onNewBlankChart} onOpenPattern={onOpenPatternFile} busy={isLoadingImage} />
       )}
-      {pattern && (
+      {!startingNew && pattern && (
         <div
           ref={frameRef}
           role="img"

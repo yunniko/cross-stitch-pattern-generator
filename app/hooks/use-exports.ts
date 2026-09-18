@@ -69,6 +69,12 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
     void run(exportKind, setIsExporting, "Couldn't complete that export.");
   }
 
+  /** The editable save, without disturbing the kind chosen in the Threads footer: the confirm dialog offers it as a
+   * way out before a new chart replaces this one. */
+  function exportEditableNow() {
+    void run("editable", setIsExporting, "Couldn't save the editable file.");
+  }
+
   function exportAll() {
     void run("all", setIsExportingAll, "Couldn't build the export-all bundle.");
   }
@@ -81,6 +87,7 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
     exportError,
     exportProgressText: progress?.label ?? null,
     exportSelected,
+    exportEditableNow,
     exportAll,
     a4LayoutPreview,
   };

@@ -65,6 +65,9 @@ export interface ContextBarProps {
   onToggleSymmetry: (axis: SymmetryAxis) => void;
   /** The thread the brush paints with; `EMPTY_CELL` for the empty stitch, null when none is chosen. */
   activeColorIndex: number | null;
+  /** The start screen is up over an open chart: the bar says so and offers the way back (Atelier). */
+  startingNew: boolean;
+  onBackToChart: () => void;
 }
 
 export function ContextBar({
@@ -87,6 +90,8 @@ export function ContextBar({
   squareCanvas,
   onToggleSymmetry,
   activeColorIndex,
+  startingNew,
+  onBackToChart,
 }: ContextBarProps) {
   const brushIsEmpty = activeColorIndex === EMPTY_CELL;
   const brushColor = pattern && activeColorIndex !== null && !brushIsEmpty ? (pattern.palette[activeColorIndex] ?? null) : null;
@@ -113,14 +118,31 @@ export function ContextBar({
 
       <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
 
-      {!pattern && !hasSourcePhoto && (
+      {startingNew && (
+        <>
+          <span className="text-[11px] font-medium tracking-wider text-muted uppercase">New chart</span>
+          <span className="text-xs text-muted">Drop a photo anywhere below</span>
+          {pattern && (
+            <button
+              type="button"
+              onClick={onBackToChart}
+              title="Go back to the chart you were editing"
+              className="ml-auto rounded-md border border-line px-3 py-1 text-xs text-ink transition-colors hover:bg-raised"
+            >
+              Back to {pattern.name ?? "your chart"}
+            </button>
+          )}
+        </>
+      )}
+
+      {!startingNew && !pattern && !hasSourcePhoto && (
         <>
           <span className="text-[11px] font-medium tracking-wider text-muted uppercase">No chart open</span>
           <span className="ml-auto text-xs text-muted">Drop a photo anywhere below</span>
         </>
       )}
 
-      {!pattern && hasSourcePhoto && (
+      {!startingNew && !pattern && hasSourcePhoto && (
         <>
           <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Photo</span>
           {isLoadingImage && <span className="text-xs text-muted">Reading image…</span>}
@@ -129,7 +151,7 @@ export function ContextBar({
         </>
       )}
 
-      {pattern && (
+      {!startingNew && pattern && (
         <>
           {/* 1b opens the bar with the thread the brush is holding; the list is where it is changed. */}
           <div className="flex shrink-0 items-center gap-[7px]" title="Brush color — click a thread in the list to change it">

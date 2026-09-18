@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-// G-028: OXS charts in both directions. Opening one from another program through "Open pattern…" summarises what couldn't
+// G-028: OXS charts in both directions. Opening one from another program summarises what couldn't
 // be carried over (M2); exporting one and opening it again brings the pattern back (M3). Fixtures are self-authored.
 const OXS_FIXTURE = path.join(__dirname, "fixtures", "sample.oxs");
 const PHOTO_FIXTURE = path.join(__dirname, "fixtures", "sample.png");
