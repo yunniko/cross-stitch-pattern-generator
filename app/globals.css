@@ -1,38 +1,85 @@
 @import "tailwindcss";
 
+/*
+ * Atelier (G-045, direction 1b): one graphite appearance, not a light theme with a dark variant. The design document
+ * draws only this one, and a second palette nobody designed would drift out of step with it. Every surface, line and
+ * text colour below is taken from the 1b screens; components name them rather than reaching for zinc-500 and friends,
+ * so a change here lands everywhere at once.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  /* Without this, the browser doesn't know this page supports a dark
-     appearance and renders native form-control chrome -- most visibly a
-     <select>'s own options popup, which almost no other CSS property can
-     reach -- with light-mode defaults regardless of the dark:* classes
-     applied to the page itself. That mismatch is exactly what produced
-     white-on-white (illegible) dropdown options on hover in dark mode
-     (Owner report, 2026-09-12): the page's own text color rules made the
-     option text light, while the browser's own unstyled options popup
-     stayed light-background by default. */
-  color-scheme: light dark;
+  /* Surfaces, darkest first: the well the chart floats in, the page, the chrome, and the raised state on chrome. */
+  --at-well: #0c0e10;
+  --at-app: #101214;
+  --at-surface: #171a1d;
+  --at-raised: #1e2226;
+  /* A field inset into chrome reads as a hole punched back to the page colour. */
+  --at-sunken: #101214;
+  --at-line: #2a2f34;
+  /* A neutral raised control, for an action that is neither primary nor a plain outline (1b's Export button). */
+  --at-control: #272c31;
+  --at-control-line: #3a4046;
+  --at-control-hover: #30363c;
+
+  --at-ink: #e8ecef;
+  --at-muted: #98a0a7;
+  --at-faint: #7d868d;
+
+  --at-accent: #46c2ae;
+  --at-accent-hover: #5fd3c0;
+  --at-on-accent: #101214;
+  /* The accent at reading strength behind a selected segment, and slightly stronger behind a lit thread. */
+  --at-accent-wash: rgba(70, 194, 174, 0.14);
+  --at-accent-wash-strong: rgba(70, 194, 174, 0.16);
+
+  /* The symmetry guide, matching the colour the chart itself draws it in (lib/export/render.ts). */
+  --at-guide: #dc2626;
+
+  /* Without this, the browser renders native form chrome -- most visibly a <select>'s own options popup, which almost
+     no other CSS property can reach -- with light-mode defaults. That mismatch is what produced white-on-white
+     (illegible) dropdown options on hover (Owner report, 2026-09-12): the page's own rules made the option text light
+     while the browser's unstyled popup stayed light-background. */
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-well: var(--at-well);
+  --color-app: var(--at-app);
+  --color-surface: var(--at-surface);
+  --color-raised: var(--at-raised);
+  --color-sunken: var(--at-sunken);
+  --color-line: var(--at-line);
+  --color-control: var(--at-control);
+  --color-control-line: var(--at-control-line);
+  --color-control-hover: var(--at-control-hover);
+  --color-ink: var(--at-ink);
+  --color-muted: var(--at-muted);
+  --color-faint: var(--at-faint);
+  --color-accent: var(--at-accent);
+  --color-accent-hover: var(--at-accent-hover);
+  --color-on-accent: var(--at-on-accent);
+  --color-guide: var(--at-guide);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Kept as the app's own names so existing `bg-background` / `text-foreground` usages stay meaningful until M2 and
+     M3 rewrite them in Atelier terms. */
+  --color-background: var(--at-app);
+  --color-foreground: var(--at-ink);
+
+  --font-sans: var(--font-atelier-sans);
+  --font-mono: var(--font-atelier-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--at-app);
+  color: var(--at-ink);
+  font-family: var(--font-atelier-sans), Helvetica, Arial, sans-serif;
+}
+
+/* The grid the chart floats on: two hairline rulings on the well colour, as 1b draws the canvas area. */
+.at-well {
+  background-color: var(--at-well);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(232, 236, 239, 0.035) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(90deg, rgba(232, 236, 239, 0.035) 0 1px, transparent 1px 6px);
 }
 
 /* Control labels are UI chrome, not content: dragging or double-clicking them shouldn't select text. Text fields stay selectable. See D110. */
@@ -52,4 +99,17 @@ input,
 textarea {
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* The native number spinner is a pseudo-element, so it cannot be reached from a class on the input itself. 1b's
+   stepper draws its own -- and + buttons either side of the field. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

@@ -12,6 +12,44 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
+### G-045 · The Atelier redesign (direction 1b) — ACTIVE
+- **What:** the workspace shell is rebuilt to direction 1b "Atelier": a 64px tool rail, a 44px context
+  bar that changes with what you are doing, a 36px status bar, and a 360px right inspector with Photo,
+  Chart and Threads tabs. Generate moves into the Photo tab and the exports into the Threads tab, so the
+  four stacked horizontal bars above the chart are gone. Highlight stops being a tool and becomes
+  Isolate: a view mode that stays on while another tool is active, with its own light on each thread.
+- **Why:** Owner instruction (2026-09-18), implementing the 1b direction from the Claude Design project
+  "App redesign directions". Today the shell stacks a top bar, a notice strip, a view bar and a params
+  dock above the chart, and splits settings across a top bar, a params dock and an options panel.
+- **Owner decisions (2026-09-18)**, for the four things 1b draws no home for:
+  Undo and Redo go in the context bar; Open pattern, New blank chart and Choose a photo live in a menu
+  on the rail's brand mark; the navigator is dropped; and the controls 1b omits are kept and placed —
+  Algorithm on the Photo tab, author name and A4 overlap on the Chart tab, photo-only as a second press
+  of the Photo toggle.
+- **Acceptance criteria:**
+  1. Every 1b screen is reproduced: chart editing, first run, before generate and select tool, plus the
+     generating, colour-editor and chart-tab inspector states.
+  2. Nothing that works today is lost: every control above still reaches its behaviour.
+  3. Isolate is independent of the active tool, reports how many threads are lit, and each thread lights
+     on its own.
+  4. Vitest and the whole Playwright suite pass, with specs updated where 1b renames a control.
+- **Constraints:** the chart pixels do not change — the design pins them to the app's own drawing rules,
+  and the golden hashes and viewport-parity specs hold them there. Accessible names are preserved
+  wherever a control survives, so the e2e suite only moves where the product really moved. Standing
+  deploy approval applies.
+
+**Milestones:**
+- [ ] M1 — Atelier tokens, fonts and shared primitives, with no layout change.
+- [ ] M2 — The shell: rail, context bar, canvas, status bar and the inspector frame.
+- [ ] M3 — The three inspector tabs, and the generating and colour-editor states.
+- [ ] M4 — Highlight becomes Isolate, with a light on every thread.
+- [ ] M5 — Specs, documentation and deploy.
+
+**Progress log** (newest first):
+- 2026-09-18 — goal created at the Owner's instruction, with the four decisions above. Direction 1b was
+  read from the design project, whose `github.md` maps each screen to the repo files it comes from; the
+  project's support.js is the canvas renderer only and constrains nothing here.
+
 ### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT, possibly relevant to G-030 (2026-09-12)
 - **Not superseded -- correcting an earlier overreach.** An earlier pass
   at this file marked this goal "superseded by G-030" on the assumption

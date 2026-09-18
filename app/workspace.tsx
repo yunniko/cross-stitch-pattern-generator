@@ -290,7 +290,7 @@ export default function Workspace() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-zinc-100 font-sans text-black dark:bg-zinc-950 dark:text-zinc-50">
+    <div className="flex h-screen flex-col bg-app font-sans text-ink">
       <TopBar
         patternName={pattern?.name}
         onRename={(name) => pattern && history.set(renamePattern(pattern, name))}

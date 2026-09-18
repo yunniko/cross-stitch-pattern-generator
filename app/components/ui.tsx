@@ -1,15 +1,18 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-// Shared control styling, so a fix (dark-mode hover, D81) lands on every
-// instance at once instead of on 20 copies of the same class string.
+// Shared control styling, so a fix lands on every instance at once instead of on 20 copies of the same class string
+// (D81). Restyled to Atelier in G-045 M1: the shapes come from direction 1b, which uses small radii rather than pills,
+// and every colour is a token from globals.css.
 
-type PillVariant = "outline" | "primary";
+type PillVariant = "outline" | "primary" | "raised";
 type PillSize = "xs" | "sm" | "md" | "lg";
 
-const PILL_BASE = "rounded-full font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+const PILL_BASE = "rounded-md font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 const PILL_VARIANTS: Record<PillVariant, string> = {
-  outline: "border border-zinc-300 hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]",
-  primary: "bg-foreground text-background hover:bg-[#383838] dark:hover:bg-[#ccc]",
+  outline: "border border-line text-ink hover:bg-raised",
+  primary: "bg-accent text-on-accent hover:bg-accent-hover",
+  // The middle weight 1b gives an action that matters but is not the primary one -- its Export button beside Export all.
+  raised: "border border-control-line bg-control text-ink hover:bg-control-hover",
 };
 const PILL_SIZES: Record<PillSize, string> = {
   xs: "px-2 py-0.5 text-xs",
@@ -31,6 +34,7 @@ export interface SegmentOption<T extends string> {
   value: T;
   label: ReactNode;
   title?: string;
+  disabled?: boolean;
 }
 
 export interface SegmentedControlProps<T extends string> {
@@ -38,40 +42,54 @@ export interface SegmentedControlProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   className?: string;
+  /**
+   * 1b uses two shapes for the same idea. "wash" is the full-width row of settings segments, divided by hairlines,
+   * where the chosen one is washed in the accent. "chip" is the compact switch in the context bar, where the chosen
+   * one is a solid accent chip floating inside a bordered track.
+   */
+  tone?: "wash" | "chip";
+  /** Stretches each segment to share the width equally, as the settings rows in the inspector do. */
+  fill?: boolean;
 }
 
-/** A row of mutually exclusive buttons; the selected one is filled. */
-export function SegmentedControl<T extends string>({ options, value, onChange, className }: SegmentedControlProps<T>) {
+/** A row of mutually exclusive buttons; the selected one is marked. */
+export function SegmentedControl<T extends string>({ options, value, onChange, className, tone = "wash", fill = false }: SegmentedControlProps<T>) {
+  const isChip = tone === "chip";
+  const track = isChip
+    ? "flex items-center gap-0.5 rounded-lg border border-line p-0.5"
+    : "flex items-center overflow-hidden rounded-lg border border-line";
   return (
-    <div className={["flex items-center overflow-hidden rounded border border-zinc-300 dark:border-zinc-700", className].filter(Boolean).join(" ")}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          title={option.title}
-          aria-pressed={option.value === value}
-          onClick={() => onChange(option.value)}
-          className={`px-2 py-0.5 text-sm transition-colors ${
-            option.value === value ? "bg-foreground text-background" : "hover:bg-black/[.04] dark:hover:bg-white/[.08]"
-          }`}
-        >
-          {option.label}
-        </button>
-      ))}
+    <div className={[track, className].filter(Boolean).join(" ")}>
+      {options.map((option, index) => {
+        const selected = option.value === value;
+        const shape = isChip
+          ? `rounded-md px-2.5 py-1 ${selected ? "bg-accent text-on-accent font-medium" : "text-muted hover:text-ink"}`
+          : `px-3 py-1.5 ${index > 0 ? "border-l border-line" : ""} ${selected ? "bg-accent/15 text-ink font-medium" : "text-muted hover:bg-raised hover:text-ink"}`;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            title={option.title}
+            disabled={option.disabled}
+            aria-pressed={selected}
+            onClick={() => onChange(option.value)}
+            className={`text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${fill ? "flex-1" : ""} ${shape}`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-/** Full-width message strip under the top bar. */
+/** Full-width message strip. */
 export function NoticeBar({ tone, children }: { tone: "error" | "info"; children: ReactNode }) {
-  const toneClass =
-    tone === "error"
-      ? "border-red-300 bg-red-50 text-red-600 dark:border-red-800 dark:bg-red-950 dark:text-red-400"
-      : "border-zinc-300 bg-white text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900";
+  const toneClass = tone === "error" ? "border-red-900 bg-red-950/60 text-red-300" : "border-line bg-surface text-muted";
   return <p className={`border-b px-4 py-1 text-xs ${toneClass}`}>{children}</p>;
 }
 
-/** The white strip used for the options, selection and resize panels. */
+/** The chrome strip used for the options, selection and resize panels. */
 export function PanelBar({ children, gap = "gap-4" }: { children: ReactNode; gap?: string }) {
-  return <div className={`flex flex-wrap items-center ${gap} border-b border-zinc-300 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900`}>{children}</div>;
+  return <div className={`flex flex-wrap items-center ${gap} border-b border-line bg-surface px-4 py-3`}>{children}</div>;
 }
