@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-18 at 44741b6 (G-044 M1, deployed and verified live)
+Last verified: 2026-09-18 at 9c580a7 (G-045 M5, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 44741b6 (2026-09-18), the last deployed commit; anything after it on `master` is documentation only: generation, the enhancement preview and every export but the editable save run in the `processor` container.
+**Production** runs 9c580a7 (2026-09-18), the last deployed commit: the 1b shell, with generation, the enhancement preview and every export but the editable save running in the `processor` container.
 Signed off: G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
 **G-034, processing moved to the server — signed off 2026-09-18.** M1 measured the caps (D149, D150); M2 built the
@@ -260,6 +260,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-18 | 9c580a7 | G-045: the workspace is rebuilt to direction 1b — tool rail, context bar, status bar and a 360px Photo/Chart/Threads inspector; Highlight becomes Isolate, a view mode with a light on every thread (D157-D159) | Vitest 1061 passed, 8 skipped; Playwright 312 passed, 0 failed across all 25 specs; tsc, eslint, docs-lint and the build clean. Only the app container was recreated (the processor image was unchanged); 41 containers before and after, 34 of 36 sites 200, identical to the pre-deploy baseline, no neighbour restarted. Live: 19 checks — a 50-stitch chart in 0.9 s, the heading restored, Isolate on with the first light and off with the last, a colour PNG exported, no console errors |
 | 2026-09-18 | 44741b6 | G-044: the Origin check compares canonical origins, so the loopback spellings are one site, and `APP_URL` loses its localhost default (D156) | Vitest 1061 passed, 8 skipped; lint and build clean. Only the app container was recreated; 41 containers up, 20 of 20 sites 200, no neighbour restarted. Live: the site origin passes, while the same host over http, a suffix lookalike, all three loopback spellings, a foreign origin and a missing Origin are each refused; a 250-stitch end-to-end run was unaffected |
 | 2026-09-18 | c2b1123 | G-034: ships with its one failure documented (D155 supersedes D154's reasoning); `PROCESSOR_WORKER_HEAP_MB` reproduces the PDF memory failure off the server | Vitest 1055, lint and docs-lint clean; both containers recreated; 20 of 20 sites 200, no neighbour restarted. Live on a cold processor: preview 1.9 s, a 250-stitch generation 2.4 s, colour PNG 3.8 s, editable save local, no console errors |
-| 2026-09-18 | df92cc4 | G-034: the Export all deadline rises to 900 s (D154, its reasoning corrected by D155) | Vitest 1055, lint and build clean; both containers recreated; 41 containers up, 20 of 20 sites 200. Live at 1000 stitches: generation 10.5 s, Crisp 13.2 s, colour PNG 20.6 s. Export all and the PDF still fail there with a worker heap OOM (D155) |

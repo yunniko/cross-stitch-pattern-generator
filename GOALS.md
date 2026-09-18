@@ -105,7 +105,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M2 — The shell: rail, context bar, canvas, status bar and the inspector frame. Done 2026-09-18.
 - [x] M3 — The three inspector tabs, and the generating and colour-editor states. Done 2026-09-18.
 - [x] M4 — Highlight becomes Isolate, with a light on every thread. Done 2026-09-18.
-- [ ] M5 — Specs, documentation and deploy.
+- [x] M5 — Specs, documentation and deploy. Done 2026-09-18.
 
 **Progress log** (newest first):
 - 2026-09-18 — **M5: the suite speaks 1b's vocabulary, and two real defects surfaced.**
@@ -125,7 +125,12 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   - **Checks:** Playwright **312 passed, 0 failed across all 25 specs**, one spec per process (313 before: the
     navigator dock's own test retired with the dock); Vitest 1061 passed, 8 skipped; `tsc --noEmit`, `eslint`,
     `docs-lint` and the production build all clean. D157, D158, D159.
-  - **Next:** deploy, then the Owner's sign-off.
+  - **Deployed** `9c580a7` and verified live: only the app container was recreated (the processor image was
+    unchanged), 41 containers before and after, 34 of 36 sites 200 — identical to the pre-deploy baseline — and no
+    neighbour restarted. Nineteen live checks passed: a 50-stitch chart generated in 0.9 s, the heading is back,
+    Isolate turns on with the first light, survives the Brush and turns off with the last, and a colour PNG exported
+    with no console errors.
+  - **Next:** the Owner's sign-off. G-045 stays ACTIVE until it is logged (OPERATIONS.md §5).
 - 2026-09-18 — **M3 and M4 done together: the panes are 1b’s, and Highlight is now Isolate.**
   - **Panes:** `photo-pane.tsx` (size presets and a custom stepper, colour count, Algorithm, Palette, Edges, Photo
     fix, and the Generating card while a job runs), `chart-pane.tsx` (name, canvas edges with a live → W × H,
