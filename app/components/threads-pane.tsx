@@ -32,6 +32,8 @@ export interface ThreadRowsProps {
   dimmed?: boolean;
   /** Spread onto the swatch button, so a click on it does not dismiss the editor it opens. */
   swatchProps?: Record<string, string>;
+  /** The same, for the symbol button: its picker opens under the row too (Owner, 2026-09-18). */
+  symbolProps?: Record<string, string>;
   /** Rendered under a row, which is where the colour editor opens. */
   renderUnderRow?: (color: PaletteColor) => ReactNode;
   renameDraft: string;
@@ -63,6 +65,7 @@ export function ThreadRows({
   renderLight,
   dimmed = false,
   swatchProps,
+  symbolProps,
   renderUnderRow,
   renameDraft,
   renamingIndex,
@@ -116,6 +119,8 @@ export function ThreadRows({
               {renderLight?.(color)}
               <button
                 type="button"
+                {...symbolProps}
+                aria-expanded={editingSymbolIndex === color.index}
                 onClick={(e) => {
                   e.stopPropagation();
                   onEditSymbol(color.index);

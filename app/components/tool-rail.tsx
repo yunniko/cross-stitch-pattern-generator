@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useRef, useState } from "react";
-import type { QuickMirror, SymmetryAxes, SymmetryAxis } from "@/lib/editor/symmetry";
+import type { QuickMirror } from "@/lib/editor/symmetry";
 import type { Tool } from "../editor-types";
 import { useDismissOnOutsidePointer } from "../hooks/use-dismiss-on-outside-pointer";
 
@@ -101,23 +101,6 @@ const TOOL_GROUPS = [
   ],
 ];
 
-function AxisIcon({ axis }: { axis: SymmetryAxis }) {
-  const line = { vertical: [12, 3, 12, 21], horizontal: [3, 12, 21, 12], diagonal: [4, 4, 20, 20], antidiagonal: [20, 4, 4, 20] }[axis];
-  return (
-    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" strokeLinecap="round" aria-hidden="true">
-      <rect x="4" y="4" width="16" height="16" rx="1" stroke="currentColor" strokeWidth="1.4" opacity="0.5" />
-      <line x1={line[0]} y1={line[1]} x2={line[2]} y2={line[3]} stroke="var(--at-guide)" strokeWidth="2.2" />
-    </svg>
-  );
-}
-
-const SYMMETRY_TOGGLES: Array<{ axis: SymmetryAxis; label: string; title: string }> = [
-  { axis: "vertical", label: "Vertical symmetry", title: "Paint mirrored across the vertical centre line" },
-  { axis: "horizontal", label: "Horizontal symmetry", title: "Paint mirrored across the horizontal centre line" },
-  { axis: "diagonal", label: "Diagonal symmetry ↘", title: "Paint mirrored across the diagonal from top left to bottom right" },
-  { axis: "antidiagonal", label: "Diagonal symmetry ↙", title: "Paint mirrored across the diagonal from top right to bottom left" },
-];
-
 function MirrorIcon({ kind }: { kind: QuickMirror }) {
   const source = {
     "left-half": <rect x="4" y="4" width="8" height="16" />,
@@ -153,9 +136,7 @@ export interface ToolRailProps {
   activeTool: Tool;
   disabled: boolean;
   onSelect: (tool: Tool) => void;
-  symmetry: SymmetryAxes;
   squareCanvas: boolean;
-  onToggleSymmetry: (axis: SymmetryAxis) => void;
   onMirror: (kind: QuickMirror) => void;
   /** The file actions behind the mark. */
   onOpenPattern: (file: File) => void;
@@ -169,9 +150,7 @@ export function ToolRail({
   activeTool,
   disabled,
   onSelect,
-  symmetry,
   squareCanvas,
-  onToggleSymmetry,
   onMirror,
   onOpenPattern,
   onNewBlankChart,
@@ -292,32 +271,6 @@ export function ToolRail({
           })}
         </Fragment>
       ))}
-
-      <div className="mx-3.5 my-1.5 h-px shrink-0 bg-line" aria-hidden="true" />
-      <span className="px-1 text-center text-[10px] font-medium tracking-wide text-faint uppercase" id="symmetry-heading">
-        Sym
-      </span>
-      <div role="group" aria-labelledby="symmetry-heading" className="grid grid-cols-2 gap-1 px-2 pt-1">
-        {SYMMETRY_TOGGLES.map(({ axis, label, title }) => {
-          const needsSquare = (axis === "diagonal" || axis === "antidiagonal") && !squareCanvas;
-          return (
-            <button
-              key={axis}
-              type="button"
-              onClick={() => onToggleSymmetry(axis)}
-              disabled={disabled || needsSquare}
-              title={needsSquare ? `${title}. Needs a square canvas.` : title}
-              aria-label={label}
-              aria-pressed={symmetry[axis]}
-              className={`flex h-6 w-6 items-center justify-center rounded-md border disabled:cursor-not-allowed disabled:opacity-40 ${
-                symmetry[axis] ? "border-accent bg-accent/15 text-ink" : "border-line text-muted hover:bg-raised"
-              }`}
-            >
-              <AxisIcon axis={axis} />
-            </button>
-          );
-        })}
-      </div>
 
       <div className="mx-3.5 my-1.5 h-px shrink-0 bg-line" aria-hidden="true" />
       <span className="px-1 text-center text-[10px] font-medium tracking-wide text-faint uppercase" id="mirror-heading">

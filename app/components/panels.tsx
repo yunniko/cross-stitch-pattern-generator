@@ -132,6 +132,13 @@ function DeselectIcon() {
 export interface SelectionBarProps {
   hasSelection: boolean;
   hasClipboard: boolean;
+  /** The floating piece, for 1b's "12 x 9 at 14, 6" readout; null before one is drawn. */
+  selection: { x: number; y: number; width: number; height: number } | null;
+  /** Undo and Redo travel with this bar: it replaces the context bar, which is where they otherwise live. */
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
   onCopy: () => void;
   onPaste: () => void;
   onFlipHorizontal: () => void;
@@ -146,6 +153,11 @@ export interface SelectionBarProps {
 export function SelectionBar({
   hasSelection,
   hasClipboard,
+  selection,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
   onCopy,
   onPaste,
   onFlipHorizontal,
@@ -157,12 +169,31 @@ export function SelectionBar({
   onDeselect,
 }: SelectionBarProps) {
   return (
-    <PanelBar gap="gap-2">
-      <span className="text-sm font-medium">Selection</span>
-      <span className="text-xs text-muted">
-        {hasSelection ? "Drag inside it to move, or drag elsewhere to start a new selection." : "Drag a rectangle on the Image window to select it."}
-      </span>
-      <div className="ml-auto flex items-center gap-1.5">
+    // 1b gives the select tool its own top panel rather than a strip under one (Owner, 2026-09-18), so this takes the
+    // context bar's shape exactly -- and carries Undo and Redo, which would otherwise vanish for as long as a
+    // selection is in hand.
+    <div className="flex h-11 shrink-0 items-center gap-2.5 border-b border-line bg-surface px-4">
+      <div className="flex items-center gap-1.5">
+        <PillButton size="xs" onClick={onUndo} disabled={!canUndo} title="Ctrl+Z">
+          Undo
+        </PillButton>
+        <PillButton size="xs" onClick={onRedo} disabled={!canRedo} title="Ctrl+Y or Ctrl+Shift+Z">
+          Redo
+        </PillButton>
+      </div>
+
+      <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+
+      <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Selection</span>
+      {selection ? (
+        <span className="font-mono text-xs text-muted">
+          {selection.width} × {selection.height} at {selection.x}, {selection.y}
+        </span>
+      ) : (
+        <span className="text-xs text-muted">Drag a rectangle on the chart to select it.</span>
+      )}
+
+      <div className="ml-auto flex items-center gap-1">
         {(
           [
             ["Copy", "Copy the selected piece", <CopyIcon key="i" />, onCopy, !hasSelection],
@@ -175,13 +206,24 @@ export function SelectionBar({
             ["Discard", "Put the chart back as it was when this selection started, discarding its changes", <CancelIcon key="i" />, onCancel, !hasSelection],
             ["Apply here", "Merge the piece into the picture where it sits", <DeselectIcon key="i" />, onDeselect, !hasSelection],
           ] as const
-        ).map(([label, title, icon, onClick, isDisabled]) => (
-          <PillButton key={label} aria-label={label} title={title} onClick={onClick} disabled={isDisabled} className="px-2">
-            {icon}
-          </PillButton>
-        ))}
+        ).map(([label, title, icon, onClick, isDisabled]) => {
+          const named = label === "Discard" || label === "Apply here";
+          return (
+            <PillButton
+              key={label}
+              aria-label={label}
+              title={title}
+              onClick={onClick}
+              disabled={isDisabled}
+              className={named ? "flex items-center gap-1.5 px-2.5" : "px-2"}
+            >
+              {icon}
+              {named && label}
+            </PillButton>
+          );
+        })}
       </div>
-    </PanelBar>
+    </div>
   );
 }
 

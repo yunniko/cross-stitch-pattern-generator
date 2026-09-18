@@ -334,9 +334,7 @@ export default function Workspace() {
         activeTool={activeTool}
         disabled={!pattern}
         onSelect={switchTool}
-        symmetry={liveSymmetry}
         squareCanvas={pattern !== null && pattern.width === pattern.height}
-        onToggleSymmetry={(axis) => setSymmetry((current) => ({ ...current, [axis]: !current[axis] }))}
         onMirror={applyMirror}
         onOpenPattern={handleOpenPattern}
         onNewBlankChart={() => setNewChartPanelKey((key) => (key ?? 0) + 1)}
@@ -346,36 +344,15 @@ export default function Workspace() {
       />
 
       <main className="flex flex-1 flex-col overflow-hidden">
-        <ContextBar
-          pattern={pattern}
-          canUndo={history.canUndo}
-          canRedo={history.canRedo}
-          onUndo={history.undo}
-          onRedo={history.redo}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          canvasColor={options.canvasColor}
-          onCanvasColorChange={(hex) => updateOption("canvasColor", hex)}
-          sourceFileName={source.fileName}
-          isLoadingImage={source.isLoading}
-          hasSourcePhoto={source.hasPhoto}
-          isolate={isolate}
-          onIsolateChange={setIsolate}
-          litCount={litColorIndices.size}
-        />
-        <WorkspaceNotices
-          restoreFailure={restore.failure}
-          onDownloadRestoreReport={() => restore.failure && downloadPatternLoadReport({ content: restore.failure.payload })}
-          onDismissRestoreFailure={restore.dismissFailure}
-          openError={openError}
-          openNotice={openNotice}
-          exportError={exports.exportError}
-          a4Layout={paginatesAsA4(exports.exportKind) ? exports.a4LayoutPreview : null}
-        />
-        {activeTool === "select" && pattern && (
+        {activeTool === "select" && pattern ? (
           <SelectionBar
             hasSelection={select.selection !== null}
             hasClipboard={select.clipboard !== null}
+            selection={select.selection}
+            canUndo={history.canUndo}
+            canRedo={history.canRedo}
+            onUndo={history.undo}
+            onRedo={history.redo}
             onCopy={select.copy}
             onPaste={select.paste}
             onFlipHorizontal={select.flipHorizontal}
@@ -386,7 +363,37 @@ export default function Workspace() {
             onCancel={select.cancel}
             onDeselect={select.merge}
           />
+        ) : (
+          <ContextBar
+            pattern={pattern}
+            canUndo={history.canUndo}
+            canRedo={history.canRedo}
+            onUndo={history.undo}
+            onRedo={history.redo}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            canvasColor={options.canvasColor}
+            onCanvasColorChange={(hex) => updateOption("canvasColor", hex)}
+            sourceFileName={source.fileName}
+            isLoadingImage={source.isLoading}
+            hasSourcePhoto={source.hasPhoto}
+            isolate={isolate}
+            onIsolateChange={setIsolate}
+            litCount={litColorIndices.size}
+            symmetry={liveSymmetry}
+            squareCanvas={pattern !== null && pattern.width === pattern.height}
+            onToggleSymmetry={(axis) => setSymmetry((current) => ({ ...current, [axis]: !current[axis] }))}
+          />
         )}
+        <WorkspaceNotices
+          restoreFailure={restore.failure}
+          onDownloadRestoreReport={() => restore.failure && downloadPatternLoadReport({ content: restore.failure.payload })}
+          onDismissRestoreFailure={restore.dismissFailure}
+          openError={openError}
+          openNotice={openNotice}
+          exportError={exports.exportError}
+          a4Layout={paginatesAsA4(exports.exportKind) ? exports.a4LayoutPreview : null}
+        />
         {newChartPanelKey !== null && (
           <NewChartPanel key={newChartPanelKey} options={options} onCreate={(width, height) => void createBlankChart(width, height)} onCancel={() => setNewChartPanelKey(null)} />
         )}

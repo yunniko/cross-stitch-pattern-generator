@@ -210,7 +210,7 @@ test("rendered exports are unchanged by symmetry and the JSON gains only its sym
   expect(jsonOn).toEqual(JSON.parse(off.json.toString("utf-8")));
 });
 
-test("the toggles are saved with the document: restored after a reload and on reopening the file; a new photo turns them off", async ({ page }, testInfo) => {
+test("the toggles are saved with the document: restored after a reload and on reopening the file; a new photo takes them away with the chart", async ({ page }, testInfo) => {
   await page.goto("/");
   await openPattern(page, await squarePatternFile(testInfo));
   await toggle(page, "Horizontal symmetry").click();
@@ -230,7 +230,10 @@ test("the toggles are saved with the document: restored after a reload and on re
 
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expect(page.getByText(/Loaded: sample\.png/)).toBeVisible();
-  await expect(toggle(page, "Horizontal symmetry")).toHaveAttribute("aria-pressed", "false");
+  // Symmetry lives in the top panel now, and 1b shows none of it until a chart exists -- its first-run and
+  // before-generate screens draw no Sym group at all. A new photo drops the chart, so the toggles go with it
+  // rather than staying behind switched off, which is the stronger form of "the old chart's symmetry is gone".
+  await expect(toggle(page, "Horizontal symmetry")).toHaveCount(0);
 
   await openPattern(page, saved);
   await expect(toggle(page, "Horizontal symmetry")).toHaveAttribute("aria-pressed", "true");

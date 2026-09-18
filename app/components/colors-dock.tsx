@@ -181,6 +181,7 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
   const [renameDraft, setRenameDraft] = useState("");
   const [editingSymbolIndex, setEditingSymbolIndex] = useState<number | null>(null);
   const editorPanelRef = useRef<HTMLDivElement>(null);
+  const symbolPanelRef = useRef<HTMLDivElement>(null);
 
   const editing =
     editor && pattern && editor.documentId === documentId && editor.index < pattern.palette.length && editor.paletteLength === pattern.palette.length ? editor : null;
@@ -201,6 +202,7 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
 
   function openColorEditor(index: number) {
     if (!pattern || editing?.index === index) return;
+    setEditingSymbolIndex(null); // one panel under a row at a time
     if (editing) commitDraft();
     const color = pattern.palette[index];
     setEditor({
@@ -231,6 +233,11 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
   }
 
   useDismissOnOutsidePointer(editorPanelRef, editing !== null, { onOutsidePointer: finishEditing, onEscape: cancelEditing });
+  // The symbol picker is the same kind of panel, so it dismisses the same way (Owner, 2026-09-18).
+  useDismissOnOutsidePointer(symbolPanelRef, editingSymbolIndex !== null, {
+    onOutsidePointer: () => setEditingSymbolIndex(null),
+    onEscape: () => setEditingSymbolIndex(null),
+  });
 
   function pickThread(code: string) {
     if (!editing || !pattern || editing.mode === "full") return;
@@ -278,6 +285,37 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
     if (editingSymbolIndex === null || !pattern) return;
     onChange(setColorSymbol(pattern, editingSymbolIndex, symbol));
     setEditingSymbolIndex(null);
+  }
+
+  function renderSymbolPicker() {
+    if (editingSymbolIndex === null || !pattern) return null;
+    return (
+      <div ref={symbolPanelRef} role="dialog" aria-label={`Change symbol for ${pattern.palette[editingSymbolIndex].name}`} className={PANEL}>
+        <p className="text-xs text-muted">Picking a symbol already used by another color swaps the two colors&apos; symbols.</p>
+        <div className="grid grid-cols-10 gap-1">
+          {SYMBOL_SET.map((symbol) => {
+            const holder = pattern.palette.find((c) => c.symbol === symbol);
+            const isCurrent = holder?.index === editingSymbolIndex;
+            return (
+              <button
+                key={symbol}
+                type="button"
+                onClick={() => pickSymbol(symbol)}
+                title={holder && !isCurrent ? `Swap with ${holder.name}` : undefined}
+                className={`flex h-7 w-7 items-center justify-center rounded border text-sm ${
+                  isCurrent ? "border-accent bg-raised" : holder ? "border-dashed border-line" : "border-line hover:bg-raised"
+                }`}
+              >
+                {symbol}
+              </button>
+            );
+          })}
+        </div>
+        <PillButton size="md" onClick={() => setEditingSymbolIndex(null)} className="self-start">
+          Close
+        </PillButton>
+      </div>
+    );
   }
 
   function renderColorEditor() {
@@ -358,12 +396,16 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
           // the first and the eye does the second. Neither disables the other (G-045 M4).
           onRowActivate={(index) => onActiveColorChange(activeColorIndex === index ? null : index)}
           onEditColor={openColorEditor}
-          onEditSymbol={(index) => setEditingSymbolIndex(editingSymbolIndex === index ? null : index)}
+          onEditSymbol={(index) => {
+            if (editing) finishEditing(); // the colour editor gives the row up to the symbol picker
+            setEditingSymbolIndex(editingSymbolIndex === index ? null : index);
+          }}
           editingSymbolIndex={editingSymbolIndex}
           editingColorIndex={editing?.index ?? null}
           onMergeColors={onMergeColors}
           dimmed={dimmed}
           swatchProps={{ [DISMISS_RETARGET_ATTRIBUTE]: "" }}
+          symbolProps={{ [DISMISS_RETARGET_ATTRIBUTE]: "" }}
           renderLight={(color) => {
             const lit = litColorIndices.has(color.index);
             return (
@@ -385,7 +427,7 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
               </button>
             );
           }}
-          renderUnderRow={(color) => (editing?.index === color.index ? renderColorEditor() : null)}
+          renderUnderRow={(color) => (editing?.index === color.index ? renderColorEditor() : editingSymbolIndex === color.index ? renderSymbolPicker() : null)}
           renameDraft={renameDraft}
           renamingIndex={renamingIndex}
           onRenameDraftChange={setRenameDraft}
@@ -396,38 +438,6 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
           onCommitRename={commitRename}
           onCancelRename={() => setRenamingIndex(null)}
         />
-      )}
-
-      {editingSymbolIndex !== null && pattern && (
-        <div className={PANEL}>
-          <p className="text-xs text-muted">Picking a symbol already used by another color swaps the two colors&apos; symbols.</p>
-          <div className="grid grid-cols-10 gap-1">
-            {SYMBOL_SET.map((symbol) => {
-              const holder = pattern.palette.find((c) => c.symbol === symbol);
-              const isCurrent = holder?.index === editingSymbolIndex;
-              return (
-                <button
-                  key={symbol}
-                  type="button"
-                  onClick={() => pickSymbol(symbol)}
-                  title={holder && !isCurrent ? `Swap with ${holder.name}` : undefined}
-                  className={`flex h-7 w-7 items-center justify-center rounded border text-sm ${
-                    isCurrent
-                      ? "border-accent bg-raised"
-                      : holder
-                        ? "border-dashed border-line"
-                        : "border-line hover:bg-black/[.04] "
-                  }`}
-                >
-                  {symbol}
-                </button>
-              );
-            })}
-          </div>
-          <PillButton size="md" onClick={() => setEditingSymbolIndex(null)} className="self-start">
-            Close
-          </PillButton>
-        </div>
       )}
 
       {addingColor && pattern?.threadBrand && (

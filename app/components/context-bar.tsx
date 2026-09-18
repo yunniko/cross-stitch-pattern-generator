@@ -1,5 +1,6 @@
 "use client";
 
+import type { SymmetryAxes, SymmetryAxis } from "@/lib/editor/symmetry";
 import type { StitchPattern } from "@/lib/types";
 import type { ViewMode } from "../editor-types";
 import { PillButton, SegmentedControl } from "./ui";
@@ -21,6 +22,24 @@ const CHART_VIEWS: Array<{ value: ChartView; label: string; title: string }> = [
   { value: "realistic", label: "Stitched", title: "A realistic preview of the finished stitching" },
 ];
 
+/** 1b draws the axes as the chart's own outline with the guide line that symmetry paints along it. */
+function AxisIcon({ axis }: { axis: SymmetryAxis }) {
+  const line = { vertical: [12, 3, 12, 21], horizontal: [3, 12, 21, 12], diagonal: [4, 4, 20, 20], antidiagonal: [20, 4, 4, 20] }[axis];
+  return (
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" strokeLinecap="round" aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="1" stroke="currentColor" strokeWidth="1.4" opacity="0.5" />
+      <line x1={line[0]} y1={line[1]} x2={line[2]} y2={line[3]} stroke="var(--at-guide)" strokeWidth="2.2" />
+    </svg>
+  );
+}
+
+const SYMMETRY_TOGGLES: Array<{ axis: SymmetryAxis; label: string; title: string }> = [
+  { axis: "vertical", label: "Vertical symmetry", title: "Paint mirrored across the vertical centre line" },
+  { axis: "horizontal", label: "Horizontal symmetry", title: "Paint mirrored across the horizontal centre line" },
+  { axis: "diagonal", label: "Diagonal symmetry ↘", title: "Paint mirrored across the diagonal from top left to bottom right" },
+  { axis: "antidiagonal", label: "Diagonal symmetry ↙", title: "Paint mirrored across the diagonal from top right to bottom left" },
+];
+
 export interface ContextBarProps {
   pattern: StitchPattern | null;
   canUndo: boolean;
@@ -39,6 +58,10 @@ export interface ContextBarProps {
   isolate: boolean;
   onIsolateChange: (on: boolean) => void;
   litCount: number;
+  /** Symmetry lives here rather than on the rail, where 1b draws it (Owner, 2026-09-18). */
+  symmetry: SymmetryAxes;
+  squareCanvas: boolean;
+  onToggleSymmetry: (axis: SymmetryAxis) => void;
 }
 
 export function ContextBar({
@@ -57,6 +80,9 @@ export function ContextBar({
   isolate,
   onIsolateChange,
   litCount,
+  symmetry,
+  squareCanvas,
+  onToggleSymmetry,
 }: ContextBarProps) {
   const photoActive = viewMode === "photo" || viewMode === "photo-only";
   const chartView: ChartView = viewMode === "bw" ? "bw" : viewMode === "realistic" ? "realistic" : "color";
@@ -100,6 +126,36 @@ export function ContextBar({
       {pattern && (
         <>
           {sourceFileName && !isLoadingImage && <span className="max-w-[12rem] truncate text-xs text-muted">Loaded: {sourceFileName}</span>}
+
+          <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+          <div role="group" aria-label="Symmetry — mirrored drawing" className="flex items-center gap-1.5">
+            <span
+              className="text-[11px] font-medium tracking-wider text-muted uppercase"
+              title="While on, every stroke and fill also lands on the mirrored stitches"
+            >
+              Sym
+            </span>
+            {SYMMETRY_TOGGLES.map(({ axis, label, title }) => {
+              const needsSquare = (axis === "diagonal" || axis === "antidiagonal") && !squareCanvas;
+              return (
+                <button
+                  key={axis}
+                  type="button"
+                  onClick={() => onToggleSymmetry(axis)}
+                  disabled={needsSquare}
+                  title={needsSquare ? `${title}. Needs a square canvas.` : title}
+                  aria-label={label}
+                  aria-pressed={symmetry[axis]}
+                  className={`flex h-6 w-6 items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                    symmetry[axis] ? "border-accent bg-accent/15 text-ink" : "border-line text-muted hover:bg-raised"
+                  }`}
+                >
+                  <AxisIcon axis={axis} />
+                </button>
+              );
+            })}
+          </div>
+
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"

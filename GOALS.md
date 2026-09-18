@@ -108,6 +108,20 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M5 — Specs, documentation and deploy. Done 2026-09-18.
 
 **Progress log** (newest first):
+- 2026-09-18 — **Five corrections from the Owner's reading of the design, all verified.**
+  - **Export all** carries 1b's download mark; the single Export beside the select has none, as drawn. The design
+    also labels it "Export all (.cspzip)" — the icon was what was asked for, so the label is left alone.
+  - **The symbol picker opens under the row it edits**, the way the colour editor already did: the same under-row
+    slot, the same Escape and outside-pointer dismissal, and opening either closes the other.
+  - **Symmetry moved off the rail into the top panel**, where the design's chart-editing screen draws it — a `Sym`
+    label and four 24px toggles beside the view controls. Mirror stays on the rail, untouched.
+  - **The selection bar replaces the top panel** rather than stacking beneath it, and carries Undo and Redo with it:
+    1b draws neither, so it loses nothing by swapping the bar, while this build has had them there since M2 (D160).
+  - **One spec followed the product.** 1b's first-run and before-generate panels draw no symmetry at all, so a new
+    photo now takes the toggles away with the chart instead of leaving them behind switched off.
+  - **Checks:** Playwright **312 passed, 0 failed** across all 25 specs, one spec per process; Vitest 1061 passed,
+    8 skipped; `tsc --noEmit`, `eslint` and `docs-lint` clean.
+  - **Next:** deploy, then the Owner's sign-off on G-045.
 - 2026-09-18 — **M5: the suite speaks 1b's vocabulary, and two real defects surfaced.**
   - **Fixed from evidence, not prediction.** A full run named 28 failures and each was traced to its own cause
     before anything was edited. Ten were the inspector mounting one pane at a time — a Photo, Chart or Threads
