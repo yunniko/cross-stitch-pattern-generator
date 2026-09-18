@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-18 at e95fe99 (G-045: the empty-grid card owns its settings and the start screen loses its prose, deployed and verified live)
+Last verified: 2026-09-18 at f1cfa8b (G-045: the start screen's accent marks one chosen way in, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs e95fe99 (2026-09-18), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
+**Production** runs f1cfa8b (2026-09-18), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
 Signed off: G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
 **G-034, processing moved to the server — signed off 2026-09-18.** M1 measured the caps (D149, D150); M2 built the
@@ -294,6 +294,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-18 | f1cfa8b | G-045: the start screen's "01" badge is removed and its accent becomes a selection -- the photo card by default, the empty-grid card while its settings are open, never both, and taking another way in hands the mark back (D167) | Playwright 318 passed, 0 failed across all 26 specs; Vitest 1061 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Only the app container was recreated; 41 containers before and after with an identical name set, and all 38 vhosts byte-identical to the pre-deploy baseline (35 at 200 -- the host gained a site from another project between deploys). Live: the badge gone, the accent measured moving between the cards and back, and the start screen still wholly inert over a covered chart |
 | 2026-09-18 | e95fe99 | G-045: the blank-chart settings move inside the empty-grid card, which now holds Width/Height steppers, a fabric count, Create and the finished-size readout; NewChartPanel is deleted and the confirm moves onto Create (D165). The first-run subtitle and the status bar's browser-storage line are cut (D166), Undo and Redo leave every screen without a chart, and the Generate footer waits for a photo | Playwright 317 passed, 0 failed across all 26 specs; Vitest 1061 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Only the app container was recreated; 41 containers before and after with an identical name set, and all 37 vhosts byte-identical to the pre-deploy baseline (34 at 200). Live: both cut texts absent, the status bar reduced to its zoom controls, and the card measured against the design -- accent border, 6% accent wash, readout character-for-character |
 | 2026-09-18 | 6d84192 | G-045: one disabled look per control shape (D164) -- an icon fades to 40%, a label drops to --at-faint, and every hover on a control that can be disabled is written `enabled:hover:` -- and a start screen that leaves nothing live over the chart it covers | Playwright 317 passed, 0 failed across all 26 specs; Vitest 1061 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Only the app container was recreated; 41 containers before and after with an identical name set, 34 of 37 sites 200, every site's status identical to the pre-deploy baseline. Live on production: 21 controls drawn, 17 disabled wearing exactly two looks, 0 lit under the pointer, the chart still painted behind at `data-painted-rect=0,0,700,700` |
-| 2026-09-18 | 0ef8868 | G-045: the chart frame hides instead of unmounting, so Back returns it painted (D163) | Playwright 316 passed, 0 failed across all 26 specs; tsc, eslint and docs-lint clean. Only the app container was recreated; 41 containers before and after, 34 of 36 sites 200, identical to the pre-deploy baseline. Live: all 37 shell checks, the decisive one reading 3132 painted pixels after Back |

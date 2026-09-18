@@ -108,6 +108,19 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M5 — Specs, documentation and deploy. Done 2026-09-18.
 
 **Progress log** (newest first):
+- 2026-09-18 — **The start screen's accent marks one chosen way in.**
+  - **A badge and a selection.** The Owner cut the "01" from the photo card and asked that choosing the empty grid
+    deselect it. Read across all three cards that makes the accent a state rather than decoration: the photo card by
+    default, the empty-grid card while its settings are open, and taking the photo or saved-pattern path closes the
+    grid card, so the mark is never on two cards at once (D167).
+  - **A third recorded departure from 1b.** The design draws the badge and keeps the photo card accented beside an
+    open grid card; D161's rule makes any unrecorded mismatch read as a defect, so this joins D161 and D166.
+  - **Verified:** Playwright 318 passed (a new spec pins the handoff from computed style, since nothing in the DOM
+    says "selected"), Vitest 1061 passed (8 skipped), tsc/eslint/docs-lint clean. Deployed as f1cfa8b; live probes
+    measured the accent moving to the grid card and back, and the start screen still wholly inert over a chart.
+  - **Host note:** the box now serves 38 vhosts (35 at 200), up from 37 — a site from another project appeared
+    between our deploys. Every one identical before and after ours, and only our app container was recreated.
+  - **Next:** the Owner's sign-off. G-045 stays ACTIVE until it is logged (OPERATIONS.md §5).
 - 2026-09-18 — **The empty-grid card owns its settings, and the start screen loses its prose.**
   - **The design had already changed.** The Owner pointed at the design files: the blank-chart settings now live inside
     the option box. The card became a disclosure holding Width/Height steppers, a fabric count, Create and the
