@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-18 at 6d84192 (G-045: one disabled look per control shape and a start screen that touches nothing, deployed and verified live)
+Last verified: 2026-09-18 at e95fe99 (G-045: the empty-grid card owns its settings and the start screen loses its prose, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 6d84192 (2026-09-18), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
+**Production** runs e95fe99 (2026-09-18), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
 Signed off: G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
 **G-034, processing moved to the server — signed off 2026-09-18.** M1 measured the caps (D149, D150); M2 built the
@@ -233,10 +233,11 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
 - The file actions are not on the rail. New opens the start screen and the three ways into a chart live there
   (D162); the two file inputs are mounted in `app/workspace.tsx`, still named "Image" and "Open pattern file", so
   anything addressing them by name reaches them whatever screen is up.
-- Replacing the one autosaved chart asks first, and only that. Reaching the start screen costs nothing — that is what
-  "Back to <chart>" is for — and neither does opening the empty-grid card: its settings live inside it, collapsed
-  until chosen, so the confirm sits on Create there and on the photo and saved-pattern cards themselves (D162, D165).
-  `NewChartPanel` is gone; anything reaching for "Width in stitches" opens the card first.
+- Replacing the one autosaved chart asks first, and only that: reaching the start screen is free, and so is opening the
+  empty-grid card, whose settings live inside it collapsed until chosen — so the confirm sits on Create there, and on the
+  photo and saved-pattern cards themselves (D162, D165). Anything reaching for "Width in stitches" opens the card first.
+- A hand-started server must carry `playwright.config.ts`'s own environment (`PROCESSOR_URL`, the rate-limit overrides)
+  or not be left listening: `reuseExistingServer` adopts it silently, and one bare `next start` cost an 85-failure run.
 - The chart frame is hidden, never unmounted, while a pattern exists (D163). The redraw is a layout effect keyed on
   the pattern and the scene, so a remounted canvas is never repainted: it comes back blank and without
   `data-painted-rect`. Assert pixels, not presence, when a test claims the chart survived something.
@@ -245,9 +246,8 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
   disabled is written `enabled:hover:`, never a bare `hover:`, so a disabled one cannot light under the pointer
   (D164). Three treatments and eight pointer-answering controls had grown up before this rule existed.
 - While the start screen is up, nothing reaches the chart behind it: one `startScreenVisible` in `app/workspace.tsx`
-  disables the rail and the zoom controls, locks the Chart and Threads tabs (1b draws Photo live and selected, so it
-  stays enabled), hides Undo and Redo, forces 1b's Photo pane, drops the inspector footer, and stops the status bar
-  counting the covered chart. New disables with it, since New is what opens it (D164).
+  disables the rail, the zoom controls and New, locks Chart and Threads (1b draws Photo live and selected), forces 1b's
+  Photo pane, and drops the inspector footer (D164). Undo and Redo belong to the editing bar: no chart, no buttons.
 - `npm ci --legacy-peer-deps` is required (npm arborist crash).
 - On this Windows host, stopping a background task can leave node running;
   check the process list (D096).
@@ -294,6 +294,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-18 | e95fe99 | G-045: the blank-chart settings move inside the empty-grid card, which now holds Width/Height steppers, a fabric count, Create and the finished-size readout; NewChartPanel is deleted and the confirm moves onto Create (D165). The first-run subtitle and the status bar's browser-storage line are cut (D166), Undo and Redo leave every screen without a chart, and the Generate footer waits for a photo | Playwright 317 passed, 0 failed across all 26 specs; Vitest 1061 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Only the app container was recreated; 41 containers before and after with an identical name set, and all 37 vhosts byte-identical to the pre-deploy baseline (34 at 200). Live: both cut texts absent, the status bar reduced to its zoom controls, and the card measured against the design -- accent border, 6% accent wash, readout character-for-character |
 | 2026-09-18 | 6d84192 | G-045: one disabled look per control shape (D164) -- an icon fades to 40%, a label drops to --at-faint, and every hover on a control that can be disabled is written `enabled:hover:` -- and a start screen that leaves nothing live over the chart it covers | Playwright 317 passed, 0 failed across all 26 specs; Vitest 1061 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Only the app container was recreated; 41 containers before and after with an identical name set, 34 of 37 sites 200, every site's status identical to the pre-deploy baseline. Live on production: 21 controls drawn, 17 disabled wearing exactly two looks, 0 lit under the pointer, the chart still painted behind at `data-painted-rect=0,0,700,700` |
 | 2026-09-18 | 0ef8868 | G-045: the chart frame hides instead of unmounting, so Back returns it painted (D163) | Playwright 316 passed, 0 failed across all 26 specs; tsc, eslint and docs-lint clean. Only the app container was recreated; 41 containers before and after, 34 of 36 sites 200, identical to the pre-deploy baseline. Live: all 37 shell checks, the decisive one reading 3132 painted pixels after Back |
-| 2026-09-18 | 44937a9 | G-045: New leaves the logo for the tools; choosing a start-screen card with a chart open asks first (D162) | Playwright 316 passed, 0 failed across all 26 specs; Vitest 1061 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Only the app container was recreated; 41 containers before and after, 34 of 36 sites 200, identical to the pre-deploy baseline. Live: all 36 shell checks, including the start screen covering the chart, the confirm naming what it would replace, and Back returning it intact |

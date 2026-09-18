@@ -108,6 +108,22 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M5 — Specs, documentation and deploy. Done 2026-09-18.
 
 **Progress log** (newest first):
+- 2026-09-18 — **The empty-grid card owns its settings, and the start screen loses its prose.**
+  - **The design had already changed.** The Owner pointed at the design files: the blank-chart settings now live inside
+    the option box. The card became a disclosure holding Width/Height steppers, a fabric count, Create and the
+    finished-size readout; `NewChartPanel` and its strip above the chart are deleted. Opening the card replaces
+    nothing, so the confirm guarding the one autosaved chart moved onto Create (D165).
+  - **Two texts cut at the Owner's word (D166):** the first-run subtitle, and the status bar's browser-storage line —
+    the bar now shows nothing at all with no chart open. The warning it carried already sits in the confirm.
+  - **Two fidelity gaps a screenshot caught, invisible to every DOM assertion:** Undo and Redo were drawn on the
+    genuine first run, and a disabled Generate footer sat in the inspector. No design screen draws either there.
+  - **Verified:** Playwright 317 passed, Vitest 1061 passed (8 skipped), tsc/eslint/docs-lint clean. Deployed as
+    e95fe99; live probes confirm both texts gone, the card's accent border and 6% wash, and the readout string
+    character-for-character. 41 containers before and after, all 37 vhosts identical to the pre-deploy baseline.
+  - **One self-inflicted detour worth the record:** a hand-started `next start` without `PROCESSOR_URL` was silently
+    adopted by `reuseExistingServer`, turning a full suite into 85 failures. Now a rule in HANDOVER.
+  - **Condensed from HANDOVER:** the start-screen and confirm rules, two lines, to make room for that rule.
+  - **Next:** the Owner's sign-off. G-045 stays ACTIVE until it is logged (OPERATIONS.md §5).
 - 2026-09-18 — **One disabled look per control shape, and a start screen that touches nothing.**
   - **The Owner's test was appearance, not attributes.** Three disabled treatments had grown side by side (40%, 50%,
     and none at all on the zoom controls) and eight disabled controls still lit under the pointer. `app/components/ui.tsx`
