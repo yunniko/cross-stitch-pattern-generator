@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-18 at f1cfa8b (G-045: the start screen's accent marks one chosen way in, deployed and verified live)
+Last verified: 2026-09-18 at b6a08ea (G-046 M1: every wall to larger canvases measured; production unchanged at f1cfa8b)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -74,14 +74,14 @@ the unit tests, because the worker bundle is git-ignored and the pool, preview a
 and 7.5 s Crisp, down from 7.7 s and 42.7 s; at 1000 stitches / 64 colors, 4.9 s and 6.8 s. In the browser at 1000
 stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no main-thread freeze. Enhancing a
 4000×3000 photo takes 1.9–2.2 s, above G-032's 1.5 s target. The server is ~3.4× slower per core (D149), and a
-1000-stitch A4 export there takes about 70 s.
+1000-stitch A4 export there took 127.7 s on 2026-09-18, against its 150 s deadline (G-046 M1).
 
 **Known limitations**:
 - Crisp takes about 2.6× Standard's time on a 12 MP photo (7.5 s against 2.9 s), because every cell
   gets the two-mode fit (D132); it falls back to Standard for thin lines, junctions and shading (D096).
 - **Export all and the Pattern Keeper PDF fail on charts near 1000 stitches** with a worker JS-heap OOM: the PDF
-  adapter keeps three operators per cell across 154 pages and frees none until the document is saved. The growth is
-  unbounded, so a larger heap only delays it. Both worked in the browser. `PROCESSOR_WORKER_HEAP_MB` reproduces it
+  adapter keeps three operators per cell across 154 pages and frees none until the document is saved. It needs about
+  2.5 KB of heap a cell, 1.68 GB at 1000 against the container's 1048 MB default heap (G-046 M1). Both worked in the browser. `PROCESSOR_WORKER_HEAP_MB` reproduces it
   on any machine; batching same-colour runs is the fix not yet made (D155).
 - At 1000 stitches chart actions stay under 100 ms, but 4× CPU throttling still reaches 480 ms (G-036). Generation
   and every export but the editable save need the server, so they stop working offline or during an outage (G-034).
@@ -264,8 +264,8 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
 - The export font and stitch texture travel with the bundle: `npm run build:processor` copies them into
   `dist/processor/assets`, so `dist/processor` runs anywhere. The image carries no fonts of its own, and without a
   registered one every measured text width is zero (D153).
-- Paginated exports (A4, PDF) get their own deadline, not a single image's: a 1000-stitch A4 export takes about 70 s
-  and was being killed at 45 s (`processor/job-protocol.ts`, `exportDeadlineFor`).
+- Paginated exports (A4, PDF) get their own deadline, not a single image's: a 1000-stitch A4 export takes 127.7 s of
+  its 150 s (measured 2026-09-18), and was once killed at 45 s (`processor/job-protocol.ts`, `exportDeadlineFor`).
 - The Origin check compares canonical origins: `localhost`, `127.0.0.1` and `[::1]` on one scheme and port are
   one site, while scheme and port still separate origins and an unparseable origin is dropped rather than
   compared. `APP_URL` has no default, so leaving it unset trusts only the origin a request arrived at (D156).
@@ -285,7 +285,7 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
 - G-034 is signed off (2026-09-18) and archived in `docs/goals-archive.md`. The one acceptance criterion not met is Export all at 1000 stitches, shipped as a documented limitation (D155): Export all and the Pattern Keeper PDF fail on charts near 1000 stitches. The fix not yet made is batching same-colour runs in the PDF adapter, which would cut both memory and file size. No goal is open for it (Owner, 2026-09-18).
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
-- G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.
+- G-046 (larger canvases) is ACTIVE: M1 measured every wall (`docs/reviews/2026-09-18-larger-canvas-walls.md`), candidate cap 1500 — and found the editor's zoom already tops out at 8 px a stitch at today's 1000. M2, the PDF's operator batching after giving five auxiliary Playwright configs the processor, awaits the Owner. G-030 (public launch) is a far-future draft; G-023 (Rust) lives on as G-046's conditional M5.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log

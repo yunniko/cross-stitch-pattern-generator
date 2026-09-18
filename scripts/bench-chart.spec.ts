@@ -2,9 +2,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type CDPSession, type Page } from "@playwright/test";
+import { MAX_STITCHES } from "../lib/types";
 
 /**
- * Large-chart interaction benchmark: `npm run bench:chart` (G-036 criterion 1). On a 1000-stitch, 64-colour chart it
+ * Large-chart interaction benchmark: `npm run bench:chart` (G-036 criterion 1). On a SIZE-stitch (default 1000), 64-colour chart it
  * times what the user does after generating: the chart shown, a saved project reopened, zoom steps, every view mode,
  * highlight on and off, a rectangle selection drag, and scrolling. Each operation is timed from the action until the
  * render it triggers has finished and repeated RUNS times (default 3). Reported per operation: the longest main-thread
@@ -17,6 +18,12 @@ import { test, type CDPSession, type Page } from "@playwright/test";
 const RUNS = Number(process.env.RUNS ?? 3);
 const THROTTLE = Number(process.env.CPU_THROTTLE ?? 1);
 const PROFILE = process.env.PROFILE === "1";
+// G-046: the size is a knob, so one bench measures any cap; the custom-size field's `max` follows the app's own.
+const SIZE = Number(process.env.SIZE ?? 1000);
+const SIZE_FIELD = `input[type="number"][max="${MAX_STITCHES}"]`;
+// A step that can never succeed once sat silent for the whole hour this allowed. Every operation now logs as it
+// lands, and the default cap is twenty minutes.
+const TIMEOUT_MS = Number(process.env.BENCH_TIMEOUT_MS ?? 1_200_000);
 const OUT_DIR = path.join(os.tmpdir(), "cross-stitch-bench-chart");
 const STATS = /\d+ × \d+, [\d,]+ stitches, \d+ colors/;
 
@@ -181,8 +188,8 @@ async function waitForZoomRendered(page: Page, before: { cellSize: string; revis
     .catch(() => false);
 }
 
-test("large-chart operations at 1000 stitches", async ({ page }, testInfo) => {
-  test.setTimeout(3_600_000);
+test(`large-chart operations at ${SIZE} stitches`, async ({ page }, testInfo) => {
+  test.setTimeout(TIMEOUT_MS);
   await installInstrumentation(page);
   await page.goto("/");
   const jpeg = await syntheticJpeg(page);
@@ -193,11 +200,12 @@ test("large-chart operations at 1000 stitches", async ({ page }, testInfo) => {
 
   await page.getByLabel("Image").setInputFiles(jpeg);
   await page.waitForFunction(() => /Loaded: photo\.jpg/.test(document.body.textContent ?? ""), undefined, { timeout: 120_000 });
-  await page.locator('input[type="number"][max="1000"]').first().fill("1000");
+  await page.locator(SIZE_FIELD).first().fill(String(SIZE));
   await page.locator("#color-count").fill("64");
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await page.getByText(STATS).waitFor({ timeout: 900_000 });
   await afterPaint(page);
+  console.log(`[${SIZE} st] generated and shown`);
 
   const [download] = await Promise.all([
     page.waitForEvent("download", { timeout: 300_000 }),
@@ -206,25 +214,26 @@ test("large-chart operations at 1000 stitches", async ({ page }, testInfo) => {
       await page.getByRole("button", { name: "Export", exact: true }).click();
     })(),
   ]);
-  const saved = testInfo.outputPath("pattern-1000.json");
+  const saved = testInfo.outputPath(`pattern-${SIZE}.json`);
   await download.saveAs(saved);
 
   const results: Record<string, Sample[]> = {};
-  const record = (name: string, sample: Sample) => (results[name] ??= []).push(sample);
+  const record = (name: string, sample: Sample) => {
+    console.log(`[${SIZE} st] ${name}: ${Math.round(sample.latencyMs)} ms, longest task ${sample.longestTaskMs ?? "n/a"} ms`);
+    (results[name] ??= []).push(sample);
+  };
   const main = page.getByRole("main");
   const scroller = page.getByTestId("chart-frame").locator("xpath=ancestor::div[contains(@class,'overflow-auto')][1]");
-  const legendRows = page.locator('[data-testid="legend-color-row"]');
 
   for (let run = 0; run < RUNS; run++) {
     // Chart shown after (re)generating with the same settings.
+    // Regenerate lives in the Photo tab's footer (G-045), and generating moves the inspector to Threads, so the button
+    // is gone once it has worked; the chart's next completed render is the signal instead.
+    await page.getByRole("tab", { name: "Photo" }).click();
+    const beforeRegen = (await chartState(page)).revision;
     record(
       "chart shown after regenerating",
-      await timed(page, client, () => page.getByRole("button", { name: "Regenerate" }).click(), async () => {
-        await page.waitForFunction(() => {
-          const button = Array.from(document.querySelectorAll("button")).find((b) => /^(Generat|Regenerat)/.test(b.textContent ?? ""));
-          return !!button && !button.disabled && !/…/.test(button.textContent ?? "");
-        }, undefined, { polling: 16, timeout: 900_000 });
-      })
+      await timed(page, client, () => page.getByRole("button", { name: "Regenerate" }).click(), () => waitForScene(page, beforeRegen))
     );
 
     // Zoom in until the cell size stops growing, one row per step, then back out.
@@ -297,12 +306,13 @@ test("large-chart operations at 1000 stitches", async ({ page }, testInfo) => {
     await page.keyboard.press("1");
     await waitForScene(page, beforeColor);
 
-    // Highlight one colour, then turn it off again.
-    await page.getByRole("button", { name: "Highlight" }).click();
+    // Light one thread, then put the light out. Highlight became Isolate in G-045 (D158): lighting a thread turns
+    // Isolate on and putting out the last light turns it off, so this is G-036's view change reached a new way.
+    const light = page.getByRole("button", { name: /^Show only / }).first();
     const beforeOn = (await chartState(page)).revision;
-    record("highlight on (one colour)", await timed(page, client, () => legendRows.nth(0).click(), () => waitForScene(page, beforeOn)));
+    record("isolate on (one thread lit)", await timed(page, client, () => light.click(), () => waitForScene(page, beforeOn)));
     const beforeOff = (await chartState(page)).revision;
-    record("highlight off", await timed(page, client, () => legendRows.nth(0).click(), () => waitForScene(page, beforeOff)));
+    record("isolate off", await timed(page, client, () => light.click(), () => waitForScene(page, beforeOff)));
 
     // A rectangle selection drag across part of the view.
     await page.getByRole("button", { name: "Select" }).click();
@@ -339,24 +349,27 @@ test("large-chart operations at 1000 stitches", async ({ page }, testInfo) => {
     // A saved project reopened on a fresh page.
     await page.goto("/");
     await afterPaint(page);
+    let reopenBefore = -1;
     record(
       "saved project reopened",
       await timed(
         page,
         client,
+        // The file menu left the rail (D162); the input keeps its name, so the file goes straight to it. The stats
+        // line cannot be the signal: the autosave has already restored this same chart, so it is showing before the
+        // file is even read. The next completed render is.
         async () => {
-          const chooser = page.waitForEvent("filechooser");
-          await page.getByRole("button", { name: "Open pattern…" }).click();
-          await (await chooser).setFiles(saved);
+          reopenBefore = (await page.getByTestId("chart-frame").count()) ? (await chartState(page)).revision : -1;
+          await page.getByLabel("Open pattern file").setInputFiles(saved);
         },
-        () => page.getByText(STATS).waitFor({ timeout: 300_000 })
+        () => waitForScene(page, reopenBefore)
       )
     );
   }
 
   const median = (v: number[]) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)];
   const fmt = (v: number | null) => (v === null ? "unsupported" : `${Math.round(v)} ms`);
-  const lines = [`1000 st / 64 col, ${RUNS} runs, CPU throttle ${THROTTLE}×, Chromium ${page.context().browser()?.version() ?? "?"}`];
+  const lines = [`${SIZE} st / 64 col, ${RUNS} runs, CPU throttle ${THROTTLE}×, Chromium ${page.context().browser()?.version() ?? "?"}`];
   for (const [name, samples] of Object.entries(results)) {
     const tasks = samples.map((s) => s.longestTaskMs);
     const longest = tasks.includes(null) ? null : Math.max(...(tasks as number[]));
@@ -371,5 +384,71 @@ test("large-chart operations at 1000 stitches", async ({ page }, testInfo) => {
   console.log(lines.join("\n"));
   mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(path.join(OUT_DIR, `results-throttle-${THROTTLE}.json`), JSON.stringify(results, null, 2));
-  writeFileSync(path.join(OUT_DIR, `summary-throttle-${THROTTLE}.txt`), lines.join("\n") + "\n");
+  writeFileSync(path.join(OUT_DIR, `summary-${SIZE}st-throttle-${THROTTLE}.txt`), lines.join("\n") + "\n");
+});
+
+
+/**
+ * G-046: the undo budget. Every discrete edit pushes a full pattern snapshot, capped at 50 (use-undo-history.ts). Paints
+ * with the empty brush, so each click on a filled cell changes exactly one cell and pushes exactly one entry, and reads
+ * memory after a forced collection every ten edits: it must plateau at 50, and ten edits past that prove trimming
+ * releases. A Uint8Array's bytes live in an ArrayBuffer backing store *outside* the V8 heap, so `usedSize` alone
+ * cannot see the snapshots; `backingStorageSize` can. Then ten undos, each timed to the completed render.
+ */
+test(`undo memory at ${SIZE} stitches`, async ({ page }) => {
+  test.setTimeout(TIMEOUT_MS);
+  await page.goto("/");
+  const jpeg = await syntheticJpeg(page);
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(jpeg);
+  await page.waitForFunction(() => /Loaded: photo\.jpg/.test(document.body.textContent ?? ""), undefined, { timeout: 120_000 });
+  await page.locator(SIZE_FIELD).first().fill(String(SIZE));
+  await page.locator("#color-count").fill("64");
+  await page.getByRole("button", { name: "Generate pattern" }).click();
+  await page.getByText(STATS).waitFor({ timeout: 900_000 });
+  await afterPaint(page);
+
+  const cdp = await page.context().newCDPSession(page);
+  const memory = async () => {
+    await cdp.send("HeapProfiler.collectGarbage");
+    const u = (await cdp.send("Runtime.getHeapUsage")) as { usedSize: number; backingStorageSize?: number };
+    const mbOf = (n: number | undefined) => (n === undefined ? "n/a" : (n / 1024 / 1024).toFixed(1));
+    return `JS heap ${mbOf(u.usedSize)} MB, ArrayBuffer stores ${mbOf(u.backingStorageSize)} MB`;
+  };
+
+  // Generating moves the inspector to Threads; the empty brush lives in its list (and is echoed in the top panel).
+  await page.getByRole("tabpanel").getByText("Empty (no stitch)").click();
+  const frame = page.getByTestId("chart-frame");
+  const view = (await frame.locator("xpath=ancestor::div[contains(@class,'overflow-auto')][1]").boundingBox())!;
+  const chart = (await frame.boundingBox())!;
+  const cell = Number((await frame.getAttribute("data-cell-size")) ?? 4);
+  // The chart sits centred in its well, so aim inside the part of it that is actually on screen.
+  const left = Math.max(chart.x, view.x) + cell;
+  const top = Math.max(chart.y, view.y) + cell;
+  const right = Math.min(chart.x + chart.width, view.x + view.width) - cell;
+  const perRow = Math.max(1, Math.floor((right - left) / (cell * 2)));
+
+  const lines = [`undo memory at ${SIZE} st, cell ${cell} px, after a forced collection:`];
+  lines.push(`  0 edits: ${await memory()}`);
+  for (let i = 0; i < 60; i++) {
+    const before = (await chartState(page)).revision;
+    await page.mouse.click(left + (i % perRow) * cell * 2 + cell / 2, top + Math.floor(i / perRow) * cell * 2 + cell / 2);
+    await waitForScene(page, before);
+    await page.waitForTimeout(350); // past the double-click interval, so no two clicks read as one gesture (D138)
+    if ((i + 1) % 10 === 0) lines.push(`  ${i + 1} edits: ${await memory()}`);
+  }
+
+  const undoMs: number[] = [];
+  for (let i = 0; i < 10; i++) {
+    const before = (await chartState(page)).revision;
+    const t0 = Date.now();
+    await page.keyboard.press("Control+z");
+    await waitForScene(page, before);
+    undoMs.push(Date.now() - t0);
+  }
+  undoMs.sort((a, b) => a - b);
+  lines.push(`  undo, to the completed render: median ${undoMs[5]} ms, worst ${undoMs[9]} ms (10 undos)`);
+  console.log(lines.join("\n"));
+  mkdirSync(OUT_DIR, { recursive: true });
+  writeFileSync(path.join(OUT_DIR, `undo-memory-${SIZE}.txt`), lines.join("\n") + "\n");
 });

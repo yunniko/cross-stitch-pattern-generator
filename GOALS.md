@@ -53,10 +53,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   support, not a number chosen in advance.
 
 **Milestones** (M5 conditional — do not start it unless M1–M4 miss the target):
-- [ ] M1 — Measure where each wall actually sits, at 1000 stitches and above: pipeline wall time and
+- [x] M1 — Measure where each wall actually sits, at 1000 stitches and above: pipeline wall time and
   peak RSS by D149's capacity-probe method, export memory, wire payload size and client parse cost, and
   the editor's undo and drawing budget. Produces a dated review under `docs/reviews/` and a candidate
-  cap. No production code changes.
+  cap. No production code changes. Done 2026-09-18.
 - [ ] M2 — The export memory wall: batch same-colour runs in the PDF adapter so operators stay bounded
   (D155's named fix), so the PDF and Export all succeed at 1000 stitches; export parity re-run.
 - [ ] M3 — The generation speed win: the ICM candidate-set reduction (neighbour labels plus the
@@ -68,6 +68,19 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   single-threaded native and WASM. Numbers decide whether G-023 revives; no service, no deploy.
 
 **Progress log** (newest first):
+- 2026-09-18 — **M1 done: every wall measured, candidate cap 1500** (`docs/reviews/2026-09-18-larger-canvas-walls.md`).
+  - **The walls, in the order they bite:** the PDF (2.5 KB of heap a cell, 1.68 GB at 1000 — broken today); A4 inside
+    its 150 s deadline (127.7 s at 1000 on the server, so about 1090 stitches at most); the editor's zoom (8 px a
+    stitch at most at 1000, none at 2000); generation (2000 Crisp 54.7 s against 45 s); the realistic preview's native
+    memory (1992 MB at 2000); OXS (995 MB of heap at 2000); and every size validator.
+  - **Not walls:** the wire (6.4 MB, under 0.2 s to parse at 2000), the undo history (143 MB, undo within 91 ms at
+    2000) and drawing (longest task 91 ms at 2000).
+  - **How:** D149's own method on the host in capped containers; exports inside the production processor image; the
+    editor in a throwaway build with the cap raised, never committed. Case 0 reproduced D149's laptop figure exactly.
+  - **Tooling:** `bench:chart` could not finish at any size since G-034 and G-045; fixed, with the undo budget added.
+    The capacity probe gained cases above the cap and a wire leg; a new export probe runs each export in its own
+    process. The other five auxiliary Playwright configs still start no processor — proposed as M2's first task.
+  - **Next:** Owner check-in, then M2.
 - 2026-09-18 — Goal created from the Owner's Rust question and this session's assessment of the
   deployed code (`42aab39`). The assessment's figures are quoted from D149,
   `docs/reviews/2026-09-17-server-processing-capacity.md`, D155 and the G-035 stage tables; the 2–3×

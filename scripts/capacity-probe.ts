@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
 import { buildPattern } from "@/lib/pipeline/pattern";
 import { makePhotoLikeBuffer } from "../tests/unit/helpers/fixtures";
 import type { EdgeMode } from "@/lib/pipeline/pattern";
@@ -28,6 +29,12 @@ const CASES: Case[] = [
   { label: "1000 st / 64 col (1500x1000), Crisp", width: 1500, height: 1000, stitches: 1000, colors: 64, edgeMode: "crisp" },
   { label: "100 st / 16 col (4000x3000), Standard", width: 4000, height: 3000, stitches: 100, colors: 16, edgeMode: "standard" },
   { label: "100 st / 16 col (4000x3000), Crisp", width: 4000, height: 3000, stitches: 100, colors: 16, edgeMode: "crisp" },
+  // G-046 M1: above today's cap, keeping case 0's shape (3:2) and its 1.5 source pixels per stitch.
+  { label: "1250 st / 64 col (1875x1250), Standard", width: 1875, height: 1250, stitches: 1250, colors: 64, edgeMode: "standard" },
+  { label: "1500 st / 64 col (2250x1500), Standard", width: 2250, height: 1500, stitches: 1500, colors: 64, edgeMode: "standard" },
+  { label: "1500 st / 64 col (2250x1500), Crisp", width: 2250, height: 1500, stitches: 1500, colors: 64, edgeMode: "crisp" },
+  { label: "2000 st / 64 col (3000x2000), Standard", width: 3000, height: 2000, stitches: 2000, colors: 64, edgeMode: "standard" },
+  { label: "2000 st / 64 col (3000x2000), Crisp", width: 3000, height: 2000, stitches: 2000, colors: 64, edgeMode: "crisp" },
 ];
 
 /** Samples RSS while `fn` runs, since peak use sits inside the call, not at its edges. */
@@ -99,6 +106,28 @@ for (const c of [CASES[only]]) {
     `result ${value.width}x${value.height}, ${value.palette.length} colours`;
   console.log(line);
   rows.push(line);
+
+  const json = serializePattern(value);
+  const jsonStart = process.hrtime.bigint();
+  JSON.parse(json);
+  const jsonMs = Number(process.hrtime.bigint() - jsonStart) / 1e6;
+  let validated: string;
+  const parseStart = process.hrtime.bigint();
+  try {
+    deserializePattern(json);
+    validated = `parse + validate ${(Number(process.hrtime.bigint() - parseStart) / 1e6).toFixed(0)} ms`;
+  } catch (err) {
+    // Above today's cap the browser's own deserializer refuses the chart: one of the walls M4 has to move.
+    validated = `refused by the deserializer (${(err as Error).message.slice(0, 60)}...)`;
+  }
+  console.log(
+    `  wire: ${(Buffer.byteLength(json) / 1024 / 1024).toFixed(1)} MB of JSON for ${value.width * value.height} cells; ` +
+      `JSON.parse ${jsonMs.toFixed(0)} ms; ${validated}`
+  );
+
+  // `--dump <file>` keeps the result as input for the export probe, so exports are measured on a real generated chart.
+  const dump = process.argv.indexOf("--dump");
+  if (dump !== -1) fs.writeFileSync(process.argv[dump + 1], json);
 }
 
 console.log("");
