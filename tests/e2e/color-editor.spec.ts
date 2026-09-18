@@ -111,7 +111,7 @@ test("Escape and Cancel return the color to how it was when opened; Done and a c
 
   await reopen(keptByDone);
   const keptByOutsideClick = await pickAnother();
-  await page.getByRole("heading", { name: "Cross-Stitch Pattern Generator" }).click();
+  await page.getByTestId("autosave-status").click(); // an inert spot outside the editor
   await expect(editorPanel(page)).toHaveCount(0);
   await expect(page.getByRole("button", { name: `Edit ${keptByOutsideClick}`, exact: true })).toBeVisible();
 });

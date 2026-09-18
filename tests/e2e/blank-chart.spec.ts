@@ -16,6 +16,7 @@ function collectErrors(page: Page): string[] {
 
 async function createBlankChart(page: Page, width: number, height: number) {
   await page.goto("/");
+  await page.getByRole("button", { name: "File actions" }).click();
   await page.getByRole("button", { name: "New blank chart…" }).click();
   await page.getByLabel("Width in stitches").fill(String(width));
   await page.getByLabel("Height in stitches").fill(String(height));
@@ -31,7 +32,9 @@ test("a blank chart is created at the asked size, with no photo settings and no 
   await expect(page.getByText("Pattern size (longer side)"), "no regenerate panel at all (G-042)").toHaveCount(0);
   await expect(page.getByTestId("empty-palette-note")).toBeVisible();
   await expect(page.getByRole("button", { name: /Generate pattern|Regenerate/ })).toHaveCount(0);
-  await expect(page.getByLabel("Image"), "a photo can still be chosen, from the top bar").toBeVisible();
+  await page.getByRole("button", { name: "File actions" }).click();
+  await expect(page.getByRole("button", { name: "Choose a photo…" }), "a photo can still be chosen, from the file menu on the rail").toBeEnabled();
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "Crisp", exact: true })).toHaveCount(0);
   await expect(page.getByRole("radio", { name: /Small/ })).toHaveCount(0);
   expect(errors).toEqual([]);
@@ -39,6 +42,7 @@ test("a blank chart is created at the asked size, with no photo settings and no 
 
 test("the size dialog shows the finished fabric size and refuses a size outside the limits", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "File actions" }).click();
   await page.getByRole("button", { name: "New blank chart…" }).click();
   await page.getByLabel("Width in stitches").fill("140");
   await page.getByLabel("Height in stitches").fill("70");

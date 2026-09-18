@@ -88,6 +88,7 @@ test("the upper-left half corner mirror gives 8-fold symmetry on a square canvas
   );
   await page.goto("/");
   const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "File actions" }).click();
   await page.getByRole("button", { name: "Open pattern…" }).click();
   await (await chooser).setFiles(file);
   await expect(page.getByTestId("chart-frame")).toBeVisible({ timeout: 15_000 });

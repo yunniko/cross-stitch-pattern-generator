@@ -76,10 +76,12 @@ test("Crisp+ generates a pattern with a legend and no errors, and the choice sur
 
   expect(names.length).toBeGreaterThan(0);
   await expect(page.getByText(/50 × \d+, [\d,]+ stitches, \d+ colors/)).toBeVisible();
+  await page.getByRole("tab", { name: "Photo" }).click();
   await expect(page.getByRole("button", { name: "Crisp", exact: true })).toHaveAttribute("aria-pressed", "false");
   expect(errors).toEqual([]);
 
   await page.reload();
+  await page.getByRole("tab", { name: "Photo" }).click();
   await expect(page.getByRole("button", { name: "Crisp+", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 

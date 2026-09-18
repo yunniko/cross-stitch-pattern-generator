@@ -285,12 +285,17 @@ export default function Workspace() {
     select.release();
   }
 
-  /** Lights or unlights one thread for Isolate. Turning the first one on turns Isolate on, so the eye does something visible. */
+  /**
+   * Lights or unlights one thread for Isolate. Turning the first one on turns Isolate on, so the eye does something
+   * visible; putting the last one out turns it off again, so the control never claims to be isolating nothing (D158).
+   */
   function toggleLit(index: number) {
     setLitColorIndices((prev) => {
       const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else {
+      if (next.has(index)) {
+        next.delete(index);
+        if (next.size === 0) setIsolate(false);
+      } else {
         next.add(index);
         setIsolate(true);
       }
@@ -323,6 +328,8 @@ export default function Workspace() {
 
   return (
     <div className="flex h-screen bg-app font-sans text-ink">
+      {/* 1b draws no visible title, but the document still needs one heading: for assistive technology, and as the witness that the app booted. */}
+      <h1 className="sr-only">Cross-Stitch Pattern Generator</h1>
       <ToolRail
         activeTool={activeTool}
         disabled={!pattern}

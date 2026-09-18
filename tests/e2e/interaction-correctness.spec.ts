@@ -34,7 +34,7 @@ test("Space with a floating selection merges it where it currently is, not where
   await page.mouse.down();
   await page.mouse.move(box.x + cell * 5.5, box.y + cell * 5.5, { steps: 4 });
   await page.mouse.up();
-  await expect(page.getByRole("button", { name: "Deselect" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
   await page.mouse.move(box.x + cell * 4, box.y + cell * 4);
   await page.mouse.down();
   await page.mouse.move(box.x + cell * 14, box.y + cell * 4, { steps: 6 });
@@ -47,29 +47,29 @@ test("Space with a floating selection merges it where it currently is, not where
   await expect(page.getByRole("button", { name: "Pan" })).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.up("Space");
   await expect(page.getByRole("button", { name: "Select", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: "Deselect" })).toBeDisabled(); // merged
+  await expect(page.getByRole("button", { name: "Apply here" })).toBeDisabled(); // merged
   await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled(); // ...as one history step
 });
 
 test("Space on a focused button activates the button and never switches to Pan, even while held (B5)", async ({ page }) => {
   await generateSmallPattern(page);
   const panButton = page.getByRole("button", { name: "Pan" });
-  await page.getByRole("button", { name: "Options…" }).focus();
+  await page.getByRole("tab", { name: "Chart" }).focus();
   await page.keyboard.down("Space");
   // Pre-fix: the global handler claimed every Space keydown and flipped the
   // tool to Pan for as long as the key was held.
   await expect(panButton).toHaveAttribute("aria-pressed", "false");
   await page.keyboard.up("Space");
-  await expect(page.getByText("Saved automatically in this browser.")).toBeVisible(); // the Options panel opened: the button itself fired
+  await expect(page.getByText("Saved automatically in this browser.")).toBeVisible(); // the Chart pane opened: the control itself fired
   await expect(panButton).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByRole("button", { name: "Brush" })).toHaveAttribute("aria-pressed", "true");
 
-  // Same for a focused view-mode radio: Space checks it, nothing pans.
-  await page.getByRole("radio", { name: "Black & white" }).focus();
+  // Same for a focused view-mode chip: Space presses it, nothing pans.
+  await page.getByRole("button", { name: "B&W", exact: true }).focus();
   await page.keyboard.down("Space");
   await expect(panButton).toHaveAttribute("aria-pressed", "false");
   await page.keyboard.up("Space");
-  await expect(page.getByRole("radio", { name: "Black & white" })).toBeChecked();
+  await expect(page.getByRole("button", { name: "B&W", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("Space with focus on the page body still pans, and releasing restores the tool", async ({ page }) => {
@@ -99,6 +99,7 @@ test("a 50-cell brush stroke on a 1000-stitch pattern completes within a bounded
   test.slow();
   await page.goto("/");
   const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "File actions" }).click();
   await page.getByRole("button", { name: "Open pattern…" }).click();
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles({ name: "large_editable.json", mimeType: "application/json", buffer: Buffer.from(largePatternJson(1000, 625, 16)) });

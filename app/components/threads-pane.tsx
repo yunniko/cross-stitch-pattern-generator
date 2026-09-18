@@ -158,7 +158,7 @@ export function ThreadRows({
                 </span>
               </span>
               <span className="flex shrink-0 flex-col items-end gap-px font-mono text-[11px]">
-                <span className="text-muted">{color.count}</span>
+                <span data-testid="legend-color-count" className="text-muted">{color.count}</span>
                 <span className="text-faint" title="Estimated floss needed, biased to overestimate -- see docs/domain-reference.md">
                   {formatSkeinEstimate(color.count, aidaCount)}
                 </span>

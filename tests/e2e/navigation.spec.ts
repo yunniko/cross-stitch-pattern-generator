@@ -11,15 +11,6 @@ async function generateSmallPattern(page: import("@playwright/test").Page) {
   await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
 }
 
-test("the Preview/navigator dock renders the whole pattern at true 1px-per-stitch scale (G-012)", async ({ page }) => {
-  await generateSmallPattern(page);
-
-  const navigatorCanvas = page.getByRole("complementary").filter({ hasText: "Navigator" }).locator("canvas");
-  await expect(navigatorCanvas).toBeVisible();
-  // 50-stitch "Small" preset on this landscape fixture -> 50 wide, not scaled.
-  await expect(navigatorCanvas).toHaveAttribute("width", "50");
-});
-
 test("zoom controls change the Image window's on-screen size without changing the pattern (G-012)", async ({ page }) => {
   await generateSmallPattern(page);
 
@@ -187,22 +178,29 @@ test("every view mode shares one zoom and scroll position, and the realistic vie
   const referenceScroll = await scrollOf();
   expect(referenceScroll).toEqual({ left: 120, top: 90 });
 
-  const modes: Array<[string, string]> = [
-    ["Black & white", "bw"],
-    ["Realistic preview", "realistic"],
-    ["Grid + photo", "photo"],
-    ["Original photo", "photo-only"],
-    ["Color", "color"],
-  ];
-  for (const [label, mode] of modes) {
-    await page.getByRole("radio", { name: label, exact: true }).check();
+  const chip = (label: string) => page.getByRole("button", { name: label, exact: true });
+  const photoToggle = page.getByRole("button", { name: "Show the photo behind the chart" });
+  /** 1b: three chips select a chart view outright; the Photo toggle cycles photo -> photo-only -> color. */
+  async function showMode(mode: string) {
+    if (mode === "bw") await chip("B&W").click();
+    else if (mode === "realistic") await chip("Stitched").click();
+    else if (mode === "color") await chip("Color").click();
+    else {
+      await chip("Color").click();
+      await photoToggle.click();
+      if (mode === "photo-only") await photoToggle.click();
+    }
+  }
+
+  for (const mode of ["bw", "realistic", "photo", "photo-only", "color"]) {
+    await showMode(mode);
     await expect(canvas).toHaveAttribute("data-view-mode", mode);
-    expect(await canvas.boundingBox(), label).toEqual(referenceBox);
-    expect(await scrollOf(), label).toEqual(referenceScroll);
+    expect(await canvas.boundingBox(), mode).toEqual(referenceBox);
+    expect(await scrollOf(), mode).toEqual(referenceScroll);
   }
 
   // The realistic preview renders asynchronously; once it lands, the canvas holds stitches, not only the backdrop.
-  await page.getByRole("radio", { name: "Realistic preview", exact: true }).check();
+  await showMode("realistic");
   await expect
     .poll(() =>
       page.getByRole("main").locator("canvas").evaluate((el: HTMLCanvasElement) => {
@@ -228,8 +226,12 @@ test("the Pan tool scrolls in the realistic preview and the original photo witho
   const centerX = scrollerBox.x + scrollerBox.width / 2;
   const centerY = scrollerBox.y + scrollerBox.height / 2;
 
-  for (const label of ["Realistic preview", "Original photo"]) {
-    await page.getByRole("radio", { name: label, exact: true }).check();
+  for (const label of ["realistic", "photo-only"]) {
+    await page.getByRole("button", { name: label === "realistic" ? "Stitched" : "Color", exact: true }).click();
+    if (label === "photo-only") {
+      await page.getByRole("button", { name: "Show the photo behind the chart" }).click();
+      await page.getByRole("button", { name: "Show the photo behind the chart" }).click();
+    }
     const before = await scroller.evaluate((el) => ({ left: el.scrollLeft, top: el.scrollTop }));
     await page.mouse.move(centerX, centerY);
     await page.mouse.down();
@@ -247,9 +249,9 @@ test("Grid + photo mode renders the symbol grid over the source photo without er
 
   await generateSmallPattern(page);
 
-  const photoRadio = page.getByRole("radio", { name: "Grid + photo" });
+  const photoRadio = page.getByRole("button", { name: "Show the photo behind the chart" });
   await expect(photoRadio).toBeEnabled(); // a freshly generated pattern always has an embedded sourceImage
-  await photoRadio.check();
+  await photoRadio.click();
 
   await expect(page.getByRole("main").locator("canvas")).toBeVisible();
   expect(errors).toEqual([]);

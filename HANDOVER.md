@@ -24,9 +24,10 @@ Export all and the Pattern Keeper PDF fail on charts near 1000 stitches, shipped
   Cosmo or Anchor palettes, and Standard, Crisp or Crisp+ edges — on the processor, reporting progress, a queue
   position while it waits, and cancellation. A chart can also start blank: every stitch empty, no colours and no
   photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
-- Editing: brush (double-click fills a region as one undo step when the Options switch is on, D138, D146),
+- Editing: brush (double-click fills a region as one undo step when the Chart pane's switch is on, D138, D146),
   8-connected fill, symmetry on up to four axes and quick mirror (D137), rectangle select with copy, paste, move,
-  flip, rotate, crop and cancel (D147), pan, zoom, highlight; merge, recolor, rename, symbol swap, add color, empty
+  flip, rotate, crop, "Apply here" and "Discard" (D147, D148), pan, zoom; Isolate dims every thread but the lit
+  ones and stays on while another tool is active (D158); merge, recolor, rename, symbol swap, add color, empty
   stitches, canvas resize, and one undo history covering regeneration.
 - Color editor: opens under its legend row on the color's remembered thread swatch (D122), marked and scrolled into
   view; hovering or focusing a swatch shows an Okhsl comparison (D123); picks apply at once and the editor stays
@@ -71,17 +72,18 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
 - At 1000 stitches chart actions stay under 100 ms, but 4× CPU throttling still reaches 480 ms (G-036). Generation
   and every export but the editable save need the server, so they stop working offline or during an outage (G-034).
   The PDF has no bold face; whether µ (which extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097).
-  Highlight does nothing in the realistic preview (D028), and contour refinement exists but isn't adopted (D055).
+  Isolate does nothing in the realistic preview (D028), and contour refinement exists but isn't adopted (D055).
 
 ## How things fit together
 
 - **Stack**: Next.js 16 App Router (`output: "standalone"`), React 19, TypeScript strict, Tailwind 4, Vitest 4,
   Playwright 1.62, Node 22. Runtime deps: pdf-lib with fontkit, jszip, react-colorful, color-name-list,
   @napi-rs/canvas (server decode and preview encoding, D150).
-- **UI shell**: `app/page.tsx` renders `app/workspace.tsx`, which owns only undo history, cross-dock state and
-  pointer dispatch (pan → move → select → brush). Behavior lives in `app/hooks/`: options, restore, source
-  image, generation, pan/zoom, chart renderer, canvas tools, exports, shortcuts. Docks live in
-  `app/components/`, with shared controls in `app/components/ui.tsx`. Tool hooks reach the renderer through a
+- **UI shell** (direction 1b, D157): `app/page.tsx` renders `app/workspace.tsx`, which owns only undo history,
+  cross-pane state and pointer dispatch (pan → move → select → brush). Behavior lives in `app/hooks/`: options,
+  restore, source image, generation, pan/zoom, chart renderer, canvas tools, exports, shortcuts. The tool rail
+  (`app/components/tool-rail.tsx`), the context and status bars, and the inspector's Photo, Chart and Threads
+  panes live in `app/components/`, with shared controls in `app/components/ui.tsx`. Tool hooks reach the renderer through a
   ref assigned after render (D108). The chart frame (full chart size) takes layout, input and the zoom anchor;
   one canvas inside paints the visible part plus overscan (`app/chart-scene.ts`, D135, D136). Realistic and
   Original photo are view-only, where only Pan and Zoom act.
@@ -197,6 +199,11 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
   set-state-in-effect lint rule (D033).
 - E2E acts on `getByTestId("chart-frame")` and reads pixels from `main canvas` inside
   its `data-painted-rect`; export options are selected by value (D080, D085, D135).
+- The inspector mounts one pane at a time: a Photo, Chart or Threads control is absent from the DOM while another
+  tab is up, and generating or restoring a chart moves the tab to Threads. Anything reaching for such a control
+  selects its tab first — ten of G-045 M5's twenty-eight e2e failures were only this.
+- A legend row prints its stitch count bare, with the skein estimate beneath it. Read the count from the
+  `legend-color-count` testid, never by parsing the row's text: the old "123 sts" suffix is gone.
 - `npm ci --legacy-peer-deps` is required (npm arborist crash).
 - On this Windows host, stopping a background task can leave node running;
   check the process list (D096).

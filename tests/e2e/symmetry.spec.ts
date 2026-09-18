@@ -40,6 +40,7 @@ async function squarePatternFile(testInfo: import("@playwright/test").TestInfo, 
 
 async function openPattern(page: Page, file: string) {
   const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "File actions" }).click();
   await page.getByRole("button", { name: "Open pattern…" }).click();
   await (await chooser).setFiles(file);
   await expect(page.getByTestId("chart-frame")).toBeVisible({ timeout: 15_000 });
@@ -269,7 +270,7 @@ test("resizing to a non-square canvas turns the diagonals off, and undoing back 
   await openPattern(page, await squarePatternFile(testInfo, 21, { diagonal: true }));
   await expect(toggle(page, "Diagonal symmetry ↘")).toHaveAttribute("aria-pressed", "true");
 
-  await page.getByRole("button", { name: "Resize canvas…" }).click();
+  await page.getByRole("tab", { name: "Chart" }).click();
   await page.getByLabel("Right").fill("1");
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(page.getByText(/^22 × 21, /)).toBeVisible();

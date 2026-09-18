@@ -39,6 +39,7 @@ test("generate, merge two colors, undo/redo, download editable, and reopen it", 
 
   await page.goto("/");
   const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "File actions" }).click();
   await page.getByRole("button", { name: "Open pattern…" }).click();
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles(savedPath);
@@ -49,11 +50,14 @@ test("generate, merge two colors, undo/redo, download editable, and reopen it", 
 test("renaming the pattern changes every download's filename", async ({ page }) => {
   await generateSmallPattern(page);
 
+  // 1b keeps the name in the Chart pane and the exports in the Threads footer, and the inspector shows one at a time.
+  await page.getByRole("tab", { name: "Chart" }).click();
   const nameInput = page.getByLabel("Pattern name");
   await expect(nameInput).toHaveValue("sample");
   await nameInput.fill("My Cat");
   await nameInput.blur();
 
+  await page.getByRole("tab", { name: "Threads" }).click();
   const exportSelect = page.getByLabel("Export");
   const exportButton = page.getByRole("button", { name: "Export", exact: true });
 
@@ -71,6 +75,7 @@ test("renaming the pattern changes every download's filename", async ({ page }) 
 
   // Renaming is a normal, undoable history step, like every other edit.
   await page.getByRole("button", { name: "Undo" }).click();
+  await page.getByRole("tab", { name: "Chart" }).click();
   await expect(nameInput).toHaveValue("sample");
 });
 
@@ -131,6 +136,7 @@ test("regenerating (a processing-param change) is undoable like any other edit (
   await generateSmallPattern(page);
   await expect(page.getByText(/50 × \d+, [\d,]+ stitch/)).toBeVisible();
 
+  await page.getByRole("tab", { name: "Photo" }).click();
   await page.getByRole("radio", { name: "Custom" }).check();
   await page.getByRole("spinbutton").fill("30");
   await page.getByRole("button", { name: "Regenerate" }).click();

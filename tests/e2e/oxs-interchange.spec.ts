@@ -28,6 +28,7 @@ test("opens an OXS chart, summarises what wasn't imported, and takes the file's 
   await expect(notice).toContainText("1 backstitch line wasn't imported (1 backstitch).");
   await expect(notice).toContainText("Not imported: 1 knot.");
   await expect(notice).toContainText("Fabric count set to 18-count, as the file states.");
+  await page.getByRole("tab", { name: "Chart" }).click();
   await expect(page.getByLabel("Pattern name")).toHaveValue("Little heart");
   expect(errors).toEqual([]);
 });

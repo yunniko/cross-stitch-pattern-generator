@@ -70,6 +70,7 @@ test("a pattern generated with a mode records it in the editable file, and the c
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();
   await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("tab", { name: "Photo" }).click();
   await expect(modeButton(page, "Vivid")).toHaveAttribute("aria-pressed", "true");
   expect(errors).toEqual([]);
 });

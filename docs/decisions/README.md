@@ -165,3 +165,6 @@ remain readable with git show.
 - D154 — Export all gets a fifteen-minute deadline — superseded by D155
 - D155 — The Pattern Keeper PDF exhausts the worker heap on large charts — active
 - D156 — Loopback spellings are one origin, and APP_URL has no default — active
+- D157 — The workspace is rebuilt to design direction 1b — active
+- D158 — Isolate is a way of looking, not a tool — active
+- D159 — The view chips stay toggle buttons, not a radiogroup — active

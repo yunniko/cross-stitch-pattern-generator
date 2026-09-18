@@ -136,7 +136,9 @@ async function compare(page: Page, c: Case): Promise<Result> {
       canvasColor: c.canvasColor ?? "#ffffff",
     };
     const referenceScene = { ...common, realisticPreview: previewCanvas ? { canvas: previewCanvas, width: c.width, height: c.height } : null, isSelectDragging: () => dragging };
-    const liveScene = { ...common, realisticTiles: tiles, selectDragging: dragging };
+    // G-045 M4: the live renderer gates the dimming overlay on Isolate, the frozen oracle still on the
+    // highlight tool. Same pixels, different vocabulary -- so each scene is told in its own words (D158).
+    const liveScene = { ...common, realisticTiles: tiles, selectDragging: dragging, isolate: highlighted.size > 0, litColorIndices: highlighted };
 
     // The brush stroke: a path that revisits a stitch non-consecutively, with the active colour changed mid-stroke
     // (another pointer can pick a legend colour) and a final EMPTY stitch, so each redraw must use its own moment's colour.

@@ -56,9 +56,10 @@ test("a generated, edited pattern survives a reload via IndexedDB, photo include
   await page.reload();
   await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
   await expect(legendRows).toHaveCount(initialCount - 1);
+  await page.getByRole("tab", { name: "Chart" }).click();
   await expect(page.getByLabel("Pattern name")).toHaveValue("sample");
   // The embedded photo came back too (stored once, keyed by content).
-  await expect(page.getByRole("radio", { name: "Grid + photo" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Show the photo behind the chart" })).toBeEnabled();
   // And nothing is written to the old localStorage slot any more.
   expect(await page.evaluate((key) => localStorage.getItem(key), LEGACY_PROJECT_KEY)).toBeNull();
 });
@@ -104,8 +105,9 @@ test("a pattern from a >4 MB photo survives a reload (the case the localStorage 
 
   await page.reload();
   await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("tab", { name: "Chart" }).click();
   await expect(page.getByLabel("Pattern name")).toHaveValue("noise");
-  await expect(page.getByRole("radio", { name: "Grid + photo" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Show the photo behind the chart" })).toBeEnabled();
 });
 
 test("a corrupt autosave starts a fresh session with a banner and an on-demand error report, not an unsolicited download", async ({ page }) => {
@@ -158,6 +160,7 @@ test("a project autosaved by the previous localStorage build is migrated on firs
 
   await page.goto("/");
   await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("tab", { name: "Chart" }).click();
   await expect(page.getByLabel("Pattern name")).toHaveValue("sample");
   await expect(page.getByTestId("restore-failure")).toHaveCount(0);
   expect(await page.evaluate((key) => localStorage.getItem(key), LEGACY_PROJECT_KEY)).toBeNull();

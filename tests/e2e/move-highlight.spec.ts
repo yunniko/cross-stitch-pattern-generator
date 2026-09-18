@@ -59,24 +59,29 @@ test("the Move tool does nothing (no undo step) when the drag doesn't cross a st
   await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
 });
 
-test("the Highlight tool dims non-selected colors as a pure view overlay -- no undo step, no pattern change (G-012)", async ({ page }) => {
+test("lighting a thread dims the others as a pure view overlay -- no undo step, no pattern change (G-012, D158)", async ({ page }) => {
   await generateSmallPattern(page);
 
-  await page.getByRole("button", { name: "Highlight" }).click();
+  // G-045 M4: Highlight stopped being a tool. Isolate is a view mode, and each thread carries its own light.
   const legendRows = page.locator('[data-testid="legend-color-row"]');
   const stsTextBefore = await legendRows.nth(0).textContent();
+  const light = page.getByRole("button", { name: /^Show only / }).first();
+  const isolate = page.getByRole("button", { name: "Isolate lit threads" });
 
   const readCanvas = () =>
     page.getByRole("main").locator("canvas").evaluate((el: HTMLCanvasElement) => Array.from(el.getContext("2d")!.getImageData(0, 0, el.width, el.height).data));
 
   const plain = await readCanvas();
-  await legendRows.nth(0).click(); // select this color for highlighting
+  await expect(isolate).toHaveAttribute("aria-pressed", "false");
+
+  await light.click(); // lighting the first thread turns Isolate on by itself
+  await expect(isolate).toHaveAttribute("aria-pressed", "true");
   const highlighted = await readCanvas();
   expect(highlighted).not.toEqual(plain); // the dimming overlay changed pixels somewhere
 
-  await legendRows.nth(0).click(); // deselect
-  const restored = await readCanvas();
-  expect(restored).toEqual(plain); // and removing it restores the exact original pixels
+  await light.click(); // and putting the light out restores the exact original pixels
+  await expect(isolate).toHaveAttribute("aria-pressed", "false");
+  expect(await readCanvas()).toEqual(plain);
 
   // Purely visual: no undo step was created, and the color's own stitch count is untouched.
   await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();

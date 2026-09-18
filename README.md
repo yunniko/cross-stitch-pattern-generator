@@ -12,10 +12,11 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
 - **Generate** a chart from a photo at 10–1000 stitches and 2–100 colors.
   The pipeline downsamples in linear light, clusters in OKLab, then smooths
   regions with an edge-aware optimizer so the chart has few stray stitches.
-- **Start from nothing**: "New blank chart" asks for a width and height in
-  stitches, shows the finished fabric size, and opens an empty canvas with no
-  colors yet. A chart with no photo behind it is never generated from one, so
-  the whole photo-and-Generate panel stays away for its whole life.
+- **Start from nothing**: "New blank chart", in the menu behind the mark at the
+  top of the tool rail, asks for a width and height in stitches, shows the
+  finished fabric size, and opens an empty canvas with no colors yet. A chart
+  with no photo behind it is never generated from one, so the Photo tab's
+  settings and Generate stay away for its whole life.
 - **Choose the palette**: whatever colors the photo needs, or real DMC,
   Cosmo or Anchor threads (Anchor is derived from DMC equivalents and says so).
 - **Choose edge handling**: Standard averages across boundaries; Crisp keeps a
@@ -23,8 +24,9 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   cleans up slightly soft edges, snapping the in-between colors along a blurred
   boundary to one side while keeping real thin lines and gradients.
 - **Edit** with brush, fill, rectangle select (copy, paste, move, flip, rotate,
-  crop the chart to the selection, or cancel the piece you are holding), move,
-  pan, zoom and highlight tools. Merge, recolor, rename and re-symbol colors,
+  crop the chart to the selection, apply the piece where it sits, or discard it),
+  move, pan and zoom tools. Isolate dims every thread but the ones you light, and
+  stays on while you paint. Merge, recolor, rename and re-symbol colors,
   mark stitches as empty, resize the canvas, undo and redo. The color editor
   opens on a color's own thread swatch, shows how other swatches compare
   ("12% lighter, 5% less saturated"), and stays open while you try threads.

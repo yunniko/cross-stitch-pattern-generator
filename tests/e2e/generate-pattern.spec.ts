@@ -30,7 +30,7 @@ test("upload an image, generate a pattern, preview it, and download both variant
   const [colorDownload] = await Promise.all([page.waitForEvent("download"), exportButton.click()]);
   expect(colorDownload.suggestedFilename()).toBe("sample_color.png");
 
-  await page.getByRole("radio", { name: "Black & white" }).check();
+  await page.getByRole("button", { name: "B&W", exact: true }).click();
   await expect(canvas).toBeVisible();
 
   await exportSelect.selectOption("png-bw");
@@ -76,16 +76,21 @@ test("a small chart's header is never clipped, even at the minimum custom size (
   expect(await pngWidth(savedPath)).toBeGreaterThan(320);
 });
 
-test("rejects a custom size outside the 10-1000 range without crashing", async ({ page }) => {
+test("a custom size outside the 10-1000 range is clamped at the stepper, so generation never sees it", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+
   await page.goto("/");
 
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: "Custom" }).check();
   await page.getByRole("spinbutton").fill("5000");
 
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-
-  await expect(page.getByText(/Pattern size must be a whole number/)).toBeVisible();
+  // G-045: 1b's stepper clamps to the supported range as the value is typed, so an out-of-range size can no longer
+  // reach generation at all. The guard in `use-generation.ts` stays, and the fractional case below still trips it --
+  // clamping does not round, so 10.5 survives inside the range and is rejected there.
+  await expect(page.getByRole("spinbutton")).toHaveValue("1000");
+  expect(errors).toEqual([]);
 });
 
 test("rejects a fractional custom size instead of crashing inside generation (code-review 2026-09-09, finding 8)", async ({ page }) => {

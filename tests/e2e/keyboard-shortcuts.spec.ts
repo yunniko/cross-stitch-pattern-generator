@@ -43,6 +43,7 @@ test("B and F switch the active tool, and Escape/typing targets don't hijack the
   // Typing "f" into the pattern name field must not switch tools.
   await page.keyboard.press("f"); // back to Fill first
   await expect(fillButton).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("tab", { name: "Chart" }).click();
   await page.getByLabel("Pattern name").fill("bff");
   await expect(fillButton).toHaveAttribute("aria-pressed", "true");
 });
@@ -65,29 +66,29 @@ test("holding Space temporarily switches to Pan and releasing restores the previ
 
 test("1-5 switch the Image window's view mode, including the new Original photo mode", async ({ page }) => {
   await generateSmallPattern(page);
-  const colorRadio = page.getByRole("radio", { name: "Color", exact: true });
-  const bwRadio = page.getByRole("radio", { name: "Black & white" });
-  const realisticRadio = page.getByRole("radio", { name: "Realistic preview" });
-  const gridPhotoRadio = page.getByRole("radio", { name: "Grid + photo" });
-  const photoOnlyRadio = page.getByRole("radio", { name: "Original photo" });
+  // 1b replaced the five view radios with three chips and a Photo toggle that cycles; the frame's own
+  // data-view-mode is the mode itself, so it outlives whatever shape the control takes.
+  const frame = page.getByTestId("chart-frame");
+  const mode = async (expected: string) => expect(frame).toHaveAttribute("data-view-mode", expected);
 
-  await expect(colorRadio).toBeChecked();
+  await mode("color");
 
   await page.keyboard.press("2");
-  await expect(bwRadio).toBeChecked();
+  await mode("bw");
+  await expect(page.getByRole("button", { name: "B&W", exact: true })).toHaveAttribute("aria-pressed", "true");
 
   await page.keyboard.press("3");
-  await expect(realisticRadio).toBeChecked();
+  await mode("realistic");
 
   await page.keyboard.press("4");
-  await expect(gridPhotoRadio).toBeChecked();
+  await mode("photo");
 
   await page.keyboard.press("5");
-  await expect(photoOnlyRadio).toBeChecked();
-  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-mode", "photo-only");
+  await mode("photo-only");
+  await expect(page.getByRole("button", { name: "Show the photo behind the chart" })).toHaveAttribute("aria-pressed", "true");
 
   await page.keyboard.press("1");
-  await expect(colorRadio).toBeChecked();
+  await mode("color");
 });
 
 test("double-clicking with Brush active flood-fills the whole region that was there before the double-click, not just the clicked cell", async ({
@@ -101,10 +102,12 @@ test("double-clicking with Brush active flood-fills the whole region that was th
   if (!box) throw new Error("canvas not visible");
 
   async function countFor(rowIndex: number): Promise<number> {
-    const text = await legendRows.nth(rowIndex).innerText();
-    const match = text.match(/(\d+)\s*sts/);
-    if (!match) throw new Error(`Couldn't find a stitch count in legend row text: ${text}`);
-    return Number(match[1]);
+    // 1b's row prints the count on its own line with the skein estimate beneath it, so the old "123 sts" text is
+    // gone; the count carries its own testid rather than being picked out of the row's text by position.
+    const text = (await legendRows.nth(rowIndex).getByTestId("legend-color-count").innerText()).trim();
+    const value = Number(text.replace(/,/g, ""));
+    if (!Number.isFinite(value)) throw new Error(`Couldn't read a stitch count from legend row: ${text}`);
+    return value;
   }
 
   // Paint a known, deterministic 3-cell horizontal stroke with color 0 --
@@ -149,18 +152,20 @@ test("with the Options switch off, a double-click paints only the stitch under i
   if (!box) throw new Error("canvas not visible");
 
   async function countFor(rowIndex: number): Promise<number> {
-    const text = await legendRows.nth(rowIndex).innerText();
-    const match = text.match(/(\d+)\s*sts/);
-    if (!match) throw new Error(`Couldn't find a stitch count in legend row text: ${text}`);
-    return Number(match[1]);
+    // 1b's row prints the count on its own line with the skein estimate beneath it, so the old "123 sts" text is
+    // gone; the count carries its own testid rather than being picked out of the row's text by position.
+    const text = (await legendRows.nth(rowIndex).getByTestId("legend-color-count").innerText()).trim();
+    const value = Number(text.replace(/,/g, ""));
+    if (!Number.isFinite(value)) throw new Error(`Couldn't read a stitch count from legend row: ${text}`);
+    return value;
   }
 
   // Switch the fill off; the checkbox is on by default.
-  await page.getByRole("button", { name: "Options…" }).click();
+  await page.getByRole("tab", { name: "Chart" }).click();
   const fillSwitch = page.getByRole("checkbox", { name: "Double-click fills a region" });
   await expect(fillSwitch).toBeChecked();
   await fillSwitch.uncheck();
-  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("tab", { name: "Threads" }).click();
 
   // The same deterministic 3-cell stroke the flood-fill test paints.
   await legendRows.nth(0).click();

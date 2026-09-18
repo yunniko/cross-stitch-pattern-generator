@@ -49,7 +49,7 @@ test("an empty-painted stitch renders as blank white on the live canvas, in colo
     });
   expect(await cellIsWhite()).toBe(true);
 
-  await page.getByRole("radio", { name: "Black & white" }).check();
+  await page.getByRole("button", { name: "B&W", exact: true }).click();
   expect(await cellIsWhite()).toBe(true);
 });
 
@@ -59,8 +59,8 @@ test("Grid + photo mode leaves an empty-painted cell showing only the photo unde
 
   await generateSmallPattern(page);
 
-  const photoRadio = page.getByRole("radio", { name: "Grid + photo" });
-  await photoRadio.check();
+  const photoRadio = page.getByRole("button", { name: "Show the photo behind the chart" });
+  await photoRadio.click();
 
   const emptyRow = page.getByText("Empty (no stitch)");
   const canvas = page.getByTestId("chart-frame");

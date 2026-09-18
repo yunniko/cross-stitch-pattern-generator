@@ -172,8 +172,8 @@ export function SelectionBar({
             ["Rotate right", "Turn the piece a quarter turn clockwise", <RotateIcon key="i" clockwise />, onRotateClockwise, !hasSelection],
             ["Rotate left", "Turn the piece a quarter turn anticlockwise", <RotateIcon key="i" clockwise={false} />, onRotateAnticlockwise, !hasSelection],
             ["Crop", "Cut the chart down to this rectangle, discarding everything outside it", <CropIcon key="i" />, onCrop, !hasSelection],
-            ["Cancel", "Put the chart back as it was when this selection started, discarding its changes", <CancelIcon key="i" />, onCancel, !hasSelection],
-            ["Deselect", "Merge the piece into the picture where it sits", <DeselectIcon key="i" />, onDeselect, !hasSelection],
+            ["Discard", "Put the chart back as it was when this selection started, discarding its changes", <CancelIcon key="i" />, onCancel, !hasSelection],
+            ["Apply here", "Merge the piece into the picture where it sits", <DeselectIcon key="i" />, onDeselect, !hasSelection],
           ] as const
         ).map(([label, title, icon, onClick, isDisabled]) => (
           <PillButton key={label} aria-label={label} title={title} onClick={onClick} disabled={isDisabled} className="px-2">

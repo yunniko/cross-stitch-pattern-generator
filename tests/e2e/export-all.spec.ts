@@ -55,6 +55,7 @@ test("a .cspzip from Export all round-trips back into the app via Open pattern",
 
   await page.goto("/");
   const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "File actions" }).click();
   await page.getByRole("button", { name: "Open pattern…" }).click();
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles(savedPath);
@@ -82,6 +83,7 @@ test("opening a file with no valid pattern inside shows a clear error instead of
   await import("node:fs/promises").then((fs) => fs.writeFile(badZipPath, bytes));
 
   const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "File actions" }).click();
   await page.getByRole("button", { name: "Open pattern…" }).click();
   const fileChooser = await fileChooserPromise;
   const [download] = await Promise.all([page.waitForEvent("download"), fileChooser.setFiles(badZipPath)]);
