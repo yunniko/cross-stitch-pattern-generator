@@ -236,6 +236,9 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
   anything addressing them by name reaches them whatever screen is up.
 - Choosing a start-screen card with a chart open asks first, because it replaces the one autosaved chart. Reaching
   the screen itself costs nothing — that is what "Back to <chart>" is for.
+- The chart frame is hidden, never unmounted, while a pattern exists (D163). The redraw is a layout effect keyed on
+  the pattern and the scene, so a remounted canvas is never repainted: it comes back blank and without
+  `data-painted-rect`. Assert pixels, not presence, when a test claims the chart survived something.
 - `npm ci --legacy-peer-deps` is required (npm arborist crash).
 - On this Windows host, stopping a background task can leave node running;
   check the process list (D096).

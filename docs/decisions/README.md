@@ -171,3 +171,4 @@ remain readable with git show.
 - D160 — The top panel is one strip, and the select tool takes it over — active
 - D161 — Two 1b details the Owner overrode — active
 - D162 — The file actions leave the rail for the start screen — active
+- D163 — The chart frame hides; it is never unmounted — active

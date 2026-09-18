@@ -118,9 +118,15 @@ export function ImageWindow({
       {(startingNew || (!pattern && !sourceMeta)) && (
         <FirstRun onChoosePhoto={onChoosePhoto} onNewBlankChart={onNewBlankChart} onOpenPattern={onOpenPatternFile} busy={isLoadingImage} />
       )}
-      {!startingNew && pattern && (
+      {/*
+        Hidden, never unmounted. The redraw is a layout effect keyed on the pattern and the scene; neither changes
+        while the start screen is up, so an unmounted frame would come back with a fresh, unpainted canvas -- and
+        without `data-painted-rect`, which six specs read. `hidden` keeps the pixels, the refs and the observers.
+      */}
+      {pattern && (
         <div
           ref={frameRef}
+          hidden={startingNew}
           role="img"
           aria-label={`Pattern, ${VIEW_MODE_LABELS[viewMode]} view`}
           data-testid="chart-frame"

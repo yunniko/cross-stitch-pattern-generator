@@ -26,12 +26,22 @@ test("New opens the start screen without touching the chart, and Back returns to
 
   await page.getByRole("button", { name: "New chart" }).click();
   await expect(page.getByRole("button", { name: /^Choose a photo/ })).toBeVisible();
-  await expect(page.getByTestId("chart-frame")).toHaveCount(0); // the start screen covers it
+  await expect(page.getByTestId("chart-frame")).not.toBeVisible(); // covered, not destroyed: its pixels must survive
   await expect(page.getByRole("dialog", { name: "Start a new chart?" })).toHaveCount(0); // nothing destructive yet
 
   await page.getByRole("button", { name: /^Back to / }).click();
   await expect(page.getByTestId("chart-frame")).toBeVisible();
   await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-cell-size", before!); // the same chart came back
+  // ...and it is actually painted. A remounted canvas keeps its size attributes but loses every pixel, which is how
+  // this regression reached production once: data-cell-size cannot tell a drawn chart from a blank one.
+  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-painted-rect", /\d+,\d+,\d+,\d+/);
+  const painted = await page.getByRole("main").locator("canvas").evaluate((el: HTMLCanvasElement) => {
+    const { data } = el.getContext("2d")!.getImageData(0, 0, el.width, el.height);
+    let lit = 0;
+    for (let i = 3; i < data.length; i += 4 * 97) if (data[i] !== 0) lit++;
+    return lit;
+  });
+  expect(painted, "the chart canvas still has pixels after Back").toBeGreaterThan(0);
 });
 
 test("choosing a card with a chart open asks first, and Keep editing keeps it", async ({ page }) => {
