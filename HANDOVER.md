@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-18 at 44937a9 (G-045: New and its confirm, deployed and verified live)
+Last verified: 2026-09-18 at 0ef8868 (G-045: the chart frame hides rather than unmounts, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 44937a9 (2026-09-18), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
+**Production** runs 0ef8868 (2026-09-18), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
 Signed off: G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
 **G-034, processing moved to the server — signed off 2026-09-18.** M1 measured the caps (D149, D150); M2 built the
@@ -285,6 +285,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-18 | 0ef8868 | G-045: the chart frame hides instead of unmounting, so Back returns it painted (D163) | Playwright 316 passed, 0 failed across all 26 specs; tsc, eslint and docs-lint clean. Only the app container was recreated; 41 containers before and after, 34 of 36 sites 200, identical to the pre-deploy baseline. Live: all 37 shell checks, the decisive one reading 3132 painted pixels after Back |
 | 2026-09-18 | 44937a9 | G-045: New leaves the logo for the tools; choosing a start-screen card with a chart open asks first (D162) | Playwright 316 passed, 0 failed across all 26 specs; Vitest 1061 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Only the app container was recreated; 41 containers before and after, 34 of 36 sites 200, identical to the pre-deploy baseline. Live: all 36 shell checks, including the start screen covering the chart, the confirm naming what it would replace, and Back returning it intact |
 | 2026-09-18 | 66fdc1e | G-045: the brush colour opens the top panel, the rail stops clipping its own file menu, Export all gains its extension, Apply here precedes Cancel, the thread light moves right (D161), and the first-run screen is 1b's | Playwright 312 passed, 0 failed across all 25 specs; Vitest 1061 passed, 8 skipped. Only the app container was recreated; 41 containers before and after, 34 of 36 sites 200. Live: all 30 shell checks — the file menu measured 240 of 240px where it had been 56 |
-| 2026-09-18 | 38b3f51 | G-045: Discard and Apply here stop wrapping inside the 44px selection strip | selection-actions and interaction-correctness 10 passed; tsc clean. Only the app container was recreated; 41 containers before and after, 34 of 36 sites 200, identical to the pre-deploy baseline, no neighbour restarted. Live: all 15 shell checks passed |
