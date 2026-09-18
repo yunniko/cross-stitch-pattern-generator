@@ -1,6 +1,7 @@
 import { useState, type DragEvent, type MouseEvent, type PointerEvent, type RefObject } from "react";
 import type { StitchPattern } from "@/lib/types";
 import { isViewOnlyMode, type Tool, type ViewMode } from "../editor-types";
+import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import type { SourceImageMeta } from "../hooks/use-source-image";
 import { FirstRun } from "./first-run";
 import { PillButton } from "./ui";
@@ -16,7 +17,9 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
 export interface ImageWindowProps {
   /** First run: the three ways into a chart, offered where the chart will be. */
   onChoosePhoto: () => void;
-  onNewBlankChart: () => void;
+  onCreateBlank: (width: number, height: number) => void;
+  options: WorkspaceOptions;
+  onAidaCountChange: (count: number) => void;
   onOpenPatternFile: () => void;
   isLoadingImage: boolean;
   /** New was pressed with a chart open: the start screen covers it until a card is chosen or Back is pressed. */
@@ -70,7 +73,9 @@ export function ImageWindow({
   activeTool,
   activeColorIndex,
   onChoosePhoto,
-  onNewBlankChart,
+  onCreateBlank,
+  options,
+  onAidaCountChange,
   onOpenPatternFile,
   isLoadingImage,
   startingNew,
@@ -119,7 +124,14 @@ export function ImageWindow({
         </figure>
       )}
       {startScreen && (
-        <FirstRun onChoosePhoto={onChoosePhoto} onNewBlankChart={onNewBlankChart} onOpenPattern={onOpenPatternFile} busy={isLoadingImage} />
+        <FirstRun
+          onChoosePhoto={onChoosePhoto}
+          onOpenPattern={onOpenPatternFile}
+          onCreateBlank={onCreateBlank}
+          options={options}
+          onAidaCountChange={onAidaCountChange}
+          busy={isLoadingImage}
+        />
       )}
       {/*
         Hidden, never unmounted. The redraw is a layout effect keyed on the pattern and the scene; neither changes

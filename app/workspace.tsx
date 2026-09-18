@@ -21,7 +21,7 @@ import { ImageWindow } from "./components/image-window";
 import { Inspector, type InspectorTab } from "./components/inspector";
 import { isViewOnlyMode } from "./editor-types";
 import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
-import { NewChartPanel, SelectionBar, WorkspaceNotices } from "./components/panels";
+import { SelectionBar, WorkspaceNotices } from "./components/panels";
 import { PhotoPane } from "./components/photo-pane";
 import { StatusBar } from "./components/status-bar";
 import { ToolRail } from "./components/tool-rail";
@@ -77,7 +77,6 @@ export default function Workspace() {
   }
   const liveSymmetry = pattern ? effectiveSymmetryAxes(symmetry, pattern.width, pattern.height) : NO_SYMMETRY;
   // The empty-grid panel (G-040): a new key on every request remounts it with fresh fields.
-  const [newChartPanelKey, setNewChartPanelKey] = useState<number | null>(null);
   // The rail renders both file inputs; the workspace holds their refs so the first-run cards click the very same
   // elements rather than carrying a second pair (and the specs keep finding them where they always were).
   const openInputRef = useRef<HTMLInputElement>(null);
@@ -349,7 +348,6 @@ export default function Workspace() {
     setOpenNotice(null);
     history.reset(blank);
     resetDocumentView();
-    setNewChartPanelKey(null);
     setStartingNew(false);
     setInspectorTab("threads");
     await source.adoptPatternPhoto(blank, blank.name ?? "cross-stitch-pattern");
@@ -480,9 +478,6 @@ export default function Workspace() {
             }}
           />
         )}
-        {newChartPanelKey !== null && (
-          <NewChartPanel key={newChartPanelKey} options={options} onCreate={(width, height) => void createBlankChart(width, height)} onCancel={() => setNewChartPanelKey(null)} />
-        )}
 
         <ImageWindow
           scrollerRef={scrollerRef}
@@ -497,7 +492,9 @@ export default function Workspace() {
           activeColorIndex={activeColorIndex}
           startingNew={startingNew}
           onChoosePhoto={() => startNewChart(() => imageInputRef.current?.click())}
-          onNewBlankChart={() => startNewChart(() => setNewChartPanelKey((key) => (key ?? 0) + 1))}
+          onCreateBlank={(width, height) => startNewChart(() => void createBlankChart(width, height))}
+          options={options}
+          onAidaCountChange={(count) => updateOption("aidaCount", count)}
           onOpenPatternFile={() => startNewChart(() => openInputRef.current?.click())}
           isLoadingImage={source.isLoading}
           previewError={renderer.previewError}
@@ -532,7 +529,7 @@ export default function Workspace() {
         // other two -- two tabs reading dead beside one reading live is the inconsistency, not the disabling.
         tab={startingNew ? "photo" : inspectorTab}
         onTabChange={setInspectorTab}
-        disabled={{ photo: startingNew, chart: pattern === null || startingNew, threads: pattern === null || startingNew }}
+        disabled={{ chart: pattern === null || startingNew, threads: pattern === null || startingNew }}
         photo={
           photoFree && !startingNew ? (
             <p className="p-4 text-[13px] text-muted">This chart was started from an empty canvas, so it has no photo settings.</p>
@@ -590,7 +587,8 @@ export default function Workspace() {
               isExportingAll={exports.isExportingAll}
               exportProgressText={exports.exportProgressText}
             />
-          ) : inspectorTab === "photo" && !photoFree ? (
+          ) : // 1b draws Generate only once a photo is loaded ("B . Before generate"); the first run has no footer.
+          inspectorTab === "photo" && !photoFree && source.hasPhoto ? (
             <PillButton
               variant="primary"
               size="lg"

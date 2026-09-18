@@ -1,11 +1,6 @@
-import { useState } from "react";
 import type { ProjectLoadFailure } from "@/lib/editor/project-store";
-import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import type { calculateA4Layout } from "@/lib/export/a4-layout";
-import { describeBlankSizeProblem } from "@/lib/editor/blank-pattern";
-import { formatFinishedSize } from "@/lib/export/finished-size";
-import { MAX_STITCHES, MIN_STITCHES } from "@/lib/types";
-import { NoticeBar, PanelBar, PillButton } from "./ui";
+import { NoticeBar, PillButton } from "./ui";
 
 export interface WorkspaceNoticesProps {
   restoreFailure: ProjectLoadFailure | null;
@@ -227,51 +222,3 @@ export function SelectionBar({
     </div>
   );
 }
-
-/**
- * Starting a chart from nothing (G-040): width and height in stitches, with the finished fabric size shown as they
- * change. Mounted with a new `key` on every open request, like `ResizePanel`, so reopening it resets the fields.
- */
-export function NewChartPanel({ options, onCreate, onCancel }: { options: WorkspaceOptions; onCreate: (width: number, height: number) => void; onCancel: () => void }) {
-  const [width, setWidth] = useState(100);
-  const [height, setHeight] = useState(100);
-  const problem = describeBlankSizeProblem(width, height);
-
-  return (
-    <PanelBar>
-      <span className="text-sm font-medium">New blank chart</span>
-      {(
-        [
-          ["Width", width, setWidth],
-          ["Height", height, setHeight],
-        ] as const
-      ).map(([label, value, setValue]) => (
-        <label key={label} className="flex items-center gap-1.5 text-sm">
-          {label}
-          <input
-            type="number"
-            min={MIN_STITCHES}
-            max={MAX_STITCHES}
-            value={value}
-            onChange={(e) => setValue(Math.round(Number(e.target.value)))}
-            aria-label={`${label} in stitches`}
-            className="w-20 rounded border border-line px-1.5 py-0.5 text-sm bg-sunken"
-          />
-        </label>
-      ))}
-      <span className="text-xs text-muted" data-testid="new-chart-size">
-        {problem === null
-          ? `→ ${width} × ${height} stitches, ≈ ${formatFinishedSize(width, height, options.aidaCount, options.sizeUnit)} at ${options.aidaCount}-count Aida`
-          : "→ enter a size to see the finished fabric size"}
-      </span>
-      <PillButton variant="primary" size="md" onClick={() => onCreate(width, height)} disabled={problem !== null}>
-        Create
-      </PillButton>
-      <PillButton size="md" onClick={onCancel}>
-        Cancel
-      </PillButton>
-      {problem && <p className="w-full text-sm text-red-300">{problem}</p>}
-    </PanelBar>
-  );
-}
-

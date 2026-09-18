@@ -41,7 +41,7 @@ export function StatusBar({ pattern, aidaCount, sizeUnit, autosaveStatus, hasPat
 
   return (
     <div className="flex h-9 shrink-0 items-center gap-4 border-t border-line bg-surface px-4 font-mono text-xs text-muted">
-      {pattern ? (
+      {pattern && (
         <>
           <span className="max-w-[14rem] truncate font-sans text-ink">{pattern.name ?? "cross-stitch-pattern"}</span>
           <span>
@@ -51,9 +51,6 @@ export function StatusBar({ pattern, aidaCount, sizeUnit, autosaveStatus, hasPat
             {formatFinishedSize(pattern.width, pattern.height, aidaCount, sizeUnit)} · {aidaCount}-ct
           </span>
         </>
-      ) : (
-        // 1b's first run reassures rather than counts: the work stays in this browser even though generation does not.
-        <span className="font-sans">Editing, undo and autosave stay in this browser</span>
       )}
 
       <span

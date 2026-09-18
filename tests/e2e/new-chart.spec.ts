@@ -44,13 +44,17 @@ test("New opens the start screen without touching the chart, and Back returns to
   expect(painted, "the chart canvas still has pixels after Back").toBeGreaterThan(0);
 });
 
-test("choosing a card with a chart open asks first, and Keep editing keeps it", async ({ page }) => {
+test("Create from the empty-grid card asks first with a chart open, and Keep editing keeps it", async ({ page }) => {
   await generateSmallPattern(page);
   const before = await page.getByTestId("chart-frame").getAttribute("data-cell-size");
 
   await page.getByRole("button", { name: "New chart" }).click();
+  // Opening the card's settings replaces nothing, so nothing is asked yet -- the confirm guards Create (D165).
   await page.getByRole("button", { name: /^Start an empty grid/ }).click();
+  await expect(page.getByLabel("Width in stitches")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Start a new chart?" })).toHaveCount(0);
 
+  await page.getByRole("button", { name: "Create", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Start a new chart?" });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("replaces");
@@ -58,7 +62,6 @@ test("choosing a card with a chart open asks first, and Keep editing keeps it", 
 
   await dialog.getByRole("button", { name: "Keep editing" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByLabel("Width in stitches")).toHaveCount(0); // the empty-grid panel never opened
 
   await page.getByRole("button", { name: /^Back to / }).click();
   await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-cell-size", before!);
@@ -70,11 +73,10 @@ test("Start new chart discards the chart and its autosave, and the discard survi
 
   await page.getByRole("button", { name: "New chart" }).click();
   await page.getByRole("button", { name: /^Start an empty grid/ }).click();
-  await page.getByRole("dialog", { name: "Start a new chart?" }).getByRole("button", { name: "Start new chart" }).click();
-
   await page.getByLabel("Width in stitches").fill("20");
   await page.getByLabel("Height in stitches").fill("15");
   await page.getByRole("button", { name: "Create", exact: true }).click();
+  await page.getByRole("dialog", { name: "Start a new chart?" }).getByRole("button", { name: "Start new chart" }).click();
   await expect(page.getByText(/20 × 15, 0 stitches, 0 colors/)).toBeVisible();
 
   // The old chart is gone from the autosave, not merely off screen.
@@ -85,6 +87,10 @@ test("Start new chart discards the chart and its autosave, and the discard survi
 
 test("with no chart open, a card acts at once — there is nothing to replace", async ({ page }) => {
   await page.goto("/");
+  // 1b's start screen draws no Undo, no Redo and no Generate footer before a photo exists.
+  for (const gone of [/^Undo$/, /^Redo$/, /^Generate pattern$/]) {
+    await expect(page.getByRole("button", { name: gone })).toHaveCount(0);
+  }
   await page.getByRole("button", { name: /^Start an empty grid/ }).click();
   await expect(page.getByRole("dialog", { name: "Start a new chart?" })).toHaveCount(0);
   await expect(page.getByLabel("Width in stitches")).toBeVisible();
@@ -108,9 +114,13 @@ test("the start screen leaves nothing live over the chart it covers, and every d
     await expect(page.getByRole("button", { name, exact: true }), `${name} still reaches the covered chart`).toBeDisabled();
   }
   await expect(page.getByRole("button", { name: "Mirror left half" })).toBeDisabled();
-  for (const tab of ["Photo", "Chart", "Threads"]) {
+  // 1b draws the Photo tab live and selected here -- it names the pane that is showing -- while the two tabs that
+  // would reach the covered chart are locked.
+  for (const tab of ["Chart", "Threads"]) {
     await expect(page.getByRole("tab", { name: tab }), `the ${tab} tab is still live`).toBeDisabled();
   }
+  await expect(page.getByRole("tab", { name: "Photo" })).toBeEnabled();
+  await expect(page.getByRole("tab", { name: "Photo" })).toHaveAttribute("aria-selected", "true");
   // 1b draws no Undo, no Redo and no exports here, so they are absent rather than disabled.
   for (const gone of [/^Undo$/, /^Redo$/, /^Export all/]) {
     await expect(page.getByRole("button", { name: gone })).toHaveCount(0);

@@ -173,3 +173,5 @@ remain readable with git show.
 - D162 — The file actions leave the rail for the start screen — active
 - D163 — The chart frame hides; it is never unmounted — active
 - D164 — One disabled look per control shape, and a start screen that touches nothing — active
+- D165 — The empty-grid card owns its settings, and Create carries the confirm — active
+- D166 — Two more 1b texts the Owner cut — active

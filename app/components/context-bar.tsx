@@ -107,8 +107,12 @@ export function ContextBar({
 
   return (
     <div className="flex h-11 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
-      {/* Undo and Redo belong to a chart being edited. The start screen is not that, and 1b draws none there. */}
-      {!startingNew && (
+      {/*
+        Undo and Redo belong to a chart being edited. 1b draws them on no screen at all -- they are here because the
+        Owner placed them in the context bar -- so the rule is the editing bar's own: with no chart open, or with the
+        start screen over one, there is nothing for them to act on.
+      */}
+      {pattern && !startingNew && (
         <>
           <div className="flex items-center gap-1.5">
             <PillButton size="xs" onClick={onUndo} disabled={!canUndo} title="Ctrl+Z">

@@ -46,7 +46,7 @@ test("the size dialog shows the finished fabric size and refuses a size outside 
   await page.getByLabel("Width in stitches").fill("140");
   await page.getByLabel("Height in stitches").fill("70");
   await expect(page.getByTestId("new-chart-size")).toContainText("140 × 70 stitches");
-  await expect(page.getByTestId("new-chart-size")).toContainText("cm at 14-count Aida");
+  await expect(page.getByTestId("new-chart-size")).toContainText("cm finished");
 
   await page.getByLabel("Width in stitches").fill("4");
   await expect(page.getByText(/Width must be between 10 and 1000 stitches/)).toBeVisible();

@@ -233,8 +233,10 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
 - The file actions are not on the rail. New opens the start screen and the three ways into a chart live there
   (D162); the two file inputs are mounted in `app/workspace.tsx`, still named "Image" and "Open pattern file", so
   anything addressing them by name reaches them whatever screen is up.
-- Choosing a start-screen card with a chart open asks first, because it replaces the one autosaved chart. Reaching
-  the screen itself costs nothing — that is what "Back to <chart>" is for.
+- Replacing the one autosaved chart asks first, and only that. Reaching the start screen costs nothing — that is what
+  "Back to <chart>" is for — and neither does opening the empty-grid card: its settings live inside it, collapsed
+  until chosen, so the confirm sits on Create there and on the photo and saved-pattern cards themselves (D162, D165).
+  `NewChartPanel` is gone; anything reaching for "Width in stitches" opens the card first.
 - The chart frame is hidden, never unmounted, while a pattern exists (D163). The redraw is a layout effect keyed on
   the pattern and the scene, so a remounted canvas is never repainted: it comes back blank and without
   `data-painted-rect`. Assert pixels, not presence, when a test claims the chart survived something.
@@ -243,9 +245,9 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
   disabled is written `enabled:hover:`, never a bare `hover:`, so a disabled one cannot light under the pointer
   (D164). Three treatments and eight pointer-answering controls had grown up before this rule existed.
 - While the start screen is up, nothing reaches the chart behind it: one `startScreenVisible` in `app/workspace.tsx`
-  disables the rail and the zoom controls, locks all three inspector tabs, hides Undo and Redo, forces 1b's Photo
-  pane, drops the inspector footer, and stops the status bar counting the covered chart. New disables with it, since
-  New is what opens it (D164).
+  disables the rail and the zoom controls, locks the Chart and Threads tabs (1b draws Photo live and selected, so it
+  stays enabled), hides Undo and Redo, forces 1b's Photo pane, drops the inspector footer, and stops the status bar
+  counting the covered chart. New disables with it, since New is what opens it (D164).
 - `npm ci --legacy-peer-deps` is required (npm arborist crash).
 - On this Windows host, stopping a background task can leave node running;
   check the process list (D096).
@@ -283,8 +285,6 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
 - G-034 is signed off (2026-09-18) and archived in `docs/goals-archive.md`. The one acceptance criterion not met is Export all at 1000 stitches, shipped as a documented limitation (D155): Export all and the Pattern Keeper PDF fail on charts near 1000 stitches. The fix not yet made is batching same-colour runs in the PDF adapter, which would cut both memory and file size. No goal is open for it (Owner, 2026-09-18).
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
-- G-045 continues: the start page's empty-grid card takes the blank-chart settings inside the option box, retiring the separate
-  top panel and the NewChartPanel with it (Owner, 2026-09-18). Not started.
 - G-030 (public launch) is a far-future draft. G-023 (Rust sidecar) was measured as not needed.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
