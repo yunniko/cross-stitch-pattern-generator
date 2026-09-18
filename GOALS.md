@@ -12,47 +12,6 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-044 · The Origin check reads one site as one site — ACTIVE
-- **What:** the Origin check treats `localhost`, `127.0.0.1` and `[::1]` on the same
-  scheme and port as one origin, and `APP_URL` carries no misleading default.
-- **Why:** Owner instruction (2026-09-18), closing the item G-034 M4 left open. The
-  loopback spellings compare as different strings, so a setup served on one and opened
-  on the other is refused for no good reason. Separately, the compose default was
-  `http://localhost:3000`: production is correct only because the deploy `.env`
-  overrides it (`COMPANY/INFRASTRUCTURE_DEPLOY.md`), so losing that one untracked file
-  would quietly trust a page running on a visitor's own machine.
-- **Acceptance criteria:**
-  1. The three loopback spellings match each other, while port and scheme still tell
-     origins apart and a real host is never folded into loopback.
-  2. An unset `APP_URL` trusts only the origin the request arrived at; a malformed one
-     widens nothing.
-  3. Verified live after deploy: the site's own origin passes, and a localhost origin,
-     a loopback origin, a foreign origin and a missing `Origin` are each refused.
-- **Constraints:** nothing a real browser sends to the deployed site may start being
-  refused. Standing deploy approval applies.
-
-**Milestones:**
-- [x] M1 — Fix, covered by tests, deployed, with the live Origin check re-probed. Done 2026-09-18 (D156).
-
-**Progress log** (newest first):
-- 2026-09-18 — **M1 done: deployed and verified live; awaiting sign-off.**
-  - **The fix:** origins are compared in a canonical form that folds `localhost`, `127.0.0.1` and `[::1]` into one
-    host, leaving scheme and port significant, and an origin that cannot be parsed is dropped rather than compared.
-    `APP_URL` loses its `http://localhost:3000` compose default (D156).
-  - **A premise that did not hold.** The item this goal closed said `APP_URL` sat at that default in production. It
-    does not: the deploy `.env` has set it to the site URL since 2026-09-09, as `COMPANY/INFRASTRUCTURE_DEPLOY.md`
-    prescribes. A live probe showed the check already refusing localhost origins, so the hole described in the old
-    note was never open. What was real is that the default made production depend on one untracked file.
-  - **Checks:** `tests/unit/request-guard.spec.ts` gains six cases and the loopback one fails against the previous
-    code; Vitest 1061 passed, 8 skipped; lint and production build clean.
-  - **Live after deploying 44741b6:** the site origin passes, while the same host over `http`, a suffix lookalike,
-    all three loopback spellings, a foreign origin and a missing `Origin` are each refused. A 250-stitch
-    end-to-end run was unaffected; 41 containers up, 20 of 20 sites 200, no neighbour restarted.
-  - **Found, not fixed:** malformed upload bytes reach the decoder and surface as 500 rather than a 400. Unrelated
-    to this goal and left for the Owner to direct.
-  - **Next:** Owner sign-off, then G-044 moves to `docs/goals-archive.md`.
-- 2026-09-18 — goal created at the Owner's instruction.
-
 ### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT, possibly relevant to G-030 (2026-09-12)
 - **Not superseded -- correcting an earlier overreach.** An earlier pass
   at this file marked this goal "superseded by G-030" on the assumption
