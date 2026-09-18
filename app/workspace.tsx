@@ -13,13 +13,17 @@ import { useUndoHistory } from "@/lib/editor/use-undo-history";
 import { isReleasedEnhancementMode } from "@/lib/pipeline/enhance";
 import type { StitchPattern } from "@/lib/types";
 import { ColorsDock } from "./components/colors-dock";
-import { ImageWindow, ViewBar } from "./components/image-window";
+import { ContextBar } from "./components/context-bar";
+import { ExportControls } from "./components/export-controls";
+import { ImageWindow } from "./components/image-window";
+import { Inspector, type InspectorTab } from "./components/inspector";
 import { isViewOnlyMode } from "./editor-types";
 import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
 import { NewChartPanel, OptionsPanel, ResizePanel, SelectionBar, WorkspaceNotices } from "./components/panels";
 import { ProcessingParams } from "./components/processing-params";
-import { ToolsDock } from "./components/tools-dock";
-import { TopBar } from "./components/top-bar";
+import { StatusBar } from "./components/status-bar";
+import { ToolRail } from "./components/tool-rail";
+import { PillButton } from "./components/ui";
 import type { Tool, ViewMode } from "./editor-types";
 import { cellIndexFromEvent, computeCellSize } from "./editor-geometry";
 import { useBrushTool, useMoveTool, useSelectTool } from "./hooks/use-canvas-tools";
@@ -33,9 +37,15 @@ import { useProjectRestore } from "./hooks/use-project-restore";
 import { useSourceImage } from "./hooks/use-source-image";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
 
+const DEFAULT_NAME = "cross-stitch-pattern";
+
 /**
- * The editor shell (G-012): the pattern's undo history plus the state several docks share, wired to the hooks in
- * app/hooks and the components in app/components (D108). Every edit goes through `history.set` as one undo step.
+ * The editor shell (G-012; restructured to direction 1b in G-045 M2): the pattern's undo history plus the state
+ * several panes share, wired to the hooks in app/hooks and the components in app/components (D108). Every edit goes
+ * through `history.set` as one undo step.
+ *
+ * The frame is 1b's: a tool rail, a context bar over the chart well with a status bar beneath it, and one inspector on
+ * the right showing a single pane at a time. M3 rebuilds what those panes contain.
  */
 export default function Workspace() {
   const history = useUndoHistory<StitchPattern | null>(null);
@@ -50,6 +60,7 @@ export default function Workspace() {
   const [activeTool, setActiveTool] = useState<Tool>("brush");
   const [activeColorIndex, setActiveColorIndex] = useState<number | null>(null);
   const [highlightedColorIndices, setHighlightedColorIndices] = useState<ReadonlySet<number>>(new Set());
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("photo");
   // Symmetry axes live outside the undo history: a toggle is not an undo step, and undo or redo leaves them as they
   // are (G-037). Diagonals exist only on a square canvas, so a resize, undo, redo or open that makes the canvas
   // non-square turns them off for good, adjusted during render like other derived state.
@@ -70,6 +81,15 @@ export default function Workspace() {
   const [colorPreview, setColorPreview] = useState<{ base: StitchPattern; next: StitchPattern } | null>(null);
   // Bumped whenever the palette is replaced wholesale (a new document or a generation), so open editors close.
   const [documentId, setDocumentId] = useState(0);
+  const [nameDraft, setNameDraft] = useState(pattern?.name ?? DEFAULT_NAME);
+  const [lastCommittedName, setLastCommittedName] = useState(pattern?.name);
+
+  // Re-sync the name draft only when the committed name changes (undo, regenerate, another file), not on every
+  // keystroke; adjusting state during render avoids an extra effect pass.
+  if (pattern?.name !== lastCommittedName) {
+    setLastCommittedName(pattern?.name);
+    setNameDraft(pattern?.name ?? DEFAULT_NAME);
+  }
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -123,6 +143,7 @@ export default function Workspace() {
     history.reset(withName);
     resetDocumentView();
     setSymmetry(savedSymmetry);
+    setInspectorTab("threads");
     await source.adoptPatternPhoto(withName, fallbackName);
   }
 
@@ -140,13 +161,14 @@ export default function Workspace() {
       // A floating selection belongs to the replaced pattern and may be out of bounds: drop it, don't merge it.
       select.clear();
       setDocumentId((id) => id + 1);
+      // A finished chart is about its threads, so the inspector follows the work rather than staying on the settings.
+      setInspectorTab("threads");
       // The first generate is the undo baseline; a regenerate is an ordinary undoable step (G-012).
       if (isFirst) {
         // A first Generate starts a new document with every symmetry toggle off (G-037).
         setSymmetry(NO_SYMMETRY);
         history.reset(next);
-      }
-      else history.set(next);
+      } else history.set(next);
     },
   });
 
@@ -158,6 +180,7 @@ export default function Workspace() {
       onLoaded: () => {
         history.reset(null);
         resetDocumentView();
+        setInspectorTab("photo");
       },
       onFailed: () => generation.setError("Couldn't read that image. Try a different file (JPEG, PNG, or WebP)."),
     });
@@ -280,6 +303,7 @@ export default function Workspace() {
     history.reset(blank);
     resetDocumentView();
     setNewChartPanelKey(null);
+    setInspectorTab("threads");
     await source.adoptPatternPhoto(blank, blank.name ?? "cross-stitch-pattern");
   }
 
@@ -289,108 +313,145 @@ export default function Workspace() {
     setResizePanelKey(null);
   }
 
+  /**
+   * The Chart pane until M3 builds it out: the document's own settings, and the panels that were reachable from the
+   * top bar. The name field keeps its label, so what finds it by name still does.
+   */
+  const chartPane = (
+    <div className="flex flex-col gap-4 p-4">
+      <label className="flex flex-col gap-1.5 text-xs text-muted">
+        Name
+        <input
+          type="text"
+          value={nameDraft}
+          onChange={(e) => setNameDraft(e.target.value)}
+          onBlur={() => pattern && history.set(renamePattern(pattern, nameDraft))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          disabled={pattern === null}
+          className="rounded-lg border border-line bg-sunken px-2.5 py-1.5 text-[13px] text-ink disabled:opacity-50"
+          aria-label="Pattern name"
+        />
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <PillButton size="md" onClick={() => setShowOptionsPanel((shown) => !shown)}>
+          Options…
+        </PillButton>
+        <PillButton size="md" onClick={() => setResizePanelKey((key) => (key ?? 0) + 1)} disabled={pattern === null}>
+          Resize canvas…
+        </PillButton>
+      </div>
+      <p className="text-xs text-muted">Fabric count, unit, canvas colour and the rest move onto this tab in M3.</p>
+    </div>
+  );
+
   return (
-    <div className="flex h-screen flex-col bg-app font-sans text-ink">
-      <TopBar
-        patternName={pattern?.name}
-        onRename={(name) => pattern && history.set(renamePattern(pattern, name))}
-        hasPattern={pattern !== null}
-        canUndo={history.canUndo}
-        canRedo={history.canRedo}
-        onUndo={history.undo}
-        onRedo={history.redo}
-        autosaveStatus={autosaveStatus}
+    <div className="flex h-screen bg-app font-sans text-ink">
+      <ToolRail
+        activeTool={activeTool}
+        disabled={!pattern}
+        onSelect={switchTool}
+        symmetry={liveSymmetry}
+        squareCanvas={pattern !== null && pattern.width === pattern.height}
+        onToggleSymmetry={(axis) => setSymmetry((current) => ({ ...current, [axis]: !current[axis] }))}
+        onMirror={applyMirror}
         onOpenPattern={handleOpenPattern}
         onNewBlankChart={() => setNewChartPanelKey((key) => (key ?? 0) + 1)}
         onImageFile={handleImageFile}
         isLoadingImage={source.isLoading}
         isProcessing={generation.isProcessing}
-        sourceFileName={source.fileName}
-        onToggleOptions={() => setShowOptionsPanel((shown) => !shown)}
-        onOpenResize={() => setResizePanelKey((key) => (key ?? 0) + 1)}
-        exportKind={exports.exportKind}
-        onExportKindChange={exports.setExportKind}
-        onExport={exports.exportSelected}
-        onExportAll={exports.exportAll}
-        isExporting={exports.isExporting}
-        isExportingAll={exports.isExportingAll}
-        exportProgressText={exports.exportProgressText}
       />
-      <WorkspaceNotices
-        restoreFailure={restore.failure}
-        onDownloadRestoreReport={() => restore.failure && downloadPatternLoadReport({ content: restore.failure.payload })}
-        onDismissRestoreFailure={restore.dismissFailure}
-        openError={openError}
-        openNotice={openNotice}
-        exportError={exports.exportError}
-        a4Layout={paginatesAsA4(exports.exportKind) ? exports.a4LayoutPreview : null}
-      />
-      {showOptionsPanel && <OptionsPanel options={options} onChange={updateOption} onClose={() => setShowOptionsPanel(false)} />}
-      {activeTool === "select" && pattern && (
-        <SelectionBar
-          hasSelection={select.selection !== null}
-          hasClipboard={select.clipboard !== null}
-          onCopy={select.copy}
-          onPaste={select.paste}
-          onFlipHorizontal={select.flipHorizontal}
-          onFlipVertical={select.flipVertical}
-          onRotateClockwise={select.rotateClockwise}
-          onRotateAnticlockwise={select.rotateAnticlockwise}
-          onCrop={select.crop}
-          onCancel={select.cancel}
-          onDeselect={select.merge}
-        />
-      )}
-      {newChartPanelKey !== null && (
-        <NewChartPanel key={newChartPanelKey} options={options} onCreate={(width, height) => void createBlankChart(width, height)} onCancel={() => setNewChartPanelKey(null)} />
-      )}
-      {resizePanelKey !== null && pattern && <ResizePanel key={resizePanelKey} pattern={pattern} onApply={applyResize} onCancel={() => setResizePanelKey(null)} />}
 
-      <div className="flex flex-1 overflow-hidden">
-        <ToolsDock
-          activeTool={activeTool}
-          disabled={!pattern}
-          onSelect={switchTool}
-          symmetry={liveSymmetry}
-          squareCanvas={pattern !== null && pattern.width === pattern.height}
-          onToggleSymmetry={(axis) => setSymmetry((current) => ({ ...current, [axis]: !current[axis] }))}
-          onMirror={applyMirror}
+      <main className="flex flex-1 flex-col overflow-hidden">
+        <ContextBar
+          pattern={pattern}
+          canUndo={history.canUndo}
+          canRedo={history.canRedo}
+          onUndo={history.undo}
+          onRedo={history.redo}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          canvasColor={options.canvasColor}
+          onCanvasColorChange={(hex) => updateOption("canvasColor", hex)}
+          sourceFileName={source.fileName}
+          isLoadingImage={source.isLoading}
+          hasSourcePhoto={source.hasPhoto}
         />
-        <main className="flex flex-1 flex-col overflow-hidden">
-          <ViewBar
-            pattern={pattern}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            canvasColor={options.canvasColor}
-            onCanvasColorChange={(hex) => updateOption("canvasColor", hex)}
-            zoomLevel={panZoom.zoomLevel}
-            onZoomIn={() => panZoom.zoomBy(ZOOM_STEP)}
-            onZoomOut={() => panZoom.zoomBy(1 / ZOOM_STEP)}
-            onResetZoom={panZoom.resetZoom}
+        <WorkspaceNotices
+          restoreFailure={restore.failure}
+          onDownloadRestoreReport={() => restore.failure && downloadPatternLoadReport({ content: restore.failure.payload })}
+          onDismissRestoreFailure={restore.dismissFailure}
+          openError={openError}
+          openNotice={openNotice}
+          exportError={exports.exportError}
+          a4Layout={paginatesAsA4(exports.exportKind) ? exports.a4LayoutPreview : null}
+        />
+        {showOptionsPanel && <OptionsPanel options={options} onChange={updateOption} onClose={() => setShowOptionsPanel(false)} />}
+        {activeTool === "select" && pattern && (
+          <SelectionBar
+            hasSelection={select.selection !== null}
+            hasClipboard={select.clipboard !== null}
+            onCopy={select.copy}
+            onPaste={select.paste}
+            onFlipHorizontal={select.flipHorizontal}
+            onFlipVertical={select.flipVertical}
+            onRotateClockwise={select.rotateClockwise}
+            onRotateAnticlockwise={select.rotateAnticlockwise}
+            onCrop={select.crop}
+            onCancel={select.cancel}
+            onDeselect={select.merge}
           />
-          <ImageWindow
-            scrollerRef={scrollerRef}
-            frameRef={frameRef}
-            canvasRef={canvasRef}
-            pattern={pattern}
-            cellSize={cellSize}
-            sourceMeta={source.meta}
-            viewMode={viewMode}
-            activeTool={activeTool}
-            activeColorIndex={activeColorIndex}
-            previewError={renderer.previewError}
-            onRetryPreview={renderer.retryPreview}
-            enhancementActive={pattern === null && enhancementMode !== "off"}
-            enhancedPreviewUrl={photoPreview.previewUrl}
-            isPreparingEnhancedPreview={photoPreview.isPreparing}
-            enhancedPreviewError={photoPreview.error}
-            onPointerDown={handleCanvasPointerDown}
-            onPointerMove={handleCanvasPointerMove}
-            onPointerUp={handleCanvasPointerUp}
-            onDoubleClick={handleCanvasDoubleClick}
-            onDrop={handleCanvasDrop}
-          />
-          {!isPhotoFree(pattern) && (
+        )}
+        {newChartPanelKey !== null && (
+          <NewChartPanel key={newChartPanelKey} options={options} onCreate={(width, height) => void createBlankChart(width, height)} onCancel={() => setNewChartPanelKey(null)} />
+        )}
+        {resizePanelKey !== null && pattern && <ResizePanel key={resizePanelKey} pattern={pattern} onApply={applyResize} onCancel={() => setResizePanelKey(null)} />}
+
+        <ImageWindow
+          scrollerRef={scrollerRef}
+          frameRef={frameRef}
+          canvasRef={canvasRef}
+          pattern={pattern}
+          cellSize={cellSize}
+          sourceMeta={source.meta}
+          viewMode={viewMode}
+          activeTool={activeTool}
+          activeColorIndex={activeColorIndex}
+          previewError={renderer.previewError}
+          onRetryPreview={renderer.retryPreview}
+          enhancementActive={pattern === null && enhancementMode !== "off"}
+          enhancedPreviewUrl={photoPreview.previewUrl}
+          isPreparingEnhancedPreview={photoPreview.isPreparing}
+          enhancedPreviewError={photoPreview.error}
+          onPointerDown={handleCanvasPointerDown}
+          onPointerMove={handleCanvasPointerMove}
+          onPointerUp={handleCanvasPointerUp}
+          onDoubleClick={handleCanvasDoubleClick}
+          onDrop={handleCanvasDrop}
+        />
+
+        <StatusBar
+          pattern={pattern}
+          aidaCount={options.aidaCount}
+          sizeUnit={options.sizeUnit}
+          autosaveStatus={autosaveStatus}
+          hasPattern={pattern !== null}
+          zoomLevel={panZoom.zoomLevel}
+          onZoomIn={() => panZoom.zoomBy(ZOOM_STEP)}
+          onZoomOut={() => panZoom.zoomBy(1 / ZOOM_STEP)}
+          onResetZoom={panZoom.resetZoom}
+        />
+      </main>
+
+      <Inspector
+        tab={inspectorTab}
+        onTabChange={setInspectorTab}
+        disabled={{ chart: pattern === null, threads: pattern === null }}
+        photo={
+          isPhotoFree(pattern) ? (
+            <p className="p-4 text-[13px] text-muted">This chart was started from an empty canvas, so it has no photo settings.</p>
+          ) : (
             <ProcessingParams
               options={options}
               onChange={updateOption}
@@ -403,23 +464,40 @@ export default function Workspace() {
               onGenerate={() => void generation.generate()}
               error={generation.error}
             />
-          )}
-        </main>
-        <ColorsDock
-          pattern={pattern}
-          navigatorCanvasRef={navigatorCanvasRef}
-          activeTool={activeTool}
-          activeColorIndex={activeColorIndex}
-          onActiveColorChange={setActiveColorIndex}
-          highlightedColorIndices={highlightedColorIndices}
-          onToggleHighlight={toggleHighlight}
-          aidaCount={options.aidaCount}
-          onChange={history.set}
-          onPreviewChange={setColorPreview}
-          documentId={documentId}
-          onMergeColors={handleMergeColors}
-        />
-      </div>
+          )
+        }
+        chart={chartPane}
+        threads={
+          <ColorsDock
+            pattern={pattern}
+            navigatorCanvasRef={navigatorCanvasRef}
+            activeTool={activeTool}
+            activeColorIndex={activeColorIndex}
+            onActiveColorChange={setActiveColorIndex}
+            highlightedColorIndices={highlightedColorIndices}
+            onToggleHighlight={toggleHighlight}
+            aidaCount={options.aidaCount}
+            onChange={history.set}
+            onPreviewChange={setColorPreview}
+            documentId={documentId}
+            onMergeColors={handleMergeColors}
+          />
+        }
+        footer={
+          inspectorTab === "threads" ? (
+            <ExportControls
+              hasPattern={pattern !== null}
+              exportKind={exports.exportKind}
+              onExportKindChange={exports.setExportKind}
+              onExport={exports.exportSelected}
+              onExportAll={exports.exportAll}
+              isExporting={exports.isExporting}
+              isExportingAll={exports.isExportingAll}
+              exportProgressText={exports.exportProgressText}
+            />
+          ) : null
+        }
+      />
     </div>
   );
 }

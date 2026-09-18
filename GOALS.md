@@ -40,12 +40,29 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 **Milestones:**
 - [x] M1 — Atelier tokens, fonts and shared primitives, with no layout change. Done 2026-09-18.
-- [ ] M2 — The shell: rail, context bar, canvas, status bar and the inspector frame.
+- [x] M2 — The shell: rail, context bar, canvas, status bar and the inspector frame. Done 2026-09-18.
 - [ ] M3 — The three inspector tabs, and the generating and colour-editor states.
 - [ ] M4 — Highlight becomes Isolate, with a light on every thread.
 - [ ] M5 — Specs, documentation and deploy.
 
 **Progress log** (newest first):
+- 2026-09-18 — **M2 done: the shell is 1b’s. The panes still hold the old panels.**
+  - **Gone:** the top bar and the view bar, and with them the four stacked strips above the chart.
+    `top-bar.tsx` and `tools-dock.tsx` are deleted.
+  - **New:** `tool-rail.tsx` (the mark, the file menu behind it, tools, symmetry, mirror), `context-bar.tsx`
+    (undo/redo, the state of the document, the chart views and the photo toggle), `status-bar.tsx` (name,
+    size, counts, finished size, autosave, zoom), `inspector.tsx` (the three-tab frame) and
+    `export-controls.tsx` (lifted out of the top bar before it went).
+  - **Where things went:** file actions to the menu on the rail’s mark, undo and redo to the context bar,
+    name and autosave to the status bar and the Chart tab, the exports to the Threads tab footer, the
+    settings to the Photo tab.
+  - **Kept deliberately:** the scroller keeps its `overflow-auto` class and the frame its six data
+    attributes, because the renderer measures them and the suite selects by them (D135). The name field,
+    Options and Resize canvas keep their names on the Chart tab rather than disappearing with the top bar.
+  - **Checks:** build and lint clean; Vitest 1061 passed, 8 skipped; the shell shot from a production
+    server that confirmed its own readiness, no failed requests. **The Playwright suite has not been run
+    against the moved shell** — M5 owns the spec updates, so the damage there is still unmeasured.
+  - **Next:** M3, the three panes as 1b draws them, with the generating and colour-editor states.
 - 2026-09-18 — **M1 done: the palette, type and skin are in place; the layout is untouched.**
   - **Tokens:** the colours of direction 1b are CSS variables in `app/globals.css`, mapped into Tailwind theme
     names, so M2 and M3 can write `bg-surface` and `border-line` rather than carrying zinc/dark pairs around.
