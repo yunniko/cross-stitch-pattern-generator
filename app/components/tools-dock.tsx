@@ -186,11 +186,11 @@ export interface ToolsDockProps {
 
 export function ToolsDock({ activeTool, disabled, onSelect, symmetry, squareCanvas, onToggleSymmetry, onMirror }: ToolsDockProps) {
   return (
-    <aside className="flex w-16 shrink-0 flex-col items-center gap-2 border-r border-zinc-300 bg-white py-3 dark:border-zinc-800 dark:bg-zinc-900">
-      <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">Tools</span>
+    <aside className="flex w-16 shrink-0 flex-col items-center gap-2 border-r border-line bg-surface py-3">
+      <span className="text-[10px] font-medium uppercase tracking-wide text-muted">Tools</span>
       {TOOL_GROUPS.map((group, groupIndex) => (
         <Fragment key={groupIndex}>
-          {groupIndex > 0 && <div className="my-1 h-px w-8 shrink-0 bg-zinc-300 dark:bg-zinc-700" aria-hidden="true" />}
+          {groupIndex > 0 && <div className="my-1 h-px w-8 shrink-0 bg-line" aria-hidden="true" />}
           {group.map(({ tool, label, title, Icon }) => (
             <button
               key={tool}
@@ -201,7 +201,7 @@ export function ToolsDock({ activeTool, disabled, onSelect, symmetry, squareCanv
               aria-label={label}
               aria-pressed={activeTool === tool}
               className={`flex h-10 w-10 items-center justify-center rounded border disabled:cursor-not-allowed disabled:opacity-50 ${
-                activeTool === tool ? "border-foreground bg-black/[.06] dark:bg-white/[.1]" : "border-zinc-300 dark:border-zinc-700"
+                activeTool === tool ? "border-accent bg-raised" : "border-line"
               }`}
             >
               <Icon />
@@ -209,8 +209,8 @@ export function ToolsDock({ activeTool, disabled, onSelect, symmetry, squareCanv
           ))}
         </Fragment>
       ))}
-      <div className="my-1 h-px w-8 shrink-0 bg-zinc-300 dark:bg-zinc-700" aria-hidden="true" />
-      <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400" id="symmetry-heading">
+      <div className="my-1 h-px w-8 shrink-0 bg-line" aria-hidden="true" />
+      <span className="text-[10px] font-medium uppercase tracking-wide text-muted" id="symmetry-heading">
         Symmetry
       </span>
       <div role="group" aria-labelledby="symmetry-heading" className="grid grid-cols-2 gap-1">
@@ -226,7 +226,7 @@ export function ToolsDock({ activeTool, disabled, onSelect, symmetry, squareCanv
               aria-label={label}
               aria-pressed={symmetry[axis]}
               className={`flex h-7 w-7 items-center justify-center rounded border disabled:cursor-not-allowed disabled:opacity-40 ${
-                symmetry[axis] ? "border-red-600 bg-red-50 dark:bg-red-950" : "border-zinc-300 dark:border-zinc-700"
+                symmetry[axis] ? "border-red-600 bg-red-950/60" : "border-line"
               }`}
             >
               <AxisIcon axis={axis} />
@@ -234,8 +234,8 @@ export function ToolsDock({ activeTool, disabled, onSelect, symmetry, squareCanv
           );
         })}
       </div>
-      <div className="my-1 h-px w-8 shrink-0 bg-zinc-300 dark:bg-zinc-700" aria-hidden="true" />
-      <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400" id="mirror-heading">
+      <div className="my-1 h-px w-8 shrink-0 bg-line" aria-hidden="true" />
+      <span className="text-[10px] font-medium uppercase tracking-wide text-muted" id="mirror-heading">
         Mirror
       </span>
       <div role="group" aria-labelledby="mirror-heading" className="grid grid-cols-2 gap-1">
@@ -249,7 +249,7 @@ export function ToolsDock({ activeTool, disabled, onSelect, symmetry, squareCanv
               disabled={disabled || needsSquare}
               title={needsSquare ? `${title}. Needs a square canvas.` : title}
               aria-label={label}
-              className="flex h-7 w-7 items-center justify-center rounded border border-zinc-300 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700"
+              className="flex h-7 w-7 items-center justify-center rounded border border-line disabled:cursor-not-allowed disabled:opacity-40"
             >
               <MirrorIcon kind={kind} />
             </button>

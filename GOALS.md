@@ -39,13 +39,25 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   deploy approval applies.
 
 **Milestones:**
-- [ ] M1 — Atelier tokens, fonts and shared primitives, with no layout change.
+- [x] M1 — Atelier tokens, fonts and shared primitives, with no layout change. Done 2026-09-18.
 - [ ] M2 — The shell: rail, context bar, canvas, status bar and the inspector frame.
 - [ ] M3 — The three inspector tabs, and the generating and colour-editor states.
 - [ ] M4 — Highlight becomes Isolate, with a light on every thread.
 - [ ] M5 — Specs, documentation and deploy.
 
 **Progress log** (newest first):
+- 2026-09-18 — **M1 done: the palette, type and skin are in place; the layout is untouched.**
+  - **Tokens:** the colours of direction 1b are CSS variables in `app/globals.css`, mapped into Tailwind theme
+    names, so M2 and M3 can write `bg-surface` and `border-line` rather than carrying zinc/dark pairs around.
+  - **Type:** Archivo and IBM Plex Mono replace Geist. The numbers a reader compares — counts, dimensions,
+    percentages — are the reason for a mono face at all.
+  - **Skin:** 147 class replacements across the six shell components, leaving no zinc, dark:, bg-white or
+    text-black anywhere in `app/`. The diff is 81 insertions against 81 deletions: one-for-one, nothing moved.
+  - **Atelier is dark only.** 1b draws no light variant, so the prefers-color-scheme light theme is gone. Put
+    to the Owner at this check-in.
+  - **Checks:** Vitest 1061 passed, 8 skipped; lint and the production build clean; the page shot from a
+    production server that confirmed its own readiness first, with no failed requests.
+  - **Next:** M2, the shell — rail, context bar, canvas, status bar and the inspector frame.
 - 2026-09-18 — goal created at the Owner's instruction, with the four decisions above. Direction 1b was
   read from the design project, whose `github.md` maps each screen to the repo files it comes from; the
   project's support.js is the canvas renderer only and constrains nothing here.

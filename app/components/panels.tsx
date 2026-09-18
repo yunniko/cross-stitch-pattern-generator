@@ -29,17 +29,17 @@ export function WorkspaceNotices({ restoreFailure, onDownloadRestoreReport, onDi
         <div
           role="alert"
           data-testid="restore-failure"
-          className="flex flex-wrap items-center gap-3 border-b border-amber-300 bg-amber-50 px-4 py-1 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+          className="flex flex-wrap items-center gap-3 border-b border-amber-900 bg-amber-950/60 px-4 py-1 text-xs text-amber-200"
         >
           <span>The autosaved project couldn&apos;t be restored, so this session started fresh. The failed data is available as an error report.</span>
           <button
             type="button"
             onClick={onDownloadRestoreReport}
-            className="rounded-full border border-amber-400 px-3 py-0.5 font-medium hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900"
+            className="rounded-full border border-amber-700 px-3 py-0.5 font-medium hover:bg-amber-900"
           >
             Download error report
           </button>
-          <button type="button" onClick={onDismissRestoreFailure} className="rounded-full px-3 py-0.5 font-medium hover:bg-amber-100 dark:hover:bg-amber-900">
+          <button type="button" onClick={onDismissRestoreFailure} className="rounded-full px-3 py-0.5 font-medium hover:bg-amber-900">
             Dismiss
           </button>
         </div>
@@ -69,7 +69,7 @@ export function OptionsPanel({ options, onChange, onClose }: { options: Workspac
         <select
           value={options.aidaCount}
           onChange={(e) => onChange("aidaCount", Number(e.target.value))}
-          className="rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded border border-line px-1.5 py-0.5 text-sm bg-sunken"
         >
           {STANDARD_AIDA_COUNTS.map((count) => (
             <option key={count} value={count}>
@@ -96,7 +96,7 @@ export function OptionsPanel({ options, onChange, onClose }: { options: Workspac
           value={options.authorName}
           onChange={(e) => onChange("authorName", e.target.value)}
           placeholder="(shown on exported charts)"
-          className="w-56 rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="w-56 rounded border border-line px-1.5 py-0.5 text-sm bg-sunken"
         />
       </label>
       <label className="flex items-center gap-1.5 text-sm" title="How many stitches of overlap the A4/PDF page exports repeat between adjacent pages, so they can be lined up when printed">
@@ -104,7 +104,7 @@ export function OptionsPanel({ options, onChange, onClose }: { options: Workspac
         <select
           value={options.overlapCells}
           onChange={(e) => onChange("overlapCells", Number(e.target.value) as OverlapCells)}
-          className="rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded border border-line px-1.5 py-0.5 text-sm bg-sunken"
         >
           <option value={0}>0</option>
           <option value={5}>5</option>
@@ -119,11 +119,11 @@ export function OptionsPanel({ options, onChange, onClose }: { options: Workspac
           type="checkbox"
           checked={options.doubleClickFill}
           onChange={(e) => onChange("doubleClickFill", e.target.checked)}
-          className="h-3.5 w-3.5 accent-zinc-700 dark:accent-zinc-300"
+          className="h-3.5 w-3.5 accent-[var(--at-accent)]"
         />
         Double-click fills a region
       </label>
-      <span className="text-xs text-zinc-500">Saved automatically in this browser.</span>
+      <span className="text-xs text-muted">Saved automatically in this browser.</span>
       <PillButton size="md" onClick={onClose} className="ml-auto">
         Close
       </PillButton>
@@ -232,7 +232,7 @@ export function SelectionBar({
   return (
     <PanelBar gap="gap-2">
       <span className="text-sm font-medium">Selection</span>
-      <span className="text-xs text-zinc-500">
+      <span className="text-xs text-muted">
         {hasSelection ? "Drag inside it to move, or drag elsewhere to start a new selection." : "Drag a rectangle on the Image window to select it."}
       </span>
       <div className="ml-auto flex items-center gap-1.5">
@@ -285,11 +285,11 @@ export function NewChartPanel({ options, onCreate, onCancel }: { options: Worksp
             value={value}
             onChange={(e) => setValue(Math.round(Number(e.target.value)))}
             aria-label={`${label} in stitches`}
-            className="w-20 rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-20 rounded border border-line px-1.5 py-0.5 text-sm bg-sunken"
           />
         </label>
       ))}
-      <span className="text-xs text-zinc-500" data-testid="new-chart-size">
+      <span className="text-xs text-muted" data-testid="new-chart-size">
         {problem === null
           ? `→ ${width} × ${height} stitches, ≈ ${formatFinishedSize(width, height, options.aidaCount, options.sizeUnit)} at ${options.aidaCount}-count Aida`
           : "→ enter a size to see the finished fabric size"}
@@ -300,7 +300,7 @@ export function NewChartPanel({ options, onCreate, onCancel }: { options: Worksp
       <PillButton size="md" onClick={onCancel}>
         Cancel
       </PillButton>
-      {problem && <p className="w-full text-sm text-red-600 dark:text-red-400">{problem}</p>}
+      {problem && <p className="w-full text-sm text-red-300">{problem}</p>}
     </PanelBar>
   );
 }
@@ -338,12 +338,12 @@ export function ResizePanel({ pattern, onApply, onCancel }: { pattern: StitchPat
             type="number"
             value={delta[key]}
             onChange={(e) => setDelta((prev) => ({ ...prev, [key]: Number(e.target.value) || 0 }))}
-            className="w-16 rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-16 rounded border border-line px-1.5 py-0.5 text-sm bg-sunken"
           />
         </label>
       ))}
-      <span className="text-xs text-zinc-500">(positive expands with empty stitches, negative crops)</span>
-      <span className="text-xs text-zinc-500">
+      <span className="text-xs text-muted">(positive expands with empty stitches, negative crops)</span>
+      <span className="text-xs text-muted">
         → {pattern.width + delta.left + delta.right} × {pattern.height + delta.top + delta.bottom} stitches
       </span>
       <PillButton variant="primary" size="md" onClick={apply}>
@@ -352,7 +352,7 @@ export function ResizePanel({ pattern, onApply, onCancel }: { pattern: StitchPat
       <PillButton size="md" onClick={onCancel}>
         Cancel
       </PillButton>
-      {error && <p className="w-full text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="w-full text-sm text-red-300">{error}</p>}
     </PanelBar>
   );
 }

@@ -44,7 +44,7 @@ const ENHANCEMENT_OPTIONS: Record<EnhancementModeId, SegmentOption<EnhancementMo
   portrait: { value: "portrait", label: "Portrait", title: "Experimental: a gentle correction without local contrast, protecting skin tones" },
 };
 
-const LABEL = "text-xs font-medium text-zinc-600 dark:text-zinc-400";
+const LABEL = "text-xs font-medium text-muted";
 
 export interface ProcessingParamsProps {
   options: WorkspaceOptions;
@@ -68,7 +68,7 @@ export function ProcessingParams({ options, onChange, isLoadingImage, isProcessi
   const photoMode = isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off";
 
   return (
-    <div className="flex flex-wrap items-end gap-4 border-t border-zinc-300 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="flex flex-wrap items-end gap-4 border-t border-line bg-surface px-4 py-3">
       <div className="flex flex-col gap-1">
         <span className={LABEL}>Pattern size (longer side)</span>
         <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -90,11 +90,11 @@ export function ProcessingParams({ options, onChange, isLoadingImage, isProcessi
                 onChange("sizePreset", "custom");
                 onChange("customSize", Number(e.target.value));
               }}
-              className="w-20 rounded border border-zinc-300 px-1.5 py-0.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="w-20 rounded border border-line px-1.5 py-0.5 text-sm bg-sunken"
             />
           </label>
         </div>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-muted">
           ≈ {formatFinishedDimension(longerSide, options.aidaCount, options.sizeUnit)} on the longer side at {options.aidaCount}-count Aida (change fabric count/unit in Options)
         </p>
       </div>
@@ -144,8 +144,8 @@ export function ProcessingParams({ options, onChange, isLoadingImage, isProcessi
             ? "Regenerate"
             : "Generate pattern"}
       </PillButton>
-      {queueMessage && <p className="text-sm text-zinc-600 dark:text-zinc-400">{queueMessage}</p>}
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {queueMessage && <p className="text-sm text-muted">{queueMessage}</p>}
+      {error && <p className="text-sm text-red-300">{error}</p>}
     </div>
   );
 }

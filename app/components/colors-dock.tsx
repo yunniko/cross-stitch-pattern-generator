@@ -15,9 +15,9 @@ import { PillButton, SegmentedControl } from "./ui";
 /** Large enough to orient by, small enough to stay a glance; the canvas inside is true 1 px per stitch and scrolls if larger. */
 const NAVIGATOR_MAX_SIZE_PX = 180;
 
-const PANEL = "flex flex-col gap-2 rounded border border-zinc-300 p-3 dark:border-zinc-700";
-const ROW_IDLE = "border-transparent hover:bg-black/[.04] dark:hover:bg-white/[.08]";
-const ROW_ACTIVE = "border-foreground bg-black/[.04] dark:bg-white/[.08]";
+const PANEL = "flex flex-col gap-2 rounded border border-line p-3";
+const ROW_IDLE = "border-transparent hover:bg-raised";
+const ROW_ACTIVE = "border-accent bg-raised";
 const COMPARE_HINT = "Hover or focus a swatch to compare it with the current color on screen.";
 
 /** A brand's thread line filtered by code or name substring, case-insensitive. */
@@ -31,7 +31,7 @@ function filterBrandColors(query: string, brand: ThreadBrand): readonly ThreadCo
 function BrandNotice({ brand }: { brand: ThreadBrand }) {
   const { label, derivationNote } = THREAD_BRANDS[brand];
   return (
-    <p className="text-xs text-zinc-500">
+    <p className="text-xs text-muted">
       This pattern is in {label} mode -- pick a real {label} thread color.
       {derivationNote && ` (${derivationNote}.)`}
     </p>
@@ -76,7 +76,7 @@ function BrandColorPicker({ brand, query, onQueryChange, onPick, currentCode, co
         onChange={(e) => onQueryChange(e.target.value)}
         placeholder="Search by code or name…"
         aria-label={`Search ${label} threads`}
-        className="rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+        className="rounded border border-line px-2 py-1 text-sm bg-sunken"
       />
       <div ref={gridRef} data-testid="swatch-grid" className="relative grid max-h-64 grid-cols-10 gap-1 overflow-y-auto p-1">
         {colors.map((thread) => {
@@ -95,7 +95,7 @@ function BrandColorPicker({ brand, query, onQueryChange, onPick, currentCode, co
               aria-pressed={compareWith !== undefined ? isCurrent : undefined}
               data-current={isCurrent || undefined}
               style={{ backgroundColor: rgbToHex(thread.rgb) }}
-              className={`relative h-7 w-7 shrink-0 rounded border ${isCurrent ? "border-foreground ring-2 ring-foreground ring-offset-1" : "border-zinc-400 dark:border-zinc-600"}`}
+              className={`relative h-7 w-7 shrink-0 rounded border ${isCurrent ? "border-accent ring-2 ring-accent ring-offset-1" : "border-line"}`}
             >
               {isCurrent && (
                 <span aria-hidden className="absolute inset-0 flex items-center justify-center text-xs font-bold" style={{ color: luminance(thread.rgb) > 140 ? "#000000" : "#ffffff" }}>
@@ -105,17 +105,17 @@ function BrandColorPicker({ brand, query, onQueryChange, onPick, currentCode, co
             </button>
           );
         })}
-        {colors.length === 0 && <p className="col-span-10 text-xs text-zinc-500">No colors match that search.</p>}
+        {colors.length === 0 && <p className="col-span-10 text-xs text-muted">No colors match that search.</p>}
       </div>
       {compareWith && (
         // A fixed line rather than a native tooltip: tooltips are delayed and never shown for keyboard focus (G-033).
-        <p data-testid="swatch-comparison" aria-live="polite" className="min-h-[2.5em] text-xs text-zinc-600 dark:text-zinc-400">
+        <p data-testid="swatch-comparison" aria-live="polite" className="min-h-[2.5em] text-xs text-muted">
           {inspected ? (
             // Real spaces between the parts, not a flex gap: the gap spaces them on screen but leaves the read-aloud
             // and copied text running together ("Dark7% lighter").
             swatchComparisonParts(formatThreadName(inspected), compareWith, inspected.rgb).map((part, i) =>
               i === 0 ? (
-                <span key={part} className="font-medium text-foreground">
+                <span key={part} className="font-medium text-ink">
                   {part}
                 </span>
               ) : (
@@ -326,7 +326,7 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
           </div>
         )}
 
-        <p className="text-xs text-zinc-500">Picks apply right away. Done keeps this color; Cancel returns it to how it was when you opened the editor.</p>
+        <p className="text-xs text-muted">Picks apply right away. Done keeps this color; Cancel returns it to how it was when you opened the editor.</p>
         <div className="flex gap-2">
           <PillButton variant="primary" size="md" onClick={finishEditing}>
             Done
@@ -340,20 +340,20 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
   }
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col gap-2 overflow-y-auto border-l border-zinc-300 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+    <aside className="flex w-64 shrink-0 flex-col gap-2 overflow-y-auto border-l border-line bg-surface p-3">
       {pattern && (
-        <div className="flex flex-col gap-1 border-b border-zinc-300 pb-2 dark:border-zinc-800">
-          <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Navigator</span>
-          <div className="overflow-auto rounded border border-zinc-300 dark:border-zinc-700" style={{ maxWidth: NAVIGATOR_MAX_SIZE_PX, maxHeight: NAVIGATOR_MAX_SIZE_PX }}>
+        <div className="flex flex-col gap-1 border-b border-line pb-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted">Navigator</span>
+          <div className="overflow-auto rounded border border-line" style={{ maxWidth: NAVIGATOR_MAX_SIZE_PX, maxHeight: NAVIGATOR_MAX_SIZE_PX }}>
             <canvas ref={navigatorCanvasRef} style={{ imageRendering: "pixelated" }} className="block" />
           </div>
-          <p className="text-[11px] text-zinc-500">
+          <p className="text-[11px] text-muted">
             {pattern.width} × {pattern.height} px, true scale
           </p>
         </div>
       )}
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Colors</span>
+        <span className="text-xs font-medium uppercase tracking-wide text-muted">Colors</span>
         <PillButton
           size="xs"
           onClick={() => {
@@ -366,7 +366,7 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
           + Add
         </PillButton>
       </div>
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-muted">
         {pattern && pattern.palette.length === 0 ? (
           <span data-testid="empty-palette-note">This chart has no colors yet. Press &quot;+ Add&quot; to pick the first one, then click it and paint on the picture.</span>
         ) : (
@@ -388,10 +388,10 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
           className={`flex cursor-pointer items-center gap-2 rounded border px-2 py-1 text-sm transition-colors ${activeColorIndex === EMPTY_CELL ? ROW_ACTIVE : ROW_IDLE}`}
         >
           <span
-            className="h-5 w-5 shrink-0 rounded border border-zinc-400 bg-[repeating-conic-gradient(#9ca3af_0_25%,transparent_0_50%)] bg-[length:8px_8px] dark:border-zinc-600"
+            className="h-5 w-5 shrink-0 rounded border border-line bg-[repeating-conic-gradient(#9ca3af_0_25%,transparent_0_50%)] bg-[length:8px_8px]"
             aria-hidden
           />
-          <span className="flex-1 text-zinc-500 dark:text-zinc-400">Empty (no stitch)</span>
+          <span className="flex-1 text-muted">Empty (no stitch)</span>
         </div>
       )}
 
@@ -402,7 +402,7 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
             const rowState =
               activeTool === "highlight"
                 ? highlightedColorIndices.has(color.index)
-                  ? "border-amber-500 bg-amber-500/10"
+                  ? "border-amber-500 bg-amber-950/600/10"
                   : ROW_IDLE
                 : activeColorIndex === color.index
                   ? ROW_ACTIVE
@@ -426,7 +426,7 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
                       openColorEditor(color.index);
                     }}
                     style={{ backgroundColor: rgbToHex(color.rgb) }}
-                    className="h-5 w-5 shrink-0 rounded border border-zinc-400 dark:border-zinc-600"
+                    className="h-5 w-5 shrink-0 rounded border border-line"
                     aria-label={`Edit ${color.name}`}
                     aria-expanded={editing?.index === color.index}
                   />
@@ -436,7 +436,7 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
                       e.stopPropagation();
                       setEditingSymbolIndex(editingSymbolIndex === color.index ? null : color.index);
                     }}
-                    className={`w-5 shrink-0 rounded text-center hover:bg-black/[.08] dark:hover:bg-white/[.12] ${editingSymbolIndex === color.index ? "bg-black/[.08] dark:bg-white/[.12]" : ""}`}
+                    className={`w-5 shrink-0 rounded text-center hover:bg-raised ${editingSymbolIndex === color.index ? "bg-raised" : ""}`}
                     title="Click to change this color's symbol"
                   >
                     {color.symbol}
@@ -452,7 +452,7 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
                         if (e.key === "Enter") e.currentTarget.blur();
                         if (e.key === "Escape") setRenamingIndex(null);
                       }}
-                      className="w-0 min-w-0 flex-1 rounded border border-zinc-400 bg-transparent px-1 dark:border-zinc-600"
+                      className="w-0 min-w-0 flex-1 rounded border border-line bg-transparent px-1"
                     />
                   ) : (
                     <span
@@ -467,7 +467,7 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
                       {color.name}
                     </span>
                   )}
-                  <span className="shrink-0 text-xs text-zinc-500" title="Estimated floss needed, biased to overestimate -- see docs/domain-reference.md">
+                  <span className="shrink-0 text-xs text-muted" title="Estimated floss needed, biased to overestimate -- see docs/domain-reference.md">
                     {color.count} sts · {formatSkeinEstimate(color.count, aidaCount)}
                   </span>
                 </div>
@@ -478,7 +478,7 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
 
       {editingSymbolIndex !== null && pattern && (
         <div className={PANEL}>
-          <p className="text-xs text-zinc-500">Picking a symbol already used by another color swaps the two colors&apos; symbols.</p>
+          <p className="text-xs text-muted">Picking a symbol already used by another color swaps the two colors&apos; symbols.</p>
           <div className="grid grid-cols-10 gap-1">
             {SYMBOL_SET.map((symbol) => {
               const holder = pattern.palette.find((c) => c.symbol === symbol);
@@ -491,10 +491,10 @@ export function ColorsDock({ pattern, navigatorCanvasRef, activeTool, activeColo
                   title={holder && !isCurrent ? `Swap with ${holder.name}` : undefined}
                   className={`flex h-7 w-7 items-center justify-center rounded border text-sm ${
                     isCurrent
-                      ? "border-foreground bg-black/[.08] dark:bg-white/[.12]"
+                      ? "border-accent bg-raised"
                       : holder
-                        ? "border-dashed border-zinc-400 dark:border-zinc-600"
-                        : "border-zinc-300 hover:bg-black/[.04] dark:border-zinc-700 dark:hover:bg-white/[.08]"
+                        ? "border-dashed border-line"
+                        : "border-line hover:bg-black/[.04] "
                   }`}
                 >
                   {symbol}

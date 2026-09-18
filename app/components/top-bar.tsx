@@ -83,9 +83,9 @@ export function TopBar(props: TopBarProps) {
   }
 
   return (
-    <header className="flex flex-wrap items-center gap-3 border-b border-zinc-300 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+    <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-4 py-2">
       <h1 className="shrink-0 text-base font-semibold">Cross-Stitch Pattern Generator</h1>
-      <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+      <label className="flex items-center gap-1.5 text-sm text-muted">
         Name:
         <input
           type="text"
@@ -96,7 +96,7 @@ export function TopBar(props: TopBarProps) {
             if (e.key === "Enter") e.currentTarget.blur();
           }}
           disabled={!hasPattern}
-          className="w-40 rounded border border-zinc-300 px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+          className="w-40 rounded border border-line px-2 py-1 text-sm disabled:opacity-50 bg-sunken"
           aria-label="Pattern name"
         />
       </label>
@@ -112,7 +112,7 @@ export function TopBar(props: TopBarProps) {
         role="status"
         data-testid="autosave-status"
         data-status={autosaveStatus}
-        className={`text-xs ${autosaveStatus === "unavailable" ? "font-medium text-red-600 dark:text-red-400" : "text-zinc-500"}`}
+        className={`text-xs ${autosaveStatus === "unavailable" ? "font-medium text-red-300" : "text-muted"}`}
       >
         {autosaveStatus === "saved" && !hasPattern ? "" : AUTOSAVE_LABELS[autosaveStatus]}
       </span>
@@ -139,7 +139,7 @@ export function TopBar(props: TopBarProps) {
           className="hidden"
         />
         <label className="flex items-center gap-1.5 text-sm" title="Choose a photo to generate a chart from">
-          <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400" id="image-input-label">
+          <span className="text-xs font-medium text-muted" id="image-input-label">
             Image
           </span>
           <input
@@ -154,20 +154,20 @@ export function TopBar(props: TopBarProps) {
             className="w-44 text-xs"
           />
         </label>
-        {props.isLoadingImage && <span className="text-xs text-zinc-500">Reading image…</span>}
-        {props.sourceFileName && !props.isLoadingImage && <span className="max-w-[12rem] truncate text-xs text-zinc-500">Loaded: {props.sourceFileName}</span>}
+        {props.isLoadingImage && <span className="text-xs text-muted">Reading image…</span>}
+        {props.sourceFileName && !props.isLoadingImage && <span className="max-w-[12rem] truncate text-xs text-muted">Loaded: {props.sourceFileName}</span>}
         <PillButton onClick={props.onToggleOptions}>Options…</PillButton>
         <PillButton onClick={props.onOpenResize} disabled={!hasPattern}>
           Resize canvas…
         </PillButton>
 
-        <div className="mx-1 h-5 w-px shrink-0 bg-zinc-300 dark:bg-zinc-700" aria-hidden="true" />
+        <div className="mx-1 h-5 w-px shrink-0 bg-line" aria-hidden="true" />
 
         <select
           aria-label="Export"
           value={props.exportKind}
           onChange={(e) => props.onExportKindChange(e.target.value as ExportKind)}
-          className="min-w-[190px] rounded-full border border-zinc-300 px-3 py-1 text-sm transition-colors hover:bg-black/[.04] dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-white/[.08]"
+          className="min-w-[190px] rounded-full border border-line px-3 py-1 text-sm transition-colors hover:bg-black/[.04] bg-sunken"
         >
           {EXPORT_KIND_TOP_OPTIONS.map(({ value, label }) => (
             <option key={value} value={value}>
