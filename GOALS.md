@@ -108,6 +108,24 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M5 — Specs, documentation and deploy.
 
 **Progress log** (newest first):
+- 2026-09-18 — **M5: the suite speaks 1b's vocabulary, and two real defects surfaced.**
+  - **Fixed from evidence, not prediction.** A full run named 28 failures and each was traced to its own cause
+    before anything was edited. Ten were the inspector mounting one pane at a time — a Photo, Chart or Threads
+    control is absent from the DOM while another tab is up. Fourteen were the viewport parity oracle: the live
+    renderer gates the dimming overlay on Isolate while the frozen pre-G-036 copy still gates on the highlight
+    tool, so each scene is now told in its own words and the pixels stay identical. The rest were the rail's file
+    menu, the retired Options and Resize panels, "Apply here" and "Discard", the view chips (`aria-pressed`
+    buttons, not radios — D159), and a legend row that now prints its count bare.
+  - **Two app defects the specs found, both fixed.** Isolate stayed pressed with nothing lit, because `toggleLit`
+    turned it on but never off; and the shell had carried no heading at any level since M2 deleted the top bar,
+    which two specs had been quietly asserting all along.
+  - **One deliberate behaviour change.** 1b's size stepper clamps as you type, so an out-of-range custom size can
+    no longer reach generation at all. The guard in `app/hooks/use-generation.ts` stays and the fractional case
+    still trips it, so that spec asserts the clamp instead of a message the UI can no longer produce.
+  - **Checks:** Playwright **312 passed, 0 failed across all 25 specs**, one spec per process (313 before: the
+    navigator dock's own test retired with the dock); Vitest 1061 passed, 8 skipped; `tsc --noEmit`, `eslint`,
+    `docs-lint` and the production build all clean. D157, D158, D159.
+  - **Next:** deploy, then the Owner's sign-off.
 - 2026-09-18 — **M3 and M4 done together: the panes are 1b’s, and Highlight is now Isolate.**
   - **Panes:** `photo-pane.tsx` (size presets and a custom stepper, colour count, Algorithm, Palette, Edges, Photo
     fix, and the Generating card while a job runs), `chart-pane.tsx` (name, canvas edges with a live → W × H,

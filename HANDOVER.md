@@ -19,6 +19,15 @@ drawing with DejaVu because the image has no fonts (D153), parity measured in
 bundle (2370 KB to 1129 KB). **Deployed and verified live on 2026-09-18**, after the Owner's nginx change (40 MB bodies, 300 s proxy reads).
 Export all and the Pattern Keeper PDF fail on charts near 1000 stitches, shipped as a documented limitation (D155).
 
+**G-045, the Atelier redesign (direction 1b) — M1-M5 done 2026-09-18.** The four stacked bars above the chart are
+gone: a 64px tool rail with the file actions behind its mark, a context bar that changes with the document, the
+chart in a ruled well, a status bar, and a 360px inspector showing one of Photo, Chart or Threads at a time (D157).
+Highlight left the tool union to become Isolate, a view mode that survives picking up a brush, with its own light on
+every thread (D158); the view chips stay `aria-pressed` buttons rather than a radiogroup (D159). The e2e suite moved
+with the product: 28 specs failed against the new vocabulary, each was fixed from the run's own evidence, and that
+surfaced two real defects — Isolate stayed pressed with nothing lit, and the shell had had no heading at any level
+since the top bar was deleted.
+
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest or Original clustering, Full range, DMC,
   Cosmo or Anchor palettes, and Standard, Crisp or Crisp+ edges — on the processor, reporting progress, a queue
@@ -49,9 +58,10 @@ Export all and the Pattern Keeper PDF fail on charts near 1000 stitches, shipped
   original", and the mode recorded in saved files; only Brighten is released
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-18**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1055 passed (8 opt-in skips — the
-drop from 1069 is the deleted worker specs); Playwright **313 passed across all 25 specs**, one spec per process,
-against the single-path build, with the processor serving 107 jobs, exports and previews. Export parity:
+**Checks run 2026-09-18**: `tsc --noEmit` clean, `npm run lint` 0 errors, production build clean; Vitest 1061
+passed (8 opt-in skips); Playwright **312 passed, 0 failed across all 25 specs**, one spec per process, against the
+single-path build, with the processor serving generation, exports and previews. The count fell from 313 because
+G-045 retired the navigator dock's own test along with the dock (D157). Export parity:
 `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the type-check and `build:processor` before
 the unit tests, because the worker bundle is git-ignored and the pool, preview and export specs run against it.
 
