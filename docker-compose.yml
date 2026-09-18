@@ -14,7 +14,10 @@ services:
     cpus: 1.0
     mem_limit: 768m
     environment:
-      APP_URL: ${APP_URL:-http://localhost:3000}
+      # No default on purpose: unset means only the request's own origin is trusted, which is what the
+      # deployed site matches anyway. A localhost default would let a page on a visitor's own machine post
+      # here if the deploy .env ever went missing, so the safe value is nothing at all.
+      APP_URL: ${APP_URL:-}
       PROCESSOR_URL: http://processor:8081
     depends_on:
       - processor

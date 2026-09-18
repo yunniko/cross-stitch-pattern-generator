@@ -36,6 +36,70 @@ describe("origin check", () => {
   });
 });
 
+describe("origin check: loopback spellings and APP_URL", () => {
+  /** A request that arrived at `url` carrying `origin`. */
+  function arriving(url: string, origin: string): Request {
+    const headers = new Headers();
+    headers.set("origin", origin);
+    return new Request(url, { method: "POST", headers });
+  }
+
+  /** `APP_URL` is module-free state, so each case restores whatever the run started with. */
+  function withAppUrl(value: string | undefined, body: () => void): void {
+    const before = process.env.APP_URL;
+    if (value === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = value;
+    try {
+      body();
+    } finally {
+      if (before === undefined) delete process.env.APP_URL;
+      else process.env.APP_URL = before;
+    }
+  }
+
+  it("treats the loopback spellings as one site", () => {
+    // The e2e suite serves on 127.0.0.1 while a browser may be pointed at localhost, and the reverse.
+    expect(originRejected(arriving("http://localhost:3000/api/jobs", "http://127.0.0.1:3000"))).toBeNull();
+    expect(originRejected(arriving("http://127.0.0.1:3000/api/jobs", "http://localhost:3000"))).toBeNull();
+    expect(originRejected(arriving("http://localhost:3000/api/jobs", "http://[::1]:3000"))).toBeNull();
+  });
+
+  it("still separates loopback origins by port and by scheme", () => {
+    // Another app on the same machine is a different site, and so is the same one over plain http.
+    expect(originRejected(arriving("http://localhost:3000/api/jobs", "http://127.0.0.1:3001"))?.status).toBe(403);
+    expect(originRejected(arriving("https://localhost:3000/api/jobs", "http://127.0.0.1:3000"))?.status).toBe(403);
+  });
+
+  it("never treats a real host as loopback", () => {
+    withAppUrl(undefined, () => {
+      expect(originRejected(arriving("https://chart.example/api/jobs", "http://localhost:3000"))?.status).toBe(403);
+      expect(originRejected(arriving("https://chart.example/api/jobs", "https://not-this-site.example"))?.status).toBe(403);
+    });
+  });
+
+  it("allows the configured origin even when the request arrived by another name", () => {
+    // Behind a proxy a request can arrive addressed to an internal name; APP_URL is the public one.
+    withAppUrl("https://chart.example", () => {
+      expect(originRejected(arriving("http://app:3000/api/jobs", "https://chart.example"))).toBeNull();
+    });
+  });
+
+  it("allows only the request's own origin when APP_URL is unset", () => {
+    // The deployed default: nothing configured must mean nothing extra trusted.
+    withAppUrl(undefined, () => {
+      expect(originRejected(arriving("https://chart.example/api/jobs", "https://chart.example"))).toBeNull();
+      expect(originRejected(arriving("https://chart.example/api/jobs", "http://localhost:3000"))?.status).toBe(403);
+    });
+  });
+
+  it("ignores a malformed APP_URL rather than opening the check up", () => {
+    withAppUrl("not a url", () => {
+      expect(originRejected(arriving("https://chart.example/api/jobs", "https://chart.example"))).toBeNull();
+      expect(originRejected(arriving("https://chart.example/api/jobs", "https://not-this-site.example"))?.status).toBe(403);
+    });
+  });
+});
+
 describe("rate limit", () => {
   it("allows a burst up to the bucket's capacity, then refuses with Retry-After", () => {
     const allowed: number[] = [];

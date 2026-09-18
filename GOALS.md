@@ -12,6 +12,31 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
+### G-044 · The Origin check reads one site as one site — ACTIVE
+- **What:** the Origin check treats `localhost`, `127.0.0.1` and `[::1]` on the same
+  scheme and port as one origin, and `APP_URL` carries no misleading default.
+- **Why:** Owner instruction (2026-09-18), closing the item G-034 M4 left open. The
+  loopback spellings compare as different strings, so a setup served on one and opened
+  on the other is refused for no good reason. Separately, the compose default was
+  `http://localhost:3000`: production is correct only because the deploy `.env`
+  overrides it (`COMPANY/INFRASTRUCTURE_DEPLOY.md`), so losing that one untracked file
+  would quietly trust a page running on a visitor's own machine.
+- **Acceptance criteria:**
+  1. The three loopback spellings match each other, while port and scheme still tell
+     origins apart and a real host is never folded into loopback.
+  2. An unset `APP_URL` trusts only the origin the request arrived at; a malformed one
+     widens nothing.
+  3. Verified live after deploy: the site's own origin passes, and a localhost origin,
+     a loopback origin, a foreign origin and a missing `Origin` are each refused.
+- **Constraints:** nothing a real browser sends to the deployed site may start being
+  refused. Standing deploy approval applies.
+
+**Milestones:**
+- [ ] M1 — Fix, covered by tests, deployed, with the live Origin check re-probed.
+
+**Progress log** (newest first):
+- 2026-09-18 — goal created at the Owner's instruction.
+
 ### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT, possibly relevant to G-030 (2026-09-12)
 - **Not superseded -- correcting an earlier overreach.** An earlier pass
   at this file marked this goal "superseded by G-030" on the assumption

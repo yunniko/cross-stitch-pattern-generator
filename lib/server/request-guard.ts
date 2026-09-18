@@ -51,17 +51,34 @@ export function clientIp(req: Request): string {
   return req.headers.get("x-real-ip") ?? "unknown";
 }
 
+/** The spellings a browser may use for this machine. They address one site, so the check must read them as one. */
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * One comparable form per origin, so the same site matches however it was spelled. Only the loopback host is
+ * rewritten: scheme and port still tell origins apart, and a real host is never folded into loopback. Anything
+ * unparseable — a malformed `APP_URL`, or the literal "null" a sandboxed frame sends — returns null and is dropped
+ * rather than compared, so it can never widen what is allowed.
+ */
+function canonicalOrigin(origin: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return null;
+  }
+  const host = LOOPBACK_HOSTS.has(url.hostname) ? "loopback" : url.hostname;
+  // `url.port` is empty for a scheme's default port, so :80 and an omitted port compare equal, as they should.
+  return `${url.protocol}//${host}:${url.port}`;
+}
+
+/**
+ * The origins a request may claim: the one it arrived at, and `APP_URL` when set. Unset means nothing extra is
+ * trusted, which is the deployed default — the site's own origin is what a browser sends anyway.
+ */
 function allowedOrigins(req: Request): string[] {
   const configured = process.env.APP_URL;
-  const origins = [new URL(req.url).origin];
-  if (configured) {
-    try {
-      origins.push(new URL(configured).origin);
-    } catch {
-      // A malformed APP_URL must not open the check up; the request origin above still applies.
-    }
-  }
-  return origins;
+  return configured ? [new URL(req.url).origin, configured] : [new URL(req.url).origin];
 }
 
 /**
@@ -70,7 +87,11 @@ function allowedOrigins(req: Request): string[] {
  */
 export function originRejected(req: Request): NextResponse | null {
   const origin = req.headers.get("origin");
-  if (origin && allowedOrigins(req).includes(origin)) return null;
+  const claimed = origin ? canonicalOrigin(origin) : null;
+  if (claimed) {
+    const allowed = allowedOrigins(req).map(canonicalOrigin);
+    if (allowed.includes(claimed)) return null;
+  }
   return NextResponse.json({ error: "This endpoint only serves this site." }, { status: 403 });
 }
 

@@ -163,3 +163,5 @@ remain readable with git show.
 - D152 — The enhancement preview gets its own worker on the server — active
 - D153 — Server exports draw their text with DejaVu Sans — active
 - D154 — Export all gets a fifteen-minute deadline — superseded by D155
+- D155 — The Pattern Keeper PDF exhausts the worker heap on large charts — active
+- D156 — Loopback spellings are one origin, and APP_URL has no default — active
