@@ -12,6 +12,68 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
+### G-046 · Larger canvases: remove the walls, then raise the cap — ACTIVE (2026-09-18)
+- **What:** the failures and limits that stop the app at 1000 stitches per side are removed, and
+  `MAX_STITCHES` (`lib/types.ts`) rises to the largest size the measurements support inside D149's
+  3-CPU / 2 GiB processor caps. Four walls, in the order they bite: the Pattern Keeper PDF and Export
+  all exhausting the worker heap (D155); ICM scanning every palette label per cell; the generation
+  result crossing the wire as a plain JSON number array; and the client's 50 full-pattern undo
+  snapshots plus chart drawing.
+- **Why:** the Owner asked (2026-09-18) whether moving the algorithms to Rust would fix memory and
+  speed for larger canvases. Assessed against the deployed code this session: **no for memory** — the
+  measured pipeline peak is 113–234 MB per job and D149 records memory as "no longer a risk", while the
+  actual OOM is three pdf-lib operator objects per cell across 154 pages in
+  `lib/export/pdf-canvas-adapter.ts`, which no kernel port touches; **partly for speed** — the portable
+  kernels are 65 % of Standard and ~92 % of Crisp, but G-035 already made them flat typed arrays with
+  no closures or allocation, so a port is worth perhaps 2–3× single-threaded (an inference from the
+  code's shape, not a measurement), and Amdahl puts the largest case at ~7.4 s against today's 12.1 s.
+  Multicore, Rust's real lever, is bounded by the 3-CPU cap on a box shared with ~20 other sites. So
+  this goal takes the cheaper, already-identified work first and measures Rust last, only if needed.
+- **Acceptance criteria:**
+  1. The Pattern Keeper PDF and Export all complete at the maximum canvas size on the processor, inside
+     their deadlines, with the worker heap bounded — proven by re-running the `PROCESSOR_WORKER_HEAP_MB`
+     reproduction from D155 rather than by a larger heap.
+  2. The largest generation is measurably faster than the 12.1 s Standard / 14.7 s Crisp D149 measured
+     in-cap on the host, and stays inside the 45 s job deadline with headroom.
+  3. Golden hashes are unchanged (D107) and the m3/m5 equivalence specs pass: every speed-up is
+     byte-identical, or an intended output change carries its own decision file.
+  4. Three concurrent jobs at the new maximum canvas stay inside the processor's 3-CPU / 2 GiB cap,
+     measured by D149's own method, not inferred.
+  5. The editor is still usable at the new cap: undo and chart actions measured, with a stated
+     client-memory budget.
+  6. `MAX_STITCHES` is raised to the measured-safe value and every validator agrees — serialize, OXS,
+     resize, blank-chart and workspace storage.
+  7. Vitest and Playwright pass, `docs-lint` passes, and `HANDOVER.md` is regenerated.
+- **Constraints:** D149's caps are fixed — more CPU or memory for the processor is escalation-tier
+  (shared host, spending money). The byte-identical rule (D107) governs every optimisation. No new
+  runtime dependency without a decision file. M5 is a measurement only: a library and numbers, never a
+  service or a deploy. Standing deploy approval applies to the rest.
+- **Owner decisions (2026-09-18):** scope is "unblock, then raise the cap"; the Rust benchmark is a
+  gated final milestone rather than the starting point; and the new cap is whatever M1's measurements
+  support, not a number chosen in advance.
+
+**Milestones** (M5 conditional — do not start it unless M1–M4 miss the target):
+- [ ] M1 — Measure where each wall actually sits, at 1000 stitches and above: pipeline wall time and
+  peak RSS by D149's capacity-probe method, export memory, wire payload size and client parse cost, and
+  the editor's undo and drawing budget. Produces a dated review under `docs/reviews/` and a candidate
+  cap. No production code changes.
+- [ ] M2 — The export memory wall: batch same-colour runs in the PDF adapter so operators stay bounded
+  (D155's named fix), so the PDF and Export all succeed at 1000 stitches; export parity re-run.
+- [ ] M3 — The generation speed win: the ICM candidate-set reduction (neighbour labels plus the
+  unary-best label, ~9 candidates instead of up to 100), byte-identical, re-measured against M1.
+- [ ] M4 — The scaling walls M1 identifies (result wire format, undo history, chart drawing), then
+  raise `MAX_STITCHES` and re-run M1's measurements at the new cap, including three concurrent jobs.
+- [ ] M5 — **Only if M1–M4 miss the latency target:** G-023 M2's benchmark — port the quantizer and ICM
+  as a standalone Rust library with a harness against the frozen TypeScript on identical inputs,
+  single-threaded native and WASM. Numbers decide whether G-023 revives; no service, no deploy.
+
+**Progress log** (newest first):
+- 2026-09-18 — Goal created from the Owner's Rust question and this session's assessment of the
+  deployed code (`42aab39`). The assessment's figures are quoted from D149,
+  `docs/reviews/2026-09-17-server-processing-capacity.md`, D155 and the G-035 stage tables; the 2–3×
+  Rust estimate is explicitly an inference, which M5 exists to settle if it is ever reached. Not
+  started.
+
 ### G-045 · The Atelier redesign (direction 1b) — ACTIVE
 - **What:** the workspace shell is rebuilt to direction 1b "Atelier": a 64px tool rail, a 44px context
   bar that changes with what you are doing, a 36px status bar, and a 360px right inspector with Photo,
@@ -107,6 +169,9 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   project's support.js is the canvas renderer only and constrains nothing here.
 
 ### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT, possibly relevant to G-030 (2026-09-12)
+- **G-046 now holds this goal's M1 and M2 (2026-09-18).** The candidate-set reduction below is G-046
+  M3, and the kernel benchmark is G-046 M5, gated on the TypeScript work missing its target. Leave this
+  entry parked as the Owner set it; revive it only if G-046 M5's numbers justify a service.
 - **Not superseded -- correcting an earlier overreach.** An earlier pass
   at this file marked this goal "superseded by G-030" on the assumption
   that G-030 would definitely move the entire generation pipeline server-
