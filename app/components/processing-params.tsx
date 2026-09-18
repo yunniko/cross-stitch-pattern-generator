@@ -1,4 +1,4 @@
-import type { ChangeEvent } from "react";
+
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { isReleasedEnhancementMode, releasedEnhancementModes, type EnhancementModeId } from "@/lib/pipeline/enhance";
 import { formatFinishedDimension } from "@/lib/export/finished-size";

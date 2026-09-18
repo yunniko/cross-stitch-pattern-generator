@@ -65,9 +65,10 @@ async function follow(jobId: string, onProgress: ExportProgressCallback | undefi
     const frames = buffered.split("\n\n");
     buffered = frames.pop() ?? "";
     for (const frame of frames) {
-      const line = frame.replace(/^data: /, "").trim();
-      if (!line) continue;
-      last = JSON.parse(line) as JobStatusMessage;
+      // A keepalive is an SSE comment (": keepalive"), not a data frame: take the data line and skip anything else.
+      const data = /^data: (.*)$/m.exec(frame);
+      if (!data) continue;
+      last = JSON.parse(data[1]) as JobStatusMessage;
       if (last.state === "running") {
         // The exporter's own "Page 12 of 180" is passed through unchanged, so a server export reads exactly as a
         // browser one does; the fraction is only a fallback for the moment before the first page is reported.

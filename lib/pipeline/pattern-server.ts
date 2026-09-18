@@ -122,9 +122,10 @@ async function follow(jobId: string, options: RunServerPatternJobOptions, signal
     const frames = buffered.split("\n\n");
     buffered = frames.pop() ?? "";
     for (const frame of frames) {
-      const line = frame.replace(/^data: /, "").trim();
-      if (!line) continue;
-      last = JSON.parse(line) as JobStatusMessage;
+      // A keepalive is an SSE comment (": keepalive"), not a data frame: take the data line and skip anything else.
+      const data = /^data: (.*)$/m.exec(frame);
+      if (!data) continue;
+      last = JSON.parse(data[1]) as JobStatusMessage;
       if (last.state === "queued" && last.queuePosition) options.onQueued?.(last.queuePosition, last.estimatedWaitMs ?? 0);
       if (last.state === "running" && typeof last.progress === "number") options.onProgress?.(last.progress);
     }
