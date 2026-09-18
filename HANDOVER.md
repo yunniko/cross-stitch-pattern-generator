@@ -23,14 +23,13 @@ Export all and the Pattern Keeper PDF fail on charts near 1000 stitches, shipped
 gone: a 64px tool rail led by New, a context bar that changes with the document, the
 chart in a ruled well, a status bar, and a 360px inspector showing one of Photo, Chart or Threads at a time (D157).
 Highlight left the tool union to become Isolate, a view mode that survives picking up a brush, with its own light on
-every thread (D158); the view chips stay `aria-pressed` buttons rather than a radiogroup (D159). The e2e suite moved
-with the product: 28 specs failed against the new vocabulary, each was fixed from the run's own evidence, and that
-surfaced two real defects — Isolate stayed pressed with nothing lit, and the shell had had no heading at any level
-since the top bar was deleted. Later passes on the Owner's reading of the design put symmetry and the brush's own
+every thread (D158); the view chips stay `aria-pressed` buttons rather than a radiogroup (D159). Later passes on
+the Owner's reading of the design put symmetry and the brush's own
 thread in the top panel, made the Select tool replace that panel rather than stack under it (D160), opened the symbol
 picker under the row it edits as the colour editor already did, marked and named Export all as 1b draws it, stopped
 the rail clipping its own file menu, and built the first-run screen: three cards where the chart will be, over the
-three steps in the Photo tab. Two details depart from 1b at the Owner's direction (D161).
+three steps in the Photo tab. Two details depart from 1b at the Owner's direction (D161). A last pass made the
+disabled state consistent across every control and stopped the start screen reaching the chart it covers (D164).
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1000 stitches and 2–100 colors, with Latest or Original clustering, Full range, DMC,
@@ -239,6 +238,14 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
 - The chart frame is hidden, never unmounted, while a pattern exists (D163). The redraw is a layout effect keyed on
   the pattern and the scene, so a remounted canvas is never repainted: it comes back blank and without
   `data-painted-rect`. Assert pixels, not presence, when a test claims the chart survived something.
+- A disabled control wears one of exactly two looks, both exported by `app/components/ui.tsx`: DISABLED_ICON fades an
+  icon control to 40%, DISABLED_TEXT drops a labelled one to `--at-faint`. Every hover on a control that can be
+  disabled is written `enabled:hover:`, never a bare `hover:`, so a disabled one cannot light under the pointer
+  (D164). Three treatments and eight pointer-answering controls had grown up before this rule existed.
+- While the start screen is up, nothing reaches the chart behind it: one `startScreenVisible` in `app/workspace.tsx`
+  disables the rail and the zoom controls, locks all three inspector tabs, hides Undo and Redo, forces 1b's Photo
+  pane, drops the inspector footer, and stops the status bar counting the covered chart. New disables with it, since
+  New is what opens it (D164).
 - `npm ci --legacy-peer-deps` is required (npm arborist crash).
 - On this Windows host, stopping a background task can leave node running;
   check the process list (D096).

@@ -1,4 +1,5 @@
 "use client";
+import { DISABLED_TEXT } from "./ui";
 
 /**
  * The first-run screen (direction 1b): the three ways into a chart, offered where the chart will appear rather than
@@ -56,7 +57,7 @@ export function FirstRun({ onChoosePhoto, onNewBlankChart, onOpenPattern, busy }
           type="button"
           onClick={onChoosePhoto}
           disabled={busy}
-          className={`${CARD} border-accent bg-accent/[.08] text-ink hover:bg-accent/[.14] disabled:cursor-not-allowed disabled:opacity-50`}
+          className={`${CARD} border-accent bg-accent/[.08] text-ink enabled:hover:bg-accent/[.14] ${DISABLED_TEXT}`}
         >
           <PhotoIcon />
           <span className="flex-1">

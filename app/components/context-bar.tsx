@@ -4,7 +4,7 @@ import { rgbToHex } from "@/lib/color/color";
 import type { SymmetryAxes, SymmetryAxis } from "@/lib/editor/symmetry";
 import { EMPTY_CELL, type StitchPattern } from "@/lib/types";
 import type { ViewMode } from "../editor-types";
-import { PillButton, SegmentedControl } from "./ui";
+import { PillButton, SegmentedControl, DISABLED_ICON } from "./ui";
 
 /**
  * The strip above the chart (G-045 M2, direction 1b): what acts on the chart right now. It replaces the stacked top
@@ -107,16 +107,21 @@ export function ContextBar({
 
   return (
     <div className="flex h-11 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
-      <div className="flex items-center gap-1.5">
-        <PillButton size="xs" onClick={onUndo} disabled={!canUndo} title="Ctrl+Z">
-          Undo
-        </PillButton>
-        <PillButton size="xs" onClick={onRedo} disabled={!canRedo} title="Ctrl+Y or Ctrl+Shift+Z">
-          Redo
-        </PillButton>
-      </div>
+      {/* Undo and Redo belong to a chart being edited. The start screen is not that, and 1b draws none there. */}
+      {!startingNew && (
+        <>
+          <div className="flex items-center gap-1.5">
+            <PillButton size="xs" onClick={onUndo} disabled={!canUndo} title="Ctrl+Z">
+              Undo
+            </PillButton>
+            <PillButton size="xs" onClick={onRedo} disabled={!canRedo} title="Ctrl+Y or Ctrl+Shift+Z">
+              Redo
+            </PillButton>
+          </div>
 
-      <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+          <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+        </>
+      )}
 
       {startingNew && (
         <>
@@ -195,8 +200,8 @@ export function ContextBar({
                   title={needsSquare ? `${title}. Needs a square canvas.` : title}
                   aria-label={label}
                   aria-pressed={symmetry[axis]}
-                  className={`flex h-6 w-6 items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                    symmetry[axis] ? "border-accent bg-accent/15 text-ink" : "border-line text-muted hover:bg-raised"
+                  className={`flex h-6 w-6 items-center justify-center rounded-md border transition-colors ${DISABLED_ICON} ${
+                    symmetry[axis] ? "border-accent bg-accent/15 text-ink" : "border-line text-muted enabled:hover:bg-raised"
                   }`}
                 >
                   <AxisIcon axis={axis} />
@@ -253,8 +258,8 @@ export function ContextBar({
                   ? "Photo underlay: once for the grid over the photo, again for the photo alone, again to return to the chart"
                   : "No source photo is associated with this pattern"
               }
-              className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                photoActive ? "border-accent bg-accent/15 text-ink" : "border-line text-muted hover:bg-raised hover:text-ink"
+              className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors ${DISABLED_ICON} ${
+                photoActive ? "border-accent bg-accent/15 text-ink" : "border-line text-muted enabled:hover:bg-raised enabled:hover:text-ink"
               }`}
             >
               <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

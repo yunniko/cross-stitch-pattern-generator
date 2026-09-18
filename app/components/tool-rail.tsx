@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import type { QuickMirror } from "@/lib/editor/symmetry";
 import type { Tool } from "../editor-types";
+import { DISABLED_ICON } from "./ui";
 
 /**
  * The left rail (direction 1b): New, then the tools. 64px wide, each tool an icon over its name, the active one
@@ -138,6 +139,8 @@ export interface ToolRailProps {
   onMirror: (kind: QuickMirror) => void;
   /** Opens the start screen, where the three ways into a chart live (Atelier). */
   onNewChart: () => void;
+  /** The start screen is what New opens, so New has nothing to do while it is already up. */
+  newChartDisabled: boolean;
 }
 
 export function ToolRail({
@@ -147,6 +150,7 @@ export function ToolRail({
   squareCanvas,
   onMirror,
   onNewChart,
+  newChartDisabled,
 }: ToolRailProps) {
 
   return (
@@ -155,9 +159,10 @@ export function ToolRail({
         <button
           type="button"
           onClick={onNewChart}
+          disabled={newChartDisabled}
           aria-label="New chart"
           title="New chart — opens the start screen, where you pick a photo, an empty grid or a saved file"
-          className="flex flex-col items-center gap-[3px] self-center rounded-[7px] border border-line px-2.5 py-1.5 text-muted transition-colors hover:bg-raised hover:text-ink"
+          className={`flex flex-col items-center gap-[3px] self-center rounded-[7px] border border-line px-2.5 py-1.5 text-muted transition-colors enabled:hover:bg-raised enabled:hover:text-ink ${DISABLED_ICON}`}
         >
           <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
@@ -183,8 +188,8 @@ export function ToolRail({
                 title={title}
                 aria-label={label}
                 aria-pressed={active}
-                className={`flex flex-col items-center gap-[3px] border-l-2 py-2 disabled:cursor-not-allowed disabled:opacity-40 ${
-                  active ? "border-accent bg-raised text-ink" : "border-transparent text-muted hover:bg-raised hover:text-ink"
+                className={`flex flex-col items-center gap-[3px] border-l-2 py-2 ${DISABLED_ICON} ${
+                  active ? "border-accent bg-raised text-ink" : "border-transparent text-muted enabled:hover:bg-raised enabled:hover:text-ink"
                 }`}
               >
                 <Icon />
@@ -210,7 +215,7 @@ export function ToolRail({
               disabled={disabled || needsSquare}
               title={needsSquare ? `${title}. Needs a square canvas.` : title}
               aria-label={label}
-              className="flex h-6 w-6 items-center justify-center rounded-md border border-line text-muted hover:bg-raised disabled:cursor-not-allowed disabled:opacity-40"
+              className={`flex h-6 w-6 items-center justify-center rounded-md border border-line text-muted enabled:hover:bg-raised ${DISABLED_ICON}`}
             >
               <MirrorIcon kind={kind} />
             </button>

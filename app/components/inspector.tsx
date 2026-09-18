@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { DISABLED_TEXT } from "./ui";
 
 /**
  * The right inspector (G-045 M2, direction 1b): one 360px column, one pane at a time behind three tabs. Photo holds
@@ -48,8 +49,8 @@ export function Inspector({ tab, onTabChange, disabled = {}, photo, chart, threa
               aria-controls={`inspector-pane-${id}`}
               disabled={isDisabled}
               onClick={() => onTabChange(id)}
-              className={`flex-1 border-b-2 text-[13px] transition-colors disabled:cursor-not-allowed disabled:text-faint ${
-                selected ? "border-accent bg-raised font-medium text-ink" : "border-transparent text-muted hover:text-ink"
+              className={`flex-1 border-b-2 text-[13px] transition-colors ${DISABLED_TEXT} ${
+                selected ? "border-accent bg-raised font-medium text-ink" : "border-transparent text-muted enabled:hover:text-ink"
               }`}
             >
               {label}

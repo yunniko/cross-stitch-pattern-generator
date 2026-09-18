@@ -7,12 +7,25 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 type PillVariant = "outline" | "primary" | "raised";
 type PillSize = "xs" | "sm" | "md" | "lg";
 
-const PILL_BASE = "rounded-md font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+/**
+ * One disabled look per control shape, so a group of controls never shows two of them -- a row where three read dead
+ * and one reads clickable is worse than all four being wrong together (Owner, 2026-09-18). 1b fades a disabled *icon*
+ * to 40%, because an icon has no text to dim, and drops a disabled *label* to --at-faint. See D164.
+ *
+ * Both must also stop answering the pointer. A hover that still lights is the loudest "clickable" signal a control
+ * has, so every hover on a control that can be disabled is written `enabled:hover:` -- the rule then cannot apply to
+ * a disabled control at all, rather than being overridden back out by a matching `disabled:hover:`.
+ */
+export const DISABLED_ICON = "disabled:cursor-not-allowed disabled:opacity-40";
+export const DISABLED_TEXT = "disabled:cursor-not-allowed disabled:text-faint";
+
+const PILL_BASE = `rounded-md font-medium transition-colors ${DISABLED_TEXT}`;
 const PILL_VARIANTS: Record<PillVariant, string> = {
-  outline: "border border-line text-ink hover:bg-raised",
-  primary: "bg-accent text-on-accent hover:bg-accent-hover",
+  outline: "border border-line text-ink enabled:hover:bg-raised",
+  // A filled button cannot say "disabled" with text colour alone -- the accent keeps shouting -- so the fill goes too.
+  primary: "bg-accent text-on-accent enabled:hover:bg-accent-hover disabled:bg-control",
   // The middle weight 1b gives an action that matters but is not the primary one -- its Export button beside Export all.
-  raised: "border border-control-line bg-control text-ink hover:bg-control-hover",
+  raised: "border border-control-line bg-control text-ink enabled:hover:bg-control-hover",
 };
 const PILL_SIZES: Record<PillSize, string> = {
   xs: "px-2 py-0.5 text-xs",
@@ -63,8 +76,8 @@ export function SegmentedControl<T extends string>({ options, value, onChange, c
       {options.map((option, index) => {
         const selected = option.value === value;
         const shape = isChip
-          ? `rounded-md px-2.5 py-1 ${selected ? "bg-accent text-on-accent font-medium" : "text-muted hover:text-ink"}`
-          : `px-3 py-1.5 ${index > 0 ? "border-l border-line" : ""} ${selected ? "bg-accent/15 text-ink font-medium" : "text-muted hover:bg-raised hover:text-ink"}`;
+          ? `rounded-md px-2.5 py-1 ${selected ? "bg-accent text-on-accent font-medium" : "text-muted enabled:hover:text-ink"}`
+          : `px-3 py-1.5 ${index > 0 ? "border-l border-line" : ""} ${selected ? "bg-accent/15 text-ink font-medium" : "text-muted enabled:hover:bg-raised enabled:hover:text-ink"}`;
         return (
           <button
             key={option.value}
@@ -73,7 +86,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, c
             disabled={option.disabled}
             aria-pressed={selected}
             onClick={() => onChange(option.value)}
-            className={`text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${fill ? "flex-1" : ""} ${shape}`}
+            className={`text-xs transition-colors ${DISABLED_TEXT} ${fill ? "flex-1" : ""} ${shape}`}
           >
             {option.label}
           </button>

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { AutosaveStatus } from "@/lib/editor/use-project-autosave";
 import { formatFinishedSize, type SizeUnit } from "@/lib/export/finished-size";
 import { filledStitchCount, formatColorCount, formatStitchCount, type StitchPattern } from "@/lib/types";
+import { DISABLED_TEXT } from "./ui";
 
 /**
  * The strip under the chart (G-045 M2, direction 1b): what the document is, and where the view is. Everything the
@@ -20,7 +21,7 @@ const AUTOSAVE_LABELS: Record<AutosaveStatus, string> = {
   idle: "",
 };
 
-const ZOOM_BUTTON = "rounded-md px-2 text-muted hover:bg-raised hover:text-ink";
+const ZOOM_BUTTON = `rounded-md px-2 text-muted enabled:hover:bg-raised enabled:hover:text-ink ${DISABLED_TEXT}`;
 
 export interface StatusBarProps {
   pattern: StitchPattern | null;
@@ -52,7 +53,7 @@ export function StatusBar({ pattern, aidaCount, sizeUnit, autosaveStatus, hasPat
         </>
       ) : (
         // 1b's first run reassures rather than counts: the work stays in this browser even though generation does not.
-        <span className="font-sans">{hasPattern ? "No chart yet" : "Editing, undo and autosave stay in this browser"}</span>
+        <span className="font-sans">Editing, undo and autosave stay in this browser</span>
       )}
 
       <span

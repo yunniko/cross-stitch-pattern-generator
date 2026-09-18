@@ -172,3 +172,4 @@ remain readable with git show.
 - D161 — Two 1b details the Owner overrode — active
 - D162 — The file actions leave the rail for the start screen — active
 - D163 — The chart frame hides; it is never unmounted — active
+- D164 — One disabled look per control shape, and a start screen that touches nothing — active

@@ -362,17 +362,22 @@ export default function Workspace() {
 
   const photoFree = isPhotoFree(pattern);
 
+  // The one definition of "the start screen is up": the Image window draws it on this, and New goes inert on it,
+  // because New is what opens it. Computed here so the two cannot drift apart.
+  const startScreenVisible = startingNew || (pattern === null && source.meta === null);
+
   return (
     <div className="flex h-screen bg-app font-sans text-ink">
       {/* 1b draws no visible title, but the document still needs one heading: for assistive technology, and as the witness that the app booted. */}
       <h1 className="sr-only">Cross-Stitch Pattern Generator</h1>
       <ToolRail
         activeTool={activeTool}
-        disabled={!pattern}
+        disabled={!pattern || startingNew}
         onSelect={switchTool}
         squareCanvas={pattern !== null && pattern.width === pattern.height}
         onMirror={applyMirror}
         onNewChart={() => setStartingNew(true)}
+        newChartDisabled={startScreenVisible}
       />
 
       {/*
@@ -486,6 +491,7 @@ export default function Workspace() {
           pattern={pattern}
           cellSize={cellSize}
           sourceMeta={source.meta}
+          startScreen={startScreenVisible}
           viewMode={viewMode}
           activeTool={activeTool}
           activeColorIndex={activeColorIndex}
@@ -508,11 +514,11 @@ export default function Workspace() {
         />
 
         <StatusBar
-          pattern={pattern}
+          pattern={startingNew ? null : pattern}
           aidaCount={options.aidaCount}
           sizeUnit={options.sizeUnit}
           autosaveStatus={autosaveStatus}
-          hasPattern={pattern !== null}
+          hasPattern={pattern !== null && !startingNew}
           zoomLevel={panZoom.zoomLevel}
           onZoomIn={() => panZoom.zoomBy(ZOOM_STEP)}
           onZoomOut={() => panZoom.zoomBy(1 / ZOOM_STEP)}
@@ -521,11 +527,14 @@ export default function Workspace() {
       </main>
 
       <Inspector
-        tab={inspectorTab}
+        // 1b's first run shows the Photo pane and no exports. The start screen therefore forces that pane rather
+        // than leaving sixteen thread rows and the exports disabled behind it, and the Photo tab locks with the
+        // other two -- two tabs reading dead beside one reading live is the inconsistency, not the disabling.
+        tab={startingNew ? "photo" : inspectorTab}
         onTabChange={setInspectorTab}
-        disabled={{ chart: pattern === null, threads: pattern === null }}
+        disabled={{ photo: startingNew, chart: pattern === null || startingNew, threads: pattern === null || startingNew }}
         photo={
-          photoFree ? (
+          photoFree && !startingNew ? (
             <p className="p-4 text-[13px] text-muted">This chart was started from an empty canvas, so it has no photo settings.</p>
           ) : (
             <PhotoPane
@@ -534,7 +543,7 @@ export default function Workspace() {
               isProcessing={generation.isProcessing}
               progress={generation.progress}
               queueMessage={generation.queueMessage}
-              hasPattern={pattern !== null}
+              hasPattern={pattern !== null && !startingNew}
               hasPhoto={!startingNew && source.hasPhoto}
               isLoadingImage={!startingNew && source.isLoading}
               onCancel={generation.cancel}
@@ -569,9 +578,10 @@ export default function Workspace() {
           />
         }
         footer={
-          inspectorTab === "threads" ? (
+          // Nothing to export or generate while the start screen is up, and 1b draws no footer there.
+          startingNew ? null : inspectorTab === "threads" ? (
             <ExportControls
-              hasPattern={pattern !== null}
+              hasPattern={pattern !== null && !startingNew}
               exportKind={exports.exportKind}
               onExportKindChange={exports.setExportKind}
               onExport={exports.exportSelected}

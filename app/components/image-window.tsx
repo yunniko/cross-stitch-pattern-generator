@@ -21,6 +21,8 @@ export interface ImageWindowProps {
   isLoadingImage: boolean;
   /** New was pressed with a chart open: the start screen covers it until a card is chosen or Back is pressed. */
   startingNew: boolean;
+  /** The first-run screen is showing -- `startingNew`, or simply nothing loaded yet. Decided in workspace.tsx. */
+  startScreen: boolean;
   scrollerRef: RefObject<HTMLDivElement | null>;
   frameRef: RefObject<HTMLDivElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -72,6 +74,7 @@ export function ImageWindow({
   onOpenPatternFile,
   isLoadingImage,
   startingNew,
+  startScreen,
   previewError,
   onRetryPreview,
   enhancementActive,
@@ -115,7 +118,7 @@ export function ImageWindow({
           )}
         </figure>
       )}
-      {(startingNew || (!pattern && !sourceMeta)) && (
+      {startScreen && (
         <FirstRun onChoosePhoto={onChoosePhoto} onNewBlankChart={onNewBlankChart} onOpenPattern={onOpenPatternFile} busy={isLoadingImage} />
       )}
       {/*

@@ -7,7 +7,7 @@ import type { OverlapCells } from "@/lib/export/a4-layout";
 import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
 import type { StitchPattern } from "@/lib/types";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
-import { PillButton, SegmentedControl } from "./ui";
+import { PillButton, SegmentedControl, DISABLED_TEXT } from "./ui";
 
 /**
  * The Chart pane (G-045 M3, direction 1b): the document itself -- its name, its canvas, and the settings that decide
@@ -71,7 +71,7 @@ export function ChartPane({ pattern, options, onChange, name, onNameChange, onNa
           }}
           disabled={pattern === null}
           aria-label="Pattern name"
-          className={`${FIELD} disabled:opacity-50`}
+          className={`${FIELD} ${DISABLED_TEXT}`}
         />
       </label>
 
@@ -87,7 +87,7 @@ export function ChartPane({ pattern, options, onChange, name, onNameChange, onNa
                 disabled={pattern === null}
                 aria-label={label.charAt(0).toUpperCase() + label.slice(1)}
                 onChange={(e) => setDelta((prev) => ({ ...prev, [key]: Number(e.target.value) || 0 }))}
-                className={NUMBER}
+                className={`${NUMBER} ${DISABLED_TEXT}`}
               />
             </label>
           ))}
