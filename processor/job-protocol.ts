@@ -4,16 +4,15 @@ import type { ExportJobKind } from "@/lib/export/export-jobs";
 import type { ExportProgress } from "@/lib/export/export-progress";
 import type { SizeUnit } from "@/lib/export/finished-size";
 import type { EnhancementModeId } from "@/lib/pipeline/enhance";
-import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pipeline/pattern.worker";
+import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pipeline/pattern";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
 
 /**
  * What a generation job carries between the app, the processor and its pool workers (G-034 M2).
  *
- * Deliberately the same shape as the browser worker's `StartMessage` (`lib/pipeline/pattern.worker.ts`): both sides
- * call `buildPattern` with the same arguments, so the golden hashes (D107) prove the server produces the byte-identical
- * pattern the browser does. The only difference is where the pixels come from — the browser holds a `PixelBuffer`,
- * while the server looks one up in the photo store by hash.
+ * These settings are the arguments `buildPattern` takes, so the golden hashes (D107) still pin the output exactly as
+ * they did when the browser ran the same call. The photo is referenced by hash and looked up in the photo store,
+ * rather than carried inline as the browser's own worker once did.
  */
 
 /** Generation settings, with the photo referenced by hash rather than carried inline. */

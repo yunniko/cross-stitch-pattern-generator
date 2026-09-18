@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { buildPattern } from "@/lib/pipeline/pattern";
 import { makePhotoLikeBuffer } from "../tests/unit/helpers/fixtures";
-import type { EdgeMode } from "@/lib/pipeline/pattern.worker";
+import type { EdgeMode } from "@/lib/pipeline/pattern";
 
 /**
  * G-034 M1: what one generation really costs on the production host, inside the container caps.

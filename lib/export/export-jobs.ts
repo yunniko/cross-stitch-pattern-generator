@@ -35,14 +35,6 @@ export interface ExportJobResult {
   filename: string;
 }
 
-/**
- * Only the editable JSON runs on the main thread: it stays fast even at 1000 stitches. OXS goes to the worker, because
- * its 29 MB file at 1000 stitches blocked the page for 281 ms (G-035 M2 bench).
- */
-export function runsOnMainThread(kind: ExportJobKind): boolean {
-  return kind === "editable";
-}
-
 export const FONT_URL = "/fonts/DejaVuSans.ttf";
 
 /** Loaded on demand rather than bundled into the app's JavaScript; the backend decides where from (G-034 M4). */

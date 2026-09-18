@@ -5,8 +5,8 @@ import type { ExportJobRequest, ExportJobResult } from "./export-jobs";
 import type { ExportProgressCallback } from "./export-progress";
 
 /**
- * Exports on the server (G-034 M4): the counterpart of `export-client.ts`, which runs the same job in a Web Worker.
- * Which one the editor uses is decided by `NEXT_PUBLIC_PROCESSING` (D151).
+ * Exports on the server (G-034 M4). Since M5 this is the only path for every kind but the editable save, which the
+ * editor still writes itself so that work can be saved when the server is busy or down.
  *
  * The chart itself is sent — it is the user's edited work, not something the server already holds — as the same JSON a
  * saved file uses, so the processor parses it with the parser that opens a file. Progress arrives over the job event

@@ -3,11 +3,10 @@ import { NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { downloadBlob } from "@/lib/export/a4-export";
 import { calculateA4Layout } from "@/lib/export/a4-layout";
-import { runExport } from "@/lib/export/export-client";
+import { serializePattern } from "@/lib/editor/pattern-serialize";
 import type { ExportJobKind, ExportKind } from "@/lib/export/export-jobs";
 import type { ExportProgress } from "@/lib/export/export-progress";
 import { runServerExport } from "@/lib/export/export-server";
-import { isServerProcessing } from "@/lib/pipeline/generation-mode";
 import { ProcessorUnreachableError, ServerBusyError } from "@/lib/pipeline/server-errors";
 import type { StitchPattern } from "@/lib/types";
 
@@ -50,8 +49,13 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
     try {
       // Let the busy label paint first; on the main-thread fallback the export itself would block that paint.
       await new Promise((resolve) => setTimeout(resolve, 0));
-      const request = { kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, symmetry };
-      const { blob, filename } = isServerProcessing() ? await runServerExport(request, setProgress) : await runExport(request, setProgress);
+      // The editable file is written here rather than on the server: it is the one export that must keep working when
+      // the server is busy or down, so work can always be saved (Owner, 2026-09-14). It is a pure serialisation with
+      // no canvas involved, and keeping it local also keeps the export pipeline out of the page's JavaScript.
+      const { blob, filename } =
+        kind === "editable"
+          ? { blob: new Blob([serializePattern(pattern, symmetry)], { type: "application/json" }), filename: `${baseName}_editable.json` }
+          : await runServerExport({ kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, symmetry }, setProgress);
       downloadBlob(blob, filename);
     } catch (err) {
       setExportError(messageForExport(err, fallbackMessage));

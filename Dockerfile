@@ -12,10 +12,6 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Inlined into the client bundle by `next build`, so it is a build argument rather than a runtime
-# variable: "server" routes generation through the processor, "browser" keeps the Web Worker (D151).
-ARG NEXT_PUBLIC_PROCESSING=browser
-ENV NEXT_PUBLIC_PROCESSING=$NEXT_PUBLIC_PROCESSING
 RUN npm run build && npm run build:processor
 
 FROM node:22-alpine AS runtime

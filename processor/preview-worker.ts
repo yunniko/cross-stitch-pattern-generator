@@ -4,7 +4,7 @@ import { buildEnhancedPreview } from "@/lib/pipeline/enhance-preview";
 import type { PreviewJob, PreviewMessage } from "./job-protocol";
 
 /**
- * The enhancement-preview worker (G-034 M3): the server twin of `lib/pipeline/enhance-preview.worker.ts`.
+ * The enhancement-preview worker (G-034 M3): where the preview is built, since M5 removed the browser's own.
  *
  * It is a separate worker from the generation pool for the reason D116 gave in the browser — a preview must never wait
  * behind a generation — and it calls the same two functions the browser worker does, so the preview shown is the one

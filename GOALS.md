@@ -379,6 +379,28 @@ caps)
   deploy-log row.
 
 **Progress log** (newest first):
+- 2026-09-18 — **M5 code-complete: the browser workers and the flag are gone; deploy waits on the Owner.**
+  - **Deleted** the generation, preview and export workers with their clients, and `NEXT_PUBLIC_PROCESSING` — 616
+    lines. `GenerationMode` moved to `lib/pipeline/pattern.ts` and both cancellation errors to their server
+    counterparts first, so nothing was orphaned. Two functions left dead by the deletions were removed.
+  - **The editable JSON save stays in the browser** (Owner, 2026-09-14): `use-exports.ts` serialises it directly, so
+    work can be saved when the server is busy, and the export pipeline stays out of the page's JavaScript.
+  - **Client bundle 2370 KB → 1129 KB (−52 %)**, the 1313 KB pipeline chunk gone — the goal's stated purpose, that
+    the algorithms stop shipping to every visitor.
+  - **Truthfulness (criterion 8):** the README no longer says "no image is ever uploaded" and the
+    `INFRASTRUCTURE_DEPLOY.md` row no longer says processing is client-side. Both corrected before the release, not
+    after.
+  - **One config, one path:** `playwright.config.ts` now starts the processor and the app, `test:e2e:server` is
+    retired, and CI no longer backgrounds the processor in a step it would not survive.
+  - **Added** a 15-second keepalive to the job event stream, so a job queued behind others cannot go silent and be
+    dropped by a proxy.
+  - **Checks:** Vitest 1052 passed, 8 skipped (the deleted worker specs account for the drop from 1069); Playwright
+    **313 passed across all 25 specs** against the single-path build, one spec per process, with the processor
+    serving 107 jobs, exports and previews; `tsc` and `npm run lint` clean.
+  - **PENDING APPROVAL:** the vhost needs `client_max_body_size 40M` (currently 5M, against a 25 MB photo cap and
+    32 MB export requests) and `proxy_read_timeout 300s` (default 60 s cuts a 150 s paginated export) — root-owned
+    work, handed to the Owner as an exact command list on 2026-09-18. Deploying before it would ship a site that
+    rejects ordinary photos, so the deploy is held rather than attempted.
 - 2026-09-17 — **M4 done: every export runs on the server, from the same code the browser runs (D153).**
   - **Injection:** the drawing code asks `lib/export/canvas-backend.ts` for its canvas, PNG encoding, images and PDF
     font; the server installs `@napi-rs/canvas` behind that. `FONT_STACK` and the on-screen chart are untouched, and

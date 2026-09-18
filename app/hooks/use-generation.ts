@@ -1,8 +1,6 @@
 import { useState, type RefObject } from "react";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { isReleasedEnhancementMode } from "@/lib/pipeline/enhance";
-import { isServerProcessing } from "@/lib/pipeline/generation-mode";
-import { runPatternJob } from "@/lib/pipeline/pattern-client";
 import { runServerPatternJob } from "@/lib/pipeline/pattern-server";
 import { PhotoExpiredError, ProcessorUnreachableError, ServerBusyError } from "@/lib/pipeline/server-errors";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, type PixelBuffer, type StitchPattern } from "@/lib/types";
@@ -66,7 +64,7 @@ export function useGeneration(inputs: GenerationInputs) {
     }
     // The server works from the photo's own file bytes, which only `sourceMeta` carries; the decoded buffer above is
     // the browser's copy, and re-encoding it would not decode to the same pixels on the other side (D150).
-    if (isServerProcessing() && !sourceMeta) {
+    if (!sourceMeta) {
       setError("Upload an image first.");
       return;
     }
@@ -89,14 +87,11 @@ export function useGeneration(inputs: GenerationInputs) {
           setProgress(fraction);
         },
       };
-      const result =
-        isServerProcessing() && sourceMeta
-          ? await runServerPatternJob({
-              ...settings,
-              photoDataUrl: sourceMeta.dataUrl,
-              onQueued: (position, estimatedWaitMs) => setQueueMessage(queueText(position, estimatedWaitMs)),
-            })
-          : await runPatternJob({ ...settings, imageData: pixelBuffer });
+      const result = await runServerPatternJob({
+        ...settings,
+        photoDataUrl: sourceMeta.dataUrl,
+        onQueued: (position, estimatedWaitMs) => setQueueMessage(queueText(position, estimatedWaitMs)),
+      });
       if (revisionRef.current !== myRevision) return; // a different photo was chosen meanwhile
       const naturalLonger = sourceMeta ? Math.max(sourceMeta.naturalWidth, sourceMeta.naturalHeight) : null;
       onGenerated(

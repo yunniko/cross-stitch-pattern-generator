@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import type { EnhancementModeId } from "@/lib/pipeline/enhance";
-import { EnhancePreviewCancelledError, requestEnhancePreview } from "@/lib/pipeline/enhance-preview-client";
-import { requestServerEnhancePreview } from "@/lib/pipeline/enhance-preview-server";
-import { cancelActivePreview, isServerProcessing } from "@/lib/pipeline/generation-mode";
+import { EnhancePreviewCancelledError, requestServerEnhancePreview } from "@/lib/pipeline/enhance-preview-server";
+import { cancelActivePreview } from "@/lib/pipeline/generation-mode";
 import { PhotoExpiredError, ProcessorUnreachableError, ServerBusyError } from "@/lib/pipeline/server-errors";
 import type { PixelBuffer } from "@/lib/types";
 
@@ -17,17 +16,6 @@ function photoId(buffer: PixelBuffer): number {
     photoIds.set(buffer, id);
   }
   return id;
-}
-
-function toDataUrl(preview: PixelBuffer): string {
-  const canvas = document.createElement("canvas");
-  canvas.width = preview.width;
-  canvas.height = preview.height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("2D canvas context unavailable");
-  // The cast bridges TS's ArrayBufferLike vs ArrayBuffer typed-array generics; a transferred buffer is a plain ArrayBuffer.
-  ctx.putImageData(new ImageData(preview.data as unknown as Uint8ClampedArray<ArrayBuffer>, preview.width, preview.height), 0, 0);
-  return canvas.toDataURL("image/png");
 }
 
 /** Each failure says what the reader can do about it, rather than one message for every cause (G-034 M3). */
@@ -48,23 +36,19 @@ type PreviewOutcome = { url: string } | { error: string };
  */
 export function useEnhancePreview(pixelBuffer: PixelBuffer | null, sourceDataUrl: string | null, mode: EnhancementModeId, enabled: boolean) {
   const [outcomes, setOutcomes] = useState<ReadonlyMap<string, PreviewOutcome>>(new Map());
-  // A server build previews from the uploaded photo, so it needs the file's own bytes as well as the decode.
-  const ready = enabled && pixelBuffer !== null && mode !== "off" && (!isServerProcessing() || sourceDataUrl !== null);
+  // The preview is made from the uploaded photo, so it needs the file's own bytes as well as the decode.
+  const ready = enabled && pixelBuffer !== null && mode !== "off" && sourceDataUrl !== null;
   const key = ready && pixelBuffer ? `${photoId(pixelBuffer)}:${mode}` : null;
   const outcome = key ? outcomes.get(key) : undefined;
 
   useEffect(() => {
-    if (!key || !pixelBuffer || mode === "off") {
+    if (!key || !sourceDataUrl || mode === "off") {
       cancelActivePreview();
       return;
     }
     if (outcome) return;
     let cancelled = false;
-    const pending =
-      isServerProcessing() && sourceDataUrl
-        ? requestServerEnhancePreview(sourceDataUrl, mode)
-        : requestEnhancePreview(pixelBuffer, mode).then(toDataUrl);
-    pending
+    requestServerEnhancePreview(sourceDataUrl, mode)
       .then((url) => {
         if (cancelled) return;
         setOutcomes((previous) => new Map(previous).set(key, { url }));

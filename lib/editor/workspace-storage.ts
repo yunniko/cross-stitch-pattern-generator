@@ -2,7 +2,7 @@ import type { OverlapCells } from "../export/a4-layout";
 import type { LegacyProjectSlot } from "./project-store";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "../export/finished-size";
 import { isReleasedEnhancementMode, type EnhancementModeId } from "../pipeline/enhance";
-import type { EdgeMode, GenerationMode, PaletteMode } from "../pipeline/pattern.worker";
+import type { EdgeMode, GenerationMode, PaletteMode } from "../pipeline/pattern";
 import { THREAD_BRAND_IDS } from "../threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, type SizePresetId } from "../types";
 

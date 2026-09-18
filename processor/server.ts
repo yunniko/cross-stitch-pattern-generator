@@ -151,7 +151,20 @@ async function handleJobEvents(res: ServerResponse, jobId: string): Promise<void
     const payload = status.state === "queued" && status.queuePosition ? { ...status, estimatedWaitMs: estimatedWaitMs(status.queuePosition) } : status;
     res.write(`data: ${JSON.stringify(payload)}\n\n`);
     if (status.state !== "queued" && status.state !== "running") break;
-    await pool.waitForChange(jobId);
+    // A job waiting behind others can be silent for minutes, and an idle stream is dropped by nginx's read timeout
+    // (60 s by default) or any other intermediary. A comment line every 15 s keeps it open without the client
+    // needing to reconnect, whatever the proxy is configured to allow.
+    let heartbeat: NodeJS.Timeout | undefined;
+    await Promise.race([
+      pool.waitForChange(jobId),
+      new Promise<void>((resolve) => {
+        heartbeat = setTimeout(() => {
+          res.write(": keepalive\n\n");
+          resolve();
+        }, 15_000);
+      }),
+    ]);
+    if (heartbeat) clearTimeout(heartbeat);
   }
   res.end();
 }

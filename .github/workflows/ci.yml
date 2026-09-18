@@ -29,7 +29,8 @@ jobs:
       - run: npm run test:unit
 
       - run: npx playwright install --with-deps chromium
-      # CI=true makes playwright.config.ts build and start a fresh production server (D102).
+      # CI=true makes playwright.config.ts build and start fresh servers (D102). Since G-034 M5 that is both the
+      # processor and the app, because generation, the preview and the exports all run on the processor.
       - run: npm run test:e2e
 
       - uses: actions/upload-artifact@v4

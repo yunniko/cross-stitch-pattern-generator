@@ -1,16 +1,26 @@
-import { EnhancePreviewCancelledError } from "./enhance-preview-client";
 import type { EnhancementModeId } from "./enhance";
 import { ensurePhotoUploaded, forgetPhoto } from "./photo-upload";
 import { errorFromResponse, isNetworkFailure, PhotoExpiredError, ProcessorUnreachableError } from "./server-errors";
 
 /**
- * The enhancement preview from the server (G-034 M3): the counterpart of `enhance-preview-client.ts`, which runs it in
- * a Web Worker. Which one the editor uses is decided by `NEXT_PUBLIC_PROCESSING` (D151).
+ * The enhancement preview from the server (G-034 M3). Since M5 this is the only path: the browser's preview worker is
+ * gone, so the editor always asks the processor.
  *
  * The server returns an encoded image, so the result is an object URL the `<img>` can show directly — the browser path
  * produces a data URL from pixels, and both satisfy the same contract. One request at a time, as in the worker path: a
  * newer request supersedes an in-flight one, whose promise rejects with `EnhancePreviewCancelledError`.
  */
+
+/**
+ * Rejects a preview request that a newer request or an explicit cancel superseded. Declared here since G-034 M5
+ * removed the browser worker client that used to own it.
+ */
+export class EnhancePreviewCancelledError extends Error {
+  constructor() {
+    super("Photo preview was cancelled");
+    this.name = "EnhancePreviewCancelledError";
+  }
+}
 
 let activeController: AbortController | null = null;
 

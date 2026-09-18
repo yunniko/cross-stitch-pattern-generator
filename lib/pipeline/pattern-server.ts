@@ -1,19 +1,28 @@
 import { deserializePatternData } from "../editor/pattern-serialize";
 import type { StitchPattern } from "../types";
 import type { EnhancementModeId } from "./enhance";
-import type { EdgeMode, GenerationMode, PaletteMode } from "./pattern.worker";
-import { PatternJobCancelledError } from "./pattern-client";
+import type { EdgeMode, GenerationMode, PaletteMode } from "./pattern";
 import { ensurePhotoUploaded, forgetPhoto } from "./photo-upload";
 import { errorFromResponse, isNetworkFailure, PhotoExpiredError, ProcessorUnreachableError } from "./server-errors";
 
 /**
- * Generation on the server (G-034 M2): the same job `pattern-client.ts` runs in a Web Worker, run by the processor
- * instead. Which of the two the editor uses is decided by `NEXT_PUBLIC_PROCESSING` (D151), so both paths exist side by
- * side until M5 retires the browser one.
+ * Generation on the server (G-034 M2). Since M5 this is the only path: the browser's own generation worker and the
+ * `NEXT_PUBLIC_PROCESSING` flag are gone, so the editor always asks the processor.
  *
  * The photo is uploaded once by `photo-upload.ts` and then referred to by content hash, so Regenerate at a different
  * size or colour count re-sends nothing.
  */
+
+/**
+ * Thrown to reject a job's promise when it is superseded or explicitly cancelled, rather than leaving that promise
+ * pending forever. Declared here since G-034 M5 removed the browser worker client that used to own it.
+ */
+export class PatternJobCancelledError extends Error {
+  constructor() {
+    super("Pattern generation was cancelled");
+    this.name = "PatternJobCancelledError";
+  }
+}
 
 export interface RunServerPatternJobOptions {
   /** The photo's original file bytes, as held in `SourceImageRef.dataUrl`. */

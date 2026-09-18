@@ -102,12 +102,3 @@ export async function loadExportFontBytes(url: string): Promise<Uint8Array> {
   if (!response.ok) throw new Error("Couldn't load the PDF font.");
   return new Uint8Array(await response.arrayBuffer());
 }
-
-/** Whether this context can draw exports into an `OffscreenCanvas`: the worker path needs it, the fallback doesn't. */
-export function offscreenCanvas2dSupported(): boolean {
-  try {
-    return typeof OffscreenCanvas !== "undefined" && new OffscreenCanvas(1, 1).getContext("2d") !== null;
-  } catch {
-    return false;
-  }
-}

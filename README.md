@@ -1,9 +1,11 @@
 # Cross-Stitch Pattern Generator
 
-Turns a photo into an editable, printable cross-stitch chart. Everything runs
-in the browser: generation happens in a Web Worker, projects autosave to the
-browser's IndexedDB, and no image is ever uploaded. Live at
-<https://cross-stitch.craftodejnice.cz>.
+Turns a photo into an editable, printable cross-stitch chart. Editing is local —
+the chart, undo and autosave to the browser's IndexedDB all stay on your machine —
+while generating a chart, previewing a photo enhancement and building the export
+files run on this site's own server, so your photo is uploaded to it. The editable
+`.json` save is still written in the browser, so work can be saved even when the
+server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
 
 ## What it does
 

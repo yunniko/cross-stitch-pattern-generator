@@ -7,12 +7,11 @@ import { installServerExportBackend } from "./export-backend";
 import type { WorkerJob, WorkerMessage } from "./job-protocol";
 
 /**
- * One pool worker (G-034 M2, M4): the server-side twin of `lib/pipeline/pattern.worker.ts` and of the export worker.
+ * One pool worker (G-034 M2, M4): where generation and exports actually run.
  *
- * Generations call `buildPattern` with the same arguments the browser worker does — including the same quantizer for
- * "original" — so the golden hashes (D107) hold on both sides. Exports call the very same `runExportJob` the browser
- * runs, with the canvas, font and texture supplied by the server backend (D153), so the two cannot drift into separate
- * implementations. Cancellation is blunt for both: the pool terminates the thread, because neither has interruption
+ * Generations call `buildPattern` with the arguments the browser's worker used to pass — including the same quantizer
+ * for "original" — so the golden hashes (D107) still hold. Exports call `runExportJob`, the same function the editor
+ * once ran in its own worker, with the canvas, font and texture supplied by the server backend (D153). Cancellation is blunt for both: the pool terminates the thread, because neither has interruption
  * points.
  */
 

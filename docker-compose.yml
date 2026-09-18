@@ -10,9 +10,6 @@ services:
     build:
       context: .
       target: runtime
-      args:
-        # "server" sends generation to the processor; "browser" keeps the Web Worker path.
-        NEXT_PUBLIC_PROCESSING: ${NEXT_PUBLIC_PROCESSING:-browser}
     restart: unless-stopped
     cpus: 1.0
     mem_limit: 768m
