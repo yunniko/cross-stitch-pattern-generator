@@ -18,9 +18,9 @@ import { DISABLED_TEXT, PillButton } from "./ui";
 const CARD = "flex items-center gap-4 rounded-[10px] border px-[18px] py-4 text-left transition-colors";
 const STEP = "border-line px-[9px] py-1.5 text-[13px] leading-none text-muted transition-colors enabled:hover:bg-raised enabled:hover:text-ink";
 
-function PhotoIcon() {
+function PhotoIcon({ selected }: { selected: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="h-[22px] w-[22px] shrink-0" fill="none" stroke="var(--at-accent)" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className={`h-[22px] w-[22px] shrink-0 ${selected ? "text-accent" : "text-muted"}`} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <circle cx="9" cy="10" r="2" />
       <path d="M4 18l5-5 4 4 3-3 4 4" />
@@ -117,16 +117,20 @@ export function FirstRun({ onChoosePhoto, onOpenPattern, onCreateBlank, options,
       <div className="flex flex-col gap-2.5">
         <button
           type="button"
-          onClick={onChoosePhoto}
+          onClick={() => {
+            setOpen(false);
+            onChoosePhoto();
+          }}
           disabled={busy}
-          className={`${CARD} border-accent bg-accent/[.08] text-ink enabled:hover:bg-accent/[.14] ${DISABLED_TEXT}`}
+          className={`${CARD} text-ink ${DISABLED_TEXT} ${
+            open ? "border-line bg-raised enabled:hover:bg-sunken" : "border-accent bg-accent/[.08] enabled:hover:bg-accent/[.14]"
+          }`}
         >
-          <PhotoIcon />
+          <PhotoIcon selected={!open} />
           <span className="flex-1">
             <span className="block text-[15px] font-medium">Choose a photo</span>
             <span className="block text-xs leading-[17px] text-muted">JPEG, PNG or WebP · uploaded to this site&apos;s server to be charted</span>
           </span>
-          <span className="font-mono text-xs text-accent">01</span>
         </button>
 
         <div className={`flex flex-col rounded-[10px] border ${open ? "border-accent bg-accent/[.06]" : "border-line bg-raised"}`}>
@@ -175,7 +179,14 @@ export function FirstRun({ onChoosePhoto, onOpenPattern, onCreateBlank, options,
           )}
         </div>
 
-        <button type="button" onClick={onOpenPattern} className={`${CARD} border-line bg-raised text-ink hover:bg-sunken`}>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            onOpenPattern();
+          }}
+          className={`${CARD} border-line bg-raised text-ink hover:bg-sunken`}
+        >
           <FolderIcon />
           <span className="flex-1">
             <span className="block text-[15px] font-medium">Open a saved pattern</span>

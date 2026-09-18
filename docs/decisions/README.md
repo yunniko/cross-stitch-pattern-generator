@@ -175,3 +175,4 @@ remain readable with git show.
 - D164 — One disabled look per control shape, and a start screen that touches nothing — active
 - D165 — The empty-grid card owns its settings, and Create carries the confirm — active
 - D166 — Two more 1b texts the Owner cut — active
+- D167 — The start screen's accent is a selection, not decoration — active

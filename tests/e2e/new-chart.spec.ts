@@ -171,3 +171,34 @@ test("the start screen leaves nothing live over the chart it covers, and every d
     expect(hovered?.style, `${label} lights up under the pointer while disabled`).toBe(resting.style);
   }
 });
+
+/**
+ * D167. The accent on the start screen's cards is a selection, not decoration: it marks the way in you are taking, so
+ * it can never sit on two cards at once. Asserted from computed style, because nothing in the DOM says "selected".
+ */
+test("the accent marks one chosen way in, and the 01 badge is gone (D167)", async ({ page }) => {
+  // These cards open a native picker; swallow it so a click does not leave a chooser pending.
+  page.on("filechooser", (chooser) => void chooser.setFiles([]));
+  await page.goto("/");
+
+  const ACCENT = "rgb(70, 194, 174)"; // --at-accent
+  const LINE = "rgb(42, 47, 52)"; // --at-line
+  const photo = page.getByRole("button", { name: /^Choose a photo/ });
+  const grid = page.locator("div:has(> button[aria-expanded])").filter({ hasText: "Start an empty grid" }).first();
+  const border = (loc: ReturnType<typeof page.locator>) => loc.evaluate((el) => getComputedStyle(el).borderColor);
+
+  await expect(photo, "1b's step number is gone").not.toContainText("01");
+  expect(await border(photo), "the photo card is the default choice").toBe(ACCENT);
+  expect(await border(grid)).toBe(LINE);
+
+  await page.getByRole("button", { name: /^Start an empty grid/ }).click();
+  await page.waitForTimeout(350); // transition-colors, or the colour is read in flight
+  expect(await border(photo), "the photo card is still marked while the grid card is open").toBe(LINE);
+  expect(await border(grid), "the grid card takes the mark when its settings open").toBe(ACCENT);
+
+  // Taking another way in hands the mark back, rather than leaving two cards marked.
+  await page.getByRole("button", { name: /^Open a saved pattern/ }).click();
+  await page.waitForTimeout(350);
+  expect(await border(photo)).toBe(ACCENT);
+  expect(await border(grid)).toBe(LINE);
+});
