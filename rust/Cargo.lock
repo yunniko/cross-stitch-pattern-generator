@@ -128,6 +128,7 @@ dependencies = [
  "flate2",
  "pdf-writer",
  "png",
+ "rayon",
  "rustybuzz",
  "ryu-js",
  "serde_json",

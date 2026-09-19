@@ -9,6 +9,7 @@ publish.workspace = true
 flate2 = "1.1.10"
 pdf-writer = "0.15.0"
 png = "0.18.1"
+rayon = "1"
 rustybuzz = "0.20.1"
 ryu-js = "1.0.3"
 serde_json = { version = "1.0.151", features = ["preserve_order"] }

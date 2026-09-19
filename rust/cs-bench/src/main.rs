@@ -1,7 +1,7 @@
 //! G-048 benchmark and parity CLI.
 //!
 //!   cs-bench generate <image.rgba> <width> <height> '<options json>' [repeat]
-//!   cs-bench export <pattern.json> '<request json>' <out file> [repeat]
+//!   [RUST_EXPORT_THREADS=n] cs-bench export <pattern.json> '<request json>' <out file> [repeat]
 //!
 //! `export` reads an editable save and an export request (`kind`, `baseName`, `aidaCount`, `sizeUnit`, `authorName`,
 //! `overlapCells`), writes the file `runExportJob` would, and prints its name, size, each run's time and the peak RSS.
@@ -29,18 +29,28 @@ fn export(args: &[String]) {
     let pattern = cs_export::model::Pattern::from_editable_json(&text).expect("pattern");
     let request = cs_export::model::Request::from_json(&args[3]).expect("request");
     let repeat: usize = args.get(5).map(|r| r.parse().expect("repeat")).unwrap_or(1);
+    // RUST_EXPORT_THREADS sizes the pool A4 pages render on; one thread by default, the exact tier's timing.
+    let threads: usize = std::env::var("RUST_EXPORT_THREADS")
+        .map(|t| t.parse().expect("RUST_EXPORT_THREADS"))
+        .unwrap_or(1);
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(threads)
+        .build()
+        .expect("thread pool");
     let origin = Instant::now();
     let mut runs = Vec::new();
     let mut file = None;
     for _ in 0..repeat.max(1) {
         let start = origin.elapsed().as_secs_f64() * 1000.0;
-        let f = cs_export::export(&pattern, &request).expect("export");
+        let f = pool
+            .install(|| cs_export::export(&pattern, &request))
+            .expect("export");
         runs.push(origin.elapsed().as_secs_f64() * 1000.0 - start);
         file = Some(f);
     }
     let file = file.unwrap();
     std::fs::write(&args[4], &file.bytes).expect("write output");
-    let out = json!({ "filename": file.filename, "bytes": file.bytes.len(), "runsMs": runs, "peakRssMb": peak_rss_mb() });
+    let out = json!({ "filename": file.filename, "bytes": file.bytes.len(), "runsMs": runs, "peakRssMb": peak_rss_mb(), "threads": threads });
     println!("{out}");
 }
 
@@ -87,6 +97,6 @@ fn main() {
         runs.push(run_json(now() - start, &times));
         pattern = Some(p);
     }
-    let out = json!({ "pattern": pattern_json(&pattern.unwrap()), "runs": runs, "peakRssMb": peak_rss_mb() });
+    let out = json!({ "pattern": pattern_json(&pattern.unwrap()), "runs": runs, "peakRssMb": peak_rss_mb(), "threads": threads });
     println!("{out}");
 }

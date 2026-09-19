@@ -6,6 +6,7 @@ use crate::canvas::Canvas;
 use crate::model::{Pattern, Request};
 use crate::png;
 use crate::render::{symbol_stamps, Mode};
+use rayon::prelude::*;
 use std::io::{Cursor, Write};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
@@ -69,11 +70,20 @@ pub fn add_a4_pages(
     let base = &request.base_name;
     let total = l.pages.len();
     let stamps = symbol_stamps(&p.palette, mode, l.cell as i64);
+    // Pages render and encode in parallel on the caller's rayon pool and enter the ZIP in order, so the output is
+    // the same at any thread count.
+    let pages: Vec<Vec<u8>> = l
+        .pages
+        .par_iter()
+        .enumerate()
+        .map(|(i, page)| {
+            page_png(l.page_w, l.page_h, |c| {
+                a4::draw_grid_page(c, p, mode, &l, page, i, total, stamps.as_ref())
+            })
+        })
+        .collect();
     let mut written = 0;
-    for (i, page) in l.pages.iter().enumerate() {
-        let bytes = page_png(l.page_w, l.page_h, |c| {
-            a4::draw_grid_page(c, p, mode, &l, page, i, total, stamps.as_ref())
-        });
+    for (page, bytes) in l.pages.iter().zip(pages) {
         zip.file(
             &format!(
                 "{prefix}{}",

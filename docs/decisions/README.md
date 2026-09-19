@@ -195,3 +195,6 @@ remain readable with git show.
 - D184 — Rust also ports V8's sin, cos, atan2, log and hypot — active
 - D185 — The optimised Rust tier stays exact: threads only where results cannot change — active
 - D186 — The WASM build uses a raw ABI and runs single-threaded — active
+- D187 — Rust rasters draw DejaVu text from measured canvas metrics, compared by pixel difference — active
+- D188 — Export references are made in the production processor image — active
+- D189 — The Rust PDF mirrors pdf-lib's structure with pdf-writer and a subset Type0 font — active
