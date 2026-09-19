@@ -42,7 +42,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   governs the exact tier only.
 
 **Milestones**:
-- [ ] M1 — Foundations: a Rust workspace in `rust/` (core library, benchmark CLI), a corpus of inputs dumped from
+- [x] M1 — Foundations: a Rust workspace in `rust/` (core library, benchmark CLI), a corpus of inputs dumped from
   TypeScript (decoded photos, settings, expected outputs), the comparison harness, and the exact port of the Standard
   pipeline matching its golden hashes. First timing against TypeScript.
 - [ ] M2 — The rest of generation, exact: Crisp, Crisp+, photo enhancement and thread-brand matching; every golden hash
@@ -56,6 +56,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   fallback; deployed and verified live. Skipped if nothing qualifies.
 
 **Progress log** (newest first):
+- 2026-09-19 — **M1 done; awaiting approval of M2.** The `rust/` workspace (`cs-core`, `cs-bench`), V8-exact maths (D183:
+  0 mismatches in 6.5 M vectors, where `libm`'s `pow` missed 94,182), and the exact Standard pipeline (D182).
+  `npm run compare:rust`: 13 of 13 cases byte-identical, including all 11 Standard golden hashes. Single-thread speed-up
+  2.9× at 1000 and 1500 stitches (3680 → 1279 ms, 7879 → 2732 ms; `docs/reviews/2026-09-19-rust-m1-parity.md`).
+  Checks: Vitest 1096 passed, 8 skipped; tsc, eslint, clippy and docs-lint clean; cargo test passes. The corpus is the golden fixtures and probe shapes handed over per run; real photos come in M3.
 - 2026-09-19 — **Owner approval:** "go ahead with M1"; language consistency applies only where no better fit exists (STANDARDS, Tech-stack selection).
 - 2026-09-19 — goal drafted from the Owner's request and answers.
 

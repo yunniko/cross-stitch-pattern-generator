@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-19 at 96efc33 (G-046 M4 deployed; G-046 signed off)
+Last verified: 2026-09-19 at 9fb0fbb (G-048 M1: the Rust exact tier of Standard generation; production still 96efc33)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -12,23 +12,15 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 **Production** runs 96efc33 (2026-09-19), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
 Signed off: G-045 the Atelier redesign in direction 1b (D157-D167), G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
-**G-034, processing moved to the server — signed off 2026-09-18.** M1 measured the caps (D149, D150); M2 built the
-`processor` service and its API (D151); M3 added the server photo preview (D152); M4 moved every export there,
-drawing with DejaVu because the image has no fonts (D153), parity measured in
-`docs/reviews/2026-09-17-export-parity.md`; M5 deleted the browser workers and the build flag, halving the client
-bundle (2370 KB to 1129 KB). **Deployed and verified live on 2026-09-18**, after the Owner's nginx change (40 MB bodies, 300 s proxy reads).
+**G-034, processing moved to the server — signed off 2026-09-18**: generation, previews and every export but the
+editable save run in the `processor` container (D149–D155). **G-045, the Atelier redesign (direction 1b) — signed off
+2026-09-18**: tool rail, context and status bars, one-pane inspector, Isolate as a view mode (D157–D167). Both are
+detailed in `docs/goals-archive.md`.
 
-**G-045, the Atelier redesign (direction 1b) — signed off 2026-09-18.** The four stacked bars above the chart are
-gone: a 64px tool rail led by New, a context bar that changes with the document, the
-chart in a ruled well, a status bar, and a 360px inspector showing one of Photo, Chart or Threads at a time (D157).
-Highlight left the tool union to become Isolate, a view mode that survives picking up a brush, with its own light on
-every thread (D158); the view chips stay `aria-pressed` buttons rather than a radiogroup (D159). Later passes on
-the Owner's reading of the design put symmetry and the brush's own
-thread in the top panel, made the Select tool replace that panel rather than stack under it (D160), opened the symbol
-picker under the row it edits as the colour editor already did, marked and named Export all as 1b draws it, stopped
-the rail clipping its own file menu, and built the first-run screen: three cards where the chart will be, over the
-three steps in the Photo tab. Two details depart from 1b at the Owner's direction (D161). A last pass made the
-disabled state consistent across every control and stopped the start screen reaching the chart it covers (D164).
+**G-048, generation and exports in Rust — ACTIVE, M1 done, awaiting approval of M2.** `rust/` holds the exact tier of
+Standard generation (D182). It reproduces all 11 Standard golden hashes and the 1000- and 1500-stitch probes byte for byte,
+on V8-exact maths (D183), and runs about 2.9× faster than TypeScript on one thread
+(`docs/reviews/2026-09-19-rust-m1-parity.md`). Nothing Rust ships until G-048's ship rule is met; production is untouched.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1500 stitches (D181) and 2–100 colors, with Latest or Original clustering, Full range, DMC,
@@ -85,7 +77,7 @@ Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 �
 
 - **Stack**: Next.js 16 App Router (`output: "standalone"`), React 19, TypeScript strict, Tailwind 4, Vitest 4,
   Playwright 1.62, Node 22. Runtime deps: pdf-lib with fontkit, jszip, react-colorful, color-name-list,
-  @napi-rs/canvas (server decode and preview encoding, D150).
+  @napi-rs/canvas (server decode and preview encoding, D150). Rust 1.96 for G-048's port only (D182).
 - **UI shell** (direction 1b, D157): `app/page.tsx` renders `app/workspace.tsx`, which owns only undo history,
   cross-pane state and pointer dispatch (pan → move → select → brush). Behavior lives in `app/hooks/`: options,
   restore, source image, generation, pan/zoom, chart renderer, canvas tools, exports, shortcuts. The tool rail
@@ -143,6 +135,10 @@ Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 �
   (D119); `pattern-import.ts` sniffs the format.
 - **Experimental** (`lib/experimental/`): contour refinement, boundary chains, simulated annealing,
   diagnostics. Status table in its README.
+- **Rust port (G-048)**: `rust/cs-core` ports the pipeline module by module; each file names the TypeScript it
+  ports. `jsmath.rs` holds the V8-exact maths (D183), proven by `rust/cs-core/tests/jsmath_vectors.rs` on vectors from
+  `scripts/rust-jsmath-vectors.mjs`. `rust/cs-bench` is the CLI that `npm run compare:rust` (`scripts/rust-parity.ts`)
+  drives: RGBA in, the pattern and stage times out as JSON. `scripts/rust-tables.mjs` writes the colour-name table.
 - **Tests**: unit specs in `tests/unit/`. `golden-hashes.spec.ts` pins exact `buildPattern` output for 18
   configurations (D107), and `m3-equivalence.spec.ts` compares the optimizer with a verbatim pre-M3 copy. E2E specs
   are in `tests/e2e/`; `npm run test:e2e` starts the processor and the app together, since the page needs both.
@@ -190,6 +186,8 @@ Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 �
   `tests/unit/crisp-evidence-equivalence.spec.ts` (G-035 M4). Crisp+ changes stay behind
   `edgeModel: "blurred-step"` and `"crisp-plus"`, never Crisp's defaults (D139).
 - ICM inner loops use no closures or array scans (D044).
+- Rust exact-tier code calls `jsmath` for `pow`, `cbrt`, `exp` and `round`, never the `f64` methods: `libm`'s `pow`
+  differed from V8 on 4 % of pipeline inputs (D183). A Node upgrade needs the vectors regenerated and rechecked.
 - Code e2e specs load in Node takes symmetry types from `lib/editor/symmetry-axes.ts`, not `symmetry.ts` (G-037).
 - Screen drawing = frozen pre-G-036 drawing with band grid lines (photos ±16, outlines ±1),
   per `tests/e2e/chart-viewport-parity.spec.ts`; exports keep stroked grid lines (D135).
@@ -284,6 +282,8 @@ Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 �
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
+- G-048 M2 awaits the Owner: Crisp, Crisp+, enhancement and brands in the exact tier. M1's inputs are the golden
+  fixtures and probe shapes only; real photos join with M3's quality metrics.
 - G-046 (larger canvases) is signed off (2026-09-19) and archived: the cap is 1500 (D181). A cap of 2000 would need two Owner decisions, a longer generation deadline and Export all without the chart PNG (D181). G-030 (public launch) is a far-future draft.
 - G-047 (faster exports and generation) is signed off (2026-09-19) and archived in `docs/goals-archive.md`: raster exports 2–3× faster, the preview streamed, the PDF 3.5× faster, generation a quarter to a half faster (D171–D178).
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
