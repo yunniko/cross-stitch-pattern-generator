@@ -12,6 +12,52 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
+### G-048 · Generation and exports in Rust, measured against TypeScript — DRAFT (2026-09-19)
+- **What:** the whole generation pipeline (everything `buildPattern` does, every mode) and every export (chart PNGs,
+  realistic preview, A4 pages, Pattern Keeper PDF, OXS, editable JSON, Export all) implemented in Rust, in two tiers: an
+  exact port, then an optimised build using what Rust offers (threads, SIMD, cheaper memory layouts). Both measured
+  against today's TypeScript on the same inputs; whichever parts come out clearly faster are shipped into the processor.
+- **Why:** Owner request (2026-09-19): implement the same functionality in Rust with the optimisations available and
+  compare the metrics. G-023 and G-046 M5 only ever planned a kernel benchmark; this measures the whole job.
+- **Owner decisions (2026-09-19):** scope is generation plus exports; results are compared in two tiers (exact, then
+  optimised with tolerances); a part that is clearly faster ships, with TypeScript kept as the reference.
+- **Acceptance criteria:**
+  1. The exact tier reproduces every golden hash (D107) byte for byte, in every generation mode.
+  2. The optimised tier's charts stay within stated tolerances of TypeScript's on the golden fixtures and real photos:
+     mean per-cell OKLab error within 2 % of TypeScript's, confetti ratio no more than 0.5 points worse, palette size
+     equal; any larger difference is shown and explained, not averaged away.
+  3. Exports: the editable JSON and the OXS byte-identical; the PDF with the same page count and the same extracted text
+     on every page, symbols as real embedded-font text; raster exports the same size, compared with TypeScript's by mean
+     and largest per-channel difference, with differing regions inspected by eye; Export all with the same entries.
+  4. A comparison report: wall time and peak memory for every stage and export, TypeScript against both Rust tiers, at
+     1000 and 1500 stitches, on the laptop and on the host inside the processor's 3-CPU / 2 GiB cap, one job and three
+     at once; native, and WASM for generation.
+  5. Ship rule: a part (generation, or an export) ships when it is at least 25 % faster on the host at the cap, uses no
+     more memory, and meets its equivalence criterion; each ship gets a decision file, TypeScript stays as the reference
+     and fallback, and the golden hashes still hold for anything shipped from the exact tier.
+  6. Vitest, Playwright and the Rust tests pass; docs-lint passes; HANDOVER regenerated; anything shipped is deployed
+     and verified live.
+- **Constraints:** D149's caps are fixed. Rust enters the portfolio through a decision file (a new language, justified by
+  this measurement); the processor image builds it in Docker, so the host needs nothing installed. Byte-identity (D107)
+  governs the exact tier only.
+
+**Milestones**:
+- [ ] M1 — Foundations: a Rust workspace in `rust/` (core library, benchmark CLI), a corpus of inputs dumped from
+  TypeScript (decoded photos, settings, expected outputs), the comparison harness, and the exact port of the Standard
+  pipeline matching its golden hashes. First timing against TypeScript.
+- [ ] M2 — The rest of generation, exact: Crisp, Crisp+, photo enhancement and thread-brand matching; every golden hash
+  matches. Single-thread timing per stage.
+- [ ] M3 — Generation, optimised: threads and SIMD where they pay, measured stage by stage; the quality metrics of
+  criterion 2; WASM build; laptop and host timings.
+- [ ] M4 — Exports in Rust: PNG writer, chart and A4 rasters with DejaVu text, the streamed preview, the PDF (embedded,
+  subset font, text symbols), OXS, JSON and Export all; the equivalence checks of criterion 3; timings.
+- [ ] M5 — The comparison report and the ship decision per part (criterion 5).
+- [ ] M6 — Ship what qualifies: a native addon in the processor's workers, built in the image, with the TypeScript
+  fallback; deployed and verified live. Skipped if nothing qualifies.
+
+**Progress log** (newest first):
+- 2026-09-19 — goal drafted from the Owner's request and answers; awaiting approval of the plan.
+
 ### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT, possibly relevant to G-030 (2026-09-12)
 - **G-046 now holds this goal's M1 and M2 (2026-09-18).** The candidate-set reduction below is G-046
   M3, and the kernel benchmark is G-046 M5, gated on the TypeScript work missing its target. Leave this
