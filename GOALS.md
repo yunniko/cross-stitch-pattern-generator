@@ -57,8 +57,9 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   peak RSS by D149's capacity-probe method, export memory, wire payload size and client parse cost, and
   the editor's undo and drawing budget. Produces a dated review under `docs/reviews/` and a candidate
   cap. No production code changes. Done 2026-09-18.
-- [ ] M2 — The export memory wall: batch same-colour runs in the PDF adapter so operators stay bounded
-  (D155's named fix), so the PDF and Export all succeed at 1000 stitches; export parity re-run.
+- [x] M2 — The export memory wall: batch same-colour runs in the PDF adapter so operators stay bounded
+  (D155's named fix), so the PDF and Export all succeed at 1000 stitches; export parity re-run. Done 2026-09-19 — by
+  releasing each page as it is drawn rather than batching (D169), plus the A4 per-page deadline the Owner added (D168).
 - [ ] M3 — The generation speed win: the ICM candidate-set reduction (neighbour labels plus the
   unary-best label, ~9 candidates instead of up to 100), byte-identical, re-measured against M1.
 - [ ] M4 — The scaling walls M1 identifies (result wire format, undo history, chart drawing), then
@@ -68,6 +69,26 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   single-threaded native and WASM. Numbers decide whether G-023 revives; no service, no deploy.
 
 **Progress log** (newest first):
+- 2026-09-19 — **M2 done: the PDF's heap is bounded, and paginated deadlines follow the pages.** Deployed as fd174cd.
+  - **Owner approval (2026-09-19):** go ahead with M2, including the A4 per-page deadline.
+  - **The mechanism changed, and why.** A stitch costs about eleven PDF operators: three for its fill, eight for the
+    symbol Pattern Keeper needs as real text in every cell. Batching fills — D155's named fix, and this milestone's text
+    — could only trim the three. Instead each finished page's content stream becomes the deflated stream `save()` would
+    have written, and its operators are released (D169, superseding D155).
+  - **Verified:** byte-identical files (clock frozen, builds a second apart); heap 40–66 MB from 1000 to 2000 stitches
+    under a 512 MB limit, where 1000 had needed 1677 MB; Export all at 1000 in 122 MB of heap; D155's reproduction
+    through the real worker path (`PROCESSOR_WORKER_HEAP_MB=512`) exports a complete 147-page PDF from a real photo. Live
+    on production: the same PDF in 38.5 s, which had failed there since G-034.
+  - **A4 deadline (D168):** 60 s plus 2 s a page, never under the old 150 s, calibrated from 152 and 336 pages at 1000
+    and 1500 stitches. Live A4 at 1000: 126.0 s.
+  - **Tooling:** one shared server pair for every config that starts servers; bench-browser and bench-move had no
+    processor. The three compare configs start none by design and now say each build needs one; the M1 review's
+    "five configs" wording is corrected.
+  - **A mistake worth recording:** the first byte-identity test compared files that embed the wall clock, and passed only
+    when both builds landed in the same second. A diff placed the difference in the Info dictionary's compressed object
+    stream, not in any page, and the test now freezes the date.
+  - **Checks:** Playwright 318 passed, Vitest 1064 passed (8 skipped); tsc, eslint and docs-lint clean.
+  - **Next:** Owner check-in, then M3 — the ICM candidate-set reduction.
 - 2026-09-18 — **M1 done: every wall measured, candidate cap 1500** (`docs/reviews/2026-09-18-larger-canvas-walls.md`).
   - **The walls, in the order they bite:** the PDF (2.5 KB of heap a cell, 1.68 GB at 1000 — broken today); A4 inside
     its 150 s deadline (127.7 s at 1000 on the server, so about 1090 stitches at most); the editor's zoom (8 px a

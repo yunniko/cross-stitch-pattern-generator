@@ -209,10 +209,10 @@ which made the drawing canvas view-sized; whether anything still depends on it i
   operation logged as it lands, a 20-minute cap, and the undo budget as a second test.
 - Its zoom step allows 1 s for the cell size to change and reads a timeout as "at the zoom cap", so a slow zoom and an
   impossible one look alike. At 2000 it was the cap, confirmed with 30 s allowed.
-- The other five auxiliary configs (`bench-browser`, `bench-move`, `export-compare`, `export-parity`,
-  `screen-compare`) still start no processor though every one of their specs presses Generate; they work only against
-  servers started by hand with the right environment, which `reuseExistingServer` adopts. Proposed as M2's first task,
-  since M2 needs `export-parity`.
+- Two more configs, `bench-browser` and `bench-move`, started the app with no processor, as `bench-chart` had. The
+  other three (`export-compare`, `export-parity`, `screen-compare`) start no server at all, by design: they compare two
+  builds someone has already started, and only lacked any word that each needs its processor. This line first counted
+  all five as broken; corrected in M2, which fixed both and gave every config that starts servers one shared definition.
 
 ## Confidence and gaps
 

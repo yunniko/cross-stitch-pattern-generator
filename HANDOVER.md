@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-18 at b6a08ea (G-046 M1: every wall to larger canvases measured; production unchanged at f1cfa8b)
+Last verified: 2026-09-19 at fd174cd (G-046 M2: the PDF's heap bounded and paginated deadlines per page, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs f1cfa8b (2026-09-18), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
+**Production** runs fd174cd (2026-09-19), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
 Signed off: G-045 the Atelier redesign in direction 1b (D157-D167), G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
 **G-034, processing moved to the server — signed off 2026-09-18.** M1 measured the caps (D149, D150); M2 built the
@@ -17,7 +17,7 @@ Signed off: G-045 the Atelier redesign in direction 1b (D157-D167), G-044 the Or
 drawing with DejaVu because the image has no fonts (D153), parity measured in
 `docs/reviews/2026-09-17-export-parity.md`; M5 deleted the browser workers and the build flag, halving the client
 bundle (2370 KB to 1129 KB). **Deployed and verified live on 2026-09-18**, after the Owner's nginx change (40 MB bodies, 300 s proxy reads).
-Export all and the Pattern Keeper PDF fail on charts near 1000 stitches, shipped as a documented limitation (D155).
+Export all and the Pattern Keeper PDF failed on charts near 1000 stitches, a documented limitation (D155) until G-046 M2 bounded the PDF's heap (D169).
 
 **G-045, the Atelier redesign (direction 1b) — signed off 2026-09-18.** The four stacked bars above the chart are
 gone: a 64px tool rail led by New, a context bar that changes with the document, the
@@ -61,11 +61,11 @@ disabled state consistent across every control and stopped the start screen reac
   original", and the mode recorded in saved files; only Brighten is released
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-18**: `tsc --noEmit` clean, `npm run lint` 0 errors, production build clean; Vitest 1061
-passed (8 opt-in skips); Playwright **316 passed, 0 failed across all 26 specs**, one spec per process, against the
-single-path build, with the processor serving generation, exports and previews. The count moved twice under G-045:
-down to 312 when the navigator dock's own test retired with the dock (D157), then up to 316 with
-`tests/e2e/new-chart.spec.ts`, which covers the confirm that guards replacing the one autosaved chart (D162). Export parity:
+**Checks run 2026-09-19**: `tsc --noEmit` clean, `npm run lint` 0 errors, production build clean; Vitest 1064
+passed (8 opt-in skips); Playwright **318 passed, 0 failed across all 26 specs**, one spec per process, against the
+single-path build, with the processor serving generation, exports and previews. `tests/e2e/new-chart.spec.ts`
+covers the start screen: the confirm that guards the one autosaved chart (D162), its inert controls (D164) and its
+card selection (D167). Export parity:
 `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the type-check and `build:processor` before
 the unit tests, because the worker bundle is git-ignored and the pool, preview and export specs run against it.
 
@@ -74,15 +74,11 @@ the unit tests, because the worker bundle is git-ignored and the pool, preview a
 and 7.5 s Crisp, down from 7.7 s and 42.7 s; at 1000 stitches / 64 colors, 4.9 s and 6.8 s. In the browser at 1000
 stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no main-thread freeze. Enhancing a
 4000×3000 photo takes 1.9–2.2 s, above G-032's 1.5 s target. The server is ~3.4× slower per core (D149), and a
-1000-stitch A4 export there took 127.7 s on 2026-09-18, against its 150 s deadline (G-046 M1).
+1000-stitch A4 export there took 127.7 s on 2026-09-18 (G-046 M1); its deadline now grows with the page count (D168).
 
 **Known limitations**:
 - Crisp takes about 2.6× Standard's time on a 12 MP photo (7.5 s against 2.9 s), because every cell
   gets the two-mode fit (D132); it falls back to Standard for thin lines, junctions and shading (D096).
-- **Export all and the Pattern Keeper PDF fail on charts near 1000 stitches** with a worker JS-heap OOM: the PDF
-  adapter keeps three operators per cell across 154 pages and frees none until the document is saved. It needs about
-  2.5 KB of heap a cell, 1.68 GB at 1000 against the container's 1048 MB default heap (G-046 M1). Both worked in the browser. `PROCESSOR_WORKER_HEAP_MB` reproduces it
-  on any machine; batching same-colour runs is the fix not yet made (D155).
 - At 1000 stitches chart actions stay under 100 ms, but 4× CPU throttling still reaches 480 ms (G-036). Generation
   and every export but the editable save need the server, so they stop working offline or during an outage (G-034).
   The PDF has no bold face; whether µ (which extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097).
@@ -236,8 +232,8 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
 - Replacing the one autosaved chart asks first, and only that: reaching the start screen is free, and so is opening the
   empty-grid card, whose settings live inside it collapsed until chosen — so the confirm sits on Create there, and on the
   photo and saved-pattern cards themselves (D162, D165). Anything reaching for "Width in stitches" opens the card first.
-- A hand-started server must carry `playwright.config.ts`'s own environment (`PROCESSOR_URL`, the rate-limit overrides)
-  or not be left listening: `reuseExistingServer` adopts it silently, and one bare `next start` cost an 85-failure run.
+- A hand-started server must carry the environment `scripts/playwright-servers.ts` gives the configs' own
+  (`PROCESSOR_URL`, the rate-limit overrides) or not be left listening: `reuseExistingServer` adopts it silently, and one bare `next start` cost an 85-failure run.
 - The chart frame is hidden, never unmounted, while a pattern exists (D163). The redraw is a layout effect keyed on
   the pattern and the scene, so a remounted canvas is never repainted: it comes back blank and without
   `data-painted-rect`. Assert pixels, not presence, when a test claims the chart survived something.
@@ -264,16 +260,18 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
 - The export font and stitch texture travel with the bundle: `npm run build:processor` copies them into
   `dist/processor/assets`, so `dist/processor` runs anywhere. The image carries no fonts of its own, and without a
   registered one every measured text width is zero (D153).
-- Paginated exports (A4, PDF) get their own deadline, not a single image's: a 1000-stitch A4 export takes 127.7 s of
-  its 150 s (measured 2026-09-18), and was once killed at 45 s (`processor/job-protocol.ts`, `exportDeadlineFor`).
+- Paginated exports (A4, PDF) get 60 s plus 2 s per A4 grid page, never under the old fixed 150 s, and Export all that
+  share for each of its three paginated sets (D168; `processor/job-protocol.ts`, `exportDeadlineFor`).
 - The Origin check compares canonical origins: `localhost`, `127.0.0.1` and `[::1]` on one scheme and port are
   one site, while scheme and port still separate origins and an unparseable origin is dropped rather than
   compared. `APP_URL` has no default, so leaving it unset trusts only the origin a request arrived at (D156).
 - A job event stream carries an SSE comment frame every 15 s so an idle or queued job is not dropped by a proxy.
   Both clients must take the frame's data line and skip anything else: parsing every frame as JSON broke
   generation and exports in production (`tests/unit/job-stream-keepalive.spec.ts`).
-- `PROCESSOR_WORKER_HEAP_MB` caps each pool worker's heap. Unset in production, it is how the PDF memory failure
-  is reproduced on a machine with far more RAM than the container (D155).
+- `PROCESSOR_WORKER_HEAP_MB` caps each pool worker's heap. Unset in production, it proves the PDF's heap is bounded: at
+  512 MB a 1000-stitch Pattern Keeper PDF completes, where it once failed at every cap up to 1536 MB (D169).
+- The PDF releases each page as it is drawn through two private pdf-lib 1.17.1 fields (D169). A pdf-lib upgrade must keep
+  `tests/unit/pdf-page-flush.spec.ts` green, or the flush silently stops and the heap grows back.
 - Rate-limit capacities default to production values and are overridable by environment variable
   (`RATE_LIMIT_JOBS_PER_MINUTE`, `RATE_LIMIT_PREVIEWS_PER_MINUTE`) so the e2e suite is not refused; a zero or
   malformed value falls back to the default rather than disabling the limit.
@@ -282,10 +280,10 @@ stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no mai
 
 - Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, a drag's first frame paints in full (34–77 ms), and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142). From G-033: "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.
-- G-034 is signed off (2026-09-18) and archived in `docs/goals-archive.md`. The one acceptance criterion not met is Export all at 1000 stitches, shipped as a documented limitation (D155): Export all and the Pattern Keeper PDF fail on charts near 1000 stitches. The fix not yet made is batching same-colour runs in the PDF adapter, which would cut both memory and file size. No goal is open for it (Owner, 2026-09-18).
+- G-034 is signed off (2026-09-18) and archived in `docs/goals-archive.md`. Its one unmet criterion — Export all and the Pattern Keeper PDF at 1000 stitches, shipped as a limitation (D155) — was met by G-046 M2 on 2026-09-19 (D169).
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
-- G-046 (larger canvases) is ACTIVE: M1 measured every wall (`docs/reviews/2026-09-18-larger-canvas-walls.md`), candidate cap 1500 — and found the editor's zoom already tops out at 8 px a stitch at today's 1000. M2, the PDF's operator batching after giving five auxiliary Playwright configs the processor, awaits the Owner. G-030 (public launch) is a far-future draft; G-023 (Rust) lives on as G-046's conditional M5.
+- G-046 (larger canvases) is ACTIVE: M1 measured every wall (`docs/reviews/2026-09-18-larger-canvas-walls.md`, candidate cap 1500); M2 bounded the PDF's heap (D169) and gave paginated exports a per-page deadline (D168), deployed 2026-09-19. The editor's zoom still tops out at 8 px a stitch at today's cap (M4). M3, the ICM candidate-set reduction, awaits the Owner. G-030 (public launch) is a far-future draft; G-023 (Rust) lives on as G-046's conditional M5.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log
@@ -294,6 +292,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-19 | fd174cd | G-046 M2: each Pattern Keeper page is released as soon as it is drawn, so the PDF's heap stays bounded with byte-identical files (D169, superseding D155); paginated exports get 60 s plus 2 s a page (D168); every Playwright config that starts servers shares one processor-and-app pair | Playwright 318 passed, 0 failed across all 26 specs; Vitest 1064 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Both cross-stitch containers recreated (the processor changed); 41 containers before and after with an identical name set, all 38 vhosts identical to the baseline (35 at 200). Live: a real photo at 1000 stitches exported a complete 147-page Pattern Keeper PDF in 38.5 s, which had failed on production since G-034; an A4 export at 1000 took 126.0 s |
 | 2026-09-18 | f1cfa8b | G-045: the start screen's "01" badge is removed and its accent becomes a selection -- the photo card by default, the empty-grid card while its settings are open, never both, and taking another way in hands the mark back (D167) | Playwright 318 passed, 0 failed across all 26 specs; Vitest 1061 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Only the app container was recreated; 41 containers before and after with an identical name set, and all 38 vhosts byte-identical to the pre-deploy baseline (35 at 200 -- the host gained a site from another project between deploys). Live: the badge gone, the accent measured moving between the cards and back, and the start screen still wholly inert over a covered chart |
 | 2026-09-18 | e95fe99 | G-045: the blank-chart settings move inside the empty-grid card, which now holds Width/Height steppers, a fabric count, Create and the finished-size readout; NewChartPanel is deleted and the confirm moves onto Create (D165). The first-run subtitle and the status bar's browser-storage line are cut (D166), Undo and Redo leave every screen without a chart, and the Generate footer waits for a photo | Playwright 317 passed, 0 failed across all 26 specs; Vitest 1061 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Only the app container was recreated; 41 containers before and after with an identical name set, and all 37 vhosts byte-identical to the pre-deploy baseline (34 at 200). Live: both cut texts absent, the status bar reduced to its zoom controls, and the card measured against the design -- accent border, 6% accent wash, readout character-for-character |
-| 2026-09-18 | 6d84192 | G-045: one disabled look per control shape (D164) -- an icon fades to 40%, a label drops to --at-faint, and every hover on a control that can be disabled is written `enabled:hover:` -- and a start screen that leaves nothing live over the chart it covers | Playwright 317 passed, 0 failed across all 26 specs; Vitest 1061 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Only the app container was recreated; 41 containers before and after with an identical name set, 34 of 37 sites 200, every site's status identical to the pre-deploy baseline. Live on production: 21 controls drawn, 17 disabled wearing exactly two looks, 0 lit under the pointer, the chart still painted behind at `data-painted-rect=0,0,700,700` |
