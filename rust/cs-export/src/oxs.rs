@@ -126,20 +126,24 @@ pub fn serialize(p: &Pattern, author_name: &str, aida_count: f64) -> Vec<u8> {
     lines.push("<fullstitches>".into());
     let mut out = lines.join("\n");
     out.push('\n');
+    // Each stitch line is the TypeScript's `<stitch x=".." y=".." palindex=".."/>` and a newline (its rows are joined
+    // with newlines and each ends with one), assembled from pieces built once per column, row and colour.
+    let columns: Vec<String> = (0..p.width)
+        .map(|x| format!("<stitch x=\"{x}\" y=\""))
+        .collect();
+    let colors: Vec<String> = (0..p.palette.len())
+        .map(|i| format!("\" palindex=\"{}\"/>\n", i + 1))
+        .collect();
+    out.reserve(p.cells.len() * 40);
     for y in 0..p.height {
-        let mut row: Vec<String> = Vec::new();
-        for x in 0..p.width {
-            let v = p.cells[y * p.width + x];
+        let row = y.to_string();
+        let cells = &p.cells[y * p.width..(y + 1) * p.width];
+        for (column, &v) in columns.iter().zip(cells) {
             if v != EMPTY_CELL {
-                row.push(format!(
-                    "<stitch x=\"{x}\" y=\"{y}\" palindex=\"{}\"/>",
-                    v as u32 + 1
-                ));
+                out.push_str(column);
+                out.push_str(&row);
+                out.push_str(&colors[v as usize]);
             }
-        }
-        if !row.is_empty() {
-            out.push_str(&row.join("\n"));
-            out.push('\n');
         }
     }
     out.push_str(

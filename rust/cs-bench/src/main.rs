@@ -17,6 +17,10 @@ use cs_core::Image;
 use serde_json::json;
 use std::time::Instant;
 
+#[cfg(feature = "mimalloc")]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn peak_rss_mb() -> Option<f64> {
     let status = std::fs::read_to_string("/proc/self/status").ok()?;
     let line = status.lines().find(|l| l.starts_with("VmHWM:"))?;

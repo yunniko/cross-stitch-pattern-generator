@@ -13,7 +13,8 @@ use flate2::write::ZlibEncoder;
 use flate2::Compression;
 use pdf_writer::types::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
 use pdf_writer::{Filter, Finish, Name, Pdf, Rect, Ref, Str, TextStr};
-use std::collections::BTreeMap;
+use std::cell::RefCell;
+use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use subsetter::GlyphRemapper;
 
@@ -26,6 +27,21 @@ struct FontUse {
     remapper: GlyphRemapper,
     unicode: BTreeMap<u16, String>,
     widths: BTreeMap<u16, f64>,
+    /// Per document, each string's glyph codes and its advance sum in pdf-lib's 1000-unit scale, and each fill or
+    /// stroke's colour operands: a chart draws a few dozen distinct strings and colours hundreds of thousands of times.
+    codes: HashMap<String, String>,
+    run_units: RefCell<HashMap<String, f64>>,
+    colors: RefCell<HashMap<String, (String, f64)>>,
+}
+
+impl FontUse {
+    fn color(&self, css: &str) -> (String, f64) {
+        self.colors
+            .borrow_mut()
+            .entry(css.to_string())
+            .or_insert_with(|| color_operands(css))
+            .clone()
+    }
 }
 
 #[derive(Clone)]
@@ -101,15 +117,19 @@ impl PdfPage<'_> {
     }
 
     /// `font.widthOfTextAtSize`: each shaped glyph's own advance, in pdf-lib's arithmetic.
-    fn width(text: &str, size: f64) -> f64 {
-        let scale = 1000.0 / UNITS_PER_EM;
-        let mut total = 0.0;
-        for g in &text::shape(text, size as f32).glyphs {
-            let advance = text::face()
-                .glyph_hor_advance(rustybuzz::ttf_parser::GlyphId(g.id))
-                .unwrap_or(0) as f64;
-            total += advance * scale;
-        }
+    fn width(fonts: &FontUse, text: &str, size: f64) -> f64 {
+        let mut cache = fonts.run_units.borrow_mut();
+        let total = *cache.entry(text.to_string()).or_insert_with(|| {
+            let scale = 1000.0 / UNITS_PER_EM;
+            let mut total = 0.0;
+            for g in &text::shape(text, size as f32).glyphs {
+                let advance = text::face()
+                    .glyph_hor_advance(rustybuzz::ttf_parser::GlyphId(g.id))
+                    .unwrap_or(0) as f64;
+                total += advance * scale;
+            }
+            total
+        });
         total * (size / 1000.0)
     }
 }
@@ -136,7 +156,7 @@ impl Ctx for PdfPage<'_> {
 
     fn fill_rect(&mut self, x: f64, y: f64, w: f64, h: f64) {
         let (px, py, pw, ph) = self.rect(x, y, w, h);
-        let (rg, alpha) = color_operands(&self.state.fill.clone());
+        let (rg, alpha) = self.fonts.color(&self.state.fill);
         let geometry = format!(
             "{} {} {} {} re",
             number(px),
@@ -161,7 +181,7 @@ impl Ctx for PdfPage<'_> {
 
     fn stroke_rect(&mut self, x: f64, y: f64, w: f64, h: f64) {
         let (px, py, pw, ph) = self.rect(x, y, w, h);
-        let (rg, _) = color_operands(&self.state.stroke.clone());
+        let (rg, _) = self.fonts.color(&self.state.stroke);
         let lw = number(self.state.line_width);
         self.op("q");
         self.op(&format!("{rg} RG"));
@@ -185,8 +205,8 @@ impl Ctx for PdfPage<'_> {
         let ascent = ASCENT / UNITS_PER_EM * size;
         let descent = DESCENT / UNITS_PER_EM * size;
         let dx = match self.state.align {
-            Align::Center => -Self::width(text_value, size) / 2.0,
-            Align::Right => -Self::width(text_value, size),
+            Align::Center => -Self::width(self.fonts, text_value, size) / 2.0,
+            Align::Right => -Self::width(self.fonts, text_value, size),
             Align::Left => 0.0,
         };
         let dy = match self.state.baseline {
@@ -197,42 +217,49 @@ impl Ctx for PdfPage<'_> {
         };
         let bx = x + dx + self.state.dx;
         let by = y + dy + self.state.dy;
-        let (rg, _) = color_operands(&self.state.fill.clone());
+        let (rg, _) = self.fonts.color(&self.state.fill);
 
         // Glyph codes are the subset's glyph ids, four hex digits each, as pdf-lib encodes them.
-        let shaped = rustybuzz::shape(text::face(), &[], {
-            let mut b = rustybuzz::UnicodeBuffer::new();
-            b.push_str(text_value);
-            b
-        });
-        let infos = shaped.glyph_infos();
-        let mut hex = String::with_capacity(infos.len() * 4);
-        for (i, info) in infos.iter().enumerate() {
-            let old = info.glyph_id as u16;
-            let new = self.fonts.remapper.remap(old);
-            let start = info.cluster as usize;
-            let end = infos
-                .iter()
-                .skip(i + 1)
-                .map(|n| n.cluster as usize)
-                .find(|&c| c != start)
-                .unwrap_or(text_value.len());
-            let chars = &text_value[start.min(end)..end.max(start)];
-            if !chars.is_empty() {
-                self.fonts
-                    .unicode
-                    .entry(new)
-                    .or_insert_with(|| chars.to_string());
+        let hex = match self.fonts.codes.get(text_value) {
+            Some(hex) => hex.clone(),
+            None => {
+                let shaped = rustybuzz::shape(text::face(), &[], {
+                    let mut b = rustybuzz::UnicodeBuffer::new();
+                    b.push_str(text_value);
+                    b
+                });
+                let infos = shaped.glyph_infos();
+                let mut hex = String::with_capacity(infos.len() * 4);
+                for (i, info) in infos.iter().enumerate() {
+                    let old = info.glyph_id as u16;
+                    let new = self.fonts.remapper.remap(old);
+                    let start = info.cluster as usize;
+                    let end = infos
+                        .iter()
+                        .skip(i + 1)
+                        .map(|n| n.cluster as usize)
+                        .find(|&c| c != start)
+                        .unwrap_or(text_value.len());
+                    let chars = &text_value[start.min(end)..end.max(start)];
+                    if !chars.is_empty() {
+                        self.fonts
+                            .unicode
+                            .entry(new)
+                            .or_insert_with(|| chars.to_string());
+                    }
+                    let advance = text::face()
+                        .glyph_hor_advance(rustybuzz::ttf_parser::GlyphId(old))
+                        .unwrap_or(0) as f64;
+                    self.fonts
+                        .widths
+                        .entry(new)
+                        .or_insert(advance * 1000.0 / UNITS_PER_EM);
+                    hex.push_str(&format!("{new:04X}"));
+                }
+                self.fonts.codes.insert(text_value.to_string(), hex.clone());
+                hex
             }
-            let advance = text::face()
-                .glyph_hor_advance(rustybuzz::ttf_parser::GlyphId(old))
-                .unwrap_or(0) as f64;
-            self.fonts
-                .widths
-                .entry(new)
-                .or_insert(advance * 1000.0 / UNITS_PER_EM);
-            hex.push_str(&format!("{new:04X}"));
-        }
+        };
         self.op("q");
         self.op("BT");
         self.op(&format!("{rg} rg"));
@@ -248,11 +275,11 @@ impl Ctx for PdfPage<'_> {
     }
 
     fn measure_text(&self, text_value: &str) -> f64 {
-        Self::width(text_value, self.state.font.size as f64)
+        Self::width(self.fonts, text_value, self.state.font.size as f64)
     }
 
     fn line(&mut self, x0: f64, y0: f64, x1: f64, y1: f64) {
-        let (rg, _) = color_operands(&self.state.stroke.clone());
+        let (rg, _) = self.fonts.color(&self.state.stroke);
         let h = self.page_height;
         let (ax, ay, bx, by) = (
             x0 + self.state.dx,
@@ -301,6 +328,9 @@ pub fn build(p: &Pattern, mode: Mode, request: &Request) -> Vec<u8> {
         remapper: GlyphRemapper::new(),
         unicode: BTreeMap::new(),
         widths: BTreeMap::new(),
+        codes: HashMap::new(),
+        run_units: RefCell::new(HashMap::new()),
+        colors: RefCell::new(HashMap::new()),
     };
 
     // Every page's operators, drawn in document order.
