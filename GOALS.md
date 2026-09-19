@@ -157,9 +157,9 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   canvas reused across A4 pages; the export request parsed once. Decode-and-compare test per kind
   (pixel-identical, or ±1 for the symbols); export parity re-run; A4 and Export all re-measured live. Done
   2026-09-19 at zlib level 6, not 3 (D171); the page-canvas reuse was measured and dropped.
-- [ ] M2 — The realistic preview as streamed tile rows: per-colour tiles composed one stitch row at a
+- [x] M2 — The realistic preview as streamed tile rows: per-colour tiles composed one stitch row at a
   time straight into the PNG writer, no whole-image canvas. Compared with today's output (within ±1),
-  memory measured by the export probe at 1000 and 2000 stitches.
+  memory measured by the export probe at 1000 and 2000 stitches. Done 2026-09-19 (D173).
 - [ ] M3 — The PDF: page height cached in the adapter, then each page's content stream written as text
   rather than operator objects, proven byte-identical with the flush harness. Fill runs merged and
   colour state deduplicated only if verified in Pattern Keeper.
@@ -172,6 +172,19 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   measurement as M4.
 
 **Progress log** (newest first):
+- 2026-09-19 — **M2 done: the realistic preview never exists whole.** Deployed as a2794c5.
+  - **How:** each colour's texture is scaled into a stitch tile once; the PNG encoder's strips of rows are copied
+    together from the tiles and streamed into the M1 writer (D173). The tile builder moved from the Image window into
+    `lib/export/stitch-texture.ts`, so screen and export share it; the viewport-parity specs pass unchanged.
+  - **Measured, like for like against the M1 state:** 1000 stitches 4.5 s / 825 MB → 1.7 s / 154 MB; 2000 stitches
+    12.0 s / 1993 MB → 1.8 s / 159 MB, inside criterion 2's 512 MB. Export all at 1000: 65.9 s, 851 MB peak (was
+    188 s and 1148 MB before G-047).
+  - **Equivalence:** within 1 of the old canvas drawing, in a few texels per stitch where the canvas library scales into
+    a small tile a little differently than into a big canvas (under 0.01 % of bytes; Owner accepted ±1). Covered at the
+    default, 7 px and 4 px cell sizes, with empty stitches, and on the non-streaming fallback.
+  - **Checks:** Vitest 1075 passed (8 skipped), Playwright 318 passed; tsc, eslint, docs-lint clean. Live: the preview
+    at 1000 in 5.6–8.5 s, decoded whole at 12 000 × 7 500.
+  - **Next:** Owner check-in, then M3 — the Pattern Keeper PDF.
 - 2026-09-19 — **Owner (2026-09-19):** keep zlib level 6, and accept the live A4 at 62.1 s; go ahead with M2.
 - 2026-09-19 — **M1 done: raster exports 2–3× faster, same pixels, smaller files.** Deployed as 6b5be11 and 291c719.
   - **PNG writer (D171):** `getImageData` strips, Up filter four bytes at a time, zlib on its own thread; 54 ms a page
