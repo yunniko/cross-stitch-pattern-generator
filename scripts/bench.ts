@@ -20,8 +20,9 @@ import type { PixelBuffer } from "@/lib/types";
 import { makePhotoLikeBuffer } from "../tests/unit/helpers/fixtures";
 
 /**
- * Per-stage pipeline timing: `npm run bench`. Three configurations on photo-like synthetic sources:
+ * Per-stage pipeline timing: `npm run bench`. Four configurations on photo-like synthetic sources:
  * - the two the 2026-09-12 review measured (1.2 MP and 1.5 MP sources, grid-heavy at 1000 stitches);
+ * - 2000 stitches from a 6 MP source, above today's cap (G-046 M3);
  * - a 12 MP source at the default Medium size, the typical phone photo after the 4000 px decode cap, where
  *   reading every source pixel dominates (2026-09-14 performance investigation, G-035).
  * Each stage, including Crisp's extra stages, is timed on the same intermediate data the real pipeline produces, then
@@ -39,6 +40,8 @@ interface Config {
 const CONFIGS: Config[] = [
   { label: "300 st / 24 col (1200x800)", source: makePhotoLikeBuffer(1200, 800), stitches: 300, colors: 24 },
   { label: "1000 st / 64 col (1500x1000)", source: makePhotoLikeBuffer(1500, 1000), stitches: 1000, colors: 64 },
+  // G-046: above today’s cap, in the same shape and at the same 1.5 source pixels per stitch.
+  { label: "2000 st / 64 col (3000x2000)", source: makePhotoLikeBuffer(3000, 2000), stitches: 2000, colors: 64 },
   { label: "100 st / 16 col (4000x3000, 12 MP)", source: makePhotoLikeBuffer(4000, 3000), stitches: 100, colors: 16 },
 ];
 

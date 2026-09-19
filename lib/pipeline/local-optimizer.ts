@@ -49,6 +49,10 @@ const MAX_PASSES = 8;
  * first so it wins an exact tie -- a deliberate geometric initialization
  * must not be erased by ascending-label order. Standard cells keep
  * `bestEnergy = Infinity` with first-to-reach-minimum-wins. See D63, D67.
+ *
+ * G-046 M3: a Standard cell evaluates its neighbours' labels first. Every other label costs at least `total` (its
+ * colour term is never negative), so when a neighbour label scores strictly below `total` it is the full scan's
+ * winner and the palette is not scanned; otherwise it is, unchanged (D170).
  */
 export function runLocalOptimizer(
   ctx: PipelineContext,
@@ -181,16 +185,38 @@ export function runLocalOptimizer(
           const cl = cellOklab[ci];
           const ca = cellOklab[ci + 1];
           const cb = cellOklab[ci + 2];
-          for (let c = 0; c < k; c++) {
-            const pi = c * 3;
-            const dl = cl - pal[pi];
-            const da = ca - pal[pi + 1];
-            const db = cb - pal[pi + 2];
-            const colorTerm = dl * dl + da * da + db * db;
-            const energy = weights.color * colorTerm + (stamp[c] === visit ? exactBoundary[c] : total);
-            if (energy < bestEnergy) {
-              bestEnergy = energy;
-              best = c;
+          // Neighbour labels first; a label not among them costs at least `total`, so a neighbour label strictly below
+          // it cannot be beaten or tied by any other, and the full scan would pick the same label (D170).
+          let neighborBest = -1;
+          let neighborBestEnergy = Infinity;
+          if (weights.color >= 0) {
+            for (let j = 0; j < count; j++) {
+              const c = neighborLabel[j];
+              const pi = c * 3;
+              const dl = cl - pal[pi];
+              const da = ca - pal[pi + 1];
+              const db = cb - pal[pi + 2];
+              const energy = weights.color * (dl * dl + da * da + db * db) + exactBoundary[c];
+              if (energy < neighborBestEnergy || (energy === neighborBestEnergy && c < neighborBest)) {
+                neighborBestEnergy = energy;
+                neighborBest = c;
+              }
+            }
+          }
+          if (neighborBestEnergy < total) {
+            best = neighborBest;
+          } else {
+            for (let c = 0; c < k; c++) {
+              const pi = c * 3;
+              const dl = cl - pal[pi];
+              const da = ca - pal[pi + 1];
+              const db = cb - pal[pi + 2];
+              const colorTerm = dl * dl + da * da + db * db;
+              const energy = weights.color * colorTerm + (stamp[c] === visit ? exactBoundary[c] : total);
+              if (energy < bestEnergy) {
+                bestEnergy = energy;
+                best = c;
+              }
             }
           }
         }

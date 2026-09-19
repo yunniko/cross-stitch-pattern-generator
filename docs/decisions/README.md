@@ -178,3 +178,4 @@ remain readable with git show.
 - D167 — The start screen's accent is a selection, not decoration — active
 - D168 — Paginated export deadlines grow with the page count — active
 - D169 — Each Pattern Keeper page is released as soon as it is drawn — active
+- D170 — ICM scans the palette only when no neighbour label is below `total` — active
