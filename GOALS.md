@@ -60,8 +60,9 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M2 — The export memory wall: batch same-colour runs in the PDF adapter so operators stay bounded
   (D155's named fix), so the PDF and Export all succeed at 1000 stitches; export parity re-run. Done 2026-09-19 — by
   releasing each page as it is drawn rather than batching (D169), plus the A4 per-page deadline the Owner added (D168).
-- [ ] M3 — The generation speed win: the ICM candidate-set reduction (neighbour labels plus the
-  unary-best label, ~9 candidates instead of up to 100), byte-identical, re-measured against M1.
+- [x] M3 — The generation speed win: the ICM candidate-set reduction (neighbour labels plus the
+  unary-best label, ~9 candidates instead of up to 100), byte-identical, re-measured against M1. Done 2026-09-19 —
+  by a bound that skips the scan, since the candidate lists were slower (D170).
 - [ ] M4 — The scaling walls M1 identifies (result wire format, undo history, chart drawing), then
   raise `MAX_STITCHES` and re-run M1's measurements at the new cap, including three concurrent jobs.
 - [ ] M5 — **Only if M1–M4 miss the latency target:** G-023 M2's benchmark — port the quantizer and ICM
@@ -69,6 +70,24 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   single-threaded native and WASM. Numbers decide whether G-023 revives; no service, no deploy.
 
 **Progress log** (newest first):
+- 2026-09-19 — **M3 done: ICM is 14–55 % faster and exact, but generation gains only 0–5 s.** Deployed as c9eea53.
+  - **Owner approval (2026-09-19):** "go m3, let's see what it will bring".
+  - **Measured first.** About half of ICM's time was the per-label loop; the coarse call makes 5.6 M visits at 2000
+    stitches, the fine call 2.75 M, almost all in its first pass.
+  - **The milestone's design was slower.** Neighbour labels plus each cell's nine nearest were exact (no fallback in
+    20 M visits) but 13–47 % slower up to 64 colours: building the lists cost 1.3 s at 2000 stitches, more than they
+    saved. Rejected (D170).
+  - **What shipped:** a label no neighbour carries costs at least the cell's total pair cost, so a neighbour label below
+    that wins outright and the palette is scanned only otherwise. No precompute, no memory. ICM medians in plain Node:
+    811 → 464 ms at 1000 stitches, 3083 → 1838 ms at 2000 (64 colours); 24 colours gains 14 %, 100 gains 55 %.
+  - **Against M1, on the host** (old and new alternating per case): 1000 Standard 8.2 → 7.2 s, 1500 Crisp 33.4 → 28.1 s,
+    2000 Standard 28.6 → 26.5 s, 2000 Crisp 52.6 → 52.5 s. Real runs end with 14–32 colours, where the bound gains
+    least. ICM is now 9–13 % of generation; k-means assignment and Crisp's two-mode fit and worst-fit injection lead.
+  - **Checks:** golden hashes and both M5 equivalence specs unchanged; a new spec makes 1,280 comparisons against the
+    pre-M5 optimizer. Playwright 318 passed, Vitest 1065 passed (8 skipped); tsc, eslint and docs-lint clean. Live: a
+    photo generated at 1000 stitches in 8.1 s.
+  - **Next:** Owner check-in, then M4. 2000 Crisp at about 53 s on the host would need the k-means and Crisp stages
+    faster before a 2000 cap reads well.
 - 2026-09-19 — **M2 done: the PDF's heap is bounded, and paginated deadlines follow the pages.** Deployed as fd174cd.
   - **Owner approval (2026-09-19):** go ahead with M2, including the A4 per-page deadline.
   - **The mechanism changed, and why.** A stitch costs about eleven PDF operators: three for its fill, eight for the
