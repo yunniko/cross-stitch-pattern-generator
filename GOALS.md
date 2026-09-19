@@ -173,6 +173,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   measurement as M4.
 
 **Progress log** (newest first):
+- 2026-09-19 — **Owner approval:** "go ahead with M4".
 - 2026-09-19 — **M3 done: the Pattern Keeper PDF 3.5× faster, byte for byte the same file.** Deployed as 7e0ba86.
   - **How (D174):** the adapter formats each direct fill, text run and line exactly as pdf-lib would, collects a page's
     lines, and hands them to the page as one operator whose name is the whole batch, which pdf-lib writes verbatim;

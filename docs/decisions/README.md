@@ -183,3 +183,5 @@ remain readable with git show.
 - D172 — Raster exports stamp symbols from tiles drawn once per colour — active
 - D173 — The realistic preview PNG is streamed from per-colour tiles — active
 - D174 — The PDF adapter writes its direct operators as text — active
+- D175 — Crisp skips the two-mode fit where no two modes can be far enough apart — active
+- D176 — Crisp's weighted quantizer works on a column pool, not sample objects — active

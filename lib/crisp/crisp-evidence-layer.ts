@@ -8,7 +8,7 @@ import {
 } from "./crisp-unary-cost";
 import type { Oklab } from "../color/color";
 import { plainKMeansQuantizer, kMeansQuantizer, type ColorQuantizer } from "../pipeline/quantize";
-import { weightedQuantize, weightedKMeansQuantize, type WeightedColorSample, type WeightedQuantizeResult } from "./weighted-quantize";
+import { weightedKMeansQuantizePool, weightedQuantizePool, type WeightedQuantizeResult, type WeightedSamplePool } from "./weighted-quantize";
 import type { PixelBuffer } from "../types";
 
 /**
@@ -100,8 +100,9 @@ export function buildCrispEvidenceLayer(
   return { evidenceByCell: agreed };
 }
 
+/** A weighted quantizer over a sample pool (`samplePoolOf` builds one from `WeightedColorSample[]`). */
 export type WeightedQuantizerFn = (
-  samples: WeightedColorSample[],
+  pool: WeightedSamplePool,
   colorCount: number,
   importance: (cellIndex: number) => number
 ) => WeightedQuantizeResult;
@@ -162,10 +163,10 @@ export function crispAwareCost(
 /** The weighted counterpart of a built-in quantizer, so Crisp mode keeps the Original/Latest choice (D63). A custom quantizer has none and throws. */
 export function selectWeightedQuantizer(quantizer: ColorQuantizer): WeightedQuantizerFn {
   if (quantizer === plainKMeansQuantizer) {
-    return (samples, colorCount) => weightedQuantize(samples, colorCount);
+    return (pool, colorCount) => weightedQuantizePool(pool, colorCount);
   }
   if (quantizer === kMeansQuantizer) {
-    return (samples, colorCount, importance) => weightedKMeansQuantize(samples, colorCount, importance);
+    return (pool, colorCount, importance) => weightedKMeansQuantizePool(pool, colorCount, importance);
   }
   throw new Error(
     "Crisp edge mode does not support a custom ColorQuantizer: only the built-in plainKMeansQuantizer (\"Original\") and kMeansQuantizer (\"Latest\") have a weighted counterpart. Omit `quantizer` (or pick one of the two built-ins), or use edgeMode: \"standard\" with your custom quantizer instead."

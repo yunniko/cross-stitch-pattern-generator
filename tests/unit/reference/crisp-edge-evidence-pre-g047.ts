@@ -1,5 +1,7 @@
-import { writeOklab, type Oklab } from "../color/color";
-import type { PixelBuffer } from "../types";
+// Frozen copy of lib/crisp/crisp-edge-evidence.ts as of G-047 M3 (commit 2b7fce9), before M4's separation bound, with
+// both edge models. The reference for tests/unit/crisp-separation-bound.spec.ts; never edit it to follow the live file.
+import { writeOklab, type Oklab } from "@/lib/color/color";
+import type { PixelBuffer } from "@/lib/types";
 
 /**
  * Source-side boundary evidence for Crisp mode (G-024, D57/D58): for one cell, fits a deterministic two-color model to
@@ -564,32 +566,6 @@ function weightedMean(s: SampleColumns): Oklab {
   return sumW > 0 ? [sumL / sumW, sumA / sumW, sumB / sumW] : [0, 0, 0];
 }
 
-/** Far above any weighted mean's rounding error in OKLab (about 1e-11 for a neighbourhood's samples), far below 0.02. */
-const SEPARATION_BOUND_MARGIN = 1e-9;
-
-/** The squared diagonal of the samples' bounding box in OKLab: an upper bound on any two modes' squared separation. */
-function boundingBoxDiagonalSq(s: SampleColumns): number {
-  const { L, A, B } = s;
-  let minL = L[0];
-  let maxL = L[0];
-  let minA = A[0];
-  let maxA = A[0];
-  let minB = B[0];
-  let maxB = B[0];
-  for (let i = 1; i < s.count; i++) {
-    const l = L[i];
-    const a = A[i];
-    const b = B[i];
-    if (l < minL) minL = l;
-    else if (l > maxL) maxL = l;
-    if (a < minA) minA = a;
-    else if (a > maxA) maxA = a;
-    if (b < minB) minB = b;
-    else if (b > maxB) maxB = b;
-  }
-  return (maxL - minL) ** 2 + (maxA - minA) ** 2 + (maxB - minB) ** 2;
-}
-
 function singleMode(mode: Oklab): BoundaryEvidence {
   return { modes: [mode], coverage: [1], spread: [0], spatialSeparation: 0, boundaryDirection: null, edgeSharpness: 1, confidence: 0 };
 }
@@ -614,12 +590,6 @@ export function extractBoundaryEvidence(
   const n = s.count;
 
   if (n < 2) return singleMode(n === 1 ? [s.L[0], s.A[0], s.B[0]] : [0, 0, 0]);
-
-  // G-047 M4 (D175): both fitted modes are samples or weighted means of samples, so they lie inside the samples' OKLab
-  // bounding box and their squared separation is at most its squared diagonal. Below `minModeSeparation` the fit could
-  // only end in the single-mode return further down, so it is skipped; most cells of a photo end here. The margin covers
-  // a weighted mean's rounding, which can land a few ulps outside the box.
-  if (boundingBoxDiagonalSq(s) < options.minModeSeparation - SEPARATION_BOUND_MARGIN) return singleMode(weightedMean(s));
 
   const [c0, c1] = fitTwoModes(s, options.maxLloydIterations);
   const { L, A, B, weight, nx, ny, cellWeight, assignment } = s;

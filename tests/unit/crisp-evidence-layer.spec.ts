@@ -7,7 +7,7 @@ import {
 import { plainKMeansQuantizer, kMeansQuantizer } from "@/lib/pipeline/quantize";
 import { rgbToOklab } from "@/lib/color/color";
 import { makeHardSplitBuffer } from "./crisp-edges-fixtures";
-import type { WeightedColorSample } from "@/lib/crisp/weighted-quantize";
+import { samplePoolOf, type WeightedColorSample } from "@/lib/crisp/weighted-quantize";
 import type { PixelBuffer, RGB } from "@/lib/types";
 
 /**
@@ -145,7 +145,7 @@ describe("selectWeightedQuantizer", () => {
       [128, 64, 200],
     ];
     const fn = selectWeightedQuantizer(plainKMeansQuantizer);
-    const weighted = fn(oneSamplePerCell(colors), 5, () => 0);
+    const weighted = fn(samplePoolOf(oneSamplePerCell(colors)), 5, () => 0);
     const standard = plainKMeansQuantizer.quantize(
       { data: new Uint8ClampedArray(colors.flatMap(([r, g, b]) => [r, g, b])), width: colors.length, height: 1 },
       5
@@ -165,7 +165,7 @@ describe("selectWeightedQuantizer", () => {
       [128, 64, 200],
     ];
     const fn = selectWeightedQuantizer(kMeansQuantizer);
-    const weighted = fn(oneSamplePerCell(colors), 5, () => 0);
+    const weighted = fn(samplePoolOf(oneSamplePerCell(colors)), 5, () => 0);
     const standard = kMeansQuantizer.quantize(
       { data: new Uint8ClampedArray(colors.flatMap(([r, g, b]) => [r, g, b])), width: colors.length, height: 1 },
       5

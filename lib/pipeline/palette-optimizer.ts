@@ -40,7 +40,7 @@ export function mergeSimilarColors(
   cellPaletteIndex: Uint8Array,
   palette: RGB[],
   mergeDistanceThreshold: number = DEFAULT_MERGE_DISTANCE_SQUARED,
-  entryWeights?: number[]
+  entryWeights?: ArrayLike<number>
 ): PaletteMergeResult {
   const oklab = palette.map(rgbToOklab);
   const counts = new Array(palette.length).fill(0);

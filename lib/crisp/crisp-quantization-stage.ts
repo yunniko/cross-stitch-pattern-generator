@@ -3,7 +3,7 @@ import { buildAdmissibleLabelCosts, pickBestAdmissibleLabel, DEFAULT_CRISP_UNARY
 import type { CrispEvidenceLayer, WeightedQuantizerFn } from "./crisp-evidence-layer";
 import { cellsToOklab, oklabAt } from "../pipeline/pipeline-context";
 import type { CellColorBuffer, RGB } from "../types";
-import type { WeightedColorSample } from "./weighted-quantize";
+import { emptySamplePool } from "./weighted-quantize";
 
 /**
  * Crisp quantization + initialization (D66): builds the weighted sample
@@ -35,31 +35,42 @@ export function runCrispQuantizationStage(
 ): CrispQuantizationResult {
   const cellCount = cells.width * cells.height;
   const cellOklab = precomputedOklab ?? cellsToOklab(cells);
-  const samples: WeightedColorSample[] = [];
-  // Non-crisp cells contribute exactly one sample -- remember which array
-  // index it lands at so the initial per-cell assignment can read the
-  // quantizer's own label back out directly, without re-deriving anything.
-  const nonCrispSampleIndex = new Map<number, number>();
-
+  // The sample pool as columns, written directly (G-047 M4, D176): a crisp cell's two modes, any other cell its own
+  // colour at weight 1, in cell order. A non-crisp cell's one sample index is remembered, so its initial label is read
+  // straight back from the quantizer's per-sample labels.
+  const pool = emptySamplePool(cellCount + evidenceLayer.evidenceByCell.size);
+  const nonCrispSampleIndex = new Int32Array(cellCount).fill(-1);
+  let n = 0;
+  const put = (l: number, a: number, b: number, weight: number, cellIndex: number) => {
+    pool.L[n] = l;
+    pool.A[n] = a;
+    pool.B[n] = b;
+    pool.W[n] = weight;
+    pool.cell[n] = cellIndex;
+    n++;
+  };
   for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
     const evidence = evidenceLayer.evidenceByCell.get(cellIndex);
     if (evidence) {
-      samples.push({ oklab: evidence.modes[0], weight: evidence.coverage[0], cellIndex });
-      samples.push({ oklab: evidence.modes[1], weight: evidence.coverage[1], cellIndex });
+      const [m0, m1] = evidence.modes;
+      put(m0[0], m0[1], m0[2], evidence.coverage[0], cellIndex);
+      put(m1[0], m1[1], m1[2], evidence.coverage[1], cellIndex);
     } else {
-      nonCrispSampleIndex.set(cellIndex, samples.length);
-      samples.push({ oklab: oklabAt(cellOklab, cellIndex), weight: 1, cellIndex });
+      nonCrispSampleIndex[cellIndex] = n;
+      const o = cellIndex * 3;
+      put(cellOklab[o], cellOklab[o + 1], cellOklab[o + 2], 1, cellIndex);
     }
   }
+  if (n !== pool.n) throw new Error("runCrispQuantizationStage: a confident cell without two modes");
 
-  const quantizeResult = quantizerFn(samples, colorCount, (cellIndex) => importance[cellIndex]);
+  const quantizeResult = quantizerFn(pool, colorCount, (cellIndex) => importance[cellIndex]);
   const paletteOklab = quantizeResult.palette.map(rgbToOklab);
 
   const cellPaletteIndex = new Uint8Array(cellCount);
   for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
     const evidence = evidenceLayer.evidenceByCell.get(cellIndex);
     if (!evidence) {
-      cellPaletteIndex[cellIndex] = quantizeResult.sampleLabelIndex[nonCrispSampleIndex.get(cellIndex)!];
+      cellPaletteIndex[cellIndex] = quantizeResult.sampleLabelIndex[nonCrispSampleIndex[cellIndex]];
       continue;
     }
 
