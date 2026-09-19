@@ -1,5 +1,7 @@
-import type { PipelineContext } from "./pipeline-context";
-import type { CellColorBuffer } from "../types";
+// Frozen copy of lib/pipeline/denoise.ts as of G-047 M4 (commit b6d52ed), before M5 computed each window pair once.
+// The reference for tests/unit/denoise-symmetric.spec.ts; never edit it to follow the live file.
+import type { PipelineContext } from "@/lib/pipeline/pipeline-context";
+import type { CellColorBuffer } from "@/lib/types";
 
 // Matches contour-cleanup.ts's `importanceProtectionThreshold` (0.5): a
 // cell with importance strictly above it is real content and left untouched.
@@ -78,7 +80,6 @@ export function denoiseForQuantization(ctx: PipelineContext): DenoisedCells {
   out.set(cells.data);
   const outOklab = cellOklab.slice();
   const window = new Int32Array(9);
-  const pairDistance = new Float64Array(81);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -108,22 +109,11 @@ export function denoiseForQuantization(ctx: PipelineContext): DenoisedCells {
         if (hasAlly) continue;
       }
 
-      // Each pair's distance once (G-047 M5, D178): `a − b` is exactly `−(b − a)` in floating point, so the squared
-      // distance is the same double both ways, and a cell's distance to itself is exactly 0. Each row is still summed in
-      // the original order, so every sum is the double the 81-distance loop produced.
-      for (let a = 0; a < windowSize; a++) {
-        pairDistance[a * 9 + a] = 0;
-        for (let b = a + 1; b < windowSize; b++) {
-          const d = distanceSquared(cellOklab, window[a], window[b]);
-          pairDistance[a * 9 + b] = d;
-          pairDistance[b * 9 + a] = d;
-        }
-      }
       let bestIndex = i;
       let bestSum = Infinity;
       for (let a = 0; a < windowSize; a++) {
         let sum = 0;
-        for (let b = 0; b < windowSize; b++) sum += pairDistance[a * 9 + b];
+        for (let b = 0; b < windowSize; b++) sum += distanceSquared(cellOklab, window[a], window[b]);
         if (sum < bestSum) {
           bestSum = sum;
           bestIndex = window[a];

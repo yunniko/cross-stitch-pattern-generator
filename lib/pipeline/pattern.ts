@@ -1,4 +1,4 @@
-import { computeCellImportance, computeEdgeMagnitude } from "./edge-map";
+import { computeCellImportance, computeEdgeMagnitude, sourceLuminance } from "./edge-map";
 import { denoiseForQuantization } from "./denoise";
 import { downsampleToGrid, gridDimensionsFor } from "./downsample";
 import { luminance, rgbToOklab } from "../color/color";
@@ -104,8 +104,9 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
 
   // Computed before quantization, not only for the optimizer: reinvestment uses importance to prefer a real rare
   // detail over a rare artifact (D39). It depends only on the source image and grid size.
-  const edgeMagnitude = computeEdgeMagnitude(imageData);
-  const importance = computeCellImportance(imageData, edgeMagnitude, gridWidth, gridHeight);
+  const gray = sourceLuminance(imageData);
+  const edgeMagnitude = computeEdgeMagnitude(imageData, gray);
+  const importance = computeCellImportance(imageData, edgeMagnitude, gridWidth, gridHeight, gray);
 
   // Needed by ICM. Crisp still computes it without `optimize`, as it did while it fed the removed pre-filter (D72, D132).
   const shouldOptimize = options.optimize ?? true;

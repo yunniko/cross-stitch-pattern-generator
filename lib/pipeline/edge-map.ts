@@ -1,4 +1,3 @@
-import { luminance } from "../color/color";
 import type { PixelBuffer } from "../types";
 
 // Raw Sobel responses below this are sensor/JPEG noise, not an edge: i.i.d.
@@ -10,14 +9,20 @@ const NOISE_FLOOR = 40;
 // real edge toward zero (D11).
 const NORMALIZATION_PERCENTILE = 0.999;
 
-/** Sobel gradient magnitude on source luminance, normalized to 0-1 by the 99.9th percentile. */
-export function computeEdgeMagnitude(source: PixelBuffer): Float32Array {
+/**
+ * Every source pixel's `luminance` (0–255, an integer), computed once for the edge map and the cell importance, which
+ * each used to convert the whole photo through a fresh tuple per pixel (G-047 M5). Same expression, same values.
+ */
+export function sourceLuminance(source: PixelBuffer): Uint8Array {
   const { width, height, data } = source;
-  const gray = new Float32Array(width * height);
-  for (let i = 0; i < width * height; i++) {
-    const o = i * 4;
-    gray[i] = luminance([data[o], data[o + 1], data[o + 2]]);
-  }
+  const gray = new Uint8Array(width * height);
+  for (let i = 0, o = 0; i < gray.length; i++, o += 4) gray[i] = Math.round(0.2126 * data[o] + 0.7152 * data[o + 1] + 0.0722 * data[o + 2]);
+  return gray;
+}
+
+/** Sobel gradient magnitude on source luminance, normalized to 0-1 by the 99.9th percentile. */
+export function computeEdgeMagnitude(source: PixelBuffer, gray: ArrayLike<number> = sourceLuminance(source)): Float32Array {
+  const { width, height } = source;
 
   const magnitude = new Float32Array(width * height);
   for (let y = 0; y < height; y++) {
@@ -107,8 +112,14 @@ export function selectKth(values: Float32Array, k: number): number {
  * + 0.3 x the cell's own luminance contrast (a detail can sit inside one
  * cell without a strong edge at its boundary -- Owner's spec section 4).
  */
-export function computeCellImportance(source: PixelBuffer, edgeMagnitude: Float32Array, gridWidth: number, gridHeight: number): Float32Array {
-  const { width: srcW, height: srcH, data } = source;
+export function computeCellImportance(
+  source: PixelBuffer,
+  edgeMagnitude: Float32Array,
+  gridWidth: number,
+  gridHeight: number,
+  gray: ArrayLike<number> = sourceLuminance(source)
+): Float32Array {
+  const { width: srcW, height: srcH } = source;
   const cellMaxEdge = new Float32Array(gridWidth * gridHeight);
   const cellLumaSum = new Float64Array(gridWidth * gridHeight);
   const cellLumaSumSq = new Float64Array(gridWidth * gridHeight);
@@ -120,11 +131,10 @@ export function computeCellImportance(source: PixelBuffer, edgeMagnitude: Float3
       const cellX = Math.min(gridWidth - 1, Math.floor((x * gridWidth) / srcW));
       const cellIndex = cellY * gridWidth + cellX;
       const srcIndex = y * srcW + x;
-      const o = srcIndex * 4;
 
       if (edgeMagnitude[srcIndex] > cellMaxEdge[cellIndex]) cellMaxEdge[cellIndex] = edgeMagnitude[srcIndex];
 
-      const l = luminance([data[o], data[o + 1], data[o + 2]]) / 255;
+      const l = gray[srcIndex] / 255;
       cellLumaSum[cellIndex] += l;
       cellLumaSumSq[cellIndex] += l * l;
       cellCount[cellIndex]++;

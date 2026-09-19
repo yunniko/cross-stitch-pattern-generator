@@ -173,6 +173,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   measurement as M4.
 
 **Progress log** (newest first):
+- 2026-09-19 — **Owner approval:** "go ahead with M5".
 - 2026-09-19 — **M4 done: Crisp generation a third faster and 40 % leaner, exactly the same charts.** Deployed as e0fe2a5.
   - **Separation bound (D175):** both fitted modes lie inside the samples' OKLab bounding box, so a box whose squared
     diagonal is under `minModeSeparation` (less a 1e-9 margin for a mean's rounding) cannot yield a boundary; the fit

@@ -185,3 +185,5 @@ remain readable with git show.
 - D174 — The PDF adapter writes its direct operators as text — active
 - D175 — Crisp skips the two-mode fit where no two modes can be far enough apart — active
 - D176 — Crisp's weighted quantizer works on a column pool, not sample objects — active
+- D177 — k-means works on the OKLab buffer and skips provably unchanged assignments — active
+- D178 — The denoise computes each pair once, and luminance is computed once — active
