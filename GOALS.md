@@ -127,6 +127,52 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   Rust estimate is explicitly an inference, which M5 exists to settle if it is ever reached. Not
   started.
 
+### G-047 · Faster exports and generation, from the 2026-09-19 algorithm review — DRAFT (2026-09-19)
+- **What:** the review's findings implemented (`docs/reviews/2026-09-19-algorithm-review.md`): a
+  plain PNG writer for every raster export, the realistic preview streamed from tile rows instead of a
+  96 Mpx canvas, the Pattern Keeper PDF freed of pdf-lib's per-operator bookkeeping, and the Crisp and
+  Standard generation stages made cheaper where the output can be proven unchanged.
+- **Why:** exports are the walls G-046 met (A4 at 126 s for 1000 stitches live, the preview at
+  2 GB of RSS at 2000, the PDF at 38.5 s), and generation at 2000 Crisp is 52 s on the host; the review
+  found most of that cost in bookkeeping, encoding and work that a proof shows is unnecessary.
+- **Acceptance criteria:**
+  1. Every raster export decodes to the same pixels as before (a decode-and-compare test per kind),
+     and the A4 export at 1000 stitches takes under 60 s live (was 126.0 s).
+  2. The realistic preview PNG is produced without a whole-image canvas; its worker heap and native RSS
+     at 2000 stitches are measured by M1's export probe and stay under 512 MB.
+  3. The Pattern Keeper PDF is byte-identical to today's file (the M2 harness) and at least 30 % faster.
+  4. Every generation change keeps the golden hashes (D107) and the equivalence specs green; 2000 Crisp
+     and 2000 Standard are re-measured by the capacity probe on the host against the M3 table.
+  5. Vitest and Playwright pass, `docs-lint` passes, `HANDOVER.md` is regenerated, each milestone is
+     deployed and verified live.
+- **Constraints:** D107 (byte-identical generation) governs every pipeline change. A rendered export
+  may change bytes where the review measured it pixel-identical or within ±1 (the Owner accepted ±1 on
+  2026-09-19, so the glyph tiles and the tile-composed preview are in). Pattern Keeper's grid detection reads the PDF's
+  text, so any change to how symbols are emitted is verified in Pattern Keeper before it ships. No new
+  runtime dependency: the PNG writer uses Node's zlib.
+
+**Milestones**:
+- [ ] M1 — The PNG writer: RGB, Up filter, zlib level 3, over the canvas's raw bytes, used by the A4
+  pages, the chart PNGs and the preview; chart symbols drawn from cached glyph tiles (±1); one page
+  canvas reused across A4 pages; the export request parsed once. Decode-and-compare test per kind
+  (pixel-identical, or ±1 for the symbols); export parity re-run; A4 and Export all re-measured live.
+- [ ] M2 — The realistic preview as streamed tile rows: per-colour tiles composed one stitch row at a
+  time straight into the PNG writer, no whole-image canvas. Compared with today's output (within ±1),
+  memory measured by the export probe at 1000 and 2000 stitches.
+- [ ] M3 — The PDF: page height cached in the adapter, then each page's content stream written as text
+  rather than operator objects, proven byte-identical with the flush harness. Fill runs merged and
+  colour state deduplicated only if verified in Pattern Keeper.
+- [ ] M4 — Crisp generation: the exact separation bound before the two-mode fit, and the weighted
+  quantizer built on columns with no per-sample objects. Golden hashes and equivalence specs unchanged;
+  re-measured on the host.
+- [ ] M5 — Standard generation: Hamerly bounds in k-means assignment (tie-safe, like D170), the
+  interleaved buffer passed through instead of tuples, the symmetric medoid denoise, pair evidence one
+  channel at a time, luminance shared between the edge and importance passes. Same proof and
+  measurement as M4.
+
+**Progress log** (newest first):
+- 2026-09-19 — goal drafted from the review. Owner (2026-09-19): ±1 pixel is acceptable. Awaiting approval of the plan.
+
 ### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT, possibly relevant to G-030 (2026-09-12)
 - **G-046 now holds this goal's M1 and M2 (2026-09-18).** The candidate-set reduction below is G-046
   M3, and the kernel benchmark is G-046 M5, gated on the TypeScript work missing its target. Leave this
