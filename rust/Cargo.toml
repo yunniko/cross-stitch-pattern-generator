@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = ["cs-core", "cs-bench"]
+
+[workspace.package]
+edition = "2021"
+license = "UNLICENSED"
+publish = false
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+lto = "fat"
+debug = 1

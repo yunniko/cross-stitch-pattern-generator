@@ -46,3 +46,6 @@ next-env.d.ts
 
 # processor bundle (built by `npm run build:processor`)
 /dist
+
+# Rust build output (G-048)
+/rust/target/

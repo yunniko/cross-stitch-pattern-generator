@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-048 · Generation and exports in Rust, measured against TypeScript — DRAFT (2026-09-19)
+### G-048 · Generation and exports in Rust, measured against TypeScript — ACTIVE (2026-09-19)
 - **What:** the whole generation pipeline (everything `buildPattern` does, every mode) and every export (chart PNGs,
   realistic preview, A4 pages, Pattern Keeper PDF, OXS, editable JSON, Export all) implemented in Rust, in two tiers: an
   exact port, then an optimised build using what Rust offers (threads, SIMD, cheaper memory layouts). Both measured
@@ -56,7 +56,8 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   fallback; deployed and verified live. Skipped if nothing qualifies.
 
 **Progress log** (newest first):
-- 2026-09-19 — goal drafted from the Owner's request and answers; awaiting approval of the plan.
+- 2026-09-19 — **Owner approval:** "go ahead with M1"; language consistency applies only where no better fit exists (STANDARDS, Tech-stack selection).
+- 2026-09-19 — goal drafted from the Owner's request and answers.
 
 ### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT, possibly relevant to G-030 (2026-09-12)
 - **G-046 now holds this goal's M1 and M2 (2026-09-18).** The candidate-set reduction below is G-046
