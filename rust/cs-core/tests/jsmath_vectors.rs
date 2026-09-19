@@ -1,4 +1,4 @@
-//! Every `jsmath` function against V8's own results, bit for bit (D182). The vectors come from
+//! Every `jsmath` function against V8's own results, bit for bit (D183). The vectors come from
 //! `node scripts/rust-jsmath-vectors.mjs rust/target/jsmath-vectors.bin`; without the file the test says so and passes
 //! only if `JSMATH_VECTORS_OPTIONAL` is set, so a missing file can never read as a proof.
 
@@ -9,14 +9,19 @@ use std::path::PathBuf;
 fn every_function_matches_v8_bit_for_bit() {
     let path = std::env::var("JSMATH_VECTORS")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../target/jsmath-vectors.bin"));
+        .unwrap_or_else(|_| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../target/jsmath-vectors.bin")
+        });
     let bytes = match std::fs::read(&path) {
         Ok(b) => b,
         Err(_) if std::env::var("JSMATH_VECTORS_OPTIONAL").is_ok() => {
             eprintln!("no vectors at {}: skipped", path.display());
             return;
         }
-        Err(e) => panic!("no vectors at {} ({e}); run scripts/rust-jsmath-vectors.mjs", path.display()),
+        Err(e) => panic!(
+            "no vectors at {} ({e}); run scripts/rust-jsmath-vectors.mjs",
+            path.display()
+        ),
     };
     assert_eq!(bytes.len() % 25, 0);
     let mut checked = [0usize; 5];
@@ -40,10 +45,25 @@ fn every_function_matches_v8_bit_for_bit() {
             mismatches[op as usize] += 1;
         }
         if !same && failures.len() < 20 {
-            failures.push(format!("op {op} x {x:e} y {y:e}: v8 {expected:e} ({:#x}), rust {got:e} ({:#x})", expected.to_bits(), got.to_bits()));
+            failures.push(format!(
+                "op {op} x {x:e} y {y:e}: v8 {expected:e} ({:#x}), rust {got:e} ({:#x})",
+                expected.to_bits(),
+                got.to_bits()
+            ));
         }
     }
-    println!("checked cbrt {} pow {} exp {} round {}", checked[1], checked[2], checked[3], checked[4]);
-    println!("mismatched cbrt {} pow {} exp {} round {}", mismatches[1], mismatches[2], mismatches[3], mismatches[4]);
-    assert!(failures.is_empty(), "{} mismatches, first:\n{}", failures.len(), failures.join("\n"));
+    println!(
+        "checked cbrt {} pow {} exp {} round {}",
+        checked[1], checked[2], checked[3], checked[4]
+    );
+    println!(
+        "mismatched cbrt {} pow {} exp {} round {}",
+        mismatches[1], mismatches[2], mismatches[3], mismatches[4]
+    );
+    assert!(
+        failures.is_empty(),
+        "{} mismatches, first:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
 }

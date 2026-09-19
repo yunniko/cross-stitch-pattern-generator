@@ -60,6 +60,14 @@ npm run bench       # per-stage generation timings, incl. a 12 MP photo and Cris
 npm run bench:browser  # photo load, generation and every export in a real browser (very slow; not in CI)
 ```
 
+The Rust port of the pipeline (G-048, not used in production) lives in `rust/` and needs a Rust toolchain:
+
+```
+node scripts/rust-jsmath-vectors.mjs rust/target/jsmath-vectors.bin   # V8's maths results, once per Node version
+cd rust && cargo build --release && cargo test --release && cd ..
+npm run compare:rust   # Rust against TypeScript: byte-identity and timings (RUST_PARITY_LARGE=0 skips the big cases)
+```
+
 CI (`.github/workflows/ci.yml`) runs lint, type-check, unit and e2e on every
 push. Current generation and export timings, with before-and-after tables, are in
 `docs/reviews/2026-09-15-performance-results.md`.

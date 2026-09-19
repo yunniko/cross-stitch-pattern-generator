@@ -5,7 +5,15 @@
 //! bit; V8 uses its own fdlibm-derived routines. `cbrt` and `pow` are line-for-line ports of V8's; `exp` comes from the
 //! `libm` crate, whose version is the same fdlibm code. Each is proven equal to V8 on millions of inputs from the
 //! domains the pipeline uses
-//! (`tests/jsmath_vectors.rs`, vectors written by `scripts/rust-jsmath-vectors.mjs`). See D182.
+//! (`tests/jsmath_vectors.rs`, vectors written by `scripts/rust-jsmath-vectors.mjs`). See D183.
+
+// The constants are fdlibm's, digit for digit, and the statements keep its shape, so the port can be read against it.
+#![allow(
+    clippy::excessive_precision,
+    clippy::approx_constant,
+    clippy::eq_op,
+    clippy::assign_op_pattern
+)]
 
 /// `Math.cbrt`: V8's `base::ieee754::cbrt` (FreeBSD's `s_cbrt.c`), ported line for line. The `libm` crate's version
 /// differs from V8's in the last bit for about one input in fifty thousand.
@@ -121,7 +129,11 @@ pub fn pow(x: f64, y: f64) -> f64 {
         return ONE;
     }
     // +-NaN return x+y
-    if ix > 0x7ff00000 || (ix == 0x7ff00000 && lx != 0) || iy > 0x7ff00000 || (iy == 0x7ff00000 && ly != 0) {
+    if ix > 0x7ff00000
+        || (ix == 0x7ff00000 && lx != 0)
+        || iy > 0x7ff00000
+        || (iy == 0x7ff00000 && ly != 0)
+    {
         return x + y;
     }
 
@@ -212,10 +224,18 @@ pub fn pow(x: f64, y: f64) -> f64 {
             }
         }
         if ix < 0x3fefffff {
-            return if hy < 0 { s * HUGE * HUGE } else { s * TINY * TINY };
+            return if hy < 0 {
+                s * HUGE * HUGE
+            } else {
+                s * TINY * TINY
+            };
         }
         if ix > 0x3ff00000 {
-            return if hy > 0 { s * HUGE * HUGE } else { s * TINY * TINY };
+            return if hy > 0 {
+                s * HUGE * HUGE
+            } else {
+                s * TINY * TINY
+            };
         }
         let t = ax - ONE;
         let w = (t * t) * (0.5 - t * (0.3333333333333333333333 - t * 0.25));
@@ -249,7 +269,10 @@ pub fn pow(x: f64, y: f64) -> f64 {
         let v = ONE / (ax + BP[k]);
         let ss = u * v;
         let s_h = with_lo(ss, 0);
-        let mut t_h = with_hi(ZERO, ((ix >> 1) | 0x20000000) + 0x00080000 + ((k as i32) << 18));
+        let mut t_h = with_hi(
+            ZERO,
+            ((ix >> 1) | 0x20000000) + 0x00080000 + ((k as i32) << 18),
+        );
         let t_l = ax - (t_h - BP[k]);
         let s_l = v * ((u - s_h * t_h) - s_h * t_l);
         let mut s2 = ss * ss;
