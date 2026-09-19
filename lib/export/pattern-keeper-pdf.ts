@@ -4,6 +4,7 @@ import { calculateA4Layout, type A4LayoutOptions } from "./a4-layout";
 import { drawA4GridPage, drawA4LegendPage, drawInfoContinuationPage, drawInfoPage1, planInfoPages, type A4InfoPageOptions } from "./a4-render";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import { PdfCanvasAdapter, type FontMetricsSource } from "./pdf-canvas-adapter";
+import { flushFinishedPage } from "./pdf-page-flush";
 import type { RenderMode } from "./render";
 import type { StitchPattern } from "../types";
 import type { ExportProgressCallback } from "./export-progress";
@@ -129,6 +130,11 @@ export interface PatternKeeperPdfOptions extends A4LayoutOptions {
   authorName?: string;
   /** Called after each page is drawn (G-035 M2). */
   onProgress?: ExportProgressCallback;
+  /**
+   * Keeps every page's operators until `save()`, as before G-046. Only for the test proving that releasing them changes
+   * no byte of the file; production never sets it, since holding them is what exhausted the worker's heap (D155, D169).
+   */
+  retainPageOperators?: boolean;
 }
 
 function fontMetricsFor(fontBytes: Uint8Array): FontMetricsSource {
@@ -151,7 +157,7 @@ export async function buildPatternKeeperPdf(
   fontBytes: Uint8Array,
   options: PatternKeeperPdfOptions = {}
 ): Promise<Uint8Array> {
-  const { aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", onProgress, ...layoutOptions } = options;
+  const { aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", onProgress, retainPageOperators = false, ...layoutOptions } = options;
   const layout = calculateA4Layout(pattern.width, pattern.height, { ...layoutOptions, dpi: 72 });
   const metrics = fontMetricsFor(fontBytes);
 
@@ -165,7 +171,9 @@ export async function buildPatternKeeperPdf(
   const plan = planInfoPages(pattern, layout, infoOptions);
   const totalPages = totalGridPages + 1 + plan.totalPages;
   let drawn = 0;
-  const pageDone = async () => {
+  // A drawn page's operators go as soon as it is finished, so memory holds one page however large the chart (D169).
+  const pageDone = async (page: PDFPage) => {
+    if (!retainPageOperators) flushFinishedPage(page);
     drawn++;
     onProgress?.({ completed: drawn, total: totalPages, label: `Page ${drawn} of ${totalPages}` });
     // Keeps the tab responsive between pages on the main-thread fallback (D079); returns at once in the worker.
@@ -173,24 +181,26 @@ export async function buildPatternKeeperPdf(
   };
 
   for (let i = 0; i < layout.pages.length; i++) {
-    const adapter = new PdfCanvasAdapter(doc.addPage(pageSize), font, metrics);
-    drawA4GridPage(adapter, pattern, mode, layout, layout.pages[i], i, totalGridPages);
-    await pageDone();
+    const page = doc.addPage(pageSize);
+    drawA4GridPage(new PdfCanvasAdapter(page, font, metrics), pattern, mode, layout, layout.pages[i], i, totalGridPages);
+    await pageDone(page);
   }
 
-  drawA4LegendPage(new PdfCanvasAdapter(doc.addPage(pageSize), font, metrics), pattern, layout);
-  await pageDone();
+  const legendPage = doc.addPage(pageSize);
+  drawA4LegendPage(new PdfCanvasAdapter(legendPage, font, metrics), pattern, layout);
+  await pageDone(legendPage);
 
-  drawInfoPage1(new PdfCanvasAdapter(doc.addPage(pageSize), font, metrics), pattern, plan, layout, aidaCount);
-  await pageDone();
+  const infoPage = doc.addPage(pageSize);
+  drawInfoPage1(new PdfCanvasAdapter(infoPage, font, metrics), pattern, plan, layout, aidaCount);
+  await pageDone(infoPage);
 
   let consumed = Math.min(plan.rowsOnPage1, plan.totalColors);
   for (let p = 0; p < plan.totalPages - 1; p++) {
     const rowsHere = Math.min(plan.rowsPerContinuationPage, plan.totalColors - consumed);
-    const adapter = new PdfCanvasAdapter(doc.addPage(pageSize), font, metrics);
-    drawInfoContinuationPage(adapter, plan, pattern.palette.slice(consumed, consumed + rowsHere), p + 2, layout, aidaCount);
+    const page = doc.addPage(pageSize);
+    drawInfoContinuationPage(new PdfCanvasAdapter(page, font, metrics), plan, pattern.palette.slice(consumed, consumed + rowsHere), p + 2, layout, aidaCount);
     consumed += rowsHere;
-    await pageDone();
+    await pageDone(page);
   }
 
   onProgress?.({ completed: totalPages, total: totalPages, label: "Saving PDF…" });

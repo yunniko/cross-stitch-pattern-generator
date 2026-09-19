@@ -163,7 +163,7 @@ remain readable with git show.
 - D152 — The enhancement preview gets its own worker on the server — active
 - D153 — Server exports draw their text with DejaVu Sans — active
 - D154 — Export all gets a fifteen-minute deadline — superseded by D155
-- D155 — The Pattern Keeper PDF exhausts the worker heap on large charts — active
+- D155 — The Pattern Keeper PDF exhausts the worker heap on large charts — superseded by D169
 - D156 — Loopback spellings are one origin, and APP_URL has no default — active
 - D157 — The workspace is rebuilt to design direction 1b — active
 - D158 — Isolate is a way of looking, not a tool — active
@@ -176,3 +176,5 @@ remain readable with git show.
 - D165 — The empty-grid card owns its settings, and Create carries the confirm — active
 - D166 — Two more 1b texts the Owner cut — active
 - D167 — The start screen's accent is a selection, not decoration — active
+- D168 — Paginated export deadlines grow with the page count — active
+- D169 — Each Pattern Keeper page is released as soon as it is drawn — active

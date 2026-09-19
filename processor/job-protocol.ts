@@ -1,5 +1,5 @@
 import type { SerializedSymmetry } from "@/lib/editor/pattern-serialize";
-import type { OverlapCells } from "@/lib/export/a4-layout";
+import { calculateA4Layout, type OverlapCells } from "@/lib/export/a4-layout";
 import type { ExportJobKind } from "@/lib/export/export-jobs";
 import type { ExportProgress } from "@/lib/export/export-progress";
 import type { SizeUnit } from "@/lib/export/finished-size";
@@ -95,15 +95,22 @@ export const LIMITS = {
   queueLength: 12,
   /** A generation is killed past this; measured worst case is 15.1 s (D149). */
   jobDeadlineMs: 45_000,
-  /**
-   * A single-image export (a chart PNG, the realistic preview, the editable file) is a generation's worth of work.
-   * A4 and PDF exports are not: they render page after page, so their cost follows the page count. Measured on a
-   * 1000-stitch chart, an A4 colour export reached page 84 of 146 at 41 s — comfortably past a generation's ceiling,
-   * which killed it mid-run until this was split out (G-034 M4).
-   */
+  /** A single-image export (a chart PNG, the realistic preview, the editable file) is a generation's worth of work. */
   exportDeadlineMs: 45_000,
-  paginatedExportDeadlineMs: 150_000,
-  exportAllDeadlineMs: 900_000,
+  /**
+   * A4 and PDF exports render page after page, so they are allowed a base plus a share per A4 grid page (D168). Any
+   * fixed allowance fails at some size by construction: on the host a 1000-stitch A4 export took 127.7 s of the old
+   * fixed 150 s, and a 1500-stitch one needed 268.5 s (G-046 M1).
+   */
+  paginatedExportBaseMs: 60_000,
+  paginatedExportPerPageMs: 2_000,
+  /** The fixed allowance the page share replaced; no paginated export is given less. */
+  paginatedExportFloorMs: 150_000,
+  /** Export all: the single-image kinds and the zip, plus the page share for each paginated set it contains. */
+  exportAllBaseMs: 150_000,
+  /** A4 colour, A4 black-and-white and the colour Pattern Keeper PDF. */
+  exportAllPaginatedSets: 3,
+  exportAllFloorMs: 900_000,
   /** An export request carries the whole edited chart: ~2.9 MB of cell data at 1000 stitches, plus its photo. */
   exportRequestBytes: 32 * 1024 * 1024,
   /** A decoded photo is dropped this long after its last use. */
@@ -123,13 +130,20 @@ export const LIMITS = {
 } as const;
 
 /**
- * How long an export of this kind may run. Paginated kinds (A4 and the Pattern Keeper PDF) render one page at a time,
- * so their cost follows the chart's page count rather than being a single image's worth of work.
+ * How long an export of this kind may run, for a chart that prints on `gridPages` A4 grid pages. A paginated export's
+ * allowance grows with the page count, and Export all's with each of its paginated sets; neither falls below the fixed
+ * allowance it replaced (D168).
  */
-export function exportDeadlineFor(kind: ExportJobKind): number {
-  if (kind === "all") return LIMITS.exportAllDeadlineMs;
-  if (kind.startsWith("a4-") || kind.startsWith("pdf-")) return LIMITS.paginatedExportDeadlineMs;
+export function exportDeadlineFor(kind: ExportJobKind, gridPages: number): number {
+  const pageShare = LIMITS.paginatedExportPerPageMs * gridPages;
+  if (kind === "all") return Math.max(LIMITS.exportAllFloorMs, LIMITS.exportAllBaseMs + LIMITS.exportAllPaginatedSets * pageShare);
+  if (kind.startsWith("a4-") || kind.startsWith("pdf-")) return Math.max(LIMITS.paginatedExportFloorMs, LIMITS.paginatedExportBaseMs + pageShare);
   return LIMITS.exportDeadlineMs;
+}
+
+/** The A4 grid pages a chart prints on at this overlap: the unit a paginated export's cost follows. */
+export function gridPagesFor(width: number, height: number, overlapCells: OverlapCells): number {
+  return calculateA4Layout(width, height, { overlapCells }).pages.length;
 }
 
 /** The measured rate a queue wait is estimated from: ~14 s a job across three workers (D149). */

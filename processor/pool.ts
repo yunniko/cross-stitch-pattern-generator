@@ -1,6 +1,6 @@
 import { Worker } from "node:worker_threads";
 import { randomUUID } from "node:crypto";
-import { exportDeadlineFor, LIMITS, type ExportJobPayload, type JobSettings, type JobStatus, type WorkerJob, type WorkerMessage } from "./job-protocol";
+import { exportDeadlineFor, gridPagesFor, LIMITS, type ExportJobPayload, type JobSettings, type JobStatus, type WorkerJob, type WorkerMessage } from "./job-protocol";
 import type { ExportProgress } from "@/lib/export/export-progress";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
 
@@ -93,11 +93,12 @@ export class GenerationPool {
   }
 
   /**
-   * Accepts an export onto the same workers (G-034 M4). Export all renders every format in one job, so it gets the
-   * longer deadline; a single export gets a generation's.
+   * Accepts an export onto the same workers (G-034 M4). Its deadline follows what it will render: a paginated
+   * export's grows with the chart's A4 page count, counted here before the job starts (D168).
    */
   submitExport(payload: ExportJobPayload): string {
-    return this.enqueue((jobId) => ({ kind: "export", jobId, payload }), exportDeadlineFor(payload.kind));
+    const pages = gridPagesFor(payload.pattern.width, payload.pattern.height, payload.overlapCells);
+    return this.enqueue((jobId) => ({ kind: "export", jobId, payload }), exportDeadlineFor(payload.kind, pages));
   }
 
   private enqueue(build: (jobId: string) => WorkerJob, deadlineMs: number): string {
