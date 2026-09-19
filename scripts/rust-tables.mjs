@@ -3,7 +3,7 @@
 //   node --experimental-strip-types scripts/rust-tables.mjs
 // Output, in rust/cs-core/data/, one entry per line in source order (order matters: ties break by list position):
 //   color-names-bestof.tsv  rrggbb<TAB>name
-//   threads-dmc.tsv, threads-cosmo.tsv  code<TAB>name<TAB>rrggbb
+//   threads-dmc.tsv, threads-cosmo.tsv, threads-anchor.tsv  code<TAB>name<TAB>rrggbb (Anchor's is the browsable list)
 //   dmc-to-anchor.tsv  dmc code<TAB>anchor code
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { colornames } from "color-name-list/bestof";
 import { DMC_COLORS } from "../lib/threads/dmc-colors.ts";
 import { COSMO_COLORS } from "../lib/threads/cosmo-colors.ts";
-import { DMC_TO_ANCHOR } from "../lib/threads/anchor-colors.ts";
+import { ANCHOR_COLORS, DMC_TO_ANCHOR } from "../lib/threads/anchor-colors.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(readFileSync(path.join(root, "node_modules/color-name-list/package.json"), "utf8"));
@@ -28,9 +28,9 @@ const clean = (text) => {
   return text;
 };
 const hex = ([r, g, b]) => [r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("");
-for (const [file, colors] of [["threads-dmc.tsv", DMC_COLORS], ["threads-cosmo.tsv", COSMO_COLORS]]) {
+for (const [file, colors] of [["threads-dmc.tsv", DMC_COLORS], ["threads-cosmo.tsv", COSMO_COLORS], ["threads-anchor.tsv", ANCHOR_COLORS]]) {
   writeFileSync(path.join(outDir, file), colors.map((c) => `${clean(c.code)}\t${clean(c.name)}\t${hex(c.rgb)}`).join("\n") + "\n");
 }
 writeFileSync(path.join(outDir, "dmc-to-anchor.tsv"), Object.entries(DMC_TO_ANCHOR).map(([d, a]) => `${clean(d)}\t${clean(a)}`).join("\n") + "\n");
-console.log(`${DMC_COLORS.length} DMC, ${COSMO_COLORS.length} Cosmo, ${Object.keys(DMC_TO_ANCHOR).length} DMC-to-Anchor entries`);
+console.log(`${DMC_COLORS.length} DMC, ${COSMO_COLORS.length} Cosmo, ${ANCHOR_COLORS.length} Anchor, ${Object.keys(DMC_TO_ANCHOR).length} DMC-to-Anchor entries`);
 console.log(`${lines.length} names from color-name-list ${pkg.version} (${pkg.license})`);

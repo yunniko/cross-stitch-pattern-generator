@@ -1,6 +1,10 @@
 //! G-048 benchmark and parity CLI.
 //!
 //!   cs-bench generate <image.rgba> <width> <height> '<options json>' [repeat]
+//!   cs-bench export <pattern.json> '<request json>' <out file> [repeat]
+//!
+//! `export` reads an editable save and an export request (`kind`, `baseName`, `aidaCount`, `sizeUnit`, `authorName`,
+//! `overlapCells`), writes the file `runExportJob` would, and prints its name, size, each run's time and the peak RSS.
 //!
 //! Reads raw RGBA bytes, builds the pattern `repeat` times (default 1) and prints one JSON object: the pattern of the
 //! last run (for the parity harness), every run's stage times in milliseconds, and the peak resident set where the
@@ -20,8 +24,32 @@ fn peak_rss_mb() -> Option<f64> {
     Some(kb / 1024.0)
 }
 
+fn export(args: &[String]) {
+    let text = std::fs::read_to_string(&args[2]).expect("read pattern");
+    let pattern = cs_export::model::Pattern::from_editable_json(&text).expect("pattern");
+    let request = cs_export::model::Request::from_json(&args[3]).expect("request");
+    let repeat: usize = args.get(5).map(|r| r.parse().expect("repeat")).unwrap_or(1);
+    let origin = Instant::now();
+    let mut runs = Vec::new();
+    let mut file = None;
+    for _ in 0..repeat.max(1) {
+        let start = origin.elapsed().as_secs_f64() * 1000.0;
+        let f = cs_export::export(&pattern, &request).expect("export");
+        runs.push(origin.elapsed().as_secs_f64() * 1000.0 - start);
+        file = Some(f);
+    }
+    let file = file.unwrap();
+    std::fs::write(&args[4], &file.bytes).expect("write output");
+    let out = json!({ "filename": file.filename, "bytes": file.bytes.len(), "runsMs": runs, "peakRssMb": peak_rss_mb() });
+    println!("{out}");
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.len() >= 5 && args[1] == "export" {
+        export(&args);
+        return;
+    }
     if args.len() < 6 || args[1] != "generate" {
         eprintln!(
             "usage: cs-bench generate <image.rgba> <width> <height> '<options json>' [repeat]"

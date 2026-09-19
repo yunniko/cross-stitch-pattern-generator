@@ -56,6 +56,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   fallback; deployed and verified live. Skipped if nothing qualifies.
 
 **Progress log** (newest first):
+- 2026-09-19 — **Owner approval:** "go m4".
 - 2026-09-19 — **M3 done; awaiting approval of M4.** Threads only where results cannot change (D185): 36/36
   fixture cases and 15/15 real-photo cases byte-identical at 3 threads, so criterion 2 holds exactly. Laptop,
   real photos at 1000 st: 4.4-6.4x faster than TypeScript. x86-64-v3 SIMD: 1-8 %. WASM (D186): about half native
