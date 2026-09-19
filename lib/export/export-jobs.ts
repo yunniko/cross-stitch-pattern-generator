@@ -5,7 +5,7 @@ import type { SymmetryAxes } from "../editor/symmetry-axes";
 import type { StitchPattern } from "../types";
 import { generateA4Export } from "./a4-export";
 import type { OverlapCells } from "./a4-layout";
-import { canvasToPngBlob, loadExportFontBytes } from "./canvas-backend";
+import { canvasToPngBlobAndRelease, loadExportFontBytes } from "./canvas-backend";
 import { generateExportAllZip } from "./export-all";
 import type { ExportProgressCallback } from "./export-progress";
 import type { SizeUnit } from "./finished-size";
@@ -63,11 +63,11 @@ export async function runExportJob(request: ExportJobRequest, onProgress?: Expor
     case "png-color":
     case "png-bw": {
       const mode = modeOf(kind);
-      const blob = await canvasToPngBlob(renderPatternToCanvas(compacted, mode, { aidaCount, sizeUnit, authorName }));
+      const blob = await canvasToPngBlobAndRelease(renderPatternToCanvas(compacted, mode, { aidaCount, sizeUnit, authorName }));
       return { blob, filename: `${baseName}_${mode}.png` };
     }
     case "png-realistic":
-      return { blob: await canvasToPngBlob(await renderStitchPreviewToCanvas(compacted)), filename: `${baseName}_preview.png` };
+      return { blob: await canvasToPngBlobAndRelease(await renderStitchPreviewToCanvas(compacted)), filename: `${baseName}_preview.png` };
     case "a4-color":
     case "a4-bw": {
       const result = await generateA4Export(compacted, modeOf(kind), { overlapCells, baseName, aidaCount, sizeUnit, authorName, onProgress });

@@ -179,3 +179,5 @@ remain readable with git show.
 - D168 — Paginated export deadlines grow with the page count — active
 - D169 — Each Pattern Keeper page is released as soon as it is drawn — active
 - D170 — ICM scans the palette only when no neighbour label is below `total` — active
+- D171 — The server writes its own PNGs and releases each canvas once encoded — active
+- D172 — Raster exports stamp symbols from tiles drawn once per colour — active

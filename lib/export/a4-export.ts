@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import { calculateA4Layout, type A4LayoutOptions } from "./a4-layout";
 import { planInfoPages, renderA4GridPage, renderA4InfoPages, renderA4LegendPage } from "./a4-render";
-import { canvasToPngBlob } from "./canvas-backend";
+import { canvasToPngBlobAndRelease } from "./canvas-backend";
 import type { ExportProgressCallback } from "./export-progress";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import type { RenderMode } from "./render";
@@ -71,18 +71,18 @@ export async function addA4PagesToZip(folder: JSZip, pattern: StitchPattern, mod
 
   for (let i = 0; i < totalGridPages; i++) {
     const page = layout.pages[i];
-    const blob = await canvasToPngBlob(renderA4GridPage(pattern, mode, layout, page, i, totalGridPages));
+    const blob = await canvasToPngBlobAndRelease(renderA4GridPage(pattern, mode, layout, page, i, totalGridPages));
     folder.file(zipEntryName(`${baseName}_r${pad2(page.row + 1)}_c${pad2(page.column + 1)}.png`), blob);
     await pageDone();
   }
 
-  folder.file(zipEntryName(`${baseName}_legend.png`), await canvasToPngBlob(renderA4LegendPage(pattern, layout)));
+  folder.file(zipEntryName(`${baseName}_legend.png`), await canvasToPngBlobAndRelease(renderA4LegendPage(pattern, layout)));
   await pageDone();
 
   const infoCanvases = renderA4InfoPages(pattern, layout, infoOptions);
   for (let i = 0; i < infoCanvases.length; i++) {
     const suffix = infoCanvases.length > 1 ? `_${pad2(i + 1)}` : "";
-    folder.file(zipEntryName(`${baseName}_legend_extended${suffix}.png`), await canvasToPngBlob(infoCanvases[i]));
+    folder.file(zipEntryName(`${baseName}_legend_extended${suffix}.png`), await canvasToPngBlobAndRelease(infoCanvases[i]));
     await pageDone();
   }
 

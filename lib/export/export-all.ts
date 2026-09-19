@@ -2,7 +2,7 @@ import JSZip from "jszip";
 import { addA4PagesToZip } from "./a4-export";
 import { calculateA4Layout, type OverlapCells } from "./a4-layout";
 import { planInfoPages } from "./a4-render";
-import { canvasToPngBlob } from "./canvas-backend";
+import { canvasToPngBlobAndRelease } from "./canvas-backend";
 import type { ExportProgressCallback } from "./export-progress";
 import { serializeOxs } from "../editor/oxs";
 import { serializePattern } from "../editor/pattern-serialize";
@@ -63,13 +63,13 @@ export async function generateExportAllZip(pattern: StitchPattern, options: Expo
   zip.file(`${baseName}.oxs`, serializeOxs(pattern, { authorName, aidaCount }));
   await step("Editable file and OXS", 2);
 
-  zip.file(`${baseName}_color.png`, await canvasToPngBlob(renderPatternToCanvas(pattern, "color", info)));
+  zip.file(`${baseName}_color.png`, await canvasToPngBlobAndRelease(renderPatternToCanvas(pattern, "color", info)));
   await step("Color chart");
 
-  zip.file(`${baseName}_bw.png`, await canvasToPngBlob(renderPatternToCanvas(pattern, "bw", info)));
+  zip.file(`${baseName}_bw.png`, await canvasToPngBlobAndRelease(renderPatternToCanvas(pattern, "bw", info)));
   await step("Black-and-white chart");
 
-  zip.file(`${baseName}_preview.png`, await canvasToPngBlob(await renderStitchPreviewToCanvas(pattern)));
+  zip.file(`${baseName}_preview.png`, await canvasToPngBlobAndRelease(await renderStitchPreviewToCanvas(pattern)));
   await step("Realistic preview");
 
   let base = completed;

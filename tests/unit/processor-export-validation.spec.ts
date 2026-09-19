@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createBlankPattern } from "@/lib/editor/blank-pattern";
 import { serializePattern } from "@/lib/editor/pattern-serialize";
 import { DEFAULT_OPTIONS } from "@/lib/editor/workspace-storage";
-import { exportRequestError, toExportPayload } from "@/processor/validate-export";
+import { runServerExport } from "@/lib/export/export-server";
+import { exportRequestError, parseExportRequest, toExportPayload } from "@/processor/validate-export";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 /**
@@ -76,5 +77,30 @@ describe("processor export validation", () => {
     expect(["cm", "in"]).toContain(payload.sizeUnit);
     expect(payload.authorName).toBe("");
     expect([0, 5, 10]).toContain(payload.overlapCells);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("accepts the body the editor actually sends, with the chart spliced in as saved-file text (G-047 M1)", async () => {
+    let sent = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: unknown, init?: RequestInit) => {
+        sent = String(init?.body ?? "");
+        // Stop there: this case is about what reached the server, not what came back.
+        return new Response(JSON.stringify({ error: "stop" }), { status: 400, headers: { "content-type": "application/json" } });
+      })
+    );
+    const pattern = chart();
+    await expect(
+      runServerExport({ kind: "a4-bw", pattern, baseName: "sample", aidaCount: 16, sizeUnit: "in", authorName: "Ana", overlapCells: 10 })
+    ).rejects.toThrow();
+    const parsed = parseExportRequest(JSON.parse(sent));
+    expect(parsed.error).toBeNull();
+    expect(parsed.payload).toMatchObject({ kind: "a4-bw", baseName: "sample", aidaCount: 16, sizeUnit: "in", authorName: "Ana", overlapCells: 10 });
+    expect(Array.from(parsed.payload!.pattern.cellPalette)).toEqual(Array.from(pattern.cellPalette));
+    expect(parsed.payload!.pattern.palette.map((c) => c.name)).toEqual(["Salmon - Dark"]);
   });
 });

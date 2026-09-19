@@ -1,4 +1,4 @@
-import { createCanvas, type AnyCanvas, type Canvas2D } from "./canvas-backend";
+import { createCanvas, onExportBackendChange, type AnyCanvas, type Canvas2D } from "./canvas-backend";
 import type { ChartDrawingContext } from "./chart-drawing-context";
 import { hexToRgb, luminance, rgbToHex } from "../color/color";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, formatFinishedSize, type SizeUnit } from "./finished-size";
@@ -180,6 +180,66 @@ export function renderNavigatorPixels(pattern: StitchPattern, emptyCellColor: st
   return data;
 }
 
+/**
+ * Each palette entry's symbol, drawn once in its text colour onto a small transparent tile, for raster exports to stamp
+ * per stitch instead of calling `fillText` (G-047 M1, D172). Text rasterisation was about three quarters of a chart PNG's
+ * drawing; a stamp costs what a fill does. Stamping differs from `fillText` by at most 1 in an anti-aliased edge byte,
+ * which the Owner accepted (2026-09-19). The PDF never uses stamps: Pattern Keeper reads its symbols as text.
+ */
+export interface SymbolStamps {
+  /** Transparent margin around the cell on every side, wide enough for any glyph's overhang. */
+  pad: number;
+  /** Per palette index, `cellSize + 2 * pad` square. */
+  tiles: AnyCanvas[];
+}
+
+let stampCache = new WeakMap<readonly PaletteColor[], Map<string, SymbolStamps>>();
+// A tile belongs to the backend that drew it (as the stitch texture does, G-034 M4).
+onExportBackendChange(() => {
+  stampCache = new WeakMap();
+});
+
+/** The stamps for `palette` at `cellSize` in `mode`, built once per palette; null below the symbol floor. */
+export function symbolStampsFor(palette: readonly PaletteColor[], mode: RenderMode, cellSize: number): SymbolStamps | null {
+  if (cellSize < LEGIBILITY_FLOOR_PX || palette.length === 0) return null;
+  const key = `${mode}:${cellSize}`;
+  let byKey = stampCache.get(palette);
+  const cached = byKey?.get(key);
+  if (cached) return cached;
+
+  const font = `${Math.round(cellSize * 0.6)}px ${FONT_STACK}`;
+  const { ctx: measure } = createCanvas(1, 1);
+  measure.font = font;
+  measure.textAlign = "center";
+  measure.textBaseline = "middle";
+  const half = cellSize / 2;
+  let reach = 0;
+  for (const color of palette) {
+    const m = measure.measureText(color.symbol);
+    // Glyphs are drawn at (cell centre x, cell centre y + 1), as `drawChart` draws them.
+    reach = Math.max(reach, m.actualBoundingBoxLeft - half, m.actualBoundingBoxRight - half, m.actualBoundingBoxAscent - 1 - half, m.actualBoundingBoxDescent + 1 - half);
+  }
+  // One more pixel for the glyph's anti-aliased edge.
+  const pad = Math.max(0, Math.ceil(reach)) + 1;
+  const size = cellSize + 2 * pad;
+  const tiles = palette.map((color) => {
+    const { canvas, ctx } = createCanvas(size, size);
+    ctx.font = font;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = symbolTextColor(mode, color.rgb);
+    ctx.fillText(color.symbol, pad + half, pad + half + 1);
+    return canvas;
+  });
+  const stamps = { pad, tiles };
+  if (!byKey) {
+    byKey = new Map();
+    stampCache.set(palette, byKey);
+  }
+  byKey.set(key, stamps);
+  return stamps;
+}
+
 export function drawChart(
   ctx: ChartDrawingContext,
   pattern: StitchPattern,
@@ -195,7 +255,9 @@ export function drawChart(
    * -- deliberately view-only, never plumbed into any export call site.
    */
   emptyCellColor: string = "#ffffff",
-  gridStyle: GridStyle = "stroke"
+  gridStyle: GridStyle = "stroke",
+  /** Raster exports only: `ctx` must then be a real canvas context (D172). Without it, symbols are drawn as text. */
+  symbolStamps: SymbolStamps | null = null
 ) {
   const { width, height, cellPalette, palette } = pattern;
   const { x0, y0, x1, y1 } = region ?? { x0: 0, y0: 0, x1: width, y1: height };
@@ -211,6 +273,8 @@ export function drawChart(
   // (G-036 M2); exports and the screen see identical fill styles.
   const fills = palette.map((color) => fillForCell(mode, color.rgb));
   const textColors = drawSymbols ? palette.map((color) => symbolTextColor(mode, color.rgb)) : [];
+  // Stamps are only ever passed with a canvas context, never the PDF adapter (D172).
+  const stamp = drawSymbols && symbolStamps ? (ctx as unknown as Canvas2D) : null;
 
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
@@ -229,7 +293,9 @@ export function drawChart(
       ctx.fillStyle = fills[paletteIndex];
       ctx.fillRect(localX, localY, cellSize, cellSize);
 
-      if (drawSymbols) {
+      if (stamp) {
+        stamp.drawImage(symbolStamps!.tiles[paletteIndex] as CanvasImageSource, localX - symbolStamps!.pad, localY - symbolStamps!.pad);
+      } else if (drawSymbols) {
         ctx.fillStyle = textColors[paletteIndex];
         ctx.fillText(palette[paletteIndex].symbol, localX + cellSize / 2, localY + cellSize / 2 + 1);
       }
@@ -843,7 +909,7 @@ export function renderPatternToCanvas(
 
   ctx.save();
   ctx.translate(leftGutter, HEADER_HEIGHT + topGutter);
-  drawChart(ctx, pattern, mode, cellSize);
+  drawChart(ctx, pattern, mode, cellSize, undefined, "#ffffff", "stroke", symbolStampsFor(pattern.palette, mode, cellSize));
   drawLegend(ctx, pattern, mode, chartWidthPx, chartHeightPx, belowChart, aidaCount);
   drawCenterMarkers(ctx, chartWidthPx, chartHeightPx);
   drawRowColumnNumbers(ctx, pattern.width, pattern.height, cellSize);

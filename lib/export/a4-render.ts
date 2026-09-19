@@ -5,7 +5,7 @@ import type { A4Layout, PageRange } from "./a4-layout";
 import { mmToPx, PRINT_DPI } from "./a4-layout";
 import { formatFinishedSize, type SizeUnit } from "./finished-size";
 import { estimateSkeins } from "../threads/floss-estimate";
-import { drawChart, FONT_STACK, GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX, truncateToWidth, type RenderMode } from "./render";
+import { drawChart, FONT_STACK, GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX, symbolStampsFor, truncateToWidth, type RenderMode, type SymbolStamps } from "./render";
 import { THREAD_BRANDS } from "../threads/thread-brands";
 import { filledStitchCount, formatColorCount, formatStitchCount, type PaletteColor, type StitchPattern } from "../types";
 
@@ -126,7 +126,9 @@ export function drawA4GridPage(
   layout: A4Layout,
   page: PageRange,
   pageIndex: number,
-  totalPages: number
+  totalPages: number,
+  /** Raster pages only; the PDF draws its symbols as text (D172). */
+  symbolStamps: SymbolStamps | null = null
 ): void {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, layout.pageWidthPx, layout.pageHeightPx);
@@ -136,7 +138,7 @@ export function drawA4GridPage(
   ctx.save();
   ctx.translate(layout.gridOriginXPx, layout.gridOriginYPx);
 
-  drawChart(ctx, pattern, mode, layout.cellSizePx, { x0: page.startX, y0: page.startY, x1: page.endX, y1: page.endY });
+  drawChart(ctx, pattern, mode, layout.cellSizePx, { x0: page.startX, y0: page.startY, x1: page.endX, y1: page.endY }, "#ffffff", "stroke", symbolStamps);
 
   const gridWidthPx = (page.endX - page.startX) * layout.cellSizePx;
   const gridHeightPx = (page.endY - page.startY) * layout.cellSizePx;
@@ -156,7 +158,7 @@ export function renderA4GridPage(
 ): AnyCanvas {
   const { canvas, ctx } = createCanvas(layout.pageWidthPx, layout.pageHeightPx);
 
-  drawA4GridPage(ctx, pattern, mode, layout, page, pageIndex, totalPages);
+  drawA4GridPage(ctx, pattern, mode, layout, page, pageIndex, totalPages, symbolStampsFor(pattern.palette, mode, layout.cellSizePx));
 
   return canvas;
 }

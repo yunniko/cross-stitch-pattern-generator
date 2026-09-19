@@ -6,7 +6,7 @@ import { serializePattern } from "@/lib/editor/pattern-serialize";
 import { ENHANCEMENT_PRESETS, type EnhancementModeId } from "@/lib/pipeline/enhance";
 import { ENHANCEMENT_PREVIEW_MAX_SIDE } from "@/lib/pipeline/enhance-preview";
 import { settingsError } from "./validate-settings";
-import { exportRequestError, toExportPayload } from "./validate-export";
+import { parseExportRequest } from "./validate-export";
 import { GenerationPool, QueueFullError } from "./pool";
 import { PhotoStore, PhotoTooLargeError } from "./photo-store";
 import { PreviewCache } from "./preview-cache";
@@ -178,12 +178,12 @@ async function handleExportCreate(req: IncomingMessage, res: ServerResponse): Pr
     send(res, 400, { error: "That request body is not valid JSON." });
     return;
   }
-  const invalid = exportRequestError(body);
-  if (invalid) {
-    send(res, 400, { error: invalid });
+  const parsed = parseExportRequest(body);
+  if (parsed.error !== null) {
+    send(res, 400, { error: parsed.error });
     return;
   }
-  const payload = toExportPayload(body);
+  const payload = parsed.payload;
   const jobId = pool.submitExport(payload);
   console.log(`export ${jobId.slice(0, 8)} queued: ${payload.kind}, ${payload.pattern.width}x${payload.pattern.height}`);
   send(res, 202, pool.status(jobId), { location: `/jobs/${jobId}` });

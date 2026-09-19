@@ -79,6 +79,20 @@ export async function canvasToPngBlob(canvas: AnyCanvas): Promise<Blob> {
   });
 }
 
+/**
+ * `canvasToPngBlob` for a canvas the caller is finished with: once encoded, it is shrunk to one pixel, which gives its
+ * pixel memory back at once. On the server that memory is native and invisible to V8, so an unreferenced canvas was
+ * otherwise held until some later collection; Export all piled up a gigabyte of finished canvases that way (G-047 M1).
+ */
+export async function canvasToPngBlobAndRelease(canvas: AnyCanvas): Promise<Blob> {
+  try {
+    return await canvasToPngBlob(canvas);
+  } finally {
+    canvas.width = 1;
+    canvas.height = 1;
+  }
+}
+
 /** An image the export drawing can use: an `<img>` on the main thread, an `ImageBitmap` in a worker, a decoded image on the server. */
 export async function loadExportImage(url: string): Promise<CanvasImageSource> {
   if (installed) return installed.loadImage(url);

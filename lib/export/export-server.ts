@@ -88,16 +88,18 @@ export async function runServerExport(request: ExportJobRequest, onProgress?: Ex
   activeController = controller;
 
   try {
-    const body = JSON.stringify({
+    const settings = JSON.stringify({
       kind: request.kind,
-      // The same document the editor would save, so the server reads it with `deserializePatternData`.
-      pattern: JSON.parse(serializePattern(request.pattern, request.symmetry ?? NO_SYMMETRY)),
       baseName: request.baseName,
       aidaCount: request.aidaCount,
       sizeUnit: request.sizeUnit,
       authorName: request.authorName,
       overlapCells: request.overlapCells,
     });
+    // The same document the editor would save, so the server reads it with `deserializePatternData`. It is spliced in as
+    // text: parsing it back only to serialise it again cost two passes over every stitch (G-047 M1). `kind` is always
+    // present, so `settings` is never the empty object.
+    const body = `{"pattern":${serializePattern(request.pattern, request.symmetry ?? NO_SYMMETRY)},${settings.slice(1)}`;
 
     let started: Response;
     try {

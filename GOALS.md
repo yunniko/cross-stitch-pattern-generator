@@ -127,7 +127,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   Rust estimate is explicitly an inference, which M5 exists to settle if it is ever reached. Not
   started.
 
-### G-047 · Faster exports and generation, from the 2026-09-19 algorithm review — DRAFT (2026-09-19)
+### G-047 · Faster exports and generation, from the 2026-09-19 algorithm review — ACTIVE (2026-09-19)
 - **What:** the review's findings implemented (`docs/reviews/2026-09-19-algorithm-review.md`): a
   plain PNG writer for every raster export, the realistic preview streamed from tile rows instead of a
   96 Mpx canvas, the Pattern Keeper PDF freed of pdf-lib's per-operator bookkeeping, and the Crisp and
@@ -171,7 +171,8 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   measurement as M4.
 
 **Progress log** (newest first):
-- 2026-09-19 — goal drafted from the review. Owner (2026-09-19): ±1 pixel is acceptable. Awaiting approval of the plan.
+- 2026-09-19 — **Owner approval:** "start implementing g-047"; M1 started.
+- 2026-09-19 — goal drafted from the review. Owner (2026-09-19): ±1 pixel is acceptable.
 
 ### G-023 · Rust sidecar for the color-quantization/ICM hot path — DRAFT, possibly relevant to G-030 (2026-09-12)
 - **G-046 now holds this goal's M1 and M2 (2026-09-18).** The candidate-set reduction below is G-046
