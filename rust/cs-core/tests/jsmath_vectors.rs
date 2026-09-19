@@ -5,6 +5,10 @@
 use cs_core::jsmath;
 use std::path::PathBuf;
 
+const NAMES: [&str; 11] = [
+    "", "cbrt", "pow", "exp", "round", "hypot", "atan2", "sin", "cos", "log", "hypot3",
+];
+
 #[test]
 fn every_function_matches_v8_bit_for_bit() {
     let path = std::env::var("JSMATH_VECTORS")
@@ -24,11 +28,11 @@ fn every_function_matches_v8_bit_for_bit() {
         ),
     };
     assert_eq!(bytes.len() % 25, 0);
-    let mut checked = [0usize; 5];
+    let mut checked = [0usize; NAMES.len()];
+    let mut mismatches = [0usize; NAMES.len()];
     let mut failures = Vec::new();
-    let mut mismatches = [0usize; 5];
     for record in bytes.chunks_exact(25) {
-        let op = record[0];
+        let op = record[0] as usize;
         let x = f64::from_le_bytes(record[1..9].try_into().unwrap());
         let y = f64::from_le_bytes(record[9..17].try_into().unwrap());
         let expected = f64::from_le_bytes(record[17..25].try_into().unwrap());
@@ -37,33 +41,37 @@ fn every_function_matches_v8_bit_for_bit() {
             2 => jsmath::pow(x, y),
             3 => jsmath::exp(x),
             4 => jsmath::round(x),
+            5 => jsmath::hypot(x, y),
+            6 => jsmath::atan2(x, y),
+            7 => jsmath::sin(x),
+            8 => jsmath::cos(x),
+            9 => jsmath::log(x),
+            10 => jsmath::hypot_n(&[x, y, x - y]),
             _ => panic!("unknown op {op}"),
         };
-        checked[op as usize] += 1;
+        checked[op] += 1;
         let same = got.to_bits() == expected.to_bits() || (got.is_nan() && expected.is_nan());
         if !same {
-            mismatches[op as usize] += 1;
-        }
-        if !same && failures.len() < 20 {
-            failures.push(format!(
-                "op {op} x {x:e} y {y:e}: v8 {expected:e} ({:#x}), rust {got:e} ({:#x})",
-                expected.to_bits(),
-                got.to_bits()
-            ));
+            mismatches[op] += 1;
+            if mismatches[op] <= 4 {
+                failures.push(format!(
+                    "{} x {x:e} y {y:e}: v8 {expected:e} ({:#x}), rust {got:e} ({:#x})",
+                    NAMES[op],
+                    expected.to_bits(),
+                    got.to_bits()
+                ));
+            }
         }
     }
-    println!(
-        "checked cbrt {} pow {} exp {} round {}",
-        checked[1], checked[2], checked[3], checked[4]
-    );
-    println!(
-        "mismatched cbrt {} pow {} exp {} round {}",
-        mismatches[1], mismatches[2], mismatches[3], mismatches[4]
-    );
+    for op in 1..NAMES.len() {
+        println!(
+            "{:>6}: checked {:>8}, mismatched {}",
+            NAMES[op], checked[op], mismatches[op]
+        );
+    }
     assert!(
         failures.is_empty(),
-        "{} mismatches, first:\n{}",
-        failures.len(),
+        "mismatches, first of each:\n{}",
         failures.join("\n")
     );
 }

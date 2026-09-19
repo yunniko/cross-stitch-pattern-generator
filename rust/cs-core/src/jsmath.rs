@@ -409,3 +409,70 @@ pub fn max(a: f64, b: f64) -> f64 {
 pub fn fround(x: f64) -> f64 {
     x as f32 as f64
 }
+
+/// `Math.hypot` over any number of arguments, as V8's Torque builtin computes it: NaN only when no argument is
+/// infinite, then each value divided by the largest and squared with Kahan-compensated summation, square-rooted and
+/// scaled back. It is not `sqrt(x² + y²)`, so ports call this.
+pub fn hypot_n(values: &[f64]) -> f64 {
+    let mut max = 0.0f64;
+    let mut one_is_nan = false;
+    for &v in values {
+        if v.is_nan() {
+            one_is_nan = true;
+        } else {
+            let a = v.abs();
+            if a > max {
+                max = a;
+            }
+        }
+    }
+    if max == f64::INFINITY {
+        return f64::INFINITY;
+    }
+    if one_is_nan {
+        return f64::NAN;
+    }
+    if max == 0.0 {
+        return 0.0;
+    }
+    let mut sum = 0.0f64;
+    let mut compensation = 0.0f64;
+    for &v in values {
+        let n = v.abs() / max;
+        let summand = n * n - compensation;
+        let preliminary = sum + summand;
+        compensation = (preliminary - sum) - summand;
+        sum = preliminary;
+    }
+    sum.sqrt() * max
+}
+
+/// `Math.hypot(x, y)`.
+#[inline]
+pub fn hypot(x: f64, y: f64) -> f64 {
+    hypot_n(&[x, y])
+}
+
+/// `Math.atan2(y, x)`.
+#[inline]
+pub fn atan2(y: f64, x: f64) -> f64 {
+    crate::fdlibm::atan2(y, x)
+}
+
+/// `Math.sin`.
+#[inline]
+pub fn sin(x: f64) -> f64 {
+    crate::fdlibm::sin(x)
+}
+
+/// `Math.cos`.
+#[inline]
+pub fn cos(x: f64) -> f64 {
+    crate::fdlibm::cos(x)
+}
+
+/// `Math.log`.
+#[inline]
+pub fn log(x: f64) -> f64 {
+    crate::fdlibm::log(x)
+}

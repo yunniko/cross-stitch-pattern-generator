@@ -2,7 +2,8 @@
 // compare bit for bit. Inputs are drawn from the domains each function actually sees (see the comments), plus a spread
 // of arbitrary doubles. Usage: node scripts/rust-jsmath-vectors.mjs <out.bin> [samplesPerDomain]
 //
-// Record layout, little-endian: u8 op, f64 x, f64 y, f64 result (25 bytes). Ops: 1 cbrt, 2 pow, 3 exp, 4 round.
+// Record layout, little-endian: u8 op, f64 x, f64 y, f64 result (25 bytes). Ops: 1 cbrt, 2 pow, 3 exp, 4 round,
+// 5 hypot(x, y), 6 atan2(x, y) (x is the first argument, as in Math.atan2(y, x)), 7 sin, 8 cos, 9 log, 10 hypot(x, y, x - y).
 import { writeFileSync } from "node:fs";
 
 const out = process.argv[2];
@@ -89,6 +90,65 @@ for (const x of [0.49999999999999994, -0.5, -0.49999999999999994, 0.5, 1.5, 2.5,
 for (let i = 0; i < n / 10; i++) {
   const x = randomDouble();
   push(4, x, 0, Math.round(x));
+}
+
+// hypot: Crisp's spatial separation (differences of [0, 1] centroids), enhancement's OKLab chroma (a, b within ±0.5),
+// integer direction lengths, and arbitrary pairs. The three-argument form (blend pruning's linear-RGB distances) is
+// op 10, with the third argument x − y.
+for (let i = 0; i < n; i++) {
+  const x = rand() * 2 - 1;
+  const y = rand() * 2 - 1;
+  push(5, x, y, Math.hypot(x, y));
+  push(10, x, y, Math.hypot(x, y, x - y));
+}
+for (let i = 0; i < n / 2; i++) {
+  const x = (rand() - 0.5) * 0.02;
+  const y = (rand() - 0.5) * 0.02;
+  push(5, x, y, Math.hypot(x, y));
+}
+for (const [x, y] of [[1, 0], [0, 1], [1, 1], [1, -1], [0, 0], [-0, 0]]) push(5, x, y, Math.hypot(x, y));
+for (let i = 0; i < n / 10; i++) {
+  const x = randomDouble();
+  const y = randomDouble();
+  push(5, x, y, Math.hypot(x, y));
+  push(10, x, y, Math.hypot(x, y, x - y));
+}
+// atan2(b, a): OKLab hues, a and b within ±0.5, with exact zeros and arbitrary pairs.
+for (let i = 0; i < n; i++) {
+  const b = (rand() - 0.5) * (rand() < 0.5 ? 1 : 0.04);
+  const a = (rand() - 0.5) * (rand() < 0.5 ? 1 : 0.04);
+  push(6, b, a, Math.atan2(b, a));
+}
+for (const [b, a] of [[0, 0], [-0, 0], [0, -0], [-0, -0], [1, 0], [-1, 0], [0, 1], [0, -1]]) push(6, b, a, Math.atan2(b, a));
+for (let i = 0; i < n / 10; i++) {
+  const b = randomDouble();
+  const a = randomDouble();
+  push(6, b, a, Math.atan2(b, a));
+}
+// sin and cos: the gamut table's hue angles (exact grid) and any angle in [-4π, 4π], plus arbitrary doubles.
+for (let hi = 0; hi < 72; hi++) {
+  const h = (hi / 72) * 2 * Math.PI;
+  push(7, h, 0, Math.sin(h));
+  push(8, h, 0, Math.cos(h));
+}
+for (let i = 0; i < n; i++) {
+  const h = (rand() - 0.5) * 8 * Math.PI;
+  push(7, h, 0, Math.sin(h));
+  push(8, h, 0, Math.cos(h));
+}
+for (let i = 0; i < n / 10; i++) {
+  const x = randomDouble();
+  push(7, x, 0, Math.sin(x));
+  push(8, x, 0, Math.cos(x));
+}
+// log: gamma planning (medians and targets in (0, 1)), white-balance estimates and gain ratios near 1, arbitrary doubles.
+for (let i = 0; i < n; i++) {
+  const x = rand() * (rand() < 0.5 ? 1 : 3) + 1e-9;
+  push(9, x, 0, Math.log(x));
+}
+for (let i = 0; i < n / 10; i++) {
+  const x = Math.abs(randomDouble());
+  push(9, x, 0, Math.log(x));
 }
 
 const buffer = Buffer.alloc(records.length * 25);

@@ -56,6 +56,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   fallback; deployed and verified live. Skipped if nothing qualifies.
 
 **Progress log** (newest first):
+- 2026-09-19 — **Owner approval:** "go ahead" (M2).
 - 2026-09-19 — **M1 done; awaiting approval of M2.** The `rust/` workspace (`cs-core`, `cs-bench`), V8-exact maths (D183:
   0 mismatches in 6.5 M vectors, where `libm`'s `pow` missed 94,182), and the exact Standard pipeline (D182).
   `npm run compare:rust`: 13 of 13 cases byte-identical, including all 11 Standard golden hashes. Single-thread speed-up

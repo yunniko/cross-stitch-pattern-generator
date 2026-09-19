@@ -8,6 +8,7 @@ pub mod color;
 pub mod denoise;
 pub mod downsample;
 pub mod edge_map;
+mod fdlibm;
 pub mod jsmath;
 pub mod names;
 pub mod optimize;
