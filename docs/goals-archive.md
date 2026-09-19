@@ -5,6 +5,140 @@ file holds only draft, active and blocked goals. Entries are unchanged from
 their last state in `GOALS.md`; decision references (Dnn) now resolve to
 `docs/decisions/`.
 
+### G-047 · Faster exports and generation, from the 2026-09-19 algorithm review — DONE (2026-09-19, Owner sign-off 2026-09-19)
+- **What:** the review's findings implemented (`docs/reviews/2026-09-19-algorithm-review.md`): a
+  plain PNG writer for every raster export, the realistic preview streamed from tile rows instead of a
+  96 Mpx canvas, the Pattern Keeper PDF freed of pdf-lib's per-operator bookkeeping, and the Crisp and
+  Standard generation stages made cheaper where the output can be proven unchanged.
+- **Why:** exports are the walls G-046 met (A4 at 126 s for 1000 stitches live, the preview at
+  2 GB of RSS at 2000, the PDF at 38.5 s), and generation at 2000 Crisp is 52 s on the host; the review
+  found most of that cost in bookkeeping, encoding and work that a proof shows is unnecessary.
+- **Acceptance criteria:**
+  1. Every raster export decodes to the same pixels as before (a decode-and-compare test per kind),
+     and the A4 export at 1000 stitches takes under 60 s live (was 126.0 s).
+  2. The realistic preview PNG is produced without a whole-image canvas; its worker heap and native RSS
+     at 2000 stitches are measured by M1's export probe and stay under 512 MB.
+  3. The Pattern Keeper PDF is byte-identical to today's file (the M2 harness) and at least 30 % faster.
+  4. Every generation change keeps the golden hashes (D107) and the equivalence specs green; 2000 Crisp
+     and 2000 Standard are re-measured by the capacity probe on the host against the M3 table.
+  5. Vitest and Playwright pass, `docs-lint` passes, `HANDOVER.md` is regenerated, each milestone is
+     deployed and verified live.
+- **Constraints:** D107 (byte-identical generation) governs every pipeline change. A rendered export
+  may change bytes where the review measured it pixel-identical or within ±1 (the Owner accepted ±1 on
+  2026-09-19, so the glyph tiles and the tile-composed preview are in). Pattern Keeper's grid detection reads the PDF's
+  text, so any change to how symbols are emitted is verified in Pattern Keeper before it ships. No new
+  runtime dependency: the PNG writer uses Node's zlib.
+
+**Milestones**:
+- [x] M1 — The PNG writer: RGB, Up filter, zlib level 3, over the canvas's raw bytes, used by the A4
+  pages, the chart PNGs and the preview; chart symbols drawn from cached glyph tiles (±1); one page
+  canvas reused across A4 pages; the export request parsed once. Decode-and-compare test per kind
+  (pixel-identical, or ±1 for the symbols); export parity re-run; A4 and Export all re-measured live. Done
+  2026-09-19 at zlib level 6, not 3 (D171); the page-canvas reuse was measured and dropped.
+- [x] M2 — The realistic preview as streamed tile rows: per-colour tiles composed one stitch row at a
+  time straight into the PNG writer, no whole-image canvas. Compared with today's output (within ±1),
+  memory measured by the export probe at 1000 and 2000 stitches. Done 2026-09-19 (D173).
+- [x] M3 — The PDF: page height cached in the adapter, then each page's content stream written as text
+  rather than operator objects, proven byte-identical with the flush harness. Fill runs merged and
+  colour state deduplicated only if verified in Pattern Keeper. Done 2026-09-19 (D174); run merging not taken, as
+  Pattern Keeper cannot be checked from here.
+- [x] M4 — Crisp generation: the exact separation bound before the two-mode fit, and the weighted
+  quantizer built on columns with no per-sample objects. Golden hashes and equivalence specs unchanged;
+  re-measured on the host. Done 2026-09-19 (D175, D176).
+- [x] M5 — Standard generation: Hamerly bounds in k-means assignment (tie-safe, like D170), the
+  interleaved buffer passed through instead of tuples, the symmetric medoid denoise, pair evidence one
+  channel at a time, luminance shared between the edge and importance passes. Same proof and
+  measurement as M4. Done 2026-09-19 (D177, D178); pair evidence one channel at a time measured no gain and was not kept.
+
+**Progress log** (newest first):
+- 2026-09-19 — **Owner sign-off:** "sign off". Moved to `docs/goals-archive.md`.
+- 2026-09-19 — **M5 done; every milestone deployed. Awaiting the Owner's sign-off.** Deployed as dbd2d59.
+  - **k-means (D177):** the quantizers work on the OKLab buffer, not 2.7 M tuples built twice. Plain Hamerly skipped
+    only 1–62 % of points in the 2–3 passes Lloyd needs, a net loss; per-centroid decay and the half-gap test raised it
+    to 83–93 %, each later pass about 60–100 ms instead of 330. Exact: a point is scanned unless both bounds prove every
+    other centroid farther by a 1e-9 margin, so ties always go to the full scan.
+  - **Denoise and luminance (D178):** 36 pair distances per window instead of 81, summed in the original order; source
+    luminance computed once, checked equal to `luminance()` for all 2^24 colours. Releasing pair evidence's raw planes
+    early measured no effect (423 → 422 MB) and was reverted.
+  - **Proof:** golden hashes and pre-M5 equivalence specs unchanged; new frozen comparisons for Lloyd (tie-built,
+    duplicate centroids, k 1–100), both quantizers on few-level grids, and the denoise on 60 grids and a photo.
+  - **Measured locally:** Standard 1000 3.2 → 2.6 s, 1500 6.4 → 5.0 s, 2000 11.7 → 8.9 s, end-of-call RSS
+    803 → 286 MB at 2000. 12 MP at 100 stitches 2.2 → 2.1 s, true peak 411 → 422 MB (the shared luminance array).
+  - **Host, capacity probe, code before G-047 against now, both orders:** 2000 Standard 33.5/29.8 → 25.6/19.9 s,
+    maxRSS 760 → 387–458 MB; 2000 Crisp 57.1/61.3 → 31.0/37.4 s, maxRSS 1268 → 513 MB.
+  - **Checks:** Vitest 1091 passed (8 skipped), Playwright 318 passed; tsc, eslint, docs-lint clean. Live: 1000
+    stitches generated in 7.5 s.
+  - **Against the criteria:** 1 every raster export pixel-identical or within ±1, live A4 62.1 s against 60 s (Owner kept
+    level 6); 2 preview at 2000 stitches 159 MB; 3 PDF byte-identical, 3.5× faster; 4 golden hashes unchanged, host
+    re-measured above; 5 suites, docs-lint, HANDOVER, every milestone deployed and verified live.
+- 2026-09-19 — **Owner approval:** "go ahead with M5".
+- 2026-09-19 — **M4 done: Crisp generation a third faster and 40 % leaner, exactly the same charts.** Deployed as e0fe2a5.
+  - **Separation bound (D175):** both fitted modes lie inside the samples' OKLab bounding box, so a box whose squared
+    diagonal is under `minModeSeparation` (less a 1e-9 margin for a mean's rounding) cannot yield a boundary; the fit
+    is skipped. Proven against a frozen copy of the evidence code, every cell, both edge models, five option sets
+    including separation 0, on seven sources. Alone: 2000 Crisp 24.2 → 20.6 s.
+  - **Column pool (D176):** the Crisp stage writes typed columns directly; the weighted quantizer takes them, cells
+    grouped once with a typed lookup. The sample-array functions remain as wrappers. Golden hashes (three Crisp
+    photos) and the pre-M5 equivalence specs unchanged.
+  - **Measured locally, bundled:** Crisp 1000 5.4 s / 259 MB → 4.0 s / 161 MB; 1500 12.8 s / 438 MB → 8.5 s /
+    246 MB; 2000 24.2 s / 717 MB → 15.0 s / 420 MB.
+  - **On the host** (capacity probe, old and new alternating, then reversed): the host sat at load 2.6–4.7 from other
+    services, so times are noisy — 2000 Crisp 84.1 → 42.6 s and 73.2 → 49.0 s, 1000 Crisp 17.6 → 18.7 s and
+    25.1 → 13.7 s. Peak RSS consistently fell: 1000 236 → 154 MB, 1500 422 → 245 MB, 2000 705 → 362 MB.
+  - **Checks:** Vitest 1085 passed (8 skipped), Playwright 318 passed; tsc, eslint, docs-lint clean. Live at 1000:
+    Crisp 8.0 s, Crisp+ 9.6 s, charts exported and decoded.
+  - **Next:** Owner check-in, then M5 — Standard generation.
+- 2026-09-19 — **Owner approval:** "go ahead with M4".
+- 2026-09-19 — **M3 done: the Pattern Keeper PDF 3.5× faster, byte for byte the same file.** Deployed as 7e0ba86.
+  - **How (D174):** the adapter formats each direct fill, text run and line exactly as pdf-lib would, collects a page's
+    lines, and hands them to the page as one operator whose name is the whole batch, which pdf-lib writes verbatim;
+    anything drawn through pdf-lib itself (translucent fills, outlined rectangles) flushes the batch first. The page
+    height is read once. Unrotated text only; rotated text keeps pdf-lib's path.
+  - **Proof:** the live builder against frozen copies of the builder and adapter from before M3, clock frozen: colour
+    and B&W at overlaps 0, 5 and 10, and a thread-matched chart whose colour key runs onto a second page; every file
+    byte-identical. The adapter spec now shows a page that is never finished loses its text.
+  - **Measured, like for like against the M2 state:** 1000 stitches 13.3 → 3.8 s; 2000 stitches 52.6 → 14.6 s. Peak
+    heap 72 → 97 MB (one page's text held until the page ends), maxRSS lower (264 → 229 MB).
+  - **Not taken:** merging same-colour fill runs, which changes the file and needs checking in Pattern Keeper itself.
+  - **Checks:** Vitest 1077 passed (8 skipped), Playwright 318 passed; tsc, eslint, docs-lint clean. Live: 147 pages in
+    9.4–12.7 s (30.7 s before G-047), page 1 extracting 5416 text items.
+  - **Next:** Owner check-in, then M4 — Crisp generation.
+- 2026-09-19 — **Owner approval:** "go ahead with M3".
+- 2026-09-19 — **M2 done: the realistic preview never exists whole.** Deployed as a2794c5.
+  - **How:** each colour's texture is scaled into a stitch tile once; the PNG encoder's strips of rows are copied
+    together from the tiles and streamed into the M1 writer (D173). The tile builder moved from the Image window into
+    `lib/export/stitch-texture.ts`, so screen and export share it; the viewport-parity specs pass unchanged.
+  - **Measured, like for like against the M1 state:** 1000 stitches 4.5 s / 825 MB → 1.7 s / 154 MB; 2000 stitches
+    12.0 s / 1993 MB → 1.8 s / 159 MB, inside criterion 2's 512 MB. Export all at 1000: 65.9 s, 851 MB peak (was
+    188 s and 1148 MB before G-047).
+  - **Equivalence:** within 1 of the old canvas drawing, in a few texels per stitch where the canvas library scales into
+    a small tile a little differently than into a big canvas (under 0.01 % of bytes; Owner accepted ±1). Covered at the
+    default, 7 px and 4 px cell sizes, with empty stitches, and on the non-streaming fallback.
+  - **Checks:** Vitest 1075 passed (8 skipped), Playwright 318 passed; tsc, eslint, docs-lint clean. Live: the preview
+    at 1000 in 5.6–8.5 s, decoded whole at 12 000 × 7 500.
+  - **Next:** Owner check-in, then M3 — the Pattern Keeper PDF.
+- 2026-09-19 — **Owner (2026-09-19):** keep zlib level 6, and accept the live A4 at 62.1 s; go ahead with M2.
+- 2026-09-19 — **M1 done: raster exports 2–3× faster, same pixels, smaller files.** Deployed as 6b5be11 and 291c719.
+  - **PNG writer (D171):** `getImageData` strips, Up filter four bytes at a time, zlib on its own thread; 54 ms a page
+    against the library's 313 ms at level 3. Level 6 was chosen over the plan's 3: level 3 made every file 40 % larger
+    than before, level 6 makes them smaller (A4 zip 28.0 → 22.3 MB) at 2.5× the old speed. A4 pages are drawn while the
+    previous one compresses.
+  - **Symbol stamps (D172):** chart PNG 8.8 → 4.5 s; every one of the 100 symbols within 1 of `fillText`.
+  - **Memory:** finished canvases held native memory V8 could not see, so Export all piled them up (1513 MB with the
+    new writer). Each export canvas is now released once encoded: Export all peaks at 1038 MB, below its old 1148 MB.
+    The chart PNG alone rose 483 → 642 MB, inside the canvas library's rasteriser. Reusing one A4 page canvas was
+    measured (274 → 757 MB) and dropped.
+  - **Equivalence:** every raster export at 1000 stitches, old code against new, decoded and compared: the preview
+    pixel-identical, both chart PNGs and all 310 A4 pages within 1 per byte (0.3–1.6 % of bytes differ).
+  - **Local at 1000:** Export all 188 → 70 s, A4 70.6 → 21.5 s, chart PNG 8.8 → 4.5 s, preview 6.8 → 4.4 s.
+  - **Live at 1000:** A4 126.0 → 62.1 s; Export all 201.1 s (78.1 MB). Criterion 1's "under 60 s" is missed by 2 s;
+    level 3 would meet it with files 40 % larger than before. Owner's call.
+  - **Also:** the export request's chart is parsed once on the server and serialised once in the editor.
+  - **Checks:** Vitest 1073 passed (8 skipped), Playwright 318 passed; tsc, eslint, docs-lint clean.
+  - **Next:** Owner check-in, then M2 — the realistic preview streamed from tile rows.
+- 2026-09-19 — **Owner approval:** "start implementing g-047"; M1 started.
+- 2026-09-19 — goal drafted from the review. Owner (2026-09-19): ±1 pixel is acceptable.
+
 ### G-045 · The Atelier redesign (direction 1b) — DONE (2026-09-18, Owner sign-off 2026-09-18)
 - **What:** the workspace shell is rebuilt to direction 1b "Atelier": a 64px tool rail, a 44px context
   bar that changes with what you are doing, a 36px status bar, and a 360px right inspector with Photo,

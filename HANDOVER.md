@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-19 at dbd2d59 (G-047 M5: Standard generation exact and faster; G-047 awaits sign-off)
+Last verified: 2026-09-19 at dbd2d59 (G-047 M5 deployed; G-047 signed off)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -285,7 +285,7 @@ Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 �
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
 - G-046 (larger canvases) is ACTIVE: M1 measured every wall (`docs/reviews/2026-09-18-larger-canvas-walls.md`, candidate cap 1500); M2 bounded the PDF's heap (D169) and gave paginated exports a per-page deadline (D168); M3 made ICM 14–55 % faster, exactly (D170). M4 (the editor's zoom, the validators, then raising the cap) waits behind G-047. G-030 (public launch) is a far-future draft; G-023 (Rust) lives on as G-046's conditional M5.
-- G-047 (faster exports and generation, from `docs/reviews/2026-09-19-algorithm-review.md`) is ACTIVE, every milestone deployed 2026-09-19 and awaiting the Owner's sign-off. Criterion 1's live A4 at 1000 reads 62.1 s against 60 s; the Owner kept zlib level 6 over faster, larger files. G-046 M4 (zoom, validators, raising the cap) follows.
+- G-047 (faster exports and generation) is signed off (2026-09-19) and archived in `docs/goals-archive.md`: raster exports 2–3× faster, the preview streamed, the PDF 3.5× faster, generation a quarter to a half faster (D171–D178).
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log
