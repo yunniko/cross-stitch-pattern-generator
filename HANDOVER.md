@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-19 at 96efc33 (G-046 M4: charts up to 1500 stitches, deployed and verified live; G-046 awaits sign-off)
+Last verified: 2026-09-19 at 96efc33 (G-046 M4 deployed; G-046 signed off)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -284,7 +284,7 @@ Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 �
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
-- G-046 (larger canvases) is ACTIVE, awaiting the Owner's sign-off: M1 measured the walls, M2 bounded the PDF (D169) and gave paginated exports a per-page deadline (D168), M3 sped up ICM (D170), M4 raised the cap to 1500 (D181). M5, the Rust benchmark, is not triggered: the latency target is met. A cap of 2000 would need two Owner decisions, a longer generation deadline and Export all without the chart PNG (D181). G-030 (public launch) is a far-future draft.
+- G-046 (larger canvases) is signed off (2026-09-19) and archived: the cap is 1500 (D181). A cap of 2000 would need two Owner decisions, a longer generation deadline and Export all without the chart PNG (D181). G-030 (public launch) is a far-future draft.
 - G-047 (faster exports and generation) is signed off (2026-09-19) and archived in `docs/goals-archive.md`: raster exports 2–3× faster, the preview streamed, the PDF 3.5× faster, generation a quarter to a half faster (D171–D178).
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
