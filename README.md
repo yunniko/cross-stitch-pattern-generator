@@ -67,6 +67,7 @@ node scripts/rust-jsmath-vectors.mjs rust/target/jsmath-vectors.bin   # V8's mat
 node --experimental-strip-types scripts/rust-tables.mjs              # after changing a name or thread table
 cd rust && cargo build --release && cargo test --release && cd ..
 npm run compare:rust   # Rust against TypeScript: byte-identity and timings (RUST_PARITY_LARGE=0 skips the big cases)
+RUST_EXPORT_REFERENCE=<dir> npm run compare:rust-exports   # exports against references made in the processor image
 # Options: RUST_THREADS=3 (any count must match), RUST_WASM=1 (after
 # `cargo build --release -p cs-wasm --target wasm32-unknown-unknown`), RUST_PHOTOS_DIR=<folder of photos>
 ```

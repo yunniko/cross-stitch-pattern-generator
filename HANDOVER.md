@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-19 at d70ebd6 (G-048 M3: the Rust optimised tier; production still 96efc33)
+Last verified: 2026-09-20 at 6102fb2 (G-048 M4: the Rust exports; production still 96efc33)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -17,9 +17,11 @@ editable save run in the `processor` container (D149–D155). **G-045, the Ateli
 2026-09-18**: tool rail, context and status bars, one-pane inspector, Isolate as a view mode (D157–D167). Both are
 detailed in `docs/goals-archive.md`.
 
-**G-048, generation and exports in Rust — ACTIVE, M3 done, awaiting approval of M4.** `rust/` holds all generation
-(D182), byte-identical to TypeScript at any thread count (D183–D185), and a WASM build (D186). On the host it is 2.5–5.6×
-faster (`docs/reviews/2026-09-19-rust-m3-optimised.md`). Nothing Rust is in production.
+**G-048, generation and exports in Rust — ACTIVE, M4 done, awaiting approval of M5.** `rust/` holds all generation
+(D182), byte-identical to TypeScript at any thread count (D183–D185), a WASM build (D186), and every export (D187–D189).
+On the host generation is 2.5–5.6× faster (`docs/reviews/2026-09-19-rust-m3-optimised.md`) and the exports 1.0–5.4×
+(`docs/reviews/2026-09-19-rust-m4-exports.md`, which also holds the one visible rendering difference). Nothing Rust is
+in production; M5 decides what ships.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1500 stitches (D181) and 2–100 colors, with Latest or Original clustering, Full range, DMC,
@@ -28,49 +30,43 @@ faster (`docs/reviews/2026-09-19-rust-m3-optimised.md`). Nothing Rust is in prod
   photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
 - Editing: brush (double-click fills a region as one undo step when the Chart pane's switch is on, D138, D146),
   8-connected fill, symmetry on up to four axes and quick mirror (D137), rectangle select with copy, paste, move,
-  flip, rotate, crop, "Apply here" and "Cancel" (D147, D148), pan, zoom; Isolate dims every thread but the lit
-  ones and stays on while another tool is active (D158); merge, recolor, rename, symbol swap, add color, empty
-  stitches, canvas resize, and one undo history covering regeneration.
-- Color editor: opens under its legend row on the color's remembered thread swatch (D122), marked and scrolled into
-  view; hovering or focusing a swatch shows an Okhsl comparison (D123); picks apply at once and the editor stays
-  open, Full range drags are one undo step, Done keeps and Cancel or Escape restores, and a click outside closes it
-  while still acting.
-- Wheel and Zoom-tool zoom keep the stitch under the cursor in place; the zoom buttons keep the
-  view's centre (D124). Five view modes (keys 1–5) and a view-only canvas color. Shortcuts: Ctrl+Z,
-  Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, and Escape to merge a selection.
+  flip, rotate, crop, "Apply here" and "Cancel" (D147, D148), pan, zoom; Isolate dims every thread but the lit ones
+  and stays on under another tool (D158); merge, recolor, rename, symbol swap, add color, empty stitches, canvas
+  resize, one undo history covering regeneration.
+- Color editor: opens under its legend row on the color's remembered thread swatch (D122), with an Okhsl comparison
+  on hover or focus (D123); picks apply at once, Full range drags are one undo step, Cancel or Escape restores.
+- Zoom keeps the stitch under the cursor in place, the zoom buttons the view's centre (D124). Five view modes
+  (keys 1–5), a view-only canvas color, and shortcuts: Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, Escape.
 - Exports: editable JSON (format version 7, embeds the source photo and each color's thread swatch), realistic
-  preview PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF (a real import re-confirmed after
-  G-035 M2), an OXS chart, and "Export all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs` by content;
-  an OXS import lists what it couldn't keep.
-- Photo upload and reopening a save decode in a worker, with the old decode as a logged fallback; a 12 MP
-  upload showed no main-thread task over 50 ms (D128).
-- Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and
-  restores on reload. A corrupt record shows a banner with an on-demand error report; options live in
-  localStorage.
-- Photo enhancement: a Photo control (Off, Brighten, Auto, Vivid, Portrait), an enhanced preview with "Compare with
-  original", and the mode recorded in saved files; only Brighten is released
-  (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
+  preview PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF (a real import re-confirmed after G-035
+  M2), an OXS chart, and "Export all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs` by content; an OXS
+  import lists what it couldn't keep.
+- Photo upload and reopening a save decode in a worker, with the old decode as a logged fallback; a 12 MP upload
+  showed no main-thread task over 50 ms (D128).
+- Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores
+  on reload. A corrupt record shows a banner with an on-demand error report; options live in localStorage.
+- Photo enhancement: a Photo control (Off, Brighten, Auto, Vivid, Portrait) with a "Compare with original" preview,
+  recorded in saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-19**: `tsc --noEmit` clean, `npm run lint` 0 errors, production build clean; Vitest 1096
-passed (8 opt-in skips); Playwright **318 passed, 0 failed across all 26 specs**, one spec per process, against the
-single-path build, with the processor serving generation, exports and previews. Export parity:
+**Checks run 2026-09-20**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1096 passed (8 opt-in skips);
+Playwright **318 passed, 0 failed across all 26 specs** (2026-09-19), one spec per process against the single-path
+build, with the processor serving generation, exports and previews. Export parity:
 `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the type-check and `build:processor` before
 the unit tests, because the worker bundle is git-ignored and the pool, preview and export specs run against it.
 
-**Performance** (G-035, 2026-09-15, medians of 5 on the Owner's machine; tables in
-`docs/reviews/2026-09-15-performance-results.md`): a 12 MP photo at 100 stitches / 16 colors takes 2.9 s Standard
-and 7.5 s Crisp, down from 7.7 s and 42.7 s; at 1000 stitches / 64 colors, 4.9 s and 6.8 s. Enhancing a 4000×3000
-photo takes 1.9–2.2 s, above G-032's 1.5 s target. The server is ~3.4× slower per core (D149). Live at 1000 stitches,
-the A4 export takes 62.1 s (126.0 s before G-047, D171, D172), the PDF 9.4–12.7 s (30.7 s, D174).
-Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 → 20–26 s, Crisp about 59 → 31–37 s.
+**Performance** (G-035, medians of 5 on the Owner's machine; tables in
+`docs/reviews/2026-09-15-performance-results.md`): a 12 MP photo at 100 stitches / 16 colors takes 2.9 s Standard and
+7.5 s Crisp; at 1000 stitches / 64 colors, 4.9 s and 6.8 s. Enhancing a 4000×3000 photo takes 1.9–2.2 s, above G-032's
+1.5 s target. The server is ~3.4× slower per core (D149). Live at 1000 stitches the A4 export takes 62.1 s and the PDF
+9.4–12.7 s; generation on the host at 2000 stitches is 20–26 s Standard and 31–37 s Crisp (D170, D175–D178).
 
 **Known limitations**:
 - Crisp takes about 2.6× Standard's time on a 12 MP photo (7.5 s against 2.9 s), because every cell
   gets the two-mode fit (D132); it falls back to Standard for thin lines, junctions and shading (D096).
-- At 1500 stitches chart actions stay under 100 ms but Grid + photo (105 ms); 4× CPU throttling reached 480 ms (G-036). Generation
-  and every export but the editable save need the server, so they stop working offline or during an outage (G-034).
-  The PDF has no bold face; whether µ (which extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097).
-  Isolate does nothing in the realistic preview (D028), and contour refinement exists but isn't adopted (D055).
+- At 1500 stitches chart actions stay under 100 ms but Grid + photo (105 ms); 4× CPU throttling reached 480 ms (G-036).
+  Generation and every export but the editable save need the server, so they stop working offline (G-034). The PDF has
+  no bold face; whether µ (which extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate does
+  nothing in the realistic preview (D028); contour refinement exists but isn't adopted (D055).
 
 ## How things fit together
 
@@ -120,8 +116,7 @@ Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 �
   (`edgeMode: "crisp-plus"`, G-038) adds blurred-step evidence (D139), strip snapping (D140), blend pruning
   (D141), slot refill (D142).
 - **Threads** (`lib/threads/`): `thread-brands.ts` is the registry; its `matching` field is "direct" for DMC and
-  Cosmo, or "dmc-equivalence" for Anchor. `brand-match.ts` does the snapping, provenance in
-  `docs/*-colors-provenance.md`.
+  Cosmo, or "dmc-equivalence" for Anchor. `brand-match.ts` snaps, provenance in `docs/*-colors-provenance.md`.
 - **Export** (`lib/export/`): `render.ts` holds the chart layout budget and the realistic preview, streamed a strip at a
   time from `stitch-texture.ts`'s tiles and never assembled (D173). A4 page drawing takes a `ChartDrawingContext`, so
   one code path draws PNG and PDF pages (`pdf-canvas-adapter.ts`, D074; direct operators, one font per page, D126).
@@ -132,13 +127,15 @@ Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 �
   `pattern-serialize.ts` (D099), IndexedDB store in `project-store.ts` (D100), options in
   `workspace-storage.ts`. OXS reading and writing live in `oxs.ts` on the dedicated XML reader `oxs-xml.ts`
   (D119); `pattern-import.ts` sniffs the format.
-- **Experimental** (`lib/experimental/`): contour refinement, boundary chains, simulated annealing,
-  diagnostics. Status table in its README.
+- **Experimental** (`lib/experimental/`): contour refinement, boundary chains, simulated annealing, diagnostics;
+  status table in its README.
 - **Rust port (G-048)**: `rust/cs-core` ports the pipeline module by module; each file names the TypeScript it
   ports; `crisp/` holds Crisp and Crisp+, `threads.rs` brand matching, `enhance.rs` enhancement. `jsmath.rs` and
   `fdlibm.rs` hold the V8-exact maths (D183, D184), proven by `rust/cs-core/tests/jsmath_vectors.rs` on vectors from
-  `scripts/rust-jsmath-vectors.mjs`. `rust/cs-bench` is the CLI that `npm run compare:rust` (`scripts/rust-parity.ts`)
-  drives: RGBA in, the pattern and stage times out as JSON. `scripts/rust-tables.mjs` writes the name and thread tables.
+  `scripts/rust-jsmath-vectors.mjs`. `rust/cs-export` ports every export: `text.rs` and `canvas.rs` draw DejaVu text
+  the way the processor's canvas does (D187), `pdf.rs` writes pdf-lib's structure (D189), `bundle.rs` JSZip's ZIPs.
+  `rust/cs-bench` is the CLI that `npm run compare:rust` (`scripts/rust-parity.ts`) and `npm run compare:rust-exports`
+  (`scripts/rust-export-parity.ts`) drive. `scripts/rust-tables.mjs` writes the name and thread tables.
 - **Tests**: unit specs in `tests/unit/`. `golden-hashes.spec.ts` pins exact `buildPattern` output for 18
   configurations (D107), and `m3-equivalence.spec.ts` compares the optimizer with a verbatim pre-M3 copy. E2E specs
   are in `tests/e2e/`; `npm run test:e2e` starts the processor and the app together, since the page needs both.
@@ -186,6 +183,8 @@ Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 �
   `tests/unit/crisp-evidence-equivalence.spec.ts` (G-035 M4). Crisp+ changes stay behind
   `edgeModel: "blurred-step"` and `"crisp-plus"`, never Crisp's defaults (D139).
 - ICM inner loops use no closures or array scans (D044).
+- Rust export references are generated in the processor image, never on a development machine: the image has only
+  DejaVu Sans, a laptop resolves the font stack to something else, and every raster would differ (D188).
 - Rust calls `jsmath` for every `Math` function (`libm` and `f64` differ from V8, D183, D184; recheck the vectors on a
   Node upgrade), and threads a stage only if each value keeps its TypeScript order (D185; `RUST_THREADS=3`).
 - Code e2e specs load in Node takes symmetry types from `lib/editor/symmetry-axes.ts`, not `symmetry.ts` (G-037).
@@ -278,11 +277,13 @@ Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 �
 
 ## Next steps and open questions
 
-- Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, a drag's first frame paints in full (34–77 ms), and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142). From G-033: "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.
-- Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.
+- Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, a drag's first frame paints in full (34–77 ms), and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142).
+- Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration; G-033 — "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
-- G-048 M4 awaits the Owner (exports in Rust); M5 re-measures host memory and the musl allocator (`~/g048-probe`).
+- G-048 M5 awaits the Owner (the comparison report and the ship decision per part). Open from M4: chart PNGs between
+  about 890 and 1333 stitches draw 4–5 px symbols, which production renders as blocks and Rust as outlines. The musl
+  allocator question is answered (mimalloc not needed, M4 review); host generation memory still needs re-measuring.
 - G-046 (larger canvases) is signed off (2026-09-19) and archived: the cap is 1500 (D181). A cap of 2000 would need two Owner decisions, a longer generation deadline and Export all without the chart PNG (D181). G-030 (public launch) is a far-future draft.
 - G-047 (faster exports and generation) is signed off (2026-09-19) and archived in `docs/goals-archive.md`: raster exports 2–3× faster, the preview streamed, the PDF 3.5× faster, generation a quarter to a half faster (D171–D178).
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.

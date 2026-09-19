@@ -49,7 +49,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   matches. Single-thread timing per stage.
 - [x] M3 — Generation, optimised: threads and SIMD where they pay, measured stage by stage; the quality metrics of
   criterion 2; WASM build; laptop and host timings.
-- [ ] M4 — Exports in Rust: PNG writer, chart and A4 rasters with DejaVu text, the streamed preview, the PDF (embedded,
+- [x] M4 — Exports in Rust: PNG writer, chart and A4 rasters with DejaVu text, the streamed preview, the PDF (embedded,
   subset font, text symbols), OXS, JSON and Export all; the equivalence checks of criterion 3; timings.
 - [ ] M5 — The comparison report and the ship decision per part (criterion 5).
 - [ ] M6 — Ship what qualifies: a native addon in the processor's workers, built in the image, with the TypeScript
@@ -57,6 +57,17 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 **Progress log** (newest first):
 - 2026-09-19 — **Owner approval:** "go m4".
+- 2026-09-20 — **M4 done; awaiting approval of M5.** `rust/cs-export` ports every export kind (raster text with
+  rustybuzz + tiny-skia, D187; PDF with pdf-writer and a subset Type0 font, D189; references made in the processor
+  image, D188). Criterion 3 holds on all 30 cases (3 fixtures x 10 kinds): editable JSON and OXS byte-identical, PDFs
+  with the same page count and text, rasters the same size with mean difference 0.14-4.19 and the A4 ZIPs and Export
+  all the same entries. Inspected by eye: differences are glyph edges only -- except chart PNGs at 890-1333 stitches,
+  where 4-5 px symbols render as blocks in production and as outlines in Rust (open question for M5). Host, at the
+  processor's cap, fastest of 3: chart PNGs 2.0-5.4x, OXS 4.7-7.3x, PDF 1.9-3.7x, preview 1.2-2.3x, Export all
+  1.3-2.0x (1 thread) / 2.0-4.2x (3), A4 pages 1.0-1.6x / 1.9-4.1x. Two fixes found by the timings (PDF shaping cache,
+  OXS writer) and two options measured and rejected (mimalloc, zlib-rs) are in
+  `docs/reviews/2026-09-19-rust-m4-exports.md`. Vitest 1096 passed, 8 skipped; cargo test, clippy, rustfmt, tsc,
+  eslint and docs-lint clean.
 - 2026-09-19 — **M3 done; awaiting approval of M4.** Threads only where results cannot change (D185): 36/36
   fixture cases and 15/15 real-photo cases byte-identical at 3 threads, so criterion 2 holds exactly. Laptop,
   real photos at 1000 st: 4.4-6.4x faster than TypeScript. x86-64-v3 SIMD: 1-8 %. WASM (D186): about half native
