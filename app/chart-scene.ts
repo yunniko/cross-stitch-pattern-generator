@@ -5,7 +5,8 @@ import { chartPaintOverhangPx, drawCell, drawChartOnScreen, drawChartOutline, dr
 import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
 import type { Tool, ViewMode } from "./editor-types";
 import { drawSelectionOutline, PHOTO_UNDERLAY_ALPHA } from "./editor-geometry";
-import { drawRealisticRegion, type StitchTiles } from "./realistic-tiles";
+import type { StitchTiles } from "@/lib/export/stitch-texture";
+import { drawRealisticRegion } from "./realistic-tiles";
 
 /**
  * What the Image window shows, drawn into the viewport canvas for any rectangle of chart pixels (G-036 M3, D135).

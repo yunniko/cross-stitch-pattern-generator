@@ -79,3 +79,27 @@ export async function buildTintedTextureSet(palette: readonly PaletteColor[]): P
     },
   };
 }
+
+/** Every palette colour's tinted stitch texture drawn at `cellSize` × `cellSize`, as RGBA pixels (D136). */
+export interface StitchTiles {
+  palette: readonly PaletteColor[];
+  cellSize: number;
+  /** RGBA, `cellSize` × `cellSize`, per palette index. */
+  pixels: Uint8ClampedArray[];
+}
+
+/**
+ * Each colour's tinted texture scaled to one stitch, exactly as a stitch is drawn onto a transparent canvas, and read
+ * back. The Image window assembles its Realistic view from these (G-036 M4) and the preview PNG streams from them
+ * (G-047 M2).
+ */
+export async function buildStitchTiles(palette: readonly PaletteColor[], cellSize: number): Promise<StitchTiles> {
+  const textures = await buildTintedTextureSet(palette);
+  const { ctx } = createCanvas(cellSize, cellSize);
+  const pixels = palette.map((_, index) => {
+    ctx.clearRect(0, 0, cellSize, cellSize);
+    ctx.drawImage(textures.get(index) as CanvasImageSource, 0, 0, cellSize, cellSize);
+    return ctx.getImageData(0, 0, cellSize, cellSize).data;
+  });
+  return { palette, cellSize, pixels };
+}

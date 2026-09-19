@@ -6,7 +6,8 @@ import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
 import { brushOpsIn, drawCellsInto, drawScene, drawSceneWithGesture, drawSymmetryGuides, incrementalModeOf, type BrushOp, type ChartScene, type GesturePreview } from "../chart-scene";
 import type { Tool, ViewMode } from "../editor-types";
 import { chartOrigin } from "../editor-geometry";
-import { buildStitchTiles, tileSizeFor, type StitchTiles } from "../realistic-tiles";
+import { buildStitchTiles, type StitchTiles } from "@/lib/export/stitch-texture";
+import { tileSizeFor } from "../realistic-tiles";
 import { useLatest } from "./use-latest";
 
 export interface ChartRendererInputs {

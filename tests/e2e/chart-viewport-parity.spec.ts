@@ -63,7 +63,7 @@ async function compare(page: Page, c: Case): Promise<Result> {
       edit: { compositeSelectionPreview: typeof import("../../lib/editor/pattern-edit").compositeSelectionPreview };
       rectGridContext: typeof import("./fixtures/rect-grid-context").rectGridContext;
       realistic: {
-        buildStitchTiles: typeof import("../../app/realistic-tiles").buildStitchTiles;
+        buildStitchTiles: typeof import("../../lib/export/stitch-texture").buildStitchTiles;
         renderStitchPreviewToCanvas: typeof import("../unit/reference/render-pre-g036").renderStitchPreviewToCanvas;
       };
     };

@@ -172,6 +172,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   measurement as M4.
 
 **Progress log** (newest first):
+- 2026-09-19 — **Owner (2026-09-19):** keep zlib level 6, and accept the live A4 at 62.1 s; go ahead with M2.
 - 2026-09-19 — **M1 done: raster exports 2–3× faster, same pixels, smaller files.** Deployed as 6b5be11 and 291c719.
   - **PNG writer (D171):** `getImageData` strips, Up filter four bytes at a time, zlib on its own thread; 54 ms a page
     against the library's 313 ms at level 3. Level 6 was chosen over the plan's 3: level 3 made every file 40 % larger

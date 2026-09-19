@@ -8,7 +8,7 @@ import { serializeOxs } from "../editor/oxs";
 import { serializePattern } from "../editor/pattern-serialize";
 import type { SymmetryAxes } from "../editor/symmetry-axes";
 import { buildPatternKeeperPdf } from "./pattern-keeper-pdf";
-import { renderPatternToCanvas, renderStitchPreviewToCanvas } from "./render";
+import { renderPatternToCanvas, renderStitchPreviewPng } from "./render";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import type { StitchPattern } from "../types";
 import { yieldToMain } from "./yield";
@@ -69,7 +69,7 @@ export async function generateExportAllZip(pattern: StitchPattern, options: Expo
   zip.file(`${baseName}_bw.png`, await canvasToPngBlobAndRelease(renderPatternToCanvas(pattern, "bw", info)));
   await step("Black-and-white chart");
 
-  zip.file(`${baseName}_preview.png`, await canvasToPngBlobAndRelease(await renderStitchPreviewToCanvas(pattern)));
+  zip.file(`${baseName}_preview.png`, await renderStitchPreviewPng(pattern));
   await step("Realistic preview");
 
   let base = completed;

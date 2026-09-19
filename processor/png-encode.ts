@@ -1,4 +1,5 @@
 import { createDeflate } from "node:zlib";
+import type { PixelSource } from "@/lib/export/canvas-backend";
 
 /**
  * PNG encoding for the server's exports (G-047 M1, D171).
@@ -12,10 +13,7 @@ import { createDeflate } from "node:zlib";
  * opaque restarts the encode as RGBA; only the realistic preview, whose texture has soft edges, ever takes that path.
  */
 
-/** Anything with the 2D API's `getImageData`: a canvas context from any backend. */
-export interface PixelSource {
-  getImageData(x: number, y: number, width: number, height: number): { data: Uint8ClampedArray };
-}
+export type { PixelSource };
 
 /** Rows read per `getImageData` call: a few MB at A4 width, so a 96 Mpx preview never needs a second full copy. */
 const STRIP_ROWS = 64;

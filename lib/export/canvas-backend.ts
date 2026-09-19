@@ -18,9 +18,19 @@ export type Canvas2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContex
  * same 2D drawing API (verified: none of the methods this code calls is missing), so its implementation casts at this
  * boundary and the drawing code stays unaware. The cast lives here and nowhere else.
  */
+/**
+ * Pixels read in horizontal strips, the only way an encoder reads them: a canvas context is one, and so is an image
+ * produced a strip at a time without ever existing whole (G-047 M2). Strips span the full width.
+ */
+export interface PixelSource {
+  getImageData(x: number, y: number, width: number, height: number): { data: Uint8ClampedArray };
+}
+
 export interface ExportBackend {
   createCanvas(width: number, height: number): { canvas: AnyCanvas; ctx: Canvas2D };
   toPngBlob(canvas: AnyCanvas): Promise<Blob>;
+  /** Encodes a `width` × `height` image from `source` without a canvas; absent where the environment cannot stream. */
+  pixelsToPngBlob?(source: PixelSource, width: number, height: number): Promise<Blob>;
   /** The stitch texture, as something `drawImage` accepts. */
   loadImage(url: string): Promise<CanvasImageSource>;
   /** The PDF's embedded font. */
@@ -91,6 +101,25 @@ export async function canvasToPngBlobAndRelease(canvas: AnyCanvas): Promise<Blob
     canvas.width = 1;
     canvas.height = 1;
   }
+}
+
+/** Rows copied per strip where the environment has to assemble a canvas first. */
+const FALLBACK_STRIP_ROWS = 256;
+
+/**
+ * A PNG of an image produced strip by strip. The server streams the strips straight into its encoder, so the image never
+ * exists whole (G-047 M2); anywhere else they are copied onto a canvas, which is then encoded and released.
+ */
+export async function pixelSourceToPngBlob(source: PixelSource, width: number, height: number): Promise<Blob> {
+  if (installed?.pixelsToPngBlob) return installed.pixelsToPngBlob(source, width, height);
+  const { canvas, ctx } = createCanvas(width, height);
+  for (let y = 0; y < height; y += FALLBACK_STRIP_ROWS) {
+    const rows = Math.min(FALLBACK_STRIP_ROWS, height - y);
+    const image = ctx.createImageData(width, rows);
+    image.data.set(source.getImageData(0, y, width, rows).data);
+    ctx.putImageData(image, 0, y);
+  }
+  return canvasToPngBlobAndRelease(canvas);
 }
 
 /** An image the export drawing can use: an `<img>` on the main thread, an `ImageBitmap` in a worker, a decoded image on the server. */

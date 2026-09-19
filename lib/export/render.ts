@@ -1,9 +1,9 @@
-import { createCanvas, onExportBackendChange, type AnyCanvas, type Canvas2D } from "./canvas-backend";
+import { createCanvas, onExportBackendChange, pixelSourceToPngBlob, type AnyCanvas, type Canvas2D, type PixelSource } from "./canvas-backend";
 import type { ChartDrawingContext } from "./chart-drawing-context";
 import { hexToRgb, luminance, rgbToHex } from "../color/color";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, formatFinishedSize, type SizeUnit } from "./finished-size";
 import { formatSkeinEstimate } from "../threads/floss-estimate";
-import { buildTintedTextureSet } from "./stitch-texture";
+import { buildStitchTiles, type StitchTiles } from "./stitch-texture";
 import { EMPTY_CELL, filledStitchCount, formatStitchCount, type PaletteColor, type StitchPattern, type RGB } from "../types";
 
 export type RenderMode = "color" | "bw";
@@ -919,38 +919,44 @@ export function renderPatternToCanvas(
 }
 
 /**
- * Renders the pattern as a simulated finished piece: each cell drawn as the
- * shared stitch-texture image (see `stitch-texture.ts`) tinted to that
- * cell's palette color -- preserving the texture's own shading and soft
- * alpha edges -- on a fully transparent background, with no border/frame
- * (Owner decision, 2026-09-11: lets the preview be dropped onto any
- * background, on-page or in the downloaded PNG, without a gray/white box
- * around it). No grid lines, symbols, legend, markers, or numbers -- this
- * is a look-and-feel preview, not a stitchable chart.
+ * The pattern as a simulated finished piece: each stitch is its colour's tinted stitch texture (see `stitch-texture.ts`),
+ * with the texture's own shading and soft alpha edges, on a fully transparent background with no frame (Owner decision,
+ * 2026-09-11: the preview can be dropped onto any background). No grid lines, symbols, legend, markers or numbers: a
+ * look-and-feel preview, not a stitchable chart.
+ *
+ * The image is never assembled (G-047 M2): at 1000 stitches it is 12 000 × 8 004, 384 MB as one canvas. Each strip of
+ * rows the encoder asks for is copied together from the per-colour tiles the Image window already draws from (D136), so
+ * memory holds one strip. The pixels are those of drawing each tinted texture onto one big canvas (D173).
  */
-export async function renderStitchPreviewToCanvas(
-  pattern: StitchPattern,
-  options: RenderOptions = {}
-): Promise<AnyCanvas> {
-  const { width, height, cellPalette, palette } = pattern;
+export async function renderStitchPreviewPng(pattern: StitchPattern, options: RenderOptions = {}): Promise<Blob> {
+  const { width, height } = pattern;
   const cellSize = effectiveCellSize(width, height, options.cellSize ?? DEFAULT_CELL_SIZE);
-  const areaWidthPx = width * cellSize;
-  const areaHeightPx = height * cellSize;
+  const tiles = await buildStitchTiles(pattern.palette, cellSize);
+  return pixelSourceToPngBlob(stitchPreviewPixels(pattern, tiles), width * cellSize, height * cellSize);
+}
 
-  const { canvas, ctx } = createCanvas(areaWidthPx, areaHeightPx);
-
-  const textures = await buildTintedTextureSet(palette);
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const paletteIndex = cellPalette[y * width + x];
-      // The empty-stitch sentinel has no texture to tint -- leave that cell
-      // fully transparent (the canvas's own default, since nothing fills
-      // the background anymore) rather than any solid color (G-012 M5).
-      if (paletteIndex === EMPTY_CELL) continue;
-      const tinted = textures.get(paletteIndex);
-      ctx.drawImage(tinted, x * cellSize, y * cellSize, cellSize, cellSize);
-    }
-  }
-
-  return canvas;
+/** The preview's pixels, a strip of full-width rows at a time, from `tiles`; empty stitches stay transparent. */
+export function stitchPreviewPixels(pattern: StitchPattern, tiles: StitchTiles): PixelSource {
+  const { width: stitchesX, cellPalette } = pattern;
+  const cellSize = tiles.cellSize;
+  const imageWidth = stitchesX * cellSize;
+  const tileRowBytes = cellSize * 4;
+  return {
+    getImageData(x: number, y: number, w: number, h: number) {
+      if (x !== 0 || w !== imageWidth) throw new Error("stitchPreviewPixels: strips must span the full width");
+      const data = new Uint8ClampedArray(w * h * 4);
+      for (let r = 0; r < h; r++) {
+        const stitchRow = Math.floor((y + r) / cellSize);
+        const tileOffset = ((y + r) % cellSize) * tileRowBytes;
+        const rowStart = r * w * 4;
+        const cells = stitchRow * stitchesX;
+        for (let sx = 0; sx < stitchesX; sx++) {
+          const paletteIndex = cellPalette[cells + sx];
+          if (paletteIndex === EMPTY_CELL) continue;
+          data.set(tiles.pixels[paletteIndex].subarray(tileOffset, tileOffset + tileRowBytes), rowStart + sx * tileRowBytes);
+        }
+      }
+      return { data };
+    },
+  };
 }

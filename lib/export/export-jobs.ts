@@ -10,7 +10,7 @@ import { generateExportAllZip } from "./export-all";
 import type { ExportProgressCallback } from "./export-progress";
 import type { SizeUnit } from "./finished-size";
 import { buildPatternKeeperPdf } from "./pattern-keeper-pdf";
-import { renderPatternToCanvas, renderStitchPreviewToCanvas, type RenderMode } from "./render";
+import { renderPatternToCanvas, renderStitchPreviewPng, type RenderMode } from "./render";
 
 /** Every single-file export, behind one dropdown (G-027). */
 export type ExportKind = "png-color" | "png-bw" | "png-realistic" | "editable" | "oxs" | "a4-color" | "a4-bw" | "pdf-color" | "pdf-bw";
@@ -67,7 +67,7 @@ export async function runExportJob(request: ExportJobRequest, onProgress?: Expor
       return { blob, filename: `${baseName}_${mode}.png` };
     }
     case "png-realistic":
-      return { blob: await canvasToPngBlobAndRelease(await renderStitchPreviewToCanvas(compacted)), filename: `${baseName}_preview.png` };
+      return { blob: await renderStitchPreviewPng(compacted), filename: `${baseName}_preview.png` };
     case "a4-color":
     case "a4-bw": {
       const result = await generateA4Export(compacted, modeOf(kind), { overlapCells, baseName, aidaCount, sizeUnit, authorName, onProgress });

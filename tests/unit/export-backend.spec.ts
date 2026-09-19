@@ -2,7 +2,7 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setExportBackend } from "@/lib/export/canvas-backend";
 import { installServerExportBackend, registerExportFonts, serverExportBackend } from "@/processor/export-backend";
-import { renderPatternToCanvas, renderStitchPreviewToCanvas } from "@/lib/export/render";
+import { renderPatternToCanvas, renderStitchPreviewPng } from "@/lib/export/render";
 import { createBlankPattern } from "@/lib/editor/blank-pattern";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
 
@@ -65,9 +65,10 @@ describe("server export backend", () => {
   });
 
   it("loads and tints the stitch texture for the realistic preview", async () => {
-    const canvas = await renderStitchPreviewToCanvas(smallChart());
-    const bytes = Buffer.from(await (await serverExportBackend.toPngBlob(canvas)).arrayBuffer());
-    expect(bytes.readUInt32BE(16)).toBe(canvas.width);
+    const chart = smallChart();
+    const bytes = Buffer.from(await (await renderStitchPreviewPng(chart)).arrayBuffer());
+    // 24 px a stitch, the preview's default cell size for a chart this small.
+    expect(bytes.readUInt32BE(16)).toBe(chart.width * 24);
     expect(bytes.length).toBeGreaterThan(100);
   });
 

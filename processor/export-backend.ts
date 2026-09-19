@@ -3,8 +3,8 @@ import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createCanvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
-import { setExportBackend, type AnyCanvas, type Canvas2D, type ExportBackend } from "@/lib/export/canvas-backend";
-import { encodePng, type PixelSource } from "./png-encode";
+import { setExportBackend, type AnyCanvas, type Canvas2D, type ExportBackend, type PixelSource } from "@/lib/export/canvas-backend";
+import { encodePng } from "./png-encode";
 
 /**
  * The export environment on the server (G-034 M4).
@@ -63,6 +63,11 @@ export const serverExportBackend: ExportBackend = {
     // Our own writer, not the library's `encode("png")`: same decoded pixels, about three times faster (D171).
     const ctx = (canvas as unknown as { getContext(type: "2d"): PixelSource }).getContext("2d");
     const bytes = await encodePng(ctx, canvas.width, canvas.height);
+    return new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "image/png" });
+  },
+  async pixelsToPngBlob(source: PixelSource, width: number, height: number): Promise<Blob> {
+    // Strips go straight to the encoder; the image is never assembled (G-047 M2).
+    const bytes = await encodePng(source, width, height);
     return new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "image/png" });
   },
   async loadImage(url: string): Promise<CanvasImageSource> {

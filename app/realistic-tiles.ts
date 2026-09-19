@@ -1,20 +1,13 @@
 import { createCanvas } from "@/lib/export/canvas-backend";
 import type { ChartRegion } from "@/lib/export/render";
-import { buildTintedTextureSet } from "@/lib/export/stitch-texture";
-import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
+import type { StitchTiles } from "@/lib/export/stitch-texture";
+import { EMPTY_CELL, type StitchPattern } from "@/lib/types";
 
 /**
  * The Image window's Realistic view, drawn per visible region instead of from a whole-chart preview canvas (G-036 M4,
- * D136). The preview drew each stitch as its colour's tinted texture scaled to one cell, on a transparent canvas; here
- * each colour's scaled texture is rasterised once, and a region is assembled from those tiles and drawn in one call.
- * The PNG export keeps `renderStitchPreviewToCanvas`.
+ * D136): each colour's scaled texture is rasterised once (`buildStitchTiles`, shared with the preview PNG since
+ * G-047 M2), and a region is assembled from those tiles and drawn in one call.
  */
-export interface StitchTiles {
-  palette: readonly PaletteColor[];
-  cellSize: number;
-  /** RGBA, `cellSize` × `cellSize`, per palette index. */
-  pixels: Uint8ClampedArray[];
-}
 
 /**
  * The tile size for an on-screen cell size: the preview never drew stitches below 4 px (`effectiveCellSize`) and was
@@ -22,18 +15,6 @@ export interface StitchTiles {
  */
 export function tileSizeFor(cellSize: number): number {
   return Math.max(4, cellSize);
-}
-
-/** Every palette colour's tinted stitch texture drawn at `cellSize` × `cellSize`, as the preview drew each stitch. */
-export async function buildStitchTiles(palette: readonly PaletteColor[], cellSize: number): Promise<StitchTiles> {
-  const textures = await buildTintedTextureSet(palette);
-  const { ctx } = createCanvas(cellSize, cellSize);
-  const pixels = palette.map((_, index) => {
-    ctx.clearRect(0, 0, cellSize, cellSize);
-    ctx.drawImage(textures.get(index) as CanvasImageSource, 0, 0, cellSize, cellSize);
-    return ctx.getImageData(0, 0, cellSize, cellSize).data;
-  });
-  return { palette, cellSize, pixels };
 }
 
 /**
