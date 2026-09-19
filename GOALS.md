@@ -167,12 +167,31 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M4 — Crisp generation: the exact separation bound before the two-mode fit, and the weighted
   quantizer built on columns with no per-sample objects. Golden hashes and equivalence specs unchanged;
   re-measured on the host. Done 2026-09-19 (D175, D176).
-- [ ] M5 — Standard generation: Hamerly bounds in k-means assignment (tie-safe, like D170), the
+- [x] M5 — Standard generation: Hamerly bounds in k-means assignment (tie-safe, like D170), the
   interleaved buffer passed through instead of tuples, the symmetric medoid denoise, pair evidence one
   channel at a time, luminance shared between the edge and importance passes. Same proof and
-  measurement as M4.
+  measurement as M4. Done 2026-09-19 (D177, D178); pair evidence one channel at a time measured no gain and was not kept.
 
 **Progress log** (newest first):
+- 2026-09-19 — **M5 done; every milestone deployed. Awaiting the Owner's sign-off.** Deployed as dbd2d59.
+  - **k-means (D177):** the quantizers work on the OKLab buffer, not 2.7 M tuples built twice. Plain Hamerly skipped
+    only 1–62 % of points in the 2–3 passes Lloyd needs, a net loss; per-centroid decay and the half-gap test raised it
+    to 83–93 %, each later pass about 60–100 ms instead of 330. Exact: a point is scanned unless both bounds prove every
+    other centroid farther by a 1e-9 margin, so ties always go to the full scan.
+  - **Denoise and luminance (D178):** 36 pair distances per window instead of 81, summed in the original order; source
+    luminance computed once, checked equal to `luminance()` for all 2^24 colours. Releasing pair evidence's raw planes
+    early measured no effect (423 → 422 MB) and was reverted.
+  - **Proof:** golden hashes and pre-M5 equivalence specs unchanged; new frozen comparisons for Lloyd (tie-built,
+    duplicate centroids, k 1–100), both quantizers on few-level grids, and the denoise on 60 grids and a photo.
+  - **Measured locally:** Standard 1000 3.2 → 2.6 s, 1500 6.4 → 5.0 s, 2000 11.7 → 8.9 s, end-of-call RSS
+    803 → 286 MB at 2000. 12 MP at 100 stitches 2.2 → 2.1 s, true peak 411 → 422 MB (the shared luminance array).
+  - **Host, capacity probe, code before G-047 against now, both orders:** 2000 Standard 33.5/29.8 → 25.6/19.9 s,
+    maxRSS 760 → 387–458 MB; 2000 Crisp 57.1/61.3 → 31.0/37.4 s, maxRSS 1268 → 513 MB.
+  - **Checks:** Vitest 1091 passed (8 skipped), Playwright 318 passed; tsc, eslint, docs-lint clean. Live: 1000
+    stitches generated in 7.5 s.
+  - **Against the criteria:** 1 every raster export pixel-identical or within ±1, live A4 62.1 s against 60 s (Owner kept
+    level 6); 2 preview at 2000 stitches 159 MB; 3 PDF byte-identical, 3.5× faster; 4 golden hashes unchanged, host
+    re-measured above; 5 suites, docs-lint, HANDOVER, every milestone deployed and verified live.
 - 2026-09-19 — **Owner approval:** "go ahead with M5".
 - 2026-09-19 — **M4 done: Crisp generation a third faster and 40 % leaner, exactly the same charts.** Deployed as e0fe2a5.
   - **Separation bound (D175):** both fitted modes lie inside the samples' OKLab bounding box, so a box whose squared
