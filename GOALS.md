@@ -152,10 +152,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   runtime dependency: the PNG writer uses Node's zlib.
 
 **Milestones**:
-- [ ] M1 — The PNG writer: RGB, Up filter, zlib level 3, over the canvas's raw bytes, used by the A4
+- [x] M1 — The PNG writer: RGB, Up filter, zlib level 3, over the canvas's raw bytes, used by the A4
   pages, the chart PNGs and the preview; chart symbols drawn from cached glyph tiles (±1); one page
   canvas reused across A4 pages; the export request parsed once. Decode-and-compare test per kind
-  (pixel-identical, or ±1 for the symbols); export parity re-run; A4 and Export all re-measured live.
+  (pixel-identical, or ±1 for the symbols); export parity re-run; A4 and Export all re-measured live. Done
+  2026-09-19 at zlib level 6, not 3 (D171); the page-canvas reuse was measured and dropped.
 - [ ] M2 — The realistic preview as streamed tile rows: per-colour tiles composed one stitch row at a
   time straight into the PNG writer, no whole-image canvas. Compared with today's output (within ±1),
   memory measured by the export probe at 1000 and 2000 stitches.
@@ -171,6 +172,24 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   measurement as M4.
 
 **Progress log** (newest first):
+- 2026-09-19 — **M1 done: raster exports 2–3× faster, same pixels, smaller files.** Deployed as 6b5be11 and 291c719.
+  - **PNG writer (D171):** `getImageData` strips, Up filter four bytes at a time, zlib on its own thread; 54 ms a page
+    against the library's 313 ms at level 3. Level 6 was chosen over the plan's 3: level 3 made every file 40 % larger
+    than before, level 6 makes them smaller (A4 zip 28.0 → 22.3 MB) at 2.5× the old speed. A4 pages are drawn while the
+    previous one compresses.
+  - **Symbol stamps (D172):** chart PNG 8.8 → 4.5 s; every one of the 100 symbols within 1 of `fillText`.
+  - **Memory:** finished canvases held native memory V8 could not see, so Export all piled them up (1513 MB with the
+    new writer). Each export canvas is now released once encoded: Export all peaks at 1038 MB, below its old 1148 MB.
+    The chart PNG alone rose 483 → 642 MB, inside the canvas library's rasteriser. Reusing one A4 page canvas was
+    measured (274 → 757 MB) and dropped.
+  - **Equivalence:** every raster export at 1000 stitches, old code against new, decoded and compared: the preview
+    pixel-identical, both chart PNGs and all 310 A4 pages within 1 per byte (0.3–1.6 % of bytes differ).
+  - **Local at 1000:** Export all 188 → 70 s, A4 70.6 → 21.5 s, chart PNG 8.8 → 4.5 s, preview 6.8 → 4.4 s.
+  - **Live at 1000:** A4 126.0 → 62.1 s; Export all 201.1 s (78.1 MB). Criterion 1's "under 60 s" is missed by 2 s;
+    level 3 would meet it with files 40 % larger than before. Owner's call.
+  - **Also:** the export request's chart is parsed once on the server and serialised once in the editor.
+  - **Checks:** Vitest 1073 passed (8 skipped), Playwright 318 passed; tsc, eslint, docs-lint clean.
+  - **Next:** Owner check-in, then M2 — the realistic preview streamed from tile rows.
 - 2026-09-19 — **Owner approval:** "start implementing g-047"; M1 started.
 - 2026-09-19 — goal drafted from the review. Owner (2026-09-19): ±1 pixel is acceptable.
 

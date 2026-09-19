@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-19 at c9eea53 (G-046 M3: ICM's exact neighbour bound, deployed and verified live)
+Last verified: 2026-09-19 at 291c719 (G-047 M1: faster raster exports with the same pixels, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs c9eea53 (2026-09-19), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
+**Production** runs 291c719 (2026-09-19), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container.
 Signed off: G-045 the Atelier redesign in direction 1b (D157-D167), G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
 **G-034, processing moved to the server — signed off 2026-09-18.** M1 measured the caps (D149, D150); M2 built the
@@ -61,7 +61,7 @@ disabled state consistent across every control and stopped the start screen reac
   original", and the mode recorded in saved files; only Brighten is released
   (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-19**: `tsc --noEmit` clean, `npm run lint` 0 errors, production build clean; Vitest 1065
+**Checks run 2026-09-19**: `tsc --noEmit` clean, `npm run lint` 0 errors, production build clean; Vitest 1073
 passed (8 opt-in skips); Playwright **318 passed, 0 failed across all 26 specs**, one spec per process, against the
 single-path build, with the processor serving generation, exports and previews. Export parity:
 `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the type-check and `build:processor` before
@@ -69,12 +69,10 @@ the unit tests, because the worker bundle is git-ignored and the pool, preview a
 
 **Performance** (G-035, 2026-09-15, medians of 5 on the Owner's machine; tables in
 `docs/reviews/2026-09-15-performance-results.md`): a 12 MP photo at 100 stitches / 16 colors takes 2.9 s Standard
-and 7.5 s Crisp, down from 7.7 s and 42.7 s; at 1000 stitches / 64 colors, 4.9 s and 6.8 s. In the browser at 1000
-stitches, generating takes 6.9 s, the PDF 11.1 s, Export all 37.8 s, with no main-thread freeze. Enhancing a
-4000×3000 photo takes 1.9–2.2 s, above G-032's 1.5 s target. The server is ~3.4× slower per core (D149), and a
-1000-stitch A4 export there took 127.7 s on 2026-09-18 (G-046 M1); its deadline now grows with the page count (D168).
-G-046 M3 made ICM 14–55 % faster by palette size (D170), which moved generation on the host by only 0–5 s: k-means
-assignment and Crisp's evidence fits now cost more (`docs/reviews/2026-09-19-icm-candidate-reduction.md`).
+and 7.5 s Crisp, down from 7.7 s and 42.7 s; at 1000 stitches / 64 colors, 4.9 s and 6.8 s. Enhancing a 4000×3000
+photo takes 1.9–2.2 s, above G-032's 1.5 s target. The server is ~3.4× slower per core (D149). Live at 1000 stitches,
+the A4 export takes 62.1 s (126.0 s before G-047 M1, D171, D172) and Export all 201.1 s.
+G-046 M3 made ICM 14–55 % faster; generation on the host moved 0–5 s (D170, `docs/reviews/2026-09-19-icm-candidate-reduction.md`).
 
 **Known limitations**:
 - Crisp takes about 2.6× Standard's time on a 12 MP photo (7.5 s against 2.9 s), because every cell
@@ -182,6 +180,8 @@ assignment and Crisp's evidence fits now cost more (`docs/reviews/2026-09-19-icm
 - Export drawing creates canvases, encodes PNGs and loads the font and texture only through
   `lib/export/canvas-backend.ts`, never by touching `document` or `Image` directly (D125). That is the seam the
   server backend plugs into (D153), so breaking it breaks server exports.
+- An export canvas is encoded once, through `canvasToPngBlobAndRelease`, and never touched afterwards (D171); symbol
+  stamps are passed only with a canvas context, never the PDF adapter, whose symbols must stay text (D172).
 - The PDF adapter keeps opaque drawing on direct operators with one font
   resource per page; `tests/unit/pdf-canvas-adapter-resources.spec.ts` guards
   it (D126).
@@ -284,7 +284,8 @@ assignment and Crisp's evidence fits now cost more (`docs/reviews/2026-09-19-icm
 - G-034 is signed off (2026-09-18) and archived in `docs/goals-archive.md`. Its one unmet criterion — Export all and the Pattern Keeper PDF at 1000 stitches, shipped as a limitation (D155) — was met by G-046 M2 on 2026-09-19 (D169).
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
-- G-046 (larger canvases) is ACTIVE: M1 measured every wall (`docs/reviews/2026-09-18-larger-canvas-walls.md`, candidate cap 1500); M2 bounded the PDF's heap (D169) and gave paginated exports a per-page deadline (D168); M3 made ICM 14–55 % faster, exactly (D170), all deployed 2026-09-19. 2000 Crisp still takes about 53 s on the host. M4 (the editor's zoom, the validators, then raising the cap) awaits the Owner. G-030 (public launch) is a far-future draft; G-023 (Rust) lives on as G-046's conditional M5.
+- G-046 (larger canvases) is ACTIVE: M1 measured every wall (`docs/reviews/2026-09-18-larger-canvas-walls.md`, candidate cap 1500); M2 bounded the PDF's heap (D169) and gave paginated exports a per-page deadline (D168); M3 made ICM 14–55 % faster, exactly (D170). M4 (the editor's zoom, the validators, then raising the cap) waits behind G-047. G-030 (public launch) is a far-future draft; G-023 (Rust) lives on as G-046's conditional M5.
+- G-047 (faster exports and generation, from `docs/reviews/2026-09-19-algorithm-review.md`) is ACTIVE: M1 deployed 2026-09-19. Its live A4 criterion (under 60 s at 1000) reads 62.1 s: zlib level 3 would meet it at the price of files 40 % larger than before (D171), which awaits the Owner. M2, the realistic preview streamed from tile rows, is next.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log
@@ -293,6 +294,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-19 | 291c719 | G-047 M1: each A4 page is drawn while the previous one compresses | Vitest 1073 passed, 8 skipped; Playwright 318 passed, 0 failed across all 26 specs; tsc, eslint, docs-lint and the build clean. Both cross-stitch containers recreated; 41 containers before and after with an identical name set, no other container restarted, all 38 vhosts identical to the baseline (35 at 200). Live: A4 at 1000 in 62.1 s, 22.1 MB; Export all at 1000 in 201.1 s, 78.1 MB |
+| 2026-09-19 | 6b5be11 | G-047 M1: the server writes its own PNGs (Up filter, zlib level 6) and releases each export canvas once encoded (D171); raster exports stamp symbols from tiles drawn once per colour (D172); the export request's chart is parsed once | Vitest 1073 passed, 8 skipped; Playwright 318 passed, 0 failed across all 26 specs; tsc, eslint, docs-lint and the build clean. Both cross-stitch containers recreated; 41 containers before and after with an identical name set, no other container restarted, all 38 vhosts identical to the baseline (35 at 200). Every raster export at 1000 stitches decoded and compared with the previous code's: the preview pixel-identical, the charts and all 310 A4 pages within 1 per byte. Live: A4 at 1000 in 64.3 s (was 126.0 s), the colour chart PNG in 10.2 s |
 | 2026-09-19 | c9eea53 | G-046 M3: ICM evaluates a cell's neighbour labels first and scans the palette only when none scores below the least any other label can cost, with byte-identical results (D170); `npm run bench` gains a 2000-stitch configuration | Playwright 318 passed, 0 failed across all 26 specs; Vitest 1065 passed, 8 skipped; golden hashes and both M5 equivalence specs unchanged; tsc, eslint, docs-lint and the build clean. Both cross-stitch containers recreated; 41 containers before and after with an identical name set, no other container restarted, all 38 vhosts identical to the baseline (35 at 200). Live: a photo generated at 1000 stitches in 8.1 s and its Pattern Keeper PDF opened with all 147 pages |
-| 2026-09-19 | fd174cd | G-046 M2: each Pattern Keeper page is released as soon as it is drawn, so the PDF's heap stays bounded with byte-identical files (D169, superseding D155); paginated exports get 60 s plus 2 s a page (D168); every Playwright config that starts servers shares one processor-and-app pair | Playwright 318 passed, 0 failed across all 26 specs; Vitest 1064 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Both cross-stitch containers recreated (the processor changed); 41 containers before and after with an identical name set, all 38 vhosts identical to the baseline (35 at 200). Live: a real photo at 1000 stitches exported a complete 147-page Pattern Keeper PDF in 38.5 s, which had failed on production since G-034; an A4 export at 1000 took 126.0 s |
-| 2026-09-18 | f1cfa8b | G-045: the start screen's "01" badge is removed and its accent becomes a selection -- the photo card by default, the empty-grid card while its settings are open, never both, and taking another way in hands the mark back (D167) | Playwright 318 passed, 0 failed across all 26 specs; Vitest 1061 passed, 8 skipped; tsc, eslint, docs-lint and the build clean. Only the app container was recreated; 41 containers before and after with an identical name set, and all 38 vhosts byte-identical to the pre-deploy baseline (35 at 200 -- the host gained a site from another project between deploys). Live: the badge gone, the accent measured moving between the cards and back, and the start screen still wholly inert over a covered chart |
