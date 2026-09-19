@@ -160,9 +160,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M2 — The realistic preview as streamed tile rows: per-colour tiles composed one stitch row at a
   time straight into the PNG writer, no whole-image canvas. Compared with today's output (within ±1),
   memory measured by the export probe at 1000 and 2000 stitches. Done 2026-09-19 (D173).
-- [ ] M3 — The PDF: page height cached in the adapter, then each page's content stream written as text
+- [x] M3 — The PDF: page height cached in the adapter, then each page's content stream written as text
   rather than operator objects, proven byte-identical with the flush harness. Fill runs merged and
-  colour state deduplicated only if verified in Pattern Keeper.
+  colour state deduplicated only if verified in Pattern Keeper. Done 2026-09-19 (D174); run merging not taken, as
+  Pattern Keeper cannot be checked from here.
 - [ ] M4 — Crisp generation: the exact separation bound before the two-mode fit, and the weighted
   quantizer built on columns with no per-sample objects. Golden hashes and equivalence specs unchanged;
   re-measured on the host.
@@ -172,6 +173,20 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   measurement as M4.
 
 **Progress log** (newest first):
+- 2026-09-19 — **M3 done: the Pattern Keeper PDF 3.5× faster, byte for byte the same file.** Deployed as 7e0ba86.
+  - **How (D174):** the adapter formats each direct fill, text run and line exactly as pdf-lib would, collects a page's
+    lines, and hands them to the page as one operator whose name is the whole batch, which pdf-lib writes verbatim;
+    anything drawn through pdf-lib itself (translucent fills, outlined rectangles) flushes the batch first. The page
+    height is read once. Unrotated text only; rotated text keeps pdf-lib's path.
+  - **Proof:** the live builder against frozen copies of the builder and adapter from before M3, clock frozen: colour
+    and B&W at overlaps 0, 5 and 10, and a thread-matched chart whose colour key runs onto a second page; every file
+    byte-identical. The adapter spec now shows a page that is never finished loses its text.
+  - **Measured, like for like against the M2 state:** 1000 stitches 13.3 → 3.8 s; 2000 stitches 52.6 → 14.6 s. Peak
+    heap 72 → 97 MB (one page's text held until the page ends), maxRSS lower (264 → 229 MB).
+  - **Not taken:** merging same-colour fill runs, which changes the file and needs checking in Pattern Keeper itself.
+  - **Checks:** Vitest 1077 passed (8 skipped), Playwright 318 passed; tsc, eslint, docs-lint clean. Live: 147 pages in
+    9.4–12.7 s (30.7 s before G-047), page 1 extracting 5416 text items.
+  - **Next:** Owner check-in, then M4 — Crisp generation.
 - 2026-09-19 — **Owner approval:** "go ahead with M3".
 - 2026-09-19 — **M2 done: the realistic preview never exists whole.** Deployed as a2794c5.
   - **How:** each colour's texture is scaled into a stitch tile once; the PNG encoder's strips of rows are copied
