@@ -164,15 +164,31 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   rather than operator objects, proven byte-identical with the flush harness. Fill runs merged and
   colour state deduplicated only if verified in Pattern Keeper. Done 2026-09-19 (D174); run merging not taken, as
   Pattern Keeper cannot be checked from here.
-- [ ] M4 — Crisp generation: the exact separation bound before the two-mode fit, and the weighted
+- [x] M4 — Crisp generation: the exact separation bound before the two-mode fit, and the weighted
   quantizer built on columns with no per-sample objects. Golden hashes and equivalence specs unchanged;
-  re-measured on the host.
+  re-measured on the host. Done 2026-09-19 (D175, D176).
 - [ ] M5 — Standard generation: Hamerly bounds in k-means assignment (tie-safe, like D170), the
   interleaved buffer passed through instead of tuples, the symmetric medoid denoise, pair evidence one
   channel at a time, luminance shared between the edge and importance passes. Same proof and
   measurement as M4.
 
 **Progress log** (newest first):
+- 2026-09-19 — **M4 done: Crisp generation a third faster and 40 % leaner, exactly the same charts.** Deployed as e0fe2a5.
+  - **Separation bound (D175):** both fitted modes lie inside the samples' OKLab bounding box, so a box whose squared
+    diagonal is under `minModeSeparation` (less a 1e-9 margin for a mean's rounding) cannot yield a boundary; the fit
+    is skipped. Proven against a frozen copy of the evidence code, every cell, both edge models, five option sets
+    including separation 0, on seven sources. Alone: 2000 Crisp 24.2 → 20.6 s.
+  - **Column pool (D176):** the Crisp stage writes typed columns directly; the weighted quantizer takes them, cells
+    grouped once with a typed lookup. The sample-array functions remain as wrappers. Golden hashes (three Crisp
+    photos) and the pre-M5 equivalence specs unchanged.
+  - **Measured locally, bundled:** Crisp 1000 5.4 s / 259 MB → 4.0 s / 161 MB; 1500 12.8 s / 438 MB → 8.5 s /
+    246 MB; 2000 24.2 s / 717 MB → 15.0 s / 420 MB.
+  - **On the host** (capacity probe, old and new alternating, then reversed): the host sat at load 2.6–4.7 from other
+    services, so times are noisy — 2000 Crisp 84.1 → 42.6 s and 73.2 → 49.0 s, 1000 Crisp 17.6 → 18.7 s and
+    25.1 → 13.7 s. Peak RSS consistently fell: 1000 236 → 154 MB, 1500 422 → 245 MB, 2000 705 → 362 MB.
+  - **Checks:** Vitest 1085 passed (8 skipped), Playwright 318 passed; tsc, eslint, docs-lint clean. Live at 1000:
+    Crisp 8.0 s, Crisp+ 9.6 s, charts exported and decoded.
+  - **Next:** Owner check-in, then M5 — Standard generation.
 - 2026-09-19 — **Owner approval:** "go ahead with M4".
 - 2026-09-19 — **M3 done: the Pattern Keeper PDF 3.5× faster, byte for byte the same file.** Deployed as 7e0ba86.
   - **How (D174):** the adapter formats each direct fill, text run and line exactly as pdf-lib would, collects a page's
