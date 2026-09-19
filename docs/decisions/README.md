@@ -192,3 +192,4 @@ remain readable with git show.
 - D181 — The chart cap is 1500 stitches per side — active
 - D182 — Generation is ported to Rust, a language new to the portfolio — active
 - D183 — Rust uses V8's own maths routines, proven bit-exact — active
+- D184 — Rust also ports V8's sin, cos, atan2, log and hypot — active

@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-19 at 9fb0fbb (G-048 M1: the Rust exact tier of Standard generation; production still 96efc33)
+Last verified: 2026-09-19 at 177da91 (G-048 M2: the Rust exact tier of all generation; production still 96efc33)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -17,10 +17,9 @@ editable save run in the `processor` container (D149–D155). **G-045, the Ateli
 2026-09-18**: tool rail, context and status bars, one-pane inspector, Isolate as a view mode (D157–D167). Both are
 detailed in `docs/goals-archive.md`.
 
-**G-048, generation and exports in Rust — ACTIVE, M1 done, awaiting approval of M2.** `rust/` holds the exact tier of
-Standard generation (D182). It reproduces all 11 Standard golden hashes and the 1000- and 1500-stitch probes byte for byte,
-on V8-exact maths (D183), and runs about 2.9× faster than TypeScript on one thread
-(`docs/reviews/2026-09-19-rust-m1-parity.md`). Nothing Rust ships until G-048's ship rule is met; production is untouched.
+**G-048, generation and exports in Rust — ACTIVE, M2 done, awaiting approval of M3.** `rust/` holds the exact tier of all
+generation (D182): all 18 golden hashes and 18 further cases match byte for byte on V8-exact maths (D183, D184), 2.7–3.3×
+faster than TypeScript on one thread (`docs/reviews/2026-09-19-rust-m2-parity.md`). Nothing Rust is in production.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1500 stitches (D181) and 2–100 colors, with Latest or Original clustering, Full range, DMC,
@@ -136,9 +135,10 @@ Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 �
 - **Experimental** (`lib/experimental/`): contour refinement, boundary chains, simulated annealing,
   diagnostics. Status table in its README.
 - **Rust port (G-048)**: `rust/cs-core` ports the pipeline module by module; each file names the TypeScript it
-  ports. `jsmath.rs` holds the V8-exact maths (D183), proven by `rust/cs-core/tests/jsmath_vectors.rs` on vectors from
+  ports; `crisp/` holds Crisp and Crisp+, `threads.rs` brand matching, `enhance.rs` enhancement. `jsmath.rs` and
+  `fdlibm.rs` hold the V8-exact maths (D183, D184), proven by `rust/cs-core/tests/jsmath_vectors.rs` on vectors from
   `scripts/rust-jsmath-vectors.mjs`. `rust/cs-bench` is the CLI that `npm run compare:rust` (`scripts/rust-parity.ts`)
-  drives: RGBA in, the pattern and stage times out as JSON. `scripts/rust-tables.mjs` writes the colour-name table.
+  drives: RGBA in, the pattern and stage times out as JSON. `scripts/rust-tables.mjs` writes the name and thread tables.
 - **Tests**: unit specs in `tests/unit/`. `golden-hashes.spec.ts` pins exact `buildPattern` output for 18
   configurations (D107), and `m3-equivalence.spec.ts` compares the optimizer with a verbatim pre-M3 copy. E2E specs
   are in `tests/e2e/`; `npm run test:e2e` starts the processor and the app together, since the page needs both.
@@ -186,8 +186,8 @@ Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 �
   `tests/unit/crisp-evidence-equivalence.spec.ts` (G-035 M4). Crisp+ changes stay behind
   `edgeModel: "blurred-step"` and `"crisp-plus"`, never Crisp's defaults (D139).
 - ICM inner loops use no closures or array scans (D044).
-- Rust exact-tier code calls `jsmath` for `pow`, `cbrt`, `exp` and `round`, never the `f64` methods: `libm`'s `pow`
-  differed from V8 on 4 % of pipeline inputs (D183). A Node upgrade needs the vectors regenerated and rechecked.
+- Rust exact-tier code calls `jsmath` for every `Math` function, never the `f64` methods or `libm`: those differed
+  from V8 on up to 4 % of pipeline inputs (D183, D184). A Node upgrade needs the vectors regenerated and rechecked.
 - Code e2e specs load in Node takes symmetry types from `lib/editor/symmetry-axes.ts`, not `symmetry.ts` (G-037).
 - Screen drawing = frozen pre-G-036 drawing with band grid lines (photos ±16, outlines ±1),
   per `tests/e2e/chart-viewport-parity.spec.ts`; exports keep stroked grid lines (D135).
@@ -282,8 +282,8 @@ Generation on the host at 2000 stitches (D170, D175–D178): Standard about 30 �
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration.
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
-- G-048 M2 awaits the Owner: Crisp, Crisp+, enhancement and brands in the exact tier. M1's inputs are the golden
-  fixtures and probe shapes only; real photos join with M3's quality metrics.
+- G-048 M3 awaits the Owner: the optimised tier (threads, SIMD) with quality tolerances, WASM, and host timings.
+  The corpus is still the golden fixtures and probe shapes; real photos join with M3's quality metrics.
 - G-046 (larger canvases) is signed off (2026-09-19) and archived: the cap is 1500 (D181). A cap of 2000 would need two Owner decisions, a longer generation deadline and Export all without the chart PNG (D181). G-030 (public launch) is a far-future draft.
 - G-047 (faster exports and generation) is signed off (2026-09-19) and archived in `docs/goals-archive.md`: raster exports 2–3× faster, the preview streamed, the PDF 3.5× faster, generation a quarter to a half faster (D171–D178).
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.

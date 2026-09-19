@@ -9,7 +9,7 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
 
 ## What it does
 
-- **Generate** a chart from a photo at 10–1000 stitches and 2–100 colors.
+- **Generate** a chart from a photo at 10–1500 stitches and 2–100 colors.
   The pipeline downsamples in linear light, clusters in OKLab, then smooths
   regions with an edge-aware optimizer so the chart has few stray stitches.
 - **Start from nothing**: "New blank chart", in the menu behind the mark at the
@@ -64,6 +64,7 @@ The Rust port of the pipeline (G-048, not used in production) lives in `rust/` a
 
 ```
 node scripts/rust-jsmath-vectors.mjs rust/target/jsmath-vectors.bin   # V8's maths results, once per Node version
+node --experimental-strip-types scripts/rust-tables.mjs              # after changing a name or thread table
 cd rust && cargo build --release && cargo test --release && cd ..
 npm run compare:rust   # Rust against TypeScript: byte-identity and timings (RUST_PARITY_LARGE=0 skips the big cases)
 ```

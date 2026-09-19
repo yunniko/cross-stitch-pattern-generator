@@ -45,7 +45,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M1 — Foundations: a Rust workspace in `rust/` (core library, benchmark CLI), a corpus of inputs dumped from
   TypeScript (decoded photos, settings, expected outputs), the comparison harness, and the exact port of the Standard
   pipeline matching its golden hashes. First timing against TypeScript.
-- [ ] M2 — The rest of generation, exact: Crisp, Crisp+, photo enhancement and thread-brand matching; every golden hash
+- [x] M2 — The rest of generation, exact: Crisp, Crisp+, photo enhancement and thread-brand matching; every golden hash
   matches. Single-thread timing per stage.
 - [ ] M3 — Generation, optimised: threads and SIMD where they pay, measured stage by stage; the quality metrics of
   criterion 2; WASM build; laptop and host timings.
@@ -56,6 +56,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   fallback; deployed and verified live. Skipped if nothing qualifies.
 
 **Progress log** (newest first):
+- 2026-09-19 — **M2 done; awaiting approval of M3.** Crisp, Crisp+, both quantizers, DMC/Cosmo/Anchor and every
+  enhancement mode ported; V8's sin, cos, atan2, log and hypot added (D184; 0 mismatches in 13.6 M vectors).
+  `npm run compare:rust`: 36 of 36 byte-identical, all 18 golden hashes included. Single-thread speed-up 2.7-3.3x
+  in every mode at 1000 and 1500 stitches; ICM about 10x, quantize about 2x
+  (`docs/reviews/2026-09-19-rust-m2-parity.md`). Checks: Vitest, tsc, eslint, clippy, cargo test, docs-lint.
 - 2026-09-19 — **Owner approval:** "go ahead" (M2).
 - 2026-09-19 — **M1 done; awaiting approval of M2.** The `rust/` workspace (`cs-core`, `cs-bench`), V8-exact maths (D183:
   0 mismatches in 6.5 M vectors, where `libm`'s `pow` missed 94,182), and the exact Standard pipeline (D182).
