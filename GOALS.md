@@ -63,13 +63,31 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M3 — The generation speed win: the ICM candidate-set reduction (neighbour labels plus the
   unary-best label, ~9 candidates instead of up to 100), byte-identical, re-measured against M1. Done 2026-09-19 —
   by a bound that skips the scan, since the candidate lists were slower (D170).
-- [ ] M4 — The scaling walls M1 identifies (result wire format, undo history, chart drawing), then
-  raise `MAX_STITCHES` and re-run M1's measurements at the new cap, including three concurrent jobs.
-- [ ] M5 — **Only if M1–M4 miss the latency target:** G-023 M2's benchmark — port the quantizer and ICM
+- [x] M4 — The scaling walls M1 identifies (result wire format, undo history, chart drawing), then
+  raise `MAX_STITCHES` and re-run M1's measurements at the new cap, including three concurrent jobs. Done
+  2026-09-19: cap 1500 (D181), zoom (D179), OXS (D180).
+- [ ] M5 — **Not triggered (2026-09-19): the latency target is met.** **Only if M1–M4 miss the latency target:** G-023 M2's benchmark — port the quantizer and ICM
   as a standalone Rust library with a harness against the frozen TypeScript on identical inputs,
   single-threaded native and WASM. Numbers decide whether G-023 revives; no service, no deploy.
 
 **Progress log** (newest first):
+- 2026-09-19 — **M4 done: charts up to 1500 stitches. Every criterion met; M5 not triggered. Awaiting the Owner's
+  sign-off.** Deployed as 96efc33. Measurements: `docs/reviews/2026-09-19-new-cap-measurements.md`.
+  - **The cap (D181):** host, capacity probe, three jobs at once in one capped container. At 1500 the worst mix, three
+    Crisp+ jobs, takes 30.0–31.0 s of the 45 s deadline at load 3–4; at 2000 three Crisp+ jobs take 61–64 s and
+    Export all fails, the full-chart PNG refused by its budget (D026). 2000 would need two Owner decisions: a longer
+    generation deadline, and Export all without the chart PNG above the budget.
+  - **Zoom (D179):** the 8000 px cap guarded a canvas D135 removed; every chart now zooms to 4× its fitted size.
+  - **OXS (D180):** built a row at a time, identical text; peak RSS at 1500 650 → 289 MB, at 2000 1339 → 404 MB.
+  - **Validators:** all read `MAX_STITCHES`; four e2e specs and two unit tests that hard-coded 1000 now read it too.
+  - **Criteria:** 1 PDF and Export all at 1500 through workers capped at 512 MB: 309 pages in 10.7 s, 166.5 MB in
+    131 s. 2 at 1000 on the host, Standard 5.6–5.7 s and Crisp 9.6–11.3 s against D149's 12.1 and 14.7 s; 1500's
+    worst mix at 69 % of the deadline. 3 golden hashes unchanged throughout G-046 and G-047. 4 three generations at
+    once under 1.1 GB, and three Export alls at once (the heaviest mix) complete inside 2 GiB, 782–796 MB each. 5 the
+    editor at 1500: every longest task under 100 ms but Grid + photo (105 ms, G-036's borderline), undo 60/67 ms, script
+    memory about 145 MB with the history full. 6 `MAX_STITCHES` 1500, every validator on it. 7 Vitest 1096 passed (8
+    skipped), Playwright 318 passed, docs-lint clean, HANDOVER regenerated.
+  - **Live at 1500:** a photo generated in 12.6–14.2 s, the PDF (309 pages) in 25.5 s, Export all (167.4 MB) in 346.8 s.
 - 2026-09-19 — **Owner:** "go g-046 through all milestones if it does not need my decisions"; M4 started.
 - 2026-09-19 — **M3 done: ICM is 14–55 % faster and exact, but generation gains only 0–5 s.** Deployed as c9eea53.
   - **Owner approval (2026-09-19):** "go m3, let's see what it will bring".
