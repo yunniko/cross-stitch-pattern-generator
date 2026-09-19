@@ -69,10 +69,22 @@ export async function addA4PagesToZip(folder: JSZip, pattern: StitchPattern, mod
     await yieldToMain();
   };
 
+  // Each page is drawn while the previous one is still being compressed: the server's encoder hands zlib its rows and
+  // yields, so the two overlap (D171). Pages still enter the folder in order, and at most two are held at once.
+  let previous: { name: string; blob: Promise<Blob> } | null = null;
   for (let i = 0; i < totalGridPages; i++) {
     const page = layout.pages[i];
-    const blob = await canvasToPngBlobAndRelease(renderA4GridPage(pattern, mode, layout, page, i, totalGridPages));
-    folder.file(zipEntryName(`${baseName}_r${pad2(page.row + 1)}_c${pad2(page.column + 1)}.png`), blob);
+    const encoding = canvasToPngBlobAndRelease(renderA4GridPage(pattern, mode, layout, page, i, totalGridPages));
+    // Settled only below; this keeps a failure in this page from being reported as unhandled while the previous one waits.
+    encoding.catch(() => undefined);
+    if (previous) {
+      folder.file(previous.name, await previous.blob);
+      await pageDone();
+    }
+    previous = { name: zipEntryName(`${baseName}_r${pad2(page.row + 1)}_c${pad2(page.column + 1)}.png`), blob: encoding };
+  }
+  if (previous) {
+    folder.file(previous.name, await previous.blob);
     await pageDone();
   }
 
