@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { enhancePixelBuffer } from "@/lib/pipeline/enhance";
 import { buildPattern, type BuildPatternOptions } from "@/lib/pipeline/pattern";
 import { plainKMeansQuantizer } from "@/lib/pipeline/quantize";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
@@ -21,7 +22,7 @@ const BINARY = path.join(ROOT, "rust", "target", "release", process.platform ===
 const RECORDED: Record<string, string> = JSON.parse(readFileSync(path.join(ROOT, "tests/unit/fixtures/golden-hashes.json"), "utf8"));
 const REPEAT = Number(process.env.RUST_PARITY_REPEAT ?? 3);
 
-// The Standard, full-palette golden cases, with the fixtures defined exactly as in tests/unit/golden-hashes.spec.ts;
+// Every golden case, with the fixtures defined exactly as in tests/unit/golden-hashes.spec.ts;
 // the TypeScript hash is checked against the recorded one too, so a drifted copy fails here rather than passing.
 const twoRegion = makeBuffer(60, 40, (x, y) => {
   const base = x < 30 ? [200, 150, 100] : [80, 120, 90];
@@ -46,6 +47,16 @@ const circle = makeBuffer(30, 30, (x, y) => {
 });
 const hardSplit = makeBuffer(64, 64, (x) => (x < 30 ? [0, 0, 0] : [255, 255, 255]));
 const photo = makePhotoLikeBuffer(600, 400);
+// The photo fixture dimmed, flattened and tinted, so every enhancement stage acts rather than abstains.
+const darkPhoto = makeBuffer(600, 400, (x, y) => {
+  const o = (y * 600 + x) * 4;
+  return [photo.data[o] * 0.35 + 20, photo.data[o + 1] * 0.3 + 12, photo.data[o + 2] * 0.25 + 8];
+});
+
+let probe1000Buffer: PixelBuffer | undefined;
+let probe1500Buffer: PixelBuffer | undefined;
+const probe1000 = () => (probe1000Buffer ??= makePhotoLikeBuffer(1500, 1000));
+const probe1500 = () => (probe1500Buffer ??= makePhotoLikeBuffer(2250, 1500));
 
 interface Case {
   name: string;
@@ -62,22 +73,57 @@ const CASES: Case[] = [
   golden("realistic-ratio/standard/latest/16", realisticRatio, { longerSideStitches: 100, colorCount: 16 }),
   golden("gradient/standard/latest/8", gradient, { longerSideStitches: 40, colorCount: 8 }),
   golden("circle/standard/latest/3", circle, { longerSideStitches: 30, colorCount: 3 }),
+  golden("hard-split/crisp/latest/3", hardSplit, { longerSideStitches: 16, colorCount: 3, edgeMode: "crisp" }),
   golden("hard-split/standard/latest/3", hardSplit, { longerSideStitches: 16, colorCount: 3 }),
   golden("photo/standard/latest/24", photo, { longerSideStitches: 150, colorCount: 24 }),
   golden("photo/standard/original/24", photo, { longerSideStitches: 150, colorCount: 24, quantizer: plainKMeansQuantizer }),
+  golden("photo/crisp/latest/24", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp" }),
+  golden("photo/crisp/original/24", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp", quantizer: plainKMeansQuantizer }),
+  golden("photo/standard/latest/24/dmc", photo, { longerSideStitches: 150, colorCount: 24, paletteMode: "dmc" }),
+  golden("photo/standard/latest/24/cosmo", photo, { longerSideStitches: 150, colorCount: 24, paletteMode: "cosmo" }),
+  golden("photo/standard/latest/24/anchor", photo, { longerSideStitches: 150, colorCount: 24, paletteMode: "anchor" }),
+  golden("photo/crisp/latest/24/dmc", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp", paletteMode: "dmc" }),
   golden("photo/standard/latest/64", photo, { longerSideStitches: 300, colorCount: 64 }),
   golden("photo/standard/latest/100", photo, { longerSideStitches: 120, colorCount: 100 }),
-  // The capacity probe's Standard shapes (scripts/capacity-probe.ts): no recorded hash, TypeScript is the reference.
+  // No recorded hash for these: TypeScript is the reference. Crisp+, every enhancement mode, and combinations.
+  ...(
+    [
+      ["photo/crisp-plus/latest/24", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp-plus" }],
+      ["photo/crisp-plus/original/24/cosmo", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp-plus", quantizer: plainKMeansQuantizer, paletteMode: "cosmo" }],
+      ["hard-split/crisp-plus/latest/3", hardSplit, { longerSideStitches: 16, colorCount: 3, edgeMode: "crisp-plus" }],
+      ["photo/crisp/latest/24/no-optimize", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp", optimize: false }],
+      ["photo/crisp/latest/24/anchor/no-optimize", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp", paletteMode: "anchor", optimize: false }],
+      ["photo/standard/latest/24/brighten", photo, { longerSideStitches: 150, colorCount: 24, enhancementMode: "brighten" }],
+      ["photo/standard/latest/24/auto", photo, { longerSideStitches: 150, colorCount: 24, enhancementMode: "auto" }],
+      ["photo/crisp/latest/24/vivid", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp", enhancementMode: "vivid" }],
+      ["photo/crisp-plus/latest/24/portrait/dmc", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp-plus", enhancementMode: "portrait", paletteMode: "dmc" }],
+      ["dark-photo/standard/latest/24/brighten", darkPhoto, { longerSideStitches: 150, colorCount: 24, enhancementMode: "brighten" }],
+      ["dark-photo/crisp/latest/24/auto", darkPhoto, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp", enhancementMode: "auto" }],
+      ["dark-photo/standard/original/32/vivid", darkPhoto, { longerSideStitches: 200, colorCount: 32, quantizer: plainKMeansQuantizer, enhancementMode: "vivid" }],
+    ] as Array<[string, PixelBuffer, BuildPatternOptions]>
+  ).map(([name, source, options]): Case => ({ name, source, options, golden: false })),
+  // The capacity probe's shapes (scripts/capacity-probe.ts) in every edge mode: TypeScript is the reference.
   ...(process.env.RUST_PARITY_LARGE === "0"
     ? []
     : [
-        { name: "probe/1000st-64col-1500x1000", source: makePhotoLikeBuffer(1500, 1000), options: { longerSideStitches: 1000, colorCount: 64 }, golden: false },
-        { name: "probe/1500st-64col-2250x1500", source: makePhotoLikeBuffer(2250, 1500), options: { longerSideStitches: 1500, colorCount: 64 }, golden: false },
+        ...(["standard", "crisp", "crisp-plus"] as const).flatMap((edgeMode): Case[] => [
+          { name: `probe/1000st-64col-1500x1000/${edgeMode}`, source: probe1000(), options: { longerSideStitches: 1000, colorCount: 64, edgeMode }, golden: false },
+          { name: `probe/1500st-64col-2250x1500/${edgeMode}`, source: probe1500(), options: { longerSideStitches: 1500, colorCount: 64, edgeMode }, golden: false },
+        ]),
       ]),
 ];
 
 interface RustOutput {
-  pattern: { width: number; height: number; cellPalette: number[]; palette: StitchPattern["palette"]; isLandscape: boolean };
+  pattern: {
+    width: number;
+    height: number;
+    cellPalette: number[];
+    palette: StitchPattern["palette"];
+    isLandscape: boolean;
+    threadBrand: StitchPattern["threadBrand"] | null;
+    edgeMode: StitchPattern["edgeMode"] | null;
+    enhancementMode: StitchPattern["enhancementMode"] | null;
+  };
   runs: Array<{ totalMs: number; stages: Record<string, number> }>;
   peakRssMb: number | null;
 }
@@ -87,7 +133,7 @@ const results: Array<Record<string, unknown>> = [];
 afterAll(() => {
   rmSync(workDir, { recursive: true, force: true });
   if (process.env.RUST_PARITY_OUT) writeFileSync(process.env.RUST_PARITY_OUT, JSON.stringify(results, null, 2) + "\n");
-  console.table(results.map((r) => ({ case: r.name, tsMs: r.tsMs, rustMs: r.rustMs, speedup: r.speedup, identical: r.identical })));
+  console.table(results.map((r) => ({ case: r.name, tsMs: r.tsMs, rustMs: r.rustMs, speedup: r.speedup, identical: r.identical, enhanced: r.enhanced })));
 });
 
 function runRust(c: Case, index: number): RustOutput {
@@ -98,6 +144,9 @@ function runRust(c: Case, index: number): RustOutput {
     colorCount: c.options.colorCount,
     quantizer: c.options.quantizer === plainKMeansQuantizer ? "original" : "latest",
     optimize: c.options.optimize ?? true,
+    edgeMode: c.options.edgeMode,
+    paletteMode: c.options.paletteMode,
+    enhancementMode: c.options.enhancementMode,
   };
   const stdout = execFileSync(BINARY, ["generate", file, String(c.source.width), String(c.source.height), JSON.stringify(options), String(REPEAT)], {
     maxBuffer: 1 << 30,
@@ -124,6 +173,9 @@ describe("Rust exact tier reproduces the TypeScript pipeline (G-048)", () => {
       cellPalette: Uint8Array.from(rust.pattern.cellPalette),
       palette: rust.pattern.palette,
       isLandscape: rust.pattern.isLandscape,
+      threadBrand: rust.pattern.threadBrand ?? undefined,
+      edgeMode: rust.pattern.edgeMode ?? undefined,
+      enhancementMode: rust.pattern.enhancementMode ?? undefined,
     };
     const rustHash = hashPattern(rustPattern);
     const rustMs = Math.min(...rust.runs.map((run) => run.totalMs));
@@ -136,6 +188,8 @@ describe("Rust exact tier reproduces the TypeScript pipeline (G-048)", () => {
       speedup: Number((tsMs / rustMs).toFixed(2)),
       rustStagesMs: Object.fromEntries(Object.entries(fastest.stages).map(([k, v]) => [k, Math.round(v)])),
       identical: rustHash === tsHash,
+      // Whether enhancement changed any pixel: an abstaining mode would make its case a copy of Off.
+      enhanced: c.options.enhancementMode ? enhancePixelBuffer(c.source, c.options.enhancementMode) !== c.source : undefined,
     });
 
     if (c.golden) expect(tsHash, "TypeScript no longer matches the recorded golden hash").toBe(RECORDED[name]);
@@ -143,7 +197,7 @@ describe("Rust exact tier reproduces the TypeScript pipeline (G-048)", () => {
       const cellDiff = tsPattern!.cellPalette.reduce((n, v, i) => n + (v !== rustPattern.cellPalette[i] ? 1 : 0), 0);
       const paletteDiff = tsPattern!.palette
         .map((p, i) => [p, rustPattern.palette[i]] as const)
-        .filter(([a, b]) => !b || JSON.stringify(a) !== JSON.stringify(b))
+        .filter(([a, b]) => !b || JSON.stringify({ ...a, source: undefined }) !== JSON.stringify(b))
         .slice(0, 5);
       throw new Error(
         `Rust differs: ${tsPattern!.width}x${tsPattern!.height} vs ${rustPattern.width}x${rustPattern.height}, ` +

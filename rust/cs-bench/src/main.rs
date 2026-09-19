@@ -5,10 +5,13 @@
 //! Reads raw RGBA bytes, builds the pattern `repeat` times (default 1) and prints one JSON object: the pattern of the
 //! last run (for the parity harness), every run's stage times in milliseconds, and the peak resident set where the
 //! platform reports one (Linux `VmHWM`). Options: `longerSideStitches`, `colorCount`, `quantizer` ("latest" |
-//! "original"), `optimize` (default true), the same names and defaults as `BuildPatternOptions`.
+//! "original"), `optimize` (default true), `edgeMode`, `paletteMode` and `enhancementMode`: the same names, values and
+//! defaults as `BuildPatternOptions`.
 
-use cs_core::pattern::{build_pattern, BuildOptions, StageTimes};
+use cs_core::enhance::Mode;
+use cs_core::pattern::{build_pattern, BuildOptions, EdgeMode, StageTimes};
 use cs_core::quantize::Quantizer;
+use cs_core::threads::Brand;
 use cs_core::Image;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -23,6 +26,12 @@ struct Options {
     quantizer: Option<String>,
     #[serde(default)]
     optimize: Option<bool>,
+    #[serde(default)]
+    edge_mode: Option<String>,
+    #[serde(default)]
+    palette_mode: Option<String>,
+    #[serde(default)]
+    enhancement_mode: Option<String>,
 }
 
 fn peak_rss_mb() -> Option<f64> {
@@ -61,6 +70,27 @@ fn main() {
         color_count: options.color_count,
         quantizer,
         optimize: options.optimize.unwrap_or(true),
+        edge_mode: match options.edge_mode.as_deref() {
+            None | Some("standard") => EdgeMode::Standard,
+            Some("crisp") => EdgeMode::Crisp,
+            Some("crisp-plus") => EdgeMode::CrispPlus,
+            Some(other) => panic!("unknown edgeMode {other}"),
+        },
+        brand: match options.palette_mode.as_deref() {
+            None | Some("full") => None,
+            Some("dmc") => Some(Brand::Dmc),
+            Some("cosmo") => Some(Brand::Cosmo),
+            Some("anchor") => Some(Brand::Anchor),
+            Some(other) => panic!("unknown paletteMode {other}"),
+        },
+        enhancement: match options.enhancement_mode.as_deref() {
+            None | Some("off") => Mode::Off,
+            Some("brighten") => Mode::Brighten,
+            Some("auto") => Mode::Auto,
+            Some("vivid") => Mode::Vivid,
+            Some("portrait") => Mode::Portrait,
+            Some(other) => panic!("unknown enhancementMode {other}"),
+        },
     };
     let image = Image {
         width,
@@ -95,6 +125,9 @@ fn main() {
             "cellPalette": p.cell_palette,
             "palette": palette,
             "isLandscape": p.is_landscape,
+            "threadBrand": p.thread_brand,
+            "edgeMode": p.edge_mode,
+            "enhancementMode": p.enhancement_mode,
         },
         "runs": runs,
         "peakRssMb": peak_rss_mb(),

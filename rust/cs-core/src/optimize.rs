@@ -1,7 +1,11 @@
-//! Ports of `lib/pipeline/energy.ts`, `local-optimizer.ts` (ICM, Standard cells only), `regions.ts`
-//! (`labelRegions`, the fields generation reads) and `contour-cleanup.ts`.
+//! Ports of `lib/pipeline/energy.ts`, `local-optimizer.ts` (ICM), `regions.ts` (`labelRegions`, the fields generation
+//! reads) and `contour-cleanup.ts`. With an evidence layer, confident cells use their admissible-label costs (D63, D68).
 
 use crate::color::{rgb_to_oklab, Oklab, Rgb};
+use crate::crisp::evidence::EvidenceLayer;
+use crate::crisp::{
+    admissible_cost, build_cost_map, crisp_aware_cost, AdmissibleSet, DEFAULT_BETA,
+};
 use crate::jsmath;
 use crate::pair_evidence::{get_pair_edge_evidence, SLOTS};
 
@@ -45,17 +49,20 @@ pub fn neighbor_offsets() -> [(i32, i32, f64); 8] {
     ]
 }
 
+#[derive(Clone, Copy)]
 pub struct Ctx<'a> {
     pub width: usize,
     pub height: usize,
     pub cell_oklab: &'a [f64],
     pub importance: &'a [f32],
     pub pair_evidence: &'a [f32],
+    /// Crisp mode's frozen layer; `None` in Standard mode.
+    pub evidence: Option<&'a EvidenceLayer>,
 }
 
 const MAX_PASSES: usize = 8;
 
-/// `runLocalOptimizer` for Standard cells.
+/// `runLocalOptimizer`.
 pub fn run_local_optimizer(
     ctx: &Ctx,
     initial: &[u8],
@@ -68,6 +75,10 @@ pub fn run_local_optimizer(
     for (c, &rgb) in palette.iter().enumerate() {
         pal[c * 3..c * 3 + 3].copy_from_slice(&rgb_to_oklab(rgb));
     }
+    let palette_oklab: Vec<Oklab> = palette.iter().map(|&c| rgb_to_oklab(c)).collect();
+    let crisp_costs: Option<Vec<AdmissibleSet>> = ctx
+        .evidence
+        .map(|layer| build_cost_map(layer, &palette_oklab, weights.color, DEFAULT_BETA));
     let mut assignment = initial.to_vec();
     let cell_count = width * height;
     let offsets = neighbor_offsets();
@@ -161,42 +172,21 @@ pub fn run_local_optimizer(
                 }
 
                 let mut best = assignment[i] as usize;
-                let ci = i * 3;
-                let (cl, ca, cb) = (
-                    ctx.cell_oklab[ci],
-                    ctx.cell_oklab[ci + 1],
-                    ctx.cell_oklab[ci + 2],
-                );
-                let mut neighbor_best: i64 = -1;
-                let mut neighbor_best_energy = f64::INFINITY;
-                if weights.color >= 0.0 {
-                    for j in 0..count {
-                        let c = neighbor_label[j];
-                        let pi = c * 3;
-                        let dl = cl - pal[pi];
-                        let da = ca - pal[pi + 1];
-                        let db = cb - pal[pi + 2];
-                        let energy =
-                            weights.color * (dl * dl + da * da + db * db) + exact_boundary[c];
-                        if energy < neighbor_best_energy
-                            || (energy == neighbor_best_energy && (c as i64) < neighbor_best)
-                        {
-                            neighbor_best_energy = energy;
-                            neighbor_best = c as i64;
-                        }
-                    }
-                }
-                if neighbor_best_energy < total {
-                    best = neighbor_best as usize;
-                } else {
+                let admissible = match (&crisp_costs, ctx.evidence) {
+                    (Some(sets), Some(layer)) => layer.slot(i).map(|slot| &sets[slot]),
+                    _ => None,
+                };
+                if let Some(set) = admissible {
+                    // The current label first, so it wins an exact tie (D67); then the rest in insertion order.
+                    let current = best;
                     let mut best_energy = f64::INFINITY;
-                    for c in 0..k {
-                        let pi = c * 3;
-                        let dl = cl - pal[pi];
-                        let da = ca - pal[pi + 1];
-                        let db = cb - pal[pi + 2];
-                        let color_term = dl * dl + da * da + db * db;
-                        let energy = weights.color * color_term
+                    let ordered = std::iter::once(current)
+                        .chain(set.iter().map(|a| a.label).filter(|&c| c != current));
+                    for c in ordered {
+                        let Some(entry) = admissible_cost(set, c) else {
+                            continue;
+                        };
+                        let energy = entry.cost
                             + if stamp[c] == visit {
                                 exact_boundary[c]
                             } else {
@@ -205,6 +195,54 @@ pub fn run_local_optimizer(
                         if energy < best_energy {
                             best_energy = energy;
                             best = c;
+                        }
+                    }
+                } else {
+                    let ci = i * 3;
+                    let (cl, ca, cb) = (
+                        ctx.cell_oklab[ci],
+                        ctx.cell_oklab[ci + 1],
+                        ctx.cell_oklab[ci + 2],
+                    );
+                    let mut neighbor_best: i64 = -1;
+                    let mut neighbor_best_energy = f64::INFINITY;
+                    if weights.color >= 0.0 {
+                        for j in 0..count {
+                            let c = neighbor_label[j];
+                            let pi = c * 3;
+                            let dl = cl - pal[pi];
+                            let da = ca - pal[pi + 1];
+                            let db = cb - pal[pi + 2];
+                            let energy =
+                                weights.color * (dl * dl + da * da + db * db) + exact_boundary[c];
+                            if energy < neighbor_best_energy
+                                || (energy == neighbor_best_energy && (c as i64) < neighbor_best)
+                            {
+                                neighbor_best_energy = energy;
+                                neighbor_best = c as i64;
+                            }
+                        }
+                    }
+                    if neighbor_best_energy < total {
+                        best = neighbor_best as usize;
+                    } else {
+                        let mut best_energy = f64::INFINITY;
+                        for c in 0..k {
+                            let pi = c * 3;
+                            let dl = cl - pal[pi];
+                            let da = ca - pal[pi + 1];
+                            let db = cb - pal[pi + 2];
+                            let color_term = dl * dl + da * da + db * db;
+                            let energy = weights.color * color_term
+                                + if stamp[c] == visit {
+                                    exact_boundary[c]
+                                } else {
+                                    total
+                                };
+                            if energy < best_energy {
+                                best_energy = energy;
+                                best = c;
+                            }
                         }
                     }
                 }
@@ -283,22 +321,16 @@ pub fn label_regions(cells: &[u8], width: usize, height: usize) -> (Vec<i32>, Ve
     (labels, components)
 }
 
-#[inline]
-fn color_cost(cell_oklab: &[f64], palette_oklab: &[Oklab], cell: usize, label: usize) -> f64 {
-    let o = cell * 3;
-    let p = palette_oklab[label];
-    let dl = cell_oklab[o] - p[0];
-    let da = cell_oklab[o + 1] - p[1];
-    let db = cell_oklab[o + 2] - p[2];
-    dl * dl + da * da + db * db
-}
-
 /// `recolorSmallComponents` with `defaultComponentRecolorOptions`.
 pub fn recolor_small_components(ctx: &Ctx, assignment: &[u8], palette: &[Rgb]) -> Vec<u8> {
     let (width, height) = (ctx.width, ctx.height);
     let max_size = if width * height < 2500 { 2 } else { 6 };
     let (smoothness, edge_loss, protect) = (0.045, 0.05, 0.5);
     let palette_oklab: Vec<Oklab> = palette.iter().map(|&c| rgb_to_oklab(c)).collect();
+    let crisp_costs: Option<Vec<AdmissibleSet>> = ctx
+        .evidence
+        .map(|layer| build_cost_map(layer, &palette_oklab, 1.0, DEFAULT_BETA));
+    let costs = ctx.evidence.zip(crisp_costs.as_deref());
     let offsets = neighbor_offsets();
 
     let mut result = assignment.to_vec();
@@ -350,7 +382,8 @@ pub fn recolor_small_components(ctx: &Ctx, assignment: &[u8], palette: &[Rgb]) -
         let total_energy = |candidate: u8, result: &[u8]| -> f64 {
             let mut color_error = 0.0;
             for &i in cells {
-                color_error += color_cost(ctx.cell_oklab, &palette_oklab, i, candidate as usize);
+                color_error +=
+                    crisp_aware_cost(costs, ctx.cell_oklab, &palette_oklab, i, candidate as usize);
             }
             let mut boundary_energy = 0.0;
             for &(member, neighbor, w, dx, dy) in &boundary {
@@ -388,6 +421,10 @@ pub fn fix_diagonal_connections(ctx: &Ctx, assignment: &[u8], palette: &[Rgb]) -
     let (width, height) = (ctx.width, ctx.height);
     let (protect, ceiling, max_passes) = (0.5, 0.02, 4);
     let palette_oklab: Vec<Oklab> = palette.iter().map(|&c| rgb_to_oklab(c)).collect();
+    let crisp_costs: Option<Vec<AdmissibleSet>> = ctx
+        .evidence
+        .map(|layer| build_cost_map(layer, &palette_oklab, 1.0, DEFAULT_BETA));
+    let costs = ctx.evidence.zip(crisp_costs.as_deref());
     let mut result = assignment.to_vec();
     if width < 2 || height < 2 {
         return result;
@@ -416,8 +453,19 @@ pub fn fix_diagonal_connections(ctx: &Ctx, assignment: &[u8], palette: &[Rgb]) -
                 let mut best = candidates[0];
                 for &(cell, new_color) in &candidates {
                     let current = result[cell];
-                    let cost = color_cost(ctx.cell_oklab, &palette_oklab, cell, new_color as usize)
-                        - color_cost(ctx.cell_oklab, &palette_oklab, cell, current as usize);
+                    let cost = crisp_aware_cost(
+                        costs,
+                        ctx.cell_oklab,
+                        &palette_oklab,
+                        cell,
+                        new_color as usize,
+                    ) - crisp_aware_cost(
+                        costs,
+                        ctx.cell_oklab,
+                        &palette_oklab,
+                        cell,
+                        current as usize,
+                    );
                     if cost < best_cost {
                         best_cost = cost;
                         best = (cell, new_color);

@@ -9,7 +9,8 @@
     clippy::approx_constant,
     clippy::eq_op,
     clippy::assign_op_pattern,
-    clippy::needless_range_loop
+    clippy::needless_range_loop,
+    clippy::explicit_counter_loop
 )]
 
 #[inline]

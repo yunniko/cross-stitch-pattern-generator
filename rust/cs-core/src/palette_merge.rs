@@ -18,11 +18,22 @@ pub fn merge_similar_colors(
     palette: &[Rgb],
     threshold: f64,
 ) -> (Vec<u8>, Vec<Rgb>) {
+    merge_similar_colors_weighted(cell_palette_index, palette, threshold, None)
+}
+
+/// `mergeSimilarColors` with `entryWeights`: "more-used" is summed weight rather than a count (D60). Counts are
+/// doubles, as in the TypeScript, so both forms compare the same values.
+pub fn merge_similar_colors_weighted(
+    cell_palette_index: &[u8],
+    palette: &[Rgb],
+    threshold: f64,
+    entry_weights: Option<&[f64]>,
+) -> (Vec<u8>, Vec<Rgb>) {
     let oklab: Vec<_> = palette.iter().map(|&c| rgb_to_oklab(c)).collect();
     let n = palette.len();
-    let mut counts = vec![0u64; n];
-    for &c in cell_palette_index {
-        counts[c as usize] += 1;
+    let mut counts = vec![0f64; n];
+    for (i, &c) in cell_palette_index.iter().enumerate() {
+        counts[c as usize] += entry_weights.map_or(1.0, |w| w[i]);
     }
     let mut parent: Vec<usize> = (0..n).collect();
     let mut alive = vec![true; n];
