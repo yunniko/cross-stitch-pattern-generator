@@ -1,16 +1,23 @@
+// Frozen copy of lib/export/pdf-canvas-adapter.ts as of G-047 M2 (commit 1d414e0), before M3 wrote page content as
+// text. The reference for tests/unit/pdf-text-content.spec.ts; never edit it to follow the live adapter.
 import {
   degrees,
-  PDFNumber,
-  PDFOperator,
+  drawText as drawTextOperators,
+  fill as fillOperator,
+  lineTo as lineToOperator,
+  moveTo as moveToOperator,
+  rectangle as rectangleOperator,
   rgb,
   setFillingColor as setFillingColorOperator,
+  setLineWidth as setLineWidthOperator,
   setStrokingColor as setStrokingColorOperator,
+  stroke as strokeOperator,
   type PDFFont,
+  type PDFHexString,
   type PDFName,
-  type PDFOperatorNames,
   type PDFPage,
 } from "pdf-lib";
-import type { ChartDrawingContext } from "./chart-drawing-context";
+import type { ChartDrawingContext } from "@/lib/export/chart-drawing-context";
 
 /**
  * Implements `ChartDrawingContext` against a real `PDFPage` + embedded
@@ -95,35 +102,17 @@ export function parseCssColor(css: string): ParsedColor {
 // distinct values, and re-parsing them on every call was measurable (G-035 M2, D126). Keys come from palette colors and
 // a few fixed styles, so each cache is small; the limit only guards against unbounded growth.
 const CACHE_LIMIT = 1024;
-interface CachedColor {
-  color: ReturnType<typeof rgb>;
-  alpha: number;
-  /** The `rg` and `RG` operators pdf-lib writes for this colour, as text (D174). */
-  fill: string;
-  stroke: string;
-}
+const colorCache = new Map<string, { color: ReturnType<typeof rgb>; alpha: number }>();
 
-const colorCache = new Map<string, CachedColor>();
-
-function cachedColor(css: string): CachedColor {
+function cachedColor(css: string): { color: ReturnType<typeof rgb>; alpha: number } {
   let entry = colorCache.get(css);
   if (!entry) {
     const { r, g, b, alpha } = parseCssColor(css);
-    const color = rgb(r / 255, g / 255, b / 255);
-    entry = { color, alpha, fill: setFillingColorOperator(color).toString(), stroke: setStrokingColorOperator(color).toString() };
+    entry = { color: rgb(r / 255, g / 255, b / 255), alpha };
     if (colorCache.size >= CACHE_LIMIT) colorCache.clear();
     colorCache.set(css, entry);
   }
   return entry;
-}
-
-/**
- * A number exactly as pdf-lib writes an operand: `numberToString`, which is `String(n)` unless that uses exponent
- * notation. The rare exponent case goes through pdf-lib itself.
- */
-function num(n: number): string {
-  const s = String(n);
-  return s.indexOf("e") === -1 ? s : PDFNumber.of(n).toString();
 }
 
 /** pdf-lib registers a new graphics-state resource for every call that passes an opacity, so an opaque color passes none (D126). */
@@ -158,21 +147,18 @@ function parseFont(font: string): ParsedFont {
 }
 
 const widthCache = new WeakMap<PDFFont, Map<string, number>>();
-const encodingCache = new WeakMap<PDFFont, Map<string, string>>();
+const encodingCache = new WeakMap<PDFFont, Map<string, PDFHexString>>();
 
-/**
- * `font.encodeText` as it prints in a content stream (`<…>`), cached per font and text. The subset font records each
- * glyph when a text is first encoded.
- */
-function encodedText(font: PDFFont, text: string): string {
+/** `font.encodeText`, cached per font and text. The subset font records each glyph when a text is first encoded. */
+function encodedText(font: PDFFont, text: string): PDFHexString {
   let encodings = encodingCache.get(font);
   if (!encodings) {
     encodings = new Map();
     encodingCache.set(font, encodings);
   }
   let encoded = encodings.get(text);
-  if (encoded === undefined) {
-    encoded = font.encodeText(text).toString();
+  if (!encoded) {
+    encoded = font.encodeText(text);
     if (encodings.size >= CACHE_LIMIT) encodings.clear();
     encodings.set(text, encoded);
   }
@@ -238,14 +224,6 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
   private pathPoints: Array<[number, number]> = [];
   /** Each font is registered on the page once; pdf-lib's drawText would add a new Font resource for every call (D126). */
   private readonly fontKeys = new Map<PDFFont, PDFName>();
-  /**
-   * Direct operators not yet handed to the page, one line each, in the text pdf-lib itself would write for them
-   * (D174). They go to the page as one operator whose name is the whole batch, which pdf-lib writes verbatim, before
-   * any drawing that goes through pdf-lib's own methods and when the page is finished.
-   */
-  private pending: string[] = [];
-  /** Read once: pdf-lib answers `getHeight()` by walking the page's MediaBox on every call. */
-  private readonly pageHeight: number;
 
   constructor(
     private readonly page: PDFPage,
@@ -253,16 +231,7 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
     private readonly regularMetrics: FontMetricsSource,
     private readonly boldFont: PDFFont = regularFont,
     private readonly boldMetrics: FontMetricsSource = regularMetrics
-  ) {
-    this.pageHeight = page.getHeight();
-  }
-
-  /** Hands every pending operator to the page. Call once the page's drawing is done, before it is flushed or saved. */
-  finish(): void {
-    if (this.pending.length === 0) return;
-    this.page.pushOperators(PDFOperator.of(this.pending.join("\n") as PDFOperatorNames));
-    this.pending = [];
-  }
+  ) {}
 
   private requireSolidColor(style: string | CanvasGradient | CanvasPattern): string {
     if (typeof style !== "string") {
@@ -305,21 +274,20 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
     const top = Math.min(y0, y1);
     const width = Math.abs(x1 - x0);
     const height = Math.abs(y1 - y0);
+    const pageHeight = this.page.getHeight();
     const pdfX = left;
-    const pdfY = this.pageHeight - top - height;
+    const pdfY = pageHeight - top - height;
 
     if (fill) {
-      const entry = cachedColor(this.requireSolidColor(this.fillStyle));
-      if (entry.alpha < 1) {
-        this.finish();
-        this.page.drawRectangle({ x: pdfX, y: pdfY, width, height, color: entry.color, opacity: entry.alpha, borderWidth: 0 });
+      const { color, alpha } = cachedColor(this.requireSolidColor(this.fillStyle));
+      if (alpha < 1) {
+        this.page.drawRectangle({ x: pdfX, y: pdfY, width, height, color, opacity: alpha, borderWidth: 0 });
       } else {
         // Direct operators (D126): every direct fill, stroke and text run sets its own color, so no state save is needed.
-        this.pending.push(entry.fill, `${num(pdfX)} ${num(pdfY)} ${num(width)} ${num(height)} re`, "f");
+        this.page.pushOperators(setFillingColorOperator(color), rectangleOperator(pdfX, pdfY, width, height), fillOperator());
       }
     } else {
       const { color, alpha } = cachedColor(this.requireSolidColor(this.strokeStyle));
-      this.finish();
       this.page.drawRectangle({
         x: pdfX,
         y: pdfY,
@@ -349,8 +317,9 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
     else dy = 0; // "alphabetic"/"ideographic": (x,y) is already the baseline.
 
     const [bx, by] = applyMat(this.ctm, x + dx, y + dy);
+    const pageHeight = this.page.getHeight();
     const pdfX = bx;
-    const pdfY = this.pageHeight - by;
+    const pdfY = pageHeight - by;
 
     // The coordinate flip mirrors the whole scene about a horizontal axis,
     // which negates the sense of any rotation baked into the CTM -- a
@@ -360,23 +329,23 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
     // own reported per-glyph transform in tests/unit/pdf-canvas-adapter.spec.ts.
     const rotationDegrees = (-rotationOf(this.ctm) * 180) / Math.PI;
 
-    const entry = cachedColor(this.requireSolidColor(this.fillStyle));
-    if (entry.alpha < 1 || TEXT_NEEDING_CLEANUP.test(text) || rotationDegrees !== 0) {
-      this.finish();
-      this.page.drawText(text, { x: pdfX, y: pdfY, size: sizePt, font, color: entry.color, opacity: opacityOption(entry.alpha), rotate: degrees(rotationDegrees) });
+    const { color, alpha } = cachedColor(this.requireSolidColor(this.fillStyle));
+    if (alpha < 1 || TEXT_NEEDING_CLEANUP.test(text)) {
+      this.page.drawText(text, { x: pdfX, y: pdfY, size: sizePt, font, color, opacity: opacityOption(alpha), rotate: degrees(rotationDegrees) });
       return;
     }
-    // The operators pdf-lib's drawText emits, with the font registered once per page and the encoding cached. Unrotated
-    // and unskewed, its text matrix is cos 0, sin 0 + tan 0, −sin 0 + tan 0, cos 0: exactly "1 0 0 1" (D174).
-    this.pending.push(
-      "q",
-      "BT",
-      entry.fill,
-      `${this.fontKeyFor(font).toString()} ${num(sizePt)} Tf`,
-      `1 0 0 1 ${num(pdfX)} ${num(pdfY)} Tm`,
-      `${encodedText(font, text)} Tj`,
-      "ET",
-      "Q"
+    // The same operators pdf-lib's drawText emits, with the font registered once per page and the encoding cached.
+    this.page.pushOperators(
+      ...drawTextOperators(encodedText(font, text), {
+        color,
+        font: this.fontKeyFor(font),
+        size: sizePt,
+        rotate: degrees(rotationDegrees),
+        xSkew: degrees(0),
+        ySkew: degrees(0),
+        x: pdfX,
+        y: pdfY,
+      })
     );
   }
 
@@ -404,15 +373,20 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
           "none of the reused drawing functions build a longer path"
       );
     }
-    const pageHeight = this.pageHeight;
+    const pageHeight = this.page.getHeight();
     const [[x0, y0], [x1, y1]] = this.pathPoints;
-    const entry = cachedColor(this.requireSolidColor(this.strokeStyle));
-    if (entry.alpha < 1) {
-      this.finish();
-      this.page.drawLine({ start: { x: x0, y: pageHeight - y0 }, end: { x: x1, y: pageHeight - y1 }, thickness: this.lineWidth, color: entry.color, opacity: entry.alpha });
+    const { color, alpha } = cachedColor(this.requireSolidColor(this.strokeStyle));
+    if (alpha < 1) {
+      this.page.drawLine({ start: { x: x0, y: pageHeight - y0 }, end: { x: x1, y: pageHeight - y1 }, thickness: this.lineWidth, color, opacity: alpha });
       return;
     }
-    this.pending.push(entry.stroke, `${num(this.lineWidth)} w`, `${num(x0)} ${num(pageHeight - y0)} m`, `${num(x1)} ${num(pageHeight - y1)} l`, "S");
+    this.page.pushOperators(
+      setStrokingColorOperator(color),
+      setLineWidthOperator(this.lineWidth),
+      moveToOperator(x0, pageHeight - y0),
+      lineToOperator(x1, pageHeight - y1),
+      strokeOperator()
+    );
   }
 
   save(): void {

@@ -71,6 +71,8 @@ describe("PdfCanvasAdapter: text positioning against pdfjs-dist's own reported t
     const { doc, page, adapter } = await buildAdapterPage();
     adapter.font = "20px Arial, sans-serif";
     adapter.fillText("AB", 50, 100);
+    // The adapter hands the page its text-written operators when the page is finished (D174).
+    adapter.finish();
     const bytes = await doc.save();
     const items = await extractTextItems(bytes);
     expect(items).toHaveLength(1);
@@ -93,6 +95,8 @@ describe("PdfCanvasAdapter: text positioning against pdfjs-dist's own reported t
     adapter.textAlign = "center";
     adapter.fillText("AB", 100, 130);
 
+    // The adapter hands the page its text-written operators when the page is finished (D174).
+    adapter.finish();
     const bytes = await doc.save();
     const items = await extractTextItems(bytes);
     expect(items).toHaveLength(2);
@@ -105,6 +109,8 @@ describe("PdfCanvasAdapter: text positioning against pdfjs-dist's own reported t
     adapter.font = "24px Arial, sans-serif";
     adapter.textBaseline = "top";
     adapter.fillText("A", 10, 10);
+    // The adapter hands the page its text-written operators when the page is finished (D174).
+    adapter.finish();
     const bytes = await doc.save();
     const items = await extractTextItems(bytes);
     const ascent = (fontMetrics.ascent / fontMetrics.unitsPerEm) * 24;
@@ -122,6 +128,8 @@ describe("PdfCanvasAdapter: text positioning against pdfjs-dist's own reported t
     adapter.rotate(-Math.PI / 2);
     adapter.fillText("OVERLAP", 0, 0);
     adapter.restore();
+    // The adapter hands the page its text-written operators when the page is finished (D174).
+    adapter.finish();
     const bytes = await doc.save();
     const items = await extractTextItems(bytes);
     expect(items).toHaveLength(1);
@@ -147,6 +155,8 @@ describe("PdfCanvasAdapter: text positioning against pdfjs-dist's own reported t
     adapter.rotate(Math.PI);
     adapter.restore();
     adapter.fillText("A", 10, 10); // should land as if the save/restore never happened
+    // The adapter hands the page its text-written operators when the page is finished (D174).
+    adapter.finish();
     const bytes = await doc.save();
     const items = await extractTextItems(bytes);
     expect(items[0].transform[4]).toBeCloseTo(10, 2);
@@ -214,6 +224,8 @@ describe("PdfCanvasAdapter + drawA4LegendPage: real page content round-trips as 
     const pattern = makeLegendPattern();
     drawA4LegendPage(adapter, pattern, layout);
 
+    // The adapter hands the page its text-written operators when the page is finished (D174).
+    adapter.finish();
     const bytes = await doc.save();
     const items = await extractTextItems(bytes);
     const extracted = items.map((i) => i.str).join("");

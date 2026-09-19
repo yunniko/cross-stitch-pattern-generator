@@ -182,3 +182,4 @@ remain readable with git show.
 - D171 — The server writes its own PNGs and releases each canvas once encoded — active
 - D172 — Raster exports stamp symbols from tiles drawn once per colour — active
 - D173 — The realistic preview PNG is streamed from per-colour tiles — active
+- D174 — The PDF adapter writes its direct operators as text — active

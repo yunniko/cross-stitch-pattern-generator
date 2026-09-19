@@ -172,6 +172,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   measurement as M4.
 
 **Progress log** (newest first):
+- 2026-09-19 — **Owner approval:** "go ahead with M3".
 - 2026-09-19 — **M2 done: the realistic preview never exists whole.** Deployed as a2794c5.
   - **How:** each colour's texture is scaled into a stitch tile once; the PNG encoder's strips of rows are copied
     together from the tiles and streamed into the M1 writer (D173). The tile builder moved from the Image window into

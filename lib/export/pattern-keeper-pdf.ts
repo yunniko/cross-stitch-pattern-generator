@@ -171,8 +171,10 @@ export async function buildPatternKeeperPdf(
   const plan = planInfoPages(pattern, layout, infoOptions);
   const totalPages = totalGridPages + 1 + plan.totalPages;
   let drawn = 0;
-  // A drawn page's operators go as soon as it is finished, so memory holds one page however large the chart (D169).
-  const pageDone = async (page: PDFPage) => {
+  // A drawn page's operators go as soon as it is finished, so memory holds one page however large the chart (D169). The
+  // adapter first hands the page the operators it has written as text (D174).
+  const pageDone = async (adapter: PdfCanvasAdapter, page: PDFPage) => {
+    adapter.finish();
     if (!retainPageOperators) flushFinishedPage(page);
     drawn++;
     onProgress?.({ completed: drawn, total: totalPages, label: `Page ${drawn} of ${totalPages}` });
@@ -182,25 +184,29 @@ export async function buildPatternKeeperPdf(
 
   for (let i = 0; i < layout.pages.length; i++) {
     const page = doc.addPage(pageSize);
-    drawA4GridPage(new PdfCanvasAdapter(page, font, metrics), pattern, mode, layout, layout.pages[i], i, totalGridPages);
-    await pageDone(page);
+    const adapter = new PdfCanvasAdapter(page, font, metrics);
+    drawA4GridPage(adapter, pattern, mode, layout, layout.pages[i], i, totalGridPages);
+    await pageDone(adapter, page);
   }
 
   const legendPage = doc.addPage(pageSize);
-  drawA4LegendPage(new PdfCanvasAdapter(legendPage, font, metrics), pattern, layout);
-  await pageDone(legendPage);
+  const legendAdapter = new PdfCanvasAdapter(legendPage, font, metrics);
+  drawA4LegendPage(legendAdapter, pattern, layout);
+  await pageDone(legendAdapter, legendPage);
 
   const infoPage = doc.addPage(pageSize);
-  drawInfoPage1(new PdfCanvasAdapter(infoPage, font, metrics), pattern, plan, layout, aidaCount);
-  await pageDone(infoPage);
+  const infoAdapter = new PdfCanvasAdapter(infoPage, font, metrics);
+  drawInfoPage1(infoAdapter, pattern, plan, layout, aidaCount);
+  await pageDone(infoAdapter, infoPage);
 
   let consumed = Math.min(plan.rowsOnPage1, plan.totalColors);
   for (let p = 0; p < plan.totalPages - 1; p++) {
     const rowsHere = Math.min(plan.rowsPerContinuationPage, plan.totalColors - consumed);
     const page = doc.addPage(pageSize);
-    drawInfoContinuationPage(new PdfCanvasAdapter(page, font, metrics), plan, pattern.palette.slice(consumed, consumed + rowsHere), p + 2, layout, aidaCount);
+    const adapter = new PdfCanvasAdapter(page, font, metrics);
+    drawInfoContinuationPage(adapter, plan, pattern.palette.slice(consumed, consumed + rowsHere), p + 2, layout, aidaCount);
     consumed += rowsHere;
-    await pageDone(page);
+    await pageDone(adapter, page);
   }
 
   onProgress?.({ completed: totalPages, total: totalPages, label: "Saving PDF…" });
