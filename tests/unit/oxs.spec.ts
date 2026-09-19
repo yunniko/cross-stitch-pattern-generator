@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { looksLikeOxs, oxsImportNotice, parseOxs, parseThreadNumber, serializeOxs, summarizeOxsImport } from "@/lib/editor/oxs";
 import { readXmlTags, type XmlTag } from "@/lib/editor/oxs-xml";
 import { formatThreadName, THREAD_BRANDS } from "@/lib/threads/thread-brands";
-import { EMPTY_CELL, type PaletteColor, type RGB, type StitchPattern, type ThreadSwatchRef } from "@/lib/types";
+import { EMPTY_CELL, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern, type ThreadSwatchRef } from "@/lib/types";
 
 /**
  * G-028 M1: OXS import and export (D119). Every fixture here is self-authored; the real files studied are described in
@@ -293,7 +293,7 @@ describe("parseOxs", () => {
   });
 
   it.each([
-    ["a chart larger than 1000 stitches per side", chart({ ...ONE_COLOR, properties: 'chartwidth="1001" chartheight="2"' }), "larger than the maximum of 1000"],
+    ["a chart larger than the maximum per side", chart({ ...ONE_COLOR, properties: `chartwidth="${MAX_STITCHES + 1}" chartheight="2"` }), `larger than the maximum of ${MAX_STITCHES}`],
     ["a chart without a stated size", chart({ ...ONE_COLOR, properties: 'charttitle="x"' }), "valid chart width and height"],
     ["a file whose root isn't chart", '<?xml version="1.0"?><svg width="1"/>', "isn't an OXS chart"],
     ["a chart with no stitches", chart({ palette: CLOTH }), "no stitches this app can show."],

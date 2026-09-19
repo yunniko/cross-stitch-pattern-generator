@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { MAX_STITCHES } from "../../lib/types";
 import path from "node:path";
 
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
@@ -31,7 +32,7 @@ test("exports at 1000 stitches render off the main thread, and A4 export shows p
   await installLongTaskObserver(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.locator('input[type="number"][max="1000"]').first().fill("1000");
+  await page.locator(`input[type="number"][max="${MAX_STITCHES}"]`).first().fill("1000");
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByText(/(1000 × \d+|\d+ × 1000), [\d,]+ stitches, \d+ colors/)).toBeVisible({ timeout: 180_000 });
   await page.waitForTimeout(500); // let the chart's own first draw finish before measuring exports

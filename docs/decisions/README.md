@@ -187,3 +187,6 @@ remain readable with git show.
 - D176 — Crisp's weighted quantizer works on a column pool, not sample objects — active
 - D177 — k-means works on the OKLab buffer and skips provably unchanged assignments — active
 - D178 — The denoise computes each pair once, and luminance is computed once — active
+- D179 — The editor's zoom has no chart-size cap — active
+- D180 — The OXS export is built a row at a time — active
+- D181 — The chart cap is 1500 stitches per side — active

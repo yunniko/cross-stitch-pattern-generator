@@ -13,7 +13,7 @@ async function generateSmallPattern(page: Page) {
   await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
 }
 
-/** A synthetic editable-pattern file at the maximum supported width, opened through the file input so the test doesn't pay for a 1000-stitch generation. */
+/** A synthetic editable-pattern file 1000 stitches wide, opened through the file input so the test doesn't pay for a 1000-stitch generation. */
 function largePatternJson(width: number, height: number, colors: number): string {
   const palette = Array.from({ length: colors }, (_, i) => ({ rgb: [(i * 37) % 256, (i * 91) % 256, (i * 151) % 256], symbol: String.fromCharCode(65 + i), name: `Color ${i}` }));
   const cellPalette = new Array<number>(width * height);

@@ -1,4 +1,4 @@
-import { serializeOxs } from "../editor/oxs";
+import { serializeOxsParts } from "../editor/oxs";
 import { compactUnusedColors } from "../editor/pattern-edit";
 import { serializePattern } from "../editor/pattern-serialize";
 import type { SymmetryAxes } from "../editor/symmetry-axes";
@@ -59,7 +59,7 @@ export async function runExportJob(request: ExportJobRequest, onProgress?: Expor
   const compacted = compactUnusedColors(pattern);
   switch (kind) {
     case "oxs":
-      return { blob: new Blob([serializeOxs(compacted, { authorName, aidaCount })], { type: "application/xml" }), filename: `${baseName}.oxs` };
+      return { blob: new Blob(serializeOxsParts(compacted, { authorName, aidaCount }), { type: "application/xml" }), filename: `${baseName}.oxs` };
     case "png-color":
     case "png-bw": {
       const mode = modeOf(kind);

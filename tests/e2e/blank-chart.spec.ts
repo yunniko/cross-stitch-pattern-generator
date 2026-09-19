@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { MAX_STITCHES } from "../../lib/types";
 
 /**
  * G-040 M2: starting a chart from an empty canvas. Such a chart has no photo, so Generate and every photo-only setting
@@ -49,7 +50,7 @@ test("the size dialog shows the finished fabric size and refuses a size outside 
   await expect(page.getByTestId("new-chart-size")).toContainText("cm finished");
 
   await page.getByLabel("Width in stitches").fill("4");
-  await expect(page.getByText(/Width must be between 10 and 1000 stitches/)).toBeVisible();
+  await expect(page.getByText(`Width must be between 10 and ${MAX_STITCHES} stitches`)).toBeVisible();
   await expect(page.getByRole("button", { name: "Create", exact: true })).toBeDisabled();
 });
 

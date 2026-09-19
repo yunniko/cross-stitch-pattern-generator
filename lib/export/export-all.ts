@@ -4,7 +4,7 @@ import { calculateA4Layout, type OverlapCells } from "./a4-layout";
 import { planInfoPages } from "./a4-render";
 import { canvasToPngBlobAndRelease } from "./canvas-backend";
 import type { ExportProgressCallback } from "./export-progress";
-import { serializeOxs } from "../editor/oxs";
+import { serializeOxsBytes } from "../editor/oxs";
 import { serializePattern } from "../editor/pattern-serialize";
 import type { SymmetryAxes } from "../editor/symmetry-axes";
 import { buildPatternKeeperPdf } from "./pattern-keeper-pdf";
@@ -60,7 +60,7 @@ export async function generateExportAllZip(pattern: StitchPattern, options: Expo
   const zip = new JSZip();
 
   zip.file(`${baseName}_editable.json`, serializePattern(pattern, symmetry));
-  zip.file(`${baseName}.oxs`, serializeOxs(pattern, { authorName, aidaCount }));
+  zip.file(`${baseName}.oxs`, serializeOxsBytes(pattern, { authorName, aidaCount }));
   await step("Editable file and OXS", 2);
 
   zip.file(`${baseName}_color.png`, await canvasToPngBlobAndRelease(renderPatternToCanvas(pattern, "color", info)));

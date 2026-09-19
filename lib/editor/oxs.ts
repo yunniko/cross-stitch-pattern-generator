@@ -510,6 +510,15 @@ const DEFAULT_STITCHES_PER_INCH = 14;
  * code. Callers pass the export-compacted pattern.
  */
 export function serializeOxs(pattern: StitchPattern, options: OxsExportOptions = {}): string {
+  return serializeOxsParts(pattern, options).join("");
+}
+
+/**
+ * `serializeOxs` as consecutive pieces of text: the header, one piece per stitch row, and the footer, each ending in its
+ * newline, so joined they are exactly `serializeOxs`. A 1500-stitch chart has 1.5 M stitches, and building them as one
+ * array of lines held 430 MB of heap (995 MB at 2000); a row at a time holds one row's lines (G-046 M4, D180).
+ */
+export function serializeOxsParts(pattern: StitchPattern, options: OxsExportOptions = {}): string[] {
   const authorName = options.authorName ?? "";
   const aidaCount = options.aidaCount !== undefined && Number.isFinite(options.aidaCount) && options.aidaCount > 0 ? options.aidaCount : DEFAULT_STITCHES_PER_INCH;
   const attribute = (name: string, value: string | number) => ` ${name}="${escapeXmlAttribute(String(value))}"`;
@@ -553,15 +562,30 @@ export function serializeOxs(pattern: StitchPattern, options: OxsExportOptions =
   lines.push("</palette>");
 
   lines.push("<fullstitches>");
+  const parts = [lines.join("\n") + "\n"];
   for (let y = 0; y < pattern.height; y++) {
+    const row: string[] = [];
     for (let x = 0; x < pattern.width; x++) {
       const value = pattern.cellPalette[y * pattern.width + x];
-      if (value !== EMPTY_CELL) lines.push(`<stitch x="${x}" y="${y}" palindex="${value + 1}"/>`);
+      if (value !== EMPTY_CELL) row.push(`<stitch x="${x}" y="${y}" palindex="${value + 1}"/>`);
     }
+    if (row.length > 0) parts.push(row.join("\n") + "\n");
   }
-  lines.push("</fullstitches>");
-  lines.push("<partstitches/>", "<backstitches/>", "<ornaments_inc_knots_and_beads/>", "<commentboxes/>", "</chart>");
-  return lines.join("\n") + "\n";
+  parts.push(["</fullstitches>", "<partstitches/>", "<backstitches/>", "<ornaments_inc_knots_and_beads/>", "<commentboxes/>", "</chart>"].join("\n") + "\n");
+  return parts;
+}
+
+/** The OXS file as UTF-8 bytes, encoded a piece at a time rather than from one joined string. */
+export function serializeOxsBytes(pattern: StitchPattern, options: OxsExportOptions = {}): Uint8Array {
+  const encoder = new TextEncoder();
+  const chunks = serializeOxsParts(pattern, options).map((part) => encoder.encode(part));
+  const bytes = new Uint8Array(chunks.reduce((n, chunk) => n + chunk.length, 0));
+  let at = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, at);
+    at += chunk.length;
+  }
+  return bytes;
 }
 
 function toHex(rgb: RGB): string {

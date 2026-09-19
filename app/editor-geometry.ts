@@ -5,18 +5,21 @@ import type { CellRect, StitchPattern } from "@/lib/types";
 const IMAGE_WINDOW_TARGET_WIDTH_PX = 720;
 const IMAGE_WINDOW_MAX_CELL_SIZE = 28;
 const IMAGE_WINDOW_MIN_CELL_SIZE = 4;
-// Caps the zoomed canvas like render.ts's export budget, so 4x zoom on the largest pattern can't request a huge canvas.
-const IMAGE_WINDOW_MAX_ZOOMED_CANVAS_PX = 8000;
 
 /** The photo underlay's opacity in Grid + photo mode, so the symbol grid stays the readable layer. */
 export const PHOTO_UNDERLAY_ALPHA = 0.55;
 
-/** On-screen cell size. Zoom re-renders at a higher resolution rather than scaling pixels, so symbols appear when zoomed in. */
+/**
+ * On-screen cell size. Zoom re-renders at a higher resolution rather than scaling pixels, so symbols appear when zoomed
+ * in. There is no cap on the zoomed chart's size: since D135 only the chart frame is chart-sized, and it is layout, while
+ * the canvas covers the view. An 8000 px cap from before then left a 1000-stitch chart at 8 px a stitch and a larger one
+ * unzoomable (G-046 M4, D179).
+ */
 export function computeCellSize(pattern: StitchPattern | null, zoomLevel: number): number {
   if (!pattern) return IMAGE_WINDOW_MAX_CELL_SIZE;
   const longer = Math.max(pattern.width, pattern.height);
   const base = Math.max(IMAGE_WINDOW_MIN_CELL_SIZE, Math.min(IMAGE_WINDOW_MAX_CELL_SIZE, Math.floor(IMAGE_WINDOW_TARGET_WIDTH_PX / longer)));
-  return Math.min(Math.round(base * zoomLevel), Math.floor(IMAGE_WINDOW_MAX_ZOOMED_CANVAS_PX / longer));
+  return Math.round(base * zoomLevel);
 }
 
 export interface PointerPosition {

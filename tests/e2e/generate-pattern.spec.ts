@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { MAX_STITCHES } from "../../lib/types";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 
@@ -76,7 +77,7 @@ test("a small chart's header is never clipped, even at the minimum custom size (
   expect(await pngWidth(savedPath)).toBeGreaterThan(320);
 });
 
-test("a custom size outside the 10-1000 range is clamped at the stepper, so generation never sees it", async ({ page }) => {
+test("a custom size outside the supported range is clamped at the stepper, so generation never sees it", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
 
@@ -89,7 +90,7 @@ test("a custom size outside the 10-1000 range is clamped at the stepper, so gene
   // G-045: 1b's stepper clamps to the supported range as the value is typed, so an out-of-range size can no longer
   // reach generation at all. The guard in `use-generation.ts` stays, and the fractional case below still trips it --
   // clamping does not round, so 10.5 survives inside the range and is rejected there.
-  await expect(page.getByRole("spinbutton")).toHaveValue("1000");
+  await expect(page.getByRole("spinbutton")).toHaveValue(String(MAX_STITCHES));
   expect(errors).toEqual([]);
 });
 

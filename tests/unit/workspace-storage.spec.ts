@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LEGACY_PROJECT_KEY, legacyProjectSlot, loadWorkspaceOptions, OPTIONS_KEY, saveWorkspaceOptions } from "@/lib/editor/workspace-storage";
+import { MAX_STITCHES } from "@/lib/types";
 
 // This project's default Vitest environment is plain Node (no jsdom/window),
 // matching how the rest of the suite tests only the DOM-free parts of
@@ -159,8 +160,8 @@ describe("workspace-storage", () => {
       expect(loadWorkspaceOptions().sizePreset).toBe("medium");
     });
 
-    it("rejects a customSize outside 10-1000 or non-integer", () => {
-      for (const bad of [0, 5, 1001, 50.5, "100"]) {
+    it("rejects a customSize outside the supported range or non-integer", () => {
+      for (const bad of [0, 5, MAX_STITCHES + 1, 50.5, "100"]) {
         window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, customSize: bad }));
         expect(loadWorkspaceOptions().customSize).toBe(100);
       }

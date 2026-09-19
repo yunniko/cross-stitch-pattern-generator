@@ -42,7 +42,12 @@ export const SIZE_PRESET_LABELS: Record<Exclude<SizePresetId, "custom">, string>
 };
 
 export const MIN_STITCHES = 10;
-export const MAX_STITCHES = 1000;
+/**
+ * The longest side a chart may have. 1500 is the largest size every export completes for every chart shape (the
+ * full-chart PNG's layout budget, D026, refuses a square chart above about 1550) and generation stays inside its
+ * deadline with three jobs at once on the host. Every size check in the app reads this one value (G-046 M4, D181).
+ */
+export const MAX_STITCHES = 1500;
 export const MIN_COLORS = 2;
 /** Bounded by `SYMBOL_SET.length`: every palette color needs its own symbol. */
 export const MAX_COLORS = 100;

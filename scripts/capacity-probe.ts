@@ -35,6 +35,9 @@ const CASES: Case[] = [
   { label: "1500 st / 64 col (2250x1500), Crisp", width: 2250, height: 1500, stitches: 1500, colors: 64, edgeMode: "crisp" },
   { label: "2000 st / 64 col (3000x2000), Standard", width: 3000, height: 2000, stitches: 2000, colors: 64, edgeMode: "standard" },
   { label: "2000 st / 64 col (3000x2000), Crisp", width: 3000, height: 2000, stitches: 2000, colors: 64, edgeMode: "crisp" },
+  // G-046 M4: Crisp+, the heaviest mode, at the two candidate caps.
+  { label: "1500 st / 64 col (2250x1500), Crisp+", width: 2250, height: 1500, stitches: 1500, colors: 64, edgeMode: "crisp-plus" },
+  { label: "2000 st / 64 col (3000x2000), Crisp+", width: 3000, height: 2000, stitches: 2000, colors: 64, edgeMode: "crisp-plus" },
 ];
 
 /** Samples RSS while `fn` runs, since peak use sits inside the call, not at its edges. */
