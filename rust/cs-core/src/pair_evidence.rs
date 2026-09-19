@@ -3,6 +3,7 @@
 use crate::color::{oklab_from_bytes, srgb_to_linear_table};
 use crate::jsmath;
 use crate::Image;
+use rayon::prelude::*;
 
 pub const SLOTS: usize = 4;
 /// (dx, dy) per canonical slot: east, south, southeast, southwest.
@@ -14,41 +15,68 @@ fn response_curve(s: f64, tau: f64) -> f64 {
     1.0 - jsmath::exp(-s / (2.0 * tau * tau))
 }
 
+/// A raw pointer to a result buffer, for writes into disjoint positions from several threads.
+#[derive(Clone, Copy)]
+struct SharedOut(*mut f32);
+unsafe impl Send for SharedOut {}
+unsafe impl Sync for SharedOut {}
+
+/// Separable box blur. The horizontal pass runs row by row and the vertical pass column by column, each with the same
+/// running sum as the TypeScript, so any thread count gives the same values.
 fn box_blur(channel: &[f32], width: usize, height: usize, radius: i64) -> Vec<f32> {
     let (w, h) = (width as i64, height as i64);
     let mut horizontal = vec![0f32; width * height];
-    for y in 0..height {
-        let row = &channel[y * width..(y + 1) * width];
-        let mut sum = 0.0f64;
-        let mut count = 0.0f64;
-        for x in -radius..=radius {
-            sum += row[x.clamp(0, w - 1) as usize] as f64;
-            count += 1.0;
-        }
-        horizontal[y * width] = (sum / count) as f32;
-        for x in 1..w {
-            let add = (x + radius).min(w - 1) as usize;
-            let drop = (x - radius - 1).max(0) as usize;
-            sum += row[add] as f64 - row[drop] as f64;
-            horizontal[y * width + x as usize] = (sum / count) as f32;
-        }
-    }
+    horizontal
+        .par_chunks_mut(width)
+        .enumerate()
+        .for_each(|(y, out)| {
+            let row = &channel[y * width..(y + 1) * width];
+            let mut sum = 0.0f64;
+            let mut count = 0.0f64;
+            for x in -radius..=radius {
+                sum += row[x.clamp(0, w - 1) as usize] as f64;
+                count += 1.0;
+            }
+            out[0] = (sum / count) as f32;
+            for x in 1..w {
+                let add = (x + radius).min(w - 1) as usize;
+                let drop = (x - radius - 1).max(0) as usize;
+                sum += row[add] as f64 - row[drop] as f64;
+                out[x as usize] = (sum / count) as f32;
+            }
+        });
     let mut result = vec![0f32; width * height];
-    for x in 0..width {
-        let mut sum = 0.0f64;
-        let mut count = 0.0f64;
-        for y in -radius..=radius {
-            sum += horizontal[y.clamp(0, h - 1) as usize * width + x] as f64;
-            count += 1.0;
-        }
-        result[x] = (sum / count) as f32;
-        for y in 1..h {
-            let add = (y + radius).min(h - 1) as usize;
-            let drop = (y - radius - 1).max(0) as usize;
-            sum += horizontal[add * width + x] as f64 - horizontal[drop * width + x] as f64;
-            result[y as usize * width + x] = (sum / count) as f32;
-        }
-    }
+    let out = SharedOut(result.as_mut_ptr());
+    const BLOCK: usize = 64;
+    (0..width.div_ceil(BLOCK))
+        .into_par_iter()
+        .for_each(|block| {
+            // Captures the whole Sync wrapper: without this, closures capture only its raw-pointer field.
+            #[allow(clippy::redundant_locals)]
+            let out = out;
+            let x0 = block * BLOCK;
+            let x1 = (x0 + BLOCK).min(width);
+            let mut sum = [0f64; BLOCK];
+            let mut count = [0f64; BLOCK];
+            for (k, x) in (x0..x1).enumerate() {
+                for y in -radius..=radius {
+                    sum[k] += horizontal[y.clamp(0, h - 1) as usize * width + x] as f64;
+                    count[k] += 1.0;
+                }
+                // SAFETY: each block writes only its own columns of `result`, which outlives the parallel loop.
+                unsafe { *out.0.add(x) = (sum[k] / count[k]) as f32 };
+            }
+            for y in 1..h {
+                let add = (y + radius).min(h - 1) as usize * width;
+                let drop = (y - radius - 1).max(0) as usize * width;
+                let base = y as usize * width;
+                for (k, x) in (x0..x1).enumerate() {
+                    sum[k] += horizontal[add + x] as f64 - horizontal[drop + x] as f64;
+                    // SAFETY: as above.
+                    unsafe { *out.0.add(base + x) = (sum[k] / count[k]) as f32 };
+                }
+            }
+        });
     result
 }
 
@@ -64,13 +92,21 @@ pub fn compute_pair_edge_evidence(
     let mut raw_l = vec![0f32; n];
     let mut raw_a = vec![0f32; n];
     let mut raw_b = vec![0f32; n];
-    for i in 0..n {
-        let p = &image.data[i * 4..i * 4 + 3];
-        let lab = oklab_from_bytes(table, p[0], p[1], p[2]);
-        raw_l[i] = lab[0] as f32;
-        raw_a[i] = lab[1] as f32;
-        raw_b[i] = lab[2] as f32;
-    }
+    raw_l
+        .par_chunks_mut(src_w)
+        .zip(raw_a.par_chunks_mut(src_w))
+        .zip(raw_b.par_chunks_mut(src_w))
+        .enumerate()
+        .for_each(|(y, ((rl, ra), rb))| {
+            for x in 0..src_w {
+                let p = (y * src_w + x) * 4;
+                let lab =
+                    oklab_from_bytes(table, image.data[p], image.data[p + 1], image.data[p + 2]);
+                rl[x] = lab[0] as f32;
+                ra[x] = lab[1] as f32;
+                rb[x] = lab[2] as f32;
+            }
+        });
     let l = box_blur(&raw_l, src_w, src_h, DEFAULT_BLUR_RADIUS);
     drop(raw_l);
     let a = box_blur(&raw_a, src_w, src_h, DEFAULT_BLUR_RADIUS);
@@ -78,9 +114,7 @@ pub fn compute_pair_edge_evidence(
     let b = box_blur(&raw_b, src_w, src_h, DEFAULT_BLUR_RADIUS);
     drop(raw_b);
 
-    // Rolling cache of derivative rows (Lx, Ly, Ax, Ay, Bx, By per pixel), dropped once no later window needs them.
-    let mut rows: Vec<Option<Vec<f64>>> = vec![None; src_h];
-    let mut lowest_cached = 0usize;
+    // Derivative rows (Lx, Ly, Ax, Ay, Bx, By per pixel): a pure function of the row.
     let derivative_row = |y: usize| -> Vec<f64> {
         let mut row = vec![0f64; src_w * 6];
         let ym1 = y.saturating_sub(1);
@@ -107,52 +141,64 @@ pub fn compute_pair_edge_evidence(
     let half_y = jsmath::max(1.0, cell_y / 2.0);
     let mut result = vec![0f32; grid_width * grid_height * SLOTS];
 
-    for y in 0..grid_height {
-        let lowest_needed = jsmath::max(0.0, ((y as f64 + 0.5) * cell_y - half_y).floor()) as usize;
-        while lowest_cached < lowest_needed.min(src_h) {
-            rows[lowest_cached] = None;
-            lowest_cached += 1;
-        }
-        for x in 0..grid_width {
-            let i = y * grid_width + x;
-            for (slot, &(dx, dy)) in CANONICAL_OFFSETS.iter().enumerate() {
-                let nx = x as i64 + dx as i64;
-                let ny = y as i64 + dy as i64;
-                if nx < 0 || nx >= grid_width as i64 || ny < 0 || ny >= grid_height as i64 {
-                    continue;
+    // Bands of grid rows, each with its own rolling cache of derivative rows. A band recomputes the few rows it shares
+    // with the next one, which changes no value.
+    let band = (grid_height / (rayon::current_num_threads() * 8)).max(1);
+    result
+        .par_chunks_mut(band * grid_width * SLOTS)
+        .enumerate()
+        .for_each(|(band_index, out)| {
+            let mut rows: Vec<Option<Vec<f64>>> = vec![None; src_h];
+            let mut lowest_cached = 0usize;
+            let y0 = band_index * band;
+            for y in y0..(y0 + band).min(grid_height) {
+                let lowest_needed =
+                    jsmath::max(0.0, ((y as f64 + 0.5) * cell_y - half_y).floor()) as usize;
+                while lowest_cached < lowest_needed.min(src_h) {
+                    rows[lowest_cached] = None;
+                    lowest_cached += 1;
                 }
-                let len = ((dx * dx + dy * dy) as f64).sqrt();
-                let ux = dx as f64 / len;
-                let uy = dy as f64 / len;
-                let mid_x = ((x as f64 + 0.5 + nx as f64 + 0.5) / 2.0) * cell_x;
-                let mid_y = ((y as f64 + 0.5 + ny as f64 + 0.5) / 2.0) * cell_y;
-                let x_from = jsmath::max(0.0, (mid_x - half_x).floor()) as i64;
-                let x_to = jsmath::min((src_w - 1) as f64, (mid_x + half_x).ceil()) as i64;
-                let y_from = jsmath::max(0.0, (mid_y - half_y).floor()) as i64;
-                let y_to = jsmath::min((src_h - 1) as f64, (mid_y + half_y).ceil()) as i64;
+                for x in 0..grid_width {
+                    let i = (y - y0) * grid_width + x;
+                    for (slot, &(dx, dy)) in CANONICAL_OFFSETS.iter().enumerate() {
+                        let nx = x as i64 + dx as i64;
+                        let ny = y as i64 + dy as i64;
+                        if nx < 0 || nx >= grid_width as i64 || ny < 0 || ny >= grid_height as i64 {
+                            continue;
+                        }
+                        let len = ((dx * dx + dy * dy) as f64).sqrt();
+                        let ux = dx as f64 / len;
+                        let uy = dy as f64 / len;
+                        let mid_x = ((x as f64 + 0.5 + nx as f64 + 0.5) / 2.0) * cell_x;
+                        let mid_y = ((y as f64 + 0.5 + ny as f64 + 0.5) / 2.0) * cell_y;
+                        let x_from = jsmath::max(0.0, (mid_x - half_x).floor()) as i64;
+                        let x_to = jsmath::min((src_w - 1) as f64, (mid_x + half_x).ceil()) as i64;
+                        let y_from = jsmath::max(0.0, (mid_y - half_y).floor()) as i64;
+                        let y_to = jsmath::min((src_h - 1) as f64, (mid_y + half_y).ceil()) as i64;
 
-                let mut sum = 0.0;
-                let mut count = 0.0;
-                for sy in y_from..=y_to {
-                    let sy = sy as usize;
-                    if rows[sy].is_none() {
-                        rows[sy] = Some(derivative_row(sy));
-                    }
-                    let row = rows[sy].as_ref().unwrap();
-                    for sx in x_from..=x_to {
-                        let o = sx as usize * 6;
-                        let pl = row[o] * ux + row[o + 1] * uy;
-                        let pa = row[o + 2] * ux + row[o + 3] * uy;
-                        let pb = row[o + 4] * ux + row[o + 5] * uy;
-                        sum += pl * pl + pa * pa + pb * pb;
-                        count += 1.0;
+                        let mut sum = 0.0;
+                        let mut count = 0.0;
+                        for sy in y_from..=y_to {
+                            let sy = sy as usize;
+                            if rows[sy].is_none() {
+                                rows[sy] = Some(derivative_row(sy));
+                            }
+                            let row = rows[sy].as_ref().unwrap();
+                            for sx in x_from..=x_to {
+                                let o = sx as usize * 6;
+                                let pl = row[o] * ux + row[o + 1] * uy;
+                                let pa = row[o + 2] * ux + row[o + 3] * uy;
+                                let pb = row[o + 4] * ux + row[o + 5] * uy;
+                                sum += pl * pl + pa * pa + pb * pb;
+                                count += 1.0;
+                            }
+                        }
+                        let s = if count > 0.0 { sum / count } else { 0.0 };
+                        out[i * SLOTS + slot] = response_curve(s, DEFAULT_TAU) as f32;
                     }
                 }
-                let s = if count > 0.0 { sum / count } else { 0.0 };
-                result[i * SLOTS + slot] = response_curve(s, DEFAULT_TAU) as f32;
             }
-        }
-    }
+        });
     result
 }
 

@@ -17,7 +17,7 @@ use crate::palette_merge::{merge_similar_colors, DEFAULT_MERGE_DISTANCE_SQUARED}
 use crate::quantize::{mean_oklab_as_rgb, quantize, Quantizer};
 use crate::threads::{apply_brand_palette, Brand};
 use crate::{color, Image};
-use std::time::Instant;
+use rayon::prelude::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum EdgeMode {
@@ -86,16 +86,18 @@ fn compact(labels: &[u8], palette_len: usize) -> (Vec<u8>, Vec<usize>) {
     (labels.iter().map(|&c| remap[c as usize]).collect(), used)
 }
 
+/// `now` returns milliseconds from any fixed origin; it times the stages into `times` (WASM has no `Instant`).
 pub fn build_pattern(
     image: &Image,
     options: &BuildOptions,
     times: &mut StageTimes,
+    now: &dyn Fn() -> f64,
 ) -> StitchPattern {
-    let mut clock = Instant::now();
+    let mut clock = now();
     let mut lap = |name: &'static str, times: &mut StageTimes| {
-        let now = Instant::now();
-        times.push((name, (now - clock).as_secs_f64() * 1000.0));
-        clock = now;
+        let t = now();
+        times.push((name, t - clock));
+        clock = t;
     };
     let crisp = options.edge_mode != EdgeMode::Standard;
 
@@ -135,10 +137,13 @@ pub fn build_pattern(
     }
 
     let table = color::srgb_to_linear_table();
-    let cell_oklab: Vec<f64> = cells
-        .chunks_exact(3)
-        .flat_map(|c| color::oklab_from_bytes(table, c[0], c[1], c[2]))
-        .collect();
+    let mut cell_oklab = vec![0f64; cells.len()];
+    cell_oklab
+        .par_chunks_mut(3)
+        .zip(cells.par_chunks_exact(3))
+        .for_each(|(out, c)| {
+            out.copy_from_slice(&color::oklab_from_bytes(table, c[0], c[1], c[2]));
+        });
     let ctx = Ctx {
         width: gw,
         height: gh,

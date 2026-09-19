@@ -1,9 +1,14 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { rgbToOklab } from "@/lib/color/color";
+import { downsampleToGrid } from "@/lib/pipeline/downsample";
 import { enhancePixelBuffer } from "@/lib/pipeline/enhance";
+import { cellsToOklab } from "@/lib/pipeline/pipeline-context";
+import { confettiRatio, labelRegions } from "@/lib/pipeline/regions";
 import { buildPattern, type BuildPatternOptions } from "@/lib/pipeline/pattern";
 import { plainKMeansQuantizer } from "@/lib/pipeline/quantize";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
@@ -21,6 +26,36 @@ const ROOT = path.resolve(__dirname, "..");
 const BINARY = path.join(ROOT, "rust", "target", "release", process.platform === "win32" ? "cs-bench.exe" : "cs-bench");
 const RECORDED: Record<string, string> = JSON.parse(readFileSync(path.join(ROOT, "tests/unit/fixtures/golden-hashes.json"), "utf8"));
 const REPEAT = Number(process.env.RUST_PARITY_REPEAT ?? 3);
+// Rust worker threads; every count must give the same bytes (D185).
+const THREADS = Number(process.env.RUST_THREADS ?? 1);
+// RUST_WASM=1 also runs rust/target/wasm32-unknown-unknown/release/cs_wasm.wasm (single-threaded) on every case.
+const WASM_PATH = path.join(ROOT, "rust", "target", "wasm32-unknown-unknown", "release", "cs_wasm.wasm");
+
+interface WasmExports {
+  memory: WebAssembly.Memory;
+  alloc(len: number): number;
+  dealloc(ptr: number, len: number): void;
+  result_len(): number;
+  generate(pixels: number, width: number, height: number, options: number, optionsLength: number): number;
+}
+
+let wasmModule: WebAssembly.Module | undefined;
+/** A fresh instance per case, so one case's heap growth never affects the next. */
+async function runWasm(source: PixelBuffer, options: object): Promise<RustOutput> {
+  wasmModule ??= await WebAssembly.compile(readFileSync(WASM_PATH));
+  const instance = await WebAssembly.instantiate(wasmModule, { env: { now_ms: () => performance.now() } });
+  const wasm = instance.exports as unknown as WasmExports;
+  const pixels = wasm.alloc(source.data.length);
+  new Uint8Array(wasm.memory.buffer, pixels, source.data.length).set(source.data);
+  const text = new TextEncoder().encode(JSON.stringify(options));
+  const optionsPtr = wasm.alloc(text.length);
+  new Uint8Array(wasm.memory.buffer, optionsPtr, text.length).set(text);
+  const result = wasm.generate(pixels, source.width, source.height, optionsPtr, text.length);
+  const json = new TextDecoder().decode(new Uint8Array(wasm.memory.buffer, result, wasm.result_len()));
+  const parsed = JSON.parse(json);
+  if (parsed.error) throw new Error(`wasm: ${parsed.error}`);
+  return { ...parsed, peakRssMb: null } as RustOutput;
+}
 
 // Every golden case, with the fixtures defined exactly as in tests/unit/golden-hashes.spec.ts;
 // the TypeScript hash is checked against the recorded one too, so a drifted copy fails here rather than passing.
@@ -63,6 +98,47 @@ interface Case {
   source: PixelBuffer;
   options: BuildPatternOptions;
   golden: boolean;
+  /** Real photos: timed once per side, and scored with the criterion-2 quality metrics. */
+  photo?: boolean;
+}
+
+/**
+ * Real photos from RUST_PHOTOS_DIR (JPEG or PNG; never committed), decoded as the processor decodes them, at 1000
+ * stitches and 64 colours in each edge mode.
+ */
+async function photoCases(): Promise<Case[]> {
+  const dir = process.env.RUST_PHOTOS_DIR;
+  if (!dir) return [];
+  const cases: Case[] = [];
+  for (const file of readdirSync(dir).filter((f) => /\.(jpe?g|png)$/i.test(f)).sort()) {
+    const image = await loadImage(readFileSync(path.join(dir, file)));
+    const canvas = createCanvas(image.width, image.height);
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0);
+    const { data } = context.getImageData(0, 0, image.width, image.height);
+    const source: PixelBuffer = { data: new Uint8ClampedArray(data), width: image.width, height: image.height };
+    const name = file.replace(/\.[^.]+$/, "");
+    for (const edgeMode of ["standard", "crisp", "crisp-plus"] as const) {
+      cases.push({ name: `real/${name}/${edgeMode}/1000/64`, source, options: { longerSideStitches: 1000, colorCount: 64, edgeMode }, golden: false, photo: true });
+    }
+  }
+  return cases;
+}
+
+/** Criterion 2: mean per-cell OKLab distance to the photo's downsampled colour, confetti ratio, palette size. */
+function quality(source: PixelBuffer, pattern: StitchPattern) {
+  const cellOklab = cellsToOklab(downsampleToGrid(enhancePixelBuffer(source, pattern.enhancementMode ?? "off"), pattern.width, pattern.height));
+  const paletteOklab = pattern.palette.map((c) => rgbToOklab(c.rgb));
+  let error = 0;
+  for (let i = 0; i < pattern.cellPalette.length; i++) {
+    const [l, a, b] = paletteOklab[pattern.cellPalette[i]];
+    error += Math.hypot(cellOklab[i * 3] - l, cellOklab[i * 3 + 1] - a, cellOklab[i * 3 + 2] - b);
+  }
+  return {
+    meanError: error / pattern.cellPalette.length,
+    confetti: confettiRatio(labelRegions(pattern.cellPalette, pattern.width, pattern.height)),
+    colours: pattern.palette.length,
+  };
 }
 
 const golden = (name: string, source: PixelBuffer, options: BuildPatternOptions): Case => ({ name, source, options, golden: true });
@@ -133,13 +209,24 @@ const results: Array<Record<string, unknown>> = [];
 afterAll(() => {
   rmSync(workDir, { recursive: true, force: true });
   if (process.env.RUST_PARITY_OUT) writeFileSync(process.env.RUST_PARITY_OUT, JSON.stringify(results, null, 2) + "\n");
-  console.table(results.map((r) => ({ case: r.name, tsMs: r.tsMs, rustMs: r.rustMs, speedup: r.speedup, identical: r.identical, enhanced: r.enhanced })));
+  console.table(results.map((r) => ({ case: r.name, tsMs: r.tsMs, rustMs: r.rustMs, speedup: r.speedup, identical: r.identical, wasmMs: r.wasmMs, wasmIdentical: r.wasmIdentical, enhanced: r.enhanced })));
 });
 
-function runRust(c: Case, index: number): RustOutput {
-  const file = path.join(workDir, `case-${index}.rgba`);
-  writeFileSync(file, c.source.data);
-  const options = {
+function toPattern(output: RustOutput): StitchPattern {
+  return {
+    width: output.pattern.width,
+    height: output.pattern.height,
+    cellPalette: Uint8Array.from(output.pattern.cellPalette),
+    palette: output.pattern.palette,
+    isLandscape: output.pattern.isLandscape,
+    threadBrand: output.pattern.threadBrand ?? undefined,
+    edgeMode: output.pattern.edgeMode ?? undefined,
+    enhancementMode: output.pattern.enhancementMode ?? undefined,
+  };
+}
+
+function rustOptions(c: Case) {
+  return {
     longerSideStitches: c.options.longerSideStitches,
     colorCount: c.options.colorCount,
     quantizer: c.options.quantizer === plainKMeansQuantizer ? "original" : "latest",
@@ -147,7 +234,14 @@ function runRust(c: Case, index: number): RustOutput {
     edgeMode: c.options.edgeMode,
     paletteMode: c.options.paletteMode,
     enhancementMode: c.options.enhancementMode,
+    threads: THREADS,
   };
+}
+
+function runRust(c: Case, index: number): RustOutput {
+  const file = path.join(workDir, `case-${index}.rgba`);
+  writeFileSync(file, c.source.data);
+  const options = rustOptions(c);
   const stdout = execFileSync(BINARY, ["generate", file, String(c.source.width), String(c.source.height), JSON.stringify(options), String(REPEAT)], {
     maxBuffer: 1 << 30,
     encoding: "utf8",
@@ -155,11 +249,13 @@ function runRust(c: Case, index: number): RustOutput {
   return JSON.parse(stdout) as RustOutput;
 }
 
+const PHOTO_CASES = await photoCases();
+
 describe("Rust exact tier reproduces the TypeScript pipeline (G-048)", () => {
-  it.each(CASES.map((c, i) => [c.name, c, i] as const))("%s", (name, c, index) => {
+  it.each([...CASES, ...PHOTO_CASES].map((c, i) => [c.name, c, i] as const))("%s", async (name, c, index) => {
     let tsPattern: StitchPattern | undefined;
     let tsMs = Infinity;
-    for (let r = 0; r < REPEAT; r++) {
+    for (let r = 0; r < (c.photo ? 1 : REPEAT); r++) {
       const start = performance.now();
       tsPattern = buildPattern(c.source, c.options);
       tsMs = Math.min(tsMs, performance.now() - start);
@@ -167,17 +263,15 @@ describe("Rust exact tier reproduces the TypeScript pipeline (G-048)", () => {
     const tsHash = hashPattern(tsPattern!);
 
     const rust = runRust(c, index);
-    const rustPattern: StitchPattern = {
-      width: rust.pattern.width,
-      height: rust.pattern.height,
-      cellPalette: Uint8Array.from(rust.pattern.cellPalette),
-      palette: rust.pattern.palette,
-      isLandscape: rust.pattern.isLandscape,
-      threadBrand: rust.pattern.threadBrand ?? undefined,
-      edgeMode: rust.pattern.edgeMode ?? undefined,
-      enhancementMode: rust.pattern.enhancementMode ?? undefined,
-    };
+    const rustPattern = toPattern(rust);
     const rustHash = hashPattern(rustPattern);
+    let wasmMs: number | undefined;
+    let wasmIdentical: boolean | undefined;
+    if (process.env.RUST_WASM === "1") {
+      const wasm = await runWasm(c.source, rustOptions(c));
+      wasmMs = Math.round(wasm.runs[0].totalMs);
+      wasmIdentical = hashPattern(toPattern(wasm)) === tsHash;
+    }
     const rustMs = Math.min(...rust.runs.map((run) => run.totalMs));
     const fastest = rust.runs.reduce((a, b) => (b.totalMs < a.totalMs ? b : a));
     results.push({
@@ -188,11 +282,15 @@ describe("Rust exact tier reproduces the TypeScript pipeline (G-048)", () => {
       speedup: Number((tsMs / rustMs).toFixed(2)),
       rustStagesMs: Object.fromEntries(Object.entries(fastest.stages).map(([k, v]) => [k, Math.round(v)])),
       identical: rustHash === tsHash,
+      wasmMs,
+      wasmIdentical,
+      quality: c.photo ? { typescript: quality(c.source, tsPattern!), rust: quality(c.source, rustPattern) } : undefined,
       // Whether enhancement changed any pixel: an abstaining mode would make its case a copy of Off.
       enhanced: c.options.enhancementMode ? enhancePixelBuffer(c.source, c.options.enhancementMode) !== c.source : undefined,
     });
 
     if (c.golden) expect(tsHash, "TypeScript no longer matches the recorded golden hash").toBe(RECORDED[name]);
+    if (wasmIdentical === false) throw new Error("the WASM build differs from TypeScript");
     if (rustHash !== tsHash) {
       const cellDiff = tsPattern!.cellPalette.reduce((n, v, i) => n + (v !== rustPattern.cellPalette[i] ? 1 : 0), 0);
       const paletteDiff = tsPattern!.palette

@@ -5,6 +5,7 @@ use crate::color::{oklab_distance_sq, rgb_to_oklab, srgb_to_linear_table, Oklab,
 use crate::jsmath;
 use crate::quantize::mean_oklab_as_rgb;
 use crate::Image;
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 const MAX_COLORS: usize = 100;
@@ -28,6 +29,8 @@ const SNAP_MIN_SIDE_DISTANCE: f64 = 0.1;
 const SNAP_MIN_EDGE_SHARPNESS: f64 = 0.75;
 const SNAP_LINE_RESIDUAL_RATIO: f64 = 0.5;
 const SNAP_PASSES: usize = 2;
+/// Cells per parallel task in strip snapping.
+const CHUNK_CELLS: usize = 2048;
 const DIRECTIONS: [(i64, i64); 4] = [(1, 0), (0, 1), (1, 1), (1, -1)];
 const PROFILE_WIDTHS: [f64; 6] = [0.05, 0.15, 0.3, 0.6, 1.0, 1.5];
 const MAX_PROFILE_BINS: f64 = 64.0;
@@ -79,8 +82,6 @@ pub fn snap_transition_strips(
     for _ in 0..SNAP_PASSES {
         let read = current.clone();
         let mut next = read.clone();
-        let mut verdicts: HashMap<(usize, usize, usize), Verdict> = HashMap::new();
-        let mut changed = 0;
         let label_at = |x: i64, y: i64| -> i64 {
             if x < 0 || y < 0 || x >= gw as i64 || y >= gh as i64 {
                 -1
@@ -92,131 +93,152 @@ pub fn snap_transition_strips(
             (0..SNAP_MIN_SIDE_RUN).all(|k| label_at(x + dx * k, y + dy * k) == value)
         };
 
-        for p in 0..read.len() {
-            let c = read[p] as i64;
-            if c >= plen {
-                continue;
-            }
-            let px = (p % gw) as i64;
-            let py = (p / gw) as i64;
-            // (verdict, distance, direction)
-            let mut best: Option<(Verdict, f64, usize)> = None;
+        // Every decision reads only the previous pass's labels, so cells are decided in parallel. Each thread memoizes
+        // chain verdicts itself; a verdict is a pure function of its chain, so duplicates agree.
+        let changed: usize = next
+            .par_chunks_mut(CHUNK_CELLS)
+            .enumerate()
+            .map_init(
+                HashMap::<(usize, usize, usize), Verdict>::new,
+                |verdicts, (chunk, next)| {
+                    let mut changed = 0usize;
+                    for (offset, slot) in next.iter_mut().enumerate() {
+                        let p = chunk * CHUNK_CELLS + offset;
+                        let c = read[p] as i64;
+                        if c >= plen {
+                            continue;
+                        }
+                        let px = (p % gw) as i64;
+                        let py = (p / gw) as i64;
+                        // (verdict, distance, direction)
+                        let mut best: Option<(Verdict, f64, usize)> = None;
 
-            for (d, &(dx, dy)) in DIRECTIONS.iter().enumerate() {
-                let mut run = 1;
-                while run <= SNAP_MAX_SPAN && label_at(px + dx * run, py + dy * run) == c {
-                    run += 1;
-                }
-                let mut k = 1;
-                while run <= SNAP_MAX_SPAN && label_at(px - dx * k, py - dy * k) == c {
-                    run += 1;
-                    k += 1;
-                }
-                if run > SNAP_MAX_SPAN {
-                    continue;
-                }
-                let sides = |sign: i64| -> Vec<(i64, i64)> {
-                    let mut found = Vec::new();
-                    for k in 1..=SNAP_MAX_SPAN + 1 {
-                        let (x, y) = (px + sign * dx * k, py + sign * dy * k);
-                        let v = label_at(x, y);
-                        if v < 0 || v >= plen {
-                            break;
-                        }
-                        if v != c && is_run(x, y, sign * dx, sign * dy, v) {
-                            found.push((k, v));
-                        }
-                    }
-                    found
-                };
-                let back = sides(-1);
-                if back.is_empty() {
-                    continue;
-                }
-                let forward = sides(1);
-                if forward.is_empty() {
-                    continue;
-                }
-                for &(sak, sav) in &back {
-                    for &(sbk, sbv) in &forward {
-                        if sav == sbv || sak - 1 + sbk - 1 + 1 > SNAP_MAX_SPAN {
-                            continue;
-                        }
-                        let distance =
-                            oklab_distance_sq(&oklab[sav as usize], &oklab[sbv as usize]);
-                        if distance < min_side2 || best.is_some_and(|b| distance <= b.1) {
-                            continue;
-                        }
-                        let mut ok = true;
-                        let mut last_t = f64::NEG_INFINITY;
-                        let mut k = -(sak - 1);
-                        while k <= sbk - 1 && ok {
-                            let v = label_at(px + dx * k, py + dy * k);
-                            let (t, perp) = on_line(v as usize, sav as usize, sbv as usize);
-                            if !(t > LINE_MARGIN && t < 1.0 - LINE_MARGIN)
-                                || perp > SNAP_MAX_PERPENDICULAR
-                                || t < last_t - MONOTONE_SLACK
+                        for (d, &(dx, dy)) in DIRECTIONS.iter().enumerate() {
+                            let mut run = 1;
+                            while run <= SNAP_MAX_SPAN
+                                && label_at(px + dx * run, py + dy * run) == c
                             {
-                                ok = false;
+                                run += 1;
                             }
-                            last_t = jsmath::max(last_t, t);
-                            k += 1;
-                        }
-                        if !ok {
-                            continue;
-                        }
-                        let (ax, ay) = (px - dx * sak, py - dy * sak);
-                        let (bx, by) = (px + dx * sbk, py + dy * sbk);
-                        let key = (
-                            d,
-                            (ay * gw as i64 + ax) as usize,
-                            (by * gw as i64 + bx) as usize,
-                        );
-                        let verdict = *verdicts.entry(key).or_insert_with(|| {
-                            let centre = fit_chain_profile(
-                                source,
-                                cell_w,
-                                cell_h,
-                                dx,
-                                dy,
-                                ax,
-                                ay,
-                                sak + sbk,
-                                linear[sav as usize],
-                                linear[sbv as usize],
-                            );
-                            Verdict {
-                                a: sav as u8,
-                                b: sbv as u8,
-                                centre,
+                            let mut k = 1;
+                            while run <= SNAP_MAX_SPAN && label_at(px - dx * k, py - dy * k) == c {
+                                run += 1;
+                                k += 1;
                             }
-                        });
-                        if verdict.centre.is_nan() {
-                            continue;
+                            if run > SNAP_MAX_SPAN {
+                                continue;
+                            }
+                            let sides = |sign: i64| -> Vec<(i64, i64)> {
+                                let mut found = Vec::new();
+                                for k in 1..=SNAP_MAX_SPAN + 1 {
+                                    let (x, y) = (px + sign * dx * k, py + sign * dy * k);
+                                    let v = label_at(x, y);
+                                    if v < 0 || v >= plen {
+                                        break;
+                                    }
+                                    if v != c && is_run(x, y, sign * dx, sign * dy, v) {
+                                        found.push((k, v));
+                                    }
+                                }
+                                found
+                            };
+                            let back = sides(-1);
+                            if back.is_empty() {
+                                continue;
+                            }
+                            let forward = sides(1);
+                            if forward.is_empty() {
+                                continue;
+                            }
+                            for &(sak, sav) in &back {
+                                for &(sbk, sbv) in &forward {
+                                    if sav == sbv || sak - 1 + sbk - 1 + 1 > SNAP_MAX_SPAN {
+                                        continue;
+                                    }
+                                    let distance = oklab_distance_sq(
+                                        &oklab[sav as usize],
+                                        &oklab[sbv as usize],
+                                    );
+                                    if distance < min_side2 || best.is_some_and(|b| distance <= b.1)
+                                    {
+                                        continue;
+                                    }
+                                    let mut ok = true;
+                                    let mut last_t = f64::NEG_INFINITY;
+                                    let mut k = -(sak - 1);
+                                    while k <= sbk - 1 && ok {
+                                        let v = label_at(px + dx * k, py + dy * k);
+                                        let (t, perp) =
+                                            on_line(v as usize, sav as usize, sbv as usize);
+                                        if !(t > LINE_MARGIN && t < 1.0 - LINE_MARGIN)
+                                            || perp > SNAP_MAX_PERPENDICULAR
+                                            || t < last_t - MONOTONE_SLACK
+                                        {
+                                            ok = false;
+                                        }
+                                        last_t = jsmath::max(last_t, t);
+                                        k += 1;
+                                    }
+                                    if !ok {
+                                        continue;
+                                    }
+                                    let (ax, ay) = (px - dx * sak, py - dy * sak);
+                                    let (bx, by) = (px + dx * sbk, py + dy * sbk);
+                                    let key = (
+                                        d,
+                                        (ay * gw as i64 + ax) as usize,
+                                        (by * gw as i64 + bx) as usize,
+                                    );
+                                    let verdict = *verdicts.entry(key).or_insert_with(|| {
+                                        let centre = fit_chain_profile(
+                                            source,
+                                            cell_w,
+                                            cell_h,
+                                            dx,
+                                            dy,
+                                            ax,
+                                            ay,
+                                            sak + sbk,
+                                            linear[sav as usize],
+                                            linear[sbv as usize],
+                                        );
+                                        Verdict {
+                                            a: sav as u8,
+                                            b: sbv as u8,
+                                            centre,
+                                        }
+                                    });
+                                    if verdict.centre.is_nan() {
+                                        continue;
+                                    }
+                                    best = Some((verdict, distance, d));
+                                }
+                            }
                         }
-                        best = Some((verdict, distance, d));
-                    }
-                }
-            }
 
-            let Some((verdict, _, direction)) = best else {
-                continue;
-            };
-            let (dx, dy) = DIRECTIONS[direction];
-            let norm = jsmath::hypot(dx as f64, dy as f64);
-            let cell_centre = (((px as f64 + 0.5) * cell_w) * dx as f64
-                + ((py as f64 + 0.5) * cell_h) * dy as f64)
-                / norm;
-            let target = if cell_centre < verdict.centre {
-                verdict.a
-            } else {
-                verdict.b
-            };
-            if target as i64 != c {
-                next[p] = target;
-                changed += 1;
-            }
-        }
+                        let Some((verdict, _, direction)) = best else {
+                            continue;
+                        };
+                        let (dx, dy) = DIRECTIONS[direction];
+                        let norm = jsmath::hypot(dx as f64, dy as f64);
+                        let cell_centre = (((px as f64 + 0.5) * cell_w) * dx as f64
+                            + ((py as f64 + 0.5) * cell_h) * dy as f64)
+                            / norm;
+                        let target = if cell_centre < verdict.centre {
+                            verdict.a
+                        } else {
+                            verdict.b
+                        };
+                        if target as i64 != c {
+                            *slot = target;
+                            changed += 1;
+                        }
+                    }
+                    changed
+                },
+            )
+            .sum();
+
         current = next;
         changes += changed;
         if changed == 0 {
@@ -325,15 +347,18 @@ fn fit_chain_profile(
     let within = jsmath::max(0.0, total_sq - between_sq);
     let between = jsmath::max(0.0, between_sq - total * mean_t * mean_t);
 
-    let regression = |feature: &dyn Fn(f64) -> f64| -> (f64, f64) {
+    // Each feature evaluated once per bin (the TypeScript evaluates it twice; a pure function gives the same doubles).
+    let mut values = vec![0f64; bin_u.len()];
+    let mut regression = |feature: &dyn Fn(f64) -> f64| -> (f64, f64) {
         let mut x_mean = 0.0;
         for i in 0..bin_u.len() {
-            x_mean += bin_w[i] * feature(bin_u[i]);
+            values[i] = feature(bin_u[i]);
+            x_mean += bin_w[i] * values[i];
         }
         x_mean /= total;
         let (mut sxx, mut sxy) = (0.0, 0.0);
         for i in 0..bin_u.len() {
-            let dxv = feature(bin_u[i]) - x_mean;
+            let dxv = values[i] - x_mean;
             sxx += bin_w[i] * dxv * dxv;
             sxy += bin_w[i] * dxv * (bin_t[i] - mean_t);
         }

@@ -5,6 +5,10 @@ use crate::color::{oklab_distance_sq, oklab_to_rgb, rgb_to_oklab, Oklab, Rgb};
 use crate::jsmath;
 use crate::palette_merge::merge_similar_colors;
 use crate::prng::Mulberry32;
+use rayon::prelude::*;
+
+/// Points per parallel task.
+pub(crate) const CHUNK: usize = 8192;
 
 const MAX_ITERATIONS: usize = 30;
 const CONVERGENCE_THRESHOLD_SQ: f64 = 0.0001;
@@ -45,17 +49,26 @@ fn kmeans_plus_plus_seeds(points: &[f64], k: usize, rng: &mut Mulberry32) -> Vec
     let mut seeds = vec![point_at(points, (rng.next_f64() * nf).floor() as usize)];
     let mut dist_sq = vec![f64::INFINITY; n];
     while seeds.len() < k {
-        let mut total = 0.0;
         let [sl, sa, sb] = *seeds.last().unwrap();
-        for i in 0..n {
-            let dl = points[i * 3] - sl;
-            let da = points[i * 3 + 1] - sa;
-            let db = points[i * 3 + 2] - sb;
-            let d = dl * dl + da * da + db * db;
-            if d < dist_sq[i] {
-                dist_sq[i] = d;
-            }
-            total += dist_sq[i];
+        dist_sq
+            .par_chunks_mut(CHUNK)
+            .enumerate()
+            .for_each(|(c, dist)| {
+                for (j, dd) in dist.iter_mut().enumerate() {
+                    let i = c * CHUNK + j;
+                    let dl = points[i * 3] - sl;
+                    let da = points[i * 3 + 1] - sa;
+                    let db = points[i * 3 + 2] - sb;
+                    let d = dl * dl + da * da + db * db;
+                    if d < *dd {
+                        *dd = d;
+                    }
+                }
+            });
+        // Summed in point order, as the TypeScript does.
+        let mut total = 0.0;
+        for &d in &dist_sq {
+            total += d;
         }
         if total == 0.0 {
             seeds.push(point_at(points, (rng.next_f64() * nf).floor() as usize));
@@ -147,27 +160,37 @@ fn run_lloyd(points: &[f64], initial: Vec<Oklab>) -> (Vec<Oklab>, Vec<u8>) {
             }
             half_gap[c] = nearest.sqrt() / 2.0;
         }
-        for i in 0..n {
-            if !first {
-                let a = assignments[i] as usize;
-                let bound = jsmath::max(lower[i], half_gap[a]);
-                if upper[i] * (1.0 + BOUND_MARGIN) < bound * (1.0 - BOUND_MARGIN) {
-                    continue;
+        let flat: &[f64] = flat;
+        let half_gap: &[f64] = half_gap;
+        assignments
+            .par_chunks_mut(CHUNK)
+            .zip(upper.par_chunks_mut(CHUNK))
+            .zip(lower.par_chunks_mut(CHUNK))
+            .enumerate()
+            .for_each(|(chunk, ((assignments, upper), lower))| {
+                for j in 0..assignments.len() {
+                    let i = chunk * CHUNK + j;
+                    if !first {
+                        let a = assignments[j] as usize;
+                        let bound = jsmath::max(lower[j], half_gap[a]);
+                        if upper[j] * (1.0 + BOUND_MARGIN) < bound * (1.0 - BOUND_MARGIN) {
+                            continue;
+                        }
+                        let s = a * 3;
+                        let dl = points[i * 3] - flat[s];
+                        let da = points[i * 3 + 1] - flat[s + 1];
+                        let db = points[i * 3 + 2] - flat[s + 2];
+                        upper[j] = (dl * dl + da * da + db * db).sqrt();
+                        if upper[j] * (1.0 + BOUND_MARGIN) < bound * (1.0 - BOUND_MARGIN) {
+                            continue;
+                        }
+                    }
+                    let s = scan_point(points, i, flat, k);
+                    assignments[j] = s.best as u8;
+                    upper[j] = s.best_dist.sqrt();
+                    lower[j] = s.second_dist.sqrt();
                 }
-                let s = a * 3;
-                let dl = points[i * 3] - flat[s];
-                let da = points[i * 3 + 1] - flat[s + 1];
-                let db = points[i * 3 + 2] - flat[s + 2];
-                upper[i] = (dl * dl + da * da + db * db).sqrt();
-                if upper[i] * (1.0 + BOUND_MARGIN) < bound * (1.0 - BOUND_MARGIN) {
-                    continue;
-                }
-            }
-            let s = scan_point(points, i, flat, k);
-            assignments[i] = s.best as u8;
-            upper[i] = s.best_dist.sqrt();
-            lower[i] = s.second_dist.sqrt();
-        }
+            });
     };
 
     for iter in 0..MAX_ITERATIONS {
@@ -221,15 +244,22 @@ fn run_lloyd(points: &[f64], initial: Vec<Oklab>) -> (Vec<Oklab>, Vec<u8>) {
                 second_farthest = moved[c];
             }
         }
-        for i in 0..n {
-            let a = assignments[i] as usize;
-            upper[i] += moved[a];
-            lower[i] -= if a == farthest_centroid {
-                second_farthest
-            } else {
-                farthest
-            };
-        }
+        let moved_now: &[f64] = &moved;
+        assignments
+            .par_chunks(CHUNK)
+            .zip(upper.par_chunks_mut(CHUNK))
+            .zip(lower.par_chunks_mut(CHUNK))
+            .for_each(|((assignments, upper), lower)| {
+                for j in 0..assignments.len() {
+                    let a = assignments[j] as usize;
+                    upper[j] += moved_now[a];
+                    lower[j] -= if a == farthest_centroid {
+                        second_farthest
+                    } else {
+                        farthest
+                    };
+                }
+            });
         if max_shift_sq < CONVERGENCE_THRESHOLD_SQ {
             break;
         }
@@ -287,30 +317,48 @@ fn inject_worst_fit(
         assigned[i] = dl * dl + da * da + db * db;
     }
     for _ in 0..slots {
-        let mut worst = 0;
-        let mut worst_score = -1.0;
-        for i in 0..n {
-            let score = assigned[i] * (1.0 + WORST_FIT_IMPORTANCE_BOOST * importance[i] as f64);
-            if score > worst_score {
-                worst_score = score;
-                worst = i;
-            }
-        }
+        // The first point with the largest score, as the sequential scan finds it.
+        let (worst_score, worst) = (0..n)
+            .into_par_iter()
+            .with_min_len(CHUNK)
+            .map(|i| {
+                (
+                    assigned[i] * (1.0 + WORST_FIT_IMPORTANCE_BOOST * importance[i] as f64),
+                    i,
+                )
+            })
+            .reduce(
+                || (-1.0, usize::MAX),
+                |a, b| {
+                    if b.0 > a.0 || (b.0 == a.0 && b.1 < a.1) {
+                        b
+                    } else {
+                        a
+                    }
+                },
+            );
+        let worst = if worst_score > -1.0 { worst } else { 0 };
         let new_centroid = point_at(points, worst);
         let new_index = next_centroids.len();
         next_centroids.push(new_centroid);
         let [cl, ca, cb] = new_centroid;
-        for i in 0..n {
-            let o = i * 3;
-            let dl = points[o] - cl;
-            let da = points[o + 1] - ca;
-            let db = points[o + 2] - cb;
-            let d = dl * dl + da * da + db * db;
-            if d < assigned[i] {
-                next_assignment[i] = new_index as u8;
-                assigned[i] = d;
-            }
-        }
+        next_assignment
+            .par_chunks_mut(CHUNK)
+            .zip(assigned.par_chunks_mut(CHUNK))
+            .enumerate()
+            .for_each(|(chunk, (next_assignment, assigned))| {
+                for j in 0..assigned.len() {
+                    let o = (chunk * CHUNK + j) * 3;
+                    let dl = points[o] - cl;
+                    let da = points[o + 1] - ca;
+                    let db = points[o + 2] - cb;
+                    let d = dl * dl + da * da + db * db;
+                    if d < assigned[j] {
+                        next_assignment[j] = new_index as u8;
+                        assigned[j] = d;
+                    }
+                }
+            });
     }
     next_centroids
 }

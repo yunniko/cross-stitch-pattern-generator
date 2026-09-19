@@ -5,7 +5,9 @@ use crate::color::{oklab_distance_sq, oklab_to_rgb, rgb_to_oklab, Oklab, Rgb};
 use crate::jsmath;
 use crate::palette_merge::merge_similar_colors_weighted;
 use crate::prng::Mulberry32;
+use crate::quantize::CHUNK;
 use crate::quantize::{REINVEST_MERGE_THRESHOLD, WORST_FIT_IMPORTANCE_BOOST};
+use rayon::prelude::*;
 
 const MAX_ITERATIONS: usize = 30;
 const CONVERGENCE_THRESHOLD_SQ: f64 = 0.0001;
@@ -17,7 +19,8 @@ pub struct Pool {
     pub a: Vec<f64>,
     pub b: Vec<f64>,
     pub w: Vec<f64>,
-    pub cell: Vec<usize>,
+    /// 4-byte cell indices, as the TypeScript `Int32Array`: a 1500-stitch Crisp pool holds 1.5 M or more.
+    pub cell: Vec<u32>,
 }
 
 impl Pool {
@@ -37,7 +40,7 @@ impl Pool {
         self.a.push(lab[1]);
         self.b.push(lab[2]);
         self.w.push(w);
-        self.cell.push(cell);
+        self.cell.push(cell as u32);
     }
 
     #[inline]
@@ -62,11 +65,17 @@ struct Groups {
 }
 
 fn group_cells(pool: &Pool) -> Groups {
-    let max_cell = pool.cell.iter().copied().max().map_or(0, |m| m + 1);
+    let max_cell = pool
+        .cell
+        .iter()
+        .copied()
+        .max()
+        .map_or(0, |m| m as usize + 1);
     let mut of_cell = vec![u32::MAX; max_cell];
     let mut of_sample = Vec::with_capacity(pool.len());
     let mut cells = Vec::new();
     for &c in &pool.cell {
+        let c = c as usize;
         if of_cell[c] == u32::MAX {
             of_cell[c] = cells.len() as u32;
             cells.push(c);
@@ -95,13 +104,20 @@ fn seeds(pool: &Pool, k: usize, rng: &mut Mulberry32) -> Vec<Oklab> {
     let mut dist = vec![f64::INFINITY; n];
     while out.len() < k {
         let [sl, sa, sb] = *out.last().unwrap();
+        dist.par_chunks_mut(CHUNK)
+            .enumerate()
+            .for_each(|(c, dist)| {
+                for (j, dd) in dist.iter_mut().enumerate() {
+                    let i = c * CHUNK + j;
+                    let (dl, da, db) = (pool.l[i] - sl, pool.a[i] - sa, pool.b[i] - sb);
+                    let d = dl * dl + da * da + db * db;
+                    if d < *dd {
+                        *dd = d;
+                    }
+                }
+            });
         let mut total = 0.0;
         for i in 0..n {
-            let (dl, da, db) = (pool.l[i] - sl, pool.a[i] - sa, pool.b[i] - sb);
-            let d = dl * dl + da * da + db * db;
-            if d < dist[i] {
-                dist[i] = d;
-            }
             total += dist[i] * pool.w[i];
         }
         if total == 0.0 {
@@ -124,24 +140,29 @@ fn seeds(pool: &Pool, k: usize, rng: &mut Mulberry32) -> Vec<Oklab> {
 
 fn assign(pool: &Pool, centroids: &[Oklab], out: &mut [u8]) {
     let k = centroids.len();
-    for i in 0..pool.len() {
-        let (pl, pa, pb) = (pool.l[i], pool.a[i], pool.b[i]);
-        let mut best = 0;
-        let mut best_dist = f64::INFINITY;
-        for c in 0..k {
-            let (dl, da, db) = (
-                pl - centroids[c][0],
-                pa - centroids[c][1],
-                pb - centroids[c][2],
-            );
-            let d = dl * dl + da * da + db * db;
-            if d < best_dist {
-                best_dist = d;
-                best = c;
+    out.par_chunks_mut(CHUNK)
+        .enumerate()
+        .for_each(|(chunk, out)| {
+            for (j, slot) in out.iter_mut().enumerate() {
+                let i = chunk * CHUNK + j;
+                let (pl, pa, pb) = (pool.l[i], pool.a[i], pool.b[i]);
+                let mut best = 0;
+                let mut best_dist = f64::INFINITY;
+                for c in 0..k {
+                    let (dl, da, db) = (
+                        pl - centroids[c][0],
+                        pa - centroids[c][1],
+                        pb - centroids[c][2],
+                    );
+                    let d = dl * dl + da * da + db * db;
+                    if d < best_dist {
+                        best_dist = d;
+                        best = c;
+                    }
+                }
+                *slot = best as u8;
             }
-        }
-        out[i] = best as u8;
-    }
+        });
 }
 
 /// `runWeightedLloydPool`.
@@ -226,17 +247,17 @@ fn inject(
     let mut next_assignment = assignment.to_vec();
     let mut next_centroids = centroids.to_vec();
     let group_count = groups.cells.len();
-    let mut start = vec![0usize; group_count + 1];
+    let mut start = vec![0u32; group_count + 1];
     for &g in &groups.of_sample {
         start[g as usize + 1] += 1;
     }
     for g in 0..group_count {
         start[g + 1] += start[g];
     }
-    let mut members = vec![0usize; n];
+    let mut members = vec![0u32; n];
     let mut fill = start[..group_count].to_vec();
     for (i, &g) in groups.of_sample.iter().enumerate() {
-        members[fill[g as usize]] = i;
+        members[fill[g as usize] as usize] = i as u32;
         fill[g as usize] += 1;
     }
     let factor: Vec<f64> = groups
@@ -251,43 +272,58 @@ fn inject(
         assigned[i] = dl * dl + da * da + db * db;
     }
     for _ in 0..slots {
-        let mut worst_cell: Option<usize> = None;
-        let mut worst_score = -1.0;
-        let mut worst_sample = 0;
-        for g in 0..group_count {
-            let (s, e) = (start[g], start[g + 1]);
-            let mut total = 0.0;
-            let mut best_sample = members[s];
-            let mut best_score = -1.0;
-            for &i in &members[s..e] {
-                let err = assigned[i] * pool.w[i];
-                total += err;
-                if err > best_score {
-                    best_score = err;
-                    best_sample = i;
+        // Per group: its score and worst sample; the first group with the largest score wins, as sequentially.
+        let (worst_score, worst_group, worst_sample) = (0..group_count)
+            .into_par_iter()
+            .with_min_len(1024)
+            .map(|g| {
+                let (s, e) = (start[g] as usize, start[g + 1] as usize);
+                let mut total = 0.0;
+                let mut best_sample = members[s] as usize;
+                let mut best_score = -1.0;
+                for &i in &members[s..e] {
+                    let i = i as usize;
+                    let err = assigned[i] * pool.w[i];
+                    total += err;
+                    if err > best_score {
+                        best_score = err;
+                        best_sample = i;
+                    }
                 }
-            }
-            let score = total * factor[g];
-            if score > worst_score {
-                worst_score = score;
-                worst_cell = Some(groups.cells[g]);
-                worst_sample = best_sample;
-            }
-        }
-        if worst_cell.is_none() {
+                (total * factor[g], g, best_sample)
+            })
+            .reduce(
+                || (-1.0, usize::MAX, 0),
+                |a, b| {
+                    if b.0 > a.0 || (b.0 == a.0 && b.1 < a.1) {
+                        b
+                    } else {
+                        a
+                    }
+                },
+            );
+        if worst_group == usize::MAX || !(worst_score > -1.0) {
             break;
         }
         let nc = pool.at(worst_sample);
         let new_index = next_centroids.len();
         next_centroids.push(nc);
-        for i in 0..n {
-            let (dl, da, db) = (pool.l[i] - nc[0], pool.a[i] - nc[1], pool.b[i] - nc[2]);
-            let d = dl * dl + da * da + db * db;
-            if d < assigned[i] {
-                next_assignment[i] = new_index as u8;
-                assigned[i] = d;
-            }
-        }
+        let [cl, ca, cb] = nc;
+        next_assignment
+            .par_chunks_mut(CHUNK)
+            .zip(assigned.par_chunks_mut(CHUNK))
+            .enumerate()
+            .for_each(|(chunk, (next_assignment, assigned))| {
+                for j in 0..assigned.len() {
+                    let i = chunk * CHUNK + j;
+                    let (dl, da, db) = (pool.l[i] - cl, pool.a[i] - ca, pool.b[i] - cb);
+                    let d = dl * dl + da * da + db * db;
+                    if d < assigned[j] {
+                        next_assignment[j] = new_index as u8;
+                        assigned[j] = d;
+                    }
+                }
+            });
     }
     next_centroids
 }

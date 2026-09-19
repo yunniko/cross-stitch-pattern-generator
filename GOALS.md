@@ -56,6 +56,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   fallback; deployed and verified live. Skipped if nothing qualifies.
 
 **Progress log** (newest first):
+- 2026-09-19 — **Owner approval:** "go m3".
 - 2026-09-19 — **M2 done; awaiting approval of M3.** Crisp, Crisp+, both quantizers, DMC/Cosmo/Anchor and every
   enhancement mode ported; V8's sin, cos, atan2, log and hypot added (D184; 0 mismatches in 13.6 M vectors).
   `npm run compare:rust`: 36 of 36 byte-identical, all 18 golden hashes included. Single-thread speed-up 2.7-3.3x

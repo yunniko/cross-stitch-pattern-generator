@@ -2,6 +2,7 @@
 
 use crate::jsmath;
 use crate::Image;
+use rayon::prelude::*;
 
 const NOISE_FLOOR: f64 = 40.0;
 const NORMALIZATION_PERCENTILE: f64 = 0.999;
@@ -10,7 +11,7 @@ const NORMALIZATION_PERCENTILE: f64 = 0.999;
 pub fn source_luminance(image: &Image) -> Vec<u8> {
     image
         .data
-        .chunks_exact(4)
+        .par_chunks_exact(4)
         .map(|p| {
             jsmath::round(0.2126 * p[0] as f64 + 0.7152 * p[1] as f64 + 0.0722 * p[2] as f64) as u8
         })
@@ -21,29 +22,32 @@ pub fn source_luminance(image: &Image) -> Vec<u8> {
 pub fn compute_edge_magnitude(image: &Image, gray: &[u8]) -> Vec<f32> {
     let (width, height) = (image.width, image.height);
     let mut magnitude = vec![0f32; width * height];
-    for y in 0..height {
-        let ym1 = y.saturating_sub(1);
-        let yp1 = (y + 1).min(height - 1);
-        for x in 0..width {
-            let xm1 = x.saturating_sub(1);
-            let xp1 = (x + 1).min(width - 1);
-            let g = |yy: usize, xx: usize| gray[yy * width + xx] as i32;
-            let (tl, tc, tr) = (g(ym1, xm1), g(ym1, x), g(ym1, xp1));
-            let (ml, mr) = (g(y, xm1), g(y, xp1));
-            let (bl, bc, br) = (g(yp1, xm1), g(yp1, x), g(yp1, xp1));
-            let gx = tr + 2 * mr + br - (tl + 2 * ml + bl);
-            let gy = bl + 2 * bc + br - (tl + 2 * tc + tr);
-            let m = ((gx * gx + gy * gy) as f64).sqrt();
-            magnitude[y * width + x] = if m < NOISE_FLOOR { 0.0 } else { m as f32 };
-        }
-    }
+    magnitude
+        .par_chunks_mut(width)
+        .enumerate()
+        .for_each(|(y, row)| {
+            let ym1 = y.saturating_sub(1);
+            let yp1 = (y + 1).min(height - 1);
+            for x in 0..width {
+                let xm1 = x.saturating_sub(1);
+                let xp1 = (x + 1).min(width - 1);
+                let g = |yy: usize, xx: usize| gray[yy * width + xx] as i32;
+                let (tl, tc, tr) = (g(ym1, xm1), g(ym1, x), g(ym1, xp1));
+                let (ml, mr) = (g(y, xm1), g(y, xp1));
+                let (bl, bc, br) = (g(yp1, xm1), g(yp1, x), g(yp1, xp1));
+                let gx = tr + 2 * mr + br - (tl + 2 * ml + bl);
+                let gy = bl + 2 * bc + br - (tl + 2 * tc + tr);
+                let m = ((gx * gx + gy * gy) as f64).sqrt();
+                row[x] = if m < NOISE_FLOOR { 0.0 } else { m as f32 };
+            }
+        });
 
     let k = ((magnitude.len() - 1) as f64 * NORMALIZATION_PERCENTILE).floor() as usize;
     let kth = select_kth(&magnitude, k) as f64;
     let normalizer = if kth == 0.0 || kth.is_nan() { 1.0 } else { kth };
-    for m in magnitude.iter_mut() {
+    magnitude.par_iter_mut().for_each(|m| {
         *m = jsmath::min(1.0, *m as f64 / normalizer) as f32;
-    }
+    });
     magnitude
 }
 
@@ -70,21 +74,38 @@ pub fn compute_cell_importance(
     let mut sum_sq = vec![0f64; cells];
     let mut count = vec![0f64; cells];
 
-    for y in 0..src_h {
-        let cell_y = (grid_height - 1).min(y * grid_height / src_h);
-        for x in 0..src_w {
-            let cell_x = (grid_width - 1).min(x * grid_width / src_w);
-            let c = cell_y * grid_width + cell_x;
-            let s = y * src_w + x;
-            if edge[s] > max_edge[c] {
-                max_edge[c] = edge[s];
-            }
-            let l = gray[s] as f64 / 255.0;
-            sum[c] += l;
-            sum_sq[c] += l * l;
-            count[c] += 1.0;
-        }
+    // The source rows of each cell row are contiguous, so rows of cells accumulate independently, in source order.
+    let mut first_row = vec![src_h; grid_height + 1];
+    for y in (0..src_h).rev() {
+        first_row[(grid_height - 1).min(y * grid_height / src_h)] = y;
     }
+    for cy in (0..grid_height).rev() {
+        first_row[cy] = first_row[cy].min(first_row[cy + 1]);
+    }
+    let cell_x_of: Vec<usize> = (0..src_w)
+        .map(|x| (grid_width - 1).min(x * grid_width / src_w))
+        .collect();
+    max_edge
+        .par_chunks_mut(grid_width)
+        .zip(sum.par_chunks_mut(grid_width))
+        .zip(sum_sq.par_chunks_mut(grid_width))
+        .zip(count.par_chunks_mut(grid_width))
+        .enumerate()
+        .for_each(|(cy, (((max_edge, sum), sum_sq), count))| {
+            for y in first_row[cy]..first_row[cy + 1] {
+                for x in 0..src_w {
+                    let c = cell_x_of[x];
+                    let s = y * src_w + x;
+                    if edge[s] > max_edge[c] {
+                        max_edge[c] = edge[s];
+                    }
+                    let l = gray[s] as f64 / 255.0;
+                    sum[c] += l;
+                    sum_sq[c] += l * l;
+                    count[c] += 1.0;
+                }
+            }
+        });
 
     (0..cells)
         .map(|i| {

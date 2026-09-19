@@ -1,6 +1,8 @@
 //! Port of `lib/pipeline/denoise.ts`: the quantizer-only 3×3 vector-medoid filter (D41, D51, D178). Only the OKLab
 //! copy is returned; the quantizer never reads the denoised RGB.
 
+use rayon::prelude::*;
+
 const IMPORTANCE_PROTECTION_THRESHOLD: f64 = 0.5;
 const RIDGE_STRENGTH_FLOOR: f64 = 0.05;
 const ALLY_MATCH_DISTANCE_SQUARED: f64 = 0.0005;
@@ -46,62 +48,66 @@ pub fn denoise_for_quantization(
     importance: &[f32],
 ) -> Vec<f64> {
     let mut out = cell_oklab.to_vec();
-    let mut window = [0usize; 9];
-    let mut pair = [0f64; 81];
-    for y in 0..height {
-        for x in 0..width {
-            let i = y * width + x;
-            if importance[i] as f64 > IMPORTANCE_PROTECTION_THRESHOLD {
-                continue;
-            }
-            let mut size = 0;
-            window[size] = i;
-            size += 1;
-            for dy in -1i64..=1 {
-                for dx in -1i64..=1 {
-                    if dx == 0 && dy == 0 {
-                        continue;
+    // Every cell reads only the undenoised input, so rows run independently.
+    out.par_chunks_mut(width * 3)
+        .enumerate()
+        .for_each(|(y, out)| {
+            let mut window = [0usize; 9];
+            let mut pair = [0f64; 81];
+            for x in 0..width {
+                let i = y * width + x;
+                if importance[i] as f64 > IMPORTANCE_PROTECTION_THRESHOLD {
+                    continue;
+                }
+                let mut size = 0;
+                window[size] = i;
+                size += 1;
+                for dy in -1i64..=1 {
+                    for dx in -1i64..=1 {
+                        if dx == 0 && dy == 0 {
+                            continue;
+                        }
+                        let (nx, ny) = (x as i64 + dx, y as i64 + dy);
+                        if nx < 0 || nx >= width as i64 || ny < 0 || ny >= height as i64 {
+                            continue;
+                        }
+                        window[size] = ny as usize * width + nx as usize;
+                        size += 1;
                     }
-                    let (nx, ny) = (x as i64 + dx, y as i64 + dy);
-                    if nx < 0 || nx >= width as i64 || ny < 0 || ny >= height as i64 {
-                        continue;
+                }
+
+                if ridge_strength(cell_oklab, width, height, x, y) > RIDGE_STRENGTH_FLOOR
+                    && (1..size).any(|w| {
+                        distance_sq(cell_oklab, i, window[w]) <= ALLY_MATCH_DISTANCE_SQUARED
+                    })
+                {
+                    continue;
+                }
+
+                for a in 0..size {
+                    pair[a * 9 + a] = 0.0;
+                    for b in a + 1..size {
+                        let d = distance_sq(cell_oklab, window[a], window[b]);
+                        pair[a * 9 + b] = d;
+                        pair[b * 9 + a] = d;
                     }
-                    window[size] = ny as usize * width + nx as usize;
-                    size += 1;
+                }
+                let mut best = i;
+                let mut best_sum = f64::INFINITY;
+                for a in 0..size {
+                    let mut sum = 0.0;
+                    for b in 0..size {
+                        sum += pair[a * 9 + b];
+                    }
+                    if sum < best_sum {
+                        best_sum = sum;
+                        best = window[a];
+                    }
+                }
+                if best != i {
+                    out[x * 3..x * 3 + 3].copy_from_slice(&cell_oklab[best * 3..best * 3 + 3]);
                 }
             }
-
-            if ridge_strength(cell_oklab, width, height, x, y) > RIDGE_STRENGTH_FLOOR
-                && (1..size)
-                    .any(|w| distance_sq(cell_oklab, i, window[w]) <= ALLY_MATCH_DISTANCE_SQUARED)
-            {
-                continue;
-            }
-
-            for a in 0..size {
-                pair[a * 9 + a] = 0.0;
-                for b in a + 1..size {
-                    let d = distance_sq(cell_oklab, window[a], window[b]);
-                    pair[a * 9 + b] = d;
-                    pair[b * 9 + a] = d;
-                }
-            }
-            let mut best = i;
-            let mut best_sum = f64::INFINITY;
-            for a in 0..size {
-                let mut sum = 0.0;
-                for b in 0..size {
-                    sum += pair[a * 9 + b];
-                }
-                if sum < best_sum {
-                    best_sum = sum;
-                    best = window[a];
-                }
-            }
-            if best != i {
-                out[i * 3..i * 3 + 3].copy_from_slice(&cell_oklab[best * 3..best * 3 + 3]);
-            }
-        }
-    }
+        });
     out
 }

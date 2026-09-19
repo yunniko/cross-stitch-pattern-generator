@@ -4,6 +4,7 @@
 use crate::color::gamut_map_oklab_to_linear;
 use crate::jsmath;
 use crate::Image;
+use rayon::prelude::*;
 use std::sync::OnceLock;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1006,133 +1007,140 @@ fn apply(image: &Image, p: &Params) -> Image {
         }
     }
 
-    for y in 0..height {
-        let (mut row0, mut row1, mut row_t) = (0, 0, 0.0);
-        if let Some(c) = &p.clahe {
-            let (t0, t1, tt) = tile_axis((y as f64 + 0.5) / height as f64, c.tiles_y);
-            row0 = t0 * c.tiles_x;
-            row1 = t1 * c.tiles_x;
-            row_t = tt;
-        }
-        for x in 0..width {
-            let o = (y * width + x) * 4;
-            let alpha = data[o + 3];
-            out[o + 3] = alpha;
-            if alpha == 0 {
-                out[o..o + 3].copy_from_slice(&data[o..o + 3]);
-                continue;
+    // Every pixel reads only the source and the tables, so rows run independently.
+    out.par_chunks_mut(width * 4)
+        .enumerate()
+        .for_each(|(y, out)| {
+            let (mut row0, mut row1, mut row_t) = (0, 0, 0.0);
+            if let Some(c) = &p.clahe {
+                let (t0, t1, tt) = tile_axis((y as f64 + 0.5) / height as f64, c.tiles_y);
+                row0 = t0 * c.tiles_x;
+                row1 = t1 * c.tiles_x;
+                row_t = tt;
             }
-            let (r, g, b) = (
-                t[data[o] as usize],
-                t[data[o + 1] as usize],
-                t[data[o + 2] as usize],
-            );
-            let l_ = jsmath::cbrt((0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) * gl);
-            let m_ = jsmath::cbrt((0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) * gm);
-            let s_ = jsmath::cbrt((0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) * gs);
-            let l0 = 0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_;
-            let mut a = 1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_;
-            let mut bb = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_;
-
-            let ll = if let Some(comb) = &combined {
-                let size = COMBINED_LUT_SIZE as f64;
-                let mut f = l0 * size;
-                if f < 0.0 {
-                    f = 0.0;
-                } else if f > size {
-                    f = size;
+            for x in 0..width {
+                let o = (y * width + x) * 4;
+                let q = x * 4;
+                let alpha = data[o + 3];
+                out[q + 3] = alpha;
+                if alpha == 0 {
+                    out[q..q + 3].copy_from_slice(&data[o..o + 3]);
+                    continue;
                 }
-                let i = if f < size {
-                    f as usize
-                } else {
-                    COMBINED_LUT_SIZE - 1
-                };
-                let tt = f - i as f64;
-                let at = |k: usize| comb[k] as f64;
-                let b00 = (row0 + col0[x]) * stride + i;
-                let b10 = (row0 + col1[x]) * stride + i;
-                let b01 = (row1 + col0[x]) * stride + i;
-                let b11 = (row1 + col1[x]) * stride + i;
-                let v00 = at(b00) + (at(b00 + 1) - at(b00)) * tt;
-                let v10 = at(b10) + (at(b10 + 1) - at(b10)) * tt;
-                let v01 = at(b01) + (at(b01 + 1) - at(b01)) * tt;
-                let v11 = at(b11) + (at(b11 + 1) - at(b11)) * tt;
-                let tx = col_t[x] as f64;
-                let top = v00 + (v10 - v00) * tx;
-                top + (v01 + (v11 - v01) * tx - top) * row_t
-            } else {
-                tone_lookup(&p.tone_lut, l0)
-            };
+                let (r, g, b) = (
+                    t[data[o] as usize],
+                    t[data[o + 1] as usize],
+                    t[data[o + 2] as usize],
+                );
+                let l_ =
+                    jsmath::cbrt((0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) * gl);
+                let m_ =
+                    jsmath::cbrt((0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) * gm);
+                let s_ =
+                    jsmath::cbrt((0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) * gs);
+                let l0 = 0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_;
+                let mut a = 1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_;
+                let mut bb = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_;
 
-            let dl = ll - l0;
-            if l0 > 1e-4 && (dl > 1e-6 || dl < -1e-6) {
-                let mut comp = (ll / l0).sqrt();
-                if comp > 1.0 {
-                    let c2 = a * a + bb * bb;
-                    if a > 0.0
-                        && bb >= SKIN_TAN_LOW * a
-                        && bb <= SKIN_TAN_HIGH * a
-                        && c2 > 1e-4
-                        && c2 < 0.04
-                        && ll > 0.25
-                        && ll < 0.96
-                    {
-                        comp = chroma_compensation(
-                            l0,
+                let ll = if let Some(comb) = &combined {
+                    let size = COMBINED_LUT_SIZE as f64;
+                    let mut f = l0 * size;
+                    if f < 0.0 {
+                        f = 0.0;
+                    } else if f > size {
+                        f = size;
+                    }
+                    let i = if f < size {
+                        f as usize
+                    } else {
+                        COMBINED_LUT_SIZE - 1
+                    };
+                    let tt = f - i as f64;
+                    let at = |k: usize| comb[k] as f64;
+                    let b00 = (row0 + col0[x]) * stride + i;
+                    let b10 = (row0 + col1[x]) * stride + i;
+                    let b01 = (row1 + col0[x]) * stride + i;
+                    let b11 = (row1 + col1[x]) * stride + i;
+                    let v00 = at(b00) + (at(b00 + 1) - at(b00)) * tt;
+                    let v10 = at(b10) + (at(b10 + 1) - at(b10)) * tt;
+                    let v01 = at(b01) + (at(b01 + 1) - at(b01)) * tt;
+                    let v11 = at(b11) + (at(b11 + 1) - at(b11)) * tt;
+                    let tx = col_t[x] as f64;
+                    let top = v00 + (v10 - v00) * tx;
+                    top + (v01 + (v11 - v01) * tx - top) * row_t
+                } else {
+                    tone_lookup(&p.tone_lut, l0)
+                };
+
+                let dl = ll - l0;
+                if l0 > 1e-4 && (dl > 1e-6 || dl < -1e-6) {
+                    let mut comp = (ll / l0).sqrt();
+                    if comp > 1.0 {
+                        let c2 = a * a + bb * bb;
+                        if a > 0.0
+                            && bb >= SKIN_TAN_LOW * a
+                            && bb <= SKIN_TAN_HIGH * a
+                            && c2 > 1e-4
+                            && c2 < 0.04
+                            && ll > 0.25
+                            && ll < 0.96
+                        {
+                            comp = chroma_compensation(
+                                l0,
+                                ll,
+                                skin_weight(ll, c2.sqrt(), jsmath::atan2(bb, a)),
+                                p.skin_protection,
+                            );
+                        } else if comp > CHROMA_COMP_MAX {
+                            comp = CHROMA_COMP_MAX;
+                        }
+                    } else if comp < CHROMA_COMP_MIN {
+                        comp = CHROMA_COMP_MIN;
+                    }
+                    a *= comp;
+                    bb *= comp;
+                }
+                if let Some(table) = table {
+                    let chroma = (a * a + bb * bb).sqrt();
+                    if chroma > VIBRANCE_RAMP_LOW {
+                        let boost = vibrance_boost(
+                            table,
                             ll,
-                            skin_weight(ll, c2.sqrt(), jsmath::atan2(bb, a)),
+                            chroma,
+                            jsmath::atan2(bb, a),
+                            p.vibrance_amount,
                             p.skin_protection,
                         );
-                    } else if comp > CHROMA_COMP_MAX {
-                        comp = CHROMA_COMP_MAX;
+                        a *= boost;
+                        bb *= boost;
                     }
-                } else if comp < CHROMA_COMP_MIN {
-                    comp = CHROMA_COMP_MIN;
                 }
-                a *= comp;
-                bb *= comp;
-            }
-            if let Some(table) = table {
-                let chroma = (a * a + bb * bb).sqrt();
-                if chroma > VIBRANCE_RAMP_LOW {
-                    let boost = vibrance_boost(
-                        table,
-                        ll,
-                        chroma,
-                        jsmath::atan2(bb, a),
-                        p.vibrance_amount,
-                        p.skin_protection,
-                    );
-                    a *= boost;
-                    bb *= boost;
-                }
-            }
 
-            let lc = ll + 0.3963377774 * a + 0.2158037573 * bb;
-            let mc = ll - 0.1055613458 * a - 0.0638541728 * bb;
-            let sc = ll - 0.0894841775 * a - 1.291485548 * bb;
-            let (lk, mk, sk) = (lc * lc * lc, mc * mc * mc, sc * sc * sc);
-            let rr = 4.0767416621 * lk - 3.3077115913 * mk + 0.2309699292 * sk;
-            let gg = -1.2684380046 * lk + 2.6097574011 * mk - 0.3413193965 * sk;
-            let bl = -0.0041960863 * lk - 0.7034186147 * mk + 1.707614701 * sk;
-            if ll > 0.0
-                && ll < 1.0
-                && (0.0..=1.0).contains(&rr)
-                && (0.0..=1.0).contains(&gg)
-                && (0.0..=1.0).contains(&bl)
-            {
-                let lut = ENCODE_LUT_SIZE as f64;
-                out[o] = enc[(rr * lut + 0.5) as usize];
-                out[o + 1] = enc[(gg * lut + 0.5) as usize];
-                out[o + 2] = enc[(bl * lut + 0.5) as usize];
-            } else {
-                let lin = gamut_map_oklab_to_linear(ll, a, bb);
-                out[o] = encode_linear(lin[0]);
-                out[o + 1] = encode_linear(lin[1]);
-                out[o + 2] = encode_linear(lin[2]);
+                let lc = ll + 0.3963377774 * a + 0.2158037573 * bb;
+                let mc = ll - 0.1055613458 * a - 0.0638541728 * bb;
+                let sc = ll - 0.0894841775 * a - 1.291485548 * bb;
+                let (lk, mk, sk) = (lc * lc * lc, mc * mc * mc, sc * sc * sc);
+                let rr = 4.0767416621 * lk - 3.3077115913 * mk + 0.2309699292 * sk;
+                let gg = -1.2684380046 * lk + 2.6097574011 * mk - 0.3413193965 * sk;
+                let bl = -0.0041960863 * lk - 0.7034186147 * mk + 1.707614701 * sk;
+                if ll > 0.0
+                    && ll < 1.0
+                    && (0.0..=1.0).contains(&rr)
+                    && (0.0..=1.0).contains(&gg)
+                    && (0.0..=1.0).contains(&bl)
+                {
+                    let lut = ENCODE_LUT_SIZE as f64;
+                    out[q] = enc[(rr * lut + 0.5) as usize];
+                    out[q + 1] = enc[(gg * lut + 0.5) as usize];
+                    out[q + 2] = enc[(bl * lut + 0.5) as usize];
+                } else {
+                    let lin = gamut_map_oklab_to_linear(ll, a, bb);
+                    out[q] = encode_linear(lin[0]);
+                    out[q + 1] = encode_linear(lin[1]);
+                    out[q + 2] = encode_linear(lin[2]);
+                }
             }
-        }
-    }
+        });
     Image {
         width,
         height,

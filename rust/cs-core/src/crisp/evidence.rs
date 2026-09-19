@@ -5,6 +5,7 @@
 use crate::color::{oklab_from_bytes, srgb_to_linear_table, Oklab};
 use crate::jsmath;
 use crate::Image;
+use rayon::prelude::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum EdgeModel {
@@ -422,11 +423,15 @@ fn fit_blurred_step(s: &Samples, mid_t: f64) -> Option<BlurredFit> {
     let within = jsmath::max(0.0, total_sq - between_sq);
     let between = jsmath::max(0.0, between_sq - total_w * mean_sq);
 
+    // The TypeScript evaluates the feature twice per bin; it is a pure function, so evaluating it once gives the same
+    // doubles.
     let residual_for = |feature: &dyn Fn(f64) -> f64| -> f64 {
+        let mut values = [0f64; BLUR_BINS];
         let mut x_mean = 0.0;
         for k in 0..BLUR_BINS {
             if bw[k] > 0.0 {
-                x_mean += bw[k] * feature(bt[k]);
+                values[k] = feature(bt[k]);
+                x_mean += bw[k] * values[k];
             }
         }
         x_mean /= total_w;
@@ -436,7 +441,7 @@ fn fit_blurred_step(s: &Samples, mid_t: f64) -> Option<BlurredFit> {
             if w <= 0.0 {
                 continue;
             }
-            let dx = feature(bt[k]) - x_mean;
+            let dx = values[k] - x_mean;
             sxx += w * dx * dx;
             sl += w * dx * (bl[k] - ml);
             sa += w * dx * (ba[k] - ma);
@@ -729,20 +734,41 @@ pub fn build_evidence_layer(
     gh: usize,
     model: EdgeModel,
 ) -> EvidenceLayer {
-    let mut rows = SourceRows::new(image);
-    let mut samples = Samples::default();
     let cell_count = gw * gh;
-    let mut raw: Vec<Option<Evidence>> = vec![None; cell_count];
-    for cell in 0..cell_count {
-        let (cx, cy) = (cell % gw, cell / gw);
-        let e = extract(&mut rows, gw, gh, cx, cy, model, &mut samples);
-        if e.confidence >= CONFIDENCE_THRESHOLD {
-            debug_assert_eq!(e.mode_count, 2);
-            raw[cell] = Some(Evidence {
-                modes: e.modes,
-                coverage: e.coverage,
-            });
-        }
+    // Each cell's evidence depends only on the source, so bands of cell rows run independently; each band caches its
+    // own source rows. Only confident cells are kept, in cell order, as the TypeScript Map holds them: one slot per
+    // cell cost about 72 bytes per cell (108 MB at 1500 stitches).
+    let band = (gh / (rayon::current_num_threads() * 8)).max(1);
+    let bands = gh.div_ceil(band);
+    let raw: Vec<(usize, Evidence)> = (0..bands)
+        .into_par_iter()
+        .map(|band_index| {
+            let mut rows = SourceRows::new(image);
+            let mut samples = Samples::default();
+            let mut found = Vec::new();
+            let first = band_index * band * gw;
+            let last = ((band_index + 1) * band * gw).min(cell_count);
+            for cell in first..last {
+                let (cx, cy) = (cell % gw, cell / gw);
+                let e = extract(&mut rows, gw, gh, cx, cy, model, &mut samples);
+                if e.confidence >= CONFIDENCE_THRESHOLD {
+                    debug_assert_eq!(e.mode_count, 2);
+                    found.push((
+                        cell,
+                        Evidence {
+                            modes: e.modes,
+                            coverage: e.coverage,
+                        },
+                    ));
+                }
+            }
+            found
+        })
+        .flatten()
+        .collect();
+    let mut confident = vec![false; cell_count];
+    for (cell, _) in &raw {
+        confident[*cell] = true;
     }
     let mut cells = Vec::new();
     let mut index = vec![u32::MAX; cell_count];
@@ -756,8 +782,7 @@ pub fn build_evidence_layer(
         (-1, 1),
         (-1, -1),
     ];
-    for cell in 0..cell_count {
-        let Some(e) = &raw[cell] else { continue };
+    for (cell, e) in raw {
         let (cx, cy) = ((cell % gw) as i64, (cell / gw) as i64);
         let agreed = OFFSETS.iter().any(|&(dx, dy)| {
             let (nx, ny) = (cx + dx, cy + dy);
@@ -765,11 +790,11 @@ pub fn build_evidence_layer(
                 && nx < gw as i64
                 && ny >= 0
                 && ny < gh as i64
-                && raw[ny as usize * gw + nx as usize].is_some()
+                && confident[ny as usize * gw + nx as usize]
         });
         if agreed {
             index[cell] = cells.len() as u32;
-            cells.push((cell, e.clone()));
+            cells.push((cell, e));
         }
     }
     EvidenceLayer { cells, index }

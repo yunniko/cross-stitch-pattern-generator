@@ -15,7 +15,7 @@ pub fn run(
 ) -> (Vec<u8>, Vec<Rgb>) {
     let cell_count = cell_oklab.len() / 3;
     let mut pool = Pool::with_capacity(cell_count + layer.len());
-    let mut non_crisp_sample = vec![usize::MAX; cell_count];
+    let mut non_crisp_sample = vec![u32::MAX; cell_count];
     for cell in 0..cell_count {
         match layer.get(cell) {
             Some(e) => {
@@ -23,7 +23,7 @@ pub fn run(
                 pool.push(e.modes[1], e.coverage[1], cell);
             }
             None => {
-                non_crisp_sample[cell] = pool.len();
+                non_crisp_sample[cell] = pool.len() as u32;
                 let o = cell * 3;
                 pool.push(
                     [cell_oklab[o], cell_oklab[o + 1], cell_oklab[o + 2]],
@@ -39,7 +39,7 @@ pub fn run(
     let mut labels = vec![0u8; cell_count];
     for cell in 0..cell_count {
         let Some(e) = layer.get(cell) else {
-            labels[cell] = sample_labels[non_crisp_sample[cell]];
+            labels[cell] = sample_labels[non_crisp_sample[cell] as usize];
             continue;
         };
         let set = build_admissible(e, &palette_oklab, 1.0, DEFAULT_BETA);
