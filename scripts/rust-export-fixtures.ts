@@ -42,11 +42,13 @@ function fixture(name: string, stitches: number, colors: number, extra: Partial<
   return { name, pattern, symmetry, authorName };
 }
 
-export function fixtures(large: boolean): Fixture[] {
+/** The two small fixtures; `size` adds the 1000-stitch one ("large") and, with "huge", the 1500-stitch one too. */
+export function fixtures(size: boolean | "large" | "huge"): Fixture[] {
   return [
     fixture("photo-150", 150, 24, {}, { vertical: true, horizontal: true, diagonal: false, antidiagonal: false }, "Ann Author"),
     fixture("dmc-120", 120, 32, { threadBrand: "dmc", edgeMode: "crisp" }, NO_SYMMETRY, ""),
-    ...(large ? [fixture("large-1000", 1000, 64, {}, NO_SYMMETRY, "")] : []),
+    ...(size ? [fixture("large-1000", 1000, 64, {}, NO_SYMMETRY, "")] : []),
+    ...(size === "huge" ? [fixture("large-1500", 1500, 64, {}, NO_SYMMETRY, "")] : []),
   ];
 }
 

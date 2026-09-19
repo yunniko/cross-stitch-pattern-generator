@@ -198,3 +198,6 @@ remain readable with git show.
 - D187 — Rust rasters draw DejaVu text from measured canvas metrics, compared by pixel difference — active
 - D188 — Export references are made in the production processor image — active
 - D189 — The Rust PDF mirrors pdf-lib's structure with pdf-writer and a subset Type0 font — active
+- D190 — Rust ships for generation and every server-side export — active
+- D191 — The editable save stays TypeScript, in the browser — active
+- D192 — Chart PNGs ship with Rust's 4-5 px symbols, which differ visibly from production's — active

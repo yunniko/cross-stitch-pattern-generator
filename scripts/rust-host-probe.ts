@@ -14,6 +14,7 @@ import { hashPattern } from "../tests/unit/helpers/pattern-hash";
  *
  *   node probe.mjs ts <case>
  *   node probe.mjs rust <case> <binary> <threads>
+ *   node probe.mjs wasm <case> <cs_wasm.wasm>
  *
  * Prints one JSON line: wall time, peak RSS, and the pattern hash, so the two sides can be checked for identity. The
  * Rust time is measured inside the binary, the same span as the TypeScript `buildPattern` call; the binary's peak RSS
@@ -34,7 +35,7 @@ const CASES: Case[] = (["standard", "crisp", "crisp-plus"] as const).flatMap((ed
 ]);
 
 const [side, caseArg, binary, threadsArg] = process.argv.slice(2);
-if (side !== "ts" && side !== "rust") {
+if (side !== "ts" && side !== "rust" && side !== "wasm") {
   CASES.forEach((c, i) => console.log(`${i}: ${c.label}`));
   process.exit(side ? 1 : 0);
 }
@@ -42,7 +43,28 @@ const c = CASES[Number(caseArg)];
 if (!c) throw new Error(`case must be 0..${CASES.length - 1}`);
 const source = makePhotoLikeBuffer(c.width, c.height);
 
-if (side === "ts") {
+interface WasmExports {
+  memory: WebAssembly.Memory;
+  alloc(len: number): number;
+  result_len(): number;
+  generate(pixels: number, width: number, height: number, options: number, optionsLength: number): number;
+}
+
+if (side === "wasm") {
+  // Single-threaded by construction (D186); timed inside the module, the same span as the other two sides.
+  const instance = await WebAssembly.instantiate(await WebAssembly.compile(fs.readFileSync(binary)), { env: { now_ms: () => performance.now() } });
+  const wasm = instance.exports as unknown as WasmExports;
+  const pixels = wasm.alloc(source.data.length);
+  new Uint8Array(wasm.memory.buffer, pixels, source.data.length).set(source.data);
+  const text = new TextEncoder().encode(JSON.stringify({ longerSideStitches: c.stitches, colorCount: 64, edgeMode: c.edgeMode, threads: 1 }));
+  const optionsPtr = wasm.alloc(text.length);
+  new Uint8Array(wasm.memory.buffer, optionsPtr, text.length).set(text);
+  const result = wasm.generate(pixels, source.width, source.height, optionsPtr, text.length);
+  const out = JSON.parse(new TextDecoder().decode(new Uint8Array(wasm.memory.buffer, result, wasm.result_len())));
+  if (out.error) throw new Error(`wasm: ${out.error}`);
+  const pattern: StitchPattern = { ...out.pattern, cellPalette: Uint8Array.from(out.pattern.cellPalette), threadBrand: out.pattern.threadBrand ?? undefined, edgeMode: out.pattern.edgeMode ?? undefined, enhancementMode: out.pattern.enhancementMode ?? undefined };
+  console.log(JSON.stringify({ side, case: c.label, wallMs: Math.round(out.runs[0].totalMs), peakRssMb: null, hash: hashPattern(pattern) }));
+} else if (side === "ts") {
   let peak = process.memoryUsage().rss;
   const timer = setInterval(() => {
     peak = Math.max(peak, process.memoryUsage().rss);

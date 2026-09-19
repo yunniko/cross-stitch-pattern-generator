@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-20 at 6102fb2 (G-048 M4: the Rust exports; production still 96efc33)
+Last verified: 2026-09-20 at 6102fb2 (G-048 M5: the comparison report; production still 96efc33)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -17,11 +17,12 @@ editable save run in the `processor` container (D149–D155). **G-045, the Ateli
 2026-09-18**: tool rail, context and status bars, one-pane inspector, Isolate as a view mode (D157–D167). Both are
 detailed in `docs/goals-archive.md`.
 
-**G-048, generation and exports in Rust — ACTIVE, M4 done, awaiting approval of M5.** `rust/` holds all generation
+**G-048, generation and exports in Rust — ACTIVE, M5 done, awaiting approval of M6.** `rust/` holds all generation
 (D182), byte-identical to TypeScript at any thread count (D183–D185), a WASM build (D186), and every export (D187–D189).
-On the host generation is 2.5–5.6× faster (`docs/reviews/2026-09-19-rust-m3-optimised.md`) and the exports 1.0–5.4×
-(`docs/reviews/2026-09-19-rust-m4-exports.md`, which also holds the one visible rendering difference). Nothing Rust is
-in production; M5 decides what ships.
+On the host at the processor's cap Rust is 1.6–13.0× faster at one thread and uses far less memory on exports
+(`docs/reviews/2026-09-20-rust-comparison-report.md`). **The Owner chose Rust (2026-09-20):** generation and every
+server-side export ship (D190), the editable save stays in the browser (D191), and 4–5 px chart symbols change
+appearance (D192). Nothing Rust is in production yet; M6 builds it into the processor.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1500 stitches (D181) and 2–100 colors, with Latest or Original clustering, Full range, DMC,
@@ -115,8 +116,7 @@ the unit tests, because the worker bundle is git-ignored and the pool, preview a
   evaluates every cell (D132) and converts each source row to OKLab once per job (G-035 M4). Crisp+
   (`edgeMode: "crisp-plus"`, G-038) adds blurred-step evidence (D139), strip snapping (D140), blend pruning
   (D141), slot refill (D142).
-- **Threads** (`lib/threads/`): `thread-brands.ts` is the registry; its `matching` field is "direct" for DMC and
-  Cosmo, or "dmc-equivalence" for Anchor. `brand-match.ts` snaps, provenance in `docs/*-colors-provenance.md`.
+- **Threads** (`lib/threads/`): `thread-brands.ts` is the registry, its `matching` field "direct" for DMC and Cosmo or "dmc-equivalence" for Anchor; `brand-match.ts` snaps, provenance in `docs/*-colors-provenance.md`.
 - **Export** (`lib/export/`): `render.ts` holds the chart layout budget and the realistic preview, streamed a strip at a
   time from `stitch-texture.ts`'s tiles and never assembled (D173). A4 page drawing takes a `ChartDrawingContext`, so
   one code path draws PNG and PDF pages (`pdf-canvas-adapter.ts`, D074; direct operators, one font per page, D126).
@@ -127,10 +127,9 @@ the unit tests, because the worker bundle is git-ignored and the pool, preview a
   `pattern-serialize.ts` (D099), IndexedDB store in `project-store.ts` (D100), options in
   `workspace-storage.ts`. OXS reading and writing live in `oxs.ts` on the dedicated XML reader `oxs-xml.ts`
   (D119); `pattern-import.ts` sniffs the format.
-- **Experimental** (`lib/experimental/`): contour refinement, boundary chains, simulated annealing, diagnostics;
-  status table in its README.
-- **Rust port (G-048)**: `rust/cs-core` ports the pipeline module by module; each file names the TypeScript it
-  ports; `crisp/` holds Crisp and Crisp+, `threads.rs` brand matching, `enhance.rs` enhancement. `jsmath.rs` and
+- **Experimental** (`lib/experimental/`): contour refinement, boundary chains, simulated annealing, diagnostics (status table in its README).
+- **Rust port (G-048)**: `rust/cs-core` ports the pipeline module by module, each file naming the TypeScript it
+  ports: `crisp/` holds Crisp and Crisp+, `threads.rs` brand matching, `enhance.rs` enhancement. `jsmath.rs` and
   `fdlibm.rs` hold the V8-exact maths (D183, D184), proven by `rust/cs-core/tests/jsmath_vectors.rs` on vectors from
   `scripts/rust-jsmath-vectors.mjs`. `rust/cs-export` ports every export: `text.rs` and `canvas.rs` draw DejaVu text
   the way the processor's canvas does (D187), `pdf.rs` writes pdf-lib's structure (D189), `bundle.rs` JSZip's ZIPs.
@@ -277,13 +276,14 @@ the unit tests, because the worker bundle is git-ignored and the pool, preview a
 
 ## Next steps and open questions
 
-- Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, a drag's first frame paints in full (34–77 ms), and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142).
+- Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, a drag's first frame paints in full (34–77 ms), and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142). 
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration; G-033 — "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
-- G-048 M5 awaits the Owner (the comparison report and the ship decision per part). Open from M4: chart PNGs between
-  about 890 and 1333 stitches draw 4–5 px symbols, which production renders as blocks and Rust as outlines. The musl
-  allocator question is answered (mimalloc not needed, M4 review); host generation memory still needs re-measuring.
+- G-048 M6 awaits the Owner: build Rust into the processor's workers (one thread per job, TypeScript kept as the
+  fallback), deploy and verify live. Known from M5: generation at 1500 stitches holds 42 MB more than TypeScript in
+  Standard and 9 MB more in Crisp+ (D190), and three TypeScript Export-all jobs at once peak near 2.2 GB against the
+  2 GiB cap where Rust holds 495 MB.
 - G-046 (larger canvases) is signed off (2026-09-19) and archived: the cap is 1500 (D181). A cap of 2000 would need two Owner decisions, a longer generation deadline and Export all without the chart PNG (D181). G-030 (public launch) is a far-future draft.
 - G-047 (faster exports and generation) is signed off (2026-09-19) and archived in `docs/goals-archive.md`: raster exports 2–3× faster, the preview streamed, the PDF 3.5× faster, generation a quarter to a half faster (D171–D178).
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.

@@ -51,11 +51,20 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   criterion 2; WASM build; laptop and host timings.
 - [x] M4 — Exports in Rust: PNG writer, chart and A4 rasters with DejaVu text, the streamed preview, the PDF (embedded,
   subset font, text symbols), OXS, JSON and Export all; the equivalence checks of criterion 3; timings.
-- [ ] M5 — The comparison report and the ship decision per part (criterion 5).
+- [x] M5 — The comparison report and the ship decision per part (criterion 5).
 - [ ] M6 — Ship what qualifies: a native addon in the processor's workers, built in the image, with the TypeScript
   fallback; deployed and verified live. Skipped if nothing qualifies.
 
 **Progress log** (newest first):
+- 2026-09-20 — **M5 done; awaiting approval of M6.** The comparison report (criterion 4) is
+  `docs/reviews/2026-09-20-rust-comparison-report.md`: laptop and host, 1000 and 1500 stitches, one job and three at
+  once, wall time and peak RSS for generation and every export, native and WASM. Gaps M3/M4 left are closed --
+  WASM at the probe sizes (1.0-1.6x TypeScript, about half native), host memory after the M3 fixes, TypeScript peak
+  memory per export, exports at 1500 stitches. Ship decision (criterion 5): Rust ships for generation and every
+  server-side export, TypeScript stays reference and fallback (D190); the editable save stays in the browser (D191);
+  the 4-5 px chart symbols change (D192). One clause not met: generation at 1500 st uses 42 MB more (Standard) and
+  9 MB more (Crisp+) than TypeScript -- Owner directed Rust anyway. One thread per job (pool is 3 on 3 CPUs).
+  **Owner approvals:** "go m5"; "we should choose rust over ts"; the editable-save and symbol calls "are ok".
 - 2026-09-19 — **Owner approval:** "go m4".
 - 2026-09-20 — **M4 done; awaiting approval of M5.** `rust/cs-export` ports every export kind (raster text with
   rustybuzz + tiny-skia, D187; PDF with pdf-writer and a subset Type0 font, D189; references made in the processor

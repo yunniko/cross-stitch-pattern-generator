@@ -24,10 +24,11 @@ installServerExportBackend();
 const kinds = (kindsArg && kindsArg !== "all-kinds" ? kindsArg.split(",") : ALL_KINDS) as ExportJobKind[];
 const repeat = Number(repeatArg ?? 1);
 const timings: Record<string, number> = {};
-for (const f of fixtures(largeArg === "large")) {
+for (const f of fixtures(largeArg === "huge" ? "huge" : largeArg === "large")) {
   writeFileSync(path.join(outDir, `${f.name}.input.json`), serializePattern(f.pattern, f.symmetry));
+  // Every kind's request, not just the ones being run, so a probe can time a case this run does not export.
+  for (const kind of ALL_KINDS) writeFileSync(path.join(outDir, `${f.name}__${kind}.request.json`), JSON.stringify(requestFor(f, kind)));
   for (const kind of kinds) {
-    writeFileSync(path.join(outDir, `${f.name}__${kind}.request.json`), JSON.stringify(requestFor(f, kind)));
     let ms = Infinity;
     let result: Awaited<ReturnType<typeof runExportJob>> | undefined;
     for (let run = 0; run < repeat; run++) {
