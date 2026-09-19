@@ -47,7 +47,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   pipeline matching its golden hashes. First timing against TypeScript.
 - [x] M2 — The rest of generation, exact: Crisp, Crisp+, photo enhancement and thread-brand matching; every golden hash
   matches. Single-thread timing per stage.
-- [ ] M3 — Generation, optimised: threads and SIMD where they pay, measured stage by stage; the quality metrics of
+- [x] M3 — Generation, optimised: threads and SIMD where they pay, measured stage by stage; the quality metrics of
   criterion 2; WASM build; laptop and host timings.
 - [ ] M4 — Exports in Rust: PNG writer, chart and A4 rasters with DejaVu text, the streamed preview, the PDF (embedded,
   subset font, text symbols), OXS, JSON and Export all; the equivalence checks of criterion 3; timings.
@@ -56,6 +56,15 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   fallback; deployed and verified live. Skipped if nothing qualifies.
 
 **Progress log** (newest first):
+- 2026-09-19 — **M3 done; awaiting approval of M4.** Threads only where results cannot change (D185): 36/36
+  fixture cases and 15/15 real-photo cases byte-identical at 3 threads, so criterion 2 holds exactly. Laptop,
+  real photos at 1000 st: 4.4-6.4x faster than TypeScript. x86-64-v3 SIMD: 1-8 %. WASM (D186): about half native
+  single-thread speed, 30/30 identical. Host (--cpus=3, 2 GiB): 2.5-5.6x for one job, 2.6x three at once; one
+  thread per job is best under load. Rust used more memory than TypeScript at 1500 st Crisp/Crisp+ (269 vs
+  224-249 MB); two fixes cut the laptop peak to 244 MB, and the host must be re-measured in M5.
+  `docs/reviews/2026-09-19-rust-m3-optimised.md`. **Stopped for low laptop memory, not rerun:** the full
+  laptop run (WASM at probe sizes) and the first host session; the host script finished on its own.
+  Checks: Vitest 1096 passed, tsc, eslint, clippy (native and WASM), cargo test, docs-lint.
 - 2026-09-19 — **Owner approval:** "go m3".
 - 2026-09-19 — **M2 done; awaiting approval of M3.** Crisp, Crisp+, both quantizers, DMC/Cosmo/Anchor and every
   enhancement mode ported; V8's sin, cos, atan2, log and hypot added (D184; 0 mismatches in 13.6 M vectors).
