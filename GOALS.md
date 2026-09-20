@@ -19,8 +19,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   pipeline is the wrong tool: it resamples and re-quantizes work that is finished. This treats one pixel as one stitch.
 - **Owner decisions (2026-09-20):** colours import exactly, as custom colours with no thread brand (the colour editor
   can snap them later); a fully transparent pixel is an empty stitch and an empty stitch exports transparent; the
-  export is one PNG at 1 px per stitch, written in the browser like the editable save; images below the 10-stitch
-  minimum are accepted, down to 1 px, because 8×8 and 16×16 sprites are ordinary.
+  export is one PNG at 1 px per stitch, written in the browser like the editable save; an image below the 10-stitch
+  minimum is centred in a chart of the minimum with empty stitches added evenly around it (2026-09-20, revising the
+  earlier "accept any size": 8×8 and 16×16 sprites are ordinary, but a chart below the minimum is a size nothing else
+  in the app was built for).
 - **Acceptance criteria:**
   1. Importing an image of at most 1500 px a side with at most 100 distinct opaque colours produces an editable chart
      whose every cell is the colour of the pixel at that position, and whose palette is exactly the image's distinct
@@ -31,6 +33,8 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
      a refused import leaves the current chart, undo history and autosave exactly as they were.
   3. The imported chart has no photo, so Generate stays unavailable for its whole life (D143), and the chart is named
      after the file.
+  3a. An image smaller than 10 px a side opens as a chart of at least 10 × 10, the image centred in it and the rest
+     empty stitches, with the odd stitch going right and down.
   4. "Pixel art PNG" exports one PNG at 1 px per stitch: no grid, no symbols, no margins, empty stitches transparent.
      It is written in the page, so it works with the processor unreachable (D191's reason).
   5. Round trip: exporting a chart and importing the result gives back the same cells and the same palette RGBs. A
@@ -43,23 +47,28 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   ones (`MAX_STITCHES` 1500 from D181, `MAX_COLORS` 100), not new numbers.
 
 **Milestones**:
-- [ ] M1 — The import itself, as a pure module: decode to exact pixels (no resampling — the photo path's 4000 px
-  downscale must not apply), distinct-colour collection, the palette with symbols and names the editor already gives
-  custom colours, and every refusal in criterion 2. Unit tests including a 1×1 image, a 1500×1500 image at 100
-  colours, and each refusal. No UI yet.
+- [x] M1 — The import itself, as a pure module: distinct-colour collection, the palette with the dark-to-light order,
+  symbols and names a generated chart gets, padding to the minimum, and every refusal in criterion 2. Unit tests
+  including a 1×1 image, a 1500×1500 image at 100 colours, and each refusal. No UI yet.
 - [ ] M2 — The new-project card: "Import pixel art" in `first-run.tsx` beside Choose a photo, Start an empty grid and
-  Open a saved pattern, wired through `workspace.tsx` so a refused import leaves the workspace untouched. Playwright
-  covers a successful import and both refusals. Verify here that a 1×1 and an 8×8 chart survive the editor, the
-  viewport and the existing exports — the Owner waived the 10-stitch minimum for imports, so this is where that is
-  proven rather than assumed.
+  Open a saved pattern, wired through `workspace.tsx` so a refused import leaves the workspace untouched, and the
+  decode itself (exact pixels — the photo path's 4000 px downscale must not apply). Playwright covers a successful
+  import and every refusal.
 - [ ] M3 — The export: "Pixel art PNG" in the export list, written in the page, empty stitches transparent; the
   round-trip property test of criterion 5; Playwright downloads one and re-imports it.
 - [ ] M4 — Documentation and ship: decision files for the import rules and for keeping both directions in the browser,
   README and HANDOVER, then deploy and verify live on a real sprite.
 
 **Progress log** (newest first):
+- 2026-09-20 — **M1 done; awaiting approval of M2.** `lib/editor/pixel-art-import.ts` turns a decoded image into a
+  chart: dark-to-light palette, generated-chart symbols and names, transparent pixels as empty stitches, no photo
+  (D143), and every refusal checked before anything is built (D194). Distinct colours are counted with a 2 MB bitmap
+  rather than a Set, so an over-limit image still reports its true count. Verified: 13 unit tests in
+  `tests/unit/pixel-art-import.spec.ts`, including 1×1, 8×8 and 7×7 padding, 1500×1500 at 100 colours, and each
+  refusal; tsc and eslint clean. **Owner decision mid-milestone (2026-09-20):** images under the 10-stitch minimum are
+  padded out to it rather than accepted at their own size; criterion 3a and D194 record it.
 - 2026-09-20 — goal created and planned; milestones above. Owner settled the four open questions (palette, transparency,
-  export shape, minimum size) before planning. Awaiting approval to start M1.
+  export shape, minimum size) before planning. Owner approval: "go m1".
 
 ### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
 - **What:** Eventually make the app public, built around **a social

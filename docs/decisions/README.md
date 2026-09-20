@@ -202,3 +202,4 @@ remain readable with git show.
 - D191 — The editable save stays TypeScript, in the browser — active
 - D192 — Chart PNGs ship with Rust's 4-5 px symbols, which differ visibly from production's — active
 - D193 — Rust runs as a sidecar process, not a native addon — active
+- D194 — Pixel art imports exactly, and is refused rather than repaired — active
