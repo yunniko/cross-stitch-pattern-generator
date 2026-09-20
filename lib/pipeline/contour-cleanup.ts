@@ -40,7 +40,7 @@ export function fixDiagonalConnections(
   options: DiagonalFixOptions = DEFAULT_DIAGONAL_FIX_OPTIONS,
   maxPasses = 4
 ): Uint8Array {
-  const { width, height, cellOklab, importance, evidenceLayer } = ctx;
+  const { width, height, cellOklab, importance, evidenceLayer, emptyMask } = ctx;
   const paletteOklab = palette.map(rgbToOklab);
   const crispCosts = evidenceLayer ? buildCrispAdmissibleCostMap(evidenceLayer, paletteOklab) : undefined;
 
@@ -56,6 +56,8 @@ export function fixDiagonalConnections(
         const bl = tl + width;
         const br = bl + 1;
 
+        // A pinch needs four stitched cells; an empty corner is a hole, not a diagonal connection (G-050).
+        if (emptyMask && (emptyMask[tl] || emptyMask[tr] || emptyMask[bl] || emptyMask[br])) continue;
         const a = result[tl];
         const b = result[tr];
         const isDiagonalOnlyPinch = a !== b && result[bl] === b && result[br] === a;
@@ -126,18 +128,18 @@ export function defaultComponentRecolorOptions(cellCount: number): ComponentReco
  * for ANY crisp member costs `Infinity` for the whole component (D68).
  */
 export function recolorSmallComponents(ctx: PipelineContext, assignment: Uint8Array, palette: RGB[], options?: ComponentRecolorOptions): Uint8Array {
-  const { width, height, cellOklab, importance, pairEvidence, evidenceLayer } = ctx;
+  const { width, height, cellOklab, importance, pairEvidence, evidenceLayer, emptyMask } = ctx;
   const resolvedOptions = options ?? defaultComponentRecolorOptions(width * height);
   const paletteOklab = palette.map(rgbToOklab);
   const crispCosts = evidenceLayer ? buildCrispAdmissibleCostMap(evidenceLayer, paletteOklab) : undefined;
 
   const result = assignment.slice();
-  const regions = labelRegions(result, width, height);
+  const regions = labelRegions(result, width, height, emptyMask);
 
   // Component -> member cells in one pass; a per-component rescan of
   // `labels` was a measured multi-minute hang at large grid sizes.
   const cellsByComponent: number[][] = regions.components.map(() => []);
-  for (let i = 0; i < regions.labels.length; i++) cellsByComponent[regions.labels[i]].push(i);
+  for (let i = 0; i < regions.labels.length; i++) if (regions.labels[i] !== -1) cellsByComponent[regions.labels[i]].push(i);
 
   for (const component of regions.components) {
     if (component.area > resolvedOptions.maxComponentSize) continue;
@@ -160,6 +162,8 @@ export function recolorSmallComponents(ctx: PipelineContext, assignment: Uint8Ar
         const ny = y + offset.dy;
         if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
         const n = ny * width + nx;
+        // An empty neighbour is not a colour this component could take, and its boundary costs nothing (G-050).
+        if (emptyMask?.[n]) continue;
         if (regions.labels[n] !== component.id) {
           boundaryPairs.push([i, n, offset.weight, offset.dx, offset.dy]);
           neighborColors.add(result[n]);

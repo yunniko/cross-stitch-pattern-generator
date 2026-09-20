@@ -60,7 +60,7 @@ export function runLocalOptimizer(
   palette: RGB[],
   weights: LocalOptimizerWeights = DEFAULT_LOCAL_OPTIMIZER_WEIGHTS
 ): Uint8Array {
-  const { width, height, cellOklab, importance, pairEvidence, evidenceLayer } = ctx;
+  const { width, height, cellOklab, importance, pairEvidence, evidenceLayer, emptyMask } = ctx;
   const paletteOklab = palette.map(rgbToOklab);
   const k = paletteOklab.length;
   const pal = new Float64Array(k * 3);
@@ -133,6 +133,9 @@ export function runLocalOptimizer(
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const i = y * width + x;
+        // An empty cell keeps no label and pulls on nothing (G-050): it is not scored, and the loop below skips it as
+        // a neighbour, so a boundary against empty space costs nothing either.
+        if (emptyMask?.[i]) continue;
         if (dirty[i] === 0) continue;
         dirty[i] = 0;
         visit++;
@@ -145,6 +148,7 @@ export function runLocalOptimizer(
           const ny = y + offset.dy;
           if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
           const n = ny * width + nx;
+          if (emptyMask?.[n]) continue;
           const cost = slotCost[(offsetOnNeighbor[o] ? n : i) * CANONICAL_SLOT_COUNT + offsetSlot[o]];
           pairCost[count] = cost;
           neighborLabel[count] = assignment[n];

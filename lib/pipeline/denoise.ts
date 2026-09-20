@@ -72,7 +72,7 @@ function ridgeStrength(oklab: Float64Array, width: number, height: number, x: nu
  * Every other stage keeps using the true `ctx.cells`.
  */
 export function denoiseForQuantization(ctx: PipelineContext): DenoisedCells {
-  const { width, height, cells, cellOklab, importance } = ctx;
+  const { width, height, cells, cellOklab, importance, emptyMask } = ctx;
 
   const out = new Uint8ClampedArray(cells.data.length);
   out.set(cells.data);
@@ -83,6 +83,8 @@ export function denoiseForQuantization(ctx: PipelineContext): DenoisedCells {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = y * width + x;
+      // An empty cell has no colour to filter, and no neighbour may borrow one from it (G-050).
+      if (emptyMask?.[i]) continue;
       if (importance[i] > IMPORTANCE_PROTECTION_THRESHOLD) continue;
 
       let windowSize = 0;
@@ -93,7 +95,9 @@ export function denoiseForQuantization(ctx: PipelineContext): DenoisedCells {
           const nx = x + dx;
           const ny = y + dy;
           if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-          window[windowSize++] = ny * width + nx;
+          const n = ny * width + nx;
+          if (emptyMask?.[n]) continue;
+          window[windowSize++] = n;
         }
       }
 

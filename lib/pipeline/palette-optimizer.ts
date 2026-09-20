@@ -1,5 +1,5 @@
 import { oklabDistanceSquared, rgbToOklab } from "../color/color";
-import type { RGB } from "../types";
+import { EMPTY_CELL, type RGB } from "../types";
 
 export interface PaletteMergeResult {
   cellPaletteIndex: Uint8Array;
@@ -44,7 +44,11 @@ export function mergeSimilarColors(
 ): PaletteMergeResult {
   const oklab = palette.map(rgbToOklab);
   const counts = new Array(palette.length).fill(0);
-  for (let i = 0; i < cellPaletteIndex.length; i++) counts[cellPaletteIndex[i]] += entryWeights ? entryWeights[i] : 1;
+  // An empty stitch (G-050) counts for no colour and keeps its sentinel through the remap below.
+  for (let i = 0; i < cellPaletteIndex.length; i++) {
+    if (cellPaletteIndex[i] === EMPTY_CELL) continue;
+    counts[cellPaletteIndex[i]] += entryWeights ? entryWeights[i] : 1;
+  }
 
   const parent = new Int32Array(palette.length);
   for (let i = 0; i < palette.length; i++) parent[i] = i;
@@ -84,6 +88,10 @@ export function mergeSimilarColors(
   const newPalette = survivingIndices.map((i) => palette[i]);
   const newCellPaletteIndex = new Uint8Array(cellPaletteIndex.length);
   for (let i = 0; i < cellPaletteIndex.length; i++) {
+    if (cellPaletteIndex[i] === EMPTY_CELL) {
+      newCellPaletteIndex[i] = EMPTY_CELL;
+      continue;
+    }
     const root = find(parent, cellPaletteIndex[i]);
     newCellPaletteIndex[i] = newIndexOf[root];
   }

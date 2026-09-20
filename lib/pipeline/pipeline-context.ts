@@ -27,9 +27,16 @@ export interface PipelineContext {
   readonly pairEvidence?: Float32Array;
   /** Crisp mode's frozen evidence layer; absent in Standard mode. */
   readonly evidenceLayer?: CrispEvidenceLayer;
+  /**
+   * 1 where the photo is too transparent to stitch (G-050): that cell takes no colour, joins no cluster and exerts no
+   * pull on its neighbours. Absent when the photo covers every cell, which is what keeps an opaque photo on exactly
+   * the path it had before.
+   */
+  readonly emptyMask?: Uint8Array;
 }
 
 export interface PipelineContextOptions {
+  emptyMask?: Uint8Array | null;
   importance?: Float32Array;
   pairEvidence?: Float32Array;
   evidenceLayer?: CrispEvidenceLayer;
@@ -62,6 +69,7 @@ export function createPipelineContext(cells: CellColorBuffer, options: PipelineC
     importance: options.importance ?? new Float32Array(cellCount),
     pairEvidence: options.pairEvidence,
     evidenceLayer: options.evidenceLayer,
+    emptyMask: options.emptyMask ?? undefined,
   };
 }
 

@@ -2,7 +2,7 @@ import { oklabDistanceSquared, rgbToOklab } from "../color/color";
 import { buildAdmissibleLabelCosts, pickBestAdmissibleLabel, DEFAULT_CRISP_UNARY_COST_WEIGHTS, type CrispUnaryCostWeights } from "./crisp-unary-cost";
 import type { CrispEvidenceLayer, WeightedQuantizerFn } from "./crisp-evidence-layer";
 import { cellsToOklab, oklabAt } from "../pipeline/pipeline-context";
-import type { CellColorBuffer, RGB } from "../types";
+import { EMPTY_CELL, type CellColorBuffer, type RGB } from "../types";
 import { emptySamplePool } from "./weighted-quantize";
 
 /**
@@ -31,14 +31,21 @@ export function runCrispQuantizationStage(
   quantizerFn: WeightedQuantizerFn,
   unaryWeights: CrispUnaryCostWeights = DEFAULT_CRISP_UNARY_COST_WEIGHTS,
   /** An already-computed OKLab conversion of `cells` (see `PipelineContext`); computed here when absent. */
-  precomputedOklab?: Float64Array
+  precomputedOklab?: Float64Array,
+  /** 1 where the photo is too transparent to stitch (G-050): no sample, no label, the empty sentinel out. */
+  emptyMask?: Uint8Array
 ): CrispQuantizationResult {
   const cellCount = cells.width * cells.height;
   const cellOklab = precomputedOklab ?? cellsToOklab(cells);
   // The sample pool as columns, written directly (G-047 M4, D176): a crisp cell's two modes, any other cell its own
   // colour at weight 1, in cell order. A non-crisp cell's one sample index is remembered, so its initial label is read
   // straight back from the quantizer's per-sample labels.
-  const pool = emptySamplePool(cellCount + evidenceLayer.evidenceByCell.size);
+  let stitched = cellCount;
+  if (emptyMask) {
+    stitched = 0;
+    for (let i = 0; i < cellCount; i++) if (!emptyMask[i]) stitched++;
+  }
+  const pool = emptySamplePool(stitched + evidenceLayer.evidenceByCell.size);
   const nonCrispSampleIndex = new Int32Array(cellCount).fill(-1);
   let n = 0;
   const put = (l: number, a: number, b: number, weight: number, cellIndex: number) => {
@@ -50,6 +57,7 @@ export function runCrispQuantizationStage(
     n++;
   };
   for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
+    if (emptyMask?.[cellIndex]) continue;
     const evidence = evidenceLayer.evidenceByCell.get(cellIndex);
     if (evidence) {
       const [m0, m1] = evidence.modes;
@@ -68,6 +76,10 @@ export function runCrispQuantizationStage(
 
   const cellPaletteIndex = new Uint8Array(cellCount);
   for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
+    if (emptyMask?.[cellIndex]) {
+      cellPaletteIndex[cellIndex] = EMPTY_CELL;
+      continue;
+    }
     const evidence = evidenceLayer.evidenceByCell.get(cellIndex);
     if (!evidence) {
       cellPaletteIndex[cellIndex] = quantizeResult.sampleLabelIndex[nonCrispSampleIndex[cellIndex]];

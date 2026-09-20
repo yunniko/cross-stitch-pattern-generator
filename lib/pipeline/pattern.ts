@@ -1,6 +1,6 @@
 import { computeCellImportance, computeEdgeMagnitude, sourceLuminance } from "./edge-map";
 import { denoiseForQuantization } from "./denoise";
-import { downsampleToGrid, gridDimensionsFor } from "./downsample";
+import { downsampleToGridWithCoverage, emptyCellMask, gridDimensionsFor } from "./downsample";
 import { luminance, rgbToOklab } from "../color/color";
 import { nameColors } from "../color/color-names";
 import {
@@ -29,7 +29,7 @@ import { symbolsFor } from "../color/symbols";
 import { runContourRefinement, DEFAULT_CONTOUR_REFINEMENT_OPTIONS, type ContourRefinementOptions } from "../experimental/contour-refinement";
 import { applyBrandPalette } from "../threads/brand-match";
 import type { ThreadBrand } from "../threads/thread-brands";
-import type { PaletteColor, PixelBuffer, RGB, StitchPattern } from "../types";
+import { EMPTY_CELL, type CellColorBuffer, type PaletteColor, type PixelBuffer, type RGB, type StitchPattern } from "../types";
 
 /** "full" = whatever continuous colors the clustering algorithm produces; any `ThreadBrand` (only "dmc" so far, G-013) = that same output snapped to the nearest real, buyable thread color from that brand's line, with the fine local-optimizer pass re-run against the new fixed palette (G-020 M5, HANDOVER.md D56). Generalized from `"full" | "dmc"` in G-029 M1 (HANDOVER.md D92). */
 export type PaletteMode = "full" | ThreadBrand;
@@ -100,7 +100,11 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     options.longerSideStitches
   );
   options.onProgress?.(0.1);
-  const cells = downsampleToGrid(colorSource, gridWidth, gridHeight);
+  // Transparency becomes absence: a cell the photo barely covers is an empty stitch, takes no colour and joins no
+  // cluster (G-050, D196). `emptyCellMask` is null for a photo that covers every cell, and every stage below then runs
+  // exactly the code it ran before.
+  const { cells, coverage } = downsampleToGridWithCoverage(colorSource, gridWidth, gridHeight);
+  const emptyMask = emptyCellMask(coverage);
 
   // Computed before quantization, not only for the optimizer: reinvestment uses importance to prefer a real rare
   // detail over a rare artifact (D39). It depends only on the source image and grid size.
@@ -116,12 +120,14 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   if (crisp) {
     // Every cell is evaluated: no cheap pre-filter kept every confident cell on real photos (D132).
     const defaultLayerOptions = edgeMode === "crisp-plus" ? CRISP_PLUS_EVIDENCE_LAYER_OPTIONS : DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS;
-    evidenceLayer = buildCrispEvidenceLayer(colorSource, gridWidth, gridHeight, allCellIndices(gridWidth, gridHeight), options.crispEvidenceLayerOptions ?? defaultLayerOptions);
+    // Only the stitched cells: a cell the photo does not cover has no two colours to be confident between (G-050).
+    const candidates = allCellIndices(gridWidth, gridHeight).filter((i) => !emptyMask?.[i]);
+    evidenceLayer = buildCrispEvidenceLayer(colorSource, gridWidth, gridHeight, candidates, options.crispEvidenceLayerOptions ?? defaultLayerOptions);
   }
 
   // Every later stage reads the true cells, their OKLab, importance, pair
   // evidence and the crisp layer from this one context (D106).
-  const ctx = createPipelineContext(cells, { importance, pairEvidence, evidenceLayer });
+  const ctx = createPipelineContext(cells, { importance, pairEvidence, evidenceLayer, emptyMask });
 
   // Denoised copy for the quantizer's eyes only (D41): it decides cluster
   // membership, but every reported color still comes from the true cells.
@@ -132,9 +138,32 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   let rawPalette: RGB[];
   if (crisp && evidenceLayer) {
     const quantizerFn = selectWeightedQuantizer(quantizer);
-    const crispResult = runCrispQuantizationStage(denoised.cells, options.colorCount, importance, evidenceLayer, quantizerFn, undefined, denoised.cellOklab);
+    const crispResult = runCrispQuantizationStage(denoised.cells, options.colorCount, importance, evidenceLayer, quantizerFn, undefined, denoised.cellOklab, emptyMask ?? undefined);
     quantized = crispResult.cellPaletteIndex;
     rawPalette = crispResult.palette;
+  } else if (emptyMask) {
+    // The quantizer sees only the stitched cells, as one row of them: a cluster built from cells that are not there
+    // would spend a colour on nothing.
+    const kept: number[] = [];
+    for (let i = 0; i < emptyMask.length; i++) if (!emptyMask[i]) kept.push(i);
+    const keptCells: CellColorBuffer = { data: new Uint8ClampedArray(kept.length * 3), width: kept.length, height: 1 };
+    const keptOklab = new Float64Array(kept.length * 3);
+    const keptImportance = new Float32Array(kept.length);
+    kept.forEach((cell, k) => {
+      keptCells.data[k * 3] = denoised.cells.data[cell * 3];
+      keptCells.data[k * 3 + 1] = denoised.cells.data[cell * 3 + 1];
+      keptCells.data[k * 3 + 2] = denoised.cells.data[cell * 3 + 2];
+      keptOklab[k * 3] = denoised.cellOklab[cell * 3];
+      keptOklab[k * 3 + 1] = denoised.cellOklab[cell * 3 + 1];
+      keptOklab[k * 3 + 2] = denoised.cellOklab[cell * 3 + 2];
+      keptImportance[k] = importance[cell];
+    });
+    const result = kept.length > 0 ? quantizer.quantize(keptCells, options.colorCount, keptImportance, keptOklab) : { cellPaletteIndex: new Uint8Array(0), palette: [] as RGB[] };
+    quantized = new Uint8Array(gridWidth * gridHeight).fill(EMPTY_CELL);
+    kept.forEach((cell, k) => {
+      quantized[cell] = result.cellPaletteIndex[k];
+    });
+    rawPalette = result.palette;
   } else {
     const result = quantizer.quantize(denoised.cells, options.colorCount, importance, denoised.cellOklab);
     quantized = result.cellPaletteIndex;
@@ -250,7 +279,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
 
   // Drop palette entries the cleanup passes emptied: a legend row for a color with no stitches is a bug.
   const rawCounts = new Array(merged.palette.length).fill(0);
-  for (const index of merged.cellPaletteIndex) rawCounts[index]++;
+  for (const index of merged.cellPaletteIndex) if (index !== EMPTY_CELL) rawCounts[index]++;
   const usedIndices = merged.palette.map((_, i) => i).filter((i) => rawCounts[i] > 0);
   const compactRemap = new Int16Array(merged.palette.length).fill(-1);
   usedIndices.forEach((oldIndex, newIndex) => {
@@ -258,7 +287,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   });
   const compactCellPaletteIndex = new Uint8Array(merged.cellPaletteIndex.length);
   for (let i = 0; i < merged.cellPaletteIndex.length; i++) {
-    compactCellPaletteIndex[i] = compactRemap[merged.cellPaletteIndex[i]];
+    compactCellPaletteIndex[i] = merged.cellPaletteIndex[i] === EMPTY_CELL ? EMPTY_CELL : compactRemap[merged.cellPaletteIndex[i]];
   }
 
   // Recompute each color from its FINAL members, since ICM and cleanup move cells after k-means (D11), as an OKLab
@@ -296,14 +325,14 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     }
   } else {
     const cellsByFinalIndex: number[][] = usedIndices.map(() => []);
-    for (let i = 0; i < compactCellPaletteIndex.length; i++) cellsByFinalIndex[compactCellPaletteIndex[i]].push(i);
+    for (let i = 0; i < compactCellPaletteIndex.length; i++) if (compactCellPaletteIndex[i] !== EMPTY_CELL) cellsByFinalIndex[compactCellPaletteIndex[i]].push(i);
     compactPalette = usedIndices.map((originalIndex, newIndex) =>
       cellsByFinalIndex[newIndex].length > 0 ? meanOklabAsRgb(ctx.cellOklab, cellsByFinalIndex[newIndex]) : merged.palette[originalIndex]
     );
   }
 
   const counts = new Array(compactPalette.length).fill(0);
-  for (const index of finalCellPaletteIndex) counts[index]++;
+  for (const index of finalCellPaletteIndex) if (index !== EMPTY_CELL) counts[index]++;
 
   // Sort dark-to-light for a legend that reads top-to-bottom the way a
   // gradient progression naturally would, then assign symbols in that order
@@ -328,7 +357,8 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
 
   const cellPalette = new Uint8Array(finalCellPaletteIndex.length);
   for (let i = 0; i < finalCellPaletteIndex.length; i++) {
-    cellPalette[i] = remap[finalCellPaletteIndex[i]];
+    // The empty sentinel is not a palette index and does not travel through the legend's order (G-050).
+    cellPalette[i] = finalCellPaletteIndex[i] === EMPTY_CELL ? EMPTY_CELL : remap[finalCellPaletteIndex[i]];
   }
 
   const pattern: StitchPattern = {

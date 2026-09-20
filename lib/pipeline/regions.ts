@@ -42,13 +42,15 @@ export interface RegionMap {
  * connected cluster"). Used for diagnostics (confetti ratio, compactness)
  * and to decide which colors are candidates for palette merging.
  */
-export function labelRegions(cellPalette: Uint8Array, width: number, height: number): RegionMap {
+export function labelRegions(cellPalette: Uint8Array, width: number, height: number, emptyMask?: Uint8Array): RegionMap {
   const labels = new Int32Array(width * height).fill(-1);
   const components: ComponentStats[] = [];
   const stack: number[] = [];
 
   for (let start = 0; start < cellPalette.length; start++) {
     if (labels[start] !== -1) continue;
+    // An empty stitch is a hole in the chart, not a region of its own: it keeps label -1 and joins nothing (G-050).
+    if (emptyMask?.[start]) continue;
 
     const paletteIndex = cellPalette[start];
     const id = components.length;

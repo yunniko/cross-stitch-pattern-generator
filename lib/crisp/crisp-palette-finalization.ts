@@ -1,4 +1,5 @@
 import { oklabToRgb, rgbToOklab, type Oklab } from "../color/color";
+import { EMPTY_CELL } from "../types";
 import { buildCrispAdmissibleCostMap, repairCrispAssignments, type CrispEvidenceLayer } from "./crisp-evidence-layer";
 import { DEFAULT_CRISP_UNARY_COST_WEIGHTS, type AdmissibleLabelCost, type CrispUnaryCostWeights } from "./crisp-unary-cost";
 import type { RGB } from "../types";
@@ -73,6 +74,7 @@ function recomputePaletteColors(
 
   for (let i = 0; i < assignment.length; i++) {
     const label = assignment[i];
+    if (label === EMPTY_CELL) continue; // an empty stitch (G-050) contributes to no colour
     const evidence = evidenceLayer.evidenceByCell.get(i);
     const supportingMode = evidence ? crispCosts.get(i)?.get(label)?.supportingMode : undefined;
     const o = i * 3;
