@@ -1,9 +1,10 @@
-import { createCanvas } from "@napi-rs/canvas";
+import { readFile } from "node:fs/promises";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { test, expect, type Page } from "@playwright/test";
 import { MAX_COLORS, MAX_STITCHES } from "../../lib/types";
 
 /**
- * G-049 M2: opening pixel art as a chart. One pixel is one stitch in its own colour, transparent pixels are empty
+ * G-049 M2 and M3: opening pixel art as a chart, and writing a chart back out as pixel art. One pixel is one stitch in its own colour, transparent pixels are empty
  * stitches, an image under the minimum is padded out to it, and an image that cannot be charted is refused without
  * touching what is already open (D194).
  *
@@ -120,4 +121,32 @@ test("a chart at the size cap imports, and its stitches are the image's own pixe
   // One legend row per colour of the image, dark to light as every chart's legend is ordered.
   await expect(page.getByTestId("legend-color-row")).toHaveCount(4);
   await expect(page.getByTestId("legend-color-count").first()).toHaveText("6000");
+});
+
+test("a chart exports as pixel art and imports back the same, one pixel per stitch", async ({ page }) => {
+  await page.goto("/");
+  await importFile(page, "sprite.png", SPRITE);
+  await expect(page.getByText(/10 × 10, 29 stitches, 2 colors/)).toBeVisible();
+
+  await page.getByLabel("Export").selectOption("pixel-art");
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  expect(download.suggestedFilename()).toBe("sprite_pixels.png");
+
+  // The file is the chart: 10 × 10, the padding transparent, the sprite's own colours where its stitches are.
+  const path = await download.path();
+  const image = await loadImage(await readFile(path));
+  expect([image.width, image.height]).toEqual([10, 10]);
+  const ctx = createCanvas(image.width, image.height).getContext("2d");
+  ctx.drawImage(image, 0, 0);
+  const { data } = ctx.getImageData(0, 0, image.width, image.height);
+  const at = (x: number, y: number) => Array.from(data.slice((y * 10 + x) * 4, (y * 10 + x) * 4 + 4));
+  expect(at(0, 0), "the padding is transparent").toEqual([0, 0, 0, 0]);
+  expect(at(1, 1), "the sprite's red ring").toEqual([220, 40, 40, 255]);
+  expect(at(4, 4), "its one blue pixel").toEqual([40, 80, 220, 255]);
+  expect(at(2, 2), "inside the ring is transparent").toEqual([0, 0, 0, 0]);
+
+  // Importing what was just exported gives the same chart back.
+  await importFile(page, "sprite_pixels.png", await readFile(path));
+  await expect(page.getByText(/10 × 10, 29 stitches, 2 colors/)).toBeVisible();
+  await expect(page.getByText("sprite_pixels")).toBeVisible();
 });

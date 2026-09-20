@@ -54,12 +54,19 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M2 — The new-project card: "Import pixel art" in `first-run.tsx` beside Choose a photo, Start an empty grid and
   Open a saved pattern, wired through `workspace.tsx`, and the decode itself (exact pixels — the photo path's 4000 px
   downscale must not apply). Playwright covers a successful import and every refusal.
-- [ ] M3 — The export: "Pixel art PNG" in the export list, written in the page, empty stitches transparent; the
+- [x] M3 — The export: "Pixel art PNG" in the export list, written in the page, empty stitches transparent; the
   round-trip property test of criterion 5; Playwright downloads one and re-imports it.
 - [ ] M4 — Documentation and ship: decision files for the import rules and for keeping both directions in the browser,
   README and HANDOVER, then deploy and verify live on a real sprite.
 
 **Progress log** (newest first):
+- 2026-09-20 — **M3 done; awaiting approval of M4.** "Pixel art PNG (1 px per stitch)" is the fourth option in the
+  export dropdown, written in the page like the editable save (D195); `ExportChoice` keeps it out of the processor's
+  job kinds by type, so it can never be posted to a service that has no code for it. Verified: 8 round-trip cases over
+  generated charts (empty, full palette, all-empty, single-colour, tall-thin, and a second round trip after padding),
+  each comparing stitch colours rather than palette indices; a Playwright test that exports the sprite, checks the
+  downloaded PNG pixel by pixel (transparent padding, the red ring, the one blue pixel) and imports it back to the
+  same chart. Vitest 1122 passed, 8 skipped; full e2e 323 passed; tsc, eslint and docs-lint clean.
 - 2026-09-20 — **M2 done; awaiting approval of M3.** "Import pixel art" is the fourth card on the start screen;
   `lib/editor/pixel-art-file.ts` decodes the file at its own size with `colorSpaceConversion` and `premultiplyAlpha`
   off, so the bytes stay the artist's, and refuses an oversized image from the bitmap header before allocating a

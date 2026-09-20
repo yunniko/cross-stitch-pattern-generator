@@ -1,6 +1,6 @@
 "use client";
 
-import type { ExportKind } from "../hooks/use-exports";
+import type { ExportChoice } from "../hooks/use-exports";
 import { PillButton } from "./ui";
 
 /**
@@ -10,13 +10,14 @@ import { PillButton } from "./ui";
  */
 
 /** Editable JSON first (the default, most complete format), then the realistic preview, then Color and Black & white groups (Owner spec, 2026-09-12). */
-const EXPORT_KIND_TOP_OPTIONS: Array<{ value: ExportKind; label: string }> = [
+const EXPORT_KIND_TOP_OPTIONS: Array<{ value: ExportChoice; label: string }> = [
   { value: "editable", label: "Editable pattern (.json)" },
   { value: "oxs", label: "OXS chart for other programs (.oxs)" },
   { value: "png-realistic", label: "Realistic preview PNG" },
+  { value: "pixel-art", label: "Pixel art PNG (1 px per stitch)" },
 ];
 
-const EXPORT_KIND_GROUPS: Array<{ heading: string; options: Array<{ value: ExportKind; label: string }> }> = [
+const EXPORT_KIND_GROUPS: Array<{ heading: string; options: Array<{ value: ExportChoice; label: string }> }> = [
   {
     heading: "Color",
     options: [
@@ -37,8 +38,8 @@ const EXPORT_KIND_GROUPS: Array<{ heading: string; options: Array<{ value: Expor
 
 export interface ExportControlsProps {
   hasPattern: boolean;
-  exportKind: ExportKind;
-  onExportKindChange: (kind: ExportKind) => void;
+  exportKind: ExportChoice;
+  onExportKindChange: (kind: ExportChoice) => void;
   onExport: () => void;
   onExportAll: () => void;
   isExporting: boolean;
@@ -55,7 +56,7 @@ export function ExportControls({ hasPattern, exportKind, onExportKindChange, onE
         <select
           aria-label="Export"
           value={exportKind}
-          onChange={(e) => onExportKindChange(e.target.value as ExportKind)}
+          onChange={(e) => onExportKindChange(e.target.value as ExportChoice)}
           className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-[13px] text-ink"
         >
           {EXPORT_KIND_TOP_OPTIONS.map(({ value, label }) => (

@@ -18,6 +18,13 @@ export type ExportKind = "png-color" | "png-bw" | "png-realistic" | "editable" |
 /** A single-file export, or "all" for the Export all bundle. */
 export type ExportJobKind = ExportKind | "all";
 
+/**
+ * What the Export dropdown offers: every job kind, plus the pixel art that is written in the page (G-049, D195).
+ * Deliberately not an `ExportJobKind`: the processor has no such export, and this type is what stops one being asked
+ * for it.
+ */
+export type ExportChoice = ExportJobKind | "pixel-art";
+
 export interface ExportJobRequest {
   kind: ExportJobKind;
   pattern: StitchPattern;

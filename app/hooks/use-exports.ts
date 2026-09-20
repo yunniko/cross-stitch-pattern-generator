@@ -4,16 +4,17 @@ import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { downloadBlob } from "@/lib/export/a4-export";
 import { calculateA4Layout } from "@/lib/export/a4-layout";
 import { serializePattern } from "@/lib/editor/pattern-serialize";
-import type { ExportJobKind, ExportKind } from "@/lib/export/export-jobs";
+import type { ExportChoice, ExportKind } from "@/lib/export/export-jobs";
+import { pixelArtPngBlob } from "@/lib/export/pixel-art-png";
 import type { ExportProgress } from "@/lib/export/export-progress";
 import { runServerExport } from "@/lib/export/export-server";
 import { ProcessorUnreachableError, ServerBusyError } from "@/lib/pipeline/server-errors";
 import type { StitchPattern } from "@/lib/types";
 
-export type { ExportKind };
+export type { ExportChoice, ExportKind };
 
 /** A4 and PDF kinds paginate with the layout the overlap option affects. */
-export function paginatesAsA4(kind: ExportKind): boolean {
+export function paginatesAsA4(kind: ExportChoice): boolean {
   return kind.startsWith("a4-") || kind.startsWith("pdf-");
 }
 
@@ -31,7 +32,7 @@ function messageForExport(error: unknown, fallback: string): string {
  * with every request but only reach the editable JSON (G-037).
  */
 export function useExports(pattern: StitchPattern | null, options: WorkspaceOptions, symmetry: SymmetryAxes = NO_SYMMETRY) {
-  const [exportKind, setExportKind] = useState<ExportKind>("editable");
+  const [exportKind, setExportKind] = useState<ExportChoice>("editable");
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingAll, setIsExportingAll] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -41,7 +42,7 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
   const a4LayoutPreview = useMemo(() => (pattern ? calculateA4Layout(pattern.width, pattern.height, { overlapCells }) : null), [pattern, overlapCells]);
   const baseName = pattern?.name ?? "cross-stitch-pattern";
 
-  async function run(kind: ExportJobKind, setBusy: (busy: boolean) => void, fallbackMessage: string) {
+  async function run(kind: ExportChoice, setBusy: (busy: boolean) => void, fallbackMessage: string) {
     if (!pattern) return;
     setBusy(true);
     setExportError(null);
@@ -52,10 +53,13 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
       // The editable file is written here rather than on the server: it is the one export that must keep working when
       // the server is busy or down, so work can always be saved (Owner, 2026-09-14). It is a pure serialisation with
       // no canvas involved, and keeping it local also keeps the export pipeline out of the page's JavaScript.
+      // Pixel art is written here for the same reason (G-049): one pass over the cells, no server needed.
       const { blob, filename } =
         kind === "editable"
           ? { blob: new Blob([serializePattern(pattern, symmetry)], { type: "application/json" }), filename: `${baseName}_editable.json` }
-          : await runServerExport({ kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, symmetry }, setProgress);
+          : kind === "pixel-art"
+            ? { blob: await pixelArtPngBlob(pattern), filename: `${baseName}_pixels.png` }
+            : await runServerExport({ kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, symmetry }, setProgress);
       downloadBlob(blob, filename);
     } catch (err) {
       setExportError(messageForExport(err, fallbackMessage));
