@@ -12,6 +12,55 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
+### G-049 · Pixel art in and out — ACTIVE (2026-09-20)
+- **What:** an image whose pixels are already stitches can be opened as a chart, and any chart can be written back out
+  as that kind of image. Import is a fourth card in the new-project list; export is a new option beside the others.
+- **Why:** Owner request (2026-09-20). Sprite art is already grid-and-palette shaped, so charting it through the photo
+  pipeline is the wrong tool: it resamples and re-quantizes work that is finished. This treats one pixel as one stitch.
+- **Owner decisions (2026-09-20):** colours import exactly, as custom colours with no thread brand (the colour editor
+  can snap them later); a fully transparent pixel is an empty stitch and an empty stitch exports transparent; the
+  export is one PNG at 1 px per stitch, written in the browser like the editable save; images below the 10-stitch
+  minimum are accepted, down to 1 px, because 8×8 and 16×16 sprites are ordinary.
+- **Acceptance criteria:**
+  1. Importing an image of at most 1500 px a side with at most 100 distinct opaque colours produces an editable chart
+     whose every cell is the colour of the pixel at that position, and whose palette is exactly the image's distinct
+     colours; fully transparent pixels become empty stitches. Checked cell by cell on a fixture, not by eye.
+  2. An image over 1500 px a side, or with more than 100 distinct colours, is refused before anything is created, with
+     an error naming the real numbers ("2048 × 1536 pixels; the largest chart is 1500 stitches a side"; "214 colours;
+     a chart holds at most 100"). A partly transparent pixel is refused the same way. The open workspace is untouched:
+     a refused import leaves the current chart, undo history and autosave exactly as they were.
+  3. The imported chart has no photo, so Generate stays unavailable for its whole life (D143), and the chart is named
+     after the file.
+  4. "Pixel art PNG" exports one PNG at 1 px per stitch: no grid, no symbols, no margins, empty stitches transparent.
+     It is written in the page, so it works with the processor unreachable (D191's reason).
+  5. Round trip: exporting a chart and importing the result gives back the same cells and the same palette RGBs. A
+     property test over generated charts, not one example.
+  6. Vitest and Playwright cover both directions, including every refusal; `docs-lint` passes; HANDOVER regenerated;
+     deployed and verified live.
+- **Constraints:** no new dependency — the browser decodes the image (`createImageBitmap`) and encodes the PNG, as the
+  existing decode and editable-save paths do. Import and export both run in the page, never on the processor: the work
+  is one pass over at most 2.25M cells, and keeping it local means it works offline. The caps are the app's existing
+  ones (`MAX_STITCHES` 1500 from D181, `MAX_COLORS` 100), not new numbers.
+
+**Milestones**:
+- [ ] M1 — The import itself, as a pure module: decode to exact pixels (no resampling — the photo path's 4000 px
+  downscale must not apply), distinct-colour collection, the palette with symbols and names the editor already gives
+  custom colours, and every refusal in criterion 2. Unit tests including a 1×1 image, a 1500×1500 image at 100
+  colours, and each refusal. No UI yet.
+- [ ] M2 — The new-project card: "Import pixel art" in `first-run.tsx` beside Choose a photo, Start an empty grid and
+  Open a saved pattern, wired through `workspace.tsx` so a refused import leaves the workspace untouched. Playwright
+  covers a successful import and both refusals. Verify here that a 1×1 and an 8×8 chart survive the editor, the
+  viewport and the existing exports — the Owner waived the 10-stitch minimum for imports, so this is where that is
+  proven rather than assumed.
+- [ ] M3 — The export: "Pixel art PNG" in the export list, written in the page, empty stitches transparent; the
+  round-trip property test of criterion 5; Playwright downloads one and re-imports it.
+- [ ] M4 — Documentation and ship: decision files for the import rules and for keeping both directions in the browser,
+  README and HANDOVER, then deploy and verify live on a real sprite.
+
+**Progress log** (newest first):
+- 2026-09-20 — goal created and planned; milestones above. Owner settled the four open questions (palette, transparency,
+  export shape, minimum size) before planning. Awaiting approval to start M1.
+
 ### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
 - **What:** Eventually make the app public, built around **a social
   ecosystem** (community/sharing features -- exact shape not yet defined:
