@@ -189,7 +189,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   }
   options.onProgress?.(0.8);
 
-  const merged = shouldOptimize ? mergeSimilarColors(optimized, rawPalette) : { cellPaletteIndex: optimized, palette: rawPalette };
+  const merged = shouldOptimize ? mergeSimilarColors(optimized, rawPalette, undefined, undefined, true) : { cellPaletteIndex: optimized, palette: rawPalette };
 
   // The merge remap can leave a crisp cell on a label none of its modes supports; repair against the merged palette (D69).
   if (crisp && evidenceLayer && shouldOptimize) {

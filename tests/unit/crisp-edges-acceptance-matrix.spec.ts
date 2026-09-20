@@ -5,7 +5,7 @@ import { downsampleToGrid } from "@/lib/pipeline/downsample";
 import { computePatternDiagnostics } from "@/lib/experimental/diagnostics";
 import { makeHardSplitBuffer } from "./crisp-edges-fixtures";
 import { shapes, trueMask, predictedMask, iou, boundaryDistances } from "./shape-fixtures";
-import { cellRgb } from "@/lib/types";
+import { cellRgb, EMPTY_CELL } from "@/lib/types";
 import type { PixelBuffer, RGB } from "@/lib/types";
 
 /**
@@ -293,7 +293,7 @@ describe("Section 9 row: flat noise and textured negative controls -- no false a
 });
 
 describe("Section 9 row: transparency and sources smaller than the requested grid", () => {
-  it("a hard boundary with a fully-transparent strip on one side still recovers the opaque colors and produces a valid pattern", () => {
+  it("a hard boundary with a fully-transparent strip on one side recovers the opaque colors and leaves the strip empty", () => {
     const red: RGB = [220, 30, 30];
     const blue: RGB = [30, 30, 220];
     const buffer = makeBuffer(
@@ -303,10 +303,15 @@ describe("Section 9 row: transparency and sources smaller than the requested gri
       (x, y) => (x >= 30 && y < 6 ? 0 : 255) // top strip of the blue region is fully transparent
     );
     const pattern = buildPattern(buffer, { longerSideStitches: 16, colorCount: 3, edgeMode: "crisp" });
-    const totalCount = pattern.palette.reduce((sum, c) => sum + c.count, 0);
-    expect(totalCount).toBe(pattern.cellPalette.length);
+    // The transparent strip is empty stitches now (G-050), so the counts cover the stitched cells, not every cell.
+    const stitched = Array.from(pattern.cellPalette).filter((index) => index !== EMPTY_CELL).length;
+    expect(pattern.palette.reduce((sum, c) => sum + c.count, 0)).toBe(stitched);
+    expect(stitched).toBeLessThan(pattern.cellPalette.length);
     expect(paletteHas(pattern, red)).toBe(true);
     expect(paletteHas(pattern, blue)).toBe(true);
+    // The strip sits in the top-right corner of the chart.
+    expect(pattern.cellPalette[pattern.width - 1]).toBe(EMPTY_CELL);
+    expect(pattern.cellPalette[0], "the opaque red side is still stitched").not.toBe(EMPTY_CELL);
   });
 
   it("upscaling a small source (fewer source pixels than requested stitches) does not crash and still produces a valid pattern", () => {

@@ -40,13 +40,19 @@ export function mergeSimilarColors(
   cellPaletteIndex: Uint8Array,
   palette: RGB[],
   mergeDistanceThreshold: number = DEFAULT_MERGE_DISTANCE_SQUARED,
-  entryWeights?: ArrayLike<number>
+  entryWeights?: ArrayLike<number>,
+  /**
+   * Set by the callers whose entries are grid cells, where `EMPTY_CELL` means "no stitch here" (G-050): such an entry
+   * counts for no colour and comes back untouched. The weighted quantizer's sample pool does not set it — there the
+   * same 255 means a sample of a cluster that was dropped for having no weight, which this function has always
+   * resolved to the first palette entry, and changing that would move the golden hashes.
+   */
+  emptyCells = false
 ): PaletteMergeResult {
   const oklab = palette.map(rgbToOklab);
   const counts = new Array(palette.length).fill(0);
-  // An empty stitch (G-050) counts for no colour and keeps its sentinel through the remap below.
   for (let i = 0; i < cellPaletteIndex.length; i++) {
-    if (cellPaletteIndex[i] === EMPTY_CELL) continue;
+    if (emptyCells && cellPaletteIndex[i] === EMPTY_CELL) continue;
     counts[cellPaletteIndex[i]] += entryWeights ? entryWeights[i] : 1;
   }
 
@@ -88,7 +94,7 @@ export function mergeSimilarColors(
   const newPalette = survivingIndices.map((i) => palette[i]);
   const newCellPaletteIndex = new Uint8Array(cellPaletteIndex.length);
   for (let i = 0; i < cellPaletteIndex.length; i++) {
-    if (cellPaletteIndex[i] === EMPTY_CELL) {
+    if (emptyCells && cellPaletteIndex[i] === EMPTY_CELL) {
       newCellPaletteIndex[i] = EMPTY_CELL;
       continue;
     }
