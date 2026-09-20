@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildPattern, type EdgeMode } from "@/lib/pipeline/pattern";
 import { downsampleToGridWithCoverage, emptyCellMask, MIN_CELL_COVERAGE } from "@/lib/pipeline/downsample";
+import { computeCellImportance, computeEdgeMagnitude, opaquePixelMask, sourceLuminance } from "@/lib/pipeline/edge-map";
+import { computePairEdgeEvidence } from "@/lib/pipeline/pair-edge-evidence";
 import { EMPTY_CELL, type PixelBuffer, type RGB } from "@/lib/types";
 
 /**
@@ -95,3 +97,83 @@ describe("a transparent background becomes empty stitches", () => {
     }
   });
 });
+
+describe("structure is read from the photo that is there", () => {
+  /** The same subject twice: once centred on a transparent field, once cropped to its own bounds. */
+  function subject(size: number, pad: number) {
+    const inner = size - 2 * pad;
+    const colourAt = (x: number): RGB => (x < inner / 2 ? [210, 70, 60] : [40, 90, 190]);
+    const onTransparency: PixelBuffer = { data: new Uint8ClampedArray(size * size * 4), width: size, height: size };
+    const cropped: PixelBuffer = { data: new Uint8ClampedArray(inner * inner * 4), width: inner, height: inner };
+    for (let y = 0; y < inner; y++) {
+      for (let x = 0; x < inner; x++) {
+        const [r, g, b] = colourAt(x);
+        const outer = ((y + pad) * size + x + pad) * 4;
+        onTransparency.data[outer] = r;
+        onTransparency.data[outer + 1] = g;
+        onTransparency.data[outer + 2] = b;
+        onTransparency.data[outer + 3] = 255;
+        const i = (y * inner + x) * 4;
+        cropped.data[i] = r;
+        cropped.data[i + 1] = g;
+        cropped.data[i + 2] = b;
+        cropped.data[i + 3] = 255;
+      }
+    }
+    return { onTransparency, cropped, inner };
+  }
+
+  it("finds no edge where the photo merely stops", () => {
+    const { onTransparency } = subject(64, 16);
+    const opaque = opaquePixelMask(onTransparency)!;
+    const gray = sourceLuminance(onTransparency);
+    const masked = computeEdgeMagnitude(onTransparency, gray, opaque);
+    const unmasked = computeEdgeMagnitude(onTransparency, gray);
+    const at = (x: number, y: number, m: Float32Array) => m[y * 64 + x];
+    // Column 16 is where the photo starts; column 32 is the subject own red-to-blue boundary.
+    expect(at(16, 32, unmasked), "reading transparency as a colour invents an edge where the photo stops").toBeGreaterThan(0);
+    expect(at(16, 32, masked), "with the mask, none").toBe(0);
+    expect(at(32, 32, masked), "the real boundary inside the subject is still found").toBeGreaterThan(0);
+  });
+
+  it("gives the subject the same importance whether or not it sits on transparency", () => {
+    const { onTransparency, cropped, inner } = subject(64, 16);
+    const grid = 8;
+    const croppedImportance = computeCellImportance(cropped, computeEdgeMagnitude(cropped, sourceLuminance(cropped)), grid, grid, sourceLuminance(cropped));
+    const opaque = opaquePixelMask(onTransparency)!;
+    const paddedGrid = (64 / inner) * grid;
+    const padded = computeCellImportance(
+      onTransparency,
+      computeEdgeMagnitude(onTransparency, sourceLuminance(onTransparency), opaque),
+      paddedGrid,
+      paddedGrid,
+      sourceLuminance(onTransparency),
+      opaque
+    );
+    // The subject fills the middle of the padded grid. Its border cells legitimately differ (one side has no
+    // neighbour), so the comparison is over the cells strictly inside it.
+    let compared = 0;
+    for (let y = 1; y < grid - 1; y++) {
+      for (let x = 1; x < grid - 1; x++) {
+        expect(padded[(y + grid / 2) * paddedGrid + x + grid / 2], `cell ${x},${y}`).toBeCloseTo(croppedImportance[y * grid + x], 5);
+        compared++;
+      }
+    }
+    expect(compared).toBe(36);
+  });
+
+  it("keeps pair evidence out of the transparent field", () => {
+    const { onTransparency } = subject(64, 16);
+    const opaque = opaquePixelMask(onTransparency)!;
+    const grid = 16;
+    const masked = computePairEdgeEvidence(onTransparency, grid, grid, undefined, undefined, opaque);
+    const unmasked = computePairEdgeEvidence(onTransparency, grid, grid);
+    // The pair that straddles where the photo starts: cell 3 to cell 4 on the middle row (4 cells of padding).
+    const row = Math.floor(grid / 2);
+    const east = (cell: number, m: Float32Array) => m[cell * 4];
+    const atBoundary = row * grid + 3;
+    expect(east(atBoundary, unmasked), "transparency read as colour makes evidence where the photo stops").toBeGreaterThan(0.5);
+    expect(east(atBoundary, masked), "with the mask it is quiet").toBeLessThan(0.5);
+  });
+});
+

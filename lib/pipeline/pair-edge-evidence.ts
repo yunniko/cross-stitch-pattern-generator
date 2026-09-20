@@ -43,8 +43,19 @@ export const DEFAULT_TAU = 0.01;
 // noise's contribution, it doesn't remove it (E[(s+n)²] ≈ s² + σ²), and the
 // first calibration without this blur regressed the golden confetti suite
 // on amplitude-50 photo noise (D44).
-function boxBlur(channel: Float32Array, width: number, height: number, radius: number): Float32Array {
+function boxBlur(channel: Float32Array, width: number, height: number, radius: number, weight?: Float32Array | null): Float32Array {
   if (radius <= 0) return channel;
+  // With a weight channel, the blur averages over the covered pixels alone: transparent black must not bleed into the
+  // subject's edge, which would put a gradient where the photo has none (G-050).
+  if (weight) {
+    const weighted = new Float32Array(width * height);
+    for (let i = 0; i < weighted.length; i++) weighted[i] = channel[i] * weight[i];
+    const blurredValue = boxBlur(weighted, width, height, radius);
+    const blurredWeight = boxBlur(weight, width, height, radius);
+    const out = new Float32Array(width * height);
+    for (let i = 0; i < out.length; i++) out[i] = blurredWeight[i] > 0 ? blurredValue[i] / blurredWeight[i] : 0;
+    return out;
+  }
 
   const horizontal = new Float32Array(width * height);
   for (let y = 0; y < height; y++) {
@@ -104,9 +115,12 @@ export function computePairEdgeEvidence(
   gridWidth: number,
   gridHeight: number,
   tau: number = DEFAULT_TAU,
-  blurRadius: number = DEFAULT_BLUR_RADIUS
+  blurRadius: number = DEFAULT_BLUR_RADIUS,
+  /** With a mask, only covered pixels are blurred, differentiated and summed (G-050). */
+  opaque?: Uint8Array | null
 ): Float32Array {
   const { width: srcW, height: srcH, data } = source;
+  const cover = opaque ? Float32Array.from(opaque) : null;
 
   const rawL = new Float32Array(srcW * srcH);
   const rawA = new Float32Array(srcW * srcH);
@@ -119,9 +133,9 @@ export function computePairEdgeEvidence(
     rawA[i] = lab[1];
     rawB[i] = lab[2];
   }
-  const L = boxBlur(rawL, srcW, srcH, blurRadius);
-  const A = boxBlur(rawA, srcW, srcH, blurRadius);
-  const B = boxBlur(rawB, srcW, srcH, blurRadius);
+  const L = boxBlur(rawL, srcW, srcH, blurRadius, cover);
+  const A = boxBlur(rawA, srcW, srcH, blurRadius, cover);
+  const B = boxBlur(rawB, srcW, srcH, blurRadius, cover);
 
   // Row cache of per-pixel derivatives: 6 doubles per pixel
   // (Lx, Ly, Ax, Ay, Bx, By), central differences clamped at the border.
@@ -191,6 +205,7 @@ export function computePairEdgeEvidence(
         for (let sy = yFrom; sy <= yTo; sy++) {
           const row = derivativeRow(sy);
           for (let sx = xFrom; sx <= xTo; sx++) {
+            if (opaque && !opaque[sy * srcW + sx]) continue;
             const o = sx * 6;
             const projL = row[o] * ux + row[o + 1] * uy;
             const projA = row[o + 2] * ux + row[o + 3] * uy;

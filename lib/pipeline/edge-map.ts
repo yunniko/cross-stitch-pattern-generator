@@ -20,8 +20,28 @@ export function sourceLuminance(source: PixelBuffer): Uint8Array {
   return gray;
 }
 
-/** Sobel gradient magnitude on source luminance, normalized to 0-1 by the 99.9th percentile. */
-export function computeEdgeMagnitude(source: PixelBuffer, gray: ArrayLike<number> = sourceLuminance(source)): Float32Array {
+/**
+ * Which source pixels are there at all: 1 where the photo is opaque, 0 where it is fully transparent, or null when the
+ * photo is opaque throughout (G-050). A transparent pixel has no colour to read — the RGB behind alpha 0 is usually
+ * black — so the stages below must not take one for content.
+ */
+export function opaquePixelMask(source: PixelBuffer): Uint8Array | null {
+  const { width, height, data } = source;
+  let mask: Uint8Array | null = null;
+  for (let i = 0, o = 3; i < width * height; i++, o += 4) {
+    if (data[o] !== 0) continue;
+    mask ??= new Uint8Array(width * height).fill(1);
+    mask[i] = 0;
+  }
+  return mask;
+}
+
+/**
+ * Sobel gradient magnitude on source luminance, normalized to 0-1 by the 99.9th percentile. With `opaque`, a
+ * transparent pixel has no magnitude of its own and lends its neighbours none: it is read as the centre pixel's own
+ * luminance, so the alpha boundary itself is not mistaken for an edge in the photo (G-050).
+ */
+export function computeEdgeMagnitude(source: PixelBuffer, gray: ArrayLike<number> = sourceLuminance(source), opaque?: Uint8Array | null): Float32Array {
   const { width, height } = source;
 
   const magnitude = new Float32Array(width * height);
@@ -32,14 +52,20 @@ export function computeEdgeMagnitude(source: PixelBuffer, gray: ArrayLike<number
       const ym1 = Math.max(0, y - 1);
       const yp1 = Math.min(height - 1, y + 1);
 
-      const tl = gray[ym1 * width + xm1];
-      const tc = gray[ym1 * width + x];
-      const tr = gray[ym1 * width + xp1];
-      const ml = gray[y * width + xm1];
-      const mr = gray[y * width + xp1];
-      const bl = gray[yp1 * width + xm1];
-      const bc = gray[yp1 * width + x];
-      const br = gray[yp1 * width + xp1];
+      const centre = y * width + x;
+      if (opaque && !opaque[centre]) {
+        magnitude[centre] = 0;
+        continue;
+      }
+      const at = opaque ? (index: number) => (opaque[index] ? gray[index] : gray[centre]) : (index: number) => gray[index];
+      const tl = at(ym1 * width + xm1);
+      const tc = at(ym1 * width + x);
+      const tr = at(ym1 * width + xp1);
+      const ml = at(y * width + xm1);
+      const mr = at(y * width + xp1);
+      const bl = at(yp1 * width + xm1);
+      const bc = at(yp1 * width + x);
+      const br = at(yp1 * width + xp1);
 
       const gx = tr + 2 * mr + br - (tl + 2 * ml + bl);
       const gy = bl + 2 * bc + br - (tl + 2 * tc + tr);
@@ -117,7 +143,9 @@ export function computeCellImportance(
   edgeMagnitude: Float32Array,
   gridWidth: number,
   gridHeight: number,
-  gray: ArrayLike<number> = sourceLuminance(source)
+  gray: ArrayLike<number> = sourceLuminance(source),
+  /** With a mask, a transparent pixel contributes neither edge nor contrast to its cell (G-050). */
+  opaque?: Uint8Array | null
 ): Float32Array {
   const { width: srcW, height: srcH } = source;
   const cellMaxEdge = new Float32Array(gridWidth * gridHeight);
@@ -131,6 +159,7 @@ export function computeCellImportance(
       const cellX = Math.min(gridWidth - 1, Math.floor((x * gridWidth) / srcW));
       const cellIndex = cellY * gridWidth + cellX;
       const srcIndex = y * srcW + x;
+      if (opaque && !opaque[srcIndex]) continue;
 
       if (edgeMagnitude[srcIndex] > cellMaxEdge[cellIndex]) cellMaxEdge[cellIndex] = edgeMagnitude[srcIndex];
 

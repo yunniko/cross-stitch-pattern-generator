@@ -1,4 +1,4 @@
-import { computeCellImportance, computeEdgeMagnitude, sourceLuminance } from "./edge-map";
+import { computeCellImportance, computeEdgeMagnitude, opaquePixelMask, sourceLuminance } from "./edge-map";
 import { denoiseForQuantization } from "./denoise";
 import { downsampleToGridWithCoverage, emptyCellMask, gridDimensionsFor } from "./downsample";
 import { luminance, rgbToOklab } from "../color/color";
@@ -108,13 +108,16 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
 
   // Computed before quantization, not only for the optimizer: reinvestment uses importance to prefer a real rare
   // detail over a rare artifact (D39). It depends only on the source image and grid size.
+  // Structure is read from the photo that is there: a transparent pixel has no colour, so it makes no edge and no
+  // contrast (G-050). Null for an opaque photo, which keeps these three stages on their old path exactly.
+  const opaque = opaquePixelMask(imageData);
   const gray = sourceLuminance(imageData);
-  const edgeMagnitude = computeEdgeMagnitude(imageData, gray);
-  const importance = computeCellImportance(imageData, edgeMagnitude, gridWidth, gridHeight, gray);
+  const edgeMagnitude = computeEdgeMagnitude(imageData, gray, opaque);
+  const importance = computeCellImportance(imageData, edgeMagnitude, gridWidth, gridHeight, gray, opaque);
 
   // Needed by ICM. Crisp still computes it without `optimize`, as it did while it fed the removed pre-filter (D72, D132).
   const shouldOptimize = options.optimize ?? true;
-  const pairEvidence: Float32Array | undefined = crisp || shouldOptimize ? computePairEdgeEvidence(imageData, gridWidth, gridHeight) : undefined;
+  const pairEvidence: Float32Array | undefined = crisp || shouldOptimize ? computePairEdgeEvidence(imageData, gridWidth, gridHeight, undefined, undefined, opaque) : undefined;
 
   let evidenceLayer: CrispEvidenceLayer | undefined;
   if (crisp) {
