@@ -24,8 +24,21 @@ pub struct ExportFile {
     pub bytes: Vec<u8>,
 }
 
-/// `runExportJob`: every export but the editable save works on the pattern with unused colours dropped.
+/// What a long export reports as it goes: `(completed, total, label)`, the fields of the TypeScript's `ExportProgress`
+/// so the editor's "Page 12 of 180" reads the same from either side.
+pub type Progress<'a> = &'a (dyn Fn(usize, usize, &str) + Sync);
+
+/// `runExportJob` without progress.
 pub fn export(pattern: &Pattern, request: &Request) -> Result<ExportFile, String> {
+    export_reporting(pattern, request, &|_, _, _| {})
+}
+
+/// `runExportJob`: every export but the editable save works on the pattern with unused colours dropped.
+pub fn export_reporting(
+    pattern: &Pattern,
+    request: &Request,
+    progress: Progress,
+) -> Result<ExportFile, String> {
     let base = &request.base_name;
     if request.kind == "editable" {
         return Ok(ExportFile {
@@ -86,7 +99,14 @@ pub fn export(pattern: &Pattern, request: &Request) -> Result<ExportFile, String
                 render::Mode::Color
             };
             let mut zip = bundle::Zip::new();
-            bundle::add_a4_pages(&mut zip, "", &compacted, mode, request);
+            bundle::add_a4_pages_reporting(
+                &mut zip,
+                "",
+                &compacted,
+                mode,
+                request,
+                &|done, total| progress(done, total, &format!("Page {done} of {total}")),
+            );
             let label = if mode == render::Mode::Bw {
                 "bw"
             } else {
@@ -103,14 +123,19 @@ pub fn export(pattern: &Pattern, request: &Request) -> Result<ExportFile, String
             } else {
                 render::Mode::Color
             };
+            let bytes = pdf::build_reporting(&compacted, mode, request, &|done, total| {
+                progress(done, total, &format!("Page {done} of {total}"))
+            });
+            let pages = bundle::a4_page_count(&compacted, request, 72.0);
+            progress(pages, pages, "Saving PDF…");
             Ok(ExportFile {
                 filename: format!("{base}_patternkeeper.pdf"),
-                bytes: pdf::build(&compacted, mode, request),
+                bytes,
             })
         }
         "all" => Ok(ExportFile {
             filename: format!("{base}.cspzip"),
-            bytes: export_all(&compacted, request)?,
+            bytes: export_all(&compacted, request, progress)?,
         }),
         other => Err(format!("unknown export kind {other}")),
     }
@@ -118,8 +143,19 @@ pub fn export(pattern: &Pattern, request: &Request) -> Result<ExportFile, String
 
 /// `generateExportAllZip`: every format in one `.cspzip`, in the order the TypeScript adds them. `p` is already
 /// compacted, so the bundled editable save is too, as the TypeScript's is.
-fn export_all(p: &Pattern, request: &Request) -> Result<Vec<u8>, String> {
+fn export_all(p: &Pattern, request: &Request, progress: Progress) -> Result<Vec<u8>, String> {
     let base = &request.base_name;
+    // `generateExportAllZip`'s own counting: two units for the save and OXS, one per chart, one per preview, then
+    // every PDF page and both A4 page sets.
+    let pdf_pages = bundle::a4_page_count(p, request, 72.0);
+    let a4_pages = bundle::a4_page_count(p, request, a4::PRINT_DPI);
+    let total = 5 + pdf_pages + 2 * a4_pages;
+    let mut completed = 0;
+    let mut step = |units: usize, label: &str| {
+        completed += units;
+        progress(completed, total, label);
+        completed
+    };
     let mut zip = bundle::Zip::new();
     zip.file(
         &format!("{base}_editable.json"),
@@ -129,7 +165,11 @@ fn export_all(p: &Pattern, request: &Request) -> Result<Vec<u8>, String> {
         &format!("{base}.oxs"),
         &oxs::serialize(p, &request.author_name, request.aida_count),
     );
-    for (mode, label) in [(render::Mode::Color, "color"), (render::Mode::Bw, "bw")] {
+    step(2, "Editable file and OXS");
+    for (mode, label, note) in [
+        (render::Mode::Color, "color", "Color chart"),
+        (render::Mode::Bw, "bw", "Black-and-white chart"),
+    ] {
         let canvas = render::render_pattern(
             p,
             mode,
@@ -142,6 +182,7 @@ fn export_all(p: &Pattern, request: &Request) -> Result<Vec<u8>, String> {
             &format!("{base}_{label}.png"),
             &png::encode(&canvas, canvas.width(), canvas.height()),
         );
+        step(1, note);
     }
     let cell = render::effective_cell_size(p.width, p.height) as u32;
     let preview = preview::Preview {
@@ -153,16 +194,38 @@ fn export_all(p: &Pattern, request: &Request) -> Result<Vec<u8>, String> {
         &format!("{base}_preview.png"),
         &png::encode(&preview, p.width as u32 * cell, p.height as u32 * cell),
     );
-    zip.file(
-        &format!("{base}_patternkeeper.pdf"),
-        &pdf::build(p, render::Mode::Color, request),
-    );
-    for (mode, folder) in [
-        (render::Mode::Color, "A4_color"),
-        (render::Mode::Bw, "A4_bw"),
+    let base_done = step(1, "Realistic preview");
+    let pdf = pdf::build_reporting(p, render::Mode::Color, request, &|done, pages| {
+        progress(
+            base_done + done.min(pdf_pages),
+            total,
+            &format!("PDF page {} of {pages}", done.min(pages)),
+        )
+    });
+    zip.file(&format!("{base}_patternkeeper.pdf"), &pdf);
+    let mut completed = base_done + pdf_pages;
+    for (mode, folder, label) in [
+        (render::Mode::Color, "A4_color", "A4 color"),
+        (render::Mode::Bw, "A4_bw", "A4 black-and-white"),
     ] {
         zip.folder(folder);
-        bundle::add_a4_pages(&mut zip, &format!("{folder}/"), p, mode, request);
+        let base_done = completed;
+        bundle::add_a4_pages_reporting(
+            &mut zip,
+            &format!("{folder}/"),
+            p,
+            mode,
+            request,
+            &|done, pages| {
+                progress(
+                    base_done + done.min(a4_pages),
+                    total,
+                    &format!("{label} page {done} of {pages}"),
+                )
+            },
+        );
+        completed = base_done + a4_pages;
     }
+    progress(total, total, "Compressing bundle…");
     Ok(zip.finish())
 }

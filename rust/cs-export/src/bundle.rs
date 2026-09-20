@@ -8,6 +8,7 @@ use crate::png;
 use crate::render::{symbol_stamps, Mode};
 use rayon::prelude::*;
 use std::io::{Cursor, Write};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
@@ -66,20 +67,49 @@ pub fn add_a4_pages(
     mode: Mode,
     request: &Request,
 ) -> usize {
+    add_a4_pages_reporting(zip, prefix, p, mode, request, &|_, _| {})
+}
+
+/// The page count `addA4PagesToZip` reports against: grid pages, the simple legend and the extended legend pages.
+pub fn a4_page_count(p: &Pattern, request: &Request, dpi: f64) -> usize {
+    let l = a4::calculate_layout(p.width, p.height, request.overlap_cells, dpi);
+    let plan = a4::plan_info_pages(
+        p,
+        &l,
+        request.aida_count,
+        request.size_unit,
+        &request.author_name,
+    );
+    l.pages.len() + 1 + 1 + a4::continuation_slices(&plan).len()
+}
+
+/// `add_a4_pages` reporting `(finished, total)` as each page is done, for the sidecar's progress (G-048 M6).
+pub fn add_a4_pages_reporting(
+    zip: &mut Zip,
+    prefix: &str,
+    p: &Pattern,
+    mode: Mode,
+    request: &Request,
+    report: &(dyn Fn(usize, usize) + Sync),
+) -> usize {
     let l = a4::calculate_layout(p.width, p.height, request.overlap_cells, a4::PRINT_DPI);
     let base = &request.base_name;
     let total = l.pages.len();
     let stamps = symbol_stamps(&p.palette, mode, l.cell as i64);
     // Pages render and encode in parallel on the caller's rayon pool and enter the ZIP in order, so the output is
     // the same at any thread count.
+    let all_pages = a4_page_count(p, request, a4::PRINT_DPI);
+    let finished = AtomicUsize::new(0);
     let pages: Vec<Vec<u8>> = l
         .pages
         .par_iter()
         .enumerate()
         .map(|(i, page)| {
-            page_png(l.page_w, l.page_h, |c| {
+            let bytes = page_png(l.page_w, l.page_h, |c| {
                 a4::draw_grid_page(c, p, mode, &l, page, i, total, stamps.as_ref())
-            })
+            });
+            report(finished.fetch_add(1, Ordering::Relaxed) + 1, all_pages);
+            bytes
         })
         .collect();
     let mut written = 0;
@@ -98,6 +128,7 @@ pub fn add_a4_pages(
         written += 1;
     }
     let bytes = page_png(l.page_w, l.page_h, |c| a4::draw_legend_page(c, p, &l));
+    report(total + 1, all_pages);
     zip.file(
         &format!("{prefix}{}", zip_entry_name(&format!("{base}_legend.png"))),
         &bytes,
@@ -128,6 +159,7 @@ pub fn add_a4_pages(
     }
     let count = info.len();
     for (i, bytes) in info.into_iter().enumerate() {
+        report(total + 2 + i, all_pages);
         let suffix = if count > 1 {
             format!("_{}", pad2(i + 1))
         } else {

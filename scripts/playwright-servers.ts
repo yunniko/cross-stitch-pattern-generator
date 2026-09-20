@@ -38,7 +38,13 @@ export function appWithProcessor({ port, processorPort, reuseExistingServer, app
       // `build:processor` also copies the export font and texture next to the bundle (D153), so this is self-contained.
       command: "npm run build:processor && node dist/processor/server.mjs",
       cwd: root,
-      env: { PROCESSOR_PORT: String(processorPort) },
+      // The Rust sidecar is off unless the environment names a binary (G-048 M6): a checkout without a Rust build
+      // runs the TypeScript, and `CS_JOB_BINARY=<path> npm run test:e2e` runs the same suite against Rust.
+      env: {
+        PROCESSOR_PORT: String(processorPort),
+        ...(process.env.CS_JOB_BINARY ? { CS_JOB_BINARY: process.env.CS_JOB_BINARY } : {}),
+        ...(process.env.CS_JOB ? { CS_JOB: process.env.CS_JOB } : {}),
+      },
       url: `http://127.0.0.1:${processorPort}/health`,
       reuseExistingServer,
       timeout: 180_000,

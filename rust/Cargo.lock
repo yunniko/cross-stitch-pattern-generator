@@ -149,6 +149,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cs-job"
+version = "0.1.0"
+dependencies = [
+ "cs-core",
+ "cs-export",
+ "rayon",
+ "serde_json",
+]
+
+[[package]]
 name = "cs-wasm"
 version = "0.1.0"
 dependencies = [

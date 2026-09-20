@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["cs-core", "cs-export", "cs-bench", "cs-wasm"]
+members = ["cs-core", "cs-export", "cs-bench", "cs-job", "cs-wasm"]
 # cs-wasm builds only for wasm32: `cargo build --release -p cs-wasm --target wasm32-unknown-unknown`.
-default-members = ["cs-core", "cs-export", "cs-bench"]
+default-members = ["cs-core", "cs-export", "cs-bench", "cs-job"]
 
 [workspace.package]
 edition = "2021"

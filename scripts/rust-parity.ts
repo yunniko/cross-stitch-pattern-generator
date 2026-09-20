@@ -289,13 +289,16 @@ describe("Rust exact tier reproduces the TypeScript pipeline (G-048)", () => {
       enhanced: c.options.enhancementMode ? enhancePixelBuffer(c.source, c.options.enhancementMode) !== c.source : undefined,
     });
 
+    // The thread each colour was snapped to is not part of the hash (the golden hashes predate it), and the editor
+    // reopens a colour on exactly that swatch (D122), so it is compared on its own — G-048 M6 shipped without it once.
+    expect(rustPattern.palette.map((color) => color.source ?? null), "the thread each colour was snapped to differs").toEqual(tsPattern!.palette.map((color) => color.source ?? null));
     if (c.golden) expect(tsHash, "TypeScript no longer matches the recorded golden hash").toBe(RECORDED[name]);
     if (wasmIdentical === false) throw new Error("the WASM build differs from TypeScript");
     if (rustHash !== tsHash) {
       const cellDiff = tsPattern!.cellPalette.reduce((n, v, i) => n + (v !== rustPattern.cellPalette[i] ? 1 : 0), 0);
       const paletteDiff = tsPattern!.palette
         .map((p, i) => [p, rustPattern.palette[i]] as const)
-        .filter(([a, b]) => !b || JSON.stringify({ ...a, source: undefined }) !== JSON.stringify(b))
+        .filter(([a, b]) => !b || JSON.stringify(a) !== JSON.stringify(b))
         .slice(0, 5);
       throw new Error(
         `Rust differs: ${tsPattern!.width}x${tsPattern!.height} vs ${rustPattern.width}x${rustPattern.height}, ` +

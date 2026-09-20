@@ -8,6 +8,16 @@ COPY package.json package-lock.json ./
 # dependency set's peer deps -- see svc-lab/HANDOVER.md D7.
 RUN npm ci --legacy-peer-deps
 
+# The Rust sidecar the processor runs its jobs in (G-048 M6, D190, D193). Built against this image's own musl, so the
+# static binary runs in the alpine runtime below; `rust/` plus the two assets its crates embed are the whole input.
+FROM rust:1.96-alpine AS rust
+RUN apk add --no-cache musl-dev
+WORKDIR /src
+COPY rust ./rust
+COPY public/stitch-texture.png ./public/stitch-texture.png
+COPY public/fonts/DejaVuSans.ttf ./public/fonts/DejaVuSans.ttf
+RUN cargo build --release --manifest-path rust/Cargo.toml -p cs-job
+
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -37,6 +47,8 @@ COPY --from=build /app/dist/processor ./processor
 # @napi-rs/canvas is a native addon (D150), so it is installed rather than bundled. The musl builds come
 # from the same alpine `deps` stage, so the binary matches this image's libc.
 COPY --from=deps /app/node_modules/@napi-rs ./node_modules/@napi-rs
+# Generation and exports run here (D190); the TypeScript beside it stays the fallback, and CS_JOB=0 turns it off.
+COPY --from=rust /src/rust/target/release/cs-job ./bin/cs-job
 # The export font and the stitch texture come with the bundle: `npm run build:processor` copies them into
 # `dist/processor/assets`, so the same layout works here and wherever else the bundle runs (D153).
 

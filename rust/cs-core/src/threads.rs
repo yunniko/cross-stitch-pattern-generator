@@ -201,6 +201,10 @@ pub fn apply_brand_palette(
                 symbol: symbols[f].clone(),
                 name: thread_name(code, name),
                 count: *count,
+                source: Some(crate::pattern::ThreadSource {
+                    brand: brand.id(),
+                    code: code.clone(),
+                }),
             }
         })
         .collect();

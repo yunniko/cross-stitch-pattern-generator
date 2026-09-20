@@ -10,3 +10,5 @@ coverage
 *.tsbuildinfo
 .env*
 docs/reviews/*assets*
+# Cargo build output: gigabytes of artifacts the image builds fresh anyway.
+rust/target

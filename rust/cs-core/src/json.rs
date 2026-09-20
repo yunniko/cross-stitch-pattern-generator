@@ -72,7 +72,13 @@ pub fn pattern_json(p: &StitchPattern) -> Value {
     let palette: Vec<Value> = p
         .palette
         .iter()
-        .map(|c| json!({ "index": c.index, "rgb": c.rgb, "symbol": c.symbol, "name": c.name, "count": c.count }))
+        .map(|c| {
+            let mut entry = json!({ "index": c.index, "rgb": c.rgb, "symbol": c.symbol, "name": c.name, "count": c.count });
+            if let Some(source) = &c.source {
+                entry["source"] = json!({ "brand": source.brand, "code": source.code });
+            }
+            entry
+        })
         .collect();
     json!({
         "width": p.width,

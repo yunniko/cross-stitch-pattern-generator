@@ -316,6 +316,16 @@ fn deflate(bytes: &[u8]) -> Vec<u8> {
 
 /// `buildPatternKeeperPdf`.
 pub fn build(p: &Pattern, mode: Mode, request: &Request) -> Vec<u8> {
+    build_reporting(p, mode, request, &|_, _| {})
+}
+
+/// `build` reporting `(drawn, total)` as each page is drawn, for the sidecar's progress (G-048 M6).
+pub fn build_reporting(
+    p: &Pattern,
+    mode: Mode,
+    request: &Request,
+    report: &dyn Fn(usize, usize),
+) -> Vec<u8> {
     let l = a4::calculate_layout(p.width, p.height, request.overlap_cells, 72.0);
     let plan = a4::plan_info_pages(
         p,
@@ -359,16 +369,26 @@ pub fn build(p: &Pattern, mode: Mode, request: &Request) -> Vec<u8> {
         f(&mut page);
         pages.push((deflate(page.ops.as_bytes()), page.opacities));
     };
+    // `totalPages` as the TypeScript counts it: grid pages, the legend, and the info pages.
+    let all_pages = l.pages.len() + 1 + 1 + a4::continuation_slices(&plan).len();
+    let mut drawn = 0;
+    let page_done = |report: &dyn Fn(usize, usize), drawn: &mut usize| {
+        *drawn += 1;
+        report(*drawn, all_pages);
+    };
     let total = l.pages.len();
     for (i, range) in l.pages.iter().enumerate() {
         draw(&mut fonts, &mut |pg| {
             a4::draw_grid_page(pg, p, mode, &l, range, i, total, None)
         });
+        page_done(report, &mut drawn);
     }
     draw(&mut fonts, &mut |pg| a4::draw_legend_page(pg, p, &l));
+    page_done(report, &mut drawn);
     draw(&mut fonts, &mut |pg| {
         a4::draw_info_page1(pg, p, &plan, &l, request.aida_count)
     });
+    page_done(report, &mut drawn);
     for (k, (from, to)) in a4::continuation_slices(&plan).into_iter().enumerate() {
         draw(&mut fonts, &mut |pg| {
             a4::draw_info_continuation(
@@ -380,6 +400,7 @@ pub fn build(p: &Pattern, mode: Mode, request: &Request) -> Vec<u8> {
                 request.aida_count,
             )
         });
+        page_done(report, &mut drawn);
     }
 
     let mut next = 1;

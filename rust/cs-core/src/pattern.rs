@@ -55,6 +55,16 @@ pub struct PaletteColor {
     pub symbol: String,
     pub name: String,
     pub count: usize,
+    /// `ThreadSwatchRef`: the thread this colour was snapped to, absent for a custom colour. The editor reopens a
+    /// colour on this swatch (D122), so it has to survive the trip out of generation.
+    pub source: Option<ThreadSource>,
+}
+
+/// `ThreadSwatchRef`: a brand and that brand's own code.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ThreadSource {
+    pub brand: &'static str,
+    pub code: String,
 }
 
 #[derive(Clone, Debug)]
@@ -93,6 +103,18 @@ pub fn build_pattern(
     times: &mut StageTimes,
     now: &dyn Fn() -> f64,
 ) -> StitchPattern {
+    build_pattern_reporting(image, options, times, now, &|_| {})
+}
+
+/// `build_pattern` with `buildPattern`'s `onProgress`: the same four fractions at the same four points, for a caller
+/// that shows progress (the processor's sidecar).
+pub fn build_pattern_reporting(
+    image: &Image,
+    options: &BuildOptions,
+    times: &mut StageTimes,
+    now: &dyn Fn() -> f64,
+    on_progress: &dyn Fn(f64),
+) -> StitchPattern {
     let mut clock = now();
     let mut lap = |name: &'static str, times: &mut StageTimes| {
         let t = now();
@@ -107,6 +129,7 @@ pub fn build_pattern(
     lap("enhance", times);
 
     let (gw, gh) = grid_dimensions_for(image.width, image.height, options.longer_side_stitches);
+    on_progress(0.1);
     let cells = downsample_to_grid(color_source, gw, gh);
     lap("downsample", times);
 
@@ -168,6 +191,7 @@ pub fn build_pattern(
     };
     drop(denoised);
     lap("quantize", times);
+    on_progress(0.4);
 
     let mut optimized = quantized;
     if options.optimize {
@@ -179,6 +203,7 @@ pub fn build_pattern(
         lap("cleanup", times);
     }
 
+    on_progress(0.8);
     let (mut merged_index, mut merged_palette) = if options.optimize {
         merge_similar_colors(&optimized, &raw_palette, DEFAULT_MERGE_DISTANCE_SQUARED)
     } else {
@@ -310,6 +335,7 @@ pub fn build_pattern(
         .map(|((new_index, &original), name)| {
             remap[original] = new_index as u8;
             PaletteColor {
+                source: None,
                 index: new_index,
                 rgb: compact_palette[original],
                 symbol: symbols[new_index].clone(),
@@ -334,6 +360,7 @@ pub fn build_pattern(
             .then(|| options.enhancement.id()),
     };
     let Some(brand) = options.brand else {
+        on_progress(1.0);
         return pattern;
     };
     let result = apply_brand_palette(
@@ -343,5 +370,6 @@ pub fn build_pattern(
         layer.as_ref(),
     );
     lap("brand", times);
+    on_progress(1.0);
     result
 }
