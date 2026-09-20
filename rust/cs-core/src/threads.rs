@@ -143,7 +143,14 @@ pub fn apply_brand_palette(
     let mut assignment: Vec<u8> = pattern
         .cell_palette
         .iter()
-        .map(|&c| old_to_merged[c as usize])
+        .map(|&c| {
+            // An empty stitch (G-050) has no colour to snap and keeps its sentinel all the way out.
+            if c == crate::EMPTY_CELL {
+                crate::EMPTY_CELL
+            } else {
+                old_to_merged[c as usize]
+            }
+        })
         .collect();
 
     if let Some(layer) = layer.filter(|l| !l.is_empty()) {
@@ -165,6 +172,9 @@ pub fn apply_brand_palette(
         let reoptimized = run_local_optimizer(&ctx, &assignment, &rgb, weights);
         let mut counts = vec![0usize; groups.len()];
         for &g in &reoptimized {
+            if g == crate::EMPTY_CELL {
+                continue;
+            }
             counts[g as usize] += 1;
         }
         let used: Vec<usize> = (0..groups.len()).filter(|&i| counts[i] > 0).collect();
@@ -172,7 +182,16 @@ pub fn apply_brand_palette(
         for (new, &old) in used.iter().enumerate() {
             remap[old] = new as u8;
         }
-        assignment = reoptimized.iter().map(|&g| remap[g as usize]).collect();
+        assignment = reoptimized
+            .iter()
+            .map(|&g| {
+                if g == crate::EMPTY_CELL {
+                    crate::EMPTY_CELL
+                } else {
+                    remap[g as usize]
+                }
+            })
+            .collect();
         groups = used
             .iter()
             .map(|&old| (groups[old].0.clone(), counts[old]))
@@ -210,7 +229,13 @@ pub fn apply_brand_palette(
         .collect();
     let cell_palette = assignment
         .iter()
-        .map(|&a| final_of_merged[a as usize])
+        .map(|&a| {
+            if a == crate::EMPTY_CELL {
+                crate::EMPTY_CELL
+            } else {
+                final_of_merged[a as usize]
+            }
+        })
         .collect();
     StitchPattern {
         cell_palette,

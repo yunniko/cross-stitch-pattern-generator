@@ -19,7 +19,30 @@ pub fn source_luminance(image: &Image) -> Vec<u8> {
 }
 
 /// `computeEdgeMagnitude`: Sobel on luminance, noise-floored, normalised by the 99.9th percentile.
+/// `opaquePixelMask`: 1 where the photo is there, 0 where it is fully transparent; `None` when it is opaque (G-050).
+pub fn opaque_pixel_mask(image: &Image) -> Option<Vec<u8>> {
+    let mut mask: Option<Vec<u8>> = None;
+    for i in 0..image.width * image.height {
+        if image.data[i * 4 + 3] != 0 {
+            continue;
+        }
+        mask.get_or_insert_with(|| vec![1u8; image.width * image.height])[i] = 0;
+    }
+    mask
+}
+
+/// `computeEdgeMagnitude` without a mask.
 pub fn compute_edge_magnitude(image: &Image, gray: &[u8]) -> Vec<f32> {
+    compute_edge_magnitude_masked(image, gray, None)
+}
+
+/// `computeEdgeMagnitude`: with `opaque`, a transparent pixel has no magnitude and lends none, so the alpha boundary
+/// is not read as an edge in the photo (G-050).
+pub fn compute_edge_magnitude_masked(
+    image: &Image,
+    gray: &[u8],
+    opaque: Option<&[u8]>,
+) -> Vec<f32> {
     let (width, height) = (image.width, image.height);
     let mut magnitude = vec![0f32; width * height];
     magnitude
@@ -31,7 +54,22 @@ pub fn compute_edge_magnitude(image: &Image, gray: &[u8]) -> Vec<f32> {
             for x in 0..width {
                 let xm1 = x.saturating_sub(1);
                 let xp1 = (x + 1).min(width - 1);
-                let g = |yy: usize, xx: usize| gray[yy * width + xx] as i32;
+                let centre = y * width + x;
+                if let Some(mask) = opaque {
+                    if mask[centre] == 0 {
+                        row[x] = 0.0;
+                        continue;
+                    }
+                }
+                // A transparent neighbour reads as the centre's own luminance, so it adds no gradient (G-050).
+                let g = |yy: usize, xx: usize| {
+                    let index = yy * width + xx;
+                    let index = match opaque {
+                        Some(mask) if mask[index] == 0 => centre,
+                        _ => index,
+                    };
+                    gray[index] as i32
+                };
                 let (tl, tc, tr) = (g(ym1, xm1), g(ym1, x), g(ym1, xp1));
                 let (ml, mr) = (g(y, xm1), g(y, xp1));
                 let (bl, bc, br) = (g(yp1, xm1), g(yp1, x), g(yp1, xp1));
@@ -60,12 +98,25 @@ pub fn select_kth(values: &[f32], k: usize) -> f32 {
 }
 
 /// `computeCellImportance`: 0.7 × the cell's max edge + 0.3 × its luminance contrast.
+/// `computeCellImportance` without a mask.
 pub fn compute_cell_importance(
     image: &Image,
     edge: &[f32],
     grid_width: usize,
     grid_height: usize,
     gray: &[u8],
+) -> Vec<f32> {
+    compute_cell_importance_masked(image, edge, grid_width, grid_height, gray, None)
+}
+
+/// `computeCellImportance`: with `opaque`, a transparent pixel contributes neither edge nor contrast (G-050).
+pub fn compute_cell_importance_masked(
+    image: &Image,
+    edge: &[f32],
+    grid_width: usize,
+    grid_height: usize,
+    gray: &[u8],
+    opaque: Option<&[u8]>,
 ) -> Vec<f32> {
     let (src_w, src_h) = (image.width, image.height);
     let cells = grid_width * grid_height;
@@ -96,6 +147,11 @@ pub fn compute_cell_importance(
                 for x in 0..src_w {
                     let c = cell_x_of[x];
                     let s = y * src_w + x;
+                    if let Some(mask) = opaque {
+                        if mask[s] == 0 {
+                            continue;
+                        }
+                    }
                     if edge[s] > max_edge[c] {
                         max_edge[c] = edge[s];
                     }

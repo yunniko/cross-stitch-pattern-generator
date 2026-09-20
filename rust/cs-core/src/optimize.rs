@@ -58,6 +58,8 @@ pub struct Ctx<'a> {
     pub pair_evidence: &'a [f32],
     /// Crisp mode's frozen layer; `None` in Standard mode.
     pub evidence: Option<&'a EvidenceLayer>,
+    /// 1 where the photo is too transparent to stitch (G-050): no label, no pull on a neighbour.
+    pub empty: Option<&'a [u8]>,
 }
 
 const MAX_PASSES: usize = 8;
@@ -134,6 +136,10 @@ pub fn run_local_optimizer(
         for y in 0..height {
             for x in 0..width {
                 let i = y * width + x;
+                // An empty cell keeps no label and pulls on nothing (G-050).
+                if ctx.empty.is_some_and(|m| m[i] != 0) {
+                    continue;
+                }
                 if !dirty[i] {
                     continue;
                 }
@@ -149,6 +155,9 @@ pub fn run_local_optimizer(
                         continue;
                     }
                     let n = ny as usize * width + nx as usize;
+                    if ctx.empty.is_some_and(|m| m[n] != 0) {
+                        continue;
+                    }
                     let cost = slot_cost
                         [(if offset_on_neighbor[o] { n } else { i }) * SLOTS + offset_slot[o]];
                     pair_cost[count] = cost;
@@ -280,11 +289,24 @@ pub struct Component {
 
 /// `labelRegions`: 4-connected components, ids in first-cell order.
 pub fn label_regions(cells: &[u8], width: usize, height: usize) -> (Vec<i32>, Vec<Component>) {
+    label_regions_masked(cells, width, height, None)
+}
+
+/// `labelRegions` with the empty mask: an empty stitch is a hole in the chart, not a region of its own (G-050).
+pub fn label_regions_masked(
+    cells: &[u8],
+    width: usize,
+    height: usize,
+    empty: Option<&[u8]>,
+) -> (Vec<i32>, Vec<Component>) {
     let mut labels = vec![-1i32; cells.len()];
     let mut components = Vec::new();
     let mut stack = Vec::new();
     for start in 0..cells.len() {
         if labels[start] != -1 {
+            continue;
+        }
+        if empty.is_some_and(|m| m[start] != 0) {
             continue;
         }
         let pi = cells[start];
@@ -334,10 +356,12 @@ pub fn recolor_small_components(ctx: &Ctx, assignment: &[u8], palette: &[Rgb]) -
     let offsets = neighbor_offsets();
 
     let mut result = assignment.to_vec();
-    let (labels, components) = label_regions(&result, width, height);
+    let (labels, components) = label_regions_masked(&result, width, height, ctx.empty);
     let mut members: Vec<Vec<usize>> = components.iter().map(|_| Vec::new()).collect();
     for (i, &l) in labels.iter().enumerate() {
-        members[l as usize].push(i);
+        if l >= 0 {
+            members[l as usize].push(i);
+        }
     }
 
     let mut boundary: Vec<(usize, usize, f64, i32, i32)> = Vec::new();
@@ -367,6 +391,10 @@ pub fn recolor_small_components(ctx: &Ctx, assignment: &[u8], palette: &[Rgb]) -
                     continue;
                 }
                 let n = ny as usize * width + nx as usize;
+                // An empty neighbour is no colour to take, and its boundary costs nothing (G-050).
+                if ctx.empty.is_some_and(|m| m[n] != 0) {
+                    continue;
+                }
                 if labels[n] != id as i32 {
                     boundary.push((i, n, w, dx, dy));
                     if !neighbor_colors.contains(&result[n]) {
@@ -437,6 +465,11 @@ pub fn fix_diagonal_connections(ctx: &Ctx, assignment: &[u8], palette: &[Rgb]) -
                 let tr = tl + 1;
                 let bl = tl + width;
                 let br = bl + 1;
+                if let Some(mask) = ctx.empty {
+                    if mask[tl] != 0 || mask[tr] != 0 || mask[bl] != 0 || mask[br] != 0 {
+                        continue;
+                    }
+                }
                 let a = result[tl];
                 let b = result[tr];
                 if !(a != b && result[bl] == b && result[br] == a) {

@@ -21,6 +21,17 @@ pub fn merge_similar_colors(
     merge_similar_colors_weighted(cell_palette_index, palette, threshold, None)
 }
 
+/// `mergeSimilarColors` for a grid of cells, where `EMPTY_CELL` means no stitch: such an entry counts for no colour
+/// and comes back untouched (G-050). The weighted sample pool does not use this — there 255 means a dropped
+/// zero-weight cluster, which this function has always resolved to the first palette entry.
+pub fn merge_similar_colors_with_empties(
+    cell_palette_index: &[u8],
+    palette: &[Rgb],
+    threshold: f64,
+) -> (Vec<u8>, Vec<Rgb>) {
+    merge_similar_colors_inner(cell_palette_index, palette, threshold, None, true)
+}
+
 /// `mergeSimilarColors` with `entryWeights`: "more-used" is summed weight rather than a count (D60). Counts are
 /// doubles, as in the TypeScript, so both forms compare the same values.
 pub fn merge_similar_colors_weighted(
@@ -29,10 +40,23 @@ pub fn merge_similar_colors_weighted(
     threshold: f64,
     entry_weights: Option<&[f64]>,
 ) -> (Vec<u8>, Vec<Rgb>) {
+    merge_similar_colors_inner(cell_palette_index, palette, threshold, entry_weights, false)
+}
+
+fn merge_similar_colors_inner(
+    cell_palette_index: &[u8],
+    palette: &[Rgb],
+    threshold: f64,
+    entry_weights: Option<&[f64]>,
+    empty_cells: bool,
+) -> (Vec<u8>, Vec<Rgb>) {
     let oklab: Vec<_> = palette.iter().map(|&c| rgb_to_oklab(c)).collect();
     let n = palette.len();
     let mut counts = vec![0f64; n];
     for (i, &c) in cell_palette_index.iter().enumerate() {
+        if empty_cells && c == crate::EMPTY_CELL {
+            continue;
+        }
         counts[c as usize] += entry_weights.map_or(1.0, |w| w[i]);
     }
     let mut parent: Vec<usize> = (0..n).collect();
@@ -81,6 +105,9 @@ pub fn merge_similar_colors_weighted(
     let out = cell_palette_index
         .iter()
         .map(|&c| {
+            if empty_cells && c == crate::EMPTY_CELL {
+                return crate::EMPTY_CELL;
+            }
             let root = find(&mut parent, c as usize);
             new_index_of[root]
         })

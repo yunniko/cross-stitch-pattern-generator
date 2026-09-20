@@ -734,6 +734,18 @@ pub fn build_evidence_layer(
     gh: usize,
     model: EdgeModel,
 ) -> EvidenceLayer {
+    build_evidence_layer_masked(image, gw, gh, model, None)
+}
+
+/// `buildCrispEvidenceLayer` over the stitched cells alone: a cell the photo does not cover has no two colours to be
+/// confident between (G-050).
+pub fn build_evidence_layer_masked(
+    image: &Image,
+    gw: usize,
+    gh: usize,
+    model: EdgeModel,
+    empty: Option<&[u8]>,
+) -> EvidenceLayer {
     let cell_count = gw * gh;
     // Each cell's evidence depends only on the source, so bands of cell rows run independently; each band caches its
     // own source rows. Only confident cells are kept, in cell order, as the TypeScript Map holds them: one slot per
@@ -749,6 +761,9 @@ pub fn build_evidence_layer(
             let first = band_index * band * gw;
             let last = ((band_index + 1) * band * gw).min(cell_count);
             for cell in first..last {
+                if empty.is_some_and(|m| m[cell] != 0) {
+                    continue;
+                }
                 let (cx, cy) = (cell % gw, cell / gw);
                 let e = extract(&mut rows, gw, gh, cx, cy, model, &mut samples);
                 if e.confidence >= CONFIDENCE_THRESHOLD {

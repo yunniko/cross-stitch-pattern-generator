@@ -23,6 +23,28 @@ unsafe impl Sync for SharedOut {}
 
 /// Separable box blur. The horizontal pass runs row by row and the vertical pass column by column, each with the same
 /// running sum as the TypeScript, so any thread count gives the same values.
+/// `boxBlur` over the covered pixels alone: transparent black must not bleed into the subject's edge (G-050).
+fn box_blur_weighted(
+    channel: &[f32],
+    width: usize,
+    height: usize,
+    radius: i64,
+    weight: &[f32],
+) -> Vec<f32> {
+    let weighted: Vec<f32> = channel
+        .iter()
+        .zip(weight.iter())
+        .map(|(v, w)| v * w)
+        .collect();
+    let value = box_blur(&weighted, width, height, radius);
+    let mass = box_blur(weight, width, height, radius);
+    value
+        .iter()
+        .zip(mass.iter())
+        .map(|(v, m)| if *m > 0.0 { v / m } else { 0.0 })
+        .collect()
+}
+
 fn box_blur(channel: &[f32], width: usize, height: usize, radius: i64) -> Vec<f32> {
     let (w, h) = (width as i64, height as i64);
     let mut horizontal = vec![0f32; width * height];
@@ -81,12 +103,28 @@ fn box_blur(channel: &[f32], width: usize, height: usize, radius: i64) -> Vec<f3
 }
 
 /// `computePairEdgeEvidence` with the default tau and blur radius.
+/// `computePairEdgeEvidence` without a mask.
 pub fn compute_pair_edge_evidence(
     image: &Image,
     grid_width: usize,
     grid_height: usize,
 ) -> Vec<f32> {
+    compute_pair_edge_evidence_masked(image, grid_width, grid_height, None)
+}
+
+/// `computePairEdgeEvidence`: with `opaque`, only covered pixels are blurred, differentiated and summed (G-050).
+pub fn compute_pair_edge_evidence_masked(
+    image: &Image,
+    grid_width: usize,
+    grid_height: usize,
+    opaque: Option<&[u8]>,
+) -> Vec<f32> {
     let (src_w, src_h) = (image.width, image.height);
+    let cover: Option<Vec<f32>> = opaque.map(|mask| {
+        mask.iter()
+            .map(|&m| if m != 0 { 1.0 } else { 0.0 })
+            .collect()
+    });
     let table = srgb_to_linear_table();
     let n = src_w * src_h;
     let mut raw_l = vec![0f32; n];
@@ -107,11 +145,15 @@ pub fn compute_pair_edge_evidence(
                 rb[x] = lab[2] as f32;
             }
         });
-    let l = box_blur(&raw_l, src_w, src_h, DEFAULT_BLUR_RADIUS);
+    let blur = |channel: &[f32]| match &cover {
+        Some(weight) => box_blur_weighted(channel, src_w, src_h, DEFAULT_BLUR_RADIUS, weight),
+        None => box_blur(channel, src_w, src_h, DEFAULT_BLUR_RADIUS),
+    };
+    let l = blur(&raw_l);
     drop(raw_l);
-    let a = box_blur(&raw_a, src_w, src_h, DEFAULT_BLUR_RADIUS);
+    let a = blur(&raw_a);
     drop(raw_a);
-    let b = box_blur(&raw_b, src_w, src_h, DEFAULT_BLUR_RADIUS);
+    let b = blur(&raw_b);
     drop(raw_b);
 
     // Derivative rows (Lx, Ly, Ax, Ay, Bx, By per pixel): a pure function of the row.
@@ -185,6 +227,11 @@ pub fn compute_pair_edge_evidence(
                             }
                             let row = rows[sy].as_ref().unwrap();
                             for sx in x_from..=x_to {
+                                if let Some(mask) = opaque {
+                                    if mask[sy * src_w + sx as usize] == 0 {
+                                        continue;
+                                    }
+                                }
                                 let o = sx as usize * 6;
                                 let pl = row[o] * ux + row[o + 1] * uy;
                                 let pa = row[o + 2] * ux + row[o + 3] * uy;

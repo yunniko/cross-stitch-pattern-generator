@@ -41,11 +41,23 @@ fn ridge_strength(lab: &[f64], width: usize, height: usize, x: usize, y: usize) 
 }
 
 /// `denoiseForQuantization`, returning the denoised cells' OKLab.
+/// `denoiseForQuantization` without a mask.
 pub fn denoise_for_quantization(
     width: usize,
     height: usize,
     cell_oklab: &[f64],
     importance: &[f32],
+) -> Vec<f64> {
+    denoise_for_quantization_masked(width, height, cell_oklab, importance, None)
+}
+
+/// `denoiseForQuantization`: an empty cell has no colour to filter, and lends none to a neighbour (G-050).
+pub fn denoise_for_quantization_masked(
+    width: usize,
+    height: usize,
+    cell_oklab: &[f64],
+    importance: &[f32],
+    empty: Option<&[u8]>,
 ) -> Vec<f64> {
     let mut out = cell_oklab.to_vec();
     // Every cell reads only the undenoised input, so rows run independently.
@@ -56,6 +68,9 @@ pub fn denoise_for_quantization(
             let mut pair = [0f64; 81];
             for x in 0..width {
                 let i = y * width + x;
+                if empty.is_some_and(|m| m[i] != 0) {
+                    continue;
+                }
                 if importance[i] as f64 > IMPORTANCE_PROTECTION_THRESHOLD {
                     continue;
                 }
@@ -71,7 +86,11 @@ pub fn denoise_for_quantization(
                         if nx < 0 || nx >= width as i64 || ny < 0 || ny >= height as i64 {
                             continue;
                         }
-                        window[size] = ny as usize * width + nx as usize;
+                        let n = ny as usize * width + nx as usize;
+                        if empty.is_some_and(|m| m[n] != 0) {
+                            continue;
+                        }
+                        window[size] = n;
                         size += 1;
                     }
                 }

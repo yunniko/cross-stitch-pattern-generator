@@ -22,17 +22,44 @@ pub fn grid_dimensions_for(
     }
 }
 
-/// `downsampleToGrid`: area- and alpha-weighted mean in linear light, one RGB triple per cell.
+/// `MIN_CELL_COVERAGE`: a cell covered less than this is an empty stitch, not a colour (G-050).
+pub const MIN_CELL_COVERAGE: f32 = 0.5;
+
+/// `emptyCellMask`: which cells the photo barely covers, or `None` when it covers them all.
+pub fn empty_cell_mask(coverage: &[f32]) -> Option<Vec<u8>> {
+    let mut mask: Option<Vec<u8>> = None;
+    for (i, &c) in coverage.iter().enumerate() {
+        if c >= MIN_CELL_COVERAGE {
+            continue;
+        }
+        mask.get_or_insert_with(|| vec![0u8; coverage.len()])[i] = 1;
+    }
+    mask
+}
+
+/// `downsampleToGrid`: the colours alone, for callers with no use for coverage.
 pub fn downsample_to_grid(image: &Image, grid_width: usize, grid_height: usize) -> Vec<u8> {
+    downsample_to_grid_with_coverage(image, grid_width, grid_height).0
+}
+
+/// `downsampleToGridWithCoverage`: area- and alpha-weighted mean in linear light, one RGB triple per cell, plus the
+/// alpha-weighted share of each cell's footprint that is actually there.
+pub fn downsample_to_grid_with_coverage(
+    image: &Image,
+    grid_width: usize,
+    grid_height: usize,
+) -> (Vec<u8>, Vec<f32>) {
     let table = srgb_to_linear_table();
     let (src_w, src_h) = (image.width, image.height);
     let data = &image.data;
     let mut out = vec![0u8; grid_width * grid_height * 3];
+    let mut coverage = vec![0f32; grid_width * grid_height];
 
     // Each cell's sum runs in the same order on any thread count: rows of cells are independent.
     out.par_chunks_mut(grid_width * 3)
+        .zip(coverage.par_chunks_mut(grid_width))
         .enumerate()
-        .for_each(|(cell_y, out)| {
+        .for_each(|(cell_y, (out, coverage))| {
             let y_start = (cell_y * src_h) as f64 / grid_height as f64;
             let y_end = ((cell_y + 1) * src_h) as f64 / grid_height as f64;
             let y_first = jsmath::max(0.0, y_start.floor()) as usize;
@@ -48,6 +75,8 @@ pub fn downsample_to_grid(image: &Image, grid_width: usize, grid_height: usize) 
                 let mut sum_g = 0.0;
                 let mut sum_b = 0.0;
                 let mut sum_weight = 0.0;
+                // The footprint's own area, so a cell clipped at the photo's border is judged on the part that exists.
+                let mut sum_area = 0.0;
 
                 let mut y = y_first as i64;
                 while y <= y_last {
@@ -61,7 +90,9 @@ pub fn downsample_to_grid(image: &Image, grid_width: usize, grid_height: usize) 
                             if x_weight > 0.0 {
                                 let p = (y as usize * src_w + x as usize) * 4;
                                 let alpha = data[p + 3] as f64 / 255.0;
-                                let weight = x_weight * y_weight * alpha;
+                                let area = x_weight * y_weight;
+                                let weight = area * alpha;
+                                sum_area += area;
                                 sum_r += table[data[p] as usize] * weight;
                                 sum_g += table[data[p + 1] as usize] * weight;
                                 sum_b += table[data[p + 2] as usize] * weight;
@@ -74,6 +105,11 @@ pub fn downsample_to_grid(image: &Image, grid_width: usize, grid_height: usize) 
                 }
 
                 let i = cell_x * 3;
+                coverage[cell_x] = if sum_area > 0.0 {
+                    (sum_weight / sum_area) as f32
+                } else {
+                    0.0
+                };
                 if sum_weight > 0.0 {
                     out[i] = linear_to_srgb(sum_r / sum_weight);
                     out[i + 1] = linear_to_srgb(sum_g / sum_weight);
@@ -85,5 +121,5 @@ pub fn downsample_to_grid(image: &Image, grid_width: usize, grid_height: usize) 
                 }
             }
         });
-    out
+    (out, coverage)
 }

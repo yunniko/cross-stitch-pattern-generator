@@ -2,18 +2,21 @@
 //! enhancement. Contour refinement (experimental, off by default) and custom quantizers are not ported.
 
 use crate::color::{luminance, rgb_to_oklab, Oklab, Rgb};
-use crate::crisp::evidence::{build_evidence_layer, EdgeModel, EvidenceLayer};
+use crate::crisp::evidence::{build_evidence_layer_masked, EdgeModel, EvidenceLayer};
 use crate::crisp::{finalize, plus, repair, stage};
-use crate::denoise::denoise_for_quantization;
-use crate::downsample::{downsample_to_grid, grid_dimensions_for};
-use crate::edge_map::{compute_cell_importance, compute_edge_magnitude, source_luminance};
+use crate::denoise::denoise_for_quantization_masked;
+use crate::downsample::{downsample_to_grid_with_coverage, empty_cell_mask, grid_dimensions_for};
+use crate::edge_map::{
+    compute_cell_importance_masked, compute_edge_magnitude_masked, opaque_pixel_mask,
+    source_luminance,
+};
 use crate::enhance::{enhance, Mode as EnhancementMode};
 use crate::names::{name_colors, symbol_set};
 use crate::optimize::{
     fix_diagonal_connections, recolor_small_components, run_multi_scale_optimizer, Ctx,
 };
-use crate::pair_evidence::compute_pair_edge_evidence;
-use crate::palette_merge::{merge_similar_colors, DEFAULT_MERGE_DISTANCE_SQUARED};
+use crate::pair_evidence::compute_pair_edge_evidence_masked;
+use crate::palette_merge::{merge_similar_colors_with_empties, DEFAULT_MERGE_DISTANCE_SQUARED};
 use crate::quantize::{mean_oklab_as_rgb, quantize, Quantizer};
 use crate::threads::{apply_brand_palette, Brand};
 use crate::{color, Image};
@@ -86,6 +89,10 @@ pub type StageTimes = Vec<(&'static str, f64)>;
 fn compact(labels: &[u8], palette_len: usize) -> (Vec<u8>, Vec<usize>) {
     let mut counts = vec![0usize; palette_len];
     for &c in labels {
+        // An empty stitch (G-050) is not a palette index and takes no part in the compaction.
+        if c == crate::EMPTY_CELL {
+            continue;
+        }
         counts[c as usize] += 1;
     }
     let used: Vec<usize> = (0..palette_len).filter(|&i| counts[i] > 0).collect();
@@ -93,7 +100,19 @@ fn compact(labels: &[u8], palette_len: usize) -> (Vec<u8>, Vec<usize>) {
     for (new, &old) in used.iter().enumerate() {
         remap[old] = new as u8;
     }
-    (labels.iter().map(|&c| remap[c as usize]).collect(), used)
+    (
+        labels
+            .iter()
+            .map(|&c| {
+                if c == crate::EMPTY_CELL {
+                    crate::EMPTY_CELL
+                } else {
+                    remap[c as usize]
+                }
+            })
+            .collect(),
+        used,
+    )
 }
 
 /// `now` returns milliseconds from any fixed origin; it times the stages into `times` (WASM has no `Instant`).
@@ -130,18 +149,24 @@ pub fn build_pattern_reporting(
 
     let (gw, gh) = grid_dimensions_for(image.width, image.height, options.longer_side_stitches);
     on_progress(0.1);
-    let cells = downsample_to_grid(color_source, gw, gh);
+    // Transparency becomes absence: a cell the photo barely covers is an empty stitch, and the stages below read
+    // neither colour nor structure from pixels that are not there (G-050, D196). Both masks are `None` for an opaque
+    // photo, which keeps it on exactly the path it had before.
+    let (cells, coverage) = downsample_to_grid_with_coverage(color_source, gw, gh);
+    let empty = empty_cell_mask(&coverage);
+    let empty_ref = empty.as_deref();
     lap("downsample", times);
 
+    let opaque = opaque_pixel_mask(image);
     let gray = source_luminance(image);
-    let edge = compute_edge_magnitude(image, &gray);
-    let importance = compute_cell_importance(image, &edge, gw, gh, &gray);
+    let edge = compute_edge_magnitude_masked(image, &gray, opaque.as_deref());
+    let importance = compute_cell_importance_masked(image, &edge, gw, gh, &gray, opaque.as_deref());
     drop(edge);
     drop(gray);
     lap("importance", times);
 
     let pair_evidence = if crisp || options.optimize {
-        compute_pair_edge_evidence(image, gw, gh)
+        compute_pair_edge_evidence_masked(image, gw, gh, opaque.as_deref())
     } else {
         Vec::new()
     };
@@ -153,7 +178,7 @@ pub fn build_pattern_reporting(
         } else {
             EdgeModel::Step
         };
-        build_evidence_layer(color_source, gw, gh, model)
+        build_evidence_layer_masked(color_source, gw, gh, model, empty_ref)
     });
     if crisp {
         lap("crispEvidence", times);
@@ -174,15 +199,49 @@ pub fn build_pattern_reporting(
         importance: &importance,
         pair_evidence: &pair_evidence,
         evidence: layer.as_ref(),
+        empty: empty_ref,
     };
 
-    let denoised = denoise_for_quantization(gw, gh, &cell_oklab, &importance);
+    let denoised = denoise_for_quantization_masked(gw, gh, &cell_oklab, &importance, empty_ref);
     lap("denoise", times);
 
     let latest = options.quantizer == Quantizer::Latest;
-    let (quantized, raw_palette) = match &layer {
-        Some(layer) => stage::run(&denoised, options.color_count, &importance, layer, latest),
-        None => quantize(
+    let (quantized, raw_palette) = match (&layer, empty_ref) {
+        (Some(layer), _) => stage::run_masked(
+            &denoised,
+            options.color_count,
+            &importance,
+            layer,
+            latest,
+            empty_ref,
+        ),
+        // The quantizer sees only the stitched cells: a cluster built from cells that are not there would spend a
+        // colour on nothing.
+        (None, Some(mask)) => {
+            let kept: Vec<usize> = (0..gw * gh).filter(|&i| mask[i] == 0).collect();
+            let mut kept_oklab = vec![0f64; kept.len() * 3];
+            let mut kept_importance = vec![0f32; kept.len()];
+            for (k, &cell) in kept.iter().enumerate() {
+                kept_oklab[k * 3..k * 3 + 3].copy_from_slice(&denoised[cell * 3..cell * 3 + 3]);
+                kept_importance[k] = importance[cell];
+            }
+            let (labels, palette) = if kept.is_empty() {
+                (Vec::new(), Vec::new())
+            } else {
+                quantize(
+                    options.quantizer,
+                    &kept_oklab,
+                    options.color_count,
+                    &kept_importance,
+                )
+            };
+            let mut scattered = vec![crate::EMPTY_CELL; gw * gh];
+            for (k, &cell) in kept.iter().enumerate() {
+                scattered[cell] = labels[k];
+            }
+            (scattered, palette)
+        }
+        (None, None) => quantize(
             options.quantizer,
             &denoised,
             options.color_count,
@@ -205,7 +264,7 @@ pub fn build_pattern_reporting(
 
     on_progress(0.8);
     let (mut merged_index, mut merged_palette) = if options.optimize {
-        merge_similar_colors(&optimized, &raw_palette, DEFAULT_MERGE_DISTANCE_SQUARED)
+        merge_similar_colors_with_empties(&optimized, &raw_palette, DEFAULT_MERGE_DISTANCE_SQUARED)
     } else {
         (optimized, raw_palette)
     };
@@ -293,6 +352,9 @@ pub fn build_pattern_reporting(
         None => {
             let mut cells_by_index: Vec<Vec<usize>> = vec![Vec::new(); used.len()];
             for (i, &c) in compacted.iter().enumerate() {
+                if c == crate::EMPTY_CELL {
+                    continue;
+                }
                 cells_by_index[c as usize].push(i);
             }
             let palette = used
@@ -312,6 +374,9 @@ pub fn build_pattern_reporting(
 
     let mut counts = vec![0usize; compact_palette.len()];
     for &c in &final_labels {
+        if c == crate::EMPTY_CELL {
+            continue;
+        }
         counts[c as usize] += 1;
     }
     let mut order: Vec<usize> = (0..compact_palette.len()).collect();
@@ -344,7 +409,17 @@ pub fn build_pattern_reporting(
             }
         })
         .collect();
-    let cell_palette = final_labels.iter().map(|&c| remap[c as usize]).collect();
+    let cell_palette = final_labels
+        .iter()
+        .map(|&c| {
+            // The empty sentinel is not a palette index and does not travel through the legend's order (G-050).
+            if c == crate::EMPTY_CELL {
+                crate::EMPTY_CELL
+            } else {
+                remap[c as usize]
+            }
+        })
+        .collect();
     lap("finalize", times);
 
     let pattern = StitchPattern {

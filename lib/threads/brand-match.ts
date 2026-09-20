@@ -5,6 +5,7 @@ import { runLocalOptimizer, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, type LocalOptimizer
 import { symbolsFor } from "../color/symbols";
 import { formatThreadName, THREAD_BRANDS, type ThreadBrand, type ThreadColor } from "./thread-brands";
 import type { PipelineContext } from "../pipeline/pipeline-context";
+import { EMPTY_CELL } from "../types";
 import type { PaletteColor, RGB, StitchPattern } from "../types";
 
 // Each brand's OKLab table, built once on first use.
@@ -86,7 +87,10 @@ export function applyBrandPalette(
   });
 
   let assignment: Uint8Array = new Uint8Array(pattern.cellPalette.length);
-  for (let i = 0; i < assignment.length; i++) assignment[i] = oldToMergedIndex[pattern.cellPalette[i]];
+  // An empty stitch (G-050) has no colour to snap and keeps its sentinel all the way out.
+  for (let i = 0; i < assignment.length; i++) {
+    assignment[i] = pattern.cellPalette[i] === EMPTY_CELL ? EMPTY_CELL : oldToMergedIndex[pattern.cellPalette[i]];
+  }
 
   if (crispEvidenceLayer && crispEvidenceLayer.evidenceByCell.size > 0) {
     const threadPaletteOklab = groups.map((g) => rgbToOklab(g.thread.rgb));
@@ -104,14 +108,16 @@ export function applyBrandPalette(
 
     // Drop thread groups the re-optimization emptied: never a zero-count legend row.
     const newCounts = new Array(groups.length).fill(0);
-    for (const g of reoptimized) newCounts[g]++;
+    for (const g of reoptimized) if (g !== EMPTY_CELL) newCounts[g]++;
     const usedIndices = groups.map((_, i) => i).filter((i) => newCounts[i] > 0);
     const compactRemap = new Uint8Array(groups.length);
     usedIndices.forEach((oldIndex, newIndex) => {
       compactRemap[oldIndex] = newIndex;
     });
     const compactedAssignment = new Uint8Array(reoptimized.length);
-    for (let i = 0; i < reoptimized.length; i++) compactedAssignment[i] = compactRemap[reoptimized[i]];
+    for (let i = 0; i < reoptimized.length; i++) {
+      compactedAssignment[i] = reoptimized[i] === EMPTY_CELL ? EMPTY_CELL : compactRemap[reoptimized[i]];
+    }
 
     groups = usedIndices.map((oldIndex) => ({ thread: groups[oldIndex].thread, count: newCounts[oldIndex] }));
     assignment = compactedAssignment;
@@ -139,7 +145,7 @@ export function applyBrandPalette(
 
   const cellPalette = new Uint8Array(assignment.length);
   for (let i = 0; i < cellPalette.length; i++) {
-    cellPalette[i] = finalIndexByMergedIndex[assignment[i]];
+    cellPalette[i] = assignment[i] === EMPTY_CELL ? EMPTY_CELL : finalIndexByMergedIndex[assignment[i]];
   }
 
   return { ...pattern, cellPalette, palette, threadBrand: brand };

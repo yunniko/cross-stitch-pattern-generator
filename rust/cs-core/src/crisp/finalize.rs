@@ -25,6 +25,10 @@ pub fn finalize(
         let mut sums = vec![[0f64; 3]; palette.len()];
         let mut counts = vec![0usize; palette.len()];
         for (i, &label) in assignment.iter().enumerate() {
+            // An empty stitch (G-050) contributes to no colour.
+            if label == crate::EMPTY_CELL {
+                continue;
+            }
             let label = label as usize;
             let supporting = layer.slot(i).and_then(|slot| {
                 admissible_cost(&costs[slot], label).map(|a| (slot, a.supporting_mode))

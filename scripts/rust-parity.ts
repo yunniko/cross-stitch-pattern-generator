@@ -81,6 +81,24 @@ const circle = makeBuffer(30, 30, (x, y) => {
   return [base[0] + noise, base[1] + noise, base[2] + noise];
 });
 const hardSplit = makeBuffer(64, 64, (x) => (x < 30 ? [0, 0, 0] : [255, 255, 255]));
+
+/**
+ * Transparency: the two sides must agree on which cells are empty as well as on the colours (G-050). A disc with an
+ * anti-aliased rim exercises the coverage threshold; a photo with a transparent corner exercises a mask that leaves
+ * most of the chart stitched.
+ */
+function withAlpha(source: PixelBuffer, alphaAt: (x: number, y: number) => number): PixelBuffer {
+  const data = new Uint8ClampedArray(source.data);
+  for (let y = 0; y < source.height; y++) {
+    for (let x = 0; x < source.width; x++) data[(y * source.width + x) * 4 + 3] = alphaAt(x, y);
+  }
+  return { data, width: source.width, height: source.height };
+}
+const discOnTransparency = withAlpha(makePhotoLikeBuffer(150, 150), (x, y) => {
+  const d = Math.hypot(x - 74.5, y - 74.5);
+  return d <= 55 ? 255 : d <= 57 ? 128 : 0;
+});
+const cornerCut = withAlpha(makePhotoLikeBuffer(240, 160), (x, y) => (x + y < 90 ? 0 : 255));
 const photo = makePhotoLikeBuffer(600, 400);
 // The photo fixture dimmed, flattened and tinted, so every enhancement stage acts rather than abstains.
 const darkPhoto = makeBuffer(600, 400, (x, y) => {
@@ -178,6 +196,13 @@ const CASES: Case[] = [
       ["dark-photo/standard/original/32/vivid", darkPhoto, { longerSideStitches: 200, colorCount: 32, quantizer: plainKMeansQuantizer, enhancementMode: "vivid" }],
     ] as Array<[string, PixelBuffer, BuildPatternOptions]>
   ).map(([name, source, options]): Case => ({ name, source, options, golden: false })),
+  // Transparency, in every edge mode and both quantizers: the empty cells must match too.
+  ...(["standard", "crisp", "crisp-plus"] as const).flatMap((edgeMode): Case[] => [
+    { name: `alpha/disc-150st-16col/${edgeMode}`, source: discOnTransparency, options: { longerSideStitches: 50, colorCount: 16, edgeMode }, golden: false },
+    { name: `alpha/corner-60st-12col/${edgeMode}`, source: cornerCut, options: { longerSideStitches: 60, colorCount: 12, edgeMode }, golden: false },
+  ]),
+  { name: "alpha/disc-original-quantizer", source: discOnTransparency, options: { longerSideStitches: 40, colorCount: 10, quantizer: plainKMeansQuantizer }, golden: false },
+  { name: "alpha/disc-dmc", source: discOnTransparency, options: { longerSideStitches: 40, colorCount: 10, paletteMode: "dmc" }, golden: false },
   // The capacity probe's shapes (scripts/capacity-probe.ts) in every edge mode: TypeScript is the reference.
   ...(process.env.RUST_PARITY_LARGE === "0"
     ? []

@@ -33,6 +33,9 @@ pub mod quantize;
 pub mod threads;
 
 /// An RGBA image, row-major, 4 bytes per pixel (the `PixelBuffer` shape).
+/// The "no stitch here" cell value, as `lib/types.ts` defines it: never a palette index (G-050, D143).
+pub const EMPTY_CELL: u8 = 255;
+
 pub struct Image {
     pub width: usize,
     pub height: usize,

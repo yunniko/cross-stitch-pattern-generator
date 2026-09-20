@@ -13,10 +13,30 @@ pub fn run(
     layer: &EvidenceLayer,
     latest: bool,
 ) -> (Vec<u8>, Vec<Rgb>) {
+    run_masked(cell_oklab, color_count, importance, layer, latest, None)
+}
+
+/// `runCrispQuantizationStage` with the empty mask: a cell the photo does not cover contributes no sample and comes
+/// back as the empty sentinel (G-050).
+pub fn run_masked(
+    cell_oklab: &[f64],
+    color_count: usize,
+    importance: &[f32],
+    layer: &EvidenceLayer,
+    latest: bool,
+    empty: Option<&[u8]>,
+) -> (Vec<u8>, Vec<Rgb>) {
     let cell_count = cell_oklab.len() / 3;
-    let mut pool = Pool::with_capacity(cell_count + layer.len());
+    let stitched = match empty {
+        Some(mask) => mask.iter().filter(|&&m| m == 0).count(),
+        None => cell_count,
+    };
+    let mut pool = Pool::with_capacity(stitched + layer.len());
     let mut non_crisp_sample = vec![u32::MAX; cell_count];
     for cell in 0..cell_count {
+        if empty.is_some_and(|m| m[cell] != 0) {
+            continue;
+        }
         match layer.get(cell) {
             Some(e) => {
                 pool.push(e.modes[0], e.coverage[0], cell);
@@ -38,6 +58,10 @@ pub fn run(
 
     let mut labels = vec![0u8; cell_count];
     for cell in 0..cell_count {
+        if empty.is_some_and(|m| m[cell] != 0) {
+            labels[cell] = crate::EMPTY_CELL;
+            continue;
+        }
         let Some(e) = layer.get(cell) else {
             labels[cell] = sample_labels[non_crisp_sample[cell] as usize];
             continue;
