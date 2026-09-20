@@ -56,10 +56,18 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   downscale must not apply). Playwright covers a successful import and every refusal.
 - [x] M3 — The export: "Pixel art PNG" in the export list, written in the page, empty stitches transparent; the
   round-trip property test of criterion 5; Playwright downloads one and re-imports it.
-- [ ] M4 — Documentation and ship: decision files for the import rules and for keeping both directions in the browser,
-  README and HANDOVER, then deploy and verify live on a real sprite.
+- [x] M4 — Documentation and ship: decision files for the import rules and for keeping both directions in the browser,
+  README and HANDOVER, then deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-20 — **M4 done; G-049 awaiting the Owner's sign-off.** README and HANDOVER carry both directions and the
+  rule that pixel art is never resampled; D194 and D195 were written when the decisions were made. Deployed b68db8b:
+  only the app container was recreated (the processor's bundle is unchanged, so the Rust sidecar stayed up), 23
+  containers before and after with no other restarted, 38 vhosts, four sites at 200. Live checks: the export option
+  and the import card are both present, and exporting a live 200 × 200 chart produced a 200 × 200 PNG of 40,000
+  opaque pixels in 14 colours, matching its status line. **Not verified live:** an end-to-end import, because the
+  browser held the Owner's own autosaved chart and any card choice would have discarded it — the import is covered by
+  5 Playwright specs and 21 unit tests instead.
 - 2026-09-20 — **M3 done; awaiting approval of M4.** "Pixel art PNG (1 px per stitch)" is the fourth option in the
   export dropdown, written in the page like the editable save (D195); `ExportChoice` keeps it out of the processor's
   job kinds by type, so it can never be posted to a service that has no code for it. Verified: 8 round-trip cases over
