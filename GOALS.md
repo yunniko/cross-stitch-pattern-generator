@@ -52,10 +52,21 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M4 — Exports in Rust: PNG writer, chart and A4 rasters with DejaVu text, the streamed preview, the PDF (embedded,
   subset font, text symbols), OXS, JSON and Export all; the equivalence checks of criterion 3; timings.
 - [x] M5 — The comparison report and the ship decision per part (criterion 5).
-- [ ] M6 — Ship what qualifies: a native addon in the processor's workers, built in the image, with the TypeScript
+- [x] M6 — Ship what qualifies: a native addon in the processor's workers, built in the image, with the TypeScript
   fallback; deployed and verified live. Skipped if nothing qualifies.
 
 **Progress log** (newest first):
+- 2026-09-20 — **M6 done and deployed; awaiting the Owner's sign-off on G-048.** The processor runs each generation
+  and each server-side export in the `cs-job` sidecar (D193: a spawned process, not the planned napi-rs addon, so a
+  cancelled job dies with its worker and a bad build cannot take the processor down); TypeScript stays the fallback,
+  and `CS_JOB=0` returns to it without a rebuild. The image builds the binary for musl in its own stage. Found and
+  fixed on the way: generation dropped each colour thread reference, so the colour editor could not reopen on its
+  swatch -- two e2e specs caught it, `compare:rust` now checks it. Verified: Vitest 1101 passed, 8 skipped; Playwright
+  318 passed across all 26 specs **against the sidecar**; both parity harnesses pass; the image tested locally with
+  the sidecar and with `CS_JOB=0` gave identical chart hashes and identical OXS bytes. Deployed 968ae9c: 41 containers
+  before and after, no other container restarted, 38 vhosts, six sites at 200. Live at 1000 stitches: Crisp+ in 3.7 s
+  (9.6 s before), the 154-page PDF in 6.8 s (9.4-12.7 s before), Export all (77.1 MB) in 115.1 s, progress reported
+  page by page, no fallback logged. **Owner approval:** "go m6".
 - 2026-09-20 — **M5 done; awaiting approval of M6.** The comparison report (criterion 4) is
   `docs/reviews/2026-09-20-rust-comparison-report.md`: laptop and host, 1000 and 1500 stitches, one job and three at
   once, wall time and peak RSS for generation and every export, native and WASM. Gaps M3/M4 left are closed --

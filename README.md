@@ -60,7 +60,9 @@ npm run bench       # per-stage generation timings, incl. a 12 MP photo and Cris
 npm run bench:browser  # photo load, generation and every export in a real browser (very slow; not in CI)
 ```
 
-The Rust port of the pipeline (G-048, not used in production) lives in `rust/` and needs a Rust toolchain:
+The Rust port of the pipeline (G-048) lives in `rust/`. In production the processor runs each job in the `cs-job`
+binary, built into its image (`CS_JOB=0` turns it off and falls back to the TypeScript). Working on it needs a Rust
+toolchain:
 
 ```
 node scripts/rust-jsmath-vectors.mjs rust/target/jsmath-vectors.bin   # V8's maths results, once per Node version
