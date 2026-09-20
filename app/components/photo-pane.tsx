@@ -19,9 +19,11 @@ import { PillButton, SegmentedControl, type SegmentOption } from "./ui";
 
 const GROUP_LABEL = "text-[11px] font-medium uppercase tracking-[0.08em] text-muted";
 
+// Labels only: the stored values stay "latest" and "original", which saved files, the processor's request validation
+// and the golden hashes all speak (Owner rename, 2026-09-20).
 const ALGORITHM_OPTIONS: SegmentOption<WorkspaceOptions["generationMode"]>[] = [
-  { value: "latest", label: "Latest", title: "The current color-picking algorithm" },
-  { value: "original", label: "Original", title: "The algorithm this project first shipped with" },
+  { value: "latest", label: "Refined", title: "The current color-picking algorithm: it spends spare colors on small distinct details" },
+  { value: "original", label: "Classic", title: "The algorithm this project first shipped with: colors follow how much of the photo uses them" },
 ];
 
 const PALETTE_OPTIONS: SegmentOption<WorkspaceOptions["paletteMode"]>[] = [

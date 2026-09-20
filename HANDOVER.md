@@ -20,10 +20,10 @@ host at the cap it is 1.6–13.0× faster at one thread and far lighter on memor
 (D192), and `CS_JOB=0` returns to TypeScript without a rebuild.
 
 **What works** (verified in this session unless marked otherwise):
-- Generation from a photo at 10–1500 stitches (D181) and 2–100 colors, with Latest or Original clustering, Full range, DMC,
-  Cosmo or Anchor palettes, and Standard, Crisp or Crisp+ edges — on the processor, reporting progress, a queue
-  position while it waits, and cancellation. A chart can also start blank: every stitch empty, no colours and no
-  photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
+- Generation from a photo at 10–1500 stitches (D181) and 2–100 colors, with Refined or Classic clustering (stored as
+  `latest`/`original`), Full range, DMC, Cosmo or Anchor palettes, and Standard, Crisp or Crisp+ edges — on the
+  processor, reporting progress, a queue position and cancellation. A chart can also start blank: every stitch empty,
+  no colours and no photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
 - Editing: brush (double-click fills a region as one undo step when the Chart pane's switch is on, D138, D146),
   8-connected fill, symmetry on up to four axes and quick mirror (D137), rectangle select with copy, paste, move,
   flip, rotate, crop, "Apply here" and "Cancel" (D147, D148), pan, zoom; Isolate dims every thread but the lit ones
@@ -100,8 +100,8 @@ the unit tests, because the worker bundle is git-ignored and the pool, preview a
   through `lib/editor/decode-bitmap.ts` (D128), which the server reuses (D150).
 - **Pipeline order** in `buildPattern`, in sequence: area-weighted linear-light downsample; Sobel importance and
   per-pair structure-tensor evidence (D044); one shared `PipelineContext` of cell OKLab (D106); importance-gated
-  medoid pre-filter for the quantizer only (D041, D051); OKLab k-means, plain for Original or merge-and-reinvest for
-  Latest (D018, D039); coarse then fine ICM on an 8-neighbour stencil, re-evaluating a cell only after a neighbour
+  medoid pre-filter for the quantizer only (D041, D051); OKLab k-means, plain for Classic or merge-and-reinvest for
+  Refined (D018, D039); coarse then fine ICM on an 8-neighbour stencil, re-evaluating a cell only after a neighbour
   changes (D043, D045, D133); small-component recolor and diagonal-pinch fixes; palette merge, zero-count compaction
   and OKLab recompute; thread-brand snap with fine ICM re-run (D056), then dark-to-light sort, symbols and names.
 - **Photo enhancement** (`lib/pipeline/enhance.ts`): a preset is analysed from the photo (white balance, levels and
