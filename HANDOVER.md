@@ -17,7 +17,7 @@ editable save run in the `processor` container (D149–D155). **G-045, the Ateli
 2026-09-18**: tool rail, context and status bars, one-pane inspector, Isolate as a view mode (D157–D167). Both are
 detailed in `docs/goals-archive.md`.
 
-**G-048, generation and exports in Rust — ACTIVE, M6 done and deployed, awaiting sign-off.** `rust/` holds all
+**G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all
 generation (D182), byte-identical to TypeScript at any thread count (D183–D185), a WASM build (D186), and every export
 (D187–D189). On the host at the processor's cap Rust is 1.6–13.0× faster at one thread and uses far less memory on
 exports (`docs/reviews/2026-09-20-rust-comparison-report.md`). **Live since 2026-09-20:** the processor runs each job
@@ -281,9 +281,9 @@ the unit tests, because the worker bundle is git-ignored and the pool, preview a
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration; G-033 — "+ Add" keeps its old flow, and touch screens pick on tap without a comparison readout.
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
-- G-048 awaits the Owner's sign-off: every milestone is done and the sidecar is live. Known from M5: generation at
-  1500 stitches holds 42 MB more than TypeScript in Standard and 9 MB more in Crisp+ (D190). Worth doing next: the
-  sidecar spawns per job, so a future change could keep one process warm per worker if spawn cost ever matters.
+- From G-048 (signed off, archived): generation at 1500 stitches holds 42 MB more than TypeScript in Standard and
+  9 MB more in Crisp+ (D190). Worth doing if it ever matters: the sidecar spawns per job, so a worker could keep one
+  process warm instead.
 - G-046 (larger canvases) is signed off (2026-09-19) and archived: the cap is 1500 (D181). A cap of 2000 would need two Owner decisions, a longer generation deadline and Export all without the chart PNG (D181). G-030 (public launch) is a far-future draft.
 - G-047 (faster exports and generation) is signed off (2026-09-19) and archived in `docs/goals-archive.md`: raster exports 2–3× faster, the preview streamed, the PDF 3.5× faster, generation a quarter to a half faster (D171–D178).
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
