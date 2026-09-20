@@ -18,6 +18,7 @@ export interface ImageWindowProps {
   /** First run: the three ways into a chart, offered where the chart will be. */
   onChoosePhoto: () => void;
   onCreateBlank: (width: number, height: number) => void;
+  onImportPixelArt: () => void;
   options: WorkspaceOptions;
   onAidaCountChange: (count: number) => void;
   onOpenPatternFile: () => void;
@@ -74,6 +75,7 @@ export function ImageWindow({
   activeColorIndex,
   onChoosePhoto,
   onCreateBlank,
+  onImportPixelArt,
   options,
   onAidaCountChange,
   onOpenPatternFile,
@@ -128,6 +130,7 @@ export function ImageWindow({
           onChoosePhoto={onChoosePhoto}
           onOpenPattern={onOpenPatternFile}
           onCreateBlank={onCreateBlank}
+          onImportPixelArt={onImportPixelArt}
           options={options}
           onAidaCountChange={onAidaCountChange}
           busy={isLoadingImage}

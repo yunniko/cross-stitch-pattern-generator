@@ -46,6 +46,18 @@ function GridIcon({ open }: { open: boolean }) {
   );
 }
 
+/** Four stitches of a sprite: the import that keeps every pixel. */
+function PixelArtIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" className="shrink-0 text-muted">
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1" fill="currentColor" opacity="0.85" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1" fill="currentColor" opacity="0.35" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1" fill="currentColor" opacity="0.35" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1" fill="currentColor" opacity="0.85" />
+    </svg>
+  );
+}
+
 function FolderIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-[22px] w-[22px] shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -98,13 +110,15 @@ export interface FirstRunProps {
   onOpenPattern: () => void;
   /** Create the blank chart. The caller decides whether replacing an open chart needs confirming first. */
   onCreateBlank: (width: number, height: number) => void;
+  /** Opens an image whose pixels are already stitches (G-049). */
+  onImportPixelArt: () => void;
   options: WorkspaceOptions;
   onAidaCountChange: (count: number) => void;
   /** A photo is still decoding, so choosing another would be ignored. */
   busy: boolean;
 }
 
-export function FirstRun({ onChoosePhoto, onOpenPattern, onCreateBlank, options, onAidaCountChange, busy }: FirstRunProps) {
+export function FirstRun({ onChoosePhoto, onOpenPattern, onCreateBlank, onImportPixelArt, options, onAidaCountChange, busy }: FirstRunProps) {
   const [open, setOpen] = useState(false);
   const [width, setWidth] = useState(100);
   const [height, setHeight] = useState(100);
@@ -178,6 +192,21 @@ export function FirstRun({ onChoosePhoto, onOpenPattern, onCreateBlank, options,
             </div>
           )}
         </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            onImportPixelArt();
+          }}
+          className={`${CARD} border-line bg-raised text-ink hover:bg-sunken`}
+        >
+          <PixelArtIcon />
+          <span className="flex-1">
+            <span className="block text-[15px] font-medium">Import pixel art</span>
+            <span className="block text-xs leading-[17px] text-muted">PNG, GIF or WebP · one pixel becomes one stitch, in its own colour</span>
+          </span>
+        </button>
 
         <button
           type="button"

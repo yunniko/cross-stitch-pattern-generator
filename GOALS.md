@@ -29,8 +29,9 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
      colours; fully transparent pixels become empty stitches. Checked cell by cell on a fixture, not by eye.
   2. An image over 1500 px a side, or with more than 100 distinct colours, is refused before anything is created, with
      an error naming the real numbers ("2048 × 1536 pixels; the largest chart is 1500 stitches a side"; "214 colours;
-     a chart holds at most 100"). A partly transparent pixel is refused the same way. The open workspace is untouched:
-     a refused import leaves the current chart, undo history and autosave exactly as they were.
+     a chart holds at most 100"). A partly transparent pixel is refused the same way. A refusal creates no chart and
+     writes nothing; where a chart was open, the discard is the user's own confirmed choice at the card, exactly as it
+     is for Open a saved pattern, and declining that confirm keeps the chart.
   3. The imported chart has no photo, so Generate stays unavailable for its whole life (D143), and the chart is named
      after the file.
   3a. An image smaller than 10 px a side opens as a chart of at least 10 × 10, the image centred in it and the rest
@@ -50,16 +51,24 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M1 — The import itself, as a pure module: distinct-colour collection, the palette with the dark-to-light order,
   symbols and names a generated chart gets, padding to the minimum, and every refusal in criterion 2. Unit tests
   including a 1×1 image, a 1500×1500 image at 100 colours, and each refusal. No UI yet.
-- [ ] M2 — The new-project card: "Import pixel art" in `first-run.tsx` beside Choose a photo, Start an empty grid and
-  Open a saved pattern, wired through `workspace.tsx` so a refused import leaves the workspace untouched, and the
-  decode itself (exact pixels — the photo path's 4000 px downscale must not apply). Playwright covers a successful
-  import and every refusal.
+- [x] M2 — The new-project card: "Import pixel art" in `first-run.tsx` beside Choose a photo, Start an empty grid and
+  Open a saved pattern, wired through `workspace.tsx`, and the decode itself (exact pixels — the photo path's 4000 px
+  downscale must not apply). Playwright covers a successful import and every refusal.
 - [ ] M3 — The export: "Pixel art PNG" in the export list, written in the page, empty stitches transparent; the
   round-trip property test of criterion 5; Playwright downloads one and re-imports it.
 - [ ] M4 — Documentation and ship: decision files for the import rules and for keeping both directions in the browser,
   README and HANDOVER, then deploy and verify live on a real sprite.
 
 **Progress log** (newest first):
+- 2026-09-20 — **M2 done; awaiting approval of M3.** "Import pixel art" is the fourth card on the start screen;
+  `lib/editor/pixel-art-file.ts` decodes the file at its own size with `colorSpaceConversion` and `premultiplyAlpha`
+  off, so the bytes stay the artist's, and refuses an oversized image from the bitmap header before allocating a
+  canvas. Verified: 4 Playwright specs (an 8×8 sprite padded to 10×10 with 29 stitches and no photo, every refusal
+  creating no chart, an open chart surviving a declined discard, and a 200×120 import whose legend counts prove the
+  pixels landed where they should); Vitest 1114 passed, 8 skipped; the full e2e suite 322 passed; tsc and eslint
+  clean. **Worth the Owner's eye:** a refusal itself destroys nothing, but choosing any start-screen card with a chart
+  open asks to discard *before* the file is chosen, so a refused file after confirming leaves no chart — the same as
+  Open a saved pattern has always behaved. Criterion 2 now says this rather than promising more.
 - 2026-09-20 — **M1 done; awaiting approval of M2.** `lib/editor/pixel-art-import.ts` turns a decoded image into a
   chart: dark-to-light palette, generated-chart symbols and names, transparent pixels as empty stitches, no photo
   (D143), and every refusal checked before anything is built (D194). Distinct colours are counted with a 2 MB bitmap

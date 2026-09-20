@@ -6,6 +6,8 @@ import { mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from
 import { applyQuickMirrorWithSelection, effectiveSymmetryAxes, fillSymmetric, NO_SYMMETRY, type QuickMirror, type SymmetryAxes } from "@/lib/editor/symmetry";
 import { oxsImportNotice } from "@/lib/editor/oxs";
 import { loadPatternFromFile } from "@/lib/editor/pattern-import";
+import { openPixelArtFile } from "@/lib/editor/pixel-art-file";
+import { DEFAULT_PIXEL_ART_NAME } from "@/lib/editor/pixel-art-import";
 import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
 import { getProjectStore } from "@/lib/editor/project-store";
 import { useProjectAutosave } from "@/lib/editor/use-project-autosave";
@@ -81,6 +83,7 @@ export default function Workspace() {
   // elements rather than carrying a second pair (and the specs keep finding them where they always were).
   const openInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const pixelArtInputRef = useRef<HTMLInputElement>(null);
   /** The start screen, reached from New while a chart is open. Getting there costs nothing; the confirm comes when a
    *  card is actually chosen, which is what replaces the one autosaved chart. */
   const [startingNew, setStartingNew] = useState(false);
@@ -353,6 +356,28 @@ export default function Workspace() {
     await source.adoptPatternPhoto(blank, blank.name ?? "cross-stitch-pattern");
   }
 
+  /**
+   * Starts a chart from pixel art (G-049): one pixel per stitch, no photo, so Generate stays unavailable exactly as it
+   * does for a blank chart. A refused file changes nothing — the message goes to the same place a failed Open does,
+   * and whatever was open is still open.
+   */
+  async function importPixelArt(file: File) {
+    const { error, pattern: imported } = await openPixelArtFile(file);
+    if (error !== null) {
+      setOpenError(error);
+      setStartingNew(true);
+      return;
+    }
+    generation.setError(null);
+    setOpenError(null);
+    setOpenNotice(null);
+    history.reset(imported);
+    resetDocumentView();
+    setStartingNew(false);
+    setInspectorTab("threads");
+    await source.adoptPatternPhoto(imported, imported.name ?? DEFAULT_PIXEL_ART_NAME);
+  }
+
   function applyResize(delta: CanvasResizeDelta) {
     if (!pattern) return;
     history.set(resizeCanvas(pattern, delta)); // throws on an invalid size; the pane shows the message
@@ -383,6 +408,20 @@ export default function Workspace() {
         belong to the workspace, which owns their refs -- a control that exists only inside a transient screen cannot
         be reached by assistive technology, by a script, or by anything addressing it by name.
       */}
+      <label className="hidden" title="Import pixel art as a chart">
+        <span id="pixel-art-input-label">Pixel art</span>
+        <input
+          ref={pixelArtInputRef}
+          id="pixel-art-input"
+          type="file"
+          accept="image/png,image/gif,image/webp,image/bmp"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) void importPixelArt(file);
+          }}
+        />
+      </label>
       <label className="hidden" title="Choose a photo to generate a chart from">
         <span id="image-input-label">Image</span>
         <input
@@ -493,6 +532,7 @@ export default function Workspace() {
           startingNew={startingNew}
           onChoosePhoto={() => startNewChart(() => imageInputRef.current?.click())}
           onCreateBlank={(width, height) => startNewChart(() => void createBlankChart(width, height))}
+          onImportPixelArt={() => startNewChart(() => pixelArtInputRef.current?.click())}
           options={options}
           onAidaCountChange={(count) => updateOption("aidaCount", count)}
           onOpenPatternFile={() => startNewChart(() => openInputRef.current?.click())}
