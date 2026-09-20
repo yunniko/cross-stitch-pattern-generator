@@ -10,19 +10,14 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs 968ae9c (2026-09-20), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
-Signed off: G-045 the Atelier redesign in direction 1b (D157-D167), G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
+Signed off (all detailed in `docs/goals-archive.md`): G-045 the Atelier redesign in direction 1b (D157-D167), G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
 
-**G-034, processing moved to the server — signed off 2026-09-18**: generation, previews and every export but the
-editable save run in the `processor` container (D149–D155). **G-045, the Atelier redesign (direction 1b) — signed off
-2026-09-18**: tool rail, context and status bars, one-pane inspector, Isolate as a view mode (D157–D167). Both are
-detailed in `docs/goals-archive.md`.
-
-**G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all
-generation (D182), byte-identical to TypeScript at any thread count (D183–D185), a WASM build (D186), and every export
-(D187–D189). On the host at the processor's cap Rust is 1.6–13.0× faster at one thread and uses far less memory on
-exports (`docs/reviews/2026-09-20-rust-comparison-report.md`). **Live since 2026-09-20:** the processor runs each job
-in the `cs-job` sidecar (D190, D193), the editable save stays in the browser (D191), and 4–5 px chart symbols changed
-appearance (D192). `CS_JOB=0` returns the processor to TypeScript without a rebuild.
+**G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation (D182),
+byte-identical to TypeScript at any thread count (D183–D185), a WASM build (D186) and every export (D187–D189); on the
+host at the cap it is 1.6–13.0× faster at one thread and far lighter on memory
+(`docs/reviews/2026-09-20-rust-comparison-report.md`). **Live since 2026-09-20:** the processor runs each job in the
+`cs-job` sidecar (D190, D193), the editable save stays in the browser (D191), 4–5 px chart symbols changed appearance
+(D192), and `CS_JOB=0` returns to TypeScript without a rebuild.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1500 stitches (D181) and 2–100 colors, with Latest or Original clustering, Full range, DMC,
@@ -40,8 +35,12 @@ appearance (D192). `CS_JOB=0` returns the processor to TypeScript without a rebu
   (keys 1–5), a view-only canvas color, and shortcuts: Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, Escape.
 - Exports: editable JSON (format version 7, embeds the source photo and each color's thread swatch), realistic
   preview PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF (a real import re-confirmed after G-035
-  M2), an OXS chart, and "Export all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs` by content; an OXS
-  import lists what it couldn't keep.
+  M2), an OXS chart, a pixel-art PNG at 1 px per stitch (D195), and "Export all" `.cspzip`. Open accepts JSON, ZIP,
+  `.cspzip` and `.oxs` by content; an OXS import lists what it couldn't keep.
+- Pixel art in and out (G-049): the start screen's fourth card opens an image as a chart, one pixel per stitch in its
+  own colour, transparent pixels as empty stitches, nothing resampled; too large, too colourful or partly transparent
+  is refused with the real numbers, under 10 stitches is centred in a chart of the minimum (D194), and the pixel-art
+  PNG writes the same image back.
 - Photo upload and reopening a save decode in a worker, with the old decode as a logged fallback (D128).
 - Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores
   on reload. A corrupt record shows a banner with an on-demand error report; options live in localStorage.
@@ -85,7 +84,7 @@ the unit tests, because the worker bundle is git-ignored and the pool, preview a
   Handlers in `app/api/` → the `processor` container (`processor/server.ts`, its pool in `processor/pool.ts`, decoded
   photos in `processor/photo-store.ts`), which runs `buildPattern` in `processor/pool-worker.ts`;
   `scripts/build-processor.mjs` bundles it. The photo is uploaded once by `lib/pipeline/photo-upload.ts` and referred
-  to by hash; `lib/pipeline/server-errors.ts` separates a busy server, an unreachable one and an expired photo;
+  to by hash; `lib/pipeline/server-errors.ts` separates a busy server, an unreachable one and an expired photo, and
   `processor/validate-settings.ts` checks requests against the type unions. M5 deleted the browser's own generation
   worker, so this is the only path.
 - **Preview path (server, G-034 M3, D152)**: `app/hooks/use-enhance-preview.ts` →
@@ -183,6 +182,7 @@ the unit tests, because the worker bundle is git-ignored and the pool, preview a
   `tests/unit/crisp-evidence-equivalence.spec.ts` (G-035 M4). Crisp+ changes stay behind
   `edgeModel: "blurred-step"` and `"crisp-plus"`, never Crisp's defaults (D139).
 - ICM inner loops use no closures or array scans (D044).
+- Pixel art is never resampled, colour-converted or premultiplied on the way in: every pixel is a stitch, so the photo path's 4000 px downscale would destroy the work (`pixel-art-file.ts`, D194).
 - Rust export references are generated in the processor image, never on a development machine: the image has only
   DejaVu Sans, a laptop resolves the font stack to something else, and every raster would differ (D188).
 - Rust calls `jsmath` for every `Math` function (`libm` and `f64` differ from V8, D183, D184; recheck the vectors on a

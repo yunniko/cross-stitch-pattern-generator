@@ -34,10 +34,16 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   square canvases) and every brush stroke and fill lands on each mirrored stitch, with
   red guide lines on the chart. Quick mirror copies the left half, upper half, upper-left
   corner or upper-left half corner over the rest in one undoable step.
+- **Import pixel art**: an image whose pixels are already stitches opens as a
+  chart, one pixel per stitch in its own colour, with transparent pixels left as
+  empty stitches. Nothing is resampled or re-quantized. An image over 1500 px a
+  side, over 100 colours, or partly transparent is refused and says why; one
+  smaller than 10 stitches is centred in a chart of that minimum.
 - **Export** editable JSON, a realistic stitched preview, full-chart PNGs,
   paginated A4 ZIPs, a Pattern Keeper–compatible PDF, an OXS chart for other
-  cross-stitch programs, or everything at once as a `.cspzip` bundle, which the
-  app can open again.
+  cross-stitch programs, a pixel-art PNG at 1 px per stitch (which imports back
+  as the same chart), or everything at once as a `.cspzip` bundle, which the app
+  can open again.
 - **Open** this app's own files or an `.oxs` chart from another program. Content
   the app can't show, such as backstitch lines and French knots, is listed
   after opening rather than silently dropped.
