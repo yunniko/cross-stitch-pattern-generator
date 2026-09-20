@@ -37,10 +37,12 @@ host at the cap it is 1.6–13.0× faster at one thread and far lighter on memor
   preview PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF (a real import re-confirmed after G-035
   M2), an OXS chart, a pixel-art PNG at 1 px per stitch (D195), and "Export all" `.cspzip`. Open accepts JSON, ZIP,
   `.cspzip` and `.oxs` by content; an OXS import lists what it couldn't keep.
-- Pixel art in and out (G-049): the start screen's fourth card opens an image as a chart, one pixel per stitch in its
-  own colour, transparent pixels as empty stitches, nothing resampled; too large, too colourful or partly transparent
-  is refused with the real numbers, under 10 stitches is centred in a chart of the minimum (D194), and the pixel-art
-  PNG writes the same image back.
+- A transparent background generates as empty stitches (G-050, D196): a cell covered less than half takes no colour,
+  and colour, edge, evidence and thread stages read covered pixels only. An opaque photo keeps its old code path.
+- Pixel art in and out (G-049): the start screen's fourth card opens an image as a chart, one pixel per stitch,
+  transparent pixels as empty stitches, nothing resampled; too large, too colourful or partly transparent is refused
+  with the real numbers, under 10 stitches is centred in a chart of the minimum (D194), and the pixel-art PNG writes
+  the same image back.
 - Photo upload and reopening a save decode in a worker, with the old decode as a logged fallback (D128).
 - Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores
   on reload. A corrupt record shows a banner with an on-demand error report; options live in localStorage.
@@ -91,19 +93,18 @@ the unit tests, because the worker bundle is git-ignored and the pool, preview a
   `lib/pipeline/enhance-preview-server.ts` → `app/api/photos/[hash]/preview/route.ts` → its own worker
   (`processor/preview-runner.ts`, `processor/preview-worker.ts`), cached as WebP in `processor/preview-cache.ts`.
 - **Export path (server, G-034 M4, D153)**: `app/hooks/use-exports.ts` → `lib/export/export-server.ts` →
-  `app/api/exports/route.ts` → the same pool as generation, so concurrency stays inside D149's cap. The drawing code
-  is unchanged: it asks `lib/export/canvas-backend.ts` for canvases, PNG encoding, images and the PDF font, and
-  `processor/export-backend.ts` answers with `@napi-rs/canvas`. Requests are checked by
-  `processor/validate-export.ts`; page progress and the finished file come back over the job routes.
-- **Photo decode**: `lib/editor/load-image.ts` sends the file or data URL to
-  `lib/editor/decode-image.worker.ts`; `lib/editor/decode-main-thread.ts` is the fallback, and both size
-  through `lib/editor/decode-bitmap.ts` (D128), which the server reuses (D150).
-- **Pipeline order** in `buildPattern`, in sequence: area-weighted linear-light downsample; Sobel importance and
-  per-pair structure-tensor evidence (D044); one shared `PipelineContext` of cell OKLab (D106); importance-gated
-  medoid pre-filter for the quantizer only (D041, D051); OKLab k-means, plain for Classic or merge-and-reinvest for
-  Refined (D018, D039); coarse then fine ICM on an 8-neighbour stencil, re-evaluating a cell only after a neighbour
-  changes (D043, D045, D133); small-component recolor and diagonal-pinch fixes; palette merge, zero-count compaction
-  and OKLab recompute; thread-brand snap with fine ICM re-run (D056), then dark-to-light sort, symbols and names.
+  `app/api/exports/route.ts` → the same pool as generation, inside D149's cap. The drawing asks
+  `lib/export/canvas-backend.ts` for canvases, PNG encoding, images and the PDF font, which
+  `processor/export-backend.ts` answers with `@napi-rs/canvas`; `processor/validate-export.ts` checks requests, and
+  page progress and the file come back over the job routes.
+- **Photo decode**: `lib/editor/load-image.ts` sends the file or data URL to `decode-image.worker.ts`;
+  `decode-main-thread.ts` is the fallback, both sizing through `decode-bitmap.ts` (D128, reused by D150).
+- **Pipeline order** in `buildPattern`: area-weighted linear-light downsample; Sobel importance and per-pair
+  structure-tensor evidence (D044); one shared `PipelineContext` of cell OKLab (D106); importance-gated medoid
+  pre-filter for the quantizer only (D041, D051); OKLab k-means, plain for Classic or merge-and-reinvest for Refined
+  (D018, D039); coarse then fine ICM on an 8-neighbour stencil, re-evaluating a cell only after a neighbour changes
+  (D043, D045, D133); small-component recolor and diagonal-pinch fixes; palette merge, zero-count compaction and
+  OKLab recompute; thread-brand snap with fine ICM re-run (D056), then dark-to-light sort, symbols and names.
 - **Photo enhancement** (`lib/pipeline/enhance.ts`): a preset is analysed from the photo (white balance, levels and
   gamma, CLAHE, vibrance) then applied per pixel, once, inside `buildPattern`. Downsampling and Crisp's colour fits
   read the enhanced photo; importance and pair evidence read the original (D112). Off, or every stage abstaining,
@@ -183,6 +184,8 @@ the unit tests, because the worker bundle is git-ignored and the pool, preview a
   `edgeModel: "blurred-step"` and `"crisp-plus"`, never Crisp's defaults (D139).
 - ICM inner loops use no closures or array scans (D044).
 - Pixel art is never resampled, colour-converted or premultiplied on the way in: every pixel is a stitch, so the photo path's 4000 px downscale would destroy the work (`pixel-art-file.ts`, D194).
+- A pipeline stage that reads `cellPalette` must skip `EMPTY_CELL`: it is a sentinel, not palette index 255, and both
+  TypeScript and Rust must skip it in the same places or the two diverge (D196).
 - Rust export references are generated in the processor image, never on a development machine: the image has only
   DejaVu Sans, a laptop resolves the font stack to something else, and every raster would differ (D188).
 - Rust calls `jsmath` for every `Math` function (`libm` and `f64` differ from V8, D183, D184; recheck the vectors on a
@@ -244,13 +247,10 @@ the unit tests, because the worker bundle is git-ignored and the pool, preview a
 - `npm ci --legacy-peer-deps` is required (npm arborist crash).
 - On this Windows host, stopping a background task can leave node running;
   check the process list (D096).
-- Both photo decode paths must stay byte-identical:
-  `tests/e2e/decode-parity.spec.ts` (D128).
-- Generation reads the full decoded photo; a future cap starts from D129's
-  findings, not from a shrink alone (D130).
-- The processor publishes no port and is reached only through `app/api/`, which holds the Origin
-  check and the rate limit. Job results travel in the editable-JSON save format, so a change to
-  `pattern-serialize.ts` changes the wire format too (D151).
+- Both photo decode paths must stay byte-identical: `tests/e2e/decode-parity.spec.ts` (D128).
+- Generation reads the full decoded photo; a future cap starts from D129's findings, not a shrink alone (D130).
+- The processor publishes no port and is reached only through `app/api/`, which holds the Origin check and the rate
+  limit. Job results travel in the editable-JSON save format, so `pattern-serialize.ts` is the wire format (D151).
 - What the processor accepts is derived from the type unions in `processor/validate-settings.ts` and
   `processor/validate-export.ts`, never retyped: a hand-written copy once spelled `PaletteMode`'s "full" as "free"
   and rejected every generation.
