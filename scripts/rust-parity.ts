@@ -196,6 +196,13 @@ const CASES: Case[] = [
       ["dark-photo/standard/original/32/vivid", darkPhoto, { longerSideStitches: 200, colorCount: 32, quantizer: plainKMeansQuantizer, enhancementMode: "vivid" }],
     ] as Array<[string, PixelBuffer, BuildPatternOptions]>
   ).map(([name, source, options]): Case => ({ name, source, options, golden: false })),
+  // A chart finer than the photo: the corpus had none before G-051, which is how a divergence in the cells that no
+  // source pixel lands in could have hidden. `circle` is 30x30, `hardSplit` 64x64.
+  ...(["standard", "crisp", "crisp-plus"] as const).flatMap((edgeMode): Case[] => [
+    { name: `upscale/circle-30px-90st/${edgeMode}`, source: circle, options: { longerSideStitches: 90, colorCount: 8, edgeMode }, golden: false },
+    { name: `upscale/hardsplit-64px-150st/${edgeMode}`, source: hardSplit, options: { longerSideStitches: 150, colorCount: 6, edgeMode }, golden: false },
+  ]),
+  { name: "upscale/circle-original-quantizer", source: circle, options: { longerSideStitches: 75, colorCount: 6, quantizer: plainKMeansQuantizer }, golden: false },
   // Transparency, in every edge mode and both quantizers: the empty cells must match too.
   ...(["standard", "crisp", "crisp-plus"] as const).flatMap((edgeMode): Case[] => [
     { name: `alpha/disc-150st-16col/${edgeMode}`, source: discOnTransparency, options: { longerSideStitches: 50, colorCount: 16, edgeMode }, golden: false },

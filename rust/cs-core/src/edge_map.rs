@@ -119,57 +119,56 @@ pub fn compute_cell_importance_masked(
     opaque: Option<&[u8]>,
 ) -> Vec<f32> {
     let (src_w, src_h) = (image.width, image.height);
-    let cells = grid_width * grid_height;
-    let mut max_edge = vec![0f32; cells];
-    let mut sum = vec![0f64; cells];
-    let mut sum_sq = vec![0f64; cells];
-    let mut count = vec![0f64; cells];
+    let mut importance = vec![0f32; grid_width * grid_height];
 
-    // The source rows of each cell row are contiguous, so rows of cells accumulate independently, in source order.
-    let mut first_row = vec![src_h; grid_height + 1];
-    for y in (0..src_h).rev() {
-        first_row[(grid_height - 1).min(y * grid_height / src_h)] = y;
-    }
-    for cy in (0..grid_height).rev() {
-        first_row[cy] = first_row[cy].min(first_row[cy + 1]);
-    }
-    let cell_x_of: Vec<usize> = (0..src_w)
-        .map(|x| (grid_width - 1).min(x * grid_width / src_w))
-        .collect();
-    max_edge
+    // The pixels of one axis a cell covers; its centre pixel when the footprint holds none, which only a chart finer
+    // than the photo produces (G-051).
+    let span = |cell: usize, cells: usize, pixels: usize| -> (usize, usize) {
+        let from = (cell * pixels).div_ceil(cells);
+        let to = pixels.min(((cell + 1) * pixels).div_ceil(cells)) - 1;
+        if to >= from {
+            (from, to)
+        } else {
+            let centre = (pixels - 1).min((2 * cell + 1) * pixels / (2 * cells));
+            (centre, centre)
+        }
+    };
+
+    // Rows of cells are independent and each reads its own source rows, in source order.
+    importance
         .par_chunks_mut(grid_width)
-        .zip(sum.par_chunks_mut(grid_width))
-        .zip(sum_sq.par_chunks_mut(grid_width))
-        .zip(count.par_chunks_mut(grid_width))
         .enumerate()
-        .for_each(|(cy, (((max_edge, sum), sum_sq), count))| {
-            for y in first_row[cy]..first_row[cy + 1] {
-                for x in 0..src_w {
-                    let c = cell_x_of[x];
-                    let s = y * src_w + x;
-                    if let Some(mask) = opaque {
-                        if mask[s] == 0 {
-                            continue;
+        .for_each(|(cell_y, row)| {
+            let (y_from, y_to) = span(cell_y, grid_height, src_h);
+            for (cell_x, out) in row.iter_mut().enumerate() {
+                let (x_from, x_to) = span(cell_x, grid_width, src_w);
+                let mut max_edge = 0f32;
+                let mut sum = 0f64;
+                let mut sum_sq = 0f64;
+                let mut count = 0f64;
+                for y in y_from..=y_to {
+                    for x in x_from..=x_to {
+                        let s = y * src_w + x;
+                        if let Some(mask) = opaque {
+                            if mask[s] == 0 {
+                                continue;
+                            }
                         }
+                        if edge[s] > max_edge {
+                            max_edge = edge[s];
+                        }
+                        let l = gray[s] as f64 / 255.0;
+                        sum += l;
+                        sum_sq += l * l;
+                        count += 1.0;
                     }
-                    if edge[s] > max_edge[c] {
-                        max_edge[c] = edge[s];
-                    }
-                    let l = gray[s] as f64 / 255.0;
-                    sum[c] += l;
-                    sum_sq[c] += l * l;
-                    count[c] += 1.0;
                 }
+                let n = if count == 0.0 { 1.0 } else { count };
+                let mean = sum / n;
+                let variance = jsmath::max(0.0, sum_sq / n - mean * mean);
+                let contrast = jsmath::min(1.0, variance.sqrt() / 0.5);
+                *out = jsmath::min(1.0, 0.7 * max_edge as f64 + 0.3 * contrast) as f32;
             }
         });
-
-    (0..cells)
-        .map(|i| {
-            let n = if count[i] == 0.0 { 1.0 } else { count[i] };
-            let mean = sum[i] / n;
-            let variance = jsmath::max(0.0, sum_sq[i] / n - mean * mean);
-            let contrast = jsmath::min(1.0, variance.sqrt() / 0.5);
-            jsmath::min(1.0, 0.7 * max_edge[i] as f64 + 0.3 * contrast) as f32
-        })
-        .collect()
+    importance
 }
