@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-051 · The two defects the pipeline audit left open — ACTIVE (2026-09-21)
+### G-051 · The two defects the pipeline audit left open — DONE (2026-09-21, pending Owner sign-off)
 - **What:** cell importance stops leaving holes on a chart finer than the photo, and the quantizer stops relying on an
   accidental value for a dropped cluster's samples. Both are from the 2026-09-20 audit; neither changes what an
   ordinary photo charts.
@@ -40,15 +40,25 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   to palette entry 0 today on both sides, and that stays, explicitly.
 
 **Milestones**:
-- [ ] M1 — Importance from each cell's own footprint, in TypeScript, with the empty-footprint case falling back to the
+- [x] M1 — Importance from each cell's own footprint, in TypeScript, with the empty-footprint case falling back to the
   centre pixel. Unit tests that no cell is importance-0 for want of a pixel, that a subject reads the same at 1:1 and
   upscaled, and that the golden hashes are untouched.
-- [ ] M2 — The same in Rust, byte-identical, and the parity corpus gains upscaled cases (a small source at a large
+- [x] M2 — The same in Rust, byte-identical, and the parity corpus gains upscaled cases (a small source at a large
   stitch count) in every edge mode.
-- [ ] M3 — The dropped-cluster label made explicit on both sides, with a test pinning today's value; then docs, the
+- [x] M3 — The dropped-cluster label made explicit on both sides, with a test pinning today's value; then docs, the
   decision file, deploy and live verification.
 
 **Progress log** (newest first):
+- 2026-09-21 — **All three milestones done and deployed (da45106); awaiting sign-off.** Importance reads each cell's
+  own footprint in both languages, with the centre pixel where the footprint holds none; the dropped zero-weight
+  cluster's label is now named on both sides rather than reached through an undefined lookup. The prediction held:
+  the 18 golden hashes are unchanged and a test pins that downscaled importance equals the old mapping cell for cell,
+  so nothing an ordinary photo charts has moved. The parity corpus gained seven upscaled cases and all 45 are
+  byte-identical. Verified: Vitest 1164 passed, 8 skipped; Playwright 324 passed across all 28 specs against the
+  sidecar; cargo test, clippy, rustfmt, tsc, eslint and docs-lint clean. Live: a 160x100 photo at 400 stitches
+  charted 100,000 stitches in 12 colours, while the downscaled and transparent checks returned exactly their
+  pre-deploy numbers; 23 containers before and after with no other restarted, no fallback logged. **Owner approval:**
+  "go all three".
 - 2026-09-21 — goal created and planned, with the two measurements above taken first: the footprint partition is
   identical to today's for every downscale and 1:1 size pair (so nothing pinned moves), and the dropped-cluster label
   reaches 0 on both sides today, Rust deliberately and TypeScript by accident.
