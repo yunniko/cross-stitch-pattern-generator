@@ -283,9 +283,9 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   measurements: on a noisy photo at 8 colours the clustered, ring and line screens can read worse than the undithered
   chart, which is why the pane groups them as the cheap-but-weaker choice rather than hiding them. The screenshot that
   prompted G-053 was **hand-drawn** (Owner, 2026-09-21) — no algorithm to recover, which is why its rings sat
-  aperiodically. **G-054 built that look**: irregular drawn marks, all four milestones done — the Owner judged the
-  sample sheet (`docs/reviews/2026-09-21-hand-drawn-samples.md`) before it shipped. Open from it: on flat regions the
-  marks read as grain rather than marks, which is inherent to dithering a flat area.
+  aperiodically. **G-054 built that look** — irregular drawn marks, deployed and awaiting sign-off; on flat regions
+  they read as grain rather than marks, which is inherent to dithering a flat area. **G-055 plans a texture editor**
+  for them (the knobs, not a stamp painter), planned and waiting on the Owner's go.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log

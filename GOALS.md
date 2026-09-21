@@ -95,6 +95,62 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   seeds a chart. A fixed constant is the simplest and keeps regeneration reproducible — two photos differ by their
   tone anyway — against seeding from the photo's hash, which would make the same photo at two sizes unrelated.
 
+### G-055 · A texture editor for the hand-drawn dither — DRAFT (2026-09-21, starts on the Owner's go)
+- **What:** the settings behind `hand-drawn` become a *texture* the reader can edit — mark spacing, the mix of the
+  four shapes, ring size, how wide a broken ring's gap is, how much a lump wobbles — with a swatch that redraws as
+  the sliders move, carried with the chart so it reopens the way it was made.
+- **Why:** Owner request, 2026-09-21, after seeing the mark library on its own. The shapes are fixed today and the
+  mix is a constant in the source; spacing and mix change the look more than the shape library does, so the knobs are
+  where most of the range lives.
+- **Deliberately not in this goal:** a *stamp* editor, where the reader paints a small grid saying which stitch of a
+  mark fills first. That is the other half of the idea and is real work of its own (a grid painter, a stamp carried in
+  the file, the engine looking a mark up instead of computing it). It gets its own goal once these knobs have been
+  used in anger — a custom mark on the wrong spacing still looks wrong, so the knobs come first.
+- **Acceptance criteria:**
+  1. **Nothing that exists moves.** Off, the nine other patterns, and `hand-drawn` at its default texture produce
+     byte-identical charts to today: the 18 golden hashes (D107) and every existing parity case unchanged. The default
+     settings object must reproduce today's constants exactly, which is the test that says the refactor was faithful.
+  2. **Any texture holds tone.** D201's even-spread ranking survives whatever the knobs say — checked over a sweep of
+     valid settings, not only the default: a flat tone `t` lights `t` of every mark, within 0.02. A knob that can
+     break that is out of range, not a feature.
+  3. **Both languages agree.** Rust matches TypeScript byte for byte across a spread of textures at two chart sizes,
+     not just the default one.
+  4. **It is carried, and it comes back.** The texture travels in the generation request (validated against real
+     numeric ranges, not derived from a type union), is embedded in the saved file and the autosave record rather
+     than referenced, and a chart made with a custom texture reopens identically. An old file still opens; a file
+     holding an unknown or out-of-range texture falls back to the default instead of failing.
+  5. **The swatch tells the truth.** The editor draws its preview in the browser, with no server round trip, and the
+     preview is *proved* to match what generation makes from the same settings rather than assumed to — the same
+     threshold field, compared in a test.
+  6. **Bounded.** Every knob has a range the UI enforces and the processor re-checks, and no setting inside those
+     ranges makes generation at 1500 stitches materially slower than `hand-drawn` is today (5.6 s measured, G-054).
+- **Constraints:** a texture is data, never code — the parity regime rests on both languages reading the same numbers
+  (D198's precedent, and why a formula editor is not on the table). Both languages change together. Dithering still
+  skips every smoothing pass and refuses Crisp (D199). **The permanent cost to accept:** today's ten patterns are
+  fixed and covered exactly; an editor makes the space infinite, so the tests can only sample it — which is why
+  criterion 2 is a property over a sweep rather than a handful of cases.
+
+**Milestones**:
+- [ ] M1 — The engine takes a texture: today's constants become a settings object with defaults that reproduce the
+  current chart byte for byte, in both languages, with the tone property over a sweep of settings and parity cases
+  across several textures. **Settles here:** whether the seed becomes a knob (a "Shuffle", stored with the texture) —
+  recommended, since D202 noted that one fixed seed makes every chart of a size share its placement.
+- [ ] M2 — Carrying it: the texture in the request with real range validation, in the saved file and the autosave
+  record, the old-file and bad-value fallbacks, and the reopen-identically test.
+- [ ] M3 — The editor: the controls in the Photo pane, shown only when a drawn pattern is chosen and collapsed until
+  opened, with the live swatch and a couple of presets (the current mix, and whatever the sliders show is worth
+  keeping). Playwright over editing a texture, regenerating, and reopening the saved file.
+- [ ] M4 — Decision files, README and HANDOVER, the comparison document re-run to show the default's numbers have not
+  moved, deploy and verify live.
+
+**Progress log** (newest first):
+- 2026-09-21 — goal created and planned, on the Owner's instruction. Two things settled while planning: a formula or
+  script editor is out (two languages cannot evaluate arbitrary expressions identically without a shared interpreter,
+  and the byte-identity invariant is worth more than the generality), and the swatch renders in the browser because
+  `lib/pipeline/dither-hand-drawn.ts` is pure TypeScript with no server dependency. Open for M3: whether the controls
+  sit inline in the Photo pane or in a popover — inline and collapsed is the recommendation, since the pane is already
+  long and the texture is only meaningful while a drawn pattern is selected.
+
 ### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
 - **What:** Eventually make the app public, built around **a social
   ecosystem** (community/sharing features -- exact shape not yet defined:
