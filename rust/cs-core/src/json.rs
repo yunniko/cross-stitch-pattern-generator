@@ -1,6 +1,7 @@
 //! JSON in and out, shared by the benchmark CLI and the WASM build: options with `BuildPatternOptions`' names, values
 //! and defaults, and the pattern in the editable-save field names the parity harness hashes.
 
+use crate::dither::DitherMode;
 use crate::enhance::Mode;
 use crate::pattern::{BuildOptions, EdgeMode, StageTimes, StitchPattern};
 use crate::quantize::Quantizer;
@@ -23,6 +24,8 @@ struct Options {
     palette_mode: Option<String>,
     #[serde(default)]
     enhancement_mode: Option<String>,
+    #[serde(default)]
+    dither_mode: Option<String>,
     #[serde(default)]
     threads: Option<usize>,
 }
@@ -56,6 +59,17 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
         Some("portrait") => Mode::Portrait,
         Some(other) => return Err(format!("unknown enhancementMode {other}")),
     };
+    let dither = match o.dither_mode.as_deref() {
+        None | Some("off") => DitherMode::Off,
+        Some("bayer-4") => DitherMode::Bayer4,
+        Some("bayer-8") => DitherMode::Bayer8,
+        Some("clustered-8") => DitherMode::Clustered8,
+        Some("lines-horizontal") => DitherMode::LinesHorizontal,
+        Some("lines-diagonal") => DitherMode::LinesDiagonal,
+        Some("blue-noise-16") => DitherMode::BlueNoise16,
+        Some("floyd-steinberg") => DitherMode::FloydSteinberg,
+        Some(other) => return Err(format!("unknown ditherMode {other}")),
+    };
     let options = BuildOptions {
         longer_side_stitches: o.longer_side_stitches,
         color_count: o.color_count,
@@ -64,6 +78,7 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
         edge_mode,
         brand,
         enhancement,
+        dither,
     };
     Ok((options, o.threads.unwrap_or(1).max(1)))
 }

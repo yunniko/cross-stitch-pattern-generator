@@ -11,6 +11,7 @@ import { cellsToOklab } from "@/lib/pipeline/pipeline-context";
 import { confettiRatio, labelRegions } from "@/lib/pipeline/regions";
 import { buildPattern, type BuildPatternOptions } from "@/lib/pipeline/pattern";
 import { plainKMeansQuantizer } from "@/lib/pipeline/quantize";
+import { DITHER_MODES } from "@/lib/pipeline/dither";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
 import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "../tests/unit/helpers/fixtures";
 import { hashPattern } from "../tests/unit/helpers/pattern-hash";
@@ -196,6 +197,17 @@ const CASES: Case[] = [
       ["dark-photo/standard/original/32/vivid", darkPhoto, { longerSideStitches: 200, colorCount: 32, quantizer: plainKMeansQuantizer, enhancementMode: "vivid" }],
     ] as Array<[string, PixelBuffer, BuildPatternOptions]>
   ).map(([name, source, options]): Case => ({ name, source, options, golden: false })),
+  // Every dither pattern, at two colour counts: the pattern decides the label of every stitch, so a matrix that
+  // differed by one entry between the languages would show up here and nowhere else (G-052).
+  ...DITHER_MODES.filter((mode) => mode !== "off").flatMap((ditherMode): Case[] =>
+    [8, 20].map((colorCount) => ({
+      name: `dither/${ditherMode}/${colorCount}`,
+      source: realisticRatio,
+      options: { longerSideStitches: 50, colorCount, ditherMode },
+      golden: false,
+    }))
+  ),
+  { name: "dither/bayer-8/dmc", source: realisticRatio, options: { longerSideStitches: 40, colorCount: 12, ditherMode: "bayer-8", paletteMode: "dmc" }, golden: false },
   // A chart finer than the photo: the corpus had none before G-051, which is how a divergence in the cells that no
   // source pixel lands in could have hidden. `circle` is 30x30, `hardSplit` 64x64.
   ...(["standard", "crisp", "crisp-plus"] as const).flatMap((edgeMode): Case[] => [
@@ -266,6 +278,7 @@ function rustOptions(c: Case) {
     edgeMode: c.options.edgeMode,
     paletteMode: c.options.paletteMode,
     enhancementMode: c.options.enhancementMode,
+    ditherMode: c.options.ditherMode,
     threads: THREADS,
   };
 }

@@ -5,6 +5,7 @@ use crate::color::{luminance, rgb_to_oklab, Oklab, Rgb};
 use crate::crisp::evidence::{build_evidence_layer_masked, EdgeModel, EvidenceLayer};
 use crate::crisp::{finalize, plus, repair, stage};
 use crate::denoise::denoise_for_quantization_masked;
+use crate::dither::{dither_to_palette, DitherMode};
 use crate::downsample::{downsample_to_grid_with_coverage, empty_cell_mask, grid_dimensions_for};
 use crate::edge_map::{
     compute_cell_importance_masked, compute_edge_magnitude_masked, opaque_pixel_mask,
@@ -49,6 +50,8 @@ pub struct BuildOptions {
     /// `None` is the full palette.
     pub brand: Option<Brand>,
     pub enhancement: EnhancementMode,
+    /// Dithering (G-052); `Off` is the pipeline as it was. Refused with Crisp, whose purpose is the opposite (D199).
+    pub dither: DitherMode,
 }
 
 #[derive(Clone, Debug)]
@@ -79,6 +82,8 @@ pub struct StitchPattern {
     pub is_landscape: bool,
     pub thread_brand: Option<&'static str>,
     pub edge_mode: Option<&'static str>,
+    /// The dither pattern the chart was generated with (G-052); `None` means none.
+    pub dither_mode: Option<&'static str>,
     pub enhancement_mode: Option<&'static str>,
 }
 
@@ -141,6 +146,11 @@ pub fn build_pattern_reporting(
         clock = t;
     };
     let crisp = options.edge_mode != EdgeMode::Standard;
+    let dithered = options.dither.is_dithered();
+    assert!(
+        !(dithered && crisp),
+        "Crisp preserves hard boundaries, which dithering deliberately blends: choose one (D199)"
+    );
 
     // Colour stages read the enhanced photo; importance and pair evidence read the original (D112).
     let enhanced = enhance(image, options.enhancement);
@@ -202,7 +212,13 @@ pub fn build_pattern_reporting(
         empty: empty_ref,
     };
 
-    let denoised = denoise_for_quantization_masked(gw, gh, &cell_oklab, &importance, empty_ref);
+    // Dithering reads the true cells: the medoid pre-filter steadies cluster membership, and steadying is the
+    // opposite of what a dithered chart wants (D199).
+    let denoised = if dithered {
+        cell_oklab.clone()
+    } else {
+        denoise_for_quantization_masked(gw, gh, &cell_oklab, &importance, empty_ref)
+    };
     lap("denoise", times);
 
     let latest = options.quantizer == Quantizer::Latest;
@@ -249,11 +265,27 @@ pub fn build_pattern_reporting(
         ),
     };
     drop(denoised);
+    // The quantizer chose the threads; dithering decides which stitch gets which of the two nearest (G-052).
+    let quantized = if dithered {
+        let mut labels = dither_to_palette(&cell_oklab, gw, gh, &raw_palette, options.dither);
+        if let Some(mask) = empty_ref {
+            for (label, &empty) in labels.iter_mut().zip(mask.iter()) {
+                if empty != 0 {
+                    *label = crate::EMPTY_CELL;
+                }
+            }
+        }
+        labels
+    } else {
+        quantized
+    };
     lap("quantize", times);
     on_progress(0.4);
 
+    // Every pass below removes what dithering just created, so a dithered chart skips them (D199).
+    let smooth = options.optimize && !dithered;
     let mut optimized = quantized;
-    if options.optimize {
+    if smooth {
         optimized = run_multi_scale_optimizer(&ctx, &optimized, &raw_palette);
         lap("icm", times);
         optimized = recolor_small_components(&ctx, &optimized, &raw_palette);
@@ -263,19 +295,19 @@ pub fn build_pattern_reporting(
     }
 
     on_progress(0.8);
-    let (mut merged_index, mut merged_palette) = if options.optimize {
+    let (mut merged_index, mut merged_palette) = if smooth {
         merge_similar_colors_with_empties(&optimized, &raw_palette, DEFAULT_MERGE_DISTANCE_SQUARED)
     } else {
         (optimized, raw_palette)
     };
-    if let (Some(layer), true) = (&layer, options.optimize) {
+    if let (Some(layer), true) = (&layer, smooth) {
         let merged_oklab: Vec<Oklab> = merged_palette.iter().map(|&c| rgb_to_oklab(c)).collect();
         merged_index = repair(&merged_index, layer, &merged_oklab);
     }
 
     // Crisp+ passes (D140–D142), with the moved cells counted at their new colour in the recompute.
     let mut finalize_oklab: Option<Vec<f64>> = None;
-    if options.edge_mode == EdgeMode::CrispPlus && options.optimize {
+    if options.edge_mode == EdgeMode::CrispPlus && smooth {
         let before = merged_index.clone();
         let snap = plus::snap_transition_strips(&before, gw, gh, &merged_palette, color_source);
         let prune = plus::prune_blend_labels(&snap.labels, gw, gh, &merged_palette, color_source);
@@ -361,7 +393,9 @@ pub fn build_pattern_reporting(
                 .iter()
                 .enumerate()
                 .map(|(n, &old)| {
-                    if cells_by_index[n].is_empty() {
+                    // A dithered thread keeps the colour the quantizer chose: its cells are deliberately the ones it
+                    // does not match (D199).
+                    if dithered || cells_by_index[n].is_empty() {
                         merged_palette[old]
                     } else {
                         mean_oklab_as_rgb(&cell_oklab, &cells_by_index[n])
@@ -430,6 +464,7 @@ pub fn build_pattern_reporting(
         is_landscape: image.width > image.height,
         thread_brand: None,
         edge_mode: crisp.then(|| options.edge_mode.id()),
+        dither_mode: dithered.then(|| options.dither.id()),
         // Recorded whenever requested, even when every stage abstained, as the TypeScript does.
         enhancement_mode: (options.enhancement != EnhancementMode::Off)
             .then(|| options.enhancement.id()),
