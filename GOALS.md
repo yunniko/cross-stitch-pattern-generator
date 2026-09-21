@@ -61,7 +61,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   moved, deploy and verify live.
 
 **Progress log** (newest first):
-- 2026-09-22 — **M4 done, pending the deploy.** Decisions D203 (a texture is data with ranges, its default frozen)
+- 2026-09-22 — **M4 deployed and verified live** at f738496. The Texture panel opens under Hand-drawn, its swatch
+  redraws when a preset is chosen, and a chart generated from Coarse comes back recording `spacing: 11` with 0.96% of
+  its stitches standing alone; the processor logs show no Rust fallback. 23 containers before and after with an
+  identical name set, 38 vhosts unchanged, every live site still answering. **Awaiting sign-off.**
+- 2026-09-22 — **M4 done.** Decisions D203 (a texture is data with ranges, its default frozen)
   and D204 (a chart embeds its texture; the swatch is pinned to the pipeline). README and HANDOVER updated, and
   `compare:dither` re-run: **the comparison document did not change by one digit**, which is criterion 1 seen from
   the outside — the default texture is still the chart G-054 shipped. Verified: Vitest 1214 passed / 8 skipped,
