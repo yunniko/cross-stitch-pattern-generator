@@ -78,7 +78,7 @@ const DITHER_GROUPS: Array<{ label: string; modes: readonly DitherMode[] }> = [
   { label: "Screens — fewest single stitches", modes: SCREEN_MODES },
   { label: "Scattered — closer to the photo", modes: SCATTERED_MODES },
   { label: "Error diffusion — closest, never worse", modes: DIFFUSION_DITHER_MODES },
-  { label: "Drawn — irregular marks", modes: DRAWN_DITHER_MODES },
+  { label: "Drawn — marks, not a pattern", modes: DRAWN_DITHER_MODES },
 ];
 
 const ENHANCEMENT_OPTIONS: Record<EnhancementModeId, SegmentOption<EnhancementModeId>> = {
@@ -315,7 +315,8 @@ export function PhotoPane({ options, onChange, isProcessing, progress, queueMess
         <p className="text-[11px] leading-4 text-muted">
           Mixes neighbouring stitches between two threads so a small palette can hold a gradient, at the cost of single
           stitches on their own. Screens cost the fewest of those; the two error-diffusion patterns fit the photo
-          closest and are the only ones never worse than not dithering at all.
+          closest and are the only ones never worse than not dithering at all. Hand-drawn scatters drawn marks — rings,
+          arcs and dots — across the chart instead of repeating one, for the look rather than the accuracy.
         </p>
       </section>
 

@@ -23,14 +23,16 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   hard boundary as two real colors instead of inventing a blend; Crisp+ also
   cleans up slightly soft edges, snapping the in-between colors along a blurred
   boundary to one side while keeping real thin lines and gradients.
-- **Dither** instead of rounding every stitch to its nearest thread: nine
-  patterns in three groups — screens that cluster their stitches (clustered
+- **Dither** instead of rounding every stitch to its nearest thread: ten
+  patterns in four groups — screens that cluster their stitches (clustered
   dots, rings, horizontal and diagonal lines), scattered matrices (Bayer 4×4
-  and 8×8, blue noise), and two error-diffusion kernels (Floyd-Steinberg and
-  Atkinson) — mix neighbouring stitches between the two threads either side of
-  a colour, so a small palette can hold a gradient. It costs single stitches
-  standing alone: the screens cost fewest, and the two kernels fit the photo
-  closest and are the only patterns never worse than not dithering
+  and 8×8, blue noise), two error-diffusion kernels (Floyd-Steinberg and
+  Atkinson), and **Hand-drawn**, which scatters drawn marks (rings, arcs, dots)
+  across the chart instead of repeating a pattern. They mix neighbouring
+  stitches between the two threads either side of a colour, so a small palette
+  can hold a gradient. It costs single stitches standing alone: the screens and
+  the drawn marks cost fewest, and the two kernels fit the photo closest and
+  are the only patterns never worse than not dithering
   (`docs/reviews/2026-09-21-dithering-comparison.md`). Dithering and Crisp ask
   for opposite things, so choosing one clears the other.
 - **Edit** with brush, fill, rectangle select (copy, paste, move, flip, rotate,

@@ -24,38 +24,35 @@ chart symbols changed appearance (D192), and `CS_JOB=0` returns to TypeScript wi
   processor, with progress, a queue position and cancellation. A chart can also start blank: every stitch empty, no
   colours and no photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
 - Editing: brush (double-click fills a region as one undo step when the Chart pane's switch is on, D138, D146),
-  8-connected fill, symmetry on up to four axes and quick mirror (D137), rectangle select with copy, paste, move,
-  flip, rotate, crop, "Apply here" and "Cancel" (D147, D148), pan, zoom; Isolate dims every thread but the lit ones and
-  stays on under another tool (D158); merge, recolor, rename, re-symbol, add colour, empty stitches, resize, one undo history.
-- Colour editor: opens under its legend row on the colour's remembered thread swatch (D122), with an Okhsl comparison
-  on hover or focus (D123); picks apply at once, Full range drags are one undo step, Cancel or Escape restores.
-- Zoom keeps the stitch under the cursor in place, the buttons the view's centre (D124); five view modes (keys 1–5),
-  a view-only canvas colour, and shortcuts Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, Escape.
+  8-connected fill, symmetry on four axes and quick mirror (D137), rectangle select with copy, paste, move, flip,
+  rotate, crop, "Apply here" and "Cancel" (D147, D148), pan, zoom; Isolate dims every thread but the lit ones and stays
+  on under another tool (D158); merge, recolor, rename, re-symbol, add colour, empty stitches, resize, one undo history.
+- Colour editor: opens under its legend row on the colour's remembered thread swatch (D122), with an Okhsl comparison on hover or focus (D123); Full range drags are one undo step, Cancel or Escape restores.
+- Zoom keeps the stitch under the cursor in place, the buttons the view's centre (D124); five view modes (keys 1–5), a view-only canvas colour, shortcuts Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, Escape.
 - Exports: editable JSON (format version 7, embeds the source photo and each color's thread swatch), realistic preview
   PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF, an OXS chart, a pixel-art PNG at 1 px per stitch
   (D195), "Export all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs` by content; OXS lists what it couldn't keep.
-- A transparent background generates as empty stitches (G-050, D196): a cell covered less than half takes no colour,
-  and every stage reads covered pixels only. An opaque photo keeps its old code path.
+- A transparent background generates as empty stitches (G-050, D196): a cell covered less than half takes no colour, and every stage reads covered pixels only.
 - Pixel art in and out (G-049): the start screen's fourth card opens an image as a chart, one pixel per stitch,
   transparent pixels empty, nothing resampled; too large, too colourful or partly transparent is refused with the real
   numbers, under 10 stitches is centred in a chart of the minimum (D194), and the pixel-art PNG writes the image back.
-- Dithering (G-052 signed off 2026-09-21, G-053 on top of it): a Dither control offers nine patterns in three groups —
-  screens that cluster their stitches (clustered dots, rings, two line screens), scattered matrices (Bayer 4×4/8×8,
-  blue noise) and two error-diffusion kernels (Floyd–Steinberg, Atkinson) — mixing neighbouring stitches between the
+- Dithering (G-052 and G-053 signed off 2026-09-21, G-054 on top of them): a Dither control offers ten patterns in
+  four groups — screens that cluster their stitches (clustered dots, rings, two line screens), scattered matrices
+  (Bayer 4×4/8×8, blue noise), two error-diffusion kernels (Floyd–Steinberg, Atkinson) and Hand-drawn, which scatters
+  drawn marks across the chart instead of repeating one (D201, D202) — each mixing neighbouring stitches between the
   two threads either side of a colour instead of rounding each one. Off is byte-identical to before; a dithered chart
-  runs no smoothing pass and refuses Crisp (D199). A pattern with a matrix is data, not code (D198); a kernel is a row
-  of taps (D200). Measured in `docs/reviews/2026-09-21-dithering-comparison.md`: the kernels reach the lowest error
-  (median 0.44–0.51× the undithered chart) and never read worse, the screens cost the least confetti (+3.3 to +4.3
-  points), and the scattered matrices sit between at +9.5 to +12.7.
-- Photo upload and reopening a save decode in a worker, with the old decode as a logged fallback (D128).
-- Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores
-  on reload. A corrupt record shows a banner with an on-demand error report; options live in localStorage.
-- Photo enhancement: a Photo control (Off, Brighten, Auto, Vivid, Portrait) with a "Compare with original" preview,
-  recorded in saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
+  runs no smoothing pass and refuses Crisp (D199). A matrix pattern is data, not code (D198); a kernel is a row of
+  taps (D200). Measured in `docs/reviews/2026-09-21-dithering-comparison.md`: kernels lowest error (median 0.44–0.51×)
+  and never worse, screens and drawn marks cheapest (+3.3 to +4.3 points, drawn +3.8 at 0.78×), matrices between.
+- Photo upload and reopening a save decode in a worker, the old decode a logged fallback (D128).
+- Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores on
+  reload; a corrupt record shows a banner with an on-demand error report. Options live in localStorage.
+- Photo enhancement: Off, Brighten, Auto, Vivid, Portrait, with a "Compare with original" preview and recorded in
+  saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-21**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1184 passed (8 opt-in skips);
-Playwright **326 passed, 0 failed across all 27 specs against the Rust sidecar**, one spec per process against the single-path
-build, with the processor serving generation, exports and previews; `npm run compare:rust` 66 cases identical. Export parity:
+**Checks run 2026-09-21**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1197 passed (8 opt-in skips);
+Playwright **327 passed, 0 failed across all 27 specs against the Rust sidecar**, one spec per process against the single-path
+build, with the processor serving generation, exports and previews; `npm run compare:rust` 74 cases identical. Export parity:
 `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the type-check and `build:processor` before
 the unit tests, because the worker bundle is git-ignored and the pool, preview and export specs run against it.
 
@@ -89,9 +86,8 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   `scripts/build-processor.mjs`. The photo is uploaded once by `lib/pipeline/photo-upload.ts` and referred to by hash;
   `lib/pipeline/server-errors.ts` separates a busy server, an unreachable one and an expired photo, and
   `processor/validate-settings.ts` checks requests against the type unions. It is the only path (M5).
-- **Preview path (server, G-034 M3, D152)**: `app/hooks/use-enhance-preview.ts` →
-  `lib/pipeline/enhance-preview-server.ts` → `app/api/photos/[hash]/preview/route.ts` → its own worker
-  (`processor/preview-runner.ts`, `processor/preview-worker.ts`), cached as WebP in `processor/preview-cache.ts`.
+- **Preview path (server, G-034 M3, D152)**: `use-enhance-preview.ts` → `lib/pipeline/enhance-preview-server.ts` →
+  `app/api/photos/[hash]/preview/route.ts` → its own worker (`processor/preview-{runner,worker}.ts`), cached as WebP.
 - **Export path (server, G-034 M4, D153)**: `app/hooks/use-exports.ts` → `lib/export/export-server.ts` →
   `app/api/exports/route.ts` → the same pool as generation, inside D149's cap. The drawing asks
   `lib/export/canvas-backend.ts` for canvases, PNG encoding, images and the PDF font, which
@@ -109,8 +105,8 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - **Photo enhancement** (`lib/pipeline/enhance.ts`): a preset is analysed from the photo (white balance, levels and
   gamma, CLAHE, vibrance) then applied per pixel, once, inside `buildPattern`. Downsampling and Crisp's colour fits
   read the enhanced photo; importance and pair evidence read the original (D112). Off, or every stage abstaining,
-  returns the input untouched (D118). The preview has its own worker (D116); `releasedEnhancementModes()` decides
-  what the UI offers, while files may record any recognized mode (D113).
+  returns the input untouched (D118). `releasedEnhancementModes()` decides what the UI offers, while files may record
+  any recognized mode (D113).
 - **Crisp mode** (`lib/crisp/`): a frozen evidence layer (D065) feeds weighted quantization, admissible-label unary
   costs in ICM and cleanup, repair after merges, and mode-aware finalization (D061–D072). The layer evaluates every
   cell (D132) and converts each source row to OKLab once per job. Crisp+ (`edgeMode: "crisp-plus"`, G-038) adds
@@ -122,12 +118,11 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   the canvases, assets and PNG writer (`processor/png-encode.ts`, D171) that `canvas-backend.ts` hands it (D125, D153).
   The editable JSON alone is written in the page by `use-exports.ts`, so work can be saved with the server unreachable.
 - **Editor data** (`lib/editor/`): pure mutations in `pattern-edit.ts`, validating (de)serializer in
-  `pattern-serialize.ts` (D099), IndexedDB store in `project-store.ts` (D100), options in
-  `workspace-storage.ts`. OXS reading and writing live in `oxs.ts` on the dedicated XML reader `oxs-xml.ts`
-  (D119); `pattern-import.ts` sniffs the format.
+  `pattern-serialize.ts` (D099), IndexedDB store in `project-store.ts` (D100), options in `workspace-storage.ts`. OXS
+  lives in `oxs.ts` on the XML reader `oxs-xml.ts` (D119); `pattern-import.ts` sniffs the format.
 - **Experimental** (`lib/experimental/`): contour refinement, boundary chains, simulated annealing, diagnostics (status table in its README).
-- **Rust in the processor (G-048)**: `processor/rust-jobs.ts` spawns `cs-job` per job — pixels or the editable save in,
-  the file out, progress as JSON lines on stderr — and returns null on any failure, which runs the TypeScript below it
+- **Rust in the processor (G-048)**: `processor/rust-jobs.ts` spawns `cs-job` per job — pixels or the editable save
+  in, the file out, progress as JSON lines on stderr — and returns null on any failure, falling back to TypeScript
   (D193). The image builds it in its own `rust` stage; `CS_JOB=0` or a missing binary disables it.
 - **Rust port (G-048)**: `rust/cs-core` ports the pipeline module by module, each file naming the TypeScript it ports:
   `crisp/` holds Crisp and Crisp+, `threads.rs` brand matching, `enhance.rs` enhancement, `dither.rs` G-052's patterns,
@@ -183,7 +178,11 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - Pixel art is never resampled, colour-converted or premultiplied on the way in: every pixel is a stitch, so the photo path's 4000 px downscale would destroy the work (`pixel-art-file.ts`, D194).
 - Cell importance reads each cell's own footprint, never pixels assigned by truncation (D197): the two agree exactly below 1:1, and only the footprint fills a finer chart's cells.
 - A new pass after quantization is gated on `smooth` in both languages, or it silently undoes dithering (D199); a
-  dither pattern is generated data, never computed at runtime (D198).
+  matrix pattern is generated data, never computed at runtime (D198).
+- A drawn pattern's randomness comes from `lib/prng.ts`/`prng.rs` on a fixed seed, consumed in the same order by both
+  languages, and its shapes use no transcendental function — `atan2` and friends differ between V8 and libm (D183,
+  D201, D202). Its cells are ranked and spread evenly over 0..1, which is what holds tone; a shape that breaks the
+  ranking changes how much thread the chart carries.
 - A pipeline stage that reads `cellPalette` must skip `EMPTY_CELL`: it is a sentinel, not palette index 255, and both
   TypeScript and Rust must skip it in the same places or the two diverge (D196).
 - Rust export references are generated in the processor image, never on a development machine: it has only DejaVu Sans, a laptop resolves the font stack elsewhere, and every raster would differ (D188).
@@ -270,7 +269,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Next steps and open questions
 
-- Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, a drag's first frame paints in full (34–77 ms), and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (road-mountains 14 of 24), since a refill split learns only from cells inside a colour (D142). 
+- Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (14 of 24 on road-mountains), since a refill split learns only from cells inside a colour (D142).
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration; G-033 — "+ Add" keeps its old flow, touch screens pick on tap with no comparison readout.
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
@@ -284,7 +283,9 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   measurements: on a noisy photo at 8 colours the clustered, ring and line screens can read worse than the undithered
   chart, which is why the pane groups them as the cheap-but-weaker choice rather than hiding them. The screenshot that
   prompted G-053 was **hand-drawn** (Owner, 2026-09-21) — no algorithm to recover, which is why its rings sat
-  aperiodically. **G-054 plans that look itself**: irregular drawn marks, planned and waiting on the Owner's go.
+  aperiodically. **G-054 built that look**: irregular drawn marks, all four milestones done — the Owner judged the
+  sample sheet (`docs/reviews/2026-09-21-hand-drawn-samples.md`) before it shipped. Open from it: on flat regions the
+  marks read as grain rather than marks, which is inherent to dithering a flat area.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log

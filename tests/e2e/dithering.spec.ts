@@ -77,6 +77,22 @@ test("a chosen dither pattern reaches the chart, is recorded in the file, and co
   expect(errors).toEqual([]);
 });
 
+test("the hand-drawn marks reach the chart and cluster their stitches (G-054)", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await page.getByRole("radio", { name: /Small/ }).check();
+  await page.getByLabel("Dither").selectOption("hand-drawn");
+
+  const chart = await generateAndExport(page);
+  expect(chart.ditherMode).toBe("hand-drawn");
+  // A drawn mark is a cluster wherever it lands, so almost every stitch has a neighbour of its own colour — the
+  // measure that separates this family from the scattered matrices.
+  expect(isolatedShare(chart)).toBeLessThan(0.05);
+  expect(errors).toEqual([]);
+});
+
 test("choosing a dither pattern and choosing Crisp each clear the other, and the choice survives a reload", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);

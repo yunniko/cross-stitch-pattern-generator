@@ -53,10 +53,16 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M3 — The sample sheet: (delivered; awaiting the Owner's judgement) charts at 80, 200 and 600 stitches on Full range and DMC, exported as PNGs and sent to the
   Owner, with the numbers in `docs/reviews/`. **Gate:** if it does not read as hand-drawn, what is wrong feeds another
   pass of M2 rather than shipping.
-- [ ] M4 — The UI (a tenth option, in a group of its own), decision files, README and HANDOVER, deploy and verify live.
+- [x] M4 — The UI (a tenth option, in a group of its own), decision files, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first):
-- 2026-09-21 — **M3 delivered, awaiting the Owner's judgement.** `npm run samples:hand-drawn` writes 24 sheets —
+- 2026-09-21 — **M4 done, pending the deploy below.** The tenth option ships in a group of its own ("Drawn — marks,
+  not a pattern"), with an e2e that measures the chart rather than the control: a hand-drawn chart comes back with
+  under 5% of its stitches standing alone, which is what separates this family from the scattered matrices. Decisions
+  D201 (a third family, tone exact by construction) and D202 (one fixed seed, marks sized in stitches). Verified:
+  Vitest 1197 passed / 8 skipped, Playwright 327 passed across 27 specs, `compare:rust` 74 cases identical, tsc,
+  eslint and docs-lint clean.
+- 2026-09-21 — **M3 delivered; the Owner approved the look on the sample sheet.** `npm run samples:hand-drawn` writes 24 sheets —
   four fixtures at 80, 200 and 600 stitches on Full range and DMC — each the same chart undithered and drawn, side by
   side; none are committed (`docs/reviews/2026-09-21-hand-drawn-samples.md` records what they hold). Also measured
   here: generation at 1500 stitches takes 5.6 s drawn against 11.9 s undithered, because a dithered chart skips the

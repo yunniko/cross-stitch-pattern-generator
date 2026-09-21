@@ -209,3 +209,5 @@ remain readable with git show.
 - D198 — Dither patterns are generated data, shared by both languages — active
 - D199 — Dithering skips every smoothing pass, and is refused with Crisp — active
 - D200 — Atkinson is a second kernel that drops part of the error, and runs serpentine — active
+- D201 — Drawn marks are a third dither family, and hold tone by construction — active
+- D202 — One fixed seed, and marks sized in stitches — active
