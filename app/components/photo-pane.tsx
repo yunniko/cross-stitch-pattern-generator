@@ -66,10 +66,18 @@ const DITHER_LABELS: Record<DitherMode, string> = {
   atkinson: "Atkinson",
 };
 
-// The split the measurement found (`docs/reviews/2026-09-21-dithering-comparison.md`): the screens add almost no
-// isolated stitches and buy less accuracy, the dispersed patterns the other way round.
+// Three groups, as the measurement separates them (`docs/reviews/2026-09-21-dithering-comparison.md`): a screen
+// clusters its stitches and costs a stitcher least, a scattered matrix spreads them and fits the photo closer, and
+// the two kernels adapt to the photo instead of repeating a tile, which is why neither ever reads worse than an
+// undithered chart.
 const SCREEN_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("lines-") || mode.startsWith("clustered-") || mode.startsWith("ring-"));
-const DISPERSED_MODES: DitherMode[] = [...ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("bayer-") || mode.startsWith("blue-noise-")), ...DIFFUSION_DITHER_MODES];
+const SCATTERED_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("bayer-") || mode.startsWith("blue-noise-"));
+
+const DITHER_GROUPS: Array<{ label: string; modes: readonly DitherMode[] }> = [
+  { label: "Screens — fewest single stitches", modes: SCREEN_MODES },
+  { label: "Scattered — closer to the photo", modes: SCATTERED_MODES },
+  { label: "Error diffusion — closest, never worse", modes: DIFFUSION_DITHER_MODES },
+];
 
 const ENHANCEMENT_OPTIONS: Record<EnhancementModeId, SegmentOption<EnhancementModeId>> = {
   off: { value: "off", label: "Off", title: "Use the photo exactly as it is" },
@@ -292,24 +300,20 @@ export function PhotoPane({ options, onChange, isProcessing, progress, queueMess
           className="rounded-md border border-line bg-sunken px-2 py-1.5 text-xs text-ink"
         >
           <option value="off">{DITHER_LABELS.off}</option>
-          <optgroup label="Screens (few extra single stitches)">
-            {SCREEN_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {DITHER_LABELS[mode]}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Dispersed (closest to the photo)">
-            {DISPERSED_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {DITHER_LABELS[mode]}
-              </option>
-            ))}
-          </optgroup>
+          {DITHER_GROUPS.map(({ label, modes }) => (
+            <optgroup key={label} label={label}>
+              {modes.map((mode) => (
+                <option key={mode} value={mode}>
+                  {DITHER_LABELS[mode]}
+                </option>
+              ))}
+            </optgroup>
+          ))}
         </select>
         <p className="text-[11px] leading-4 text-muted">
           Mixes neighbouring stitches between two threads so a small palette can hold a gradient, at the cost of single
-          stitches on their own. Screens cost the fewest; dispersed patterns fit the photo closest.
+          stitches on their own. Screens cost the fewest of those; the two error-diffusion patterns fit the photo
+          closest and are the only ones never worse than not dithering at all.
         </p>
       </section>
 

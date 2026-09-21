@@ -10,7 +10,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs 083a117 (2026-09-21), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
-Signed off (all detailed in `docs/goals-archive.md`): G-045 the Atelier redesign in direction 1b (D157-D167), G-044 the Origin check reads one site as one site (D156), G-034 photo processing and every export moved to the server (D149-D155), G-043 the narrowed Cancel (D148), G-042 selection actions and leaner chrome (D147), G-041 the optional double-click fill (D146), G-039 the Move tool at one frame per stitch (D144, D145), G-040 blank charts (D143), G-038 Crisp+ (`docs/reviews/2026-09-16-crisp-plus-calibration.md`), G-037 symmetry and quick mirror, G-036 charts without freezing (`docs/reviews/2026-09-15-chart-rendering-results.md`), G-035 performance (`docs/reviews/2026-09-15-performance-results.md`; photo cap cancelled, D130), G-033 the swatch-aware color editor (D122, D123), G-032 enhancement (D118), G-031 the review actions, G-028 OXS (D119).
+Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
 export, byte-identical to TypeScript at any thread count, plus a WASM build (D182–D189); on the host it is 1.6–13.0×
@@ -27,22 +27,26 @@ chart symbols changed appearance (D192), and `CS_JOB=0` returns to TypeScript wi
   8-connected fill, symmetry on up to four axes and quick mirror (D137), rectangle select with copy, paste, move,
   flip, rotate, crop, "Apply here" and "Cancel" (D147, D148), pan, zoom; Isolate dims every thread but the lit ones and
   stays on under another tool (D158); merge, recolor, rename, re-symbol, add colour, empty stitches, resize, one undo history.
-- Color editor: opens under its legend row on the color's remembered thread swatch (D122), with an Okhsl comparison
+- Colour editor: opens under its legend row on the colour's remembered thread swatch (D122), with an Okhsl comparison
   on hover or focus (D123); picks apply at once, Full range drags are one undo step, Cancel or Escape restores.
-- Zoom keeps the stitch under the cursor in place, the zoom buttons the view's centre (D124). Five view modes
-  (keys 1–5), a view-only canvas color, and shortcuts: Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, Escape.
+- Zoom keeps the stitch under the cursor in place, the buttons the view's centre (D124); five view modes (keys 1–5),
+  a view-only canvas colour, and shortcuts Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, Escape.
 - Exports: editable JSON (format version 7, embeds the source photo and each color's thread swatch), realistic preview
   PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF, an OXS chart, a pixel-art PNG at 1 px per stitch
   (D195), "Export all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs` by content; OXS lists what it couldn't keep.
-- A transparent background generates as empty stitches (G-050, signed off 2026-09-21, D196): a cell covered less than half takes no colour,
-  and colour, edge, evidence and thread stages read covered pixels only. An opaque photo keeps its old code path.
+- A transparent background generates as empty stitches (G-050, D196): a cell covered less than half takes no colour,
+  and every stage reads covered pixels only. An opaque photo keeps its old code path.
 - Pixel art in and out (G-049): the start screen's fourth card opens an image as a chart, one pixel per stitch,
   transparent pixels empty, nothing resampled; too large, too colourful or partly transparent is refused with the real
   numbers, under 10 stitches is centred in a chart of the minimum (D194), and the pixel-art PNG writes the image back.
-- Dithering (G-052, signed off 2026-09-21): a Dither control offers seven patterns — Bayer 4×4 and 8×8, clustered dots,
-  horizontal and diagonal line screens, blue noise, Floyd–Steinberg — mixing neighbouring stitches between the two
-  threads either side of a colour instead of rounding each one. Off is byte-identical to before; a dithered chart runs
-  no smoothing pass and refuses Crisp (D199). Measured in `docs/reviews/2026-09-21-dithering-comparison.md`.
+- Dithering (G-052 signed off 2026-09-21, G-053 on top of it): a Dither control offers nine patterns in three groups —
+  screens that cluster their stitches (clustered dots, rings, two line screens), scattered matrices (Bayer 4×4/8×8,
+  blue noise) and two error-diffusion kernels (Floyd–Steinberg, Atkinson) — mixing neighbouring stitches between the
+  two threads either side of a colour instead of rounding each one. Off is byte-identical to before; a dithered chart
+  runs no smoothing pass and refuses Crisp (D199). A pattern with a matrix is data, not code (D198); a kernel is a row
+  of taps (D200). Measured in `docs/reviews/2026-09-21-dithering-comparison.md`: the kernels reach the lowest error
+  (median 0.44–0.51× the undithered chart) and never read worse, the screens cost the least confetti (+3.3 to +4.3
+  points), and the scattered matrices sit between at +9.5 to +12.7.
 - Photo upload and reopening a save decode in a worker, with the old decode as a logged fallback (D128).
 - Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores
   on reload. A corrupt record shows a banner with an on-demand error report; options live in localStorage.
@@ -240,35 +244,29 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   disables the rail, the zoom controls and New, locks Chart and Threads (1b draws Photo live and selected), forces 1b's
   Photo pane, and drops the inspector footer (D164). Undo and Redo belong to the editing bar: no chart, no buttons.
 - `npm ci --legacy-peer-deps` is required (npm arborist crash).
-- On this Windows host, stopping a background task can leave node running;
-  check the process list (D096).
+- On this Windows host, stopping a background task can leave node running; check the process list (D096).
 - Both photo decode paths must stay byte-identical: `tests/e2e/decode-parity.spec.ts` (D128).
 - Generation reads the full decoded photo; a future cap starts from D129's findings, not a shrink alone (D130).
 - The processor publishes no port and is reached only through `app/api/`, which holds the Origin check and the rate
   limit. Job results travel in the editable-JSON save format, so `pattern-serialize.ts` is the wire format (D151).
 - What the processor accepts is derived from the type unions in `processor/validate-settings.ts` and
-  `processor/validate-export.ts`, never retyped: a hand-written copy once spelled `PaletteMode`'s "full" as "free"
-  and rejected every generation.
+  `validate-export.ts`, never retyped: a hand-written copy once spelled `PaletteMode`'s "full" as "free" and rejected every generation.
 - The export font and stitch texture travel with the bundle: `npm run build:processor` copies them into
-  `dist/processor/assets`, so `dist/processor` runs anywhere. The image carries no fonts of its own, and without a
-  registered one every measured text width is zero (D153).
+  `dist/processor/assets`. The image carries no fonts, and without a registered one every text width measures zero (D153).
 - Paginated exports (A4, PDF) get 60 s plus 2 s per A4 grid page, never under the old fixed 150 s, and Export all that
   share for each of its three paginated sets (D168; `processor/job-protocol.ts`, `exportDeadlineFor`).
-- The Origin check compares canonical origins: `localhost`, `127.0.0.1` and `[::1]` on one scheme and port are
-  one site, while scheme and port still separate origins and an unparseable origin is dropped rather than
-  compared. `APP_URL` has no default, so leaving it unset trusts only the origin a request arrived at (D156).
-- A job event stream carries an SSE comment frame every 15 s so an idle or queued job is not dropped by a proxy.
-  Both clients must take the frame's data line and skip anything else: parsing every frame as JSON broke
-  generation and exports in production (`tests/unit/job-stream-keepalive.spec.ts`).
+- The Origin check compares canonical origins: the loopback spellings on one scheme and port are one site, scheme and
+  port still separate, an unparseable origin is dropped. `APP_URL` has no default: unset trusts only the arrival origin (D156).
+- A job event stream carries an SSE comment frame every 15 s so a proxy does not drop an idle job. Both clients take
+  the frame's data line and skip the rest: parsing every frame as JSON broke production (`tests/unit/job-stream-keepalive.spec.ts`).
 - `PROCESSOR_WORKER_HEAP_MB` caps each pool worker's heap. Unset in production, it proves the PDF's heap is bounded: at
   512 MB a 1500-stitch Pattern Keeper PDF and Export all complete, where 1000 once failed at every cap to 1536 MB (D169).
 - `MAX_STITCHES` (1500) is measured, not chosen: raising it means re-running `docs/reviews/2026-09-19-new-cap-measurements.md`,
   and above about 1550 Export all's chart PNG no longer fits its budget (D026, D181).
 - The PDF releases each page as it is drawn through two private pdf-lib 1.17.1 fields (D169). A pdf-lib upgrade must keep
   `tests/unit/pdf-page-flush.spec.ts` green, or the flush silently stops and the heap grows back.
-- Rate-limit capacities default to production values and are overridable by environment variable
-  (`RATE_LIMIT_JOBS_PER_MINUTE`, `RATE_LIMIT_PREVIEWS_PER_MINUTE`) so the e2e suite is not refused; a zero or
-  malformed value falls back to the default rather than disabling the limit.
+- Rate-limit capacities default to production values, overridable by `RATE_LIMIT_JOBS_PER_MINUTE` and
+  `RATE_LIMIT_PREVIEWS_PER_MINUTE` so the e2e suite is not refused; a zero or malformed value falls back to the default.
 
 ## Next steps and open questions
 
@@ -282,10 +280,12 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   generation deadline and Export all without the chart PNG, D181) and G-047 (raster exports 2–3× faster, the preview
   streamed, the PDF 3.5× faster, generation a quarter to a half faster, D171–D178). G-030 (public launch) is a
   far-future draft.
-- G-052 (dithering) is signed off and archived. Open from its measurement: on a noisy photo at 8 colours the
-  clustered and line screens can read slightly worse than the undithered chart (`clustered-8` 1.13×), which is why the
-  pane groups them as the cheap-but-weaker choice rather than hiding them. **G-053 adds two more patterns** — a ring
-  screen (M1 done) and Atkinson — from a screenshot the Owner showed on 2026-09-21.
+- G-052 (dithering) is signed off and archived; **G-053 (a ring screen and Atkinson, from a screenshot the Owner
+  showed on 2026-09-21) awaits sign-off** with all three milestones done and deployed. Open from their measurements:
+  on a noisy photo at 8 colours the clustered, ring and line screens can read worse than the undithered chart, which
+  is why the pane groups them as the cheap-but-weaker choice rather than hiding them; and the screenshot's own midtone
+  is a one-cell checkerboard that a clustered screen cannot make, so its rings may have been the photo rather than the
+  pattern — nothing further is owed unless the Owner wants that settled from the full image.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log

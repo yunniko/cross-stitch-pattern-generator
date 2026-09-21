@@ -43,10 +43,18 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   annulus-before-centre test and parity cases.
 - [x] M2 — Atkinson: a second error-diffusion kernel in both languages, Floyd–Steinberg unchanged, with the
   solid-run and clustering measurements and parity cases.
-- [ ] M3 — The comparison document regenerated over all nine patterns, the Photo pane's options and grouping updated,
+- [x] M3 — The comparison document regenerated over all nine patterns, the Photo pane's options and grouping updated,
   decision files, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-21 — **M3 done.** `compare:dither` regenerated over all nine patterns; the existing seven moved not one
+  digit. Medians replace the best/worst columns, because the flat-regions fixture at 32 colours makes a ratio swing on
+  a difference too small to see, and the verdict paragraph is now derived from those medians — the earlier one
+  asserted a two-group split that Atkinson breaks. **Atkinson is the standout:** median error 0.44× the undithered
+  chart at +7.1 points of confetti, the lowest error of the nine and never worse than plain on any fixture; the ring
+  screen buys 0.71× for +4.3, against the clustered dot's 0.84× for +3.4. The pane now groups the nine as the
+  measurement separates them: screens, scattered matrices, error diffusion. Verified: Vitest 1189 passed / 8 skipped,
+  Playwright 326 passed across 27 specs, `compare:rust` 70 cases identical, tsc, eslint and docs-lint clean.
 - 2026-09-21 — **M2 done.** Error diffusion is now a table of taps in both languages, with Atkinson beside
   Floyd–Steinberg (D200). Measured on the pipeline's own ramp: Atkinson leaves 30 of 120 rows in one thread against
   Floyd–Steinberg's 5, and 95.1% of its light stitches have a light neighbour against 82.8% — the flat ends and the

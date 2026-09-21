@@ -119,7 +119,7 @@ const COLOUR_COUNTS = [8, 16, 32];
 
 it("measures every dither pattern against the same chart undithered", () => {
   const lines: string[] = [
-    "# G-052 M3 · What each dither pattern costs and buys",
+    "# What each dither pattern costs and buys",
     "",
     `Measured ${new Date().toISOString().slice(0, 10)} by \`scripts/dither-comparison.ts\`, which regenerates this file.`,
     "",
@@ -174,24 +174,53 @@ it("measures every dither pattern against the same chart undithered", () => {
       .map(([fixture, ratios]) => `${fixture} ${Math.min(...ratios).toFixed(2)}–${Math.max(...ratios).toFixed(2)}×`)
       .join(", ");
   };
-  // Which pattern to reach for, from the rows above rather than from taste.
+  // Which pattern to reach for, summarised from the rows above rather than from taste. Medians, not extremes: on a
+  // fixture the undithered chart already fits almost exactly (flat regions at 32 colours) the ratio swings both ways
+  // on a difference too small to see, and a best-case column would be that case every time.
+  const median = (values: number[]) => {
+    const sorted = [...values].sort((a, b) => a - b);
+    const middle = sorted.length >> 1;
+    return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+  };
   const modes = [...new Set(verdict.map((v) => v.mode))];
-  lines.push("## Where each pattern wins", "", "| Pattern | Best error × | Worst error × | Added confetti | Loses to plain |", "|---|---|---|---|---|");
-  for (const mode of modes) {
+  const summary = modes.map((mode) => {
     const rows = verdict.filter((v) => v.mode === mode);
-    const ratios = rows.map((r) => r.ratio);
-    const added = rows.map((r) => 100 * r.addedConfetti);
-    const losses = rows.filter((r) => r.ratio >= 1).map((r) => `${r.fixture} at ${r.colorCount}`);
+    return {
+      mode,
+      error: median(rows.map((r) => r.ratio)),
+      confetti: median(rows.map((r) => 100 * r.addedConfetti)),
+      worst: Math.max(...rows.map((r) => r.ratio)),
+      losses: rows.filter((r) => r.ratio >= 1).map((r) => `${r.fixture} at ${r.colorCount}`),
+    };
+  });
+  lines.push("## Where each pattern wins", "", "| Pattern | Median error × | Median added confetti | Worst error × | Loses to plain |", "|---|---|---|---|---|");
+  for (const row of summary) {
     lines.push(
-      `| ${mode} | ${Math.min(...ratios).toFixed(2)} | ${Math.max(...ratios).toFixed(2)} | +${Math.min(...added).toFixed(1)} to +${Math.max(...added).toFixed(1)} pts | ${losses.length > 0 ? losses.join(", ") : "never"} |`
+      `| ${row.mode} | ${row.error.toFixed(2)} | +${row.confetti.toFixed(1)} pts | ${row.worst.toFixed(2)} | ${row.losses.length > 0 ? row.losses.join(", ") : "never"} |`
     );
   }
+
+  // Stated from the medians: an earlier version of this file asserted a two-group split that its own rows stopped
+  // supporting the moment a pattern arrived that is cheap and accurate at once.
+  const byConfetti = [...summary].sort((a, b) => a.confetti - b.confetti);
+  const byError = [...summary].sort((a, b) => a.error - b.error);
+  const cheapest = byConfetti.slice(0, 3).map((r) => r.mode);
+  const mostAccurate = byError.slice(0, 3).map((r) => r.mode);
+  const both = mostAccurate.filter((mode) => cheapest.includes(mode));
+  const reliable = summary.filter((r) => r.losses.length === 0).map((r) => r.mode);
   lines.push(
     "",
-    "The patterns fall into two groups, and the split is the useful part: the dispersed ones (Bayer, blue noise,",
-    "Floyd-Steinberg) buy the most accuracy and cost the most confetti, while the clustered and line screens cost",
-    "almost none and buy less — on a smooth ramp they still help, on a noisy photo at few colours they can lose. A",
-    "stitcher choosing by how a chart stitches rather than by how it measures wants the second group.",
+    `Cheapest in confetti: ${cheapest.join(", ")}. Closest to the photo: ${mostAccurate.join(", ")}.`,
+    both.length > 0
+      ? `**${both.join(", ")}** ${both.length === 1 ? "is in both lists" : "are in both lists"}, which makes ${both.length === 1 ? "it" : "them"} the first thing to reach for.`
+      : "No pattern is in both lists, so the choice is a trade every time.",
+    `Never worse than the undithered chart on any fixture: ${reliable.length > 0 ? reliable.join(", ") : "none"}.`,
+    "",
+    "The threshold matrices trade along one line: those that scatter their stitches (Bayer, blue noise, the diagonal",
+    "screen) fit the photo closest and leave the most stitches standing alone, while those that cluster them (the dot,",
+    "ring and line screens) cost a stitcher least and help least — and on a noisy photo at few colours can lose",
+    "outright. The two error-diffusion kernels are off that line: they adapt to the photo rather than repeating a tile,",
+    "so they reach the lowest error of all while sitting mid-table on confetti, and neither ever loses.",
     "",
   );
   lines.push(
