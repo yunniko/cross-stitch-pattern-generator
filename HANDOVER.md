@@ -280,12 +280,11 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   generation deadline and Export all without the chart PNG, D181) and G-047 (raster exports 2–3× faster, the preview
   streamed, the PDF 3.5× faster, generation a quarter to a half faster, D171–D178). G-030 (public launch) is a
   far-future draft.
-- G-052 (dithering) is signed off and archived; **G-053 (a ring screen and Atkinson, from a screenshot the Owner
-  showed on 2026-09-21) awaits sign-off** with all three milestones done and deployed. Open from their measurements:
-  on a noisy photo at 8 colours the clustered, ring and line screens can read worse than the undithered chart, which
-  is why the pane groups them as the cheap-but-weaker choice rather than hiding them. The screenshot that prompted
-  G-053 turned out to be **hand-drawn** (Owner, 2026-09-21) — no algorithm to recover, which is why its rings sat
-  aperiodically and its row densities were not monotone. Both patterns stand on their own measurements regardless.
+- G-052 and G-053 (dithering, then the ring screen and Atkinson) are signed off and archived. Open from their
+  measurements: on a noisy photo at 8 colours the clustered, ring and line screens can read worse than the undithered
+  chart, which is why the pane groups them as the cheap-but-weaker choice rather than hiding them. The screenshot that
+  prompted G-053 was **hand-drawn** (Owner, 2026-09-21) — no algorithm to recover, which is why its rings sat
+  aperiodically. **G-054 plans that look itself**: irregular drawn marks, planned and waiting on the Owner's go.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log

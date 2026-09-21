@@ -12,73 +12,56 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-053 · Two more dither patterns: a ring screen and Atkinson — ACTIVE (2026-09-21)
-- **What:** two additions to G-052's Dither control — a **ring screen**, a clustered dot whose dot grows as a ring
-  before its hole closes, and **Atkinson**, a second error-diffusion kernel that keeps only 3/4 of the error.
-- **Why:** the Owner showed a dithered gradient (screenshot, 2026-09-21) whose look none of the seven reproduce, and
-  asked for it. Recovering the pattern from that image (each dither cell is a 6×6 px block, so it is a 19×44 cell
-  grid) found three things: its ends are blown flat — solid dark for the top 20% and solid light for the bottom 20%,
-  where Floyd–Steinberg on the same ramp goes solid only for rows 0–4 and from row 42, and of six kernels tried only
-  Atkinson blows them out that far (0–7, and from 37); its midtone is an exact one-cell checkerboard, which is an
-  ordered screen's signature; and it holds ring-shaped clusters, `.##.`/`#..#`/`#..#`/`.##.`. Whether those rings are
-  the screen or the photo could not be settled from a 19×44 crop, so both readings were built: the ring is a matrix,
-  the blown-out clumping is a kernel. Owner chose both, 2026-09-21. **The Owner then said the image is hand-drawn
-  dithering, drawn by an artist rather than produced by any algorithm** (2026-09-21), which is what the aperiodic ring
-  placement and the non-monotone row densities were: a hand, not a screen. Neither addition depends on that — each
-  was measured on its own merits — but no algorithm was ever there to recover.
+### G-054 · A hand-drawn dither look — DRAFT (2026-09-21, starts on the Owner's go)
+- **What:** a tenth dither option that reads as drawn by hand rather than screened: marks — rings, broken rings, dots,
+  small clusters — placed irregularly but evenly, chosen and sized by local tone, and reproducible for a given chart.
+- **Why:** Owner request, 2026-09-21. The image that prompted G-053 turned out to be hand-drawn, and the two patterns
+  that came out of it are the closest an algorithm gets to it, not that look: a repeating matrix cannot vary its
+  spacing, and an error-diffusion kernel varies without intent. The value here is aesthetic — a chart that looks
+  illustrated rather than screened — so the measurable criteria below exist to protect the chart, and the look itself
+  is judged by the Owner.
 - **Acceptance criteria:**
-  1. Dither Off and all seven existing patterns produce byte-identical charts to today: the 18 golden hashes (D107)
-     and every existing Rust parity case unchanged.
-  2. The ring screen's matrix is generated data (D198), validated as a permutation, and its dot demonstrably grows as
-     a ring: at a low tone the lit stitches form an annulus with an unlit centre, and the centre fills only at a
-     higher tone. Pinned by a test, not by eye.
-  3. Atkinson measurably does what it is for, against Floyd–Steinberg on the same ramp: a longer solid run at both
-     ends, and more clustering (a higher share of lit stitches with a lit neighbour). Whether it runs serpentine or
-     in raster order is decided by measuring worm artifacts, not assumed, and recorded.
-  4. Rust matches TypeScript byte for byte for both, with parity cases at more than one colour count.
-  5. `docs/reviews/2026-09-21-dithering-comparison.md` covers all nine patterns, and the Photo pane's grouping still
-     tells a stitcher what each group costs — Atkinson clumps, so "dispersed" no longer describes every kernel.
-- **Constraints:** a pattern that can be data is data (D198); every post-quantization pass stays gated on `smooth`, so
-  neither addition may reintroduce smoothing (D199). Both languages change together or not at all.
+  1. **Deterministic.** The same photo and settings give the same chart every time, and TypeScript and Rust agree byte
+     for byte (parity cases at two colour counts and two chart sizes). Randomness comes from the mulberry32 already in
+     `lib/prng.ts` and `rust/cs-core/src/prng.rs`, seeded from the chart — never from a clock or an unordered scan.
+  2. **Nothing that exists moves.** Off and all nine current patterns stay byte-identical: the 18 golden hashes (D107)
+     untouched, every existing parity case unchanged.
+  3. **Measurably not a screen.** No repeating tile: autocorrelation of the chart shows no period at any shift up to
+     32, where every matrix pattern shows its own. Spacing stays even rather than clumped — nearest-mark distances
+     inside a stated band, not a Poisson scatter.
+  4. **It keeps the picture.** Local tone tracks the photo: mean OKLab error over a 5×5 of stitches no worse than the
+     undithered chart's at the same palette, on the gradient, photo and flat-region fixtures. A style that loses the
+     image fails regardless of how it looks.
+  5. **It is stitchable, and the number is published.** The confetti cost is measured per fixture and goes into
+     `docs/reviews/2026-09-21-dithering-comparison.md` whatever it says. Marks are clusters, so the expectation is the
+     screens' range (+3 to +5 points) rather than the scattered matrices' — an expectation, not a target.
+  6. **The look is the Owner's call.** M3 delivers sample charts for the Owner to look at; M4 does not start until the
+     Owner says it reads as hand-drawn.
+  7. **Marks are sized in stitches**, so a larger chart carries more of them rather than bigger ones, and an 80-stitch
+     chart and a 600-stitch one both stay readable.
+- **Constraints:** no new dependency and no new language. This is a third family beside the threshold matrices (D198)
+  and the error-diffusion kernels (D200), so it needs a decision file saying why it cannot be data — a matrix repeats
+  by definition, and this must not. Dithering still skips every smoothing pass and refuses Crisp (D199). Determinism
+  is a requirement, not a preference: the golden-hash regime and the Rust parity corpus both rest on it.
 
 **Milestones**:
-- [x] M1 — The ring screen: generated into the committed matrices, offered as a mode in both languages, with the
-  annulus-before-centre test and parity cases.
-- [x] M2 — Atkinson: a second error-diffusion kernel in both languages, Floyd–Steinberg unchanged, with the
-  solid-run and clustering measurements and parity cases.
-- [x] M3 — The comparison document regenerated over all nine patterns, the Photo pane's options and grouping updated,
-  decision files, README and HANDOVER, deploy and verify live.
+- [ ] M1 — Mark placement: seeded centres over the grid, even but irregular, at a density that follows local tone, in
+  both languages. Marks are single stitches at this stage. Carries criteria 1–3 with their measurements, and the
+  parity cases.
+- [ ] M2 — The marks themselves: a small library of drawn shapes chosen and sized by local tone, with the tone-fidelity
+  measurement (criterion 4) and the confetti cost (criterion 5).
+- [ ] M3 — The sample sheet: charts at 80, 200 and 600 stitches on Full range and DMC, exported as PNGs and sent to the
+  Owner, with the numbers in `docs/reviews/`. **Gate:** if it does not read as hand-drawn, what is wrong feeds another
+  pass of M2 rather than shipping.
+- [ ] M4 — The UI (a tenth option, in a group of its own), decision files, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first):
-- 2026-09-21 — **M3 deployed and verified live** at 9537a6d. The pane offers nine patterns in three groups; on a DMC
-  chart at 200 stitches Atkinson records `ditherMode: "atkinson"` with 3.8% of stitches standing alone and the ring
-  screen 1.5%, against 0% undithered, and the processor logs show no Rust fallback, so the sidecar ran both. 23
-  containers before and after with an identical name set, 38 vhosts unchanged, every live site still answering.
-  **Awaiting sign-off.**
-- 2026-09-21 — **M3 done.** `compare:dither` regenerated over all nine patterns; the existing seven moved not one
-  digit. Medians replace the best/worst columns, because the flat-regions fixture at 32 colours makes a ratio swing on
-  a difference too small to see, and the verdict paragraph is now derived from those medians — the earlier one
-  asserted a two-group split that Atkinson breaks. **Atkinson is the standout:** median error 0.44× the undithered
-  chart at +7.1 points of confetti, the lowest error of the nine and never worse than plain on any fixture; the ring
-  screen buys 0.71× for +4.3, against the clustered dot's 0.84× for +3.4. The pane now groups the nine as the
-  measurement separates them: screens, scattered matrices, error diffusion. Verified: Vitest 1189 passed / 8 skipped,
-  Playwright 326 passed across 27 specs, `compare:rust` 70 cases identical, tsc, eslint and docs-lint clean.
-- 2026-09-21 — **M2 done.** Error diffusion is now a table of taps in both languages, with Atkinson beside
-  Floyd–Steinberg (D200). Measured on the pipeline's own ramp: Atkinson leaves 30 of 120 rows in one thread against
-  Floyd–Steinberg's 5, and 95.1% of its light stitches have a light neighbour against 82.8% — the flat ends and the
-  clumping the screenshot shows. Scan order was measured, not assumed: serpentine moved Atkinson's horizontal/vertical
-  run ratio by at most 0.01 across three ramps and not consistently toward isotropic, so it is a **tie-break**,
-  settled by matching Floyd–Steinberg. Floyd–Steinberg itself was checked cell for cell against a frozen pre-refactor
-  copy for all eight existing patterns before the table landed, then the copy was deleted. Verified: Vitest 1189
-  passed / 8 skipped, `compare:rust` identical on `dither/atkinson/8` and `/20`, tsc, eslint and docs-lint clean.
-  Next: M3, the nine-pattern comparison, the pane's grouping, docs and the deploy.
-- 2026-09-21 — **M1 done.** `ring-8`: the clustered screen's two dot centres, ranked by distance from a circle of
-  radius 1.6 around them instead of from the centre, so the annulus fills first. At 14% tone the tile is exactly the
-  shape the screenshot holds (`.##.`/`#..#`/`#..#`/`.##.`), the hole closes by 30%, and it is solid blocks at 50%.
-  The generator only added a matrix: the other six are byte-identical, and the 18 golden hashes are untouched.
-  Verified: Vitest 1186 passed / 8 skipped (the new test pins annulus-before-hole as ranks, not as a picture),
-  `compare:rust` identical on `dither/ring-8/8` and `/20`, tsc and eslint clean. Next: M2, the Atkinson kernel.
-- 2026-09-21 — goal created and planned, from the Owner's screenshot and the measurements above.
+- 2026-09-21 — goal created and planned, on the Owner's instruction after G-053's sign-off. Starting points found
+  while planning: `lib/prng.ts` and `rust/cs-core/src/prng.rs` already carry the same integer-only mulberry32, so the
+  cross-language random source exists and needs no new work; `ditherToPalette` already returns one label per cell, so
+  a third family plugs in beside the matrix and kernel paths without touching either. **First thing M1 settles:** what
+  seeds a chart. A fixed constant is the simplest and keeps regeneration reproducible — two photos differ by their
+  tone anyway — against seeding from the photo's hash, which would make the same photo at two sizes unrelated.
 
 ### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
 - **What:** Eventually make the app public, built around **a social
