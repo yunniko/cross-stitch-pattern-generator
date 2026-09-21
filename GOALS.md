@@ -47,6 +47,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   decision files, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-21 — **M3 deployed and verified live** at 9537a6d. The pane offers nine patterns in three groups; on a DMC
+  chart at 200 stitches Atkinson records `ditherMode: "atkinson"` with 3.8% of stitches standing alone and the ring
+  screen 1.5%, against 0% undithered, and the processor logs show no Rust fallback, so the sidecar ran both. 23
+  containers before and after with an identical name set, 38 vhosts unchanged, every live site still answering.
+  **Awaiting sign-off.**
 - 2026-09-21 — **M3 done.** `compare:dither` regenerated over all nine patterns; the existing seven moved not one
   digit. Medians replace the best/worst columns, because the flat-regions fixture at 32 colours makes a ratio swing on
   a difference too small to see, and the verdict paragraph is now derived from those medians — the earlier one
