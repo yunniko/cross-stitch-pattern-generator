@@ -6,6 +6,7 @@ use crate::crisp::evidence::{build_evidence_layer_masked, EdgeModel, EvidenceLay
 use crate::crisp::{finalize, plus, repair, stage};
 use crate::denoise::denoise_for_quantization_masked;
 use crate::dither::{dither_to_palette, DitherMode};
+use crate::dither_hand_drawn::{DitherTexture, DEFAULT_DITHER_TEXTURE};
 use crate::downsample::{downsample_to_grid_with_coverage, empty_cell_mask, grid_dimensions_for};
 use crate::edge_map::{
     compute_cell_importance_masked, compute_edge_magnitude_masked, opaque_pixel_mask,
@@ -52,6 +53,8 @@ pub struct BuildOptions {
     pub enhancement: EnhancementMode,
     /// Dithering (G-052); `Off` is the pipeline as it was. Refused with Crisp, whose purpose is the opposite (D199).
     pub dither: DitherMode,
+    /// What a drawn pattern is made of (G-055); ignored by every other pattern.
+    pub dither_texture: DitherTexture,
 }
 
 #[derive(Clone, Debug)]
@@ -267,7 +270,14 @@ pub fn build_pattern_reporting(
     drop(denoised);
     // The quantizer chose the threads; dithering decides which stitch gets which of the two nearest (G-052).
     let quantized = if dithered {
-        let mut labels = dither_to_palette(&cell_oklab, gw, gh, &raw_palette, options.dither);
+        let mut labels = dither_to_palette(
+            &cell_oklab,
+            gw,
+            gh,
+            &raw_palette,
+            options.dither,
+            &options.dither_texture,
+        );
         if let Some(mask) = empty_ref {
             for (label, &empty) in labels.iter_mut().zip(mask.iter()) {
                 if empty != 0 {

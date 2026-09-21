@@ -2,6 +2,7 @@
 //! and defaults, and the pattern in the editable-save field names the parity harness hashes.
 
 use crate::dither::DitherMode;
+use crate::dither_hand_drawn::{DitherTexture, DEFAULT_DITHER_TEXTURE};
 use crate::enhance::Mode;
 use crate::pattern::{BuildOptions, EdgeMode, StageTimes, StitchPattern};
 use crate::quantize::Quantizer;
@@ -27,7 +28,51 @@ struct Options {
     #[serde(default)]
     dither_mode: Option<String>,
     #[serde(default)]
+    dither_texture: Option<TextureOptions>,
+    #[serde(default)]
     threads: Option<usize>,
+}
+
+/// What a drawn pattern is made of (G-055). Absent fields take the default texture's value, so a request naming one
+/// knob changes only that knob.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TextureOptions {
+    #[serde(default)]
+    spacing: Option<f64>,
+    #[serde(default)]
+    separation: Option<f64>,
+    #[serde(default)]
+    shape_weights: Option<[f64; 4]>,
+    #[serde(default)]
+    radius_min: Option<f64>,
+    #[serde(default)]
+    radius_span: Option<f64>,
+    #[serde(default)]
+    gap_alignment: Option<f64>,
+    #[serde(default)]
+    wobble: Option<f64>,
+    #[serde(default)]
+    sweep: Option<f64>,
+    #[serde(default)]
+    seed: Option<u32>,
+}
+
+impl TextureOptions {
+    fn resolve(&self) -> DitherTexture {
+        let d = DEFAULT_DITHER_TEXTURE;
+        DitherTexture {
+            spacing: self.spacing.unwrap_or(d.spacing),
+            separation: self.separation.unwrap_or(d.separation),
+            shape_weights: self.shape_weights.unwrap_or(d.shape_weights),
+            radius_min: self.radius_min.unwrap_or(d.radius_min),
+            radius_span: self.radius_span.unwrap_or(d.radius_span),
+            gap_alignment: self.gap_alignment.unwrap_or(d.gap_alignment),
+            wobble: self.wobble.unwrap_or(d.wobble),
+            sweep: self.sweep.unwrap_or(d.sweep),
+            seed: self.seed.unwrap_or(d.seed),
+        }
+    }
 }
 
 /// Parsed options and the requested worker-thread count (default 1; any count gives the same pattern, D185).
@@ -82,6 +127,11 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
         brand,
         enhancement,
         dither,
+        dither_texture: o
+            .dither_texture
+            .as_ref()
+            .map(TextureOptions::resolve)
+            .unwrap_or(DEFAULT_DITHER_TEXTURE),
     };
     Ok((options, o.threads.unwrap_or(1).max(1)))
 }

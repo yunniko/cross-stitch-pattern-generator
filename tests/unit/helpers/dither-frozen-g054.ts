@@ -1,4 +1,11 @@
-import { mulberry32 } from "../prng";
+// A verbatim copy of `lib/pipeline/dither-hand-drawn.ts` as G-054 shipped it, kept on purpose.
+//
+// G-055 turned that module's constants into an editable texture (D203). The default texture must stay the chart
+// G-054 deployed, and "must stay" is worth a frozen reference rather than a remembered intention: this file is what
+// `tests/unit/dither-texture.spec.ts` compares against. Do not update it to match a change — if the comparison
+// fails, either the change was unintended or it needs an Owner decision and a new golden baseline.
+
+import { mulberry32 } from "@/lib/prng";
 
 /**
  * The hand-drawn dither field (G-054): the threshold map a person draws rather than one a screen repeats.
@@ -18,75 +25,39 @@ import { mulberry32 } from "../prng";
  * libm, D183/D184).
  */
 
-/**
- * What a drawn pattern is made of (G-055). Every number here was a constant in G-054; the defaults below reproduce
- * that chart exactly, which is the test that says this refactor was faithful.
- *
- * `radiusSpan` is stored rather than a largest radius, deliberately: `0.42 - 0.26` is not `0.16` in binary floating
- * point, so keeping the span is what lets the default texture reproduce G-054 bit for bit. The editor shows a
- * smallest and a largest and converts.
- */
-export interface DitherTexture {
-  /** Stitches between neighbouring marks; sized in stitches, so a bigger chart carries more marks (D202). */
-  spacing: number;
-  /** How close two marks may sit, as a share of the spacing: below this they read as one blot, not two marks. */
-  separation: number;
-  /** How often each shape is drawn, in the order ring, broken ring, dot, lump. Any remainder falls to the last. */
-  shapeWeights: readonly [number, number, number, number];
-  /** Ring radius as a share of the spacing: the smallest, and how much a mark may add to it. */
-  radiusMin: number;
-  radiusSpan: number;
-  /** A broken ring's gap, as the cosine beyond which a cell counts as inside it — higher is a narrower gap. */
-  gapAlignment: number;
-  /** How far a lump's edge wobbles, in stitches. */
-  wobble: number;
-  /** How strongly a ring is drawn as a sweeping stroke rather than appearing at once. */
-  sweep: number;
-  /** Which draw the marks come from: the same texture and seed give the same chart, always (D202). */
-  seed: number;
-}
-
-/** G-054's texture, to the bit. Anything that changes here changes every chart drawn with the default. */
-export const DEFAULT_DITHER_TEXTURE: DitherTexture = {
-  spacing: 6,
-  separation: 0.72,
-  shapeWeights: [0.42, 0.2, 0.23, 0.15],
-  radiusMin: 0.26,
-  radiusSpan: 0.16,
-  gapAlignment: 0.72,
-  wobble: 0.34,
-  sweep: 0.25,
-  seed: 0x1d10c0de,
-};
-
-/** The default's spacing, for callers that only need to know how far apart marks sit. */
-export const MARK_SPACING = DEFAULT_DITHER_TEXTURE.spacing;
-/** Tries per lattice cell before that cell is left empty — the gaps are part of the irregularity. Not a knob. */
+/** Stitches between neighbouring marks. Sized in stitches, so a bigger chart carries more marks, not bigger ones. */
+export const MARK_SPACING = 6;
+/** How close two marks may sit, as a share of the spacing: below this they read as one blot rather than two marks. */
+const MIN_DISTANCE = 0.72 * MARK_SPACING;
+/** Tries per lattice cell before that cell is left empty — the gaps are part of the irregularity. */
 const ATTEMPTS = 6;
+/**
+ * One fixed seed for every chart. A chart drawn twice is drawn the same way, and two photos already differ by their
+ * tone; seeding from the photo instead would make the same photo at two sizes look unrelated (G-054 M1).
+ */
+const SEED = 0x1d10c0de;
 
-/** Mark centres, interleaved `x, y` in stitch coordinates. Deterministic for a given grid and texture. */
-export function markCentres(width: number, height: number, texture: DitherTexture = DEFAULT_DITHER_TEXTURE): Float64Array {
-  return placeMarks(width, height, texture).centres;
+/** Mark centres, interleaved `x, y` in stitch coordinates. Deterministic for a given grid. */
+export function markCentres(width: number, height: number): Float64Array {
+  return placeMarks(width, height).centres;
 }
 
 /** Placement, plus the generator left where it stopped so the shapes below continue the same stream. */
-function placeMarks(width: number, height: number, texture: DitherTexture): { centres: Float64Array; rng: () => number } {
-  const spacing = texture.spacing;
-  const rng = mulberry32(texture.seed);
-  const columns = Math.max(1, Math.ceil(width / spacing));
-  const rows = Math.max(1, Math.ceil(height / spacing));
+function placeMarks(width: number, height: number): { centres: Float64Array; rng: () => number } {
+  const rng = mulberry32(SEED);
+  const columns = Math.max(1, Math.ceil(width / MARK_SPACING));
+  const rows = Math.max(1, Math.ceil(height / MARK_SPACING));
   // One bucket per lattice cell: a candidate can only be too close to a mark in its own or a neighbouring bucket.
   const bucket = new Int32Array(columns * rows).fill(-1);
   const centres: number[] = [];
-  const minDistance = texture.separation * spacing;
-  const minDistanceSquared = minDistance * minDistance;
+  const minDistanceSquared = MIN_DISTANCE * MIN_DISTANCE;
 
   for (let row = 0; row < rows; row++) {
     for (let column = 0; column < columns; column++) {
       for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
         // Two draws per attempt, always, so both languages consume the stream in step.
-        const x = (column + rng()) * spacing;
-        const y = (row + rng()) * spacing;
+        const x = (column + rng()) * MARK_SPACING;
+        const y = (row + rng()) * MARK_SPACING;
         if (x >= width || y >= height) continue;
         let tooClose = false;
         for (let dy = -1; dy <= 1 && !tooClose; dy++) {
@@ -119,8 +90,12 @@ function placeMarks(width: number, height: number, texture: DitherTexture): { ce
  * takes most of them; the rest keep the page from looking like one stamp repeated (G-054 M2).
  */
 export type Shape = "ring" | "broken-ring" | "dot" | "lump";
-/** The shapes, in the order their weights are given. */
-const SHAPES: readonly Shape[] = ["ring", "broken-ring", "dot", "lump"];
+const SHAPE_WEIGHTS: ReadonlyArray<readonly [Shape, number]> = [
+  ["ring", 0.42],
+  ["broken-ring", 0.2],
+  ["dot", 0.23],
+  ["lump", 0.15],
+];
 
 export interface Mark {
   shape: Shape;
@@ -134,21 +109,20 @@ export interface Mark {
 }
 
 /** A mark's own parameters, drawn from the stream left by placement, in mark order. */
-function markShapes(count: number, rng: () => number, texture: DitherTexture): Mark[] {
+function markShapes(count: number, rng: () => number): Mark[] {
   const marks: Mark[] = [];
   for (let m = 0; m < count; m++) {
     const roll = rng();
-    // The last shape catches whatever the weights leave over, so a texture whose weights fall short still draws.
-    let shape: Shape = SHAPES[SHAPES.length - 1];
+    let shape: Shape = SHAPE_WEIGHTS[SHAPE_WEIGHTS.length - 1][0];
     let running = 0;
-    for (let i = 0; i < SHAPES.length; i++) {
-      running += texture.shapeWeights[i];
+    for (const [candidate, weight] of SHAPE_WEIGHTS) {
+      running += weight;
       if (roll < running) {
-        shape = SHAPES[i];
+        shape = candidate;
         break;
       }
     }
-    const radius = (texture.radiusMin + texture.radiusSpan * rng()) * texture.spacing;
+    const radius = (0.26 + 0.16 * rng()) * MARK_SPACING;
     // A direction drawn in the square and normalized; a zero-length draw falls back to straight up.
     const dx = rng() * 2 - 1;
     const dy = rng() * 2 - 1;
@@ -181,40 +155,40 @@ function lumpNoise(mark: number, x: number, y: number): number {
  * How early a mark reaches a cell. Distance alone gives a disc; a ring is ranked by distance *from its own circle*,
  * so the annulus is drawn first and the middle closes later, and a lump adds a per-cell wobble to its edge.
  */
-export function shapeScore(mark: Mark, index: number, dx: number, dy: number, x: number, y: number, texture: DitherTexture = DEFAULT_DITHER_TEXTURE): number {
+export function shapeScore(mark: Mark, index: number, dx: number, dy: number, x: number, y: number): number {
   const distance = Math.sqrt(dx * dx + dy * dy);
   switch (mark.shape) {
     case "dot":
       return distance;
     case "lump":
-      // A fraction of a stitch of wobble: enough to ragged the edge, too little to break the mark apart.
-      return distance + texture.wobble * lumpNoise(index, x, y);
+      // Up to a third of a stitch of wobble: enough to ragged the edge, too little to break the mark apart.
+      return distance + 0.34 * lumpNoise(index, x, y);
     case "ring": {
       // A stroke, not a stamp: the band nearest the mark's own circle is drawn first, and within that band the cells
       // are ordered around the circle from where the mark starts — so a light tone is a short arc rather than specks
       // scattered all round it, and a heavier one closes the ring.
       const sweep = (pseudoAngle(dx, dy) - mark.start + 4) % 4;
-      return Math.abs(distance - mark.radius) + texture.sweep * sweep;
+      return Math.abs(distance - mark.radius) + 0.25 * sweep;
     }
     case "broken-ring": {
       // The gap is a wedge around the mark's own direction: cells inside it are drawn last, so the ring reads as
       // open. The dot product is the cosine of the angle to that direction — no trigonometry needed.
       const alignment = distance > 0 ? (dx * mark.gapX + dy * mark.gapY) / distance : 0;
       const sweep = (pseudoAngle(dx, dy) - mark.start + 4) % 4;
-      return Math.abs(distance - mark.radius) + texture.sweep * sweep + (alignment > texture.gapAlignment ? mark.radius : 0);
+      return Math.abs(distance - mark.radius) + 0.25 * sweep + (alignment > 0.72 ? mark.radius : 0);
     }
   }
 }
 
 /** The centre nearest each cell, by index into `centres`. Searched through the same lattice the centres were placed on. */
-function nearestCentre(width: number, height: number, centres: Float64Array, spacing: number): Int32Array {
-  const columns = Math.max(1, Math.ceil(width / spacing));
-  const rows = Math.max(1, Math.ceil(height / spacing));
+function nearestCentre(width: number, height: number, centres: Float64Array): Int32Array {
+  const columns = Math.max(1, Math.ceil(width / MARK_SPACING));
+  const rows = Math.max(1, Math.ceil(height / MARK_SPACING));
   const heads = new Int32Array(columns * rows).fill(-1);
   const next = new Int32Array(centres.length / 2).fill(-1);
   for (let m = 0; m < centres.length / 2; m++) {
-    const bx = Math.min(columns - 1, Math.floor(centres[m * 2] / spacing));
-    const by = Math.min(rows - 1, Math.floor(centres[m * 2 + 1] / spacing));
+    const bx = Math.min(columns - 1, Math.floor(centres[m * 2] / MARK_SPACING));
+    const by = Math.min(rows - 1, Math.floor(centres[m * 2 + 1] / MARK_SPACING));
     const bucket = by * columns + bx;
     next[m] = heads[bucket];
     heads[bucket] = m;
@@ -223,8 +197,8 @@ function nearestCentre(width: number, height: number, centres: Float64Array, spa
   const owner = new Int32Array(width * height).fill(-1);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const cx = Math.min(columns - 1, Math.floor(x / spacing));
-      const cy = Math.min(rows - 1, Math.floor(y / spacing));
+      const cx = Math.min(columns - 1, Math.floor(x / MARK_SPACING));
+      const cy = Math.min(rows - 1, Math.floor(y / MARK_SPACING));
       let best = -1;
       let bestDistance = Infinity;
       // Widen the ring searched until something is found: a sparse corner may have no mark within one bucket.
@@ -259,16 +233,15 @@ function nearestCentre(width: number, height: number, centres: Float64Array, spa
 export function handDrawnThresholds(
   width: number,
   height: number,
-  texture: DitherTexture = DEFAULT_DITHER_TEXTURE,
   scoreOf?: (markIndex: number, dx: number, dy: number, x: number, y: number) => number
 ): Float64Array {
-  const { centres, rng } = placeMarks(width, height, texture);
-  const marks = markShapes(centres.length / 2, rng, texture);
-  const score = scoreOf ?? ((m: number, dx: number, dy: number, x: number, y: number) => shapeScore(marks[m], m, dx, dy, x, y, texture));
+  const { centres, rng } = placeMarks(width, height);
+  const marks = markShapes(centres.length / 2, rng);
+  const score = scoreOf ?? ((m: number, dx: number, dy: number, x: number, y: number) => shapeScore(marks[m], m, dx, dy, x, y));
   const thresholds = new Float64Array(width * height);
   if (centres.length === 0) return thresholds;
 
-  const owner = nearestCentre(width, height, centres, texture.spacing);
+  const owner = nearestCentre(width, height, centres);
   const markCount = centres.length / 2;
   // Cells grouped by mark, as one pass of counting sort rather than an array of arrays.
   const starts = new Int32Array(markCount + 1);
@@ -304,8 +277,8 @@ export function dotScore(_markIndex: number, dx: number, dy: number): number {
   return dx * dx + dy * dy;
 }
 
-/** The shapes drawn for this grid. Exposed so a test or the swatch tool can see what the library produced. */
-export function markLibrary(width: number, height: number, texture: DitherTexture = DEFAULT_DITHER_TEXTURE): Mark[] {
-  const { centres, rng } = placeMarks(width, height, texture);
-  return markShapes(centres.length / 2, rng, texture);
+/** The shapes drawn for this grid. Exposed so a test can count what the library produced. */
+export function markLibrary(width: number, height: number): Mark[] {
+  const { centres, rng } = placeMarks(width, height);
+  return markShapes(centres.length / 2, rng);
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rgbToOklab } from "@/lib/color/color";
 import { ditherToPalette } from "@/lib/pipeline/dither";
-import { dotScore, handDrawnThresholds, markCentres, markLibrary, MARK_SPACING } from "@/lib/pipeline/dither-hand-drawn";
+import { DEFAULT_DITHER_TEXTURE, dotScore, handDrawnThresholds, markCentres, markLibrary, MARK_SPACING } from "@/lib/pipeline/dither-hand-drawn";
 import { downsampleToGrid } from "@/lib/pipeline/downsample";
 import { buildPattern } from "@/lib/pipeline/pattern";
 import type { PixelBuffer, RGB, StitchPattern } from "@/lib/types";
@@ -73,7 +73,7 @@ describe("hand-drawn marks are placed, not tiled", () => {
   const height = 180;
 
   it("repeats at no shift, where a matrix repeats at its own size", () => {
-    const thresholds = handDrawnThresholds(width, height, dotScore);
+    const thresholds = handDrawnThresholds(width, height, DEFAULT_DITHER_TEXTURE, dotScore);
     const lit = (t: number) => Uint8Array.from(thresholds, (v) => (t > v ? 1 : 0));
     const agreement = (labels: Uint8Array, shiftX: number, shiftY: number) => {
       let same = 0;

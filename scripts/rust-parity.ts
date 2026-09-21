@@ -9,6 +9,7 @@ import { downsampleToGrid } from "@/lib/pipeline/downsample";
 import { enhancePixelBuffer } from "@/lib/pipeline/enhance";
 import { cellsToOklab } from "@/lib/pipeline/pipeline-context";
 import { confettiRatio, labelRegions } from "@/lib/pipeline/regions";
+import { DEFAULT_DITHER_TEXTURE } from "@/lib/pipeline/dither-hand-drawn";
 import { buildPattern, type BuildPatternOptions } from "@/lib/pipeline/pattern";
 import { plainKMeansQuantizer } from "@/lib/pipeline/quantize";
 import { DITHER_MODES } from "@/lib/pipeline/dither";
@@ -212,6 +213,22 @@ const CASES: Case[] = [
   // the chart's size in a way the matrix patterns' does not (G-054 M1).
   { name: "dither/hand-drawn/200st", source: photo, options: { longerSideStitches: 200, colorCount: 16, ditherMode: "hand-drawn" }, golden: false },
   { name: "dither/hand-drawn/200st/dmc", source: realisticRatio, options: { longerSideStitches: 200, colorCount: 24, ditherMode: "hand-drawn", paletteMode: "dmc" }, golden: false },
+  // Textures (G-055): the editor makes the space of settings infinite, so parity samples it rather than enumerating
+  // it — a wide mark, a tight one, rings only, dots only, and a different seed.
+  ...[
+    { name: "wide", texture: { spacing: 12, radiusMin: 0.3, radiusSpan: 0.2 } },
+    { name: "tight", texture: { spacing: 3, separation: 0.9, wobble: 0.8 } },
+    { name: "rings-only", texture: { shapeWeights: [1, 0, 0, 0] as [number, number, number, number], sweep: 0.6 } },
+    { name: "dots-only", texture: { shapeWeights: [0, 0, 1, 0] as [number, number, number, number] } },
+    { name: "reseeded", texture: { seed: 0x51ede57 } },
+  ].flatMap(({ name, texture }): Case[] => [
+    {
+      name: `texture/${name}`,
+      source: photo,
+      options: { longerSideStitches: 120, colorCount: 16, ditherMode: "hand-drawn", ditherTexture: { ...DEFAULT_DITHER_TEXTURE, ...texture } },
+      golden: false,
+    },
+  ]),
   // A chart finer than the photo: the corpus had none before G-051, which is how a divergence in the cells that no
   // source pixel lands in could have hidden. `circle` is 30x30, `hardSplit` 64x64.
   ...(["standard", "crisp", "crisp-plus"] as const).flatMap((edgeMode): Case[] => [
@@ -285,6 +302,7 @@ function rustOptions(c: Case) {
     paletteMode: c.options.paletteMode,
     enhancementMode: c.options.enhancementMode,
     ditherMode: c.options.ditherMode,
+    ditherTexture: c.options.ditherTexture,
     threads: THREADS,
   };
 }

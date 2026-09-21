@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 import { it } from "vitest";
-import { handDrawnThresholds, markLibrary, shapeScore, type Shape } from "@/lib/pipeline/dither-hand-drawn";
+import { DEFAULT_DITHER_TEXTURE, handDrawnThresholds, markLibrary, shapeScore, type Shape } from "@/lib/pipeline/dither-hand-drawn";
 
 /**
  * G-054: the mark library on its own.
@@ -26,7 +26,7 @@ function thresholdsFor(shape: Shape | undefined): Float64Array {
   if (!shape) return handDrawnThresholds(WIDTH, HEIGHT);
   // The same marks the pipeline would draw, with only their shape overridden.
   const marks = markLibrary(WIDTH, HEIGHT).map((mark) => ({ ...mark, shape }));
-  return handDrawnThresholds(WIDTH, HEIGHT, (m, dx, dy, x, y) => shapeScore(marks[m], m, dx, dy, x, y));
+  return handDrawnThresholds(WIDTH, HEIGHT, DEFAULT_DITHER_TEXTURE, (m: number, dx: number, dy: number, x: number, y: number) => shapeScore(marks[m], m, dx, dy, x, y));
 }
 
 /** One row of patches: the same marks at rising tone, lightest first. */

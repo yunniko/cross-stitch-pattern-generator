@@ -7,32 +7,62 @@
 
 use crate::prng::Mulberry32;
 
-/// Stitches between neighbouring marks; sized in stitches, so a bigger chart carries more marks, not bigger ones.
-pub const MARK_SPACING: f64 = 6.0;
-const MIN_DISTANCE: f64 = 0.72 * MARK_SPACING;
+/// What a drawn pattern is made of (G-055); mirrors `DitherTexture` in `dither-hand-drawn.ts`. `radius_span` is
+/// stored rather than a largest radius because `0.42 - 0.26` is not `0.16` in binary floating point, and the default
+/// has to reproduce G-054 bit for bit.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DitherTexture {
+    pub spacing: f64,
+    pub separation: f64,
+    /// Ring, broken ring, dot, lump. Any remainder falls to the last.
+    pub shape_weights: [f64; 4],
+    pub radius_min: f64,
+    pub radius_span: f64,
+    pub gap_alignment: f64,
+    pub wobble: f64,
+    pub sweep: f64,
+    pub seed: u32,
+}
+
+/// G-054's texture, to the bit.
+pub const DEFAULT_DITHER_TEXTURE: DitherTexture = DitherTexture {
+    spacing: 6.0,
+    separation: 0.72,
+    shape_weights: [0.42, 0.2, 0.23, 0.15],
+    radius_min: 0.26,
+    radius_span: 0.16,
+    gap_alignment: 0.72,
+    wobble: 0.34,
+    sweep: 0.25,
+    seed: 0x1d10_c0de,
+};
+
+/// The default's spacing, for callers that only need to know how far apart marks sit.
+pub const MARK_SPACING: f64 = DEFAULT_DITHER_TEXTURE.spacing;
 const ATTEMPTS: usize = 6;
-const SEED: u32 = 0x1d10_c0de;
 
 /// Mark centres as interleaved `x, y` in stitch coordinates.
-pub fn mark_centres(width: usize, height: usize) -> Vec<f64> {
-    place_marks(width, height).0
+pub fn mark_centres(width: usize, height: usize, texture: &DitherTexture) -> Vec<f64> {
+    place_marks(width, height, texture).0
 }
 
 /// Placement, plus the generator left where it stopped so the shapes below continue the same stream.
-fn place_marks(width: usize, height: usize) -> (Vec<f64>, Mulberry32) {
-    let mut rng = Mulberry32::new(SEED);
-    let columns = ((width as f64 / MARK_SPACING).ceil() as usize).max(1);
-    let rows = ((height as f64 / MARK_SPACING).ceil() as usize).max(1);
+fn place_marks(width: usize, height: usize, texture: &DitherTexture) -> (Vec<f64>, Mulberry32) {
+    let spacing = texture.spacing;
+    let mut rng = Mulberry32::new(texture.seed);
+    let columns = ((width as f64 / spacing).ceil() as usize).max(1);
+    let rows = ((height as f64 / spacing).ceil() as usize).max(1);
     let mut bucket = vec![-1i64; columns * rows];
     let mut centres: Vec<f64> = Vec::new();
-    let min_distance_squared = MIN_DISTANCE * MIN_DISTANCE;
+    let min_distance = texture.separation * spacing;
+    let min_distance_squared = min_distance * min_distance;
 
     for row in 0..rows {
         for column in 0..columns {
             for _ in 0..ATTEMPTS {
                 // Two draws per attempt, always, so both languages consume the stream in step.
-                let x = (column as f64 + rng.next_f64()) * MARK_SPACING;
-                let y = (row as f64 + rng.next_f64()) * MARK_SPACING;
+                let x = (column as f64 + rng.next_f64()) * spacing;
+                let y = (row as f64 + rng.next_f64()) * spacing;
                 if x >= width as f64 || y >= height as f64 {
                     continue;
                 }
@@ -81,12 +111,8 @@ enum Shape {
     Lump,
 }
 
-const SHAPE_WEIGHTS: [(Shape, f64); 4] = [
-    (Shape::Ring, 0.42),
-    (Shape::BrokenRing, 0.2),
-    (Shape::Dot, 0.23),
-    (Shape::Lump, 0.15),
-];
+/// The shapes, in the order their weights are given.
+const SHAPES: [Shape; 4] = [Shape::Ring, Shape::BrokenRing, Shape::Dot, Shape::Lump];
 
 struct Mark {
     shape: Shape,
@@ -97,20 +123,21 @@ struct Mark {
 }
 
 /// A mark's own parameters, drawn from the stream left by placement, in mark order.
-fn mark_shapes(count: usize, rng: &mut Mulberry32) -> Vec<Mark> {
+fn mark_shapes(count: usize, rng: &mut Mulberry32, texture: &DitherTexture) -> Vec<Mark> {
     let mut marks = Vec::with_capacity(count);
     for _ in 0..count {
         let roll = rng.next_f64();
-        let mut shape = SHAPE_WEIGHTS[SHAPE_WEIGHTS.len() - 1].0;
+        // The last shape catches whatever the weights leave over, so a texture falling short still draws.
+        let mut shape = SHAPES[SHAPES.len() - 1];
         let mut running = 0.0;
-        for &(candidate, weight) in SHAPE_WEIGHTS.iter() {
-            running += weight;
+        for (i, &candidate) in SHAPES.iter().enumerate() {
+            running += texture.shape_weights[i];
             if roll < running {
                 shape = candidate;
                 break;
             }
         }
-        let radius = (0.26 + 0.16 * rng.next_f64()) * MARK_SPACING;
+        let radius = (texture.radius_min + texture.radius_span * rng.next_f64()) * texture.spacing;
         let dx = rng.next_f64() * 2.0 - 1.0;
         let dy = rng.next_f64() * 2.0 - 1.0;
         let length = (dx * dx + dy * dy).sqrt();
@@ -154,14 +181,22 @@ fn lump_noise(mark: usize, x: usize, y: usize) -> f64 {
 }
 
 /// How early a mark reaches a cell; a lower score is drawn first. Mirrors `shapeScore`.
-fn shape_score(mark: &Mark, index: usize, dx: f64, dy: f64, x: usize, y: usize) -> f64 {
+fn shape_score(
+    mark: &Mark,
+    index: usize,
+    dx: f64,
+    dy: f64,
+    x: usize,
+    y: usize,
+    texture: &DitherTexture,
+) -> f64 {
     let distance = (dx * dx + dy * dy).sqrt();
     match mark.shape {
         Shape::Dot => distance,
-        Shape::Lump => distance + 0.34 * lump_noise(index, x, y),
+        Shape::Lump => distance + texture.wobble * lump_noise(index, x, y),
         Shape::Ring => {
             let sweep = (pseudo_angle(dx, dy) - mark.start + 4.0) % 4.0;
-            (distance - mark.radius).abs() + 0.25 * sweep
+            (distance - mark.radius).abs() + texture.sweep * sweep
         }
         Shape::BrokenRing => {
             let alignment = if distance > 0.0 {
@@ -171,22 +206,26 @@ fn shape_score(mark: &Mark, index: usize, dx: f64, dy: f64, x: usize, y: usize) 
             };
             let sweep = (pseudo_angle(dx, dy) - mark.start + 4.0) % 4.0;
             (distance - mark.radius).abs()
-                + 0.25 * sweep
-                + if alignment > 0.72 { mark.radius } else { 0.0 }
+                + texture.sweep * sweep
+                + if alignment > texture.gap_alignment {
+                    mark.radius
+                } else {
+                    0.0
+                }
         }
     }
 }
 
 /// The centre nearest each cell, by index into `centres`.
-fn nearest_centre(width: usize, height: usize, centres: &[f64]) -> Vec<i64> {
-    let columns = ((width as f64 / MARK_SPACING).ceil() as usize).max(1);
-    let rows = ((height as f64 / MARK_SPACING).ceil() as usize).max(1);
+fn nearest_centre(width: usize, height: usize, centres: &[f64], spacing: f64) -> Vec<i64> {
+    let columns = ((width as f64 / spacing).ceil() as usize).max(1);
+    let rows = ((height as f64 / spacing).ceil() as usize).max(1);
     let count = centres.len() / 2;
     let mut heads = vec![-1i64; columns * rows];
     let mut next = vec![-1i64; count];
     for m in 0..count {
-        let bx = ((centres[m * 2] / MARK_SPACING).floor() as usize).min(columns - 1);
-        let by = ((centres[m * 2 + 1] / MARK_SPACING).floor() as usize).min(rows - 1);
+        let bx = ((centres[m * 2] / spacing).floor() as usize).min(columns - 1);
+        let by = ((centres[m * 2 + 1] / spacing).floor() as usize).min(rows - 1);
         let bucket = by * columns + bx;
         next[m] = heads[bucket];
         heads[bucket] = m as i64;
@@ -195,8 +234,8 @@ fn nearest_centre(width: usize, height: usize, centres: &[f64]) -> Vec<i64> {
     let mut owner = vec![-1i64; width * height];
     for y in 0..height {
         for x in 0..width {
-            let cx = ((x as f64 / MARK_SPACING).floor() as usize).min(columns - 1) as i64;
-            let cy = ((y as f64 / MARK_SPACING).floor() as usize).min(rows - 1) as i64;
+            let cx = ((x as f64 / spacing).floor() as usize).min(columns - 1) as i64;
+            let cy = ((y as f64 / spacing).floor() as usize).min(rows - 1) as i64;
             let mut best: i64 = -1;
             let mut best_distance = f64::INFINITY;
             let limit = columns.max(rows) as i64 + 1;
@@ -233,15 +272,15 @@ fn nearest_centre(width: usize, height: usize, centres: &[f64]) -> Vec<i64> {
 }
 
 /// A threshold in 0..1 for every cell. `score_of` decides a mark's shape; a lower score is drawn first.
-pub fn hand_drawn_thresholds(width: usize, height: usize) -> Vec<f64> {
-    let (centres, mut rng) = place_marks(width, height);
+pub fn hand_drawn_thresholds(width: usize, height: usize, texture: &DitherTexture) -> Vec<f64> {
+    let (centres, mut rng) = place_marks(width, height, texture);
     let mut thresholds = vec![0f64; width * height];
     if centres.is_empty() {
         return thresholds;
     }
-    let marks = mark_shapes(centres.len() / 2, &mut rng);
+    let marks = mark_shapes(centres.len() / 2, &mut rng, texture);
 
-    let owner = nearest_centre(width, height, &centres);
+    let owner = nearest_centre(width, height, &centres, texture.spacing);
     let mark_count = centres.len() / 2;
     let mut starts = vec![0i64; mark_count + 1];
     for &m in &owner {
@@ -267,6 +306,7 @@ pub fn hand_drawn_thresholds(width: usize, height: usize) -> Vec<f64> {
                 y as f64 + 0.5 - centres[m * 2 + 1],
                 x,
                 y,
+                texture,
             );
         }
     }

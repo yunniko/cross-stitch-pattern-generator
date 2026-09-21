@@ -4,7 +4,7 @@
 //! serpentine, which is what keeps the worm artifacts away.
 
 use crate::color::{rgb_to_oklab, Oklab, Rgb};
-use crate::dither_hand_drawn::hand_drawn_thresholds;
+use crate::dither_hand_drawn::{hand_drawn_thresholds, DitherTexture, DEFAULT_DITHER_TEXTURE};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -177,8 +177,14 @@ fn ordered(
 /// areas flat and makes the stitches it does place clump (D200). Mirrors `DIFFUSION_KERNELS` in `dither.ts`.
 /// One label per cell from a threshold field covering the whole chart. The decision is the ordered one; the field
 /// only says where each cell sits inside its mark.
-fn drawn(cell_oklab: &[f64], width: usize, height: usize, palette: &[Rgb]) -> Vec<u8> {
-    let thresholds = hand_drawn_thresholds(width, height);
+fn drawn(
+    cell_oklab: &[f64],
+    width: usize,
+    height: usize,
+    palette: &[Rgb],
+    texture: &DitherTexture,
+) -> Vec<u8> {
+    let thresholds = hand_drawn_thresholds(width, height, texture);
     let palette_oklab = palette_to_oklab(palette);
     let mut labels = vec![0u8; width * height];
 
@@ -275,6 +281,7 @@ pub fn dither_to_palette(
     height: usize,
     palette: &[Rgb],
     mode: DitherMode,
+    texture: &DitherTexture,
 ) -> Vec<u8> {
     if palette.is_empty() {
         return vec![0u8; width * height];
@@ -284,7 +291,7 @@ pub fn dither_to_palette(
         DitherMode::FloydSteinberg | DitherMode::Atkinson => {
             error_diffusion(cell_oklab, width, height, palette, mode)
         }
-        DitherMode::HandDrawn => drawn(cell_oklab, width, height, palette),
+        DitherMode::HandDrawn => drawn(cell_oklab, width, height, palette, texture),
         _ => ordered(cell_oklab, width, height, palette, mode),
     }
 }

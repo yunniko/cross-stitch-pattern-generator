@@ -1,6 +1,7 @@
 import { computeCellImportance, computeEdgeMagnitude, opaquePixelMask, sourceLuminance } from "./edge-map";
 import { denoiseForQuantization } from "./denoise";
 import { ditherToPalette, isDithered, type DitherMode } from "./dither";
+import { DEFAULT_DITHER_TEXTURE, type DitherTexture } from "./dither-hand-drawn";
 import { downsampleToGridWithCoverage, emptyCellMask, gridDimensionsFor } from "./downsample";
 import { luminance, rgbToOklab } from "../color/color";
 import { nameColors } from "../color/color-names";
@@ -83,6 +84,11 @@ export interface BuildPatternOptions {
    * Refused with Crisp, whose whole purpose is the opposite (D199).
    */
   ditherMode?: DitherMode;
+  /**
+   * What a drawn pattern is made of (G-055); ignored by every other pattern. Absent means the default texture, which
+   * is the chart G-054 shipped.
+   */
+  ditherTexture?: DitherTexture;
   onProgress?: (fraction: number) => void;
 }
 
@@ -189,7 +195,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   }
   // The quantizer chose the threads; dithering decides which stitch gets which of the two nearest (G-052).
   if (isDithered(dither)) {
-    quantized = ditherToPalette(ctx.cellOklab, gridWidth, gridHeight, rawPalette, dither);
+    quantized = ditherToPalette(ctx.cellOklab, gridWidth, gridHeight, rawPalette, dither, options.ditherTexture ?? DEFAULT_DITHER_TEXTURE);
     if (emptyMask) for (let i = 0; i < emptyMask.length; i++) if (emptyMask[i]) quantized[i] = EMPTY_CELL;
   }
   options.onProgress?.(0.4);

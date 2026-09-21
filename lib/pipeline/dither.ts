@@ -1,5 +1,5 @@
 import { rgbToOklab } from "../color/color";
-import { handDrawnThresholds } from "./dither-hand-drawn";
+import { DEFAULT_DITHER_TEXTURE, handDrawnThresholds, type DitherTexture } from "./dither-hand-drawn";
 import { DITHER_MATRICES } from "./dither-matrices";
 import type { RGB } from "../types";
 
@@ -127,8 +127,8 @@ function orderedDither(cellOklab: Float64Array, width: number, height: number, p
  * One label per cell from a threshold field covering the whole chart, rather than a tile repeated across it. The
  * decision is the ordered one — the field only says where each cell sits in its mark.
  */
-function drawnDither(cellOklab: Float64Array, width: number, height: number, palette: readonly RGB[]): Uint8Array {
-  const thresholds = handDrawnThresholds(width, height);
+function drawnDither(cellOklab: Float64Array, width: number, height: number, palette: readonly RGB[], texture: DitherTexture): Uint8Array {
+  const thresholds = handDrawnThresholds(width, height, texture);
   const paletteOklab = paletteToOklab(palette);
   const labels = new Uint8Array(width * height);
 
@@ -210,10 +210,11 @@ export function ditherToPalette(
   width: number,
   height: number,
   palette: readonly RGB[],
-  mode: Exclude<DitherMode, "off">
+  mode: Exclude<DitherMode, "off">,
+  texture: DitherTexture = DEFAULT_DITHER_TEXTURE
 ): Uint8Array {
   if (palette.length === 0) return new Uint8Array(width * height);
   if (isDiffusionMode(mode)) return errorDiffusionDither(cellOklab, width, height, palette, mode);
-  if (isDrawnMode(mode)) return drawnDither(cellOklab, width, height, palette);
+  if (isDrawnMode(mode)) return drawnDither(cellOklab, width, height, palette, texture);
   return orderedDither(cellOklab, width, height, palette, mode);
 }
