@@ -4,6 +4,7 @@ import type { ExportJobKind } from "@/lib/export/export-jobs";
 import type { ExportProgress } from "@/lib/export/export-progress";
 import type { SizeUnit } from "@/lib/export/finished-size";
 import type { DitherMode } from "@/lib/pipeline/dither";
+import type { DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
 import type { EnhancementModeId } from "@/lib/pipeline/enhance";
 import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pipeline/pattern";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
@@ -26,6 +27,7 @@ export interface JobSettings {
   edgeMode?: EdgeMode;
   enhancementMode?: EnhancementModeId;
   ditherMode?: DitherMode;
+  ditherTexture?: DitherTexture;
 }
 
 /**

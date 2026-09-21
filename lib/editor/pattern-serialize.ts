@@ -1,4 +1,5 @@
 import { DITHER_MODES, type DitherMode } from "../pipeline/dither";
+import { isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
 import { isEnhancementModeId, type EnhancementModeId } from "../pipeline/enhance";
 import { findThread, formatThreadName, THREAD_BRANDS, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
 import { effectiveSymmetryAxes, NO_SYMMETRY, SYMMETRY_AXES, type SymmetryAxes, type SymmetryAxis } from "./symmetry-axes";
@@ -51,6 +52,11 @@ export interface SerializedPattern {
    */
   ditherMode?: Exclude<DitherMode, "off">;
   /**
+   * What the drawn marks were made of (G-055), embedded rather than referenced: a chart must reopen as it was made,
+   * and a named texture the reader later edits would not do that. Absent for the default and for every other pattern.
+   */
+  ditherTexture?: DitherTexture;
+  /**
    * The symmetry axes that were on when the file was saved (G-037); absent when none were. An optional field that
    * older builds ignore, so the format version stays the same (D138).
    */
@@ -98,6 +104,7 @@ export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes 
     edgeMode: pattern.edgeMode,
     enhancementMode: pattern.enhancementMode,
     ditherMode: pattern.ditherMode,
+    ditherTexture: pattern.ditherTexture,
     symmetry: serializeSymmetry(effectiveSymmetryAxes(symmetry, pattern.width, pattern.height)),
   };
   return JSON.stringify(data);
@@ -217,6 +224,8 @@ export function deserializePatternData(data: unknown): StitchPattern {
     // Any recognized mode is kept, released or not: the file records how it was built (D113).
     enhancementMode: isEnhancementModeId(d.enhancementMode) && d.enhancementMode !== "off" ? d.enhancementMode : undefined,
     ditherMode: isDitherModeId(d.ditherMode) && d.ditherMode !== "off" ? d.ditherMode : undefined,
+    // A texture that is out of range or from a newer build falls back to the default, so the file still opens.
+    ditherTexture: isValidDitherTexture(d.ditherTexture) ? d.ditherTexture : undefined,
   };
 }
 

@@ -53,6 +53,7 @@ export interface StoredProjectRecord {
   threadBrand?: StitchPattern["threadBrand"];
   edgeMode?: StitchPattern["edgeMode"];
   ditherMode?: StitchPattern["ditherMode"];
+  ditherTexture?: StitchPattern["ditherTexture"];
   enhancementMode?: StitchPattern["enhancementMode"];
   sourceImage?: StoredSourceImage;
   /** The symmetry axes that were on (G-037); absent when none were, and on records written before G-037. */
@@ -132,6 +133,7 @@ async function encodeRecord(pattern: StitchPattern, symmetry: SymmetryAxes): Pro
     edgeMode: pattern.edgeMode,
     enhancementMode: pattern.enhancementMode,
     ditherMode: pattern.ditherMode,
+    ditherTexture: pattern.ditherTexture,
   };
   const storedSymmetry = serializeSymmetry(symmetry);
   if (storedSymmetry) record.symmetry = storedSymmetry;

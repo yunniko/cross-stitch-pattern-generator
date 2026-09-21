@@ -1,6 +1,6 @@
 import { computeCellImportance, computeEdgeMagnitude, opaquePixelMask, sourceLuminance } from "./edge-map";
 import { denoiseForQuantization } from "./denoise";
-import { ditherToPalette, isDithered, type DitherMode } from "./dither";
+import { ditherToPalette, isDithered, isDrawnMode, type DitherMode } from "./dither";
 import { DEFAULT_DITHER_TEXTURE, type DitherTexture } from "./dither-hand-drawn";
 import { downsampleToGridWithCoverage, emptyCellMask, gridDimensionsFor } from "./downsample";
 import { luminance, rgbToOklab } from "../color/color";
@@ -408,6 +408,9 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     // matched return path too.
     edgeMode: crisp ? edgeMode : undefined,
     ditherMode: isDithered(dither) ? dither : undefined,
+    // Recorded only when it is not the default, so a chart drawn with the shipped texture stays byte-identical to
+    // one made before textures existed (G-055).
+    ditherTexture: isDithered(dither) && isDrawnMode(dither) && options.ditherTexture && options.ditherTexture !== DEFAULT_DITHER_TEXTURE ? options.ditherTexture : undefined,
     enhancementMode: enhancementMode === "off" ? undefined : enhancementMode,
   };
 

@@ -87,6 +87,8 @@ pub struct StitchPattern {
     pub edge_mode: Option<&'static str>,
     /// The dither pattern the chart was generated with (G-052); `None` means none.
     pub dither_mode: Option<&'static str>,
+    /// What the drawn marks were made of (G-055); `None` for every other pattern and for the default texture.
+    pub dither_texture: Option<DitherTexture>,
     pub enhancement_mode: Option<&'static str>,
 }
 
@@ -475,6 +477,10 @@ pub fn build_pattern_reporting(
         thread_brand: None,
         edge_mode: crisp.then(|| options.edge_mode.id()),
         dither_mode: dithered.then(|| options.dither.id()),
+        // Recorded only when it is not the default, so a chart drawn with the shipped texture stays the file it was.
+        dither_texture: (options.dither == DitherMode::HandDrawn
+            && options.dither_texture != DEFAULT_DITHER_TEXTURE)
+            .then_some(options.dither_texture),
         // Recorded whenever requested, even when every stage abstained, as the TypeScript does.
         enhancement_mode: (options.enhancement != EnhancementMode::Off)
             .then(|| options.enhancement.id()),

@@ -265,6 +265,7 @@ interface RustOutput {
     edgeMode: StitchPattern["edgeMode"] | null;
     enhancementMode: StitchPattern["enhancementMode"] | null;
     ditherMode: StitchPattern["ditherMode"] | null;
+    ditherTexture: StitchPattern["ditherTexture"] | null;
   };
   runs: Array<{ totalMs: number; stages: Record<string, number> }>;
   peakRssMb: number | null;
@@ -289,6 +290,7 @@ function toPattern(output: RustOutput): StitchPattern {
     edgeMode: output.pattern.edgeMode ?? undefined,
     enhancementMode: output.pattern.enhancementMode ?? undefined,
     ditherMode: output.pattern.ditherMode ?? undefined,
+    ditherTexture: output.pattern.ditherTexture ?? undefined,
   };
 }
 
@@ -364,6 +366,8 @@ describe("Rust exact tier reproduces the TypeScript pipeline (G-048)", () => {
     // Not part of the hash either, and the same class of field as the thread source above: it records how the chart
     // was built, so a Rust build that silently dropped it would still hash identical (G-052 M4).
     expect(rustPattern.ditherMode ?? null, "the recorded dither pattern differs").toEqual(tsPattern!.ditherMode ?? null);
+    // The texture is not hashed either, and a chart that forgot it would not reopen as it was made (G-055 M2).
+    expect(rustPattern.ditherTexture ?? null, "the recorded texture differs").toEqual(tsPattern!.ditherTexture ?? null);
     if (c.golden) expect(tsHash, "TypeScript no longer matches the recorded golden hash").toBe(RECORDED[name]);
     if (wasmIdentical === false) throw new Error("the WASM build differs from TypeScript");
     if (rustHash !== tsHash) {

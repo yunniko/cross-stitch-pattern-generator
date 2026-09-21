@@ -1,4 +1,5 @@
 import { DITHER_MODES, isDithered, type DitherMode } from "@/lib/pipeline/dither";
+import { isValidDitherTexture } from "@/lib/pipeline/dither-hand-drawn";
 import { ENHANCEMENT_MODE_IDS } from "@/lib/pipeline/enhance";
 import { THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES } from "@/lib/types";
@@ -46,6 +47,10 @@ export function settingsError(body: unknown): string | null {
   // the reader their photo was at fault.
   if (isDithered(b.ditherMode as DitherMode | undefined) && b.edgeMode !== undefined && b.edgeMode !== "standard") {
     return "ditherMode cannot be combined with a Crisp edgeMode: Crisp preserves hard boundaries, which dithering deliberately blends.";
+  }
+  // Ranges, not a type union: a texture is numbers, and the union trick the other fields use cannot check a number.
+  if (b.ditherTexture !== undefined && !isValidDitherTexture(b.ditherTexture)) {
+    return "ditherTexture must be an object whose values are all inside their ranges.";
   }
   return null;
 }

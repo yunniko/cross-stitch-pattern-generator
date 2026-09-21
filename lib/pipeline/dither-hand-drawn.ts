@@ -59,6 +59,39 @@ export const DEFAULT_DITHER_TEXTURE: DitherTexture = {
   seed: 0x1d10c0de,
 };
 
+/**
+ * What each knob may be, enforced by the editor and re-checked by the processor (G-055). A texture outside these is
+ * refused rather than clamped: a request that says 200 stitches between marks is a mistake, not a preference.
+ * `seed` is any unsigned 32-bit integer and so has no range here.
+ */
+export const DITHER_TEXTURE_RANGES = {
+  spacing: [3, 16],
+  separation: [0.4, 0.95],
+  shapeWeight: [0, 1],
+  radiusMin: [0.1, 0.45],
+  radiusSpan: [0, 0.35],
+  gapAlignment: [0.3, 0.95],
+  wobble: [0, 1],
+  sweep: [0, 1],
+} as const satisfies Record<string, readonly [number, number]>;
+
+/** Whether every number of a texture is inside its range; the shape weights must also not be all zero. */
+export function isValidDitherTexture(texture: unknown): texture is DitherTexture {
+  if (typeof texture !== "object" || texture === null) return false;
+  const t = texture as Record<string, unknown>;
+  const inRange = (value: unknown, [low, high]: readonly [number, number]) =>
+    typeof value === "number" && Number.isFinite(value) && value >= low && value <= high;
+  if (!inRange(t.spacing, DITHER_TEXTURE_RANGES.spacing) || !Number.isInteger(t.spacing)) return false;
+  for (const key of ["separation", "radiusMin", "radiusSpan", "gapAlignment", "wobble", "sweep"] as const) {
+    if (!inRange(t[key], DITHER_TEXTURE_RANGES[key])) return false;
+  }
+  if (!Array.isArray(t.shapeWeights) || t.shapeWeights.length !== 4) return false;
+  if (!t.shapeWeights.every((weight) => inRange(weight, DITHER_TEXTURE_RANGES.shapeWeight))) return false;
+  // Every weight zero would leave the last shape catching everything, which is a texture nobody meant to ask for.
+  if (t.shapeWeights.every((weight) => weight === 0)) return false;
+  return typeof t.seed === "number" && Number.isInteger(t.seed) && t.seed >= 0 && t.seed <= 0xffffffff;
+}
+
 /** The default's spacing, for callers that only need to know how far apart marks sit. */
 export const MARK_SPACING = DEFAULT_DITHER_TEXTURE.spacing;
 /** Tries per lattice cell before that cell is left empty — the gaps are part of the irregularity. Not a knob. */

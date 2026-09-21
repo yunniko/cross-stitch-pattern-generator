@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LEGACY_PROJECT_KEY, legacyProjectSlot, loadWorkspaceOptions, OPTIONS_KEY, saveWorkspaceOptions } from "@/lib/editor/workspace-storage";
+import { DEFAULT_DITHER_TEXTURE } from "@/lib/pipeline/dither-hand-drawn";
 import { MAX_STITCHES } from "@/lib/types";
 
 // This project's default Vitest environment is plain Node (no jsdom/window),
@@ -50,6 +51,7 @@ describe("workspace-storage", () => {
       paletteMode: "full",
       enhancementMode: "off",
       ditherMode: "off",
+      ditherTexture: DEFAULT_DITHER_TEXTURE,
       doubleClickFill: true,
     } as const;
 
@@ -73,6 +75,7 @@ describe("workspace-storage", () => {
         enhancementMode: "off" as const,
         // Crisp is stored above, so a dither pattern here would be resolved away on load; its own cases are below.
         ditherMode: "off" as const,
+        ditherTexture: DEFAULT_DITHER_TEXTURE,
         doubleClickFill: false,
       };
       saveWorkspaceOptions(saved);

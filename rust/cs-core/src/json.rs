@@ -158,6 +158,17 @@ pub fn pattern_json(p: &StitchPattern) -> Value {
         "edgeMode": p.edge_mode,
         "enhancementMode": p.enhancement_mode,
         "ditherMode": p.dither_mode,
+        "ditherTexture": p.dither_texture.map(|t| json!({
+            "spacing": t.spacing,
+            "separation": t.separation,
+            "shapeWeights": t.shape_weights,
+            "radiusMin": t.radius_min,
+            "radiusSpan": t.radius_span,
+            "gapAlignment": t.gap_alignment,
+            "wobble": t.wobble,
+            "sweep": t.sweep,
+            "seed": t.seed,
+        })),
     })
 }
 

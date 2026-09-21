@@ -52,7 +52,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   current chart byte for byte, in both languages, with the tone property over a sweep of settings and parity cases
   across several textures. **Settles here:** whether the seed becomes a knob (a "Shuffle", stored with the texture) —
   recommended, since D202 noted that one fixed seed makes every chart of a size share its placement.
-- [ ] M2 — Carrying it: the texture in the request with real range validation, in the saved file and the autosave
+- [x] M2 — Carrying it: the texture in the request with real range validation, in the saved file and the autosave
   record, the old-file and bad-value fallbacks, and the reopen-identically test.
 - [ ] M3 — The editor: the controls in the Photo pane, shown only when a drawn pattern is chosen and collapsed until
   opened, with the live swatch and a couple of presets (the current mix, and whatever the sliders show is worth
@@ -61,6 +61,14 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   moved, deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-21 — **M2 done.** The texture travels in the generation request, checked by **range** rather than by the
+  type-union trick the other settings use (a union cannot check a number): eleven refusals covered, including every
+  weight zero and a non-integer spacing. It is **embedded in the saved file and the autosave record**, not referenced,
+  so a chart reopens as it was made — and generating again from the file's own texture gives the same cells back.
+  The default is deliberately *not* written, so a chart drawn with the shipped texture is the same file it was before
+  G-055; an unreadable texture falls back to the default rather than failing the open. Rust records it too, and
+  `compare:rust` now compares the recorded texture explicitly — it is not hashed, so a build that dropped it would
+  have passed. Verified: Vitest 1210 passed / 8 skipped, 73 parity cases identical, tsc and eslint clean.
 - 2026-09-21 — **M1 done.** `DitherTexture` holds the nine numbers that were constants: spacing, separation, the four
   shape weights, ring radius (as a smallest and a span), gap width, wobble, sweep and the seed. **The seed became a
   knob**, as recommended — it is what lets two charts of the same size differ, which D202 named as the price of one

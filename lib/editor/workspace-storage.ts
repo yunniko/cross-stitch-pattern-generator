@@ -2,6 +2,7 @@ import type { OverlapCells } from "../export/a4-layout";
 import type { LegacyProjectSlot } from "./project-store";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "../export/finished-size";
 import { DITHER_MODES, isDithered, type DitherMode } from "../pipeline/dither";
+import { DEFAULT_DITHER_TEXTURE, isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
 import { isReleasedEnhancementMode, type EnhancementModeId } from "../pipeline/enhance";
 import type { EdgeMode, GenerationMode, PaletteMode } from "../pipeline/pattern";
 import { THREAD_BRAND_IDS } from "../threads/thread-brands";
@@ -38,6 +39,8 @@ export interface WorkspaceOptions {
   enhancementMode: EnhancementModeId;
   /** The dither pattern for the *next* Generate; "off" is the pipeline as it was. Never dithered while `edgeMode` is Crisp (D199). */
   ditherMode: DitherMode;
+  /** What the drawn marks are made of for the next Generate (G-055); only read when a drawn pattern is chosen. */
+  ditherTexture: DitherTexture;
   /** Whether a Brush double-click floods the region under it as one undo step (D138); off leaves the two clicks as themselves. */
   doubleClickFill: boolean;
 }
@@ -56,6 +59,7 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   paletteMode: "full",
   enhancementMode: "off",
   ditherMode: "off",
+  ditherTexture: DEFAULT_DITHER_TEXTURE,
   doubleClickFill: true,
 };
 
@@ -99,6 +103,8 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
           : DEFAULT_OPTIONS.paletteMode,
       enhancementMode: isReleasedEnhancementMode(parsed.enhancementMode) ? parsed.enhancementMode : DEFAULT_OPTIONS.enhancementMode,
       ditherMode: isDithered(storedDither) && edgeMode !== "standard" ? "off" : storedDither,
+      // A stored texture that is out of range reads as the default rather than as a request Generate would refuse.
+      ditherTexture: isValidDitherTexture(parsed.ditherTexture) ? parsed.ditherTexture : DEFAULT_DITHER_TEXTURE,
       // Absent in options stored before G-041, so anything that is not a boolean falls back to the default.
       doubleClickFill: typeof parsed.doubleClickFill === "boolean" ? parsed.doubleClickFill : DEFAULT_OPTIONS.doubleClickFill,
     };
