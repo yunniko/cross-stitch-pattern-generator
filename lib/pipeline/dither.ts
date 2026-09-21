@@ -19,7 +19,7 @@ import type { RGB } from "../types";
  * Everything works in OKLab, the space the rest of the pipeline compares colours in.
  */
 
-export const ORDERED_DITHER_MODES = ["bayer-4", "bayer-8", "clustered-8", "lines-horizontal", "lines-diagonal", "blue-noise-16"] as const;
+export const ORDERED_DITHER_MODES = ["bayer-4", "bayer-8", "clustered-8", "ring-8", "lines-horizontal", "lines-diagonal", "blue-noise-16"] as const;
 export const DITHER_MODES = ["off", ...ORDERED_DITHER_MODES, "floyd-steinberg"] as const;
 export type DitherMode = (typeof DITHER_MODES)[number];
 

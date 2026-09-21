@@ -108,6 +108,21 @@ describe("each pattern is the matrix it claims to be", () => {
     });
   }
 
+  it("grows the ring screen as a ring: the whole annulus before any of the hole (G-053)", () => {
+    // The shape the Owner's screenshot holds: an eight-cell ring around an unlit middle, the middle closing only at a
+    // heavier tone. Stated as ranks rather than as a picture, so it pins the ordering and not one tone's rendering.
+    const matrix = DITHER_MATRICES["ring-8"];
+    const rank = (x: number, y: number) => matrix[y][x];
+    const ring = [[1, 0], [2, 0], [0, 1], [3, 1], [0, 2], [3, 2], [1, 3], [2, 3]];
+    const hole = [[1, 1], [2, 1], [1, 2], [2, 2]];
+
+    const lastOfRing = Math.max(...ring.map(([x, y]) => rank(x, y)));
+    const firstOfHole = Math.min(...hole.map(([x, y]) => rank(x, y)));
+    expect(lastOfRing, "the annulus fills before the middle does").toBeLessThan(firstOfHole);
+    // And the hole does close, well before the tile is full: a ring that never fills would band at midtones.
+    expect(Math.max(...hole.map(([x, y]) => rank(x, y))), "the middle closes by half tone").toBeLessThan(32);
+  });
+
   it("gives a flat tone at a thread's own colour that thread alone, in every mode", () => {
     for (const mode of [...ORDERED_DITHER_MODES, "floyd-steinberg"] as Exclude<DitherMode, "off">[]) {
       const labels = ditherToPalette(flatGrid(8, 8, BLACK), 8, 8, [BLACK, WHITE], mode);

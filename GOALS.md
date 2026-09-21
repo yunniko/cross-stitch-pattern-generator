@@ -12,6 +12,49 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
+### G-053 · Two more dither patterns: a ring screen and Atkinson — ACTIVE (2026-09-21)
+- **What:** two additions to G-052's Dither control — a **ring screen**, a clustered dot whose dot grows as a ring
+  before its hole closes, and **Atkinson**, a second error-diffusion kernel that keeps only 3/4 of the error.
+- **Why:** the Owner showed a dithered gradient (screenshot, 2026-09-21) whose look none of the seven reproduce, and
+  asked for it. Recovering the pattern from that image (each dither cell is a 6×6 px block, so it is a 19×44 cell
+  grid) found three things: its ends are blown flat — solid dark for the top 20% and solid light for the bottom 20%,
+  where Floyd–Steinberg on the same ramp goes solid only for rows 0–4 and from row 42, and of six kernels tried only
+  Atkinson blows them out that far (0–7, and from 37); its midtone is an exact one-cell checkerboard, which is an
+  ordered screen's signature; and it holds ring-shaped clusters, `.##.`/`#..#`/`#..#`/`.##.`. Whether those rings are
+  the screen or the photo (they could be out-of-focus highlights) cannot be settled from a 19×44 crop, so both
+  readings get built: the ring is a matrix, the blown-out clumping is a kernel. Owner chose both, 2026-09-21.
+- **Acceptance criteria:**
+  1. Dither Off and all seven existing patterns produce byte-identical charts to today: the 18 golden hashes (D107)
+     and every existing Rust parity case unchanged.
+  2. The ring screen's matrix is generated data (D198), validated as a permutation, and its dot demonstrably grows as
+     a ring: at a low tone the lit stitches form an annulus with an unlit centre, and the centre fills only at a
+     higher tone. Pinned by a test, not by eye.
+  3. Atkinson measurably does what it is for, against Floyd–Steinberg on the same ramp: a longer solid run at both
+     ends, and more clustering (a higher share of lit stitches with a lit neighbour). Whether it runs serpentine or
+     in raster order is decided by measuring worm artifacts, not assumed, and recorded.
+  4. Rust matches TypeScript byte for byte for both, with parity cases at more than one colour count.
+  5. `docs/reviews/2026-09-21-dithering-comparison.md` covers all nine patterns, and the Photo pane's grouping still
+     tells a stitcher what each group costs — Atkinson clumps, so "dispersed" no longer describes every kernel.
+- **Constraints:** a pattern that can be data is data (D198); every post-quantization pass stays gated on `smooth`, so
+  neither addition may reintroduce smoothing (D199). Both languages change together or not at all.
+
+**Milestones**:
+- [x] M1 — The ring screen: generated into the committed matrices, offered as a mode in both languages, with the
+  annulus-before-centre test and parity cases.
+- [ ] M2 — Atkinson: a second error-diffusion kernel in both languages, Floyd–Steinberg unchanged, with the
+  solid-run and clustering measurements and parity cases.
+- [ ] M3 — The comparison document regenerated over all nine patterns, the Photo pane's options and grouping updated,
+  decision files, README and HANDOVER, deploy and verify live.
+
+**Progress log** (newest first):
+- 2026-09-21 — **M1 done.** `ring-8`: the clustered screen's two dot centres, ranked by distance from a circle of
+  radius 1.6 around them instead of from the centre, so the annulus fills first. At 14% tone the tile is exactly the
+  shape the screenshot holds (`.##.`/`#..#`/`#..#`/`.##.`), the hole closes by 30%, and it is solid blocks at 50%.
+  The generator only added a matrix: the other six are byte-identical, and the 18 golden hashes are untouched.
+  Verified: Vitest 1186 passed / 8 skipped (the new test pins annulus-before-hole as ranks, not as a picture),
+  `compare:rust` identical on `dither/ring-8/8` and `/20`, tsc and eslint clean. Next: M2, the Atkinson kernel.
+- 2026-09-21 — goal created and planned, from the Owner's screenshot and the measurements above.
+
 ### G-052 · Optional dithering modes — ACTIVE (2026-09-21)
 - **What:** a Dither control offering several patterns, each turning a photo into the chosen palette by mixing stitches
   rather than rounding each one, so a small palette can hold a gradient. Off by default and off in every existing

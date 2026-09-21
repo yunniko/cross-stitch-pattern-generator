@@ -58,6 +58,7 @@ const DITHER_LABELS: Record<DitherMode, string> = {
   "bayer-4": "Bayer 4×4",
   "bayer-8": "Bayer 8×8",
   "clustered-8": "Clustered dots",
+  "ring-8": "Rings",
   "lines-horizontal": "Horizontal lines",
   "lines-diagonal": "Diagonal lines",
   "blue-noise-16": "Blue noise",
@@ -66,7 +67,7 @@ const DITHER_LABELS: Record<DitherMode, string> = {
 
 // The split the measurement found (`docs/reviews/2026-09-21-dithering-comparison.md`): the screens add almost no
 // isolated stitches and buy less accuracy, the dispersed patterns the other way round.
-const SCREEN_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("lines-") || mode.startsWith("clustered-"));
+const SCREEN_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("lines-") || mode.startsWith("clustered-") || mode.startsWith("ring-"));
 const DISPERSED_MODES: DitherMode[] = [...ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("bayer-") || mode.startsWith("blue-noise-")), "floyd-steinberg"];
 
 const ENHANCEMENT_OPTIONS: Record<EnhancementModeId, SegmentOption<EnhancementModeId>> = {

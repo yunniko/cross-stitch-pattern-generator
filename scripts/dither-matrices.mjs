@@ -80,6 +80,29 @@ function clusteredDot(size) {
   });
 }
 
+/**
+ * A ring screen (G-053): the same two dot centres as the clustered screen, but ranked by distance from a *circle* of
+ * radius `radius` around them rather than from the centre itself. The annulus fills first, so the dot appears as a
+ * ring with an open middle, and the hole closes only as the tone goes further — which is the look the Owner's
+ * screenshot holds (`.##.`/`#..#`/`#..#`/`.##.`).
+ */
+function ringScreen(size, radius) {
+  const centres = [
+    [size / 4, size / 4],
+    [(3 * size) / 4, (3 * size) / 4],
+  ];
+  return rankBy(size, (x, y) => {
+    let best = Infinity;
+    for (const [cx, cy] of centres) {
+      const dx = Math.min(Math.abs(x + 0.5 - cx), size - Math.abs(x + 0.5 - cx));
+      const dy = Math.min(Math.abs(y + 0.5 - cy), size - Math.abs(y + 0.5 - cy));
+      // Distance from the ring, not from the centre: the middle is as far from the ring as the outside is.
+      best = Math.min(best, Math.abs(Math.hypot(dx, dy) - radius));
+    }
+    return best;
+  });
+}
+
 /** A line screen: every cell of a line shares a rank band, so tone grows by adding whole lines. */
 function lines(size, direction) {
   const order = bayer(size)[0].map((_, i) => i); // 0..size-1
@@ -179,6 +202,8 @@ const MATRICES = {
   "bayer-4": bayer(4),
   "bayer-8": bayer(8),
   "clustered-8": clusteredDot(8),
+  // Radius 1.6: on an 8-cell tile it leaves a one-cell hole inside a ring of eight, the shape the screenshot shows.
+  "ring-8": ringScreen(8, 1.6),
   "lines-horizontal": lines(8, "horizontal"),
   "lines-diagonal": lines(8, "diagonal"),
   "blue-noise-16": blueNoise(16),

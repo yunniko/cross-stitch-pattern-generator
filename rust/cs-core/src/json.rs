@@ -64,6 +64,7 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
         Some("bayer-4") => DitherMode::Bayer4,
         Some("bayer-8") => DitherMode::Bayer8,
         Some("clustered-8") => DitherMode::Clustered8,
+        Some("ring-8") => DitherMode::Ring8,
         Some("lines-horizontal") => DitherMode::LinesHorizontal,
         Some("lines-diagonal") => DitherMode::LinesDiagonal,
         Some("blue-noise-16") => DitherMode::BlueNoise16,
