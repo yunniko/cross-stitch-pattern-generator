@@ -70,6 +70,7 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
         Some("blue-noise-16") => DitherMode::BlueNoise16,
         Some("floyd-steinberg") => DitherMode::FloydSteinberg,
         Some("atkinson") => DitherMode::Atkinson,
+        Some("hand-drawn") => DitherMode::HandDrawn,
         Some(other) => return Err(format!("unknown ditherMode {other}")),
     };
     let options = BuildOptions {

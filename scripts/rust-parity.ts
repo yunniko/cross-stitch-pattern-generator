@@ -208,6 +208,10 @@ const CASES: Case[] = [
     }))
   ),
   { name: "dither/bayer-8/dmc", source: realisticRatio, options: { longerSideStitches: 40, colorCount: 12, ditherMode: "bayer-8", paletteMode: "dmc" }, golden: false },
+  // The drawn family places its marks across the whole grid rather than repeating a tile, so its parity depends on
+  // the chart's size in a way the matrix patterns' does not (G-054 M1).
+  { name: "dither/hand-drawn/200st", source: photo, options: { longerSideStitches: 200, colorCount: 16, ditherMode: "hand-drawn" }, golden: false },
+  { name: "dither/hand-drawn/200st/dmc", source: realisticRatio, options: { longerSideStitches: 200, colorCount: 24, ditherMode: "hand-drawn", paletteMode: "dmc" }, golden: false },
   // A chart finer than the photo: the corpus had none before G-051, which is how a divergence in the cells that no
   // source pixel lands in could have hidden. `circle` is 30x30, `hardSplit` 64x64.
   ...(["standard", "crisp", "crisp-plus"] as const).flatMap((edgeMode): Case[] => [

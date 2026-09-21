@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-054 · A hand-drawn dither look — DRAFT (2026-09-21, starts on the Owner's go)
+### G-054 · A hand-drawn dither look — ACTIVE (2026-09-21)
 - **What:** a tenth dither option that reads as drawn by hand rather than screened: marks — rings, broken rings, dots,
   small clusters — placed irregularly but evenly, chosen and sized by local tone, and reproducible for a given chart.
 - **Why:** Owner request, 2026-09-21. The image that prompted G-053 turned out to be hand-drawn, and the two patterns
@@ -45,7 +45,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   is a requirement, not a preference: the golden-hash regime and the Rust parity corpus both rest on it.
 
 **Milestones**:
-- [ ] M1 — Mark placement: seeded centres over the grid, even but irregular, at a density that follows local tone, in
+- [x] M1 — Mark placement: seeded centres over the grid, even but irregular, at a density that follows local tone, in
   both languages. Marks are single stitches at this stage. Carries criteria 1–3 with their measurements, and the
   parity cases.
 - [ ] M2 — The marks themselves: a small library of drawn shapes chosen and sized by local tone, with the tone-fidelity
@@ -56,6 +56,15 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M4 — The UI (a tenth option, in a group of its own), decision files, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-21 — **M1 done.** `lib/pipeline/dither-hand-drawn.ts` and `rust/cs-core/src/dither_hand_drawn.rs` place
+  marks on a jittered lattice with a minimum separation, give every cell to its nearest mark, and rank each mark's own
+  cells outward from its centre. **Tone is exact by construction, not calibration:** spreading a mark's ranks evenly
+  over 0..1 means a flat tone lights that share of every mark, so the chart carries the amount of thread an undithered
+  one would and the marks only choose which stitches — measured within 0.02 at five tones. No repeat at any shift to
+  32 (below 0.92 agreement, where a matrix spikes at its own size); nearest-mark distances never below 0.72 spacing,
+  median inside one spacing, and varying by more than a tenth of it; 93% of lit stitches touch another. Seed settled
+  as planned: one fixed constant. Verified: Vitest 1194 passed / 8 skipped, `compare:rust` 68 cases identical
+  including two new 200-stitch drawn cases (placement scales with the grid, unlike a tile), tsc and eslint clean.
 - 2026-09-21 — goal created and planned, on the Owner's instruction after G-053's sign-off. Starting points found
   while planning: `lib/prng.ts` and `rust/cs-core/src/prng.rs` already carry the same integer-only mulberry32, so the
   cross-language random source exists and needs no new work; `ditherToPalette` already returns one label per cell, so

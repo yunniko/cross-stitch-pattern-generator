@@ -1,4 +1,5 @@
 import { rgbToOklab } from "../color/color";
+import { dotScore, handDrawnThresholds } from "./dither-hand-drawn";
 import { DITHER_MATRICES } from "./dither-matrices";
 import type { RGB } from "../types";
 
@@ -22,12 +23,19 @@ import type { RGB } from "../types";
 export const ORDERED_DITHER_MODES = ["bayer-4", "bayer-8", "clustered-8", "ring-8", "lines-horizontal", "lines-diagonal", "blue-noise-16"] as const;
 export type OrderedDitherMode = (typeof ORDERED_DITHER_MODES)[number];
 export const DIFFUSION_DITHER_MODES = ["floyd-steinberg", "atkinson"] as const;
-export const DITHER_MODES = ["off", ...ORDERED_DITHER_MODES, ...DIFFUSION_DITHER_MODES] as const;
+/** Marks placed across the chart rather than a tile repeated or an error carried: the third family (G-054). */
+export const DRAWN_DITHER_MODES = ["hand-drawn"] as const;
+export const DITHER_MODES = ["off", ...ORDERED_DITHER_MODES, ...DIFFUSION_DITHER_MODES, ...DRAWN_DITHER_MODES] as const;
 export type DiffusionDitherMode = (typeof DIFFUSION_DITHER_MODES)[number];
 export type DitherMode = (typeof DITHER_MODES)[number];
 
 export function isDithered(mode: DitherMode | undefined): mode is Exclude<DitherMode, "off"> {
   return mode !== undefined && mode !== "off";
+}
+
+/** Whether a pattern draws marks across the whole chart instead of repeating a tile or carrying an error. */
+export function isDrawnMode(mode: Exclude<DitherMode, "off">): mode is (typeof DRAWN_DITHER_MODES)[number] {
+  return (DRAWN_DITHER_MODES as readonly string[]).includes(mode);
 }
 
 /** Whether a pattern carries the error to the stitches after it, rather than reading a threshold matrix. */
@@ -116,6 +124,27 @@ function orderedDither(cellOklab: Float64Array, width: number, height: number, p
 }
 
 /**
+ * One label per cell from a threshold field covering the whole chart, rather than a tile repeated across it. The
+ * decision is the ordered one — the field only says where each cell sits in its mark.
+ */
+function drawnDither(cellOklab: Float64Array, width: number, height: number, palette: readonly RGB[]): Uint8Array {
+  const thresholds = handDrawnThresholds(width, height, dotScore);
+  const paletteOklab = paletteToOklab(palette);
+  const labels = new Uint8Array(width * height);
+
+  for (let i = 0; i < width * height; i++) {
+    const o = i * 3;
+    const l = cellOklab[o];
+    const a = cellOklab[o + 1];
+    const b = cellOklab[o + 2];
+    const [first, second] = twoNearest(paletteOklab, palette.length, l, a, b);
+    const t = positionBetween(paletteOklab, first, second, l, a, b);
+    labels[i] = t > thresholds[i] ? second : first;
+  }
+  return labels;
+}
+
+/**
  * The error-diffusion kernels, as `[dx, dy, weight]` taps ahead of the cell being decided. `dx` is mirrored on a
  * right-to-left row, so a serpentine scan spreads the error the same way in both directions.
  *
@@ -184,7 +213,7 @@ export function ditherToPalette(
   mode: Exclude<DitherMode, "off">
 ): Uint8Array {
   if (palette.length === 0) return new Uint8Array(width * height);
-  return isDiffusionMode(mode)
-    ? errorDiffusionDither(cellOklab, width, height, palette, mode)
-    : orderedDither(cellOklab, width, height, palette, mode);
+  if (isDiffusionMode(mode)) return errorDiffusionDither(cellOklab, width, height, palette, mode);
+  if (isDrawnMode(mode)) return drawnDither(cellOklab, width, height, palette);
+  return orderedDither(cellOklab, width, height, palette, mode);
 }

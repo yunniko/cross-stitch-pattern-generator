@@ -4,6 +4,7 @@
 //! serpentine, which is what keeps the worm artifacts away.
 
 use crate::color::{rgb_to_oklab, Oklab, Rgb};
+use crate::dither_hand_drawn::{dot_score, hand_drawn_thresholds};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -20,6 +21,7 @@ pub enum DitherMode {
     BlueNoise16,
     FloydSteinberg,
     Atkinson,
+    HandDrawn,
 }
 
 impl DitherMode {
@@ -35,6 +37,7 @@ impl DitherMode {
             DitherMode::BlueNoise16 => "blue-noise-16",
             DitherMode::FloydSteinberg => "floyd-steinberg",
             DitherMode::Atkinson => "atkinson",
+            DitherMode::HandDrawn => "hand-drawn",
         }
     }
 
@@ -172,6 +175,27 @@ fn ordered(
 /// The error-diffusion kernels as `(dx, dy, weight)` taps, mirrored in `dx` on a right-to-left row. Floyd-Steinberg
 /// passes all of the error on; Atkinson passes six eighths and drops the rest, which keeps near-black and near-white
 /// areas flat and makes the stitches it does place clump (D200). Mirrors `DIFFUSION_KERNELS` in `dither.ts`.
+/// One label per cell from a threshold field covering the whole chart. The decision is the ordered one; the field
+/// only says where each cell sits inside its mark.
+fn drawn(cell_oklab: &[f64], width: usize, height: usize, palette: &[Rgb]) -> Vec<u8> {
+    let thresholds = hand_drawn_thresholds(width, height, dot_score);
+    let palette_oklab = palette_to_oklab(palette);
+    let mut labels = vec![0u8; width * height];
+
+    for i in 0..width * height {
+        let o = i * 3;
+        let (l, a, b) = (cell_oklab[o], cell_oklab[o + 1], cell_oklab[o + 2]);
+        let (first, second) = two_nearest(&palette_oklab, palette.len(), l, a, b);
+        let t = position_between(&palette_oklab, first, second, l, a, b);
+        labels[i] = if t > thresholds[i] {
+            second as u8
+        } else {
+            first as u8
+        };
+    }
+    labels
+}
+
 const FLOYD_STEINBERG: [(i64, i64, f64); 4] = [
     (1, 0, 7.0 / 16.0),
     (-1, 1, 3.0 / 16.0),
@@ -260,6 +284,7 @@ pub fn dither_to_palette(
         DitherMode::FloydSteinberg | DitherMode::Atkinson => {
             error_diffusion(cell_oklab, width, height, palette, mode)
         }
+        DitherMode::HandDrawn => drawn(cell_oklab, width, height, palette),
         _ => ordered(cell_oklab, width, height, palette, mode),
     }
 }

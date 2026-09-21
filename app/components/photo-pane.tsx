@@ -2,7 +2,7 @@
 
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { formatFinishedDimension } from "@/lib/export/finished-size";
-import { DIFFUSION_DITHER_MODES, isDithered, ORDERED_DITHER_MODES, type DitherMode } from "@/lib/pipeline/dither";
+import { DIFFUSION_DITHER_MODES, DRAWN_DITHER_MODES, isDithered, ORDERED_DITHER_MODES, type DitherMode } from "@/lib/pipeline/dither";
 import { isReleasedEnhancementMode, releasedEnhancementModes, type EnhancementModeId } from "@/lib/pipeline/enhance";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
@@ -64,6 +64,7 @@ const DITHER_LABELS: Record<DitherMode, string> = {
   "blue-noise-16": "Blue noise",
   "floyd-steinberg": "Floyd–Steinberg",
   atkinson: "Atkinson",
+  "hand-drawn": "Hand-drawn",
 };
 
 // Three groups, as the measurement separates them (`docs/reviews/2026-09-21-dithering-comparison.md`): a screen
@@ -77,6 +78,7 @@ const DITHER_GROUPS: Array<{ label: string; modes: readonly DitherMode[] }> = [
   { label: "Screens — fewest single stitches", modes: SCREEN_MODES },
   { label: "Scattered — closer to the photo", modes: SCATTERED_MODES },
   { label: "Error diffusion — closest, never worse", modes: DIFFUSION_DITHER_MODES },
+  { label: "Drawn — irregular marks", modes: DRAWN_DITHER_MODES },
 ];
 
 const ENHANCEMENT_OPTIONS: Record<EnhancementModeId, SegmentOption<EnhancementModeId>> = {

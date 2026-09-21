@@ -17,6 +17,7 @@ pub mod color;
 pub mod crisp;
 pub mod denoise;
 pub mod dither;
+pub mod dither_hand_drawn;
 pub mod downsample;
 pub mod edge_map;
 pub mod enhance;
