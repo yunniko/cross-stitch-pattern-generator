@@ -56,7 +56,12 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M4 — The UI (a tenth option, in a group of its own), decision files, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first):
-- 2026-09-21 — **M4 done, pending the deploy below.** The tenth option ships in a group of its own ("Drawn — marks,
+- 2026-09-21 — **M4 deployed and verified live** at 999bc17. On a DMC chart at 200 stitches the chart comes back
+  recording `ditherMode: "hand-drawn"` with 1.46% of its stitches standing alone — against 0% undithered and 3.8% for
+  Floyd-Steinberg, which is the clustering the marks are for — and the processor logs show no Rust fallback. 23
+  containers before and after with an identical name set, 38 vhosts unchanged, every live site still answering.
+  **Awaiting sign-off.**
+- 2026-09-21 — **M4 done.** The tenth option ships in a group of its own ("Drawn — marks,
   not a pattern"), with an e2e that measures the chart rather than the control: a hand-drawn chart comes back with
   under 5% of its stitches standing alone, which is what separates this family from the scattered matrices. Decisions
   D201 (a third family, tone exact by construction) and D202 (one fixed seed, marks sized in stitches). Verified:
