@@ -205,3 +205,4 @@ remain readable with git show.
 - D194 — Pixel art imports exactly, and is refused rather than repaired — active
 - D195 — The pixel-art PNG is written in the page, and is not a processor export — active
 - D196 — Transparency becomes absence, at half coverage — active
+- D197 — Cell importance reads each cell's own footprint — active

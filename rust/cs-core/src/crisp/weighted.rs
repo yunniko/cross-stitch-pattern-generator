@@ -210,7 +210,12 @@ fn build_palette(centroids: &[Oklab], assignments: &[u8], pool: &Pool) -> (Vec<R
     for (i, &c) in assignments.iter().enumerate() {
         weights[c as usize] += pool.w[i];
     }
-    let mut remap = vec![0u8; centroids.len()];
+    // A cluster with no weight has no colour to contribute, so it is dropped; its samples are the zero-coverage modes
+    // of confident cells, whose labels nothing reads (a crisp cell takes its label from the admissible costs, and every
+    // non-crisp cell has a weight-1 sample that can never be dropped). They keep label 0, which is what the TypeScript
+    // reaches too — there by an undefined lookup until G-051 said it out loud.
+    const DROPPED_CLUSTER_LABEL: u8 = 0;
+    let mut remap = vec![DROPPED_CLUSTER_LABEL; centroids.len()];
     let mut palette = Vec::new();
     for (c, centroid) in centroids.iter().enumerate() {
         if weights[c] <= 0.0 {

@@ -255,7 +255,15 @@ function buildWeightedPalette(centroids: Oklab[], assignments: Uint8Array, pool:
   const weightSums = new Array(centroids.length).fill(0);
   for (let i = 0; i < assignments.length; i++) weightSums[assignments[i]] += pool.W[i];
 
-  const remap = new Int16Array(centroids.length).fill(-1);
+  /**
+   * A cluster with no weight has no colour to contribute, so it is dropped; its samples are the zero-coverage modes of
+   * confident cells, whose labels nothing reads — a crisp cell takes its label from `buildAdmissibleLabelCosts`, and
+   * every non-crisp cell has a weight-1 sample that can never be dropped. They are labelled 0 to say so out loud
+   * (G-051): the value used to come from `-1` stored into a `Uint8Array` and resolved through an undefined lookup in
+   * `mergeSimilarColors`, which happened to reach the same 0 and broke the moment that lookup was tightened.
+   */
+  const DROPPED_CLUSTER_LABEL = 0;
+  const remap = new Int16Array(centroids.length).fill(DROPPED_CLUSTER_LABEL);
   const palette: RGB[] = [];
   centroids.forEach((centroid, c) => {
     if (weightSums[c] <= 0) return;

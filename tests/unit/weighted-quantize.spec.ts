@@ -3,7 +3,9 @@ import { oklabDistanceSquared, rgbToOklab, type Oklab } from "@/lib/color/color"
 import { mergeSimilarColors } from "@/lib/pipeline/palette-optimizer";
 import { plainKMeansQuantizer, kMeansQuantizer } from "@/lib/pipeline/quantize";
 import { weightedQuantize, weightedKMeansQuantize, runWeightedLloyd, weightedInjectWorstFitClusters, type WeightedColorSample } from "@/lib/crisp/weighted-quantize";
+import { buildPattern } from "@/lib/pipeline/pattern";
 import type { CellColorBuffer, RGB } from "@/lib/types";
+import { makeBuffer } from "./helpers/fixtures";
 
 /**
  * G-024 M3 (HANDOVER.md D60): weighted k-means core, generalizing
@@ -291,3 +293,31 @@ describe("mismatched OKLab distances sanity check", () => {
     expect(oklabDistanceSquared(a, b)).toBeCloseTo(oklabDistanceSquared(b, a), 10);
   });
 });
+
+describe("a cluster with no weight is dropped, and its samples say so (G-051)", () => {
+  it("labels them 0 rather than leaving -1 to be resolved by accident", () => {
+    // Two real colours at weight 1 and a third sample at weight 0: whichever cluster the weightless sample lands in
+    // can end up with no weight at all, and must still come back with a label inside the palette.
+    const samples: WeightedColorSample[] = [
+      { oklab: rgbToOklab([20, 20, 20]), weight: 1, cellIndex: 0 },
+      { oklab: rgbToOklab([240, 240, 240]), weight: 1, cellIndex: 1 },
+      { oklab: rgbToOklab([120, 10, 200]), weight: 0, cellIndex: 2 },
+    ];
+    const result = weightedKMeansQuantize(samples, 3);
+    expect(result.palette.length, "the weightless colour earns no palette entry").toBeLessThanOrEqual(2);
+    for (const label of result.sampleLabelIndex) {
+      expect(label, "every sample label indexes the palette").toBeLessThan(result.palette.length);
+    }
+    // Nothing reads a dropped sample's label, but it is 0 by choice, not by an undefined lookup.
+    expect(result.sampleLabelIndex[2]).toBe(0);
+  });
+
+  it("keeps a crisp chart identical while it does so", () => {
+    // The pipeline path that produces zero-weight samples: a two-tone photo with more colours asked for than it has.
+    const source = makeBuffer(90, 60, (x) => (x < 45 ? [20, 20, 20] : [235, 235, 235]));
+    const pattern = buildPattern(source, { longerSideStitches: 30, colorCount: 24, edgeMode: "crisp" });
+    expect(pattern.palette).toHaveLength(2);
+    expect(Array.from(pattern.cellPalette).every((v) => v < pattern.palette.length)).toBe(true);
+  });
+});
+
