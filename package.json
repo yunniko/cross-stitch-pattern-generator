@@ -23,6 +23,7 @@
     "compare:rust": "vitest run --config vitest.rust.config.ts scripts/rust-parity.ts",
     "compare:dither": "vitest run --config vitest.rust.config.ts scripts/dither-comparison.ts",
     "samples:hand-drawn": "vitest run --config vitest.rust.config.ts scripts/hand-drawn-samples.ts",
+    "shapes:hand-drawn": "vitest run --config vitest.rust.config.ts scripts/hand-drawn-shapes.ts",
     "compare:rust-exports": "vitest run --config vitest.rust.config.ts scripts/rust-export-parity.ts"
   },
   "dependencies": {

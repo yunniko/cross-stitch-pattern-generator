@@ -82,7 +82,7 @@ function placeMarks(width: number, height: number): { centres: Float64Array; rng
  * What each mark is drawn as. A ring reads most like a drawn mark and is what the Owner's image is full of, so it
  * takes most of them; the rest keep the page from looking like one stamp repeated (G-054 M2).
  */
-type Shape = "ring" | "broken-ring" | "dot" | "lump";
+export type Shape = "ring" | "broken-ring" | "dot" | "lump";
 const SHAPE_WEIGHTS: ReadonlyArray<readonly [Shape, number]> = [
   ["ring", 0.42],
   ["broken-ring", 0.2],
@@ -90,7 +90,7 @@ const SHAPE_WEIGHTS: ReadonlyArray<readonly [Shape, number]> = [
   ["lump", 0.15],
 ];
 
-interface Mark {
+export interface Mark {
   shape: Shape;
   /** Ring radius in stitches, jittered per mark; smaller than the mark's own share of the grid, or it draws nothing. */
   radius: number;
@@ -148,7 +148,7 @@ function lumpNoise(mark: number, x: number, y: number): number {
  * How early a mark reaches a cell. Distance alone gives a disc; a ring is ranked by distance *from its own circle*,
  * so the annulus is drawn first and the middle closes later, and a lump adds a per-cell wobble to its edge.
  */
-function shapeScore(mark: Mark, index: number, dx: number, dy: number, x: number, y: number): number {
+export function shapeScore(mark: Mark, index: number, dx: number, dy: number, x: number, y: number): number {
   const distance = Math.sqrt(dx * dx + dy * dy);
   switch (mark.shape) {
     case "dot":

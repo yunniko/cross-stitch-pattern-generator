@@ -14,6 +14,17 @@ real photo would make the sheet prettier without making the comparison fairer. T
 looking at first — smooth shading over a rounded shape is where an undithered chart bands and where a drawn mark has
 the most to do.
 
+## Seeing the marks on their own
+
+A chart mixes the four shapes, so no chart shows any one of them clearly:
+
+    HAND_DRAWN_SHAPES_OUT=<dir> npm run shapes:hand-drawn
+
+writes one sheet per shape — ring, broken ring, dot, lump, and the shipped mix — each drawn at 12%, 25%, 40%, 60% and
+80% tone on the same placement, with every mark forced to that shape. It composes the exported pieces the pipeline
+itself uses (`markLibrary` plus `shapeScore`), so what it draws is what generation draws; nothing about it is a
+separate rendering path.
+
 ## What it cost, measured
 
 | | Value | Where |

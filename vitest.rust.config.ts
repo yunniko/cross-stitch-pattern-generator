@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 // as the unit suite, like `npm run bench` (D105). Sequential and untimed-out: the large cases take minutes.
 export default defineConfig({
   test: {
-    include: ["scripts/rust-parity.ts", "scripts/rust-export-parity.ts", "scripts/dither-comparison.ts", "scripts/hand-drawn-samples.ts"],
+    include: ["scripts/rust-parity.ts", "scripts/rust-export-parity.ts", "scripts/dither-comparison.ts", "scripts/hand-drawn-samples.ts", "scripts/hand-drawn-shapes.ts"],
     testTimeout: 0,
     hookTimeout: 0,
     fileParallelism: false,
