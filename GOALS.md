@@ -57,10 +57,15 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M3 — The editor: the controls in the Photo pane, shown only when a drawn pattern is chosen and collapsed until
   opened, with the live swatch and a couple of presets (the current mix, and whatever the sliders show is worth
   keeping). Playwright over editing a texture, regenerating, and reopening the saved file.
-- [ ] M4 — Decision files, README and HANDOVER, the comparison document re-run to show the default's numbers have not
+- [x] M4 — Decision files, README and HANDOVER, the comparison document re-run to show the default's numbers have not
   moved, deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-22 — **M4 done, pending the deploy.** Decisions D203 (a texture is data with ranges, its default frozen)
+  and D204 (a chart embeds its texture; the swatch is pinned to the pipeline). README and HANDOVER updated, and
+  `compare:dither` re-run: **the comparison document did not change by one digit**, which is criterion 1 seen from
+  the outside — the default texture is still the chart G-054 shipped. Verified: Vitest 1214 passed / 8 skipped,
+  Playwright 328 passed across 27 specs, `compare:rust` 79 cases identical, tsc, eslint and docs-lint clean.
 - 2026-09-21 — **M3 done.** `app/components/texture-editor.tsx`: a collapsed section under the Dither control,
   shown only while a drawn pattern is chosen, with eight sliders, four presets, a Shuffle, and a swatch that redraws
   in the page as they move — no server round trip, because the engine is pure TypeScript. **The swatch is pinned

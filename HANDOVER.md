@@ -21,8 +21,8 @@ chart symbols changed appearance (D192), and `CS_JOB=0` returns to TypeScript wi
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1500 stitches (D181) and 2–100 colors, with Refined or Classic clustering (stored as
   `latest`/`original`), Full range, DMC, Cosmo or Anchor palettes, and Standard, Crisp or Crisp+ edges — on the
-  processor, with progress, a queue position and cancellation. A chart can also start blank: every stitch empty, no
-  colours and no photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
+  processor, with progress, a queue position and cancellation. A chart can also start blank: every stitch empty and no
+  photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
 - Editing: brush (double-click fills a region as one undo step when the Chart pane's switch is on, D138, D146),
   8-connected fill, symmetry on four axes and quick mirror (D137), rectangle select with copy, paste, move, flip,
   rotate, crop, "Apply here" and "Cancel" (D147, D148), pan, zoom; Isolate dims every thread but the lit ones and stays
@@ -42,17 +42,19 @@ chart symbols changed appearance (D192), and `CS_JOB=0` returns to TypeScript wi
   drawn marks across the chart instead of repeating one (D201, D202) — each mixing neighbouring stitches between the
   two threads either side of a colour instead of rounding each one. Off is byte-identical to before; a dithered chart
   runs no smoothing pass and refuses Crisp (D199). A matrix pattern is data, not code (D198); a kernel is a row of
-  taps (D200). Measured in `docs/reviews/2026-09-21-dithering-comparison.md`: kernels lowest error (median 0.44–0.51×)
-  and never worse, screens and drawn marks cheapest (+3.3 to +4.3 points, drawn +3.8 at 0.78×), matrices between.
+  taps (D200); the drawn marks take an **editable texture** — nine numbers with published ranges, edited by sliders
+  with a live swatch and saved inside the chart's own file (G-055, D203, D204). Measured in
+  `docs/reviews/2026-09-21-dithering-comparison.md`: kernels lowest error (median 0.44–0.51×) and never worse,
+  screens and drawn marks cheapest (+3.3 to +4.3 points, drawn +3.8 at 0.78×), matrices between.
 - Photo upload and reopening a save decode in a worker, the old decode a logged fallback (D128).
 - Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores on
   reload; a corrupt record shows a banner with an on-demand error report. Options live in localStorage.
 - Photo enhancement: Off, Brighten, Auto, Vivid, Portrait, with a "Compare with original" preview and recorded in
   saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-21**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1197 passed (8 opt-in skips);
-Playwright **327 passed, 0 failed across all 27 specs against the Rust sidecar**, one spec per process against the single-path
-build, with the processor serving generation, exports and previews; `npm run compare:rust` 74 cases identical. Export parity:
+**Checks run 2026-09-22**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1214 passed (8 opt-in skips);
+Playwright **328 passed, 0 failed across all 27 specs against the Rust sidecar**, one spec per process against the single-path
+build, with the processor serving generation, exports and previews; `npm run compare:rust` 79 cases identical. Export parity:
 `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the type-check and `build:processor` before
 the unit tests, because the worker bundle is git-ignored and the pool, preview and export specs run against it.
 
@@ -108,10 +110,9 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   returns the input untouched (D118). `releasedEnhancementModes()` decides what the UI offers, while files may record
   any recognized mode (D113).
 - **Crisp mode** (`lib/crisp/`): a frozen evidence layer (D065) feeds weighted quantization, admissible-label unary
-  costs in ICM and cleanup, repair after merges, and mode-aware finalization (D061–D072). The layer evaluates every
-  cell (D132) and converts each source row to OKLab once per job. Crisp+ (`edgeMode: "crisp-plus"`, G-038) adds
-  blurred-step evidence (D139), strip snapping (D140), blend pruning (D141), slot refill (D142).
-- **Threads** (`lib/threads/`): `thread-brands.ts` is the registry, its `matching` field "direct" for DMC and Cosmo or "dmc-equivalence" for Anchor; `brand-match.ts` snaps, provenance in `docs/*-colors-provenance.md`.
+  costs in ICM and cleanup, repair after merges, and mode-aware finalization (D061–D072); it evaluates every cell
+  (D132). Crisp+ (G-038) adds blurred-step evidence (D139), strip snapping (D140), pruning (D141), refill (D142).
+- **Threads** (`lib/threads/`): `thread-brands.ts` is the registry ("direct" matching for DMC and Cosmo, "dmc-equivalence" for Anchor); `brand-match.ts` snaps, provenance in `docs/*-colors-provenance.md`.
 - **Export** (`lib/export/`): `render.ts` holds the chart layout budget and the realistic preview, streamed a strip at
   a time from `stitch-texture.ts`'s tiles (D173). A4 page drawing takes a `ChartDrawingContext`, so one code path draws
   PNG and PDF pages (`pdf-canvas-adapter.ts`, D074, D126). `export-jobs.ts` runs every export on the processor, through
@@ -133,30 +134,23 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   configurations (D107), and `m3-equivalence.spec.ts` compares the optimizer with a verbatim pre-M3 copy. E2E specs are
   in `tests/e2e/`; `npm run test:e2e` starts the processor and the app together, since the page needs both.
   `compare:export-parity` diffs two running builds, `compare:rust`/`compare:dither` measure the port and the patterns.
-- **Deploy**: `Dockerfile` builds two targets (`runtime` for the app, `processor` for generation) and
-  `docker-compose.yml` runs both under D149's caps (app on `127.0.0.1:30150`; the processor publishes
-  no port). Recipe and shared-host rules: `COMPANY/INFRASTRUCTURE_DEPLOY.md`; verification per D027.
+- **Deploy**: `Dockerfile` builds two targets (`runtime`, `processor`) and `docker-compose.yml` runs both under
+  D149's caps (app on `127.0.0.1:30150`; the processor publishes no port). Recipe and shared-host rules:
+  `COMPANY/INFRASTRUCTURE_DEPLOY.md`; verification per D027.
 
 ## Rules in force
 
-- The Owner gave standing push and deploy approval for this project on
-  2026-09-13: deploy verified work without asking, unless something needs
-  the Owner's attention. Deploys still follow `COMPANY/INFRASTRUCTURE_DEPLOY.md`.
+- The Owner gave standing push and deploy approval on 2026-09-13: deploy verified work without asking, unless
+  something needs the Owner's attention. Deploys still follow `COMPANY/INFRASTRUCTURE_DEPLOY.md`.
 - One session per working tree. Never force-kill node processes you did not start: find the owner of the port you actually need and check its start time first. A rule naming a fixed PID goes stale within days and PIDs are recycled -- the number this rule used to carry (17476, 2026-09-12) was long gone by 2026-09-18 and only caused a later session to believe it had killed someone else's server.
-- A goal isn't DONE with a dirty tree, placeholders, or no logged Owner
-  sign-off (OPERATIONS.md §5, D098).
-- E2E runs against a production build on port 30200 (D102). Locally an
-  existing server is reused, so stop the 30200 server after code changes.
-- Speed-ups must leave `tests/unit/fixtures/golden-hashes.json` unchanged.
-  Regenerate it (`UPDATE_GOLDEN_HASHES=1`) only for an intended output change,
-  with a decision file (D107).
-- Omitting `edgeMode`, `contourRefinement`, a brand or `enhancementMode` (or
-  passing Off) must reproduce Standard output byte-for-byte.
-- Which enhancement modes are offered is the Owner's decision, made in
-  `releasedEnhancementModes()` (D118). Every mode must still pass the safety
-  gates in `tests/unit/enhancement-calibration.spec.ts`.
-- Brighten must never white-balance, add local contrast or saturate, and it
-  must leave a photo with both deep shadows and highlights untouched (D118).
+- A goal isn't DONE with a dirty tree, placeholders, or no logged Owner sign-off (OPERATIONS.md §5, D098).
+- E2E runs against a production build on port 30200 (D102); locally an existing server is reused, so stop it after code changes.
+- Speed-ups must leave `tests/unit/fixtures/golden-hashes.json` unchanged; regenerate it (`UPDATE_GOLDEN_HASHES=1`)
+  only for an intended output change, with a decision file (D107).
+- Omitting `edgeMode`, `contourRefinement`, a brand or `enhancementMode` (or passing Off) must reproduce Standard output byte-for-byte.
+- Which enhancement modes are offered is the Owner's decision, made in `releasedEnhancementModes()` (D118); every
+  mode must still pass the safety gates in `tests/unit/enhancement-calibration.spec.ts`.
+- Brighten must never white-balance, add local contrast or saturate, and must leave a photo with both deep shadows and highlights untouched (D118).
 - Enhancement calibration photos stay outside the repository; two show
   identifiable people.
 - Every `cellPalette` mutation passes `EMPTY_CELL` (255) through untouched (D028).
@@ -179,10 +173,14 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - Cell importance reads each cell's own footprint, never pixels assigned by truncation (D197): the two agree exactly below 1:1, and only the footprint fills a finer chart's cells.
 - A new pass after quantization is gated on `smooth` in both languages, or it silently undoes dithering (D199); a
   matrix pattern is generated data, never computed at runtime (D198).
-- A drawn pattern's randomness comes from `lib/prng.ts`/`prng.rs` on a fixed seed, consumed in the same order by both
-  languages, and its shapes use no transcendental function — `atan2` and friends differ between V8 and libm (D183,
-  D201, D202). Its cells are ranked and spread evenly over 0..1, which is what holds tone; a shape that breaks the
-  ranking changes how much thread the chart carries.
+- A drawn pattern's randomness comes from `lib/prng.ts`/`prng.rs` on a seed carried in its texture, consumed in the
+  same order by both languages, and its shapes use no transcendental function — `atan2` and friends differ between V8
+  and libm (D183, D201, D202). Its cells are ranked and spread evenly over 0..1, which is what holds tone; a shape
+  that breaks the ranking changes how much thread the chart carries.
+- A texture is data with ranges, validated by number and not by type union, and the default is frozen against
+  `tests/unit/helpers/dither-frozen-g054.ts` — do not update that copy to match a change (D203). A texture is
+  compared **by value**: it crosses the wire as JSON, so a reference check silently writes a default into every
+  drawn chart (D204). A new knob needs a range, a Rust field, a parity case and a line in the editor.
 - A pipeline stage that reads `cellPalette` must skip `EMPTY_CELL`: it is a sentinel, not palette index 255, and both
   TypeScript and Rust must skip it in the same places or the two diverge (D196).
 - Rust export references are generated in the processor image, never on a development machine: it has only DejaVu Sans, a laptop resolves the font stack elsewhere, and every raster would differ (D188).
@@ -284,8 +282,9 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   chart, which is why the pane groups them as the cheap-but-weaker choice rather than hiding them. The screenshot that
   prompted G-053 was **hand-drawn** (Owner, 2026-09-21) — no algorithm to recover, which is why its rings sat
   aperiodically. **G-054 built that look** — irregular drawn marks, signed off and archived; on flat regions they read
-  as grain rather than marks, which is inherent to dithering a flat area. **G-055 is the texture editor** for them
-  (the knobs, not a stamp painter).
+  as grain rather than marks, which is inherent to dithering a flat area. **G-055 added the texture editor**, deployed
+  and awaiting sign-off. Named as deliberately out of scope there, and the obvious next goal if the knobs prove
+  worth it: a **stamp painter**, where the reader draws which stitch of a mark fills first.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log

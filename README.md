@@ -35,6 +35,12 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   are the only patterns never worse than not dithering
   (`docs/reviews/2026-09-21-dithering-comparison.md`). Dithering and Crisp ask
   for opposite things, so choosing one clears the other.
+- **Edit the hand-drawn texture**: with Hand-drawn chosen, a Texture panel
+  opens sliders for mark spacing, ring size, size variation, stroke sweep,
+  edge wobble and how often each mark is drawn, plus presets and a Shuffle.
+  A swatch redraws as you move them, the chart is generated from exactly what
+  the swatch shows, and the texture is saved inside the pattern file, so a
+  chart reopens the way it was made.
 - **Edit** with brush, fill, rectangle select (copy, paste, move, flip, rotate,
   crop the chart to the selection, apply the piece where it sits, or discard it),
   move, pan and zoom tools. Isolate dims every thread but the ones you light, and

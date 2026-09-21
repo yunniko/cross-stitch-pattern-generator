@@ -211,3 +211,5 @@ remain readable with git show.
 - D200 — Atkinson is a second kernel that drops part of the error, and runs serpentine — active
 - D201 — Drawn marks are a third dither family, and hold tone by construction — active
 - D202 — One fixed seed, and marks sized in stitches — active
+- D203 — A texture is data with ranges, and its default is frozen — active
+- D204 — A chart embeds its texture, and the swatch is pinned to the pipeline — active
