@@ -1,4 +1,5 @@
 import type { EnhancementModeId } from "./pipeline/enhance";
+import type { DitherMode } from "./pipeline/dither";
 import type { EdgeMode } from "./pipeline/pattern";
 import type { ThreadBrand } from "./threads/thread-brands";
 
@@ -124,6 +125,8 @@ export interface StitchPattern {
   edgeMode?: Extract<EdgeMode, "crisp" | "crisp-plus">;
   /** The photo enhancement the pattern was generated with (G-032). Informational; absent means Off. */
   enhancementMode?: Exclude<EnhancementModeId, "off">;
+  /** The dither pattern the chart was generated with (G-052). Informational; absent means none. */
+  ditherMode?: Exclude<DitherMode, "off">;
 }
 
 /** An axis-aligned, end-exclusive rectangle in stitch-cell coordinates. */

@@ -1,5 +1,6 @@
 import { computeCellImportance, computeEdgeMagnitude, opaquePixelMask, sourceLuminance } from "./edge-map";
 import { denoiseForQuantization } from "./denoise";
+import { ditherToPalette, isDithered, type DitherMode } from "./dither";
 import { downsampleToGridWithCoverage, emptyCellMask, gridDimensionsFor } from "./downsample";
 import { luminance, rgbToOklab } from "../color/color";
 import { nameColors } from "../color/color-names";
@@ -76,12 +77,24 @@ export interface BuildPatternOptions {
   paletteRefillOptions?: PaletteRefillOptions;
   /** Photo enhancement before generation (G-032); defaults to "off", which passes the original buffer through untouched (D112). */
   enhancementMode?: EnhancementModeId;
+  /**
+   * Dithering (G-052); defaults to "off", which is the pipeline as it was. Any other value mixes neighbouring stitches
+   * between the two nearest threads instead of rounding each one, and turns off the passes that would undo that.
+   * Refused with Crisp, whose whole purpose is the opposite (D199).
+   */
+  ditherMode?: DitherMode;
   onProgress?: (fraction: number) => void;
 }
 
 export function buildPattern(imageData: PixelBuffer, options: BuildPatternOptions): StitchPattern {
   const edgeMode = options.edgeMode ?? "standard";
   const crisp = isCrispEdgeMode(edgeMode);
+  const dither = options.ditherMode ?? "off";
+  if (isDithered(dither) && crisp) {
+    // Fail before any work: Crisp keeps a hard boundary from becoming an invented blend, dithering manufactures
+    // blends deliberately, and running both would mean one silently undoing the other (D199).
+    throw new Error(`edgeMode: "${edgeMode}" cannot be combined with dithering: Crisp preserves hard boundaries, which dithering deliberately blends. Choose one.`);
+  }
   if (crisp && options.contourRefinement) {
     // Fail before doing any work; runContourRefinement repeats this guard for direct callers (D68).
     throw new Error(
@@ -134,7 +147,9 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
 
   // Denoised copy for the quantizer's eyes only (D41): it decides cluster
   // membership, but every reported color still comes from the true cells.
-  const denoised = denoiseForQuantization(ctx);
+  // Dithering reads the true cells: the medoid pre-filter steadies cluster membership, and steadying is the opposite
+  // of what a dithered chart wants (D199).
+  const denoised = isDithered(dither) ? { cells, cellOklab: ctx.cellOklab } : denoiseForQuantization(ctx);
 
   const quantizer = options.quantizer ?? kMeansQuantizer;
   let quantized: Uint8Array;
@@ -172,10 +187,19 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     quantized = result.cellPaletteIndex;
     rawPalette = result.palette;
   }
+  // The quantizer chose the threads; dithering decides which stitch gets which of the two nearest (G-052).
+  if (isDithered(dither)) {
+    quantized = ditherToPalette(ctx.cellOklab, gridWidth, gridHeight, rawPalette, dither);
+    if (emptyMask) for (let i = 0; i < emptyMask.length; i++) if (emptyMask[i]) quantized[i] = EMPTY_CELL;
+  }
   options.onProgress?.(0.4);
 
+  // Every pass below removes what dithering just created, so a dithered chart skips them: the optimizer, the
+  // component recolour, the diagonal fix, the palette merge and the recompute that would drag each thread towards
+  // the average of the cells it landed on (D199).
+  const smooth = shouldOptimize && !isDithered(dither);
   let optimized = quantized;
-  if (shouldOptimize) {
+  if (smooth) {
     const componentRecolorOptions = defaultComponentRecolorOptions(cells.width * cells.height);
     optimized = runMultiScaleOptimizer(ctx, quantized, rawPalette, options.multiScaleWeights);
     // Contour cleanup (Phase C): fixes structural artifacts the per-cell
@@ -192,10 +216,10 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   }
   options.onProgress?.(0.8);
 
-  const merged = shouldOptimize ? mergeSimilarColors(optimized, rawPalette, undefined, undefined, true) : { cellPaletteIndex: optimized, palette: rawPalette };
+  const merged = smooth ? mergeSimilarColors(optimized, rawPalette, undefined, undefined, true) : { cellPaletteIndex: optimized, palette: rawPalette };
 
   // The merge remap can leave a crisp cell on a label none of its modes supports; repair against the merged palette (D69).
-  if (crisp && evidenceLayer && shouldOptimize) {
+  if (crisp && evidenceLayer && smooth) {
     const mergedPaletteOklab = merged.palette.map(rgbToOklab);
     merged.cellPaletteIndex = repairCrispAssignments(merged.cellPaletteIndex, evidenceLayer, mergedPaletteOklab);
   }
@@ -208,7 +232,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   // Slots those passes free are then refilled by splitting the colour whose cells vary most, skipping the moved cells
   // (G-038 M5, D142), so a chart still reaches the requested colour count.
   let finalizeOklab: Float64Array = ctx.cellOklab;
-  if (edgeMode === "crisp-plus" && shouldOptimize) {
+  if (edgeMode === "crisp-plus" && smooth) {
     const beforeCrispPlus = merged.cellPaletteIndex;
     const snap = snapTransitionStrips(beforeCrispPlus, gridWidth, gridHeight, merged.palette, colorSource, options.transitionSnapOptions);
     const prune = pruneBlendLabels(snap.cellPaletteIndex, gridWidth, gridHeight, merged.palette, colorSource, options.blendPruneOptions);
@@ -267,7 +291,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   // "passes fighting" warning: no unchanged cleanup pass runs after this
   // one, so it doesn't get silently undone. Opt-in only (see
   // `BuildPatternOptions.contourRefinement`'s own doc comment).
-  if (shouldOptimize && options.contourRefinement) {
+  if (smooth && options.contourRefinement) {
     merged.cellPaletteIndex = runContourRefinement(
       cells,
       merged.cellPaletteIndex,
@@ -330,7 +354,8 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     const cellsByFinalIndex: number[][] = usedIndices.map(() => []);
     for (let i = 0; i < compactCellPaletteIndex.length; i++) if (compactCellPaletteIndex[i] !== EMPTY_CELL) cellsByFinalIndex[compactCellPaletteIndex[i]].push(i);
     compactPalette = usedIndices.map((originalIndex, newIndex) =>
-      cellsByFinalIndex[newIndex].length > 0 ? meanOklabAsRgb(ctx.cellOklab, cellsByFinalIndex[newIndex]) : merged.palette[originalIndex]
+      // A dithered thread keeps the colour the quantizer chose: its cells are deliberately the ones it does not match.
+      !isDithered(dither) && cellsByFinalIndex[newIndex].length > 0 ? meanOklabAsRgb(ctx.cellOklab, cellsByFinalIndex[newIndex]) : merged.palette[originalIndex]
     );
   }
 
@@ -376,6 +401,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     // `{...pattern, ...}` spread below carries this through to the brand-
     // matched return path too.
     edgeMode: crisp ? edgeMode : undefined,
+    ditherMode: isDithered(dither) ? dither : undefined,
     enhancementMode: enhancementMode === "off" ? undefined : enhancementMode,
   };
 
