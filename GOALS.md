@@ -59,6 +59,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   HANDOVER; deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-21 — **M4 deployed and verified live** at 083a117. A DMC chart generated with Floyd–Steinberg at 200
+  stitches comes back recording `ditherMode: "floyd-steinberg"` and visibly mixes threads; the same photo with Dither
+  off records no mode and has 0% isolated stitches; the processor logs show no Rust fallback, so the sidecar ran it;
+  a Crisp + dither request is refused with a 400. 23 containers before and after with an identical name set, 38 vhosts
+  unchanged, every live site still answering (the 502s are the decommissioned svc-lab services). **Awaiting sign-off.**
 - 2026-09-21 — **M4 done.** A Dither dropdown in the Photo pane (eight choices is more than a segmented control holds),
   grouped as the measurement splits them: screens, then dispersed patterns. Choosing a pattern clears Crisp and
   choosing Crisp clears the pattern, so the pane never holds the pair the pipeline refuses; the processor refuses it
