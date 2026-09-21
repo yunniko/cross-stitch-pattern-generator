@@ -2,12 +2,13 @@
 
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { formatFinishedDimension } from "@/lib/export/finished-size";
-import { DIFFUSION_DITHER_MODES, DRAWN_DITHER_MODES, isDithered, ORDERED_DITHER_MODES, type DitherMode } from "@/lib/pipeline/dither";
+import { DIFFUSION_DITHER_MODES, DRAWN_DITHER_MODES, isDithered, isDrawnMode, ORDERED_DITHER_MODES, type DitherMode } from "@/lib/pipeline/dither";
 import { isReleasedEnhancementMode, releasedEnhancementModes, type EnhancementModeId } from "@/lib/pipeline/enhance";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
 import { longerSideFor } from "../hooks/use-generation";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
+import { TextureEditor } from "./texture-editor";
 import { PillButton, SegmentedControl, type SegmentOption } from "./ui";
 
 /**
@@ -318,6 +319,7 @@ export function PhotoPane({ options, onChange, isProcessing, progress, queueMess
           closest and are the only ones never worse than not dithering at all. Hand-drawn scatters drawn marks — rings,
           arcs and dots — across the chart instead of repeating one, for the look rather than the accuracy.
         </p>
+        {dithering && isDrawnMode(options.ditherMode) && <TextureEditor texture={options.ditherTexture} onChange={(texture) => onChange("ditherTexture", texture)} />}
       </section>
 
       {photoOptions.length > 1 && (

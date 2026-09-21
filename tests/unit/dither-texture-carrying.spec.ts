@@ -63,6 +63,9 @@ describe("a chart carries the texture that drew it", () => {
     // The default is not written, so a chart drawn with the shipped texture stays the file it was before G-055.
     expect(buildPattern(source, options).ditherTexture).toBeUndefined();
     expect(buildPattern(source, { ...options, ditherTexture: DEFAULT_DITHER_TEXTURE }).ditherTexture).toBeUndefined();
+    // By value, not by identity: the texture crosses the wire as JSON, so the processor never holds the same object.
+    const copy = JSON.parse(JSON.stringify(DEFAULT_DITHER_TEXTURE)) as DitherTexture;
+    expect(buildPattern(source, { ...options, ditherTexture: copy }).ditherTexture).toBeUndefined();
   });
 
   it("records nothing for a pattern that has no marks", () => {

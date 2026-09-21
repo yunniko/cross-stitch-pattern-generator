@@ -54,13 +54,23 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   recommended, since D202 noted that one fixed seed makes every chart of a size share its placement.
 - [x] M2 — Carrying it: the texture in the request with real range validation, in the saved file and the autosave
   record, the old-file and bad-value fallbacks, and the reopen-identically test.
-- [ ] M3 — The editor: the controls in the Photo pane, shown only when a drawn pattern is chosen and collapsed until
+- [x] M3 — The editor: the controls in the Photo pane, shown only when a drawn pattern is chosen and collapsed until
   opened, with the live swatch and a couple of presets (the current mix, and whatever the sliders show is worth
   keeping). Playwright over editing a texture, regenerating, and reopening the saved file.
 - [ ] M4 — Decision files, README and HANDOVER, the comparison document re-run to show the default's numbers have not
   moved, deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-21 — **M3 done.** `app/components/texture-editor.tsx`: a collapsed section under the Dither control,
+  shown only while a drawn pattern is chosen, with eight sliders, four presets, a Shuffle, and a swatch that redraws
+  in the page as they move — no server round trip, because the engine is pure TypeScript. **The swatch is pinned
+  against the pipeline** stitch for stitch on four textures (criterion 5). Two real finds: the swatch's tone was a
+  round 0.42, which can equal a threshold exactly and then the two paths disagree on that cell by a last bit — it is
+  0.4237 now, and the test says why; and **the e2e caught a bug the unit test could not**, because the unit test
+  passed the same object: the chart compared its texture against the default by *reference*, so every drawn chart
+  wrote a default texture into its file once the object had crossed the wire as JSON. Compared by value now, with the
+  unit test strengthened to round-trip through JSON. Verified: Vitest 1214 passed / 8 skipped, Playwright 4 dithering
+  specs green, 73 parity cases identical, tsc and eslint clean.
 - 2026-09-21 — **M2 done.** The texture travels in the generation request, checked by **range** rather than by the
   type-union trick the other settings use (a union cannot check a number): eleven refusals covered, including every
   weight zero and a non-integer spacing. It is **embedded in the saved file and the autosave record**, not referenced,

@@ -27,6 +27,7 @@ interface ExportedChart {
   height: number;
   cellPalette: number[];
   ditherMode?: string;
+  ditherTexture?: { spacing: number };
 }
 
 /** Generates with the current settings and returns the editable file it exports. */
@@ -90,6 +91,30 @@ test("the hand-drawn marks reach the chart and cluster their stitches (G-054)", 
   // A drawn mark is a cluster wherever it lands, so almost every stitch has a neighbour of its own colour — the
   // measure that separates this family from the scattered matrices.
   expect(isolatedShare(chart)).toBeLessThan(0.05);
+  expect(errors).toEqual([]);
+});
+
+test("the texture editor changes the chart, and the chart remembers what drew it (G-055)", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await page.getByRole("radio", { name: /Small/ }).check();
+  await page.getByLabel("Dither").selectOption("hand-drawn");
+
+  const asShipped = await generateAndExport(page);
+  expect(asShipped.ditherMode).toBe("hand-drawn");
+  // The default texture is not written to the file: a chart drawn with it is the file it was before G-055.
+  expect(asShipped.ditherTexture).toBeUndefined();
+
+  await page.getByRole("tab", { name: "Photo" }).click();
+  await page.getByRole("button", { name: /^Texture/ }).click();
+  await expect(page.getByTestId("texture-swatch")).toBeVisible();
+  await page.getByRole("button", { name: "Coarse", exact: true }).click();
+
+  const coarse = await generateAndExport(page);
+  expect(coarse.ditherTexture?.spacing, "the chart carries the texture that drew it").toBe(11);
+  expect(coarse.cellPalette, "a different texture is a different chart").not.toEqual(asShipped.cellPalette);
   expect(errors).toEqual([]);
 });
 

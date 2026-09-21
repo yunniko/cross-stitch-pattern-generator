@@ -75,6 +75,26 @@ export const DITHER_TEXTURE_RANGES = {
   sweep: [0, 1],
 } as const satisfies Record<string, readonly [number, number]>;
 
+/**
+ * Whether a texture is the shipped one, by value. It must be by value: the texture crosses the wire as JSON, so the
+ * object the processor builds a chart from is never the same object as `DEFAULT_DITHER_TEXTURE`, and comparing
+ * references recorded a default texture into every drawn chart's file (found by the G-055 M3 e2e).
+ */
+export function isDefaultDitherTexture(texture: DitherTexture): boolean {
+  const d = DEFAULT_DITHER_TEXTURE;
+  return (
+    texture.spacing === d.spacing &&
+    texture.separation === d.separation &&
+    texture.radiusMin === d.radiusMin &&
+    texture.radiusSpan === d.radiusSpan &&
+    texture.gapAlignment === d.gapAlignment &&
+    texture.wobble === d.wobble &&
+    texture.sweep === d.sweep &&
+    texture.seed === d.seed &&
+    texture.shapeWeights.every((weight, i) => weight === d.shapeWeights[i])
+  );
+}
+
 /** Whether every number of a texture is inside its range; the shape weights must also not be all zero. */
 export function isValidDitherTexture(texture: unknown): texture is DitherTexture {
   if (typeof texture !== "object" || texture === null) return false;

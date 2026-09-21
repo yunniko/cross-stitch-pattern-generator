@@ -34,8 +34,8 @@ export function isDithered(mode: DitherMode | undefined): mode is Exclude<Dither
 }
 
 /** Whether a pattern draws marks across the whole chart instead of repeating a tile or carrying an error. */
-export function isDrawnMode(mode: Exclude<DitherMode, "off">): mode is (typeof DRAWN_DITHER_MODES)[number] {
-  return (DRAWN_DITHER_MODES as readonly string[]).includes(mode);
+export function isDrawnMode(mode: DitherMode | undefined): mode is (typeof DRAWN_DITHER_MODES)[number] {
+  return mode !== undefined && (DRAWN_DITHER_MODES as readonly string[]).includes(mode);
 }
 
 /** Whether a pattern carries the error to the stitches after it, rather than reading a threshold matrix. */
