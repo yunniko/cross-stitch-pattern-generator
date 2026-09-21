@@ -5,6 +5,61 @@ file holds only draft, active and blocked goals. Entries are unchanged from
 their last state in `GOALS.md`; decision references (Dnn) now resolve to
 `docs/decisions/`.
 
+### G-050 · A transparent background becomes empty stitches — DONE (2026-09-20, Owner sign-off 2026-09-21)
+- **What:** generating from a photo with transparency produces a chart whose transparent parts are empty stitches, not
+  white ones, and whose colours and edges are read only from the parts that are actually there.
+- **Why:** Owner request (2026-09-20): "transparent pixels become empty grids". Today a transparent background is
+  charted as white stitches (`downsampleToGrid` fills an uncovered cell white), and the structure stages read a
+  transparent pixel's RGB as if it were a colour — usually black — so a subject on transparency gets a ring of
+  invented edge evidence and a background nobody asked to stitch.
+- **Owner decisions (2026-09-20):** a cell whose average alpha is under 50 % becomes an empty stitch; at or above 50 %
+  it is stitched in the colour of its covered part alone.
+- **Acceptance criteria:**
+  1. A photo with transparency charts with every under-half-covered cell as the empty-stitch sentinel, and no palette
+     colour drawn from transparent pixels. Checked cell by cell on a fixture whose transparent region is known.
+  2. Colour, edge and evidence stages ignore transparent pixels rather than reading them as a colour: a subject on a
+     transparent background produces the same importance and pair evidence as the same subject on a cropped opaque
+     photo, to within the border cells where the two genuinely differ.
+  3. **A photo with no transparent pixel produces byte-identical output to today**, in every mode — the 18 golden
+     hashes (D107) still hold, unchanged.
+  4. Rust matches TypeScript byte for byte on transparent inputs too (`npm run compare:rust`), since the processor
+     generates in Rust (D190); new fixtures with transparency join the parity corpus.
+  5. The editor, the exports and the realistic preview show those cells as empty — they already support empty stitches
+     (G-040, D143), so this is a check, not new work.
+  6. Vitest and Playwright cover it; `docs-lint` passes; HANDOVER regenerated; deployed and verified live.
+- **Constraints:** the empty-stitch sentinel and its rules are D143's, not new ones. Criterion 3 is the hard one: every
+  change must be a no-op on a fully opaque photo, which is what keeps the golden hashes and the Rust parity corpus
+  meaningful. Threshold 50 % is the Owner's, recorded in a decision file.
+
+**Milestones**:
+- [x] M1 — The mask and the colour stages: `downsampleToGrid` reports each cell's coverage, cells under the threshold
+  become empty, and the quantizer, denoise, ICM, merge, compaction and palette recompute all skip them. Unit tests for
+  a known transparent fixture, and the golden hashes unchanged.
+- [x] M2 — The structure stages: importance and pair evidence read only covered pixels, so a subject on transparency
+  stops growing a ring of invented edges (criterion 2). Measured against the cropped-opaque equivalent.
+- [x] M3 — Rust: the same mask and the same skips in `cs-core`, byte-identical to TypeScript on transparent fixtures
+  as well as opaque ones; the parity corpus gains them.
+- [x] M4 — The rest: the editor, exports and preview checked against a transparent chart, Playwright over a real
+  transparent PNG, decision file, README and HANDOVER, then deploy and verify live.
+
+**Progress log** (newest first):
+- 2026-09-21 — **Owner sign-off: "Sign off, archive it".** Live at be42eab since 2026-09-20. Goal moved to
+  `docs/goals-archive.md`.
+- 2026-09-20 — **All four milestones done and deployed (be42eab); awaiting sign-off.** A cell covered less than half
+  is an empty stitch, and colour, edge, evidence, cleanup, merge, legend and thread stages all skip it; both masks are
+  absent for an opaque photo, so the 18 golden hashes are unchanged. Rust carries the same masks: 38 parity cases are
+  byte-identical, including new transparent ones in every edge mode, both quantizers and a thread palette. Two latent
+  defects surfaced and are recorded in the commits: `buildWeightedPalette` writes -1 into a `Uint8Array` for a
+  zero-weight cluster, which `mergeSimilarColors` had been resolving to palette entry 0 through an undefined lookup
+  (behaviour preserved for that caller); and thread snapping resolved the empty sentinel to the first thread colour,
+  which would have stitched a transparent background. Verified: Vitest 1159 passed, 8 skipped; Playwright 324 passed
+  across all 28 specs against the sidecar; cargo test, clippy, rustfmt, tsc, eslint and docs-lint clean. Live: a
+  transparent PNG charted 1,602 of 3,600 cells empty with 4 colours, an opaque photo 0 of 2,280 empty with 12, no
+  fallback logged, 23 containers before and after with no other restarted. **Owner approval:** "go through all
+  milestones and deploy if there will be nothing for me to decide".
+- 2026-09-20 — goal created and planned. Owner settled the threshold (under half covered) before planning. The mode
+  rename that came with the same request (Classic and Refined) shipped separately at 0d7c395, labels only.
+
 ### G-049 · Pixel art in and out — DONE (2026-09-20, Owner sign-off 2026-09-20)
 - **What:** an image whose pixels are already stitches can be opened as a chart, and any chart can be written back out
   as that kind of image. Import is a fourth card in the new-project list; export is a new option beside the others.

@@ -37,7 +37,7 @@ host at the cap it is 1.6–13.0× faster at one thread and far lighter on memor
   preview PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF (a real import re-confirmed after G-035
   M2), an OXS chart, a pixel-art PNG at 1 px per stitch (D195), and "Export all" `.cspzip`. Open accepts JSON, ZIP,
   `.cspzip` and `.oxs` by content; an OXS import lists what it couldn't keep.
-- A transparent background generates as empty stitches (G-050, D196): a cell covered less than half takes no colour,
+- A transparent background generates as empty stitches (G-050, signed off 2026-09-21, D196): a cell covered less than half takes no colour,
   and colour, edge, evidence and thread stages read covered pixels only. An opaque photo keeps its old code path.
 - Pixel art in and out (G-049): the start screen's fourth card opens an image as a chart, one pixel per stitch,
   transparent pixels as empty stitches, nothing resampled; too large, too colourful or partly transparent is refused
