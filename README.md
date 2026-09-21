@@ -23,6 +23,14 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   hard boundary as two real colors instead of inventing a blend; Crisp+ also
   cleans up slightly soft edges, snapping the in-between colors along a blurred
   boundary to one side while keeping real thin lines and gradients.
+- **Dither** instead of rounding every stitch to its nearest thread: seven
+  patterns (Bayer 4×4 and 8×8, clustered dots, horizontal and diagonal line
+  screens, blue noise, Floyd-Steinberg) mix neighbouring stitches between the
+  two threads either side of a colour, so a small palette can hold a gradient.
+  It costs single stitches standing alone — the screens cost fewest, the
+  dispersed patterns fit the photo closest
+  (`docs/reviews/2026-09-21-dithering-comparison.md`). Dithering and Crisp ask
+  for opposite things, so choosing one clears the other.
 - **Edit** with brush, fill, rectangle select (copy, paste, move, flip, rotate,
   crop the chart to the selection, apply the piece where it sits, or discard it),
   move, pan and zoom tools. Isolate dims every thread but the ones you light, and

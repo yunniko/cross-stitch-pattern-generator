@@ -243,6 +243,7 @@ interface RustOutput {
     threadBrand: StitchPattern["threadBrand"] | null;
     edgeMode: StitchPattern["edgeMode"] | null;
     enhancementMode: StitchPattern["enhancementMode"] | null;
+    ditherMode: StitchPattern["ditherMode"] | null;
   };
   runs: Array<{ totalMs: number; stages: Record<string, number> }>;
   peakRssMb: number | null;
@@ -266,6 +267,7 @@ function toPattern(output: RustOutput): StitchPattern {
     threadBrand: output.pattern.threadBrand ?? undefined,
     edgeMode: output.pattern.edgeMode ?? undefined,
     enhancementMode: output.pattern.enhancementMode ?? undefined,
+    ditherMode: output.pattern.ditherMode ?? undefined,
   };
 }
 
@@ -337,6 +339,9 @@ describe("Rust exact tier reproduces the TypeScript pipeline (G-048)", () => {
     // The thread each colour was snapped to is not part of the hash (the golden hashes predate it), and the editor
     // reopens a colour on exactly that swatch (D122), so it is compared on its own — G-048 M6 shipped without it once.
     expect(rustPattern.palette.map((color) => color.source ?? null), "the thread each colour was snapped to differs").toEqual(tsPattern!.palette.map((color) => color.source ?? null));
+    // Not part of the hash either, and the same class of field as the thread source above: it records how the chart
+    // was built, so a Rust build that silently dropped it would still hash identical (G-052 M4).
+    expect(rustPattern.ditherMode ?? null, "the recorded dither pattern differs").toEqual(tsPattern!.ditherMode ?? null);
     if (c.golden) expect(tsHash, "TypeScript no longer matches the recorded golden hash").toBe(RECORDED[name]);
     if (wasmIdentical === false) throw new Error("the WASM build differs from TypeScript");
     if (rustHash !== tsHash) {

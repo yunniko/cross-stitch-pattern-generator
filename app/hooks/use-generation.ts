@@ -82,6 +82,7 @@ export function useGeneration(inputs: GenerationInputs) {
         edgeMode: options.edgeMode,
         // Release eligibility is resolved at Generate time, so a preference for a withdrawn mode can't run it (D113).
         enhancementMode: isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off",
+        ditherMode: options.ditherMode,
         onProgress: (fraction: number) => {
           setQueueMessage(null); // it has a worker now
           setProgress(fraction);

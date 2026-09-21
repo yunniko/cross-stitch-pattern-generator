@@ -2,6 +2,7 @@
 
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { formatFinishedDimension } from "@/lib/export/finished-size";
+import { isDithered, ORDERED_DITHER_MODES, type DitherMode } from "@/lib/pipeline/dither";
 import { isReleasedEnhancementMode, releasedEnhancementModes, type EnhancementModeId } from "@/lib/pipeline/enhance";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
@@ -48,6 +49,25 @@ const EDGE_OPTIONS: SegmentOption<WorkspaceOptions["edgeMode"]>[] = [
     title: "Like Crisp, and also cleans up slightly soft edges: in-between colors along a blurred boundary are snapped to one side, while real thin lines and gradients are kept (G-038)",
   },
 ];
+
+// Eight patterns is more than a segmented control holds, so dithering is the one generation setting that is a
+// dropdown. Grouped the way the research splits them: a matrix per stitch, or error pushed onto the stitches after it
+// (`docs/reviews/2026-09-21-dithering-research.md`).
+const DITHER_LABELS: Record<DitherMode, string> = {
+  off: "Off",
+  "bayer-4": "Bayer 4×4",
+  "bayer-8": "Bayer 8×8",
+  "clustered-8": "Clustered dots",
+  "lines-horizontal": "Horizontal lines",
+  "lines-diagonal": "Diagonal lines",
+  "blue-noise-16": "Blue noise",
+  "floyd-steinberg": "Floyd–Steinberg",
+};
+
+// The split the measurement found (`docs/reviews/2026-09-21-dithering-comparison.md`): the screens add almost no
+// isolated stitches and buy less accuracy, the dispersed patterns the other way round.
+const SCREEN_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("lines-") || mode.startsWith("clustered-"));
+const DISPERSED_MODES: DitherMode[] = [...ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("bayer-") || mode.startsWith("blue-noise-")), "floyd-steinberg"];
 
 const ENHANCEMENT_OPTIONS: Record<EnhancementModeId, SegmentOption<EnhancementModeId>> = {
   off: { value: "off", label: "Off", title: "Use the photo exactly as it is" },
@@ -119,6 +139,19 @@ export function PhotoPane({ options, onChange, isProcessing, progress, queueMess
   // Only released modes are offered; with Off the only one, the control stays hidden (D113, D118).
   const photoOptions = releasedEnhancementModes().map((mode) => ENHANCEMENT_OPTIONS[mode]);
   const photoMode = isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off";
+  const dithering = isDithered(options.ditherMode);
+
+  // Crisp and dithering ask for opposite things and the pipeline refuses the pair (D199), so choosing either one
+  // here clears the other rather than leaving a combination Generate would reject.
+  function chooseDitherMode(mode: DitherMode) {
+    onChange("ditherMode", mode);
+    if (isDithered(mode)) onChange("edgeMode", "standard");
+  }
+
+  function chooseEdgeMode(mode: WorkspaceOptions["edgeMode"]) {
+    onChange("edgeMode", mode);
+    if (mode !== "standard") onChange("ditherMode", "off");
+  }
 
   function setCustom(value: number) {
     onChange("sizePreset", "custom");
@@ -240,8 +273,42 @@ export function PhotoPane({ options, onChange, isProcessing, progress, queueMess
 
       <section className="flex flex-col gap-2">
         <span className={GROUP_LABEL}>Edges</span>
-        <SegmentedControl fill options={EDGE_OPTIONS} value={options.edgeMode} onChange={(mode) => onChange("edgeMode", mode)} />
-        <p className="text-[11px] leading-4 text-muted">Crisp keeps hard boundaries instead of blending them.</p>
+        <SegmentedControl fill options={EDGE_OPTIONS} value={options.edgeMode} onChange={chooseEdgeMode} />
+        <p className="text-[11px] leading-4 text-muted">
+          {dithering ? "Dithering is on, so edges stay Standard: Crisp keeps the boundaries dithering deliberately blends." : "Crisp keeps hard boundaries instead of blending them."}
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <label className={GROUP_LABEL} htmlFor="dither-mode">
+          Dither
+        </label>
+        <select
+          id="dither-mode"
+          value={options.ditherMode}
+          onChange={(e) => chooseDitherMode(e.target.value as DitherMode)}
+          className="rounded-md border border-line bg-sunken px-2 py-1.5 text-xs text-ink"
+        >
+          <option value="off">{DITHER_LABELS.off}</option>
+          <optgroup label="Screens (few extra single stitches)">
+            {SCREEN_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {DITHER_LABELS[mode]}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Dispersed (closest to the photo)">
+            {DISPERSED_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {DITHER_LABELS[mode]}
+              </option>
+            ))}
+          </optgroup>
+        </select>
+        <p className="text-[11px] leading-4 text-muted">
+          Mixes neighbouring stitches between two threads so a small palette can hold a gradient, at the cost of single
+          stitches on their own. Screens cost the fewest; dispersed patterns fit the photo closest.
+        </p>
       </section>
 
       {photoOptions.length > 1 && (

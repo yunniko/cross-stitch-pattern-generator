@@ -98,6 +98,7 @@ export async function generateWithRust(job: Extract<WorkerJob, { kind: "generate
     paletteMode: settings.paletteMode ?? undefined,
     edgeMode: settings.edgeMode ?? undefined,
     enhancementMode: settings.enhancementMode ?? undefined,
+    ditherMode: settings.ditherMode ?? undefined,
   });
   const pixels = Buffer.from(imageData.data.buffer, imageData.data.byteOffset, imageData.data.byteLength);
   const result = await run(["generate", String(imageData.width), String(imageData.height), options], pixels, { progress: onProgress });

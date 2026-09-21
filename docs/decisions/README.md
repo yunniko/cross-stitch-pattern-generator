@@ -206,3 +206,5 @@ remain readable with git show.
 - D195 — The pixel-art PNG is written in the page, and is not a processor export — active
 - D196 — Transparency becomes absence, at half coverage — active
 - D197 — Cell importance reads each cell's own footprint — active
+- D198 — Dither patterns are generated data, shared by both languages — active
+- D199 — Dithering skips every smoothing pass, and is refused with Crisp — active

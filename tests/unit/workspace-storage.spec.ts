@@ -49,6 +49,7 @@ describe("workspace-storage", () => {
       generationMode: "latest",
       paletteMode: "full",
       enhancementMode: "off",
+      ditherMode: "off",
       doubleClickFill: true,
     } as const;
 
@@ -70,6 +71,8 @@ describe("workspace-storage", () => {
         generationMode: "original" as const,
         paletteMode: "dmc" as const,
         enhancementMode: "off" as const,
+        // Crisp is stored above, so a dither pattern here would be resolved away on load; its own cases are below.
+        ditherMode: "off" as const,
         doubleClickFill: false,
       };
       saveWorkspaceOptions(saved);
@@ -117,6 +120,27 @@ describe("workspace-storage", () => {
     it("falls back to the default when doubleClickFill is not a boolean", () => {
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, doubleClickFill: "no" }));
       expect(loadWorkspaceOptions().doubleClickFill).toBe(true);
+    });
+
+    it("keeps a chosen dither pattern across a reload (G-052)", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, ditherMode: "blue-noise-16" });
+      expect(loadWorkspaceOptions().ditherMode).toBe("blue-noise-16");
+    });
+
+    it("defaults ditherMode to off for a workspace saved before G-052, and for an unknown pattern", () => {
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18, sizeUnit: "in", authorName: "Jules" }));
+      expect(loadWorkspaceOptions().ditherMode).toBe("off");
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, ditherMode: "halftone-spiral" }));
+      expect(loadWorkspaceOptions().ditherMode).toBe("off");
+    });
+
+    it("drops a stored dither pattern that was saved alongside Crisp, which cannot run together (D199)", () => {
+      // Not reachable through the UI, which clears one when the other is chosen -- this is the stored pair that a
+      // hand-edited or older record could hold, resolved before it can reach Generate.
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, edgeMode: "crisp", ditherMode: "bayer-8" }));
+      const loaded = loadWorkspaceOptions();
+      expect(loaded.edgeMode).toBe("crisp");
+      expect(loaded.ditherMode).toBe("off");
     });
 
     it("accepts every valid overlapCells value (0, 5, 10)", () => {

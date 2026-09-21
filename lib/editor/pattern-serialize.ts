@@ -1,3 +1,4 @@
+import { DITHER_MODES, type DitherMode } from "../pipeline/dither";
 import { isEnhancementModeId, type EnhancementModeId } from "../pipeline/enhance";
 import { findThread, formatThreadName, THREAD_BRANDS, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
 import { effectiveSymmetryAxes, NO_SYMMETRY, SYMMETRY_AXES, type SymmetryAxes, type SymmetryAxis } from "./symmetry-axes";
@@ -45,6 +46,11 @@ export interface SerializedPattern {
   /** The photo enhancement the pattern was generated with; absent for Off and on files saved before G-032. */
   enhancementMode?: Exclude<EnhancementModeId, "off">;
   /**
+   * The dither pattern the chart was generated with (G-052); absent for Off and on files saved before it. Optional,
+   * like `symmetry`, so the format version stays where it is and an older build simply ignores it (D138).
+   */
+  ditherMode?: Exclude<DitherMode, "off">;
+  /**
    * The symmetry axes that were on when the file was saved (G-037); absent when none were. An optional field that
    * older builds ignore, so the format version stays the same (D138).
    */
@@ -91,6 +97,7 @@ export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes 
     threadBrand: pattern.threadBrand,
     edgeMode: pattern.edgeMode,
     enhancementMode: pattern.enhancementMode,
+    ditherMode: pattern.ditherMode,
     symmetry: serializeSymmetry(effectiveSymmetryAxes(symmetry, pattern.width, pattern.height)),
   };
   return JSON.stringify(data);
@@ -209,7 +216,12 @@ export function deserializePatternData(data: unknown): StitchPattern {
     edgeMode: d.edgeMode === "crisp" || d.edgeMode === "crisp-plus" ? d.edgeMode : undefined,
     // Any recognized mode is kept, released or not: the file records how it was built (D113).
     enhancementMode: isEnhancementModeId(d.enhancementMode) && d.enhancementMode !== "off" ? d.enhancementMode : undefined,
+    ditherMode: isDitherModeId(d.ditherMode) && d.ditherMode !== "off" ? d.ditherMode : undefined,
   };
+}
+
+function isDitherModeId(value: unknown): value is DitherMode {
+  return typeof value === "string" && (DITHER_MODES as readonly string[]).includes(value);
 }
 
 function isPositiveInteger(value: unknown): value is number {

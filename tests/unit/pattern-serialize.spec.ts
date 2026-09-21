@@ -204,6 +204,15 @@ describe("pattern-serialize", () => {
     expect(deserializePattern(tampered).edgeMode).toBeUndefined();
   });
 
+  it("round-trips ditherMode, and leaves it undefined for a file saved before G-052 or holding an unknown value", () => {
+    const pattern = { ...makePattern(), ditherMode: "blue-noise-16" as const };
+    expect(deserializePattern(serializePattern(pattern)).ditherMode).toBe("blue-noise-16");
+
+    expect(deserializePattern(serializePattern(makePattern())).ditherMode).toBeUndefined();
+    const tampered = JSON.stringify({ ...JSON.parse(serializePattern(makePattern())), ditherMode: "halftone-spiral" });
+    expect(deserializePattern(tampered).ditherMode).toBeUndefined();
+  });
+
   it("round-trips an EMPTY_CELL stitch without rejecting the file (G-012 M5)", () => {
     const pattern = { ...makePattern(), cellPalette: Uint8Array.from([EMPTY_CELL, 1, 1, 0]) };
     const restored = deserializePattern(serializePattern(pattern));

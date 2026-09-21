@@ -1,3 +1,4 @@
+import { DITHER_MODES, isDithered, type DitherMode } from "@/lib/pipeline/dither";
 import { ENHANCEMENT_MODE_IDS } from "@/lib/pipeline/enhance";
 import { THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES } from "@/lib/types";
@@ -33,12 +34,18 @@ export function settingsError(body: unknown): string | null {
     ["paletteMode", ["full", ...THREAD_BRAND_IDS]],
     ["edgeMode", ["standard", "crisp", "crisp-plus"]],
     ["enhancementMode", ENHANCEMENT_MODE_IDS],
+    ["ditherMode", DITHER_MODES],
   ];
   for (const [field, allowed] of enums) {
     const value = b[field];
     if (value !== undefined && (typeof value !== "string" || !allowed.includes(value))) {
       return `${field} must be one of: ${allowed.join(", ")}.`;
     }
+  }
+  // Refused here rather than inside a worker: `buildPattern` throws on the combination (D199), and a 500 would tell
+  // the reader their photo was at fault.
+  if (isDithered(b.ditherMode as DitherMode | undefined) && b.edgeMode !== undefined && b.edgeMode !== "standard") {
+    return "ditherMode cannot be combined with a Crisp edgeMode: Crisp preserves hard boundaries, which dithering deliberately blends.";
   }
   return null;
 }

@@ -1,6 +1,7 @@
 import type { OverlapCells } from "../export/a4-layout";
 import type { LegacyProjectSlot } from "./project-store";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "../export/finished-size";
+import { DITHER_MODES, isDithered, type DitherMode } from "../pipeline/dither";
 import { isReleasedEnhancementMode, type EnhancementModeId } from "../pipeline/enhance";
 import type { EdgeMode, GenerationMode, PaletteMode } from "../pipeline/pattern";
 import { THREAD_BRAND_IDS } from "../threads/thread-brands";
@@ -35,6 +36,8 @@ export interface WorkspaceOptions {
   paletteMode: PaletteMode;
   /** Photo enhancement for the next Generate. Only released modes survive a reload (D113). */
   enhancementMode: EnhancementModeId;
+  /** The dither pattern for the *next* Generate; "off" is the pipeline as it was. Never dithered while `edgeMode` is Crisp (D199). */
+  ditherMode: DitherMode;
   /** Whether a Brush double-click floods the region under it as one undo step (D138); off leaves the two clicks as themselves. */
   doubleClickFill: boolean;
 }
@@ -52,6 +55,7 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   generationMode: "latest",
   paletteMode: "full",
   enhancementMode: "off",
+  ditherMode: "off",
   doubleClickFill: true,
 };
 
@@ -67,11 +71,15 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
     const raw = window.localStorage.getItem(OPTIONS_KEY);
     if (!raw) return DEFAULT_OPTIONS;
     const parsed = JSON.parse(raw) as Partial<WorkspaceOptions>;
+    const edgeMode = parsed.edgeMode === "crisp" || parsed.edgeMode === "crisp-plus" ? parsed.edgeMode : DEFAULT_OPTIONS.edgeMode;
+    // A stored dither pattern only survives if it can still run: an unknown value, or one stored alongside Crisp
+    // (which the pipeline refuses, D199), reads as off rather than as a request the next Generate would fail on.
+    const storedDither = (DITHER_MODES as readonly string[]).includes(parsed.ditherMode as string) ? (parsed.ditherMode as DitherMode) : DEFAULT_OPTIONS.ditherMode;
     return {
       aidaCount: typeof parsed.aidaCount === "number" && parsed.aidaCount > 0 ? parsed.aidaCount : DEFAULT_OPTIONS.aidaCount,
       sizeUnit: parsed.sizeUnit === "in" || parsed.sizeUnit === "cm" ? parsed.sizeUnit : DEFAULT_OPTIONS.sizeUnit,
       authorName: typeof parsed.authorName === "string" ? parsed.authorName : DEFAULT_OPTIONS.authorName,
-      edgeMode: parsed.edgeMode === "crisp" || parsed.edgeMode === "crisp-plus" ? parsed.edgeMode : DEFAULT_OPTIONS.edgeMode,
+      edgeMode,
       overlapCells: VALID_OVERLAP_CELLS.includes(parsed.overlapCells as OverlapCells) ? (parsed.overlapCells as OverlapCells) : DEFAULT_OPTIONS.overlapCells,
       canvasColor: typeof parsed.canvasColor === "string" && HEX_COLOR_PATTERN.test(parsed.canvasColor) ? parsed.canvasColor : DEFAULT_OPTIONS.canvasColor,
       sizePreset: VALID_SIZE_PRESETS.includes(parsed.sizePreset as SizePresetId) ? (parsed.sizePreset as SizePresetId) : DEFAULT_OPTIONS.sizePreset,
@@ -90,6 +98,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
           ? (parsed.paletteMode as PaletteMode)
           : DEFAULT_OPTIONS.paletteMode,
       enhancementMode: isReleasedEnhancementMode(parsed.enhancementMode) ? parsed.enhancementMode : DEFAULT_OPTIONS.enhancementMode,
+      ditherMode: isDithered(storedDither) && edgeMode !== "standard" ? "off" : storedDither,
       // Absent in options stored before G-041, so anything that is not a boolean falls back to the default.
       doubleClickFill: typeof parsed.doubleClickFill === "boolean" ? parsed.doubleClickFill : DEFAULT_OPTIONS.doubleClickFill,
     };

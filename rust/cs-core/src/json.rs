@@ -104,6 +104,7 @@ pub fn pattern_json(p: &StitchPattern) -> Value {
         "threadBrand": p.thread_brand,
         "edgeMode": p.edge_mode,
         "enhancementMode": p.enhancement_mode,
+        "ditherMode": p.dither_mode,
     })
 }
 

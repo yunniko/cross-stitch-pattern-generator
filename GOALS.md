@@ -54,11 +54,21 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M3 — The measured comparison (criteria 3 and 4) as a review document: error and confetti per pattern per colour
   count, on a gradient, a photo and a flat-region fixture, so the Owner can judge which patterns earn their place and
   which should not ship.
-- [ ] M4 — The UI: a Dither control in the Photo pane, mutually exclusive with Crisp, carried in saved files and in the
+- [x] M4 — The UI: a Dither control in the Photo pane, mutually exclusive with Crisp, carried in saved files and in the
   processor's request validation; Playwright over choosing a pattern and regenerating; decision file, README and
   HANDOVER; deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-21 — **M4 done.** A Dither dropdown in the Photo pane (eight choices is more than a segmented control holds),
+  grouped as the measurement splits them: screens, then dispersed patterns. Choosing a pattern clears Crisp and
+  choosing Crisp clears the pattern, so the pane never holds the pair the pipeline refuses; the processor refuses it
+  too, with a 400 rather than a worker throwing a 500. The choice is remembered like the other Generate settings (a
+  stored pattern saved alongside Crisp reads as off), carried in the editable file and the autosave record, and
+  written into the pattern JSON by both languages. Verified: Vitest 1184 passed / 8 skipped, Playwright 326 passed
+  across 27 specs, `compare:rust` 66 cases identical (it now compares the recorded pattern too, the same class of
+  field the hash missed once before), tsc, eslint and docs-lint clean. The new e2e measures the chart itself — a
+  Floyd–Steinberg chart has more stitches standing alone than the same photo undithered, through the real UI, the
+  processor and the export. Decisions D198 (patterns are data) and D199 (dithering skips every smoothing pass).
 - 2026-09-21 — **M3 done; M2 before it.** Rust carries both families byte-identically: 60 parity cases, including
   every pattern at 8 and 20 colours and one on DMC. `npm run compare:dither` writes
   `docs/reviews/2026-09-21-dithering-comparison.md`, which measured two things worth having. **A bug:** on a thread

@@ -3,6 +3,7 @@ import { calculateA4Layout, type OverlapCells } from "@/lib/export/a4-layout";
 import type { ExportJobKind } from "@/lib/export/export-jobs";
 import type { ExportProgress } from "@/lib/export/export-progress";
 import type { SizeUnit } from "@/lib/export/finished-size";
+import type { DitherMode } from "@/lib/pipeline/dither";
 import type { EnhancementModeId } from "@/lib/pipeline/enhance";
 import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pipeline/pattern";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
@@ -24,6 +25,7 @@ export interface JobSettings {
   paletteMode?: PaletteMode;
   edgeMode?: EdgeMode;
   enhancementMode?: EnhancementModeId;
+  ditherMode?: DitherMode;
 }
 
 /**

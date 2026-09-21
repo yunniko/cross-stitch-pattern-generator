@@ -1,5 +1,6 @@
 import { deserializePatternData } from "../editor/pattern-serialize";
 import type { StitchPattern } from "../types";
+import type { DitherMode } from "./dither";
 import type { EnhancementModeId } from "./enhance";
 import type { EdgeMode, GenerationMode, PaletteMode } from "./pattern";
 import { ensurePhotoUploaded, forgetPhoto } from "./photo-upload";
@@ -33,6 +34,7 @@ export interface RunServerPatternJobOptions {
   paletteMode?: PaletteMode;
   edgeMode?: EdgeMode;
   enhancementMode?: EnhancementModeId;
+  ditherMode?: DitherMode;
   onProgress?: (fraction: number) => void;
   /** Called while the job is waiting for a worker, so the editor can say where in the queue it is rather than just "working". */
   onQueued?: (position: number, estimatedWaitMs: number) => void;
@@ -77,6 +79,7 @@ async function submit(options: RunServerPatternJobOptions, signal: AbortSignal):
         paletteMode: options.paletteMode,
         edgeMode: options.edgeMode,
         enhancementMode: options.enhancementMode,
+        ditherMode: options.ditherMode,
       }),
       signal
     );
