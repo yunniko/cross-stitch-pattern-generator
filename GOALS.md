@@ -21,8 +21,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   where Floyd–Steinberg on the same ramp goes solid only for rows 0–4 and from row 42, and of six kernels tried only
   Atkinson blows them out that far (0–7, and from 37); its midtone is an exact one-cell checkerboard, which is an
   ordered screen's signature; and it holds ring-shaped clusters, `.##.`/`#..#`/`#..#`/`.##.`. Whether those rings are
-  the screen or the photo (they could be out-of-focus highlights) cannot be settled from a 19×44 crop, so both
-  readings get built: the ring is a matrix, the blown-out clumping is a kernel. Owner chose both, 2026-09-21.
+  the screen or the photo could not be settled from a 19×44 crop, so both readings were built: the ring is a matrix,
+  the blown-out clumping is a kernel. Owner chose both, 2026-09-21. **The Owner then said the image is hand-drawn
+  dithering, drawn by an artist rather than produced by any algorithm** (2026-09-21), which is what the aperiodic ring
+  placement and the non-monotone row densities were: a hand, not a screen. Neither addition depends on that — each
+  was measured on its own merits — but no algorithm was ever there to recover.
 - **Acceptance criteria:**
   1. Dither Off and all seven existing patterns produce byte-identical charts to today: the 18 golden hashes (D107)
      and every existing Rust parity case unchanged.
