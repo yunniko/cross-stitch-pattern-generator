@@ -32,6 +32,11 @@ const SEED = 0x1d10c0de;
 
 /** Mark centres, interleaved `x, y` in stitch coordinates. Deterministic for a given grid. */
 export function markCentres(width: number, height: number): Float64Array {
+  return placeMarks(width, height).centres;
+}
+
+/** Placement, plus the generator left where it stopped so the shapes below continue the same stream. */
+function placeMarks(width: number, height: number): { centres: Float64Array; rng: () => number } {
   const rng = mulberry32(SEED);
   const columns = Math.max(1, Math.ceil(width / MARK_SPACING));
   const rows = Math.max(1, Math.ceil(height / MARK_SPACING));
@@ -70,7 +75,103 @@ export function markCentres(width: number, height: number): Float64Array {
       }
     }
   }
-  return Float64Array.from(centres);
+  return { centres: Float64Array.from(centres), rng };
+}
+
+/**
+ * What each mark is drawn as. A ring reads most like a drawn mark and is what the Owner's image is full of, so it
+ * takes most of them; the rest keep the page from looking like one stamp repeated (G-054 M2).
+ */
+const SHAPES = ["ring", "broken-ring", "dot", "lump"] as const;
+type Shape = (typeof SHAPES)[number];
+const SHAPE_WEIGHTS: ReadonlyArray<readonly [Shape, number]> = [
+  ["ring", 0.42],
+  ["broken-ring", 0.2],
+  ["dot", 0.23],
+  ["lump", 0.15],
+];
+
+interface Mark {
+  shape: Shape;
+  /** Ring radius in stitches, jittered per mark; smaller than the mark's own share of the grid, or it draws nothing. */
+  radius: number;
+  /** The direction of a broken ring's gap, as a unit vector — a half-plane test, never an angle (no `atan2`, D183). */
+  gapX: number;
+  gapY: number;
+  /** Where a ring starts being drawn, as a pseudo-angle in 0..4: a stroke sweeps from here rather than appearing whole. */
+  start: number;
+}
+
+/** A mark's own parameters, drawn from the stream left by placement, in mark order. */
+function markShapes(count: number, rng: () => number): Mark[] {
+  const marks: Mark[] = [];
+  for (let m = 0; m < count; m++) {
+    const roll = rng();
+    let shape: Shape = SHAPE_WEIGHTS[SHAPE_WEIGHTS.length - 1][0];
+    let running = 0;
+    for (const [candidate, weight] of SHAPE_WEIGHTS) {
+      running += weight;
+      if (roll < running) {
+        shape = candidate;
+        break;
+      }
+    }
+    const radius = (0.26 + 0.16 * rng()) * MARK_SPACING;
+    // A direction drawn in the square and normalized; a zero-length draw falls back to straight up.
+    const dx = rng() * 2 - 1;
+    const dy = rng() * 2 - 1;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    marks.push({ shape, radius, gapX: length > 0 ? dx / length : 0, gapY: length > 0 ? dy / length : 1, start: rng() * 4 });
+  }
+  return marks;
+}
+
+/**
+ * A monotone stand-in for the angle of `(dx, dy)`, in 0..4, going the same way round as an angle does. Division and
+ * comparison only: `atan2` would be the obvious thing and is exactly what must not cross two languages (D183).
+ */
+function pseudoAngle(dx: number, dy: number): number {
+  const sum = Math.abs(dx) + Math.abs(dy);
+  if (sum === 0) return 0;
+  const p = dy / sum;
+  return dx >= 0 ? (p < 0 ? 4 + p : p) : 2 - p;
+}
+
+/** An integer hash in 0..1 for a cell of a mark: a lump's ragged edge, reproducible in both languages. */
+function lumpNoise(mark: number, x: number, y: number): number {
+  let h = Math.imul(mark + 1, 0x9e3779b1) ^ Math.imul(x + 1, 0x85ebca6b) ^ Math.imul(y + 1, 0xc2b2ae35);
+  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
+  h ^= h >>> 13;
+  return (h >>> 0) / 4294967296;
+}
+
+/**
+ * How early a mark reaches a cell. Distance alone gives a disc; a ring is ranked by distance *from its own circle*,
+ * so the annulus is drawn first and the middle closes later, and a lump adds a per-cell wobble to its edge.
+ */
+function shapeScore(mark: Mark, index: number, dx: number, dy: number, x: number, y: number): number {
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  switch (mark.shape) {
+    case "dot":
+      return distance;
+    case "lump":
+      // Up to a third of a stitch of wobble: enough to ragged the edge, too little to break the mark apart.
+      return distance + 0.34 * lumpNoise(index, x, y);
+    case "ring": {
+      // A stroke, not a stamp: the band nearest the mark's own circle is drawn first, and within that band the cells
+      // are ordered around the circle from where the mark starts — so a light tone is a short arc rather than specks
+      // scattered all round it, and a heavier one closes the ring.
+      const sweep = (pseudoAngle(dx, dy) - mark.start + 4) % 4;
+      return Math.abs(distance - mark.radius) + 0.25 * sweep;
+    }
+    case "broken-ring": {
+      // The gap is a wedge around the mark's own direction: cells inside it are drawn last, so the ring reads as
+      // open. The dot product is the cosine of the angle to that direction — no trigonometry needed.
+      const alignment = distance > 0 ? (dx * mark.gapX + dy * mark.gapY) / distance : 0;
+      const sweep = (pseudoAngle(dx, dy) - mark.start + 4) % 4;
+      return Math.abs(distance - mark.radius) + 0.25 * sweep + (alignment > 0.72 ? mark.radius : 0);
+    }
+  }
 }
 
 /** The centre nearest each cell, by index into `centres`. Searched through the same lattice the centres were placed on. */
@@ -126,9 +227,11 @@ function nearestCentre(width: number, height: number, centres: Float64Array): In
 export function handDrawnThresholds(
   width: number,
   height: number,
-  scoreOf: (markIndex: number, dx: number, dy: number) => number
+  scoreOf?: (markIndex: number, dx: number, dy: number, x: number, y: number) => number
 ): Float64Array {
-  const centres = markCentres(width, height);
+  const { centres, rng } = placeMarks(width, height);
+  const marks = markShapes(centres.length / 2, rng);
+  const score = scoreOf ?? ((m: number, dx: number, dy: number, x: number, y: number) => shapeScore(marks[m], m, dx, dy, x, y));
   const thresholds = new Float64Array(width * height);
   if (centres.length === 0) return thresholds;
 
@@ -147,7 +250,7 @@ export function handDrawnThresholds(
       const m = owner[i];
       const slot = cursor[m]++;
       cells[slot] = i;
-      scores[i] = scoreOf(m, x + 0.5 - centres[m * 2], y + 0.5 - centres[m * 2 + 1]);
+      scores[i] = score(m, x + 0.5 - centres[m * 2], y + 0.5 - centres[m * 2 + 1], x, y);
     }
   }
 
@@ -163,7 +266,13 @@ export function handDrawnThresholds(
   return thresholds;
 }
 
-/** M1's mark: a dot that grows outward from its centre. The shapes arrive in M2. */
+/** A plain dot growing outward from its centre: the placement with no shape library, kept for the M1 measurements. */
 export function dotScore(_markIndex: number, dx: number, dy: number): number {
   return dx * dx + dy * dy;
+}
+
+/** The shapes drawn for this grid. Exposed so a test can count what the library produced. */
+export function markLibrary(width: number, height: number): Mark[] {
+  const { centres, rng } = placeMarks(width, height);
+  return markShapes(centres.length / 2, rng);
 }

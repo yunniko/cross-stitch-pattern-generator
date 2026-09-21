@@ -1,5 +1,5 @@
 import { rgbToOklab } from "../color/color";
-import { dotScore, handDrawnThresholds } from "./dither-hand-drawn";
+import { handDrawnThresholds } from "./dither-hand-drawn";
 import { DITHER_MATRICES } from "./dither-matrices";
 import type { RGB } from "../types";
 
@@ -128,7 +128,7 @@ function orderedDither(cellOklab: Float64Array, width: number, height: number, p
  * decision is the ordered one — the field only says where each cell sits in its mark.
  */
 function drawnDither(cellOklab: Float64Array, width: number, height: number, palette: readonly RGB[]): Uint8Array {
-  const thresholds = handDrawnThresholds(width, height, dotScore);
+  const thresholds = handDrawnThresholds(width, height);
   const paletteOklab = paletteToOklab(palette);
   const labels = new Uint8Array(width * height);
 

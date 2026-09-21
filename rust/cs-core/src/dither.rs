@@ -4,7 +4,7 @@
 //! serpentine, which is what keeps the worm artifacts away.
 
 use crate::color::{rgb_to_oklab, Oklab, Rgb};
-use crate::dither_hand_drawn::{dot_score, hand_drawn_thresholds};
+use crate::dither_hand_drawn::hand_drawn_thresholds;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -178,7 +178,7 @@ fn ordered(
 /// One label per cell from a threshold field covering the whole chart. The decision is the ordered one; the field
 /// only says where each cell sits inside its mark.
 fn drawn(cell_oklab: &[f64], width: usize, height: usize, palette: &[Rgb]) -> Vec<u8> {
-    let thresholds = hand_drawn_thresholds(width, height, dot_score);
+    let thresholds = hand_drawn_thresholds(width, height);
     let palette_oklab = palette_to_oklab(palette);
     let mut labels = vec![0u8; width * height];
 

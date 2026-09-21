@@ -30,6 +30,7 @@ A smooth ramp in all three channels — the case dithering exists for.
 | blue-noise-16 | 0.59 | 10.4 % (+10.4) |
 | floyd-steinberg | 0.55 | 19.7 % (+19.7) |
 | atkinson | 0.51 | 6.8 % (+6.8) |
+| hand-drawn | 0.80 | 1.4 % (+1.4) |
 
 ### 16 colours
 
@@ -45,6 +46,7 @@ A smooth ramp in all three channels — the case dithering exists for.
 | blue-noise-16 | 0.48 | 11.5 % (+11.5) |
 | floyd-steinberg | 0.35 | 24.7 % (+24.7) |
 | atkinson | 0.35 | 8.0 % (+8.0) |
+| hand-drawn | 0.75 | 2.0 % (+2.0) |
 
 ### 32 colours
 
@@ -60,6 +62,7 @@ A smooth ramp in all three channels — the case dithering exists for.
 | blue-noise-16 | 0.50 | 11.8 % (+11.8) |
 | floyd-steinberg | 0.33 | 24.3 % (+24.3) |
 | atkinson | 0.36 | 7.9 % (+7.9) |
+| hand-drawn | 0.76 | 2.7 % (+2.7) |
 
 ## photo
 
@@ -79,6 +82,7 @@ The project's photo-like fixture: regions, a shading ramp, a small disc and nois
 | blue-noise-16 | 0.90 | 3.5 % (+3.3) |
 | floyd-steinberg | 0.99 | 3.6 % (+3.4) |
 | atkinson | 0.84 | 0.3 % (+0.1) |
+| hand-drawn | 1.08 | 1.5 % (+1.3) |
 
 ### 16 colours
 
@@ -94,6 +98,7 @@ The project's photo-like fixture: regions, a shading ramp, a small disc and nois
 | blue-noise-16 | 0.47 | 9.0 % (+8.7) |
 | floyd-steinberg | 0.38 | 7.6 % (+7.3) |
 | atkinson | 0.30 | 6.7 % (+6.3) |
+| hand-drawn | 0.46 | 8.4 % (+8.1) |
 
 ### 32 colours
 
@@ -109,6 +114,7 @@ The project's photo-like fixture: regions, a shading ramp, a small disc and nois
 | blue-noise-16 | 0.07 | 18.2 % (+17.9) |
 | floyd-steinberg | 0.02 | 18.4 % (+18.1) |
 | atkinson | 0.02 | 16.7 % (+16.4) |
+| hand-drawn | 0.07 | 18.1 % (+17.9) |
 
 ## flat regions
 
@@ -128,6 +134,7 @@ Four flat colours with a little noise — nothing to dither, so this is where th
 | blue-noise-16 | 4.33 | 2.1 % (+2.1) |
 | floyd-steinberg | 0.98 | 0.3 % (+0.3) |
 | atkinson | 0.96 | 0.7 % (+0.7) |
+| hand-drawn | 5.83 | 1.9 % (+1.9) |
 
 ### 16 colours
 
@@ -143,6 +150,7 @@ Four flat colours with a little noise — nothing to dither, so this is where th
 | blue-noise-16 | 0.76 | 13.8 % (+13.8) |
 | floyd-steinberg | 0.47 | 12.9 % (+12.9) |
 | atkinson | 0.37 | 12.5 % (+12.5) |
+| hand-drawn | 0.88 | 12.1 % (+12.1) |
 
 ### 32 colours
 
@@ -158,6 +166,7 @@ Four flat colours with a little noise — nothing to dither, so this is where th
 | blue-noise-16 | 0.01 | 19.0 % (+19.0) |
 | floyd-steinberg | 0.01 | 18.8 % (+18.8) |
 | atkinson | 0.01 | 18.9 % (+18.9) |
+| hand-drawn | 0.01 | 19.0 % (+19.0) |
 
 ## photo on DMC
 
@@ -177,6 +186,7 @@ The same photo snapped to real threads, where the palette is at its least evenly
 | blue-noise-16 | 0.89 | 3.5 % (+3.3) |
 | floyd-steinberg | 0.97 | 3.6 % (+3.4) |
 | atkinson | 0.97 | 0.3 % (+0.1) |
+| hand-drawn | 0.95 | 1.5 % (+1.3) |
 
 ### 16 colours
 
@@ -192,6 +202,7 @@ The same photo snapped to real threads, where the palette is at its least evenly
 | blue-noise-16 | 0.92 | 5.8 % (+5.6) |
 | floyd-steinberg | 0.95 | 4.6 % (+4.4) |
 | atkinson | 0.93 | 4.1 % (+3.9) |
+| hand-drawn | 0.91 | 5.1 % (+4.9) |
 
 ### 32 colours
 
@@ -207,6 +218,7 @@ The same photo snapped to real threads, where the palette is at its least evenly
 | blue-noise-16 | 0.72 | 8.4 % (+8.2) |
 | floyd-steinberg | 0.73 | 8.7 % (+8.5) |
 | atkinson | 0.73 | 7.6 % (+7.4) |
+| hand-drawn | 0.73 | 8.3 % (+8.1) |
 
 ## Where each pattern wins
 
@@ -221,8 +233,9 @@ The same photo snapped to real threads, where the palette is at its least evenly
 | blue-noise-16 | 0.66 | +9.5 pts | 4.33 | flat regions at 8 |
 | floyd-steinberg | 0.51 | +10.7 pts | 0.99 | never |
 | atkinson | 0.44 | +7.1 pts | 0.97 | never |
+| hand-drawn | 0.78 | +3.8 pts | 5.83 | photo at 8, flat regions at 8 |
 
-Cheapest in confetti: lines-horizontal, clustered-8, ring-8. Closest to the photo: atkinson, floyd-steinberg, blue-noise-16.
+Cheapest in confetti: lines-horizontal, clustered-8, hand-drawn. Closest to the photo: atkinson, floyd-steinberg, blue-noise-16.
 No pattern is in both lists, so the choice is a trade every time.
 Never worse than the undithered chart on any fixture: floyd-steinberg, atkinson.
 
@@ -231,6 +244,12 @@ screen) fit the photo closest and leave the most stitches standing alone, while 
 ring and line screens) cost a stitcher least and help least — and on a noisy photo at few colours can lose
 outright. The two error-diffusion kernels are off that line: they adapt to the photo rather than repeating a tile,
 so they reach the lowest error of all while sitting mid-table on confetti, and neither ever loses.
+
+The drawn marks (`hand-drawn`) are a third thing again: placed across the chart rather than tiled or diffused,
+they cost about what a screen costs (+3.8 points) and fit about as closely
+(0.78×), because a mark is a cluster wherever it lands. What they buy is not accuracy but
+how the chart reads — the reason to reach for them is the look, and the table above is only there to show what
+that look costs.
 
 ## Per-stitch error, and why it moves both ways
 

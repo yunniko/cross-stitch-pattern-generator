@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { rgbToOklab } from "@/lib/color/color";
 import { ditherToPalette } from "@/lib/pipeline/dither";
-import { dotScore, handDrawnThresholds, markCentres, MARK_SPACING } from "@/lib/pipeline/dither-hand-drawn";
-import type { RGB } from "@/lib/types";
+import { dotScore, handDrawnThresholds, markCentres, markLibrary, MARK_SPACING } from "@/lib/pipeline/dither-hand-drawn";
+import { downsampleToGrid } from "@/lib/pipeline/downsample";
+import { buildPattern } from "@/lib/pipeline/pattern";
+import type { PixelBuffer, RGB, StitchPattern } from "@/lib/types";
+import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "./helpers/fixtures";
 
 /**
- * G-054 M1: the marks are placed, not tiled. Three things must hold before any of it is drawn as a shape — the
- * placement repeats nowhere, it is even rather than clumped, and it holds tone exactly.
+ * G-054: the marks are placed, not tiled, and drawn as strokes rather than stamped.
+ *
+ * M1's three: the placement repeats nowhere, it is even rather than clumped, and it holds tone exactly. M2's two: the
+ * library draws every shape it claims, a ring's middle stays open while its stroke is still going round, and a real
+ * photo survives the clustering (criterion 4, the measure that would catch marks smearing detail away).
  */
 
 const BLACK: RGB = [0, 0, 0];
@@ -21,6 +27,45 @@ function flatGrid(width: number, height: number, t: number): Float64Array {
     for (let c = 0; c < 3; c++) out[i * 3 + c] = black[c] + t * (white[c] - black[c]);
   }
   return out;
+}
+
+/** Mean squared OKLab error with photo and chart each averaged over a `radius` neighbourhood of stitches. */
+function meanError(source: PixelBuffer, pattern: StitchPattern, radius: number): number {
+  const { width, height } = pattern;
+  const cells = downsampleToGrid(source, width, height);
+  const want = new Float64Array(width * height * 3);
+  const got = new Float64Array(width * height * 3);
+  for (let i = 0; i < width * height; i++) {
+    want.set(rgbToOklab([cells.data[i * 3], cells.data[i * 3 + 1], cells.data[i * 3 + 2]]), i * 3);
+    got.set(rgbToOklab(pattern.palette[pattern.cellPalette[i]].rgb), i * 3);
+  }
+  const blur = (src: Float64Array) => {
+    const out = new Float64Array(src.length);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let n = 0;
+        const sum = [0, 0, 0];
+        for (let dy = -radius; dy <= radius; dy++) {
+          for (let dx = -radius; dx <= radius; dx++) {
+            const xx = x + dx;
+            const yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= width || yy >= height) continue;
+            for (let c = 0; c < 3; c++) sum[c] += src[(yy * width + xx) * 3 + c];
+            n++;
+          }
+        }
+        for (let c = 0; c < 3; c++) out[(y * width + x) * 3 + c] = sum[c] / n;
+      }
+    }
+    return out;
+  };
+  const w = blur(want);
+  const g = blur(got);
+  let total = 0;
+  for (let i = 0; i < width * height; i++) {
+    total += (w[i * 3] - g[i * 3]) ** 2 + (w[i * 3 + 1] - g[i * 3 + 1]) ** 2 + (w[i * 3 + 2] - g[i * 3 + 2]) ** 2;
+  }
+  return total / (width * height);
 }
 
 describe("hand-drawn marks are placed, not tiled", () => {
@@ -95,6 +140,71 @@ describe("hand-drawn marks are placed, not tiled", () => {
     const first = ditherToPalette(flatGrid(80, 60, 0.4), 80, 60, [BLACK, WHITE], "hand-drawn");
     const second = ditherToPalette(flatGrid(80, 60, 0.4), 80, 60, [BLACK, WHITE], "hand-drawn");
     expect(Array.from(second)).toEqual(Array.from(first));
+  });
+
+  it("draws every shape in its library, in something like the share each is given", () => {
+    const marks = markLibrary(width, height);
+    expect(marks.length).toBeGreaterThan(500);
+    const share = (shape: string) => marks.filter((mark) => mark.shape === shape).length / marks.length;
+    // The weights are 0.42 / 0.20 / 0.23 / 0.15; a tenth either way is enough to catch a mis-wired table without
+    // pinning the draw itself, which would make every future change to the library a test edit.
+    expect(share("ring")).toBeGreaterThan(0.32);
+    expect(share("ring")).toBeLessThan(0.52);
+    for (const shape of ["broken-ring", "dot", "lump"]) {
+      expect(share(shape), `${shape} is drawn at all`).toBeGreaterThan(0.05);
+    }
+  });
+
+  it("leaves a ring's middle open while its stroke is still being drawn", () => {
+    // What separates this family from the ring screen: the middle is open because the mark is a stroke around a
+    // circle, and it closes only when the tone asks for more than the ring itself.
+    const thresholds = handDrawnThresholds(width, height);
+    const centres = markCentres(width, height);
+    const marks = markLibrary(width, height);
+    const thresholdAt = (x: number, y: number) => thresholds[Math.round(y - 0.5) * width + Math.round(x - 0.5)];
+
+    let checked = 0;
+    for (let m = 0; m < marks.length && checked < 40; m++) {
+      const mark = marks[m];
+      if (mark.shape !== "ring") continue;
+      const cx = centres[m * 2];
+      const cy = centres[m * 2 + 1];
+      if (cx < MARK_SPACING || cy < MARK_SPACING || cx > width - MARK_SPACING || cy > height - MARK_SPACING) continue;
+      const middle = thresholdAt(cx, cy);
+      // The earliest cell on the mark's own circle, sampled at the four axes.
+      const onRing = Math.min(
+        thresholdAt(cx + mark.radius, cy),
+        thresholdAt(cx - mark.radius, cy),
+        thresholdAt(cx, cy + mark.radius),
+        thresholdAt(cx, cy - mark.radius)
+      );
+      expect(onRing, `mark ${m}: the stroke is drawn before the middle`).toBeLessThan(middle);
+      checked++;
+    }
+    expect(checked, "rings were found to check").toBeGreaterThan(20);
+  });
+
+  it("keeps the picture: local tone no worse than the undithered chart, on every fixture", () => {
+    // Criterion 4 of G-054. Tone is exact for a flat patch by construction; this is the harder case — a real photo,
+    // where the marks must not smear detail away as they cluster stitches together.
+    const fixtures: Array<{ name: string; source: PixelBuffer }> = [
+      { name: "gradient", source: makeBuffer(160, 120, (x, y) => [40 + (x * 180) / 160, 60 + (y * 150) / 120, 200 - (x * 120) / 160]) },
+      { name: "photo", source: makePhotoLikeBuffer(160, 120) },
+      {
+        name: "flat regions",
+        source: makeBuffer(160, 120, (x, y) => {
+          const base: RGB = x < 80 ? (y < 60 ? [200, 60, 60] : [60, 140, 90]) : y < 60 ? [70, 100, 190] : [220, 190, 70];
+          const n = pseudoNoise(x, y, 6);
+          return [base[0] + n, base[1] + n, base[2] + n];
+        }),
+      },
+    ];
+    for (const { name, source } of fixtures) {
+      const options = { longerSideStitches: 100, colorCount: 16 };
+      const plain = meanError(source, buildPattern(source, options), 2);
+      const drawn = meanError(source, buildPattern(source, { ...options, ditherMode: "hand-drawn" as const }), 2);
+      expect(drawn, `${name}: drawn ${drawn.toExponential(2)} vs undithered ${plain.toExponential(2)}`).toBeLessThanOrEqual(plain);
+    }
   });
 
   it("grows a mark outward from its centre, so stitches of one thread touch", () => {

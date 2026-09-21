@@ -222,6 +222,18 @@ it("measures every dither pattern against the same chart undithered", () => {
     "outright. The two error-diffusion kernels are off that line: they adapt to the photo rather than repeating a tile,",
     "so they reach the lowest error of all while sitting mid-table on confetti, and neither ever loses.",
     "",
+    ...(() => {
+      const drawn = summary.find((row) => row.mode === "hand-drawn");
+      if (!drawn) return [];
+      return [
+        `The drawn marks (\`hand-drawn\`) are a third thing again: placed across the chart rather than tiled or diffused,`,
+        `they cost about what a screen costs (+${drawn.confetti.toFixed(1)} points) and fit about as closely`,
+        `(${drawn.error.toFixed(2)}×), because a mark is a cluster wherever it lands. What they buy is not accuracy but`,
+        "how the chart reads — the reason to reach for them is the look, and the table above is only there to show what",
+        "that look costs.",
+      ];
+    })(),
+    "",
   );
   lines.push(
     "## Per-stitch error, and why it moves both ways",

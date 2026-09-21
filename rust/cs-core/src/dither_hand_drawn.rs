@@ -15,6 +15,11 @@ const SEED: u32 = 0x1d10_c0de;
 
 /// Mark centres as interleaved `x, y` in stitch coordinates.
 pub fn mark_centres(width: usize, height: usize) -> Vec<f64> {
+    place_marks(width, height).0
+}
+
+/// Placement, plus the generator left where it stopped so the shapes below continue the same stream.
+fn place_marks(width: usize, height: usize) -> (Vec<f64>, Mulberry32) {
     let mut rng = Mulberry32::new(SEED);
     let columns = ((width as f64 / MARK_SPACING).ceil() as usize).max(1);
     let rows = ((height as f64 / MARK_SPACING).ceil() as usize).max(1);
@@ -64,7 +69,112 @@ pub fn mark_centres(width: usize, height: usize) -> Vec<f64> {
             }
         }
     }
-    centres
+    (centres, rng)
+}
+
+/// What each mark is drawn as. Mirrors `SHAPE_WEIGHTS` in `dither-hand-drawn.ts`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Shape {
+    Ring,
+    BrokenRing,
+    Dot,
+    Lump,
+}
+
+const SHAPE_WEIGHTS: [(Shape, f64); 4] = [
+    (Shape::Ring, 0.42),
+    (Shape::BrokenRing, 0.2),
+    (Shape::Dot, 0.23),
+    (Shape::Lump, 0.15),
+];
+
+struct Mark {
+    shape: Shape,
+    radius: f64,
+    gap_x: f64,
+    gap_y: f64,
+    start: f64,
+}
+
+/// A mark's own parameters, drawn from the stream left by placement, in mark order.
+fn mark_shapes(count: usize, rng: &mut Mulberry32) -> Vec<Mark> {
+    let mut marks = Vec::with_capacity(count);
+    for _ in 0..count {
+        let roll = rng.next_f64();
+        let mut shape = SHAPE_WEIGHTS[SHAPE_WEIGHTS.len() - 1].0;
+        let mut running = 0.0;
+        for &(candidate, weight) in SHAPE_WEIGHTS.iter() {
+            running += weight;
+            if roll < running {
+                shape = candidate;
+                break;
+            }
+        }
+        let radius = (0.26 + 0.16 * rng.next_f64()) * MARK_SPACING;
+        let dx = rng.next_f64() * 2.0 - 1.0;
+        let dy = rng.next_f64() * 2.0 - 1.0;
+        let length = (dx * dx + dy * dy).sqrt();
+        marks.push(Mark {
+            shape,
+            radius,
+            gap_x: if length > 0.0 { dx / length } else { 0.0 },
+            gap_y: if length > 0.0 { dy / length } else { 1.0 },
+            start: rng.next_f64() * 4.0,
+        });
+    }
+    marks
+}
+
+/// A monotone stand-in for the angle of `(dx, dy)`, in 0..4 — division and comparison only, never `atan2` (D183).
+fn pseudo_angle(dx: f64, dy: f64) -> f64 {
+    let sum = dx.abs() + dy.abs();
+    if sum == 0.0 {
+        return 0.0;
+    }
+    let p = dy / sum;
+    if dx >= 0.0 {
+        if p < 0.0 {
+            4.0 + p
+        } else {
+            p
+        }
+    } else {
+        2.0 - p
+    }
+}
+
+/// `Math.imul` is a wrapping 32-bit multiply, so this is the same bits as the TypeScript hash.
+fn lump_noise(mark: usize, x: usize, y: usize) -> f64 {
+    let mut h = (mark as u32 + 1).wrapping_mul(0x9e37_79b1)
+        ^ (x as u32 + 1).wrapping_mul(0x85eb_ca6b)
+        ^ (y as u32 + 1).wrapping_mul(0xc2b2_ae35);
+    h = (h ^ (h >> 15)).wrapping_mul(0x2c1b_3c6d);
+    h ^= h >> 13;
+    h as f64 / 4294967296.0
+}
+
+/// How early a mark reaches a cell; a lower score is drawn first. Mirrors `shapeScore`.
+fn shape_score(mark: &Mark, index: usize, dx: f64, dy: f64, x: usize, y: usize) -> f64 {
+    let distance = (dx * dx + dy * dy).sqrt();
+    match mark.shape {
+        Shape::Dot => distance,
+        Shape::Lump => distance + 0.34 * lump_noise(index, x, y),
+        Shape::Ring => {
+            let sweep = (pseudo_angle(dx, dy) - mark.start + 4.0) % 4.0;
+            (distance - mark.radius).abs() + 0.25 * sweep
+        }
+        Shape::BrokenRing => {
+            let alignment = if distance > 0.0 {
+                (dx * mark.gap_x + dy * mark.gap_y) / distance
+            } else {
+                0.0
+            };
+            let sweep = (pseudo_angle(dx, dy) - mark.start + 4.0) % 4.0;
+            (distance - mark.radius).abs()
+                + 0.25 * sweep
+                + if alignment > 0.72 { mark.radius } else { 0.0 }
+        }
+    }
 }
 
 /// The centre nearest each cell, by index into `centres`.
@@ -123,16 +233,13 @@ fn nearest_centre(width: usize, height: usize, centres: &[f64]) -> Vec<i64> {
 }
 
 /// A threshold in 0..1 for every cell. `score_of` decides a mark's shape; a lower score is drawn first.
-pub fn hand_drawn_thresholds(
-    width: usize,
-    height: usize,
-    score_of: impl Fn(usize, f64, f64) -> f64,
-) -> Vec<f64> {
-    let centres = mark_centres(width, height);
+pub fn hand_drawn_thresholds(width: usize, height: usize) -> Vec<f64> {
+    let (centres, mut rng) = place_marks(width, height);
     let mut thresholds = vec![0f64; width * height];
     if centres.is_empty() {
         return thresholds;
     }
+    let marks = mark_shapes(centres.len() / 2, &mut rng);
 
     let owner = nearest_centre(width, height, &centres);
     let mark_count = centres.len() / 2;
@@ -153,10 +260,13 @@ pub fn hand_drawn_thresholds(
             let slot = cursor[m];
             cursor[m] += 1;
             cells[slot as usize] = i;
-            scores[i] = score_of(
+            scores[i] = shape_score(
+                &marks[m],
                 m,
                 x as f64 + 0.5 - centres[m * 2],
                 y as f64 + 0.5 - centres[m * 2 + 1],
+                x,
+                y,
             );
         }
     }
@@ -183,7 +293,3 @@ pub fn hand_drawn_thresholds(
     thresholds
 }
 
-/// M1's mark: a dot that grows outward from its centre.
-pub fn dot_score(_mark: usize, dx: f64, dy: f64) -> f64 {
-    dx * dx + dy * dy
-}
