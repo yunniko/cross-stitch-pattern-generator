@@ -208,3 +208,4 @@ remain readable with git show.
 - D197 — Cell importance reads each cell's own footprint — active
 - D198 — Dither patterns are generated data, shared by both languages — active
 - D199 — Dithering skips every smoothing pass, and is refused with Crisp — active
+- D200 — Atkinson is a second kernel that drops part of the error, and runs serpentine — active

@@ -5,6 +5,91 @@ file holds only draft, active and blocked goals. Entries are unchanged from
 their last state in `GOALS.md`; decision references (Dnn) now resolve to
 `docs/decisions/`.
 
+### G-052 · Optional dithering modes — DONE (2026-09-21, Owner sign-off 2026-09-21)
+- **What:** a Dither control offering several patterns, each turning a photo into the chosen palette by mixing stitches
+  rather than rounding each one, so a small palette can hold a gradient. Off by default and off in every existing
+  chart.
+- **Why:** Owner request (2026-09-21), accepting the confetti cost. Dithering is established cross-stitch practice,
+  competing generators offer it, and at low colour counts it is the only way to keep a sky or a skin tone from banding.
+  The research behind this goal is `docs/reviews/2026-09-21-dithering-research.md`.
+- **Owner decisions (2026-09-21):** dithering is worth having even where it produces confetti; several patterns, not
+  one.
+- **Acceptance criteria:**
+  1. Dither Off produces byte-identical output to today, in every mode: the 18 golden hashes (D107) and every Rust
+     parity case unchanged.
+  2. Each pattern is what it claims to be. A flat mid-tone at two colours reproduces the pattern's own matrix exactly,
+     cell for cell, so the shape is checked against the matrix rather than by eye.
+  3. Dithering earns its place where it should: on a gradient fixture at 8 and 16 colours, every pattern's mean OKLab
+     error **averaged over a 3×3 of stitches** is lower than the same chart undithered. Corrected during M1 from
+     "per-cell error", which dithering necessarily makes worse — a dithered stitch is the wrong thread on purpose, and
+     the gain only appears once neighbouring stitches are read together, as a stitched piece is. Measured 1.35–1.95×
+     worse per stitch and 0.45–0.95× of plain over a 3×3, every pattern, both colour counts. Both numbers go in the
+     comparison document; a pattern that won on both would mean the metric was wrong, not the dither.
+  4. The cost is reported, not hidden: the same document records each pattern's confetti ratio beside its error, at
+     several colour counts, using the measure this project already uses.
+  5. Dithering and Crisp are mutually exclusive in the UI and in `buildPattern`, which refuses the combination rather
+     than silently preferring one. Crisp exists to stop invented blends; dithering manufactures them.
+  6. Rust matches TypeScript byte for byte with dithering on, and the parity corpus covers every pattern.
+  7. Vitest and Playwright cover it; `docs-lint` passes; HANDOVER regenerated; deployed and verified live.
+- **Constraints:** dithering replaces the nearest-colour assignment and runs on the stitch grid after the palette is
+  chosen — it is not a filter over a finished chart. The smoothing passes (ICM, component recolour, diagonal fix) and
+  the quantizer's denoise are bypassed when it is on: they exist to remove exactly what it creates, and would quietly
+  undo it. Every threshold matrix is committed data, including the blue-noise one, which is generated once by a script
+  the way the thread tables are (`scripts/rust-tables.mjs` is the precedent) — a matrix generated at runtime could
+  differ between the two languages. Patterns are data: adding one later must not need new algorithm code.
+
+**Milestones**:
+- [x] M1 — The engine in TypeScript: the threshold-matrix dither (Bayer 4×4 and 8×8, clustered dot, horizontal and
+  diagonal lines, blue noise) and one error-diffusion kernel (Floyd–Steinberg, serpentine), applied per cell against
+  the chosen palette, with the smoothing passes bypassed. Unit tests for criteria 1, 2 and 3, and the matrices
+  committed as data.
+- [x] M2 — Rust: the same, byte-identical, with parity cases for every pattern at more than one colour count.
+- [x] M3 — The measured comparison (criteria 3 and 4) as a review document: error and confetti per pattern per colour
+  count, on a gradient, a photo and a flat-region fixture, so the Owner can judge which patterns earn their place and
+  which should not ship.
+- [x] M4 — The UI: a Dither control in the Photo pane, mutually exclusive with Crisp, carried in saved files and in the
+  processor's request validation; Playwright over choosing a pattern and regenerating; decision file, README and
+  HANDOVER; deploy and verify live.
+
+**Progress log** (newest first):
+- 2026-09-21 — **Owner sign-off.** Goal archived.
+- 2026-09-21 — **M4 deployed and verified live** at 083a117. A DMC chart generated with Floyd–Steinberg at 200
+  stitches comes back recording `ditherMode: "floyd-steinberg"` and visibly mixes threads; the same photo with Dither
+  off records no mode and has 0% isolated stitches; the processor logs show no Rust fallback, so the sidecar ran it;
+  a Crisp + dither request is refused with a 400. 23 containers before and after with an identical name set, 38 vhosts
+  unchanged, every live site still answering (the 502s are the decommissioned svc-lab services). **Awaiting sign-off.**
+- 2026-09-21 — **M4 done.** A Dither dropdown in the Photo pane (eight choices is more than a segmented control holds),
+  grouped as the measurement splits them: screens, then dispersed patterns. Choosing a pattern clears Crisp and
+  choosing Crisp clears the pattern, so the pane never holds the pair the pipeline refuses; the processor refuses it
+  too, with a 400 rather than a worker throwing a 500. The choice is remembered like the other Generate settings (a
+  stored pattern saved alongside Crisp reads as off), carried in the editable file and the autosave record, and
+  written into the pattern JSON by both languages. Verified: Vitest 1184 passed / 8 skipped, Playwright 326 passed
+  across 27 specs, `compare:rust` 66 cases identical (it now compares the recorded pattern too, the same class of
+  field the hash missed once before), tsc, eslint and docs-lint clean. The new e2e measures the chart itself — a
+  Floyd–Steinberg chart has more stitches standing alone than the same photo undithered, through the real UI, the
+  processor and the export. Decisions D198 (patterns are data) and D199 (dithering skips every smoothing pass).
+- 2026-09-21 — **M3 done; M2 before it.** Rust carries both families byte-identically: 60 parity cases, including
+  every pattern at 8 and 20 colours and one on DMC. `npm run compare:dither` writes
+  `docs/reviews/2026-09-21-dithering-comparison.md`, which measured two things worth having. **A bug:** on a thread
+  palette every pattern read as barely dithered, because the brand snap re-runs the fine ICM pass, which smoothed the
+  dither straight back out; it now skips that pass like the others, and DMC went from 0.97x to 0.90-0.96x. **A false
+  sentence:** the document asserted dithering is always worse per stitch while its own photo rows disagreed — it now
+  derives that from the numbers, and the unit test's claim was narrowed to the fixture it measures. The patterns split
+  into two groups: dispersed ones (Bayer, blue noise, Floyd-Steinberg) buy 0.38-0.59x error for +2 to +26 points of
+  confetti; clustered and line screens cost +0.3 to +1.4 points but can lose to plain on a noisy photo at 8 colours.
+  All seven ship, with that guidance, unless the Owner says otherwise.
+- 2026-09-21 — **M1 done.** `lib/pipeline/dither.ts` carries both families: a threshold-matrix dither reading the
+  committed patterns (Bayer 4 and 8, clustered dot, horizontal and diagonal lines, blue noise, generated by
+  `scripts/dither-matrices.mjs` into data both languages read) and serpentine Floyd–Steinberg. Each stitch is placed
+  between the two threads that bracket its colour, which is what makes an unevenly spaced thread palette dither
+  correctly. Dithering bypasses the denoise, the optimizer, the cleanup passes, the merge and the palette recompute,
+  and is refused with Crisp. Verified: 14 unit tests including each pattern reproducing its own matrix cell for cell,
+  and Off byte-identical to today. Criterion 3 was corrected here — see it above.
+- 2026-09-21 — goal created and planned, on the research in `docs/reviews/2026-09-21-dithering-research.md`. Deferred
+  deliberately: Yliluoma-style palette-pair mixing, the accurate but heavier method for an unevenly spaced palette. M3
+  measures the plain version first; if its error is close to the undithered chart on a thread palette, that is the
+  evidence for adding pair mixing, and M3's numbers are what the decision should rest on.
+
 ### G-051 · The two defects the pipeline audit left open — DONE (2026-09-21, Owner sign-off 2026-09-21)
 - **What:** cell importance stops leaving holes on a chart finer than the photo, and the quantizer stops relying on an
   accidental value for a dropped cluster's samples. Both are from the 2026-09-20 audit; neither changes what an

@@ -19,6 +19,7 @@ pub enum DitherMode {
     LinesDiagonal,
     BlueNoise16,
     FloydSteinberg,
+    Atkinson,
 }
 
 impl DitherMode {
@@ -33,6 +34,7 @@ impl DitherMode {
             DitherMode::LinesDiagonal => "lines-diagonal",
             DitherMode::BlueNoise16 => "blue-noise-16",
             DitherMode::FloydSteinberg => "floyd-steinberg",
+            DitherMode::Atkinson => "atkinson",
         }
     }
 
@@ -167,12 +169,35 @@ fn ordered(
     labels
 }
 
-const FS_AHEAD: f64 = 7.0 / 16.0;
-const FS_BELOW_BACK: f64 = 3.0 / 16.0;
-const FS_BELOW: f64 = 5.0 / 16.0;
-const FS_BELOW_AHEAD: f64 = 1.0 / 16.0;
+/// The error-diffusion kernels as `(dx, dy, weight)` taps, mirrored in `dx` on a right-to-left row. Floyd-Steinberg
+/// passes all of the error on; Atkinson passes six eighths and drops the rest, which keeps near-black and near-white
+/// areas flat and makes the stitches it does place clump (D200). Mirrors `DIFFUSION_KERNELS` in `dither.ts`.
+const FLOYD_STEINBERG: [(i64, i64, f64); 4] = [
+    (1, 0, 7.0 / 16.0),
+    (-1, 1, 3.0 / 16.0),
+    (0, 1, 5.0 / 16.0),
+    (1, 1, 1.0 / 16.0),
+];
+const ATKINSON: [(i64, i64, f64); 6] = [
+    (1, 0, 1.0 / 8.0),
+    (2, 0, 1.0 / 8.0),
+    (-1, 1, 1.0 / 8.0),
+    (0, 1, 1.0 / 8.0),
+    (1, 1, 1.0 / 8.0),
+    (0, 2, 1.0 / 8.0),
+];
 
-fn error_diffusion(cell_oklab: &[f64], width: usize, height: usize, palette: &[Rgb]) -> Vec<u8> {
+fn error_diffusion(
+    cell_oklab: &[f64],
+    width: usize,
+    height: usize,
+    palette: &[Rgb],
+    mode: DitherMode,
+) -> Vec<u8> {
+    let kernel: &[(i64, i64, f64)] = match mode {
+        DitherMode::Atkinson => &ATKINSON,
+        _ => &FLOYD_STEINBERG,
+    };
     let palette_oklab = palette_to_oklab(palette);
     let mut labels = vec![0u8; width * height];
     let mut working = cell_oklab.to_vec();
@@ -211,10 +236,9 @@ fn error_diffusion(cell_oklab: &[f64], width: usize, height: usize, palette: &[R
                 working[no + 2] += eb * weight;
             };
             let (xi, yi) = (x as i64, y as i64);
-            spread(xi + ahead, yi, FS_AHEAD);
-            spread(xi - ahead, yi + 1, FS_BELOW_BACK);
-            spread(xi, yi + 1, FS_BELOW);
-            spread(xi + ahead, yi + 1, FS_BELOW_AHEAD);
+            for &(dx, dy, weight) in kernel {
+                spread(xi + ahead * dx, yi + dy, weight);
+            }
         }
     }
     labels
@@ -233,7 +257,9 @@ pub fn dither_to_palette(
     }
     match mode {
         DitherMode::Off => panic!("dither_to_palette called with Off"),
-        DitherMode::FloydSteinberg => error_diffusion(cell_oklab, width, height, palette),
+        DitherMode::FloydSteinberg | DitherMode::Atkinson => {
+            error_diffusion(cell_oklab, width, height, palette, mode)
+        }
         _ => ordered(cell_oklab, width, height, palette, mode),
     }
 }

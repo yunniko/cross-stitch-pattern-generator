@@ -39,7 +39,7 @@ chart symbols changed appearance (D192), and `CS_JOB=0` returns to TypeScript wi
 - Pixel art in and out (G-049): the start screen's fourth card opens an image as a chart, one pixel per stitch,
   transparent pixels empty, nothing resampled; too large, too colourful or partly transparent is refused with the real
   numbers, under 10 stitches is centred in a chart of the minimum (D194), and the pixel-art PNG writes the image back.
-- Dithering (G-052, deployed 2026-09-21, pending sign-off): a Dither control offers seven patterns — Bayer 4×4 and 8×8, clustered dots,
+- Dithering (G-052, signed off 2026-09-21): a Dither control offers seven patterns — Bayer 4×4 and 8×8, clustered dots,
   horizontal and diagonal line screens, blue noise, Floyd–Steinberg — mixing neighbouring stitches between the two
   threads either side of a colour instead of rounding each one. Off is byte-identical to before; a dithered chart runs
   no smoothing pass and refuses Crisp (D199). Measured in `docs/reviews/2026-09-21-dithering-comparison.md`.
@@ -282,9 +282,10 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   generation deadline and Export all without the chart PNG, D181) and G-047 (raster exports 2–3× faster, the preview
   streamed, the PDF 3.5× faster, generation a quarter to a half faster, D171–D178). G-030 (public launch) is a
   far-future draft.
-- **G-052 (dithering) awaits sign-off**: all four milestones done and deployed. Open from its measurement: on a noisy
-  photo at 8 colours the clustered and line screens can read slightly worse than the undithered chart (`clustered-8`
-  1.13×), which is why the pane groups them as the cheap-but-weaker choice rather than hiding them.
+- G-052 (dithering) is signed off and archived. Open from its measurement: on a noisy photo at 8 colours the
+  clustered and line screens can read slightly worse than the undithered chart (`clustered-8` 1.13×), which is why the
+  pane groups them as the cheap-but-weaker choice rather than hiding them. **G-053 adds two more patterns** — a ring
+  screen (M1 done) and Atkinson — from a screenshot the Owner showed on 2026-09-21.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log

@@ -2,7 +2,7 @@
 
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { formatFinishedDimension } from "@/lib/export/finished-size";
-import { isDithered, ORDERED_DITHER_MODES, type DitherMode } from "@/lib/pipeline/dither";
+import { DIFFUSION_DITHER_MODES, isDithered, ORDERED_DITHER_MODES, type DitherMode } from "@/lib/pipeline/dither";
 import { isReleasedEnhancementMode, releasedEnhancementModes, type EnhancementModeId } from "@/lib/pipeline/enhance";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
@@ -63,12 +63,13 @@ const DITHER_LABELS: Record<DitherMode, string> = {
   "lines-diagonal": "Diagonal lines",
   "blue-noise-16": "Blue noise",
   "floyd-steinberg": "Floyd–Steinberg",
+  atkinson: "Atkinson",
 };
 
 // The split the measurement found (`docs/reviews/2026-09-21-dithering-comparison.md`): the screens add almost no
 // isolated stitches and buy less accuracy, the dispersed patterns the other way round.
 const SCREEN_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("lines-") || mode.startsWith("clustered-") || mode.startsWith("ring-"));
-const DISPERSED_MODES: DitherMode[] = [...ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("bayer-") || mode.startsWith("blue-noise-")), "floyd-steinberg"];
+const DISPERSED_MODES: DitherMode[] = [...ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("bayer-") || mode.startsWith("blue-noise-")), ...DIFFUSION_DITHER_MODES];
 
 const ENHANCEMENT_OPTIONS: Record<EnhancementModeId, SegmentOption<EnhancementModeId>> = {
   off: { value: "off", label: "Off", title: "Use the photo exactly as it is" },

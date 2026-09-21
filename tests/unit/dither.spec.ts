@@ -152,6 +152,65 @@ describe("each pattern is the matrix it claims to be", () => {
   });
 });
 
+describe("Atkinson does what it is for (G-053)", () => {
+  // A black-to-white ramp down the grid, as OKLab, dithered to two threads: the case the two kernels differ most on.
+  const width = 160;
+  const height = 120;
+  const ramp = new Float64Array(width * height * 3);
+  for (let y = 0; y < height; y++) {
+    const v = Math.round((255 * y) / (height - 1));
+    for (let x = 0; x < width; x++) ramp.set(rgbToOklab([v, v, v]), (y * width + x) * 3);
+  }
+  const of = (mode: Exclude<DitherMode, "off">) => ditherToPalette(ramp, width, height, [BLACK, WHITE], mode);
+
+  /** Rows of one thread alone at each end: what a kernel that drops part of the error leaves flat. */
+  function flatEnds(labels: Uint8Array): number {
+    let rows = 0;
+    for (let y = 0; y < height; y++) {
+      const first = labels[y * width];
+      if (Array.from(labels.subarray(y * width, (y + 1) * width)).every((v) => v === first)) rows++;
+    }
+    return rows;
+  }
+
+  /** The share of light stitches with a light stitch beside them: clumping, the other half of the look. */
+  function clumped(labels: Uint8Array): number {
+    let lit = 0;
+    let withNeighbour = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (labels[y * width + x] !== 1) continue;
+        lit++;
+        const neighbours: Array<[number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        if (neighbours.some(([dx, dy]) => x + dx >= 0 && y + dy >= 0 && x + dx < width && y + dy < height && labels[(y + dy) * width + x + dx] === 1)) withNeighbour++;
+      }
+    }
+    return withNeighbour / lit;
+  }
+
+  it("keeps the ends flat, where Floyd–Steinberg breaks them up", () => {
+    // Measured on this ramp: Atkinson leaves 30 of 120 rows in one thread, Floyd–Steinberg 5. Atkinson passes on six
+    // eighths of the error and drops the rest, so near-black and near-white never accumulate enough to flip a stitch.
+    const atkinson = flatEnds(of("atkinson"));
+    const floyd = flatEnds(of("floyd-steinberg"));
+    expect(atkinson, `atkinson ${atkinson} rows vs floyd-steinberg ${floyd}`).toBeGreaterThan(floyd * 2);
+  });
+
+  it("clumps the stitches it does place", () => {
+    // Measured: 95.1% of Atkinson's light stitches have a light neighbour, against 82.8% of Floyd–Steinberg's.
+    const atkinson = clumped(of("atkinson"));
+    const floyd = clumped(of("floyd-steinberg"));
+    expect(atkinson, `atkinson ${atkinson.toFixed(2)} vs floyd-steinberg ${floyd.toFixed(2)}`).toBeGreaterThan(floyd + 0.1);
+  });
+
+  it("still spans both threads across the ramp, rather than posterizing it", () => {
+    const labels = of("atkinson");
+    const share = Array.from(labels).filter((v) => v === 1).length / (width * height);
+    expect(share).toBeGreaterThan(0.35);
+    expect(share).toBeLessThan(0.65);
+  });
+});
+
 describe("dithering earns its place, and costs what it costs", () => {
   const gradient = makeBuffer(120, 80, (x, y) => [40 + (x * 180) / 120, 60 + (y * 150) / 80, 200 - (x * 120) / 120]);
 

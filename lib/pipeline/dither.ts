@@ -20,11 +20,19 @@ import type { RGB } from "../types";
  */
 
 export const ORDERED_DITHER_MODES = ["bayer-4", "bayer-8", "clustered-8", "ring-8", "lines-horizontal", "lines-diagonal", "blue-noise-16"] as const;
-export const DITHER_MODES = ["off", ...ORDERED_DITHER_MODES, "floyd-steinberg"] as const;
+export type OrderedDitherMode = (typeof ORDERED_DITHER_MODES)[number];
+export const DIFFUSION_DITHER_MODES = ["floyd-steinberg", "atkinson"] as const;
+export const DITHER_MODES = ["off", ...ORDERED_DITHER_MODES, ...DIFFUSION_DITHER_MODES] as const;
+export type DiffusionDitherMode = (typeof DIFFUSION_DITHER_MODES)[number];
 export type DitherMode = (typeof DITHER_MODES)[number];
 
 export function isDithered(mode: DitherMode | undefined): mode is Exclude<DitherMode, "off"> {
   return mode !== undefined && mode !== "off";
+}
+
+/** Whether a pattern carries the error to the stitches after it, rather than reading a threshold matrix. */
+export function isDiffusionMode(mode: Exclude<DitherMode, "off">): mode is DiffusionDitherMode {
+  return (DIFFUSION_DITHER_MODES as readonly string[]).includes(mode);
 }
 
 /** The two nearest palette entries to a colour, nearest first. With one entry both are it. */
@@ -82,7 +90,7 @@ function positionBetween(paletteOklab: Float64Array, first: number, second: numb
 }
 
 /** One label per cell, from the matrix named by `mode`. */
-function orderedDither(cellOklab: Float64Array, width: number, height: number, palette: readonly RGB[], mode: Exclude<DitherMode, "off" | "floyd-steinberg">): Uint8Array {
+function orderedDither(cellOklab: Float64Array, width: number, height: number, palette: readonly RGB[], mode: OrderedDitherMode): Uint8Array {
   const matrix = DITHER_MATRICES[mode];
   if (!matrix) throw new Error(`Unknown dither pattern "${mode}".`);
   const size = matrix.length;
@@ -107,11 +115,33 @@ function orderedDither(cellOklab: Float64Array, width: number, height: number, p
   return labels;
 }
 
-/** Floyd–Steinberg's weights, in scan order for the row being left and the row below. */
-const FS_WEIGHTS = { ahead: 7 / 16, belowBack: 3 / 16, below: 5 / 16, belowAhead: 1 / 16 };
+/**
+ * The error-diffusion kernels, as `[dx, dy, weight]` taps ahead of the cell being decided. `dx` is mirrored on a
+ * right-to-left row, so a serpentine scan spreads the error the same way in both directions.
+ *
+ * Floyd–Steinberg passes all of the error on. Atkinson passes only six eighths and drops the rest, which is what
+ * gives it its look: the error never accumulates enough to break a near-black or near-white area, so the extremes
+ * stay flat, and the stitches it does place clump (D200).
+ */
+const DIFFUSION_KERNELS: Record<DiffusionDitherMode, readonly (readonly [number, number, number])[]> = {
+  "floyd-steinberg": [
+    [1, 0, 7 / 16],
+    [-1, 1, 3 / 16],
+    [0, 1, 5 / 16],
+    [1, 1, 1 / 16],
+  ],
+  atkinson: [
+    [1, 0, 1 / 8],
+    [2, 0, 1 / 8],
+    [-1, 1, 1 / 8],
+    [0, 1, 1 / 8],
+    [1, 1, 1 / 8],
+    [0, 2, 1 / 8],
+  ],
+};
 
 /** One label per cell, each rounded to its nearest thread with the error carried to the stitches not yet decided. */
-function errorDiffusionDither(cellOklab: Float64Array, width: number, height: number, palette: readonly RGB[]): Uint8Array {
+function errorDiffusionDither(cellOklab: Float64Array, width: number, height: number, palette: readonly RGB[], mode: DiffusionDitherMode): Uint8Array {
   const paletteOklab = paletteToOklab(palette);
   const labels = new Uint8Array(width * height);
   // A working copy, because a cell's colour is its own plus whatever error reached it.
@@ -139,10 +169,7 @@ function errorDiffusionDither(cellOklab: Float64Array, width: number, height: nu
         working[no + 2] += eb * weight;
       };
       const ahead = leftToRight ? 1 : -1;
-      spread(x + ahead, y, FS_WEIGHTS.ahead);
-      spread(x - ahead, y + 1, FS_WEIGHTS.belowBack);
-      spread(x, y + 1, FS_WEIGHTS.below);
-      spread(x + ahead, y + 1, FS_WEIGHTS.belowAhead);
+      for (const [dx, dy, weight] of DIFFUSION_KERNELS[mode]) spread(x + ahead * dx, y + dy, weight);
     }
   }
   return labels;
@@ -157,5 +184,7 @@ export function ditherToPalette(
   mode: Exclude<DitherMode, "off">
 ): Uint8Array {
   if (palette.length === 0) return new Uint8Array(width * height);
-  return mode === "floyd-steinberg" ? errorDiffusionDither(cellOklab, width, height, palette) : orderedDither(cellOklab, width, height, palette, mode);
+  return isDiffusionMode(mode)
+    ? errorDiffusionDither(cellOklab, width, height, palette, mode)
+    : orderedDither(cellOklab, width, height, palette, mode);
 }
