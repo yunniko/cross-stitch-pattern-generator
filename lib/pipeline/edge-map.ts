@@ -137,6 +137,11 @@ export function selectKth(values: Float32Array, k: number): number {
  * Per-cell importance (0-1): 0.7 x the max edge magnitude inside the cell
  * + 0.3 x the cell's own luminance contrast (a detail can sit inside one
  * cell without a strong edge at its boundary -- Owner's spec section 4).
+ *
+ * Each cell reads the pixels its own footprint covers, `[ceil(c·src/grid), ceil((c+1)·src/grid))` (G-051). For a chart
+ * no finer than the photo that is the exact inverse of the old `floor(x·grid/src)` assignment — the same pixels in the
+ * same order, so the same sums to the last bit. For a finer chart the old mapping left whole cells with no pixel at
+ * all, at importance 0 even along a strong edge; such a cell now reads the pixel its centre falls in.
  */
 export function computeCellImportance(
   source: PixelBuffer,
@@ -148,36 +153,45 @@ export function computeCellImportance(
   opaque?: Uint8Array | null
 ): Float32Array {
   const { width: srcW, height: srcH } = source;
-  const cellMaxEdge = new Float32Array(gridWidth * gridHeight);
-  const cellLumaSum = new Float64Array(gridWidth * gridHeight);
-  const cellLumaSumSq = new Float64Array(gridWidth * gridHeight);
-  const cellCount = new Float64Array(gridWidth * gridHeight);
-
-  for (let y = 0; y < srcH; y++) {
-    const cellY = Math.min(gridHeight - 1, Math.floor((y * gridHeight) / srcH));
-    for (let x = 0; x < srcW; x++) {
-      const cellX = Math.min(gridWidth - 1, Math.floor((x * gridWidth) / srcW));
-      const cellIndex = cellY * gridWidth + cellX;
-      const srcIndex = y * srcW + x;
-      if (opaque && !opaque[srcIndex]) continue;
-
-      if (edgeMagnitude[srcIndex] > cellMaxEdge[cellIndex]) cellMaxEdge[cellIndex] = edgeMagnitude[srcIndex];
-
-      const l = gray[srcIndex] / 255;
-      cellLumaSum[cellIndex] += l;
-      cellLumaSumSq[cellIndex] += l * l;
-      cellCount[cellIndex]++;
-    }
-  }
-
   const importance = new Float32Array(gridWidth * gridHeight);
-  for (let i = 0; i < importance.length; i++) {
-    const n = cellCount[i] || 1;
-    const mean = cellLumaSum[i] / n;
-    const variance = Math.max(0, cellLumaSumSq[i] / n - mean * mean);
-    // stdev of a 0-1 signal maxes out at 0.5 (half-black/half-white split); normalize accordingly.
-    const contrast = Math.min(1, Math.sqrt(variance) / 0.5);
-    importance[i] = Math.min(1, 0.7 * cellMaxEdge[i] + 0.3 * contrast);
+
+  /** The pixels of one axis this cell covers; the cell's centre pixel when its footprint holds none. */
+  const span = (cell: number, cells: number, pixels: number): [number, number] => {
+    const from = Math.ceil((cell * pixels) / cells);
+    const to = Math.min(pixels, Math.ceil(((cell + 1) * pixels) / cells)) - 1;
+    if (to >= from) return [from, to];
+    const centre = Math.min(pixels - 1, Math.floor(((cell + 0.5) * pixels) / cells));
+    return [centre, centre];
+  };
+
+  for (let cellY = 0; cellY < gridHeight; cellY++) {
+    const [yFrom, yTo] = span(cellY, gridHeight, srcH);
+    for (let cellX = 0; cellX < gridWidth; cellX++) {
+      const [xFrom, xTo] = span(cellX, gridWidth, srcW);
+
+      let maxEdge = 0;
+      let sum = 0;
+      let sumSq = 0;
+      let count = 0;
+      for (let y = yFrom; y <= yTo; y++) {
+        for (let x = xFrom; x <= xTo; x++) {
+          const srcIndex = y * srcW + x;
+          if (opaque && !opaque[srcIndex]) continue;
+          if (edgeMagnitude[srcIndex] > maxEdge) maxEdge = edgeMagnitude[srcIndex];
+          const l = gray[srcIndex] / 255;
+          sum += l;
+          sumSq += l * l;
+          count++;
+        }
+      }
+
+      const n = count || 1;
+      const mean = sum / n;
+      const variance = Math.max(0, sumSq / n - mean * mean);
+      // stdev of a 0-1 signal maxes out at 0.5 (half-black/half-white split); normalize accordingly.
+      const contrast = Math.min(1, Math.sqrt(variance) / 0.5);
+      importance[cellY * gridWidth + cellX] = Math.min(1, 0.7 * maxEdge + 0.3 * contrast);
+    }
   }
   return importance;
 }

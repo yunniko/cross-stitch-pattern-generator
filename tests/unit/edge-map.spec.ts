@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeCellImportance, computeEdgeMagnitude, edgeBetweenCells } from "@/lib/pipeline/edge-map";
+import { computeCellImportance, computeEdgeMagnitude, edgeBetweenCells, sourceLuminance } from "@/lib/pipeline/edge-map";
 import type { PixelBuffer, RGB } from "@/lib/types";
 
 function makeBuffer(width: number, height: number, colorAt: (x: number, y: number) => RGB): PixelBuffer {
@@ -97,3 +97,79 @@ describe("edgeBetweenCells", () => {
     expect(edgeBetweenCells(importance, 0, 2)).toBeCloseTo(0.5);
   });
 });
+
+describe("every cell reads the pixels it covers, however fine the chart (G-051)", () => {
+  /** A photo with a strong vertical edge down the middle and flat halves either side. */
+  function edgePhoto(size: number) {
+    return makeBuffer(size, size, (x) => (x < size / 2 ? [20, 20, 20] : [235, 235, 235]));
+  }
+
+  it("leaves no cell without a pixel when the chart is finer than the photo", () => {
+    const source = edgePhoto(60);
+    const gray = sourceLuminance(source);
+    const edge = computeEdgeMagnitude(source, gray);
+    for (const grid of [60, 90, 150, 240]) {
+      const importance = computeCellImportance(source, edge, grid, grid, gray);
+      // Every cell of a column that crosses the edge must see it; with the old mapping, whole columns saw nothing.
+      const column = Math.floor((30 / 60) * grid);
+      let seen = 0;
+      for (let y = 0; y < grid; y++) if (importance[y * grid + column] > 0) seen++;
+      expect(seen, `${grid}x${grid}: the edge column is found on every row`).toBe(grid);
+    }
+  });
+
+  it("gives an upscaled chart the same importance as the pixels it samples", () => {
+    const source = edgePhoto(40);
+    const gray = sourceLuminance(source);
+    const edge = computeEdgeMagnitude(source, gray);
+    const oneToOne = computeCellImportance(source, edge, 40, 40, gray);
+    const doubled = computeCellImportance(source, edge, 80, 80, gray);
+    // Each 1:1 cell is one pixel; at 2x every cell covers the pixel its centre falls in, so the doubled grid repeats
+    // the 1:1 values in 2x2 blocks.
+    for (let y = 0; y < 40; y++) {
+      for (let x = 0; x < 40; x++) {
+        expect(doubled[2 * y * 80 + 2 * x], `cell ${x},${y}`).toBeCloseTo(oneToOne[y * 40 + x], 6);
+      }
+    }
+  });
+
+  it("is unchanged for a chart no finer than the photo, which is what the golden hashes pin", () => {
+    // The old mapping, pixel -> cell by truncation, kept for the comparison.
+    const byTruncation = (source: ReturnType<typeof edgePhoto>, edge: Float32Array, grid: number, gray: Uint8Array) => {
+      const { width: srcW, height: srcH } = source;
+      const maxEdge = new Float32Array(grid * grid);
+      const sum = new Float64Array(grid * grid);
+      const sumSq = new Float64Array(grid * grid);
+      const count = new Float64Array(grid * grid);
+      for (let y = 0; y < srcH; y++) {
+        const cellY = Math.min(grid - 1, Math.floor((y * grid) / srcH));
+        for (let x = 0; x < srcW; x++) {
+          const cellX = Math.min(grid - 1, Math.floor((x * grid) / srcW));
+          const cell = cellY * grid + cellX;
+          const i = y * srcW + x;
+          if (edge[i] > maxEdge[cell]) maxEdge[cell] = edge[i];
+          const l = gray[i] / 255;
+          sum[cell] += l;
+          sumSq[cell] += l * l;
+          count[cell]++;
+        }
+      }
+      return Float32Array.from({ length: grid * grid }, (_, i) => {
+        const n = count[i] || 1;
+        const mean = sum[i] / n;
+        const variance = Math.max(0, sumSq[i] / n - mean * mean);
+        return Math.min(1, 0.7 * maxEdge[i] + 0.3 * Math.min(1, Math.sqrt(variance) / 0.5));
+      });
+    };
+
+    for (const [size, grid] of [[240, 60], [240, 37], [100, 100], [512, 150], [64, 16]] as const) {
+      const source = edgePhoto(size);
+      const gray = sourceLuminance(source);
+      const edge = computeEdgeMagnitude(source, gray);
+      expect(Array.from(computeCellImportance(source, edge, grid, grid, gray)), `${size} -> ${grid}`).toEqual(
+        Array.from(byTruncation(source, edge, grid, gray))
+      );
+    }
+  });
+});
+
