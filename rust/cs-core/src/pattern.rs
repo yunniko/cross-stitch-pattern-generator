@@ -476,7 +476,9 @@ pub fn build_pattern_reporting(
     let result = apply_brand_palette(
         pattern,
         brand,
-        options.optimize.then_some(&ctx),
+        // A dithered chart skips the fine ICM re-run like the other smoothing passes: it would smooth the dither
+        // straight back out (G-052 M3).
+        smooth.then_some(&ctx),
         layer.as_ref(),
     );
     lap("brand", times);

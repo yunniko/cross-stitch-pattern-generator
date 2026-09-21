@@ -413,8 +413,9 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   const brand: ThreadBrand = options.paletteMode;
 
   // Re-run the fine ICM pass against the snapped thread palette when optimizing (D56); crisp repair applies either
-  // way (D71).
-  const brandPattern = shouldOptimize
+  // way (D71). A dithered chart skips that pass like the others: it would smooth the dither straight back out, which
+  // is how the G-052 M3 measurement found this — every pattern on a DMC palette read as barely dithered at all.
+  const brandPattern = smooth
     ? applyBrandPalette(
         pattern,
         brand,

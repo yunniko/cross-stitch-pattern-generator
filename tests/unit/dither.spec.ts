@@ -151,9 +151,11 @@ describe("dithering earns its place, and costs what it costs", () => {
     }
   });
 
-  it("is worse stitch by stitch, which is the trade it makes", () => {
-    // Stated rather than hidden: a dithered stitch is often the wrong thread on purpose, and only the neighbourhood
-    // average is better. A mode that beat plain on both measures would mean the metric, not the dither, was wrong.
+  it("is worse stitch by stitch on this gradient, which is the trade it makes", () => {
+    // Stated rather than hidden: a dithered stitch is often the wrong thread on purpose. It is not a universal rule —
+    // on a photo the undithered chart runs the optimizer, which trades colour accuracy for smoothness, so a dithered
+    // chart can be closer per stitch there too (`docs/reviews/2026-09-21-dithering-comparison.md`). On a smooth ramp,
+    // where the undithered chart was already close, the loss is real and this pins it.
     const plain = buildPattern(gradient, { longerSideStitches: 60, colorCount: 8 });
     const perStitchPlain = meanError(gradient, plain, 0);
     for (const ditherMode of [...ORDERED_DITHER_MODES, "floyd-steinberg"] as DitherMode[]) {
