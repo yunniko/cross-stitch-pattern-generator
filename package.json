@@ -22,6 +22,7 @@
     "compare:export-parity": "playwright test --config scripts/playwright.export-parity.config.ts",
     "compare:rust": "vitest run --config vitest.rust.config.ts scripts/rust-parity.ts",
     "compare:dither": "vitest run --config vitest.rust.config.ts scripts/dither-comparison.ts",
+    "samples:hand-drawn": "vitest run --config vitest.rust.config.ts scripts/hand-drawn-samples.ts",
     "compare:rust-exports": "vitest run --config vitest.rust.config.ts scripts/rust-export-parity.ts"
   },
   "dependencies": {

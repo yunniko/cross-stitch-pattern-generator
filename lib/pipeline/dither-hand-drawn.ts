@@ -82,8 +82,7 @@ function placeMarks(width: number, height: number): { centres: Float64Array; rng
  * What each mark is drawn as. A ring reads most like a drawn mark and is what the Owner's image is full of, so it
  * takes most of them; the rest keep the page from looking like one stamp repeated (G-054 M2).
  */
-const SHAPES = ["ring", "broken-ring", "dot", "lump"] as const;
-type Shape = (typeof SHAPES)[number];
+type Shape = "ring" | "broken-ring" | "dot" | "lump";
 const SHAPE_WEIGHTS: ReadonlyArray<readonly [Shape, number]> = [
   ["ring", 0.42],
   ["broken-ring", 0.2],

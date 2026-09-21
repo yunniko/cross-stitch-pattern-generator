@@ -48,14 +48,26 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M1 — Mark placement: seeded centres over the grid, even but irregular, at a density that follows local tone, in
   both languages. Marks are single stitches at this stage. Carries criteria 1–3 with their measurements, and the
   parity cases.
-- [ ] M2 — The marks themselves: a small library of drawn shapes chosen and sized by local tone, with the tone-fidelity
+- [x] M2 — The marks themselves: a small library of drawn shapes chosen and sized by local tone, with the tone-fidelity
   measurement (criterion 4) and the confetti cost (criterion 5).
-- [ ] M3 — The sample sheet: charts at 80, 200 and 600 stitches on Full range and DMC, exported as PNGs and sent to the
+- [x] M3 — The sample sheet: (delivered; awaiting the Owner's judgement) charts at 80, 200 and 600 stitches on Full range and DMC, exported as PNGs and sent to the
   Owner, with the numbers in `docs/reviews/`. **Gate:** if it does not read as hand-drawn, what is wrong feeds another
   pass of M2 rather than shipping.
 - [ ] M4 — The UI (a tenth option, in a group of its own), decision files, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-21 — **M3 delivered, awaiting the Owner's judgement.** `npm run samples:hand-drawn` writes 24 sheets —
+  four fixtures at 80, 200 and 600 stitches on Full range and DMC — each the same chart undithered and drawn, side by
+  side; none are committed (`docs/reviews/2026-09-21-hand-drawn-samples.md` records what they hold). Also measured
+  here: generation at 1500 stitches takes 5.6 s drawn against 11.9 s undithered, because a dithered chart skips the
+  smoothing passes (D199) and those cost more than drawing the marks. **M4 waits on the Owner (criterion 6).**
+- 2026-09-21 — **M2 done.** A shape per mark from the same seeded stream — ring, broken ring, dot, lump, about
+  42/20/23/15 — and a ring is ranked by distance from its own circle *and* by angle from where it starts, so a light
+  tone draws a short arc rather than specks all round it. No `atan2` anywhere: the gap is a half-plane test and the
+  angle a monotone stand-in, both exact across the two languages (D183). Measured: local tone over a 5×5 no worse
+  than the undithered chart on the gradient, photo and flat-region fixtures (criterion 4), and the published cost is
+  +3.8 points of confetti at 0.78× error — a screen's price, which is what a family of clusters should cost
+  (criterion 5). Verified: Vitest 1197 passed / 8 skipped, `compare:rust` 68 cases identical, tsc and eslint clean.
 - 2026-09-21 — **M1 done.** `lib/pipeline/dither-hand-drawn.ts` and `rust/cs-core/src/dither_hand_drawn.rs` place
   marks on a jittered lattice with a minimum separation, give every cell to its nearest mark, and rank each mark's own
   cells outward from its centre. **Tone is exact by construction, not calibration:** spreading a mark's ranks evenly
