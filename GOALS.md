@@ -59,7 +59,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M3 — Decision file, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first):
-- 2026-09-22 — **M2 and M3 done, pending the deploy.** Each of the three knobs has an "Every mark" switch beside
+- 2026-09-22 — **Deployed and verified live** at acf89fa. The panel shows the three switches, all off, and a Ring
+  thickness slider; flipping the size switch changes 87 stitches of the swatch. 23 containers before and after with
+  an identical name set, 38 vhosts unchanged. **Awaiting sign-off.**
+- 2026-09-22 — **M2 and M3 done.** Each of the three knobs has an "Every mark" switch beside
   it, off by default and named by what it reaches. **The ring slider now reads as Ring thickness and is the stored
   radius backwards** (Owner, 2026-09-22): turning it up tightens the circle, so the same thread sits closer together
   — which is what "thicker" means when tone fixes the amount of thread. D207 records both, and the e2e proves a
