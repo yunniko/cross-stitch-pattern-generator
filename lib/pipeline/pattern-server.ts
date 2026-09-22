@@ -37,6 +37,7 @@ export interface RunServerPatternJobOptions {
   enhancementMode?: EnhancementModeId;
   ditherMode?: DitherMode;
   ditherTexture?: DitherTexture;
+  colorFloor?: number;
   onProgress?: (fraction: number) => void;
   /** Called while the job is waiting for a worker, so the editor can say where in the queue it is rather than just "working". */
   onQueued?: (position: number, estimatedWaitMs: number) => void;
@@ -83,6 +84,7 @@ async function submit(options: RunServerPatternJobOptions, signal: AbortSignal):
         enhancementMode: options.enhancementMode,
         ditherMode: options.ditherMode,
         ditherTexture: options.ditherTexture,
+        colorFloor: options.colorFloor,
       }),
       signal
     );

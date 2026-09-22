@@ -30,6 +30,8 @@ struct Options {
     #[serde(default)]
     dither_texture: Option<TextureOptions>,
     #[serde(default)]
+    color_floor: Option<usize>,
+    #[serde(default)]
     threads: Option<usize>,
 }
 
@@ -156,6 +158,7 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
             .as_ref()
             .map(TextureOptions::resolve)
             .unwrap_or_else(default_dither_texture),
+        color_floor: o.color_floor.unwrap_or(0),
     };
     Ok((options, o.threads.unwrap_or(1).max(1)))
 }
@@ -183,6 +186,7 @@ pub fn pattern_json(p: &StitchPattern) -> Value {
         "enhancementMode": p.enhancement_mode,
         "ditherMode": p.dither_mode,
         "ditherTexture": p.dither_texture.as_ref().map(texture_json),
+        "colorFloor": p.color_floor,
     })
 }
 

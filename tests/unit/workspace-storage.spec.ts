@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LEGACY_PROJECT_KEY, legacyProjectSlot, loadWorkspaceOptions, OPTIONS_KEY, saveWorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { DEFAULT_DITHER_TEXTURE } from "@/lib/pipeline/dither-hand-drawn";
-import { MAX_STITCHES } from "@/lib/types";
+import { MAX_COLOR_FLOOR, MAX_STITCHES } from "@/lib/types";
 
 // This project's default Vitest environment is plain Node (no jsdom/window),
 // matching how the rest of the suite tests only the DOM-free parts of
@@ -47,6 +47,7 @@ describe("workspace-storage", () => {
       sizePreset: "medium",
       customSize: 100,
       colorCount: 16,
+      colorFloor: 0,
       generationMode: "latest",
       paletteMode: "full",
       enhancementMode: "off",
@@ -70,6 +71,7 @@ describe("workspace-storage", () => {
         sizePreset: "xl" as const,
         customSize: 250,
         colorCount: 32,
+        colorFloor: 25,
         generationMode: "original" as const,
         paletteMode: "dmc" as const,
         enhancementMode: "off" as const,
@@ -123,6 +125,20 @@ describe("workspace-storage", () => {
     it("falls back to the default when doubleClickFill is not a boolean", () => {
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, doubleClickFill: "no" }));
       expect(loadWorkspaceOptions().doubleClickFill).toBe(true);
+    });
+
+    it("keeps a chosen colour floor across a reload (G-060)", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, colorFloor: 10 });
+      expect(loadWorkspaceOptions().colorFloor).toBe(10);
+    });
+
+    it("reads the colour floor as off when it is absent, negative, fractional or past the ceiling (G-060)", () => {
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
+      expect(loadWorkspaceOptions().colorFloor).toBe(0);
+      for (const colorFloor of [-1, 2.5, MAX_COLOR_FLOOR + 1, "lots"]) {
+        window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, colorFloor }));
+        expect(loadWorkspaceOptions().colorFloor, `stored ${colorFloor}`).toBe(0);
+      }
     });
 
     it("keeps a chosen dither pattern across a reload (G-052)", () => {

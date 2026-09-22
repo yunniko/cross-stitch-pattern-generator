@@ -267,6 +267,17 @@ const CASES: Case[] = [
   ]),
   { name: "alpha/disc-original-quantizer", source: discOnTransparency, options: { longerSideStitches: 40, colorCount: 10, quantizer: plainKMeansQuantizer }, golden: false },
   { name: "alpha/disc-dmc", source: discOnTransparency, options: { longerSideStitches: 40, colorCount: 10, paletteMode: "dmc" }, golden: false },
+  // G-060: the colour floor, at three values and on both palettes, plus a chart with empty cells (whose stitches must
+  // not be counted towards a colour's size on either side). The floor decides which colours the merge keeps, so the
+  // two sides have to agree on the surviving palette as well as on the cells.
+  ...([1, 10, 50] as const).map((colorFloor): Case => ({
+    name: `floor/photo-150st-48col/${colorFloor}`,
+    source: photo,
+    options: { longerSideStitches: 150, colorCount: 48, colorFloor },
+    golden: false,
+  })),
+  { name: "floor/realistic-200st-32col-dmc/5", source: realisticRatio, options: { longerSideStitches: 200, colorCount: 32, colorFloor: 5, paletteMode: "dmc" }, golden: false },
+  { name: "floor/corner-60st-12col/3", source: cornerCut, options: { longerSideStitches: 60, colorCount: 12, colorFloor: 3 }, golden: false },
   // The capacity probe's shapes (scripts/capacity-probe.ts) in every edge mode: TypeScript is the reference.
   ...(process.env.RUST_PARITY_LARGE === "0"
     ? []
@@ -290,6 +301,7 @@ interface RustOutput {
     enhancementMode: StitchPattern["enhancementMode"] | null;
     ditherMode: StitchPattern["ditherMode"] | null;
     ditherTexture: StitchPattern["ditherTexture"] | null;
+    colorFloor: number | null;
   };
   runs: Array<{ totalMs: number; stages: Record<string, number> }>;
   peakRssMb: number | null;
@@ -315,6 +327,7 @@ function toPattern(output: RustOutput): StitchPattern {
     enhancementMode: output.pattern.enhancementMode ?? undefined,
     ditherMode: output.pattern.ditherMode ?? undefined,
     ditherTexture: output.pattern.ditherTexture ?? undefined,
+    colorFloor: output.pattern.colorFloor ?? undefined,
   };
 }
 
@@ -329,6 +342,7 @@ function rustOptions(c: Case) {
     enhancementMode: c.options.enhancementMode,
     ditherMode: c.options.ditherMode,
     ditherTexture: c.options.ditherTexture,
+    colorFloor: c.options.colorFloor,
     threads: THREADS,
   };
 }
@@ -392,6 +406,8 @@ describe("Rust exact tier reproduces the TypeScript pipeline (G-048)", () => {
     expect(rustPattern.ditherMode ?? null, "the recorded dither pattern differs").toEqual(tsPattern!.ditherMode ?? null);
     // The texture is not hashed either, and a chart that forgot it would not reopen as it was made (G-055 M2).
     expect(rustPattern.ditherTexture ?? null, "the recorded texture differs").toEqual(tsPattern!.ditherTexture ?? null);
+    // Nor is the floor hashed: a chart records it so a reader can see how its palette was arrived at (G-060).
+    expect(rustPattern.colorFloor ?? null, "the recorded colour floor differs").toEqual(tsPattern!.colorFloor ?? null);
     if (c.golden) expect(tsHash, "TypeScript no longer matches the recorded golden hash").toBe(RECORDED[name]);
     if (wasmIdentical === false) throw new Error("the WASM build differs from TypeScript");
     if (rustHash !== tsHash) {

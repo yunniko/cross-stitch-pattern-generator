@@ -3,7 +3,7 @@ import { DEFAULT_OPTIONS } from "@/lib/editor/workspace-storage";
 import { DITHER_MODES } from "@/lib/pipeline/dither";
 import { ENHANCEMENT_MODE_IDS } from "@/lib/pipeline/enhance";
 import { THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
-import { SIZE_PRESETS } from "@/lib/types";
+import { COLOR_FLOOR_CHOICES, MAX_COLOR_FLOOR, SIZE_PRESETS } from "@/lib/types";
 import { settingsError } from "@/processor/validate-settings";
 
 /**
@@ -28,6 +28,7 @@ function requestFrom(overrides: Record<string, unknown> = {}) {
     edgeMode: options.edgeMode,
     enhancementMode: options.enhancementMode,
     ditherMode: options.ditherMode,
+    colorFloor: options.colorFloor,
     ...overrides,
   };
 }
@@ -73,7 +74,22 @@ describe("processor settings validation", () => {
     expect(settingsError(requestFrom({ ditherMode: "floyd-steinberg" }))).toBeNull();
   });
 
+  it("accepts every colour floor the pane offers, and any whole number in range (G-060)", () => {
+    for (const colorFloor of COLOR_FLOOR_CHOICES) {
+      expect(settingsError(requestFrom({ colorFloor })), `colorFloor ${colorFloor}`).toBeNull();
+    }
+    // The pane's four choices are not the limit: a request naming another whole number is still one this pipeline
+    // can answer, so only the range is checked.
+    expect(settingsError(requestFrom({ colorFloor: 37 }))).toBeNull();
+    expect(settingsError(requestFrom({ colorFloor: MAX_COLOR_FLOOR }))).toBeNull();
+    expect(settingsError(requestFrom({ colorFloor: undefined }))).toBeNull();
+  });
+
   it("still refuses what it should", () => {
+    expect(settingsError(requestFrom({ colorFloor: -1 }))).toMatch(/colorFloor/);
+    expect(settingsError(requestFrom({ colorFloor: 2.5 }))).toMatch(/colorFloor/);
+    expect(settingsError(requestFrom({ colorFloor: MAX_COLOR_FLOOR + 1 }))).toMatch(/colorFloor/);
+    expect(settingsError(requestFrom({ colorFloor: "lots" }))).toMatch(/colorFloor/);
     expect(settingsError(requestFrom({ photoHash: "nope" }))).toMatch(/photoHash/);
     expect(settingsError(requestFrom({ longerSideStitches: 99_999 }))).toMatch(/longerSideStitches/);
     expect(settingsError(requestFrom({ longerSideStitches: 10.5 }))).toMatch(/longerSideStitches/);

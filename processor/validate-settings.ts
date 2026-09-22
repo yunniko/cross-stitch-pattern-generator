@@ -2,7 +2,7 @@ import { DITHER_MODES, isDithered, type DitherMode } from "@/lib/pipeline/dither
 import { isValidDitherTexture } from "@/lib/pipeline/dither-hand-drawn";
 import { ENHANCEMENT_MODE_IDS } from "@/lib/pipeline/enhance";
 import { THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
-import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES } from "@/lib/types";
+import { MAX_COLOR_FLOOR, MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES } from "@/lib/types";
 
 /**
  * Checking a generation request before any worker is given it (G-034 M2, M3).
@@ -51,6 +51,12 @@ export function settingsError(body: unknown): string | null {
   // Ranges, not a type union: a texture is numbers, and the union trick the other fields use cannot check a number.
   if (b.ditherTexture !== undefined && !isValidDitherTexture(b.ditherTexture)) {
     return "ditherTexture must be an object whose values are all inside their ranges.";
+  }
+  // A range rather than the pane's four choices (G-060): the floor is a stitch count, and a request naming one the
+  // pane does not offer is still a request this pipeline can answer.
+  const floor = b.colorFloor;
+  if (floor !== undefined && (!Number.isInteger(floor) || (floor as number) < 0 || (floor as number) > MAX_COLOR_FLOOR)) {
+    return `colorFloor must be a whole number between 0 and ${MAX_COLOR_FLOOR}.`;
   }
   return null;
 }

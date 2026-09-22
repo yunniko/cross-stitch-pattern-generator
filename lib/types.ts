@@ -54,6 +54,14 @@ export const MIN_COLORS = 2;
 /** Bounded by `SYMBOL_SET.length`: every palette color needs its own symbol. */
 export const MAX_COLORS = 100;
 
+/**
+ * The colour floor (G-060): the number of stitches at which a colour stops being merged into a near-identical one.
+ * 0 is off. The ceiling is the largest chart's stitch count, above which the floor would protect nothing on any chart.
+ */
+export const MAX_COLOR_FLOOR = MAX_STITCHES * MAX_STITCHES;
+/** What the pane offers, largest floor (fewest colours kept) first; a file or a request may carry any value in range. */
+export const COLOR_FLOOR_CHOICES = [0, 50, 25, 10, 1] as const;
+
 /** The "no stitch here" cell value: never a palette entry, never counted, blank in every render. It can't collide with a palette index (at most `MAX_COLORS`). */
 export const EMPTY_CELL = 255;
 
@@ -130,6 +138,8 @@ export interface StitchPattern {
   ditherMode?: Exclude<DitherMode, "off">;
   /** What the drawn marks were made of (G-055); absent for every other pattern, and for the default texture. */
   ditherTexture?: DitherTexture;
+  /** The colour floor the chart was generated with (G-060). Informational; absent means off, and a dithered chart never has one. */
+  colorFloor?: number;
 }
 
 /** An axis-aligned, end-exclusive rectangle in stitch-cell coordinates. */
