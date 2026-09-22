@@ -20,7 +20,10 @@ import type { RGB } from "../types";
  * Everything works in OKLab, the space the rest of the pipeline compares colours in.
  */
 
-export const ORDERED_DITHER_MODES = ["bayer-4", "bayer-8", "clustered-8", "ring-8", "lines-horizontal", "lines-diagonal", "blue-noise-16"] as const;
+/** The line screens: one pattern with a direction, stored as four ids so files written before G-059 still open. */
+export const LINE_DITHER_MODES = ["lines-horizontal", "lines-vertical", "lines-diagonal", "lines-anti-diagonal"] as const;
+export type LineDitherMode = (typeof LINE_DITHER_MODES)[number];
+export const ORDERED_DITHER_MODES = ["bayer-4", "bayer-8", "clustered-8", "ring-8", ...LINE_DITHER_MODES, "blue-noise-16"] as const;
 export type OrderedDitherMode = (typeof ORDERED_DITHER_MODES)[number];
 export const DIFFUSION_DITHER_MODES = ["floyd-steinberg", "atkinson"] as const;
 /** Marks placed across the chart rather than a tile repeated or an error carried: the third family (G-054). */
@@ -31,6 +34,11 @@ export type DitherMode = (typeof DITHER_MODES)[number];
 
 export function isDithered(mode: DitherMode | undefined): mode is Exclude<DitherMode, "off"> {
   return mode !== undefined && mode !== "off";
+}
+
+/** Whether a pattern is one of the line screens, which the pane offers as a single option with a direction. */
+export function isLinesMode(mode: DitherMode | undefined): mode is LineDitherMode {
+  return mode !== undefined && (LINE_DITHER_MODES as readonly string[]).includes(mode);
 }
 
 /** Whether a pattern draws marks across the whole chart instead of repeating a tile or carrying an error. */

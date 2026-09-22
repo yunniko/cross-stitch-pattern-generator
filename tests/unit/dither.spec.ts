@@ -285,3 +285,54 @@ describe("dithering and Crisp are mutually exclusive", () => {
     expect(explicitlyOff.ditherMode).toBeUndefined();
   });
 });
+
+describe("the line screens are one pattern with a direction (G-059)", () => {
+  const size = 8;
+
+  /** A flat tone between black and white, as interleaved OKLab. */
+  function flatTone(t: number): Float64Array {
+    const black = rgbToOklab(BLACK);
+    const white = rgbToOklab(WHITE);
+    const grid = new Float64Array(size * size * 3);
+    for (let i = 0; i < size * size; i++) {
+      for (let c = 0; c < 3; c++) grid[i * 3 + c] = black[c] + t * (white[c] - black[c]);
+    }
+    return grid;
+  }
+
+  /** How often a stitch matches the one a step away, wrapped — 1 means the lines run unbroken that way. */
+  function runAlong(mode: DitherMode, tone: number, dx: number, dy: number): number {
+    const labels = ditherToPalette(flatTone(tone), size, size, [BLACK, WHITE], mode as Exclude<DitherMode, "off">);
+    const at = (x: number, y: number) => labels[(((y % size) + size) % size) * size + (((x % size) + size) % size)];
+    let same = 0;
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (at(x, y) === at(x + dx, y + dy)) same++;
+    return same / (size * size);
+  }
+
+  const DIRECTIONS: Array<[DitherMode, [number, number], [number, number]]> = [
+    ["lines-horizontal", [1, 0], [0, 1]],
+    ["lines-vertical", [0, 1], [1, 0]],
+    ["lines-diagonal", [1, -1], [1, 1]],
+    ["lines-anti-diagonal", [1, 1], [1, -1]],
+  ];
+
+  for (const [mode, along, across] of DIRECTIONS) {
+    it(`${mode} draws unbroken lines its own way`, () => {
+      for (const tone of [0.25, 0.5, 0.75]) {
+        expect(runAlong(mode, tone, along[0], along[1]), `${mode} at ${tone}, along`).toBe(1);
+      }
+      // Across the lines they break. Checked at a quarter tone: at half tone every other line is lit, and stepping
+      // two lines at a time lands on a lit one again, so even the wrong direction reads as unbroken there.
+      expect(runAlong(mode, 0.25, across[0], across[1]), `${mode} across`).toBeLessThan(1);
+    });
+  }
+
+  it("keeps every direction a permutation, and all four different", () => {
+    const flat = (mode: string) => DITHER_MATRICES[mode].flat();
+    for (const mode of ["lines-horizontal", "lines-vertical", "lines-diagonal", "lines-anti-diagonal"]) {
+      expect(new Set(flat(mode)).size, `${mode} is a permutation`).toBe(size * size);
+    }
+    const strings = ["lines-horizontal", "lines-vertical", "lines-diagonal", "lines-anti-diagonal"].map((m) => flat(m).join(","));
+    expect(new Set(strings).size, "no two directions are the same matrix").toBe(4);
+  });
+});

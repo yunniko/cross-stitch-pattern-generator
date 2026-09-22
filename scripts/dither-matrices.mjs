@@ -103,15 +103,23 @@ function ringScreen(size, radius) {
   });
 }
 
-/** A line screen: every cell of a line shares a rank band, so tone grows by adding whole lines. */
+/**
+ * A line screen: every cell of a line shares a rank band, so tone grows by adding whole lines. Four directions
+ * (G-059): across, down, and the two diagonals, which are the same rule with a different line number per cell.
+ */
 function lines(size, direction) {
   const order = bayer(size)[0].map((_, i) => i); // 0..size-1
   // Spread the line order the way Bayer spreads points, so lines fill in dispersed rather than top to bottom.
   const spread = order.map((i) => bayer(size)[i][0]);
-  return rankBy(size, (x, y) => {
-    const line = direction === "horizontal" ? y : direction === "vertical" ? x : (x + y) % size;
-    return spread[line] * size + ((direction === "diagonal" ? x : direction === "horizontal" ? x : y) % size) / size;
-  });
+  const lineOf = (x, y) => {
+    if (direction === "horizontal") return y;
+    if (direction === "vertical") return x;
+    if (direction === "diagonal") return (x + y) % size;
+    return (x - y + size) % size; // anti-diagonal
+  };
+  // Within a line, the cells are ordered along it, so a half-drawn line grows from one end rather than in patches.
+  const alongOf = (x, y) => (direction === "horizontal" || direction === "diagonal" ? x : y);
+  return rankBy(size, (x, y) => spread[lineOf(x, y)] * size + (alongOf(x, y) % size) / size);
 }
 
 /**
@@ -205,7 +213,9 @@ const MATRICES = {
   // Radius 1.6: on an 8-cell tile it leaves a one-cell hole inside a ring of eight, the shape the screenshot shows.
   "ring-8": ringScreen(8, 1.6),
   "lines-horizontal": lines(8, "horizontal"),
+  "lines-vertical": lines(8, "vertical"),
   "lines-diagonal": lines(8, "diagonal"),
+  "lines-anti-diagonal": lines(8, "anti-diagonal"),
   "blue-noise-16": blueNoise(16),
 };
 

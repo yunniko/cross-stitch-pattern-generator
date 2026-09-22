@@ -2,7 +2,7 @@
 
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { formatFinishedDimension } from "@/lib/export/finished-size";
-import { DIFFUSION_DITHER_MODES, DRAWN_DITHER_MODES, isDithered, isDrawnMode, ORDERED_DITHER_MODES, type DitherMode } from "@/lib/pipeline/dither";
+import { DIFFUSION_DITHER_MODES, DRAWN_DITHER_MODES, isDithered, isDrawnMode, isLinesMode, LINE_DITHER_MODES, ORDERED_DITHER_MODES, type DitherMode, type LineDitherMode } from "@/lib/pipeline/dither";
 import { isReleasedEnhancementMode, releasedEnhancementModes, type EnhancementModeId } from "@/lib/pipeline/enhance";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
@@ -61,8 +61,10 @@ const DITHER_LABELS: Record<DitherMode, string> = {
   "bayer-8": "Bayer 8×8",
   "clustered-8": "Clustered dots",
   "ring-8": "Rings",
-  "lines-horizontal": "Horizontal lines",
-  "lines-diagonal": "Diagonal lines",
+  "lines-horizontal": "Lines",
+  "lines-vertical": "Lines",
+  "lines-diagonal": "Lines",
+  "lines-anti-diagonal": "Lines",
   "blue-noise-16": "Blue noise",
   "floyd-steinberg": "Floyd–Steinberg",
   atkinson: "Atkinson",
@@ -73,7 +75,15 @@ const DITHER_LABELS: Record<DitherMode, string> = {
 // clusters its stitches and costs a stitcher least, a scattered matrix spreads them and fits the photo closer, and
 // the two kernels adapt to the photo instead of repeating a tile, which is why neither ever reads worse than an
 // undithered chart.
-const SCREEN_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("lines-") || mode.startsWith("clustered-") || mode.startsWith("ring-"));
+// One entry for the line screens: the direction is a setting under the list, not four rows in it (G-059).
+const SCREEN_MODES = [...ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("clustered-") || mode.startsWith("ring-")), LINE_DITHER_MODES[0]];
+
+const LINE_DIRECTION_OPTIONS: SegmentOption<LineDitherMode>[] = [
+  { value: "lines-horizontal", label: "—", title: "Horizontal lines" },
+  { value: "lines-vertical", label: "|", title: "Vertical lines" },
+  { value: "lines-diagonal", label: "/", title: "Diagonal lines, rising" },
+  { value: "lines-anti-diagonal", label: "\\", title: "Diagonal lines, falling" },
+];
 const SCATTERED_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("bayer-") || mode.startsWith("blue-noise-"));
 
 const DITHER_GROUPS: Array<{ label: string; modes: readonly DitherMode[] }> = [
@@ -320,6 +330,9 @@ export function PhotoPane({
             </optgroup>
           ))}
         </select>
+        {isLinesMode(options.ditherMode) && (
+          <SegmentedControl fill options={LINE_DIRECTION_OPTIONS} value={options.ditherMode} onChange={chooseDitherMode} />
+        )}
         {dithering && isDrawnMode(options.ditherMode) && (
           <TextureEditor
             texture={options.ditherTexture}

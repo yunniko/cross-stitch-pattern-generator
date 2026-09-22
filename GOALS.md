@@ -85,6 +85,52 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   goal closes: tone decides how many stitches a mark lights, so a knob that only rearranges them inside two shapes
   cannot do much.
 
+### G-059 · A preview for every pattern, and lines as one option — ACTIVE (2026-09-22)
+- **What:** two things the Owner asked for on 2026-09-22. The dither preview appears whenever a pattern is chosen,
+  not only for Hand-drawn and not behind a collapsed panel; and the two line screens become one **Lines** option with
+  a direction — horizontal, vertical, diagonal `/`, diagonal `\`.
+- **Why:** the preview is the only place a reader sees what a pattern does before spending a generation on it, and it
+  currently exists for one pattern in ten. The line screens are one idea with a setting, listed as two.
+- **Acceptance criteria:**
+  1. **Every pattern previews, and the preview is right.** For each family the window is the chart's own stitches,
+     compared against a real chart of that size: a matrix pattern, a diffusion kernel and the drawn marks.
+  2. **It costs what each family forces, not more.** A matrix cell depends on nothing but its own position, so its
+     window needs no chart; a diffusion kernel's error runs along rows, so its window needs the chart's full width
+     but only the rows above it; the drawn marks need the whole grid (D206). Each is measured.
+  3. **The preview is visible whenever dithering is on**, without opening anything, and the texture knobs stay
+     behind their panel — they belong to one pattern, the preview to all of them.
+  4. **Lines is one option with four directions**, and the two new ones (vertical, `\`) are generated data like the
+     rest (D198). Both languages agree, with parity cases for each direction.
+  5. **Old charts keep opening.** The stored values stay the four `lines-*` mode ids, so a file naming
+     `lines-horizontal` or `lines-diagonal` opens exactly as it did; nothing is migrated.
+  6. **Nothing else moves:** Off, the other patterns, the default texture and the 18 golden hashes unchanged, and
+     the two existing line screens draw exactly what they drew.
+- **Constraints:** a preview must be the real thing or say what it is — an approximation shown as a preview is worse
+  than none (D206). Patterns stay data (D198); both languages change together.
+
+**Milestones**:
+- [x] M1 — Lines as one option: the vertical and anti-diagonal matrices generated, the mode list and both languages,
+  the direction control in the pane, parity for each direction, and the proof that old ids still open.
+- [ ] M2 — The preview for every family: the window built the cheapest exact way for each, moved out of the
+  collapsible and shown whenever dithering is on, pinned against real charts and measured. **Clicking the preview
+  reshuffles the marks** (Owner, 2026-09-22), replacing the Shuffle button.
+- [ ] M3 — The comparison document re-run over the widened set, decision file, README and HANDOVER, deploy and
+  verify live.
+
+**Progress log** (newest first):
+- 2026-09-22 — **M1 done.** Four directions — horizontal, vertical, `/`, `\` — generated as data like the rest, and
+  one **Lines** entry in the list with the direction under it. The two that existed are byte-identical (the
+  generator only added rows), and the stored ids are unchanged, so an old file naming `lines-diagonal` opens as it
+  did. Each direction's lines are pinned as unbroken along their own way at three tones. **One test of mine had to
+  be rewritten rather than the code:** at half tone every other line is lit, so stepping two lines at a time lands
+  on a lit one again and even the wrong direction reads as unbroken — the across check is made at a quarter tone,
+  and the reason is in the test. Verified: Vitest 1227 passed / 8 skipped, `compare:rust` identical on all four
+  directions, tsc, eslint and the dithering e2e green. Next: M2, the preview.
+- 2026-09-22 — goal created on the Owner's instruction, carrying two of the four requests made that day (the ring
+  slider and the switches went into G-058). Settled while planning: the stored representation stays four `lines-*`
+  mode ids with the pane grouping them, which is what makes old files a non-issue; and the preview's cost is decided
+  per family rather than by one rule, because only the drawn marks genuinely need the whole grid.
+
 ### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
 - **What:** Eventually make the app public, built around **a social
   ecosystem** (community/sharing features -- exact shape not yet defined:
