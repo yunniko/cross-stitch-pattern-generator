@@ -247,7 +247,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - `npm ci --legacy-peer-deps` is required (npm arborist crash).
 - On this Windows host, stopping a background task can leave node running; check the process list (D096).
 - Both photo decode paths must stay byte-identical: `tests/e2e/decode-parity.spec.ts` (D128).
-- Generation reads the full decoded photo; a future cap starts from D129's findings, not a shrink alone (D130).
+- Generation reads the full decoded photo; a future cap starts from D129's findings (D130).
 - The processor publishes no port and is reached only through `app/api/`, which holds the Origin check and the rate
   limit. Job results travel in the editable-JSON save format, so `pattern-serialize.ts` is the wire format (D151).
 - What the processor accepts is derived from the type unions in `processor/validate-settings.ts` and
@@ -263,8 +263,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - `PROCESSOR_WORKER_HEAP_MB` caps each pool worker's heap. Unset in production, it proves the PDF's heap is bounded: at
   512 MB a 1500-stitch Pattern Keeper PDF and Export all complete, where 1000 once failed at every cap to 1536 MB (D169).
 - `MAX_STITCHES` (1500) is measured: raising it means re-running `docs/reviews/2026-09-19-new-cap-measurements.md`, and above ~1550 Export all's chart PNG no longer fits its budget (D026, D181).
-- The PDF releases each page as it is drawn through two private pdf-lib 1.17.1 fields (D169). A pdf-lib upgrade must keep
-  `tests/unit/pdf-page-flush.spec.ts` green, or the flush silently stops and the heap grows back.
+- The PDF releases each page as it is drawn through two private pdf-lib 1.17.1 fields (D169); an upgrade must keep `tests/unit/pdf-page-flush.spec.ts` green, or the flush stops silently and the heap grows back.
 - Rate-limit capacities default to production values, overridable by `RATE_LIMIT_JOBS_PER_MINUTE` and
   `RATE_LIMIT_PREVIEWS_PER_MINUTE` so the e2e suite is not refused; a zero or malformed value falls back to the default.
 
