@@ -48,6 +48,10 @@ export function settingsError(body: unknown): string | null {
   if (isDithered(b.ditherMode as DitherMode | undefined) && b.edgeMode !== undefined && b.edgeMode !== "standard") {
     return "ditherMode cannot be combined with a Crisp edgeMode: Crisp preserves hard boundaries, which dithering deliberately blends.";
   }
+  // A plain flag, checked so a stray string cannot reach the pipeline as a truthy value (G-061).
+  if (b.vivid !== undefined && typeof b.vivid !== "boolean") {
+    return "vivid must be true or false.";
+  }
   // Ranges, not a type union: a texture is numbers, and the union trick the other fields use cannot check a number.
   if (b.ditherTexture !== undefined && !isValidDitherTexture(b.ditherTexture)) {
     return "ditherTexture must be an object whose values are all inside their ranges.";

@@ -41,6 +41,8 @@ export interface WorkspaceOptions {
   ditherMode: DitherMode;
   /** What the drawn marks are made of for the next Generate (G-055); only read when a drawn pattern is chosen. */
   ditherTexture: DitherTexture;
+  /** Vivid for the *next* Generate (G-061): a stitch keeps the chroma of its most colourful part instead of averaging it away. */
+  vivid: boolean;
   /** Whether a Brush double-click floods the region under it as one undo step (D138); off leaves the two clicks as themselves. */
   doubleClickFill: boolean;
 }
@@ -60,6 +62,7 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   enhancementMode: "off",
   ditherMode: "off",
   ditherTexture: DEFAULT_DITHER_TEXTURE,
+  vivid: false,
   doubleClickFill: true,
 };
 
@@ -105,6 +108,8 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       ditherMode: isDithered(storedDither) && edgeMode !== "standard" ? "off" : storedDither,
       // A stored texture that is out of range reads as the default rather than as a request Generate would refuse.
       ditherTexture: isValidDitherTexture(parsed.ditherTexture) ? parsed.ditherTexture : DEFAULT_DITHER_TEXTURE,
+      // Absent in options stored before G-061, so anything that is not a boolean falls back to off.
+      vivid: typeof parsed.vivid === "boolean" ? parsed.vivid : DEFAULT_OPTIONS.vivid,
       // Absent in options stored before G-041, so anything that is not a boolean falls back to the default.
       doubleClickFill: typeof parsed.doubleClickFill === "boolean" ? parsed.doubleClickFill : DEFAULT_OPTIONS.doubleClickFill,
     };

@@ -219,3 +219,4 @@ remain readable with git show.
 - D208 — The preview belongs to every pattern, and each family pays only its own cost — active
 - D209 — The colour floor belongs in the palette merge — reverted (see D210)
 - D210 — The colour floor is withdrawn — active
+- D211 — Vivid keeps a stitch's colour — active

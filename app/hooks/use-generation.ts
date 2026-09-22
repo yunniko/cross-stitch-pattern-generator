@@ -84,6 +84,7 @@ export function useGeneration(inputs: GenerationInputs) {
         enhancementMode: isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off",
         ditherMode: options.ditherMode,
         ditherTexture: options.ditherTexture,
+        vivid: options.vivid,
         onProgress: (fraction: number) => {
           setQueueMessage(null); // it has a worker now
           setProgress(fraction);

@@ -85,6 +85,7 @@ async function runGenerate(job: Extract<WorkerJob, { kind: "generate" }>): Promi
       enhancementMode: job.settings.enhancementMode,
       ditherMode: job.settings.ditherMode,
       ditherTexture: job.settings.ditherTexture,
+      vivid: job.settings.vivid,
     onProgress: (fraction) => post({ type: "progress", jobId: job.jobId, fraction }),
   });
   post({ type: "done", jobId: job.jobId, pattern });

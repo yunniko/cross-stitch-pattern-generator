@@ -19,6 +19,12 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   settings and Generate stay away for its whole life.
 - **Choose the palette**: whatever colors the photo needs, or real DMC,
   Cosmo or Anchor threads (Anchor is derived from DMC equivalents and says so).
+- **Color detail — Averaged or Vivid**: one stitch covers many pixels, and normally it is their average, which
+  turns a small bright thing inside a stitch into a grey. Vivid keeps the average lightness but the colour of the
+  stitch's most colourful quarter, so those details stay coloured. It needs a photo big enough for a stitch to
+  cover about 25 pixels, and stands down below that. Off by default. What it does and does not do is measured in
+  `docs/reviews/2026-09-22-vivid.md` — on muted photos it brings some hues a step or two earlier, and it does not
+  on its own make a small pale colour arrive early.
 - **Choose edge handling**: Standard averages across boundaries; Crisp keeps a
   hard boundary as two real colors instead of inventing a blend; Crisp+ also
   cleans up slightly soft edges, snapping the in-between colors along a blurred

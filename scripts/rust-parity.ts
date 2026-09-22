@@ -267,6 +267,15 @@ const CASES: Case[] = [
   ]),
   { name: "alpha/disc-original-quantizer", source: discOnTransparency, options: { longerSideStitches: 40, colorCount: 10, quantizer: plainKMeansQuantizer }, golden: false },
   { name: "alpha/disc-dmc", source: discOnTransparency, options: { longerSideStitches: 40, colorCount: 10, paletteMode: "dmc" }, golden: false },
+  // G-061: Vivid, where a stitch covers enough pixels for it to act and where it stands down, on both palettes,
+  // dithered and not, with Crisp, with Classic clustering, and over transparency.
+  { name: "vivid/photo-120st-24col", source: photo, options: { longerSideStitches: 120, colorCount: 24, vivid: true }, golden: false },
+  { name: "vivid/photo-40st-12col-dmc", source: photo, options: { longerSideStitches: 40, colorCount: 12, vivid: true, paletteMode: "dmc" }, golden: false },
+  { name: "vivid/photo-80st-16col-crisp", source: photo, options: { longerSideStitches: 80, colorCount: 16, vivid: true, edgeMode: "crisp" }, golden: false },
+  { name: "vivid/photo-80st-16col-dithered", source: photo, options: { longerSideStitches: 80, colorCount: 16, vivid: true, ditherMode: "floyd-steinberg" }, golden: false },
+  { name: "vivid/photo-60st-10col-original", source: photo, options: { longerSideStitches: 60, colorCount: 10, vivid: true, quantizer: plainKMeansQuantizer }, golden: false },
+  { name: "vivid/tworegion-30st-8col-stands-down", source: twoRegion, options: { longerSideStitches: 30, colorCount: 8, vivid: true }, golden: false },
+  { name: "vivid/alpha-disc-50st-16col", source: discOnTransparency, options: { longerSideStitches: 50, colorCount: 16, vivid: true }, golden: false },
   // The capacity probe's shapes (scripts/capacity-probe.ts) in every edge mode: TypeScript is the reference.
   ...(process.env.RUST_PARITY_LARGE === "0"
     ? []
@@ -290,6 +299,7 @@ interface RustOutput {
     enhancementMode: StitchPattern["enhancementMode"] | null;
     ditherMode: StitchPattern["ditherMode"] | null;
     ditherTexture: StitchPattern["ditherTexture"] | null;
+    vivid: boolean | null;
   };
   runs: Array<{ totalMs: number; stages: Record<string, number> }>;
   peakRssMb: number | null;
@@ -315,6 +325,7 @@ function toPattern(output: RustOutput): StitchPattern {
     enhancementMode: output.pattern.enhancementMode ?? undefined,
     ditherMode: output.pattern.ditherMode ?? undefined,
     ditherTexture: output.pattern.ditherTexture ?? undefined,
+    vivid: output.pattern.vivid ? true : undefined,
   };
 }
 
@@ -329,6 +340,7 @@ function rustOptions(c: Case) {
     enhancementMode: c.options.enhancementMode,
     ditherMode: c.options.ditherMode,
     ditherTexture: c.options.ditherTexture,
+    vivid: c.options.vivid,
     threads: THREADS,
   };
 }
@@ -392,6 +404,8 @@ describe("Rust exact tier reproduces the TypeScript pipeline (G-048)", () => {
     expect(rustPattern.ditherMode ?? null, "the recorded dither pattern differs").toEqual(tsPattern!.ditherMode ?? null);
     // The texture is not hashed either, and a chart that forgot it would not reopen as it was made (G-055 M2).
     expect(rustPattern.ditherTexture ?? null, "the recorded texture differs").toEqual(tsPattern!.ditherTexture ?? null);
+    // Not hashed either, and it records whether Vivid acted rather than whether it was asked for (G-061).
+    expect(rustPattern.vivid ?? null, "the recorded Vivid flag differs").toEqual(tsPattern!.vivid ?? null);
     if (c.golden) expect(tsHash, "TypeScript no longer matches the recorded golden hash").toBe(RECORDED[name]);
     if (wasmIdentical === false) throw new Error("the WASM build differs from TypeScript");
     if (rustHash !== tsHash) {

@@ -52,6 +52,7 @@ describe("workspace-storage", () => {
       enhancementMode: "off",
       ditherMode: "off",
       ditherTexture: DEFAULT_DITHER_TEXTURE,
+      vivid: false,
       doubleClickFill: true,
     } as const;
 
@@ -76,6 +77,7 @@ describe("workspace-storage", () => {
         // Crisp is stored above, so a dither pattern here would be resolved away on load; its own cases are below.
         ditherMode: "off" as const,
         ditherTexture: DEFAULT_DITHER_TEXTURE,
+        vivid: true,
         doubleClickFill: false,
       };
       saveWorkspaceOptions(saved);
@@ -123,6 +125,15 @@ describe("workspace-storage", () => {
     it("falls back to the default when doubleClickFill is not a boolean", () => {
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, doubleClickFill: "no" }));
       expect(loadWorkspaceOptions().doubleClickFill).toBe(true);
+    });
+
+    it("keeps Vivid across a reload, and reads anything but a boolean as off (G-061)", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, vivid: true });
+      expect(loadWorkspaceOptions().vivid).toBe(true);
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, vivid: "yes" }));
+      expect(loadWorkspaceOptions().vivid).toBe(false);
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
+      expect(loadWorkspaceOptions().vivid).toBe(false);
     });
 
     it("keeps a chosen dither pattern across a reload (G-052)", () => {

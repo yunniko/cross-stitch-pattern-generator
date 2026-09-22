@@ -57,6 +57,11 @@ export interface SerializedPattern {
    */
   ditherTexture?: DitherTexture;
   /**
+   * Generated with Vivid (G-061); absent for a chart whose stitches are plain area means, and on files saved
+   * before it. Recorded so a reopened chart says how it was made, the way `ditherMode` does.
+   */
+  vivid?: true;
+  /**
    * The symmetry axes that were on when the file was saved (G-037); absent when none were. An optional field that
    * older builds ignore, so the format version stays the same (D138).
    */
@@ -105,6 +110,7 @@ export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes 
     enhancementMode: pattern.enhancementMode,
     ditherMode: pattern.ditherMode,
     ditherTexture: pattern.ditherTexture,
+    vivid: pattern.vivid,
     symmetry: serializeSymmetry(effectiveSymmetryAxes(symmetry, pattern.width, pattern.height)),
   };
   return JSON.stringify(data);
@@ -226,6 +232,8 @@ export function deserializePatternData(data: unknown): StitchPattern {
     ditherMode: isDitherModeId(d.ditherMode) && d.ditherMode !== "off" ? d.ditherMode : undefined,
     // A texture that is out of range or from a newer build falls back to the default, so the file still opens.
     ditherTexture: isValidDitherTexture(d.ditherTexture) ? d.ditherTexture : undefined,
+    // Anything but a literal true, including its absence in a file saved before G-061, reads as off.
+    vivid: d.vivid === true ? true : undefined,
   };
 }
 

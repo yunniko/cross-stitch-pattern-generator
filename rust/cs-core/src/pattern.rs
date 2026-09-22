@@ -7,7 +7,7 @@ use crate::crisp::{finalize, plus, repair, stage};
 use crate::denoise::denoise_for_quantization_masked;
 use crate::dither::{dither_to_palette, DitherMode};
 use crate::dither_hand_drawn::{default_dither_texture, DitherTexture};
-use crate::downsample::{downsample_to_grid_with_coverage, empty_cell_mask, grid_dimensions_for};
+use crate::downsample::{downsample_to_grid_vivid, empty_cell_mask, grid_dimensions_for, vivid_applies, VIVID_TOP_SHARE};
 use crate::edge_map::{
     compute_cell_importance_masked, compute_edge_magnitude_masked, opaque_pixel_mask,
     source_luminance,
@@ -55,6 +55,8 @@ pub struct BuildOptions {
     pub dither: DitherMode,
     /// What a drawn pattern is made of (G-055); ignored by every other pattern.
     pub dither_texture: DitherTexture,
+    /// Vivid (G-061): a stitch keeps its area-mean lightness and the chroma of its most colourful part.
+    pub vivid: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -89,6 +91,8 @@ pub struct StitchPattern {
     pub dither_mode: Option<&'static str>,
     /// What the drawn marks were made of (G-055); `None` for every other pattern and for the default texture.
     pub dither_texture: Option<DitherTexture>,
+    /// Generated with Vivid (G-061); `None` means the stitches are plain area means.
+    pub vivid: Option<bool>,
     pub enhancement_mode: Option<&'static str>,
 }
 
@@ -167,7 +171,13 @@ pub fn build_pattern_reporting(
     // Transparency becomes absence: a cell the photo barely covers is an empty stitch, and the stages below read
     // neither colour nor structure from pixels that are not there (G-050, D196). Both masks are `None` for an opaque
     // photo, which keeps it on exactly the path it had before.
-    let (cells, coverage) = downsample_to_grid_with_coverage(color_source, gw, gh);
+    // Vivid changes what a stitch is made of, before anything chooses colours (G-061, D211).
+    let (cells, coverage) = downsample_to_grid_vivid(
+        color_source,
+        gw,
+        gh,
+        if options.vivid { VIVID_TOP_SHARE } else { 0.0 },
+    );
     let empty = empty_cell_mask(&coverage);
     let empty_ref = empty.as_deref();
     lap("downsample", times);
@@ -481,6 +491,9 @@ pub fn build_pattern_reporting(
         dither_texture: (options.dither == DitherMode::HandDrawn
             && options.dither_texture != default_dither_texture())
             .then(|| options.dither_texture.clone()),
+        // Recorded when it acted, not when it was asked for: below the pixels-a-stitch floor there is no
+        // sub-stitch colour to rescue and the cells are plain area means (D211).
+        vivid: (options.vivid && vivid_applies(color_source.width, color_source.height, gw, gh)).then_some(true),
         // Recorded whenever requested, even when every stage abstained, as the TypeScript does.
         enhancement_mode: (options.enhancement != EnhancementMode::Off)
             .then(|| options.enhancement.id()),

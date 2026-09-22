@@ -28,6 +28,7 @@ function requestFrom(overrides: Record<string, unknown> = {}) {
     edgeMode: options.edgeMode,
     enhancementMode: options.enhancementMode,
     ditherMode: options.ditherMode,
+    vivid: options.vivid,
     ...overrides,
   };
 }
@@ -73,7 +74,15 @@ describe("processor settings validation", () => {
     expect(settingsError(requestFrom({ ditherMode: "floyd-steinberg" }))).toBeNull();
   });
 
+  it("accepts Vivid either way, and nothing else (G-061)", () => {
+    expect(settingsError(requestFrom({ vivid: true }))).toBeNull();
+    expect(settingsError(requestFrom({ vivid: false }))).toBeNull();
+    expect(settingsError(requestFrom({ vivid: undefined }))).toBeNull();
+  });
+
   it("still refuses what it should", () => {
+    expect(settingsError(requestFrom({ vivid: "yes" }))).toMatch(/vivid/);
+    expect(settingsError(requestFrom({ vivid: 1 }))).toMatch(/vivid/);
     expect(settingsError(requestFrom({ photoHash: "nope" }))).toMatch(/photoHash/);
     expect(settingsError(requestFrom({ longerSideStitches: 99_999 }))).toMatch(/longerSideStitches/);
     expect(settingsError(requestFrom({ longerSideStitches: 10.5 }))).toMatch(/longerSideStitches/);

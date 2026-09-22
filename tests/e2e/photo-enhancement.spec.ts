@@ -21,7 +21,10 @@ async function uploadPhoto(page: Page) {
   await page.getByRole("radio", { name: /Small/ }).check();
 }
 
-const modeButton = (page: Page, name: string) => page.getByRole("button", { name, exact: true });
+// Scoped to the Photo fix section: Color detail has a Vivid of its own since G-061, and will keep it until Photo
+// fix is redone (Owner, 2026-09-22).
+const modeButton = (page: Page, name: string) =>
+  page.locator("section").filter({ hasText: "Photo fix" }).getByRole("button").filter({ hasText: new RegExp(`^${name}$`) });
 
 test("the Photo control offers every mode and starts at Off, showing the plain photo", async ({ page }) => {
   const errors = collectErrors(page);

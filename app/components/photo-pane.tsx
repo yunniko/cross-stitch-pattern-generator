@@ -43,6 +43,13 @@ const PALETTE_OPTIONS: SegmentOption<WorkspaceOptions["paletteMode"]>[] = [
   }),
 ];
 
+// A switch of its own rather than a third Algorithm value: Algorithm chooses how colours are picked from the
+// stitches, and this chooses what a stitch is made of, before any colour is chosen (D040's lesson, D211).
+const VIVID_OPTIONS: SegmentOption<"averaged" | "vivid">[] = [
+  { value: "averaged", label: "Averaged", title: "Today's default: a stitch is the average of the pixels it covers" },
+  { value: "vivid", label: "Vivid", title: "A stitch keeps the average lightness but the colour of its most colourful part, so a small bright detail is not averaged into a grey (G-061)" },
+];
+
 const EDGE_OPTIONS: SegmentOption<WorkspaceOptions["edgeMode"]>[] = [
   { value: "standard", label: "Standard", title: "Today's default -- averages colors across a boundary" },
   { value: "crisp", label: "Crisp", title: "Preserves hard color boundaries instead of blending them into a manufactured intermediate color (G-024)" },
@@ -294,6 +301,15 @@ export function PhotoPane({
             +
           </button>
         </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <span className={GROUP_LABEL}>Color detail</span>
+        <SegmentedControl fill options={VIVID_OPTIONS} value={options.vivid ? "vivid" : "averaged"} onChange={(choice) => onChange("vivid", choice === "vivid")} />
+        <p className="text-[11px] leading-4 text-muted">
+          One stitch covers many pixels. Vivid keeps the colour of the strongest part instead of averaging it away, so small
+          bright things stay coloured. It needs a photo large enough for a stitch to cover about 25 pixels.
+        </p>
       </section>
 
       <section className="flex flex-col gap-2">
