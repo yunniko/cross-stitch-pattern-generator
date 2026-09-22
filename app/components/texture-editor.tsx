@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DEFAULT_DITHER_TEXTURE, DITHER_TEXTURE_RANGES, handDrawnThresholds, type DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
+import { DEFAULT_DITHER_TEXTURE, DITHER_TEXTURE_RANGES, handDrawnThresholds, type DitherStamp, type DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
+import { StampPainter } from "./stamp-painter";
 import { PillButton } from "./ui";
 
 /**
@@ -109,6 +110,24 @@ export function TextureEditor({ texture, onChange, defaultOpen = false }: Textur
     onChange({ ...texture, shapeWeights: drawn });
   };
 
+  /**
+   * A painted mark arrives with a share of the chart, and clearing it takes that share away again: a stamp weight
+   * with no stamp is a texture the processor refuses, and a stamp nothing draws with is one nobody can see.
+   */
+  const setStamp = (stamp: DitherStamp | undefined) => {
+    if (!stamp) {
+      const shapeWeights = [...texture.shapeWeights] as [number, number, number, number, number];
+      shapeWeights[4] = 0;
+      const { stamp: dropped, ...rest } = texture;
+      void dropped;
+      onChange({ ...rest, shapeWeights: shapeWeights.some((weight) => weight > 0) ? shapeWeights : DEFAULT_DITHER_TEXTURE.shapeWeights });
+      return;
+    }
+    const shapeWeights = [...texture.shapeWeights] as [number, number, number, number, number];
+    if (shapeWeights[4] === 0) shapeWeights[4] = 0.3;
+    onChange({ ...texture, stamp, shapeWeights });
+  };
+
   return (
     <section className="flex flex-col gap-2" data-testid="texture-editor">
       <button
@@ -157,6 +176,14 @@ export function TextureEditor({ texture, onChange, defaultOpen = false }: Textur
             {(["Rings", "Broken rings", "Dots", "Lumps"] as const).map((label, index) => (
               <Knob key={label} label={label} hint={`How much of the chart is drawn with ${label.toLowerCase()}.`} value={texture.shapeWeights[index]} min={0} max={1} step={0.01} onChange={(value) => setWeight(index, value)} />
             ))}
+            {texture.stamp && (
+              <Knob label="Painted" hint="How much of the chart is drawn with the mark you painted." value={texture.shapeWeights[4]} min={0} max={1} step={0.01} onChange={(value) => setWeight(4, value)} />
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[11px] text-muted">Paint a mark</span>
+            <StampPainter stamp={texture.stamp} onChange={setStamp} spacing={texture.spacing} />
           </div>
         </div>
       )}

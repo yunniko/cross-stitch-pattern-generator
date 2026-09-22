@@ -40,6 +40,19 @@ describe("the swatch shows what the chart will do", () => {
     ["rings", { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0.8, 0.2, 0, 0, 0], sweep: 0.4 }],
     ["stipple", { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0, 0, 0.6, 0.4, 0], spacing: 4, wobble: 0.6 }],
     ["coarse", { ...DEFAULT_DITHER_TEXTURE, spacing: 11, radiusMin: 0.3, radiusSpan: 0.12 }],
+    // A painted mark (G-056): the swatch must show what a stamped chart will do, clipping included.
+    [
+      "stamped",
+      {
+        ...DEFAULT_DITHER_TEXTURE,
+        shapeWeights: [0.3, 0, 0.2, 0, 0.5],
+        stamp: { size: 5, order: [0, 0, 1, 0, 0, 0, 2, 1, 2, 0, 1, 1, 1, 1, 1, 0, 2, 1, 2, 0, 0, 0, 1, 0, 0] },
+      },
+    ],
+    [
+      "stamped and clipped",
+      { ...DEFAULT_DITHER_TEXTURE, spacing: 4, shapeWeights: [0, 0, 0, 0, 1], stamp: { size: 9, order: Array.from({ length: 81 }, (_, i) => (i % 4 === 0 ? 1 : 0)) } },
+    ],
   ];
   for (const [name, texture] of textures) {
     it(`${name}: stitch for stitch`, () => {

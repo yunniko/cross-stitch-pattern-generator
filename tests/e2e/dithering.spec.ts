@@ -27,7 +27,7 @@ interface ExportedChart {
   height: number;
   cellPalette: number[];
   ditherMode?: string;
-  ditherTexture?: { spacing: number };
+  ditherTexture?: { spacing: number; stamp?: { size: number; order: number[] } };
 }
 
 /** Generates with the current settings and returns the editable file it exports. */
@@ -116,6 +116,43 @@ test("the texture editor changes the chart, and the chart remembers what drew it
   expect(coarse.ditherTexture?.spacing, "the chart carries the texture that drew it").toBe(11);
   expect(coarse.cellPalette, "a different texture is a different chart").not.toEqual(asShipped.cellPalette);
   expect(errors).toEqual([]);
+});
+
+test("a painted mark reaches the chart, and is saved with it (G-056)", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await page.getByRole("radio", { name: /Small/ }).check();
+  await page.getByLabel("Dither").selectOption("hand-drawn");
+  await page.getByRole("tab", { name: "Photo" }).click();
+  await page.getByRole("button", { name: /^Texture/ }).click();
+
+  // A cross, painted on the 5x5 grid: the centre and its four neighbours.
+  const grid = page.getByTestId("stamp-grid");
+  for (const [x, y] of [[3, 2], [2, 3], [3, 3], [4, 3], [3, 4]]) {
+    await grid.getByRole("button", { name: `Stitch ${x}, ${y}` }).click();
+  }
+
+  const chart = await generateAndExport(page);
+  expect(chart.ditherTexture?.stamp?.size, "the painted mark travels with the chart").toBe(5);
+  expect(chart.ditherTexture?.stamp?.order.filter((step) => step > 0)).toHaveLength(5);
+  expect(chart.ditherMode).toBe("hand-drawn");
+  expect(errors).toEqual([]);
+});
+
+test("a stamp wider than the spacing says its outside will be clipped", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await page.getByLabel("Dither").selectOption("hand-drawn");
+  await page.getByRole("button", { name: /^Texture/ }).click();
+
+  // The default spacing is 6, so a 5x5 grid fits and a 9x9 does not.
+  await page.getByTestId("stamp-grid").getByRole("button", { name: "Stitch 3, 3" }).click();
+  await expect(page.getByTestId("stamp-clipped-notice")).toHaveCount(0);
+  await page.getByRole("radio", { name: "9 by 9" }).click();
+  await expect(page.getByTestId("stamp-clipped-notice")).toContainText("clipped");
 });
 
 test("choosing a dither pattern and choosing Crisp each clear the other, and the choice survives a reload", async ({ page }) => {
