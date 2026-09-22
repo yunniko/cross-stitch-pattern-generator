@@ -29,8 +29,8 @@ export interface TextureEditorProps {
 
 const PRESETS: Array<{ label: string; texture: DitherTexture }> = [
   { label: "Default", texture: DEFAULT_DITHER_TEXTURE },
-  { label: "Rings", texture: { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0.8, 0.2, 0, 0], sweep: 0.4 } },
-  { label: "Stipple", texture: { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0, 0, 0.6, 0.4], spacing: 4, wobble: 0.6 } },
+  { label: "Rings", texture: { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0.8, 0.2, 0, 0, 0], sweep: 0.4 } },
+  { label: "Stipple", texture: { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0, 0, 0.6, 0.4, 0], spacing: 4, wobble: 0.6 } },
   { label: "Coarse", texture: { ...DEFAULT_DITHER_TEXTURE, spacing: 11, radiusMin: 0.3, radiusSpan: 0.12 } },
 ];
 
@@ -102,10 +102,10 @@ export function TextureEditor({ texture, onChange, defaultOpen = false }: Textur
 
   const set = <K extends keyof DitherTexture>(field: K, value: DitherTexture[K]) => onChange({ ...texture, [field]: value });
   const setWeight = (index: number, value: number) => {
-    const next = texture.shapeWeights.map((weight, i) => (i === index ? value : weight)) as [number, number, number, number];
+    const next = texture.shapeWeights.map((weight, i) => (i === index ? value : weight)) as [number, number, number, number, number];
     // A texture with nothing to draw is not a texture, and the processor refuses one: the slider that went last
     // keeps a share rather than letting the pane hold a request Generate would reject.
-    const drawn = next.some((weight) => weight > 0) ? next : (next.map((_, i) => (i === index ? 0.05 : 0)) as [number, number, number, number]);
+    const drawn = next.some((weight) => weight > 0) ? next : (next.map((_, i) => (i === index ? 0.05 : 0)) as [number, number, number, number, number]);
     onChange({ ...texture, shapeWeights: drawn });
   };
 

@@ -37,8 +37,8 @@ function chart(texture: DitherTexture): Uint8Array {
 describe("the swatch shows what the chart will do", () => {
   const textures: Array<[string, DitherTexture]> = [
     ["default", DEFAULT_DITHER_TEXTURE],
-    ["rings", { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0.8, 0.2, 0, 0], sweep: 0.4 }],
-    ["stipple", { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0, 0, 0.6, 0.4], spacing: 4, wobble: 0.6 }],
+    ["rings", { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0.8, 0.2, 0, 0, 0], sweep: 0.4 }],
+    ["stipple", { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0, 0, 0.6, 0.4, 0], spacing: 4, wobble: 0.6 }],
     ["coarse", { ...DEFAULT_DITHER_TEXTURE, spacing: 11, radiusMin: 0.3, radiusSpan: 0.12 }],
   ];
   for (const [name, texture] of textures) {

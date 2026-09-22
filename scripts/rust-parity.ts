@@ -218,9 +218,25 @@ const CASES: Case[] = [
   ...[
     { name: "wide", texture: { spacing: 12, radiusMin: 0.3, radiusSpan: 0.2 } },
     { name: "tight", texture: { spacing: 3, separation: 0.9, wobble: 0.8 } },
-    { name: "rings-only", texture: { shapeWeights: [1, 0, 0, 0] as [number, number, number, number], sweep: 0.6 } },
-    { name: "dots-only", texture: { shapeWeights: [0, 0, 1, 0] as [number, number, number, number] } },
+    { name: "rings-only", texture: { shapeWeights: [1, 0, 0, 0, 0] as [number, number, number, number, number], sweep: 0.6 } },
+    { name: "dots-only", texture: { shapeWeights: [0, 0, 1, 0, 0] as [number, number, number, number, number] } },
     { name: "reseeded", texture: { seed: 0x51ede57 } },
+    // Painted marks (G-056), including one wider than its own spacing, where the region clips the stamp's outside.
+    {
+      name: "stamp-cross",
+      texture: {
+        shapeWeights: [0, 0, 0, 0, 1] as [number, number, number, number, number],
+        stamp: { size: 5, order: [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0] },
+      },
+    },
+    {
+      name: "stamp-clipped",
+      texture: {
+        spacing: 4,
+        shapeWeights: [0.3, 0, 0.2, 0, 0.5] as [number, number, number, number, number],
+        stamp: { size: 9, order: Array.from({ length: 81 }, (_, i) => (i % 7 === 0 ? 1 : i % 5 === 0 ? 2 : 0)) },
+      },
+    },
   ].flatMap(({ name, texture }): Case[] => [
     {
       name: `texture/${name}`,

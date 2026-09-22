@@ -36,13 +36,23 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   how many cells light.
 
 **Milestones**:
-- [ ] M1 — The stamp in the engine: a fifth shape scored from a painted grid, in both languages, with its validation,
+- [x] M1 — The stamp in the engine: a fifth shape scored from a painted grid, in both languages, with its validation,
   the tone property over sampled stamps, and parity cases including a stamp wider than the spacing.
 - [ ] M2 — The painter: a grid in the texture editor that paints fill order, its weight beside the other four, the
   swatch pinned to the chart for stamped textures, and the clipping notice.
 - [ ] M3 — End-to-end coverage, decision file, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-22 — **M1 done.** A stamp is `{ size, order }` — an odd-sided square of fill steps — carried in the
+  texture and drawn as the fifth shape. A stitch the stamp names fills in its own step (distance from the centre
+  ordering the stitches within a step), and anything it does *not* name fills afterwards, nearest the centre first,
+  so a sketched stamp leaves no holes. The default texture still reproduces G-054 to the bit: the fallback shape is
+  pinned to `lump` rather than "the last of the list", which is what adding a fifth would otherwise have changed.
+  Tone holds over random stamps at sizes 3–9 and spacings 4–14, within 0.02 — including a 9-wide stamp at spacing 4,
+  where a mark's region clips the stamp's outside. **One divergence found by parity:** Rust wrote `"stamp": null`
+  into a stamp-less texture where TypeScript writes no key, so the recorded texture differed while the chart did
+  not; the Rust writer now omits it. Verified: Vitest 1222 passed / 8 skipped, `compare:rust` 75 cases identical
+  including two stamped ones, tsc and eslint clean. Next: M2, the painter.
 - 2026-09-22 — goal created and planned, on the Owner's instruction after G-055's sign-off. Settled while planning:
   the stamp is a **fifth weighted shape**, not a replacement mode, so it mixes with rings and dots the way the others
   do; and the shape a short weight list falls back to stays `lump` explicitly rather than "the last shape", so adding

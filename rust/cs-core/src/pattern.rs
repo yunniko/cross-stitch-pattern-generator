@@ -6,7 +6,7 @@ use crate::crisp::evidence::{build_evidence_layer_masked, EdgeModel, EvidenceLay
 use crate::crisp::{finalize, plus, repair, stage};
 use crate::denoise::denoise_for_quantization_masked;
 use crate::dither::{dither_to_palette, DitherMode};
-use crate::dither_hand_drawn::{DitherTexture, DEFAULT_DITHER_TEXTURE};
+use crate::dither_hand_drawn::{default_dither_texture, DitherTexture};
 use crate::downsample::{downsample_to_grid_with_coverage, empty_cell_mask, grid_dimensions_for};
 use crate::edge_map::{
     compute_cell_importance_masked, compute_edge_magnitude_masked, opaque_pixel_mask,
@@ -479,8 +479,8 @@ pub fn build_pattern_reporting(
         dither_mode: dithered.then(|| options.dither.id()),
         // Recorded only when it is not the default, so a chart drawn with the shipped texture stays the file it was.
         dither_texture: (options.dither == DitherMode::HandDrawn
-            && options.dither_texture != DEFAULT_DITHER_TEXTURE)
-            .then_some(options.dither_texture),
+            && options.dither_texture != default_dither_texture())
+            .then(|| options.dither_texture.clone()),
         // Recorded whenever requested, even when every stage abstained, as the TypeScript does.
         enhancement_mode: (options.enhancement != EnhancementMode::Off)
             .then(|| options.enhancement.id()),

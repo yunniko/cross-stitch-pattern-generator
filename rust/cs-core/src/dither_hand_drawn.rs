@@ -10,12 +10,22 @@ use crate::prng::Mulberry32;
 /// What a drawn pattern is made of (G-055); mirrors `DitherTexture` in `dither-hand-drawn.ts`. `radius_span` is
 /// stored rather than a largest radius because `0.42 - 0.26` is not `0.16` in binary floating point, and the default
 /// has to reproduce G-054 bit for bit.
-#[derive(Clone, Copy, Debug, PartialEq)]
+/// A painted mark (G-056): an odd-sided square saying in which step each stitch fills, read from the mark's centre.
+/// `0` means never — those stitches fill after everything the stamp names, nearest the centre first.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DitherStamp {
+    pub size: usize,
+    pub order: Vec<u32>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct DitherTexture {
     pub spacing: f64,
     pub separation: f64,
-    /// Ring, broken ring, dot, lump. Any remainder falls to the last.
-    pub shape_weights: [f64; 4],
+    /// Ring, broken ring, dot, lump, stamp. Any remainder falls to `lump`, as it did before the stamp existed.
+    pub shape_weights: [f64; 5],
+    /// The painted mark the fifth weight draws, if there is one.
+    pub stamp: Option<DitherStamp>,
     pub radius_min: f64,
     pub radius_span: f64,
     pub gap_alignment: f64,
@@ -24,21 +34,24 @@ pub struct DitherTexture {
     pub seed: u32,
 }
 
-/// G-054's texture, to the bit.
-pub const DEFAULT_DITHER_TEXTURE: DitherTexture = DitherTexture {
+/// G-054's texture, to the bit. A `const` no longer, because a stamp owns a `Vec`; the value is the same.
+pub fn default_dither_texture() -> DitherTexture {
+    DitherTexture {
     spacing: 6.0,
     separation: 0.72,
-    shape_weights: [0.42, 0.2, 0.23, 0.15],
+    shape_weights: [0.42, 0.2, 0.23, 0.15, 0.0],
+    stamp: None,
     radius_min: 0.26,
     radius_span: 0.16,
     gap_alignment: 0.72,
     wobble: 0.34,
     sweep: 0.25,
     seed: 0x1d10_c0de,
-};
+    }
+}
 
 /// The default's spacing, for callers that only need to know how far apart marks sit.
-pub const MARK_SPACING: f64 = DEFAULT_DITHER_TEXTURE.spacing;
+pub const MARK_SPACING: f64 = 6.0;
 const ATTEMPTS: usize = 6;
 
 /// Mark centres as interleaved `x, y` in stitch coordinates.
@@ -109,10 +122,19 @@ enum Shape {
     BrokenRing,
     Dot,
     Lump,
+    Stamp,
 }
 
 /// The shapes, in the order their weights are given.
-const SHAPES: [Shape; 4] = [Shape::Ring, Shape::BrokenRing, Shape::Dot, Shape::Lump];
+const SHAPES: [Shape; 5] = [
+    Shape::Ring,
+    Shape::BrokenRing,
+    Shape::Dot,
+    Shape::Lump,
+    Shape::Stamp,
+];
+/// What a short weight list leaves over — pinned, so adding a fifth shape cannot change an existing texture (G-056).
+const FALLBACK_SHAPE: Shape = Shape::Lump;
 
 struct Mark {
     shape: Shape,
@@ -127,8 +149,8 @@ fn mark_shapes(count: usize, rng: &mut Mulberry32, texture: &DitherTexture) -> V
     let mut marks = Vec::with_capacity(count);
     for _ in 0..count {
         let roll = rng.next_f64();
-        // The last shape catches whatever the weights leave over, so a texture falling short still draws.
-        let mut shape = SHAPES[SHAPES.len() - 1];
+        // Whatever the weights leave over falls to one named shape, never to "the last one".
+        let mut shape = FALLBACK_SHAPE;
         let mut running = 0.0;
         for (i, &candidate) in SHAPES.iter().enumerate() {
             running += texture.shape_weights[i];
@@ -197,6 +219,30 @@ fn shape_score(
         Shape::Ring => {
             let sweep = (pseudo_angle(dx, dy) - mark.start + 4.0) % 4.0;
             (distance - mark.radius).abs() + texture.sweep * sweep
+        }
+        Shape::Stamp => {
+            // The painted grid, read from the mark's centre; anything it does not name fills afterwards, nearest
+            // the centre first, so a sketch leaves no holes in the chart.
+            let Some(stamp) = texture.stamp.as_ref() else {
+                return distance;
+            };
+            let half = (stamp.size - 1) as f64 / 2.0;
+            let column = (dx - 0.5).round() + half;
+            let row = (dy - 0.5).round() + half;
+            let inside = column >= 0.0
+                && row >= 0.0
+                && column < stamp.size as f64
+                && row < stamp.size as f64;
+            let step = if inside {
+                stamp.order[row as usize * stamp.size + column as usize]
+            } else {
+                0
+            };
+            if step > 0 {
+                step as f64 + distance / 1000.0
+            } else {
+                (stamp.size * stamp.size + 1) as f64 + distance
+            }
         }
         Shape::BrokenRing => {
             let alignment = if distance > 0.0 {

@@ -13,7 +13,7 @@ import { makePhotoLikeBuffer } from "./helpers/fixtures";
  * and anything out of range is refused at the door or falls back, never generated from.
  */
 
-const CUSTOM: DitherTexture = { ...DEFAULT_DITHER_TEXTURE, spacing: 10, shapeWeights: [1, 0, 0, 0], sweep: 0.6, seed: 0x51ede57 };
+const CUSTOM: DitherTexture = { ...DEFAULT_DITHER_TEXTURE, spacing: 10, shapeWeights: [1, 0, 0, 0, 0], sweep: 0.6, seed: 0x51ede57 };
 
 function requestFrom(overrides: Record<string, unknown> = {}) {
   const options = DEFAULT_OPTIONS;
@@ -38,8 +38,8 @@ describe("a texture is checked by range, not by type union", () => {
       ["spacing far too wide", { ...DEFAULT_DITHER_TEXTURE, spacing: 200 }],
       ["spacing not whole", { ...DEFAULT_DITHER_TEXTURE, spacing: 6.5 }],
       ["separation over one", { ...DEFAULT_DITHER_TEXTURE, separation: 1.4 }],
-      ["a negative weight", { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [-1, 1, 1, 1] }],
-      ["every weight zero", { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0, 0, 0, 0] }],
+      ["a negative weight", { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [-1, 1, 1, 1, 1] }],
+      ["every weight zero", { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0, 0, 0, 0, 0] }],
       ["three weights", { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [1, 0, 0] }],
       ["a wobble beyond a stitch", { ...DEFAULT_DITHER_TEXTURE, wobble: 4 }],
       ["a seed that is not a whole number", { ...DEFAULT_DITHER_TEXTURE, seed: 1.5 }],

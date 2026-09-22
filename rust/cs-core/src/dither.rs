@@ -4,7 +4,7 @@
 //! serpentine, which is what keeps the worm artifacts away.
 
 use crate::color::{rgb_to_oklab, Oklab, Rgb};
-use crate::dither_hand_drawn::{hand_drawn_thresholds, DitherTexture, DEFAULT_DITHER_TEXTURE};
+use crate::dither_hand_drawn::{hand_drawn_thresholds, DitherTexture};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 

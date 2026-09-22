@@ -26,13 +26,30 @@ import { mulberry32 } from "../prng";
  * point, so keeping the span is what lets the default texture reproduce G-054 bit for bit. The editor shows a
  * smallest and a largest and converts.
  */
+/**
+ * A painted mark (G-056): an odd-sided square saying in which step each stitch of the mark fills, read from its
+ * centre outward. `0` means never — those stitches fill after everything the stamp names, in the order the built-in
+ * marks would have filled them, so a stamp can be sketched without leaving holes in the chart.
+ */
+export interface DitherStamp {
+  /** 3, 5, 7 or 9. A stamp wider than the marks' spacing has its outside clipped by the region a mark owns. */
+  size: number;
+  /** `size * size` steps, row-major: 0 for never, then 1 upwards in the order the reader painted them. */
+  order: readonly number[];
+}
+
 export interface DitherTexture {
   /** Stitches between neighbouring marks; sized in stitches, so a bigger chart carries more marks (D202). */
   spacing: number;
   /** How close two marks may sit, as a share of the spacing: below this they read as one blot, not two marks. */
   separation: number;
-  /** How often each shape is drawn, in the order ring, broken ring, dot, lump. Any remainder falls to the last. */
-  shapeWeights: readonly [number, number, number, number];
+  /**
+   * How often each shape is drawn, in the order ring, broken ring, dot, lump, stamp. A weight list that falls short
+   * leaves the remainder to `lump`, which is what it fell to before the stamp existed (G-056).
+   */
+  shapeWeights: readonly [number, number, number, number, number];
+  /** The painted mark the fifth weight draws, if there is one. */
+  stamp?: DitherStamp;
   /** Ring radius as a share of the spacing: the smallest, and how much a mark may add to it. */
   radiusMin: number;
   radiusSpan: number;
@@ -50,7 +67,7 @@ export interface DitherTexture {
 export const DEFAULT_DITHER_TEXTURE: DitherTexture = {
   spacing: 6,
   separation: 0.72,
-  shapeWeights: [0.42, 0.2, 0.23, 0.15],
+  shapeWeights: [0.42, 0.2, 0.23, 0.15, 0],
   radiusMin: 0.26,
   radiusSpan: 0.16,
   gapAlignment: 0.72,
@@ -68,12 +85,25 @@ export const DITHER_TEXTURE_RANGES = {
   spacing: [3, 16],
   separation: [0.4, 0.95],
   shapeWeight: [0, 1],
+  stampSize: [3, 9],
   radiusMin: [0.1, 0.45],
   radiusSpan: [0, 0.35],
   gapAlignment: [0.3, 0.95],
   wobble: [0, 1],
   sweep: [0, 1],
 } as const satisfies Record<string, readonly [number, number]>;
+
+/** Whether a painted mark is one the painter could have produced: an odd side, the right length, steps in range. */
+export function isValidDitherStamp(stamp: unknown): stamp is DitherStamp {
+  if (typeof stamp !== "object" || stamp === null) return false;
+  const s = stamp as Record<string, unknown>;
+  const [low, high] = DITHER_TEXTURE_RANGES.stampSize;
+  const size = s.size;
+  if (typeof size !== "number" || !Number.isInteger(size) || size < low || size > high || size % 2 === 0) return false;
+  if (!Array.isArray(s.order) || s.order.length !== size * size) return false;
+  // A step beyond the cell count says nothing a painter could mean, and a negative one nothing at all.
+  return s.order.every((step) => typeof step === "number" && Number.isInteger(step) && step >= 0 && step <= size * size);
+}
 
 /**
  * Whether a texture is the shipped one, by value. It must be by value: the texture crosses the wire as JSON, so the
@@ -91,6 +121,7 @@ export function isDefaultDitherTexture(texture: DitherTexture): boolean {
     texture.wobble === d.wobble &&
     texture.sweep === d.sweep &&
     texture.seed === d.seed &&
+    texture.stamp === undefined &&
     texture.shapeWeights.every((weight, i) => weight === d.shapeWeights[i])
   );
 }
@@ -105,10 +136,13 @@ export function isValidDitherTexture(texture: unknown): texture is DitherTexture
   for (const key of ["separation", "radiusMin", "radiusSpan", "gapAlignment", "wobble", "sweep"] as const) {
     if (!inRange(t[key], DITHER_TEXTURE_RANGES[key])) return false;
   }
-  if (!Array.isArray(t.shapeWeights) || t.shapeWeights.length !== 4) return false;
+  if (!Array.isArray(t.shapeWeights) || t.shapeWeights.length !== 5) return false;
   if (!t.shapeWeights.every((weight) => inRange(weight, DITHER_TEXTURE_RANGES.shapeWeight))) return false;
-  // Every weight zero would leave the last shape catching everything, which is a texture nobody meant to ask for.
+  // Every weight zero would leave the fallback shape catching everything, which nobody meant to ask for.
   if (t.shapeWeights.every((weight) => weight === 0)) return false;
+  if (t.stamp !== undefined && !isValidDitherStamp(t.stamp)) return false;
+  // A stamp's weight with no stamp painted would draw the fallback shape under a name that promises otherwise.
+  if (t.stamp === undefined && (t.shapeWeights as number[])[4] > 0) return false;
   return typeof t.seed === "number" && Number.isInteger(t.seed) && t.seed >= 0 && t.seed <= 0xffffffff;
 }
 
@@ -171,9 +205,14 @@ function placeMarks(width: number, height: number, texture: DitherTexture): { ce
  * What each mark is drawn as. A ring reads most like a drawn mark and is what the Owner's image is full of, so it
  * takes most of them; the rest keep the page from looking like one stamp repeated (G-054 M2).
  */
-export type Shape = "ring" | "broken-ring" | "dot" | "lump";
+export type Shape = "ring" | "broken-ring" | "dot" | "lump" | "stamp";
 /** The shapes, in the order their weights are given. */
-const SHAPES: readonly Shape[] = ["ring", "broken-ring", "dot", "lump"];
+const SHAPES: readonly Shape[] = ["ring", "broken-ring", "dot", "lump", "stamp"];
+/**
+ * What a weight list that falls short leaves over. Pinned to `lump` rather than "the last shape": when the stamp was
+ * added as a fifth, "the last shape" would have quietly changed what every existing texture draws (G-056).
+ */
+const FALLBACK_SHAPE: Shape = "lump";
 
 export interface Mark {
   shape: Shape;
@@ -191,8 +230,8 @@ function markShapes(count: number, rng: () => number, texture: DitherTexture): M
   const marks: Mark[] = [];
   for (let m = 0; m < count; m++) {
     const roll = rng();
-    // The last shape catches whatever the weights leave over, so a texture whose weights fall short still draws.
-    let shape: Shape = SHAPES[SHAPES.length - 1];
+    // Whatever the weights leave over falls to one named shape, never to "the last one" (see FALLBACK_SHAPE).
+    let shape: Shape = FALLBACK_SHAPE;
     let running = 0;
     for (let i = 0; i < SHAPES.length; i++) {
       running += texture.shapeWeights[i];
@@ -248,6 +287,20 @@ export function shapeScore(mark: Mark, index: number, dx: number, dy: number, x:
       // scattered all round it, and a heavier one closes the ring.
       const sweep = (pseudoAngle(dx, dy) - mark.start + 4) % 4;
       return Math.abs(distance - mark.radius) + texture.sweep * sweep;
+    }
+    case "stamp": {
+      // The painted grid, read from the mark's centre: a stitch inside it fills in its own step, and everything the
+      // stamp does not name fills afterwards, nearest the centre first, so a sketch leaves no holes in the chart.
+      const stamp = texture.stamp;
+      if (!stamp) return distance;
+      const half = (stamp.size - 1) / 2;
+      const column = Math.round(dx - 0.5) + half;
+      const row = Math.round(dy - 0.5) + half;
+      const inside = column >= 0 && row >= 0 && column < stamp.size && row < stamp.size;
+      const step = inside ? stamp.order[row * stamp.size + column] : 0;
+      // Steps are whole numbers, so a stitch's distance from the centre orders the cells inside one step without
+      // ever reaching the next: the offsets a mark sees are smaller than the region it owns.
+      return step > 0 ? step + distance / 1000 : stamp.size * stamp.size + 1 + distance;
     }
     case "broken-ring": {
       // The gap is a wedge around the mark's own direction: cells inside it are drawn last, so the ring reads as

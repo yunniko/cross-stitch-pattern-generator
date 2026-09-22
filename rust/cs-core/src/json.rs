@@ -2,7 +2,7 @@
 //! and defaults, and the pattern in the editable-save field names the parity harness hashes.
 
 use crate::dither::DitherMode;
-use crate::dither_hand_drawn::{DitherTexture, DEFAULT_DITHER_TEXTURE};
+use crate::dither_hand_drawn::{default_dither_texture, DitherStamp, DitherTexture};
 use crate::enhance::Mode;
 use crate::pattern::{BuildOptions, EdgeMode, StageTimes, StitchPattern};
 use crate::quantize::Quantizer;
@@ -43,7 +43,9 @@ struct TextureOptions {
     #[serde(default)]
     separation: Option<f64>,
     #[serde(default)]
-    shape_weights: Option<[f64; 4]>,
+    shape_weights: Option<[f64; 5]>,
+    #[serde(default)]
+    stamp: Option<StampOptions>,
     #[serde(default)]
     radius_min: Option<f64>,
     #[serde(default)]
@@ -58,9 +60,16 @@ struct TextureOptions {
     seed: Option<u32>,
 }
 
+/// A painted mark as the request carries it (G-056).
+#[derive(Deserialize)]
+struct StampOptions {
+    size: usize,
+    order: Vec<u32>,
+}
+
 impl TextureOptions {
     fn resolve(&self) -> DitherTexture {
-        let d = DEFAULT_DITHER_TEXTURE;
+        let d = default_dither_texture();
         DitherTexture {
             spacing: self.spacing.unwrap_or(d.spacing),
             separation: self.separation.unwrap_or(d.separation),
@@ -71,6 +80,10 @@ impl TextureOptions {
             wobble: self.wobble.unwrap_or(d.wobble),
             sweep: self.sweep.unwrap_or(d.sweep),
             seed: self.seed.unwrap_or(d.seed),
+            stamp: self.stamp.as_ref().map(|s| DitherStamp {
+                size: s.size,
+                order: s.order.clone(),
+            }),
         }
     }
 }
@@ -131,7 +144,7 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
             .dither_texture
             .as_ref()
             .map(TextureOptions::resolve)
-            .unwrap_or(DEFAULT_DITHER_TEXTURE),
+            .unwrap_or_else(default_dither_texture),
     };
     Ok((options, o.threads.unwrap_or(1).max(1)))
 }
@@ -158,18 +171,30 @@ pub fn pattern_json(p: &StitchPattern) -> Value {
         "edgeMode": p.edge_mode,
         "enhancementMode": p.enhancement_mode,
         "ditherMode": p.dither_mode,
-        "ditherTexture": p.dither_texture.map(|t| json!({
-            "spacing": t.spacing,
-            "separation": t.separation,
-            "shapeWeights": t.shape_weights,
-            "radiusMin": t.radius_min,
-            "radiusSpan": t.radius_span,
-            "gapAlignment": t.gap_alignment,
-            "wobble": t.wobble,
-            "sweep": t.sweep,
-            "seed": t.seed,
-        })),
+        "ditherTexture": p.dither_texture.as_ref().map(texture_json),
     })
+}
+
+/// A texture as the editable save format writes it. A texture with no stamp leaves the key out rather than writing
+/// `null`, so the object is the one `pattern-serialize.ts` produces, field for field (G-056).
+fn texture_json(t: &DitherTexture) -> Value {
+    let mut out = Map::new();
+    out.insert("spacing".into(), json!(t.spacing));
+    out.insert("separation".into(), json!(t.separation));
+    out.insert("shapeWeights".into(), json!(t.shape_weights));
+    out.insert("radiusMin".into(), json!(t.radius_min));
+    out.insert("radiusSpan".into(), json!(t.radius_span));
+    out.insert("gapAlignment".into(), json!(t.gap_alignment));
+    out.insert("wobble".into(), json!(t.wobble));
+    out.insert("sweep".into(), json!(t.sweep));
+    out.insert("seed".into(), json!(t.seed));
+    if let Some(stamp) = t.stamp.as_ref() {
+        out.insert(
+            "stamp".into(),
+            json!({ "size": stamp.size, "order": stamp.order }),
+        );
+    }
+    Value::Object(out)
 }
 
 pub fn run_json(total_ms: f64, times: &StageTimes) -> Value {
