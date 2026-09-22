@@ -188,7 +188,7 @@ export function TextureEditor({ texture, onChange, chartWidth, chartHeight, defa
           </div>
 
           <Knob label="Mark spacing" hint="Stitches between marks. A bigger chart carries more marks, not bigger ones." value={texture.spacing} min={DITHER_TEXTURE_RANGES.spacing[0]} max={DITHER_TEXTURE_RANGES.spacing[1]} step={1} onChange={(value) => set("spacing", value)} />
-          <Knob label="Ring size" hint="How big a ring is, as a share of the spacing." value={texture.radiusMin} min={DITHER_TEXTURE_RANGES.radiusMin[0]} max={DITHER_TEXTURE_RANGES.radiusMin[1]} step={0.01} onChange={(value) => set("radiusMin", value)} />
+          <Knob label="Ring width" hint="How wide a ring's circle is, as a share of the spacing. A wider circle spreads the same stitches further, so the stroke gets thinner." value={texture.radiusMin} min={DITHER_TEXTURE_RANGES.radiusMin[0]} max={DITHER_TEXTURE_RANGES.radiusMin[1]} step={0.01} onChange={(value) => set("radiusMin", value)} />
           <Knob label="Size variation" hint="How much marks differ from each other in size." value={texture.radiusSpan} min={DITHER_TEXTURE_RANGES.radiusSpan[0]} max={DITHER_TEXTURE_RANGES.radiusSpan[1]} step={0.01} onChange={(value) => set("radiusSpan", value)} />
           <Knob label="Stroke sweep" hint="How much a ring is drawn round as a stroke rather than appearing at once." value={texture.sweep} min={DITHER_TEXTURE_RANGES.sweep[0]} max={DITHER_TEXTURE_RANGES.sweep[1]} step={0.01} onChange={(value) => set("sweep", value)} />
           <Knob label="Edge wobble" hint="How ragged a lump's edge is, in stitches." value={texture.wobble} min={DITHER_TEXTURE_RANGES.wobble[0]} max={DITHER_TEXTURE_RANGES.wobble[1]} step={0.01} onChange={(value) => set("wobble", value)} />
