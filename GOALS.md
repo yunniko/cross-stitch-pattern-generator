@@ -118,7 +118,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   verify live.
 
 **Progress log** (newest first):
-- 2026-09-22 — **M3 done, pending the deploy.** `compare:dither` re-run over twelve patterns: the ten that existed
+- 2026-09-22 — **Deployed and verified live** at 46a6e47. The list reads Clustered dots, Rings, Lines / Bayer 4×4,
+  Bayer 8×8, Blue noise / Floyd–Steinberg, Atkinson / Hand-drawn; the preview appears for a matrix with no knobs
+  beside it and goes away at Off; the four line directions are there; clicking the preview moved 1296 of its
+  stitches. 23 containers before and after with an identical name set, 38 vhosts unchanged. **Awaiting sign-off.**
+- 2026-09-22 — **M3 done.** `compare:dither` re-run over twelve patterns: the ten that existed
   did not move a digit, and the two new directions land beside their siblings (vertical 0.70× at +4.0 points next to
   horizontal's 0.71× at +3.3; anti-diagonal identical to diagonal at 0.66× and +12.7). D208 records why the preview
   belongs to every pattern and why each family pays only its own cost. Verified: Vitest 1233 passed / 8 skipped,

@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-22 at acf89fa (G-058: the knobs reach every mark, deployed and verified live)
+Last verified: 2026-09-22 at 46a6e47 (G-059: a preview for every pattern, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs acf89fa (2026-09-22), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
+**Production** runs 46a6e47 (2026-09-22), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
@@ -294,6 +294,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-22 | 00a8d16 | G-056: a painted mark — a grid of fill steps drawn in the Texture panel and mixed in as a fifth shape, with what it leaves unpainted still filling (D205) | Vitest 1218 passed, 8 skipped; Playwright 330 passed across all 27 specs against the Rust sidecar; `compare:rust` 81 cases identical, including a painted cross and a stamp wider than its own spacing; the default texture still reproduces G-054 against its frozen copy, and the 18 golden hashes are untouched; tsc, eslint, docs-lint and the build clean. Both cross-stitch containers recreated; 23 containers before and after with an identical name set, no other container restarted, 38 vhosts unchanged and every live site still answering (17 at 200; the 502s are the decommissioned svc-lab services). Live: a cross painted on the 5x5 grid reaches the chart, which records the stamp and its 0.3 share; no Rust fallback in the processor logs |
 | 2026-09-22 | 76df9aa | G-057: the texture swatch is a corner of the chart the settings would make, over a dark-to-light ramp, drawn by the pipeline's own rule (D206) | Vitest 1219 passed, 8 skipped; Playwright 330 passed across all 27 specs; tsc, eslint and docs-lint clean. The engine gained a window helper only — the eleven patterns, the default texture and the 18 golden hashes are untouched. UI change, so only the app container was recreated; 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: the swatch reads 56x56 with row shares 0.18, 0.39, 0.54, 0.66 down the ramp, and changing the chart size from 200 to 100 stitches changes 1325 of its 3136 stitches — which is the point: the marks are that chart's own |
 | 2026-09-22 | acf89fa | G-058: three switches let Edge wobble, Ring thickness and Stroke sweep reach every mark, off by default; the ring slider is the stored radius read backwards (D207) | Vitest 1225 passed, 8 skipped; Playwright 331 passed across all 27 specs; `compare:rust` 85 cases identical, including each switch alone and all three together; the default texture still matches its frozen pre-texture copy and the 18 golden hashes are untouched; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: the panel shows three switches all off and a Ring thickness slider, and flipping the size switch changes 87 stitches of the swatch |
+| 2026-09-22 | 46a6e47 | G-059: the preview is shown for every pattern and outside the texture panel, clicking it reshuffles, and the line screens become one Lines option with four directions (D208) | Vitest 1233 passed, 8 skipped; Playwright 334 passed across all 27 specs; `compare:rust` 89 cases identical including each line direction; the ten patterns that existed measure exactly as before in `compare:dither`, and the 18 golden hashes are untouched; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: the list reads Clustered dots, Rings, Lines / Bayer 4×4, Bayer 8×8, Blue noise / Floyd–Steinberg, Atkinson / Hand-drawn; the preview appears for a matrix with no knobs beside it and disappears at Off; the four directions are there; and clicking the preview moved 1296 of its stitches |
