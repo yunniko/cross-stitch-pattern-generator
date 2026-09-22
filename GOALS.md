@@ -111,13 +111,22 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 **Milestones**:
 - [x] M1 — Lines as one option: the vertical and anti-diagonal matrices generated, the mode list and both languages,
   the direction control in the pane, parity for each direction, and the proof that old ids still open.
-- [ ] M2 — The preview for every family: the window built the cheapest exact way for each, moved out of the
+- [x] M2 — The preview for every family: the window built the cheapest exact way for each, moved out of the
   collapsible and shown whenever dithering is on, pinned against real charts and measured. **Clicking the preview
   reshuffles the marks** (Owner, 2026-09-22), replacing the Shuffle button.
 - [ ] M3 — The comparison document re-run over the widened set, decision file, README and HANDOVER, deploy and
   verify live.
 
 **Progress log** (newest first):
+- 2026-09-22 — **M2 done.** The preview is its own component, shown whenever a pattern is chosen and outside the
+  Texture panel, which now holds only what the drawn marks have. **Clicking it reshuffles** — the Shuffle button is
+  gone. How much of the chart gets built is decided per family, and measured: a matrix needs only the window (1–2 ms
+  at any chart size), a kernel the full width down to the window (3–24 ms), the drawn marks the whole grid (11 ms at
+  200 stitches, 539 at 1500). All three are pinned against real charts of that size. **Two UI bugs my own tests
+  found:** the preview's label began with "Dither", so `getByLabel("Dither")` matched it and the select together;
+  and a `select` cannot show a value none of its options carries, so the single Lines row needed a value of its own
+  rather than borrowing a direction's. Verified: Vitest 1233 passed / 8 skipped, Playwright 10 dithering specs
+  green, tsc and eslint clean.
 - 2026-09-22 — **M1 done.** Four directions — horizontal, vertical, `/`, `\` — generated as data like the rest, and
   one **Lines** entry in the list with the direction under it. The two that existed are byte-identical (the
   generator only added rows), and the stored ids are unchanged, so an old file naming `lines-diagonal` opens as it
