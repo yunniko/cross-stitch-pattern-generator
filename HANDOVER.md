@@ -43,7 +43,8 @@ chart symbols changed appearance (D192), and `CS_JOB=0` returns to TypeScript wi
   two threads either side of a colour instead of rounding each one. Off is byte-identical to before; a dithered chart
   runs no smoothing pass and refuses Crisp (D199). A matrix pattern is data, not code (D198); a kernel is a row of
   taps (D200); the drawn marks take an **editable texture** — nine numbers with published ranges, edited by sliders
-  with a live swatch and saved inside the chart's own file (G-055, D203, D204). Measured in
+  with a live swatch and saved inside the chart's own file (G-055, D203, D204) — and a **painted mark**, a grid of
+  fill steps drawn in the same panel and mixed in as a fifth shape (G-056, D205). Measured in
   `docs/reviews/2026-09-21-dithering-comparison.md`: kernels lowest error (median 0.44–0.51×) and never worse,
   screens and drawn marks cheapest (+3.3 to +4.3 points, drawn +3.8 at 0.78×), matrices between.
 - Photo upload and reopening a save decode in a worker, the old decode a logged fallback (D128).
@@ -52,9 +53,9 @@ chart symbols changed appearance (D192), and `CS_JOB=0` returns to TypeScript wi
 - Photo enhancement: Off, Brighten, Auto, Vivid, Portrait, with a "Compare with original" preview and recorded in
   saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-22**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1214 passed (8 opt-in skips);
-Playwright **328 passed, 0 failed across all 27 specs against the Rust sidecar**, one spec per process against the single-path
-build, with the processor serving generation, exports and previews; `npm run compare:rust` 79 cases identical. Export parity:
+**Checks run 2026-09-22**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1218 passed (8 opt-in skips);
+Playwright **330 passed, 0 failed across all 27 specs against the Rust sidecar**, one spec per process against the single-path
+build, with the processor serving generation, exports and previews; `npm run compare:rust` 81 cases identical. Export parity:
 `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the type-check and `build:processor` before
 the unit tests, because the worker bundle is git-ignored and the pool, preview and export specs run against it.
 
@@ -153,8 +154,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - Brighten must never white-balance, add local contrast or saturate, and must leave a photo with both deep shadows and highlights untouched (D118).
 - Enhancement calibration photos stay outside the repository; two show
   identifiable people.
-- Every `cellPalette` mutation passes `EMPTY_CELL` (255) through untouched (D028).
-- View-only settings (canvas color) never reach an export call site (D087).
+- Every `cellPalette` mutation passes `EMPTY_CELL` (255) through untouched (D028); view-only settings (canvas colour) never reach an export call site (D087).
 - Export drawing creates canvases, encodes PNGs and loads the font and texture only through
   `lib/export/canvas-backend.ts`, never by touching `document` or `Image` directly (D125). That is the seam the
   server backend plugs into (D153), so breaking it breaks server exports.
@@ -163,8 +163,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - The PDF adapter keeps opaque drawing on direct operators, written as text, with one font resource per page (D126,
   D174); `tests/unit/pdf-text-content.spec.ts` pins the bytes. Call `finish()` on each page's adapter before the page
   is flushed or saved, or the page loses its content.
-- Crisp consumers use the shared admissible-cost functions or throw. Crisp
-  with contour refinement throws (D063, D068).
+- Crisp consumers use the shared admissible-cost functions or throw; Crisp with contour refinement throws (D063, D068).
 - Crisp boundary evidence must stay identical to its verbatim reference copy:
   `tests/unit/crisp-evidence-equivalence.spec.ts` (G-035 M4). Crisp+ changes stay behind
   `edgeModel: "blurred-step"` and `"crisp-plus"`, never Crisp's defaults (D139).
@@ -181,6 +180,9 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   `tests/unit/helpers/dither-frozen-g054.ts` — do not update that copy to match a change (D203). A texture is
   compared **by value**: it crosses the wire as JSON, so a reference check silently writes a default into every
   drawn chart (D204). A new knob needs a range, a Rust field, a parity case and a line in the editor.
+- A drawn mark's shape list only ever grows at the end, and what a short weight list falls back to is pinned by name
+  (`lump`), never "the last shape" — otherwise adding one changes every existing texture (D205). Every cell of a mark
+  keeps an order, painted or not, because that ranking is what holds tone.
 - A pipeline stage that reads `cellPalette` must skip `EMPTY_CELL`: it is a sentinel, not palette index 255, and both
   TypeScript and Rust must skip it in the same places or the two diverge (D196).
 - Rust export references are generated in the processor image, never on a development machine: it has only DejaVu Sans, a laptop resolves the font stack elsewhere, and every raster would differ (D188).
@@ -198,8 +200,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - A color's thread identity is its immutable `source` (brand and code), never
   its name or RGB. A brand lock means every color has a source of that brand;
   OXS thread numbers and printed codes come from `source` (D122).
-- Anchor uses code pairs from an unlicensed table under an Owner judgment
-  call. Read `docs/anchor-colors-provenance.md` before touching it (D094).
+- Anchor uses code pairs from an unlicensed table under an Owner judgment call; read `docs/anchor-colors-provenance.md` first (D094).
 - Don't strip the embedded photo from saved files without asking (D028).
 - Mount-time restores defer setState in a microtask, because of the
   set-state-in-effect lint rule (D033).
@@ -283,8 +284,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   prompted G-053 was **hand-drawn** (Owner, 2026-09-21) — no algorithm to recover, which is why its rings sat
   aperiodically. **G-054 built that look** — irregular drawn marks, signed off and archived; on flat regions they read
   as grain rather than marks, which is inherent to dithering a flat area. **G-055 added the texture editor**, signed
-  off and archived, and **G-056 is building the stamp painter** it deferred: a grid the reader paints to say in which
-  step each stitch of a mark fills.
+  off and archived, and **G-056 added the stamp painter** it deferred, deployed and awaiting sign-off.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log

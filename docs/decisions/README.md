@@ -213,3 +213,4 @@ remain readable with git show.
 - D202 — One fixed seed, and marks sized in stitches — active
 - D203 — A texture is data with ranges, and its default is frozen — active
 - D204 — A chart embeds its texture, and the swatch is pinned to the pipeline — active
+- D205 — A painted mark is a fifth shape, and what it leaves unpainted still fills — active

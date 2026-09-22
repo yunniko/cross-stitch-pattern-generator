@@ -40,15 +40,20 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   the tone property over sampled stamps, and parity cases including a stamp wider than the spacing.
 - [x] M2 — The painter: a grid in the texture editor that paints fill order, its weight beside the other four, the
   swatch pinned to the chart for stamped textures, and the clipping notice.
-- [ ] M3 — End-to-end coverage, decision file, README and HANDOVER, deploy and verify live.
+- [x] M3 — End-to-end coverage, decision file, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-22 — **M3 done, pending the deploy.** D205 records why a painted mark is a fifth weighted shape and why
+  what it leaves unpainted still fills — every cell keeps an order, because that ranking is what holds tone. README
+  and HANDOVER updated, the latter with the rule a future session would otherwise break: the shape list only grows at
+  the end and the fallback is pinned by name. Verified: Vitest 1218 passed / 8 skipped, Playwright 330 passed across
+  27 specs, `compare:rust` 81 cases identical, tsc, eslint and docs-lint clean.
 - 2026-09-22 — **M2 done.** `app/components/stamp-painter.tsx`: a 3/5/7/9 grid inside the Texture panel, four
   steps, click to paint and click again to clear. Painting a mark gives it a 30% share of the chart and a "Painted"
   slider beside the other four; clearing it takes the share back, because a stamp weight with no stamp is a texture
   the processor refuses. Re-sizing keeps what fits, measured from the centre out. When a stamp is wider than the
   spacing the panel says its outside will be clipped rather than cropping it quietly. The swatch pinning now covers
-  stamped textures, including a clipped one. Verified: Vitest 1216 passed / 8 skipped, Playwright 6 dithering specs
+  stamped textures, including a clipped one. Verified: Vitest 1218 passed / 8 skipped, Playwright 6 dithering specs
   green (two new: a painted cross reaching the chart and being saved with it, and the clipping notice appearing only
   when it should), tsc and eslint clean. Next: M3, docs and the deploy.
 - 2026-09-22 — **M1 done.** A stamp is `{ size, order }` — an odd-sided square of fill steps — carried in the

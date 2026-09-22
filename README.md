@@ -41,6 +41,11 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   A swatch redraws as you move them, the chart is generated from exactly what
   the swatch shows, and the texture is saved inside the pattern file, so a
   chart reopens the way it was made.
+- **Paint your own mark**: the same panel holds a 3–9 stitch grid where you
+  say in which step each stitch of a mark fills. The painted mark joins the
+  four built-in ones with a share of its own, and what you leave unpainted
+  fills after it rather than leaving holes, so a sketch is a shape. A grid
+  wider than the mark spacing says so instead of cropping quietly.
 - **Edit** with brush, fill, rectangle select (copy, paste, move, flip, rotate,
   crop the chart to the selection, apply the piece where it sits, or discard it),
   move, pan and zoom tools. Isolate dims every thread but the ones you light, and
