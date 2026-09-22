@@ -51,7 +51,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M3 — The published trade (criterion 3), decision file, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first):
-- 2026-09-22 — **M3 done, pending the deploy.** `docs/reviews/2026-09-22-colour-floor.md` is written by
+- 2026-09-22 — **Deployed and verified live** at 4001f1a. On the sample photo at 48 colours: 21 colours with the
+  floor off, 32 at 25+ stitches, 44 at every colour; the exported file records `colorFloor`, the choice survives a
+  reload, the select is disabled while dithering, and the console is clean. 23 containers before and after with an
+  identical name set, 38 vhosts unchanged. **Awaiting sign-off.**
+- 2026-09-22 — **M3 done.** `docs/reviews/2026-09-22-colour-floor.md` is written by
   `npm run compare:floor` (new script, 48 floored cases over four fixtures and three asks). The headline is not the
   trade the goal expected: the floor reads *closer* to the photo, not further — median 0.98× the unfloored 3×3 error,
   and the only four cases above 1.00 are one DMC chart at 1.0003×. Its real cost is +0.03 points of confetti (median)
