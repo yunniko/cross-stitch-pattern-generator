@@ -61,6 +61,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   moved, deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-22 — **Owner request:** the dithering explanations are out of the Photo pane — the paragraph under the
+  Dither list, the swatch's caption, and the sentence the Edges note showed while dithering was on (it says what it
+  said before dithering existed again). The group names in the list stay, since they are how ten patterns are
+  navigated rather than prose. The e2e asserted two of those sentences and now asserts the control states instead,
+  which is what it was there to prove.
 - 2026-09-22 — **M4 deployed and verified live** at f738496. The Texture panel opens under Hand-drawn, its swatch
   redraws when a preset is chosen, and a chart generated from Coarse comes back recording `spacing: 11` with 0.96% of
   its stitches standing alone; the processor logs show no Rust fallback. 23 containers before and after with an

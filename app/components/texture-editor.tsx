@@ -133,7 +133,6 @@ export function TextureEditor({ texture, onChange, defaultOpen = false }: Textur
               className="h-[112px] w-[112px] shrink-0 rounded-md border border-line [image-rendering:pixelated]"
             />
             <div className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-[11px] leading-4 text-muted">A patch at 42 % of one thread, drawn the way the chart will be.</span>
               <div className="flex flex-wrap gap-1.5">
                 {PRESETS.map((preset) => (
                   <PillButton key={preset.label} onClick={() => onChange(preset.texture)} title={`Set every knob to ${preset.label.toLowerCase()}`}>

@@ -287,9 +287,7 @@ export function PhotoPane({ options, onChange, isProcessing, progress, queueMess
       <section className="flex flex-col gap-2">
         <span className={GROUP_LABEL}>Edges</span>
         <SegmentedControl fill options={EDGE_OPTIONS} value={options.edgeMode} onChange={chooseEdgeMode} />
-        <p className="text-[11px] leading-4 text-muted">
-          {dithering ? "Dithering is on, so edges stay Standard: Crisp keeps the boundaries dithering deliberately blends." : "Crisp keeps hard boundaries instead of blending them."}
-        </p>
+        <p className="text-[11px] leading-4 text-muted">Crisp keeps hard boundaries instead of blending them.</p>
       </section>
 
       <section className="flex flex-col gap-2">
@@ -313,12 +311,6 @@ export function PhotoPane({ options, onChange, isProcessing, progress, queueMess
             </optgroup>
           ))}
         </select>
-        <p className="text-[11px] leading-4 text-muted">
-          Mixes neighbouring stitches between two threads so a small palette can hold a gradient, at the cost of single
-          stitches on their own. Screens cost the fewest of those; the two error-diffusion patterns fit the photo
-          closest and are the only ones never worse than not dithering at all. Hand-drawn scatters drawn marks — rings,
-          arcs and dots — across the chart instead of repeating one, for the look rather than the accuracy.
-        </p>
         {dithering && isDrawnMode(options.ditherMode) && <TextureEditor texture={options.ditherTexture} onChange={(texture) => onChange("ditherTexture", texture)} />}
       </section>
 

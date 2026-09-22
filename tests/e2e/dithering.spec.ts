@@ -128,12 +128,11 @@ test("choosing a dither pattern and choosing Crisp each clear the other, and the
   await page.getByLabel("Dither").selectOption("bayer-8");
   await expect(page.getByRole("button", { name: "Crisp", exact: true })).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByRole("button", { name: "Standard", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByText("Dithering is on, so edges stay Standard")).toBeVisible();
 
   // And the other way round.
   await page.getByRole("button", { name: "Crisp+", exact: true }).click();
   await expect(page.getByLabel("Dither")).toHaveValue("off");
-  await expect(page.getByText("Crisp keeps hard boundaries instead of blending them.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Crisp+", exact: true })).toHaveAttribute("aria-pressed", "true");
 
   // The pattern is remembered like every other Generate setting.
   await page.getByRole("button", { name: "Standard", exact: true }).click();
