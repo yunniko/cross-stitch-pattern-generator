@@ -40,7 +40,7 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
   own corner is shown for every pattern (D206, D208). Measured in
   `docs/reviews/2026-09-21-dithering-comparison.md`: kernels lowest error (median 0.44–0.51×) and never worse,
   screens and drawn marks cheapest (+3.3 to +4.3 points), matrices between.
-- **Color detail — Averaged or Vivid** (G-061, D211): a stitch normally averages the pixels it covers, which turns a small bright thing inside it into a grey; Vivid keeps the mean lightness and the chroma of the cell's most colourful quarter, gamut-mapped. Off by default and byte-identical off. It stands down below 24 source pixels a stitch, because at ~4 pixels a cell noise alone produces more chroma (0.127) than real sub-stitch colour does at 144–400 (0.03–0.04); ungated it cost 121× the error on `flat regions`. **It does not deliver the complaint it was built for** — see Next steps and `docs/reviews/2026-09-22-vivid.md`.
+- **Color detail — Averaged or Vivid** (G-061/G-062, D211, D212), off by default and byte-identical off. Two halves under one switch: a stitch keeps its area-mean lightness with the chroma of its most colourful quarter instead of averaging a small bright thing into a grey, and then every hue the cells hold that no thread speaks for takes a palette slot, paid for by merging the closest pair. It stands down below 24 source pixels a stitch (at ~4 pixels a cell, noise alone produces more chroma, 0.127, than real sub-stitch colour does at 144–400, 0.03–0.04; ungated it cost 121× the error on `flat regions`), and Crisp keeps its own palette stage. Measured in `docs/reviews/2026-09-22-vivid.md`: a red that needed 64 colours arrives at 20, a blue that needed 32 at 8, a pink that never arrived at 16, for 1.01–1.07× the 3×3 error and −0.37 to +0.55 points of confetti; the flat-region control is untouched.
 - Photo upload and reopening a save decode in a worker, the old decode a logged fallback (D128).
 - Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores on
   reload; a corrupt record shows a banner with an on-demand error report. Options live in localStorage.
@@ -279,13 +279,11 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   painted mark, and a preview of the chart's own corner for each. Open from their measurements: on a noisy photo
   at 8 colours the screens can read worse than an undithered chart, and drawn marks become grain on flat regions,
   which is inherent to dithering a flat area. The screenshot that started it was hand-drawn (Owner, 2026-09-21).
-- **Open, and the reason G-060 was reverted and G-061 under-delivered:** on a photo whose subject is one dominant
-  colour family, the reds, greens, blues, pinks and violets that are visibly there arrive only around 30–40
-  colours, dithered or not (Owner, 2026-09-22). Four mechanisms have now been measured: the palette merge (G-060,
-  reverted, D210), allocation re-ranking, the cell's own colour (G-061, shipped, D211) and a hue-weighted
-  clustering metric. None delivers it, for one reason — the pink is 0.5% of the chart and numerically close to
-  cream, so every stage that allocates by squared error treats it as a rounding error. The one shape not tried is
-  reserving palette slots for the hues the photo holds whether or not they earn it by area; G-062 plans it.
+- The colour question that drove G-060 to G-062 is answered: a photo's visible reds, greens and blues now reach
+  the chart at ordinary colour counts under Vivid (D212). What stays true, and is worth telling a reader before
+  they chase it again: the hues arrive **as the photo holds them**, so a dusty pink stays dusty. Open behind it:
+  Photo fix still has a Vivid of its own until it is redone, and its Auto and Vivid modes were measured to
+  *lower* a pastel photo's chroma (median 0.020 → 0.010), which nothing has yet looked into.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log

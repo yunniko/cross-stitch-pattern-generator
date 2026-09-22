@@ -83,6 +83,15 @@ const circle = makeBuffer(30, 30, (x, y) => {
   return [base[0] + noise, base[1] + noise, base[2] + noise];
 });
 const hardSplit = makeBuffer(64, 64, (x) => (x < 30 ? [0, 0, 0] : [255, 255, 255]));
+// G-062: a brown field carrying red lines a quarter of a stitch wide, plus a blue block. Nothing here wins a
+// palette slot by area, so this is the fixture that makes the hue reservation run at all.
+const hueDetail = makeBuffer(800, 600, (x, y) => {
+  if (y >= 200 && y < 320 && x % 8 < 2) return [210, 30, 40];
+  if (y >= 420 && y < 470 && x >= 100 && x < 180) return [40, 70, 200];
+  const ramp = (x / 800) * 60;
+  const noise = pseudoNoise(x, y, 8);
+  return [110 + ramp + noise, 92 + ramp * 0.8 + noise, 70 + ramp * 0.5 + noise];
+});
 
 /**
  * Transparency: the two sides must agree on which cells are empty as well as on the colours (G-050). A disc with an
@@ -276,6 +285,13 @@ const CASES: Case[] = [
   { name: "vivid/photo-60st-10col-original", source: photo, options: { longerSideStitches: 60, colorCount: 10, vivid: true, quantizer: plainKMeansQuantizer }, golden: false },
   { name: "vivid/tworegion-30st-8col-stands-down", source: twoRegion, options: { longerSideStitches: 30, colorCount: 8, vivid: true }, golden: false },
   { name: "vivid/alpha-disc-50st-16col", source: discOnTransparency, options: { longerSideStitches: 50, colorCount: 16, vivid: true }, golden: false },
+  // The reservation itself: every earlier Vivid case above reserves nothing, so these are what compare it.
+  { name: "vivid/hue-detail-100st-8col", source: hueDetail, options: { longerSideStitches: 100, colorCount: 8, vivid: true }, golden: false },
+  { name: "vivid/hue-detail-100st-24col", source: hueDetail, options: { longerSideStitches: 100, colorCount: 24, vivid: true }, golden: false },
+  { name: "vivid/hue-detail-100st-24col-dmc", source: hueDetail, options: { longerSideStitches: 100, colorCount: 24, vivid: true, paletteMode: "dmc" }, golden: false },
+  { name: "vivid/hue-detail-100st-16col-dithered", source: hueDetail, options: { longerSideStitches: 100, colorCount: 16, vivid: true, ditherMode: "floyd-steinberg" }, golden: false },
+  { name: "vivid/hue-detail-100st-12col-original", source: hueDetail, options: { longerSideStitches: 100, colorCount: 12, vivid: true, quantizer: plainKMeansQuantizer }, golden: false },
+  { name: "vivid/hue-detail-off-100st-24col", source: hueDetail, options: { longerSideStitches: 100, colorCount: 24 }, golden: false },
   // The capacity probe's shapes (scripts/capacity-probe.ts) in every edge mode: TypeScript is the reference.
   ...(process.env.RUST_PARITY_LARGE === "0"
     ? []
