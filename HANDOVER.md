@@ -282,9 +282,9 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   chart, which is why the pane groups them as the cheap-but-weaker choice rather than hiding them. The screenshot that
   prompted G-053 was **hand-drawn** (Owner, 2026-09-21) — no algorithm to recover, which is why its rings sat
   aperiodically. **G-054 built that look** — irregular drawn marks, signed off and archived; on flat regions they read
-  as grain rather than marks, which is inherent to dithering a flat area. **G-055 added the texture editor**, deployed
-  and awaiting sign-off. Named as deliberately out of scope there, and the obvious next goal if the knobs prove
-  worth it: a **stamp painter**, where the reader draws which stitch of a mark fills first.
+  as grain rather than marks, which is inherent to dithering a flat area. **G-055 added the texture editor**, signed
+  off and archived, and **G-056 is building the stamp painter** it deferred: a grid the reader paints to say in which
+  step each stitch of a mark fills.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log
