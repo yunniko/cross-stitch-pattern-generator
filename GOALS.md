@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-061 · Colour that the eye sees should cost the palette something — DRAFT (2026-09-22, starts on the Owner's go)
+### G-061 · Colour that the eye sees should cost the palette something — BLOCKED (2026-09-22)
 - **What:** the quantizer learns that a saturated colour is worth more than its area says. A red print covering 0.5%
   of the chart, or a pink flower covering 0.1%, gets a thread early instead of at 32–40 colours.
 - **Why:** the Owner's report, 2026-09-22: a photo with reds, greens and blues in it comes back as browns until the
@@ -52,6 +52,24 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M3 — The published trade, decision file, README and HANDOVER, deploy and verify live on the Owner's own photos.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-22 — **BLOCKED: the approach the Owner approved is measured not to work, and the lever is two stages
+  earlier.** M1 measured before changing anything, which is what this entry exists to report.
+  1. *Sweeping the allocation ranking does nothing.* Seven candidate scorings (the cell's own chroma amplifying its
+     error; the hue part of the error weighted 4–64×; both together) were run end to end on both of the Owner's
+     photos and two fixtures at 16/24/32 colours. Hue families present moved between 3/5 and 4/5 in both directions
+     — inside the noise — while the 3×3 error moved ±0.1×. No candidate brought the red or the pink in earlier.
+  2. *Because the colour is gone before allocation runs.* Following each hue family through the stages on the
+     lattice photo at 24 colours: the cells hold **39 red/pink stitches and 29 blue/violet of 8000**; the quantizer
+     returns **none of either**; and ICM, the cleanup passes and the merge then change the family counts by nothing
+     at all. On the cat photo the cells hold **7 red/pink stitches and 1 violet** — the pink is essentially not in
+     the chart before any palette is chosen. The medoid denoise also removes 24 of the lattice's 29 blue cells.
+  3. *What does move it: how the photo is shrunk.* Keeping the mean's lightness but taking the chroma of each cell's
+     most colourful quarter, instead of averaging a saturated minority into neutrality, changes the cells reaching
+     the quantizer from 7 red/pink to **49** on the cat (68 at the top tenth), 1 violet to **17** (33), 436 green to
+     **849**; and on the lattice 39 red/pink to **80** (109), 29 blue/violet to **50** (66).
+  **The open question for the Owner:** this is a change to `downsampleToGrid`, which every chart in the project's
+  history was built through — a bigger and riskier change than the ranking tweak that was approved, and one that
+  makes every photo's chart different, not just the muted ones. Approved before it is built, per OPERATIONS §4.
 - 2026-09-22 — goal created after G-060 was reverted (D210). The Owner chose this direction from four: chroma-aware
   importance, hue-weighted clustering distance, reserved palette slots, or diagnose further. Measurements that the
   plan rests on are in this session's report and will be re-run into `docs/reviews/` as M1's first act. Noted while
