@@ -19,7 +19,8 @@ use crate::optimize::{
 };
 use crate::pair_evidence::compute_pair_edge_evidence_masked;
 use crate::palette_merge::{merge_similar_colors_with_empties, DEFAULT_MERGE_DISTANCE_SQUARED};
-use crate::quantize::{mean_oklab_as_rgb, quantize, Quantizer};
+use crate::hue_reserve::reserve_hue_threads;
+use crate::quantize::{mean_oklab_as_rgb, quantize, vivid_oklab_as_rgb, Quantizer};
 use crate::threads::{apply_brand_palette, Brand};
 use crate::{color, Image};
 use rayon::prelude::*;
@@ -279,6 +280,15 @@ pub fn build_pattern_reporting(
             &importance,
         ),
     };
+    // Vivid, part two: a hue the cells hold and the palette does not speak for takes a slot (G-062, D212). Before
+    // dithering, which reads this palette, and before the smoothing. Crisp is left out: its palette comes from its
+    // own evidence stage.
+    let (quantized, raw_palette) = if options.vivid && !crisp {
+        let reserved = reserve_hue_threads(&denoised, &quantized, &raw_palette, empty_ref);
+        (reserved.cell_palette_index, reserved.palette)
+    } else {
+        (quantized, raw_palette)
+    };
     drop(denoised);
     // The quantizer chose the threads; dithering decides which stitch gets which of the two nearest (G-052).
     let quantized = if dithered {
@@ -419,6 +429,8 @@ pub fn build_pattern_reporting(
                     // does not match (D199).
                     if dithered || cells_by_index[n].is_empty() {
                         merged_palette[old]
+                    } else if options.vivid {
+                        vivid_oklab_as_rgb(&cell_oklab, &cells_by_index[n])
                     } else {
                         mean_oklab_as_rgb(&cell_oklab, &cells_by_index[n])
                     }

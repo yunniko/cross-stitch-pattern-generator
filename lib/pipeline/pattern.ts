@@ -26,7 +26,8 @@ import { enhancePixelBuffer, type EnhancementModeId } from "./enhance";
 import { computePairEdgeEvidence } from "./pair-edge-evidence";
 import { mergeSimilarColors } from "./palette-optimizer";
 import { createPipelineContext } from "./pipeline-context";
-import { kMeansQuantizer, meanOklabAsRgb, type ColorQuantizer } from "./quantize";
+import { kMeansQuantizer, meanOklabAsRgb, vividOklabAsRgb, type ColorQuantizer } from "./quantize";
+import { reserveHueThreads } from "./hue-reserve";
 import { symbolsFor } from "../color/symbols";
 import { runContourRefinement, DEFAULT_CONTOUR_REFINEMENT_OPTIONS, type ContourRefinementOptions } from "../experimental/contour-refinement";
 import { applyBrandPalette } from "../threads/brand-match";
@@ -202,6 +203,15 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     quantized = result.cellPaletteIndex;
     rawPalette = result.palette;
   }
+  // Vivid, part two: a hue the cells hold and the palette does not speak for takes a slot (G-062, D212). Before
+  // dithering, which reads this palette, and before the smoothing, which then treats a reserved thread like any
+  // other. Crisp is left out: its palette comes from its own evidence stage, not from this one.
+  if (options.vivid && !crisp) {
+    const reserved = reserveHueThreads(denoised.cellOklab, quantized, rawPalette, emptyMask);
+    quantized = reserved.cellPaletteIndex;
+    rawPalette = reserved.palette;
+  }
+
   // The quantizer chose the threads; dithering decides which stitch gets which of the two nearest (G-052).
   if (isDithered(dither)) {
     quantized = ditherToPalette(ctx.cellOklab, gridWidth, gridHeight, rawPalette, dither, options.ditherTexture ?? DEFAULT_DITHER_TEXTURE);
@@ -370,7 +380,11 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     for (let i = 0; i < compactCellPaletteIndex.length; i++) if (compactCellPaletteIndex[i] !== EMPTY_CELL) cellsByFinalIndex[compactCellPaletteIndex[i]].push(i);
     compactPalette = usedIndices.map((originalIndex, newIndex) =>
       // A dithered thread keeps the colour the quantizer chose: its cells are deliberately the ones it does not match.
-      !isDithered(dither) && cellsByFinalIndex[newIndex].length > 0 ? meanOklabAsRgb(ctx.cellOklab, cellsByFinalIndex[newIndex]) : merged.palette[originalIndex]
+      !isDithered(dither) && cellsByFinalIndex[newIndex].length > 0
+        ? options.vivid
+          ? vividOklabAsRgb(ctx.cellOklab, cellsByFinalIndex[newIndex])
+          : meanOklabAsRgb(ctx.cellOklab, cellsByFinalIndex[newIndex])
+        : merged.palette[originalIndex]
     );
   }
 

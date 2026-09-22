@@ -28,6 +28,43 @@ fn point_at(points: &[f64], i: usize) -> Oklab {
 }
 
 /// `meanOklabAsRgb`.
+/// A thread's colour under Vivid (G-062, D212): mean lightness with the chroma of its most colourful quarter,
+/// gamut-mapped. Port of `vividOklabAsRgb`.
+pub fn vivid_oklab_as_rgb(cell_oklab: &[f64], indices: &[usize]) -> Rgb {
+    let mut sum_l = 0.0;
+    for &i in indices {
+        sum_l += cell_oklab[i * 3];
+    }
+    // Ordered by chroma, ties by cell index, so both languages take the same quarter.
+    let mut by_chroma: Vec<(f64, usize)> = indices
+        .iter()
+        .map(|&i| {
+            let a = cell_oklab[i * 3 + 1];
+            let b = cell_oklab[i * 3 + 2];
+            (a * a + b * b, i)
+        })
+        .collect();
+    by_chroma.sort_by(|x, y| x.0.partial_cmp(&y.0).unwrap().then(x.1.cmp(&y.1)));
+    let from = ((by_chroma.len() as f64) * (1.0 - crate::downsample::VIVID_TOP_SHARE)).floor() as usize;
+    let mut sum_a = 0.0;
+    let mut sum_b = 0.0;
+    for &(_, i) in &by_chroma[from..] {
+        sum_a += cell_oklab[i * 3 + 1];
+        sum_b += cell_oklab[i * 3 + 2];
+    }
+    let top = (by_chroma.len() - from) as f64;
+    let lin = crate::color::gamut_map_oklab_to_linear(
+        sum_l / indices.len() as f64,
+        sum_a / top,
+        sum_b / top,
+    );
+    [
+        crate::color::linear_to_srgb(lin[0]),
+        crate::color::linear_to_srgb(lin[1]),
+        crate::color::linear_to_srgb(lin[2]),
+    ]
+}
+
 pub fn mean_oklab_as_rgb(cell_oklab: &[f64], indices: &[usize]) -> Rgb {
     let (mut l, mut a, mut b) = (0.0, 0.0, 0.0);
     for &i in indices {

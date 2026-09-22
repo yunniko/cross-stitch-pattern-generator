@@ -175,13 +175,17 @@ it("measures Vivid against the same chart with it off", async () => {
     "A stitch covers many pixels, and today it is their average. When a small saturated thing sits inside one stitch —",
     "a red print on a dark shirt, a pink petal against cream — the average is a neutral, and the colour is gone before",
     "any palette is chosen. Vivid keeps the area mean's **lightness** and takes the **chroma** of the cell's most",
-    "colourful quarter, so the colour is still on the grid when the quantizer looks (G-061, D211).",
+    "colourful quarter, so the colour is still on the grid when the quantizer looks (G-061, D211). It then reserves a",
+    "thread for each hue the cells hold that the palette does not speak for, paid for by merging the closest pair of",
+    "threads, because a colour covering half a percent of a chart never wins a slot by squared error (G-062, D212).",
     "",
     "- **First thread** — the colour count at which a hue family first gets a thread of its own. Lower is better;",
     "  `never` means not by 64 colours.",
     "- **Error ×** — mean squared OKLab error against the photo, both averaged over a 3×3 of stitches, as a multiple",
     "  of the same chart with Vivid off. Measured against the *unmodified* photo, so Vivid is not graded on its own",
     "  terms.",
+    "- **Coloured threads** — how many of the chart's threads carry chroma 0.06 or more, which is where a colour stops",
+    "  reading as a tinted grey.",
     "- **Confetti** — the share of stitches with no neighbour of their own colour, in points added.",
     "",
   ];
@@ -205,7 +209,7 @@ it("measures Vivid against the same chart with it off", async () => {
       lines.push("");
     }
 
-    lines.push("| Share kept | Colours at 24 | Hue families | Error × | Confetti |", "|---|---|---|---|---|");
+    lines.push("| Share kept | Colours at 24 | Hue families | Coloured threads | Error × | Confetti |", "|---|---|---|---|---|---|");
     let base = { error: 0, confetti: 0 };
     for (const share of SHARES) {
       const pattern = buildPattern(fixture.source, {
@@ -220,6 +224,7 @@ it("measures Vivid against the same chart with it off", async () => {
       rows.push({ fixture: fixture.name, share, ratio: error / base.error, addedConfetti: confetti - base.confetti });
       lines.push(
         `| ${shareLabel(share)} | ${pattern.palette.length} | ${new Set(pattern.palette.map((c) => familyOf(c.rgb))).size} | ` +
+          `${pattern.palette.filter((c) => chromaOf(c.rgb) >= 0.06).length} | ` +
           `${(error / base.error).toFixed(2)} | ` +
           `${(100 * confetti).toFixed(2)} % (${confetti - base.confetti >= 0 ? "+" : ""}${(100 * (confetti - base.confetti)).toFixed(2)}) |`
       );

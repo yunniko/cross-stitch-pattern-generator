@@ -1,5 +1,6 @@
-import { oklabDistanceSquared, oklabToRgb, rgbToOklab, type Oklab } from "../color/color";
+import { oklabDistanceSquared, oklabToRgb, oklabToRgbGamutMapped, rgbToOklab, type Oklab } from "../color/color";
 import { mergeSimilarColors } from "./palette-optimizer";
+import { VIVID_TOP_SHARE } from "./downsample";
 import { mulberry32 } from "../prng";
 import { cellRgb, type CellColorBuffer, type RGB } from "../types";
 
@@ -52,6 +53,31 @@ function pointAt(points: Float64Array, i: number): Oklab {
 }
 
 /** `meanRgbOklab` over an interleaved OKLab buffer instead of re-converting each member cell: identical summation order and result. */
+/**
+ * A thread's colour under Vivid (G-062, D212): the mean lightness of the cells it covers with the chroma of its most
+ * colourful quarter, gamut-mapped. The plain mean is the right centroid for the squared-error objective, and that is
+ * exactly why it mutes a thread reserved for a rare hue — its cluster holds the saturated cells it was seeded from
+ * and the paler ones nearest to them, and the average of those is neither. Measured: the cat photo's reserved pink
+ * reads 0.027 chroma as a mean and 0.035 this way (`docs/reviews/2026-09-23-hue-reservation.md`).
+ */
+export function vividOklabAsRgb(cellOklab: Float64Array, indices: number[]): RGB {
+  let sumL = 0;
+  for (const i of indices) sumL += cellOklab[i * 3];
+  // Ordered by chroma, ties by cell index, so both languages take the same quarter.
+  const byChroma = indices
+    .map((i) => ({ i, chroma: cellOklab[i * 3 + 1] ** 2 + cellOklab[i * 3 + 2] ** 2 }))
+    .sort((x, y) => (x.chroma !== y.chroma ? x.chroma - y.chroma : x.i - y.i));
+  const from = Math.floor(byChroma.length * (1 - VIVID_TOP_SHARE));
+  let sumA = 0;
+  let sumB = 0;
+  for (let k = from; k < byChroma.length; k++) {
+    sumA += cellOklab[byChroma[k].i * 3 + 1];
+    sumB += cellOklab[byChroma[k].i * 3 + 2];
+  }
+  const top = byChroma.length - from;
+  return oklabToRgbGamutMapped([sumL / indices.length, sumA / top, sumB / top]);
+}
+
 export function meanOklabAsRgb(cellOklab: Float64Array, indices: number[]): RGB {
   let l = 0;
   let a = 0;

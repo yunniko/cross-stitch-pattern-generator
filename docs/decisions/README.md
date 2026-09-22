@@ -220,3 +220,4 @@ remain readable with git show.
 - D209 — The colour floor belongs in the palette merge — reverted (see D210)
 - D210 — The colour floor is withdrawn — active
 - D211 — Vivid keeps a stitch's colour — active
+- D212 — A thread for a hue the photo has — active

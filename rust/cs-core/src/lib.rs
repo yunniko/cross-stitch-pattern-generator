@@ -24,6 +24,7 @@ pub mod enhance;
 mod fdlibm;
 pub mod jsmath;
 #[cfg(feature = "json")]
+pub mod hue_reserve;
 pub mod json;
 pub mod names;
 pub mod optimize;
