@@ -12,6 +12,53 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
+### G-061 · Colour that the eye sees should cost the palette something — DRAFT (2026-09-22, starts on the Owner's go)
+- **What:** the quantizer learns that a saturated colour is worth more than its area says. A red print covering 0.5%
+  of the chart, or a pink flower covering 0.1%, gets a thread early instead of at 32–40 colours.
+- **Why:** the Owner's report, 2026-09-22: a photo with reds, greens and blues in it comes back as browns until the
+  palette is raised a long way; the cat photo reaches its pinks and purples only near 30–40, dithered or not.
+  Measured on both photos at 100 stitches: the red shirt print is **11 cells of 8000** and gets a thread at **32**
+  colours; the cat's pink is **0.1% of cells**. It is neither the palette merge (G-060's wrong guess, D210) nor
+  downsampling (the full-resolution pixels carry 6.8% of cells over chroma 0.06 against 5.7% after downsampling).
+  It is that colours are allocated by area-weighted squared error, and `computeCellImportance` — the one signal that
+  is meant to rescue rare detail — is `0.7·maxEdge + 0.3·contrast`, **both computed from luminance alone**. A pale
+  flower on cream has no luminance edge and no luminance contrast, so nothing ever bids for it.
+- **Acceptance criteria:**
+  1. **The Owner's two photos improve, measured.** The colour count at which each hue family first gets a thread,
+     before and after, on both photos and at more than one chart size. The red and the pink arrive materially
+     earlier; the figure is measured, not promised here.
+  2. **Photos that were fine stay fine.** On the existing fixtures and the real-photo parity corpus, the 3×3
+     neighbourhood error does not get worse and confetti does not rise materially. A change that buys hue with
+     accuracy everywhere else is not the change.
+  3. **Structure is untouched.** ICM, pair evidence and the cleanup passes read the same `importance` they read
+     today, byte for byte — the chroma term is used only where a colour is *allocated*. This is what keeps the
+     change auditable, and it is why the 18 golden hashes are expected to move only through allocation.
+  4. **Dithered charts get it too.** They skip the merge but use the same quantizer palette, so the improvement must
+     show there as well (this is what G-060 could never do).
+  5. **Both languages agree** byte for byte, with parity cases on both photos.
+  6. **The trade is published**, per fixture and colour count, in `docs/reviews/`.
+- **Constraints:** the chroma term is separate from `importance`, not folded into it — see criterion 3, which names
+  what compels it. It may not invent colour that is not in the photo: it re-ranks what the cells already hold.
+- **To settle with the Owner before M2:** whether this is **on by default** (recommended — a setting nobody turns on
+  does not solve the reported problem; it rewrites the golden hashes and means a chart regenerated tomorrow differs
+  from one generated today, though saved files carry their own palette and still open unchanged) or a control.
+
+**Milestones** (filled in during planning):
+- [ ] M1 — The baseline and the candidate, measured: a `docs/reviews/` document giving, per photo and fixture, the
+  colour count at which each hue family first appears today; a per-cell chroma signal; and a sweep of how strongly it
+  should weigh, chosen against criteria 1 and 2 rather than by eye.
+- [ ] M2 — The change in the engine, both languages, with structure provably untouched (criterion 3) and parity
+  cases on both photos, dithered and not.
+- [ ] M3 — The published trade, decision file, README and HANDOVER, deploy and verify live on the Owner's own photos.
+
+**Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-22 — goal created after G-060 was reverted (D210). The Owner chose this direction from four: chroma-aware
+  importance, hue-weighted clustering distance, reserved palette slots, or diagnose further. Measurements that the
+  plan rests on are in this session's report and will be re-run into `docs/reviews/` as M1's first act. Noted while
+  measuring, and **not part of this goal**: on the cat photo the Auto and Vivid enhancement modes *lower* cell chroma
+  (median 0.020 → 0.010; the most saturated thread at 24 colours falls from 0.094 to 0.033), which looks like a real
+  defect in those modes.
+
 ### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
 - **What:** Eventually make the app public, built around **a social
   ecosystem** (community/sharing features -- exact shape not yet defined:
