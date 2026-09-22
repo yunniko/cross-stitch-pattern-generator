@@ -9,6 +9,7 @@ import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_
 import { gridDimensionsFor } from "@/lib/pipeline/downsample";
 import { longerSideFor } from "../hooks/use-generation";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
+import { DitherPreview } from "./dither-preview";
 import { TextureEditor } from "./texture-editor";
 import { PillButton, SegmentedControl, type SegmentOption } from "./ui";
 
@@ -75,8 +76,10 @@ const DITHER_LABELS: Record<DitherMode, string> = {
 // clusters its stitches and costs a stitcher least, a scattered matrix spreads them and fits the photo closer, and
 // the two kernels adapt to the photo instead of repeating a tile, which is why neither ever reads worse than an
 // undithered chart.
-// One entry for the line screens: the direction is a setting under the list, not four rows in it (G-059).
-const SCREEN_MODES = [...ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("clustered-") || mode.startsWith("ring-")), LINE_DITHER_MODES[0]];
+// One entry for the line screens: the direction is a setting under the list, not four rows in it (G-059). The row
+// carries its own value rather than a direction's, because a `select` cannot show a value none of its options has.
+const LINES_OPTION = "lines";
+const SCREEN_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("clustered-") || mode.startsWith("ring-"));
 
 const LINE_DIRECTION_OPTIONS: SegmentOption<LineDitherMode>[] = [
   { value: "lines-horizontal", label: "—", title: "Horizontal lines" },
@@ -86,8 +89,8 @@ const LINE_DIRECTION_OPTIONS: SegmentOption<LineDitherMode>[] = [
 ];
 const SCATTERED_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("bayer-") || mode.startsWith("blue-noise-"));
 
-const DITHER_GROUPS: Array<{ label: string; modes: readonly DitherMode[] }> = [
-  { label: "Screens — fewest single stitches", modes: SCREEN_MODES },
+const DITHER_GROUPS: Array<{ label: string; modes: readonly DitherMode[]; withLines?: boolean }> = [
+  { label: "Screens — fewest single stitches", modes: SCREEN_MODES, withLines: true },
   { label: "Scattered — closer to the photo", modes: SCATTERED_MODES },
   { label: "Error diffusion — closest, never worse", modes: DIFFUSION_DITHER_MODES },
   { label: "Drawn — marks, not a pattern", modes: DRAWN_DITHER_MODES },
@@ -315,31 +318,36 @@ export function PhotoPane({
         </label>
         <select
           id="dither-mode"
-          value={options.ditherMode}
-          onChange={(e) => chooseDitherMode(e.target.value as DitherMode)}
+          value={isLinesMode(options.ditherMode) ? LINES_OPTION : options.ditherMode}
+          onChange={(e) => chooseDitherMode(e.target.value === LINES_OPTION ? LINE_DITHER_MODES[0] : (e.target.value as DitherMode))}
           className="rounded-md border border-line bg-sunken px-2 py-1.5 text-xs text-ink"
         >
           <option value="off">{DITHER_LABELS.off}</option>
-          {DITHER_GROUPS.map(({ label, modes }) => (
+          {DITHER_GROUPS.map(({ label, modes, withLines }) => (
             <optgroup key={label} label={label}>
               {modes.map((mode) => (
                 <option key={mode} value={mode}>
                   {DITHER_LABELS[mode]}
                 </option>
               ))}
+              {withLines && <option value={LINES_OPTION}>Lines</option>}
             </optgroup>
           ))}
         </select>
         {isLinesMode(options.ditherMode) && (
           <SegmentedControl fill options={LINE_DIRECTION_OPTIONS} value={options.ditherMode} onChange={chooseDitherMode} />
         )}
-        {dithering && isDrawnMode(options.ditherMode) && (
-          <TextureEditor
+        {dithering && isDithered(options.ditherMode) && (
+          <DitherPreview
+            mode={options.ditherMode}
             texture={options.ditherTexture}
-            onChange={(texture) => onChange("ditherTexture", texture)}
             chartWidth={chartSize.width}
             chartHeight={chartSize.height}
+            onShuffle={() => onChange("ditherTexture", { ...options.ditherTexture, seed: (Math.random() * 0xffffffff) >>> 0 })}
           />
+        )}
+        {dithering && isDrawnMode(options.ditherMode) && (
+          <TextureEditor texture={options.ditherTexture} onChange={(texture) => onChange("ditherTexture", texture)} />
         )}
       </section>
 

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { rgbToOklab } from "@/lib/color/color";
-import { ditherToPalette, drawnRampTone, drawnRampWindow } from "@/lib/pipeline/dither";
+import { ditherRampWindow, ditherToPalette, drawnRampTone, type DitherMode } from "@/lib/pipeline/dither";
 import { DEFAULT_DITHER_TEXTURE, handDrawnThresholds, handDrawnThresholdWindow, type DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
 import type { RGB } from "@/lib/types";
 
 /**
- * G-057: the editor's swatch is a corner of the chart the settings would produce, not a small chart of its own.
+ * G-057, widened by G-059: the preview is a corner of the chart the settings would produce, for any pattern —
+ * not a small chart of its own, and no longer only for the drawn marks.
  *
  * The distinction is not academic, and G-055's version of this test missed it twice over. Marks are placed by walking
  * a jittered lattice across the whole grid, and each mark's shape is then drawn from what is left of the same random
@@ -39,7 +40,7 @@ const TEXTURES: Array<[string, DitherTexture]> = [
  * tone — they exist so the chart is the size the swatch claims to be a corner of, which is the whole point: the
  * field a chart draws with depends on its full size.
  */
-function chartOfTheRamp(width: number, height: number, rampRows: number, texture: DitherTexture): Uint8Array {
+function chartOfTheRamp(width: number, height: number, rampRows: number, texture: DitherTexture, mode: Exclude<DitherMode, "off"> = "hand-drawn"): Uint8Array {
   const from = rgbToOklab(DARK);
   const to = rgbToOklab(LIGHT);
   const grid = new Float64Array(width * height * 3);
@@ -49,7 +50,7 @@ function chartOfTheRamp(width: number, height: number, rampRows: number, texture
       for (let c = 0; c < 3; c++) grid[(y * width + x) * 3 + c] = from[c] + tone * (to[c] - from[c]);
     }
   }
-  return ditherToPalette(grid, width, height, [DARK, LIGHT], "hand-drawn", texture);
+  return ditherToPalette(grid, width, height, [DARK, LIGHT], mode, texture);
 }
 
 describe("the swatch is a corner of the chart the settings would make", () => {
@@ -58,7 +59,7 @@ describe("the swatch is a corner of the chart the settings would make", () => {
       // The chart is taller and wider than the window, so this is the real case: a corner of something bigger.
       const chartWidth = 200;
       const chartHeight = 125;
-      const swatch = drawnRampWindow(chartWidth, chartHeight, WINDOW, WINDOW, [DARK, LIGHT], texture);
+      const swatch = ditherRampWindow(chartWidth, chartHeight, WINDOW, WINDOW, [DARK, LIGHT], "hand-drawn", texture);
       const chart = chartOfTheRamp(chartWidth, chartHeight, swatch.height, texture);
       let differ = 0;
       for (let y = 0; y < swatch.height; y++) {
@@ -87,8 +88,26 @@ describe("the swatch is a corner of the chart the settings would make", () => {
     expect(differ, "a window of its own size is a different pattern, which is why this goal exists").toBeGreaterThan(WINDOW * WINDOW * 0.2);
   });
 
+  it("is the chart's own stitches for a matrix and for a kernel too (G-059)", () => {
+    // One pattern of each family: a matrix cell depends only on its position, a kernel's error runs along the rows
+    // above it, and the drawn marks need the whole grid. All three must come back with the chart's own stitches.
+    for (const mode of ["bayer-8", "lines-anti-diagonal", "floyd-steinberg", "atkinson"] as const) {
+      const chartWidth = 200;
+      const chartHeight = 125;
+      const preview = ditherRampWindow(chartWidth, chartHeight, WINDOW, WINDOW, [DARK, LIGHT], mode, DEFAULT_DITHER_TEXTURE);
+      const chart = chartOfTheRamp(chartWidth, chartHeight, preview.height, DEFAULT_DITHER_TEXTURE, mode);
+      let differ = 0;
+      for (let y = 0; y < preview.height; y++) {
+        for (let x = 0; x < preview.width; x++) {
+          if (preview.labels[y * preview.width + x] !== chart[y * chartWidth + x]) differ++;
+        }
+      }
+      expect(differ, `${mode}: the preview and the chart disagree`).toBe(0);
+    }
+  });
+
   it("shows a chart smaller than the window as far as it goes", () => {
-    const swatch = drawnRampWindow(30, 20, WINDOW, WINDOW, [DARK, LIGHT], DEFAULT_DITHER_TEXTURE);
+    const swatch = ditherRampWindow(30, 20, WINDOW, WINDOW, [DARK, LIGHT], "hand-drawn", DEFAULT_DITHER_TEXTURE);
     expect(swatch.width).toBe(30);
     expect(swatch.height).toBe(20);
     expect(Array.from(swatch.labels)).toEqual(Array.from(chartOfTheRamp(30, 20, swatch.height, DEFAULT_DITHER_TEXTURE)));

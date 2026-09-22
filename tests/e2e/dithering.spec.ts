@@ -27,7 +27,7 @@ interface ExportedChart {
   height: number;
   cellPalette: number[];
   ditherMode?: string;
-  ditherTexture?: { spacing: number; stamp?: { size: number; order: number[] }; wobbleEveryMark?: boolean };
+  ditherTexture?: { spacing: number; seed?: number; stamp?: { size: number; order: number[] }; wobbleEveryMark?: boolean };
 }
 
 /** Generates with the current settings and returns the editable file it exports. */
@@ -180,6 +180,74 @@ test("a stamp wider than the spacing says its outside will be clipped", async ({
   await expect(page.getByTestId("stamp-clipped-notice")).toHaveCount(0);
   await page.getByRole("radio", { name: "9 by 9" }).click();
   await expect(page.getByTestId("stamp-clipped-notice")).toContainText("clipped");
+});
+
+test("the preview shows whatever pattern is chosen, without opening anything (G-059)", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+
+  // Off: no preview at all.
+  await expect(page.getByTestId("dither-preview")).toHaveCount(0);
+
+  // A matrix pattern — nothing to open, and no texture knobs, which belong to the drawn marks alone.
+  await page.getByLabel("Dither").selectOption("bayer-8");
+  await expect(page.getByTestId("dither-preview")).toBeVisible();
+  await expect(page.getByTestId("texture-editor")).toHaveCount(0);
+
+  // A kernel, then the drawn marks: the preview stays, the knobs appear only for the last.
+  await page.getByLabel("Dither").selectOption("atkinson");
+  await expect(page.getByTestId("dither-preview")).toBeVisible();
+  await expect(page.getByTestId("texture-editor")).toHaveCount(0);
+  await page.getByLabel("Dither").selectOption("hand-drawn");
+  await expect(page.getByTestId("dither-preview")).toBeVisible();
+  await expect(page.getByTestId("texture-editor")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("clicking the preview reshuffles the marks, and the chart follows (G-059)", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await page.getByRole("radio", { name: /Small/ }).check();
+  await page.getByLabel("Dither").selectOption("hand-drawn");
+
+  // The button it replaced is gone.
+  await expect(page.getByRole("button", { name: "Shuffle" })).toHaveCount(0);
+
+  const before = await generateAndExport(page);
+  expect(before.ditherTexture, "an untouched texture is not written to the file").toBeUndefined();
+
+  await page.getByRole("tab", { name: "Photo" }).click();
+  // The preview is the button: its name comes from the canvas inside it.
+  await page.getByRole("button", { name: "Pattern preview" }).click();
+
+  const after = await generateAndExport(page);
+  expect(after.ditherTexture?.seed, "the shuffled seed travels with the chart").toBeDefined();
+  expect(after.cellPalette, "and the marks land differently").not.toEqual(before.cellPalette);
+  expect(errors).toEqual([]);
+});
+
+test("the line screens are one option with a direction (G-059)", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await page.getByRole("radio", { name: /Small/ }).check();
+
+  // One "Lines" row in the list, and a direction beneath it once chosen.
+  await page.getByLabel("Dither").selectOption("lines");
+  // The direction buttons are labelled with the stroke they draw, so they are addressed by their title.
+  const falling = page.getByTitle("Diagonal lines, falling");
+  await expect(falling).toBeVisible();
+  await falling.click();
+  // The list still reads "Lines" — the direction lives under it, which is the point of the change.
+  await expect(page.getByLabel("Dither")).toHaveValue("lines");
+  await expect(falling).toHaveAttribute("aria-pressed", "true");
+
+  const chart = await generateAndExport(page);
+  expect(chart.ditherMode).toBe("lines-anti-diagonal");
 });
 
 test("choosing a dither pattern and choosing Crisp each clear the other, and the choice survives a reload", async ({ page }) => {

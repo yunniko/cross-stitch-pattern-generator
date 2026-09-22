@@ -1,5 +1,5 @@
 import { rgbToOklab } from "../color/color";
-import { DEFAULT_DITHER_TEXTURE, handDrawnThresholds, handDrawnThresholdWindow, type DitherTexture } from "./dither-hand-drawn";
+import { DEFAULT_DITHER_TEXTURE, handDrawnThresholds, type DitherTexture } from "./dither-hand-drawn";
 import { DITHER_MATRICES } from "./dither-matrices";
 import type { RGB } from "../types";
 
@@ -217,40 +217,62 @@ export function drawnRampTone(row: number, height: number): number {
   return height <= 1 ? 0.5 : 0.15 + (0.7 * row) / (height - 1);
 }
 
+/** A grid of `width` × `height` carrying the preview's ramp, dark at the top, as interleaved OKLab. */
+function rampGrid(width: number, height: number, rampRows: number, palette: readonly RGB[]): Float64Array {
+  const from = rgbToOklab(palette[0]);
+  const to = rgbToOklab(palette[1]);
+  const grid = new Float64Array(width * height * 3);
+  for (let y = 0; y < height; y++) {
+    const tone = drawnRampTone(Math.min(y, rampRows - 1), rampRows);
+    for (let x = 0; x < width; x++) {
+      for (let c = 0; c < 3; c++) grid[(y * width + x) * 3 + c] = from[c] + tone * (to[c] - from[c]);
+    }
+  }
+  return grid;
+}
+
 /**
  * What a chart of `chartWidth` × `chartHeight` would show in its top-left window, for a dark-to-light ramp between
- * two threads: the editor's swatch (G-057).
+ * two threads: the pane's preview (G-057, widened to every pattern in G-059).
  *
- * It exists here, beside `ditherToPalette`, because the swatch has to make its stitches the way a chart does — the
- * same threshold field, and the same rule about which of the two nearest threads is the one being placed. A swatch
- * that compared a tone with a threshold directly looked right in the dark half and came out inverted in the light
- * half, where the nearer thread is the light one.
+ * How much of the chart has to be built to know that corner is decided by the family, not by one rule:
+ * - a **matrix** cell depends on nothing but its own position, so the window is the whole computation;
+ * - an **error-diffusion** kernel carries its error along rows, so the window needs the chart's full width but only
+ *   the rows down to it;
+ * - the **drawn marks** are placed across the whole grid and take their shapes from the stream left afterwards, so
+ *   they need all of it (D206).
+ *
+ * All three go through `ditherToPalette` rather than repeating its rules — including which of the two nearest
+ * threads is the one placed, which is not "tone above threshold" once the light thread is the nearer one.
  */
-export function drawnRampWindow(
+export function ditherRampWindow(
   chartWidth: number,
   chartHeight: number,
   windowWidth: number,
   windowHeight: number,
   palette: readonly RGB[],
+  mode: Exclude<DitherMode, "off">,
   texture: DitherTexture = DEFAULT_DITHER_TEXTURE
 ): { width: number; height: number; labels: Uint8Array } {
-  const { width, height, thresholds } = handDrawnThresholdWindow(chartWidth, chartHeight, windowWidth, windowHeight, texture);
-  const labels = new Uint8Array(width * height);
-  if (palette.length < 2) return { width, height, labels };
-  const paletteOklab = paletteToOklab(palette);
-  const from = rgbToOklab(palette[0]);
-  const to = rgbToOklab(palette[1]);
+  const chart = { width: Math.max(1, Math.round(chartWidth)), height: Math.max(1, Math.round(chartHeight)) };
+  const width = Math.min(chart.width, windowWidth);
+  const height = Math.min(chart.height, windowHeight);
+  if (palette.length < 2) return { width, height, labels: new Uint8Array(width * height) };
 
+  // The smallest grid whose top-left corner is the chart's own, for this family.
+  const built = isDrawnMode(mode)
+    ? chart
+    : isDiffusionMode(mode)
+      ? { width: chart.width, height }
+      : { width, height };
+  const labels = ditherToPalette(rampGrid(built.width, built.height, height, palette), built.width, built.height, palette, mode, texture);
+
+  if (built.width === width && built.height === height) return { width, height, labels };
+  const window = new Uint8Array(width * height);
   for (let y = 0; y < height; y++) {
-    const tone = drawnRampTone(y, height);
-    const l = from[0] + tone * (to[0] - from[0]);
-    const a = from[1] + tone * (to[1] - from[1]);
-    const b = from[2] + tone * (to[2] - from[2]);
-    const [first, second] = twoNearest(paletteOklab, palette.length, l, a, b);
-    const t = positionBetween(paletteOklab, first, second, l, a, b);
-    for (let x = 0; x < width; x++) labels[y * width + x] = t > thresholds[y * width + x] ? second : first;
+    for (let x = 0; x < width; x++) window[y * width + x] = labels[y * built.width + x];
   }
-  return { width, height, labels };
+  return { width, height, labels: window };
 }
 
 /** Every cell's palette entry, dithered by `mode`. The palette is the quantizer's, unchanged. */
