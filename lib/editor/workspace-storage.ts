@@ -6,7 +6,7 @@ import { DEFAULT_DITHER_TEXTURE, isValidDitherTexture, type DitherTexture } from
 import { isReleasedEnhancementMode, type EnhancementModeId } from "../pipeline/enhance";
 import type { EdgeMode, GenerationMode, PaletteMode } from "../pipeline/pattern";
 import { THREAD_BRAND_IDS } from "../threads/thread-brands";
-import { MAX_COLOR_FLOOR, MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, type SizePresetId } from "../types";
+import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, type SizePresetId } from "../types";
 
 // Workspace-level preferences, persisted to localStorage (G-015). Per-
 // browser and best-effort: every access -- reads included, since some
@@ -33,8 +33,6 @@ export interface WorkspaceOptions {
   /** Kept even when a named preset is selected, so switching back to Custom restores the last custom value. */
   customSize: number;
   colorCount: number;
-  /** The colour floor for the *next* Generate (G-060); 0 is off, the pipeline as it was. */
-  colorFloor: number;
   generationMode: GenerationMode;
   paletteMode: PaletteMode;
   /** Photo enhancement for the next Generate. Only released modes survive a reload (D113). */
@@ -57,7 +55,6 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   sizePreset: "medium",
   customSize: 100,
   colorCount: 16,
-  colorFloor: 0,
   generationMode: "latest",
   paletteMode: "full",
   enhancementMode: "off",
@@ -98,11 +95,6 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
         typeof parsed.colorCount === "number" && Number.isInteger(parsed.colorCount) && parsed.colorCount >= MIN_COLORS && parsed.colorCount <= MAX_COLORS
           ? parsed.colorCount
           : DEFAULT_OPTIONS.colorCount,
-      // Absent in options stored before G-060, and anything outside the range reads as off.
-      colorFloor:
-        typeof parsed.colorFloor === "number" && Number.isInteger(parsed.colorFloor) && parsed.colorFloor >= 0 && parsed.colorFloor <= MAX_COLOR_FLOOR
-          ? parsed.colorFloor
-          : DEFAULT_OPTIONS.colorFloor,
       generationMode: parsed.generationMode === "original" ? "original" : DEFAULT_OPTIONS.generationMode,
       // Validated against the live brand registry, not a hardcoded "dmc", so a new brand needs no change here.
       paletteMode:

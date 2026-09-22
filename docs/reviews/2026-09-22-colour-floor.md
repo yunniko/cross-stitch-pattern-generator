@@ -1,6 +1,9 @@
 # What the colour floor delivers and what it costs
 
-Measured 2026-09-22 by `scripts/colour-floor-comparison.ts`, which regenerates this file.
+Measured 2026-09-22 by `scripts/colour-floor-comparison.ts`. **The setting measured here was reverted the same
+day at the Owner's direction (D210), and that script went with it** — this file is kept as a static record,
+because what it measures about the merge is true whatever is tried next. To re-run it, recover the script from
+commit 4001f1a.
 
 The palette merge folds a colour into a near-identical one whenever the two sit within 0.02 in OKLab, and it does
 so repeatedly, so a chain of merges can carry a cell much further than that single step. That is why asking for

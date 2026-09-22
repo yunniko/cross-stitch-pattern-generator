@@ -5,7 +5,7 @@ import { formatFinishedDimension } from "@/lib/export/finished-size";
 import { DIFFUSION_DITHER_MODES, DRAWN_DITHER_MODES, isDithered, isDrawnMode, isLinesMode, LINE_DITHER_MODES, ORDERED_DITHER_MODES, type DitherMode, type LineDitherMode } from "@/lib/pipeline/dither";
 import { isReleasedEnhancementMode, releasedEnhancementModes, type EnhancementModeId } from "@/lib/pipeline/enhance";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
-import { COLOR_FLOOR_CHOICES, MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
+import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
 import { gridDimensionsFor } from "@/lib/pipeline/downsample";
 import { longerSideFor } from "../hooks/use-generation";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
@@ -42,16 +42,6 @@ const PALETTE_OPTIONS: SegmentOption<WorkspaceOptions["paletteMode"]>[] = [
     };
   }),
 ];
-
-// The floor is a stitch count, so the list reads from the strictest (fewest colors kept) to keeping every one. What
-// each setting delivers on real photos is measured in `docs/reviews/2026-09-22-colour-floor.md`.
-const COLOR_FLOOR_LABELS: Record<(typeof COLOR_FLOOR_CHOICES)[number], string> = {
-  0: "Off",
-  50: "Used 50+ stitches",
-  25: "Used 25+ stitches",
-  10: "Used 10+ stitches",
-  1: "Every color",
-};
 
 const EDGE_OPTIONS: SegmentOption<WorkspaceOptions["edgeMode"]>[] = [
   { value: "standard", label: "Standard", title: "Today's default -- averages colors across a boundary" },
@@ -304,31 +294,6 @@ export function PhotoPane({
             +
           </button>
         </div>
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <label className={GROUP_LABEL} htmlFor="color-floor">
-          Keep similar colors
-        </label>
-        <select
-          id="color-floor"
-          value={options.colorFloor}
-          disabled={isDithered(options.ditherMode)}
-          title={
-            isDithered(options.ditherMode)
-              ? "A dithered chart keeps every color it is given, so there is nothing to keep apart here."
-              : "Keeps a color that would otherwise be merged into a near-identical one, as long as it covers at least this many stitches."
-          }
-          onChange={(e) => onChange("colorFloor", Number(e.target.value))}
-          className="rounded-md border border-line bg-sunken px-2 py-1.5 text-xs text-ink disabled:opacity-50"
-        >
-          {COLOR_FLOOR_CHOICES.map((floor) => (
-            <option key={floor} value={floor}>
-              {COLOR_FLOOR_LABELS[floor]}
-            </option>
-          ))}
-        </select>
-        <p className="text-[11px] leading-4 text-muted">Near-identical threads are merged into one. This keeps the ones you actually stitch with.</p>
       </section>
 
       <section className="flex flex-col gap-2">

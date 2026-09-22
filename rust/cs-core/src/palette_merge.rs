@@ -24,16 +24,12 @@ pub fn merge_similar_colors(
 /// `mergeSimilarColors` for a grid of cells, where `EMPTY_CELL` means no stitch: such an entry counts for no colour
 /// and comes back untouched (G-050). The weighted sample pool does not use this — there 255 means a dropped
 /// zero-weight cluster, which this function has always resolved to the first palette entry.
-///
-/// `color_floor` (G-060): a colour holding at least this many entries is never merged away - the pair is skipped and
-/// the loop goes on to the next-closest one. 0 is off, and the scan then runs the comparison it always ran (D209).
 pub fn merge_similar_colors_with_empties(
     cell_palette_index: &[u8],
     palette: &[Rgb],
     threshold: f64,
-    color_floor: usize,
 ) -> (Vec<u8>, Vec<Rgb>) {
-    merge_similar_colors_inner(cell_palette_index, palette, threshold, None, true, color_floor)
+    merge_similar_colors_inner(cell_palette_index, palette, threshold, None, true)
 }
 
 /// `mergeSimilarColors` with `entryWeights`: "more-used" is summed weight rather than a count (D60). Counts are
@@ -44,7 +40,7 @@ pub fn merge_similar_colors_weighted(
     threshold: f64,
     entry_weights: Option<&[f64]>,
 ) -> (Vec<u8>, Vec<Rgb>) {
-    merge_similar_colors_inner(cell_palette_index, palette, threshold, entry_weights, false, 0)
+    merge_similar_colors_inner(cell_palette_index, palette, threshold, entry_weights, false)
 }
 
 fn merge_similar_colors_inner(
@@ -53,7 +49,6 @@ fn merge_similar_colors_inner(
     threshold: f64,
     entry_weights: Option<&[f64]>,
     empty_cells: bool,
-    color_floor: usize,
 ) -> (Vec<u8>, Vec<Rgb>) {
     let oklab: Vec<_> = palette.iter().map(|&c| rgb_to_oklab(c)).collect();
     let n = palette.len();
@@ -76,11 +71,6 @@ fn merge_similar_colors_inner(
             }
             for j in i + 1..n {
                 if !alive[j] {
-                    continue;
-                }
-                // The pair's loser is whichever holds less (ties to the lower index), and a merge only ever adds to
-                // the winner, so a protected loser stays protected: skipping the pair here is final, not deferred.
-                if color_floor > 0 && counts[i].min(counts[j]) >= color_floor as f64 {
                     continue;
                 }
                 let d = oklab_distance_sq(&oklab[i], &oklab[j]);

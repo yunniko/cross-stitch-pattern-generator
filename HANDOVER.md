@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-22 at 4001f1a (G-060: the colour floor, deployed and verified live)
+Last verified: 2026-09-22 at 46a6e47 (G-059: a preview for every pattern, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,13 +9,14 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 4001f1a (2026-09-22), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
+**Production** runs 46a6e47 (2026-09-22), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
-export, byte-identical to TypeScript at any thread count, plus a WASM build (D182–D193;
-`docs/reviews/2026-09-20-rust-comparison-report.md`). Each job runs in the `cs-job` sidecar, the editable save stays
-in the browser, and `CS_JOB=0` returns to TypeScript without a rebuild.
+export, byte-identical to TypeScript at any thread count, plus a WASM build (D182–D189); on the host it is 1.6–13.0×
+faster at one thread and far lighter on memory (`docs/reviews/2026-09-20-rust-comparison-report.md`). Live since
+2026-09-20: each job runs in the `cs-job` sidecar (D190, D193), the editable save stays in the browser (D191), 4–5 px
+chart symbols changed appearance (D192), and `CS_JOB=0` returns to TypeScript without a rebuild.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1500 stitches (D181) and 2–100 colors, with Refined or Classic clustering (stored as
@@ -32,7 +33,8 @@ in the browser, and `CS_JOB=0` returns to TypeScript without a rebuild.
   PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF, an OXS chart, a pixel-art PNG at 1 px per stitch
   (D195), "Export all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs` by content; OXS lists what it couldn't keep.
 - A transparent background generates as empty stitches (G-050, D196): a cell covered less than half takes no colour, and every stage reads covered pixels only.
-- Pixel art in and out (G-049): the start screen's fourth card opens an image as a chart, one pixel per stitch, nothing resampled; too large, too colourful or partly transparent is refused with the numbers, under 10 stitches is centred in a chart of the minimum (D194), and the pixel-art PNG writes it back.
+- Pixel art in and out (G-049): the start screen's fourth card opens an image as a chart, one pixel per stitch,
+  nothing resampled; too large, too colourful or partly transparent is refused with the numbers, under 10 stitches is centred in a chart of the minimum (D194), and the pixel-art PNG writes the image back.
 - Dithering (G-052 to G-059): the Dither control offers screens (clustered dots, rings, lines in four directions),
   scattered matrices (Bayer 4×4/8×8, blue noise), two error-diffusion kernels (Floyd–Steinberg, Atkinson) and
   Hand-drawn, which scatters drawn marks instead of repeating a tile (D201, D202). Off is byte-identical to before; a
@@ -41,16 +43,15 @@ in the browser, and `CS_JOB=0` returns to TypeScript without a rebuild.
   own corner is shown for every pattern (D206, D208). Measured in
   `docs/reviews/2026-09-21-dithering-comparison.md`: kernels lowest error (median 0.44–0.51×) and never worse,
   screens and drawn marks cheapest (+3.3 to +4.3 points), matrices between.
-- **Keep similar colors** (G-060, D209): the palette merge folds near-identical threads into one, and its merges chain, which is why a chart hands back far fewer colours than asked. The floor — Off, or colours covering 50+, 25+, 10+ stitches, or every colour — stops the merge taking one that big. Off by default and byte-identical to before; ignored by a dithered chart, which runs no merge. On the photo fixture at 150 stitches asking 48: 16 colours off, 40 at the lowest floor, median 0.98× the 3×3 error and +0.03 points of confetti (`docs/reviews/2026-09-22-colour-floor.md`, `npm run compare:floor`).
 - Photo upload and reopening a save decode in a worker, the old decode a logged fallback (D128).
 - Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores on
   reload; a corrupt record shows a banner with an on-demand error report. Options live in localStorage.
 - Photo enhancement: Off, Brighten, Auto, Vivid, Portrait, with a "Compare with original" preview and recorded in
   saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-22**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1248 passed (8 opt-in skips);
-Playwright **336 passed, 0 failed across all 28 specs against the Rust sidecar**, one spec per process against the single-path
-build, with the processor serving generation, exports and previews; `npm run compare:rust` 94 cases identical. Export parity:
+**Checks run 2026-09-22**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1218 passed (8 opt-in skips);
+Playwright **330 passed, 0 failed across all 27 specs against the Rust sidecar**, one spec per process against the single-path
+build, with the processor serving generation, exports and previews; `npm run compare:rust` 81 cases identical. Export parity:
 `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the type-check and `build:processor` before
 the unit tests, because the worker bundle is git-ignored and the pool, preview and export specs run against it.
 
@@ -272,17 +273,16 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration; G-033 — "+ Add" keeps its old flow, touch screens pick on tap with no comparison readout.
 - Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
-- From G-048: generation at 1500 stitches holds 42 MB more than TypeScript in Standard, 9 MB more in Crisp+ (D190);
-  the sidecar spawns per job, and a worker could keep one process warm.
-- Archived 2026-09-19: G-046 (the cap is 1500; raising it to 2000 needs two Owner decisions, D181) and G-047
-  (exports and generation faster, D171–D178). G-030 (public launch) is a far-future draft.
+- From G-048 (signed off, archived): generation at 1500 stitches holds 42 MB more than TypeScript in Standard, 9 MB
+  more in Crisp+ (D190). Worth doing if it matters: the sidecar spawns per job; a worker could keep one process warm.
+- Archived and signed off 2026-09-19: G-046 (the cap is 1500; a cap of 2000 would need two Owner decisions, a longer
+  generation deadline and Export all without the chart PNG, D181) and G-047 (raster exports 2–3× faster, the preview
+  streamed, the PDF 3.5× faster, generation a quarter to a half faster, D171–D178). G-030 (public launch) is a
+  far-future draft.
 - The dithering line (G-052 to G-059) is complete and signed off: twelve patterns, an editable texture with a
   painted mark, and a preview of the chart's own corner for each. Open from their measurements: on a noisy photo
   at 8 colours the screens can read worse than an undithered chart, and drawn marks become grain on flat regions,
-  which is inherent to dithering a flat area.
-- **G-060 (the colour floor) is deployed and awaiting sign-off.** Left open by it, and not scoped as work: the
-  optimizer and cleanup passes still empty 8 of 48 colours before the merge sees them, which is the ceiling the floor
-  works up to; and on a thread brand two kept colours can still snap to one skein.
+  which is inherent to dithering a flat area. The screenshot that started it was hand-drawn (Owner, 2026-09-21).
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log
@@ -291,6 +291,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-22 | 76df9aa | G-057: the texture swatch is a corner of the chart the settings would make, over a dark-to-light ramp, drawn by the pipeline's own rule (D206) | Vitest 1219 passed, 8 skipped; Playwright 330 passed across all 27 specs; tsc, eslint and docs-lint clean. The engine gained a window helper only — the eleven patterns, the default texture and the 18 golden hashes are untouched. UI change, so only the app container was recreated; 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: the swatch reads 56x56 with row shares 0.18, 0.39, 0.54, 0.66 down the ramp, and changing the chart size from 200 to 100 stitches changes 1325 of its 3136 stitches — which is the point: the marks are that chart's own |
 | 2026-09-22 | acf89fa | G-058: three switches let Edge wobble, Ring thickness and Stroke sweep reach every mark, off by default; the ring slider is the stored radius read backwards (D207) | Vitest 1225 passed, 8 skipped; Playwright 331 passed across all 27 specs; `compare:rust` 85 cases identical, including each switch alone and all three together; the default texture still matches its frozen pre-texture copy and the 18 golden hashes are untouched; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: the panel shows three switches all off and a Ring thickness slider, and flipping the size switch changes 87 stitches of the swatch |
 | 2026-09-22 | 46a6e47 | G-059: the preview is shown for every pattern and outside the texture panel, clicking it reshuffles, and the line screens become one Lines option with four directions (D208) | Vitest 1233 passed, 8 skipped; Playwright 334 passed across all 27 specs; `compare:rust` 89 cases identical including each line direction; the ten patterns that existed measure exactly as before in `compare:dither`, and the 18 golden hashes are untouched; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: the list reads Clustered dots, Rings, Lines / Bayer 4×4, Bayer 8×8, Blue noise / Floyd–Steinberg, Atkinson / Hand-drawn; the preview appears for a matrix with no knobs beside it and disappears at Off; the four directions are there; and clicking the preview moved 1296 of its stitches |
-| 2026-09-22 | 4001f1a | G-060: a colour floor keeps a thread the palette merge would otherwise fold into a near-identical one, off by default (D209) | Vitest 1248 passed, 8 skipped; Playwright 336 passed across all 28 specs; `compare:rust` 94 cases identical including five new floor cases at floors 1, 3, 5, 10 and 50, and the 18 golden hashes are untouched; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live at 48 colours on the sample photo: 21 colours with the floor off, 32 at 25+ stitches, 44 at every colour; the file records `colorFloor`, the choice survives a reload, and the select is disabled while dithering |

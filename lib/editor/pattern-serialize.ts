@@ -3,7 +3,7 @@ import { isValidDitherTexture, type DitherTexture } from "../pipeline/dither-han
 import { isEnhancementModeId, type EnhancementModeId } from "../pipeline/enhance";
 import { findThread, formatThreadName, THREAD_BRANDS, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
 import { effectiveSymmetryAxes, NO_SYMMETRY, SYMMETRY_AXES, type SymmetryAxes, type SymmetryAxis } from "./symmetry-axes";
-import { EMPTY_CELL, MAX_COLOR_FLOOR, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern, type ThreadSwatchRef } from "../types";
+import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern, type ThreadSwatchRef } from "../types";
 
 // Plain JSON, not a PNG with embedded data (Owner decision, 2026-09-09,
 // HANDOVER.md D21) -- simplest reliable format, at the cost of not being
@@ -57,11 +57,6 @@ export interface SerializedPattern {
    */
   ditherTexture?: DitherTexture;
   /**
-   * The colour floor the chart was generated with (G-060); absent for off and on files saved before it. Recorded
-   * so a reopened chart says how its palette was arrived at, the way `ditherMode` does.
-   */
-  colorFloor?: number;
-  /**
    * The symmetry axes that were on when the file was saved (G-037); absent when none were. An optional field that
    * older builds ignore, so the format version stays the same (D138).
    */
@@ -110,7 +105,6 @@ export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes 
     enhancementMode: pattern.enhancementMode,
     ditherMode: pattern.ditherMode,
     ditherTexture: pattern.ditherTexture,
-    colorFloor: pattern.colorFloor,
     symmetry: serializeSymmetry(effectiveSymmetryAxes(symmetry, pattern.width, pattern.height)),
   };
   return JSON.stringify(data);
@@ -232,13 +226,7 @@ export function deserializePatternData(data: unknown): StitchPattern {
     ditherMode: isDitherModeId(d.ditherMode) && d.ditherMode !== "off" ? d.ditherMode : undefined,
     // A texture that is out of range or from a newer build falls back to the default, so the file still opens.
     ditherTexture: isValidDitherTexture(d.ditherTexture) ? d.ditherTexture : undefined,
-    // Out of range, or absent because the file predates G-060, both read as off.
-    colorFloor: isColorFloor(d.colorFloor) ? d.colorFloor : undefined,
   };
-}
-
-function isColorFloor(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value > 0 && value <= MAX_COLOR_FLOOR;
 }
 
 function isDitherModeId(value: unknown): value is DitherMode {

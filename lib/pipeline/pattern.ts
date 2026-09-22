@@ -89,13 +89,6 @@ export interface BuildPatternOptions {
    * is the chart G-054 shipped.
    */
   ditherTexture?: DitherTexture;
-  /**
-   * G-060: the number of stitches at which a colour stops being mergeable — a colour holding at least this many is
-   * kept even when another thread sits within the merge distance of it. 0 (the default) is the pipeline as it was.
-   * It never creates stitches for a colour the quantizer did not give one, and a dithered chart ignores it, since
-   * dithering skips the merge entirely (D199, D209).
-   */
-  colorFloor?: number;
   onProgress?: (fraction: number) => void;
 }
 
@@ -229,12 +222,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   }
   options.onProgress?.(0.8);
 
-  // The merge is where the requested colours actually go: on the photo fixture at 150 stitches asking 48, the
-  // optimizer and the cleanup passes leave 40 colours standing and the merge takes them to 16 (G-060, D209). The
-  // floor is checked here, against the counts the merge already keeps.
-  const merged = smooth
-    ? mergeSimilarColors(optimized, rawPalette, undefined, undefined, true, options.colorFloor ?? 0)
-    : { cellPaletteIndex: optimized, palette: rawPalette };
+  const merged = smooth ? mergeSimilarColors(optimized, rawPalette, undefined, undefined, true) : { cellPaletteIndex: optimized, palette: rawPalette };
 
   // The merge remap can leave a crisp cell on a label none of its modes supports; repair against the merged palette (D69).
   if (crisp && evidenceLayer && smooth) {
@@ -423,8 +411,6 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     // Recorded only when it is not the default, so a chart drawn with the shipped texture stays byte-identical to
     // one made before textures existed (G-055).
     ditherTexture: isDrawnMode(dither) && options.ditherTexture && !isDefaultDitherTexture(options.ditherTexture) ? options.ditherTexture : undefined,
-    // Recorded only where it did something: without the merge there is no floor to record (G-060).
-    colorFloor: smooth && options.colorFloor ? options.colorFloor : undefined,
     enhancementMode: enhancementMode === "off" ? undefined : enhancementMode,
   };
 

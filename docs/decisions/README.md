@@ -217,4 +217,5 @@ remain readable with git show.
 - D206 — The swatch is a corner of the real chart, at the price of building one — active
 - D207 — Switches let the knobs reach every mark, and the size knob is read backwards — active
 - D208 — The preview belongs to every pattern, and each family pays only its own cost — active
-- D209 — The colour floor belongs in the palette merge — active
+- D209 — The colour floor belongs in the palette merge — reverted (see D210)
+- D210 — The colour floor is withdrawn — active

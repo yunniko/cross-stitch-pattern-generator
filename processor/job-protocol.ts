@@ -28,7 +28,6 @@ export interface JobSettings {
   enhancementMode?: EnhancementModeId;
   ditherMode?: DitherMode;
   ditherTexture?: DitherTexture;
-  colorFloor?: number;
 }
 
 /**

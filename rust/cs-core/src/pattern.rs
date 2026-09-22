@@ -55,8 +55,6 @@ pub struct BuildOptions {
     pub dither: DitherMode,
     /// What a drawn pattern is made of (G-055); ignored by every other pattern.
     pub dither_texture: DitherTexture,
-    /// The number of stitches at which a colour stops being mergeable (G-060); 0 is off, the pipeline as it was.
-    pub color_floor: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -91,8 +89,6 @@ pub struct StitchPattern {
     pub dither_mode: Option<&'static str>,
     /// What the drawn marks were made of (G-055); `None` for every other pattern and for the default texture.
     pub dither_texture: Option<DitherTexture>,
-    /// The colour floor the chart was generated with (G-060); `None` means off, and a dithered chart never has one.
-    pub color_floor: Option<usize>,
     pub enhancement_mode: Option<&'static str>,
 }
 
@@ -312,13 +308,7 @@ pub fn build_pattern_reporting(
 
     on_progress(0.8);
     let (mut merged_index, mut merged_palette) = if smooth {
-        // The merge is where the requested colours actually go, so the floor is checked there (G-060, D209).
-        merge_similar_colors_with_empties(
-            &optimized,
-            &raw_palette,
-            DEFAULT_MERGE_DISTANCE_SQUARED,
-            options.color_floor,
-        )
+        merge_similar_colors_with_empties(&optimized, &raw_palette, DEFAULT_MERGE_DISTANCE_SQUARED)
     } else {
         (optimized, raw_palette)
     };
@@ -491,8 +481,6 @@ pub fn build_pattern_reporting(
         dither_texture: (options.dither == DitherMode::HandDrawn
             && options.dither_texture != default_dither_texture())
             .then(|| options.dither_texture.clone()),
-        // Recorded only where it did something: without the merge there is no floor to record (G-060).
-        color_floor: (smooth && options.color_floor > 0).then_some(options.color_floor),
         // Recorded whenever requested, even when every stage abstained, as the TypeScript does.
         enhancement_mode: (options.enhancement != EnhancementMode::Off)
             .then(|| options.enhancement.id()),

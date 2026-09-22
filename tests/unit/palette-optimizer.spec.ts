@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mergeSimilarColors } from "@/lib/pipeline/palette-optimizer";
-import { EMPTY_CELL, type RGB } from "@/lib/types";
+import type { RGB } from "@/lib/types";
 
 describe("mergeSimilarColors", () => {
   it("merges two nearly-identical colors, keeping the more-used one's color", () => {
@@ -56,74 +56,5 @@ describe("mergeSimilarColors", () => {
     for (const index of result.cellPaletteIndex) {
       expect(index).toBeLessThan(result.palette.length);
     }
-  });
-});
-
-describe("mergeSimilarColors with a colour floor (G-060)", () => {
-  /** Three colours a merge apart, so the floor decides how far the chain runs. */
-  const ramp: RGB[] = [
-    [100, 100, 100],
-    [101, 100, 100],
-    [102, 100, 100],
-  ];
-
-  it("keeps a colour that holds at least the floor, and merges one that does not", () => {
-    // Colour 1 holds 4 cells, colour 2 holds 1.
-    const cells = Uint8Array.from([0, 0, 0, 0, 0, 1, 1, 1, 1, 2]);
-
-    const floored = mergeSimilarColors(cells, ramp, undefined, undefined, false, 4);
-
-    // 1 survives (4 >= 4); 2 is absorbed, and by its nearest neighbour rather than by colour 0.
-    expect(floored.palette).toEqual([ramp[0], ramp[1]]);
-    expect(Array.from(floored.cellPaletteIndex)).toEqual([0, 0, 0, 0, 0, 1, 1, 1, 1, 1]);
-  });
-
-  it("is the unfloored merge when the floor is zero, for the same input", () => {
-    const cells = Uint8Array.from([0, 0, 0, 0, 0, 1, 1, 1, 1, 2]);
-
-    const off = mergeSimilarColors(cells, ramp, undefined, undefined, false, 0);
-    const untouched = mergeSimilarColors(cells, ramp);
-
-    expect(off.palette).toEqual(untouched.palette);
-    expect(Array.from(off.cellPaletteIndex)).toEqual(Array.from(untouched.cellPaletteIndex));
-    expect(untouched.palette).toHaveLength(1);
-  });
-
-  it("still lets a small colour merge into a protected one: only the loser is checked", () => {
-    const cells = Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
-
-    const floored = mergeSimilarColors(cells, ramp.slice(0, 2), undefined, undefined, false, 5);
-
-    // Colour 0 holds 9 and is protected, but it is the winner here; colour 1 holds one cell and is still absorbed.
-    expect(floored.palette).toEqual([ramp[0]]);
-    expect(Array.from(floored.cellPaletteIndex)).toEqual(new Array(10).fill(0));
-  });
-
-  it("counts stitches, not cells: an empty cell is not a stitch of any colour", () => {
-    // Colour 1 has one stitch and three empty cells beside it. A floor of 2 must absorb it all the same.
-    const cells = Uint8Array.from([0, 0, 0, 1, EMPTY_CELL, EMPTY_CELL, EMPTY_CELL]);
-
-    const floored = mergeSimilarColors(cells, ramp.slice(0, 2), undefined, undefined, true, 2);
-
-    expect(floored.palette).toEqual([ramp[0]]);
-    expect(Array.from(floored.cellPaletteIndex)).toEqual([0, 0, 0, 0, EMPTY_CELL, EMPTY_CELL, EMPTY_CELL]);
-  });
-
-  it("does not stop at a protected pair: a closer merge blocked does not block a farther one", () => {
-    // 0 and 1 are the closest pair and both hold 5 cells, so the floor blocks them. 2 and 3 are farther apart but
-    // still within the threshold, and 3 holds one cell: it must still be merged, which a loop that stopped at the
-    // first blocked pair would miss.
-    const palette: RGB[] = [
-      [100, 100, 100],
-      [100, 100, 101],
-      [200, 100, 100],
-      [201, 101, 100],
-    ];
-    const cells = Uint8Array.from([0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]);
-
-    const floored = mergeSimilarColors(cells, palette, undefined, undefined, false, 5);
-
-    expect(floored.palette).toEqual([palette[0], palette[1], palette[2]]);
-    expect(Array.from(floored.cellPaletteIndex).slice(-1)).toEqual([2]);
   });
 });

@@ -19,13 +19,6 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   settings and Generate stay away for its whole life.
 - **Choose the palette**: whatever colors the photo needs, or real DMC,
   Cosmo or Anchor threads (Anchor is derived from DMC equivalents and says so).
-- **Keep similar colors**: near-identical threads are normally merged into one,
-  which is why a small chart hands back far fewer colors than the slider asks
-  for. Set a floor — every color, or the ones covering at least 10, 25 or 50
-  stitches — and the merge leaves those alone. On the photo fixture at 150
-  stitches asking for 48, that is 40 colors instead of 16, at about a tenth of
-  a percentage point more single stitches
-  (`docs/reviews/2026-09-22-colour-floor.md`). Off by default.
 - **Choose edge handling**: Standard averages across boundaries; Crisp keeps a
   hard boundary as two real colors instead of inventing a blend; Crisp+ also
   cleans up slightly soft edges, snapping the in-between colors along a blurred

@@ -100,7 +100,6 @@ export async function generateWithRust(job: Extract<WorkerJob, { kind: "generate
     enhancementMode: settings.enhancementMode ?? undefined,
     ditherMode: settings.ditherMode ?? undefined,
     ditherTexture: settings.ditherTexture ?? undefined,
-    colorFloor: settings.colorFloor ?? undefined,
   });
   const pixels = Buffer.from(imageData.data.buffer, imageData.data.byteOffset, imageData.data.byteLength);
   const result = await run(["generate", String(imageData.width), String(imageData.height), options], pixels, { progress: onProgress });

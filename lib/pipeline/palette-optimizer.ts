@@ -47,13 +47,7 @@ export function mergeSimilarColors(
    * same 255 means a sample of a cluster that was dropped for having no weight, which this function has always
    * resolved to the first palette entry, and changing that would move the golden hashes.
    */
-  emptyCells = false,
-  /**
-   * G-060: a colour holding at least this many entries is never merged away — the pair is skipped and the loop goes
-   * on to the next-closest one. 0 (the default, and every caller but the chart's own merge) is off: the scan runs the
-   * comparison it always ran and the result is byte-identical (D209).
-   */
-  colorFloor = 0
+  emptyCells = false
 ): PaletteMergeResult {
   const oklab = palette.map(rgbToOklab);
   const counts = new Array(palette.length).fill(0);
@@ -74,9 +68,6 @@ export function mergeSimilarColors(
       if (!alive[i]) continue;
       for (let j = i + 1; j < palette.length; j++) {
         if (!alive[j]) continue;
-        // The pair's loser is whichever holds less (ties to the lower index), and a merge only ever adds to the
-        // winner, so a protected loser stays protected: skipping the pair here is final, not deferred.
-        if (colorFloor > 0 && (counts[i] <= counts[j] ? counts[i] : counts[j]) >= colorFloor) continue;
         const d = oklabDistanceSquared(oklab[i], oklab[j]);
         if (d < bestDist) {
           bestDist = d;
