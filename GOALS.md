@@ -106,7 +106,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   decision, deploy and verify live.
 
 **Progress log** (newest first):
-- 2026-09-22 — **M1 and M2 done, pending the deploy.** The swatch is now a corner of the chart the settings would
+- 2026-09-22 — **Deployed and verified live** at 76df9aa. The swatch reads 56×56 with row shares 0.18, 0.39, 0.54,
+  0.66 down its ramp, and changing the chart size from 200 to 100 stitches changes 1325 of its 3136 stitches — which
+  is exactly the point: the marks it shows are that chart's own. 23 containers before and after with an identical
+  name set, 38 vhosts unchanged. **Awaiting sign-off.**
+- 2026-09-22 — **M1 and M2 done.** The swatch is now a corner of the chart the settings would
   make: the field is built at the chart's own width and height, cropped to 56×56, and drawn over a dark-to-light
   ramp so marks are seen growing rather than at one tone. **Two bugs the old test could not see**, both now pinned:
   the field depends on the grid's *height* as well as its width, because each mark's shape is drawn from the stream
