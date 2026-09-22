@@ -43,7 +43,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M3 — End-to-end coverage, decision file, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first):
-- 2026-09-22 — **M3 done, pending the deploy.** D205 records why a painted mark is a fifth weighted shape and why
+- 2026-09-22 — **M3 deployed and verified live** at 00a8d16. A cross painted on the 5×5 grid through the real
+  controls reaches the chart, which comes back recording the stamp and its 0.3 share; the processor logs show no Rust
+  fallback. 23 containers before and after with an identical name set, 38 vhosts unchanged, every live site still
+  answering. **Awaiting sign-off.**
+- 2026-09-22 — **M3 done.** D205 records why a painted mark is a fifth weighted shape and why
   what it leaves unpainted still fills — every cell keeps an order, because that ranking is what holds tone. README
   and HANDOVER updated, the latter with the rule a future session would otherwise break: the shape list only grows at
   the end and the fallback is pinned by name. Verified: Vitest 1218 passed / 8 skipped, Playwright 330 passed across
