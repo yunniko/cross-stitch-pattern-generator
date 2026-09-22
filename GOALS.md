@@ -125,6 +125,59 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   differ from the same corner of a 200×125 chart. My own pinning test had asserted agreement on a 56×56 chart, which
   is the single size where the two agree — a true claim about a case the UI never shows.
 
+### G-058 · Every texture slider reaches every mark — DRAFT (2026-09-22, starts on the Owner's go)
+- **What:** Ring width, Size variation, Stroke sweep and Edge wobble stop applying to one or two mark shapes and
+  reach all of them, each behind a switch that starts off — so a texture draws exactly as it does today until the
+  switch is moved.
+- **Why:** Owner observation, 2026-09-22, and the table below is why it is right. Of five knobs, only Mark spacing
+  touches every mark; three touch the two ring shapes (62% of marks at the shipped mixture) and one touches lumps
+  (15%). That is the main thing limiting the range of textures a reader can reach.
+
+  | Slider | Rings | Broken rings | Dots | Lumps | Stamp |
+  |---|---|---|---|---|---|
+  | Mark spacing | yes | yes | yes | yes | yes |
+  | Ring width, Size variation, Stroke sweep | yes | yes | no | no | no |
+  | Edge wobble | no | no | no | yes | no |
+
+- **What each switch would mean** (settled while planning, so M1 does not have to re-argue it):
+  - **Wobble everywhere** — the per-stitch jitter that ragged a lump's edge is added to every shape's score. On a
+    stamp it applies only to the stitches the stamp does *not* name, so a painted shape stays as painted.
+  - **Size everywhere** — dots and lumps gain a core: stitches within Ring width fill first, the rest spill outward
+    afterwards. This is what gives them a size at all; today their extent is whatever the tone gives them. The stamp
+    is exempt: its size is its grid.
+  - **Sweep everywhere** — the angular sweep that draws a ring as a stroke applies to dots and lumps too, so they
+    fill round like a pie rather than outward. The stamp is exempt: its order is painted.
+- **Acceptance criteria:**
+  1. **Off is today.** With the switches off — which is what every existing texture and every old saved file says —
+     the default texture still reproduces G-054 against its frozen copy (D203), the 18 golden hashes are unchanged,
+     and every existing parity case is identical. This is the criterion the whole design serves.
+  2. **Each switch reaches what it claims,** measurably and per shape: with size everywhere on, a dots-only texture's
+     mean reach responds to Ring width across its range (today it does not move at all); with wobble everywhere on, a
+     rings-only texture's edges roughen; with sweep everywhere on, a dots-only texture's stitches fill by angle.
+  3. **Tone stays exact** for any combination of switches, over sampled textures — the property D201 rests on.
+  4. **Rust matches byte for byte**, with parity cases for each switch alone and for all three together.
+  5. **Carried and validated like the rest of a texture** (D203, D204): booleans in the texture, absent in an old
+     file meaning off, embedded in a chart that uses them.
+  6. **The panel says what a switch does** — which marks it newly reaches — and the swatch shows it.
+- **Constraints:** neutral defaults are the point; the alternative (letting the knobs reach everything and
+  re-baselining the frozen default) was put to the Owner and this is the one chosen. A texture is still data with
+  ranges, both languages still change together, and tone is still held by ranking (D201).
+
+**Milestones**:
+- [ ] M1 — The three switches in the engine, in both languages: the neutral-default proof against the frozen copy,
+  the per-switch measurements of criterion 2, the tone property over sampled combinations, and the parity cases.
+- [ ] M2 — The panel: a switch beside each slider naming the marks it reaches, and an end-to-end pass showing a
+  flipped switch changes the chart and is saved with it.
+- [ ] M3 — Decision file, README and HANDOVER, deploy and verify live.
+
+**Progress log** (newest first):
+- 2026-09-22 — goal created on the Owner's instruction. Measured first, so M1 starts from numbers rather than
+  impressions: at a flat 30% tone, mark spacing from 4 to 16 multiplies the thread per mark by 16× (5.0 → 79.0
+  stitches) and the reach by 4× (1.57 → 6.49), while Ring width across its whole range leaves the thread per mark
+  *identical* (11.5 stitches at every setting) and moves the reach by about 35% (2.05 → 2.77). That is the gap this
+  goal closes: tone decides how many stitches a mark lights, so a knob that only rearranges them inside two shapes
+  cannot do much.
+
 ### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
 - **What:** Eventually make the app public, built around **a social
   ecosystem** (community/sharing features -- exact shape not yet defined:
