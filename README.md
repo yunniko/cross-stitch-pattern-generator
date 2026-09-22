@@ -36,8 +36,10 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   (`docs/reviews/2026-09-21-dithering-comparison.md`). Dithering and Crisp ask
   for opposite things, so choosing one clears the other.
 - **Edit the hand-drawn texture**: with Hand-drawn chosen, a Texture panel
-  opens sliders for mark spacing, ring width, size variation, stroke sweep,
-  edge wobble and how often each mark is drawn, plus presets and a Shuffle.
+  opens sliders for mark spacing, ring thickness, size variation, stroke
+  sweep, edge wobble and how often each mark is drawn, each of the last three
+  with a switch that lets it reach every mark rather than the ones it was
+  written for, plus presets and a Shuffle.
   A swatch shows the top-left corner of the chart those settings would make,
   over a dark-to-light ramp, and the texture is saved inside the pattern file,
   so a chart reopens the way it was made.

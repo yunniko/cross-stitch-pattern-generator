@@ -46,6 +46,16 @@ function hexToRgb(hex: string): RGB {
   return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
 }
 
+/**
+ * Ring thickness is the radius read backwards (Owner, 2026-09-22). Tone fixes how many stitches a mark lights, so a
+ * wider circle spreads the same thread thinner: turning a slider called thickness to the right has to *narrow* the
+ * circle. The stored field is still the radius — only what the panel shows and sets is flipped.
+ */
+function thicknessOf(radiusMin: number): number {
+  const [low, high] = DITHER_TEXTURE_RANGES.radiusMin;
+  return Math.round((low + high - radiusMin) * 100) / 100;
+}
+
 /** One slider, labelled with what it does rather than with the field it sets. */
 function Knob({
   label,
@@ -85,6 +95,25 @@ function Knob({
         className="min-w-0 accent-[var(--at-accent)]"
       />
     </div>
+  );
+}
+
+/** A knob's companion: whether it reaches beyond the marks it was written for (G-058). */
+function Switch({ label, hint, checked, onChange }: { label: string; hint: string; checked: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={`${label}: ${hint}`}
+      title={hint}
+      onClick={() => onChange(!checked)}
+      className={`-mt-1 self-start rounded-md border px-1.5 py-0.5 text-[10px] transition-colors ${
+        checked ? "border-accent bg-accent/15 text-ink" : "border-line text-muted hover:bg-raised"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -188,10 +217,36 @@ export function TextureEditor({ texture, onChange, chartWidth, chartHeight, defa
           </div>
 
           <Knob label="Mark spacing" hint="Stitches between marks. A bigger chart carries more marks, not bigger ones." value={texture.spacing} min={DITHER_TEXTURE_RANGES.spacing[0]} max={DITHER_TEXTURE_RANGES.spacing[1]} step={1} onChange={(value) => set("spacing", value)} />
-          <Knob label="Ring width" hint="How wide a ring's circle is, as a share of the spacing. A wider circle spreads the same stitches further, so the stroke gets thinner." value={texture.radiusMin} min={DITHER_TEXTURE_RANGES.radiusMin[0]} max={DITHER_TEXTURE_RANGES.radiusMin[1]} step={0.01} onChange={(value) => set("radiusMin", value)} />
+          <Knob
+            label="Ring thickness"
+            hint="How solid a ring's stroke is. Turning it up draws the circle tighter, so the same stitches sit closer together; turning it down spreads them into a wider, finer circle."
+            value={thicknessOf(texture.radiusMin)}
+            min={DITHER_TEXTURE_RANGES.radiusMin[0]}
+            max={DITHER_TEXTURE_RANGES.radiusMin[1]}
+            step={0.01}
+            onChange={(value) => set("radiusMin", thicknessOf(value))}
+          />
+          <Switch
+            label="Every mark"
+            hint="Give dots and lumps a core of this size too: solid out to it, scattered beyond."
+            checked={texture.sizeEveryMark === true}
+            onChange={(on) => set("sizeEveryMark", on)}
+          />
           <Knob label="Size variation" hint="How much marks differ from each other in size." value={texture.radiusSpan} min={DITHER_TEXTURE_RANGES.radiusSpan[0]} max={DITHER_TEXTURE_RANGES.radiusSpan[1]} step={0.01} onChange={(value) => set("radiusSpan", value)} />
           <Knob label="Stroke sweep" hint="How much a ring is drawn round as a stroke rather than appearing at once." value={texture.sweep} min={DITHER_TEXTURE_RANGES.sweep[0]} max={DITHER_TEXTURE_RANGES.sweep[1]} step={0.01} onChange={(value) => set("sweep", value)} />
+          <Switch
+            label="Every mark"
+            hint="Dots and lumps fill round the same way, rather than outward from their middle."
+            checked={texture.sweepEveryMark === true}
+            onChange={(on) => set("sweepEveryMark", on)}
+          />
           <Knob label="Edge wobble" hint="How ragged a lump's edge is, in stitches." value={texture.wobble} min={DITHER_TEXTURE_RANGES.wobble[0]} max={DITHER_TEXTURE_RANGES.wobble[1]} step={0.01} onChange={(value) => set("wobble", value)} />
+          <Switch
+            label="Every mark"
+            hint="Ragged every shape's edge, not just a lump's. A painted stamp keeps the stitches it names."
+            checked={texture.wobbleEveryMark === true}
+            onChange={(on) => set("wobbleEveryMark", on)}
+          />
 
           <div className="flex flex-col gap-1.5">
             <span className="text-[11px] text-muted">How often each mark is drawn</span>

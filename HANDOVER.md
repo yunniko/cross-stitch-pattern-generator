@@ -172,20 +172,21 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - Cell importance reads each cell's own footprint, never pixels assigned by truncation (D197): the two agree exactly below 1:1, and only the footprint fills a finer chart's cells.
 - A new pass after quantization is gated on `smooth` in both languages, or it silently undoes dithering (D199); a
   matrix pattern is generated data, never computed at runtime (D198).
-- A drawn pattern's randomness comes from `lib/prng.ts`/`prng.rs` on a seed carried in its texture, consumed in the
-  same order by both languages, and its shapes use no transcendental function — `atan2` and friends differ between V8
-  and libm (D183, D201, D202). Its cells are ranked and spread evenly over 0..1, which is what holds tone; a shape
-  that breaks the ranking changes how much thread the chart carries.
-- A texture is data with ranges, validated by number and not by type union, and the default is frozen against
-  `tests/unit/helpers/dither-frozen-g054.ts` — do not update that copy to match a change (D203). A texture is
-  compared **by value**: it crosses the wire as JSON, so a reference check silently writes a default into every
-  drawn chart (D204). A new knob needs a range, a Rust field, a parity case and a line in the editor.
-- A drawn mark's shape list only ever grows at the end, and what a short weight list falls back to is pinned by name
-  (`lump`), never "the last shape" — otherwise adding one changes every existing texture (D205). Every cell of a mark
-  keeps an order, painted or not, because that ranking is what holds tone.
+- A drawn pattern's randomness comes from `lib/prng.ts`/`prng.rs` on a seed in its texture, consumed in the same
+  order by both languages, and its shapes use no transcendental function — `atan2` differs between V8 and libm (D183,
+  D201, D202). Its cells are ranked and spread evenly over 0..1, which is what holds tone.
+- A texture is data with ranges, validated by number not by type union, and its default is frozen against
+  `tests/unit/helpers/dither-frozen-g054.ts` — never update that copy to match a change (D203). A texture is compared
+  **by value**: it crosses the wire as JSON, so a reference check silently writes a default into every drawn chart
+  (D204). A new knob needs a range, a Rust field, a parity case and a line in the editor.
+- A drawn mark's shape list only grows at the end and a short weight list falls back to `lump` by name, never "the
+  last shape" (D205); every cell keeps an order, painted or not, because that ranking is what holds tone.
 - A drawn chart's field depends on the grid's **width and height**: marks are placed across the whole grid and their
   shapes drawn from the stream left afterwards. So a preview of a corner has to build the chart's own field (D206),
   and a tone compared with a threshold is the pipeline's rule only while the dark thread is the nearer one.
+- A knob that reaches a shape it was not written for goes behind a switch that starts off, or it changes every
+  texture already drawn (D207). The panel's Ring thickness is the stored radius read backwards: ink is fixed by tone,
+  so a wider circle is a thinner stroke.
 - A pipeline stage that reads `cellPalette` must skip `EMPTY_CELL`: it is a sentinel, not palette index 255, and both
   TypeScript and Rust must skip it in the same places or the two diverge (D196).
 - Rust export references are generated in the processor image, never on a laptop: only DejaVu Sans is installed there, so every raster would differ (D188).
@@ -258,8 +259,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   share for each of its three paginated sets (D168; `processor/job-protocol.ts`, `exportDeadlineFor`).
 - The Origin check compares canonical origins: the loopback spellings on one scheme and port are one site, scheme and
   port still separate, an unparseable origin is dropped. `APP_URL` has no default: unset trusts only the arrival origin (D156).
-- A job event stream carries an SSE comment frame every 15 s so a proxy does not drop an idle job. Both clients take
-  the frame's data line and skip the rest: parsing every frame as JSON broke production (`tests/unit/job-stream-keepalive.spec.ts`).
+- A job event stream carries an SSE comment frame every 15 s so a proxy does not drop an idle job; both clients take the frame's data line and skip the rest (`tests/unit/job-stream-keepalive.spec.ts`).
 - `PROCESSOR_WORKER_HEAP_MB` caps each pool worker's heap. Unset in production, it proves the PDF's heap is bounded: at
   512 MB a 1500-stitch Pattern Keeper PDF and Export all complete, where 1000 once failed at every cap to 1536 MB (D169).
 - `MAX_STITCHES` (1500) is measured: raising it means re-running `docs/reviews/2026-09-19-new-cap-measurements.md`, and above ~1550 Export all's chart PNG no longer fits its budget (D026, D181).

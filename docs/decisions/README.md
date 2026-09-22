@@ -215,3 +215,4 @@ remain readable with git show.
 - D204 — A chart embeds its texture, and the swatch is pinned to the pipeline — active
 - D205 — A painted mark is a fifth shape, and what it leaves unpainted still fills — active
 - D206 — The swatch is a corner of the real chart, at the price of building one — active
+- D207 — Switches let the knobs reach every mark, and the size knob is read backwards — active

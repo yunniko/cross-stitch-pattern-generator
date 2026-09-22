@@ -53,12 +53,18 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 **Milestones**:
 - [x] M1 — The three switches in the engine, in both languages: the neutral-default proof against the frozen copy,
   the per-switch measurements of criterion 2, the tone property over sampled combinations, and the parity cases.
-- [ ] M2 — The panel: a switch beside each slider naming the marks it reaches, the ring slider re-read so that
+- [x] M2 — The panel: a switch beside each slider naming the marks it reaches, the ring slider re-read so that
   turning it up thickens the stroke rather than thinning it (Owner, 2026-09-22), and an end-to-end pass showing a
   flipped switch changes the chart and is saved with it.
-- [ ] M3 — Decision file, README and HANDOVER, deploy and verify live.
+- [x] M3 — Decision file, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first):
+- 2026-09-22 — **M2 and M3 done, pending the deploy.** Each of the three knobs has an "Every mark" switch beside
+  it, off by default and named by what it reaches. **The ring slider now reads as Ring thickness and is the stored
+  radius backwards** (Owner, 2026-09-22): turning it up tightens the circle, so the same thread sits closer together
+  — which is what "thicker" means when tone fixes the amount of thread. D207 records both, and the e2e proves a
+  flipped switch changes the chart and is saved with it. Verified: Vitest 1225 passed / 8 skipped, Playwright 331
+  passed across 27 specs, `compare:rust` 85 cases identical, tsc, eslint and docs-lint clean.
 - 2026-09-22 — **M1 done.** Three optional booleans on the texture, absent meaning off, each adding a term to the
   scoring so that with all three off every branch is the expression it was before — pinned against the frozen G-054
   copy and by a test that an explicit `false` is identical to the field with nothing at all. **The size switch had

@@ -27,7 +27,7 @@ interface ExportedChart {
   height: number;
   cellPalette: number[];
   ditherMode?: string;
-  ditherTexture?: { spacing: number; stamp?: { size: number; order: number[] } };
+  ditherTexture?: { spacing: number; stamp?: { size: number; order: number[] }; wobbleEveryMark?: boolean };
 }
 
 /** Generates with the current settings and returns the editable file it exports. */
@@ -138,6 +138,33 @@ test("a painted mark reaches the chart, and is saved with it (G-056)", async ({ 
   expect(chart.ditherTexture?.stamp?.size, "the painted mark travels with the chart").toBe(5);
   expect(chart.ditherTexture?.stamp?.order.filter((step) => step > 0)).toHaveLength(5);
   expect(chart.ditherMode).toBe("hand-drawn");
+  expect(errors).toEqual([]);
+});
+
+test("a switch lets a knob reach every mark, and is saved with the chart (G-058)", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await page.getByRole("radio", { name: /Small/ }).check();
+  await page.getByLabel("Dither").selectOption("hand-drawn");
+  await page.getByRole("tab", { name: "Photo" }).click();
+  await page.getByRole("button", { name: /^Texture/ }).click();
+
+  const before = await generateAndExport(page);
+  expect(before.ditherTexture, "an untouched texture is not written to the file").toBeUndefined();
+
+  await page.getByRole("tab", { name: "Photo" }).click();
+  // The pane is mounted fresh when the tab comes back, so the panel is collapsed again.
+  await page.getByRole("button", { name: /^Texture/ }).click();
+  const wobbleEverywhere = page.getByRole("switch", { name: /Ragged every shape/ });
+  await expect(wobbleEverywhere).toHaveAttribute("aria-checked", "false");
+  await wobbleEverywhere.click();
+  await expect(wobbleEverywhere).toHaveAttribute("aria-checked", "true");
+
+  const after = await generateAndExport(page);
+  expect(after.ditherTexture?.wobbleEveryMark, "the switch travels with the chart").toBe(true);
+  expect(after.cellPalette, "and it changes what is stitched").not.toEqual(before.cellPalette);
   expect(errors).toEqual([]);
 });
 
