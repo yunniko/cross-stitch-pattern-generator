@@ -130,6 +130,8 @@ export interface StitchPattern {
   ditherMode?: Exclude<DitherMode, "off">;
   /** What the drawn marks were made of (G-055); absent for every other pattern, and for the default texture. */
   ditherTexture?: DitherTexture;
+  /** Generated with Vivid (G-061). Informational; absent means the stitches are plain area means. */
+  vivid?: true;
 }
 
 /** An axis-aligned, end-exclusive rectangle in stitch-cell coordinates. */

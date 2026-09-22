@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-061 · Vivid: a stitch keeps the colour that is in it — ACTIVE (2026-09-22)
+### G-061 · Vivid: a stitch keeps the colour that is in it — BLOCKED (2026-09-22)
 - **What:** a **Vivid** switch beside Algorithm. Off (default) is today exactly. On, a stitch takes the mean
   lightness of the pixels it covers but the chroma of its most colourful part, instead of averaging a saturated
   minority into neutrality — so the reds, greens, blues, pinks and violets that are in the photo are still in the
@@ -56,6 +56,31 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   decision file, README and HANDOVER, deploy and verify live on the Owner's photos.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-22 — **BLOCKED after M2's measurements: Vivid works and does not solve the complaint. Not deployed.**
+  The code is committed, off by default and byte-identical when off (golden hashes, downsample and regression suites
+  pass), because the measurements below are worth keeping; nothing has shipped.
+  1. *Vivid does what it claims at the cell level* — 3 to 10 times the chromatic cells (M1's numbers) — and moves
+     some families one step earlier on the cat: yellow 12→8, orange/brown 16→12, green 20→16 colours.
+  2. *It does not deliver the complaint.* The cat's pink gets **no thread at all by 64 colours**, with Vivid or
+     without, at 100 or 250 stitches; the lattice's blue arrives **later** with Vivid on (32→48). The one pink-ish
+     thread anywhere in the sweep is a dusty mauve at 250 stitches and 40 colours.
+  3. *A hue-weighted clustering metric does not rescue it either.* Stretching a/b by √2 to √8 before Lloyd (which
+     is exactly a weighted distance) moves the lattice's red from 64 to 32–48 but pushes its blue from 32 to 40–64,
+     non-monotonically, and never produces the cat's pink at any weight, with or without Vivid.
+  4. *Nor does the thread colour itself.* Recomputing each thread as mean lightness with the chroma of its most
+     colourful quarter raises threads above chroma 0.03 from 11 to 21 (cat, 24 colours) but produces no pink thread.
+  5. *A gate was needed and found.* Vivid on small images amplified noise badly (121× the error on `flat regions`,
+     2.5× on the photo fixture). The chroma a cell gains from noise alone reaches 0.127 on fixtures at ~4 pixels a
+     cell — larger than the 0.03–0.04 real sub-stitch colour produces at 144–400 pixels a cell — so no threshold on
+     the gain can separate them. Vivid now stands down below `VIVID_MIN_PIXELS_PER_CELL` (24), which is what the
+     fixtures fall under; every fixture then measures 1.00× error and +0.00 confetti.
+  **The open question for the Owner.** Four mechanisms have now been measured and none delivers "the reds and blues
+  I can see". The reason is consistent: the pink is 0.5% of the chart and numerically close to cream, so every
+  stage that allocates by squared error treats it as a rounding error. The one approach not yet tried is the one
+  rejected at planning as too blunt — **reserving palette slots for the most distinct hues present, whether or not
+  they earn it by area**. That is the only shape that guarantees the outcome the Owner is asking for, and its cost
+  (a thread in the legend for a few dozen stitches) now looks like the trade the Owner actually wants. Recommended,
+  but not started: this goal has already been re-aimed twice.
 - 2026-09-22 — **M1 done; unblocked by the Owner, who chose a mode and the name Vivid.** Two further decisions,
   both answered with measurement rather than preference:
   1. *A switch of its own, not a third Algorithm value.* Classic/Refined selects the quantizer and nothing else

@@ -2,7 +2,7 @@ import { computeCellImportance, computeEdgeMagnitude, opaquePixelMask, sourceLum
 import { denoiseForQuantization } from "./denoise";
 import { ditherToPalette, isDithered, isDrawnMode, type DitherMode } from "./dither";
 import { DEFAULT_DITHER_TEXTURE, isDefaultDitherTexture, type DitherTexture } from "./dither-hand-drawn";
-import { downsampleToGridWithCoverage, emptyCellMask, gridDimensionsFor } from "./downsample";
+import { downsampleToGridWithCoverage, emptyCellMask, gridDimensionsFor, vividApplies, VIVID_TOP_SHARE } from "./downsample";
 import { luminance, rgbToOklab } from "../color/color";
 import { nameColors } from "../color/color-names";
 import {
@@ -89,6 +89,13 @@ export interface BuildPatternOptions {
    * is the chart G-054 shipped.
    */
   ditherTexture?: DitherTexture;
+  /**
+   * Vivid (G-061): each stitch keeps its area-mean lightness but the chroma of its most colourful part, so a
+   * saturated minority inside one cell is not averaged into a neutral. Absent or false is the pipeline as it was.
+   */
+  vivid?: boolean;
+  /** Calibration override for `VIVID_TOP_SHARE`, like `multiScaleWeights` for the optimizer: the app sends `vivid`, and only `scripts/vivid-comparison.ts` sets this (D211). */
+  vividTopShare?: number;
   onProgress?: (fraction: number) => void;
 }
 
@@ -122,7 +129,9 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   // Transparency becomes absence: a cell the photo barely covers is an empty stitch, takes no colour and joins no
   // cluster (G-050, D196). `emptyCellMask` is null for a photo that covers every cell, and every stage below then runs
   // exactly the code it ran before.
-  const { cells, coverage } = downsampleToGridWithCoverage(colorSource, gridWidth, gridHeight);
+  // Vivid changes what a stitch is made of, before anything chooses colours; structure below still reads the
+  // original photo, so edges and importance are the same either way (G-061, D211).
+  const { cells, coverage } = downsampleToGridWithCoverage(colorSource, gridWidth, gridHeight, options.vividTopShare ?? (options.vivid ? VIVID_TOP_SHARE : 0));
   const emptyMask = emptyCellMask(coverage);
 
   // Computed before quantization, not only for the optimizer: reinvestment uses importance to prefer a real rare
@@ -411,6 +420,9 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     // Recorded only when it is not the default, so a chart drawn with the shipped texture stays byte-identical to
     // one made before textures existed (G-055).
     ditherTexture: isDrawnMode(dither) && options.ditherTexture && !isDefaultDitherTexture(options.ditherTexture) ? options.ditherTexture : undefined,
+    // Recorded when it acted, not when it was asked for: below `VIVID_MIN_PIXELS_PER_CELL` a stitch holds no
+    // sub-stitch colour to rescue and the cells are plain area means (D211).
+    vivid: (options.vivid || options.vividTopShare) && vividApplies(colorSource.width, colorSource.height, gridWidth, gridHeight) ? true : undefined,
     enhancementMode: enhancementMode === "off" ? undefined : enhancementMode,
   };
 
