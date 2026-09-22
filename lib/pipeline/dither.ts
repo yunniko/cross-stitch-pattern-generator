@@ -1,5 +1,5 @@
 import { rgbToOklab } from "../color/color";
-import { DEFAULT_DITHER_TEXTURE, handDrawnThresholds, type DitherTexture } from "./dither-hand-drawn";
+import { DEFAULT_DITHER_TEXTURE, handDrawnThresholds, handDrawnThresholdWindow, type DitherTexture } from "./dither-hand-drawn";
 import { DITHER_MATRICES } from "./dither-matrices";
 import type { RGB } from "../types";
 
@@ -202,6 +202,47 @@ function errorDiffusionDither(cellOklab: Float64Array, width: number, height: nu
     }
   }
   return labels;
+}
+
+/** The tone the swatch's ramp shows at a row: dark at the top, light at the bottom, never quite either. */
+export function drawnRampTone(row: number, height: number): number {
+  return height <= 1 ? 0.5 : 0.15 + (0.7 * row) / (height - 1);
+}
+
+/**
+ * What a chart of `chartWidth` × `chartHeight` would show in its top-left window, for a dark-to-light ramp between
+ * two threads: the editor's swatch (G-057).
+ *
+ * It exists here, beside `ditherToPalette`, because the swatch has to make its stitches the way a chart does — the
+ * same threshold field, and the same rule about which of the two nearest threads is the one being placed. A swatch
+ * that compared a tone with a threshold directly looked right in the dark half and came out inverted in the light
+ * half, where the nearer thread is the light one.
+ */
+export function drawnRampWindow(
+  chartWidth: number,
+  chartHeight: number,
+  windowWidth: number,
+  windowHeight: number,
+  palette: readonly RGB[],
+  texture: DitherTexture = DEFAULT_DITHER_TEXTURE
+): { width: number; height: number; labels: Uint8Array } {
+  const { width, height, thresholds } = handDrawnThresholdWindow(chartWidth, chartHeight, windowWidth, windowHeight, texture);
+  const labels = new Uint8Array(width * height);
+  if (palette.length < 2) return { width, height, labels };
+  const paletteOklab = paletteToOklab(palette);
+  const from = rgbToOklab(palette[0]);
+  const to = rgbToOklab(palette[1]);
+
+  for (let y = 0; y < height; y++) {
+    const tone = drawnRampTone(y, height);
+    const l = from[0] + tone * (to[0] - from[0]);
+    const a = from[1] + tone * (to[1] - from[1]);
+    const b = from[2] + tone * (to[2] - from[2]);
+    const [first, second] = twoNearest(paletteOklab, palette.length, l, a, b);
+    const t = positionBetween(paletteOklab, first, second, l, a, b);
+    for (let x = 0; x < width; x++) labels[y * width + x] = t > thresholds[y * width + x] ? second : first;
+  }
+  return { width, height, labels };
 }
 
 /** Every cell's palette entry, dithered by `mode`. The palette is the quantizer's, unchanged. */

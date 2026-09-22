@@ -38,9 +38,9 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
 - **Edit the hand-drawn texture**: with Hand-drawn chosen, a Texture panel
   opens sliders for mark spacing, ring size, size variation, stroke sweep,
   edge wobble and how often each mark is drawn, plus presets and a Shuffle.
-  A swatch redraws as you move them, the chart is generated from exactly what
-  the swatch shows, and the texture is saved inside the pattern file, so a
-  chart reopens the way it was made.
+  A swatch shows the top-left corner of the chart those settings would make,
+  over a dark-to-light ramp, and the texture is saved inside the pattern file,
+  so a chart reopens the way it was made.
 - **Paint your own mark**: the same panel holds a 3–9 stitch grid where you
   say in which step each stitch of a mark fills. The painted mark joins the
   four built-in ones with a share of its own, and what you leave unpainted

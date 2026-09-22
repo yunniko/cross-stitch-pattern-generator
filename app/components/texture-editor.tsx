@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DEFAULT_DITHER_TEXTURE, DITHER_TEXTURE_RANGES, handDrawnThresholds, type DitherStamp, type DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
+import { drawnRampWindow } from "@/lib/pipeline/dither";
+import { DEFAULT_DITHER_TEXTURE, DITHER_TEXTURE_RANGES, type DitherStamp, type DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
+import type { RGB } from "@/lib/types";
 import { StampPainter } from "./stamp-painter";
 import { PillButton } from "./ui";
 
@@ -14,16 +16,21 @@ import { PillButton } from "./ui";
  */
 
 const SWATCH = 56;
+/** The swatch's own threads: what a chart between a dark and a light one would place (G-057). */
+const SWATCH_DARK = "#1d2430";
+const SWATCH_LIGHT = "#f2efe6";
 /**
- * The tone the swatch is drawn at. Deliberately not a round 0.42: a mark's own cells get thresholds of
- * `(rank + 0.5) / size`, and a round tone can equal one of them exactly, at which point whether the cell lights
- * depends on the last bit of the chart's projected tone. `tests/unit/dither-texture-swatch.spec.ts` pins this value.
+ * How long the sliders must be still before the swatch redraws. The field has to be built at the chart's own size —
+ * marks depend on it, so there is no shortcut — and that costs about 190 ms at 1000 stitches (G-057).
  */
-const SWATCH_TONE = 0.4237;
+const REDRAW_PAUSE_MS = 120;
 
 export interface TextureEditorProps {
   texture: DitherTexture;
   onChange: (texture: DitherTexture) => void;
+  /** The chart the next Generate would make. The swatch is its top-left corner, so the marks shown are its own. */
+  chartWidth: number;
+  chartHeight: number;
   /** Collapsed until asked for: the pane is long, and the texture only matters while a drawn pattern is chosen. */
   defaultOpen?: boolean;
 }
@@ -34,6 +41,10 @@ const PRESETS: Array<{ label: string; texture: DitherTexture }> = [
   { label: "Stipple", texture: { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0, 0, 0.6, 0.4, 0], spacing: 4, wobble: 0.6 } },
   { label: "Coarse", texture: { ...DEFAULT_DITHER_TEXTURE, spacing: 11, radiusMin: 0.3, radiusSpan: 0.12 } },
 ];
+
+function hexToRgb(hex: string): RGB {
+  return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+}
 
 /** One slider, labelled with what it does rather than with the field it sets. */
 function Knob({
@@ -77,29 +88,36 @@ function Knob({
   );
 }
 
-export function TextureEditor({ texture, onChange, defaultOpen = false }: TextureEditorProps) {
+export function TextureEditor({ texture, onChange, chartWidth, chartHeight, defaultOpen = false }: TextureEditorProps) {
   const [open, setOpen] = useState(defaultOpen);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // Keyed on the texture's own numbers, so a slider drag redraws and nothing else does.
   const key = useMemo(() => JSON.stringify(texture), [texture]);
+  const dark = useMemo(() => hexToRgb(SWATCH_DARK), []);
+  const light = useMemo(() => hexToRgb(SWATCH_LIGHT), []);
 
   useEffect(() => {
     if (!open) return;
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    if (!canvas || !context) return;
-    const thresholds = handDrawnThresholds(SWATCH, SWATCH, texture);
-    const image = context.createImageData(SWATCH, SWATCH);
-    for (let i = 0; i < SWATCH * SWATCH; i++) {
-      const lit = SWATCH_TONE > thresholds[i];
-      image.data[i * 4] = lit ? 0xf2 : 0x1d;
-      image.data[i * 4 + 1] = lit ? 0xef : 0x24;
-      image.data[i * 4 + 2] = lit ? 0xe6 : 0x30;
-      image.data[i * 4 + 3] = 255;
-    }
-    context.putImageData(image, 0, 0);
+    const timer = setTimeout(() => {
+      const canvas = canvasRef.current;
+      const context = canvas?.getContext("2d");
+      if (!canvas || !context) return;
+      const swatch = drawnRampWindow(chartWidth, chartHeight, SWATCH, SWATCH, [dark, light], texture);
+      canvas.width = swatch.width;
+      canvas.height = swatch.height;
+      const image = context.createImageData(swatch.width, swatch.height);
+      for (let i = 0; i < swatch.width * swatch.height; i++) {
+        const [r, g, b] = swatch.labels[i] === 1 ? light : dark;
+        image.data[i * 4] = r;
+        image.data[i * 4 + 1] = g;
+        image.data[i * 4 + 2] = b;
+        image.data[i * 4 + 3] = 255;
+      }
+      context.putImageData(image, 0, 0);
+    }, REDRAW_PAUSE_MS);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` is the texture's own value; see above.
-  }, [key, open]);
+  }, [key, open, chartWidth, chartHeight]);
 
   const set = <K extends keyof DitherTexture>(field: K, value: DitherTexture[K]) => onChange({ ...texture, [field]: value });
   const setWeight = (index: number, value: number) => {
@@ -152,6 +170,10 @@ export function TextureEditor({ texture, onChange, defaultOpen = false }: Textur
               className="h-[112px] w-[112px] shrink-0 rounded-md border border-line [image-rendering:pixelated]"
             />
             <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-[11px] leading-4 text-muted">
+                The top-left corner of this chart, dark to light. A chart picks between each stitch&apos;s own two
+                nearest threads; here there are two.
+              </span>
               <div className="flex flex-wrap gap-1.5">
                 {PRESETS.map((preset) => (
                   <PillButton key={preset.label} onClick={() => onChange(preset.texture)} title={`Set every knob to ${preset.label.toLowerCase()}`}>

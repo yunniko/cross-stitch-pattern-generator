@@ -183,9 +183,12 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - A drawn mark's shape list only ever grows at the end, and what a short weight list falls back to is pinned by name
   (`lump`), never "the last shape" — otherwise adding one changes every existing texture (D205). Every cell of a mark
   keeps an order, painted or not, because that ranking is what holds tone.
+- A drawn chart's field depends on the grid's **width and height**: marks are placed across the whole grid and their
+  shapes drawn from the stream left afterwards. So a preview of a corner has to build the chart's own field (D206),
+  and a tone compared with a threshold is the pipeline's rule only while the dark thread is the nearer one.
 - A pipeline stage that reads `cellPalette` must skip `EMPTY_CELL`: it is a sentinel, not palette index 255, and both
   TypeScript and Rust must skip it in the same places or the two diverge (D196).
-- Rust export references are generated in the processor image, never on a development machine: it has only DejaVu Sans, a laptop resolves the font stack elsewhere, and every raster would differ (D188).
+- Rust export references are generated in the processor image, never on a laptop: only DejaVu Sans is installed there, so every raster would differ (D188).
 - Rust calls `jsmath` for every `Math` function (`libm` and `f64` differ from V8, D183, D184; recheck the vectors on a
   Node upgrade), and threads a stage only if each value keeps its TypeScript order (D185; `RUST_THREADS=3`).
 - Code e2e specs load in Node takes symmetry types from `lib/editor/symmetry-axes.ts`, not `symmetry.ts` (G-037).
@@ -259,8 +262,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   the frame's data line and skip the rest: parsing every frame as JSON broke production (`tests/unit/job-stream-keepalive.spec.ts`).
 - `PROCESSOR_WORKER_HEAP_MB` caps each pool worker's heap. Unset in production, it proves the PDF's heap is bounded: at
   512 MB a 1500-stitch Pattern Keeper PDF and Export all complete, where 1000 once failed at every cap to 1536 MB (D169).
-- `MAX_STITCHES` (1500) is measured, not chosen: raising it means re-running `docs/reviews/2026-09-19-new-cap-measurements.md`,
-  and above about 1550 Export all's chart PNG no longer fits its budget (D026, D181).
+- `MAX_STITCHES` (1500) is measured: raising it means re-running `docs/reviews/2026-09-19-new-cap-measurements.md`, and above ~1550 Export all's chart PNG no longer fits its budget (D026, D181).
 - The PDF releases each page as it is drawn through two private pdf-lib 1.17.1 fields (D169). A pdf-lib upgrade must keep
   `tests/unit/pdf-page-flush.spec.ts` green, or the flush silently stops and the heap grows back.
 - Rate-limit capacities default to production values, overridable by `RATE_LIMIT_JOBS_PER_MINUTE` and

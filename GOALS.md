@@ -75,6 +75,52 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   do; and the shape a short weight list falls back to stays `lump` explicitly rather than "the last shape", so adding
   a fifth cannot change what a default texture draws.
 
+### G-057 · The texture swatch shows the chart's own marks — ACTIVE (2026-09-22)
+- **What:** the Texture panel's swatch stops being a 56-stitch sample drawn on its own and becomes a window onto the
+  chart the next Generate will make: the same grid width, so the same marks, over a range of tones rather than one.
+- **Why:** the Owner doubted it showed real pattern details, and measurement agreed. Marks are placed by walking a
+  jittered lattice across the whole grid, so a 56-wide field and a 200-wide one diverge after the first row: **46% of
+  the swatch's stitches differ from the same corner of a 200×125 chart** (45.7% at 400×300, 47.7% at 1000×750). The
+  test that pinned the swatch to the pipeline was true and too narrow — it built a chart of the swatch's own size,
+  which is the one case where they agree.
+- **Acceptance criteria:**
+  1. **The swatch is a real corner of a real chart.** For the chart size the current settings would produce, the
+     swatch's stitches equal the matching stitches of a full-size field, cell for cell, at every tone it draws.
+  2. **It shows tones, not a tone.** The swatch draws a dark-to-light ramp, so marks are seen growing rather than at
+     one arbitrary level.
+  3. ~~**It stays live.** Redrawing stays under about 30 ms for a 1000-stitch chart, so only the rows the window
+     needs are computed.~~ **Corrected 2026-09-22, after measuring:** no window can be built without the whole grid,
+     because each mark's shape is drawn from what is left of the stream *after* placement — so the field costs
+     14 ms at 200 stitches, 30 at 400, 200 at 1000 and 494 at 1500. The swatch redraws 120 ms after the sliders
+     stop instead. Making a window cheap would mean drawing shapes from a per-mark hash, which changes every chart
+     drawn so far and is the Owner's call (D206).
+  4. **Nothing that exists moves:** Off, the eleven patterns and the default texture stay byte-identical, the 18
+     golden hashes and the frozen pre-texture comparison unchanged.
+  5. **What the swatch still cannot show is said plainly**, in the panel and in the docs: a chart picks between each
+     stitch's own two nearest threads, and a two-thread swatch cannot show that.
+
+**Milestones**:
+- [x] M1 — The window: a field computed at the chart's width with only the rows the window needs, pinned against a
+  full-size field, and the ramp. The measurement above recorded in the test that replaces the old pinning.
+- [x] M2 — The panel takes the chart's size from the photo and the settings, the note about threads, docs and the
+  decision, deploy and verify live.
+
+**Progress log** (newest first):
+- 2026-09-22 — **M1 and M2 done, pending the deploy.** The swatch is now a corner of the chart the settings would
+  make: the field is built at the chart's own width and height, cropped to 56×56, and drawn over a dark-to-light
+  ramp so marks are seen growing rather than at one tone. **Two bugs the old test could not see**, both now pinned:
+  the field depends on the grid's *height* as well as its width, because each mark's shape is drawn from the stream
+  left after placement — so no cheap window is possible (criterion 3 corrected above); and a tone compared with a
+  threshold is only the pipeline's rule while the dark thread is the nearer one, so the swatch had the marks
+  inverted across the light half. The swatch now goes through `ditherToPalette`'s own rule (`drawnRampWindow`), and
+  the test builds a real chart of the right size and ramp to compare against. The panel takes the chart's size from
+  the photo's proportions and the size setting, and says what a two-thread swatch cannot show. Verified: Vitest 1219
+  passed / 8 skipped, Playwright 330 passed across 27 specs, tsc, eslint and docs-lint clean. D206 records the cost
+  and the rejected alternative.
+- 2026-09-22 — goal created after the Owner's doubt, with the divergence measured first: 46% of the swatch's stitches
+  differ from the same corner of a 200×125 chart. My own pinning test had asserted agreement on a 56×56 chart, which
+  is the single size where the two agree — a true claim about a case the UI never shows.
+
 ### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
 - **What:** Eventually make the app public, built around **a social
   ecosystem** (community/sharing features -- exact shape not yet defined:

@@ -582,6 +582,7 @@ export default function Workspace() {
               queueMessage={generation.queueMessage}
               hasPattern={pattern !== null && !startingNew}
               hasPhoto={!startingNew && source.hasPhoto}
+              sourceSize={source.meta ? { width: source.meta.naturalWidth, height: source.meta.naturalHeight } : null}
               isLoadingImage={!startingNew && source.isLoading}
               onCancel={generation.cancel}
               error={generation.error}

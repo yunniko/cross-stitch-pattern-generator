@@ -405,6 +405,35 @@ export function handDrawnThresholds(
   return thresholds;
 }
 
+/**
+ * A corner of the field a chart of `chartWidth` × `chartHeight` stitches would be drawn with (G-057).
+ *
+ * The editor's swatch used to build a small field of its own, which is not what any chart looks like. Marks are
+ * placed by walking a jittered lattice across the whole grid, and each mark's shape is then drawn from what is left
+ * of the same random stream — so both the placement *and* the shapes depend on the grid's full size. Against a
+ * 200×125 chart, 46% of a 56-wide swatch's stitches differed. There is no shortcut: the field has to be built at the
+ * chart's own size and cropped, which is what this does. It costs what it costs (about 190 ms at 1000 stitches), so
+ * the caller redraws on a pause rather than on every pointer move.
+ */
+export function handDrawnThresholdWindow(
+  chartWidth: number,
+  chartHeight: number,
+  windowWidth: number,
+  windowHeight: number,
+  texture: DitherTexture = DEFAULT_DITHER_TEXTURE
+): { width: number; height: number; thresholds: Float64Array } {
+  const width = Math.max(1, Math.round(chartWidth));
+  const height = Math.max(1, Math.round(chartHeight));
+  const cropWidth = Math.min(width, windowWidth);
+  const cropHeight = Math.min(height, windowHeight);
+  const field = handDrawnThresholds(width, height, texture);
+  const thresholds = new Float64Array(cropWidth * cropHeight);
+  for (let y = 0; y < cropHeight; y++) {
+    for (let x = 0; x < cropWidth; x++) thresholds[y * cropWidth + x] = field[y * width + x];
+  }
+  return { width: cropWidth, height: cropHeight, thresholds };
+}
+
 /** A plain dot growing outward from its centre: the placement with no shape library, kept for the M1 measurements. */
 export function dotScore(_markIndex: number, dx: number, dy: number): number {
   return dx * dx + dy * dy;

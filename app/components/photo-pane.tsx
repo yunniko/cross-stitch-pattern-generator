@@ -6,6 +6,7 @@ import { DIFFUSION_DITHER_MODES, DRAWN_DITHER_MODES, isDithered, isDrawnMode, OR
 import { isReleasedEnhancementMode, releasedEnhancementModes, type EnhancementModeId } from "@/lib/pipeline/enhance";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
+import { gridDimensionsFor } from "@/lib/pipeline/downsample";
 import { longerSideFor } from "../hooks/use-generation";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
 import { TextureEditor } from "./texture-editor";
@@ -102,6 +103,8 @@ export interface PhotoPaneProps {
   hasPattern: boolean;
   /** A photo has been decoded; before that the pane has nothing to configure. */
   hasPhoto: boolean;
+  /** The photo's own pixel size, which decides the chart's proportions; null before one is decoded. */
+  sourceSize: { width: number; height: number } | null;
   /** A chosen photo is still decoding: not yet `hasPhoto`, but no longer first run. */
   isLoadingImage: boolean;
   onCancel: () => void;
@@ -133,7 +136,8 @@ function GeneratingCard({ progress, queueMessage, hasPattern, onCancel }: { prog
   );
 }
 
-export function PhotoPane({ options, onChange, isProcessing, progress, queueMessage, hasPattern, hasPhoto, isLoadingImage, onCancel, error }: PhotoPaneProps) {
+export function PhotoPane({
+  sourceSize, options, onChange, isProcessing, progress, queueMessage, hasPattern, hasPhoto, isLoadingImage, onCancel, error }: PhotoPaneProps) {
   if (isProcessing) return <GeneratingCard progress={progress} queueMessage={queueMessage} hasPattern={hasPattern} onCancel={onCancel} />;
   // First run: nothing to size or colour yet, so 1b shows what the three steps will be instead of dead controls.
   if (!hasPhoto && !hasPattern && !isLoadingImage)
@@ -153,6 +157,11 @@ export function PhotoPane({ options, onChange, isProcessing, progress, queueMess
   const photoOptions = releasedEnhancementModes().map((mode) => ENHANCEMENT_OPTIONS[mode]);
   const photoMode = isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off";
   const dithering = isDithered(options.ditherMode);
+  // The grid the next Generate would make, so the swatch can show that chart's own marks (G-057). Without a photo's
+  // proportions yet, a square is the honest guess — and the swatch is only offered once a photo is loaded anyway.
+  const chartSize = sourceSize
+    ? gridDimensionsFor(sourceSize.width, sourceSize.height, longerSide)
+    : { width: longerSide, height: longerSide };
 
   // Crisp and dithering ask for opposite things and the pipeline refuses the pair (D199), so choosing either one
   // here clears the other rather than leaving a combination Generate would reject.
@@ -311,7 +320,14 @@ export function PhotoPane({ options, onChange, isProcessing, progress, queueMess
             </optgroup>
           ))}
         </select>
-        {dithering && isDrawnMode(options.ditherMode) && <TextureEditor texture={options.ditherTexture} onChange={(texture) => onChange("ditherTexture", texture)} />}
+        {dithering && isDrawnMode(options.ditherMode) && (
+          <TextureEditor
+            texture={options.ditherTexture}
+            onChange={(texture) => onChange("ditherTexture", texture)}
+            chartWidth={chartSize.width}
+            chartHeight={chartSize.height}
+          />
+        )}
       </section>
 
       {photoOptions.length > 1 && (
