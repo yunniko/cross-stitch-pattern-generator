@@ -216,3 +216,4 @@ remain readable with git show.
 - D205 — A painted mark is a fifth shape, and what it leaves unpainted still fills — active
 - D206 — The swatch is a corner of the real chart, at the price of building one — active
 - D207 — Switches let the knobs reach every mark, and the size knob is read backwards — active
+- D208 — The preview belongs to every pattern, and each family pays only its own cost — active

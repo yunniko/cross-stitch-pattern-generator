@@ -34,19 +34,15 @@ chart symbols changed appearance (D192), and `CS_JOB=0` returns to TypeScript wi
   (D195), "Export all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs` by content; OXS lists what it couldn't keep.
 - A transparent background generates as empty stitches (G-050, D196): a cell covered less than half takes no colour, and every stage reads covered pixels only.
 - Pixel art in and out (G-049): the start screen's fourth card opens an image as a chart, one pixel per stitch,
-  transparent pixels empty, nothing resampled; too large, too colourful or partly transparent is refused with the real
-  numbers, under 10 stitches is centred in a chart of the minimum (D194), and the pixel-art PNG writes the image back.
-- Dithering (G-052 and G-053 signed off 2026-09-21, G-054 on top of them): a Dither control offers ten patterns in
-  four groups — screens that cluster their stitches (clustered dots, rings, two line screens), scattered matrices
-  (Bayer 4×4/8×8, blue noise), two error-diffusion kernels (Floyd–Steinberg, Atkinson) and Hand-drawn, which scatters
-  drawn marks across the chart instead of repeating one (D201, D202) — each mixing neighbouring stitches between the
-  two threads either side of a colour instead of rounding each one. Off is byte-identical to before; a dithered chart
-  runs no smoothing pass and refuses Crisp (D199). A matrix pattern is data, not code (D198); a kernel is a row of
-  taps (D200); the drawn marks take an **editable texture** — nine numbers with published ranges, edited by sliders
-  with a live swatch and saved inside the chart's own file (G-055, D203, D204) — and a **painted mark**, a grid of
-  fill steps drawn in the same panel and mixed in as a fifth shape (G-056, D205). Measured in
+  nothing resampled; too large, too colourful or partly transparent is refused with the numbers, under 10 stitches is centred in a chart of the minimum (D194), and the pixel-art PNG writes the image back.
+- Dithering (G-052 to G-059): the Dither control offers screens (clustered dots, rings, lines in four directions),
+  scattered matrices (Bayer 4×4/8×8, blue noise), two error-diffusion kernels (Floyd–Steinberg, Atkinson) and
+  Hand-drawn, which scatters drawn marks instead of repeating a tile (D201, D202). Off is byte-identical to before; a
+  dithered chart runs no smoothing pass and refuses Crisp (D199). A matrix is data (D198), a kernel a row of taps
+  (D200), the drawn marks an editable texture with a painted-mark grid (D203–D205, D207). A preview of the chart's
+  own corner is shown for every pattern (D206, D208). Measured in
   `docs/reviews/2026-09-21-dithering-comparison.md`: kernels lowest error (median 0.44–0.51×) and never worse,
-  screens and drawn marks cheapest (+3.3 to +4.3 points, drawn +3.8 at 0.78×), matrices between.
+  screens and drawn marks cheapest (+3.3 to +4.3 points), matrices between.
 - Photo upload and reopening a save decode in a worker, the old decode a logged fallback (D128).
 - Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores on
   reload; a corrupt record shows a banner with an on-demand error report. Options live in localStorage.
@@ -187,6 +183,10 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - A knob that reaches a shape it was not written for goes behind a switch that starts off, or it changes every
   texture already drawn (D207). The panel's Ring thickness is the stored radius read backwards: ink is fixed by tone,
   so a wider circle is a thinner stroke.
+- The preview is shown for every pattern and builds only what that family forces: a matrix needs its window, a kernel
+  the chart's full width down to the window, the drawn marks the whole grid (D208). The four line screens are one
+  option with a direction, stored as four `lines-*` ids so old files keep opening; the list row carries its own value
+  because a `select` cannot show one its options lack.
 - A pipeline stage that reads `cellPalette` must skip `EMPTY_CELL`: it is a sentinel, not palette index 255, and both
   TypeScript and Rust must skip it in the same places or the two diverge (D196).
 - Rust export references are generated in the processor image, never on a laptop: only DejaVu Sans is installed there, so every raster would differ (D188).

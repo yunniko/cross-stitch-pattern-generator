@@ -114,10 +114,15 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M2 — The preview for every family: the window built the cheapest exact way for each, moved out of the
   collapsible and shown whenever dithering is on, pinned against real charts and measured. **Clicking the preview
   reshuffles the marks** (Owner, 2026-09-22), replacing the Shuffle button.
-- [ ] M3 — The comparison document re-run over the widened set, decision file, README and HANDOVER, deploy and
+- [x] M3 — The comparison document re-run over the widened set, decision file, README and HANDOVER, deploy and
   verify live.
 
 **Progress log** (newest first):
+- 2026-09-22 — **M3 done, pending the deploy.** `compare:dither` re-run over twelve patterns: the ten that existed
+  did not move a digit, and the two new directions land beside their siblings (vertical 0.70× at +4.0 points next to
+  horizontal's 0.71× at +3.3; anti-diagonal identical to diagonal at 0.66× and +12.7). D208 records why the preview
+  belongs to every pattern and why each family pays only its own cost. Verified: Vitest 1233 passed / 8 skipped,
+  Playwright 334 passed across 27 specs, `compare:rust` 89 cases identical, tsc, eslint and docs-lint clean.
 - 2026-09-22 — **M2 done.** The preview is its own component, shown whenever a pattern is chosen and outside the
   Texture panel, which now holds only what the drawn marks have. **Clicking it reshuffles** — the Shuffle button is
   gone. How much of the chart gets built is decided per family, and measured: a matrix needs only the window (1–2 ms

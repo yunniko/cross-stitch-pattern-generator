@@ -23,12 +23,14 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   hard boundary as two real colors instead of inventing a blend; Crisp+ also
   cleans up slightly soft edges, snapping the in-between colors along a blurred
   boundary to one side while keeping real thin lines and gradients.
-- **Dither** instead of rounding every stitch to its nearest thread: ten
-  patterns in four groups — screens that cluster their stitches (clustered
-  dots, rings, horizontal and diagonal lines), scattered matrices (Bayer 4×4
-  and 8×8, blue noise), two error-diffusion kernels (Floyd-Steinberg and
-  Atkinson), and **Hand-drawn**, which scatters drawn marks (rings, arcs, dots)
-  across the chart instead of repeating a pattern. They mix neighbouring
+- **Dither** instead of rounding every stitch to its nearest thread: screens
+  that cluster their stitches (clustered dots, rings, and lines in four
+  directions), scattered matrices (Bayer 4×4 and 8×8, blue noise), two
+  error-diffusion kernels (Floyd-Steinberg and Atkinson), and **Hand-drawn**,
+  which scatters drawn marks (rings, arcs, dots) across the chart instead of
+  repeating a pattern. Whichever you pick, a preview shows the top-left corner
+  of the chart those settings would make, over a dark-to-light ramp — click it
+  to place the drawn marks differently. They mix neighbouring
   stitches between the two threads either side of a colour, so a small palette
   can hold a gradient. It costs single stitches standing alone: the screens and
   the drawn marks cost fewest, and the two kernels fit the photo closest and
@@ -40,9 +42,8 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   sweep, edge wobble and how often each mark is drawn, each of the last three
   with a switch that lets it reach every mark rather than the ones it was
   written for, plus presets and a Shuffle.
-  A swatch shows the top-left corner of the chart those settings would make,
-  over a dark-to-light ramp, and the texture is saved inside the pattern file,
-  so a chart reopens the way it was made.
+  The texture is saved inside the pattern file, so a chart reopens the way it
+  was made.
 - **Paint your own mark**: the same panel holds a 3–9 stitch grid where you
   say in which step each stitch of a mark fills. The painted mark joins the
   four built-in ones with a share of its own, and what you leave unpainted
