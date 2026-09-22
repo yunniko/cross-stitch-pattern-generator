@@ -122,7 +122,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - 2026-09-22 — goal created after G-060 was reverted (D210). The Owner chose this direction from four: chroma-aware
   importance, hue-weighted clustering distance, reserved palette slots, or diagnose further.
 
-### G-062 · A thread for every hue the photo has — DRAFT (2026-09-23, starts on the Owner's go)
+### G-062 · A thread for every hue the photo has — ACTIVE (2026-09-23)
 - **What:** the palette reserves slots for the distinct hues the photo holds, whether or not they earn one by area.
   A red print covering 0.5% of the chart, or pink flowers covering 0.1%, get a thread because they are a colour that
   is there, not because they win a squared-error contest against a brown ramp.
@@ -152,21 +152,35 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - **Constraints:** it may not invent a hue the cells do not hold — a reserved thread is seeded from real cells and
   keeps their colour. It spends only slots the palette would otherwise have given to a near-duplicate; the requested
   colour count is still the ceiling.
-- **To settle with the Owner before M3:** whether this is **folded into Vivid** (one switch that means "show me the
-  colours that are there", which is what Vivid's name already promises and what it alone does not deliver) or a
-  control of its own. Folding is recommended; a third knob for one intent is the thing D040 warns about.
+- **Settled by the Owner, 2026-09-23:** it is **folded into Vivid**. One switch means "show me the colours that are
+  there"; Vivid's cells put the colour on the grid and the reserved threads spend palette slots on it.
 
 **Milestones**:
-- [ ] M1 — The rule, defined and calibrated by measurement, before any pipeline change: what counts as "a hue the
+- [x] M1 — The rule, defined and calibrated by measurement, before any pipeline change: what counts as "a hue the
   photo has" (a chroma floor, hue bins, a minimum share of stitches), how many slots it may take, and where the
   seeding happens — with a sweep over both photos and every fixture, and a check that a reserved thread survives
   the merge, the smoothing and the brand snap. Published in `docs/reviews/`. **Ends with a go/no-go against
-  criterion 1**, measured on a throwaway implementation rather than a shipped one.
+  criterion 1**, measured on a throwaway implementation rather than a shipped one. Done 2026-09-23: **go**.
 - [ ] M2 — The engine change in both languages, Off byte-identical, parity cases on both photos.
 - [ ] M3 — The control (folded into Vivid or its own), the request, file and autosave plumbing, an end-to-end pass,
   decision file, README and HANDOVER, deploy and verify live on the Owner's photos.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-23 — **M1 done: go.** Measured on a throwaway implementation, written up in
+  `docs/reviews/2026-09-23-hue-reservation.md`. Criterion 1 is met at 150 stitches and 24 colours: the cat's legend
+  gains a pink thread (192,166,179, 119 stitches) and a rose (220,157,142, 89), the lattice's a blue (130,149,182,
+  28) and a dark red (36,17,20, 220). Three findings the rest of the goal rests on:
+  1. *A reserved thread survives every stage.* Cat pink 133 stitches at the quantizer, 128 after ICM, 119 after
+     cleanup, 119 after the merge; lattice blue 48 / 29 / 28 / 28. The merge does not eat it — worth stating,
+     since G-060 was built on the belief that it would.
+  2. *Re-converging Lloyd after seeding loses them all*, because the seeded centroid drifts back into the mass it
+     was placed to escape. Cells are assigned to the nearest thread once, and the reserved centroid stays put.
+  3. *The legend's recompute is what mutes them*, since a thread's colour is the mean of its members: the cat's
+     pink falls from chroma 0.042 to 0.027. Applying Vivid's own rule one level up — mean lightness, chroma of the
+     thread's most colourful quarter — restores it to 0.035, and the lattice's blue from 0.034 to 0.054.
+  Honest qualification recorded in the review: the hues arrive **as the photo holds them**, dusty and dark, not as
+  saturated colours. What changes is that there is a thread for them at 24 colours instead of none at 64.
+- 2026-09-23 — the Owner chose to fold this into the Vivid switch rather than add a third control.
 - 2026-09-23 — goal created at the Owner's request, as the third of the four directions first offered on
   2026-09-22. What it must not repeat: G-060 shipped on a diagnosis that named the wrong stage, and G-061 shipped a
   mechanism that works but does not answer the complaint. Hence criterion 1 and M1's go/no-go: the target is stated
