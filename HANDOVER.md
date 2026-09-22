@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-22 at 430dd7f (G-060 reverted, deployed and verified live)
+Last verified: 2026-09-23 at 355790e (G-061: Vivid, deployed and verified live on the Owner's photos)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,14 +9,11 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 430dd7f (2026-09-22), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
+**Production** runs 355790e (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
-export, byte-identical to TypeScript at any thread count, plus a WASM build (D182–D189); on the host it is 1.6–13.0×
-faster at one thread and far lighter on memory (`docs/reviews/2026-09-20-rust-comparison-report.md`). Live since
-2026-09-20: each job runs in the `cs-job` sidecar (D190, D193), the editable save stays in the browser (D191), 4–5 px
-chart symbols changed appearance (D192), and `CS_JOB=0` returns to TypeScript without a rebuild.
+export, byte-identical to TypeScript at any thread count, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-comparison-report.md`); `CS_JOB=0` returns to TypeScript without a rebuild.
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1500 stitches (D181) and 2–100 colors, with Refined or Classic clustering (stored as
@@ -43,6 +40,7 @@ chart symbols changed appearance (D192), and `CS_JOB=0` returns to TypeScript wi
   own corner is shown for every pattern (D206, D208). Measured in
   `docs/reviews/2026-09-21-dithering-comparison.md`: kernels lowest error (median 0.44–0.51×) and never worse,
   screens and drawn marks cheapest (+3.3 to +4.3 points), matrices between.
+- **Color detail — Averaged or Vivid** (G-061, D211): a stitch normally averages the pixels it covers, which turns a small bright thing inside it into a grey; Vivid keeps the mean lightness and the chroma of the cell's most colourful quarter, gamut-mapped. Off by default and byte-identical off. It stands down below 24 source pixels a stitch, because at ~4 pixels a cell noise alone produces more chroma (0.127) than real sub-stitch colour does at 144–400 (0.03–0.04); ungated it cost 121× the error on `flat regions`. **It does not deliver the complaint it was built for** — see Next steps and `docs/reviews/2026-09-22-vivid.md`.
 - Photo upload and reopening a save decode in a worker, the old decode a logged fallback (D128).
 - Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores on
   reload; a corrupt record shows a banner with an on-demand error report. Options live in localStorage.
@@ -281,11 +279,13 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   painted mark, and a preview of the chart's own corner for each. Open from their measurements: on a noisy photo
   at 8 colours the screens can read worse than an undithered chart, and drawn marks become grain on flat regions,
   which is inherent to dithering a flat area. The screenshot that started it was hand-drawn (Owner, 2026-09-21).
-- **Open, and the reason G-060 was reverted:** on a photo whose subject is one dominant colour family (wood/brown
-  under a lattice; a grey cat on cream), the palette stays in that family well past 20 colours — the reds, greens,
-  blues, pinks and purples visibly there arrive only around 30–40, dithered or not (Owner, 2026-09-22). G-060 read
-  this as "the merge eats colours" and shipped a floor; the Owner's verdict was that it does not solve the problem
-  (D210). Which colours the quantizer picks in the first place is not yet diagnosed, and no successor is planned.
+- **Open, and the reason G-060 was reverted and G-061 under-delivered:** on a photo whose subject is one dominant
+  colour family, the reds, greens, blues, pinks and violets that are visibly there arrive only around 30–40
+  colours, dithered or not (Owner, 2026-09-22). Four mechanisms have now been measured: the palette merge (G-060,
+  reverted, D210), allocation re-ranking, the cell's own colour (G-061, shipped, D211) and a hue-weighted
+  clustering metric. None delivers it, for one reason — the pink is 0.5% of the chart and numerically close to
+  cream, so every stage that allocates by squared error treats it as a rounding error. The one shape not tried is
+  reserving palette slots for the hues the photo holds whether or not they earn it by area; G-062 plans it.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log
@@ -294,6 +294,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-22 | acf89fa | G-058: three switches let Edge wobble, Ring thickness and Stroke sweep reach every mark, off by default; the ring slider is the stored radius read backwards (D207) | Vitest 1225 passed, 8 skipped; Playwright 331 passed across all 27 specs; `compare:rust` 85 cases identical, including each switch alone and all three together; the default texture still matches its frozen pre-texture copy and the 18 golden hashes are untouched; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: the panel shows three switches all off and a Ring thickness slider, and flipping the size switch changes 87 stitches of the swatch |
 | 2026-09-22 | 46a6e47 | G-059: the preview is shown for every pattern and outside the texture panel, clicking it reshuffles, and the line screens become one Lines option with four directions (D208) | Vitest 1233 passed, 8 skipped; Playwright 334 passed across all 27 specs; `compare:rust` 89 cases identical including each line direction; the ten patterns that existed measure exactly as before in `compare:dither`, and the 18 golden hashes are untouched; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: the list reads Clustered dots, Rings, Lines / Bayer 4×4, Bayer 8×8, Blue noise / Floyd–Steinberg, Atkinson / Hand-drawn; the preview appears for a matrix with no knobs beside it and disappears at Off; the four directions are there; and clicking the preview moved 1296 of its stitches |
 | 2026-09-22 | 430dd7f | G-060 reverted in full at the Owner's direction: the colour floor and its "Keep similar colors" select are gone, and generation is the pipeline as it was before it (D210) | Vitest 1233 passed, 8 skipped and `compare:rust` 89 cases identical — both back to their pre-G-060 numbers, 18 golden hashes untouched; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: the select is gone, a 48-colour generation runs clean and its exported file carries no `colorFloor` |
+| 2026-09-23 | 355790e | G-061: a Color detail switch (Averaged / Vivid) — a stitch can keep the chroma of its most colourful quarter instead of averaging it away, off by default and standing down below 24 pixels a stitch (D211) | Vitest 1243 passed, 8 skipped; Playwright 336 passed across all 28 specs; `compare:rust` 96 cases identical including seven new Vivid ones (both palettes, Crisp, dithered, Classic, transparency, and the stand-down case), 18 golden hashes untouched; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live on the Owner's own photos: the cat at 150 stitches / 40 colours goes from 5 to 9 threads above chroma 0.06 (most saturated 0.095 → 0.112), the lattice at 120 stitches from 9 to 13 (0.109 → 0.118), both charts differ from their Averaged twin, the exported file records `vivid`, and the console is clean |

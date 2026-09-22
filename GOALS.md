@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-061 · Vivid: a stitch keeps the colour that is in it — BLOCKED (2026-09-22)
+### G-061 · Vivid: a stitch keeps the colour that is in it — ACTIVE (2026-09-22, deployed 2026-09-23, awaiting sign-off)
 - **What:** a **Vivid** switch beside Algorithm. Off (default) is today exactly. On, a stitch takes the mean
   lightness of the pixels it covers but the chroma of its most colourful part, instead of averaging a saturated
   minority into neutrality — so the reds, greens, blues, pinks and violets that are in the photo are still in the
@@ -50,12 +50,26 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 **Milestones**:
 - [x] M1 — Where the colour is lost, measured: allocation re-ranking ruled out, the loss located in the downsample,
   the chroma-preserving alternative and the denoise's behaviour under it measured. Done 2026-09-22.
-- [ ] M2 — The percentile chosen against criteria 2 and 3 over every fixture and both photos, published in
+- [x] M2 — The percentile chosen against criteria 2 and 3 over every fixture and both photos, published in
   `docs/reviews/`, and the engine change in both languages with Off byte-identical.
-- [ ] M3 — The switch: pane, request, file, autosave record and the pattern's own record, an end-to-end pass, then
+- [x] M3 — The switch: pane, request, file, autosave record and the pattern's own record, an end-to-end pass, then
   decision file, README and HANDOVER, deploy and verify live on the Owner's photos.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-23 — **Deployed at 355790e and verified live on the Owner's own photos**, on the Owner's instruction to
+  ship it and try it despite M2's verdict. The cat at 150 stitches and 40 colours goes from 5 to 9 threads above
+  chroma 0.06 (most saturated 0.095 → 0.112); the lattice at 120 stitches from 9 to 13 (0.109 → 0.118); both charts
+  differ from their Averaged twin, the exported file records `vivid`, and the console is clean. 23 containers before
+  and after with an identical name set, 38 vhosts unchanged. **Criterion 2 is not met and was not claimed**: the
+  photos do not deliver their hues *far* earlier, they deliver a few more saturated threads. Shipped to be tried.
+  **Awaiting sign-off.**
+- 2026-09-23 — **M2 and M3 built.** Rust mirrors the cell rule byte for byte: 96 parity cases identical, seven of
+  them new Vivid ones covering both palettes, Crisp, dithered, Classic clustering, transparency and the stand-down
+  case. The switch is Color detail (Averaged | Vivid) beside Algorithm — a switch of its own, per D040 — carried
+  through the request (a boolean, range-checked), the saved file, the autosave record and the pattern's own record,
+  which says whether it *acted*, not whether it was asked for. Two name collisions with Photo fix's own Vivid were
+  found by the suites and fixed by scoping each spec to its own section; the Owner accepted the collision until
+  Photo fix is redone.
 - 2026-09-22 — **BLOCKED after M2's measurements: Vivid works and does not solve the complaint. Not deployed.**
   The code is committed, off by default and byte-identical when off (golden hashes, downsample and regression suites
   pass), because the measurements below are worth keeping; nothing has shipped.
@@ -107,6 +121,56 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
      **849**; and on the lattice 39 red/pink to **80** (109), 29 blue/violet to **50** (66).
 - 2026-09-22 — goal created after G-060 was reverted (D210). The Owner chose this direction from four: chroma-aware
   importance, hue-weighted clustering distance, reserved palette slots, or diagnose further.
+
+### G-062 · A thread for every hue the photo has — DRAFT (2026-09-23, starts on the Owner's go)
+- **What:** the palette reserves slots for the distinct hues the photo holds, whether or not they earn one by area.
+  A red print covering 0.5% of the chart, or pink flowers covering 0.1%, get a thread because they are a colour that
+  is there, not because they win a squared-error contest against a brown ramp.
+- **Why:** this is the fourth mechanism tried against the Owner's report, and the first that addresses the reason
+  the other three failed. Measured across G-060 and G-061: the palette merge (reverted, D210), allocation
+  re-ranking, the cell's own colour (Vivid, shipped, D211) and a hue-weighted clustering metric all leave the cat's
+  pink with **no thread at all by 64 colours**. The cause is the same in each case — the pink is 0.5% of the chart
+  and numerically close to cream, so every stage that allocates by squared error treats it as a rounding error.
+  Reserving a slot is the only shape that does not ask it to win that contest. It was rejected at planning on
+  2026-09-22 as too blunt ("a thread in the legend for 11 stitches"); three failures later, that cost is the trade
+  the Owner is asking for.
+- **Acceptance criteria:**
+  1. **A stated, falsifiable target on the delivered chart, on the Owner's own photos.** At 150 stitches and 24
+     colours the cat's legend contains a pink thread and the lattice's contains a red and a blue one — checked in
+     the finished palette, after the smoothing, the merge and any brand snap, not in an intermediate stage. This is
+     the criterion the last three attempts lacked; if the change cannot meet it, it does not ship.
+  2. **It costs what it says.** The threads it spends come out of the tonal ramp, so the 3×3 neighbourhood error
+     and confetti are published per fixture and colour count in `docs/reviews/`, against the same chart without it,
+     together with how many threads were reserved and how many stitches each covers.
+  3. **A photo with nothing rare in it is untouched** — on the gradient and flat-region fixtures it reserves
+     nothing, and the chart is byte-identical to the same chart with the feature off.
+  4. **The reserved thread survives to the legend.** A test proves it is not merged away (D209's threshold), not
+     smoothed out, and not collapsed onto another skein by a thread brand — or, where a brand genuinely has no
+     separate thread for it, the chart says so rather than silently dropping it.
+  5. **Off is today, byte for byte** — the 18 golden hashes and every existing Rust parity case unchanged.
+  6. **Both languages agree** byte for byte with it on, with parity cases on both photos, dithered and not.
+- **Constraints:** it may not invent a hue the cells do not hold — a reserved thread is seeded from real cells and
+  keeps their colour. It spends only slots the palette would otherwise have given to a near-duplicate; the requested
+  colour count is still the ceiling.
+- **To settle with the Owner before M3:** whether this is **folded into Vivid** (one switch that means "show me the
+  colours that are there", which is what Vivid's name already promises and what it alone does not deliver) or a
+  control of its own. Folding is recommended; a third knob for one intent is the thing D040 warns about.
+
+**Milestones**:
+- [ ] M1 — The rule, defined and calibrated by measurement, before any pipeline change: what counts as "a hue the
+  photo has" (a chroma floor, hue bins, a minimum share of stitches), how many slots it may take, and where the
+  seeding happens — with a sweep over both photos and every fixture, and a check that a reserved thread survives
+  the merge, the smoothing and the brand snap. Published in `docs/reviews/`. **Ends with a go/no-go against
+  criterion 1**, measured on a throwaway implementation rather than a shipped one.
+- [ ] M2 — The engine change in both languages, Off byte-identical, parity cases on both photos.
+- [ ] M3 — The control (folded into Vivid or its own), the request, file and autosave plumbing, an end-to-end pass,
+  decision file, README and HANDOVER, deploy and verify live on the Owner's photos.
+
+**Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-23 — goal created at the Owner's request, as the third of the four directions first offered on
+  2026-09-22. What it must not repeat: G-060 shipped on a diagnosis that named the wrong stage, and G-061 shipped a
+  mechanism that works but does not answer the complaint. Hence criterion 1 and M1's go/no-go: the target is stated
+  first, measured on the finished chart, and the goal stops if a throwaway implementation cannot reach it.
 
 ### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
 - **What:** Eventually make the app public, built around **a social
