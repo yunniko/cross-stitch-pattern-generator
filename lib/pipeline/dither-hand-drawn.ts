@@ -61,6 +61,20 @@ export interface DitherTexture {
   sweep: number;
   /** Which draw the marks come from: the same texture and seed give the same chart, always (D202). */
   seed: number;
+  /**
+   * Three switches that let the knobs above reach the marks they do not touch otherwise (G-058). Absent is off,
+   * which is what every texture written before them says — and off is exactly the chart they drew.
+   *
+   * - `wobbleEveryMark`: the per-stitch jitter that raggeds a lump reaches every shape. On a stamp it touches only
+   *   the stitches the stamp does not name, so a painted shape stays as painted.
+   * - `sizeEveryMark`: dots and lumps gain a core — stitches within the mark's radius fill first, the rest spill
+   *   outward — so Ring width and Size variation mean something for them. The stamp keeps its grid.
+   * - `sweepEveryMark`: the angular sweep that draws a ring as a stroke reaches dots and lumps, which then fill
+   *   round rather than outward. The stamp keeps its painted order.
+   */
+  wobbleEveryMark?: boolean;
+  sizeEveryMark?: boolean;
+  sweepEveryMark?: boolean;
 }
 
 /** G-054's texture, to the bit. Anything that changes here changes every chart drawn with the default. */
@@ -122,6 +136,9 @@ export function isDefaultDitherTexture(texture: DitherTexture): boolean {
     texture.sweep === d.sweep &&
     texture.seed === d.seed &&
     texture.stamp === undefined &&
+    !texture.wobbleEveryMark &&
+    !texture.sizeEveryMark &&
+    !texture.sweepEveryMark &&
     texture.shapeWeights.every((weight, i) => weight === d.shapeWeights[i])
   );
 }
@@ -141,6 +158,9 @@ export function isValidDitherTexture(texture: unknown): texture is DitherTexture
   // Every weight zero would leave the fallback shape catching everything, which nobody meant to ask for.
   if (t.shapeWeights.every((weight) => weight === 0)) return false;
   if (t.stamp !== undefined && !isValidDitherStamp(t.stamp)) return false;
+  for (const key of ["wobbleEveryMark", "sizeEveryMark", "sweepEveryMark"] as const) {
+    if (t[key] !== undefined && typeof t[key] !== "boolean") return false;
+  }
   // A stamp's weight with no stamp painted would draw the fallback shape under a name that promises otherwise.
   if (t.stamp === undefined && (t.shapeWeights as number[])[4] > 0) return false;
   return typeof t.seed === "number" && Number.isInteger(t.seed) && t.seed >= 0 && t.seed <= 0xffffffff;
@@ -275,18 +295,37 @@ function lumpNoise(mark: number, x: number, y: number): number {
  */
 export function shapeScore(mark: Mark, index: number, dx: number, dy: number, x: number, y: number, texture: DitherTexture = DEFAULT_DITHER_TEXTURE): number {
   const distance = Math.sqrt(dx * dx + dy * dy);
+  // Each switch adds a term; with all three off every branch below is the expression it was before G-058, which is
+  // what keeps an existing texture drawing an existing chart.
+  const wobbleEverywhere = texture.wobbleEveryMark ? texture.wobble * lumpNoise(index, x, y) : 0;
+  const sweepEverywhere = texture.sweepEveryMark ? texture.sweep * ((pseudoAngle(dx, dy) - mark.start + 4) % 4) : 0;
+  /**
+   * A mark with a core is solid out to its radius and scatters beyond it. Ordering the spill by distance would be no
+   * change at all — filling nearest-first *is* what a plain dot does, and a monotone rewrite of distance ranks the
+   * same cells in the same order, which is exactly what the first attempt at this did (measured: 0% difference).
+   * Scattering the spill is what makes the radius visible: a solid dot of the chosen size, then speckle.
+   */
+  const withCore = (base: number) =>
+    texture.sizeEveryMark && base > mark.radius ? mark.radius + 1 + lumpNoise(index, x, y) : base;
+
   switch (mark.shape) {
     case "dot":
-      return distance;
+      return texture.sizeEveryMark || texture.sweepEveryMark || texture.wobbleEveryMark
+        ? withCore(distance) + sweepEverywhere + wobbleEverywhere
+        : distance;
     case "lump":
       // A fraction of a stitch of wobble: enough to ragged the edge, too little to break the mark apart.
-      return distance + texture.wobble * lumpNoise(index, x, y);
+      return texture.sizeEveryMark || texture.sweepEveryMark
+        ? withCore(distance) + texture.wobble * lumpNoise(index, x, y) + sweepEverywhere
+        : distance + texture.wobble * lumpNoise(index, x, y);
     case "ring": {
       // A stroke, not a stamp: the band nearest the mark's own circle is drawn first, and within that band the cells
       // are ordered around the circle from where the mark starts — so a light tone is a short arc rather than specks
       // scattered all round it, and a heavier one closes the ring.
       const sweep = (pseudoAngle(dx, dy) - mark.start + 4) % 4;
-      return Math.abs(distance - mark.radius) + texture.sweep * sweep;
+      return texture.wobbleEveryMark
+        ? Math.abs(distance - mark.radius) + texture.sweep * sweep + wobbleEverywhere
+        : Math.abs(distance - mark.radius) + texture.sweep * sweep;
     }
     case "stamp": {
       // The painted grid, read from the mark's centre: a stitch inside it fills in its own step, and everything the
@@ -300,14 +339,17 @@ export function shapeScore(mark: Mark, index: number, dx: number, dy: number, x:
       const step = inside ? stamp.order[row * stamp.size + column] : 0;
       // Steps are whole numbers, so a stitch's distance from the centre orders the cells inside one step without
       // ever reaching the next: the offsets a mark sees are smaller than the region it owns.
-      return step > 0 ? step + distance / 1000 : stamp.size * stamp.size + 1 + distance;
+      if (step > 0) return step + distance / 1000;
+      // Only the spill wobbles: a painted shape stays as painted (G-058).
+      return stamp.size * stamp.size + 1 + distance + wobbleEverywhere;
     }
     case "broken-ring": {
       // The gap is a wedge around the mark's own direction: cells inside it are drawn last, so the ring reads as
       // open. The dot product is the cosine of the angle to that direction — no trigonometry needed.
       const alignment = distance > 0 ? (dx * mark.gapX + dy * mark.gapY) / distance : 0;
       const sweep = (pseudoAngle(dx, dy) - mark.start + 4) % 4;
-      return Math.abs(distance - mark.radius) + texture.sweep * sweep + (alignment > texture.gapAlignment ? mark.radius : 0);
+      const base = Math.abs(distance - mark.radius) + texture.sweep * sweep + (alignment > texture.gapAlignment ? mark.radius : 0);
+      return texture.wobbleEveryMark ? base + wobbleEverywhere : base;
     }
   }
 }

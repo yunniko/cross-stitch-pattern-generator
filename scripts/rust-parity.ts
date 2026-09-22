@@ -229,6 +229,14 @@ const CASES: Case[] = [
         stamp: { size: 5, order: [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0] },
       },
     },
+    // The three switches (G-058), alone and together.
+    { name: "wobble-every-mark", texture: { wobble: 0.8, wobbleEveryMark: true } },
+    { name: "size-every-mark", texture: { radiusMin: 0.4, radiusSpan: 0.05, sizeEveryMark: true } },
+    { name: "sweep-every-mark", texture: { sweep: 0.7, sweepEveryMark: true } },
+    {
+      name: "every-switch-on",
+      texture: { wobble: 0.6, sweep: 0.5, radiusMin: 0.3, wobbleEveryMark: true, sizeEveryMark: true, sweepEveryMark: true },
+    },
     {
       name: "stamp-clipped",
       texture: {

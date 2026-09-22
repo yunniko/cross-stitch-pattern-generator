@@ -32,6 +32,10 @@ pub struct DitherTexture {
     pub wobble: f64,
     pub sweep: f64,
     pub seed: u32,
+    /// Three switches letting the knobs reach every mark (G-058); false is what every earlier texture says.
+    pub wobble_every_mark: bool,
+    pub size_every_mark: bool,
+    pub sweep_every_mark: bool,
 }
 
 /// G-054's texture, to the bit. A `const` no longer, because a stamp owns a `Vec`; the value is the same.
@@ -47,6 +51,9 @@ pub fn default_dither_texture() -> DitherTexture {
     wobble: 0.34,
     sweep: 0.25,
     seed: 0x1d10_c0de,
+    wobble_every_mark: false,
+    size_every_mark: false,
+    sweep_every_mark: false,
     }
 }
 
@@ -213,12 +220,49 @@ fn shape_score(
     texture: &DitherTexture,
 ) -> f64 {
     let distance = (dx * dx + dy * dy).sqrt();
+    // Each switch adds a term; with all three off every branch below is the expression it was before G-058.
+    let wobble_everywhere = if texture.wobble_every_mark {
+        texture.wobble * lump_noise(index, x, y)
+    } else {
+        0.0
+    };
+    let sweep_everywhere = if texture.sweep_every_mark {
+        texture.sweep * ((pseudo_angle(dx, dy) - mark.start + 4.0) % 4.0)
+    } else {
+        0.0
+    };
+    // Solid out to the radius, scattered beyond it: ordering the spill by distance would rank the same cells in the
+    // same order and change nothing at all. Mirrors `withCore` in `dither-hand-drawn.ts`.
+    let with_core = |base: f64| {
+        if texture.size_every_mark && base > mark.radius {
+            mark.radius + 1.0 + lump_noise(index, x, y)
+        } else {
+            base
+        }
+    };
+
     match mark.shape {
-        Shape::Dot => distance,
-        Shape::Lump => distance + texture.wobble * lump_noise(index, x, y),
+        Shape::Dot => {
+            if texture.size_every_mark || texture.sweep_every_mark || texture.wobble_every_mark {
+                with_core(distance) + sweep_everywhere + wobble_everywhere
+            } else {
+                distance
+            }
+        }
+        Shape::Lump => {
+            if texture.size_every_mark || texture.sweep_every_mark {
+                with_core(distance) + texture.wobble * lump_noise(index, x, y) + sweep_everywhere
+            } else {
+                distance + texture.wobble * lump_noise(index, x, y)
+            }
+        }
         Shape::Ring => {
             let sweep = (pseudo_angle(dx, dy) - mark.start + 4.0) % 4.0;
-            (distance - mark.radius).abs() + texture.sweep * sweep
+            if texture.wobble_every_mark {
+                (distance - mark.radius).abs() + texture.sweep * sweep + wobble_everywhere
+            } else {
+                (distance - mark.radius).abs() + texture.sweep * sweep
+            }
         }
         Shape::Stamp => {
             // The painted grid, read from the mark's centre; anything it does not name fills afterwards, nearest
@@ -241,7 +285,8 @@ fn shape_score(
             if step > 0 {
                 step as f64 + distance / 1000.0
             } else {
-                (stamp.size * stamp.size + 1) as f64 + distance
+                // Only the spill wobbles: a painted shape stays as painted (G-058).
+                (stamp.size * stamp.size + 1) as f64 + distance + wobble_everywhere
             }
         }
         Shape::BrokenRing => {
@@ -251,13 +296,18 @@ fn shape_score(
                 0.0
             };
             let sweep = (pseudo_angle(dx, dy) - mark.start + 4.0) % 4.0;
-            (distance - mark.radius).abs()
+            let base = (distance - mark.radius).abs()
                 + texture.sweep * sweep
                 + if alignment > texture.gap_alignment {
                     mark.radius
                 } else {
                     0.0
-                }
+                };
+            if texture.wobble_every_mark {
+                base + wobble_everywhere
+            } else {
+                base
+            }
         }
     }
 }

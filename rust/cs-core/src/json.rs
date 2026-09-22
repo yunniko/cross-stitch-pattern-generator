@@ -58,6 +58,12 @@ struct TextureOptions {
     sweep: Option<f64>,
     #[serde(default)]
     seed: Option<u32>,
+    #[serde(default)]
+    wobble_every_mark: Option<bool>,
+    #[serde(default)]
+    size_every_mark: Option<bool>,
+    #[serde(default)]
+    sweep_every_mark: Option<bool>,
 }
 
 /// A painted mark as the request carries it (G-056).
@@ -84,6 +90,9 @@ impl TextureOptions {
                 size: s.size,
                 order: s.order.clone(),
             }),
+            wobble_every_mark: self.wobble_every_mark.unwrap_or(d.wobble_every_mark),
+            size_every_mark: self.size_every_mark.unwrap_or(d.size_every_mark),
+            sweep_every_mark: self.sweep_every_mark.unwrap_or(d.sweep_every_mark),
         }
     }
 }
@@ -188,6 +197,16 @@ fn texture_json(t: &DitherTexture) -> Value {
     out.insert("wobble".into(), json!(t.wobble));
     out.insert("sweep".into(), json!(t.sweep));
     out.insert("seed".into(), json!(t.seed));
+    // Written only when on, so a texture that never touched a switch is the object TypeScript writes (G-056's lesson).
+    if t.wobble_every_mark {
+        out.insert("wobbleEveryMark".into(), json!(true));
+    }
+    if t.size_every_mark {
+        out.insert("sizeEveryMark".into(), json!(true));
+    }
+    if t.sweep_every_mark {
+        out.insert("sweepEveryMark".into(), json!(true));
+    }
     if let Some(stamp) = t.stamp.as_ref() {
         out.insert(
             "stamp".into(),
