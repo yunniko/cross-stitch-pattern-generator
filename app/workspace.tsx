@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from "react";
+import { type DragEvent, type MouseEvent, type PointerEvent, useCallback, useEffect, useRef, useState } from "react";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
 import { mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from "@/lib/editor/pattern-edit";
 import { applyQuickMirrorWithSelection, effectiveSymmetryAxes, fillSymmetric, NO_SYMMETRY, type QuickMirror, type SymmetryAxes } from "@/lib/editor/symmetry";
@@ -113,7 +113,9 @@ export default function Workspace() {
   // only inside event handlers, after the effect below has assigned it.
   const rendererRef = useRef<ChartRenderer | null>(null);
 
-  const panZoom = usePanZoom(scrollerRef, frameRef, pattern !== null);
+  // The hook skips zoom levels that would render the same cell size, so it needs to know what a level renders as.
+  const cellSizeAt = useCallback((zoom: number) => computeCellSize(pattern, zoom), [pattern]);
+  const panZoom = usePanZoom(scrollerRef, frameRef, pattern !== null, cellSizeAt);
   const cellSize = computeCellSize(pattern, panZoom.zoomLevel);
   const toolInputs = { frameRef, rendererRef, pattern, cellSize, commit: history.set };
   const select = useSelectTool(toolInputs);

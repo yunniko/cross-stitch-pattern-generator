@@ -22,6 +22,29 @@ export function computeCellSize(pattern: StitchPattern | null, zoomLevel: number
   return Math.round(base * zoomLevel);
 }
 
+/**
+ * The zoom level a press lands on, skipping any that would render the chart exactly as it is now (Owner,
+ * 2026-09-23). Cell size is `round(base * zoom)`, so on a large chart, where the base is already at its 4 px floor,
+ * one 1.4x step can round to the same number of pixels and the press appears to do nothing: at 25% a cell is 1 px,
+ * and so is 35%. Returns the current level when nothing further is reachable, which is the caller's cue to do
+ * nothing rather than move the readout away from what is on screen.
+ */
+export function nextZoomLevel(
+  current: number,
+  factor: number,
+  bounds: { min: number; max: number },
+  cellSizeAt: (zoom: number) => number
+): number {
+  const clamp = (zoom: number) => Math.max(bounds.min, Math.min(bounds.max, zoom));
+  const now = cellSizeAt(current);
+  let next = clamp(current * factor);
+  // Bounded by the number of steps between the two ends, which is small; the guard is against a factor of 1.
+  for (let step = 0; step < 64 && cellSizeAt(next) === now && next > bounds.min && next < bounds.max; step++) {
+    next = clamp(next * factor);
+  }
+  return cellSizeAt(next) === now ? current : next;
+}
+
 export interface PointerPosition {
   clientX: number;
   clientY: number;

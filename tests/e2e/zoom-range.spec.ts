@@ -34,3 +34,30 @@ test("zoom reaches 800%, and the chart still paints at the top of the range", as
   await page.getByRole("button", { name: /Reset zoom/ }).click();
   expect(await cellSize(page)).toBe(base);
 });
+
+test("every zoom press changes the chart, including at the bottom of the range", async ({ page }) => {
+  // A large chart sits at the 4 px floor, where 25% and 35% used to draw the same one-pixel cell and a press did
+  // nothing (Owner, 2026-09-23).
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Start an empty grid/ }).click();
+  await page.getByLabel("Width in stitches").fill("1500");
+  await page.getByLabel("Height in stitches").fill("1500");
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(page.getByTestId("chart-frame")).toBeVisible();
+
+  const zoomOut = page.getByRole("button", { name: "Zoom out" });
+  const zoomIn = page.getByRole("button", { name: "Zoom in" });
+  for (let i = 0; i < 12; i++) await zoomOut.click();
+  const atFloor = await cellSize(page);
+
+  const seen = [atFloor];
+  for (let press = 0; press < 6; press++) {
+    const before = await cellSize(page);
+    await zoomIn.click();
+    await expect
+      .poll(async () => cellSize(page), { message: `press ${press + 1} left the chart as it was` })
+      .not.toBe(before);
+    seen.push(await cellSize(page));
+  }
+  expect(new Set(seen).size, "no press drew what the one before it drew").toBe(seen.length);
+});

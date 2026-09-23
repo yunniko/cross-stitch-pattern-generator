@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { chartOrigin, releaseCapture, type PointerPosition } from "../editor-geometry";
+import { chartOrigin, nextZoomLevel, releaseCapture, type PointerPosition } from "../editor-geometry";
 import { useLatest } from "./use-latest";
 
 const MIN_ZOOM = 0.25;
@@ -29,8 +29,15 @@ interface ZoomAnchor {
  * the cursor (or the view's centre) in place, as in Blender: the chart renderer runs `applyZoomAnchor` once the chart
  * frame has its new size, before it measures the view and paints (D124, D135).
  */
-export function usePanZoom(scrollerRef: RefObject<HTMLDivElement | null>, frameRef: RefObject<HTMLDivElement | null>, hasPattern: boolean) {
+export function usePanZoom(
+  scrollerRef: RefObject<HTMLDivElement | null>,
+  frameRef: RefObject<HTMLDivElement | null>,
+  hasPattern: boolean,
+  /** What a zoom level would render as, so a press that would change nothing can be skipped (see `nextZoomLevel`). */
+  cellSizeAt: (zoom: number) => number
+) {
   const [zoomLevel, setZoomLevel] = useState(1);
+  const cellSizeAtRef = useLatest(cellSizeAt);
   const hasPatternRef = useLatest(hasPattern);
   const zoomLevelRef = useLatest(zoomLevel);
   const anchorRef = useRef<ZoomAnchor | null>(null);
@@ -40,7 +47,7 @@ export function usePanZoom(scrollerRef: RefObject<HTMLDivElement | null>, frameR
   const zoomBy = useCallback(
     (factor: number, at?: { clientX: number; clientY: number }) => {
       const current = zoomLevelRef.current;
-      const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, current * factor));
+      const next = nextZoomLevel(current, factor, { min: MIN_ZOOM, max: MAX_ZOOM }, cellSizeAtRef.current);
       if (next === current) return;
       const scroller = scrollerRef.current;
       const frame = frameRef.current;
@@ -56,7 +63,7 @@ export function usePanZoom(scrollerRef: RefObject<HTMLDivElement | null>, frameR
       }
       setZoomLevel(next);
     },
-    [scrollerRef, frameRef, zoomLevelRef]
+    [scrollerRef, frameRef, zoomLevelRef, cellSizeAtRef]
   );
   const resetZoom = useCallback(() => {
     anchorRef.current = null;
