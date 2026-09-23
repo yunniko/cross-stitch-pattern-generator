@@ -52,13 +52,23 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M1 — **The two colours**, end to end and shippable on its own: the pair and which is active, the two squares,
   left and right click painting with each, right-click thread selection, and the browser menu suppressed where it
   would get in the way.
-- [ ] M2 — **The stamp**: `brushStamp(size, shape)` as a pure function with its tests, the size and shape controls,
+- [x] M2 — **The stamp**: `brushStamp(size, shape)` as a pure function with its tests, the size and shape controls,
   and the brush painting through it — size 1 square being exactly today's brush, byte for byte.
 - [ ] M3 — **The Line tool**, sharing the stamp, with the rubber-band preview the shape tools will reuse.
 - [ ] M4 — **Rectangle and Oval**, filled and outlined, each a pure rasteriser with its own tests.
 - [ ] M5 — Shortcuts, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-23 — **M2 done and deployed.** `lib/editor/brush-stamp.ts` is the stamp: odd sizes 1..15, round as the
+  disc that fits the block, square as the block, eight unit tests; size 1 covers the one stitch under the pointer,
+  as before. Symmetry mirrors every stamped cell rather than the stamp's centre, so a wide brush stays symmetric
+  about the axis. Size and shape sit in the context bar and survive a reload. One regression found and fixed on
+  the way (D213): the new controls pushed the bar 59px past its container, and focusing the Photo button scrolled
+  the whole chart column sideways — the tool options are now a track that scrolls inside itself, with a test that
+  asserts `main` never becomes scrollable. Verified: Vitest 1277 passed / 8 skipped, Playwright 354 passed, tsc,
+  eslint and docs-lint clean; live at cross-stitch.craftodejnice.cz (commit 30851ea) with the size control set to
+  7, `main` overflow 0, the chart frame unmoved on focus, and a press painting without error. Every other site on
+  the host returned 200 and no other container restarted. M3 next.
 - 2026-09-23 — **M1 done.** The pair is `lib/editor/color-slots.ts`, eight unit tests: two slots and a flag for
   which is in front, so the squares never move. Left paints with the front one, right with the one behind, and a
   right click on a thread loads the square behind without taking the brush out of the reader's hand. The squares

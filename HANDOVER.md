@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-23 at 59ccb92 (G-064 M1: the two drawing colours, deployed and verified live)
+Last verified: 2026-09-23 at 30851ea (G-064 M2: the brush stamp, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 59ccb92 (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
+**Production** runs 30851ea (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
@@ -22,6 +22,7 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
   photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
 - Editing: brush (double-click fills a region as one undo step when the Chart pane's switch is on, D138, D146),
 - Two drawing colours (G-064 M1): `lib/editor/color-slots.ts` holds two slots and a flag for which is in front, so the squares in the context bar never move. Left paints with the foreground, right with the background, a right click on a thread row loads the background without changing which square is active, and `X` swaps. Right clicks are claimed on the chart and the thread rows only.
+- The brush covers a stamp, not a stitch (G-064 M2): `lib/editor/brush-stamp.ts` gives odd sizes 1–15 as a block or the disc that fits it, size 1 being one stitch as before; the bar's controls survive a reload, and symmetry mirrors every stamped cell rather than the stamp's centre.
 - With a piece in hand, undo and redo are refused from keyboard and bar alike (G-063): stepping through history underneath a floating selection is a state nobody asked for. Apply or Cancel first.
 - The start screen owns the context bar while it is up: Select's bar yields to it (`activeTool === "select" && pattern && !startingNew`), because Select's bar carries no way back and the tool rail is disabled there (Owner, 2026-09-23). The selection itself survives the trip, so Back returns to the piece still floating.
   8-connected fill, symmetry on four axes and quick mirror (D137), rectangle select with copy, paste, move, flip,
@@ -50,11 +51,11 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
 - Photo enhancement: Off, Brighten, Auto, Vivid, Portrait, with a "Compare with original" preview and recorded in
   saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-22**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1218 passed (8 opt-in skips);
-Playwright **330 passed, 0 failed across all 27 specs against the Rust sidecar**, one spec per process against the single-path
-build, with the processor serving generation, exports and previews; `npm run compare:rust` 81 cases identical. Export parity:
-`docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the type-check and `build:processor` before
-the unit tests, because the worker bundle is git-ignored and the pool, preview and export specs run against it.
+**Checks run 2026-09-23**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1277 passed (8 opt-in skips);
+Playwright 354 passed across all 34 specs, one spec per process against the single-path build, the processor serving
+generation, exports and previews. Last full Rust pass 2026-09-22: 330 e2e against the sidecar, `npm run compare:rust`
+81 cases identical; export parity in `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the
+type-check and `build:processor` before the unit tests: the worker bundle is git-ignored and specs run against it.
 
 **Performance** (G-035, medians of 5 on the Owner's machine; tables in `docs/reviews/2026-09-15-performance-results.md`):
 a 12 MP photo at 100 stitches / 16 colors takes 2.9 s Standard and 7.5 s Crisp; at 1000 / 64, 4.9 s and 6.8 s; enhancing a
@@ -149,8 +150,8 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - Which enhancement modes are offered is the Owner's decision, made in `releasedEnhancementModes()` (D118); every
   mode must still pass the safety gates in `tests/unit/enhancement-calibration.spec.ts`.
 - Brighten must never white-balance, add local contrast or saturate, and must leave a photo with both deep shadows and highlights untouched (D118).
-- Enhancement calibration photos stay outside the repository; two show
-  identifiable people.
+- Enhancement calibration photos stay outside the repository; two show identifiable people.
+- A control added to the editing bar goes inside its `at-tool-track` unless it belongs to the view, and `main` must never become scrollable: a bar wider than its container slides the whole chart column sideways when a control in it takes focus (D213, asserted in `tests/e2e/navigation.spec.ts`).
 - Every `cellPalette` mutation passes `EMPTY_CELL` (255) through untouched (D028); view-only settings (canvas colour) never reach an export call site (D087).
 - Export drawing creates canvases, encodes PNGs and loads the font and texture only through
   `lib/export/canvas-backend.ts`, never by touching `document` or `Image` directly (D125). That is the seam the
@@ -293,6 +294,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-23 | 2c354bd | G-063: Enter applies a floating selection and Escape cancels it (Escape merged before), undo and redo are refused while a piece is in hand, and the bar gains Fill selection and Duplicate | Vitest 1255 passed, 8 skipped; Playwright 345 passed across all 31 specs, seven of them new for this; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: both buttons present, Undo disabled while holding a piece and free once it is let go, Fill leaves the piece floating, Escape cancels it, Duplicate puts a copy in hand with Paste live, Enter applies; console clean |
 | 2026-09-23 | 963c52f | Zoom goes to 800% (measured to cost nothing: the canvas paints the view, not the chart), and a press now always changes the chart — at the 4 px floor two neighbouring levels rounded to the same pixels and one press did nothing | Vitest 1260 passed, 8 skipped; Playwright 347 passed across all 32 specs, three of them new here; tsc, eslint and docs-lint clean. Worst case measured at 35–77 ms a step (25 stitches, 100 colours, Realistic, 224 px cells) against 42–69 ms at the old cap, no heap growth; a 1500-stitch chart puts a 48,000 px frame in the scroller at 37–103 ms a step. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: 800% reached in the Realistic view with nothing left pending, and six presses from a 1500-stitch chart's floor give 1→2→3→4→6→8→11 px, every one different |
 | 2026-09-23 | 59ccb92 | G-064 M1: a chart is drawn with two colours — two squares that never move, left paints with the front one and right with the one behind, a right click on a thread loads the square behind, and `X` swaps them | Vitest 1268 passed, 8 skipped; Playwright 350 passed across all 33 specs, three of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: picking a foreground and then a background leaves the front square holding what it held (Hazel over Komodo Dragon), clicking the back square brings it forward without the square moving, `X` swaps them back, and a right click on the chart is claimed rather than opening the browser's menu |
+| 2026-09-23 | 30851ea | G-064 M2: one press of the brush covers a stamp — odd sizes 1..15, round or square, size and shape in the bar and kept across a reload; symmetry mirrors every stamped cell rather than the stamp's centre. The bar's tool options became a track that scrolls inside itself (D213) after the new controls pushed it past its container and focusing the Photo button slid the whole chart column 59px sideways | Vitest 1277 passed, 8 skipped; Playwright 354 passed across all 34 specs, four of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set and no other container restarted; every other site on the host returned 200. Live: the size control set to 7 and held it, both shape buttons present, `main` overflow 0, the chart frame unmoved when the Photo button takes focus, and a press paints without error |
