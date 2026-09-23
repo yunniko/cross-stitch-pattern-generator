@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-23 at 57fd1e5 (G-065: the brush outline under the cursor, deployed and verified live)
+Last verified: 2026-09-23 at bd8dbaf (D217 crash fix, deployed and reproduction re-run against it)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 57fd1e5 (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
+**Production** runs bd8dbaf (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
@@ -51,8 +51,8 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
 - Photo enhancement: Off, Brighten, Auto, Vivid, Portrait, with a "Compare with original" preview and recorded in
   saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-23**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1301 passed (8 opt-in skips);
-Playwright 375 passed across all 35 specs, one spec per process against the single-path build, the processor serving
+**Checks run 2026-09-23**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1305 passed (8 opt-in skips);
+Playwright 377 passed across all 36 specs, one spec per process against the single-path build, the processor serving
 generation, exports and previews. Last full Rust pass 2026-09-22: 330 e2e against the sidecar, `npm run compare:rust`
 81 cases identical; export parity in `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the
 type-check and `build:processor` before the unit tests: the worker bundle is git-ignored and specs run against it.
@@ -151,6 +151,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   mode must still pass the safety gates in `tests/unit/enhancement-calibration.spec.ts`.
 - Brighten must never white-balance, add local contrast or saturate, and must leave a photo with both deep shadows and highlights untouched (D118).
 - Enhancement calibration photos stay outside the repository; two show identifiable people.
+- `EMPTY_CELL` (255) is a sentinel, never an index to shift: renumbering it after a merge made 254, and the next press killed the page (D217). `paintableIndex` gates every press, and the renderers stay strict so a bad index is found, not painted around.
 - `main` holds two canvases: the chart's is `data-testid="chart-canvas"` and the cursor's `brush-outline` (D216). A spec asking for "the canvas in main" gets both and fails strict mode.
 - A shape tool contributes a rasteriser returning spine cells only; thickness is the brush's, and a filled shape never stamps it (D214, D215).
 - A control added to the editing bar goes inside its `at-tool-track` unless it belongs to the view, and `main` must never become scrollable: a bar wider than its container slides the whole chart column sideways when a control in it takes focus (D213, asserted in `tests/e2e/navigation.spec.ts`).
@@ -280,10 +281,9 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   the sidecar spawns per job, and a worker could keep one process warm. Archived 2026-09-19: G-046 (raising the 1500
   cap needs two Owner decisions, D181) and G-047 (D171–D178). G-030 (public launch) is a far-future draft.
 - The dithering line (G-052 to G-059) is complete and signed off: twelve patterns, an editable texture with a
-  painted mark, and a preview of the chart's own corner for each. Open from their measurements: on a noisy photo
-  at 8 colours the screens can read worse than an undithered chart, and drawn marks become grain on flat regions,
-  which is inherent to dithering a flat area. The screenshot that started it was hand-drawn (Owner, 2026-09-21).
-- G-064 (drawing tools) is signed off and archived with nothing left open from it; no goal is active.
+  painted mark, and a preview of the chart's own corner for each. Open: on a noisy photo at 8 colours the screens can
+  read worse than no dithering, and drawn marks become grain on a flat region, which is inherent to dithering one.
+- **There is no error boundary under the workspace**: an unhandled exception drops the reader on Next's default "this page couldn't load" with no report and no stack, which is how D217 presented, and the Owner has seen the same dead page before 2026-09-23 from a route still unexplained. G-066 M2 is the boundary and a downloadable crash report; until it exists a crash is diagnosable only by reproducing it.
 - The colour question that drove G-060 to G-062 is answered (D212); the hues arrive **as the photo holds them**, so
   a dusty pink stays dusty. Open behind it: Photo fix keeps a Vivid of its own until it is redone, and its Auto and
   Vivid modes were measured to *lower* a pastel photo's chroma (median 0.020 → 0.010), which nothing has looked at.
@@ -295,5 +295,5 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-23 | c1cd90c | G-064 M3–M5: the Line, Rectangle and Oval tools (`L`, `R`, `O`) — a drag from one stitch to another, one undo step, an outline as thick as the brush and a filled shape exactly the shape (D214, D215), previewing without piling up behind the pointer | Vitest 1295 passed, 8 skipped; Playwright 366 passed across all 34 specs, twelve of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set and no other container restarted; eight other sites on the host returned 200. Live: `L`, `R` and `O` each take their tool, a 21-stitch line undone by one press, a 6x4 rectangle 16 stitches outlined and 24 filled, a 9x9 oval outline 24, a 5-wide line 101, `main` overflow 0 and the console clean |
 | 2026-09-23 | 57fd1e5 | G-065: the stitches one press would cover are outlined under the cursor, in the brush's own shape, on a canvas of its own (D216) so a pointer move never repaints the chart | Vitest 1301 passed, 8 skipped; Playwright 375 passed across all 35 specs, nine of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set and only this app's restarted; eight other sites on the host returned 200. Live: nothing before the pointer is on the chart, a single stitch at size 1, 13,10..18,15 for a round 5 centred on (15,12), one anchor stitch for a filled rectangle, gone when the pointer leaves, `data-render-revision` unchanged across a pointer move, 0 stitches after all of it, console clean |
+| 2026-09-23 | bd8dbaf | Fix (D217): with the brush holding Empty, any merge then any press killed the page — the 255 sentinel was renumbered to 254 and `drawCell` threw inside the pointer handler. `EMPTY_CELL` is never renumbered, and `paintableIndex` gates every press | Vitest 1305 passed, 8 skipped; Playwright 377 passed across all 36 specs, two of them new here; tsc, eslint and docs-lint clean. Each guard checked by removing it: with both gone the new spec fails with the dead page. 23 containers before and after with an identical name set and only this app's restarted; eight other sites returned 200. Live: the script that reproduced the crash before the deploy now merges, draws and leaves the page alive with a clean console |
