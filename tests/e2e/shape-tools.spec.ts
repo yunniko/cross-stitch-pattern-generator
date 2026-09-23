@@ -2,8 +2,9 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
 /**
- * G-064 M3: the Line tool. A drag from one stitch to another draws a straight line as thick as the brush, in one undo
- * step, and the shape follows the pointer before it is committed rather than being left behind.
+ * G-064 M3 and M4: the shape tools. A drag from one stitch to another draws a line, a rectangle or an oval, as thick
+ * as the brush when it is an outline and exactly the shape when it is filled -- in one undo step, and following the
+ * pointer before it is committed rather than being left behind.
  */
 
 const WIDTH = 40;
@@ -187,4 +188,94 @@ test("a line is mirrored by symmetry, exactly as a brush stroke is", async ({ pa
     expected.push(`${WIDTH - 1 - x},3`);
   }
   expect([...cells.keys()].sort()).toEqual(expected.sort());
+});
+
+/** The rows a set of painted cells covers, in order. */
+function rowsOf(cells: Map<string, number>): number[] {
+  return [...new Set([...cells.keys()].map((cell) => Number(cell.split(",")[1])))].sort((a, b) => a - b);
+}
+
+/** The painted cells as a picture of the box they were drawn in, so a shape can be checked by looking at it. */
+function shapePicture(cells: Map<string, number>, x0: number, y0: number, x1: number, y1: number): string[] {
+  const rows: string[] = [];
+  for (let y = y0; y <= y1; y++) {
+    let row = "";
+    for (let x = x0; x <= x1; x++) row += cells.has(`${x},${y}`) ? "#" : ".";
+    rows.push(row);
+  }
+  return rows;
+}
+
+test("a rectangle is drawn as its four sides, and filled when the bar says so", async ({ page }) => {
+  await blankChartWithColors(page, 1);
+  await page.getByTestId("legend-color-row").click();
+  await page.getByRole("button", { name: "Rectangle" }).click();
+
+  await drag(page, { x: 4, y: 4 }, { x: 9, y: 7 });
+  expect(shapePicture(painted((await exportChart(page)).cellPalette), 4, 4, 9, 7)).toEqual(["######", "#....#", "#....#", "######"]);
+
+  await page.keyboard.press("Control+z");
+  await page.getByRole("button", { name: "Filled" }).click();
+  await drag(page, { x: 4, y: 4 }, { x: 9, y: 7 });
+  expect(shapePicture(painted((await exportChart(page)).cellPalette), 4, 4, 9, 7)).toEqual(["######", "######", "######", "######"]);
+});
+
+test("an oval is round, and stays inside the box the drag covered", async ({ page }) => {
+  await blankChartWithColors(page, 1);
+  await page.getByTestId("legend-color-row").click();
+  await page.getByRole("button", { name: "Oval" }).click();
+
+  await drag(page, { x: 3, y: 3 }, { x: 11, y: 11 });
+  const cells = painted((await exportChart(page)).cellPalette);
+  expect(shapePicture(cells, 3, 3, 11, 11)).toEqual([
+    "..#####..",
+    ".#.....#.",
+    "#.......#",
+    "#.......#",
+    "#.......#",
+    "#.......#",
+    "#.......#",
+    ".#.....#.",
+    "..#####..",
+  ]);
+  expect(cells.size).toBe(24);
+  // No smoothing: every stitch the gesture touched holds the chosen thread and nothing blended towards it.
+  expect(new Set(cells.values()).size).toBe(1);
+});
+
+test("a filled shape is exactly the shape, whatever the brush size", async ({ page }) => {
+  await blankChartWithColors(page, 1);
+  await page.getByTestId("legend-color-row").click();
+  await page.getByLabel("Brush size in stitches").selectOption("7");
+  await page.getByRole("button", { name: "Rectangle" }).click();
+  await page.getByRole("button", { name: "Filled" }).click();
+
+  await drag(page, { x: 10, y: 6 }, { x: 15, y: 9 });
+  const cells = painted((await exportChart(page)).cellPalette);
+  expect(cells.size).toBe(24);
+  expect(rowsOf(cells)).toEqual([6, 7, 8, 9]);
+
+  // The same rectangle as an outline is as thick as the brush, so it reaches well outside those rows.
+  await page.keyboard.press("Control+z");
+  await page.getByRole("button", { name: "Outline" }).click();
+  await drag(page, { x: 10, y: 6 }, { x: 15, y: 9 });
+  expect(rowsOf(painted((await exportChart(page)).cellPalette))).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+});
+
+test("the outline/filled choice belongs to the shapes that enclose something, and is remembered", async ({ page }) => {
+  await blankChartWithColors(page, 1);
+  await page.getByRole("button", { name: "Oval" }).click();
+  await page.getByRole("button", { name: "Filled" }).click();
+
+  await page.getByRole("button", { name: "Brush" }).click();
+  await expect(page.getByRole("group", { name: "Shape" }), "a brush stroke has no inside").toHaveCount(0);
+  await page.getByRole("button", { name: "Line" }).click();
+  await expect(page.getByRole("group", { name: "Shape" }), "nor does a line").toHaveCount(0);
+
+  await page.getByRole("button", { name: "Rectangle" }).click();
+  await expect(page.getByRole("group", { name: "Shape" })).toBeVisible();
+  // A fresh page load: the chart is a new one, but the setting comes back from storage with it.
+  await blankChartWithColors(page, 1);
+  await page.getByRole("button", { name: "Rectangle" }).click();
+  await expect(page.getByRole("button", { name: "Filled" })).toHaveAttribute("aria-pressed", "true");
 });

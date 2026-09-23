@@ -33,7 +33,7 @@ import { ContextBar } from "./components/context-bar";
 import { ExportControls } from "./components/export-controls";
 import { ImageWindow } from "./components/image-window";
 import { Inspector, type InspectorTab } from "./components/inspector";
-import { isShapeTool, isViewOnlyMode } from "./editor-types";
+import { hasFillChoice, isShapeTool, isViewOnlyMode } from "./editor-types";
 import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
 import { SelectionBar, WorkspaceNotices } from "./components/panels";
 import { PhotoPane } from "./components/photo-pane";
@@ -143,7 +143,14 @@ export default function Workspace() {
   const stamp = useMemo(() => brushStamp(options.brushSize, options.brushShape), [options.brushSize, options.brushShape]);
   const brush = useBrushTool({ ...toolInputs, colorForPointer, stamp, symmetry: liveSymmetry, replaceSince: history.replaceSince });
   // One hook for every shape tool: which shape it draws is the only difference between them (G-064).
-  const shape = useShapeTool({ ...toolInputs, colorForPointer, stamp, symmetry: liveSymmetry, kind: isShapeTool(activeTool) ? activeTool : "line" });
+  const shape = useShapeTool({
+    ...toolInputs,
+    colorForPointer,
+    stamp,
+    symmetry: liveSymmetry,
+    kind: isShapeTool(activeTool) ? activeTool : "line",
+    fill: hasFillChoice(activeTool) ? options.shapeFill : "outline",
+  });
   const move = useMoveTool(toolInputs);
   const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
   const renderer = useChartRenderer({
@@ -542,6 +549,9 @@ export default function Workspace() {
             brushShape={options.brushShape}
             onBrushSizeChange={(size) => updateOption("brushSize", size)}
             onBrushShapeChange={(shape) => updateOption("brushShape", shape)}
+            activeTool={activeTool}
+            shapeFill={options.shapeFill}
+            onShapeFillChange={(fill) => updateOption("shapeFill", fill)}
             startingNew={startingNew}
             onBackToChart={() => setStartingNew(false)}
           />

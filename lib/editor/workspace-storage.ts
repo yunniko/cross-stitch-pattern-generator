@@ -3,6 +3,7 @@ import type { LegacyProjectSlot } from "./project-store";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "../export/finished-size";
 import { DITHER_MODES, isDithered, type DitherMode } from "../pipeline/dither";
 import { BRUSH_SIZES, DEFAULT_BRUSH_SHAPE, DEFAULT_BRUSH_SIZE, type BrushShape, type BrushSize } from "./brush-stamp";
+import type { ShapeFill } from "./shape-raster";
 import { DEFAULT_DITHER_TEXTURE, isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
 import { isReleasedEnhancementMode, type EnhancementModeId } from "../pipeline/enhance";
 import type { EdgeMode, GenerationMode, PaletteMode } from "../pipeline/pattern";
@@ -48,6 +49,8 @@ export interface WorkspaceOptions {
   brushSize: BrushSize;
   /** The shape of that press: a block, or the disc that fits it. */
   brushShape: BrushShape;
+  /** Whether Rectangle and Oval draw their outline or a solid block of stitches (G-064). */
+  shapeFill: ShapeFill;
   /** Whether a Brush double-click floods the region under it as one undo step (D138); off leaves the two clicks as themselves. */
   doubleClickFill: boolean;
 }
@@ -70,6 +73,7 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   vivid: false,
   brushSize: DEFAULT_BRUSH_SIZE,
   brushShape: DEFAULT_BRUSH_SHAPE,
+  shapeFill: "outline",
   doubleClickFill: true,
 };
 
@@ -121,6 +125,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       // stamp nothing can draw.
       brushSize: (BRUSH_SIZES as readonly number[]).includes(parsed.brushSize as number) ? (parsed.brushSize as BrushSize) : DEFAULT_OPTIONS.brushSize,
       brushShape: parsed.brushShape === "square" || parsed.brushShape === "round" ? parsed.brushShape : DEFAULT_OPTIONS.brushShape,
+      shapeFill: parsed.shapeFill === "filled" || parsed.shapeFill === "outline" ? parsed.shapeFill : DEFAULT_OPTIONS.shapeFill,
       // Absent in options stored before G-041, so anything that is not a boolean falls back to the default.
       doubleClickFill: typeof parsed.doubleClickFill === "boolean" ? parsed.doubleClickFill : DEFAULT_OPTIONS.doubleClickFill,
     };

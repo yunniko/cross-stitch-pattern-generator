@@ -223,3 +223,4 @@ remain readable with git show.
 - D212 — A thread for a hue the photo has — active
 - D213 — The editing bar's tool options scroll inside their own track — active
 - D214 — One gesture for every shape tool, spine plus stamp — active
+- D215 — A filled shape is exactly the shape; the brush is its outline's thickness — active

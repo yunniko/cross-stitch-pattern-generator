@@ -43,3 +43,59 @@ export function lineCells(from: CellPoint, to: CellPoint): CellPoint[] {
     }
   }
 }
+
+/** Whether a shape is drawn as its outline or as a solid block of stitches (G-064). */
+export type ShapeFill = "outline" | "filled";
+
+/** The box a drag from one corner to another covers, in cells: both corners included, whichever way it was drawn. */
+function boxOf(from: CellPoint, to: CellPoint) {
+  const x0 = Math.min(from.x, to.x);
+  const y0 = Math.min(from.y, to.y);
+  return { x0, y0, width: Math.abs(to.x - from.x) + 1, height: Math.abs(to.y - from.y) + 1 };
+}
+
+/** The rectangle between two corners: its four sides, or every stitch inside it. Row-major, each cell once. */
+export function rectCells(from: CellPoint, to: CellPoint, fill: ShapeFill): CellPoint[] {
+  const { x0, y0, width, height } = boxOf(from, to);
+  const cells: CellPoint[] = [];
+  for (let j = 0; j < height; j++) {
+    for (let i = 0; i < width; i++) {
+      const onEdge = i === 0 || j === 0 || i === width - 1 || j === height - 1;
+      if (fill === "filled" || onEdge) cells.push({ x: x0 + i, y: y0 + j });
+    }
+  }
+  return cells;
+}
+
+/**
+ * Is the cell at column `i`, row `j` of a `width` x `height` box inside the ellipse inscribed in it? The cell's centre
+ * sits at (i + 1/2, j + 1/2), so the test is ((2i+1-w)/w)^2 + ((2j+1-h)/h)^2 <= 1 -- multiplied out below, which keeps
+ * it exact integer arithmetic: a stitch is in or out, never half-covered.
+ */
+function insideEllipse(i: number, j: number, width: number, height: number): boolean {
+  if (i < 0 || j < 0 || i >= width || j >= height) return false;
+  const dx = (2 * i + 1 - width) * height;
+  const dy = (2 * j + 1 - height) * width;
+  return dx * dx + dy * dy <= width * width * height * height;
+}
+
+/**
+ * The ellipse inscribed in the box between two corners: the stitches inside it, or the ring of those that have a
+ * neighbour outside. A one-cell-wide or one-cell-tall box gives the straight run it degenerates to.
+ */
+export function ovalCells(from: CellPoint, to: CellPoint, fill: ShapeFill): CellPoint[] {
+  const { x0, y0, width, height } = boxOf(from, to);
+  const cells: CellPoint[] = [];
+  for (let j = 0; j < height; j++) {
+    for (let i = 0; i < width; i++) {
+      if (!insideEllipse(i, j, width, height)) continue;
+      const edge =
+        !insideEllipse(i - 1, j, width, height) ||
+        !insideEllipse(i + 1, j, width, height) ||
+        !insideEllipse(i, j - 1, width, height) ||
+        !insideEllipse(i, j + 1, width, height);
+      if (fill === "filled" || edge) cells.push({ x: x0 + i, y: y0 + j });
+    }
+  }
+  return cells;
+}

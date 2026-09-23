@@ -55,6 +55,7 @@ describe("workspace-storage", () => {
       vivid: false,
       brushSize: 1,
       brushShape: "round",
+      shapeFill: "outline",
       doubleClickFill: true,
     } as const;
 
@@ -82,6 +83,7 @@ describe("workspace-storage", () => {
         vivid: true,
         brushSize: 7 as const,
         brushShape: "square" as const,
+        shapeFill: "filled" as const,
         doubleClickFill: false,
       };
       saveWorkspaceOptions(saved);
@@ -151,6 +153,16 @@ describe("workspace-storage", () => {
       }
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, brushShape: "blob" }));
       expect(loadWorkspaceOptions().brushShape).toBe("round");
+    });
+
+    it("keeps the outline/filled choice across a reload, and refuses anything else (G-064)", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, shapeFill: "filled" });
+      expect(loadWorkspaceOptions().shapeFill).toBe("filled");
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, shapeFill: "hatched" }));
+      expect(loadWorkspaceOptions().shapeFill).toBe("outline");
+      // Stored before G-064 M4, so the key is simply absent.
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
+      expect(loadWorkspaceOptions().shapeFill).toBe("outline");
     });
 
     it("keeps a chosen dither pattern across a reload (G-052)", () => {

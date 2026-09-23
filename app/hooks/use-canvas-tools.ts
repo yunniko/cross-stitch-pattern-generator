@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
 import { stampCells, type StampOffset } from "@/lib/editor/brush-stamp";
-import { lineCells, type CellPoint } from "@/lib/editor/shape-raster";
+import { lineCells, ovalCells, rectCells, type CellPoint, type ShapeFill } from "@/lib/editor/shape-raster";
 import {
   flipSelectionHorizontal,
   flipSelectionVertical,
@@ -185,16 +185,23 @@ export function useBrushTool({
   return { fillAt, onPointerDown, onPointerMove, onPointerUp, onDoubleClick };
 }
 
-/** The shapes drawn by dragging from one stitch to another (G-064). Each is the brush stamped along a spine. */
-export type ShapeKind = "line";
+/** The shapes drawn by dragging from one stitch to another (G-064), all through one gesture (D214). */
+export type ShapeKind = "line" | "rect" | "oval";
 
 /** The cells a shape covers between its two ends, before the brush is stamped along them. */
-function shapeSpine(kind: ShapeKind, from: CellPoint, to: CellPoint): CellPoint[] {
+function shapeSpine(kind: ShapeKind, fill: ShapeFill, from: CellPoint, to: CellPoint): CellPoint[] {
   switch (kind) {
     case "line":
       return lineCells(from, to);
+    case "rect":
+      return rectCells(from, to, fill);
+    case "oval":
+      return ovalCells(from, to, fill);
   }
 }
+
+/** The stamp a filled shape uses: its edge is the shape, so the brush would grow it by its own radius. */
+const ONE_STITCH: readonly StampOffset[] = [{ dx: 0, dy: 0 }];
 
 /**
  * A shape gesture (G-064): press to anchor one end, drag to move the other, release to commit. The shape is redrawn
@@ -211,12 +218,15 @@ export function useShapeTool({
   stamp,
   symmetry,
   kind,
+  fill,
 }: CanvasToolInputs & {
   colorForPointer: (button: number) => number | null;
   stamp: readonly StampOffset[];
   symmetry: SymmetryAxes;
   /** Which shape this gesture draws; the rest of the gesture is the same for all of them. */
   kind: ShapeKind;
+  /** Whether the shape is its outline or a solid block; a line is always its own outline. */
+  fill: ShapeFill;
 }) {
   const shapeRef = useRef<{
     base: StitchPattern;
@@ -229,6 +239,7 @@ export function useShapeTool({
     axes: SymmetryAxes;
     color: number;
     stamp: readonly StampOffset[];
+    fill: ShapeFill;
   } | null>(null);
 
   /** Draws the shape as it stands into the working buffer and hands the frame to the renderer. */
@@ -240,7 +251,7 @@ export function useShapeTool({
     shape.painted = [];
     const ops: { cellIndex: number; paletteIndex: number }[] = [];
     const seen = new Set<number>();
-    for (const point of shapeSpine(kind, shape.from, shape.to)) {
+    for (const point of shapeSpine(kind, shape.fill, shape.from, shape.to)) {
       const centre = point.y * base.width + point.x;
       for (const stamped of stampCells(centre, base.width, base.height, shape.stamp)) {
         for (const cell of symmetryOrbit(stamped, base.width, base.height, axes)) {
@@ -259,7 +270,9 @@ export function useShapeTool({
     const color = colorForPointer(e.button ?? 0);
     if (!pattern || color === null) return;
     const at = clampedCellFromEvent(e, frame, cellSize, pattern.width, pattern.height);
-    shapeRef.current = { base: pattern, cells: pattern.cellPalette.slice(), painted: [], from: at, to: at, axes: symmetry, color, stamp };
+    // A filled shape is exactly the shape: stamping the brush around its edge would grow it by the brush radius.
+    const pressStamp = fill === "filled" ? ONE_STITCH : stamp;
+    shapeRef.current = { base: pattern, cells: pattern.cellPalette.slice(), painted: [], from: at, to: at, axes: symmetry, color, stamp: pressStamp, fill };
     drawFrame();
     frame.setPointerCapture(e.pointerId);
   }

@@ -4,6 +4,8 @@ import type { SymmetryAxes, SymmetryAxis } from "@/lib/editor/symmetry";
 import { type StitchPattern } from "@/lib/types";
 import type { ViewMode } from "../editor-types";
 import { BRUSH_SIZES, type BrushShape, type BrushSize } from "@/lib/editor/brush-stamp";
+import type { ShapeFill } from "@/lib/editor/shape-raster";
+import { hasFillChoice, type Tool } from "../editor-types";
 import { ColorPair } from "./color-pair";
 import { PillButton, SegmentedControl, DISABLED_ICON, type SegmentOption } from "./ui";
 
@@ -74,10 +76,19 @@ export interface ContextBarProps {
   brushShape: BrushShape;
   onBrushSizeChange: (size: BrushSize) => void;
   onBrushShapeChange: (shape: BrushShape) => void;
+  /** The tool in hand: only the shapes that enclose something offer the outline/filled choice (G-064). */
+  activeTool: Tool;
+  shapeFill: ShapeFill;
+  onShapeFillChange: (fill: ShapeFill) => void;
   /** The start screen is up over an open chart: the bar says so and offers the way back (Atelier). */
   startingNew: boolean;
   onBackToChart: () => void;
 }
+
+const SHAPE_FILL_OPTIONS: SegmentOption<ShapeFill>[] = [
+  { value: "outline", label: "Outline", title: "Draw the shape as its outline, as thick as the brush" },
+  { value: "filled", label: "Filled", title: "Draw the shape solid. A filled shape is exactly the shape, whatever the brush size" },
+];
 
 const BRUSH_SHAPE_OPTIONS: SegmentOption<BrushShape>[] = [
   { value: "round", label: "●", title: "Round: the disc that fits the size" },
@@ -110,6 +121,9 @@ export function ContextBar({
   brushShape,
   onBrushSizeChange,
   onBrushShapeChange,
+  activeTool,
+  shapeFill,
+  onShapeFillChange,
   startingNew,
   onBackToChart,
 }: ContextBarProps) {
@@ -214,6 +228,17 @@ export function ContextBar({
                 onChange={onBrushShapeChange}
               />
             </div>
+
+            {/* Only Rectangle and Oval enclose anything, so the choice appears with them rather than sitting inert. */}
+            {hasFillChoice(activeTool) && (
+              <>
+                <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+                <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Shape">
+                  <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Shape</span>
+                  <SegmentedControl tone="chip" options={SHAPE_FILL_OPTIONS} value={shapeFill} onChange={onShapeFillChange} />
+                </div>
+              </>
+            )}
 
             <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
 
