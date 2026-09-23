@@ -8,7 +8,7 @@ async function generateSmallPattern(page: import("@playwright/test").Page) {
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
 }
 
 test("zoom controls change the Image window's on-screen size without changing the pattern (G-012)", async ({ page }) => {
@@ -219,7 +219,7 @@ test("every view mode shares one zoom and scroll position, and the realistic vie
   await showMode("realistic");
   await expect
     .poll(() =>
-      page.getByRole("main").locator("canvas").evaluate((el: HTMLCanvasElement) => {
+      page.getByTestId("chart-canvas").evaluate((el: HTMLCanvasElement) => {
         const ctx = el.getContext("2d")!;
         const { data } = ctx.getImageData(0, 0, el.width, el.height);
         let differing = 0;
@@ -269,6 +269,6 @@ test("Grid + photo mode renders the symbol grid over the source photo without er
   await expect(photoRadio).toBeEnabled(); // a freshly generated pattern always has an embedded sourceImage
   await photoRadio.click();
 
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible();
+  await expect(page.getByTestId("chart-canvas")).toBeVisible();
   expect(errors).toEqual([]);
 });

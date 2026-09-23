@@ -21,7 +21,7 @@ async function generate(page: Page, palette: "Full range" | "DMC") {
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: palette, exact: true }).click();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
 }
 
 const editButtons = (page: Page) => page.getByRole("button", { name: /^Edit / });

@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { devicePixelAlignment, intersectRects, isEmptyRect, needsRepaint, paintedRectFor, visibleChartRect, type PixelRect } from "@/lib/editor/chart-viewport";
+import type { StampEdge } from "@/lib/editor/brush-stamp";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
 import { renderNavigatorPixels } from "@/lib/export/render";
 import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
 import { brushOpsIn, drawCellsInto, drawScene, drawSceneWithGesture, drawSymmetryGuides, incrementalModeOf, type BrushOp, type ChartScene, type GesturePreview } from "../chart-scene";
 import type { Tool, ViewMode } from "../editor-types";
-import { chartOrigin } from "../editor-geometry";
+import { cellIndexFromEvent, chartOrigin, drawStampOutline } from "../editor-geometry";
 import { buildStitchTiles, type StitchTiles } from "@/lib/export/stitch-texture";
 import { tileSizeFor } from "../realistic-tiles";
 import { useLatest } from "./use-latest";
@@ -19,6 +20,8 @@ export interface ChartRendererInputs {
   viewMode: ViewMode;
   cellSize: number;
   activeTool: Tool;
+  /** The cursor's own canvas (G-065): the stamp outline is drawn here so a pointer move never repaints the chart. */
+  hoverCanvasRef: RefObject<HTMLCanvasElement | null>;
   selection: FloatingSelection | null;
   /** Must be stable across renders; while a select drag is active its frames draw the selection themselves. */
   isSelectDragging: () => boolean;
@@ -62,7 +65,7 @@ function isMovePreview(gesture: GesturePreview | null): boolean {
  * scrolling and zooming keep its preview. `canvasColor` is display-only.
  */
 export function useChartRenderer(inputs: ChartRendererInputs) {
-  const { canvasRef, frameRef, scrollerRef, navigatorCanvasRef, pattern, viewMode, cellSize, activeTool, selection, isSelectDragging, isolate, litColorIndices, canvasColor, applyZoomAnchor, symmetryAxes } = inputs;
+  const { canvasRef, frameRef, scrollerRef, navigatorCanvasRef, hoverCanvasRef, pattern, viewMode, cellSize, activeTool, selection, isSelectDragging, isolate, litColorIndices, canvasColor, applyZoomAnchor, symmetryAxes } = inputs;
   const [photo, setPhoto] = useState<{ dataUrl: string; img: HTMLImageElement } | null>(null);
   const [realisticTiles, setRealisticTiles] = useState<StitchTiles | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -86,6 +89,12 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   // What the last commit asked to show; scroll, resize and gesture handlers paint from it.
   const shownRef = useRef<{ pattern: StitchPattern | null; scene: Omit<ChartScene, "selectDragging"> }>({ pattern: null, scene });
   const gestureRef = useRef<GesturePreview | null>(null);
+  /**
+   * What the cursor is carrying, if anything: where it is on the screen, and the outline of the press it would
+   * make. The screen position rather than the stitch, because a scroll or a zoom moves the chart under a pointer
+   * that has not moved -- the outline belongs under the pointer, on whatever stitch is there now.
+   */
+  const hoverRef = useRef<{ client: { x: number; y: number }; edges: readonly StampEdge[] } | null>(null);
   /** The animation frame a Move preview has already scheduled, so pointer events coalesce into one paint. */
   const moveFrameRef = useRef<number | null>(null);
   /** What the canvas currently shows for a Move preview, so the next frame can shift those pixels instead of redrawing (D145). */
@@ -164,6 +173,8 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
     paintedRef.current = rect;
+    // The cursor's canvas covers exactly the same rectangle, so the two agree on where a stitch is.
+    placeHoverCanvas(rect);
     selectBaseRef.current = null;
     const ctx = w > 0 && h > 0 ? canvas.getContext("2d") : null;
     if (ctx) {
@@ -430,6 +441,75 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     markRendered();
   }
 
+  /** Sizes and places the cursor's canvas over the chart canvas, and draws whatever the cursor is carrying again. */
+  function placeHoverCanvas(rect: PixelRect) {
+    const hover = hoverCanvasRef.current;
+    if (!hover) return;
+    const w = rect.x1 - rect.x0;
+    const h = rect.y1 - rect.y0;
+    if (hover.width !== w || hover.height !== h) {
+      hover.width = w;
+      hover.height = h;
+    }
+    hover.style.left = `${rect.x0}px`;
+    hover.style.top = `${rect.y0}px`;
+    hover.style.width = `${w}px`;
+    hover.style.height = `${h}px`;
+    drawHover();
+  }
+
+  /** The stitch under a point on the screen, or null when that point is off the chart. */
+  function stitchUnder(client: { x: number; y: number }): { x: number; y: number } | null {
+    const frame = frameRef.current;
+    const p = shownRef.current.pattern;
+    if (!frame || !p) return null;
+    const index = cellIndexFromEvent({ clientX: client.x, clientY: client.y }, frame, shownRef.current.scene.cellSize, p.width, p.height);
+    return index === null ? null : { x: index % p.width, y: Math.floor(index / p.width) };
+  }
+
+  /** Draws the outline the cursor is carrying, having cleared the one it drew last. Never touches the chart canvas. */
+  function drawHover() {
+    const hover = hoverCanvasRef.current;
+    const ctx = hover?.getContext("2d");
+    if (!hover || !ctx) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, hover.width, hover.height);
+    const carried = hoverRef.current;
+    const cell = carried && stitchUnder(carried.client);
+    if (!carried || !cell) return;
+    const rect = paintedRef.current;
+    ctx.setTransform(1, 0, 0, 1, -rect.x0, -rect.y0);
+    drawStampOutline(ctx, carried.edges, cell, shownRef.current.scene.cellSize);
+  }
+
+  /**
+   * What the cursor carries (G-065): where it is and the outline of the press it would make, or null when it has
+   * left the chart or holds a tool that paints nothing. Drawn on its own canvas, so this costs the chart nothing.
+   */
+  /**
+   * The tool in hand, its brush or the view changed, so what the cursor would leave behind changed with it. The
+   * outline follows at once rather than waiting for the pointer to move, and goes when there is nothing to show.
+   */
+  function setHoverOutline(edges: readonly StampEdge[] | null) {
+    const carried = hoverRef.current;
+    if (!edges) {
+      if (!carried) return;
+      hoverRef.current = null;
+    } else {
+      if (!carried || carried.edges === edges) return;
+      hoverRef.current = { client: carried.client, edges };
+    }
+    drawHover();
+  }
+
+  function previewHover(client: { x: number; y: number } | null, edges: readonly StampEdge[]) {
+    const carried = hoverRef.current;
+    if (carried && client && carried.client.x === client.x && carried.client.y === client.y && carried.edges === edges) return;
+    if (!carried && !client) return;
+    hoverRef.current = client ? { client, edges } : null;
+    drawHover();
+  }
+
   /** Ends the gesture preview. `repaint` when no state change will follow to redraw the view. */
   function endGesture(repaint: boolean) {
     cancelPendingMoveFrame();
@@ -444,6 +524,8 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     previewMove,
     previewSelect,
     previewShape,
+    previewHover,
+    setHoverOutline,
     endGesture,
     previewError,
     retryPreview: () => setPreviewRetryToken((t) => t + 1),

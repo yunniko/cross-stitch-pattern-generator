@@ -10,7 +10,7 @@ async function generateSmallPattern(page: import("@playwright/test").Page) {
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
 }
 
 test("Export all downloads a .cspzip with every format, including A4_color/A4_bw subfolders", async ({ page }) => {
@@ -57,7 +57,7 @@ test("a .cspzip from Export all round-trips back into the app via Open pattern",
   // The file input stays mounted whatever screen is up; the New -> confirm -> card path has its own test.
   await page.getByLabel("Open pattern file").setInputFiles(savedPath);
 
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible();
+  await expect(page.getByTestId("chart-canvas")).toBeVisible();
   await expect(legendRows).toHaveCount(initialCount);
   await expect(page.locator("text=Couldn't open that file")).toHaveCount(0);
 });

@@ -8,7 +8,7 @@ async function generateSmallPattern(page: import("@playwright/test").Page) {
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
 }
 
 test("Ctrl+Z/Ctrl+Y undo and redo a merge, matching the Undo/Redo buttons", async ({ page }) => {

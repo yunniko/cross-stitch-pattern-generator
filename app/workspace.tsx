@@ -11,7 +11,8 @@ import {
   withColorRemoved,
   type ColorSlots,
 } from "@/lib/editor/color-slots";
-import { brushStamp } from "@/lib/editor/brush-stamp";
+import { ONE_STITCH_STAMP, brushStamp, stampOutline, type StampEdge } from "@/lib/editor/brush-stamp";
+import { stampForPress } from "@/lib/editor/shape-raster";
 import { useLatest } from "./hooks/use-latest";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
 import { mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from "@/lib/editor/pattern-edit";
@@ -54,6 +55,9 @@ import { useSourceImage } from "./hooks/use-source-image";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
 
 const DEFAULT_NAME = "cross-stitch-pattern";
+
+/** Nothing for the cursor to carry; the renderer reads the outline only when there is a stitch to put it on. */
+const NO_OUTLINE: readonly StampEdge[] = [];
 
 /**
  * The editor shell (G-012; restructured to direction 1b in G-045): the pattern's undo history plus the state several
@@ -126,6 +130,7 @@ export default function Workspace() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const navigatorCanvasRef = useRef<HTMLCanvasElement>(null);
+  const hoverCanvasRef = useRef<HTMLCanvasElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   // The tool hooks need the renderer and the renderer needs the selection they own; they read it through this ref,
   // only inside event handlers, after the effect below has assigned it.
@@ -152,12 +157,25 @@ export default function Workspace() {
     fill: hasFillChoice(activeTool) ? options.shapeFill : "outline",
   });
   const move = useMoveTool(toolInputs);
+  /**
+   * The outline the cursor carries (G-065): the press the tool in hand would make, or null for a tool that
+   * paints nothing and for the views that cannot be edited. Rebuilt only when that changes, since the renderer
+   * takes an unchanged outline as nothing to redraw.
+   */
+  const hoverOutline = useMemo(() => {
+    if (isViewOnlyMode(viewMode)) return null;
+    if (activeTool === "fill") return stampOutline(ONE_STITCH_STAMP);
+    if (activeTool === "brush" || activeTool === "line") return stampOutline(stamp);
+    if (hasFillChoice(activeTool)) return stampOutline(stampForPress(options.shapeFill, stamp));
+    return null;
+  }, [activeTool, viewMode, stamp, options.shapeFill]);
   const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
   const renderer = useChartRenderer({
     canvasRef,
     frameRef,
     scrollerRef,
     navigatorCanvasRef,
+    hoverCanvasRef,
     pattern: displayedPattern,
     viewMode,
     cellSize,
@@ -174,6 +192,11 @@ export default function Workspace() {
   useEffect(() => {
     rendererRef.current = renderer;
   });
+
+  // Picking up another tool, or resizing the brush, changes the outline under a pointer that has not moved.
+  useEffect(() => {
+    rendererRef.current?.setHoverOutline(hoverOutline);
+  }, [hoverOutline]);
 
   function resetDocumentView() {
     setDocumentId((id) => id + 1);
@@ -321,7 +344,16 @@ export default function Workspace() {
     else if (isShapeTool(activeTool)) shape.onPointerDown(e, frame);
   }
 
+  /** Hands the cursor its outline, or takes it away when the tool in hand would paint nothing. */
+  function updateHoverOutline(e: PointerEvent<HTMLDivElement> | null) {
+    // The screen position, not the stitch: the renderer works out which stitch that is, and works it out again when
+    // a scroll or a zoom moves the chart under a pointer that has not moved (G-065).
+    renderer.previewHover(e && hoverOutline ? { x: e.clientX, y: e.clientY } : null, hoverOutline ?? NO_OUTLINE);
+  }
+
   function handleCanvasPointerMove(e: PointerEvent<HTMLDivElement>) {
+    // Before the tools, and whatever they make of the event: the cursor carries its outline through a gesture too.
+    updateHoverOutline(e);
     if (panZoom.movePan(e) || move.onPointerMove(e) || select.onPointerMove(e) || shape.onPointerMove(e)) return;
     brush.onPointerMove(e);
   }
@@ -604,6 +636,8 @@ export default function Workspace() {
           enhancedPreviewUrl={photoPreview.previewUrl}
           isPreparingEnhancedPreview={photoPreview.isPreparing}
           enhancedPreviewError={photoPreview.error}
+          hoverCanvasRef={hoverCanvasRef}
+          onPointerLeave={() => updateHoverOutline(null)}
           onPointerDown={handleCanvasPointerDown}
           onPointerMove={handleCanvasPointerMove}
           onPointerUp={handleCanvasPointerUp}

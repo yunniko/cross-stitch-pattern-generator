@@ -71,6 +71,9 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   other, in fixed places — a left press paints with the front one, a right press with the one behind, a right
   click on a thread loads the square behind without taking the brush out of your hand, and `X` swaps them. The
   brush covers 1 to 15 stitches across, as a square block or the round disc that fits it.
+- **See where a press will land**: the stitches the tool in hand would cover are outlined under the cursor, in the
+  brush's own size and shape — a disc for a round brush, the block for a square one, and one stitch for a filled
+  rectangle or oval, which ignores the brush size. It follows the pointer and leaves with it.
 - **Draw shapes**: Line (`L`), Rectangle (`R`) and Oval (`O`) are drawn by dragging from one stitch to another,
   each one undo step, each following the pointer until you let go and dropped entirely by `Escape`. An outline is
   as thick as the brush; a filled rectangle or oval is exactly the shape, whatever the brush size. Nothing is

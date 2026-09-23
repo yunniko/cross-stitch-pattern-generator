@@ -17,7 +17,7 @@ test("zoom reaches 800%, and the chart still paints at the top of the range", as
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
 
   const base = await cellSize(page);
   const zoomIn = page.getByRole("button", { name: "Zoom in" });

@@ -13,7 +13,7 @@ async function generateSmallPattern(page: Page) {
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
 }
 
 /** The Image window header: "W × H, N stitches, K colors". */

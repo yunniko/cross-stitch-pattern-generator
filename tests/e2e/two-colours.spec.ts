@@ -24,7 +24,7 @@ async function generate(page: Page) {
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
 }
 
 /** Picks the nth thread in the list with the given button; right loads the background square. */

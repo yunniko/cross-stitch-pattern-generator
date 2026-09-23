@@ -61,7 +61,7 @@ test("a pattern generated with a mode records it in the editable file, and the c
   await uploadPhoto(page);
   await modeButton(page, "Vivid").click();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
 
   await page.getByLabel("Export").selectOption("editable");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
@@ -72,7 +72,7 @@ test("a pattern generated with a mode records it in the editable file, and the c
   // Autosave is debounced; reloading before it lands would restore nothing.
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
   await page.getByRole("tab", { name: "Photo" }).click();
   await expect(modeButton(page, "Vivid")).toHaveAttribute("aria-pressed", "true");
   expect(errors).toEqual([]);

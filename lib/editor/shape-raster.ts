@@ -1,3 +1,5 @@
+import { ONE_STITCH_STAMP, type StampOffset } from "./brush-stamp";
+
 /**
  * The cells a shape covers (G-064). A chart is discrete, so every rasteriser here is integer work on whole stitches:
  * no anti-aliasing, no sub-cell geometry, and no cell half-covered by a colour. Each returns the shape's *spine* --
@@ -46,6 +48,15 @@ export function lineCells(from: CellPoint, to: CellPoint): CellPoint[] {
 
 /** Whether a shape is drawn as its outline or as a solid block of stitches (G-064). */
 export type ShapeFill = "outline" | "filled";
+
+/**
+ * The stamp a press makes: the brush along an outline, and a single stitch for a filled shape, which is exactly
+ * the shape whatever the brush size (D215). The gesture and the outline under the cursor both ask this, so what
+ * the cursor shows cannot drift from what a press does.
+ */
+export function stampForPress(fill: ShapeFill, stamp: readonly StampOffset[]): readonly StampOffset[] {
+  return fill === "filled" ? ONE_STITCH_STAMP : stamp;
+}
 
 /** The box a drag from one corner to another covers, in cells: both corners included, whichever way it was drawn. */
 function boxOf(from: CellPoint, to: CellPoint) {

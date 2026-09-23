@@ -8,7 +8,7 @@ async function generateSmallPattern(page: import("@playwright/test").Page) {
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
 }
 
 test("generate, merge two colors, undo/redo, download editable, and reopen it", async ({ page }) => {
@@ -40,7 +40,7 @@ test("generate, merge two colors, undo/redo, download editable, and reopen it", 
   await page.goto("/");
   // The file input is mounted whatever screen is up; the New -> confirm -> card path has its own test.
   await page.getByLabel("Open pattern file").setInputFiles(savedPath);
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible();
+  await expect(page.getByTestId("chart-canvas")).toBeVisible();
   await expect(legendRows).toHaveCount(initialCount - 1);
 });
 

@@ -38,7 +38,7 @@ interface ExportedChart {
 
 async function generateAndExport(page: Page): Promise<ExportedChart> {
   await page.getByRole("button", { name: /^(Generate pattern|Regenerate)$/ }).click();
-  await expect(page.getByRole("main").locator("canvas").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
   await page.getByLabel("Export").selectOption("editable");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   return JSON.parse(await readFile((await download.path())!, "utf8")) as ExportedChart;

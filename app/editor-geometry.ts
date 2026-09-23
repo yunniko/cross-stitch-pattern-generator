@@ -1,4 +1,5 @@
 import { cellAtClient } from "@/lib/editor/chart-viewport";
+import type { StampEdge } from "@/lib/editor/brush-stamp";
 import type { CellRect, StitchPattern } from "@/lib/types";
 
 // The Image window's target on-screen width: cell size derives from it, so a small pattern isn't tiny and a large one fits.
@@ -82,6 +83,29 @@ export function rectFromCorners(x0: number, y0: number, x1: number, y1: number):
 
 export function pointInRect(x: number, y: number, rect: CellRect): boolean {
   return x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height;
+}
+
+/**
+ * The outline of the stitches one press would cover, under the cursor (G-065). Drawn as a dark stroke with a light
+ * one over it, so it reads on a dark thread and a light one alike -- the selection's blue dashes and symmetry's red
+ * guides already mean something else, and this must not be mistaken for either.
+ */
+export function drawStampOutline(ctx: CanvasRenderingContext2D, edges: readonly StampEdge[], cell: { x: number; y: number }, cellSize: number) {
+  if (edges.length === 0) return;
+  const path = new Path2D();
+  for (const { x1, y1, x2, y2 } of edges) {
+    path.moveTo((cell.x + x1) * cellSize, (cell.y + y1) * cellSize);
+    path.lineTo((cell.x + x2) * cellSize, (cell.y + y2) * cellSize);
+  }
+  ctx.save();
+  ctx.lineJoin = "miter";
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.65)";
+  ctx.lineWidth = Math.max(3, Math.round(cellSize * 0.16) + 2);
+  ctx.stroke(path);
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = Math.max(1, Math.round(cellSize * 0.16));
+  ctx.stroke(path);
+  ctx.restore();
 }
 
 /** A dashed outline of the current or in-progress selection, in a color distinct from the grid lines. */

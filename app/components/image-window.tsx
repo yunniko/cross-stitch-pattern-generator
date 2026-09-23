@@ -30,6 +30,8 @@ export interface ImageWindowProps {
   scrollerRef: RefObject<HTMLDivElement | null>;
   frameRef: RefObject<HTMLDivElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
+  /** The cursor's own canvas, over the chart's (G-065). */
+  hoverCanvasRef: RefObject<HTMLCanvasElement | null>;
   pattern: StitchPattern | null;
   cellSize: number;
   sourceMeta: SourceImageMeta | null;
@@ -46,6 +48,8 @@ export interface ImageWindowProps {
   onPointerDown: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerMove: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerUp: (e: PointerEvent<HTMLDivElement>) => void;
+  /** The cursor leaving the chart, which takes its outline with it. */
+  onPointerLeave: (e: PointerEvent<HTMLDivElement>) => void;
   onDoubleClick: (e: MouseEvent<HTMLDivElement>) => void;
   onDrop: (e: DragEvent<HTMLDivElement>) => void;
 }
@@ -67,6 +71,7 @@ export function ImageWindow({
   scrollerRef,
   frameRef,
   canvasRef,
+  hoverCanvasRef,
   pattern,
   cellSize,
   sourceMeta,
@@ -91,6 +96,7 @@ export function ImageWindow({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onPointerLeave,
   onDoubleClick,
   onDrop,
 }: ImageWindowProps) {
@@ -157,6 +163,7 @@ export function ImageWindow({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          onPointerLeave={onPointerLeave}
           onDoubleClick={onDoubleClick}
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDrop}
@@ -164,7 +171,9 @@ export function ImageWindow({
           style={{ width: pattern.width * cellSize, height: pattern.height * cellSize }}
           className={`relative box-content touch-none overflow-hidden border border-line shadow-[0_20px_50px_rgba(0,0,0,.5)] ${cursorFor(activeTool, activeColorIndex, viewMode)}`}
         >
-          <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
+          <canvas ref={canvasRef} data-testid="chart-canvas" aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
+          {/* The cursor draws here and nowhere else, so moving it never repaints the chart (G-065). */}
+          <canvas ref={hoverCanvasRef} data-testid="brush-outline" aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
         </div>
       )}
       {pattern && viewMode === "realistic" && previewError && (

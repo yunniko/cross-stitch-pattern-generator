@@ -224,3 +224,4 @@ remain readable with git show.
 - D213 — The editing bar's tool options scroll inside their own track — active
 - D214 — One gesture for every shape tool, spine plus stamp — active
 - D215 — A filled shape is exactly the shape; the brush is its outline's thickness — active
+- D216 — The cursor's outline is drawn on a canvas of its own — active

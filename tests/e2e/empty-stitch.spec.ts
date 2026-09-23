@@ -8,7 +8,7 @@ async function generateSmallPattern(page: import("@playwright/test").Page) {
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
 }
 
 test("painting a stitch empty doesn't add it to the legend or its stitch counts (G-012 M5)", async ({ page }) => {
@@ -46,7 +46,7 @@ test("an empty-painted stitch renders as blank white on the live canvas, in colo
   await emptyRow.dragTo(canvas, { targetPosition: { x: 5, y: 5 } });
 
   const cellIsWhite = () =>
-    page.getByRole("main").locator("canvas").evaluate((el: HTMLCanvasElement) => {
+    page.getByTestId("chart-canvas").evaluate((el: HTMLCanvasElement) => {
       if (el.style.left !== "0px" || el.style.top !== "0px") throw new Error("the canvas is not painted from the chart origin");
       const [r, g, b, a] = el.getContext("2d")!.getImageData(5, 5, 1, 1).data;
       return r === 255 && g === 255 && b === 255 && a === 255;

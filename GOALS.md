@@ -12,6 +12,38 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
+### G-065 · The brush shows where it will land — ACTIVE (2026-09-23)
+- **What:** an outline of the stitches one press would cover, drawn under the cursor on the chart. Outline only —
+  nothing under it is painted or tinted until a press actually lands.
+- **Why:** since G-064 the brush is 1 to 15 stitches across in two shapes, and Line, Rectangle and Oval all draw with
+  it. Nothing on screen says how big it is or where it sits until a press has already changed the chart, so the size
+  control is used by trial and undo (Owner, 2026-09-23).
+- **Acceptance criteria:**
+  1. **It is the stamp's own shape**: a round 5 shows the disc's staircase ring, a square 5 the block's border, size 1
+     the one stitch under the pointer — the same cells `brushStamp` gives the press, never a circle drawn beside it.
+  2. **It follows the pointer** and leaves with it: moving off the chart, switching to a tool that does not paint, or a
+     view that cannot be edited takes it away.
+  3. **It shows what the press would cover**, so a filled Rectangle or Oval — which ignores the brush size (D215) —
+     outlines the one anchor stitch rather than a stamp it will not use.
+  4. **It never reaches the chart**: nothing it draws appears in an export, a saved file, or the pattern in memory, and
+     it survives undo, redo and a regenerate untouched.
+  5. **It does not repaint the chart.** Moving the pointer may not redraw the chart canvas; a scroll or zoom with the
+     pointer held still leaves the outline under the pointer, on whatever stitch is there afterwards.
+- **Constraints:** the chart canvas paints the viewport rather than the chart (D135), so anything drawn over it follows
+  the same painted rectangle; a round stamp is not a rectangle, so this cannot be a CSS box around the cursor.
+
+**Milestones**:
+- [x] M1 — **The outline as geometry**: `stampOutline(stamp)`, the boundary edges of a stamp in cell units, pure and
+  unit-tested against the round, square and single-stitch cases.
+- [x] M2 — **The overlay and its wiring**: a second canvas tracking the chart canvas's painted rectangle, hover
+  tracking on the frame, the tools it shows for, redraw on scroll and zoom, e2e, README and HANDOVER, deploy.
+
+**Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-23 — goal created from the Owner's request, and planned. Three calls made without asking, each cheap to
+  reverse: it shows for Brush, Fill, Line, Rectangle and Oval (every tool whose press paints), at size 1 as well as
+  above it, and it is drawn as a light stroke over a dark one so it reads on any thread — not the selection's blue
+  dashes or symmetry's red, which already mean something else.
+
 ### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
 - **What:** Eventually make the app public, built around **a social
   ecosystem** (community/sharing features -- exact shape not yet defined:

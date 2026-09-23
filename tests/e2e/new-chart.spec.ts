@@ -35,7 +35,7 @@ test("New opens the start screen without touching the chart, and Back returns to
   // ...and it is actually painted. A remounted canvas keeps its size attributes but loses every pixel, which is how
   // this regression reached production once: data-cell-size cannot tell a drawn chart from a blank one.
   await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-painted-rect", /\d+,\d+,\d+,\d+/);
-  const painted = await page.getByRole("main").locator("canvas").evaluate((el: HTMLCanvasElement) => {
+  const painted = await page.getByTestId("chart-canvas").evaluate((el: HTMLCanvasElement) => {
     const { data } = el.getContext("2d")!.getImageData(0, 0, el.width, el.height);
     let lit = 0;
     for (let i = 3; i < data.length; i += 4 * 97) if (data[i] !== 0) lit++;

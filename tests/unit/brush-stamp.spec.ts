@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BRUSH_SIZES, brushStamp, stampCells } from "@/lib/editor/brush-stamp";
+import { BRUSH_SIZES, brushStamp, stampCells, stampOutline, type StampEdge } from "@/lib/editor/brush-stamp";
 
 /** G-064 M2: what one press of the brush covers. Odd sizes only, so every stamp has a true centre (Owner, 2026-09-23). */
 
@@ -76,5 +76,63 @@ describe("stampCells", () => {
 
   it("covers a single cell at size 1, which is the brush as it always was", () => {
     expect(stampCells(12, 5, 5, brushStamp(1, "round"))).toEqual([12]);
+  });
+});
+
+/**
+ * G-065 M1: the outline the cursor carries. An edge belongs to the boundary when the cell on its other side is not
+ * in the stamp, so what is drawn is the stamp's own silhouette.
+ */
+describe("stampOutline", () => {
+  const edge = (e: StampEdge) => `${e.x1},${e.y1}-${e.x2},${e.y2}`;
+
+  it("is the four sides of the one cell at size 1", () => {
+    expect(stampOutline(brushStamp(1, "round")).map(edge).sort()).toEqual(["0,0-0,1", "0,0-1,0", "0,1-1,1", "1,0-1,1"].sort());
+  });
+
+  it("is the block's border for a square brush, with no line inside it", () => {
+    const edges = stampOutline(brushStamp(5, "square"));
+    // A 5x5 block: twenty edges around it, and nothing between two cells that are both in the stamp.
+    expect(edges).toHaveLength(20);
+    expect(edges.every((e) => e.x1 === -2 || e.x1 === 3 || e.y1 === -2 || e.y1 === 3)).toBe(true);
+  });
+
+  it("follows the disc's staircase for a round brush", () => {
+    const edges = stampOutline(brushStamp(5, "round")).map(edge);
+    // The round 5 is the block with its four corners cut. A cut corner trades two edges for two others, so the ring
+    // is the same twenty edges long as the block's -- what changes is where they run.
+    expect(edges).toHaveLength(20);
+    // Nothing is drawn around the missing corner cell...
+    expect(edges).not.toContain("-2,-2--1,-2");
+    // ...and the two edges that step around it are, which is the staircase.
+    expect(edges).toContain("-2,-1--1,-1");
+    expect(edges).toContain("-1,-2--1,-1");
+  });
+
+  it("closes: every corner it touches is touched an even number of times", () => {
+    for (const size of BRUSH_SIZES) {
+      for (const shape of ["round", "square"] as const) {
+        const touches = new Map<string, number>();
+        for (const e of stampOutline(brushStamp(size, shape))) {
+          for (const corner of [`${e.x1},${e.y1}`, `${e.x2},${e.y2}`]) touches.set(corner, (touches.get(corner) ?? 0) + 1);
+        }
+        for (const [corner, count] of touches) {
+          expect(count % 2, `${shape} ${size} at ${corner}`).toBe(0);
+        }
+      }
+    }
+  });
+
+  it("draws each edge once, whatever the stamp", () => {
+    for (const size of BRUSH_SIZES) {
+      for (const shape of ["round", "square"] as const) {
+        const edges = stampOutline(brushStamp(size, shape)).map(edge);
+        expect(new Set(edges).size, `${shape} ${size}`).toBe(edges.length);
+      }
+    }
+  });
+
+  it("is empty for an empty stamp", () => {
+    expect(stampOutline([])).toEqual([]);
   });
 });

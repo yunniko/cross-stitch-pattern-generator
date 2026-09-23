@@ -22,7 +22,7 @@ test("export as PDF (Pattern Keeper) downloads a real PDF with every actually-us
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
 
   // The real symbols this specific generated pattern actually uses -- read
   // from the app's own real DOM legend (lib/symbols.ts's round-robin order
@@ -56,7 +56,7 @@ test("export as PDF (Pattern Keeper) works in B&W mode too", async ({ page }) =>
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
 
   await page.getByLabel("Export").selectOption("pdf-bw");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);

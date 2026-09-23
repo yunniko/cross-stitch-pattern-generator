@@ -14,7 +14,7 @@ test("export as A4 pages downloads a ZIP with grid page(s) plus a legend page", 
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
 
   await page.getByLabel("Export").selectOption("a4-color");
   await expect(page.getByText(/total \(incl\. simple \+ extended legend\)/)).toBeVisible();
@@ -34,7 +34,7 @@ test("export as A4 pages works in B&W mode", async ({ page }) => {
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
 
   await page.getByLabel("Export").selectOption("a4-bw");
 
@@ -53,7 +53,7 @@ test("the A4/PDF overlap setting lives in the Chart pane and persists across a r
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
   await page.getByRole("tab", { name: "Chart" }).click();
   const overlapSelect = page.getByLabel("A4/PDF overlap");
   await expect(overlapSelect).toHaveValue("5"); // default
@@ -62,7 +62,7 @@ test("the A4/PDF overlap setting lives in the Chart pane and persists across a r
   // The chart must be on disk before the reload, or there is nothing to restore and the Chart tab stays disabled.
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
   await page.getByRole("tab", { name: "Chart" }).click();
   await expect(page.getByLabel("A4/PDF overlap")).toHaveValue("10");
 });

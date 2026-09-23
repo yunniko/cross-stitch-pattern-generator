@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
 import { stampCells, type StampOffset } from "@/lib/editor/brush-stamp";
-import { lineCells, ovalCells, rectCells, type CellPoint, type ShapeFill } from "@/lib/editor/shape-raster";
+import { lineCells, ovalCells, rectCells, stampForPress, type CellPoint, type ShapeFill } from "@/lib/editor/shape-raster";
 import {
   flipSelectionHorizontal,
   flipSelectionVertical,
@@ -200,8 +200,6 @@ function shapeSpine(kind: ShapeKind, fill: ShapeFill, from: CellPoint, to: CellP
   }
 }
 
-/** The stamp a filled shape uses: its edge is the shape, so the brush would grow it by its own radius. */
-const ONE_STITCH: readonly StampOffset[] = [{ dx: 0, dy: 0 }];
 
 /**
  * A shape gesture (G-064): press to anchor one end, drag to move the other, release to commit. The shape is redrawn
@@ -271,7 +269,7 @@ export function useShapeTool({
     if (!pattern || color === null) return;
     const at = clampedCellFromEvent(e, frame, cellSize, pattern.width, pattern.height);
     // A filled shape is exactly the shape: stamping the brush around its edge would grow it by the brush radius.
-    const pressStamp = fill === "filled" ? ONE_STITCH : stamp;
+    const pressStamp = stampForPress(fill, stamp);
     shapeRef.current = { base: pattern, cells: pattern.cellPalette.slice(), painted: [], from: at, to: at, axes: symmetry, color, stamp: pressStamp, fill };
     drawFrame();
     frame.setPointerCapture(e.pointerId);

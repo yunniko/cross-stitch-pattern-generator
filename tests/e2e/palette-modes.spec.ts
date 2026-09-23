@@ -25,7 +25,7 @@ async function generateWith(page: Page, buttons: string[]): Promise<string[]> {
     await expect(button).toHaveAttribute("aria-pressed", "true");
   }
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
 
   const rows = page.getByTestId("legend-color-row");
   await expect(rows.first()).toBeVisible();

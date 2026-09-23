@@ -21,7 +21,7 @@ test("opens an OXS chart, summarises what wasn't imported, and takes the file's 
   await page.goto("/");
   await page.getByLabel("Open pattern file").setInputFiles(OXS_FIXTURE);
 
-  await expect(page.getByRole("main").locator("canvas").first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
   const notice = page.getByTestId("open-notice");
   await expect(notice).toContainText("Opened the OXS chart.");
   await expect(notice).toContainText("1 part stitch is shown as full stitches.");
@@ -40,7 +40,7 @@ test("exports a generated pattern as OXS, and that file opens again with nothing
   await expect(page.getByText("Loaded: sample.png")).toBeVisible();
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
 
   await page.getByLabel("Export").selectOption("oxs");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
@@ -56,6 +56,6 @@ test("exports a generated pattern as OXS, and that file opens again with nothing
 
   await page.getByLabel("Open pattern file").setInputFiles(downloadedPath);
   await expect(page.getByTestId("open-notice")).toHaveText("Opened the OXS chart; everything in it came across.");
-  await expect(page.getByRole("main").locator("canvas").first()).toBeVisible();
+  await expect(page.getByTestId("chart-canvas")).toBeVisible();
   expect(errors).toEqual([]);
 });

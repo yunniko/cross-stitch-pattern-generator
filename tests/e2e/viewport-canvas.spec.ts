@@ -215,7 +215,7 @@ test("the Realistic view draws its stitches from tiles and settles again after a
   page.on("pageerror", (e) => errors.push(String(e)));
   await generateSmallPattern(page);
   const distinctColours = () =>
-    page.getByRole("main").locator("canvas").evaluate((el: HTMLCanvasElement) => {
+    page.getByTestId("chart-canvas").evaluate((el: HTMLCanvasElement) => {
       const { data } = el.getContext("2d")!.getImageData(0, 0, el.width, el.height);
       const seen = new Set<number>();
       for (let i = 0; i < data.length; i += 4 * 31) seen.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]);

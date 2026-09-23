@@ -14,7 +14,7 @@ async function generate(page: Page) {
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByRole("main").locator("canvas").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
   // A thread in the brush's hand, since nothing is held until one is picked.
   await page.getByRole("tab", { name: "Threads" }).click();
   await page.locator('[data-testid="legend-color-row"]').first().click();
