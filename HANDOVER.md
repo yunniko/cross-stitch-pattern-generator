@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-23 at c1cd90c (G-064 M3–M5: the shape tools, deployed and verified live)
+Last verified: 2026-09-23 at c1cd90c (G-064 signed off: the drawing tools, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -283,6 +283,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   painted mark, and a preview of the chart's own corner for each. Open from their measurements: on a noisy photo
   at 8 colours the screens can read worse than an undithered chart, and drawn marks become grain on flat regions,
   which is inherent to dithering a flat area. The screenshot that started it was hand-drawn (Owner, 2026-09-21).
+- G-064 (drawing tools) is signed off and archived with nothing left open from it; no goal is active.
 - The colour question that drove G-060 to G-062 is answered (D212); the hues arrive **as the photo holds them**, so
   a dusty pink stays dusty. Open behind it: Photo fix keeps a Vivid of its own until it is redone, and its Auto and
   Vivid modes were measured to *lower* a pastel photo's chroma (median 0.020 → 0.010), which nothing has looked at.
@@ -294,6 +295,5 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-23 | 59ccb92 | G-064 M1: a chart is drawn with two colours — two squares that never move, left paints with the front one and right with the one behind, a right click on a thread loads the square behind, and `X` swaps them | Vitest 1268 passed, 8 skipped; Playwright 350 passed across all 33 specs, three of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: picking a foreground and then a background leaves the front square holding what it held (Hazel over Komodo Dragon), clicking the back square brings it forward without the square moving, `X` swaps them back, and a right click on the chart is claimed rather than opening the browser's menu |
 | 2026-09-23 | 30851ea | G-064 M2: one press of the brush covers a stamp — odd sizes 1..15, round or square, size and shape in the bar and kept across a reload; symmetry mirrors every stamped cell rather than the stamp's centre. The bar's tool options became a track that scrolls inside itself (D213) after the new controls pushed it past its container and focusing the Photo button slid the whole chart column 59px sideways | Vitest 1277 passed, 8 skipped; Playwright 354 passed across all 34 specs, four of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set and no other container restarted; every other site on the host returned 200. Live: the size control set to 7 and held it, both shape buttons present, `main` overflow 0, the chart frame unmoved when the Photo button takes focus, and a press paints without error |
 | 2026-09-23 | c1cd90c | G-064 M3–M5: the Line, Rectangle and Oval tools (`L`, `R`, `O`) — a drag from one stitch to another, one undo step, an outline as thick as the brush and a filled shape exactly the shape (D214, D215), previewing without piling up behind the pointer | Vitest 1295 passed, 8 skipped; Playwright 366 passed across all 34 specs, twelve of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set and no other container restarted; eight other sites on the host returned 200. Live: `L`, `R` and `O` each take their tool, a 21-stitch line undone by one press, a 6x4 rectangle 16 stitches outlined and 24 filled, a 9x9 oval outline 24, a 5-wide line 101, `main` overflow 0 and the console clean |
