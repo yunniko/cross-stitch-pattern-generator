@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-063 · The selection answers the keys and gains two buttons — ACTIVE (2026-09-23)
+### G-063 · The selection answers the keys and gains two buttons — ACTIVE (2026-09-23, deployed, awaiting sign-off)
 - **What:** four changes to the Select tool, asked for by the Owner on 2026-09-23:
   1. **Enter applies** the floating piece where it sits, **Escape cancels** it.
   2. **Undo and Redo are blocked while a piece is in hand**, by keyboard as well as by button.
@@ -39,12 +39,20 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   change with it — a reader who learned the old behaviour is the person this goal is for.
 
 **Milestones**:
-- [ ] M1 — Enter and Escape, and the undo/redo block in both places, with the specs that pin them.
-- [ ] M2 — Fill and Duplicate: pure helpers in `lib/editor/`, their buttons in the selection bar, unit and
+- [x] M1 — Enter and Escape, and the undo/redo block in both places, with the specs that pin them.
+- [x] M2 — Fill and Duplicate: pure helpers in `lib/editor/`, their buttons in the selection bar, unit and
   end-to-end tests.
-- [ ] M3 — README and HANDOVER, deploy and verify live.
+- [x] M3 — README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-23 — **All three milestones done, deployed at 2c354bd and verified live**: both buttons present, Undo
+  disabled while a piece is held and free once it is let go, Fill leaves the piece floating, Escape cancels it,
+  Duplicate puts a copy in hand with Paste live, Enter applies, console clean. 23 containers and 38 vhosts
+  unchanged. Verified: Vitest 1255 passed / 8 skipped, Playwright 345 passed across 31 specs, tsc, eslint and
+  docs-lint clean. Two things the tests decided rather than taste: the button is **Fill selection**, because the
+  tool rail's own Fill is on screen at the same time and a test caught the collision; and Enter and Escape are
+  checked against the buttons they stand for, since a floating piece counts as stitches wherever it sits, so no
+  count settles until it is let go. **Awaiting sign-off.**
 - 2026-09-23 — goal created from the Owner's list. Noted while reading: `paste()` merges what is floating before
   pasting, so Duplicate cannot be `copy(); paste()` — React would still be holding the old clipboard when paste
   ran. It is one function doing both, which M2's unit test exists to hold.
