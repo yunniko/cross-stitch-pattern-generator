@@ -160,6 +160,22 @@ test("the Zoom tool zooms in at the clicked stitch (D124)", async ({ page }) => 
   expect(Math.abs(after.fy - before.fy) * (await page.getByTestId("chart-frame").boundingBox())!.height).toBeLessThan(after.stitchPx);
 });
 
+test("a bar too wide for the window scrolls inside itself rather than sliding the chart sideways (D213)", async ({ page }) => {
+  await generateSmallPattern(page);
+
+  // The bar grows with every tool the editing hand gains (G-064). Whatever it holds, the workspace around it may not
+  // move: `main` is the chart's own column, and a focused control scrolling it takes the chart with it.
+  const workspace = page.getByRole("main");
+  const overflow = await workspace.evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(overflow, "the editing bar widened the chart column").toBe(0);
+
+  const frame = page.getByTestId("chart-frame");
+  const before = await frame.boundingBox();
+  // The last control in the bar, and the one furthest from the tool options that push it right.
+  await page.getByRole("button", { name: "Show the photo behind the chart" }).focus();
+  expect(await frame.boundingBox()).toEqual(before);
+});
+
 test("every view mode shares one zoom and scroll position, and the realistic view is drawn (D121)", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));

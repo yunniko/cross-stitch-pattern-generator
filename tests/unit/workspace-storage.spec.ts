@@ -53,6 +53,8 @@ describe("workspace-storage", () => {
       ditherMode: "off",
       ditherTexture: DEFAULT_DITHER_TEXTURE,
       vivid: false,
+      brushSize: 1,
+      brushShape: "round",
       doubleClickFill: true,
     } as const;
 
@@ -78,6 +80,8 @@ describe("workspace-storage", () => {
         ditherMode: "off" as const,
         ditherTexture: DEFAULT_DITHER_TEXTURE,
         vivid: true,
+        brushSize: 7 as const,
+        brushShape: "square" as const,
         doubleClickFill: false,
       };
       saveWorkspaceOptions(saved);
@@ -134,6 +138,19 @@ describe("workspace-storage", () => {
       expect(loadWorkspaceOptions().vivid).toBe(false);
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
       expect(loadWorkspaceOptions().vivid).toBe(false);
+    });
+
+    it("keeps the brush's size and shape across a reload, and refuses a size it cannot draw (G-064)", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, brushSize: 9, brushShape: "square" });
+      expect(loadWorkspaceOptions().brushSize).toBe(9);
+      expect(loadWorkspaceOptions().brushShape).toBe("square");
+      // An even size, or one from a build that offered others, reads as the default rather than a stamp with no centre.
+      for (const brushSize of [4, 2, 0, -3, 99, "big"]) {
+        window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, brushSize }));
+        expect(loadWorkspaceOptions().brushSize, `stored ${brushSize}`).toBe(1);
+      }
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, brushShape: "blob" }));
+      expect(loadWorkspaceOptions().brushShape).toBe("round");
     });
 
     it("keeps a chosen dither pattern across a reload (G-052)", () => {

@@ -3,8 +3,9 @@
 import type { SymmetryAxes, SymmetryAxis } from "@/lib/editor/symmetry";
 import { type StitchPattern } from "@/lib/types";
 import type { ViewMode } from "../editor-types";
+import { BRUSH_SIZES, type BrushShape, type BrushSize } from "@/lib/editor/brush-stamp";
 import { ColorPair } from "./color-pair";
-import { PillButton, SegmentedControl, DISABLED_ICON } from "./ui";
+import { PillButton, SegmentedControl, DISABLED_ICON, type SegmentOption } from "./ui";
 
 /**
  * The strip above the chart (G-045 M2, direction 1b): what acts on the chart right now. It replaces the stacked top
@@ -68,10 +69,20 @@ export interface ContextBarProps {
   colorSlots: { a: number | null; b: number | null; active: "a" | "b" };
   onActivateColorSlot: (slot: "a" | "b") => void;
   onSwapColors: () => void;
+  /** What one press of the brush covers (G-064). */
+  brushSize: BrushSize;
+  brushShape: BrushShape;
+  onBrushSizeChange: (size: BrushSize) => void;
+  onBrushShapeChange: (shape: BrushShape) => void;
   /** The start screen is up over an open chart: the bar says so and offers the way back (Atelier). */
   startingNew: boolean;
   onBackToChart: () => void;
 }
+
+const BRUSH_SHAPE_OPTIONS: SegmentOption<BrushShape>[] = [
+  { value: "round", label: "●", title: "Round: the disc that fits the size" },
+  { value: "square", label: "■", title: "Square: the whole block" },
+];
 
 export function ContextBar({
   pattern,
@@ -95,6 +106,10 @@ export function ContextBar({
   colorSlots,
   onActivateColorSlot,
   onSwapColors,
+  brushSize,
+  brushShape,
+  onBrushSizeChange,
+  onBrushShapeChange,
   startingNew,
   onBackToChart,
 }: ContextBarProps) {
@@ -117,7 +132,7 @@ export function ContextBar({
       */}
       {pattern && !startingNew && (
         <>
-          <div className="flex items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1.5">
             <PillButton size="xs" onClick={onUndo} disabled={!canUndo} title="Ctrl+Z">
               Undo
             </PillButton>
@@ -165,43 +180,76 @@ export function ContextBar({
 
       {!startingNew && pattern && (
         <>
-          {/* 1b opened the bar with the thread the brush holds; since G-064 that is a pair, and the list sets either. */}
-          <ColorPair pattern={pattern} slots={colorSlots} onActivate={onActivateColorSlot} onSwap={onSwapColors} />
+          {/*
+            Everything the drawing hand needs is one track, and the view controls after it are not: the track
+            scrolls inside itself when the window is too narrow for the whole bar, which is what keeps the bar from
+            widening `main` and letting a focused control scroll the chart sideways (D213).
+          */}
+          <div className="at-tool-track flex min-w-0 flex-1 items-center gap-3 overflow-x-auto">
+            {/* 1b opened the bar with the thread the brush holds; since G-064 that is a pair, and the list sets either. */}
+            <ColorPair pattern={pattern} slots={colorSlots} onActivate={onActivateColorSlot} onSwap={onSwapColors} />
 
-          <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+            <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
 
-          {sourceFileName && !isLoadingImage && <span className="max-w-[12rem] truncate text-xs text-muted">Loaded: {sourceFileName}</span>}
+            {/* What one press covers. Shown beside the colours because the two together are what a press does. */}
+            <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Brush">
+              <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Brush</span>
+              <select
+                aria-label="Brush size in stitches"
+                value={brushSize}
+                onChange={(e) => onBrushSizeChange(Number(e.target.value) as BrushSize)}
+                title="How many stitches across one press covers"
+                className="rounded-md border border-line bg-sunken px-1.5 py-1 text-xs text-ink"
+              >
+                {BRUSH_SIZES.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+              <SegmentedControl
+                tone="chip"
+                options={BRUSH_SHAPE_OPTIONS}
+                value={brushShape}
+                onChange={onBrushShapeChange}
+              />
+            </div>
 
-          <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
-          <div role="group" aria-label="Symmetry — mirrored drawing" className="flex items-center gap-1.5">
-            <span
-              className="text-[11px] font-medium tracking-wider text-muted uppercase"
-              title="While on, every stroke and fill also lands on the mirrored stitches"
-            >
-              Sym
-            </span>
-            {SYMMETRY_TOGGLES.map(({ axis, label, title }) => {
-              const needsSquare = (axis === "diagonal" || axis === "antidiagonal") && !squareCanvas;
-              return (
-                <button
-                  key={axis}
-                  type="button"
-                  onClick={() => onToggleSymmetry(axis)}
-                  disabled={needsSquare}
-                  title={needsSquare ? `${title}. Needs a square canvas.` : title}
-                  aria-label={label}
-                  aria-pressed={symmetry[axis]}
-                  className={`flex h-6 w-6 items-center justify-center rounded-md border transition-colors ${DISABLED_ICON} ${
-                    symmetry[axis] ? "border-accent bg-accent/15 text-ink" : "border-line text-muted enabled:hover:bg-raised"
-                  }`}
-                >
-                  <AxisIcon axis={axis} />
-                </button>
-              );
-            })}
+            <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+
+            {sourceFileName && !isLoadingImage && <span className="max-w-[12rem] truncate text-xs text-muted">Loaded: {sourceFileName}</span>}
+
+            <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+            <div role="group" aria-label="Symmetry — mirrored drawing" className="flex shrink-0 items-center gap-1.5">
+              <span
+                className="text-[11px] font-medium tracking-wider text-muted uppercase"
+                title="While on, every stroke and fill also lands on the mirrored stitches"
+              >
+                Sym
+              </span>
+              {SYMMETRY_TOGGLES.map(({ axis, label, title }) => {
+                const needsSquare = (axis === "diagonal" || axis === "antidiagonal") && !squareCanvas;
+                return (
+                  <button
+                    key={axis}
+                    type="button"
+                    onClick={() => onToggleSymmetry(axis)}
+                    disabled={needsSquare}
+                    title={needsSquare ? `${title}. Needs a square canvas.` : title}
+                    aria-label={label}
+                    aria-pressed={symmetry[axis]}
+                    className={`flex h-6 w-6 items-center justify-center rounded-md border transition-colors ${DISABLED_ICON} ${
+                      symmetry[axis] ? "border-accent bg-accent/15 text-ink" : "border-line text-muted enabled:hover:bg-raised"
+                    }`}
+                  >
+                    <AxisIcon axis={axis} />
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={() => onIsolateChange(!isolate)}

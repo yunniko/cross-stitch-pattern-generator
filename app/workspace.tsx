@@ -1,6 +1,6 @@
 "use client";
 
-import { type DragEvent, type MouseEvent, type PointerEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type DragEvent, type MouseEvent, type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   colorForButton,
   foregroundOf,
@@ -11,6 +11,7 @@ import {
   withColorRemoved,
   type ColorSlots,
 } from "@/lib/editor/color-slots";
+import { brushStamp } from "@/lib/editor/brush-stamp";
 import { useLatest } from "./hooks/use-latest";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
 import { mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from "@/lib/editor/pattern-edit";
@@ -138,7 +139,9 @@ export default function Workspace() {
   const select = useSelectTool(toolInputs);
   // A gesture asks for its colour when it starts, so the right button paints with the background (G-064).
   const colorForPointer = useCallback((button: number) => colorForButton(colorSlotsRef.current, button), [colorSlotsRef]);
-  const brush = useBrushTool({ ...toolInputs, colorForPointer, symmetry: liveSymmetry, replaceSince: history.replaceSince });
+  // One press's footprint, rebuilt only when the brush changes rather than on every render (G-064).
+  const stamp = useMemo(() => brushStamp(options.brushSize, options.brushShape), [options.brushSize, options.brushShape]);
+  const brush = useBrushTool({ ...toolInputs, colorForPointer, stamp, symmetry: liveSymmetry, replaceSince: history.replaceSince });
   const move = useMoveTool(toolInputs);
   const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
   const renderer = useChartRenderer({
@@ -527,6 +530,10 @@ export default function Workspace() {
             colorSlots={colorSlots}
             onActivateColorSlot={(slot) => setColorSlots((slots) => withActive(slots, slot))}
             onSwapColors={() => setColorSlots(swapped)}
+            brushSize={options.brushSize}
+            brushShape={options.brushShape}
+            onBrushSizeChange={(size) => updateOption("brushSize", size)}
+            onBrushShapeChange={(shape) => updateOption("brushShape", shape)}
             startingNew={startingNew}
             onBackToChart={() => setStartingNew(false)}
           />

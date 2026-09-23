@@ -221,3 +221,4 @@ remain readable with git show.
 - D210 — The colour floor is withdrawn — active
 - D211 — Vivid keeps a stitch's colour — active
 - D212 — A thread for a hue the photo has — active
+- D213 — The editing bar's tool options scroll inside their own track — active

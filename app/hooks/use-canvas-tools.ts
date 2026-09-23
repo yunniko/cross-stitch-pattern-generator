@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
+import { stampCells, type StampOffset } from "@/lib/editor/brush-stamp";
 import {
   flipSelectionHorizontal,
   flipSelectionVertical,
@@ -56,6 +57,7 @@ export function useBrushTool({
   cellSize,
   commit,
   colorForPointer,
+  stamp,
   symmetry,
   replaceSince,
 }: CanvasToolInputs & {
@@ -64,20 +66,34 @@ export function useBrushTool({
    * the background for a right one (G-064). A stroke keeps the colour it started with.
    */
   colorForPointer: (button: number) => number | null;
+  /** What one press covers (G-064). A stroke keeps the stamp it started with, as it keeps its colour. */
+  stamp: readonly StampOffset[];
   /** The symmetry axes in effect; a stroke keeps the axes it started with. */
   symmetry: SymmetryAxes;
   replaceSince: (anchor: StitchPattern, since: readonly StitchPattern[], next: StitchPattern) => void;
 }) {
-  const strokeRef = useRef<{ base: StitchPattern; cells: Uint8Array; lastCell: number | null; axes: SymmetryAxes; color: number; click: ClickRecord } | null>(null);
+  const strokeRef = useRef<{ base: StitchPattern; cells: Uint8Array; lastCell: number | null; axes: SymmetryAxes; color: number; click: ClickRecord; stamp: readonly StampOffset[] } | null>(null);
   const lastClickRef = useRef<ClickRecord | null>(null);
 
   function cellAt(e: PointerPosition, frame: HTMLElement): number | null {
     return pattern ? cellIndexFromEvent(e, frame, cellSize, pattern.width, pattern.height) : null;
   }
 
-  /** Paints `cellIndex` and its mirror copies into the stroke buffer and hands them to the renderer as one batch. */
-  function paintOrbit(base: StitchPattern, cells: Uint8Array, cellIndex: number, axes: SymmetryAxes, color: number) {
-    const orbit = symmetryOrbit(cellIndex, base.width, base.height, axes);
+  /**
+   * Paints everything one press covers -- the stamp around `cellIndex`, and every mirror copy of it -- into the
+   * stroke buffer, and hands them to the renderer as one batch. Mirroring the stamped cells rather than the centre
+   * keeps a wide brush symmetric about the axis rather than a stamp's width away from it (G-064).
+   */
+  function paintOrbit(base: StitchPattern, cells: Uint8Array, cellIndex: number, axes: SymmetryAxes, color: number, pressStamp: readonly StampOffset[]) {
+    const orbit: number[] = [];
+    const seen = new Set<number>();
+    for (const stamped of stampCells(cellIndex, base.width, base.height, pressStamp)) {
+      for (const cell of symmetryOrbit(stamped, base.width, base.height, axes)) {
+        if (seen.has(cell)) continue;
+        seen.add(cell);
+        orbit.push(cell);
+      }
+    }
     for (const cell of orbit) cells[cell] = color;
     rendererRef.current?.paintBrushCells(
       base,
@@ -116,8 +132,8 @@ export function useBrushTool({
     click.time = now;
     lastClickRef.current = click;
     const cells = pattern.cellPalette.slice();
-    strokeRef.current = { base: pattern, cells, lastCell: cellIndex, axes: symmetry, color: activeColorIndex, click };
-    paintOrbit(pattern, cells, cellIndex, symmetry, activeColorIndex);
+    strokeRef.current = { base: pattern, cells, lastCell: cellIndex, axes: symmetry, color: activeColorIndex, click, stamp };
+    paintOrbit(pattern, cells, cellIndex, symmetry, activeColorIndex, stamp);
     frame.setPointerCapture(e.pointerId);
   }
 
@@ -129,7 +145,7 @@ export function useBrushTool({
     const cellIndex = cellIndexFromEvent(e, frame, cellSize, stroke.base.width, stroke.base.height);
     if (cellIndex === null || cellIndex === stroke.lastCell) return true;
     stroke.lastCell = cellIndex;
-    paintOrbit(stroke.base, stroke.cells, cellIndex, stroke.axes, stroke.color);
+    paintOrbit(stroke.base, stroke.cells, cellIndex, stroke.axes, stroke.color, stroke.stamp);
     return true;
   }
 

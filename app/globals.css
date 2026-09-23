@@ -74,6 +74,17 @@ body {
   font-family: var(--font-atelier-sans), Helvetica, Arial, sans-serif;
 }
 
+/* The editing bar's tool options are a track that scrolls inside itself: the view controls after it stay reachable at
+   any window width, and a bar too wide for the window no longer pushes the workspace sideways (D213). The bar is
+   44px tall, so the scrollbar is hidden rather than drawn into it. */
+.at-tool-track {
+  scrollbar-width: none;
+}
+
+.at-tool-track::-webkit-scrollbar {
+  display: none;
+}
+
 /* The grid the chart floats on: two hairline rulings on the well colour, as 1b draws the canvas area. */
 .at-well {
   background-color: var(--at-well);
