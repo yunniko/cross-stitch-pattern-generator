@@ -10,6 +10,9 @@ services:
     build:
       context: .
       target: runtime
+      args:
+        # `APP_COMMIT=$(git rev-parse --short HEAD) docker compose ...` puts the commit in crash reports (G-066 M2).
+        APP_COMMIT: ${APP_COMMIT:-unknown}
     restart: unless-stopped
     cpus: 1.0
     mem_limit: 768m

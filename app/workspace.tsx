@@ -13,6 +13,7 @@ import {
   type ColorSlots,
 } from "@/lib/editor/color-slots";
 import { ONE_STITCH_STAMP, brushStamp, stampOutline, type StampEdge } from "@/lib/editor/brush-stamp";
+import { setCrashContext } from "@/lib/editor/crash-report";
 import { stampForPress } from "@/lib/editor/shape-raster";
 import { useLatest } from "./hooks/use-latest";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
@@ -203,6 +204,19 @@ export default function Workspace() {
   useEffect(() => {
     rendererRef.current?.setHoverOutline(hoverOutline);
   }, [hoverOutline]);
+
+  // The breadcrumb a crash report is built from (G-066): an error boundary renders instead of this tree, so what it
+  // can say about the session is only what was written down outside the tree beforehand.
+  useEffect(() => {
+    setCrashContext({
+      viewMode,
+      activeTool,
+      brush: `${options.brushSize} ${options.brushShape}`,
+      zoomPercent: Math.round(panZoom.zoomLevel * 100),
+      pattern,
+      symmetry: liveSymmetry,
+    });
+  });
 
   function resetDocumentView() {
     setDocumentId((id) => id + 1);

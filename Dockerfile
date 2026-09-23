@@ -22,6 +22,10 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# The commit a crash report names, so a stack from the minified bundle can be read against the code that made it
+# (G-066 M2). Unset it and the report says "unknown"; the deploy command passes it.
+ARG APP_COMMIT=unknown
+ENV NEXT_PUBLIC_APP_COMMIT=$APP_COMMIT
 RUN npm run build && npm run build:processor
 
 FROM node:22-alpine AS runtime

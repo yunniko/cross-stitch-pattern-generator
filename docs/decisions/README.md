@@ -226,3 +226,4 @@ remain readable with git show.
 - D215 — A filled shape is exactly the shape; the brush is its outline's thickness — active
 - D216 — The cursor's outline is drawn on a canvas of its own — active
 - D217 — The empty stitch is a sentinel, and no tool paints an index the palette lacks — active
+- D218 — A crash hands over a report, and the test breaks the browser rather than the app — active
