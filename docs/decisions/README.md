@@ -225,3 +225,4 @@ remain readable with git show.
 - D214 — One gesture for every shape tool, spine plus stamp — active
 - D215 — A filled shape is exactly the shape; the brush is its outline's thickness — active
 - D216 — The cursor's outline is drawn on a canvas of its own — active
+- D217 — The empty stitch is a sentinel, and no tool paints an index the palette lacks — active

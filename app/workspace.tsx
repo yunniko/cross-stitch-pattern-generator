@@ -5,6 +5,7 @@ import {
   colorForButton,
   foregroundOf,
   NO_COLORS,
+  paintableIndex,
   swapped,
   withActive,
   withColor,
@@ -142,8 +143,13 @@ export default function Workspace() {
   const cellSize = computeCellSize(pattern, panZoom.zoomLevel);
   const toolInputs = { frameRef, rendererRef, pattern, cellSize, commit: history.set };
   const select = useSelectTool(toolInputs);
-  // A gesture asks for its colour when it starts, so the right button paints with the background (G-064).
-  const colorForPointer = useCallback((button: number) => colorForButton(colorSlotsRef.current, button), [colorSlotsRef]);
+  // A gesture asks for its colour when it starts, so the right button paints with the background (G-064). A thread
+  // the palette no longer has counts as nothing held: a press may never write a cell the renderer cannot draw (D217).
+  const paletteLength = pattern?.palette.length ?? 0;
+  const colorForPointer = useCallback(
+    (button: number) => paintableIndex(colorForButton(colorSlotsRef.current, button), paletteLength),
+    [colorSlotsRef, paletteLength]
+  );
   // One press's footprint, rebuilt only when the brush changes rather than on every render (G-064).
   const stamp = useMemo(() => brushStamp(options.brushSize, options.brushShape), [options.brushSize, options.brushShape]);
   const brush = useBrushTool({ ...toolInputs, colorForPointer, stamp, symmetry: liveSymmetry, replaceSince: history.replaceSince });

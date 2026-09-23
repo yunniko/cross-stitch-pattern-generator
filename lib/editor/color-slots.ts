@@ -5,6 +5,8 @@
  * that the squares never move: clicking the one at the back makes it the foreground, and nothing slides around. The
  * slot holding a colour keeps holding it; only `active` changes.
  */
+import { EMPTY_CELL } from "../types";
+
 export interface ColorSlots {
   a: number | null;
   b: number | null;
@@ -50,12 +52,26 @@ export function swapped(slots: ColorSlots): ColorSlots {
 /**
  * Forgets a palette index that no longer exists — a merged or deleted thread — in whichever squares hold it, and
  * renumbers the rest, since removing a colour shifts every index above it down.
+ *
+ * `EMPTY_CELL` is not a palette index but the sentinel for "no stitch here", so it is never renumbered: decrementing
+ * it produced 254, an index no palette has, and the first press after a merge then wrote a cell nothing could draw
+ * and took the page down (D217).
  */
 export function withColorRemoved(slots: ColorSlots, removed: number): ColorSlots {
   const settle = (index: number | null): number | null => {
-    if (index === null) return null;
+    if (index === null || index === EMPTY_CELL) return index;
     if (index === removed) return null;
     return index > removed ? index - 1 : index;
   };
   return { ...slots, a: settle(slots.a), b: settle(slots.b) };
+}
+
+/**
+ * The index a tool may actually paint with, or null when there is nothing to paint: the empty stitch always, a real
+ * thread only while the palette still has it. The second layer under D217 — whatever renumbers a held index wrongly,
+ * no tool writes a cell the renderer cannot draw, because an index the palette lacks is treated as nothing held.
+ */
+export function paintableIndex(index: number | null, paletteLength: number): number | null {
+  if (index === null || index === EMPTY_CELL) return index;
+  return index >= 0 && index < paletteLength ? index : null;
 }
