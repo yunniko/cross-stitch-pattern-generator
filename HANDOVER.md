@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-23 at 963c52f (zoom to 800%, and every press changes the chart; verified live)
+Last verified: 2026-09-23 at 59ccb92 (G-064 M1: the two drawing colours, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 963c52f (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
+**Production** runs 59ccb92 (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
@@ -21,6 +21,7 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
   processor, with progress, a queue position and cancellation. A chart can also start blank: every stitch empty and no
   photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
 - Editing: brush (double-click fills a region as one undo step when the Chart pane's switch is on, D138, D146),
+- Two drawing colours (G-064 M1): `lib/editor/color-slots.ts` holds two slots and a flag for which is in front, so the squares in the context bar never move. Left paints with the foreground, right with the background, a right click on a thread row loads the background without changing which square is active, and `X` swaps. Right clicks are claimed on the chart and the thread rows only.
 - With a piece in hand, undo and redo are refused from keyboard and bar alike (G-063): stepping through history underneath a floating selection is a state nobody asked for. Apply or Cancel first.
 - The start screen owns the context bar while it is up: Select's bar yields to it (`activeTool === "select" && pattern && !startingNew`), because Select's bar carries no way back and the tool rail is disabled there (Owner, 2026-09-23). The selection itself survives the trip, so Back returns to the piece still floating.
   8-connected fill, symmetry on four axes and quick mirror (D137), rectangle select with copy, paste, move, flip,
@@ -281,11 +282,9 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   painted mark, and a preview of the chart's own corner for each. Open from their measurements: on a noisy photo
   at 8 colours the screens can read worse than an undithered chart, and drawn marks become grain on flat regions,
   which is inherent to dithering a flat area. The screenshot that started it was hand-drawn (Owner, 2026-09-21).
-- The colour question that drove G-060 to G-062 is answered: a photo's visible reds, greens and blues now reach
-  the chart at ordinary colour counts under Vivid (D212). What stays true, and is worth telling a reader before
-  they chase it again: the hues arrive **as the photo holds them**, so a dusty pink stays dusty. Open behind it:
-  Photo fix still has a Vivid of its own until it is redone, and its Auto and Vivid modes were measured to
-  *lower* a pastel photo's chroma (median 0.020 → 0.010), which nothing has yet looked into.
+- The colour question that drove G-060 to G-062 is answered (D212); the hues arrive **as the photo holds them**, so
+  a dusty pink stays dusty. Open behind it: Photo fix keeps a Vivid of its own until it is redone, and its Auto and
+  Vivid modes were measured to *lower* a pastel photo's chroma (median 0.020 → 0.010), which nothing has looked at.
 - Owner decisions not yet made: a real evenweave/linen fabric model (`docs/domain-reference-fabric-types.md`); gaps from `docs/reviews/2026-09-12-competitive-analysis.md`.
 
 ## Deploy log
@@ -294,6 +293,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-23 | a2174f9 | Fix (Owner report): with a selection in hand, New chart left Select's own bar on screen, and since that bar has no way back and the tool rail is disabled over the start screen, the chart could not be returned to; the start screen's bar now wins | Vitest 1248 passed, 8 skipped; Playwright 338 passed across all 29 specs, two of them new for this; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: a selection made, New chart pressed, the Back button is there and the selection bar is gone, and Back returns with the piece still in hand; console clean |
 | 2026-09-23 | 2c354bd | G-063: Enter applies a floating selection and Escape cancels it (Escape merged before), undo and redo are refused while a piece is in hand, and the bar gains Fill selection and Duplicate | Vitest 1255 passed, 8 skipped; Playwright 345 passed across all 31 specs, seven of them new for this; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: both buttons present, Undo disabled while holding a piece and free once it is let go, Fill leaves the piece floating, Escape cancels it, Duplicate puts a copy in hand with Paste live, Enter applies; console clean |
 | 2026-09-23 | 963c52f | Zoom goes to 800% (measured to cost nothing: the canvas paints the view, not the chart), and a press now always changes the chart — at the 4 px floor two neighbouring levels rounded to the same pixels and one press did nothing | Vitest 1260 passed, 8 skipped; Playwright 347 passed across all 32 specs, three of them new here; tsc, eslint and docs-lint clean. Worst case measured at 35–77 ms a step (25 stitches, 100 colours, Realistic, 224 px cells) against 42–69 ms at the old cap, no heap growth; a 1500-stitch chart puts a 48,000 px frame in the scroller at 37–103 ms a step. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: 800% reached in the Realistic view with nothing left pending, and six presses from a 1500-stitch chart's floor give 1→2→3→4→6→8→11 px, every one different |
+| 2026-09-23 | 59ccb92 | G-064 M1: a chart is drawn with two colours — two squares that never move, left paints with the front one and right with the one behind, a right click on a thread loads the square behind, and `X` swaps them | Vitest 1268 passed, 8 skipped; Playwright 350 passed across all 33 specs, three of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: picking a foreground and then a background leaves the front square holding what it held (Hazel over Komodo Dragon), clicking the back square brings it forward without the square moving, `X` swaps them back, and a right click on the chart is claimed rather than opening the browser's menu |
