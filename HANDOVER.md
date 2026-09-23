@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-23 at 30851ea (G-064 M2: the brush stamp, deployed and verified live)
+Last verified: 2026-09-23 at c1cd90c (G-064 M3–M5: the shape tools, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 30851ea (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
+**Production** runs c1cd90c (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
@@ -21,15 +21,14 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
   processor, with progress, a queue position and cancellation. A chart can also start blank: every stitch empty and no
   photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
 - Editing: brush (double-click fills a region as one undo step when the Chart pane's switch is on, D138, D146),
-- Two drawing colours (G-064 M1): `lib/editor/color-slots.ts` holds two slots and a flag for which is in front, so the squares in the context bar never move. Left paints with the foreground, right with the background, a right click on a thread row loads the background without changing which square is active, and `X` swaps. Right clicks are claimed on the chart and the thread rows only.
-- The brush covers a stamp, not a stitch (G-064 M2): `lib/editor/brush-stamp.ts` gives odd sizes 1–15 as a block or the disc that fits it, size 1 being one stitch as before; the bar's controls survive a reload, and symmetry mirrors every stamped cell rather than the stamp's centre.
+- Drawing tools (G-064): two colours in `lib/editor/color-slots.ts` — two squares in the bar that never move, a left press painting with the front one, a right press with the one behind, a right click on a thread row loading the square behind, `X` swapping them; right clicks are claimed on the chart and the thread rows only. The brush covers a stamp rather than a stitch (`lib/editor/brush-stamp.ts`, odd sizes 1–15, block or disc, size 1 being one stitch as before). Line, Rectangle and Oval (`L`, `R`, `O`) drag from one stitch to another through one gesture (D214) whose rasterisers live in `lib/editor/shape-raster.ts`; an outline is the brush walked along the spine and a filled shape is exactly the shape (D215). Symmetry mirrors every stamped cell, not the stamp's centre; a shape is one undo step, previews without accumulating, and `Escape` or another tool drops it.
 - With a piece in hand, undo and redo are refused from keyboard and bar alike (G-063): stepping through history underneath a floating selection is a state nobody asked for. Apply or Cancel first.
 - The start screen owns the context bar while it is up: Select's bar yields to it (`activeTool === "select" && pattern && !startingNew`), because Select's bar carries no way back and the tool rail is disabled there (Owner, 2026-09-23). The selection itself survives the trip, so Back returns to the piece still floating.
   8-connected fill, symmetry on four axes and quick mirror (D137), rectangle select with copy, paste, move, flip,
   rotate, crop, "Apply here" and "Cancel" (D147, D148), pan, zoom; Isolate dims every thread but the lit ones and stays
   on under another tool (D158); merge, recolor, rename, re-symbol, add colour, empty stitches, resize, one undo history.
 - Colour editor: opens under its legend row on the colour's remembered thread swatch (D122), with an Okhsl comparison on hover or focus (D123); Full range drags are one undo step, Cancel or Escape restores.
-- Zoom keeps the stitch under the cursor in place, the buttons the view's centre (D124); five view modes (keys 1–5), zoom from 25% to 800% (raised from 400% on 2026-09-23; measured to cost nothing, because the canvas paints the view rather than the chart), where every press changes the cell size — levels that would round to the pixels already on screen are skipped, and at either end the readout stays put rather than drifting from what is drawn, a view-only canvas colour, shortcuts Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, and — with a selection in hand — Enter to apply it and Escape to cancel it (G-063; Escape merged before).
+- Zoom keeps the stitch under the cursor in place, the buttons the view's centre (D124); five view modes (keys 1–5), zoom from 25% to 800% (raised from 400% on 2026-09-23; measured to cost nothing, because the canvas paints the view rather than the chart), where every press changes the cell size — levels that would round to the pixels already on screen are skipped, and at either end the readout stays put rather than drifting from what is drawn, a view-only canvas colour, shortcuts Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, L, R, O, X, and — with a selection in hand — Enter to apply it and Escape to cancel it (G-063; Escape merged before).
 - Exports: editable JSON (format version 7, embeds the source photo and each color's thread swatch), realistic preview
   PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF, an OXS chart, a pixel-art PNG at 1 px per stitch
   (D195), "Export all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs` by content; OXS lists what it couldn't keep.
@@ -51,8 +50,8 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
 - Photo enhancement: Off, Brighten, Auto, Vivid, Portrait, with a "Compare with original" preview and recorded in
   saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-23**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1277 passed (8 opt-in skips);
-Playwright 354 passed across all 34 specs, one spec per process against the single-path build, the processor serving
+**Checks run 2026-09-23**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1295 passed (8 opt-in skips);
+Playwright 366 passed across all 34 specs, one spec per process against the single-path build, the processor serving
 generation, exports and previews. Last full Rust pass 2026-09-22: 330 e2e against the sidecar, `npm run compare:rust`
 81 cases identical; export parity in `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the
 type-check and `build:processor` before the unit tests: the worker bundle is git-ignored and specs run against it.
@@ -151,6 +150,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   mode must still pass the safety gates in `tests/unit/enhancement-calibration.spec.ts`.
 - Brighten must never white-balance, add local contrast or saturate, and must leave a photo with both deep shadows and highlights untouched (D118).
 - Enhancement calibration photos stay outside the repository; two show identifiable people.
+- A shape tool contributes a rasteriser returning spine cells only; thickness is the brush's, and a filled shape never stamps it (D214, D215).
 - A control added to the editing bar goes inside its `at-tool-track` unless it belongs to the view, and `main` must never become scrollable: a bar wider than its container slides the whole chart column sideways when a control in it takes focus (D213, asserted in `tests/e2e/navigation.spec.ts`).
 - Every `cellPalette` mutation passes `EMPTY_CELL` (255) through untouched (D028); view-only settings (canvas colour) never reach an export call site (D087).
 - Export drawing creates canvases, encodes PNGs and loads the font and texture only through
@@ -294,6 +294,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-23 | 963c52f | Zoom goes to 800% (measured to cost nothing: the canvas paints the view, not the chart), and a press now always changes the chart — at the 4 px floor two neighbouring levels rounded to the same pixels and one press did nothing | Vitest 1260 passed, 8 skipped; Playwright 347 passed across all 32 specs, three of them new here; tsc, eslint and docs-lint clean. Worst case measured at 35–77 ms a step (25 stitches, 100 colours, Realistic, 224 px cells) against 42–69 ms at the old cap, no heap growth; a 1500-stitch chart puts a 48,000 px frame in the scroller at 37–103 ms a step. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: 800% reached in the Realistic view with nothing left pending, and six presses from a 1500-stitch chart's floor give 1→2→3→4→6→8→11 px, every one different |
 | 2026-09-23 | 59ccb92 | G-064 M1: a chart is drawn with two colours — two squares that never move, left paints with the front one and right with the one behind, a right click on a thread loads the square behind, and `X` swaps them | Vitest 1268 passed, 8 skipped; Playwright 350 passed across all 33 specs, three of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: picking a foreground and then a background leaves the front square holding what it held (Hazel over Komodo Dragon), clicking the back square brings it forward without the square moving, `X` swaps them back, and a right click on the chart is claimed rather than opening the browser's menu |
 | 2026-09-23 | 30851ea | G-064 M2: one press of the brush covers a stamp — odd sizes 1..15, round or square, size and shape in the bar and kept across a reload; symmetry mirrors every stamped cell rather than the stamp's centre. The bar's tool options became a track that scrolls inside itself (D213) after the new controls pushed it past its container and focusing the Photo button slid the whole chart column 59px sideways | Vitest 1277 passed, 8 skipped; Playwright 354 passed across all 34 specs, four of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set and no other container restarted; every other site on the host returned 200. Live: the size control set to 7 and held it, both shape buttons present, `main` overflow 0, the chart frame unmoved when the Photo button takes focus, and a press paints without error |
+| 2026-09-23 | c1cd90c | G-064 M3–M5: the Line, Rectangle and Oval tools (`L`, `R`, `O`) — a drag from one stitch to another, one undo step, an outline as thick as the brush and a filled shape exactly the shape (D214, D215), previewing without piling up behind the pointer | Vitest 1295 passed, 8 skipped; Playwright 366 passed across all 34 specs, twelve of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set and no other container restarted; eight other sites on the host returned 200. Live: `L`, `R` and `O` each take their tool, a 21-stitch line undone by one press, a 6x4 rectangle 16 stitches outlined and 24 filled, a 9x9 oval outline 24, a 5-wide line 101, `main` overflow 0 and the console clean |

@@ -54,11 +54,22 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   would get in the way.
 - [x] M2 — **The stamp**: `brushStamp(size, shape)` as a pure function with its tests, the size and shape controls,
   and the brush painting through it — size 1 square being exactly today's brush, byte for byte.
-- [ ] M3 — **The Line tool**, sharing the stamp, with the rubber-band preview the shape tools will reuse.
-- [ ] M4 — **Rectangle and Oval**, filled and outlined, each a pure rasteriser with its own tests.
-- [ ] M5 — Shortcuts, README and HANDOVER, deploy and verify live.
+- [x] M3 — **The Line tool**, sharing the stamp, with the rubber-band preview the shape tools will reuse.
+- [x] M4 — **Rectangle and Oval**, filled and outlined, each a pure rasteriser with its own tests.
+- [x] M5 — Shortcuts, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-23 — **M3, M4 and M5 done and deployed; the goal's work is complete, pending the Owner's sign-off.**
+  Line, Rectangle and Oval drag from one stitch to another through one gesture (D214): `lib/editor/shape-raster.ts`
+  holds the rasterisers (Bresenham for the line, an inscribed ellipse decided by exact integer arithmetic for the
+  oval), and the gesture stamps the brush along the spine, mirrors it under symmetry and commits once. A filled
+  shape is exactly the shape, whatever the brush size (D215). The preview redraws over a snapshot of the base scene
+  rather than accumulating — checked by sabotaging that restore and watching the test fail. `L`, `R`, `O` take the
+  tools, `Escape` drops a half-drawn shape. Verified: Vitest 1295 passed / 8 skipped, Playwright 366 passed across
+  34 specs, tsc, eslint and docs-lint clean; live at cross-stitch.craftodejnice.cz (commit c1cd90c) with each key
+  taking its tool, a 21-stitch line undone by one press, a 6x4 rectangle 16 stitches outlined and 24 filled, a 9x9
+  oval outline 24, a 5-wide line 101, and the console clean. Eight other sites returned 200, no other container
+  restarted. HANDOVER condensed: the two G-064 milestone lines became one, and the oldest deploy row left it.
 - 2026-09-23 — **M2 done and deployed.** `lib/editor/brush-stamp.ts` is the stamp: odd sizes 1..15, round as the
   disc that fits the block, square as the block, eight unit tests; size 1 covers the one stitch under the pointer,
   as before. Symmetry mirrors every stamped cell rather than the stamp's centre, so a wide brush stays symmetric
