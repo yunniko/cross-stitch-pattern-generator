@@ -27,7 +27,7 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
   rotate, crop, "Apply here" and "Cancel" (D147, D148), pan, zoom; Isolate dims every thread but the lit ones and stays
   on under another tool (D158); merge, recolor, rename, re-symbol, add colour, empty stitches, resize, one undo history.
 - Colour editor: opens under its legend row on the colour's remembered thread swatch (D122), with an Okhsl comparison on hover or focus (D123); Full range drags are one undo step, Cancel or Escape restores.
-- Zoom keeps the stitch under the cursor in place, the buttons the view's centre (D124); five view modes (keys 1–5), a view-only canvas colour, shortcuts Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, and — with a selection in hand — Enter to apply it and Escape to cancel it (G-063; Escape merged before).
+- Zoom keeps the stitch under the cursor in place, the buttons the view's centre (D124); five view modes (keys 1–5), zoom from 25% to 800% (raised from 400% on 2026-09-23; measured to cost nothing, because the canvas paints the view rather than the chart), a view-only canvas colour, shortcuts Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z, Space-drag, B, F, and — with a selection in hand — Enter to apply it and Escape to cancel it (G-063; Escape merged before).
 - Exports: editable JSON (format version 7, embeds the source photo and each color's thread swatch), realistic preview
   PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF, an OXS chart, a pixel-art PNG at 1 px per stitch
   (D195), "Export all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs` by content; OXS lists what it couldn't keep.

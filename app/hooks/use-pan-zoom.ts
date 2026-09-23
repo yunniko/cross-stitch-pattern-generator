@@ -3,7 +3,15 @@ import { chartOrigin, releaseCapture, type PointerPosition } from "../editor-geo
 import { useLatest } from "./use-latest";
 
 const MIN_ZOOM = 0.25;
-const MAX_ZOOM = 4;
+/**
+ * 800% since 2026-09-23, on the Owner's question of whether it costs anything. Measured: it does not. The canvas
+ * paints the view plus overscan rather than the chart, so a zoom step costs the same whatever the cell size --
+ * 35-77 ms in the worst case there is (a 25-stitch chart at 100 colours in the Realistic view, where cells reach
+ * 224 px and every colour's stitch texture is rasterised again per step), against 42-69 ms at the old cap, with no
+ * heap growth. The largest chart is fine at the other end: 1500 stitches puts a 48,000 px frame in the scroller and
+ * steps take 37-103 ms.
+ */
+const MAX_ZOOM = 8;
 export const ZOOM_STEP = 1.4;
 
 type PointerLike = PointerPosition & { pointerId: number };
