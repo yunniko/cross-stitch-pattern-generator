@@ -13,7 +13,12 @@ export interface KeyboardShortcutContext {
   /** Plain tool restore after a Space-pan, without those side effects. */
   setActiveTool(tool: Tool): void;
   setViewMode(mode: ViewMode): void;
+  /** Enter: apply the floating piece where it sits. */
   mergeSelection(): void;
+  /** Escape: put the chart back as it was when the selection started. */
+  cancelSelection(): void;
+  /** A piece is in hand, so history is not the reader's to step through yet (G-063). */
+  hasSelection: boolean;
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -23,11 +28,16 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 /**
  * Global keyboard shortcuts: Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z for undo/redo,
- * B/F for Brush/Fill, 1-5 for the view modes, Escape to merge a floating
- * selection, and Space held to pan temporarily. Skipped while typing in a
- * field. Space is only claimed when focus is on the page body or inside
- * the canvas scroller -- a focused button, select, radio or checkbox keeps
- * its own Space activation (review B5).
+ * B/F for Brush/Fill, 1-5 for the view modes, Enter to apply a floating
+ * selection and Escape to cancel it, and Space held to pan temporarily.
+ * Skipped while typing in a field. Space is only claimed when focus is on
+ * the page body or inside the canvas scroller -- a focused button, select,
+ * radio or checkbox keeps its own Space activation (review B5).
+ *
+ * Escape cancelled nothing before G-063: it merged, which is the opposite of
+ * what Cancel means everywhere else in this app (Owner, 2026-09-23). Undo and
+ * redo are refused outright while a piece is in hand rather than stepping
+ * through the history underneath it.
  */
 export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerRef: RefObject<HTMLElement | null>): void {
   const contextRef = useRef(context);
@@ -50,21 +60,24 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
 
       const modifier = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
-      if (modifier && key === "z") {
+      if (modifier && (key === "z" || key === "y")) {
+        // Still swallowed with a piece in hand, so the browser does not do its own thing with the key while
+        // the chart refuses it (G-063).
         e.preventDefault();
-        if (e.shiftKey) ctx.redo();
+        if (ctx.hasSelection) return;
+        if (key === "y" || e.shiftKey) ctx.redo();
         else ctx.undo();
-        return;
-      }
-      if (modifier && key === "y") {
-        e.preventDefault();
-        ctx.redo();
         return;
       }
 
       if (!ctx.hasPattern) return; // every tool button is disabled too
 
       if (e.key === "Escape") {
+        if (ctx.activeTool === "select") ctx.cancelSelection();
+        return;
+      }
+
+      if (e.key === "Enter") {
         if (ctx.activeTool === "select") ctx.mergeSelection();
         return;
       }

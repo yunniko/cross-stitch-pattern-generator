@@ -12,6 +12,9 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
 - **Generate** a chart from a photo at 10–1500 stitches and 2–100 colors.
   The pipeline downsamples in linear light, clusters in OKLab, then smooths
   regions with an edge-aware optimizer so the chart has few stray stitches.
+- **Select, then act on the piece**: copy, paste, duplicate, flip, rotate, crop, or fill the whole selected
+  area with the thread the brush is holding. **Enter** applies the piece where it sits and **Escape** cancels
+  it, putting the chart back as it was. Undo and redo wait until the piece is let go.
 - **Start from nothing**: "New blank chart", in the menu behind the mark at the
   top of the tool rail, asks for a width and height in stitches, shows the
   finished fabric size, and opens an empty canvas with no colors yet. A chart

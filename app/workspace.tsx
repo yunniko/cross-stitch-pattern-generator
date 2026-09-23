@@ -262,6 +262,8 @@ export default function Workspace() {
       setActiveTool,
       setViewMode,
       mergeSelection: select.merge,
+      cancelSelection: select.cancel,
+      hasSelection: select.selection !== null,
     },
     scrollerRef
   );
@@ -467,6 +469,9 @@ export default function Workspace() {
             onRedo={history.redo}
             onCopy={select.copy}
             onPaste={select.paste}
+            onDuplicate={select.duplicate}
+            onFill={() => activeColorIndex !== null && select.fill(activeColorIndex)}
+            canFill={activeColorIndex !== null}
             onFlipHorizontal={select.flipHorizontal}
             onFlipVertical={select.flipVertical}
             onRotateClockwise={select.rotateClockwise}

@@ -5,6 +5,8 @@ import {
   liftSelection,
   mergeSelection,
   moveSelection,
+  duplicateSelection,
+  fillSelection,
   rotateSelectionClockwise,
   rotateSelectionAnticlockwise,
   cropToSelection,
@@ -310,7 +312,19 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
       if (!clipboard || !pattern) return;
       merge(); // never silently discard what's floating
       // Offset from the copy's origin so the paste is visibly a new piece.
-      setSelection(moveSelection({ ...clipboard, originRect: undefined }, 3, 3));
+      setSelection(duplicateSelection(clipboard));
+    },
+    /** Paints the selected area in one colour, leaving it floating so it can still be moved or cancelled (G-063). */
+    fill: (paletteIndex: number) => selection && setSelection(fillSelection(selection, paletteIndex)),
+    /**
+     * Copy and Paste in one press (G-063). Not `copy(); paste();`: paste reads the clipboard from state, which
+     * React has not updated yet inside one handler, so it would duplicate whatever was copied *before* this.
+     */
+    duplicate: () => {
+      if (!selection || !pattern) return;
+      setClipboard(selection);
+      commit(mergeSelection(pattern, selection)); // the original stays where it is
+      setSelection(duplicateSelection(selection));
     },
     flipHorizontal: () => selection && setSelection(flipSelectionHorizontal(selection)),
     flipVertical: () => selection && setSelection(flipSelectionVertical(selection)),

@@ -394,6 +394,26 @@ export function moveSelection(selection: FloatingSelection, dx: number, dy: numb
   return { ...selection, x: selection.x + dx, y: selection.y + dy };
 }
 
+/**
+ * Paints every cell of a floating selection in one colour (G-063). The piece stays floating, so it can still be
+ * moved, applied or cancelled, and a cell that was empty becomes a stitch like any other -- the Owner asked for the
+ * selected *area*, not the stitches inside it.
+ */
+export function fillSelection(selection: FloatingSelection, paletteIndex: number): FloatingSelection {
+  return { ...selection, cells: new Uint8Array(selection.cells.length).fill(paletteIndex) };
+}
+
+/**
+ * The copy a Duplicate leaves in hand (G-063): the same cells, offset so it reads as a second piece, and with no
+ * `originRect`, since nothing was lifted for it -- the original stays where it is and is merged by the caller.
+ * `DUPLICATE_OFFSET` matches Paste's, so the two land in the same place relative to what they came from.
+ */
+export const DUPLICATE_OFFSET = 3;
+
+export function duplicateSelection(selection: FloatingSelection): FloatingSelection {
+  return moveSelection({ ...selection, originRect: undefined }, DUPLICATE_OFFSET, DUPLICATE_OFFSET);
+}
+
 function flipCells(cells: Uint8Array, width: number, height: number, axis: "horizontal" | "vertical"): Uint8Array {
   const flipped = new Uint8Array(cells.length);
   for (let y = 0; y < height; y++) {

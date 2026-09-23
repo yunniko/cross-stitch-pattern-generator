@@ -74,6 +74,24 @@ function PasteIcon() {
   );
 }
 
+function DuplicateIcon() {
+  return (
+    <svg {...ACTION_ICON_PROPS}>
+      <rect x="4" y="4" width="11" height="11" rx="1.5" />
+      <rect x="9" y="9" width="11" height="11" rx="1.5" />
+    </svg>
+  );
+}
+
+function FillSelectionIcon() {
+  return (
+    <svg {...ACTION_ICON_PROPS}>
+      <rect x="4" y="4" width="16" height="16" rx="1.5" />
+      <path d="M7 14.5 14.5 7M7 18.5 18.5 7M10.5 19 19 10.5" />
+    </svg>
+  );
+}
+
 function FlipIcon({ axis }: { axis: "horizontal" | "vertical" }) {
   const vertical = axis === "vertical";
   return (
@@ -136,6 +154,11 @@ export interface SelectionBarProps {
   onRedo: () => void;
   onCopy: () => void;
   onPaste: () => void;
+  onDuplicate: () => void;
+  /** Paints the selected area in the brush's colour (G-063). */
+  onFill: () => void;
+  /** False when the brush is holding no colour, which leaves nothing to fill with. */
+  canFill: boolean;
   onFlipHorizontal: () => void;
   onFlipVertical: () => void;
   onRotateClockwise: () => void;
@@ -155,6 +178,9 @@ export function SelectionBar({
   onRedo,
   onCopy,
   onPaste,
+  onDuplicate,
+  onFill,
+  canFill,
   onFlipHorizontal,
   onFlipVertical,
   onRotateClockwise,
@@ -163,16 +189,23 @@ export function SelectionBar({
   onCancel,
   onDeselect,
 }: SelectionBarProps) {
+  const fillTitle = canFill
+    ? "Paint the whole selected area in the brush's colour"
+    : "Pick a thread in the list first \u2014 there is no colour to fill with";
   return (
     // 1b gives the select tool its own top panel rather than a strip under one (Owner, 2026-09-18), so this takes the
     // context bar's shape exactly -- and carries Undo and Redo, which would otherwise vanish for as long as a
     // selection is in hand.
     <div className="flex h-11 shrink-0 items-center gap-2.5 border-b border-line bg-surface px-4">
+      {/*
+        History is not the reader's to step through while a piece is in hand: undoing underneath a floating
+        selection is a state nobody asked for (Owner, 2026-09-23). Apply or Cancel first, and the title says so.
+      */}
       <div className="flex items-center gap-1.5">
-        <PillButton size="xs" onClick={onUndo} disabled={!canUndo} title="Ctrl+Z">
+        <PillButton size="xs" onClick={onUndo} disabled={!canUndo || hasSelection} title={hasSelection ? "Apply or cancel the selection first" : "Ctrl+Z"}>
           Undo
         </PillButton>
-        <PillButton size="xs" onClick={onRedo} disabled={!canRedo} title="Ctrl+Y or Ctrl+Shift+Z">
+        <PillButton size="xs" onClick={onRedo} disabled={!canRedo || hasSelection} title={hasSelection ? "Apply or cancel the selection first" : "Ctrl+Y or Ctrl+Shift+Z"}>
           Redo
         </PillButton>
       </div>
@@ -193,13 +226,16 @@ export function SelectionBar({
           [
             ["Copy", "Copy the selected piece", <CopyIcon key="i" />, onCopy, !hasSelection],
             ["Paste", "Paste the copied piece as a new floating selection", <PasteIcon key="i" />, onPaste, !hasClipboard],
+            ["Duplicate", "Leave this piece where it is and take a copy of it in hand", <DuplicateIcon key="i" />, onDuplicate, !hasSelection],
+            // "Fill selection", not "Fill": the tool rail has a Fill of its own, and both are on screen at once.
+            ["Fill selection", fillTitle, <FillSelectionIcon key="i" />, onFill, !hasSelection || !canFill],
             ["Flip horizontal", "Mirror the piece left to right", <FlipIcon key="i" axis="horizontal" />, onFlipHorizontal, !hasSelection],
             ["Flip vertical", "Mirror the piece top to bottom", <FlipIcon key="i" axis="vertical" />, onFlipVertical, !hasSelection],
             ["Rotate right", "Turn the piece a quarter turn clockwise", <RotateIcon key="i" clockwise />, onRotateClockwise, !hasSelection],
             ["Rotate left", "Turn the piece a quarter turn anticlockwise", <RotateIcon key="i" clockwise={false} />, onRotateAnticlockwise, !hasSelection],
             ["Crop", "Cut the chart down to this rectangle, discarding everything outside it", <CropIcon key="i" />, onCrop, !hasSelection],
-            ["Apply here", "Merge the piece into the picture where it sits", <DeselectIcon key="i" />, onDeselect, !hasSelection],
-            ["Cancel", "Put the chart back as it was when this selection started, discarding its changes", <CancelIcon key="i" />, onCancel, !hasSelection],
+            ["Apply here", "Merge the piece into the picture where it sits \u2014 Enter", <DeselectIcon key="i" />, onDeselect, !hasSelection],
+            ["Cancel", "Put the chart back as it was when this selection started, discarding its changes \u2014 Escape", <CancelIcon key="i" />, onCancel, !hasSelection],
           ] as const
         ).map(([label, title, icon, onClick, isDisabled]) => {
           // Apply here sits before Cancel, and the committing pair carry their names (Owner, 2026-09-18).
