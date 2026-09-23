@@ -31,10 +31,20 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 **Milestones**:
 - [x] M1 — **The reproduced crash**: `EMPTY_CELL` is not renumbered, `paintableIndex` gates every press, regression
   specs for both, deployed (D217).
-- [ ] M2 — **The boundary and the report**: `app/error.tsx` and `global-error.tsx`, the downloadable crash report,
+- [x] M2 — **The boundary and the report**: `app/error.tsx` and `global-error.tsx`, the downloadable crash report,
   its spec, README and HANDOVER, deploy.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-23 — **M2 done and deployed; the goal's work is complete, pending the Owner's sign-off.** `app/error.tsx`
+  and `global-error.tsx` render a crash screen that names the failure, points at the autosave and downloads the
+  report (D218). Two findings on the way, both from checking rather than assuming: the boundary was verified against
+  the *real* failure by reintroducing D217 locally — a throw under a pointer event, which React does not always
+  route to a boundary — and it caught it; and the first attempt at a test hook, a button behind
+  `NEXT_PUBLIC_CS_TEST_HOOKS`, was found shipped whole in the production chunks, so the spec now breaks
+  `fillRect` instead and nothing test-only ships. Verified: Vitest 1312 passed / 8 skipped, Playwright 380 passed
+  across 37 specs, tsc, eslint and docs-lint clean; live at 42b4397, where a broken renderer lands on the crash
+  screen and the downloaded report names the commit, `color/brush/5 round/100%`, a 50x31 chart of 16 colours with
+  1550 editable cells and a stack, and contains no photo. Eight other sites returned 200.
 - 2026-09-23 — **M1 done and deployed.** The Owner's lead (merge two colours, then draw) reproduced on production in
   a scripted browser: holding Empty, any merge, any press — `TypeError: Cannot read properties of undefined (reading
   'rgb')` at `drawCell` → `paintBrushCells` → `onPointerDown`, and the page replaced by "This page couldn't load".

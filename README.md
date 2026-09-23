@@ -96,6 +96,9 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   cross-stitch programs, a pixel-art PNG at 1 px per stitch (which imports back
   as the same chart), or everything at once as a `.cspzip` bundle, which the app
   can open again.
+- **If the editor ever falls over**, it says so instead of going blank, and offers the failure as a file: what
+  went wrong, where, what you had in hand, and your chart — but not the photo behind it. Your work is autosaved,
+  so reloading brings the chart back.
 - **Open** this app's own files or an `.oxs` chart from another program. Content
   the app can't show, such as backstitch lines and French knots, is listed
   after opening rather than silently dropped.

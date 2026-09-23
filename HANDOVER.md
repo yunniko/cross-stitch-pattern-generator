@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-23 at bd8dbaf (D217 crash fix, deployed and reproduction re-run against it)
+Last verified: 2026-09-23 at 42b4397 (G-066 M2: the crash report, deployed and downloaded from the live site)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs bd8dbaf (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
+**Production** runs 42b4397 (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
@@ -22,6 +22,7 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
   photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
 - Editing: brush (double-click fills a region as one undo step when the Chart pane's switch is on, D138, D146),
 - Drawing tools (G-064): two colours in `lib/editor/color-slots.ts` — two squares in the bar that never move, a left press painting with the front one, a right press with the one behind, a right click on a thread row loading the square behind, `X` swapping them; right clicks are claimed on the chart and the thread rows only. The brush covers a stamp rather than a stitch (`lib/editor/brush-stamp.ts`, odd sizes 1–15, block or disc, size 1 being one stitch as before). Line, Rectangle and Oval (`L`, `R`, `O`) drag from one stitch to another through one gesture (D214) whose rasterisers live in `lib/editor/shape-raster.ts`; an outline is the brush walked along the spine and a filled shape is exactly the shape (D215). Symmetry mirrors every stamped cell, not the stamp's centre; a shape is one undo step, previews without accumulating, and `Escape` or another tool drops it.
+- A throw in the editor lands on a crash screen that names the failure and downloads a report — error, stack, commit, view, tool, brush, zoom and the chart as an editable save, without the photo (G-066, D218). Verified against a reintroduced D217, the class of crash that motivated it.
 - The cursor carries an outline of what a press would cover (G-065): the brush's own shape, one anchor stitch for a filled shape, on a second canvas over the chart's (D216) so a pointer move never repaints the chart. `stampOutline` in `lib/editor/brush-stamp.ts` gives a stamp's boundary edges.
 - With a piece in hand, undo and redo are refused from keyboard and bar alike (G-063): stepping through history underneath a floating selection is a state nobody asked for. Apply or Cancel first.
 - The start screen owns the context bar while it is up: Select's bar yields to it (`activeTool === "select" && pattern && !startingNew`), because Select's bar carries no way back and the tool rail is disabled there (Owner, 2026-09-23). The selection itself survives the trip, so Back returns to the piece still floating.
@@ -51,8 +52,8 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
 - Photo enhancement: Off, Brighten, Auto, Vivid, Portrait, with a "Compare with original" preview and recorded in
   saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-23**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1305 passed (8 opt-in skips);
-Playwright 377 passed across all 36 specs, one spec per process against the single-path build, the processor serving
+**Checks run 2026-09-23**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1312 passed (8 opt-in skips);
+Playwright 380 passed across all 37 specs, one spec per process against the single-path build, the processor serving
 generation, exports and previews. Last full Rust pass 2026-09-22: 330 e2e against the sidecar, `npm run compare:rust`
 81 cases identical; export parity in `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the
 type-check and `build:processor` before the unit tests: the worker bundle is git-ignored and specs run against it.
@@ -151,6 +152,8 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   mode must still pass the safety gates in `tests/unit/enhancement-calibration.spec.ts`.
 - Brighten must never white-balance, add local contrast or saturate, and must leave a photo with both deep shadows and highlights untouched (D118).
 - Enhancement calibration photos stay outside the repository; two show identifiable people.
+- A crash report carries the chart but never the photo (D218), and names a commit only when the image is built with `APP_COMMIT=$(git rev-parse --short HEAD)`; the plain deploy command leaves it "unknown".
+- Nothing test-only ships: a build-flagged crash hook was found in the production chunks, so the boundary's spec breaks `fillRect` instead (D218). Grep a production build before trusting a flag to remove code.
 - `EMPTY_CELL` (255) is a sentinel, never an index to shift: renumbering it after a merge made 254, and the next press killed the page (D217). `paintableIndex` gates every press, and the renderers stay strict so a bad index is found, not painted around.
 - `main` holds two canvases: the chart's is `data-testid="chart-canvas"` and the cursor's `brush-outline` (D216). A spec asking for "the canvas in main" gets both and fails strict mode.
 - A shape tool contributes a rasteriser returning spine cells only; thickness is the brush's, and a filled shape never stamps it (D214, D215).
@@ -275,15 +278,12 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 ## Next steps and open questions
 
 - Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (14 of 24 on road-mountains), since a refill split learns only from cells inside a colour (D142).
-- Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration; G-033 — "+ Add" keeps its old flow, touch screens pick on tap with no comparison readout.
+- Left open: G-028 — OXS symbols use each reader's own font glyph, untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's calibration; G-033 — "+ Add" keeps its old flow.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
-- From G-048: generation at 1500 stitches holds 42 MB more than TypeScript in Standard, 9 MB more in Crisp+ (D190);
-  the sidecar spawns per job, and a worker could keep one process warm. Archived 2026-09-19: G-046 (raising the 1500
-  cap needs two Owner decisions, D181) and G-047 (D171–D178). G-030 (public launch) is a far-future draft.
-- The dithering line (G-052 to G-059) is complete and signed off: twelve patterns, an editable texture with a
-  painted mark, and a preview of the chart's own corner for each. Open: on a noisy photo at 8 colours the screens can
+- From G-048: generation at 1500 stitches holds 42 MB more than TypeScript in Standard, 9 MB more in Crisp+ (D190); the sidecar spawns per job. Archived 2026-09-19: G-046 (raising the 1500 cap needs two Owner decisions, D181) and G-047 (D171–D178). G-030 (public launch) is a far-future draft.
+- The dithering line (G-052 to G-059) is complete and signed off. Open: on a noisy photo at 8 colours the screens can
   read worse than no dithering, and drawn marks become grain on a flat region, which is inherent to dithering one.
-- **There is no error boundary under the workspace**: an unhandled exception drops the reader on Next's default "this page couldn't load" with no report and no stack, which is how D217 presented, and the Owner has seen the same dead page before 2026-09-23 from a route still unexplained. G-066 M2 is the boundary and a downloadable crash report; until it exists a crash is diagnosable only by reproducing it.
+- A crash now hands over a report (D218), so the next one is diagnosable from the file rather than by reproducing it. Still open: the Owner has seen the same dead page **before 2026-09-23**, from a route D217 does not explain — the first report to arrive from the wild is the evidence to chase it with.
 - The colour question that drove G-060 to G-062 is answered (D212); the hues arrive **as the photo holds them**, so
   a dusty pink stays dusty. Open behind it: Photo fix keeps a Vivid of its own until it is redone, and its Auto and
   Vivid modes were measured to *lower* a pastel photo's chroma (median 0.020 → 0.010), which nothing has looked at.
@@ -291,9 +291,9 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Deploy log
 
-Every deploy, with what changed and how it was verified, is in `docs/deploy-log.md`. The last three entries:
+Every deploy, with what changed and how it was verified, is in `docs/deploy-log.md`. The last two:
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-23 | 57fd1e5 | G-065: the stitches one press would cover are outlined under the cursor, in the brush's own shape, on a canvas of its own (D216) so a pointer move never repaints the chart | Vitest 1301 passed, 8 skipped; Playwright 375 passed across all 35 specs, nine of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set and only this app's restarted; eight other sites on the host returned 200. Live: nothing before the pointer is on the chart, a single stitch at size 1, 13,10..18,15 for a round 5 centred on (15,12), one anchor stitch for a filled rectangle, gone when the pointer leaves, `data-render-revision` unchanged across a pointer move, 0 stitches after all of it, console clean |
 | 2026-09-23 | bd8dbaf | Fix (D217): with the brush holding Empty, any merge then any press killed the page — the 255 sentinel was renumbered to 254 and `drawCell` threw inside the pointer handler. `EMPTY_CELL` is never renumbered, and `paintableIndex` gates every press | Vitest 1305 passed, 8 skipped; Playwright 377 passed across all 36 specs, two of them new here; tsc, eslint and docs-lint clean. Each guard checked by removing it: with both gone the new spec fails with the dead page. 23 containers before and after with an identical name set and only this app's restarted; eight other sites returned 200. Live: the script that reproduced the crash before the deploy now merges, draws and leaves the page alive with a clean console |
+| 2026-09-23 | 42b4397 | G-066 M2: a crash hands over a report — an error boundary replaces Next's bare "this page couldn't load" with a screen that names the failure, points at the autosave and downloads the error, stack, commit, tool in hand and chart, never the photo (D218) | Vitest 1312 passed, 8 skipped; Playwright 380 passed across all 37 specs, three of them new here; tsc, eslint and docs-lint clean. Checked against the real failure by reintroducing D217 locally and watching this boundary catch that pointer-handler crash; the production bundle was grepped to confirm no test-only hook ships. 23 containers before and after with an identical name set and only this app's restarted; eight other sites returned 200. Live: a broken `fillRect` lands on the crash screen, and the report names commit 42b4397, `color/brush/5 round/100%`, a 50x31 chart of 16 colours with 1550 editable cells, a stack, and no photo |
