@@ -451,7 +451,12 @@ export default function Workspace() {
       />
 
       <main className="flex flex-1 flex-col overflow-hidden">
-        {activeTool === "select" && pattern ? (
+        {/*
+          The start screen owns the bar while it is up (Owner, 2026-09-23). Select's own bar has no way back, and
+          the tool rail is disabled over the start screen, so leaving it here stranded a reader with a selection in
+          hand: the "Back to your chart" button lives in the bar it replaced.
+        */}
+        {activeTool === "select" && pattern && !startingNew ? (
           <SelectionBar
             hasSelection={select.selection !== null}
             hasClipboard={select.clipboard !== null}
