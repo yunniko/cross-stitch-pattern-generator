@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-23 at b5d1343 (G-062: Vivid reserves a thread per hue, deployed and generating live)
+Last verified: 2026-09-23 at a2174f9 (the start screen's bar over a selection, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs b5d1343 (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
+**Production** runs a2174f9 (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
@@ -21,6 +21,7 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
   processor, with progress, a queue position and cancellation. A chart can also start blank: every stitch empty and no
   photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
 - Editing: brush (double-click fills a region as one undo step when the Chart pane's switch is on, D138, D146),
+- The start screen owns the context bar while it is up: Select's bar yields to it (`activeTool === "select" && pattern && !startingNew`), because Select's bar carries no way back and the tool rail is disabled there (Owner, 2026-09-23). The selection itself survives the trip, so Back returns to the piece still floating.
   8-connected fill, symmetry on four axes and quick mirror (D137), rectangle select with copy, paste, move, flip,
   rotate, crop, "Apply here" and "Cancel" (D147, D148), pan, zoom; Isolate dims every thread but the lit ones and stays
   on under another tool (D158); merge, recolor, rename, re-symbol, add colour, empty stitches, resize, one undo history.
@@ -292,6 +293,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-22 | 430dd7f | G-060 reverted in full at the Owner's direction: the colour floor and its "Keep similar colors" select are gone, and generation is the pipeline as it was before it (D210) | Vitest 1233 passed, 8 skipped and `compare:rust` 89 cases identical — both back to their pre-G-060 numbers, 18 golden hashes untouched; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: the select is gone, a 48-colour generation runs clean and its exported file carries no `colorFloor` |
 | 2026-09-23 | 355790e | G-061: a Color detail switch (Averaged / Vivid) — a stitch can keep the chroma of its most colourful quarter instead of averaging it away, off by default and standing down below 24 pixels a stitch (D211) | Vitest 1243 passed, 8 skipped; Playwright 336 passed across all 28 specs; `compare:rust` 96 cases identical including seven new Vivid ones (both palettes, Crisp, dithered, Classic, transparency, and the stand-down case), 18 golden hashes untouched; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live on the Owner's own photos: the cat at 150 stitches / 40 colours goes from 5 to 9 threads above chroma 0.06 (most saturated 0.095 → 0.112), the lattice at 120 stitches from 9 to 13 (0.109 → 0.118), both charts differ from their Averaged twin, the exported file records `vivid`, and the console is clean |
 | 2026-09-23 | b5d1343 | G-062: Vivid also reserves a palette slot for every hue the photo holds that no thread speaks for, paid for by merging the closest pair (D212) | Vitest 1248 passed, 8 skipped; Playwright 335 passed across all 28 specs (one unrelated flake, green on retry); `compare:rust` **102** cases identical, six of them new ones that actually exercise the reservation — found by checking, since the previous 96 all reserved nothing — and the 18 golden hashes untouched; tsc, eslint and docs-lint clean. Measured on the Owner's two photos (`docs/reviews/2026-09-22-vivid.md`): a red that needed 64 colours arrives at 20, a blue that needed 32 at 8, a pink that never arrived at 16, for 1.01–1.07× the 3×3 error. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: the cat at 100 stitches generates in 5 s with Vivid on and off and with 24 colours, console clean; the palette numbers above are from the local run, which the 102 identical parity cases make the same bytes as the deployed Rust path |
+| 2026-09-23 | a2174f9 | Fix (Owner report): with a selection in hand, New chart left Select's own bar on screen, and since that bar has no way back and the tool rail is disabled over the start screen, the chart could not be returned to; the start screen's bar now wins | Vitest 1248 passed, 8 skipped; Playwright 338 passed across all 29 specs, two of them new for this; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set, 38 vhosts unchanged. Live: a selection made, New chart pressed, the Back button is there and the selection bar is gone, and Back returns with the piece still in hand; console clean |
