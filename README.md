@@ -60,13 +60,21 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   four built-in ones with a share of its own, and what you leave unpainted
   fills after it rather than leaving holes, so a sketch is a shape. A grid
   wider than the mark spacing says so instead of cropping quietly.
-- **Edit** with brush, fill, rectangle select (copy, paste, move, flip, rotate,
+- **Edit** with brush, fill, line, rectangle, oval, rectangle select (copy, paste, move, flip, rotate,
   crop the chart to the selection, apply the piece where it sits, or discard it),
   move, pan and zoom tools. Isolate dims every thread but the ones you light, and
   stays on while you paint. Merge, recolor, rename and re-symbol colors,
   mark stitches as empty, resize the canvas, undo and redo. The color editor
   opens on a color's own thread swatch, shows how other swatches compare
   ("12% lighter, 5% less saturated"), and stays open while you try threads.
+- **Two colours and a brush with a size**: the bar holds a foreground and a background square, one over the
+  other, in fixed places — a left press paints with the front one, a right press with the one behind, a right
+  click on a thread loads the square behind without taking the brush out of your hand, and `X` swaps them. The
+  brush covers 1 to 15 stitches across, as a square block or the round disc that fits it.
+- **Draw shapes**: Line (`L`), Rectangle (`R`) and Oval (`O`) are drawn by dragging from one stitch to another,
+  each one undo step, each following the pointer until you let go and dropped entirely by `Escape`. An outline is
+  as thick as the brush; a filled rectangle or oval is exactly the shape, whatever the brush size. Nothing is
+  smoothed: every stitch a tool touches holds the thread you chose, never a blend.
 - **Draw symmetrically**: toggle vertical, horizontal and diagonal symmetry (diagonals on
   square canvases) and every brush stroke and fill lands on each mirrored stitch, with
   red guide lines on the chart. Quick mirror copies the left half, upper half, upper-left

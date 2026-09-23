@@ -115,9 +115,9 @@ const TOOL_GROUPS = [
   [
     { tool: "brush" as const, label: "Brush", title: "Paint the selected color -- click a color in the Threads list first (B). Double-click to flood-fill instead.", Icon: BrushIcon },
     { tool: "fill" as const, label: "Fill", title: "Click a color, then click a cell to flood-fill its same-colored region (F)", Icon: FillIcon },
-    { tool: "line" as const, label: "Line", title: "Drag from one stitch to another to draw a straight line, as thick as the brush", Icon: LineIcon },
-    { tool: "rect" as const, label: "Rectangle", title: "Drag from one corner to another to draw a rectangle, outlined or filled", Icon: RectIcon },
-    { tool: "oval" as const, label: "Oval", title: "Drag a box to draw the oval that fits it, outlined or filled", Icon: OvalIcon },
+    { tool: "line" as const, label: "Line", title: "Drag from one stitch to another to draw a straight line, as thick as the brush (L)", Icon: LineIcon },
+    { tool: "rect" as const, label: "Rectangle", title: "Drag from one corner to another to draw a rectangle, outlined or filled (R)", Icon: RectIcon },
+    { tool: "oval" as const, label: "Oval", title: "Drag a box to draw the oval that fits it, outlined or filled (O)", Icon: OvalIcon },
   ],
   [
     { tool: "select" as const, label: "Select", title: "Drag a rectangle to select it, then copy, paste, move or flip it before it merges back. Ignores symmetry.", Icon: SelectIcon },

@@ -48,6 +48,24 @@ test("B and F switch the active tool, and Escape/typing targets don't hijack the
   await expect(fillButton).toHaveAttribute("aria-pressed", "true");
 });
 
+test("L, R and O take the three shape tools, and typing them does not (G-064)", async ({ page }) => {
+  await generateSmallPattern(page);
+  const tool = (name: string) => page.getByRole("button", { name, exact: true });
+
+  for (const [key, name] of [
+    ["l", "Line"],
+    ["r", "Rectangle"],
+    ["o", "Oval"],
+  ] as const) {
+    await page.keyboard.press(key);
+    await expect(tool(name), key).toHaveAttribute("aria-pressed", "true");
+  }
+
+  await page.getByRole("tab", { name: "Chart" }).click();
+  await page.getByLabel("Pattern name").fill("lower orbit");
+  await expect(tool("Oval"), "typing a name is not a shortcut").toHaveAttribute("aria-pressed", "true");
+});
+
 test("holding Space temporarily switches to Pan and releasing restores the previous tool", async ({ page }) => {
   await generateSmallPattern(page);
   const fillButton = page.getByRole("button", { name: "Fill" });

@@ -100,6 +100,9 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
       if (key === "x") ctx.swapColors();
       else if (key === "b") ctx.switchTool("brush");
       else if (key === "f") ctx.switchTool("fill");
+      else if (key === "l") ctx.switchTool("line");
+      else if (key === "r") ctx.switchTool("rect");
+      else if (key === "o") ctx.switchTool("oval");
       else if (e.key === "1") ctx.setViewMode("color");
       else if (e.key === "2") ctx.setViewMode("bw");
       else if (e.key === "3") ctx.setViewMode("realistic");
