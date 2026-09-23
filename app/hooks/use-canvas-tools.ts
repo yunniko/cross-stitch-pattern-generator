@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
 import { stampCells, type StampOffset } from "@/lib/editor/brush-stamp";
+import { lineCells, type CellPoint } from "@/lib/editor/shape-raster";
 import {
   flipSelectionHorizontal,
   flipSelectionVertical,
@@ -182,6 +183,120 @@ export function useBrushTool({
   }
 
   return { fillAt, onPointerDown, onPointerMove, onPointerUp, onDoubleClick };
+}
+
+/** The shapes drawn by dragging from one stitch to another (G-064). Each is the brush stamped along a spine. */
+export type ShapeKind = "line";
+
+/** The cells a shape covers between its two ends, before the brush is stamped along them. */
+function shapeSpine(kind: ShapeKind, from: CellPoint, to: CellPoint): CellPoint[] {
+  switch (kind) {
+    case "line":
+      return lineCells(from, to);
+  }
+}
+
+/**
+ * A shape gesture (G-064): press to anchor one end, drag to move the other, release to commit. The shape is redrawn
+ * from the chart as it was when the gesture started, so dragging back and forth leaves nothing behind, and the whole
+ * gesture is one undo step. Thickness is the brush's: the shape gives a spine and every cell of it is stamped.
+ */
+export function useShapeTool({
+  frameRef,
+  rendererRef,
+  pattern,
+  cellSize,
+  commit,
+  colorForPointer,
+  stamp,
+  symmetry,
+  kind,
+}: CanvasToolInputs & {
+  colorForPointer: (button: number) => number | null;
+  stamp: readonly StampOffset[];
+  symmetry: SymmetryAxes;
+  /** Which shape this gesture draws; the rest of the gesture is the same for all of them. */
+  kind: ShapeKind;
+}) {
+  const shapeRef = useRef<{
+    base: StitchPattern;
+    /** The working buffer, kept across frames: only what the last frame painted is put back, never the whole chart. */
+    cells: Uint8Array;
+    /** The cells the last frame painted, so they can be restored before the next one is drawn. */
+    painted: number[];
+    from: CellPoint;
+    to: CellPoint;
+    axes: SymmetryAxes;
+    color: number;
+    stamp: readonly StampOffset[];
+  } | null>(null);
+
+  /** Draws the shape as it stands into the working buffer and hands the frame to the renderer. */
+  function drawFrame() {
+    const shape = shapeRef.current;
+    if (!shape) return;
+    const { base, cells, axes, color } = shape;
+    for (const cell of shape.painted) cells[cell] = base.cellPalette[cell];
+    shape.painted = [];
+    const ops: { cellIndex: number; paletteIndex: number }[] = [];
+    const seen = new Set<number>();
+    for (const point of shapeSpine(kind, shape.from, shape.to)) {
+      const centre = point.y * base.width + point.x;
+      for (const stamped of stampCells(centre, base.width, base.height, shape.stamp)) {
+        for (const cell of symmetryOrbit(stamped, base.width, base.height, axes)) {
+          if (seen.has(cell)) continue;
+          seen.add(cell);
+          cells[cell] = color;
+          shape.painted.push(cell);
+          ops.push({ cellIndex: cell, paletteIndex: color });
+        }
+      }
+    }
+    rendererRef.current?.previewShape(base, cells, ops);
+  }
+
+  function onPointerDown(e: PointerLike, frame: HTMLElement) {
+    const color = colorForPointer(e.button ?? 0);
+    if (!pattern || color === null) return;
+    const at = clampedCellFromEvent(e, frame, cellSize, pattern.width, pattern.height);
+    shapeRef.current = { base: pattern, cells: pattern.cellPalette.slice(), painted: [], from: at, to: at, axes: symmetry, color, stamp };
+    drawFrame();
+    frame.setPointerCapture(e.pointerId);
+  }
+
+  function onPointerMove(e: PointerLike): boolean {
+    const shape = shapeRef.current;
+    if (!shape) return false;
+    const frame = frameRef.current;
+    if (!frame) return true;
+    // Clamped, not dropped: a drag that runs off the chart keeps the end at the edge rather than freezing the shape.
+    const at = clampedCellFromEvent(e, frame, cellSize, shape.base.width, shape.base.height);
+    if (at.x === shape.to.x && at.y === shape.to.y) return true;
+    shape.to = at;
+    drawFrame();
+    return true;
+  }
+
+  function onPointerUp(e: PointerLike): boolean {
+    const shape = shapeRef.current;
+    if (!shape) return false;
+    shapeRef.current = null;
+    // The commit re-renders and repaints from the new pattern.
+    rendererRef.current?.endGesture(false);
+    commit(withCellPalette(shape.base, shape.cells));
+    releaseCapture(frameRef.current, e.pointerId);
+    return true;
+  }
+
+  /** Escape, a cancelled pointer, or leaving the tool: the chart goes back to what it was, with nothing committed. */
+  function cancel(): boolean {
+    if (!shapeRef.current) return false;
+    shapeRef.current = null;
+    rendererRef.current?.endGesture(true);
+    return true;
+  }
+
+  return { onPointerDown, onPointerMove, onPointerUp, cancel, get isDrawing() { return shapeRef.current !== null; } };
 }
 
 export function useMoveTool({ frameRef, rendererRef, pattern, cellSize, commit }: CanvasToolInputs) {

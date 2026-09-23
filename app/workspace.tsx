@@ -33,7 +33,7 @@ import { ContextBar } from "./components/context-bar";
 import { ExportControls } from "./components/export-controls";
 import { ImageWindow } from "./components/image-window";
 import { Inspector, type InspectorTab } from "./components/inspector";
-import { isViewOnlyMode } from "./editor-types";
+import { isShapeTool, isViewOnlyMode } from "./editor-types";
 import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
 import { SelectionBar, WorkspaceNotices } from "./components/panels";
 import { PhotoPane } from "./components/photo-pane";
@@ -42,7 +42,7 @@ import { ToolRail } from "./components/tool-rail";
 import { PillButton } from "./components/ui";
 import type { Tool, ViewMode } from "./editor-types";
 import { cellIndexFromEvent, computeCellSize } from "./editor-geometry";
-import { useBrushTool, useMoveTool, useSelectTool } from "./hooks/use-canvas-tools";
+import { useBrushTool, useMoveTool, useSelectTool, useShapeTool } from "./hooks/use-canvas-tools";
 import { useChartRenderer, type ChartRenderer } from "./hooks/use-chart-renderer";
 import { paginatesAsA4, useExports } from "./hooks/use-exports";
 import { useGeneration } from "./hooks/use-generation";
@@ -142,6 +142,8 @@ export default function Workspace() {
   // One press's footprint, rebuilt only when the brush changes rather than on every render (G-064).
   const stamp = useMemo(() => brushStamp(options.brushSize, options.brushShape), [options.brushSize, options.brushShape]);
   const brush = useBrushTool({ ...toolInputs, colorForPointer, stamp, symmetry: liveSymmetry, replaceSince: history.replaceSince });
+  // One hook for every shape tool: which shape it draws is the only difference between them (G-064).
+  const shape = useShapeTool({ ...toolInputs, colorForPointer, stamp, symmetry: liveSymmetry, kind: isShapeTool(activeTool) ? activeTool : "line" });
   const move = useMoveTool(toolInputs);
   const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
   const renderer = useChartRenderer({
@@ -272,6 +274,8 @@ export default function Workspace() {
   function switchTool(tool: Tool) {
     // Leaving Select merges whatever is floating, as pressing outside it would.
     if (activeTool === "select" && tool !== "select") select.merge();
+    // A half-drawn shape is not carried to the next tool: it is dropped, as Escape drops it.
+    shape.cancel();
     setActiveTool(tool);
   }
 
@@ -287,7 +291,10 @@ export default function Workspace() {
       setViewMode,
       mergeSelection: select.merge,
       swapColors: () => setColorSlots(swapped),
-      cancelSelection: select.cancel,
+      // Escape drops a shape being dragged before it reaches a selection, since only one of the two can be live.
+      cancelSelection: () => {
+        if (!shape.cancel()) select.cancel();
+      },
       hasSelection: select.selection !== null,
     },
     scrollerRef
@@ -304,15 +311,16 @@ export default function Workspace() {
     else if (activeTool === "select") select.onPointerDown(e, frame);
     else if (activeTool === "fill") brush.fillAt(e, frame);
     else if (activeTool === "brush") brush.onPointerDown(e, frame);
+    else if (isShapeTool(activeTool)) shape.onPointerDown(e, frame);
   }
 
   function handleCanvasPointerMove(e: PointerEvent<HTMLDivElement>) {
-    if (panZoom.movePan(e) || move.onPointerMove(e) || select.onPointerMove(e)) return;
+    if (panZoom.movePan(e) || move.onPointerMove(e) || select.onPointerMove(e) || shape.onPointerMove(e)) return;
     brush.onPointerMove(e);
   }
 
   function handleCanvasPointerUp(e: PointerEvent<HTMLDivElement>) {
-    if (panZoom.endPan(e, frameRef.current) || move.onPointerUp(e) || select.onPointerUp(e)) return;
+    if (panZoom.endPan(e, frameRef.current) || move.onPointerUp(e) || select.onPointerUp(e) || shape.onPointerUp(e)) return;
     brush.onPointerUp(e);
   }
 

@@ -15,4 +15,9 @@ export function isViewOnlyMode(mode: ViewMode): boolean {
  * Isolate is not here on purpose (G-045 M4): dimming the threads you are not working on is a way of *looking* at the
  * chart, not a thing you do to it, so it stays on while you paint with any of these.
  */
-export type Tool = "brush" | "pan" | "zoom" | "move" | "select" | "fill";
+export type Tool = "brush" | "line" | "pan" | "zoom" | "move" | "select" | "fill";
+
+/** The tools that draw a shape by dragging from one stitch to another (G-064); they share one gesture. */
+export function isShapeTool(tool: Tool): tool is "line" {
+  return tool === "line";
+}

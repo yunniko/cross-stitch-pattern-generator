@@ -64,6 +64,16 @@ function MoveIcon() {
   );
 }
 
+function LineIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <line x1="4" y1="20" x2="20" y2="4" />
+      <circle cx="4" cy="20" r="1.6" fill="currentColor" />
+      <circle cx="20" cy="4" r="1.6" fill="currentColor" />
+    </svg>
+  );
+}
+
 function PanIcon() {
   return (
     <svg {...TOOL_ICON_PROPS}>
@@ -89,6 +99,7 @@ const TOOL_GROUPS = [
   [
     { tool: "brush" as const, label: "Brush", title: "Paint the selected color -- click a color in the Threads list first (B). Double-click to flood-fill instead.", Icon: BrushIcon },
     { tool: "fill" as const, label: "Fill", title: "Click a color, then click a cell to flood-fill its same-colored region (F)", Icon: FillIcon },
+    { tool: "line" as const, label: "Line", title: "Drag from one stitch to another to draw a straight line, as thick as the brush", Icon: LineIcon },
   ],
   [
     { tool: "select" as const, label: "Select", title: "Drag a rectangle to select it, then copy, paste, move or flip it before it merges back. Ignores symmetry.", Icon: SelectIcon },

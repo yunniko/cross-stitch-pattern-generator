@@ -372,6 +372,28 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     });
   }
 
+  /**
+   * Puts the gesture base's scene in the bitmap, for a gesture whose frames replace one another rather than build on
+   * each other: from the cached snapshot while the view, scene and pattern are unchanged, otherwise drawn and cached.
+   */
+  function restoreBaseScene(base: StitchPattern, ctx: CanvasRenderingContext2D, scene: ChartScene, canvas: HTMLCanvasElement) {
+    const rect = paintedRef.current;
+    const key = [rect.x0, rect.y0, rect.x1, rect.y1, base, shownRef.current.scene];
+    const cached = selectBaseRef.current;
+    if (cached && cached.key.length === key.length && cached.key.every((part, i) => part === key[i])) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(cached.canvas, 0, 0);
+      ctx.setTransform(1, 0, 0, 1, -rect.x0, -rect.y0);
+      return;
+    }
+    drawScene(ctx, base, scene, rect);
+    const copy = document.createElement("canvas");
+    copy.width = canvas.width;
+    copy.height = canvas.height;
+    copy.getContext("2d")?.drawImage(canvas, 0, 0);
+    selectBaseRef.current = { key, canvas: copy };
+  }
+
   /** One frame of a select drag: the base scene (restored from its snapshot when unchanged) plus the rectangle or piece. */
   function previewSelect(frame: SelectDragFrame) {
     gestureRef.current = frame.kind === "rect" ? { kind: "select-rect", base: frame.base, rect: frame.rect } : { kind: "select-piece", base: frame.base, piece: frame.piece };
@@ -383,22 +405,28 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       paint();
       return;
     }
-    const rect = paintedRef.current;
-    const key = [rect.x0, rect.y0, rect.x1, rect.y1, frame.base, shownRef.current.scene];
-    const base = selectBaseRef.current;
-    if (base && base.key.length === key.length && base.key.every((part, i) => part === key[i])) {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.drawImage(base.canvas, 0, 0);
-      ctx.setTransform(1, 0, 0, 1, -rect.x0, -rect.y0);
-    } else {
-      drawScene(ctx, frame.base, scene, rect);
-      const copy = document.createElement("canvas");
-      copy.width = canvas.width;
-      copy.height = canvas.height;
-      copy.getContext("2d")?.drawImage(canvas, 0, 0);
-      selectBaseRef.current = { key, canvas: copy };
+    restoreBaseScene(frame.base, ctx, scene, canvas);
+    drawSceneWithGesture(ctx, scene, frame.base, gestureRef.current, paintedRef.current, true);
+    markRendered();
+  }
+
+  /**
+   * One frame of a shape gesture (G-064): the stitches the shape covers right now, over the chart as it was when the
+   * gesture started. A brush stroke adds to what it has already painted; a shape replaces it, so every frame is drawn
+   * over a restored snapshot of the base scene rather than over the frame before it.
+   */
+  function previewShape(base: StitchPattern, cells: Uint8Array, ops: readonly BrushOp[]) {
+    const gesture: GesturePreview = { kind: "brush", base, cells, ops: [...ops] };
+    gestureRef.current = gesture;
+    const scene = currentScene();
+    const canvas = canvasRef.current;
+    const ctx = chartContext();
+    if (!incrementalModeOf(scene.viewMode) || !canvas || !ctx) {
+      paint();
+      return;
     }
-    drawSceneWithGesture(ctx, scene, frame.base, gestureRef.current, rect, true);
+    restoreBaseScene(base, ctx, scene, canvas);
+    drawSceneWithGesture(ctx, scene, base, gesture, paintedRef.current, true);
     markRendered();
   }
 
@@ -415,6 +443,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     paintBrushCells,
     previewMove,
     previewSelect,
+    previewShape,
     endGesture,
     previewError,
     retryPreview: () => setPreviewRetryToken((t) => t + 1),

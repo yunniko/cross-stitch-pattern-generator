@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from "react";
-import type { Tool, ViewMode } from "../editor-types";
+import { isShapeTool, type Tool, type ViewMode } from "../editor-types";
 
 /** Everything the shortcut handlers read or call. Rebuilt every render and read through a ref, so a handler never sees stale state (D103). */
 export interface KeyboardShortcutContext {
@@ -75,7 +75,9 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
       if (!ctx.hasPattern) return; // every tool button is disabled too
 
       if (e.key === "Escape") {
-        if (ctx.activeTool === "select") ctx.cancelSelection();
+        // Select drops its piece; a shape tool drops the shape being dragged. Both go through one call, which
+        // cancels whichever of the two is live (G-064).
+        if (ctx.activeTool === "select" || isShapeTool(ctx.activeTool)) ctx.cancelSelection();
         return;
       }
 
