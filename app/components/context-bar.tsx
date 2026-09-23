@@ -1,9 +1,9 @@
 "use client";
 
-import { rgbToHex } from "@/lib/color/color";
 import type { SymmetryAxes, SymmetryAxis } from "@/lib/editor/symmetry";
-import { EMPTY_CELL, type StitchPattern } from "@/lib/types";
+import { type StitchPattern } from "@/lib/types";
 import type { ViewMode } from "../editor-types";
+import { ColorPair } from "./color-pair";
 import { PillButton, SegmentedControl, DISABLED_ICON } from "./ui";
 
 /**
@@ -64,7 +64,10 @@ export interface ContextBarProps {
   squareCanvas: boolean;
   onToggleSymmetry: (axis: SymmetryAxis) => void;
   /** The thread the brush paints with; `EMPTY_CELL` for the empty stitch, null when none is chosen. */
-  activeColorIndex: number | null;
+  /** The two drawing colours, and which of them is in front (G-064). */
+  colorSlots: { a: number | null; b: number | null; active: "a" | "b" };
+  onActivateColorSlot: (slot: "a" | "b") => void;
+  onSwapColors: () => void;
   /** The start screen is up over an open chart: the bar says so and offers the way back (Atelier). */
   startingNew: boolean;
   onBackToChart: () => void;
@@ -89,12 +92,12 @@ export function ContextBar({
   symmetry,
   squareCanvas,
   onToggleSymmetry,
-  activeColorIndex,
+  colorSlots,
+  onActivateColorSlot,
+  onSwapColors,
   startingNew,
   onBackToChart,
 }: ContextBarProps) {
-  const brushIsEmpty = activeColorIndex === EMPTY_CELL;
-  const brushColor = pattern && activeColorIndex !== null && !brushIsEmpty ? (pattern.palette[activeColorIndex] ?? null) : null;
   const photoActive = viewMode === "photo" || viewMode === "photo-only";
   const chartView: ChartView = viewMode === "bw" ? "bw" : viewMode === "realistic" ? "realistic" : "color";
 
@@ -162,24 +165,8 @@ export function ContextBar({
 
       {!startingNew && pattern && (
         <>
-          {/* 1b opens the bar with the thread the brush is holding; the list is where it is changed. */}
-          <div className="flex shrink-0 items-center gap-[7px]" title="Brush color — click a thread in the list to change it">
-            {brushIsEmpty ? (
-              <span
-                aria-hidden
-                className="h-[18px] w-[18px] shrink-0 rounded bg-[repeating-conic-gradient(rgba(232,236,239,.22)_0_25%,transparent_0_50%)] bg-[length:8px_8px] shadow-[inset_0_0_0_1px_rgba(232,236,239,.22)]"
-              />
-            ) : (
-              <span
-                aria-hidden
-                style={{ backgroundColor: brushColor ? rgbToHex(brushColor.rgb) : "transparent" }}
-                className="h-[18px] w-[18px] shrink-0 rounded shadow-[inset_0_0_0_1px_rgba(232,236,239,.22)]"
-              />
-            )}
-            <span className="max-w-[10rem] truncate text-[13px]">
-              {brushIsEmpty ? "Empty (no stitch)" : (brushColor?.name ?? "No thread chosen")}
-            </span>
-          </div>
+          {/* 1b opened the bar with the thread the brush holds; since G-064 that is a pair, and the list sets either. */}
+          <ColorPair pattern={pattern} slots={colorSlots} onActivate={onActivateColorSlot} onSwap={onSwapColors} />
 
           <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
 

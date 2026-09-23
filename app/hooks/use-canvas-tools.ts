@@ -23,7 +23,7 @@ import type { ChartRenderer } from "./use-chart-renderer";
 // capture and hit-testing belong to the chart frame; previews are handed to the renderer, which replays them on every
 // repaint (D135). The renderer is read through a ref assigned after render, because it needs the selection state here.
 
-type PointerLike = PointerPosition & { pointerId: number };
+type PointerLike = PointerPosition & { pointerId: number; button?: number };
 
 export interface CanvasToolInputs {
   frameRef: RefObject<HTMLDivElement | null>;
@@ -55,11 +55,15 @@ export function useBrushTool({
   pattern,
   cellSize,
   commit,
-  activeColorIndex,
+  colorForPointer,
   symmetry,
   replaceSince,
 }: CanvasToolInputs & {
-  activeColorIndex: number | null;
+  /**
+   * The colour a press paints with, asked for when the gesture starts: the foreground for a left button and
+   * the background for a right one (G-064). A stroke keeps the colour it started with.
+   */
+  colorForPointer: (button: number) => number | null;
   /** The symmetry axes in effect; a stroke keeps the axes it started with. */
   symmetry: SymmetryAxes;
   replaceSince: (anchor: StitchPattern, since: readonly StitchPattern[], next: StitchPattern) => void;
@@ -83,13 +87,15 @@ export function useBrushTool({
   }
 
   /** The Fill tool's click: floods the clicked cell's 8-connected same-color region, and its mirror copies' regions. */
-  function fillAt(e: PointerPosition, frame: HTMLElement) {
-    if (!pattern || activeColorIndex === null) return;
+  function fillAt(e: PointerLike, frame: HTMLElement) {
+    const color = colorForPointer(e.button ?? 0);
+    if (!pattern || color === null) return;
     const cellIndex = cellAt(e, frame);
-    if (cellIndex !== null) commit(fillSymmetric(pattern, cellIndex, symmetry, activeColorIndex, 8));
+    if (cellIndex !== null) commit(fillSymmetric(pattern, cellIndex, symmetry, color, 8));
   }
 
   function onPointerDown(e: PointerLike, frame: HTMLElement) {
+    const activeColorIndex = colorForPointer(e.button ?? 0);
     if (!pattern || activeColorIndex === null) return;
     const cellIndex = cellAt(e, frame);
     if (cellIndex === null) return;
@@ -144,16 +150,18 @@ export function useBrushTool({
    * Double-click with the brush flood-fills, with symmetry, from the pattern as it was before the double-click's own two
    * paints (Owner request, 2026-09-12), and replaces those two paints in the history, so it is one undo step (D138).
    */
-  function onDoubleClick(e: PointerPosition, frame: HTMLElement) {
-    if (!pattern || activeColorIndex === null) return;
+  // A double-click arrives as a mouse event, which carries a button but no pointer id.
+  function onDoubleClick(e: PointerPosition & { button?: number }, frame: HTMLElement) {
+    const color = colorForPointer(e.button ?? 0);
+    if (!pattern || color === null) return;
     const cellIndex = cellAt(e, frame);
     if (cellIndex === null) return;
     const click = lastClickRef.current;
     lastClickRef.current = null;
-    if (click && click.cellIndex === cellIndex && click.color === activeColorIndex && click.commits.length > 0) {
+    if (click && click.cellIndex === cellIndex && click.color === color && click.commits.length > 0) {
       replaceSince(click.anchor, click.commits, fillSymmetric(click.anchor, cellIndex, click.axes, click.color, 8));
     } else {
-      commit(fillSymmetric(pattern, cellIndex, symmetry, activeColorIndex, 8));
+      commit(fillSymmetric(pattern, cellIndex, symmetry, color, 8));
     }
   }
 

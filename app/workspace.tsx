@@ -1,6 +1,17 @@
 "use client";
 
 import { type DragEvent, type MouseEvent, type PointerEvent, useCallback, useEffect, useRef, useState } from "react";
+import {
+  colorForButton,
+  foregroundOf,
+  NO_COLORS,
+  swapped,
+  withActive,
+  withColor,
+  withColorRemoved,
+  type ColorSlots,
+} from "@/lib/editor/color-slots";
+import { useLatest } from "./hooks/use-latest";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
 import { mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from "@/lib/editor/pattern-edit";
 import { applyQuickMirrorWithSelection, effectiveSymmetryAxes, fillSymmetric, NO_SYMMETRY, type QuickMirror, type SymmetryAxes } from "@/lib/editor/symmetry";
@@ -62,7 +73,13 @@ export default function Workspace() {
 
   const [viewMode, setViewMode] = useState<ViewMode>("color");
   const [activeTool, setActiveTool] = useState<Tool>("brush");
-  const [activeColorIndex, setActiveColorIndex] = useState<number | null>(null);
+  // Two colours since G-064: the squares never move, so the pair is two slots and a flag saying which is in
+  // front. `activeColorIndex` stays the name for the foreground, which is what a left press paints with.
+  const [colorSlots, setColorSlots] = useState<ColorSlots>(NO_COLORS);
+  const colorSlotsRef = useLatest(colorSlots);
+  const activeColorIndex = foregroundOf(colorSlots);
+  const setActiveColorIndex = (index: number | null) => setColorSlots((slots) => withColor(slots, "foreground", index));
+  const setBackgroundColorIndex = (index: number | null) => setColorSlots((slots) => withColor(slots, "background", index));
   /**
    * Isolate and the threads lit for it (G-045 M4). Isolate is a way of looking at the chart rather than a tool, so it
    * stays on while you paint, and lighting a thread is independent of choosing one to paint with.
@@ -119,7 +136,9 @@ export default function Workspace() {
   const cellSize = computeCellSize(pattern, panZoom.zoomLevel);
   const toolInputs = { frameRef, rendererRef, pattern, cellSize, commit: history.set };
   const select = useSelectTool(toolInputs);
-  const brush = useBrushTool({ ...toolInputs, activeColorIndex, symmetry: liveSymmetry, replaceSince: history.replaceSince });
+  // A gesture asks for its colour when it starts, so the right button paints with the background (G-064).
+  const colorForPointer = useCallback((button: number) => colorForButton(colorSlotsRef.current, button), [colorSlotsRef]);
+  const brush = useBrushTool({ ...toolInputs, colorForPointer, symmetry: liveSymmetry, replaceSince: history.replaceSince });
   const move = useMoveTool(toolInputs);
   const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
   const renderer = useChartRenderer({
@@ -264,6 +283,7 @@ export default function Workspace() {
       setActiveTool,
       setViewMode,
       mergeSelection: select.merge,
+      swapColors: () => setColorSlots(swapped),
       cancelSelection: select.cancel,
       hasSelection: select.selection !== null,
     },
@@ -314,7 +334,9 @@ export default function Workspace() {
     if (!pattern || sourceIndex === targetIndex) return;
     history.set(mergeColors(pattern, sourceIndex, targetIndex));
     select.invalidateClipboard();
-    if (activeColorIndex === sourceIndex) setActiveColorIndex(null);
+    // A merge renumbers the palette, so a square holding an index above the merged one would otherwise be
+    // pointing at a different thread than the reader picked.
+    setColorSlots((slots) => withColorRemoved(slots, sourceIndex));
     // A merge renumbers palette indices, so lit indices could now point at other colors.
     if (litColorIndices.size > 0) setLitColorIndices(new Set());
   }
@@ -502,7 +524,9 @@ export default function Workspace() {
             symmetry={liveSymmetry}
             squareCanvas={pattern !== null && pattern.width === pattern.height}
             onToggleSymmetry={(axis) => setSymmetry((current) => ({ ...current, [axis]: !current[axis] }))}
-            activeColorIndex={activeColorIndex}
+            colorSlots={colorSlots}
+            onActivateColorSlot={(slot) => setColorSlots((slots) => withActive(slots, slot))}
+            onSwapColors={() => setColorSlots(swapped)}
             startingNew={startingNew}
             onBackToChart={() => setStartingNew(false)}
           />
@@ -618,6 +642,7 @@ export default function Workspace() {
             dimmed={select.selection !== null}
             activeColorIndex={activeColorIndex}
             onActiveColorChange={setActiveColorIndex}
+            onBackgroundColorChange={setBackgroundColorIndex}
             litColorIndices={litColorIndices}
             onToggleLit={toggleLit}
             aidaCount={options.aidaCount}

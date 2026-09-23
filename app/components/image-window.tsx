@@ -151,6 +151,9 @@ export function ImageWindow({
           data-view-mode={viewMode}
           data-cell-size={cellSize}
           onPointerDown={onPointerDown}
+          // A right press paints with the background colour (G-064), so the browser's menu would sit on top
+          // of the stitch the reader is aiming at. Only the chart claims it; the rest of the page does not.
+          onContextMenu={(e) => e.preventDefault()}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}

@@ -21,6 +21,8 @@ export interface ThreadRowsProps {
   activeColorIndex: number | null;
   /** Called with the row's own index. The parent decides what activating a row means. */
   onRowActivate: (index: number) => void;
+  /** A right click loads the background square instead, and leaves the brush holding what it holds (G-064). */
+  onRowActivateBackground: (index: number) => void;
   onEditColor: (index: number) => void;
   onEditSymbol: (index: number) => void;
   editingSymbolIndex: number | null;
@@ -57,6 +59,7 @@ export function ThreadRows({
   aidaCount,
   activeColorIndex,
   onRowActivate,
+  onRowActivateBackground,
   onEditColor,
   onEditSymbol,
   editingSymbolIndex,
@@ -100,6 +103,10 @@ export function ThreadRows({
               onDragOver={(e) => e.preventDefault()}
               onDrop={dropOnto(color.index)}
               onClick={() => onRowActivate(color.index)}
+              onContextMenu={(e) => {
+                e.preventDefault(); // the row's own meaning for a right click, so no browser menu over it
+                onRowActivateBackground(color.index);
+              }}
               className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 transition-colors ${
                 active ? "bg-raised shadow-[inset_2px_0_0_var(--at-accent)]" : "hover:bg-raised"
               }`}
@@ -181,6 +188,10 @@ export function ThreadRows({
         onDragOver={(e) => e.preventDefault()}
         onDrop={dropOnto(EMPTY_CELL)}
         onClick={() => onRowActivate(EMPTY_CELL)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onRowActivateBackground(EMPTY_CELL);
+        }}
         title="No stitch -- marks cells that shouldn't be stitched at all. Never appears in the legend or exports' stitch counts. Drag a color here to merge it into empty (its stitches become empty and it's removed from the palette)."
         className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 transition-colors ${
           activeColorIndex === EMPTY_CELL ? "bg-raised shadow-[inset_2px_0_0_var(--at-accent)]" : "hover:bg-raised"

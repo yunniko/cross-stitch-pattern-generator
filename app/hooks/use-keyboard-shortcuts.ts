@@ -15,6 +15,8 @@ export interface KeyboardShortcutContext {
   setViewMode(mode: ViewMode): void;
   /** Enter: apply the floating piece where it sits. */
   mergeSelection(): void;
+  /** X: swap the foreground and background colours, as image editors do (G-064). */
+  swapColors(): void;
   /** Escape: put the chart back as it was when the selection started. */
   cancelSelection(): void;
   /** A piece is in hand, so history is not the reader's to step through yet (G-063). */
@@ -28,7 +30,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 /**
  * Global keyboard shortcuts: Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z for undo/redo,
- * B/F for Brush/Fill, 1-5 for the view modes, Enter to apply a floating
+ * B/F for Brush/Fill, X to swap the two drawing colours, 1-5 for the view modes, Enter to apply a floating
  * selection and Escape to cancel it, and Space held to pan temporarily.
  * Skipped while typing in a field. Space is only claimed when focus is on
  * the page body or inside the canvas scroller -- a focused button, select,
@@ -93,7 +95,8 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
       }
 
       if (modifier || e.altKey) return;
-      if (key === "b") ctx.switchTool("brush");
+      if (key === "x") ctx.swapColors();
+      else if (key === "b") ctx.switchTool("brush");
       else if (key === "f") ctx.switchTool("fill");
       else if (e.key === "1") ctx.setViewMode("color");
       else if (e.key === "2") ctx.setViewMode("bw");

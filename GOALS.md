@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-064 · Drawing tools: a sized brush, shapes, and two colours — DRAFT (2026-09-23, starts on the Owner's go)
+### G-064 · Drawing tools: a sized brush, shapes, and two colours — ACTIVE (2026-09-23)
 - **What:** the Owner's list of 2026-09-23, in one goal because every part of it shares the same two seams — what a
   press paints (a stamp) and which colour it paints with (a pair):
   1. **Brush size and shape** — square or round, any size, not just one stitch.
@@ -43,17 +43,13 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   7. **What exists still works**: the Fill tool, the empty-stitch thread, symmetry and Isolate behave as they do now.
 - **Constraints:** a chart is discrete, so every rasteriser is integer work on cells — no anti-aliasing, no
   sub-cell geometry. Nothing here touches generation, so there is no Rust port and no parity corpus to extend.
-- **To settle with the Owner before M3** (each changes what gets built, none blocks M1 or M2):
-  - **Symmetry**: the brush mirrors a stroke across the axes in force. Should a line, rectangle and oval mirror too?
-    Recommended yes — a reader who turned symmetry on will expect it — but it doubles the shapes' test matrix.
-  - **Keys**: `B` and `F` are taken by Brush and Fill. Proposed `L` line, `R` rectangle, `O` oval, and `X` to swap
-    the two colours, as image editors do.
-  - **Right-drag for shapes**: left-drag draws a shape in the foreground; should right-drag draw it in the
-    background, matching the brush? Recommended yes, for one rule rather than two.
-  - **Brush size range**: proposed 1–15 stitches, which is a fifth of the smallest chart's width.
+- **Settled by the Owner, 2026-09-23:** shapes mirror under symmetry exactly as a stroke does; the keys are `L`,
+  `R`, `O` and `X` to swap; right-drag draws a shape in the background, matching the brush; and the brush takes
+  **odd sizes only** (1, 3, 5 … 15), which gives every stamp a true centre cell and removes the even-size
+  convention the plan was going to need.
 
 **Milestones**:
-- [ ] M1 — **The two colours**, end to end and shippable on its own: the pair and which is active, the two squares,
+- [x] M1 — **The two colours**, end to end and shippable on its own: the pair and which is active, the two squares,
   left and right click painting with each, right-click thread selection, and the browser menu suppressed where it
   would get in the way.
 - [ ] M2 — **The stamp**: `brushStamp(size, shape)` as a pure function with its tests, the size and shape controls,
@@ -63,6 +59,16 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M5 — Shortcuts, README and HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-23 — **M1 done.** The pair is `lib/editor/color-slots.ts`, eight unit tests: two slots and a flag for
+  which is in front, so the squares never move. Left paints with the front one, right with the one behind, and a
+  right click on a thread loads the square behind without taking the brush out of the reader's hand. The squares
+  live in the context bar where the single swatch was; `X` swaps them. Right clicks are claimed on the chart and on
+  the thread rows only — everywhere else the browser's menu is untouched. Three e2e cases, and one existing bug
+  fixed on the way: merging a thread renumbers the palette, and the held colour was not renumbered with it, so a
+  square could end up pointing at a different thread than the reader picked. Verified: Vitest 1268 passed / 8
+  skipped, Playwright 350 passed across 33 specs, tsc, eslint and docs-lint clean. Not deployed — M2 next.
+- 2026-09-23 — Owner's answers recorded above; odd sizes only means `brushStamp` never has to pick a side, so
+  criterion 1's "even size resolves the same way every time" is now "there are no even sizes".
 - 2026-09-23 — goal created from the Owner's list. Seams read before planning, so the milestones name real code:
   the brush already keeps a stroke buffer and commits it as one undo step through `replaceSince`, which is what the
   shape tools will reuse for criterion 3; and `previewSelect` already redraws from a cached base canvas each frame,

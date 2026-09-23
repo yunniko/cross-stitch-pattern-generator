@@ -154,6 +154,8 @@ export interface ColorsDockProps {
   dimmed?: boolean;
   activeColorIndex: number | null;
   onActiveColorChange: (index: number | null) => void;
+  /** A right click on a thread loads the background square, without changing which square is active (G-064). */
+  onBackgroundColorChange: (index: number) => void;
   /** The threads lit for Isolate. Lighting one is independent of which colour is selected for painting. */
   litColorIndices: ReadonlySet<number>;
   onToggleLit: (index: number) => void;
@@ -172,7 +174,7 @@ export interface ColorsDockProps {
  * editor and "+ Add" panels. The color editor opens under its row on the color's own swatch; picks apply at once and
  * the editor stays open until Done, Cancel, Escape or a click outside it (G-033).
  */
-export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActiveColorChange, litColorIndices, onToggleLit, aidaCount, onChange, onPreviewChange, documentId, onMergeColors }: ColorsDockProps) {
+export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActiveColorChange, onBackgroundColorChange, litColorIndices, onToggleLit, aidaCount, onChange, onPreviewChange, documentId, onMergeColors }: ColorsDockProps) {
   const [editor, setEditor] = useState<ColorEditorState | null>(null);
   const [addingColor, setAddingColor] = useState(false);
   const [addColorDraftHex, setAddColorDraftHex] = useState("#808080");
@@ -395,6 +397,7 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
           // Selecting a colour to paint with and lighting it for Isolate are different intentions, so the row does
           // the first and the eye does the second. Neither disables the other (G-045 M4).
           onRowActivate={(index) => onActiveColorChange(activeColorIndex === index ? null : index)}
+          onRowActivateBackground={onBackgroundColorChange}
           onEditColor={openColorEditor}
           onEditSymbol={(index) => {
             if (editing) finishEditing(); // the colour editor gives the row up to the symbol picker
