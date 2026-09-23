@@ -39,6 +39,19 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   tracking on the frame, the tools it shows for, redraw on scroll and zoom, e2e, README and HANDOVER, deploy.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-23 — **M1 and M2 done and deployed; the goal's work is complete, pending the Owner's sign-off.**
+  `stampOutline` gives a stamp's boundary edges (the edges with no stamp cell on the other side, so a round brush
+  reads as one staircase ring), and a second canvas over the chart's draws them (D216). The gesture and the outline
+  both ask `stampForPress`, so what the cursor shows cannot drift from what a press does. Two corrections on the
+  way: criterion 5 above said a scroll should leave the outline on the stitch it was over, which is wrong — the
+  pointer has not moved, so the outline must stay under it and take whatever stitch is now there, and the renderer
+  keeps the pointer's screen position for that reason; and the second canvas broke 27 specs that asked for "the
+  canvas in main" and got two, so the chart's canvas is now named. Verified: Vitest 1301 passed / 8 skipped,
+  Playwright 375 passed across 35 specs, tsc, eslint and docs-lint clean; live at cross-stitch.craftodejnice.cz
+  (commit 57fd1e5) with nothing drawn before the pointer is on the chart, a single stitch at size 1, 13,10..18,15
+  for a round 5 on (15,12), one anchor stitch for a filled rectangle, nothing once the pointer leaves, the chart's
+  render revision unchanged across a pointer move and 0 stitches after all of it. Eight other sites returned 200.
+  HANDOVER: one line added for the outline and one rule for the two canvases, the oldest deploy row dropped.
 - 2026-09-23 — goal created from the Owner's request, and planned. Three calls made without asking, each cheap to
   reverse: it shows for Brush, Fill, Line, Rectangle and Oval (every tool whose press paints), at size 1 as well as
   above it, and it is drawn as a light stroke over a dark one so it reads on any thread — not the selection's blue

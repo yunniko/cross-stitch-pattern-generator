@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-23 at c1cd90c (G-064 signed off: the drawing tools, deployed and verified live)
+Last verified: 2026-09-23 at 57fd1e5 (G-065: the brush outline under the cursor, deployed and verified live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs c1cd90c (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
+**Production** runs 57fd1e5 (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
@@ -22,6 +22,7 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
   photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
 - Editing: brush (double-click fills a region as one undo step when the Chart pane's switch is on, D138, D146),
 - Drawing tools (G-064): two colours in `lib/editor/color-slots.ts` — two squares in the bar that never move, a left press painting with the front one, a right press with the one behind, a right click on a thread row loading the square behind, `X` swapping them; right clicks are claimed on the chart and the thread rows only. The brush covers a stamp rather than a stitch (`lib/editor/brush-stamp.ts`, odd sizes 1–15, block or disc, size 1 being one stitch as before). Line, Rectangle and Oval (`L`, `R`, `O`) drag from one stitch to another through one gesture (D214) whose rasterisers live in `lib/editor/shape-raster.ts`; an outline is the brush walked along the spine and a filled shape is exactly the shape (D215). Symmetry mirrors every stamped cell, not the stamp's centre; a shape is one undo step, previews without accumulating, and `Escape` or another tool drops it.
+- The cursor carries an outline of what a press would cover (G-065): the brush's own shape, one anchor stitch for a filled shape, on a second canvas over the chart's (D216) so a pointer move never repaints the chart. `stampOutline` in `lib/editor/brush-stamp.ts` gives a stamp's boundary edges.
 - With a piece in hand, undo and redo are refused from keyboard and bar alike (G-063): stepping through history underneath a floating selection is a state nobody asked for. Apply or Cancel first.
 - The start screen owns the context bar while it is up: Select's bar yields to it (`activeTool === "select" && pattern && !startingNew`), because Select's bar carries no way back and the tool rail is disabled there (Owner, 2026-09-23). The selection itself survives the trip, so Back returns to the piece still floating.
   8-connected fill, symmetry on four axes and quick mirror (D137), rectangle select with copy, paste, move, flip,
@@ -50,8 +51,8 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
 - Photo enhancement: Off, Brighten, Auto, Vivid, Portrait, with a "Compare with original" preview and recorded in
   saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-23**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1295 passed (8 opt-in skips);
-Playwright 366 passed across all 34 specs, one spec per process against the single-path build, the processor serving
+**Checks run 2026-09-23**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1301 passed (8 opt-in skips);
+Playwright 375 passed across all 35 specs, one spec per process against the single-path build, the processor serving
 generation, exports and previews. Last full Rust pass 2026-09-22: 330 e2e against the sidecar, `npm run compare:rust`
 81 cases identical; export parity in `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the
 type-check and `build:processor` before the unit tests: the worker bundle is git-ignored and specs run against it.
@@ -150,6 +151,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   mode must still pass the safety gates in `tests/unit/enhancement-calibration.spec.ts`.
 - Brighten must never white-balance, add local contrast or saturate, and must leave a photo with both deep shadows and highlights untouched (D118).
 - Enhancement calibration photos stay outside the repository; two show identifiable people.
+- `main` holds two canvases: the chart's is `data-testid="chart-canvas"` and the cursor's `brush-outline` (D216). A spec asking for "the canvas in main" gets both and fails strict mode.
 - A shape tool contributes a rasteriser returning spine cells only; thickness is the brush's, and a filled shape never stamps it (D214, D215).
 - A control added to the editing bar goes inside its `at-tool-track` unless it belongs to the view, and `main` must never become scrollable: a bar wider than its container slides the whole chart column sideways when a control in it takes focus (D213, asserted in `tests/e2e/navigation.spec.ts`).
 - Every `cellPalette` mutation passes `EMPTY_CELL` (255) through untouched (D028); view-only settings (canvas colour) never reach an export call site (D087).
@@ -273,12 +275,10 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 - Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (14 of 24 on road-mountains), since a refill split learns only from cells inside a colour (D142).
 - Left open: G-028 — OXS symbols use each reader's own font glyph, and the export is untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's real-photo calibration; G-033 — "+ Add" keeps its old flow, touch screens pick on tap with no comparison readout.
-- Settled by G-044 (2026-09-18, D156): origins are compared in a canonical form, so the loopback spellings read as one site, and `APP_URL` has no compose default. Production supplies it through the deploy `.env` that `COMPANY/INFRASTRUCTURE_DEPLOY.md` prescribes -- the file the earlier note here overlooked when it claimed the localhost default was in force.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
 - From G-048: generation at 1500 stitches holds 42 MB more than TypeScript in Standard, 9 MB more in Crisp+ (D190);
-  the sidecar spawns per job, and a worker could keep one process warm.
-- Archived 2026-09-19: G-046 (the cap is 1500; raising it to 2000 needs two Owner decisions, D181) and G-047
-  (exports and generation faster, D171–D178). G-030 (public launch) is a far-future draft.
+  the sidecar spawns per job, and a worker could keep one process warm. Archived 2026-09-19: G-046 (raising the 1500
+  cap needs two Owner decisions, D181) and G-047 (D171–D178). G-030 (public launch) is a far-future draft.
 - The dithering line (G-052 to G-059) is complete and signed off: twelve patterns, an editable texture with a
   painted mark, and a preview of the chart's own corner for each. Open from their measurements: on a noisy photo
   at 8 colours the screens can read worse than an undithered chart, and drawn marks become grain on flat regions,
@@ -295,5 +295,5 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-23 | 30851ea | G-064 M2: one press of the brush covers a stamp — odd sizes 1..15, round or square, size and shape in the bar and kept across a reload; symmetry mirrors every stamped cell rather than the stamp's centre. The bar's tool options became a track that scrolls inside itself (D213) after the new controls pushed it past its container and focusing the Photo button slid the whole chart column 59px sideways | Vitest 1277 passed, 8 skipped; Playwright 354 passed across all 34 specs, four of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set and no other container restarted; every other site on the host returned 200. Live: the size control set to 7 and held it, both shape buttons present, `main` overflow 0, the chart frame unmoved when the Photo button takes focus, and a press paints without error |
 | 2026-09-23 | c1cd90c | G-064 M3–M5: the Line, Rectangle and Oval tools (`L`, `R`, `O`) — a drag from one stitch to another, one undo step, an outline as thick as the brush and a filled shape exactly the shape (D214, D215), previewing without piling up behind the pointer | Vitest 1295 passed, 8 skipped; Playwright 366 passed across all 34 specs, twelve of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set and no other container restarted; eight other sites on the host returned 200. Live: `L`, `R` and `O` each take their tool, a 21-stitch line undone by one press, a 6x4 rectangle 16 stitches outlined and 24 filled, a 9x9 oval outline 24, a 5-wide line 101, `main` overflow 0 and the console clean |
+| 2026-09-23 | 57fd1e5 | G-065: the stitches one press would cover are outlined under the cursor, in the brush's own shape, on a canvas of its own (D216) so a pointer move never repaints the chart | Vitest 1301 passed, 8 skipped; Playwright 375 passed across all 35 specs, nine of them new here; tsc, eslint and docs-lint clean. 23 containers before and after with an identical name set and only this app's restarted; eight other sites on the host returned 200. Live: nothing before the pointer is on the chart, a single stitch at size 1, 13,10..18,15 for a round 5 centred on (15,12), one anchor stitch for a filled rectangle, gone when the pointer leaves, `data-render-revision` unchanged across a pointer move, 0 stitches after all of it, console clean |
