@@ -58,7 +58,7 @@ export type SelectDragFrame =
   | { kind: "rect"; base: StitchPattern; rect: CellRect }
   | { kind: "piece"; base: StitchPattern; piece: FloatingSelection }
   /** Lasso (G-072): the path drawn so far, outlined over the chart until the pointer comes up. */
-  | { kind: "lasso"; base: StitchPattern; path: readonly CellPoint[] };
+  | { kind: "lasso"; base: StitchPattern; path: readonly CellPoint[]; stroke?: string };
 
 export type ChartRenderer = ReturnType<typeof useChartRenderer>;
 
@@ -483,7 +483,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       frame.kind === "rect"
         ? { kind: "select-rect", base: frame.base, rect: frame.rect }
         : frame.kind === "lasso"
-          ? { kind: "select-lasso", base: frame.base, path: frame.path }
+          ? { kind: "select-lasso", base: frame.base, path: frame.path, stroke: frame.stroke }
           : { kind: "select-piece", base: frame.base, piece: frame.piece };
     const scene = currentScene();
     const canvas = canvasRef.current;

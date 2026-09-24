@@ -51,6 +51,16 @@ function SelectIcon() {
   );
 }
 
+/** The lasso loop again, this time solid and shaded: the area it encloses is what gets painted. */
+function LassoFillIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <path d="M12 4c4.4 0 8 2.4 8 5.5S16.4 15 12 15 4 12.6 4 9.5 7.6 4 12 4Z" fill="currentColor" fillOpacity={0.25} />
+      <path d="M8.6 14.4v3.1a2 2 0 1 0 2 2" />
+    </svg>
+  );
+}
+
 /** A dashed loop closing on itself, with the tail it was drawn from: the shape a lasso leaves behind. */
 function LassoIcon() {
   return (
@@ -148,6 +158,12 @@ const TOOL_GROUPS = [
       Icon: RectIcon,
     },
     { tool: "oval" as const, label: "Oval", title: "Drag a box to draw the oval that fits it, outlined or filled (O)", Icon: OvalIcon },
+    {
+      tool: "lasso-fill" as const,
+      label: "Lasso fill",
+      title: "Draw around an area (G); letting go fills everything inside it with the colour in hand, in one step.",
+      Icon: LassoFillIcon,
+    },
   ],
   [
     {
@@ -258,7 +274,7 @@ export function ToolRail({ activeTool, disabled, onSelect, squareCanvas, onMirro
       <div className="flex min-h-0 flex-1 flex-col items-stretch gap-0.5 overflow-y-auto">
         {TOOL_GROUPS.map((group, groupIndex) => (
           <Fragment key={groupIndex}>
-            {groupIndex > 0 && <div className="mx-3.5 my-1.5 h-px shrink-0 bg-line" aria-hidden="true" />}
+            {groupIndex > 0 && <div className="mx-3.5 my-1 h-px shrink-0 bg-line" aria-hidden="true" />}
             {group.map(({ tool, label, title, Icon }) => {
               const active = activeTool === tool;
               return (
@@ -284,7 +300,7 @@ export function ToolRail({ activeTool, disabled, onSelect, squareCanvas, onMirro
           </Fragment>
         ))}
 
-        <div className="mx-3.5 my-1.5 h-px shrink-0 bg-line" aria-hidden="true" />
+        <div className="mx-3.5 my-1 h-px shrink-0 bg-line" aria-hidden="true" />
         <span className="px-1 text-center text-[10px] font-medium tracking-wide text-faint uppercase" id="mirror-heading">
           Mirror
         </span>

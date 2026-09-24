@@ -79,7 +79,7 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
       if (e.key === "Escape") {
         // Select drops its piece; a shape tool drops the shape being dragged. Both go through one call, which
         // cancels whichever of the two is live (G-064).
-        if (isSelectTool(ctx.activeTool) || isShapeTool(ctx.activeTool)) ctx.cancelSelection();
+        if (isSelectTool(ctx.activeTool) || isShapeTool(ctx.activeTool) || ctx.activeTool === "lasso-fill") ctx.cancelSelection();
         return;
       }
 
@@ -106,6 +106,7 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
       else if (key === "r") ctx.switchTool("rect");
       else if (key === "o") ctx.switchTool("oval");
       else if (key === "q") ctx.switchTool("lasso");
+      else if (key === "g") ctx.switchTool("lasso-fill");
       else if (e.key === "1") ctx.setViewMode("color");
       else if (e.key === "2") ctx.setViewMode("bw");
       else if (e.key === "3") ctx.setViewMode("realistic");

@@ -19,7 +19,7 @@ test("Ctrl+Z/Ctrl+Y undo and redo a merge, matching the Undo/Redo buttons", asyn
 test("B and F switch the active tool, and Escape/typing targets don't hijack them", async ({ page }) => {
   await generateSmallPattern(page);
   const brushButton = page.getByRole("button", { name: "Brush" });
-  const fillButton = page.getByRole("button", { name: "Fill" });
+  const fillButton = page.getByRole("button", { name: "Fill", exact: true });
 
   await expect(brushButton).toHaveAttribute("aria-pressed", "true"); // Brush is the default tool
 
@@ -58,7 +58,7 @@ test("L, R and O take the three shape tools, and typing them does not (G-064)", 
 
 test("holding Space temporarily switches to Pan and releasing restores the previous tool", async ({ page }) => {
   await generateSmallPattern(page);
-  const fillButton = page.getByRole("button", { name: "Fill" });
+  const fillButton = page.getByRole("button", { name: "Fill", exact: true });
   const panButton = page.getByRole("button", { name: "Pan" });
 
   await page.keyboard.press("f");

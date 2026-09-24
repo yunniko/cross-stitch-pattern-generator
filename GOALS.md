@@ -54,13 +54,34 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   operation respects it, including flip and rotate, which must transform the mask with the cells. Rectangle
   select proved unchanged first. **The architectural milestone — everything else sits on it.**
 - [x] M2 — **The Lasso select tool**: freehand path → enclosed cells → the selection bar exactly as it is.
-- [ ] M3 — **The Lasso fill tool** (criteria 3, 6): live outline on the cursor canvas (D216), fill on release,
+- [x] M3 — **The Lasso fill tool** (criteria 3, 6): live outline on the cursor canvas (D216), fill on release,
   symmetry, one undo step.
 - [ ] M4 — **Smoothing, measured** (criteria 4, 5). Separate so it can be dropped on evidence rather than
   abandoned halfway — the lesson of G-070.
 - [ ] M5 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — **M3 done. Lasso fill is in the rail (G): draw a shape, let go, the inside is painted.**
+  One undo step, symmetry mirrors every filled cell, and `Escape` mid-drag paints nothing. A lasso drawn
+  entirely off the chart paints nothing and costs no undo step either.
+  **The outline is drawn in the thread it is about to lay down**, not the selection's dashed blue — which
+  everywhere else in the editor means "this is selected", the wrong thing to say about a tool that paints.
+  **My first version of the fill test was weak and a mutation proved it**: it asserted only that more than ten
+  cells changed, which an outline-only fill also satisfies. It now checks that the diamond's centre ends the
+  same colour as a cell on the path, and that a corner of the bounding box is untouched — caught both
+  mutations (no interior fill; fill ignoring the mask).
+  **Two real regressions, both found by the existing suite, both mine:**
+  1. **A 3-pixel layout regression.** The Mirror buttons live inside the rail's scroll area, and
+     `symmetry.spec.ts` asserts they are reachable without scrolling at 768 px tall. A twelfth tool pushed
+     them to 771. Fixed by tightening the rail's group separators (`my-1.5` → `my-1`, 16 px back), not by
+     relaxing the test — it is a real requirement about a real window size.
+  2. **A selector collision.** "Lasso fill" contains "Fill", so three existing specs' `{ name: "Fill" }`
+     matched two buttons. **Here I did edit those specs** (to `exact: true`), unlike M2 — the distinction:
+     in M2 a spec asserted a user-visible string I had changed, so my change was the regression; here the
+     specs' subject did not regress at all, their locator was merely loose and became ambiguous because a new
+     button exists. `exact: true` is what those selectors always meant.
+  Verified: 753 unit, 388 e2e (3 new, no failures and no flakes), tsc, eslint, prettier, docs-lint.
+  M4 next: smoothing, measured.
 - 2026-09-24 — **M2 done. Lasso Select is in the rail (Q), and the piece it makes is a shape.**
   `lib/editor/lasso.ts` turns a freehand path into the cells it encloses: **even-odd** scanline fill, so
   crossing your own path carves a hole and a figure-of-eight gives two lobes rather than their union. The path

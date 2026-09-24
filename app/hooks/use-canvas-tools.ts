@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
 import { stampCells, type StampOffset } from "@/lib/editor/brush-stamp";
-import { lassoRegion, maskedCell } from "@/lib/editor/lasso";
+import { lassoRegion, maskedCell, type LassoRegion } from "@/lib/editor/lasso";
 import { lineCells, ovalCells, rectCells, stampForPress, type CellPoint, type ShapeFill } from "@/lib/editor/shape-raster";
 import {
   flipSelectionHorizontal,
@@ -350,6 +350,118 @@ export function useShapeTool({
       return shapeRef.current !== null;
     },
   };
+}
+
+/**
+ * The Lasso fill tool (G-072 M3): draw a shape, and the stitches it encloses take the colour in hand.
+ *
+ * The outline is shown while the pointer is down and nothing is painted until it comes up, which is what
+ * separates this from a brush: you see the boundary you are drawing rather than a trail of stitches, and the
+ * whole area lands in one undo step. Symmetry mirrors every filled cell, as it does a brush stroke.
+ */
+export function useLassoFillTool({
+  frameRef,
+  rendererRef,
+  pattern,
+  cellSize,
+  commit,
+  colorForPointer,
+  symmetry,
+}: CanvasToolInputs & {
+  colorForPointer: (button: number) => number | null;
+  symmetry: SymmetryAxes;
+}) {
+  const drawRef = useRef<{
+    pointerId: number;
+    base: StitchPattern;
+    path: CellPoint[];
+    color: number;
+    axes: SymmetryAxes;
+  } | null>(null);
+
+  function drawFrame() {
+    const draw = drawRef.current;
+    if (!draw) return;
+    // Outlined in the thread it is about to lay down, so the gesture reads as painting rather than selecting.
+    const rgb = draw.base.palette[draw.color]?.rgb;
+    rendererRef.current?.previewSelect({
+      kind: "lasso",
+      base: draw.base,
+      path: draw.path,
+      stroke: rgb ? `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]})` : undefined,
+    });
+  }
+
+  function onPointerDown(e: PointerLike, frame: HTMLElement) {
+    const color = colorForPointer(e.button ?? 0);
+    if (!pattern || color === null) return;
+    const at = clampedCellFromEvent(e, frame, cellSize, pattern.width, pattern.height);
+    drawRef.current = { pointerId: e.pointerId, base: pattern, path: [at], color, axes: symmetry };
+    frame.setPointerCapture(e.pointerId);
+    drawFrame();
+  }
+
+  function onPointerMove(e: PointerLike): boolean {
+    const draw = drawRef.current;
+    if (!draw || draw.pointerId !== e.pointerId) return false;
+    const frame = frameRef.current;
+    if (!frame) return true;
+    const at = clampedCellFromEvent(e, frame, cellSize, draw.base.width, draw.base.height);
+    // One point per cell entered: a pointer held still must not grow the path without bound.
+    const last = draw.path[draw.path.length - 1];
+    if (last.x === at.x && last.y === at.y) return true;
+    draw.path.push(at);
+    drawFrame();
+    return true;
+  }
+
+  function onPointerUp(e: PointerLike): boolean {
+    const draw = drawRef.current;
+    if (!draw || draw.pointerId !== e.pointerId) return false;
+    drawRef.current = null;
+    releaseCapture(frameRef.current, e.pointerId);
+    const region = lassoRegion(draw.path, draw.base.width, draw.base.height);
+    if (!region) {
+      // A lasso drawn entirely off the chart paints nothing and costs no undo step.
+      rendererRef.current?.endGesture(true);
+      return true;
+    }
+    rendererRef.current?.endGesture(false);
+    commit(withCellPalette(draw.base, filledCells(draw.base, region, draw.color, draw.axes)));
+    return true;
+  }
+
+  /** Escape, a cancelled pointer, or leaving the tool: nothing is painted and nothing is committed. */
+  function cancel(): boolean {
+    if (!drawRef.current) return false;
+    drawRef.current = null;
+    rendererRef.current?.endGesture(true);
+    return true;
+  }
+
+  return {
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    cancel,
+    get isDrawing() {
+      return drawRef.current !== null;
+    },
+  };
+}
+
+/** Every cell the region covers, and its mirrors, in the given colour. */
+function filledCells(base: StitchPattern, region: LassoRegion, color: number, axes: SymmetryAxes): Uint8Array {
+  const cells = base.cellPalette.slice();
+  const { rect, mask } = region;
+  for (let ly = 0; ly < rect.height; ly++) {
+    for (let lx = 0; lx < rect.width; lx++) {
+      if (!mask[ly * rect.width + lx]) continue;
+      const cell = (rect.y + ly) * base.width + rect.x + lx;
+      for (const mirrored of symmetryOrbit(cell, base.width, base.height, axes)) cells[mirrored] = color;
+    }
+  }
+  return cells;
 }
 
 export function useMoveTool({ frameRef, rendererRef, pattern, cellSize, commit }: CanvasToolInputs) {

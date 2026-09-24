@@ -69,12 +69,12 @@ test("Space on a focused button activates the button and never switches to Pan, 
 
 test("Space with focus on the page body still pans, and releasing restores the tool", async ({ page }) => {
   await generateSmallPattern(page);
-  await page.getByRole("button", { name: "Fill" }).click();
+  await page.getByRole("button", { name: "Fill", exact: true }).click();
   await page.locator("body").click({ position: { x: 5, y: 5 } }); // focus nothing in particular
   await page.keyboard.down("Space");
   await expect(page.getByRole("button", { name: "Pan" })).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.up("Space");
-  await expect(page.getByRole("button", { name: "Fill" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Fill", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("Ctrl+Shift+Z redoes, alongside Ctrl+Y (B8)", async ({ page }) => {

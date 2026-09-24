@@ -35,7 +35,7 @@ import { ToolRail } from "./components/tool-rail";
 import { PillButton } from "./components/ui";
 import type { Tool, ViewMode } from "./editor-types";
 import { cellIndexFromEvent, computeCellSize } from "./editor-geometry";
-import { useBrushTool, useMoveTool, useSelectTool, useShapeTool } from "./hooks/use-canvas-tools";
+import { useBrushTool, useLassoFillTool, useMoveTool, useSelectTool, useShapeTool } from "./hooks/use-canvas-tools";
 import { useChartRenderer, type ChartRenderer } from "./hooks/use-chart-renderer";
 import { paginatesAsA4, useExports } from "./hooks/use-exports";
 import { useGeneration } from "./hooks/use-generation";
@@ -138,6 +138,7 @@ export default function Workspace() {
     kind: isShapeTool(activeTool) ? activeTool : "line",
     fill: hasFillChoice(activeTool) ? options.shapeFill : "outline",
   });
+  const lassoFill = useLassoFillTool({ ...toolInputs, colorForPointer, symmetry: liveSymmetry });
   const move = useMoveTool(toolInputs);
   /**
    * The outline the cursor carries (G-065): the press the tool in hand would make, or null for a tool that
@@ -146,7 +147,8 @@ export default function Workspace() {
    */
   const hoverOutline = useMemo(() => {
     if (isViewOnlyMode(viewMode)) return null;
-    if (activeTool === "fill") return stampOutline(ONE_STITCH_STAMP);
+    // Lasso fill draws a path a stitch wide, so the cursor shows one stitch however big the brush is.
+    if (activeTool === "fill" || activeTool === "lasso-fill") return stampOutline(ONE_STITCH_STAMP);
     if (activeTool === "brush" || activeTool === "line") return stampOutline(stamp);
     if (hasFillChoice(activeTool)) return stampOutline(stampForPress(options.shapeFill, stamp));
     return null;
@@ -304,6 +306,7 @@ export default function Workspace() {
     if (isSelectTool(activeTool) && !isSelectTool(tool)) select.merge();
     // A half-drawn shape is not carried to the next tool: it is dropped, as Escape drops it.
     shape.cancel();
+    lassoFill.cancel();
     setActiveTool(tool);
   }
 
@@ -321,7 +324,7 @@ export default function Workspace() {
       swapColors: colours.swap,
       // Escape drops a shape being dragged before it reaches a selection, since only one of the two can be live.
       cancelSelection: () => {
-        if (!shape.cancel()) select.cancel();
+        if (!shape.cancel() && !lassoFill.cancel()) select.cancel();
       },
       hasSelection: select.selection !== null,
     },
@@ -341,6 +344,7 @@ export default function Workspace() {
     else if (activeTool === "fill") brush.fillAt(e, frame);
     else if (activeTool === "brush") brush.onPointerDown(e, frame);
     else if (isShapeTool(activeTool)) shape.onPointerDown(e, frame);
+    else if (activeTool === "lasso-fill") lassoFill.onPointerDown(e, frame);
   }
 
   /** Hands the cursor its outline, or takes it away when the tool in hand would paint nothing. */
@@ -353,12 +357,20 @@ export default function Workspace() {
   function handleCanvasPointerMove(e: PointerEvent<HTMLDivElement>) {
     // Before the tools, and whatever they make of the event: the cursor carries its outline through a gesture too.
     updateHoverOutline(e);
-    if (panZoom.movePan(e) || move.onPointerMove(e) || select.onPointerMove(e) || shape.onPointerMove(e)) return;
+    if (panZoom.movePan(e) || move.onPointerMove(e) || select.onPointerMove(e) || shape.onPointerMove(e) || lassoFill.onPointerMove(e))
+      return;
     brush.onPointerMove(e);
   }
 
   function handleCanvasPointerUp(e: PointerEvent<HTMLDivElement>) {
-    if (panZoom.endPan(e, frameRef.current) || move.onPointerUp(e) || select.onPointerUp(e) || shape.onPointerUp(e)) return;
+    if (
+      panZoom.endPan(e, frameRef.current) ||
+      move.onPointerUp(e) ||
+      select.onPointerUp(e) ||
+      shape.onPointerUp(e) ||
+      lassoFill.onPointerUp(e)
+    )
+      return;
     brush.onPointerUp(e);
   }
 

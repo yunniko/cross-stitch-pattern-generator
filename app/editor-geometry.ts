@@ -176,11 +176,21 @@ function traceMaskBoundary(ctx: CanvasRenderingContext2D, rect: CellRect, cellSi
   ctx.stroke();
 }
 
-/** The lasso path as it is being drawn (G-072): through cell centres, closed, so you can see what it will take. */
-export function drawLassoPath(ctx: CanvasRenderingContext2D, path: readonly CellPoint[], cellSize: number) {
+/**
+ * The lasso path as it is being drawn (G-072): through cell centres, closed, so you can see what it will take.
+ *
+ * `stroke` is the colour a Lasso fill is about to paint. Without it the path is drawn in the selection's own
+ * dashed blue, which everywhere else in the editor means "this is selected" — the wrong thing to say about a
+ * tool that is going to paint.
+ */
+export function drawLassoPath(ctx: CanvasRenderingContext2D, path: readonly CellPoint[], cellSize: number, stroke?: string) {
   if (path.length === 0) return;
   ctx.save();
   selectionStroke(ctx, cellSize);
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.setLineDash([]);
+  }
   ctx.beginPath();
   ctx.moveTo((path[0].x + 0.5) * cellSize, (path[0].y + 0.5) * cellSize);
   for (let i = 1; i < path.length; i++) ctx.lineTo((path[i].x + 0.5) * cellSize, (path[i].y + 0.5) * cellSize);

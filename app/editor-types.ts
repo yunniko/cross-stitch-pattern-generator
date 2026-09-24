@@ -15,7 +15,7 @@ export function isViewOnlyMode(mode: ViewMode): boolean {
  * Isolate is not here on purpose (G-045 M4): dimming the threads you are not working on is a way of *looking* at the
  * chart, not a thing you do to it, so it stays on while you paint with any of these.
  */
-export type Tool = "brush" | "line" | "rect" | "oval" | "pan" | "zoom" | "move" | "select" | "lasso" | "fill";
+export type Tool = "brush" | "line" | "rect" | "oval" | "pan" | "zoom" | "move" | "select" | "lasso" | "lasso-fill" | "fill";
 
 /**
  * The tools that produce a floating piece (G-072). Rectangle Select drags a box and Lasso Select draws a shape,

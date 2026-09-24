@@ -93,7 +93,7 @@ export type GesturePreview =
   | { kind: "move"; base: StitchPattern; dx: number; dy: number }
   | { kind: "select-rect"; base: StitchPattern; rect: CellRect }
   | { kind: "select-piece"; base: StitchPattern; piece: FloatingSelection }
-  | { kind: "select-lasso"; base: StitchPattern; path: readonly CellPoint[] };
+  | { kind: "select-lasso"; base: StitchPattern; path: readonly CellPoint[]; stroke?: string };
 
 /** One single-stitch redraw of a brush stroke, with the colour it was painted in at that moment. */
 export interface BrushOp {
@@ -322,7 +322,7 @@ function drawGestureContent(
       if (!baseDrawn) drawScene(ctx, gesture.base, scene, rect);
       ctx.save();
       clipTo(ctx, rect);
-      drawLassoPath(ctx, gesture.path, scene.cellSize);
+      drawLassoPath(ctx, gesture.path, scene.cellSize, gesture.stroke);
       ctx.restore();
       return;
     case "select-piece": {
