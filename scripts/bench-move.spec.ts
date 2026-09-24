@@ -134,13 +134,11 @@ async function summariseProfile(client: CDPSession): Promise<string[]> {
 }
 
 async function frameState(page: Page) {
-  return page
-    .getByTestId("chart-frame")
-    .evaluate((el: HTMLElement) => ({
-      cellSize: Number(el.dataset.cellSize ?? 0),
-      revision: Number(el.dataset.renderRevision ?? 0),
-      painted: el.dataset.paintedRect ?? "",
-    }));
+  return page.getByTestId("chart-frame").evaluate((el: HTMLElement) => ({
+    cellSize: Number(el.dataset.cellSize ?? 0),
+    revision: Number(el.dataset.renderRevision ?? 0),
+    painted: el.dataset.paintedRect ?? "",
+  }));
 }
 
 /**
@@ -163,13 +161,11 @@ async function waitForScene(page: Page, before: number): Promise<boolean> {
     .then(() => true)
     .catch(() => false);
   if (!settled) {
-    const state = await page
-      .getByTestId("chart-frame")
-      .evaluate((el: HTMLElement) => ({
-        pending: el.dataset.scenePending,
-        cellSize: el.dataset.cellSize,
-        revision: el.dataset.renderRevision,
-      }));
+    const state = await page.getByTestId("chart-frame").evaluate((el: HTMLElement) => ({
+      pending: el.dataset.scenePending,
+      cellSize: el.dataset.cellSize,
+      revision: el.dataset.renderRevision,
+    }));
     console.log(`scene still pending after 30 s: ${JSON.stringify(state)}`);
   }
   await afterPaint(page);

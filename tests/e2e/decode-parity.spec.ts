@@ -156,9 +156,7 @@ async function compare(page: Page, workerCode: string, bytes: Buffer, mimeType: 
       const dataUrl = `data:${mimeType};base64,${base64}`;
       const main = await (
         window as unknown as {
-          __decodeOnMainThread: (
-            url: string
-          ) => Promise<{
+          __decodeOnMainThread: (url: string) => Promise<{
             pixelBuffer: { data: Uint8ClampedArray; width: number; height: number };
             naturalWidth: number;
             naturalHeight: number;
