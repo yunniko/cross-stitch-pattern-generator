@@ -400,15 +400,48 @@ function clampRectToBounds(rect: CellRect, width: number, height: number): CellR
   return { x: x0, y: y0, width: Math.max(0, x1 - x0), height: Math.max(0, y1 - y0) };
 }
 
-/** Snapshots `rect`'s cells (clamped to the pattern's own bounds) into a new floating selection, with `originRect` set so a later merge vacates this spot -- the "lift" step of a fresh drag-select. */
-export function liftSelection(pattern: StitchPattern, rect: CellRect): FloatingSelection {
+/**
+ * Snapshots `rect`'s cells (clamped to the pattern's own bounds) into a new floating selection, with `originRect`
+ * set so a later merge vacates this spot -- the "lift" step of a fresh drag-select.
+ *
+ * `mask` (G-072) selects a shape inside that rectangle, in the *unclamped* rect's own coordinates so the caller
+ * does not have to know how clamping went. Omit it and the piece is the whole rectangle, exactly as before.
+ */
+export function liftSelection(pattern: StitchPattern, rect: CellRect, mask?: Uint8Array): FloatingSelection {
   const clamped = clampRectToBounds(rect, pattern.width, pattern.height);
   const cells = new Uint8Array(clamped.width * clamped.height);
   for (let ly = 0; ly < clamped.height; ly++) {
     const srcRowStart = (clamped.y + ly) * pattern.width + clamped.x;
     cells.set(pattern.cellPalette.subarray(srcRowStart, srcRowStart + clamped.width), ly * clamped.width);
   }
-  return { x: clamped.x, y: clamped.y, width: clamped.width, height: clamped.height, cells, originRect: clamped };
+  const clampedMask = mask && cropMask(mask, rect, clamped);
+  return {
+    x: clamped.x,
+    y: clamped.y,
+    width: clamped.width,
+    height: clamped.height,
+    cells,
+    ...(clampedMask ? { mask: clampedMask, originMask: clampedMask } : {}),
+    originRect: clamped,
+  };
+}
+
+/** Re-frames a mask given in `rect`'s coordinates into `clamped`'s, for when the drag ran off the chart. */
+function cropMask(mask: Uint8Array, rect: CellRect, clamped: CellRect): Uint8Array {
+  if (rect.x === clamped.x && rect.y === clamped.y && rect.width === clamped.width && rect.height === clamped.height) {
+    return mask;
+  }
+  const out = new Uint8Array(clamped.width * clamped.height);
+  for (let ly = 0; ly < clamped.height; ly++) {
+    const sy = clamped.y + ly - rect.y;
+    if (sy < 0 || sy >= rect.height) continue;
+    for (let lx = 0; lx < clamped.width; lx++) {
+      const sx = clamped.x + lx - rect.x;
+      if (sx < 0 || sx >= rect.width) continue;
+      out[ly * clamped.width + lx] = mask[sy * rect.width + sx];
+    }
+  }
+  return out;
 }
 
 /** Repositions a floating selection by `(dx, dy)` -- pure data, no pattern involved (used for both the live drag preview and the final commit once a move finishes). */
@@ -422,7 +455,11 @@ export function moveSelection(selection: FloatingSelection, dx: number, dy: numb
  * selected *area*, not the stitches inside it.
  */
 export function fillSelection(selection: FloatingSelection, paletteIndex: number): FloatingSelection {
-  return { ...selection, cells: new Uint8Array(selection.cells.length).fill(paletteIndex) };
+  if (!selection.mask) return { ...selection, cells: new Uint8Array(selection.cells.length).fill(paletteIndex) };
+  // A shaped piece fills its shape; the cells outside it keep what they held, since nothing ever stamps them.
+  const cells = selection.cells.slice();
+  for (let i = 0; i < cells.length; i++) if (selection.mask[i]) cells[i] = paletteIndex;
+  return { ...selection, cells };
 }
 
 /**
@@ -433,7 +470,8 @@ export function fillSelection(selection: FloatingSelection, paletteIndex: number
 export const DUPLICATE_OFFSET = 3;
 
 export function duplicateSelection(selection: FloatingSelection): FloatingSelection {
-  return moveSelection({ ...selection, originRect: undefined }, DUPLICATE_OFFSET, DUPLICATE_OFFSET);
+  // `originMask` goes with `originRect`: a duplicate was lifted from nowhere, so it vacates nothing.
+  return moveSelection({ ...selection, originRect: undefined, originMask: undefined }, DUPLICATE_OFFSET, DUPLICATE_OFFSET);
 }
 
 function flipCells(cells: Uint8Array, width: number, height: number, axis: "horizontal" | "vertical"): Uint8Array {
@@ -450,12 +488,27 @@ function flipCells(cells: Uint8Array, width: number, height: number, axis: "hori
 
 /** Mirrors a floating selection's cells left-right, in place -- position/size/originRect are untouched. */
 export function flipSelectionHorizontal(selection: FloatingSelection): FloatingSelection {
-  return { ...selection, cells: flipCells(selection.cells, selection.width, selection.height, "horizontal") };
+  return withShape(selection, (cells) => flipCells(cells, selection.width, selection.height, "horizontal"));
 }
 
 /** Mirrors a floating selection's cells top-bottom, in place -- position/size/originRect are untouched. */
 export function flipSelectionVertical(selection: FloatingSelection): FloatingSelection {
-  return { ...selection, cells: flipCells(selection.cells, selection.width, selection.height, "vertical") };
+  return withShape(selection, (cells) => flipCells(cells, selection.width, selection.height, "vertical"));
+}
+
+/**
+ * Applies the same rearrangement to the cells and to the mask (G-072).
+ *
+ * The two are the same shape and must stay in step: a flip that moved the cells but left the mask would leave
+ * the piece showing through its old outline. `originMask` is deliberately not transformed -- it describes the
+ * hole left behind, which does not turn with the piece.
+ */
+function withShape(selection: FloatingSelection, rearrange: (cells: Uint8Array) => Uint8Array): FloatingSelection {
+  return {
+    ...selection,
+    cells: rearrange(selection.cells),
+    ...(selection.mask ? { mask: rearrange(selection.mask) } : {}),
+  };
 }
 
 /**
@@ -478,19 +531,17 @@ function rotateCells(cells: Uint8Array, width: number, height: number, clockwise
 
 export function rotateSelectionClockwise(selection: FloatingSelection): FloatingSelection {
   return {
-    ...selection,
+    ...withShape(selection, (cells) => rotateCells(cells, selection.width, selection.height, true)),
     width: selection.height,
     height: selection.width,
-    cells: rotateCells(selection.cells, selection.width, selection.height, true),
   };
 }
 
 export function rotateSelectionAnticlockwise(selection: FloatingSelection): FloatingSelection {
   return {
-    ...selection,
+    ...withShape(selection, (cells) => rotateCells(cells, selection.width, selection.height, false)),
     width: selection.height,
     height: selection.width,
-    cells: rotateCells(selection.cells, selection.width, selection.height, false),
   };
 }
 
@@ -522,7 +573,10 @@ function stampSelection(cellPalette: Uint8Array, width: number, height: number, 
     for (let lx = 0; lx < selection.width; lx++) {
       const px = selection.x + lx;
       if (px < 0 || px >= width) continue;
-      cellPalette[py * width + px] = selection.cells[ly * selection.width + lx];
+      const local = ly * selection.width + lx;
+      // A cell the mask excludes is not part of the piece, so whatever is under it stays (G-072).
+      if (selection.mask && !selection.mask[local]) continue;
+      cellPalette[py * width + px] = selection.cells[local];
     }
   }
 }
@@ -557,7 +611,15 @@ export function mergeSelection(pattern: StitchPattern, selection: FloatingSelect
       const py = y + ly;
       if (py < 0 || py >= pattern.height) continue;
       const rowStart = py * pattern.width + x;
-      cellPalette.fill(EMPTY_CELL, rowStart, rowStart + Math.min(width, pattern.width - x));
+      if (!selection.originMask) {
+        cellPalette.fill(EMPTY_CELL, rowStart, rowStart + Math.min(width, pattern.width - x));
+        continue;
+      }
+      // A shaped piece leaves a hole its own shape, not a rectangular one (G-072).
+      for (let lx = 0; lx < width; lx++) {
+        if (x + lx >= pattern.width) break;
+        if (selection.originMask[ly * width + lx]) cellPalette[rowStart + lx] = EMPTY_CELL;
+      }
     }
   }
   stampSelection(cellPalette, pattern.width, pattern.height, selection);

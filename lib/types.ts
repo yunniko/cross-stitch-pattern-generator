@@ -152,5 +152,21 @@ export interface FloatingSelection {
   width: number;
   height: number;
   cells: Uint8Array;
+  /**
+   * Which cells of the `width` x `height` box are actually in the piece, 1 for in (G-072). **Absent means all of
+   * them**, which is what every rectangle selection is and why nothing about them had to change.
+   *
+   * It travels with `cells`: a flip flips it, a rotation rotates it, and a cell it excludes is never stamped, never
+   * vacated and never filled.
+   */
+  mask?: Uint8Array;
   originRect?: CellRect;
+  /**
+   * The mask as it was when the piece was lifted, in `originRect`'s own box, so a merge vacates the shape rather
+   * than its bounding rectangle. Absent means the whole rect.
+   *
+   * Separate from `mask` because it must *not* follow the piece: `originRect` keeps the box the piece came from, so
+   * after a rotation `mask` describes the turned piece while this still describes the hole it left behind.
+   */
+  originMask?: Uint8Array;
 }

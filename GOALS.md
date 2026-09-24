@@ -23,7 +23,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - **Constraints:** not a line-count exercise. G-067's "under 300 lines" was a bad proxy and is not inherited; a shell
   component taking 38 props would meet it and improve nothing.
 
-### G-072 · Lasso: select a shape, and fill one — DRAFT (2026-09-24)
+### G-072 · Lasso: select a shape, and fill one — ACTIVE (2026-09-24)
 - **What:** two tools. **Lasso select** takes a freehand region instead of a rectangle. **Lasso fill** draws an
   outline as you drag and fills what it encloses when you let go. The drawn path is smoothed.
 - **Why:** every selection today is a rectangle and every fill is a flood fill or a rectangle/oval. There is no
@@ -49,8 +49,8 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   - **Crop-to-selection on a lasso crops to the bounding box.** A chart cannot be non-rectangular, so there is
     nothing else it could mean.
 
-**Milestones** (proposed — confirmed at planning, OPERATIONS.md §2):
-- [ ] M1 — **A selection can have a shape** (criteria 1, 2): `FloatingSelection` gains the mask and every
+**Milestones** (confirmed at planning, 2026-09-24):
+- [x] M1 — **A selection can have a shape** (criteria 1, 2): `FloatingSelection` gains the mask and every
   operation respects it, including flip and rotate, which must transform the mask with the cells. Rectangle
   select proved unchanged first. **The architectural milestone — everything else sits on it.**
 - [ ] M2 — **The Lasso select tool**: freehand path → enclosed cells → the selection bar exactly as it is.
@@ -61,6 +61,20 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M5 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — **M1 done. A selection can be a shape, and a rectangle is unchanged.**
+  `FloatingSelection` gains an optional `mask`; absent means the whole box, so every rectangle path — lift,
+  move, flip, rotate, crop, merge — runs the code it always ran. **Criterion 2 holds**: the 88 existing
+  selection tests pass untouched, not adjusted to fit.
+  **It needed two masks, not one.** `originRect` keeps the box a piece was lifted from, so after a rotation the
+  piece's own mask describes the turned shape while the hole it left behind still has the original one. A
+  single mask would vacate the wrong cells the moment anyone rotated a lasso. `originMask` is captured at lift
+  and never transformed; `withShape` moves `cells` and `mask` together so they cannot drift apart.
+  A mask is also re-framed when the drag ran off the chart, since `liftSelection` clamps the rect.
+  **The tests were checked by breaking the code, and the first version was too weak**: with a uniform chart, a
+  stamp that ignored the mask writes the same value that was already there, so the case passed while testing
+  nothing. The destination now differs from the piece, and each of the two mask paths is caught by two cases.
+  Verified: 742 unit (10 new), tsc, eslint, prettier, docs-lint.
+  M2 next: the Lasso select tool itself.
 - 2026-09-24 — goal created from the Owner's request. Scoped before planning: `FloatingSelection` in
   `lib/types.ts` is `{x, y, width, height, cells}` with no mask, so a non-rectangular selection is the one real
   architectural change here; it touches `liftSelection`, `fillSelection`, the flips, the rotations,
