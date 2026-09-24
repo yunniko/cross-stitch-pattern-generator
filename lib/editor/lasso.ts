@@ -26,16 +26,61 @@ export interface LassoRegion {
  * Turns a freehand path into the region it selects, or `null` if it selects nothing — a path off the chart entirely,
  * or an empty one.
  */
-export function lassoRegion(path: readonly CellPoint[], chartWidth: number, chartHeight: number): LassoRegion | null {
+export interface LassoOptions {
+  /** Round the drawn path before using it (G-072 M4). On by default; off is the path exactly as dragged. */
+  smooth?: boolean;
+}
+
+export function lassoRegion(
+  path: readonly CellPoint[],
+  chartWidth: number,
+  chartHeight: number,
+  options: LassoOptions = {}
+): LassoRegion | null {
   if (path.length === 0 || chartWidth <= 0 || chartHeight <= 0) return null;
+  const shape = options.smooth === false ? path : smoothClosedPath(path);
 
   // Work over the whole chart, then crop to what was actually selected: the polygon can enclose cells the path
   // never touched, so the path's own bounding box is not the answer.
   const hit = new Uint8Array(chartWidth * chartHeight);
-  fillEnclosed(path, hit, chartWidth, chartHeight);
-  traceOutline(path, hit, chartWidth, chartHeight);
+  fillEnclosed(shape, hit, chartWidth, chartHeight);
+  traceOutline(shape, hit, chartWidth, chartHeight);
 
   return cropToSelected(hit, chartWidth, chartHeight);
+}
+
+/** How many corner-cutting passes a drawn path gets. Two is enough to lose the stair-stepping of a hand drag. */
+const SMOOTHING_PASSES = 2;
+
+/** Below this a path is deliberate input, not a freehand drag, and is left exactly where it was put. */
+const SMOOTHING_MIN_POINTS = 8;
+
+/**
+ * Chaikin's corner cutting, on a closed path (G-072 M4).
+ *
+ * Each pass replaces every point with two points a quarter and three quarters along its edges, which rounds
+ * corners without overshooting them — a curve fitted through the points (Catmull-Rom, say) can bulge outside the
+ * shape that was drawn, and selecting stitches the user never enclosed is worse than a slightly blunt corner.
+ *
+ * The closing edge is part of the cycle, so the gap from finish back to start is rounded like any other corner
+ * rather than left as a chord.
+ *
+ * Points stay fractional: the scanline fill works in real coordinates, and only the outline trace rounds.
+ */
+export function smoothClosedPath(path: readonly CellPoint[]): CellPoint[] {
+  if (path.length < SMOOTHING_MIN_POINTS) return [...path];
+  let points: CellPoint[] = [...path];
+  for (let pass = 0; pass < SMOOTHING_PASSES; pass++) {
+    const next: CellPoint[] = new Array(points.length * 2);
+    for (let i = 0; i < points.length; i++) {
+      const a = points[i];
+      const b = points[(i + 1) % points.length];
+      next[i * 2] = { x: a.x * 0.75 + b.x * 0.25, y: a.y * 0.75 + b.y * 0.25 };
+      next[i * 2 + 1] = { x: a.x * 0.25 + b.x * 0.75, y: a.y * 0.25 + b.y * 0.75 };
+    }
+    points = next;
+  }
+  return points;
 }
 
 /** Even-odd scanline fill: for each row, where the closed polygon crosses that row's centre line. */
@@ -71,12 +116,14 @@ function traceOutline(path: readonly CellPoint[], hit: Uint8Array, width: number
     if (p.x >= 0 && p.x < width && p.y >= 0 && p.y < height) hit[p.y * width + p.x] = 1;
   };
   if (path.length === 1) {
-    mark(path[0]);
+    mark({ x: Math.round(path[0].x), y: Math.round(path[0].y) });
     return;
   }
+  // A smoothed path is fractional; the cells it passes through are what can be marked.
+  const cellOf = (p: CellPoint) => ({ x: Math.round(p.x), y: Math.round(p.y) });
   for (let i = 0; i < path.length; i++) {
-    const a = path[i];
-    const b = path[(i + 1) % path.length];
+    const a = cellOf(path[i]);
+    const b = cellOf(path[(i + 1) % path.length]);
     if (a.x === b.x && a.y === b.y) {
       mark(a);
       continue;

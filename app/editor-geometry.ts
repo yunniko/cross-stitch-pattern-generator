@@ -1,5 +1,6 @@
 import { cellAtClient } from "@/lib/editor/chart-viewport";
 import type { StampEdge } from "@/lib/editor/brush-stamp";
+import { smoothClosedPath } from "@/lib/editor/lasso";
 import type { CellPoint } from "@/lib/editor/shape-raster";
 import type { CellRect, StitchPattern } from "@/lib/types";
 
@@ -185,6 +186,9 @@ function traceMaskBoundary(ctx: CanvasRenderingContext2D, rect: CellRect, cellSi
  */
 export function drawLassoPath(ctx: CanvasRenderingContext2D, path: readonly CellPoint[], cellSize: number, stroke?: string) {
   if (path.length === 0) return;
+  // Drawn smoothed, because that is the shape the release will use: a preview of the raw drag would promise
+  // corners the result does not keep. Smoothing a few hundred points costs well under a millisecond (G-072 M4).
+  path = smoothClosedPath(path);
   ctx.save();
   selectionStroke(ctx, cellSize);
   if (stroke) {

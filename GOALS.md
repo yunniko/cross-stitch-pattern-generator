@@ -56,11 +56,30 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M2 — **The Lasso select tool**: freehand path → enclosed cells → the selection bar exactly as it is.
 - [x] M3 — **The Lasso fill tool** (criteria 3, 6): live outline on the cursor canvas (D216), fill on release,
   symmetry, one undo step.
-- [ ] M4 — **Smoothing, measured** (criteria 4, 5). Separate so it can be dropped on evidence rather than
+- [x] M4 — **Smoothing, measured** (criteria 4, 5). Separate so it can be dropped on evidence rather than
   abandoned halfway — the lesson of G-070.
 - [ ] M5 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — **M4 done. Smoothing ships; the fallback was not needed** (D226).
+  Two passes of Chaikin's corner cutting over the closed path, so the gap from finish back to start rounds like
+  any other corner rather than staying a chord.
+  **Measured, which is what the milestone was for** — cost of smoothing, minimum of five runs each:
+  200 points on 300×200, **0.6 → 1.0 ms**; 800 points, 1.8 → 4.1 ms; 2,000 points, 5.5 → 17.2 ms;
+  5,000 points around a 1500-stitch chart, 17.7 → 58.9 ms. A hand draws the first of those, it runs **once on
+  release rather than per frame**, and even the absurd case stays under 60 ms. So the straight close the Owner
+  allowed is not needed.
+  **Chaikin rather than a fitted curve**: Catmull-Rom and its relatives bulge *outside* the drawn shape, which
+  would select stitches the user never enclosed — worse than a blunt corner. Corner cutting only ever moves
+  inwards, and a test asserts no smoothed point leaves the drawn path's own bounding box.
+  **Paths under 8 points are left exactly where they were put**: four points is someone placing corners, not a
+  freehand drag, and rounding those would change input nobody asked to change.
+  **The preview now draws the smoothed shape too.** It was showing the raw drag while the release used the
+  smoothed one — promising corners the result would not keep.
+  Verified: 758 unit (5 new), 388 e2e with smoothing live and no spec needing a change, tsc, eslint, prettier,
+  docs-lint. Also seen by hand: a 60-point drag with ±2.2 cells of deliberate jitter comes out a rounded blob
+  rather than a sawtooth.
+  M5 next: README, HANDOVER, deploy.
 - 2026-09-24 — **M3 done. Lasso fill is in the rail (G): draw a shape, let go, the inside is painted.**
   One undo step, symmetry mirrors every filled cell, and `Escape` mid-drag paints nothing. A lasso drawn
   entirely off the chart paints nothing and costs no undo step either.
