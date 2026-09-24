@@ -12,6 +12,51 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
+### G-067 · Close the architecture review — ACTIVE (2026-09-24)
+- **What:** the ten findings of `docs/reviews/2026-09-24-architecture-and-style-review.md`, fixed in the order that
+  risk demands. The review names each one; this goal is the work.
+- **Why:** one of them is that **CI has never once run the code production runs** — every generation and export on
+  the live site goes through the Rust sidecar, and the suite exercises the TypeScript fallback instead. The rest are
+  the conditions that made this week's two failures (D217's dead page, D218's shipped test hook) cheap to create and
+  expensive to find.
+- **Acceptance criteria:**
+  1. **The production path is a merge gate.** CI builds `cs-job`, runs `cargo test`, runs `compare:rust`, and runs
+     the generation and export e2e specs with `CS_JOB_BINARY` set. A TypeScript-only pipeline change that diverges
+     from the Rust fails CI — demonstrated by making one diverge on purpose and watching it go red.
+  2. **A formatter runs in CI**, from `COMPANY/configs/prettier.json`, with the reformat landed as its own commit.
+  3. **`workspace.tsx` is under 300 lines** and adding a tool touches one hook and one component rather than five
+     places in one file.
+  4. **No spec defines its own copy of a shared helper or locator**; `tests/e2e/helpers/` holds them.
+  5. **`docs-lint` passes under the rules of 2026-09-24**: the archive split, the decision index grouped.
+  6. **Nothing regressed**: the unit and e2e suites are green at every milestone, and the live site is verified after
+     any deploy.
+- **Constraints:** no behaviour changes. Every milestone here is a refactor, a test move, or a CI change — if a
+  finding cannot be fixed without changing what the app does, it stops and asks instead. The byte-identity invariant
+  (D107) holds throughout: the golden hashes do not move.
+
+**Milestones**:
+- [ ] M1 — **The production path enters CI** (A1). Rust toolchain, `cargo test`, `compare:rust`, and the
+  generation/export specs against the sidecar. Prove the gate by diverging the two implementations deliberately and
+  watching CI fail. Then write the Owner a short note on the standing cost of two implementations at bit-exactness,
+  with the options (thin reference, tolerance, or retire the fallback) — a decision for the Owner, not for this goal.
+- [ ] M2 — **The formatter** (A3): `COMPANY/configs/prettier.json` copied in, `format:check` in CI, the whole-tree
+  reformat as one commit of its own so the next diff is readable.
+- [ ] M3 — **Documentation shape** (A4): split `docs/goals-archive.md`, group the 218-entry decision index by
+  subsystem, and leave `docs-lint` green under the new rules.
+- [ ] M4 — **The god component** (A2): extract `useEditorDocument`, `useDrawingColours` and `useToolState` from
+  `workspace.tsx`, no behaviour change, suites green.
+- [ ] M5 — **The mechanical three** (A5, A6, A7): `tests/e2e/helpers/`, split `lib/export/render.ts` along its
+  existing seams, and one `colorAt` accessor that fails with a named error.
+- [ ] M6 — **Hygiene** (A8, A9, A10): the two React hooks out of `lib/`, the main checkout fast-forwarded and this
+  worktree retired per the new OPERATIONS rule, and the `experimental/` import rule written down.
+
+**Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — goal created from the review the Owner asked for. The eight rules the review proposed are already in
+  the charter (`COMPANY/STANDARDS.md`, `COMPANY/OPERATIONS.md`, commit bc2bbd1), and `docs-lint` now enforces R3, so
+  this project currently fails it on two counts — the 10,280-line archive and the flat decision index — which is
+  M3's work. Ordering is by risk, not by effort: A1 first because it is the only finding where the app could already
+  be wrong in production and nothing would say so.
+
 ### G-065 · The brush shows where it will land — ACTIVE (2026-09-23)
 - **What:** an outline of the stitches one press would cover, drawn under the cursor on the chart. Outline only —
   nothing under it is painted or tinted until a press actually lands.
