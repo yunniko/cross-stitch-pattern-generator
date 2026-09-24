@@ -51,6 +51,16 @@ function SelectIcon() {
   );
 }
 
+/** A dashed loop closing on itself, with the tail it was drawn from: the shape a lasso leaves behind. */
+function LassoIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <path d="M12 4c4.4 0 8 2.4 8 5.5S16.4 15 12 15 4 12.6 4 9.5 7.6 4 12 4Z" strokeDasharray="3 2.5" />
+      <path d="M8.6 14.4v3.1a2 2 0 1 0 2 2" />
+    </svg>
+  );
+}
+
 function MoveIcon() {
   return (
     <svg {...TOOL_ICON_PROPS}>
@@ -145,6 +155,12 @@ const TOOL_GROUPS = [
       label: "Select",
       title: "Drag a rectangle to select it, then copy, paste, move or flip it before it merges back. Ignores symmetry.",
       Icon: SelectIcon,
+    },
+    {
+      tool: "lasso" as const,
+      label: "Lasso",
+      title: "Draw around the stitches you want (Q). The piece then copies, moves and flips like any other. Ignores symmetry.",
+      Icon: LassoIcon,
     },
     {
       tool: "move" as const,

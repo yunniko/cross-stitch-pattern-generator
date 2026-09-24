@@ -53,7 +53,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M1 — **A selection can have a shape** (criteria 1, 2): `FloatingSelection` gains the mask and every
   operation respects it, including flip and rotate, which must transform the mask with the cells. Rectangle
   select proved unchanged first. **The architectural milestone — everything else sits on it.**
-- [ ] M2 — **The Lasso select tool**: freehand path → enclosed cells → the selection bar exactly as it is.
+- [x] M2 — **The Lasso select tool**: freehand path → enclosed cells → the selection bar exactly as it is.
 - [ ] M3 — **The Lasso fill tool** (criteria 3, 6): live outline on the cursor canvas (D216), fill on release,
   symmetry, one undo step.
 - [ ] M4 — **Smoothing, measured** (criteria 4, 5). Separate so it can be dropped on evidence rather than
@@ -61,6 +61,27 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M5 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — **M2 done. Lasso Select is in the rail (Q), and the piece it makes is a shape.**
+  `lib/editor/lasso.ts` turns a freehand path into the cells it encloses: **even-odd** scanline fill, so
+  crossing your own path carves a hole and a figure-of-eight gives two lobes rather than their union. The path
+  as drawn is always included, so a scribble that encloses nothing still selects what it was drawn over.
+  The outline is traced from the **cell grid, not the path**, so what is drawn always matches what is in the
+  piece — including holes. Pressing a corner of the bounding box that the shape does not cover starts a new
+  selection instead of picking the piece up, which is the difference between a mask and a rectangle from the
+  user's side, and has its own e2e case.
+  Every place that asked "is this the Select tool?" now asks `isSelectTool`, so swapping between Select and
+  Lasso keeps the piece in hand while leaving both still merges it.
+  **The one thing that broke was mine, and an existing spec caught it**: I reworded the empty-bar hint, which
+  `new-chart-over-selection.spec.ts` asserts. Rather than edit that spec — criterion 2 says the existing ones
+  pass *unchanged* — the hint now names the tool in hand, so Select's wording is exactly what it was and Lasso
+  gets its own. No test file was modified.
+  Verified: 753 unit (11 new for the geometry), 385 e2e (5 new; 383 passed, 2 pre-existing flakes in
+  `shape-tools` and `two-colours` that passed on retry), tsc, eslint, prettier, docs-lint. Also driven by hand
+  in a browser: a diamond drag reports `SELECTION 15 × 13 at 8, 4` and outlines a diamond, not a box.
+  **A self-inflicted false alarm worth recording**: an earlier full run reported 263/385 because I killed
+  stray `dist/processor/server` processes while it was in flight and hit the suite's own processor. Re-run
+  clean. Do not prune node processes during an e2e run.
+  M3 next: the Lasso fill tool.
 - 2026-09-24 — **M1 done. A selection can be a shape, and a rectangle is unchanged.**
   `FloatingSelection` gains an optional `mask`; absent means the whole box, so every rectangle path — lift,
   move, flip, rotate, crop, merge — runs the code it always ran. **Criterion 2 holds**: the 88 existing

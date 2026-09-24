@@ -143,6 +143,10 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Rules in force
 
+- A floating selection may be a shape, not just a box (D225). Anything that rearranges a piece moves `cells`
+  and `mask` together — use `withShape` — and leaves `originMask` alone, because that describes the hole left
+  behind and does not turn with the piece. Code that reads `cells` directly must ask the mask first.
+
 - `.cargo/config.toml` belongs at the **repository root**, not in `rust/` (D224). Cargo reads config upwards from
   the working directory, and CI, the Dockerfile and the local scripts all build from the root with
   `--manifest-path rust/Cargo.toml` — moved into `rust/` it is silently ignored by all three and the 6.6%

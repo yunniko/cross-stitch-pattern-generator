@@ -1,5 +1,6 @@
 import { intersectRects, isEmptyRect, moveTileOffsets, type PixelRect } from "@/lib/editor/chart-viewport";
 import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
+import type { CellPoint } from "@/lib/editor/shape-raster";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
 import {
   chartPaintOverhangPx,
@@ -11,8 +12,8 @@ import {
   type RenderMode,
 } from "@/lib/export/render";
 import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
-import type { Tool, ViewMode } from "./editor-types";
-import { drawSelectionOutline, PHOTO_UNDERLAY_ALPHA } from "./editor-geometry";
+import { isSelectTool, type Tool, type ViewMode } from "./editor-types";
+import { drawLassoPath, drawSelectionOutline, PHOTO_UNDERLAY_ALPHA } from "./editor-geometry";
 import type { StitchTiles } from "@/lib/export/stitch-texture";
 import { drawRealisticRegion } from "./realistic-tiles";
 
@@ -91,7 +92,8 @@ export type GesturePreview =
   | { kind: "brush"; base: StitchPattern; cells: Uint8Array; ops: BrushOp[] }
   | { kind: "move"; base: StitchPattern; dx: number; dy: number }
   | { kind: "select-rect"; base: StitchPattern; rect: CellRect }
-  | { kind: "select-piece"; base: StitchPattern; piece: FloatingSelection };
+  | { kind: "select-piece"; base: StitchPattern; piece: FloatingSelection }
+  | { kind: "select-lasso"; base: StitchPattern; path: readonly CellPoint[] };
 
 /** One single-stitch redraw of a brush stroke, with the colour it was painted in at that moment. */
 export interface BrushOp {
@@ -181,7 +183,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
   }
 
   // A floating selection is composited for display only, never into history.
-  const displayPattern = activeTool === "select" && selection && !selectDragging ? compositedSelection(p, selection) : p;
+  const displayPattern = isSelectTool(activeTool) && selection && !selectDragging ? compositedSelection(p, selection) : p;
   const region = regionFor(ctx, displayPattern, scene, rect);
 
   if (viewMode === "photo" && displayPattern.sourceImage) {
@@ -196,8 +198,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
   if (isolate && litColorIndices.size > 0) {
     atRegion(ctx, region, cellSize, () => drawHighlightOverlayRaster(ctx, displayPattern, cellSize, litColorIndices, region));
   }
-  if (activeTool === "select" && selection && !selectDragging) {
-    drawSelectionOutline(ctx, selection, cellSize);
+  if (isSelectTool(activeTool) && selection && !selectDragging) {
+    drawSelectionOutline(ctx, selection, cellSize, selection.mask);
   }
   ctx.restore();
 }
@@ -316,6 +318,13 @@ function drawGestureContent(
       drawSelectionOutline(ctx, gesture.rect, scene.cellSize);
       ctx.restore();
       return;
+    case "select-lasso":
+      if (!baseDrawn) drawScene(ctx, gesture.base, scene, rect);
+      ctx.save();
+      clipTo(ctx, rect);
+      drawLassoPath(ctx, gesture.path, scene.cellSize);
+      ctx.restore();
+      return;
     case "select-piece": {
       if (mode) {
         if (!baseDrawn) drawScene(ctx, gesture.base, scene, rect);
@@ -325,7 +334,7 @@ function drawGestureContent(
       }
       ctx.save();
       clipTo(ctx, rect);
-      drawSelectionOutline(ctx, gesture.piece, scene.cellSize);
+      drawSelectionOutline(ctx, gesture.piece, scene.cellSize, gesture.piece.mask);
       ctx.restore();
       return;
     }

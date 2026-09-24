@@ -1,5 +1,6 @@
 import { cellAtClient } from "@/lib/editor/chart-viewport";
 import type { StampEdge } from "@/lib/editor/brush-stamp";
+import type { CellPoint } from "@/lib/editor/shape-raster";
 import type { CellRect, StitchPattern } from "@/lib/types";
 
 // The Image window's target on-screen width: cell size derives from it, so a small pattern isn't tiny and a large one fits.
@@ -123,13 +124,68 @@ export function drawStampOutline(
 }
 
 /** A dashed outline of the current or in-progress selection, in a color distinct from the grid lines. */
-export function drawSelectionOutline(ctx: CanvasRenderingContext2D, rect: CellRect, cellSize: number) {
+export function drawSelectionOutline(ctx: CanvasRenderingContext2D, rect: CellRect, cellSize: number, mask?: Uint8Array) {
   if (rect.width <= 0 || rect.height <= 0) return;
   ctx.save();
+  selectionStroke(ctx, cellSize);
+  if (mask) traceMaskBoundary(ctx, rect, cellSize, mask);
+  else ctx.strokeRect(rect.x * cellSize, rect.y * cellSize, rect.width * cellSize, rect.height * cellSize);
+  ctx.restore();
+}
+
+function selectionStroke(ctx: CanvasRenderingContext2D, cellSize: number) {
   ctx.strokeStyle = "#2563eb";
   ctx.lineWidth = Math.max(2, Math.round(cellSize * 0.12));
   ctx.setLineDash([Math.max(4, cellSize * 0.5), Math.max(4, cellSize * 0.5)]);
-  ctx.strokeRect(rect.x * cellSize, rect.y * cellSize, rect.width * cellSize, rect.height * cellSize);
+}
+
+/**
+ * The edges of a shaped selection (G-072): every side of a selected cell whose neighbour is not selected.
+ *
+ * Drawn from the cell grid rather than from the path the user drew, so the outline always matches the
+ * stitches that are actually in the piece -- including any hole the lasso carved.
+ */
+function traceMaskBoundary(ctx: CanvasRenderingContext2D, rect: CellRect, cellSize: number, mask: Uint8Array) {
+  const inside = (lx: number, ly: number) => lx >= 0 && ly >= 0 && lx < rect.width && ly < rect.height && mask[ly * rect.width + lx] === 1;
+  ctx.beginPath();
+  for (let ly = 0; ly < rect.height; ly++) {
+    for (let lx = 0; lx < rect.width; lx++) {
+      if (!inside(lx, ly)) continue;
+      const x0 = (rect.x + lx) * cellSize;
+      const y0 = (rect.y + ly) * cellSize;
+      const x1 = x0 + cellSize;
+      const y1 = y0 + cellSize;
+      if (!inside(lx, ly - 1)) {
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y0);
+      }
+      if (!inside(lx, ly + 1)) {
+        ctx.moveTo(x0, y1);
+        ctx.lineTo(x1, y1);
+      }
+      if (!inside(lx - 1, ly)) {
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x0, y1);
+      }
+      if (!inside(lx + 1, ly)) {
+        ctx.moveTo(x1, y0);
+        ctx.lineTo(x1, y1);
+      }
+    }
+  }
+  ctx.stroke();
+}
+
+/** The lasso path as it is being drawn (G-072): through cell centres, closed, so you can see what it will take. */
+export function drawLassoPath(ctx: CanvasRenderingContext2D, path: readonly CellPoint[], cellSize: number) {
+  if (path.length === 0) return;
+  ctx.save();
+  selectionStroke(ctx, cellSize);
+  ctx.beginPath();
+  ctx.moveTo((path[0].x + 0.5) * cellSize, (path[0].y + 0.5) * cellSize);
+  for (let i = 1; i < path.length; i++) ctx.lineTo((path[i].x + 0.5) * cellSize, (path[i].y + 0.5) * cellSize);
+  ctx.closePath();
+  ctx.stroke();
   ctx.restore();
 }
 

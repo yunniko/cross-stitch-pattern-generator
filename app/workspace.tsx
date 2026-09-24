@@ -26,7 +26,7 @@ import { ContextBar } from "./components/context-bar";
 import { ExportControls } from "./components/export-controls";
 import { ImageWindow } from "./components/image-window";
 import { Inspector, type InspectorTab } from "./components/inspector";
-import { hasFillChoice, isShapeTool, isViewOnlyMode } from "./editor-types";
+import { hasFillChoice, isSelectTool, isShapeTool, isViewOnlyMode } from "./editor-types";
 import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
 import { SelectionBar, WorkspaceNotices } from "./components/panels";
 import { PhotoPane } from "./components/photo-pane";
@@ -124,7 +124,7 @@ export default function Workspace() {
   const panZoom = usePanZoom(scrollerRef, frameRef, pattern !== null, cellSizeAt);
   const cellSize = computeCellSize(pattern, panZoom.zoomLevel);
   const toolInputs = { frameRef, rendererRef, pattern, cellSize, commit: history.set };
-  const select = useSelectTool(toolInputs);
+  const select = useSelectTool(toolInputs, activeTool === "lasso" ? "lasso" : "select");
   const colorForPointer = colours.colorForPointer;
   // One press's footprint, rebuilt only when the brush changes rather than on every render (G-064).
   const stamp = useMemo(() => brushStamp(options.brushSize, options.brushShape), [options.brushSize, options.brushShape]);
@@ -300,7 +300,8 @@ export default function Workspace() {
 
   function switchTool(tool: Tool) {
     // Leaving Select merges whatever is floating, as pressing outside it would.
-    if (activeTool === "select" && tool !== "select") select.merge();
+    // Leaving *both* selection tools merges; swapping between them keeps the piece in hand.
+    if (isSelectTool(activeTool) && !isSelectTool(tool)) select.merge();
     // A half-drawn shape is not carried to the next tool: it is dropped, as Escape drops it.
     shape.cancel();
     setActiveTool(tool);
@@ -336,7 +337,7 @@ export default function Workspace() {
     else if (activeTool === "zoom")
       panZoom.zoomBy(e.shiftKey || e.altKey ? 1 / ZOOM_STEP : ZOOM_STEP, { clientX: e.clientX, clientY: e.clientY });
     else if (activeTool === "move") move.onPointerDown(e, frame);
-    else if (activeTool === "select") select.onPointerDown(e, frame);
+    else if (isSelectTool(activeTool)) select.onPointerDown(e, frame);
     else if (activeTool === "fill") brush.fillAt(e, frame);
     else if (activeTool === "brush") brush.onPointerDown(e, frame);
     else if (isShapeTool(activeTool)) shape.onPointerDown(e, frame);
@@ -530,8 +531,9 @@ export default function Workspace() {
           the tool rail is disabled over the start screen, so leaving it here stranded a reader with a selection in
           hand: the "Back to your chart" button lives in the bar it replaced.
         */}
-        {activeTool === "select" && pattern && !startingNew ? (
+        {isSelectTool(activeTool) && pattern && !startingNew ? (
           <SelectionBar
+            tool={activeTool === "lasso" ? "lasso" : "select"}
             hasSelection={select.selection !== null}
             hasClipboard={select.clipboard !== null}
             selection={select.selection}

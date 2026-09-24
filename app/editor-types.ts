@@ -15,7 +15,15 @@ export function isViewOnlyMode(mode: ViewMode): boolean {
  * Isolate is not here on purpose (G-045 M4): dimming the threads you are not working on is a way of *looking* at the
  * chart, not a thing you do to it, so it stays on while you paint with any of these.
  */
-export type Tool = "brush" | "line" | "rect" | "oval" | "pan" | "zoom" | "move" | "select" | "fill";
+export type Tool = "brush" | "line" | "rect" | "oval" | "pan" | "zoom" | "move" | "select" | "lasso" | "fill";
+
+/**
+ * The tools that produce a floating piece (G-072). Rectangle Select drags a box and Lasso Select draws a shape,
+ * but what they hand over is the same selection with the same bar, so everything downstream treats them alike.
+ */
+export function isSelectTool(tool: Tool): tool is "select" | "lasso" {
+  return tool === "select" || tool === "lasso";
+}
 
 /** The tools that draw a shape by dragging from one stitch to another (G-064); they share one gesture (D214). */
 export function isShapeTool(tool: Tool): tool is "line" | "rect" | "oval" {

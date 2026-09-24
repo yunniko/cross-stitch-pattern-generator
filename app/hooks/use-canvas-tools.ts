@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
 import { stampCells, type StampOffset } from "@/lib/editor/brush-stamp";
+import { lassoRegion, maskedCell } from "@/lib/editor/lasso";
 import { lineCells, ovalCells, rectCells, stampForPress, type CellPoint, type ShapeFill } from "@/lib/editor/shape-raster";
 import {
   flipSelectionHorizontal,
@@ -395,6 +396,8 @@ export function useMoveTool({ frameRef, rendererRef, pattern, cellSize, commit }
 
 type SelectDrag =
   | { pointerId: number; mode: "drawing"; basePattern: StitchPattern; startX: number; startY: number; rect: CellRect }
+  /** Lasso (G-072): the cells the pointer has passed over, in order; the region is computed on release. */
+  | { pointerId: number; mode: "lasso"; basePattern: StitchPattern; path: CellPoint[] }
   | {
       pointerId: number;
       mode: "moving";
@@ -406,11 +409,31 @@ type SelectDrag =
       lastDy: number;
     };
 
+/** What a finished drag leaves in hand: a rectangle, a lassoed shape, or the piece that was being moved. */
+function nextSelection(drag: SelectDrag): FloatingSelection | null {
+  if (drag.mode === "drawing") return liftSelection(drag.basePattern, drag.rect);
+  if (drag.mode === "moving") return moveSelection(drag.selection, drag.lastDx, drag.lastDy);
+  const region = lassoRegion(drag.path, drag.basePattern.width, drag.basePattern.height);
+  // A lasso entirely off the chart selects nothing, which is a no-op rather than an empty piece.
+  return region && liftSelection(drag.basePattern, region.rect, region.mask);
+}
+
+/**
+ * Whether a press lands on the piece itself (G-072).
+ *
+ * For a lassoed piece that is its shape, not its bounding box: pressing a corner the shape does not cover
+ * starts a new selection, which is what it looks like it should do.
+ */
+function pointInSelection(x: number, y: number, selection: FloatingSelection): boolean {
+  if (!pointInRect(x, y, selection)) return false;
+  return maskedCell(selection.mask, selection.width, x - selection.x, y - selection.y);
+}
+
 /**
  * The Rectangle Select tool (G-018): a floating piece that can be moved, flipped, copied and pasted, merged into the
  * pattern as one undo step when deselected, when another rectangle is started, or when leaving the tool.
  */
-export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit }: CanvasToolInputs) {
+export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit }: CanvasToolInputs, tool: "select" | "lasso") {
   const [selection, setSelection] = useState<FloatingSelection | null>(null);
   const [clipboard, setClipboard] = useState<FloatingSelection | null>(null);
   const dragRef = useRef<SelectDrag | null>(null);
@@ -422,6 +445,8 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
     if (!drag || !renderer) return;
     if (drag.mode === "drawing") {
       renderer.previewSelect({ kind: "rect", base: drag.basePattern, rect: drag.rect });
+    } else if (drag.mode === "lasso") {
+      renderer.previewSelect({ kind: "lasso", base: drag.basePattern, path: drag.path });
     } else {
       renderer.previewSelect({ kind: "piece", base: drag.basePattern, piece: moveSelection(drag.selection, drag.lastDx, drag.lastDy) });
     }
@@ -449,7 +474,7 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
   function onPointerDown(e: PointerLike, frame: HTMLElement) {
     if (!pattern) return;
     const { x, y } = clampedCellFromEvent(e, frame, cellSize, pattern.width, pattern.height);
-    if (selection && pointInRect(x, y, selection)) {
+    if (selection && pointInSelection(x, y, selection)) {
       beginDrag(frame, {
         pointerId: e.pointerId,
         mode: "moving",
@@ -468,6 +493,10 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
       workingPattern = mergeSelection(pattern, selection);
       commit(workingPattern);
       setSelection(null);
+    }
+    if (tool === "lasso") {
+      beginDrag(frame, { pointerId: e.pointerId, mode: "lasso", basePattern: workingPattern, path: [{ x, y }] });
+      return;
     }
     beginDrag(frame, {
       pointerId: e.pointerId,
@@ -490,6 +519,11 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
       if (rect.x === drag.rect.x && rect.y === drag.rect.y && rect.width === drag.rect.width && rect.height === drag.rect.height)
         return true;
       drag.rect = rect;
+    } else if (drag.mode === "lasso") {
+      // One point per cell entered: a pointer sitting still must not grow the path without bound.
+      const last = drag.path[drag.path.length - 1];
+      if (last.x === x && last.y === y) return true;
+      drag.path.push({ x, y });
     } else {
       const dx = x - drag.startX;
       const dy = y - drag.startY;
@@ -507,9 +541,7 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
     dragRef.current = null;
     // Repaint now: the new selection may equal the old one, in which case no state change would redraw the view.
     rendererRef.current?.endGesture(true);
-    setSelection(
-      drag.mode === "drawing" ? liftSelection(drag.basePattern, drag.rect) : moveSelection(drag.selection, drag.lastDx, drag.lastDy)
-    );
+    setSelection(nextSelection(drag));
     releaseCapture(frameRef.current, e.pointerId);
     return true;
   }

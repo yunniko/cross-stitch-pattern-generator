@@ -172,6 +172,8 @@ function DeselectIcon() {
 
 export interface SelectionBarProps {
   hasSelection: boolean;
+  /** Which selection tool is in hand: the empty-bar hint tells you how to use *that* one (G-072). */
+  tool: "select" | "lasso";
   hasClipboard: boolean;
   /** The floating piece, for 1b's "12 x 9 at 14, 6" readout; null before one is drawn. */
   selection: { x: number; y: number; width: number; height: number } | null;
@@ -216,6 +218,7 @@ export function SelectionBar({
   onCrop,
   onCancel,
   onDeselect,
+  tool,
 }: SelectionBarProps) {
   const fillTitle = canFill
     ? "Paint the whole selected area in the brush's colour"
@@ -256,7 +259,9 @@ export function SelectionBar({
           {selection.width} × {selection.height} at {selection.x}, {selection.y}
         </span>
       ) : (
-        <span className="text-xs text-muted">Drag a rectangle on the chart to select it.</span>
+        <span className="text-xs text-muted">
+          {tool === "lasso" ? "Draw around the stitches you want." : "Drag a rectangle on the chart to select it."}
+        </span>
       )}
 
       <div className="ml-auto flex items-center gap-1">

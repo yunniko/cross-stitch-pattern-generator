@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
-import { isShapeTool, type Tool, type ViewMode } from "../editor-types";
+import { isSelectTool, isShapeTool, type Tool, type ViewMode } from "../editor-types";
 
 /** Everything the shortcut handlers read or call. Rebuilt every render and read through a ref, so a handler never sees stale state (D103). */
 export interface KeyboardShortcutContext {
@@ -79,12 +79,12 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
       if (e.key === "Escape") {
         // Select drops its piece; a shape tool drops the shape being dragged. Both go through one call, which
         // cancels whichever of the two is live (G-064).
-        if (ctx.activeTool === "select" || isShapeTool(ctx.activeTool)) ctx.cancelSelection();
+        if (isSelectTool(ctx.activeTool) || isShapeTool(ctx.activeTool)) ctx.cancelSelection();
         return;
       }
 
       if (e.key === "Enter") {
-        if (ctx.activeTool === "select") ctx.mergeSelection();
+        if (isSelectTool(ctx.activeTool)) ctx.mergeSelection();
         return;
       }
 
@@ -105,6 +105,7 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
       else if (key === "l") ctx.switchTool("line");
       else if (key === "r") ctx.switchTool("rect");
       else if (key === "o") ctx.switchTool("oval");
+      else if (key === "q") ctx.switchTool("lasso");
       else if (e.key === "1") ctx.setViewMode("color");
       else if (e.key === "2") ctx.setViewMode("bw");
       else if (e.key === "3") ctx.setViewMode("realistic");

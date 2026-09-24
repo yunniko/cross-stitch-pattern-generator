@@ -1,6 +1,6 @@
 import { useState, type DragEvent, type MouseEvent, type PointerEvent, type RefObject } from "react";
 import type { StitchPattern } from "@/lib/types";
-import { isViewOnlyMode, type Tool, type ViewMode } from "../editor-types";
+import { isSelectTool, isViewOnlyMode, type Tool, type ViewMode } from "../editor-types";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import type { SourceImageMeta } from "../hooks/use-source-image";
 import { FirstRun } from "./first-run";
@@ -58,7 +58,7 @@ function cursorFor(activeTool: Tool, activeColorIndex: number | null, viewMode: 
   if (activeTool === "pan") return "cursor-grab active:cursor-grabbing";
   if (activeTool === "zoom") return "cursor-zoom-in";
   if (isViewOnlyMode(viewMode)) return "";
-  return activeTool === "select" || activeTool === "fill" || activeColorIndex !== null ? "cursor-crosshair" : "";
+  return isSelectTool(activeTool) || activeTool === "fill" || activeColorIndex !== null ? "cursor-crosshair" : "";
 }
 
 /**

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import type { CellPoint } from "@/lib/editor/shape-raster";
 import {
   devicePixelAlignment,
   intersectRects,
@@ -54,7 +55,10 @@ export interface ChartRendererInputs {
 }
 
 export type SelectDragFrame =
-  { kind: "rect"; base: StitchPattern; rect: CellRect } | { kind: "piece"; base: StitchPattern; piece: FloatingSelection };
+  | { kind: "rect"; base: StitchPattern; rect: CellRect }
+  | { kind: "piece"; base: StitchPattern; piece: FloatingSelection }
+  /** Lasso (G-072): the path drawn so far, outlined over the chart until the pointer comes up. */
+  | { kind: "lasso"; base: StitchPattern; path: readonly CellPoint[] };
 
 export type ChartRenderer = ReturnType<typeof useChartRenderer>;
 
@@ -478,7 +482,9 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     gestureRef.current =
       frame.kind === "rect"
         ? { kind: "select-rect", base: frame.base, rect: frame.rect }
-        : { kind: "select-piece", base: frame.base, piece: frame.piece };
+        : frame.kind === "lasso"
+          ? { kind: "select-lasso", base: frame.base, path: frame.path }
+          : { kind: "select-piece", base: frame.base, piece: frame.piece };
     const scene = currentScene();
     const canvas = canvasRef.current;
     const ctx = chartContext();
