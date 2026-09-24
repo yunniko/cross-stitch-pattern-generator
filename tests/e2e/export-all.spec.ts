@@ -1,17 +1,7 @@
 import { test, expect } from "@playwright/test";
-import path from "node:path";
+import { generateSmallPattern } from "./helpers/app";
 import JSZip from "jszip";
 import { readFile } from "node:fs/promises";
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
-
-async function generateSmallPattern(page: import("@playwright/test").Page) {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-}
 
 test("Export all downloads a .cspzip with every format, including A4_color/A4_bw subfolders", async ({ page }) => {
   await generateSmallPattern(page);

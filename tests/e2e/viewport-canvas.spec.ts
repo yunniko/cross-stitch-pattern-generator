@@ -1,17 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-import path from "node:path";
+import { generateSmallPattern } from "./helpers/app";
 
 // G-036 M3 (D135): the chart frame is full chart size; one canvas inside it paints only the visible part plus overscan.
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
-
-async function generateSmallPattern(page: Page) {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-frame")).toBeVisible({ timeout: 15_000 });
-}
 
 const frame = (page: Page) => page.getByTestId("chart-frame");
 const scroller = (page: Page) => page.locator("div.overflow-auto").first();

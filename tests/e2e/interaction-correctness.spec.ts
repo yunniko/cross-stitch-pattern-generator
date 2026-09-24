@@ -1,17 +1,7 @@
-import { test, expect, type Page } from "@playwright/test";
-import path from "node:path";
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
+import { test, expect } from "@playwright/test";
+import { generateSmallPattern } from "./helpers/app";
 
 /** G-031 M2 (review B4, B5, B7, B8): keyboard shortcuts read live state, Space never steals a focused control's activation, drags stay cheap on the largest grid. */
-
-async function generateSmallPattern(page: Page) {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-}
 
 /** A synthetic editable-pattern file 1000 stitches wide, opened through the file input so the test doesn't pay for a 1000-stitch generation. */
 function largePatternJson(width: number, height: number, colors: number): string {

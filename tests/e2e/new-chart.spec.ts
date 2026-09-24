@@ -1,5 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
-import path from "node:path";
+import { test, expect } from "@playwright/test";
+import { generateSmallPattern } from "./helpers/app";
 
 /**
  * G-045: New opens the start screen, and choosing a card there replaces the one chart this browser autosaves — so the
@@ -7,16 +7,6 @@ import path from "node:path";
  * addressing the file input directly: that reaching the start screen costs nothing, that Keep editing really keeps,
  * and that Start new chart really discards.
  */
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
-
-async function generateSmallPattern(page: Page) {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-frame")).toBeVisible({ timeout: 30_000 });
-}
 
 test("New opens the start screen without touching the chart, and Back returns to it", async ({ page }) => {
   await generateSmallPattern(page);

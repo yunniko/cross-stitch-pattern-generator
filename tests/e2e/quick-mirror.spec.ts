@@ -1,18 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
+import { generateSmallPattern } from "./helpers/app";
 import { writeFile } from "node:fs/promises";
-import path from "node:path";
 
 // G-037 M3: quick mirror actions, each one undo step, merging a floating selection into that step.
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
-
-async function generateSmallPattern(page: Page) {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-frame")).toBeVisible({ timeout: 15_000 });
-}
 
 /** Every stitch colour from the navigator (one pixel per stitch), row-major. */
 async function stitches(page: Page): Promise<string[]> {

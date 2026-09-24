@@ -1,20 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
-import path from "node:path";
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
+import { generateSmallPattern } from "./helpers/app";
 
 /**
  * G-042 M1: a floating selection can be rotated either way, cropped to, or cancelled. Rotation is only visible from
  * outside through a crop, which makes the chart the piece's rectangle, so the two are asserted together.
  */
-
-async function generateSmallPattern(page: Page) {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-}
 
 /** The Image window header: "W × H, N stitches, K colors". */
 const header = (page: Page) => page.getByText(/^\d+ × \d+, [\d,]+ stitch(es)?, \d+ colors$/);

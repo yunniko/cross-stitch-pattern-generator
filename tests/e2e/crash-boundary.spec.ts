@@ -1,8 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
+import { generateSmallPattern } from "./helpers/app";
 import { readFile } from "node:fs/promises";
-import path from "node:path";
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
 
 /**
  * G-066 M2: an exception is reported, not just announced. Before this, a throw left Next's own "this page couldn't
@@ -13,14 +11,6 @@ const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
  * did. Breaking `fillRect` reproduces the shape of a real failure — a throw from inside the renderer, under a
  * pointer event — which is exactly how D217 presented.
  */
-
-async function generateSmallPattern(page: Page) {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
-}
 
 /** Breaks the chart's drawing, then draws: the next repaint throws from inside the renderer. */
 async function crashTheRenderer(page: Page) {

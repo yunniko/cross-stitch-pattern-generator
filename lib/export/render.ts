@@ -1,3 +1,4 @@
+import { colorAt } from "../color/palette";
 import {
   createCanvas,
   onExportBackendChange,
@@ -177,7 +178,7 @@ export function renderNavigatorPixels(pattern: StitchPattern, emptyCellColor: st
     // white, same as every export path (G-012 M5); the live navigator
     // preview passes the Owner's own view-only "canvas color" (2026-09-12)
     // so it matches the main canvas, never plumbed into any export.
-    const [r, g, b] = paletteIndex === EMPTY_CELL ? emptyRgb : palette[paletteIndex].rgb;
+    const [r, g, b] = paletteIndex === EMPTY_CELL ? emptyRgb : colorAt(palette, paletteIndex).rgb;
     const o = i * 4;
     data[o] = r;
     data[o + 1] = g;
@@ -310,7 +311,7 @@ export function drawChart(
         stamp.drawImage(symbolStamps!.tiles[paletteIndex] as CanvasImageSource, localX - symbolStamps!.pad, localY - symbolStamps!.pad);
       } else if (drawSymbols) {
         ctx.fillStyle = textColors[paletteIndex];
-        ctx.fillText(palette[paletteIndex].symbol, localX + cellSize / 2, localY + cellSize / 2 + 1);
+        ctx.fillText(colorAt(palette, paletteIndex).symbol, localX + cellSize / 2, localY + cellSize / 2 + 1);
       }
     }
   }
@@ -455,7 +456,7 @@ export function drawCell(
     ctx.fillStyle = emptyCellColor;
     ctx.fillRect(px, py, cellSize, cellSize);
   } else {
-    const color = pattern.palette[paletteIndex];
+    const color = colorAt(pattern.palette, paletteIndex);
     ctx.fillStyle = fillForCell(mode, color.rgb);
     ctx.fillRect(px, py, cellSize, cellSize);
     if (cellSize >= LEGIBILITY_FLOOR_PX) {
@@ -585,7 +586,7 @@ export function drawChartOutline(
       for (let x = x0; x < x1; x++) {
         const paletteIndex = cellPalette[y * width + x];
         if (paletteIndex === EMPTY_CELL) continue; // nothing to label -- no palette entry, no stitch
-        const color = palette[paletteIndex];
+        const color = colorAt(palette, paletteIndex);
         const localX = (x - x0) * cellSize + cellSize / 2;
         const localY = (y - y0) * cellSize + cellSize / 2 + 1;
         ctx.strokeText(color.symbol, localX, localY);

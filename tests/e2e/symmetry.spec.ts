@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { generateSmallPattern } from "./helpers/app";
 import JSZip from "jszip";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -6,14 +7,6 @@ import path from "node:path";
 // G-037 M2: symmetry toggles, guide lines, symmetric painting, saving and restoring the toggles (D137, D138).
 
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
-
-async function generateSmallPattern(page: Page) {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-frame")).toBeVisible({ timeout: 15_000 });
-}
 
 /** A square editable JSON file: stripes of three colours, so painted stitches stand out. */
 async function squarePatternFile(

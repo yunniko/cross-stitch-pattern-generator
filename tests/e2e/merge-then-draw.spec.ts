@@ -1,7 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import path from "node:path";
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
+import { generateSmallPattern } from "./helpers/app";
 
 /**
  * D217 (Owner report, 2026-09-23): the brush holding the empty stitch, then a merge, then a press took the whole page
@@ -9,12 +7,9 @@ const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
  * There is no error boundary under the workspace, so the throw ended the session.
  */
 
-async function generateSmallPattern(page: Page) {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+/** The chart, with the Threads pane open: every test here works from the list. */
+async function generateWithThreadsOpen(page: Page) {
+  await generateSmallPattern(page);
   await page.getByRole("tab", { name: "Threads" }).click();
 }
 
@@ -29,7 +24,7 @@ async function mergeFirstThreadAway(page: Page) {
 test("the empty stitch still rubs stitches out after a merge, and the page survives it", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  await generateSmallPattern(page);
+  await generateWithThreadsOpen(page);
 
   await page.getByText("Empty (no stitch)").click();
   await mergeFirstThreadAway(page);
@@ -49,7 +44,7 @@ test("the empty stitch still rubs stitches out after a merge, and the page survi
 test("a thread held across a merge keeps painting, and paints the thread it still names", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  await generateSmallPattern(page);
+  await generateWithThreadsOpen(page);
 
   // Hold the last thread in the list, the one whose index a merge below it shifts.
   const rows = page.getByTestId("legend-color-row");

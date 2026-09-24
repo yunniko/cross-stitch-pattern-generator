@@ -1,15 +1,5 @@
 import { test, expect } from "@playwright/test";
-import path from "node:path";
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
-
-async function generateSmallPattern(page: import("@playwright/test").Page) {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-}
+import { generateSmallPattern } from "./helpers/app";
 
 async function cornerPixel(canvas: import("@playwright/test").Locator) {
   return canvas.evaluate((el: HTMLCanvasElement) => {

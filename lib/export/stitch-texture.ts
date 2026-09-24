@@ -1,3 +1,4 @@
+import { colorAt } from "../color/palette";
 import { luminance } from "../color/color";
 import type { PaletteColor, RGB } from "../types";
 import { createCanvas, loadExportImage, onExportBackendChange, type AnyCanvas } from "./canvas-backend";
@@ -72,7 +73,7 @@ export async function buildTintedTextureSet(palette: readonly PaletteColor[]): P
     get(paletteIndex: number) {
       let tinted = cache.get(paletteIndex);
       if (!tinted) {
-        tinted = tintTexture(image, palette[paletteIndex].rgb);
+        tinted = tintTexture(image, colorAt(palette, paletteIndex).rgb);
         cache.set(paletteIndex, tinted);
       }
       return tinted;
