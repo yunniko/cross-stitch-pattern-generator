@@ -1,31 +1,14 @@
 "use client";
 
 import { type DragEvent, type MouseEvent, type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  colorForButton,
-  foregroundOf,
-  NO_COLORS,
-  paintableIndex,
-  swapped,
-  withActive,
-  withColor,
-  withColorRemoved,
-  type ColorSlots,
-} from "@/lib/editor/color-slots";
 import { ONE_STITCH_STAMP, brushStamp, stampOutline, type StampEdge } from "@/lib/editor/brush-stamp";
 import { setCrashContext } from "@/lib/editor/crash-report";
 import { stampForPress } from "@/lib/editor/shape-raster";
-import { useLatest } from "./hooks/use-latest";
+import { useDrawingColours } from "./hooks/use-drawing-colours";
+import { useSymmetryAxes } from "./hooks/use-symmetry-axes";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
 import { mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from "@/lib/editor/pattern-edit";
-import {
-  applyQuickMirrorWithSelection,
-  effectiveSymmetryAxes,
-  fillSymmetric,
-  NO_SYMMETRY,
-  type QuickMirror,
-  type SymmetryAxes,
-} from "@/lib/editor/symmetry";
+import { applyQuickMirrorWithSelection, fillSymmetric, NO_SYMMETRY, type QuickMirror, type SymmetryAxes } from "@/lib/editor/symmetry";
 import { oxsImportNotice } from "@/lib/editor/oxs";
 import { loadPatternFromFile } from "@/lib/editor/pattern-import";
 import { openPixelArtFile } from "@/lib/editor/pixel-art-file";
@@ -89,11 +72,8 @@ export default function Workspace() {
   const [activeTool, setActiveTool] = useState<Tool>("brush");
   // Two colours since G-064: the squares never move, so the pair is two slots and a flag saying which is in
   // front. `activeColorIndex` stays the name for the foreground, which is what a left press paints with.
-  const [colorSlots, setColorSlots] = useState<ColorSlots>(NO_COLORS);
-  const colorSlotsRef = useLatest(colorSlots);
-  const activeColorIndex = foregroundOf(colorSlots);
-  const setActiveColorIndex = (index: number | null) => setColorSlots((slots) => withColor(slots, "foreground", index));
-  const setBackgroundColorIndex = (index: number | null) => setColorSlots((slots) => withColor(slots, "background", index));
+  const colours = useDrawingColours(pattern?.palette.length ?? 0);
+  const { activeColorIndex, setActiveColorIndex, setBackgroundColorIndex } = colours;
   /**
    * Isolate and the threads lit for it (G-045 M4). Isolate is a way of looking at the chart rather than a tool, so it
    * stays on while you paint, and lighting a thread is independent of choosing one to paint with.
@@ -101,14 +81,8 @@ export default function Workspace() {
   const [isolate, setIsolate] = useState(false);
   const [litColorIndices, setLitColorIndices] = useState<ReadonlySet<number>>(new Set());
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("photo");
-  // Symmetry axes live outside the undo history: a toggle is not an undo step, and undo or redo leaves them as they
-  // are (G-037). Diagonals exist only on a square canvas, so a resize, undo, redo or open that makes the canvas
-  // non-square turns them off for good, adjusted during render like other derived state.
-  const [symmetry, setSymmetry] = useState<SymmetryAxes>(NO_SYMMETRY);
-  if (pattern && pattern.width !== pattern.height && (symmetry.diagonal || symmetry.antidiagonal)) {
-    setSymmetry({ ...symmetry, diagonal: false, antidiagonal: false });
-  }
-  const liveSymmetry = pattern ? effectiveSymmetryAxes(symmetry, pattern.width, pattern.height) : NO_SYMMETRY;
+  const symmetryState = useSymmetryAxes(pattern);
+  const liveSymmetry = symmetryState.live;
   // The empty-grid panel (G-040): a new key on every request remounts it with fresh fields.
   // The rail renders both file inputs; the workspace holds their refs so the first-run cards click the very same
   // elements rather than carrying a second pair (and the specs keep finding them where they always were).
@@ -151,13 +125,7 @@ export default function Workspace() {
   const cellSize = computeCellSize(pattern, panZoom.zoomLevel);
   const toolInputs = { frameRef, rendererRef, pattern, cellSize, commit: history.set };
   const select = useSelectTool(toolInputs);
-  // A gesture asks for its colour when it starts, so the right button paints with the background (G-064). A thread
-  // the palette no longer has counts as nothing held: a press may never write a cell the renderer cannot draw (D217).
-  const paletteLength = pattern?.palette.length ?? 0;
-  const colorForPointer = useCallback(
-    (button: number) => paintableIndex(colorForButton(colorSlotsRef.current, button), paletteLength),
-    [colorSlotsRef, paletteLength]
-  );
+  const colorForPointer = colours.colorForPointer;
   // One press's footprint, rebuilt only when the brush changes rather than on every render (G-064).
   const stamp = useMemo(() => brushStamp(options.brushSize, options.brushShape), [options.brushSize, options.brushShape]);
   const brush = useBrushTool({ ...toolInputs, colorForPointer, stamp, symmetry: liveSymmetry, replaceSince: history.replaceSince });
@@ -227,7 +195,7 @@ export default function Workspace() {
 
   function resetDocumentView() {
     setDocumentId((id) => id + 1);
-    setSymmetry(NO_SYMMETRY);
+    symmetryState.reset();
     setActiveColorIndex(null);
     panZoom.resetZoom();
     setLitColorIndices(new Set());
@@ -239,7 +207,7 @@ export default function Workspace() {
     const withName = { ...loaded, name: loaded.name ?? fallbackName };
     history.reset(withName);
     resetDocumentView();
-    setSymmetry(savedSymmetry);
+    symmetryState.reset(savedSymmetry);
     setInspectorTab("threads");
     setStartingNew(false);
     await source.adoptPatternPhoto(withName, fallbackName);
@@ -266,7 +234,7 @@ export default function Workspace() {
       // The first generate is the undo baseline; a regenerate is an ordinary undoable step (G-012).
       if (isFirst) {
         // A first Generate starts a new document with every symmetry toggle off (G-037).
-        setSymmetry(NO_SYMMETRY);
+        symmetryState.reset();
         history.reset(next);
       } else history.set(next);
     },
@@ -349,7 +317,7 @@ export default function Workspace() {
       setActiveTool,
       setViewMode,
       mergeSelection: select.merge,
-      swapColors: () => setColorSlots(swapped),
+      swapColors: colours.swap,
       // Escape drops a shape being dragged before it reaches a selection, since only one of the two can be live.
       cancelSelection: () => {
         if (!shape.cancel()) select.cancel();
@@ -416,7 +384,7 @@ export default function Workspace() {
     select.invalidateClipboard();
     // A merge renumbers the palette, so a square holding an index above the merged one would otherwise be
     // pointing at a different thread than the reader picked.
-    setColorSlots((slots) => withColorRemoved(slots, sourceIndex));
+    colours.forgetColor(sourceIndex);
     // A merge renumbers palette indices, so lit indices could now point at other colors.
     if (litColorIndices.size > 0) setLitColorIndices(new Set());
   }
@@ -603,10 +571,10 @@ export default function Workspace() {
             litCount={litColorIndices.size}
             symmetry={liveSymmetry}
             squareCanvas={pattern !== null && pattern.width === pattern.height}
-            onToggleSymmetry={(axis) => setSymmetry((current) => ({ ...current, [axis]: !current[axis] }))}
-            colorSlots={colorSlots}
-            onActivateColorSlot={(slot) => setColorSlots((slots) => withActive(slots, slot))}
-            onSwapColors={() => setColorSlots(swapped)}
+            onToggleSymmetry={symmetryState.toggle}
+            colorSlots={colours.slots}
+            onActivateColorSlot={colours.setActiveSlot}
+            onSwapColors={colours.swap}
             brushSize={options.brushSize}
             brushShape={options.brushShape}
             onBrushSizeChange={(size) => updateOption("brushSize", size)}
