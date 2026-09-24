@@ -29,7 +29,10 @@ const eslintConfig = defineConfig([
         {
           paths: [
             { name: "react", message: "lib/ stays framework-free: put the hook in app/hooks/ and keep the logic here as a pure module." },
-            { name: "react-dom", message: "lib/ stays framework-free: put the hook in app/hooks/ and keep the logic here as a pure module." },
+            {
+              name: "react-dom",
+              message: "lib/ stays framework-free: put the hook in app/hooks/ and keep the logic here as a pure module.",
+            },
           ],
         },
       ],
