@@ -13,7 +13,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
-export, byte-identical to TypeScript at any thread count, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-comparison-report.md`); `CS_JOB=0` returns to TypeScript without a rebuild.
+export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-comparison-report.md`). Since G-068 M2 it is the only engine: nothing falls back to TypeScript, and the recorded golden hashes are checked against the binary by `npm run test:goldens:rust` (D221).
 
 **What works** (verified in this session unless marked otherwise):
 - Generation from a photo at 10–1500 stitches (D181) and 2–100 colors, with Refined or Classic clustering (stored as
@@ -124,7 +124,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - **Experimental** (`lib/experimental/`): contour refinement, boundary chains, simulated annealing, diagnostics (status table in its README).
 - **Rust in the processor (G-048)**: `processor/rust-jobs.ts` spawns `cs-job` per job — pixels or the editable save
   in, the file out, progress as JSON lines on stderr — and returns null on any failure, falling back to TypeScript
-  (D193). The image builds it in its own `rust` stage; `CS_JOB=0` or a missing binary disables it.
+  (D193). The image builds it in its own `rust` stage; a missing binary fails the job rather than disabling it.
 - **Rust port (G-048)**: `rust/cs-core` ports the pipeline module by module, each file naming the TypeScript it ports:
   `crisp/` holds Crisp and Crisp+, `threads.rs` brand matching, `enhance.rs` enhancement, `dither.rs` G-052's patterns,
   `jsmath.rs` and `fdlibm.rs` the V8-exact maths (D183, D184) pinned by `rust/cs-core/tests/jsmath_vectors.rs`.

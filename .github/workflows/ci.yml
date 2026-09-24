@@ -30,19 +30,9 @@ jobs:
       - run: npm run build:processor
       - run: npm run test:unit
 
-      - run: npx playwright install --with-deps chromium
-      # CI=true makes playwright.config.ts build and start fresh servers (D102). Since G-034 M5 that is both the
-      # processor and the app, because generation, the preview and the exports all run on the processor.
-      - run: npm run test:e2e
-
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report
-          path: |
-            playwright-report
-            test-results
-          retention-days: 7
+      # No e2e here since G-068 M2: generation and exports need the Rust sidecar, so the whole suite runs in the
+      # `rust` job below, which has the binary. Running it twice against two engines was the point before; there is
+      # only one engine now.
 
   # The engine production actually runs. The job above exercises the TypeScript pipeline; every generation and
   # every server export on the live site goes through the Rust sidecar instead (D190, D193), so until this job
@@ -91,12 +81,11 @@ jobs:
       - run: npm run build:processor
       - run: npx playwright install --with-deps chromium
 
-      # The whole suite again, against the sidecar. CS_JOB_REQUIRED makes a missing or crashing binary fail the run
-      # instead of falling back to TypeScript, which would quietly turn this job back into a copy of `check`.
+      # The e2e suite, against the only engine there is. A missing or failing binary now fails the job on its own,
+      # without a flag to ask for it (G-068 M2).
       - run: npm run test:e2e
         env:
           CS_JOB_BINARY: ${{ github.workspace }}/rust/target/release/cs-job
-          CS_JOB_REQUIRED: "1"
 
       - uses: actions/upload-artifact@v4
         if: failure()

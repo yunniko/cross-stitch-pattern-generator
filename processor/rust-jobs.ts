@@ -9,12 +9,15 @@ import type { StitchPattern } from "@/lib/types";
 import type { ExportJobPayload, WorkerJob } from "./job-protocol";
 
 /**
- * The Rust sidecar (G-048 M6, D190, D193): generation and exports run in `cs-job`, one process per job, spoken to over
- * pipes. TypeScript stays the fallback — anything that goes wrong here returns null and the worker runs its own code
- * path, so a missing, stale or crashing binary costs speed, never a job.
+ * The Rust sidecar (G-048 M6, D190, D193): generation and exports run in `cs-job`, one process per job, spoken to
+ * over pipes.
  *
- * The binary is `/app/bin/cs-job` in the processor image; `CS_JOB_BINARY` overrides it and `CS_JOB=0` turns the
- * sidecar off entirely (the switch to fall back to TypeScript in production without a rebuild).
+ * Since G-068 M2 there is nothing behind it. The TypeScript pipeline was the specification the port was written
+ * against, not a second engine worth shipping, and keeping it as a fallback meant every feature had to be written
+ * twice to stay byte-identical (D221). A missing or failing binary is now an error the caller sees, not a quiet
+ * switch to slower code that might not agree.
+ *
+ * The binary is `/app/bin/cs-job` in the processor image; `CS_JOB_BINARY` overrides it, for a build tree.
  */
 
 /** Read per call, not at import: a worker is spawned before its environment is anyone's to inspect, and the specs
@@ -23,18 +26,11 @@ function binary(): string {
   return process.env.CS_JOB_BINARY ?? path.join(path.dirname(process.argv[1] ?? "."), "..", "bin", "cs-job");
 }
 
-/**
- * Off when the switch says so, or when there is no binary to run.
- *
- * `CS_JOB_REQUIRED=1` turns the fallback off: a run that meant to exercise the sidecar and quietly got TypeScript
- * instead proves nothing about the sidecar, and a mistyped path would have passed silently. CI sets it, so the suite
- * that guards the production engine fails loudly when it is not the engine under test (G-067 M1).
- */
-export function rustJobsAvailable(): boolean {
-  if (process.env.CS_JOB === "0") return false;
-  if (existsSync(binary())) return true;
-  if (process.env.CS_JOB_REQUIRED === "1") throw new Error(`CS_JOB_REQUIRED=1, but there is no cs-job binary at ${binary()}`);
-  return false;
+/** Throws unless the sidecar is there to run: there is no second engine to fall back to (G-068 M2). */
+export function requireRustJobs(): void {
+  if (!existsSync(binary())) {
+    throw new Error(`no cs-job binary at ${binary()} — generation and exports cannot run without the sidecar`);
+  }
 }
 
 interface Run {
@@ -91,21 +87,17 @@ function run(args: string[], input: Buffer | string, notes: Notes = {}): Promise
   });
 }
 
-function logFallback(what: string, error: string | undefined): null {
-  const why = error ?? "unknown error";
-  // Same reasoning as `rustJobsAvailable`: under CS_JOB_REQUIRED a sidecar that fell over is a failure to report,
-  // not a slower path to take quietly.
-  if (process.env.CS_JOB_REQUIRED === "1") throw new Error(`CS_JOB_REQUIRED=1, but rust ${what} failed: ${why}`);
-  console.warn(`rust ${what} unavailable, falling back to TypeScript: ${why}`);
-  return null;
+/** A job the sidecar could not finish. There is nowhere else for it to go, so it is reported as what it is. */
+function failed(what: string, error: string | undefined): never {
+  throw new Error(`rust ${what} failed: ${error ?? "unknown error"}`);
 }
 
 /** `buildPattern` in Rust, or null to fall back. The options are `parse_options`'s, matching `BuildPatternOptions`. */
 export async function generateWithRust(
   job: Extract<WorkerJob, { kind: "generate" }>,
   onProgress: (fraction: number) => void
-): Promise<StitchPattern | null> {
-  if (!rustJobsAvailable()) return null;
+): Promise<StitchPattern> {
+  requireRustJobs();
   const { imageData, settings } = job;
   const options = JSON.stringify({
     longerSideStitches: settings.longerSideStitches,
@@ -120,12 +112,12 @@ export async function generateWithRust(
   });
   const pixels = Buffer.from(imageData.data.buffer, imageData.data.byteOffset, imageData.data.byteLength);
   const result = await run(["generate", String(imageData.width), String(imageData.height), options], pixels, { progress: onProgress });
-  if (!result.stdout) return logFallback("generation", result.error);
+  if (!result.stdout) failed("generation", result.error);
   try {
     // Through the same parser a saved file goes through, so a malformed pattern is caught here rather than downstream.
     return deserializePatternData({ ...(JSON.parse(result.stdout.toString("utf8")) as object), formatVersion: 7 });
   } catch (err) {
-    return logFallback("generation", err instanceof Error ? err.message : "unreadable pattern");
+    failed("generation", err instanceof Error ? err.message : "unreadable pattern");
   }
 }
 
@@ -154,8 +146,8 @@ export async function exportWithRust(
   payload: ExportJobPayload,
   symmetry: SymmetryAxes,
   onProgress: (progress: ExportProgress) => void
-): Promise<RustExportResult | null> {
-  if (!rustJobsAvailable()) return null;
+): Promise<RustExportResult> {
+  requireRustJobs();
   const request = JSON.stringify({
     kind: payload.kind,
     baseName: payload.baseName,
@@ -165,6 +157,6 @@ export async function exportWithRust(
     overlapCells: payload.overlapCells,
   });
   const result = await run(["export", request], serializePattern(payload.pattern, symmetry), { exportProgress: onProgress });
-  if (!result.stdout || !result.filename) return logFallback(`export ${payload.kind}`, result.error ?? "no filename");
+  if (!result.stdout || !result.filename) failed(`export ${payload.kind}`, result.error ?? "no filename");
   return { bytes: new Uint8Array(result.stdout), filename: result.filename, contentType: CONTENT_TYPES[payload.kind] };
 }

@@ -37,7 +37,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 **Milestones**:
 - [x] M1 — **Move the regression floor to Rust** (criterion 1): goldens from `cs-bench`, proved by deliberate
   breakage, before a line of TypeScript is deleted.
-- [ ] M2 — **Stop shipping the fallback** (criterion 2): the processor always uses the sidecar, `CS_JOB=0` retired,
+- [x] M2 — **Stop shipping the fallback** (criterion 2): the processor always uses the sidecar, `CS_JOB=0` retired,
   Dockerfile, HANDOVER and `COMPANY/INFRASTRUCTURE_DEPLOY.md` updated, and a decision file reversing D190/D193's
   "TypeScript stays the fallback".
 - [ ] M3 — **Delete the duplication** (criteria 3 and 4), module by module, suites green at each step.
@@ -45,6 +45,15 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M5 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — **M2 done.** The processor runs `cs-job` and nothing else (D221). `rustJobsAvailable` became
+  `requireRustJobs`, the silent `logFallback` became a thrown error, and `pool-worker.ts` lost both TypeScript
+  branches — removing the `if (rust)` guards alone would have left the old code running *after* the Rust result
+  was posted, so the bodies went too. `CS_JOB=0` and `CS_JOB_REQUIRED` are gone: with one engine there is
+  nothing to switch between and nothing to demand. CI changed with it — the `check` job no longer runs e2e,
+  because without a binary there is no engine to generate with; the whole suite runs in the `rust` job.
+  Verified: 380 e2e against the sidecar, 1315 unit tests, and the negative case — pointed at a binary that does
+  not exist, the app says "Couldn't generate a pattern from that image" instead of quietly generating in
+  TypeScript. Dockerfile, README and HANDOVER no longer promise a fallback. M3 next: delete the duplication.
 - 2026-09-24 — **M1 done.** The recorded golden hashes now stand on Rust alone: `scripts/rust-goldens.ts` runs
   all 37 cases through `cs-bench` and asserts the bytes D107 recorded, with no TypeScript in the loop.
   `compare:rust` only ever asserted the *TypeScript* hash against the record — Rust matched it transitively,

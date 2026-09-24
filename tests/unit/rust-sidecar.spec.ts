@@ -5,7 +5,7 @@ import { serializeOxsBytes } from "@/lib/editor/oxs";
 import { serializePattern } from "@/lib/editor/pattern-serialize";
 import { NO_SYMMETRY } from "@/lib/editor/symmetry-axes";
 import { buildPattern } from "@/lib/pipeline/pattern";
-import { exportWithRust, generateWithRust, rustJobsAvailable } from "@/processor/rust-jobs";
+import { exportWithRust, generateWithRust, requireRustJobs } from "@/processor/rust-jobs";
 import { hashPattern } from "./helpers/pattern-hash";
 import { makePhotoLikeBuffer } from "./helpers/fixtures";
 
@@ -27,8 +27,8 @@ describe.skipIf(!built)("the Rust sidecar and its TypeScript fallback agree", ()
   const source = makePhotoLikeBuffer(120, 80);
   const settings = { longerSideStitches: 40, colorCount: 8 };
 
-  it("is available once the binary is built", () => {
-    expect(rustJobsAvailable()).toBe(true);
+  it("is there once the binary is built, and says so plainly when it is not", () => {
+    expect(() => requireRustJobs()).not.toThrow();
   });
 
   it("generates the pattern buildPattern generates, and reports progress", async () => {

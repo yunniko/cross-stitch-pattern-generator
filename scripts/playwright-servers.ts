@@ -48,9 +48,6 @@ export function appWithProcessor({
       env: {
         PROCESSOR_PORT: String(processorPort),
         ...(process.env.CS_JOB_BINARY ? { CS_JOB_BINARY: process.env.CS_JOB_BINARY } : {}),
-        ...(process.env.CS_JOB ? { CS_JOB: process.env.CS_JOB } : {}),
-        // Refuses to fall back to TypeScript, so a run meant to test the sidecar cannot pass without it (G-067 M1).
-        ...(process.env.CS_JOB_REQUIRED ? { CS_JOB_REQUIRED: process.env.CS_JOB_REQUIRED } : {}),
       },
       url: `http://127.0.0.1:${processorPort}/health`,
       reuseExistingServer,

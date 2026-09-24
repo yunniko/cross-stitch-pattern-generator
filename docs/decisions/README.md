@@ -220,6 +220,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D218 — A crash hands over a report, and the test breaks the browser rather than the app — active
 - D219 — The chart rasteriser stays one module; only its words move out — active
 - D220 — Latest-value refs update before paint, not after — active
+- D221 — The sidecar is the only engine; the TypeScript pipeline stops shipping — active
 
 ## Files, formats and storage
 

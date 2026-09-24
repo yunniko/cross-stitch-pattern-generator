@@ -51,7 +51,8 @@ COPY --from=build /app/dist/processor ./processor
 # @napi-rs/canvas is a native addon (D150), so it is installed rather than bundled. The musl builds come
 # from the same alpine `deps` stage, so the binary matches this image's libc.
 COPY --from=deps /app/node_modules/@napi-rs ./node_modules/@napi-rs
-# Generation and exports run here (D190); the TypeScript beside it stays the fallback, and CS_JOB=0 turns it off.
+# Generation and every server export run here, and only here (D190, D221). There is no fallback behind it: a
+# missing binary means the processor cannot do its job, and says so.
 COPY --from=rust /src/rust/target/release/cs-job ./bin/cs-job
 # The export font and the stitch texture come with the bundle: `npm run build:processor` copies them into
 # `dist/processor/assets`, so the same layout works here and wherever else the bundle runs (D153).

@@ -122,7 +122,7 @@ npm run bench:browser  # photo load, generation and every export in a real brows
 ```
 
 The Rust port of the pipeline (G-048) lives in `rust/`. In production the processor runs each job in the `cs-job`
-binary, built into its image (`CS_JOB=0` turns it off and falls back to the TypeScript). Working on it needs a Rust
+binary, built into its image, and there is no fallback behind it (D221). Working on it needs a Rust
 toolchain:
 
 ```
