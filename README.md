@@ -60,8 +60,8 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   four built-in ones with a share of its own, and what you leave unpainted
   fills after it rather than leaving holes, so a sketch is a shape. A grid
   wider than the mark spacing says so instead of cropping quietly.
-- **Edit** with brush, fill, line, rectangle, oval, rectangle select (copy, paste, move, flip, rotate,
-  crop the chart to the selection, apply the piece where it sits, or discard it),
+- **Edit** with brush, fill, line, rectangle, oval, lasso fill, rectangle select and lasso select (copy,
+  paste, move, flip, rotate, crop the chart to the selection, apply the piece where it sits, or discard it),
   move, pan and zoom tools. Isolate dims every thread but the ones you light, and
   stays on while you paint. Merge, recolor, rename and re-symbol colors,
   mark stitches as empty, resize the canvas, undo and redo. The color editor
@@ -78,6 +78,14 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   each one undo step, each following the pointer until you let go and dropped entirely by `Escape`. An outline is
   as thick as the brush; a filled rectangle or oval is exactly the shape, whatever the brush size. Nothing is
   smoothed: every stitch a tool touches holds the thread you chose, never a blend.
+- **Draw round something instead of over it**: Lasso (`Q`) takes the stitches inside a shape you draw freehand,
+  and the piece it hands you copies, moves, flips and rotates like any other — a rectangle selection is still a
+  rectangle, this is the one for a face, a leaf or a patch of sky. Lasso fill (`G`) draws the same way but
+  paints what it encloses when you let go, in one undo step, with symmetry mirroring every filled stitch.
+  Both round off the wobble of a hand-drawn line and close the loop for you, so the gap between where you
+  finished and where you started becomes a curve rather than a straight cut across your shape. A path drawn as
+  a few deliberate corners is left exactly where you put it. Crossing your own line carves a hole rather than
+  swallowing it, so a figure-of-eight gives you two lobes.
 - **Draw symmetrically**: toggle vertical, horizontal and diagonal symmetry (diagonals on
   square canvases) and every brush stroke and fill lands on each mirrored stitch, with
   red guide lines on the chart. Quick mirror copies the left half, upper half, upper-left
