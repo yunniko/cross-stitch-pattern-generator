@@ -28,6 +28,10 @@ jobs:
       # The processor's worker bundle is git-ignored, and the unit suite runs the pool and preview specs against it
       # (G-034 M2, M3), so it must be built before the tests rather than assumed present.
       - run: npm run build:processor
+
+      # The processor's own job path, which needs both the sidecar binary and the worker bundle the step above
+      # produces -- on its first attempt it ran before that bundle existed.
+      - run: npm run test:processor:rust
       - run: npm run test:unit
 
       # No e2e here since G-068 M2: generation and exports need the Rust sidecar, so the whole suite runs in the
@@ -70,9 +74,6 @@ jobs:
       # The regression floor, asserted against Rust with no TypeScript in the loop: the binary production runs must
       # still produce the bytes D107 recorded. This is what survives the TypeScript pipeline being deleted (G-068).
       - run: npm run test:goldens:rust
-
-      # The processor's own job path, which needs the binary the same way production does.
-      - run: npm run test:processor:rust
 
       # The gate while both implementations exist: every case built by both must hash identically. Timings do not
       # matter here, so one repeat rather than three.
