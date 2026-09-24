@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { isShapeTool, type Tool, type ViewMode } from "../editor-types";
 
 /** Everything the shortcut handlers read or call. Rebuilt every render and read through a ref, so a handler never sees stale state (D103). */
@@ -43,7 +43,9 @@ function isTypingTarget(target: EventTarget | null): boolean {
  */
 export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerRef: RefObject<HTMLElement | null>): void {
   const contextRef = useRef(context);
-  useEffect(() => {
+  // Before paint, not after: a key pressed the moment a chart appears must be read against the render that put
+  // it there. A passive effect here dropped that keystroke, because the handler still saw `hasPattern: false`.
+  useLayoutEffect(() => {
     contextRef.current = context;
   });
 
