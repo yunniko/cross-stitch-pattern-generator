@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-24 at 727398b (G-067 M1-M6: the review's findings closed; not deployed, nothing user-facing changed)
+Last verified: 2026-09-24 at 509e74c (G-068 M1-M4: Rust is the only pipeline and the regression floor is rebuilt on it; **not deployed** — production still runs 42b4397)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
