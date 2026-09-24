@@ -28,10 +28,6 @@ jobs:
       # The processor's worker bundle is git-ignored, and the unit suite runs the pool and preview specs against it
       # (G-034 M2, M3), so it must be built before the tests rather than assumed present.
       - run: npm run build:processor
-
-      # The processor's own job path, which needs both the sidecar binary and the worker bundle the step above
-      # produces -- on its first attempt it ran before that bundle existed.
-      - run: npm run test:processor:rust
       - run: npm run test:unit
 
       # No e2e here since G-068 M2: generation and exports need the Rust sidecar, so the whole suite runs in the
@@ -83,6 +79,10 @@ jobs:
 
       - run: npx next typegen
       - run: npm run build:processor
+
+      # The processor's own job path. It needs the sidecar binary and the worker bundle built just above, and
+      # belongs to this job rather than `check`, which has neither.
+      - run: npm run test:processor:rust
       - run: npx playwright install --with-deps chromium
 
       # The e2e suite, against the only engine there is. A missing or failing binary now fails the job on its own,
