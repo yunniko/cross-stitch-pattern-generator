@@ -60,8 +60,7 @@ describe("reserving a thread for a hue the photo has", () => {
 
     // Plain finds a red-ish thread here — the average of the red lines and the brown they sit on. What changes is
     // how red it is: the reserved thread is seeded from the reddest cell rather than the average of a mixture.
-    const reddest = (rgbs: RGB[]) =>
-      Math.max(0, ...rgbs.filter((rgb) => hueOf(rgb) < 40 || hueOf(rgb) >= 330).map(chromaOf));
+    const reddest = (rgbs: RGB[]) => Math.max(0, ...rgbs.filter((rgb) => hueOf(rgb) < 40 || hueOf(rgb) >= 330).map(chromaOf));
     const plainRed = reddest(plain.palette.map((c) => c.rgb));
     const vividRed = reddest(vivid.palette.map((c) => c.rgb));
     expect(vividRed).toBeGreaterThan(1.5 * plainRed);

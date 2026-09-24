@@ -33,7 +33,9 @@ describe.skipIf(!built)("the Rust sidecar and its TypeScript fallback agree", ()
 
   it("generates the pattern buildPattern generates, and reports progress", async () => {
     const fractions: number[] = [];
-    const pattern = await generateWithRust({ kind: "generate", jobId: "test", settings, imageData: source }, (fraction) => fractions.push(fraction));
+    const pattern = await generateWithRust({ kind: "generate", jobId: "test", settings, imageData: source }, (fraction) =>
+      fractions.push(fraction)
+    );
     expect(pattern).not.toBeNull();
     expect(hashPattern(pattern!)).toBe(hashPattern(buildPattern(source, settings)));
     expect(fractions).toEqual([0.1, 0.4, 0.8, 1]);
@@ -41,7 +43,15 @@ describe.skipIf(!built)("the Rust sidecar and its TypeScript fallback agree", ()
 
   it("exports the OXS runExportJob exports, byte for byte", async () => {
     const pattern = buildPattern(source, settings);
-    const payload = { kind: "oxs" as const, pattern, baseName: "chart", aidaCount: 14, sizeUnit: "cm" as const, authorName: "Ann", overlapCells: 5 as const };
+    const payload = {
+      kind: "oxs" as const,
+      pattern,
+      baseName: "chart",
+      aidaCount: 14,
+      sizeUnit: "cm" as const,
+      authorName: "Ann",
+      overlapCells: 5 as const,
+    };
     const result = await exportWithRust(payload, NO_SYMMETRY, () => {});
     expect(result).not.toBeNull();
     expect(result!.filename).toBe("chart.oxs");
@@ -51,7 +61,15 @@ describe.skipIf(!built)("the Rust sidecar and its TypeScript fallback agree", ()
 
   it("exports the editable save the serializer writes, byte for byte", async () => {
     const pattern = buildPattern(source, settings);
-    const payload = { kind: "editable" as const, pattern, baseName: "chart", aidaCount: 14, sizeUnit: "cm" as const, authorName: "", overlapCells: 5 as const };
+    const payload = {
+      kind: "editable" as const,
+      pattern,
+      baseName: "chart",
+      aidaCount: 14,
+      sizeUnit: "cm" as const,
+      authorName: "",
+      overlapCells: 5 as const,
+    };
     const result = await exportWithRust(payload, NO_SYMMETRY, () => {});
     expect(result!.filename).toBe("chart_editable.json");
     expect(Buffer.from(result!.bytes).toString("utf8")).toBe(serializePattern(pattern, NO_SYMMETRY));
@@ -60,7 +78,15 @@ describe.skipIf(!built)("the Rust sidecar and its TypeScript fallback agree", ()
   it("falls back rather than throwing when the binary is wrong", async () => {
     const good = process.env.CS_JOB_BINARY;
     process.env.CS_JOB_BINARY = BINARY;
-    const payload = { kind: "oxs" as const, pattern: buildPattern(source, settings), baseName: "chart", aidaCount: Number.NaN, sizeUnit: "cm" as const, authorName: "", overlapCells: 5 as const };
+    const payload = {
+      kind: "oxs" as const,
+      pattern: buildPattern(source, settings),
+      baseName: "chart",
+      aidaCount: Number.NaN,
+      sizeUnit: "cm" as const,
+      authorName: "",
+      overlapCells: 5 as const,
+    };
     // A NaN aida count is rejected by the request parser inside the sidecar, which must surface as a fallback.
     await expect(exportWithRust(payload, NO_SYMMETRY, () => {})).resolves.toBeDefined();
     process.env.CS_JOB_BINARY = good;

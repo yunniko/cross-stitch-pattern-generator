@@ -24,10 +24,20 @@ describe("the symmetric medoid denoise", () => {
   it("equals the 81-distance denoise exactly", () => {
     const rng = mulberry32(178);
     let cases = 0;
-    for (const [width, height] of [[1, 1], [2, 1], [3, 3], [17, 11], [80, 60]] as const) {
+    for (const [width, height] of [
+      [1, 1],
+      [2, 1],
+      [3, 3],
+      [17, 11],
+      [80, 60],
+    ] as const) {
       for (const levels of [2, 3, 8, 256]) {
         const cells = randomCells(width, height, rng, levels);
-        for (const importance of [new Float32Array(width * height), new Float32Array(width * height).map(() => rng()), new Float32Array(width * height).fill(0.5)]) {
+        for (const importance of [
+          new Float32Array(width * height),
+          new Float32Array(width * height).map(() => rng()),
+          new Float32Array(width * height).fill(0.5),
+        ]) {
           const ctx = createPipelineContext(cells, { importance });
           expect(denoiseForQuantization(ctx), `${width}x${height}, ${levels} levels`).toStrictEqual(denoiseForQuantizationPreG047(ctx));
           cases++;

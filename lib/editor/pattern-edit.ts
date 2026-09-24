@@ -2,7 +2,16 @@ import { nameNewColor } from "../color/color-names";
 import { floodFillDiagonal, labelRegions } from "../pipeline/regions";
 import { SYMBOL_SET } from "../color/symbols";
 import { formatThreadName, THREAD_BRANDS, type ThreadBrand } from "../threads/thread-brands";
-import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type CellRect, type FloatingSelection, type PaletteColor, type RGB, type StitchPattern } from "../types";
+import {
+  EMPTY_CELL,
+  MAX_COLORS,
+  MAX_STITCHES,
+  type CellRect,
+  type FloatingSelection,
+  type PaletteColor,
+  type RGB,
+  type StitchPattern,
+} from "../types";
 
 // `EMPTY_CELL` (255) is never counted against any real palette color and
 // must never be run through a palette-index remap (an out-of-bounds typed-
@@ -119,7 +128,7 @@ export function shiftPattern(pattern: StitchPattern, dx: number, dy: number): St
   const shifted = new Uint8Array(cellPalette.length);
   // Two whole-row copies per row rather than a modulo per cell: the tail of the source row wraps to the front
   // (G-039 M2, same bytes as the per-cell form).
-  const offsetX = (((dx % width) + width) % width);
+  const offsetX = ((dx % width) + width) % width;
   for (let y = 0; y < height; y++) {
     const srcY = ((((y - dy) % height) + height) % height) * width;
     const destY = y * width;
@@ -155,7 +164,9 @@ export function resizeCanvas(pattern: StitchPattern, delta: CanvasResizeDelta): 
     throw new Error("Can't crop away the entire pattern.");
   }
   if (newWidth > MAX_STITCHES || newHeight > MAX_STITCHES) {
-    throw new Error(`The resized pattern (${newWidth}×${newHeight}) would exceed the maximum supported size of ${MAX_STITCHES} stitches per side.`);
+    throw new Error(
+      `The resized pattern (${newWidth}×${newHeight}) would exceed the maximum supported size of ${MAX_STITCHES} stitches per side.`
+    );
   }
 
   const cellPalette = new Uint8Array(newWidth * newHeight);
@@ -189,7 +200,11 @@ function assertBrandAllowed(pattern: StitchPattern, brand: ThreadBrand | null): 
   const locked = pattern.threadBrand;
   if (!locked || brand === locked) return;
   const lockedLabel = THREAD_BRANDS[locked].label;
-  throw new Error(brand ? `This pattern uses only ${lockedLabel} threads, so a ${THREAD_BRANDS[brand].label} thread can't be used.` : `This pattern uses only ${lockedLabel} threads, so a custom color can't be used.`);
+  throw new Error(
+    brand
+      ? `This pattern uses only ${lockedLabel} threads, so a ${THREAD_BRANDS[brand].label} thread can't be used.`
+      : `This pattern uses only ${lockedLabel} threads, so a custom color can't be used.`
+  );
 }
 
 /** The palette entry without its thread identity: a manual RGB makes it a custom color. */
@@ -213,7 +228,11 @@ export function editColorRgb(pattern: StitchPattern, paletteIndex: number, rgb: 
  * Puts back a color's RGB, name and thread identity exactly as captured earlier -- the color editor's Cancel (G-033).
  * The snapshot's `source` object is reused as is, since sources are never mutated.
  */
-export function restoreColor(pattern: StitchPattern, paletteIndex: number, snapshot: Pick<PaletteColor, "rgb" | "name" | "source">): StitchPattern {
+export function restoreColor(
+  pattern: StitchPattern,
+  paletteIndex: number,
+  snapshot: Pick<PaletteColor, "rgb" | "name" | "source">
+): StitchPattern {
   assertBrandAllowed(pattern, snapshot.source?.brand ?? null);
   const palette = pattern.palette.map((color, i) => {
     if (i !== paletteIndex) return color;
@@ -262,7 +281,10 @@ export function addColor(pattern: StitchPattern, rgb: RGB): StitchPattern {
   const symbol = SYMBOL_SET.find((s) => !usedSymbols.has(s));
   if (!symbol) throw new Error("No unused symbol available.");
 
-  const name = nameNewColor(rgb, pattern.palette.map((c) => c.name));
+  const name = nameNewColor(
+    rgb,
+    pattern.palette.map((c) => c.name)
+  );
   const newColor: PaletteColor = { index: pattern.palette.length, rgb, symbol, name, count: 0 };
 
   return { ...pattern, palette: [...pattern.palette, newColor] };
@@ -455,11 +477,21 @@ function rotateCells(cells: Uint8Array, width: number, height: number, clockwise
 }
 
 export function rotateSelectionClockwise(selection: FloatingSelection): FloatingSelection {
-  return { ...selection, width: selection.height, height: selection.width, cells: rotateCells(selection.cells, selection.width, selection.height, true) };
+  return {
+    ...selection,
+    width: selection.height,
+    height: selection.width,
+    cells: rotateCells(selection.cells, selection.width, selection.height, true),
+  };
 }
 
 export function rotateSelectionAnticlockwise(selection: FloatingSelection): FloatingSelection {
-  return { ...selection, width: selection.height, height: selection.width, cells: rotateCells(selection.cells, selection.width, selection.height, false) };
+  return {
+    ...selection,
+    width: selection.height,
+    height: selection.width,
+    cells: rotateCells(selection.cells, selection.width, selection.height, false),
+  };
 }
 
 /**
@@ -469,7 +501,11 @@ export function rotateSelectionAnticlockwise(selection: FloatingSelection): Floa
  */
 export function cropToSelection(pattern: StitchPattern, selection: FloatingSelection): StitchPattern {
   const merged = mergeSelection(pattern, selection);
-  const rect = clampRectToBounds({ x: selection.x, y: selection.y, width: selection.width, height: selection.height }, merged.width, merged.height);
+  const rect = clampRectToBounds(
+    { x: selection.x, y: selection.y, width: selection.width, height: selection.height },
+    merged.width,
+    merged.height
+  );
   if (rect.width < 1 || rect.height < 1) throw new Error("Can't crop away the entire pattern.");
   return resizeCanvas(merged, {
     left: -rect.x,

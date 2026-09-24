@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_BOUNDARY_EVIDENCE_OPTIONS, extractBoundaryEvidence, SourceOklabRows, type BoundaryEvidenceOptions } from "@/lib/crisp/crisp-edge-evidence";
+import {
+  DEFAULT_BOUNDARY_EVIDENCE_OPTIONS,
+  extractBoundaryEvidence,
+  SourceOklabRows,
+  type BoundaryEvidenceOptions,
+} from "@/lib/crisp/crisp-edge-evidence";
 import { allCellIndices, buildCrispEvidenceLayer, DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS } from "@/lib/crisp/crisp-evidence-layer";
 import { mulberry32 } from "@/lib/prng";
 import type { PixelBuffer } from "@/lib/types";
@@ -23,9 +28,17 @@ const photo = makePhotoLikeBuffer(240, 160);
 const SOURCES: Array<{ name: string; source: PixelBuffer; grid: [number, number] }> = [
   { name: "photo-like, 6 px per cell", source: photo, grid: [40, 27] },
   { name: "photo-like, fractional scale", source: makePhotoLikeBuffer(97, 61), grid: [23, 17] },
-  { name: "hard split with a diagonal", source: makeBuffer(64, 48, (x, y) => (x + 0.6 * y < 40 ? [20, 30, 200] : [240, 220, 40])), grid: [16, 12] },
+  {
+    name: "hard split with a diagonal",
+    source: makeBuffer(64, 48, (x, y) => (x + 0.6 * y < 40 ? [20, 30, 200] : [240, 220, 40])),
+    grid: [16, 12],
+  },
   { name: "grid larger than the source", source: makePhotoLikeBuffer(30, 20), grid: [50, 33] },
-  { name: "partial and zero alpha", source: withAlpha(photo, (x, y) => (x < 40 ? 0 : x < 80 ? (x * 7 + y * 3) % 256 : 255)), grid: [40, 27] },
+  {
+    name: "partial and zero alpha",
+    source: withAlpha(photo, (x, y) => (x < 40 ? 0 : x < 80 ? (x * 7 + y * 3) % 256 : 255)),
+    grid: [40, 27],
+  },
 ];
 
 const OPTION_SETS: Array<[string, BoundaryEvidenceOptions]> = [
@@ -65,11 +78,21 @@ describe("Crisp boundary evidence equals the pre-M4 code exactly", () => {
 
   it("a whole evidence layer matches one built from the pre-M4 evidence", () => {
     const [gridWidth, gridHeight] = [40, 27];
-    const layer = buildCrispEvidenceLayer(photo, gridWidth, gridHeight, allCellIndices(gridWidth, gridHeight), { ...DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS, requireNeighborAgreement: false });
+    const layer = buildCrispEvidenceLayer(photo, gridWidth, gridHeight, allCellIndices(gridWidth, gridHeight), {
+      ...DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS,
+      requireNeighborAgreement: false,
+    });
     const expected = new Map();
     for (const cell of allCellIndices(gridWidth, gridHeight)) {
       const cx = cell % gridWidth;
-      const evidence = extractBoundaryEvidencePreM4(photo, gridWidth, gridHeight, cx, (cell - cx) / gridWidth, DEFAULT_BOUNDARY_EVIDENCE_OPTIONS);
+      const evidence = extractBoundaryEvidencePreM4(
+        photo,
+        gridWidth,
+        gridHeight,
+        cx,
+        (cell - cx) / gridWidth,
+        DEFAULT_BOUNDARY_EVIDENCE_OPTIONS
+      );
       if (evidence.confidence >= DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS.confidenceThreshold) expected.set(cell, evidence);
     }
     expect(expected.size).toBeGreaterThan(0);
@@ -77,6 +100,8 @@ describe("Crisp boundary evidence equals the pre-M4 code exactly", () => {
   });
 
   it("rejects a row cache built for a different photo", () => {
-    expect(() => extractBoundaryEvidence(photo, 40, 27, 0, 0, DEFAULT_BOUNDARY_EVIDENCE_OPTIONS, new SourceOklabRows(makePhotoLikeBuffer(240, 160)))).toThrow();
+    expect(() =>
+      extractBoundaryEvidence(photo, 40, 27, 0, 0, DEFAULT_BOUNDARY_EVIDENCE_OPTIONS, new SourceOklabRows(makePhotoLikeBuffer(240, 160)))
+    ).toThrow();
   });
 });

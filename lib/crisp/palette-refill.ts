@@ -116,7 +116,8 @@ function splitGroup(cells: number[], cellOklab: Float64Array, maxIterations: num
   meanA /= cells.length;
   meanB /= cells.length;
 
-  const distance = (i: number, l: number, a: number, b: number) => (cellOklab[i * 3] - l) ** 2 + (cellOklab[i * 3 + 1] - a) ** 2 + (cellOklab[i * 3 + 2] - b) ** 2;
+  const distance = (i: number, l: number, a: number, b: number) =>
+    (cellOklab[i * 3] - l) ** 2 + (cellOklab[i * 3 + 1] - a) ** 2 + (cellOklab[i * 3 + 2] - b) ** 2;
   let seed0 = cells[0];
   let best = -1;
   for (const i of cells) {

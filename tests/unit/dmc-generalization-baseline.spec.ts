@@ -62,7 +62,11 @@ describe("buildPattern DMC-mode golden baseline (G-029 M1 pre/post-refactor comp
     ["Standard edges, optimize on", "2c183504", { longerSideStitches: 40, colorCount: 4, paletteMode: "dmc" }],
     ["Standard edges, optimize off", "2c183504", { longerSideStitches: 40, colorCount: 4, paletteMode: "dmc", optimize: false }],
     ["Crisp edges, optimize on", "2c183504", { longerSideStitches: 40, colorCount: 4, paletteMode: "dmc", edgeMode: "crisp" }],
-    ["Crisp edges, optimize off", "2c183504", { longerSideStitches: 40, colorCount: 4, paletteMode: "dmc", edgeMode: "crisp", optimize: false }],
+    [
+      "Crisp edges, optimize off",
+      "2c183504",
+      { longerSideStitches: 40, colorCount: 4, paletteMode: "dmc", edgeMode: "crisp", optimize: false },
+    ],
   ];
 
   for (const [label, expectedHash, options] of cases) {

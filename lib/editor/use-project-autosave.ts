@@ -25,7 +25,12 @@ interface SaveOutcome {
  * pending, "saved" only once *this* pattern is stored, "unavailable" after
  * a storage failure until the next edit retries. See D100.
  */
-export function useProjectAutosave(pattern: StitchPattern | null, enabled: boolean, store: ProjectStore, symmetry: SymmetryAxes = NO_SYMMETRY): AutosaveStatus {
+export function useProjectAutosave(
+  pattern: StitchPattern | null,
+  enabled: boolean,
+  store: ProjectStore,
+  symmetry: SymmetryAxes = NO_SYMMETRY
+): AutosaveStatus {
   const [baseline, setBaseline] = useState<SaveOutcome | null>(null);
   const [lastOutcome, setLastOutcome] = useState<SaveOutcome | null>(null);
   // The symmetry axes are saved with the pattern; toggling one alone schedules a save too (G-037).

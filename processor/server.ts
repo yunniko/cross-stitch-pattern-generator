@@ -129,7 +129,9 @@ async function handleJobCreate(req: IncomingMessage, res: ServerResponse): Promi
     return;
   }
   const jobId = pool.submit(settings, photo.pixelBuffer);
-  console.log(`job ${jobId.slice(0, 8)} queued: ${settings.longerSideStitches} st, ${settings.colorCount} col, ${settings.edgeMode ?? "standard"}`);
+  console.log(
+    `job ${jobId.slice(0, 8)} queued: ${settings.longerSideStitches} st, ${settings.colorCount} col, ${settings.edgeMode ?? "standard"}`
+  );
   send(res, 202, pool.status(jobId), { location: `/jobs/${jobId}` });
 }
 
@@ -148,7 +150,8 @@ async function handleJobEvents(res: ServerResponse, jobId: string): Promise<void
   while (open) {
     const status = pool.status(jobId);
     if (!status) break;
-    const payload = status.state === "queued" && status.queuePosition ? { ...status, estimatedWaitMs: estimatedWaitMs(status.queuePosition) } : status;
+    const payload =
+      status.state === "queued" && status.queuePosition ? { ...status, estimatedWaitMs: estimatedWaitMs(status.queuePosition) } : status;
     res.write(`data: ${JSON.stringify(payload)}\n\n`);
     if (status.state !== "queued" && status.state !== "running") break;
     // A job waiting behind others can be silent for minutes, and an idle stream is dropped by nginx's read timeout

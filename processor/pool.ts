@@ -1,6 +1,15 @@
 import { Worker } from "node:worker_threads";
 import { randomUUID } from "node:crypto";
-import { exportDeadlineFor, gridPagesFor, LIMITS, type ExportJobPayload, type JobSettings, type JobStatus, type WorkerJob, type WorkerMessage } from "./job-protocol";
+import {
+  exportDeadlineFor,
+  gridPagesFor,
+  LIMITS,
+  type ExportJobPayload,
+  type JobSettings,
+  type JobStatus,
+  type WorkerJob,
+  type WorkerMessage,
+} from "./job-protocol";
 import type { ExportProgress } from "@/lib/export/export-progress";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
 
@@ -103,7 +112,7 @@ export class GenerationPool {
 
   private enqueue(build: (jobId: string) => WorkerJob, deadlineMs: number): string {
     if (this.queue.length >= LIMITS.queueLength) {
-      throw new QueueFullError(Math.ceil((LIMITS.jobDeadlineMs / 1000) / 2));
+      throw new QueueFullError(Math.ceil(LIMITS.jobDeadlineMs / 1000 / 2));
     }
     const id = randomUUID();
     this.jobs.set(id, { id, work: build(id), state: "queued", progress: 0, deadlineMs, changed: [] });
@@ -234,7 +243,12 @@ export class GenerationPool {
     job.workerIndex = undefined;
     // The inputs are the biggest thing a finished job holds — a generation's pixels, an export's whole chart and photo.
     // The photo store still owns its own copy, and the finished file is kept separately.
-    job.work = { kind: "generate", jobId: job.id, settings: { longerSideStitches: 0, colorCount: 0 }, imageData: { data: new Uint8ClampedArray(0), width: 0, height: 0 } };
+    job.work = {
+      kind: "generate",
+      jobId: job.id,
+      settings: { longerSideStitches: 0, colorCount: 0 },
+      imageData: { data: new Uint8ClampedArray(0), width: 0, height: 0 },
+    };
     this.notify(job);
   }
 

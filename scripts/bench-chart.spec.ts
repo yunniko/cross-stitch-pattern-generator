@@ -37,7 +37,9 @@ interface Sample {
 
 async function installInstrumentation(page: Page) {
   await page.addInitScript(() => {
-    const w = window as unknown as { __bench: { longTasks: Array<[number, number]>; longTaskSupported: boolean; frameGaps: number[]; sampling: boolean } };
+    const w = window as unknown as {
+      __bench: { longTasks: Array<[number, number]>; longTaskSupported: boolean; frameGaps: number[]; sampling: boolean };
+    };
     w.__bench = { longTasks: [], longTaskSupported: false, frameGaps: [], sampling: false };
     try {
       new PerformanceObserver((list) => {
@@ -67,7 +69,12 @@ async function syntheticJpeg(page: Page): Promise<string> {
       const y = (i / width) | 0;
       const o = i * 4;
       const region = (x < width / 2 ? 0 : 1) + (y < height / 2 ? 0 : 2);
-      const base = [[70, 110, 160], [200, 150, 90], [60, 130, 70], [150, 90, 110]][region];
+      const base = [
+        [70, 110, 160],
+        [200, 150, 90],
+        [60, 130, 70],
+        [150, 90, 110],
+      ][region];
       image.data[o] = base[0] + ((x + y) / (width + height)) * 60 + n;
       image.data[o + 1] = base[1] + n;
       image.data[o + 2] = base[2] + n;
@@ -97,13 +104,19 @@ async function summariseProfile(client: CDPSession): Promise<string[]> {
   const deltas: number[] = profile.timeDeltas ?? [];
   (profile.samples as number[]).forEach((id, i) => self.set(id, (self.get(id) ?? 0) + (deltas[i] ?? 0) / 1000));
   const merged = new Map<string, number>();
-  for (const n of profile.nodes as Array<{ id: number; callFrame: { functionName: string; url: string; lineNumber: number; columnNumber: number } }>) {
+  for (const n of profile.nodes as Array<{
+    id: number;
+    callFrame: { functionName: string; url: string; lineNumber: number; columnNumber: number };
+  }>) {
     const ms = self.get(n.id) ?? 0;
     if (!ms || /^\((idle|program|root)\)/.test(n.callFrame.functionName)) continue;
     const key = `${n.callFrame.functionName || "(anonymous)"} ${n.callFrame.url.split("/").pop()}:${n.callFrame.columnNumber}`;
     merged.set(key, (merged.get(key) ?? 0) + ms);
   }
-  return [...merged].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, ms]) => `${ms.toFixed(1)} ms ${k}`);
+  return [...merged]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([k, ms]) => `${ms.toFixed(1)} ms ${k}`);
 }
 
 /**
@@ -134,7 +147,10 @@ async function timed(page: Page, client: CDPSession, action: () => Promise<void>
   await done();
   await afterPaint(page);
   const windowResult = await page.evaluate(() => {
-    const w = window as unknown as { __bench: { longTasks: Array<[number, number]>; longTaskSupported: boolean; frameGaps: number[]; sampling: boolean }; __opStart: number };
+    const w = window as unknown as {
+      __bench: { longTasks: Array<[number, number]>; longTaskSupported: boolean; frameGaps: number[]; sampling: boolean };
+      __opStart: number;
+    };
     w.__bench.sampling = false;
     const end = performance.now();
     const inWindow = w.__bench.longTasks.filter(([start]) => start >= w.__opStart - 5 && start <= end);
@@ -152,12 +168,20 @@ async function timed(page: Page, client: CDPSession, action: () => Promise<void>
     if (!w.__bench.longTaskSupported) return null;
     return w.__bench.longTasks.filter(([start]) => start > end).reduce((m, [, d]) => Math.max(m, d), 0);
   }, windowResult.end);
-  return { latencyMs: windowResult.latencyMs, longestTaskMs: windowResult.longestTaskMs, maxFrameGapMs: windowResult.maxFrameGapMs, tailLongTaskMs, topFrames };
+  return {
+    latencyMs: windowResult.latencyMs,
+    longestTaskMs: windowResult.longestTaskMs,
+    maxFrameGapMs: windowResult.maxFrameGapMs,
+    tailLongTaskMs,
+    topFrames,
+  };
 }
 
 /** The chart frame's cell size and completed render revision (D135): the viewport canvas keeps its size across zooms. */
 async function chartState(page: Page): Promise<{ cellSize: string; revision: number }> {
-  return page.getByTestId("chart-frame").evaluate((el: HTMLElement) => ({ cellSize: el.dataset.cellSize ?? "", revision: Number(el.dataset.renderRevision ?? 0) }));
+  return page
+    .getByTestId("chart-frame")
+    .evaluate((el: HTMLElement) => ({ cellSize: el.dataset.cellSize ?? "", revision: Number(el.dataset.renderRevision ?? 0) }));
 }
 
 /** Waits until the chart frame reports a render after `before` with nothing pending (the Realistic view's tiles), then a frame. */
@@ -233,25 +257,49 @@ test(`large-chart operations at ${SIZE} stitches`, async ({ page }, testInfo) =>
     const beforeRegen = (await chartState(page)).revision;
     record(
       "chart shown after regenerating",
-      await timed(page, client, () => page.getByRole("button", { name: "Regenerate" }).click(), () => waitForScene(page, beforeRegen))
+      await timed(
+        page,
+        client,
+        () => page.getByRole("button", { name: "Regenerate" }).click(),
+        () => waitForScene(page, beforeRegen)
+      )
     );
 
     // Zoom in until the cell size stops growing, one row per step, then back out.
     for (let step = 1; step <= 3; step++) {
       const before = await chartState(page);
       let changed = true;
-      const sample = await timed(page, client, () => page.getByRole("button", { name: "Zoom in" }).click(), async () => {
-        changed = await waitForZoomRendered(page, before);
-      });
+      const sample = await timed(
+        page,
+        client,
+        () => page.getByRole("button", { name: "Zoom in" }).click(),
+        async () => {
+          changed = await waitForZoomRendered(page, before);
+        }
+      );
       if (!changed) break; // at the zoom cap: no redraw, nothing to time
       record(`zoom in, step ${step}`, sample);
     }
 
     // Every view mode, at the zoomed-in size (symbols drawn).
     await main.click({ position: { x: 4, y: 4 } }).catch(() => undefined);
-    for (const [key, label] of [["2", "B&W"], ["3", "Realistic"], ["4", "Grid + photo"], ["5", "Original photo"], ["1", "Color"]] as const) {
+    for (const [key, label] of [
+      ["2", "B&W"],
+      ["3", "Realistic"],
+      ["4", "Grid + photo"],
+      ["5", "Original photo"],
+      ["1", "Color"],
+    ] as const) {
       const before = (await chartState(page)).revision;
-      record(`view: ${label} (key ${key})`, await timed(page, client, () => page.keyboard.press(key), () => waitForScene(page, before)));
+      record(
+        `view: ${label} (key ${key})`,
+        await timed(
+          page,
+          client,
+          () => page.keyboard.press(key),
+          () => waitForScene(page, before)
+        )
+      );
     }
 
     // Scrolling: 20 programmatic steps, one per frame.
@@ -310,9 +358,25 @@ test(`large-chart operations at ${SIZE} stitches`, async ({ page }, testInfo) =>
     // Isolate on and putting out the last light turns it off, so this is G-036's view change reached a new way.
     const light = page.getByRole("button", { name: /^Show only / }).first();
     const beforeOn = (await chartState(page)).revision;
-    record("isolate on (one thread lit)", await timed(page, client, () => light.click(), () => waitForScene(page, beforeOn)));
+    record(
+      "isolate on (one thread lit)",
+      await timed(
+        page,
+        client,
+        () => light.click(),
+        () => waitForScene(page, beforeOn)
+      )
+    );
     const beforeOff = (await chartState(page)).revision;
-    record("isolate off", await timed(page, client, () => light.click(), () => waitForScene(page, beforeOff)));
+    record(
+      "isolate off",
+      await timed(
+        page,
+        client,
+        () => light.click(),
+        () => waitForScene(page, beforeOff)
+      )
+    );
 
     // A rectangle selection drag across part of the view.
     await page.getByRole("button", { name: "Select" }).click();
@@ -386,7 +450,6 @@ test(`large-chart operations at ${SIZE} stitches`, async ({ page }, testInfo) =>
   writeFileSync(path.join(OUT_DIR, `results-throttle-${THROTTLE}.json`), JSON.stringify(results, null, 2));
   writeFileSync(path.join(OUT_DIR, `summary-${SIZE}st-throttle-${THROTTLE}.txt`), lines.join("\n") + "\n");
 });
-
 
 /**
  * G-046: the undo budget. Every discrete edit pushes a full pattern snapshot, capped at 50 (use-undo-history.ts). Paints

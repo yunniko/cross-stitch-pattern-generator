@@ -76,7 +76,10 @@ test("the report carries the stack, the tool in hand and the chart, and no photo
 
 test("the chart is still there after reloading from the crash", async ({ page }) => {
   await generateSmallPattern(page);
-  const before = await page.getByText(/50 × \d+, [\d,]+ stitch/).first().textContent();
+  const before = await page
+    .getByText(/50 × \d+, [\d,]+ stitch/)
+    .first()
+    .textContent();
   // The autosave is what makes reloading safe, and the crash screen says so: wait for it rather than racing it.
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved");
   await crashTheRenderer(page);

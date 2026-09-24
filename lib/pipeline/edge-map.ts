@@ -41,7 +41,11 @@ export function opaquePixelMask(source: PixelBuffer): Uint8Array | null {
  * transparent pixel has no magnitude of its own and lends its neighbours none: it is read as the centre pixel's own
  * luminance, so the alpha boundary itself is not mistaken for an edge in the photo (G-050).
  */
-export function computeEdgeMagnitude(source: PixelBuffer, gray: ArrayLike<number> = sourceLuminance(source), opaque?: Uint8Array | null): Float32Array {
+export function computeEdgeMagnitude(
+  source: PixelBuffer,
+  gray: ArrayLike<number> = sourceLuminance(source),
+  opaque?: Uint8Array | null
+): Float32Array {
   const { width, height } = source;
 
   const magnitude = new Float32Array(width * height);

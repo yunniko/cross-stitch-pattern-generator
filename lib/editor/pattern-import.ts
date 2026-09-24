@@ -30,7 +30,8 @@ export async function loadPatternFromFile(file: File, options: LoadPatternOption
   const maxOxsBytes = options.maxOxsBytes ?? MAX_OXS_TEXT_LENGTH;
 
   if (looksLikeOxs(await file.slice(0, SNIFF_BYTES).text())) {
-    if (file.size > maxOxsBytes) throw new Error(`That OXS file is ${formatSize(file.size)}, larger than the ${formatSize(maxOxsBytes)} this app can open.`);
+    if (file.size > maxOxsBytes)
+      throw new Error(`That OXS file is ${formatSize(file.size)}, larger than the ${formatSize(maxOxsBytes)} this app can open.`);
     const { pattern, report } = parseOxs(await file.text());
     return { pattern, format: "oxs", symmetry: NO_SYMMETRY, oxsReport: report };
   }

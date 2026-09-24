@@ -32,13 +32,20 @@ function randomPattern(width: number, height: number, colors: number, seed: numb
   };
   const cells = Array.from({ length: width * height }, () => (rng() < emptyShare ? EMPTY_CELL : Math.floor(rng() * colors)));
   // One colour past the last used index stays unused, so tests can see the palette isn't trimmed.
-  return makePattern(width, height, cells, Array.from({ length: colors + 1 }, (_, i) => [i * 40, 255 - i * 30, (i * 70) % 256] as RGB));
+  return makePattern(
+    width,
+    height,
+    cells,
+    Array.from({ length: colors + 1 }, (_, i) => [i * 40, 255 - i * 30, (i * 70) % 256] as RGB)
+  );
 }
 
 const axesOf = (...on: SymmetryAxis[]): SymmetryAxes => ({ ...NO_SYMMETRY, ...Object.fromEntries(on.map((a) => [a, true])) });
 
 /** All 16 on/off combinations of the four axes. */
-const ALL_COMBINATIONS: SymmetryAxes[] = Array.from({ length: 16 }, (_, mask) => axesOf(...SYMMETRY_AXES.filter((_, bit) => mask & (1 << bit))));
+const ALL_COMBINATIONS: SymmetryAxes[] = Array.from({ length: 16 }, (_, mask) =>
+  axesOf(...SYMMETRY_AXES.filter((_, bit) => mask & (1 << bit)))
+);
 
 const cellAt = (x: number, y: number, width: number) => y * width + x;
 const sorted = (cells: number[]) => [...cells].sort((a, b) => a - b);
@@ -96,7 +103,16 @@ describe("reflections and the groups they generate", () => {
 
 describe("symmetryOrbit", () => {
   it("keeps every element on the canvas for every combination and every cell", () => {
-    for (const [w, h] of [[1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 3], [5, 4], [7, 2]]) {
+    for (const [w, h] of [
+      [1, 1],
+      [2, 2],
+      [3, 3],
+      [4, 4],
+      [5, 5],
+      [6, 3],
+      [5, 4],
+      [7, 2],
+    ]) {
       for (const axes of ALL_COMBINATIONS) {
         for (let cell = 0; cell < w * h; cell++) {
           const orbit = symmetryOrbit(cell, w, h, axes);
@@ -112,24 +128,34 @@ describe("symmetryOrbit", () => {
     const n = 5;
     const all = axesOf("vertical", "horizontal", "diagonal", "antidiagonal");
     expect(symmetryOrbit(cellAt(2, 2, n), n, n, all)).toEqual([cellAt(2, 2, n)]);
-    expect(sorted(symmetryOrbit(cellAt(2, 0, n), n, n, all))).toEqual(sorted([cellAt(2, 0, n), cellAt(2, 4, n), cellAt(0, 2, n), cellAt(4, 2, n)]));
-    expect(sorted(symmetryOrbit(cellAt(1, 1, n), n, n, all))).toEqual(sorted([cellAt(1, 1, n), cellAt(3, 1, n), cellAt(1, 3, n), cellAt(3, 3, n)]));
+    expect(sorted(symmetryOrbit(cellAt(2, 0, n), n, n, all))).toEqual(
+      sorted([cellAt(2, 0, n), cellAt(2, 4, n), cellAt(0, 2, n), cellAt(4, 2, n)])
+    );
+    expect(sorted(symmetryOrbit(cellAt(1, 1, n), n, n, all))).toEqual(
+      sorted([cellAt(1, 1, n), cellAt(3, 1, n), cellAt(1, 3, n), cellAt(3, 3, n)])
+    );
     expect(symmetryOrbit(cellAt(0, 1, n), n, n, all)).toHaveLength(8);
     expect(symmetryOrbit(cellAt(2, 1, n), n, n, axesOf("vertical"))).toEqual([cellAt(2, 1, n)]);
-    expect(sorted(symmetryOrbit(cellAt(2, 1, n), n, n, axesOf("vertical", "horizontal")))).toEqual(sorted([cellAt(2, 1, n), cellAt(2, 3, n)]));
+    expect(sorted(symmetryOrbit(cellAt(2, 1, n), n, n, axesOf("vertical", "horizontal")))).toEqual(
+      sorted([cellAt(2, 1, n), cellAt(2, 3, n)])
+    );
   });
 
   it("has no axis cells on an even square, except along the diagonals", () => {
     const n = 4;
     const all = axesOf("vertical", "horizontal", "diagonal", "antidiagonal");
     expect(symmetryOrbit(cellAt(0, 1, n), n, n, all)).toHaveLength(8);
-    expect(sorted(symmetryOrbit(cellAt(0, 0, n), n, n, all))).toEqual(sorted([cellAt(0, 0, n), cellAt(3, 0, n), cellAt(0, 3, n), cellAt(3, 3, n)]));
+    expect(sorted(symmetryOrbit(cellAt(0, 0, n), n, n, all))).toEqual(
+      sorted([cellAt(0, 0, n), cellAt(3, 0, n), cellAt(0, 3, n), cellAt(3, 3, n)])
+    );
     expect(symmetryOrbit(cellAt(1, 2, n), n, n, axesOf("vertical", "horizontal"))).toHaveLength(4);
   });
 
   it("mirrors exactly on odd, even and mixed-parity rectangles", () => {
     // 5 × 4: the middle column is the vertical axis; the horizontal axis falls between rows 1 and 2.
-    expect(sorted(symmetryOrbit(cellAt(2, 1, 5), 5, 4, axesOf("vertical", "horizontal")))).toEqual(sorted([cellAt(2, 1, 5), cellAt(2, 2, 5)]));
+    expect(sorted(symmetryOrbit(cellAt(2, 1, 5), 5, 4, axesOf("vertical", "horizontal")))).toEqual(
+      sorted([cellAt(2, 1, 5), cellAt(2, 2, 5)])
+    );
     expect(sorted(symmetryOrbit(cellAt(0, 0, 5), 5, 4, axesOf("vertical", "horizontal")))).toEqual(sorted([0, 4, 15, 19]));
     expect(sorted(symmetryOrbit(cellAt(1, 0, 6), 6, 3, axesOf("vertical")))).toEqual(sorted([cellAt(1, 0, 6), cellAt(4, 0, 6)]));
     expect(sorted(symmetryOrbit(cellAt(3, 2, 7), 7, 3, axesOf("horizontal")))).toEqual(sorted([cellAt(3, 2, 7), cellAt(3, 0, 7)]));
@@ -147,7 +173,8 @@ describe("symmetryOrbit", () => {
     const withDiagonals = axesOf("vertical", "diagonal", "antidiagonal");
     expect(effectiveSymmetryAxes(withDiagonals, 6, 4)).toEqual(axesOf("vertical"));
     expect(effectiveSymmetryAxes(withDiagonals, 5, 5)).toBe(withDiagonals);
-    for (let cell = 0; cell < 24; cell++) expect(symmetryOrbit(cell, 6, 4, withDiagonals)).toEqual(symmetryOrbit(cell, 6, 4, axesOf("vertical")));
+    for (let cell = 0; cell < 24; cell++)
+      expect(symmetryOrbit(cell, 6, 4, withDiagonals)).toEqual(symmetryOrbit(cell, 6, 4, axesOf("vertical")));
     expect(symmetryOrbit(0, 6, 4, axesOf("diagonal"))).toEqual([0]);
   });
 
@@ -178,7 +205,14 @@ describe("applyQuickMirror", () => {
   };
 
   it("gives symmetric, idempotent results on odd, even and mixed sizes, keeping the palette and recounting", () => {
-    for (const [w, h] of [[7, 7], [6, 6], [8, 5], [5, 8], [1, 1], [2, 3]]) {
+    for (const [w, h] of [
+      [7, 7],
+      [6, 6],
+      [8, 5],
+      [5, 8],
+      [1, 1],
+      [2, 3],
+    ]) {
       const pattern = randomPattern(w, h, 5, w * 31 + h);
       for (const kind of MIRRORS) {
         if (kind === "upper-left-half-corner" && w !== h) continue;
@@ -208,14 +242,31 @@ describe("applyQuickMirror", () => {
   });
 
   it("copies EMPTY cells like any colour", () => {
-    const pattern = makePattern(4, 1, [EMPTY_CELL, 1, 0, 0], [[0, 0, 0], [255, 255, 255]]);
+    const pattern = makePattern(
+      4,
+      1,
+      [EMPTY_CELL, 1, 0, 0],
+      [
+        [0, 0, 0],
+        [255, 255, 255],
+      ]
+    );
     expect(Array.from(applyQuickMirror(pattern, "left-half").cellPalette)).toEqual([EMPTY_CELL, 1, 1, EMPTY_CELL]);
   });
 
   it("takes the upper-left half corner from the triangle along the left edge", () => {
     // 4 × 4: the quarter is x, y < 2; its left-edge triangle is (0,0), (0,1), (1,1); (1,0) is the target.
     const cells = [0, 1, 2, 2, 3, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
-    const mirrored = applyQuickMirror(makePattern(4, 4, cells, [[0, 0, 0], [1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]), "upper-left-half-corner");
+    const mirrored = applyQuickMirror(
+      makePattern(4, 4, cells, [
+        [0, 0, 0],
+        [1, 1, 1],
+        [2, 2, 2],
+        [3, 3, 3],
+        [4, 4, 4],
+      ]),
+      "upper-left-half-corner"
+    );
     expect(Array.from(mirrored.cellPalette)).toEqual([0, 3, 3, 0, 3, 4, 4, 3, 3, 4, 4, 3, 0, 3, 3, 0]);
   });
 
@@ -229,7 +280,16 @@ describe("applyQuickMirror", () => {
 describe("fillSymmetric", () => {
   it("fills each mirrored cell's own region and paints the union, so a non-symmetric pattern can stay asymmetric", () => {
     const [a, b, c] = [0, 1, 2];
-    const pattern = makePattern(4, 1, [a, a, b, a], [[0, 0, 0], [100, 100, 100], [200, 200, 200]]);
+    const pattern = makePattern(
+      4,
+      1,
+      [a, a, b, a],
+      [
+        [0, 0, 0],
+        [100, 100, 100],
+        [200, 200, 200],
+      ]
+    );
     for (const connectivity of [4, 8] as const) {
       expect(Array.from(fillSymmetric(pattern, 0, axesOf("vertical"), c, connectivity).cellPalette)).toEqual([c, c, b, c]);
     }
@@ -252,7 +312,8 @@ describe("fillSymmetric", () => {
         for (const seed of symmetryOrbit(cell, 8, 8, axes)) {
           const single = connectivity === 4 ? fillCluster(pattern, seed, EMPTY_CELL) : fillClusterDiagonal(pattern, seed, EMPTY_CELL);
           single.cellPalette.forEach((value, i) => {
-            if (value !== pattern.cellPalette[i] || (pattern.cellPalette[i] === EMPTY_CELL && single.cellPalette[i] === EMPTY_CELL)) expected[i] = EMPTY_CELL;
+            if (value !== pattern.cellPalette[i] || (pattern.cellPalette[i] === EMPTY_CELL && single.cellPalette[i] === EMPTY_CELL))
+              expected[i] = EMPTY_CELL;
           });
         }
         // EMPTY regions filled with EMPTY are unchanged either way, so compare with a real colour too.

@@ -107,7 +107,11 @@ describe("M4.7 composition: full pipeline through finalization on M1's genuine-g
     const evidenceLayer = buildCrispEvidenceLayer(buffer, gridSize, gridSize, allCellIndices(gridSize, gridSize));
     const quantizerFn = selectWeightedQuantizer(kMeansQuantizer);
     const quantized = runCrispQuantizationStage(cells, 4, importance, evidenceLayer, quantizerFn);
-    const optimized = runMultiScaleOptimizer(createPipelineContext(cells, { importance, evidenceLayer }), quantized.cellPaletteIndex, quantized.palette);
+    const optimized = runMultiScaleOptimizer(
+      createPipelineContext(cells, { importance, evidenceLayer }),
+      quantized.cellPaletteIndex,
+      quantized.palette
+    );
 
     const finalized = finalizeCrispPalette(cellsToOklab(cells), optimized, quantized.palette, evidenceLayer);
 

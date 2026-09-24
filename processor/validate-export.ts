@@ -13,7 +13,18 @@ import type { ExportJobPayload } from "./job-protocol";
  */
 
 /** Every kind the editor's dropdown offers, plus the bundle. Derived from the same list `runExportJob` switches on. */
-const EXPORT_KINDS = ["png-color", "png-bw", "png-realistic", "editable", "oxs", "a4-color", "a4-bw", "pdf-color", "pdf-bw", "all"] as const;
+const EXPORT_KINDS = [
+  "png-color",
+  "png-bw",
+  "png-realistic",
+  "editable",
+  "oxs",
+  "a4-color",
+  "a4-bw",
+  "pdf-color",
+  "pdf-bw",
+  "all",
+] as const;
 
 /**
  * `OverlapCells` is a union of three values, so membership is the check — a bare range would admit unusable ones. The

@@ -31,7 +31,8 @@ export function compareSwatch(current: RGB, candidate: RGB): SwatchDifference {
 export function describeDifference(difference: SwatchDifference): string {
   const parts: string[] = [];
   if (difference.lightness !== 0) parts.push(`${Math.abs(difference.lightness)}% ${difference.lightness > 0 ? "lighter" : "darker"}`);
-  if (difference.saturation !== 0) parts.push(`${Math.abs(difference.saturation)}% ${difference.saturation > 0 ? "more" : "less"} saturated`);
+  if (difference.saturation !== 0)
+    parts.push(`${Math.abs(difference.saturation)}% ${difference.saturation > 0 ? "more" : "less"} saturated`);
   return parts.join(", ");
 }
 
@@ -43,7 +44,8 @@ export function swatchComparisonParts(candidateName: string, current: RGB, candi
   const difference = compareSwatch(current, candidate);
   const parts = [candidateName];
   if (difference.lightness !== 0) parts.push(`${Math.abs(difference.lightness)}% ${difference.lightness > 0 ? "lighter" : "darker"}`);
-  if (difference.saturation !== 0) parts.push(`${Math.abs(difference.saturation)}% ${difference.saturation > 0 ? "more" : "less"} saturated`);
+  if (difference.saturation !== 0)
+    parts.push(`${Math.abs(difference.saturation)}% ${difference.saturation > 0 ? "more" : "less"} saturated`);
   return parts;
 }
 

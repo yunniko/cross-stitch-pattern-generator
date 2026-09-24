@@ -45,12 +45,17 @@ interface Case {
  * export path (`drawChart`, `drawHighlightOverlay`) and for the on-screen path (`drawChartOnScreen`, and the raster
  * highlight mask candidate), plus the canvas size.
  */
-async function differingBytes(page: Page, c: Case): Promise<{ exportDiffering: number; screenDiffering: number; maskDiffering: number; bytes: number; size: string }> {
+async function differingBytes(
+  page: Page,
+  c: Case
+): Promise<{ exportDiffering: number; screenDiffering: number; maskDiffering: number; bytes: number; size: string }> {
   return page.evaluate((c) => {
     type Renderers = typeof import("../../lib/export/render");
     const { live, reference } = (window as unknown as { __renderers: { live: Renderers; reference: Renderers } }).__renderers;
-    const rectGridContext = (window as unknown as { __rectGridContext: (ctx: CanvasRenderingContext2D) => CanvasRenderingContext2D }).__rectGridContext;
-    const SYMBOLS = "●■▲◆★✚✖♥♣♠☀☂☘♫✿❖◐◑▣▤▥▦▧▨▩☼♦♪⚑⚙⚡✈✉✎✂✓✗✦✧❀❁❂❃❄❅❆❇❈❉❊❋ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz0123456789+=#%&@".split("");
+    const rectGridContext = (window as unknown as { __rectGridContext: (ctx: CanvasRenderingContext2D) => CanvasRenderingContext2D })
+      .__rectGridContext;
+    const SYMBOLS =
+      "●■▲◆★✚✖♥♣♠☀☂☘♫✿❖◐◑▣▤▥▦▧▨▩☼♦♪⚑⚙⚡✈✉✎✂✓✗✦✧❀❁❂❃❄❅❆❇❈❉❊❋ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz0123456789+=#%&@".split("");
     let seed = (c.width * 73856093) ^ (c.height * 19349663) ^ (c.cellSize * 83492791) ^ c.colors;
     const rng = () => {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
@@ -145,26 +150,121 @@ const CASES: Case[] = [];
 for (const cellSize of CELL_SIZES) {
   const { width, height } = gridFor(cellSize);
   for (const mode of ["color", "bw"] as const) {
-    CASES.push({ label: `chart ${mode} ${width}×${height} @${cellSize}px`, width, height, colors: 24, cellSize, kind: "chart", mode, emptyShare: 0.08 });
+    CASES.push({
+      label: `chart ${mode} ${width}×${height} @${cellSize}px`,
+      width,
+      height,
+      colors: 24,
+      cellSize,
+      kind: "chart",
+      mode,
+      emptyShare: 0.08,
+    });
   }
-  CASES.push({ label: `outline ${width}×${height} @${cellSize}px`, width, height, colors: 24, cellSize, kind: "outline", emptyShare: 0.08 });
-  CASES.push({ label: `highlight two colors @${cellSize}px`, width, height, colors: 24, cellSize, kind: "highlight", highlighted: [1, 5], emptyShare: 0.08 });
+  CASES.push({
+    label: `outline ${width}×${height} @${cellSize}px`,
+    width,
+    height,
+    colors: 24,
+    cellSize,
+    kind: "outline",
+    emptyShare: 0.08,
+  });
+  CASES.push({
+    label: `highlight two colors @${cellSize}px`,
+    width,
+    height,
+    colors: 24,
+    cellSize,
+    kind: "highlight",
+    highlighted: [1, 5],
+    emptyShare: 0.08,
+  });
   CASES.push({ label: `single-cell edits @${cellSize}px`, width, height, colors: 24, cellSize, kind: "edits", emptyShare: 0.05 });
 }
 for (const canvasColor of ["#ffffff", "#1e1e1e", "#f5deb3"]) {
-  CASES.push({ label: `chart canvas colour ${canvasColor} @4px`, width: 120, height: 90, colors: 16, cellSize: 4, kind: "chart", canvasColor, emptyShare: 0.3 });
-  CASES.push({ label: `chart canvas colour ${canvasColor} @8px`, width: 120, height: 90, colors: 16, cellSize: 8, kind: "chart", canvasColor, emptyShare: 0.3 });
+  CASES.push({
+    label: `chart canvas colour ${canvasColor} @4px`,
+    width: 120,
+    height: 90,
+    colors: 16,
+    cellSize: 4,
+    kind: "chart",
+    canvasColor,
+    emptyShare: 0.3,
+  });
+  CASES.push({
+    label: `chart canvas colour ${canvasColor} @8px`,
+    width: 120,
+    height: 90,
+    colors: 16,
+    cellSize: 8,
+    kind: "chart",
+    canvasColor,
+    emptyShare: 0.3,
+  });
 }
 for (const highlighted of [[], [0], [0, 3, 7, 11], Array.from({ length: 16 }, (_, i) => i)]) {
-  CASES.push({ label: `highlight ${highlighted.length} of 16 colors @4px`, width: 120, height: 90, colors: 16, cellSize: 4, kind: "highlight", highlighted, emptyShare: 0.1 });
+  CASES.push({
+    label: `highlight ${highlighted.length} of 16 colors @4px`,
+    width: 120,
+    height: 90,
+    colors: 16,
+    cellSize: 4,
+    kind: "highlight",
+    highlighted,
+    emptyShare: 0.1,
+  });
 }
 for (const cellSize of [4, 8, 28]) {
-  CASES.push({ label: `region x 7–53, y 3–41 @${cellSize}px`, width: 80, height: 60, colors: 20, cellSize, kind: "chart", region: { x0: 7, y0: 3, x1: 53, y1: 41 }, emptyShare: 0.05 });
-  CASES.push({ label: `outline region x 7–53, y 3–41 @${cellSize}px`, width: 80, height: 60, colors: 20, cellSize, kind: "outline", region: { x0: 7, y0: 3, x1: 53, y1: 41 }, emptyShare: 0.05 });
+  CASES.push({
+    label: `region x 7–53, y 3–41 @${cellSize}px`,
+    width: 80,
+    height: 60,
+    colors: 20,
+    cellSize,
+    kind: "chart",
+    region: { x0: 7, y0: 3, x1: 53, y1: 41 },
+    emptyShare: 0.05,
+  });
+  CASES.push({
+    label: `outline region x 7–53, y 3–41 @${cellSize}px`,
+    width: 80,
+    height: 60,
+    colors: 20,
+    cellSize,
+    kind: "outline",
+    region: { x0: 7, y0: 3, x1: 53, y1: 41 },
+    emptyShare: 0.05,
+  });
 }
-CASES.push({ label: "largest: 1000×750, 64 colors @4px", width: 1000, height: 750, colors: 64, cellSize: 4, kind: "chart", emptyShare: 0.02 });
-CASES.push({ label: "largest: 1000×1000, 100 colors @4px", width: 1000, height: 1000, colors: 100, cellSize: 4, kind: "chart", emptyShare: 0.02 });
-CASES.push({ label: "largest: 1000×750 highlight 3 colors @4px", width: 1000, height: 750, colors: 64, cellSize: 4, kind: "highlight", highlighted: [2, 9, 40] });
+CASES.push({
+  label: "largest: 1000×750, 64 colors @4px",
+  width: 1000,
+  height: 750,
+  colors: 64,
+  cellSize: 4,
+  kind: "chart",
+  emptyShare: 0.02,
+});
+CASES.push({
+  label: "largest: 1000×1000, 100 colors @4px",
+  width: 1000,
+  height: 1000,
+  colors: 100,
+  cellSize: 4,
+  kind: "chart",
+  emptyShare: 0.02,
+});
+CASES.push({
+  label: "largest: 1000×750 highlight 3 colors @4px",
+  width: 1000,
+  height: 750,
+  colors: 64,
+  cellSize: 4,
+  kind: "highlight",
+  highlighted: [2, 9, 40],
+});
 
 let code: string;
 

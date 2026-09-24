@@ -133,8 +133,7 @@ describe("enhancePixelBuffer", () => {
   });
 
   it("copies alpha, keeps hidden RGB of transparent pixels, and ignores them in the statistics", () => {
-    const make = (hidden: RGB) =>
-      makeBuffer(80, 60, (x) => (x < 40 ? [60 + x, 50 + x, 40 + x] : hidden));
+    const make = (hidden: RGB) => makeBuffer(80, 60, (x) => (x < 40 ? [60 + x, 50 + x, 40 + x] : hidden));
     const a = make([255, 0, 0]);
     const b = make([0, 0, 255]);
     for (const buffer of [a, b]) {
@@ -148,7 +147,7 @@ describe("enhancePixelBuffer", () => {
 
     const result = applyEnhancement(a, paramsA);
     for (let i = 0; i < 80 * 60; i++) expect(result.data[i * 4 + 3]).toBe(a.data[i * 4 + 3]);
-    expect(Array.from(result.data.slice((79) * 4, 79 * 4 + 3))).toEqual([255, 0, 0]);
+    expect(Array.from(result.data.slice(79 * 4, 79 * 4 + 3))).toEqual([255, 0, 0]);
   });
 });
 
@@ -293,7 +292,9 @@ describe("Codex round-2 fixes", () => {
   // third of all samples if alpha were ignored, which would drag the high percentile to white.
   it("weighs near-transparent pixels by their alpha in the statistics", () => {
     const withGhost = (ghostAlpha: number) => {
-      const buffer = makeBuffer(300, 200, (x, y) => (x < 100 ? [250, 250, 250] : [40 + (y / 199) * 120, 40 + (y / 199) * 120, 40 + (y / 199) * 120]));
+      const buffer = makeBuffer(300, 200, (x, y) =>
+        x < 100 ? [250, 250, 250] : [40 + (y / 199) * 120, 40 + (y / 199) * 120, 40 + (y / 199) * 120]
+      );
       for (let y = 0; y < 200; y++) for (let x = 0; x < 100; x++) buffer.data[(y * 300 + x) * 4 + 3] = ghostAlpha;
       return buffer;
     };

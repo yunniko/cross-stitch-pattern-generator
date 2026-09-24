@@ -24,13 +24,18 @@ async function uploadPhoto(page: Page) {
 // Scoped to the Photo fix section: Color detail has a Vivid of its own since G-061, and will keep it until Photo
 // fix is redone (Owner, 2026-09-22).
 const modeButton = (page: Page, name: string) =>
-  page.locator("section").filter({ hasText: "Photo fix" }).getByRole("button").filter({ hasText: new RegExp(`^${name}$`) });
+  page
+    .locator("section")
+    .filter({ hasText: "Photo fix" })
+    .getByRole("button")
+    .filter({ hasText: new RegExp(`^${name}$`) });
 
 test("the Photo control offers every mode and starts at Off, showing the plain photo", async ({ page }) => {
   const errors = collectErrors(page);
   await uploadPhoto(page);
   await expect(modeButton(page, "Off")).toHaveAttribute("aria-pressed", "true");
-  for (const name of ["Brighten", "Auto", "Vivid", "Portrait"]) await expect(modeButton(page, name)).toHaveAttribute("aria-pressed", "false");
+  for (const name of ["Brighten", "Auto", "Vivid", "Portrait"])
+    await expect(modeButton(page, name)).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByRole("img", { name: "Uploaded photo" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Compare with original" })).toHaveCount(0);
   expect(errors).toEqual([]);

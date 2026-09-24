@@ -159,7 +159,10 @@ describe("configurable capacity", () => {
       resetRateLimits();
       try {
         const results = Array.from({ length: 7 }, () => rateLimited(request({ ip: "203.0.113.22" })));
-        expect(results.filter((r) => r === null), `override ${JSON.stringify(bad)}`).toHaveLength(6);
+        expect(
+          results.filter((r) => r === null),
+          `override ${JSON.stringify(bad)}`
+        ).toHaveLength(6);
       } finally {
         delete process.env.RATE_LIMIT_JOBS_PER_MINUTE;
       }

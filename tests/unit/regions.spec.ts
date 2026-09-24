@@ -62,9 +62,7 @@ describe("labelRegions", () => {
     // A A  vs.  B A   (checkerboard: 4 separate 1-cell components)
     const compact = labelRegions(Uint8Array.from([0, 0, 0, 0]), 2, 2);
     const scattered = labelRegions(Uint8Array.from([0, 1, 1, 0]), 2, 2);
-    expect(compact.components[0].perimeter).toBeLessThan(
-      scattered.components.reduce((sum, c) => sum + c.perimeter, 0)
-    );
+    expect(compact.components[0].perimeter).toBeLessThan(scattered.components.reduce((sum, c) => sum + c.perimeter, 0));
   });
 });
 

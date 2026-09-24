@@ -127,7 +127,12 @@ export function defaultComponentRecolorOptions(cellCount: number): ComponentReco
  * D43). High-importance components are skipped. A candidate inadmissible
  * for ANY crisp member costs `Infinity` for the whole component (D68).
  */
-export function recolorSmallComponents(ctx: PipelineContext, assignment: Uint8Array, palette: RGB[], options?: ComponentRecolorOptions): Uint8Array {
+export function recolorSmallComponents(
+  ctx: PipelineContext,
+  assignment: Uint8Array,
+  palette: RGB[],
+  options?: ComponentRecolorOptions
+): Uint8Array {
   const { width, height, cellOklab, importance, pairEvidence, evidenceLayer, emptyMask } = ctx;
   const resolvedOptions = options ?? defaultComponentRecolorOptions(width * height);
   const paletteOklab = palette.map(rgbToOklab);
@@ -177,7 +182,9 @@ export function recolorSmallComponents(ctx: PipelineContext, assignment: Uint8Ar
       for (const i of memberCells) colorError += crispAwareCost(crispCosts, cellOklab, paletteOklab, i, candidateColor);
       let boundaryEnergy = 0;
       for (const [member, neighbor, weight, dx, dy] of boundaryPairs) {
-        const edge = pairEvidence ? getPairEdgeEvidence(pairEvidence, member, dx, dy, width) : edgeBetweenCells(importance, member, neighbor);
+        const edge = pairEvidence
+          ? getPairEdgeEvidence(pairEvidence, member, dx, dy, width)
+          : edgeBetweenCells(importance, member, neighbor);
         boundaryEnergy += weight * boundaryPairEnergy(resolvedOptions, edge, result[neighbor] !== candidateColor);
       }
       return colorError + boundaryEnergy;

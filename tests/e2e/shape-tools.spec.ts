@@ -33,7 +33,12 @@ async function stitchCentre(page: Page, x: number, y: number) {
 }
 
 /** Drags from one stitch to another with the given mouse button, optionally pressing a key mid-drag. */
-async function drag(page: Page, from: { x: number; y: number }, to: { x: number; y: number }, options: { button?: "left" | "right"; pressBeforeRelease?: string } = {}) {
+async function drag(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  options: { button?: "left" | "right"; pressBeforeRelease?: string } = {}
+) {
   const start = await stitchCentre(page, from.x, from.y);
   const end = await stitchCentre(page, to.x, to.y);
   const button = options.button ?? "left";
@@ -64,13 +69,16 @@ function painted(cellPalette: number[]): Map<string, number> {
 
 /** Chart pixel (x, y) as the viewport canvas painted it (D135); the chart's own coordinates, not the page's. */
 async function chartPixel(page: Page, x: number, y: number): Promise<number[]> {
-  return page.evaluate(([x, y]) => {
-    const el = document.querySelector('[data-testid="chart-frame"]') as HTMLElement;
-    const [x0, y0, x1, y1] = (el.dataset.paintedRect ?? "").split(",").map(Number);
-    if (x < x0 || x >= x1 || y < y0 || y >= y1) throw new Error(`chart pixel ${x},${y} is outside ${el.dataset.paintedRect}`);
-    const canvas = el.querySelector("canvas") as HTMLCanvasElement;
-    return Array.from(canvas.getContext("2d")!.getImageData(x - x0, y - y0, 1, 1).data);
-  }, [x, y]);
+  return page.evaluate(
+    ([x, y]) => {
+      const el = document.querySelector('[data-testid="chart-frame"]') as HTMLElement;
+      const [x0, y0, x1, y1] = (el.dataset.paintedRect ?? "").split(",").map(Number);
+      if (x < x0 || x >= x1 || y < y0 || y >= y1) throw new Error(`chart pixel ${x},${y} is outside ${el.dataset.paintedRect}`);
+      const canvas = el.querySelector("canvas") as HTMLCanvasElement;
+      return Array.from(canvas.getContext("2d")!.getImageData(x - x0, y - y0, 1, 1).data);
+    },
+    [x, y]
+  );
 }
 
 test("a drag draws a straight line of stitches, and the whole line is one undo step", async ({ page }) => {

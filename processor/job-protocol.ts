@@ -71,8 +71,7 @@ export interface PreviewJob {
 }
 
 export type PreviewMessage =
-  | { type: "done"; requestId: string; preview: PixelBuffer }
-  | { type: "error"; requestId: string; message: string };
+  { type: "done"; requestId: string; preview: PixelBuffer } | { type: "error"; requestId: string; message: string };
 
 /** A job's life, as the client sees it over the event stream. */
 export type JobState = "queued" | "running" | "done" | "error" | "cancelled";
@@ -142,7 +141,8 @@ export const LIMITS = {
 export function exportDeadlineFor(kind: ExportJobKind, gridPages: number): number {
   const pageShare = LIMITS.paginatedExportPerPageMs * gridPages;
   if (kind === "all") return Math.max(LIMITS.exportAllFloorMs, LIMITS.exportAllBaseMs + LIMITS.exportAllPaginatedSets * pageShare);
-  if (kind.startsWith("a4-") || kind.startsWith("pdf-")) return Math.max(LIMITS.paginatedExportFloorMs, LIMITS.paginatedExportBaseMs + pageShare);
+  if (kind.startsWith("a4-") || kind.startsWith("pdf-"))
+    return Math.max(LIMITS.paginatedExportFloorMs, LIMITS.paginatedExportBaseMs + pageShare);
   return LIMITS.exportDeadlineMs;
 }
 

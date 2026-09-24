@@ -33,7 +33,16 @@ function draw(pattern: StitchPattern, mode: RenderMode, cellSize: number, stampe
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, pattern.width * cellSize + 20, pattern.height * cellSize + 20);
   ctx.translate(10, 10);
-  drawChart(ctx, pattern, mode, cellSize, undefined, "#ffffff", "stroke", stamped ? symbolStampsFor(pattern.palette, mode, cellSize) : null);
+  drawChart(
+    ctx,
+    pattern,
+    mode,
+    cellSize,
+    undefined,
+    "#ffffff",
+    "stroke",
+    stamped ? symbolStampsFor(pattern.palette, mode, cellSize) : null
+  );
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   return ctx.getImageData(0, 0, pattern.width * cellSize + 20, pattern.height * cellSize + 20).data;
 }

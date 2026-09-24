@@ -139,7 +139,9 @@ async function photoCases(): Promise<Case[]> {
   const dir = process.env.RUST_PHOTOS_DIR;
   if (!dir) return [];
   const cases: Case[] = [];
-  for (const file of readdirSync(dir).filter((f) => /\.(jpe?g|png)$/i.test(f)).sort()) {
+  for (const file of readdirSync(dir)
+    .filter((f) => /\.(jpe?g|png)$/i.test(f))
+    .sort()) {
     const image = await loadImage(readFileSync(path.join(dir, file)));
     const canvas = createCanvas(image.width, image.height);
     const context = canvas.getContext("2d");
@@ -148,7 +150,13 @@ async function photoCases(): Promise<Case[]> {
     const source: PixelBuffer = { data: new Uint8ClampedArray(data), width: image.width, height: image.height };
     const name = file.replace(/\.[^.]+$/, "");
     for (const edgeMode of ["standard", "crisp", "crisp-plus"] as const) {
-      cases.push({ name: `real/${name}/${edgeMode}/1000/64`, source, options: { longerSideStitches: 1000, colorCount: 64, edgeMode }, golden: false, photo: true });
+      cases.push({
+        name: `real/${name}/${edgeMode}/1000/64`,
+        source,
+        options: { longerSideStitches: 1000, colorCount: 64, edgeMode },
+        golden: false,
+        photo: true,
+      });
     }
   }
   return cases;
@@ -156,7 +164,9 @@ async function photoCases(): Promise<Case[]> {
 
 /** Criterion 2: mean per-cell OKLab distance to the photo's downsampled colour, confetti ratio, palette size. */
 function quality(source: PixelBuffer, pattern: StitchPattern) {
-  const cellOklab = cellsToOklab(downsampleToGrid(enhancePixelBuffer(source, pattern.enhancementMode ?? "off"), pattern.width, pattern.height));
+  const cellOklab = cellsToOklab(
+    downsampleToGrid(enhancePixelBuffer(source, pattern.enhancementMode ?? "off"), pattern.width, pattern.height)
+  );
   const paletteOklab = pattern.palette.map((c) => rgbToOklab(c.rgb));
   let error = 0;
   for (let i = 0; i < pattern.cellPalette.length; i++) {
@@ -194,17 +204,37 @@ const CASES: Case[] = [
   ...(
     [
       ["photo/crisp-plus/latest/24", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp-plus" }],
-      ["photo/crisp-plus/original/24/cosmo", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp-plus", quantizer: plainKMeansQuantizer, paletteMode: "cosmo" }],
+      [
+        "photo/crisp-plus/original/24/cosmo",
+        photo,
+        { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp-plus", quantizer: plainKMeansQuantizer, paletteMode: "cosmo" },
+      ],
       ["hard-split/crisp-plus/latest/3", hardSplit, { longerSideStitches: 16, colorCount: 3, edgeMode: "crisp-plus" }],
       ["photo/crisp/latest/24/no-optimize", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp", optimize: false }],
-      ["photo/crisp/latest/24/anchor/no-optimize", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp", paletteMode: "anchor", optimize: false }],
+      [
+        "photo/crisp/latest/24/anchor/no-optimize",
+        photo,
+        { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp", paletteMode: "anchor", optimize: false },
+      ],
       ["photo/standard/latest/24/brighten", photo, { longerSideStitches: 150, colorCount: 24, enhancementMode: "brighten" }],
       ["photo/standard/latest/24/auto", photo, { longerSideStitches: 150, colorCount: 24, enhancementMode: "auto" }],
       ["photo/crisp/latest/24/vivid", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp", enhancementMode: "vivid" }],
-      ["photo/crisp-plus/latest/24/portrait/dmc", photo, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp-plus", enhancementMode: "portrait", paletteMode: "dmc" }],
+      [
+        "photo/crisp-plus/latest/24/portrait/dmc",
+        photo,
+        { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp-plus", enhancementMode: "portrait", paletteMode: "dmc" },
+      ],
       ["dark-photo/standard/latest/24/brighten", darkPhoto, { longerSideStitches: 150, colorCount: 24, enhancementMode: "brighten" }],
-      ["dark-photo/crisp/latest/24/auto", darkPhoto, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp", enhancementMode: "auto" }],
-      ["dark-photo/standard/original/32/vivid", darkPhoto, { longerSideStitches: 200, colorCount: 32, quantizer: plainKMeansQuantizer, enhancementMode: "vivid" }],
+      [
+        "dark-photo/crisp/latest/24/auto",
+        darkPhoto,
+        { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp", enhancementMode: "auto" },
+      ],
+      [
+        "dark-photo/standard/original/32/vivid",
+        darkPhoto,
+        { longerSideStitches: 200, colorCount: 32, quantizer: plainKMeansQuantizer, enhancementMode: "vivid" },
+      ],
     ] as Array<[string, PixelBuffer, BuildPatternOptions]>
   ).map(([name, source, options]): Case => ({ name, source, options, golden: false })),
   // Every dither pattern, at two colour counts: the pattern decides the label of every stitch, so a matrix that
@@ -217,11 +247,26 @@ const CASES: Case[] = [
       golden: false,
     }))
   ),
-  { name: "dither/bayer-8/dmc", source: realisticRatio, options: { longerSideStitches: 40, colorCount: 12, ditherMode: "bayer-8", paletteMode: "dmc" }, golden: false },
+  {
+    name: "dither/bayer-8/dmc",
+    source: realisticRatio,
+    options: { longerSideStitches: 40, colorCount: 12, ditherMode: "bayer-8", paletteMode: "dmc" },
+    golden: false,
+  },
   // The drawn family places its marks across the whole grid rather than repeating a tile, so its parity depends on
   // the chart's size in a way the matrix patterns' does not (G-054 M1).
-  { name: "dither/hand-drawn/200st", source: photo, options: { longerSideStitches: 200, colorCount: 16, ditherMode: "hand-drawn" }, golden: false },
-  { name: "dither/hand-drawn/200st/dmc", source: realisticRatio, options: { longerSideStitches: 200, colorCount: 24, ditherMode: "hand-drawn", paletteMode: "dmc" }, golden: false },
+  {
+    name: "dither/hand-drawn/200st",
+    source: photo,
+    options: { longerSideStitches: 200, colorCount: 16, ditherMode: "hand-drawn" },
+    golden: false,
+  },
+  {
+    name: "dither/hand-drawn/200st/dmc",
+    source: realisticRatio,
+    options: { longerSideStitches: 200, colorCount: 24, ditherMode: "hand-drawn", paletteMode: "dmc" },
+    golden: false,
+  },
   // Textures (G-055): the editor makes the space of settings infinite, so parity samples it rather than enumerating
   // it — a wide mark, a tight one, rings only, dots only, and a different seed.
   ...[
@@ -258,47 +303,152 @@ const CASES: Case[] = [
     {
       name: `texture/${name}`,
       source: photo,
-      options: { longerSideStitches: 120, colorCount: 16, ditherMode: "hand-drawn", ditherTexture: { ...DEFAULT_DITHER_TEXTURE, ...texture } },
+      options: {
+        longerSideStitches: 120,
+        colorCount: 16,
+        ditherMode: "hand-drawn",
+        ditherTexture: { ...DEFAULT_DITHER_TEXTURE, ...texture },
+      },
       golden: false,
     },
   ]),
   // A chart finer than the photo: the corpus had none before G-051, which is how a divergence in the cells that no
   // source pixel lands in could have hidden. `circle` is 30x30, `hardSplit` 64x64.
   ...(["standard", "crisp", "crisp-plus"] as const).flatMap((edgeMode): Case[] => [
-    { name: `upscale/circle-30px-90st/${edgeMode}`, source: circle, options: { longerSideStitches: 90, colorCount: 8, edgeMode }, golden: false },
-    { name: `upscale/hardsplit-64px-150st/${edgeMode}`, source: hardSplit, options: { longerSideStitches: 150, colorCount: 6, edgeMode }, golden: false },
+    {
+      name: `upscale/circle-30px-90st/${edgeMode}`,
+      source: circle,
+      options: { longerSideStitches: 90, colorCount: 8, edgeMode },
+      golden: false,
+    },
+    {
+      name: `upscale/hardsplit-64px-150st/${edgeMode}`,
+      source: hardSplit,
+      options: { longerSideStitches: 150, colorCount: 6, edgeMode },
+      golden: false,
+    },
   ]),
-  { name: "upscale/circle-original-quantizer", source: circle, options: { longerSideStitches: 75, colorCount: 6, quantizer: plainKMeansQuantizer }, golden: false },
+  {
+    name: "upscale/circle-original-quantizer",
+    source: circle,
+    options: { longerSideStitches: 75, colorCount: 6, quantizer: plainKMeansQuantizer },
+    golden: false,
+  },
   // Transparency, in every edge mode and both quantizers: the empty cells must match too.
   ...(["standard", "crisp", "crisp-plus"] as const).flatMap((edgeMode): Case[] => [
-    { name: `alpha/disc-150st-16col/${edgeMode}`, source: discOnTransparency, options: { longerSideStitches: 50, colorCount: 16, edgeMode }, golden: false },
-    { name: `alpha/corner-60st-12col/${edgeMode}`, source: cornerCut, options: { longerSideStitches: 60, colorCount: 12, edgeMode }, golden: false },
+    {
+      name: `alpha/disc-150st-16col/${edgeMode}`,
+      source: discOnTransparency,
+      options: { longerSideStitches: 50, colorCount: 16, edgeMode },
+      golden: false,
+    },
+    {
+      name: `alpha/corner-60st-12col/${edgeMode}`,
+      source: cornerCut,
+      options: { longerSideStitches: 60, colorCount: 12, edgeMode },
+      golden: false,
+    },
   ]),
-  { name: "alpha/disc-original-quantizer", source: discOnTransparency, options: { longerSideStitches: 40, colorCount: 10, quantizer: plainKMeansQuantizer }, golden: false },
-  { name: "alpha/disc-dmc", source: discOnTransparency, options: { longerSideStitches: 40, colorCount: 10, paletteMode: "dmc" }, golden: false },
+  {
+    name: "alpha/disc-original-quantizer",
+    source: discOnTransparency,
+    options: { longerSideStitches: 40, colorCount: 10, quantizer: plainKMeansQuantizer },
+    golden: false,
+  },
+  {
+    name: "alpha/disc-dmc",
+    source: discOnTransparency,
+    options: { longerSideStitches: 40, colorCount: 10, paletteMode: "dmc" },
+    golden: false,
+  },
   // G-061: Vivid, where a stitch covers enough pixels for it to act and where it stands down, on both palettes,
   // dithered and not, with Crisp, with Classic clustering, and over transparency.
   { name: "vivid/photo-120st-24col", source: photo, options: { longerSideStitches: 120, colorCount: 24, vivid: true }, golden: false },
-  { name: "vivid/photo-40st-12col-dmc", source: photo, options: { longerSideStitches: 40, colorCount: 12, vivid: true, paletteMode: "dmc" }, golden: false },
-  { name: "vivid/photo-80st-16col-crisp", source: photo, options: { longerSideStitches: 80, colorCount: 16, vivid: true, edgeMode: "crisp" }, golden: false },
-  { name: "vivid/photo-80st-16col-dithered", source: photo, options: { longerSideStitches: 80, colorCount: 16, vivid: true, ditherMode: "floyd-steinberg" }, golden: false },
-  { name: "vivid/photo-60st-10col-original", source: photo, options: { longerSideStitches: 60, colorCount: 10, vivid: true, quantizer: plainKMeansQuantizer }, golden: false },
-  { name: "vivid/tworegion-30st-8col-stands-down", source: twoRegion, options: { longerSideStitches: 30, colorCount: 8, vivid: true }, golden: false },
-  { name: "vivid/alpha-disc-50st-16col", source: discOnTransparency, options: { longerSideStitches: 50, colorCount: 16, vivid: true }, golden: false },
+  {
+    name: "vivid/photo-40st-12col-dmc",
+    source: photo,
+    options: { longerSideStitches: 40, colorCount: 12, vivid: true, paletteMode: "dmc" },
+    golden: false,
+  },
+  {
+    name: "vivid/photo-80st-16col-crisp",
+    source: photo,
+    options: { longerSideStitches: 80, colorCount: 16, vivid: true, edgeMode: "crisp" },
+    golden: false,
+  },
+  {
+    name: "vivid/photo-80st-16col-dithered",
+    source: photo,
+    options: { longerSideStitches: 80, colorCount: 16, vivid: true, ditherMode: "floyd-steinberg" },
+    golden: false,
+  },
+  {
+    name: "vivid/photo-60st-10col-original",
+    source: photo,
+    options: { longerSideStitches: 60, colorCount: 10, vivid: true, quantizer: plainKMeansQuantizer },
+    golden: false,
+  },
+  {
+    name: "vivid/tworegion-30st-8col-stands-down",
+    source: twoRegion,
+    options: { longerSideStitches: 30, colorCount: 8, vivid: true },
+    golden: false,
+  },
+  {
+    name: "vivid/alpha-disc-50st-16col",
+    source: discOnTransparency,
+    options: { longerSideStitches: 50, colorCount: 16, vivid: true },
+    golden: false,
+  },
   // The reservation itself: every earlier Vivid case above reserves nothing, so these are what compare it.
-  { name: "vivid/hue-detail-100st-8col", source: hueDetail, options: { longerSideStitches: 100, colorCount: 8, vivid: true }, golden: false },
-  { name: "vivid/hue-detail-100st-24col", source: hueDetail, options: { longerSideStitches: 100, colorCount: 24, vivid: true }, golden: false },
-  { name: "vivid/hue-detail-100st-24col-dmc", source: hueDetail, options: { longerSideStitches: 100, colorCount: 24, vivid: true, paletteMode: "dmc" }, golden: false },
-  { name: "vivid/hue-detail-100st-16col-dithered", source: hueDetail, options: { longerSideStitches: 100, colorCount: 16, vivid: true, ditherMode: "floyd-steinberg" }, golden: false },
-  { name: "vivid/hue-detail-100st-12col-original", source: hueDetail, options: { longerSideStitches: 100, colorCount: 12, vivid: true, quantizer: plainKMeansQuantizer }, golden: false },
+  {
+    name: "vivid/hue-detail-100st-8col",
+    source: hueDetail,
+    options: { longerSideStitches: 100, colorCount: 8, vivid: true },
+    golden: false,
+  },
+  {
+    name: "vivid/hue-detail-100st-24col",
+    source: hueDetail,
+    options: { longerSideStitches: 100, colorCount: 24, vivid: true },
+    golden: false,
+  },
+  {
+    name: "vivid/hue-detail-100st-24col-dmc",
+    source: hueDetail,
+    options: { longerSideStitches: 100, colorCount: 24, vivid: true, paletteMode: "dmc" },
+    golden: false,
+  },
+  {
+    name: "vivid/hue-detail-100st-16col-dithered",
+    source: hueDetail,
+    options: { longerSideStitches: 100, colorCount: 16, vivid: true, ditherMode: "floyd-steinberg" },
+    golden: false,
+  },
+  {
+    name: "vivid/hue-detail-100st-12col-original",
+    source: hueDetail,
+    options: { longerSideStitches: 100, colorCount: 12, vivid: true, quantizer: plainKMeansQuantizer },
+    golden: false,
+  },
   { name: "vivid/hue-detail-off-100st-24col", source: hueDetail, options: { longerSideStitches: 100, colorCount: 24 }, golden: false },
   // The capacity probe's shapes (scripts/capacity-probe.ts) in every edge mode: TypeScript is the reference.
   ...(process.env.RUST_PARITY_LARGE === "0"
     ? []
     : [
         ...(["standard", "crisp", "crisp-plus"] as const).flatMap((edgeMode): Case[] => [
-          { name: `probe/1000st-64col-1500x1000/${edgeMode}`, source: probe1000(), options: { longerSideStitches: 1000, colorCount: 64, edgeMode }, golden: false },
-          { name: `probe/1500st-64col-2250x1500/${edgeMode}`, source: probe1500(), options: { longerSideStitches: 1500, colorCount: 64, edgeMode }, golden: false },
+          {
+            name: `probe/1000st-64col-1500x1000/${edgeMode}`,
+            source: probe1000(),
+            options: { longerSideStitches: 1000, colorCount: 64, edgeMode },
+            golden: false,
+          },
+          {
+            name: `probe/1500st-64col-2250x1500/${edgeMode}`,
+            source: probe1500(),
+            options: { longerSideStitches: 1500, colorCount: 64, edgeMode },
+            golden: false,
+          },
         ]),
       ]),
 ];
@@ -326,7 +476,18 @@ const results: Array<Record<string, unknown>> = [];
 afterAll(() => {
   rmSync(workDir, { recursive: true, force: true });
   if (process.env.RUST_PARITY_OUT) writeFileSync(process.env.RUST_PARITY_OUT, JSON.stringify(results, null, 2) + "\n");
-  console.table(results.map((r) => ({ case: r.name, tsMs: r.tsMs, rustMs: r.rustMs, speedup: r.speedup, identical: r.identical, wasmMs: r.wasmMs, wasmIdentical: r.wasmIdentical, enhanced: r.enhanced })));
+  console.table(
+    results.map((r) => ({
+      case: r.name,
+      tsMs: r.tsMs,
+      rustMs: r.rustMs,
+      speedup: r.speedup,
+      identical: r.identical,
+      wasmMs: r.wasmMs,
+      wasmIdentical: r.wasmIdentical,
+      enhanced: r.enhanced,
+    }))
+  );
 });
 
 function toPattern(output: RustOutput): StitchPattern {
@@ -365,10 +526,14 @@ function runRust(c: Case, index: number): RustOutput {
   const file = path.join(workDir, `case-${index}.rgba`);
   writeFileSync(file, c.source.data);
   const options = rustOptions(c);
-  const stdout = execFileSync(BINARY, ["generate", file, String(c.source.width), String(c.source.height), JSON.stringify(options), String(REPEAT)], {
-    maxBuffer: 1 << 30,
-    encoding: "utf8",
-  });
+  const stdout = execFileSync(
+    BINARY,
+    ["generate", file, String(c.source.width), String(c.source.height), JSON.stringify(options), String(REPEAT)],
+    {
+      maxBuffer: 1 << 30,
+      encoding: "utf8",
+    }
+  );
   return JSON.parse(stdout) as RustOutput;
 }
 
@@ -414,7 +579,10 @@ describe("Rust exact tier reproduces the TypeScript pipeline (G-048)", () => {
 
     // The thread each colour was snapped to is not part of the hash (the golden hashes predate it), and the editor
     // reopens a colour on exactly that swatch (D122), so it is compared on its own — G-048 M6 shipped without it once.
-    expect(rustPattern.palette.map((color) => color.source ?? null), "the thread each colour was snapped to differs").toEqual(tsPattern!.palette.map((color) => color.source ?? null));
+    expect(
+      rustPattern.palette.map((color) => color.source ?? null),
+      "the thread each colour was snapped to differs"
+    ).toEqual(tsPattern!.palette.map((color) => color.source ?? null));
     // Not part of the hash either, and the same class of field as the thread source above: it records how the chart
     // was built, so a Rust build that silently dropped it would still hash identical (G-052 M4).
     expect(rustPattern.ditherMode ?? null, "the recorded dither pattern differs").toEqual(tsPattern!.ditherMode ?? null);

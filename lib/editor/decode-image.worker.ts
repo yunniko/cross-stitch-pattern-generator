@@ -6,7 +6,8 @@ import { decodeBlobOffscreen, type DecodedPixels } from "./decode-bitmap";
  */
 export type DecodeImageRequest = { requestId: number; source: { kind: "blob"; blob: Blob } | { kind: "dataUrl"; dataUrl: string } };
 
-export type DecodeImageResponse = { type: "done"; requestId: number; decoded: DecodedPixels } | { type: "error"; requestId: number; message: string };
+export type DecodeImageResponse =
+  { type: "done"; requestId: number; decoded: DecodedPixels } | { type: "error"; requestId: number; message: string };
 
 // A narrow local shim, as in pattern.worker.ts: the "dom" and "webworker" libs can't share one tsconfig.
 declare const self: {

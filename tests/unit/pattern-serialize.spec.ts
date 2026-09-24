@@ -24,7 +24,12 @@ function lockedTo(brand: ThreadBrand): StitchPattern {
   return {
     ...base,
     threadBrand: brand,
-    palette: base.palette.map((color, i) => ({ ...color, rgb: threads[i].rgb, name: formatThreadName(threads[i]), source: { brand, code: threads[i].code } })),
+    palette: base.palette.map((color, i) => ({
+      ...color,
+      rgb: threads[i].rgb,
+      name: formatThreadName(threads[i]),
+      source: { brand, code: threads[i].code },
+    })),
   };
 }
 
@@ -185,13 +190,13 @@ describe("pattern-serialize", () => {
     expect(deserializePattern(both).threadBrand).toBe("dmc");
   });
 
-  it("round-trips edgeMode: \"crisp\" (G-024 M5)", () => {
+  it('round-trips edgeMode: "crisp" (G-024 M5)', () => {
     const pattern = { ...makePattern(), edgeMode: "crisp" as const };
     const restored = deserializePattern(serializePattern(pattern));
     expect(restored.edgeMode).toBe("crisp");
   });
 
-  it("round-trips edgeMode: \"crisp-plus\" (G-038)", () => {
+  it('round-trips edgeMode: "crisp-plus" (G-038)', () => {
     const pattern = { ...makePattern(), edgeMode: "crisp-plus" as const };
     expect(deserializePattern(serializePattern(pattern)).edgeMode).toBe("crisp-plus");
   });
@@ -267,7 +272,12 @@ describe("pattern-serialize", () => {
   });
 
   it("rejects fractional dimensions even when the cell count happens to match", () => {
-    const bad = JSON.stringify({ width: 2.5, height: 2, cellPalette: [0, 0, 0, 0, 0], palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }] });
+    const bad = JSON.stringify({
+      width: 2.5,
+      height: 2,
+      cellPalette: [0, 0, 0, 0, 0],
+      palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }],
+    });
     expect(() => deserializePattern(bad)).toThrow(/dimensions/);
   });
 

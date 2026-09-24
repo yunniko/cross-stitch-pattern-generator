@@ -155,7 +155,11 @@ export function applyBrandPalette(
  * Counts confident cells whose two modes collapse onto one thread (D71). `buildAdmissibleLabelCosts` already handles
  * that case correctly; this only surfaces how often a boundary can no longer be two distinct threads.
  */
-export function countCrispThreadCollisions(evidenceLayer: CrispEvidenceLayer, threadPaletteOklab: Oklab[], weights?: CrispUnaryCostWeights): number {
+export function countCrispThreadCollisions(
+  evidenceLayer: CrispEvidenceLayer,
+  threadPaletteOklab: Oklab[],
+  weights?: CrispUnaryCostWeights
+): number {
   let collisions = 0;
   for (const evidence of evidenceLayer.evidenceByCell.values()) {
     if (evidence.modes.length < 2) continue; // nothing to collide -- only ever had one mode

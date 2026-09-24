@@ -39,7 +39,9 @@ test("upload an image, generate a pattern, preview it, and download both variant
   expect(bwDownload.suggestedFilename()).toBe("sample_bw.png");
 });
 
-test("the image input is disabled while a pattern is generating, so a mid-generation image swap can't happen (code-review 2026-09-09, finding 1)", async ({ page }) => {
+test("the image input is disabled while a pattern is generating, so a mid-generation image swap can't happen (code-review 2026-09-09, finding 1)", async ({
+  page,
+}) => {
   await page.goto("/");
 
   await page.getByLabel("Image").setInputFiles(FIXTURE);

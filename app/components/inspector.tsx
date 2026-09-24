@@ -58,7 +58,12 @@ export function Inspector({ tab, onTabChange, disabled = {}, photo, chart, threa
           );
         })}
       </div>
-      <div role="tabpanel" id={`inspector-pane-${tab}`} aria-labelledby={`inspector-tab-${tab}`} className="flex flex-1 flex-col overflow-y-auto">
+      <div
+        role="tabpanel"
+        id={`inspector-pane-${tab}`}
+        aria-labelledby={`inspector-tab-${tab}`}
+        className="flex flex-1 flex-col overflow-y-auto"
+      >
         {pane}
       </div>
       {footer && <div className="shrink-0 border-t border-line bg-app px-4 py-3">{footer}</div>}

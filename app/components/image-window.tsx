@@ -173,13 +173,22 @@ export function ImageWindow({
         >
           <canvas ref={canvasRef} data-testid="chart-canvas" aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
           {/* The cursor draws here and nowhere else, so moving it never repaints the chart (G-065). */}
-          <canvas ref={hoverCanvasRef} data-testid="brush-outline" aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
+          <canvas
+            ref={hoverCanvasRef}
+            data-testid="brush-outline"
+            aria-hidden="true"
+            className="pointer-events-none absolute top-0 left-0"
+          />
         </div>
       )}
       {pattern && viewMode === "realistic" && previewError && (
         <div className="flex items-center gap-3 rounded border border-red-900 p-3 text-sm text-red-300">
           <span>{previewError}</span>
-          <button type="button" onClick={onRetryPreview} className="rounded-full border border-red-900 px-3 py-1 text-xs font-medium hover:bg-red-950">
+          <button
+            type="button"
+            onClick={onRetryPreview}
+            className="rounded-full border border-red-900 px-3 py-1 text-xs font-medium hover:bg-red-950"
+          >
             Retry
           </button>
         </div>

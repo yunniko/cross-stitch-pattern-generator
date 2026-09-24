@@ -18,7 +18,13 @@ async function bundle(entry: string): Promise<string> {
 }
 
 /** A small JPEG or PNG drawn in the page: diagonal ramps, a hard-edged disc and saturated corners, optionally translucent. */
-async function drawFixture(page: Page, width: number, height: number, type: "image/jpeg" | "image/png", translucent = false): Promise<Buffer> {
+async function drawFixture(
+  page: Page,
+  width: number,
+  height: number,
+  type: "image/jpeg" | "image/png",
+  translucent = false
+): Promise<Buffer> {
   const base64 = await page.evaluate(
     async ({ width, height, type, translucent }) => {
       const canvas = document.createElement("canvas");
@@ -148,7 +154,17 @@ async function compare(page: Page, workerCode: string, bytes: Buffer, mimeType: 
       for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
       const blob = new Blob([array], { type: mimeType });
       const dataUrl = `data:${mimeType};base64,${base64}`;
-      const main = await (window as unknown as { __decodeOnMainThread: (url: string) => Promise<{ pixelBuffer: { data: Uint8ClampedArray; width: number; height: number }; naturalWidth: number; naturalHeight: number }> }).__decodeOnMainThread(dataUrl);
+      const main = await (
+        window as unknown as {
+          __decodeOnMainThread: (
+            url: string
+          ) => Promise<{
+            pixelBuffer: { data: Uint8ClampedArray; width: number; height: number };
+            naturalWidth: number;
+            naturalHeight: number;
+          }>;
+        }
+      ).__decodeOnMainThread(dataUrl);
       const workerUrl = URL.createObjectURL(new Blob([workerCode], { type: "text/javascript" }));
       const worker = new Worker(workerUrl);
       const reply = await new Promise<{ type: string; message?: string; decoded?: typeof main }>((resolve) => {
@@ -168,7 +184,12 @@ async function compare(page: Page, workerCode: string, bytes: Buffer, mimeType: 
         if (i % 4 === 3) minAlpha = Math.min(minAlpha, b[i]);
         if (i % 4 === 0) red += b[i];
       }
-      const dims = (d: typeof main) => ({ width: d.pixelBuffer.width, height: d.pixelBuffer.height, naturalWidth: d.naturalWidth, naturalHeight: d.naturalHeight });
+      const dims = (d: typeof main) => ({
+        width: d.pixelBuffer.width,
+        height: d.pixelBuffer.height,
+        naturalWidth: d.naturalWidth,
+        naturalHeight: d.naturalHeight,
+      });
       return { mainThread: dims(main), worker: dims(reply.decoded), differingBytes, minAlpha, meanRed: red / (b.length / 4) };
     },
     { workerCode, base64: bytes.toString("base64"), mimeType }

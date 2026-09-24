@@ -273,7 +273,16 @@ export function drawCell(
  * (x0, y0) sits on the canvas: 0 for a region drawn at the origin, the
  * cell's own pixel position for an in-place single-cell redraw.
  */
-function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: number, y1: number, cellSize: number, originX = 0, originY = 0) {
+function drawGridLines(
+  ctx: ChartDrawingContext,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  cellSize: number,
+  originX = 0,
+  originY = 0
+) {
   const minorWidth = Math.max(1, Math.round(cellSize * MINOR_LINE_RATIO));
   const mediumWidth = Math.max(1, Math.round(cellSize * MEDIUM_LINE_RATIO));
   const majorWidth = Math.max(1, Math.round(cellSize * MAJOR_LINE_RATIO));
@@ -457,14 +466,7 @@ export function truncateToWidth(ctx: ChartDrawingContext, text: string, maxWidth
   return low > 0 ? `${text.slice(0, low)}…` : "…";
 }
 
-function drawLegendItem(
-  ctx: Canvas2D,
-  color: PaletteColor,
-  mode: RenderMode,
-  x: number,
-  y: number,
-  aidaCount: number
-) {
+function drawLegendItem(ctx: Canvas2D, color: PaletteColor, mode: RenderMode, x: number, y: number, aidaCount: number) {
   // The legend swatch always shows the true color, even in B&W mode —
   // otherwise a B&W download carries no color information at all
   // (domain-expert review, HANDOVER.md D7).
@@ -608,7 +610,11 @@ export function findChartLayout(pattern: StitchPattern, requestedCellSize: numbe
     const canvasWidth = Math.max(leftGutter + chartWidthPx + rightGutter + extraWidth, headerWidthPx);
     const canvasHeight = HEADER_HEIGHT + topGutter + chartHeightPx + bottomGutter + extraHeight;
 
-    if (canvasWidth <= MAX_CHART_DIMENSION_PX && canvasHeight <= MAX_CHART_DIMENSION_PX && canvasWidth * canvasHeight <= MAX_CHART_AREA_PX) {
+    if (
+      canvasWidth <= MAX_CHART_DIMENSION_PX &&
+      canvasHeight <= MAX_CHART_DIMENSION_PX &&
+      canvasWidth * canvasHeight <= MAX_CHART_AREA_PX
+    ) {
       return { cellSize, chartWidthPx, chartHeightPx, belowChart, leftGutter, topGutter, canvasWidth, canvasHeight };
     }
   }
@@ -616,7 +622,13 @@ export function findChartLayout(pattern: StitchPattern, requestedCellSize: numbe
   return null;
 }
 
-function computeChartLayout(pattern: StitchPattern, requestedCellSize: number, aidaCount: number, sizeUnit: SizeUnit, authorName?: string): ChartLayout {
+function computeChartLayout(
+  pattern: StitchPattern,
+  requestedCellSize: number,
+  aidaCount: number,
+  sizeUnit: SizeUnit,
+  authorName?: string
+): ChartLayout {
   const { ctx: measureCtx } = createCanvas(1, 1);
   measureCtx.font = HEADER_FONT;
   const headerWidthPx = measureCtx.measureText(headerText(pattern, aidaCount, sizeUnit, authorName)).width + LEGEND_PADDING * 2;
@@ -626,11 +638,7 @@ function computeChartLayout(pattern: StitchPattern, requestedCellSize: number, a
   return layout;
 }
 
-export function renderPatternToCanvas(
-  pattern: StitchPattern,
-  mode: RenderMode,
-  options: RenderOptions = {}
-): AnyCanvas {
+export function renderPatternToCanvas(pattern: StitchPattern, mode: RenderMode, options: RenderOptions = {}): AnyCanvas {
   const aidaCount = options.aidaCount ?? DEFAULT_AIDA_COUNT;
   const sizeUnit = options.sizeUnit ?? DEFAULT_SIZE_UNIT;
   const authorName = options.authorName;
@@ -665,10 +673,7 @@ export function renderPatternToCanvas(
  * around it). No grid lines, symbols, legend, markers, or numbers -- this
  * is a look-and-feel preview, not a stitchable chart.
  */
-export async function renderStitchPreviewToCanvas(
-  pattern: StitchPattern,
-  options: RenderOptions = {}
-): Promise<AnyCanvas> {
+export async function renderStitchPreviewToCanvas(pattern: StitchPattern, options: RenderOptions = {}): Promise<AnyCanvas> {
   const { width, height, cellPalette, palette } = pattern;
   const cellSize = effectiveCellSize(width, height, options.cellSize ?? DEFAULT_CELL_SIZE);
   const areaWidthPx = width * cellSize;

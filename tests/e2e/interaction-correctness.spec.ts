@@ -15,9 +15,14 @@ async function generateSmallPattern(page: Page) {
 
 /** A synthetic editable-pattern file 1000 stitches wide, opened through the file input so the test doesn't pay for a 1000-stitch generation. */
 function largePatternJson(width: number, height: number, colors: number): string {
-  const palette = Array.from({ length: colors }, (_, i) => ({ rgb: [(i * 37) % 256, (i * 91) % 256, (i * 151) % 256], symbol: String.fromCharCode(65 + i), name: `Color ${i}` }));
+  const palette = Array.from({ length: colors }, (_, i) => ({
+    rgb: [(i * 37) % 256, (i * 91) % 256, (i * 151) % 256],
+    symbol: String.fromCharCode(65 + i),
+    name: `Color ${i}`,
+  }));
   const cellPalette = new Array<number>(width * height);
-  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) cellPalette[y * width + x] = (Math.floor(x / 25) + Math.floor(y / 25)) % colors;
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) cellPalette[y * width + x] = (Math.floor(x / 25) + Math.floor(y / 25)) % colors;
   return JSON.stringify({ formatVersion: 5, width, height, isLandscape: true, cellPalette, palette, name: "large" });
 }
 
@@ -99,7 +104,9 @@ test("a 50-cell brush stroke on a 1000-stitch pattern completes within a bounded
   test.slow();
   await page.goto("/");
   // The file input stays mounted whatever screen is up; the New -> confirm -> card path has its own test.
-  await page.getByLabel("Open pattern file").setInputFiles({ name: "large_editable.json", mimeType: "application/json", buffer: Buffer.from(largePatternJson(1000, 625, 16)) });
+  await page
+    .getByLabel("Open pattern file")
+    .setInputFiles({ name: "large_editable.json", mimeType: "application/json", buffer: Buffer.from(largePatternJson(1000, 625, 16)) });
   const canvas = page.getByTestId("chart-frame");
   await expect(canvas).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/1000 × 625, [\d,]+ stitch/)).toBeVisible();

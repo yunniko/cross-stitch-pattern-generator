@@ -78,7 +78,8 @@ function recomputePaletteColors(
     const evidence = evidenceLayer.evidenceByCell.get(i);
     const supportingMode = evidence ? crispCosts.get(i)?.get(label)?.supportingMode : undefined;
     const o = i * 3;
-    const oklab: Oklab = evidence && supportingMode !== undefined ? evidence.modes[supportingMode] : [cellOklab[o], cellOklab[o + 1], cellOklab[o + 2]];
+    const oklab: Oklab =
+      evidence && supportingMode !== undefined ? evidence.modes[supportingMode] : [cellOklab[o], cellOklab[o + 1], cellOklab[o + 2]];
     sums[label][0] += oklab[0];
     sums[label][1] += oklab[1];
     sums[label][2] += oklab[2];

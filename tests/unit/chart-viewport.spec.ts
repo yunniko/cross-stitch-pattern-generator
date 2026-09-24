@@ -15,7 +15,12 @@ import {
 describe("visibleChartRect", () => {
   it("is the scroller's client area in chart pixels, clamped to the chart", () => {
     // Frame content box at client (100.5, 40), scroller client area 200..900 × 50..650, chart 2000 × 1500.
-    expect(visibleChartRect(100.5, 40, { left: 200, top: 50, right: 900, bottom: 650 }, 2000, 1500)).toEqual({ x0: 99.5, y0: 10, x1: 799.5, y1: 610 });
+    expect(visibleChartRect(100.5, 40, { left: 200, top: 50, right: 900, bottom: 650 }, 2000, 1500)).toEqual({
+      x0: 99.5,
+      y0: 10,
+      x1: 799.5,
+      y1: 610,
+    });
   });
 
   it("clamps to the chart when it is smaller than the view and centred inside it", () => {
@@ -23,7 +28,12 @@ describe("visibleChartRect", () => {
   });
 
   it("scrolled past the chart's start, it begins deeper in the chart", () => {
-    expect(visibleChartRect(-1234.25, -56, { left: 0, top: 0, right: 700, bottom: 500 }, 8000, 6000)).toEqual({ x0: 1234.25, y0: 56, x1: 1934.25, y1: 556 });
+    expect(visibleChartRect(-1234.25, -56, { left: 0, top: 0, right: 700, bottom: 500 }, 8000, 6000)).toEqual({
+      x0: 1234.25,
+      y0: 56,
+      x1: 1934.25,
+      y1: 556,
+    });
   });
 });
 

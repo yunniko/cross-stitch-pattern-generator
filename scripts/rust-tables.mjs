@@ -28,9 +28,20 @@ const clean = (text) => {
   return text;
 };
 const hex = ([r, g, b]) => [r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("");
-for (const [file, colors] of [["threads-dmc.tsv", DMC_COLORS], ["threads-cosmo.tsv", COSMO_COLORS], ["threads-anchor.tsv", ANCHOR_COLORS]]) {
+for (const [file, colors] of [
+  ["threads-dmc.tsv", DMC_COLORS],
+  ["threads-cosmo.tsv", COSMO_COLORS],
+  ["threads-anchor.tsv", ANCHOR_COLORS],
+]) {
   writeFileSync(path.join(outDir, file), colors.map((c) => `${clean(c.code)}\t${clean(c.name)}\t${hex(c.rgb)}`).join("\n") + "\n");
 }
-writeFileSync(path.join(outDir, "dmc-to-anchor.tsv"), Object.entries(DMC_TO_ANCHOR).map(([d, a]) => `${clean(d)}\t${clean(a)}`).join("\n") + "\n");
-console.log(`${DMC_COLORS.length} DMC, ${COSMO_COLORS.length} Cosmo, ${ANCHOR_COLORS.length} Anchor, ${Object.keys(DMC_TO_ANCHOR).length} DMC-to-Anchor entries`);
+writeFileSync(
+  path.join(outDir, "dmc-to-anchor.tsv"),
+  Object.entries(DMC_TO_ANCHOR)
+    .map(([d, a]) => `${clean(d)}\t${clean(a)}`)
+    .join("\n") + "\n"
+);
+console.log(
+  `${DMC_COLORS.length} DMC, ${COSMO_COLORS.length} Cosmo, ${ANCHOR_COLORS.length} Anchor, ${Object.keys(DMC_TO_ANCHOR).length} DMC-to-Anchor entries`
+);
 console.log(`${lines.length} names from color-name-list ${pkg.version} (${pkg.license})`);

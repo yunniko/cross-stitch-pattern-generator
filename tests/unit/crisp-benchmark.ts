@@ -85,7 +85,9 @@ function measure(label: string, buffer: PixelBuffer, options: BuildPatternOption
     if (i === 0) console.log(`${label}: palette size ${pattern.palette.length}`);
   }
   const meanMs = times.reduce((s, t) => s + t, 0) / times.length;
-  console.log(`${label}: ${times.map((t) => t.toFixed(0)).join("ms, ")}ms across ${repeats} run(s), mean ${meanMs.toFixed(0)}ms, heapUsed delta (last run, approximate) ${(heapDelta / 1e6).toFixed(1)}MB`);
+  console.log(
+    `${label}: ${times.map((t) => t.toFixed(0)).join("ms, ")}ms across ${repeats} run(s), mean ${meanMs.toFixed(0)}ms, heapUsed delta (last run, approximate) ${(heapDelta / 1e6).toFixed(1)}MB`
+  );
 }
 
 describe("G-024 M6 benchmark (manual invocation only, see file doc comment)", () => {
@@ -95,29 +97,25 @@ describe("G-024 M6 benchmark (manual invocation only, see file doc comment)", ()
     measure("representative/crisp", buffer, { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp" }, 3);
   });
 
-  it(
-    "large grid (1500x1000 source, 500 stitches, 32 colors)",
-    () => {
-      // Single-run (not averaged). The report's/D5-M5's own established
-      // "worst case" (1000 stitches, 64 colors) was ATTEMPTED first at this
-      // same 1500x1000 source and abandoned after a single Standard-mode
-      // run alone exceeded 400 CPU-seconds on this machine with no sign of
-      // finishing -- a real, honestly-reported finding (see the delivery
-      // doc's benchmark section and HANDOVER.md D96), not a hang: this
-      // fixture's dense per-pixel noise across four broad regions gives the
-      // ICM optimizer far more genuinely-distinct local color variation to
-      // reconsider on every pass than whatever simpler synthetic image
-      // produced the historical ~13.4s figure, and 64 requested colors
-      // against 667,000 cells multiplies that cost heavily (`MAX_PASSES`
-      // re-evaluates every candidate color for every cell on every pass).
-      // Scaled down to a grid still 11x representative's own cell count
-      // (500-stitch longer side vs. 150) so the comparison stays meaningful
-      // without spending several more CPU-minutes chasing an exact
-      // 1000/64 figure the Standard-vs-Crisp RATIO doesn't actually need.
-      const buffer = makePhotoLikeBuffer(1500, 1000);
-      measure("large/standard", buffer, { longerSideStitches: 500, colorCount: 32, edgeMode: "standard" }, 1);
-      measure("large/crisp", buffer, { longerSideStitches: 500, colorCount: 32, edgeMode: "crisp" }, 1);
-    },
-    300_000
-  );
+  it("large grid (1500x1000 source, 500 stitches, 32 colors)", () => {
+    // Single-run (not averaged). The report's/D5-M5's own established
+    // "worst case" (1000 stitches, 64 colors) was ATTEMPTED first at this
+    // same 1500x1000 source and abandoned after a single Standard-mode
+    // run alone exceeded 400 CPU-seconds on this machine with no sign of
+    // finishing -- a real, honestly-reported finding (see the delivery
+    // doc's benchmark section and HANDOVER.md D96), not a hang: this
+    // fixture's dense per-pixel noise across four broad regions gives the
+    // ICM optimizer far more genuinely-distinct local color variation to
+    // reconsider on every pass than whatever simpler synthetic image
+    // produced the historical ~13.4s figure, and 64 requested colors
+    // against 667,000 cells multiplies that cost heavily (`MAX_PASSES`
+    // re-evaluates every candidate color for every cell on every pass).
+    // Scaled down to a grid still 11x representative's own cell count
+    // (500-stitch longer side vs. 150) so the comparison stays meaningful
+    // without spending several more CPU-minutes chasing an exact
+    // 1000/64 figure the Standard-vs-Crisp RATIO doesn't actually need.
+    const buffer = makePhotoLikeBuffer(1500, 1000);
+    measure("large/standard", buffer, { longerSideStitches: 500, colorCount: 32, edgeMode: "standard" }, 1);
+    measure("large/crisp", buffer, { longerSideStitches: 500, colorCount: 32, edgeMode: "crisp" }, 1);
+  }, 300_000);
 });

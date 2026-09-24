@@ -2,7 +2,17 @@
 
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { formatFinishedDimension } from "@/lib/export/finished-size";
-import { DIFFUSION_DITHER_MODES, DRAWN_DITHER_MODES, isDithered, isDrawnMode, isLinesMode, LINE_DITHER_MODES, ORDERED_DITHER_MODES, type DitherMode, type LineDitherMode } from "@/lib/pipeline/dither";
+import {
+  DIFFUSION_DITHER_MODES,
+  DRAWN_DITHER_MODES,
+  isDithered,
+  isDrawnMode,
+  isLinesMode,
+  LINE_DITHER_MODES,
+  ORDERED_DITHER_MODES,
+  type DitherMode,
+  type LineDitherMode,
+} from "@/lib/pipeline/dither";
 import { isReleasedEnhancementMode, releasedEnhancementModes, type EnhancementModeId } from "@/lib/pipeline/enhance";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
@@ -27,18 +37,25 @@ const GROUP_LABEL = "text-[11px] font-medium uppercase tracking-[0.08em] text-mu
 // and the golden hashes all speak (Owner rename, 2026-09-20).
 const ALGORITHM_OPTIONS: SegmentOption<WorkspaceOptions["generationMode"]>[] = [
   { value: "latest", label: "Refined", title: "The current color-picking algorithm: it spends spare colors on small distinct details" },
-  { value: "original", label: "Classic", title: "The algorithm this project first shipped with: colors follow how much of the photo uses them" },
+  {
+    value: "original",
+    label: "Classic",
+    title: "The algorithm this project first shipped with: colors follow how much of the photo uses them",
+  },
 ];
 
 const PALETTE_OPTIONS: SegmentOption<WorkspaceOptions["paletteMode"]>[] = [
   { value: "full", label: "Full range", title: "Whatever colors the chosen algorithm finds" },
   ...THREAD_BRAND_IDS.map((brand) => {
     const { label, derivationNote } = THREAD_BRANDS[brand];
-    const naming = 'colors are named "code - name" (or just the code, for a brand with no published names) and similar shades may merge into one';
+    const naming =
+      'colors are named "code - name" (or just the code, for a brand with no published names) and similar shades may merge into one';
     return {
       value: brand,
       label,
-      title: derivationNote ? `Snaps the palette to ${label} thread colors -- ${derivationNote}; ${naming}` : `Snaps the palette to real, buyable ${label} thread colors -- ${naming}`,
+      title: derivationNote
+        ? `Snaps the palette to ${label} thread colors -- ${derivationNote}; ${naming}`
+        : `Snaps the palette to real, buyable ${label} thread colors -- ${naming}`,
     };
   }),
 ];
@@ -47,16 +64,26 @@ const PALETTE_OPTIONS: SegmentOption<WorkspaceOptions["paletteMode"]>[] = [
 // stitches, and this chooses what a stitch is made of, before any colour is chosen (D040's lesson, D211).
 const VIVID_OPTIONS: SegmentOption<"averaged" | "vivid">[] = [
   { value: "averaged", label: "Averaged", title: "Today's default: a stitch is the average of the pixels it covers" },
-  { value: "vivid", label: "Vivid", title: "A stitch keeps the average lightness but the colour of its most colourful part, so a small bright detail is not averaged into a grey (G-061)" },
+  {
+    value: "vivid",
+    label: "Vivid",
+    title:
+      "A stitch keeps the average lightness but the colour of its most colourful part, so a small bright detail is not averaged into a grey (G-061)",
+  },
 ];
 
 const EDGE_OPTIONS: SegmentOption<WorkspaceOptions["edgeMode"]>[] = [
   { value: "standard", label: "Standard", title: "Today's default -- averages colors across a boundary" },
-  { value: "crisp", label: "Crisp", title: "Preserves hard color boundaries instead of blending them into a manufactured intermediate color (G-024)" },
+  {
+    value: "crisp",
+    label: "Crisp",
+    title: "Preserves hard color boundaries instead of blending them into a manufactured intermediate color (G-024)",
+  },
   {
     value: "crisp-plus",
     label: "Crisp+",
-    title: "Like Crisp, and also cleans up slightly soft edges: in-between colors along a blurred boundary are snapped to one side, while real thin lines and gradients are kept (G-038)",
+    title:
+      "Like Crisp, and also cleans up slightly soft edges: in-between colors along a blurred boundary are snapped to one side, while real thin lines and gradients are kept (G-038)",
   },
 ];
 
@@ -105,10 +132,26 @@ const DITHER_GROUPS: Array<{ label: string; modes: readonly DitherMode[]; withLi
 
 const ENHANCEMENT_OPTIONS: Record<EnhancementModeId, SegmentOption<EnhancementModeId>> = {
   off: { value: "off", label: "Off", title: "Use the photo exactly as it is" },
-  brighten: { value: "brighten", label: "Brighten", title: "A cautious exposure fix for dark or flat photos; colours and well-exposed photos are left as they are" },
-  auto: { value: "auto", label: "Auto", title: "Experimental: corrects exposure, contrast, colour cast and saturation, measured from the photo itself" },
-  vivid: { value: "vivid", label: "Vivid", title: "Experimental: stronger local contrast and saturation, for landscapes, objects and faded prints" },
-  portrait: { value: "portrait", label: "Portrait", title: "Experimental: a gentle correction without local contrast, protecting skin tones" },
+  brighten: {
+    value: "brighten",
+    label: "Brighten",
+    title: "A cautious exposure fix for dark or flat photos; colours and well-exposed photos are left as they are",
+  },
+  auto: {
+    value: "auto",
+    label: "Auto",
+    title: "Experimental: corrects exposure, contrast, colour cast and saturation, measured from the photo itself",
+  },
+  vivid: {
+    value: "vivid",
+    label: "Vivid",
+    title: "Experimental: stronger local contrast and saturation, for landscapes, objects and faded prints",
+  },
+  portrait: {
+    value: "portrait",
+    label: "Portrait",
+    title: "Experimental: a gentle correction without local contrast, protecting skin tones",
+  },
 };
 
 const PRESETS = ["small", "medium", "large", "xl", "xxl"] as const;
@@ -132,12 +175,24 @@ export interface PhotoPaneProps {
 }
 
 /** What 1b shows on this tab while a job runs: where it has got to, and the way out. */
-function GeneratingCard({ progress, queueMessage, hasPattern, onCancel }: { progress: number; queueMessage: string | null; hasPattern: boolean; onCancel: () => void }) {
+function GeneratingCard({
+  progress,
+  queueMessage,
+  hasPattern,
+  onCancel,
+}: {
+  progress: number;
+  queueMessage: string | null;
+  hasPattern: boolean;
+  onCancel: () => void;
+}) {
   const percent = Math.round(progress * 100);
   return (
     <div className="flex flex-col gap-3.5 p-4">
       <div className="flex flex-col gap-2.5 rounded-lg border border-line bg-app p-3.5">
-        <p className="text-sm font-medium">{queueMessage ? "Waiting for a free slot…" : hasPattern ? "Regenerating the chart…" : "Building the chart…"}</p>
+        <p className="text-sm font-medium">
+          {queueMessage ? "Waiting for a free slot…" : hasPattern ? "Regenerating the chart…" : "Building the chart…"}
+        </p>
         <div className="h-1 w-full overflow-hidden rounded-sm bg-line">
           {/* A queued job has made no progress to show: it is waiting for a worker, not running slowly. */}
           <div className="h-1 bg-accent transition-[width]" style={{ width: queueMessage ? "0%" : `${percent}%` }} />
@@ -148,7 +203,9 @@ function GeneratingCard({ progress, queueMessage, hasPattern, onCancel }: { prog
         </div>
       </div>
       {queueMessage && <p className="text-xs leading-4 text-muted">{queueMessage}</p>}
-      <p className="text-xs leading-4 text-muted">Built on this site&apos;s server. Leave the tab open, or cancel and change the settings.</p>
+      <p className="text-xs leading-4 text-muted">
+        Built on this site&apos;s server. Leave the tab open, or cancel and change the settings.
+      </p>
       <PillButton size="md" onClick={onCancel} className="self-start">
         Cancel
       </PillButton>
@@ -157,13 +214,26 @@ function GeneratingCard({ progress, queueMessage, hasPattern, onCancel }: { prog
 }
 
 export function PhotoPane({
-  sourceSize, options, onChange, isProcessing, progress, queueMessage, hasPattern, hasPhoto, isLoadingImage, onCancel, error }: PhotoPaneProps) {
+  sourceSize,
+  options,
+  onChange,
+  isProcessing,
+  progress,
+  queueMessage,
+  hasPattern,
+  hasPhoto,
+  isLoadingImage,
+  onCancel,
+  error,
+}: PhotoPaneProps) {
   if (isProcessing) return <GeneratingCard progress={progress} queueMessage={queueMessage} hasPattern={hasPattern} onCancel={onCancel} />;
   // First run: nothing to size or colour yet, so 1b shows what the three steps will be instead of dead controls.
   if (!hasPhoto && !hasPattern && !isLoadingImage)
     return (
       <div className="flex flex-col gap-4 p-4">
-        <p className="m-0 text-[13px] leading-[19px] text-muted">Nothing loaded yet. Once a photo is here, size and color settings appear on this tab.</p>
+        <p className="m-0 text-[13px] leading-[19px] text-muted">
+          Nothing loaded yet. Once a photo is here, size and color settings appear on this tab.
+        </p>
         <div className="flex flex-col gap-2.5 rounded-[10px] border border-dashed border-line p-3.5 font-mono text-[11px] text-muted">
           <span>01 · photo</span>
           <span>02 · size &amp; colors → generate</span>
@@ -239,7 +309,12 @@ export function PhotoPane({
             Custom
           </button>
           <div className="flex items-center overflow-hidden rounded-md border border-line">
-            <button type="button" aria-label="One stitch fewer" onClick={() => setCustom(options.customSize - 1)} className="px-2.5 py-1.5 text-sm leading-none text-muted hover:bg-raised hover:text-ink">
+            <button
+              type="button"
+              aria-label="One stitch fewer"
+              onClick={() => setCustom(options.customSize - 1)}
+              className="px-2.5 py-1.5 text-sm leading-none text-muted hover:bg-raised hover:text-ink"
+            >
               −
             </button>
             <input
@@ -251,7 +326,12 @@ export function PhotoPane({
               onChange={(e) => setCustom(Number(e.target.value))}
               className="w-14 min-w-0 border-none bg-transparent py-1.5 text-center font-mono text-xs text-ink"
             />
-            <button type="button" aria-label="One stitch more" onClick={() => setCustom(options.customSize + 1)} className="px-2.5 py-1.5 text-sm leading-none text-muted hover:bg-raised hover:text-ink">
+            <button
+              type="button"
+              aria-label="One stitch more"
+              onClick={() => setCustom(options.customSize + 1)}
+              className="px-2.5 py-1.5 text-sm leading-none text-muted hover:bg-raised hover:text-ink"
+            >
               +
             </button>
           </div>
@@ -305,16 +385,26 @@ export function PhotoPane({
 
       <section className="flex flex-col gap-2">
         <span className={GROUP_LABEL}>Color detail</span>
-        <SegmentedControl fill options={VIVID_OPTIONS} value={options.vivid ? "vivid" : "averaged"} onChange={(choice) => onChange("vivid", choice === "vivid")} />
+        <SegmentedControl
+          fill
+          options={VIVID_OPTIONS}
+          value={options.vivid ? "vivid" : "averaged"}
+          onChange={(choice) => onChange("vivid", choice === "vivid")}
+        />
         <p className="text-[11px] leading-4 text-muted">
-          One stitch covers many pixels. Vivid keeps the colour of the strongest part instead of averaging it away, so small
-          bright things stay coloured. It needs a photo large enough for a stitch to cover about 25 pixels.
+          One stitch covers many pixels. Vivid keeps the colour of the strongest part instead of averaging it away, so small bright things
+          stay coloured. It needs a photo large enough for a stitch to cover about 25 pixels.
         </p>
       </section>
 
       <section className="flex flex-col gap-2">
         <span className={GROUP_LABEL}>Algorithm</span>
-        <SegmentedControl fill options={ALGORITHM_OPTIONS} value={options.generationMode} onChange={(mode) => onChange("generationMode", mode)} />
+        <SegmentedControl
+          fill
+          options={ALGORITHM_OPTIONS}
+          value={options.generationMode}
+          onChange={(mode) => onChange("generationMode", mode)}
+        />
       </section>
 
       <section className="flex flex-col gap-2">

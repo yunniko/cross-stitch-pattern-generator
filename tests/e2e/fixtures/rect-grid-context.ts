@@ -33,7 +33,8 @@ export function rectGridContext(ctx: CanvasRenderingContext2D): CanvasRenderingC
           const centre = vertical ? a[0] : a[1];
           const from = vertical ? Math.min(a[1], b[1]) : Math.min(a[0], b[0]);
           const length = vertical ? Math.abs(b[1] - a[1]) : Math.abs(b[0] - a[0]);
-          const rect = (at: number, size: number) => (vertical ? target.fillRect(at, from, size, length) : target.fillRect(from, at, length, size));
+          const rect = (at: number, size: number) =>
+            vertical ? target.fillRect(at, from, size, length) : target.fillRect(from, at, length, size);
           const fill = target.fillStyle;
           const alpha = target.globalAlpha;
           target.fillStyle = target.strokeStyle;

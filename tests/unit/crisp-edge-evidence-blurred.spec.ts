@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { oklabDistanceSquared, rgbToOklab } from "@/lib/color/color";
-import { DEFAULT_BOUNDARY_EVIDENCE_OPTIONS, extractBoundaryEvidence, SourceOklabRows, type BoundaryEvidenceOptions } from "@/lib/crisp/crisp-edge-evidence";
+import {
+  DEFAULT_BOUNDARY_EVIDENCE_OPTIONS,
+  extractBoundaryEvidence,
+  SourceOklabRows,
+  type BoundaryEvidenceOptions,
+} from "@/lib/crisp/crisp-edge-evidence";
 import type { PixelBuffer } from "@/lib/types";
 import { cellLabelSets, gradientScene, GRID_HEIGHT, GRID_WIDTH, regionScene } from "./helpers/blend-fixtures";
 
@@ -11,14 +16,17 @@ const BLURRED: BoundaryEvidenceOptions = { ...DEFAULT_BOUNDARY_EVIDENCE_OPTIONS,
 function evidenceFor(image: PixelBuffer, options: BoundaryEvidenceOptions) {
   const rows = new SourceOklabRows(image);
   const out = [];
-  for (let i = 0; i < GRID_WIDTH * GRID_HEIGHT; i++) out.push(extractBoundaryEvidence(image, GRID_WIDTH, GRID_HEIGHT, i % GRID_WIDTH, Math.floor(i / GRID_WIDTH), options, rows));
+  for (let i = 0; i < GRID_WIDTH * GRID_HEIGHT; i++)
+    out.push(extractBoundaryEvidence(image, GRID_WIDTH, GRID_HEIGHT, i % GRID_WIDTH, Math.floor(i / GRID_WIDTH), options, rows));
   return out;
 }
 
 describe("blurred-step boundary evidence", () => {
   it("an explicit step model gives exactly the default evidence", () => {
     const image = regionScene(0.25).image;
-    expect(evidenceFor(image, { ...DEFAULT_BOUNDARY_EVIDENCE_OPTIONS, edgeModel: "step" })).toEqual(evidenceFor(image, DEFAULT_BOUNDARY_EVIDENCE_OPTIONS));
+    expect(evidenceFor(image, { ...DEFAULT_BOUNDARY_EVIDENCE_OPTIONS, edgeModel: "step" })).toEqual(
+      evidenceFor(image, DEFAULT_BOUNDARY_EVIDENCE_OPTIONS)
+    );
   });
 
   it("accepts boundaries blurred by a quarter of a cell that the step model rejects", () => {

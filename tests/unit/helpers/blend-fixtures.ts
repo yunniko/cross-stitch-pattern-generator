@@ -213,7 +213,8 @@ export function cellLabelSets(scene: LabelledScene): number[][] {
   for (let cy = 0; cy < GRID_HEIGHT; cy++)
     for (let cx = 0; cx < GRID_WIDTH; cx++) {
       const set = new Set<number>();
-      for (let y = cy * CELL; y < (cy + 1) * CELL; y++) for (let x = cx * CELL; x < (cx + 1) * CELL; x++) set.add(scene.labels[y * SCENE_WIDTH + x]);
+      for (let y = cy * CELL; y < (cy + 1) * CELL; y++)
+        for (let x = cx * CELL; x < (cx + 1) * CELL; x++) set.add(scene.labels[y * SCENE_WIDTH + x]);
       sets.push([...set]);
     }
   return sets;
@@ -225,7 +226,8 @@ export function labelCoverageByCell(scene: LabelledScene, label: number): Float6
   for (let cy = 0; cy < GRID_HEIGHT; cy++)
     for (let cx = 0; cx < GRID_WIDTH; cx++) {
       let hits = 0;
-      for (let y = cy * CELL; y < (cy + 1) * CELL; y++) for (let x = cx * CELL; x < (cx + 1) * CELL; x++) if (scene.labels[y * SCENE_WIDTH + x] === label) hits++;
+      for (let y = cy * CELL; y < (cy + 1) * CELL; y++)
+        for (let x = cx * CELL; x < (cx + 1) * CELL; x++) if (scene.labels[y * SCENE_WIDTH + x] === label) hits++;
       coverage[cy * GRID_WIDTH + cx] = hits / (CELL * CELL);
     }
   return coverage;
@@ -253,7 +255,11 @@ export function matchTrueColor(rgb: RGB, colors: readonly RGB[]): number {
  * How two patterns of the same grid differ in their assignments: `other`'s colours are mapped to the nearest colour of
  * `base`, so a palette colour that only moved slightly in a recompute doesn't count as a changed cell.
  */
-export function compareAssignments(base: StitchPattern, other: StitchPattern, ignoreRows: readonly number[] = []): { relabelled: number; maxPaletteShift: number; cells: number } {
+export function compareAssignments(
+  base: StitchPattern,
+  other: StitchPattern,
+  ignoreRows: readonly number[] = []
+): { relabelled: number; maxPaletteShift: number; cells: number } {
   const nearest = other.palette.map((p) => {
     let best = 0;
     let bestDistance = Infinity;
@@ -266,7 +272,10 @@ export function compareAssignments(base: StitchPattern, other: StitchPattern, ig
     });
     return best;
   });
-  const maxPaletteShift = Math.max(0, ...other.palette.map((p, i) => Math.max(...[0, 1, 2].map((k) => Math.abs(p.rgb[k] - base.palette[nearest[i]].rgb[k])))));
+  const maxPaletteShift = Math.max(
+    0,
+    ...other.palette.map((p, i) => Math.max(...[0, 1, 2].map((k) => Math.abs(p.rgb[k] - base.palette[nearest[i]].rgb[k]))))
+  );
   let relabelled = 0;
   let cells = 0;
   for (let i = 0; i < base.cellPalette.length; i++) {

@@ -78,10 +78,16 @@ for (const { label, source, stitches, colors } of CONFIGS) {
     const pairEvidence = timed(rows, "computePairEdgeEvidence", () => computePairEdgeEvidence(source, width, height));
     const ctx = timed(rows, "createPipelineContext (cell OKLab)", () => createPipelineContext(cells, { importance, pairEvidence }));
     const denoised = timed(rows, "denoiseForQuantization", () => denoiseForQuantization(ctx));
-    const quantized = timed(rows, "kMeansQuantizer", () => kMeansQuantizer.quantize(denoised.cells, colors, importance, denoised.cellOklab));
-    const optimized = timed(rows, "runMultiScaleOptimizer (ICM x2)", () => runMultiScaleOptimizer(ctx, quantized.cellPaletteIndex, quantized.palette));
+    const quantized = timed(rows, "kMeansQuantizer", () =>
+      kMeansQuantizer.quantize(denoised.cells, colors, importance, denoised.cellOklab)
+    );
+    const optimized = timed(rows, "runMultiScaleOptimizer (ICM x2)", () =>
+      runMultiScaleOptimizer(ctx, quantized.cellPaletteIndex, quantized.palette)
+    );
     const recolorOptions = defaultComponentRecolorOptions(width * height);
-    const recolored = timed(rows, "recolorSmallComponents", () => recolorSmallComponents(ctx, optimized, quantized.palette, recolorOptions));
+    const recolored = timed(rows, "recolorSmallComponents", () =>
+      recolorSmallComponents(ctx, optimized, quantized.palette, recolorOptions)
+    );
     timed(rows, "fixDiagonalConnections", () => fixDiagonalConnections(ctx, recolored, quantized.palette));
     rows.push(["total (Standard stages)", rows.reduce((sum, [, ms]) => sum + ms, 0)]);
 
@@ -91,7 +97,15 @@ for (const { label, source, stitches, colors } of CONFIGS) {
       buildCrispEvidenceLayer(source, width, height, allCellIndices(width, height), DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS)
     );
     timed(rows, "crisp: runCrispQuantizationStage", () =>
-      runCrispQuantizationStage(denoised.cells, colors, importance, layer, selectWeightedQuantizer(kMeansQuantizer), undefined, denoised.cellOklab)
+      runCrispQuantizationStage(
+        denoised.cells,
+        colors,
+        importance,
+        layer,
+        selectWeightedQuantizer(kMeansQuantizer),
+        undefined,
+        denoised.cellOklab
+      )
     );
     rows.push(["total (Crisp extra stages)", rows.slice(crispStart).reduce((sum, [, ms]) => sum + ms, 0)]);
     console.log(`  crisp confident cells: ${layer.evidenceByCell.size} of ${width * height}`);
@@ -102,8 +116,12 @@ for (const { label, source, stitches, colors } of CONFIGS) {
     const rows: Array<[string, number]> = [];
     timed(rows, "buildPattern standard", () => buildPattern(source, { longerSideStitches: stitches, colorCount: colors }));
     timed(rows, "buildPattern crisp", () => buildPattern(source, { longerSideStitches: stitches, colorCount: colors, edgeMode: "crisp" }));
-    timed(rows, "buildPattern crisp-plus (G-038)", () => buildPattern(source, { longerSideStitches: stitches, colorCount: colors, edgeMode: "crisp-plus" }));
-    timed(rows, "buildPattern standard + DMC", () => buildPattern(source, { longerSideStitches: stitches, colorCount: colors, paletteMode: "dmc" }));
+    timed(rows, "buildPattern crisp-plus (G-038)", () =>
+      buildPattern(source, { longerSideStitches: stitches, colorCount: colors, edgeMode: "crisp-plus" })
+    );
+    timed(rows, "buildPattern standard + DMC", () =>
+      buildPattern(source, { longerSideStitches: stitches, colorCount: colors, paletteMode: "dmc" })
+    );
     printTable(`End to end -- ${label}`, rows);
   });
 }

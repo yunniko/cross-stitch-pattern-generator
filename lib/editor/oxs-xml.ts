@@ -24,7 +24,14 @@ export class XmlReadError extends Error {}
 
 /** XML 1.0's Char production: what a document may contain, literally or by reference. */
 function isXmlChar(code: number): boolean {
-  return code === 0x9 || code === 0xa || code === 0xd || (code >= 0x20 && code <= 0xd7ff) || (code >= 0xe000 && code <= 0xfffd) || (code >= 0x10000 && code <= 0x10ffff);
+  return (
+    code === 0x9 ||
+    code === 0xa ||
+    code === 0xd ||
+    (code >= 0x20 && code <= 0xd7ff) ||
+    (code >= 0xe000 && code <= 0xfffd) ||
+    (code >= 0x10000 && code <= 0x10ffff)
+  );
 }
 
 const INVALID_LITERAL = /[^\t\n\r -퟿-�\u{10000}-\u{10FFFF}]/u;
@@ -96,10 +103,15 @@ export function readXmlTags(text: string, onTag: (tag: XmlTag) => void): void {
       NAME.lastIndex = open + 2;
       const nameMatch = NAME.exec(text);
       const close = text.indexOf(">", open + 2);
-      if (!nameMatch || close < 0 || text.slice(NAME.lastIndex, close).trim() !== "") throw new XmlReadError("The file contains a malformed closing tag.");
+      if (!nameMatch || close < 0 || text.slice(NAME.lastIndex, close).trim() !== "")
+        throw new XmlReadError("The file contains a malformed closing tag.");
       const expected = stack.pop();
       if (expected !== nameMatch[0]) {
-        throw new XmlReadError(expected ? `The file closes <${nameMatch[0]}> where <${expected}> is open.` : `The file closes <${nameMatch[0]}>, which was never opened.`);
+        throw new XmlReadError(
+          expected
+            ? `The file closes <${nameMatch[0]}> where <${expected}> is open.`
+            : `The file closes <${nameMatch[0]}>, which was never opened.`
+        );
       }
       position = close + 1;
       continue;
@@ -123,7 +135,8 @@ export function readXmlTags(text: string, onTag: (tag: XmlTag) => void): void {
       }
       const raw = attribute[3] ?? attribute[4];
       if (raw.includes("<")) throw new XmlReadError(`The file has a literal "<" inside the attribute "${attributeName}" on <${name}>.`);
-      if (INVALID_LITERAL.test(raw)) throw new XmlReadError(`The file has a character XML doesn't allow inside the attribute "${attributeName}" on <${name}>.`);
+      if (INVALID_LITERAL.test(raw))
+        throw new XmlReadError(`The file has a character XML doesn't allow inside the attribute "${attributeName}" on <${name}>.`);
       attributes[attributeName] = decodeXmlEntities(raw);
       cursor = ATTRIBUTE.lastIndex;
     }

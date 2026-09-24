@@ -108,7 +108,8 @@ function nearDuplicatePairs(pattern: StitchPattern): number {
   const colors = pattern.palette.map((c) => rgbToOklab(c.rgb));
   const limit = RELEASE_RULE.nearDuplicateDistance ** 2;
   let pairs = 0;
-  for (let i = 0; i < colors.length; i++) for (let j = i + 1; j < colors.length; j++) if (oklabDistanceSquared(colors[i], colors[j]) < limit) pairs++;
+  for (let i = 0; i < colors.length; i++)
+    for (let j = i + 1; j < colors.length; j++) if (oklabDistanceSquared(colors[i], colors[j]) < limit) pairs++;
   return pairs;
 }
 
@@ -120,7 +121,15 @@ function confetti(pattern: StitchPattern, source: PixelBuffer): number {
 function greyShift(photo: PixelBuffer, mode: (typeof MODES)[number]): number {
   const params = analyzeEnhancement(photo, ENHANCEMENT_PRESETS[mode]);
   const grey = new Uint8ClampedArray([128, 128, 128, 255]);
-  const out = applyEnhancement({ data: grey, width: 1, height: 1 }, { ...params, toneLut: Float32Array.from({ length: params.toneLut.length }, (_, i) => i / (params.toneLut.length - 1)), clahe: null, vibranceAmount: 0 });
+  const out = applyEnhancement(
+    { data: grey, width: 1, height: 1 },
+    {
+      ...params,
+      toneLut: Float32Array.from({ length: params.toneLut.length }, (_, i) => i / (params.toneLut.length - 1)),
+      clahe: null,
+      vibranceAmount: 0,
+    }
+  );
   const [, a, b] = rgbToOklab([out.data[0], out.data[1], out.data[2]]);
   return Math.hypot(a, b);
 }
@@ -166,7 +175,8 @@ it.skipIf(!photosDir)(
       });
       const meanSyntheticGain = synthetic.reduce((sum, s) => sum + s.gain, 0) / synthetic.length;
       metrics.syntheticRecovery = { photos: synthetic, meanGain: meanSyntheticGain };
-      clauses.benefit = realMode - realOff >= RELEASE_RULE.realRecoveryMinGain || meanSyntheticGain >= RELEASE_RULE.syntheticRecoveryMinMeanGain;
+      clauses.benefit =
+        realMode - realOff >= RELEASE_RULE.realRecoveryMinGain || meanSyntheticGain >= RELEASE_RULE.syntheticRecoveryMinMeanGain;
 
       const flawed = FLAWED.map((name) => {
         const offPattern = off(name, photo(name));
@@ -184,7 +194,11 @@ it.skipIf(!photosDir)(
       metrics.flawed = flawed;
       const improvedShare = flawed.filter((f) => f.spanMode - f.spanOff >= RELEASE_RULE.flawedMinTonalSpanGain).length / flawed.length;
       clauses.tonalRange = improvedShare >= RELEASE_RULE.flawedMinShareImproved;
-      clauses.noConfettiOrDuplicates = flawed.every((f) => f.confettiMode - f.confettiOff <= RELEASE_RULE.maxConfettiRise && f.nearDuplicatesMode - f.nearDuplicatesOff <= RELEASE_RULE.maxExtraNearDuplicatePairs);
+      clauses.noConfettiOrDuplicates = flawed.every(
+        (f) =>
+          f.confettiMode - f.confettiOff <= RELEASE_RULE.maxConfettiRise &&
+          f.nearDuplicatesMode - f.nearDuplicatesOff <= RELEASE_RULE.maxExtraNearDuplicatePairs
+      );
 
       const castShift = greyShift(photo(INTENTIONAL_CAST), mode);
       metrics.intentionalCast = { greyShift: castShift };

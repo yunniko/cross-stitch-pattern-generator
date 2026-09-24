@@ -217,7 +217,12 @@ it("which Crisp confidence component fails on soft edges, and what snapping reco
         return { offBoundary, offInterior, wrong, offColoursUsed: [...used].filter((v) => pt[v] === -1).length };
       };
       const before = score(p.cellPalette);
-      const snapped = snapTransitions(p.cellPalette, gw, gh, p.palette.map((c) => c.rgb));
+      const snapped = snapTransitions(
+        p.cellPalette,
+        gw,
+        gh,
+        p.palette.map((c) => c.rgb)
+      );
       const after = score(snapped.cells);
       snapRows.push({ blurCells, colorCount, before, after, changed: snapped.changed });
     }
@@ -227,7 +232,12 @@ it("which Crisp confidence component fails on soft edges, and what snapping reco
   const gradientRows: Record<string, unknown>[] = [];
   for (const colorCount of [8, 16, 32]) {
     const p = buildPattern(ramp, { longerSideStitches: gw, colorCount, edgeMode: "crisp" });
-    const snapped = snapTransitions(p.cellPalette, gw, gh, p.palette.map((c) => c.rgb));
+    const snapped = snapTransitions(
+      p.cellPalette,
+      gw,
+      gh,
+      p.palette.map((c) => c.rgb)
+    );
     gradientRows.push({ colorCount, palette: p.palette.length, changedOnGradient: snapped.changed, cells: gw * gh });
   }
   const result = { evidenceRows, snapRows, gradientRows };

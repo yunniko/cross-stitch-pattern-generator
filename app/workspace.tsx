@@ -18,7 +18,14 @@ import { stampForPress } from "@/lib/editor/shape-raster";
 import { useLatest } from "./hooks/use-latest";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
 import { mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from "@/lib/editor/pattern-edit";
-import { applyQuickMirrorWithSelection, effectiveSymmetryAxes, fillSymmetric, NO_SYMMETRY, type QuickMirror, type SymmetryAxes } from "@/lib/editor/symmetry";
+import {
+  applyQuickMirrorWithSelection,
+  effectiveSymmetryAxes,
+  fillSymmetric,
+  NO_SYMMETRY,
+  type QuickMirror,
+  type SymmetryAxes,
+} from "@/lib/editor/symmetry";
 import { oxsImportNotice } from "@/lib/editor/oxs";
 import { loadPatternFromFile } from "@/lib/editor/pattern-import";
 import { openPixelArtFile } from "@/lib/editor/pixel-art-file";
@@ -238,7 +245,9 @@ export default function Workspace() {
     await source.adoptPatternPhoto(withName, fallbackName);
   }
 
-  const restore = useProjectRestore((restored, savedSymmetry) => void loadPatternIntoWorkspace(restored, restored.name ?? "cross-stitch-pattern", savedSymmetry));
+  const restore = useProjectRestore(
+    (restored, savedSymmetry) => void loadPatternIntoWorkspace(restored, restored.name ?? "cross-stitch-pattern", savedSymmetry)
+  );
   const autosaveStatus = useProjectAutosave(pattern, restore.restored, getProjectStore(), liveSymmetry);
   const exports = useExports(pattern, options, liveSymmetry);
   const generation = useGeneration({
@@ -356,7 +365,8 @@ export default function Workspace() {
     // The realistic preview and the original photo only show the pattern: there, the chart pans and zooms but never edits (D121).
     if (isViewOnlyMode(viewMode) && activeTool !== "pan" && activeTool !== "zoom") return;
     if (activeTool === "pan") panZoom.beginPan(e, frame);
-    else if (activeTool === "zoom") panZoom.zoomBy(e.shiftKey || e.altKey ? 1 / ZOOM_STEP : ZOOM_STEP, { clientX: e.clientX, clientY: e.clientY });
+    else if (activeTool === "zoom")
+      panZoom.zoomBy(e.shiftKey || e.altKey ? 1 / ZOOM_STEP : ZOOM_STEP, { clientX: e.clientX, clientY: e.clientY });
     else if (activeTool === "move") move.onPointerDown(e, frame);
     else if (activeTool === "select") select.onPointerDown(e, frame);
     else if (activeTool === "fill") brush.fillAt(e, frame);

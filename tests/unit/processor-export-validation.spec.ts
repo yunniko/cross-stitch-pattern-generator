@@ -18,7 +18,13 @@ function chart(): StitchPattern {
   const pattern = createBlankPattern(16, 12);
   const cellPalette = Uint8Array.from(pattern.cellPalette);
   for (let i = 0; i < cellPalette.length; i++) cellPalette[i] = i % 4 === 0 ? EMPTY_CELL : 0;
-  const color: PaletteColor = { index: 0, rgb: [180, 60, 90], symbol: "A", name: "Salmon - Dark", count: cellPalette.filter((v) => v !== EMPTY_CELL).length };
+  const color: PaletteColor = {
+    index: 0,
+    rgb: [180, 60, 90],
+    symbol: "A",
+    name: "Salmon - Dark",
+    count: cellPalette.filter((v) => v !== EMPTY_CELL).length,
+  };
   return { ...pattern, cellPalette, palette: [color] };
 }
 
@@ -70,7 +76,9 @@ describe("processor export validation", () => {
   });
 
   it("builds a payload with the editor's values, defaulting what was omitted", () => {
-    const payload = toExportPayload(requestFrom({ aidaCount: undefined, sizeUnit: undefined, authorName: undefined, overlapCells: undefined }));
+    const payload = toExportPayload(
+      requestFrom({ aidaCount: undefined, sizeUnit: undefined, authorName: undefined, overlapCells: undefined })
+    );
     expect(payload.kind).toBe("png-color");
     expect(payload.pattern.width).toBe(16);
     expect(payload.aidaCount).toBeGreaterThan(0);
@@ -99,7 +107,14 @@ describe("processor export validation", () => {
     ).rejects.toThrow();
     const parsed = parseExportRequest(JSON.parse(sent));
     expect(parsed.error).toBeNull();
-    expect(parsed.payload).toMatchObject({ kind: "a4-bw", baseName: "sample", aidaCount: 16, sizeUnit: "in", authorName: "Ana", overlapCells: 10 });
+    expect(parsed.payload).toMatchObject({
+      kind: "a4-bw",
+      baseName: "sample",
+      aidaCount: 16,
+      sizeUnit: "in",
+      authorName: "Ana",
+      overlapCells: 10,
+    });
     expect(Array.from(parsed.payload!.pattern.cellPalette)).toEqual(Array.from(pattern.cellPalette));
     expect(parsed.payload!.pattern.palette.map((c) => c.name)).toEqual(["Salmon - Dark"]);
   });

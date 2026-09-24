@@ -2,7 +2,12 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { it } from "vitest";
 import { DEFAULT_BLEND_PRUNE_OPTIONS } from "@/lib/crisp/blend-label-pruning";
-import { allCellIndices, buildCrispEvidenceLayer, CRISP_PLUS_EVIDENCE_LAYER_OPTIONS, DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS } from "@/lib/crisp/crisp-evidence-layer";
+import {
+  allCellIndices,
+  buildCrispEvidenceLayer,
+  CRISP_PLUS_EVIDENCE_LAYER_OPTIONS,
+  DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS,
+} from "@/lib/crisp/crisp-evidence-layer";
 import { DEFAULT_TRANSITION_SNAP_OPTIONS } from "@/lib/crisp/transition-snap";
 import { buildPattern } from "@/lib/pipeline/pattern";
 import type { PixelBuffer } from "@/lib/types";
@@ -21,7 +26,19 @@ import { compareAssignments } from "./helpers/blend-fixtures";
  */
 const photosDir = process.env.ENHANCEMENT_PHOTOS_DIR;
 const out = process.env.CRISP_PLUS_REAL_PHOTOS;
-const PHOTOS = ["underexposed-sun", "fog-sailboat", "backlit-tower", "tree-under", "fog-brofjorden", "fog-eucalypt", "backlit-geyser", "tree-normal", "tree-over", "lake-summer", "road-mountains"];
+const PHOTOS = [
+  "underexposed-sun",
+  "fog-sailboat",
+  "backlit-tower",
+  "tree-under",
+  "fog-brofjorden",
+  "fog-eucalypt",
+  "backlit-geyser",
+  "tree-normal",
+  "tree-over",
+  "lake-summer",
+  "road-mountains",
+];
 /** Photos also measured at 250 stitches. */
 const LARGER = new Set(["underexposed-sun", "fog-sailboat", "backlit-tower", "tree-under"]);
 
@@ -33,34 +50,44 @@ function load(name: string): PixelBuffer | null {
   return { data: new Uint8ClampedArray(bytes.buffer, bytes.byteOffset, bytes.byteLength), width, height };
 }
 
-it.skipIf(!photosDir || !out)("Crisp versus Crisp+ on real photos", () => {
-  const rows: Record<string, unknown>[] = [];
-  const noSnap = { ...DEFAULT_TRANSITION_SNAP_OPTIONS, passes: 0 };
-  const noPrune = { ...DEFAULT_BLEND_PRUNE_OPTIONS, maxCandidateInteriorShare: -1 };
-  for (const name of PHOTOS) {
-    const image = load(name);
-    if (!image) continue;
-    for (const longerSideStitches of LARGER.has(name) ? [100, 250] : [100]) {
-      const options = { longerSideStitches, colorCount: 24 };
-      const crisp = buildPattern(image, { ...options, edgeMode: "crisp" });
-      const evidenceOnly = buildPattern(image, { ...options, edgeMode: "crisp-plus", transitionSnapOptions: noSnap, blendPruneOptions: noPrune });
-      const plus = buildPattern(image, { ...options, edgeMode: "crisp-plus" });
-      const cells = crisp.width * crisp.height;
-      const confident = (layerOptions: typeof DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS) =>
-        buildCrispEvidenceLayer(image, crisp.width, crisp.height, allCellIndices(crisp.width, crisp.height), layerOptions).evidenceByCell.size / cells;
-      const vsCrisp = compareAssignments(crisp, plus);
-      const bySteps = compareAssignments(evidenceOnly, plus);
-      rows.push({
-        name,
-        grid: `${crisp.width}x${crisp.height}`,
-        confidentCrisp: +confident(DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS).toFixed(4),
-        confidentPlus: +confident(CRISP_PLUS_EVIDENCE_LAYER_OPTIONS).toFixed(4),
-        changedBySnapAndPrune: +(bySteps.relabelled / cells).toFixed(4),
-        differsFromCrisp: +(vsCrisp.relabelled / cells).toFixed(4),
-        coloursCrisp: crisp.palette.length,
-        coloursPlus: plus.palette.length,
-      });
-      writeFileSync(out!, JSON.stringify(rows, null, 2));
+it.skipIf(!photosDir || !out)(
+  "Crisp versus Crisp+ on real photos",
+  () => {
+    const rows: Record<string, unknown>[] = [];
+    const noSnap = { ...DEFAULT_TRANSITION_SNAP_OPTIONS, passes: 0 };
+    const noPrune = { ...DEFAULT_BLEND_PRUNE_OPTIONS, maxCandidateInteriorShare: -1 };
+    for (const name of PHOTOS) {
+      const image = load(name);
+      if (!image) continue;
+      for (const longerSideStitches of LARGER.has(name) ? [100, 250] : [100]) {
+        const options = { longerSideStitches, colorCount: 24 };
+        const crisp = buildPattern(image, { ...options, edgeMode: "crisp" });
+        const evidenceOnly = buildPattern(image, {
+          ...options,
+          edgeMode: "crisp-plus",
+          transitionSnapOptions: noSnap,
+          blendPruneOptions: noPrune,
+        });
+        const plus = buildPattern(image, { ...options, edgeMode: "crisp-plus" });
+        const cells = crisp.width * crisp.height;
+        const confident = (layerOptions: typeof DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS) =>
+          buildCrispEvidenceLayer(image, crisp.width, crisp.height, allCellIndices(crisp.width, crisp.height), layerOptions).evidenceByCell
+            .size / cells;
+        const vsCrisp = compareAssignments(crisp, plus);
+        const bySteps = compareAssignments(evidenceOnly, plus);
+        rows.push({
+          name,
+          grid: `${crisp.width}x${crisp.height}`,
+          confidentCrisp: +confident(DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS).toFixed(4),
+          confidentPlus: +confident(CRISP_PLUS_EVIDENCE_LAYER_OPTIONS).toFixed(4),
+          changedBySnapAndPrune: +(bySteps.relabelled / cells).toFixed(4),
+          differsFromCrisp: +(vsCrisp.relabelled / cells).toFixed(4),
+          coloursCrisp: crisp.palette.length,
+          coloursPlus: plus.palette.length,
+        });
+        writeFileSync(out!, JSON.stringify(rows, null, 2));
+      }
     }
-  }
-}, 3_600_000);
+  },
+  3_600_000
+);

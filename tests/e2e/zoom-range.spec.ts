@@ -54,9 +54,7 @@ test("every zoom press changes the chart, including at the bottom of the range",
   for (let press = 0; press < 6; press++) {
     const before = await cellSize(page);
     await zoomIn.click();
-    await expect
-      .poll(async () => cellSize(page), { message: `press ${press + 1} left the chart as it was` })
-      .not.toBe(before);
+    await expect.poll(async () => cellSize(page), { message: `press ${press + 1} left the chart as it was` }).not.toBe(before);
     seen.push(await cellSize(page));
   }
   expect(new Set(seen).size, "no press drew what the one before it drew").toBe(seen.length);

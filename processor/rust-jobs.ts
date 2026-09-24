@@ -101,7 +101,10 @@ function logFallback(what: string, error: string | undefined): null {
 }
 
 /** `buildPattern` in Rust, or null to fall back. The options are `parse_options`'s, matching `BuildPatternOptions`. */
-export async function generateWithRust(job: Extract<WorkerJob, { kind: "generate" }>, onProgress: (fraction: number) => void): Promise<StitchPattern | null> {
+export async function generateWithRust(
+  job: Extract<WorkerJob, { kind: "generate" }>,
+  onProgress: (fraction: number) => void
+): Promise<StitchPattern | null> {
   if (!rustJobsAvailable()) return null;
   const { imageData, settings } = job;
   const options = JSON.stringify({
@@ -147,7 +150,11 @@ const CONTENT_TYPES: Record<ExportJobKind, string> = {
 };
 
 /** `runExportJob` in Rust, or null to fall back. The chart crosses as the editable save Rust already reads. */
-export async function exportWithRust(payload: ExportJobPayload, symmetry: SymmetryAxes, onProgress: (progress: ExportProgress) => void): Promise<RustExportResult | null> {
+export async function exportWithRust(
+  payload: ExportJobPayload,
+  symmetry: SymmetryAxes,
+  onProgress: (progress: ExportProgress) => void
+): Promise<RustExportResult | null> {
   if (!rustJobsAvailable()) return null;
   const request = JSON.stringify({
     kind: payload.kind,

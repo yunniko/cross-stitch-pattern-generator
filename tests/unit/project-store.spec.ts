@@ -27,7 +27,14 @@ function makePattern(overrides: Partial<StitchPattern> = {}): StitchPattern {
   return { width: 2, height: 2, cellPalette: Uint8Array.from(cells), palette, isLandscape: true, name: "test", ...overrides };
 }
 
-const PHOTO: SourceImageRef = { dataUrl: "data:image/png;base64,AAAA", naturalWidth: 20, naturalHeight: 20, cellSizePx: 10, offsetX: 0, offsetY: 0 };
+const PHOTO: SourceImageRef = {
+  dataUrl: "data:image/png;base64,AAAA",
+  naturalWidth: 20,
+  naturalHeight: 20,
+  cellSizePx: 10,
+  offsetX: 0,
+  offsetY: 0,
+};
 const OTHER_PHOTO: SourceImageRef = { ...PHOTO, dataUrl: "data:image/png;base64,BBBB" };
 
 async function photoKeys(kv: KeyValueStore): Promise<string[]> {
@@ -47,7 +54,12 @@ describe("project-store", () => {
     await store.save({
       ...unlocked,
       threadBrand: "dmc",
-      palette: unlocked.palette.map((color, i) => ({ ...color, rgb: threads[i].rgb, name: threads[i].name, source: { brand: "dmc" as const, code: threads[i].code } })),
+      palette: unlocked.palette.map((color, i) => ({
+        ...color,
+        rgb: threads[i].rgb,
+        name: threads[i].name,
+        source: { brand: "dmc" as const, code: threads[i].code },
+      })),
     });
 
     const { pattern, failure } = await store.load();
@@ -112,7 +124,13 @@ describe("project-store", () => {
 
   it("returns a failure (and clears the slot) for a corrupt record instead of throwing or returning a broken pattern", async () => {
     const kv = createMemoryKeyValueStore();
-    await kv.put(CURRENT_PROJECT_KEY, { storeVersion: 1, width: 2, height: 2, cellPalette: Uint8Array.from([0, 9, 0, 0]), palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }] });
+    await kv.put(CURRENT_PROJECT_KEY, {
+      storeVersion: 1,
+      width: 2,
+      height: 2,
+      cellPalette: Uint8Array.from([0, 9, 0, 0]),
+      palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }],
+    });
     const store = createProjectStore(kv);
 
     const result = await store.load();
@@ -125,7 +143,13 @@ describe("project-store", () => {
 
   it("rejects a record from an unknown store version rather than guessing at its shape", async () => {
     const kv = createMemoryKeyValueStore();
-    await kv.put(CURRENT_PROJECT_KEY, { storeVersion: 99, width: 1, height: 1, cellPalette: Uint8Array.from([0]), palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }] });
+    await kv.put(CURRENT_PROJECT_KEY, {
+      storeVersion: 99,
+      width: 1,
+      height: 1,
+      cellPalette: Uint8Array.from([0]),
+      palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }],
+    });
     const result = await createProjectStore(kv).load();
     expect(result.pattern).toBeNull();
     expect(String(result.failure?.error)).toMatch(/version 99/);
@@ -145,7 +169,12 @@ describe("project-store", () => {
 
   it("propagates a storage write failure so the UI can show autosave as unavailable", async () => {
     const kv = createMemoryKeyValueStore();
-    const failing: KeyValueStore = { ...kv, put: async () => { throw new Error("QuotaExceededError"); } };
+    const failing: KeyValueStore = {
+      ...kv,
+      put: async () => {
+        throw new Error("QuotaExceededError");
+      },
+    };
     await expect(createProjectStore(failing).save(makePattern())).rejects.toThrow("QuotaExceededError");
   });
 

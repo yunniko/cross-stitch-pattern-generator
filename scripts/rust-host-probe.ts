@@ -52,18 +52,30 @@ interface WasmExports {
 
 if (side === "wasm") {
   // Single-threaded by construction (D186); timed inside the module, the same span as the other two sides.
-  const instance = await WebAssembly.instantiate(await WebAssembly.compile(fs.readFileSync(binary)), { env: { now_ms: () => performance.now() } });
+  const instance = await WebAssembly.instantiate(await WebAssembly.compile(fs.readFileSync(binary)), {
+    env: { now_ms: () => performance.now() },
+  });
   const wasm = instance.exports as unknown as WasmExports;
   const pixels = wasm.alloc(source.data.length);
   new Uint8Array(wasm.memory.buffer, pixels, source.data.length).set(source.data);
-  const text = new TextEncoder().encode(JSON.stringify({ longerSideStitches: c.stitches, colorCount: 64, edgeMode: c.edgeMode, threads: 1 }));
+  const text = new TextEncoder().encode(
+    JSON.stringify({ longerSideStitches: c.stitches, colorCount: 64, edgeMode: c.edgeMode, threads: 1 })
+  );
   const optionsPtr = wasm.alloc(text.length);
   new Uint8Array(wasm.memory.buffer, optionsPtr, text.length).set(text);
   const result = wasm.generate(pixels, source.width, source.height, optionsPtr, text.length);
   const out = JSON.parse(new TextDecoder().decode(new Uint8Array(wasm.memory.buffer, result, wasm.result_len())));
   if (out.error) throw new Error(`wasm: ${out.error}`);
-  const pattern: StitchPattern = { ...out.pattern, cellPalette: Uint8Array.from(out.pattern.cellPalette), threadBrand: out.pattern.threadBrand ?? undefined, edgeMode: out.pattern.edgeMode ?? undefined, enhancementMode: out.pattern.enhancementMode ?? undefined };
-  console.log(JSON.stringify({ side, case: c.label, wallMs: Math.round(out.runs[0].totalMs), peakRssMb: null, hash: hashPattern(pattern) }));
+  const pattern: StitchPattern = {
+    ...out.pattern,
+    cellPalette: Uint8Array.from(out.pattern.cellPalette),
+    threadBrand: out.pattern.threadBrand ?? undefined,
+    edgeMode: out.pattern.edgeMode ?? undefined,
+    enhancementMode: out.pattern.enhancementMode ?? undefined,
+  };
+  console.log(
+    JSON.stringify({ side, case: c.label, wallMs: Math.round(out.runs[0].totalMs), peakRssMb: null, hash: hashPattern(pattern) })
+  );
 } else if (side === "ts") {
   let peak = process.memoryUsage().rss;
   const timer = setInterval(() => {
@@ -74,11 +86,18 @@ if (side === "wasm") {
   const wallMs = Number(process.hrtime.bigint() - start) / 1e6;
   clearInterval(timer);
   peak = Math.max(peak, process.memoryUsage().rss);
-  console.log(JSON.stringify({ side, case: c.label, wallMs: Math.round(wallMs), peakRssMb: Math.round(peak / 1048576), hash: hashPattern(pattern) }));
+  console.log(
+    JSON.stringify({ side, case: c.label, wallMs: Math.round(wallMs), peakRssMb: Math.round(peak / 1048576), hash: hashPattern(pattern) })
+  );
 } else {
   const file = path.join(os.tmpdir(), `probe-${process.pid}.rgba`);
   fs.writeFileSync(file, source.data);
-  const options = JSON.stringify({ longerSideStitches: c.stitches, colorCount: 64, edgeMode: c.edgeMode, threads: Number(threadsArg ?? 1) });
+  const options = JSON.stringify({
+    longerSideStitches: c.stitches,
+    colorCount: 64,
+    edgeMode: c.edgeMode,
+    threads: Number(threadsArg ?? 1),
+  });
   const run = spawnSync(binary, ["generate", file, String(c.width), String(c.height), options], { encoding: "utf8", maxBuffer: 1 << 30 });
   fs.rmSync(file, { force: true });
   if (run.status !== 0) throw new Error(`binary failed: ${run.stderr}`);
@@ -91,6 +110,13 @@ if (side === "wasm") {
     enhancementMode: out.pattern.enhancementMode ?? undefined,
   };
   console.log(
-    JSON.stringify({ side, threads: Number(threadsArg ?? 1), case: c.label, wallMs: Math.round(out.runs[0].totalMs), peakRssMb: Math.round(out.peakRssMb), hash: hashPattern(pattern) })
+    JSON.stringify({
+      side,
+      threads: Number(threadsArg ?? 1),
+      case: c.label,
+      wallMs: Math.round(out.runs[0].totalMs),
+      peakRssMb: Math.round(out.peakRssMb),
+      hash: hashPattern(pattern),
+    })
   );
 }

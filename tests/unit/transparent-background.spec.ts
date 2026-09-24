@@ -73,8 +73,14 @@ describe("a transparent background becomes empty stitches", () => {
       // Counts and the palette agree with the cells, empties excluded.
       const counts = new Array(pattern.palette.length).fill(0);
       for (const index of pattern.cellPalette) if (index !== EMPTY_CELL) counts[index]++;
-      expect(pattern.palette.map((c) => c.count), `${edgeMode}: counts exclude empty stitches`).toEqual(counts);
-      expect(counts.filter((n) => n === 0), `${edgeMode}: no colour left with nothing to stitch`).toEqual([]);
+      expect(
+        pattern.palette.map((c) => c.count),
+        `${edgeMode}: counts exclude empty stitches`
+      ).toEqual(counts);
+      expect(
+        counts.filter((n) => n === 0),
+        `${edgeMode}: no colour left with nothing to stitch`
+      ).toEqual([]);
     });
   }
 
@@ -84,7 +90,10 @@ describe("a transparent background becomes empty stitches", () => {
     expect(emptyCellMask(coverage)).toBeNull();
     for (const edgeMode of MODES) {
       const pattern = buildPattern(opaque, { longerSideStitches: 20, colorCount: 6, edgeMode });
-      expect(Array.from(pattern.cellPalette).some((v) => v === EMPTY_CELL), `${edgeMode}`).toBe(false);
+      expect(
+        Array.from(pattern.cellPalette).some((v) => v === EMPTY_CELL),
+        `${edgeMode}`
+      ).toBe(false);
     }
   });
 
@@ -93,7 +102,10 @@ describe("a transparent background becomes empty stitches", () => {
     for (const edgeMode of MODES) {
       const pattern = buildPattern(blank, { longerSideStitches: 20, colorCount: 6, edgeMode });
       expect(pattern.palette, `${edgeMode}: nothing to stitch, so no colours`).toEqual([]);
-      expect(Array.from(pattern.cellPalette).every((v) => v === EMPTY_CELL), `${edgeMode}: every stitch empty`).toBe(true);
+      expect(
+        Array.from(pattern.cellPalette).every((v) => v === EMPTY_CELL),
+        `${edgeMode}: every stitch empty`
+      ).toBe(true);
     }
   });
 });
@@ -139,7 +151,13 @@ describe("structure is read from the photo that is there", () => {
   it("gives the subject the same importance whether or not it sits on transparency", () => {
     const { onTransparency, cropped, inner } = subject(64, 16);
     const grid = 8;
-    const croppedImportance = computeCellImportance(cropped, computeEdgeMagnitude(cropped, sourceLuminance(cropped)), grid, grid, sourceLuminance(cropped));
+    const croppedImportance = computeCellImportance(
+      cropped,
+      computeEdgeMagnitude(cropped, sourceLuminance(cropped)),
+      grid,
+      grid,
+      sourceLuminance(cropped)
+    );
     const opaque = opaquePixelMask(onTransparency)!;
     const paddedGrid = (64 / inner) * grid;
     const padded = computeCellImportance(
@@ -176,4 +194,3 @@ describe("structure is read from the photo that is there", () => {
     expect(east(atBoundary, masked), "with the mask it is quiet").toBeLessThan(0.5);
   });
 });
-

@@ -84,7 +84,13 @@ function makeFullSymbolSetPattern(): StitchPattern {
   const cellPalette = Array.from({ length: width * height }, (_, i) => i % colors.length);
   const counts = new Array(colors.length).fill(0);
   for (const i of cellPalette) counts[i]++;
-  const palette: PaletteColor[] = colors.map((rgb, i) => ({ index: i, rgb, symbol: SYMBOL_SET[i], name: `Reference color ${i}`, count: counts[i] }));
+  const palette: PaletteColor[] = colors.map((rgb, i) => ({
+    index: i,
+    rgb,
+    symbol: SYMBOL_SET[i],
+    name: `Reference color ${i}`,
+    count: counts[i],
+  }));
   return { width, height, cellPalette: Uint8Array.from(cellPalette), palette, isLandscape: false };
 }
 
@@ -96,7 +102,9 @@ async function extractPagesWithTransforms(pdfBytes: Uint8Array) {
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
-    pages.push(content.items.flatMap((item) => ("str" in item && "transform" in item ? [{ str: item.str, transform: item.transform }] : [])));
+    pages.push(
+      content.items.flatMap((item) => ("str" in item && "transform" in item ? [{ str: item.str, transform: item.transform }] : []))
+    );
   }
   return pages;
 }
@@ -118,7 +126,10 @@ describe("buildPatternKeeperPdf: the real exporter (G-026 M2)", () => {
     const pattern = makeFullSymbolSetPattern();
     const pdfBytes = await buildPatternKeeperPdf(pattern, "color", fontBytes);
     const pages = await extractPagesWithTransforms(pdfBytes);
-    const allText = pages.flat().map((item) => item.str).join("");
+    const allText = pages
+      .flat()
+      .map((item) => item.str)
+      .join("");
     // Same documented µ/μ caveat as buildSpikePdf's own test above.
     const missing = SYMBOL_SET.filter((s) => !allText.includes(s) && !(s === "µ" && allText.includes("μ")));
     expect(missing).toEqual([]);

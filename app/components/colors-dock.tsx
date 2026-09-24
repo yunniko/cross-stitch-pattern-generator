@@ -3,7 +3,15 @@ import { HexColorPicker } from "react-colorful";
 import { hexToRgb, luminance, rgbToHex } from "@/lib/color/color";
 import { swatchComparisonParts } from "@/lib/color/swatch-comparison";
 import { SYMBOL_SET } from "@/lib/color/symbols";
-import { addBrandColor, addColor, editColorRgb, editColorToBrandColor, renameColor, restoreColor, setColorSymbol } from "@/lib/editor/pattern-edit";
+import {
+  addBrandColor,
+  addColor,
+  editColorRgb,
+  editColorToBrandColor,
+  renameColor,
+  restoreColor,
+  setColorSymbol,
+} from "@/lib/editor/pattern-edit";
 import { THREAD_BRANDS, THREAD_BRAND_IDS, formatThreadName, type ThreadBrand, type ThreadColor } from "@/lib/threads/thread-brands";
 import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
 import { DISMISS_RETARGET_ATTRIBUTE, useDismissOnOutsidePointer } from "../hooks/use-dismiss-on-outside-pointer";
@@ -92,7 +100,11 @@ function BrandColorPicker({ brand, query, onQueryChange, onPick, currentCode, co
               className={`relative h-7 w-7 shrink-0 rounded border ${isCurrent ? "border-accent ring-2 ring-accent ring-offset-1" : "border-line"}`}
             >
               {isCurrent && (
-                <span aria-hidden className="absolute inset-0 flex items-center justify-center text-xs font-bold" style={{ color: luminance(thread.rgb) > 140 ? "#000000" : "#ffffff" }}>
+                <span
+                  aria-hidden
+                  className="absolute inset-0 flex items-center justify-center text-xs font-bold"
+                  style={{ color: luminance(thread.rgb) > 140 ? "#000000" : "#ffffff" }}
+                >
                   ✓
                 </span>
               )}
@@ -139,7 +151,10 @@ interface ColorEditorState {
   documentId: number;
 }
 
-function sameAppearance(color: Pick<PaletteColor, "rgb" | "name" | "source">, other: Pick<PaletteColor, "rgb" | "name" | "source">): boolean {
+function sameAppearance(
+  color: Pick<PaletteColor, "rgb" | "name" | "source">,
+  other: Pick<PaletteColor, "rgb" | "name" | "source">
+): boolean {
   return (
     color.rgb.every((v, i) => v === other.rgb[i]) &&
     color.name === other.name &&
@@ -174,7 +189,20 @@ export interface ColorsDockProps {
  * editor and "+ Add" panels. The color editor opens under its row on the color's own swatch; picks apply at once and
  * the editor stays open until Done, Cancel, Escape or a click outside it (G-033).
  */
-export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActiveColorChange, onBackgroundColorChange, litColorIndices, onToggleLit, aidaCount, onChange, onPreviewChange, documentId, onMergeColors }: ColorsDockProps) {
+export function ColorsDock({
+  pattern,
+  dimmed = false,
+  activeColorIndex,
+  onActiveColorChange,
+  onBackgroundColorChange,
+  litColorIndices,
+  onToggleLit,
+  aidaCount,
+  onChange,
+  onPreviewChange,
+  documentId,
+  onMergeColors,
+}: ColorsDockProps) {
   const [editor, setEditor] = useState<ColorEditorState | null>(null);
   const [addingColor, setAddingColor] = useState(false);
   const [addColorDraftHex, setAddColorDraftHex] = useState("#808080");
@@ -186,7 +214,13 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
   const symbolPanelRef = useRef<HTMLDivElement>(null);
 
   const editing =
-    editor && pattern && editor.documentId === documentId && editor.index < pattern.palette.length && editor.paletteLength === pattern.palette.length ? editor : null;
+    editor &&
+    pattern &&
+    editor.documentId === documentId &&
+    editor.index < pattern.palette.length &&
+    editor.paletteLength === pattern.palette.length
+      ? editor
+      : null;
   // Adjusting state during render: once invalid, the editor stays closed even if an undo restores the palette size.
   if (editor && !editing) setEditor(null);
 
@@ -292,7 +326,12 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
   function renderSymbolPicker() {
     if (editingSymbolIndex === null || !pattern) return null;
     return (
-      <div ref={symbolPanelRef} role="dialog" aria-label={`Change symbol for ${pattern.palette[editingSymbolIndex].name}`} className={PANEL}>
+      <div
+        ref={symbolPanelRef}
+        role="dialog"
+        aria-label={`Change symbol for ${pattern.palette[editingSymbolIndex].name}`}
+        className={PANEL}
+      >
         <p className="text-xs text-muted">Picking a symbol already used by another color swaps the two colors&apos; symbols.</p>
         <div className="grid grid-cols-10 gap-1">
           {SYMBOL_SET.map((symbol) => {
@@ -331,7 +370,10 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
         ) : (
           <SegmentedControl
             className="self-start"
-            options={[{ value: "full" as const, label: "Full range" }, ...THREAD_BRAND_IDS.map((brand) => ({ value: brand, label: THREAD_BRANDS[brand].label }))]}
+            options={[
+              { value: "full" as const, label: "Full range" },
+              ...THREAD_BRAND_IDS.map((brand) => ({ value: brand, label: THREAD_BRANDS[brand].label })),
+            ]}
             value={editing.mode}
             onChange={changeMode}
           />
@@ -353,7 +395,9 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
           </div>
         )}
 
-        <p className="text-xs text-muted">Picks apply right away. Done keeps this color; Cancel returns it to how it was when you opened the editor.</p>
+        <p className="text-xs text-muted">
+          Picks apply right away. Done keeps this color; Cancel returns it to how it was when you opened the editor.
+        </p>
         <div className="flex gap-2">
           <PillButton variant="primary" size="md" onClick={finishEditing}>
             Done
@@ -385,7 +429,9 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
 
       {pattern && pattern.palette.length === 0 && (
         <p className="px-4 pb-2 text-xs text-muted">
-          <span data-testid="empty-palette-note">This chart has no colors yet. Press &quot;+ Add&quot; to pick the first one, then click it and paint on the picture.</span>
+          <span data-testid="empty-palette-note">
+            This chart has no colors yet. Press &quot;+ Add&quot; to pick the first one, then click it and paint on the picture.
+          </span>
         </p>
       )}
 
@@ -423,14 +469,25 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
                 title={lit ? "Lit — shown at full strength while Isolate is on" : "Light this thread while Isolate is on"}
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded ${lit ? "bg-accent/20 text-accent" : "text-faint hover:bg-raised hover:text-muted"}`}
               >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.7}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
                   <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" />
                   <circle cx="12" cy="12" r="2.5" />
                 </svg>
               </button>
             );
           }}
-          renderUnderRow={(color) => (editing?.index === color.index ? renderColorEditor() : editingSymbolIndex === color.index ? renderSymbolPicker() : null)}
+          renderUnderRow={(color) =>
+            editing?.index === color.index ? renderColorEditor() : editingSymbolIndex === color.index ? renderSymbolPicker() : null
+          }
           renameDraft={renameDraft}
           renamingIndex={renamingIndex}
           onRenameDraftChange={setRenameDraft}
@@ -446,7 +503,12 @@ export function ColorsDock({ pattern, dimmed = false, activeColorIndex, onActive
       {addingColor && pattern?.threadBrand && (
         <div className={PANEL}>
           <BrandNotice brand={pattern.threadBrand} />
-          <BrandColorPicker brand={pattern.threadBrand} query={addBrandQuery} onQueryChange={setAddBrandQuery} onPick={commitAddBrandColor} />
+          <BrandColorPicker
+            brand={pattern.threadBrand}
+            query={addBrandQuery}
+            onQueryChange={setAddBrandQuery}
+            onPick={commitAddBrandColor}
+          />
           <PillButton size="md" onClick={() => setAddingColor(false)} className="self-start">
             Cancel
           </PillButton>

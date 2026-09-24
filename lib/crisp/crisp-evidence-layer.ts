@@ -1,4 +1,10 @@
-import { extractBoundaryEvidence, DEFAULT_BOUNDARY_EVIDENCE_OPTIONS, SourceOklabRows, type BoundaryEvidence, type BoundaryEvidenceOptions } from "./crisp-edge-evidence";
+import {
+  extractBoundaryEvidence,
+  DEFAULT_BOUNDARY_EVIDENCE_OPTIONS,
+  SourceOklabRows,
+  type BoundaryEvidence,
+  type BoundaryEvidenceOptions,
+} from "./crisp-edge-evidence";
 import {
   buildAdmissibleLabelCosts,
   pickBestAdmissibleLabel,
@@ -8,7 +14,12 @@ import {
 } from "./crisp-unary-cost";
 import type { Oklab } from "../color/color";
 import { plainKMeansQuantizer, kMeansQuantizer, type ColorQuantizer } from "../pipeline/quantize";
-import { weightedKMeansQuantizePool, weightedQuantizePool, type WeightedQuantizeResult, type WeightedSamplePool } from "./weighted-quantize";
+import {
+  weightedKMeansQuantizePool,
+  weightedQuantizePool,
+  type WeightedQuantizeResult,
+  type WeightedSamplePool,
+} from "./weighted-quantize";
 import type { PixelBuffer } from "../types";
 
 /**
@@ -169,6 +180,6 @@ export function selectWeightedQuantizer(quantizer: ColorQuantizer): WeightedQuan
     return (pool, colorCount, importance) => weightedKMeansQuantizePool(pool, colorCount, importance);
   }
   throw new Error(
-    "Crisp edge mode does not support a custom ColorQuantizer: only the built-in plainKMeansQuantizer (\"Original\") and kMeansQuantizer (\"Latest\") have a weighted counterpart. Omit `quantizer` (or pick one of the two built-ins), or use edgeMode: \"standard\" with your custom quantizer instead."
+    'Crisp edge mode does not support a custom ColorQuantizer: only the built-in plainKMeansQuantizer ("Original") and kMeansQuantizer ("Latest") have a weighted counterpart. Omit `quantizer` (or pick one of the two built-ins), or use edgeMode: "standard" with your custom quantizer instead.'
   );
 }

@@ -104,7 +104,9 @@ export function TextureEditor({ texture, onChange, defaultOpen = false }: Textur
     const next = texture.shapeWeights.map((weight, i) => (i === index ? value : weight)) as [number, number, number, number, number];
     // A texture with nothing to draw is not a texture, and the processor refuses one: the slider that went last
     // keeps a share rather than letting the pane hold a request Generate would reject.
-    const drawn = next.some((weight) => weight > 0) ? next : (next.map((_, i) => (i === index ? 0.05 : 0)) as [number, number, number, number, number]);
+    const drawn = next.some((weight) => weight > 0)
+      ? next
+      : (next.map((_, i) => (i === index ? 0.05 : 0)) as [number, number, number, number, number]);
     onChange({ ...texture, shapeWeights: drawn });
   };
 
@@ -142,13 +144,25 @@ export function TextureEditor({ texture, onChange, defaultOpen = false }: Textur
         <div className="flex flex-col gap-3 rounded-md border border-line p-2.5">
           <div className="flex flex-wrap gap-1.5">
             {PRESETS.map((preset) => (
-              <PillButton key={preset.label} onClick={() => onChange(preset.texture)} title={`Set every knob to ${preset.label.toLowerCase()}`}>
+              <PillButton
+                key={preset.label}
+                onClick={() => onChange(preset.texture)}
+                title={`Set every knob to ${preset.label.toLowerCase()}`}
+              >
                 {preset.label}
               </PillButton>
             ))}
           </div>
 
-          <Knob label="Mark spacing" hint="Stitches between marks. A bigger chart carries more marks, not bigger ones." value={texture.spacing} min={DITHER_TEXTURE_RANGES.spacing[0]} max={DITHER_TEXTURE_RANGES.spacing[1]} step={1} onChange={(value) => set("spacing", value)} />
+          <Knob
+            label="Mark spacing"
+            hint="Stitches between marks. A bigger chart carries more marks, not bigger ones."
+            value={texture.spacing}
+            min={DITHER_TEXTURE_RANGES.spacing[0]}
+            max={DITHER_TEXTURE_RANGES.spacing[1]}
+            step={1}
+            onChange={(value) => set("spacing", value)}
+          />
           <Knob
             label="Ring thickness"
             hint="How solid a ring's stroke is. Turning it up draws the circle tighter, so the same stitches sit closer together; turning it down spreads them into a wider, finer circle."
@@ -164,15 +178,39 @@ export function TextureEditor({ texture, onChange, defaultOpen = false }: Textur
             checked={texture.sizeEveryMark === true}
             onChange={(on) => set("sizeEveryMark", on)}
           />
-          <Knob label="Size variation" hint="How much marks differ from each other in size." value={texture.radiusSpan} min={DITHER_TEXTURE_RANGES.radiusSpan[0]} max={DITHER_TEXTURE_RANGES.radiusSpan[1]} step={0.01} onChange={(value) => set("radiusSpan", value)} />
-          <Knob label="Stroke sweep" hint="How much a ring is drawn round as a stroke rather than appearing at once." value={texture.sweep} min={DITHER_TEXTURE_RANGES.sweep[0]} max={DITHER_TEXTURE_RANGES.sweep[1]} step={0.01} onChange={(value) => set("sweep", value)} />
+          <Knob
+            label="Size variation"
+            hint="How much marks differ from each other in size."
+            value={texture.radiusSpan}
+            min={DITHER_TEXTURE_RANGES.radiusSpan[0]}
+            max={DITHER_TEXTURE_RANGES.radiusSpan[1]}
+            step={0.01}
+            onChange={(value) => set("radiusSpan", value)}
+          />
+          <Knob
+            label="Stroke sweep"
+            hint="How much a ring is drawn round as a stroke rather than appearing at once."
+            value={texture.sweep}
+            min={DITHER_TEXTURE_RANGES.sweep[0]}
+            max={DITHER_TEXTURE_RANGES.sweep[1]}
+            step={0.01}
+            onChange={(value) => set("sweep", value)}
+          />
           <Switch
             label="Every mark"
             hint="Dots and lumps fill round the same way, rather than outward from their middle."
             checked={texture.sweepEveryMark === true}
             onChange={(on) => set("sweepEveryMark", on)}
           />
-          <Knob label="Edge wobble" hint="How ragged a lump's edge is, in stitches." value={texture.wobble} min={DITHER_TEXTURE_RANGES.wobble[0]} max={DITHER_TEXTURE_RANGES.wobble[1]} step={0.01} onChange={(value) => set("wobble", value)} />
+          <Knob
+            label="Edge wobble"
+            hint="How ragged a lump's edge is, in stitches."
+            value={texture.wobble}
+            min={DITHER_TEXTURE_RANGES.wobble[0]}
+            max={DITHER_TEXTURE_RANGES.wobble[1]}
+            step={0.01}
+            onChange={(value) => set("wobble", value)}
+          />
           <Switch
             label="Every mark"
             hint="Ragged every shape's edge, not just a lump's. A painted stamp keeps the stitches it names."
@@ -183,10 +221,27 @@ export function TextureEditor({ texture, onChange, defaultOpen = false }: Textur
           <div className="flex flex-col gap-1.5">
             <span className="text-[11px] text-muted">How often each mark is drawn</span>
             {(["Rings", "Broken rings", "Dots", "Lumps"] as const).map((label, index) => (
-              <Knob key={label} label={label} hint={`How much of the chart is drawn with ${label.toLowerCase()}.`} value={texture.shapeWeights[index]} min={0} max={1} step={0.01} onChange={(value) => setWeight(index, value)} />
+              <Knob
+                key={label}
+                label={label}
+                hint={`How much of the chart is drawn with ${label.toLowerCase()}.`}
+                value={texture.shapeWeights[index]}
+                min={0}
+                max={1}
+                step={0.01}
+                onChange={(value) => setWeight(index, value)}
+              />
             ))}
             {texture.stamp && (
-              <Knob label="Painted" hint="How much of the chart is drawn with the mark you painted." value={texture.shapeWeights[4]} min={0} max={1} step={0.01} onChange={(value) => setWeight(4, value)} />
+              <Knob
+                label="Painted"
+                hint="How much of the chart is drawn with the mark you painted."
+                value={texture.shapeWeights[4]}
+                min={0}
+                max={1}
+                step={0.01}
+                onChange={(value) => setWeight(4, value)}
+              />
             )}
           </div>
 

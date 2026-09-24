@@ -127,13 +127,20 @@ async function summariseProfile(client: CDPSession): Promise<string[]> {
     const key = `${node.callFrame.functionName || "(anonymous)"} ${node.callFrame.url.split("/").pop()}:${node.callFrame.columnNumber}`;
     merged.set(key, (merged.get(key) ?? 0) + ms);
   }
-  return [...merged].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([key, ms]) => `${ms.toFixed(0)} ms ${key}`);
+  return [...merged]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([key, ms]) => `${ms.toFixed(0)} ms ${key}`);
 }
 
 async function frameState(page: Page) {
   return page
     .getByTestId("chart-frame")
-    .evaluate((el: HTMLElement) => ({ cellSize: Number(el.dataset.cellSize ?? 0), revision: Number(el.dataset.renderRevision ?? 0), painted: el.dataset.paintedRect ?? "" }));
+    .evaluate((el: HTMLElement) => ({
+      cellSize: Number(el.dataset.cellSize ?? 0),
+      revision: Number(el.dataset.renderRevision ?? 0),
+      painted: el.dataset.paintedRect ?? "",
+    }));
 }
 
 /**
@@ -142,14 +149,27 @@ async function frameState(page: Page) {
  */
 async function waitForScene(page: Page, before: number): Promise<boolean> {
   await page
-    .waitForFunction((b) => Number((document.querySelector('[data-testid="chart-frame"]') as HTMLElement).dataset.renderRevision ?? 0) > b, before, { polling: 16, timeout: 2000 })
+    .waitForFunction(
+      (b) => Number((document.querySelector('[data-testid="chart-frame"]') as HTMLElement).dataset.renderRevision ?? 0) > b,
+      before,
+      { polling: 16, timeout: 2000 }
+    )
     .catch(() => undefined);
   const settled = await page
-    .waitForFunction(() => !(document.querySelector('[data-testid="chart-frame"]') as HTMLElement).dataset.scenePending, undefined, { polling: 16, timeout: 30_000 })
+    .waitForFunction(() => !(document.querySelector('[data-testid="chart-frame"]') as HTMLElement).dataset.scenePending, undefined, {
+      polling: 16,
+      timeout: 30_000,
+    })
     .then(() => true)
     .catch(() => false);
   if (!settled) {
-    const state = await page.getByTestId("chart-frame").evaluate((el: HTMLElement) => ({ pending: el.dataset.scenePending, cellSize: el.dataset.cellSize, revision: el.dataset.renderRevision }));
+    const state = await page
+      .getByTestId("chart-frame")
+      .evaluate((el: HTMLElement) => ({
+        pending: el.dataset.scenePending,
+        cellSize: el.dataset.cellSize,
+        revision: el.dataset.renderRevision,
+      }));
     console.log(`scene still pending after 30 s: ${JSON.stringify(state)}`);
   }
   await afterPaint(page);
@@ -173,7 +193,12 @@ async function syntheticJpeg(page: Page): Promise<string> {
         const y = (i / width) | 0;
         const o = i * 4;
         const region = (x < width / 2 ? 0 : 1) + (y < height / 2 ? 0 : 2);
-        const base = [[70, 110, 160], [200, 150, 90], [60, 130, 70], [150, 90, 110]][region];
+        const base = [
+          [70, 110, 160],
+          [200, 150, 90],
+          [60, 130, 70],
+          [150, 90, 110],
+        ][region];
         image.data[o] = base[0] + ((x + y) / (width + height)) * 60 + n;
         image.data[o + 1] = base[1] + n;
         image.data[o + 2] = base[2] + n;
@@ -236,7 +261,11 @@ test("move drag at 1000 stitches", async ({ page }) => {
       const button = before.cellSize < target ? "Zoom in" : "Zoom out";
       await page.getByRole("button", { name: button }).click();
       const changed = await page
-        .waitForFunction((b) => Number((document.querySelector('[data-testid="chart-frame"]') as HTMLElement).dataset.cellSize ?? 0) !== b, before.cellSize, { timeout: 2000 })
+        .waitForFunction(
+          (b) => Number((document.querySelector('[data-testid="chart-frame"]') as HTMLElement).dataset.cellSize ?? 0) !== b,
+          before.cellSize,
+          { timeout: 2000 }
+        )
         .then(() => true)
         .catch(() => false);
       await afterPaint(page);
@@ -277,7 +306,11 @@ test("move drag at 1000 stitches", async ({ page }) => {
     await page.mouse.up();
     // Time-boxed: a view whose commit cannot keep up is recorded as unsettled rather than failing the whole run.
     const settled = await page
-      .waitForFunction((b) => Number((document.querySelector('[data-testid="chart-frame"]') as HTMLElement).dataset.renderRevision ?? 0) > b, before, { polling: 5, timeout: 30_000 })
+      .waitForFunction(
+        (b) => Number((document.querySelector('[data-testid="chart-frame"]') as HTMLElement).dataset.renderRevision ?? 0) > b,
+        before,
+        { polling: 5, timeout: 30_000 }
+      )
       .then(() => true)
       .catch(() => false);
     if (!settled) console.log(`${view}: no repaint within 30 s of releasing the drag`);
@@ -290,7 +323,10 @@ test("move drag at 1000 stitches", async ({ page }) => {
     const tail = await stopSampling(page);
 
     // Undo the move, so every case drags the same chart.
-    await page.getByRole("main").click({ position: { x: 4, y: 4 } }).catch(() => undefined);
+    await page
+      .getByRole("main")
+      .click({ position: { x: 4, y: 4 } })
+      .catch(() => undefined);
     await page.keyboard.press("Control+z");
     await afterPaint(page);
     await page.waitForTimeout(500);
@@ -319,12 +355,17 @@ test("move drag at 1000 stitches", async ({ page }) => {
       const cellSize = await setCellSize(target);
       for (const { key, label } of VIEWS) {
         const before = (await frameState(page)).revision;
-        await page.getByRole("main").click({ position: { x: 4, y: 4 } }).catch(() => undefined);
+        await page
+          .getByRole("main")
+          .click({ position: { x: 4, y: 4 } })
+          .catch(() => undefined);
         await page.keyboard.press(key);
         await waitForScene(page, before);
         const sample = await moveDrag(`${label} @ ${cellSize} px${target === null ? " (100% zoom)" : ""}`);
         samples.push(sample);
-        console.log(`${sample.view}: step ${sample.medianStepMs}/${sample.worstStepMs} ms, frame gap ${sample.medianFrameGapMs}/${sample.maxFrameGapMs} ms, end ${sample.endOfDragMs} ms`);
+        console.log(
+          `${sample.view}: step ${sample.medianStepMs}/${sample.worstStepMs} ms, frame gap ${sample.medianFrameGapMs}/${sample.maxFrameGapMs} ms, end ${sample.endOfDragMs} ms`
+        );
       }
     }
   }
@@ -346,13 +387,18 @@ test("move drag at 1000 stitches", async ({ page }) => {
   console.log("| Case | Step median | Step worst | Frame gap median | Frame gap worst | Longest task | End of drag | Longest tail task |");
   console.log("|---|---:|---:|---:|---:|---:|---:|---:|");
   for (const r of rows) {
-    console.log(`| ${r.view} | ${r.medianStepMs} ms | ${r.worstStepMs} ms | ${r.medianFrameGapMs} ms | ${r.maxFrameGapMs} ms | ${r.longestDragTaskMs} ms | ${r.endOfDragMs} ms | ${r.longestTailTaskMs} ms |`);
+    console.log(
+      `| ${r.view} | ${r.medianStepMs} ms | ${r.worstStepMs} ms | ${r.medianFrameGapMs} ms | ${r.maxFrameGapMs} ms | ${r.longestDragTaskMs} ms | ${r.endOfDragMs} ms | ${r.longestTailTaskMs} ms |`
+    );
   }
   for (const sample of samples) console.log(`${sample.view} drag profile: ${sample.dragProfile.join(" | ")}`);
 
   mkdirSync(OUT_DIR, { recursive: true });
   const file = path.join(OUT_DIR, `move-${STITCHES}st-${COLORS}col-x${THROTTLE}.json`);
-  writeFileSync(file, JSON.stringify({ chart: chartLabel, runs: RUNS, throttle: THROTTLE, photo: `${PHOTO_W}x${PHOTO_H}`, rows, samples }, null, 2));
+  writeFileSync(
+    file,
+    JSON.stringify({ chart: chartLabel, runs: RUNS, throttle: THROTTLE, photo: `${PHOTO_W}x${PHOTO_H}`, rows, samples }, null, 2)
+  );
   for (const error of pageErrors.slice(0, 10)) console.log(error);
   console.log(`page errors: ${pageErrors.length}`);
   console.log(`\nwrote ${file}`);

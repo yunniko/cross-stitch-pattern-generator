@@ -1,10 +1,28 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { devicePixelAlignment, intersectRects, isEmptyRect, needsRepaint, paintedRectFor, visibleChartRect, type PixelRect } from "@/lib/editor/chart-viewport";
+import {
+  devicePixelAlignment,
+  intersectRects,
+  isEmptyRect,
+  needsRepaint,
+  paintedRectFor,
+  visibleChartRect,
+  type PixelRect,
+} from "@/lib/editor/chart-viewport";
 import type { StampEdge } from "@/lib/editor/brush-stamp";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
 import { renderNavigatorPixels } from "@/lib/export/render";
 import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
-import { brushOpsIn, drawCellsInto, drawScene, drawSceneWithGesture, drawSymmetryGuides, incrementalModeOf, type BrushOp, type ChartScene, type GesturePreview } from "../chart-scene";
+import {
+  brushOpsIn,
+  drawCellsInto,
+  drawScene,
+  drawSceneWithGesture,
+  drawSymmetryGuides,
+  incrementalModeOf,
+  type BrushOp,
+  type ChartScene,
+  type GesturePreview,
+} from "../chart-scene";
 import type { Tool, ViewMode } from "../editor-types";
 import { cellIndexFromEvent, chartOrigin, drawStampOutline } from "../editor-geometry";
 import { buildStitchTiles, type StitchTiles } from "@/lib/export/stitch-texture";
@@ -35,7 +53,8 @@ export interface ChartRendererInputs {
   applyZoomAnchor: () => void;
 }
 
-export type SelectDragFrame = { kind: "rect"; base: StitchPattern; rect: CellRect } | { kind: "piece"; base: StitchPattern; piece: FloatingSelection };
+export type SelectDragFrame =
+  { kind: "rect"; base: StitchPattern; rect: CellRect } | { kind: "piece"; base: StitchPattern; piece: FloatingSelection };
 
 export type ChartRenderer = ReturnType<typeof useChartRenderer>;
 
@@ -65,7 +84,24 @@ function isMovePreview(gesture: GesturePreview | null): boolean {
  * scrolling and zooming keep its preview. `canvasColor` is display-only.
  */
 export function useChartRenderer(inputs: ChartRendererInputs) {
-  const { canvasRef, frameRef, scrollerRef, navigatorCanvasRef, hoverCanvasRef, pattern, viewMode, cellSize, activeTool, selection, isSelectDragging, isolate, litColorIndices, canvasColor, applyZoomAnchor, symmetryAxes } = inputs;
+  const {
+    canvasRef,
+    frameRef,
+    scrollerRef,
+    navigatorCanvasRef,
+    hoverCanvasRef,
+    pattern,
+    viewMode,
+    cellSize,
+    activeTool,
+    selection,
+    isSelectDragging,
+    isolate,
+    litColorIndices,
+    canvasColor,
+    applyZoomAnchor,
+    symmetryAxes,
+  } = inputs;
   const [photo, setPhoto] = useState<{ dataUrl: string; img: HTMLImageElement } | null>(null);
   const [realisticTiles, setRealisticTiles] = useState<StitchTiles | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -98,7 +134,13 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   /** The animation frame a Move preview has already scheduled, so pointer events coalesce into one paint. */
   const moveFrameRef = useRef<number | null>(null);
   /** What the canvas currently shows for a Move preview, so the next frame can shift those pixels instead of redrawing (D145). */
-  const moveBlitRef = useRef<{ rect: PixelRect; scene: Omit<ChartScene, "selectDragging">; base: StitchPattern; dx: number; dy: number } | null>(null);
+  const moveBlitRef = useRef<{
+    rect: PixelRect;
+    scene: Omit<ChartScene, "selectDragging">;
+    base: StitchPattern;
+    dx: number;
+    dy: number;
+  } | null>(null);
   const paintedRef = useRef<PixelRect>(EMPTY_RECT);
   // The device-pixel step the painted rectangle was aligned to; a changed device pixel ratio (browser zoom) repaints.
   const alignRef = useRef(1);
@@ -130,7 +172,13 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     const view = { left, top, right: left + scroller.clientWidth, bottom: top + scroller.clientHeight };
     const width = p.width * cs;
     const height = p.height * cs;
-    return { visible: visibleChartRect(origin.left, origin.top, view, width, height), viewWidth: scroller.clientWidth, viewHeight: scroller.clientHeight, width, height };
+    return {
+      visible: visibleChartRect(origin.left, origin.top, view, width, height),
+      viewWidth: scroller.clientWidth,
+      viewHeight: scroller.clientHeight,
+      width,
+      height,
+    };
   }
 
   function markRendered() {
@@ -143,7 +191,9 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     // Tests and the benchmark wait for this to clear: the Realistic view is final once its tiles match zoom and palette.
     const { scene: shown, pattern: shownPattern } = shownRef.current;
     const tiles = shown.realisticTiles;
-    const realisticPending = shown.viewMode === "realistic" && (!tiles || tiles.cellSize !== tileSizeFor(shown.cellSize) || tiles.palette !== shownPattern?.palette);
+    const realisticPending =
+      shown.viewMode === "realistic" &&
+      (!tiles || tiles.cellSize !== tileSizeFor(shown.cellSize) || tiles.palette !== shownPattern?.palette);
     frame.dataset.scenePending = realisticPending ? "realistic" : "";
   }
 
@@ -155,7 +205,14 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     if (!canvas || !p || !geometry) return;
     const align = devicePixelAlignment(window.devicePixelRatio || 1);
     const fraction = overscanFraction(shownRef.current.scene.viewMode, isMovePreview(gestureRef.current));
-    const rect = paintedRectFor(geometry.visible, geometry.viewWidth * fraction, geometry.viewHeight * fraction, geometry.width, geometry.height, align);
+    const rect = paintedRectFor(
+      geometry.visible,
+      geometry.viewWidth * fraction,
+      geometry.viewHeight * fraction,
+      geometry.width,
+      geometry.height,
+      align
+    );
     alignRef.current = align;
     const w = rect.x1 - rect.x0;
     const h = rect.y1 - rect.y0;
@@ -191,7 +248,10 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   function ensureCoverage() {
     const geometry = measure();
     if (!geometry) return;
-    const margin = (Math.min(geometry.viewWidth, geometry.viewHeight) * overscanFraction(shownRef.current.scene.viewMode, isMovePreview(gestureRef.current))) / 2;
+    const margin =
+      (Math.min(geometry.viewWidth, geometry.viewHeight) *
+        overscanFraction(shownRef.current.scene.viewMode, isMovePreview(gestureRef.current))) /
+      2;
     const alignmentChanged = devicePixelAlignment(window.devicePixelRatio || 1) !== alignRef.current;
     if (alignmentChanged || needsRepaint(geometry.visible, paintedRef.current, margin, geometry.width, geometry.height)) paint();
   }
@@ -338,9 +398,17 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     // The view must not have moved: the cached rectangle has to be the one this frame would paint into.
     const align = devicePixelAlignment(window.devicePixelRatio || 1);
     const fraction = overscanFraction(scene.viewMode, true);
-    const rect = paintedRectFor(geometry.visible, geometry.viewWidth * fraction, geometry.viewHeight * fraction, geometry.width, geometry.height, align);
+    const rect = paintedRectFor(
+      geometry.visible,
+      geometry.viewWidth * fraction,
+      geometry.viewHeight * fraction,
+      geometry.width,
+      geometry.height,
+      align
+    );
     const { rect: cached } = cache;
-    if (align !== alignRef.current || rect.x0 !== cached.x0 || rect.y0 !== cached.y0 || rect.x1 !== cached.x1 || rect.y1 !== cached.y1) return false;
+    if (align !== alignRef.current || rect.x0 !== cached.x0 || rect.y0 !== cached.y0 || rect.x1 !== cached.x1 || rect.y1 !== cached.y1)
+      return false;
 
     const cs = scene.cellSize;
     const shiftX = (gesture.dx - cache.dx) * cs;
@@ -407,7 +475,10 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
 
   /** One frame of a select drag: the base scene (restored from its snapshot when unchanged) plus the rectangle or piece. */
   function previewSelect(frame: SelectDragFrame) {
-    gestureRef.current = frame.kind === "rect" ? { kind: "select-rect", base: frame.base, rect: frame.rect } : { kind: "select-piece", base: frame.base, piece: frame.piece };
+    gestureRef.current =
+      frame.kind === "rect"
+        ? { kind: "select-rect", base: frame.base, rect: frame.rect }
+        : { kind: "select-piece", base: frame.base, piece: frame.piece };
     const scene = currentScene();
     const canvas = canvasRef.current;
     const ctx = chartContext();

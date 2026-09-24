@@ -165,7 +165,7 @@ function blueNoise(size, seed = 0x5eed) {
   const rng = mulberry32(seed);
   const points = new Array(n).fill(false);
   const initial = Math.max(1, Math.round(n / 10));
-  for (let placed = 0; placed < initial; ) {
+  for (let placed = 0; placed < initial;) {
     const i = Math.floor(rng() * n);
     if (!points[i]) {
       points[i] = true;

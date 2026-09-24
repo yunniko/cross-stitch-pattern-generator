@@ -86,7 +86,8 @@ for (let i = 0; i < n; i++) {
   const x = k + 0.5 + (rand() - 0.5) * 1e-9 * (rand() < 0.5 ? 0 : 1);
   push(4, x, 0, Math.round(x));
 }
-for (const x of [0.49999999999999994, -0.5, -0.49999999999999994, 0.5, 1.5, 2.5, -1.5, 4503599627370495.5, -0, 0]) push(4, x, 0, Math.round(x));
+for (const x of [0.49999999999999994, -0.5, -0.49999999999999994, 0.5, 1.5, 2.5, -1.5, 4503599627370495.5, -0, 0])
+  push(4, x, 0, Math.round(x));
 for (let i = 0; i < n / 10; i++) {
   const x = randomDouble();
   push(4, x, 0, Math.round(x));
@@ -106,7 +107,15 @@ for (let i = 0; i < n / 2; i++) {
   const y = (rand() - 0.5) * 0.02;
   push(5, x, y, Math.hypot(x, y));
 }
-for (const [x, y] of [[1, 0], [0, 1], [1, 1], [1, -1], [0, 0], [-0, 0]]) push(5, x, y, Math.hypot(x, y));
+for (const [x, y] of [
+  [1, 0],
+  [0, 1],
+  [1, 1],
+  [1, -1],
+  [0, 0],
+  [-0, 0],
+])
+  push(5, x, y, Math.hypot(x, y));
 for (let i = 0; i < n / 10; i++) {
   const x = randomDouble();
   const y = randomDouble();
@@ -119,7 +128,17 @@ for (let i = 0; i < n; i++) {
   const a = (rand() - 0.5) * (rand() < 0.5 ? 1 : 0.04);
   push(6, b, a, Math.atan2(b, a));
 }
-for (const [b, a] of [[0, 0], [-0, 0], [0, -0], [-0, -0], [1, 0], [-1, 0], [0, 1], [0, -1]]) push(6, b, a, Math.atan2(b, a));
+for (const [b, a] of [
+  [0, 0],
+  [-0, 0],
+  [0, -0],
+  [-0, -0],
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+])
+  push(6, b, a, Math.atan2(b, a));
 for (let i = 0; i < n / 10; i++) {
   const b = randomDouble();
   const a = randomDouble();

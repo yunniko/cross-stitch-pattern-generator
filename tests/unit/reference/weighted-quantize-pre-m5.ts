@@ -115,7 +115,10 @@ function assignToNearestCentroid(samples: WeightedColorSample[], centroids: Okla
  * mode is its own point free to pull a different centroid (unlike blend scoring). Keeps `runLloyd`'s trailing
  * re-assignment against the final centroids (D42).
  */
-export function runWeightedLloyd(samples: WeightedColorSample[], initialCentroids: Oklab[]): { centroids: Oklab[]; assignments: Uint8Array } {
+export function runWeightedLloyd(
+  samples: WeightedColorSample[],
+  initialCentroids: Oklab[]
+): { centroids: Oklab[]; assignments: Uint8Array } {
   let centroids = initialCentroids;
   const assignments = new Uint8Array(samples.length);
 
@@ -275,7 +278,14 @@ export function weightedKMeansQuantize(
   }
 
   const mergedOklab = merged.palette.map(rgbToOklab);
-  const injected = weightedInjectWorstFitClusters(samples, merged.cellPaletteIndex, mergedOklab, freedSlots, importance, WORST_FIT_IMPORTANCE_BOOST);
+  const injected = weightedInjectWorstFitClusters(
+    samples,
+    merged.cellPaletteIndex,
+    mergedOklab,
+    freedSlots,
+    importance,
+    WORST_FIT_IMPORTANCE_BOOST
+  );
   const refined = runWeightedLloyd(samples, injected.centroids);
   return buildWeightedPalette(refined.centroids, refined.assignments, samples);
 }

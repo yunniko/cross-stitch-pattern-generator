@@ -16,7 +16,11 @@ async function generateSmallPattern(page: Page) {
 }
 
 /** A square editable JSON file: stripes of three colours, so painted stitches stand out. */
-async function squarePatternFile(testInfo: import("@playwright/test").TestInfo, size = 21, symmetry?: Record<string, true>): Promise<string> {
+async function squarePatternFile(
+  testInfo: import("@playwright/test").TestInfo,
+  size = 21,
+  symmetry?: Record<string, true>
+): Promise<string> {
   const cellPalette = Array.from({ length: size * size }, (_, i) => Math.floor((i % size) / 7) % 3);
   const data = {
     formatVersion: 7,
@@ -60,12 +64,15 @@ async function stitch(page: Page, x: number, y: number): Promise<string> {
 
 /** Chart pixel (x, y) as painted on the viewport canvas. */
 async function chartPixel(page: Page, x: number, y: number): Promise<number[]> {
-  return page.evaluate(([x, y]) => {
-    const el = document.querySelector('[data-testid="chart-frame"]') as HTMLElement;
-    const [x0, y0] = (el.dataset.paintedRect ?? "0,0").split(",").map(Number);
-    const canvas = el.querySelector("canvas") as HTMLCanvasElement;
-    return Array.from(canvas.getContext("2d")!.getImageData(x - x0, y - y0, 1, 1).data);
-  }, [x, y]);
+  return page.evaluate(
+    ([x, y]) => {
+      const el = document.querySelector('[data-testid="chart-frame"]') as HTMLElement;
+      const [x0, y0] = (el.dataset.paintedRect ?? "0,0").split(",").map(Number);
+      const canvas = el.querySelector("canvas") as HTMLCanvasElement;
+      return Array.from(canvas.getContext("2d")!.getImageData(x - x0, y - y0, 1, 1).data);
+    },
+    [x, y]
+  );
 }
 
 /** Clicks the centre of stitch (x, y) with the Brush. */
@@ -123,13 +130,21 @@ test("painting with vertical, then vertical and horizontal symmetry places every
   }
 
   await toggle(page, "Vertical symmetry").click();
-  const verticalCopies = (x: number, y: number): Array<[number, number]> => [[x, y], [width - 1 - x, y]];
+  const verticalCopies = (x: number, y: number): Array<[number, number]> => [
+    [x, y],
+    [width - 1 - x, y],
+  ];
   const [vx, vy] = await freshStitch(verticalCopies);
   await clickStitch(page, vx, vy);
   for (const [x, y] of verticalCopies(vx, vy)) await expect.poll(() => stitch(page, x, y), `stitch ${x},${y}`).toBe(target);
 
   await toggle(page, "Horizontal symmetry").click();
-  const bothCopies = (x: number, y: number): Array<[number, number]> => [[x, y], [width - 1 - x, y], [x, height - 1 - y], [width - 1 - x, height - 1 - y]];
+  const bothCopies = (x: number, y: number): Array<[number, number]> => [
+    [x, y],
+    [width - 1 - x, y],
+    [x, height - 1 - y],
+    [width - 1 - x, height - 1 - y],
+  ];
   const [hx, hy] = await freshStitch(bothCopies);
   const farCopyBefore = await stitch(page, width - 1 - hx, height - 1 - hy);
   await clickStitch(page, hx, hy);
@@ -168,7 +183,12 @@ test("on a square canvas the diagonals mirror across both corners, and a red gui
   await clickStitch(page, 5, 1);
   await expect.poll(() => stitch(page, 5, 1)).toBe(purple);
   // (x, y) → (y, x) and (N−1−y, N−1−x), and their product, the half turn.
-  for (const [x, y] of [[1, 5], [n - 1 - 1, n - 1 - 5], [n - 1 - 5, n - 1 - 1]]) expect(await stitch(page, x, y), `stitch ${x},${y}`).toBe(purple);
+  for (const [x, y] of [
+    [1, 5],
+    [n - 1 - 1, n - 1 - 5],
+    [n - 1 - 5, n - 1 - 1],
+  ])
+    expect(await stitch(page, x, y), `stitch ${x},${y}`).toBe(purple);
 });
 
 test("rendered exports are unchanged by symmetry and the JSON gains only its symmetry field", async ({ page }) => {
@@ -183,20 +203,34 @@ test("rendered exports are unchanged by symmetry and the JSON gains only its sym
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const doc = await pdfjs.getDocument({ data: new Uint8Array(bytes), useWorkerFetch: false }).promise;
     const pages: string[] = [];
-    for (let i = 1; i <= doc.numPages; i++) pages.push((await (await doc.getPage(i)).getTextContent()).items.map((item) => ("str" in item ? item.str : "")).join(""));
+    for (let i = 1; i <= doc.numPages; i++)
+      pages.push((await (await doc.getPage(i)).getTextContent()).items.map((item) => ("str" in item ? item.str : "")).join(""));
     return pages;
   }
   async function zipEntries(bytes: Buffer): Promise<Record<string, string>> {
     const zip = await JSZip.loadAsync(bytes);
     const out: Record<string, string> = {};
-    for (const name of Object.keys(zip.files).sort()) if (!zip.files[name].dir) out[name] = (await zip.files[name].async("nodebuffer")).toString("base64");
+    for (const name of Object.keys(zip.files).sort())
+      if (!zip.files[name].dir) out[name] = (await zip.files[name].async("nodebuffer")).toString("base64");
     return out;
   }
 
-  const off = { png: await download("png-color"), a4: await download("a4-color"), pdf: await download("pdf-color"), oxs: await download("oxs"), json: await download("editable") };
+  const off = {
+    png: await download("png-color"),
+    a4: await download("a4-color"),
+    pdf: await download("pdf-color"),
+    oxs: await download("oxs"),
+    json: await download("editable"),
+  };
   await toggle(page, "Vertical symmetry").click();
   await toggle(page, "Horizontal symmetry").click();
-  const on = { png: await download("png-color"), a4: await download("a4-color"), pdf: await download("pdf-color"), oxs: await download("oxs"), json: await download("editable") };
+  const on = {
+    png: await download("png-color"),
+    a4: await download("a4-color"),
+    pdf: await download("pdf-color"),
+    oxs: await download("oxs"),
+    json: await download("editable"),
+  };
 
   expect(on.png.equals(off.png)).toBe(true);
   expect(await zipEntries(on.a4)).toEqual(await zipEntries(off.a4));
@@ -208,7 +242,9 @@ test("rendered exports are unchanged by symmetry and the JSON gains only its sym
   expect(jsonOn).toEqual(JSON.parse(off.json.toString("utf-8")));
 });
 
-test("the toggles are saved with the document: restored after a reload and on reopening the file; a new photo takes them away with the chart", async ({ page }, testInfo) => {
+test("the toggles are saved with the document: restored after a reload and on reopening the file; a new photo takes them away with the chart", async ({
+  page,
+}, testInfo) => {
   await page.goto("/");
   await openPattern(page, await squarePatternFile(testInfo));
   await toggle(page, "Horizontal symmetry").click();
@@ -264,7 +300,9 @@ test("a file saved with a diagonal on a non-square canvas opens with the diagona
   await expect(toggle(page, "Diagonal symmetry ↘")).toBeDisabled();
 });
 
-test("resizing to a non-square canvas turns the diagonals off, and undoing back to a square leaves them off", async ({ page }, testInfo) => {
+test("resizing to a non-square canvas turns the diagonals off, and undoing back to a square leaves them off", async ({
+  page,
+}, testInfo) => {
   await page.goto("/");
   await openPattern(page, await squarePatternFile(testInfo, 21, { diagonal: true }));
   await expect(toggle(page, "Diagonal symmetry ↘")).toHaveAttribute("aria-pressed", "true");

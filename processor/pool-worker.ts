@@ -77,15 +77,15 @@ async function runGenerate(job: Extract<WorkerJob, { kind: "generate" }>): Promi
     return;
   }
   const pattern = buildPattern(job.imageData, {
-      longerSideStitches: job.settings.longerSideStitches,
-      colorCount: job.settings.colorCount,
-      quantizer: job.settings.generationMode === "original" ? plainKMeansQuantizer : kMeansQuantizer,
-      paletteMode: job.settings.paletteMode,
-      edgeMode: job.settings.edgeMode,
-      enhancementMode: job.settings.enhancementMode,
-      ditherMode: job.settings.ditherMode,
-      ditherTexture: job.settings.ditherTexture,
-      vivid: job.settings.vivid,
+    longerSideStitches: job.settings.longerSideStitches,
+    colorCount: job.settings.colorCount,
+    quantizer: job.settings.generationMode === "original" ? plainKMeansQuantizer : kMeansQuantizer,
+    paletteMode: job.settings.paletteMode,
+    edgeMode: job.settings.edgeMode,
+    enhancementMode: job.settings.enhancementMode,
+    ditherMode: job.settings.ditherMode,
+    ditherTexture: job.settings.ditherTexture,
+    vivid: job.settings.vivid,
     onProgress: (fraction) => post({ type: "progress", jobId: job.jobId, fraction }),
   });
   post({ type: "done", jobId: job.jobId, pattern });
@@ -93,8 +93,12 @@ async function runGenerate(job: Extract<WorkerJob, { kind: "generate" }>): Promi
 
 port.on("message", (job: WorkerJob) => {
   if (job.kind === "export") {
-    runExport(job).catch((err: unknown) => post({ type: "error", jobId: job.jobId, message: err instanceof Error ? err.message : "Couldn't complete that export." }));
+    runExport(job).catch((err: unknown) =>
+      post({ type: "error", jobId: job.jobId, message: err instanceof Error ? err.message : "Couldn't complete that export." })
+    );
     return;
   }
-  runGenerate(job).catch((err: unknown) => post({ type: "error", jobId: job.jobId, message: err instanceof Error ? err.message : "Unknown error" }));
+  runGenerate(job).catch((err: unknown) =>
+    post({ type: "error", jobId: job.jobId, message: err instanceof Error ? err.message : "Unknown error" })
+  );
 });

@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { oklabDistanceSquared, rgbToOklab, type Oklab } from "@/lib/color/color";
 import { mergeSimilarColors } from "@/lib/pipeline/palette-optimizer";
 import { plainKMeansQuantizer, kMeansQuantizer } from "@/lib/pipeline/quantize";
-import { weightedQuantize, weightedKMeansQuantize, runWeightedLloyd, weightedInjectWorstFitClusters, type WeightedColorSample } from "@/lib/crisp/weighted-quantize";
+import {
+  weightedQuantize,
+  weightedKMeansQuantize,
+  runWeightedLloyd,
+  weightedInjectWorstFitClusters,
+  type WeightedColorSample,
+} from "@/lib/crisp/weighted-quantize";
 import { buildPattern } from "@/lib/pipeline/pattern";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 import { makeBuffer } from "./helpers/fixtures";
@@ -32,8 +38,27 @@ function oneSamplePerCell(colors: RGB[]): WeightedColorSample[] {
 
 describe("Standard-compatibility: weightedQuantize reduces byte-for-byte to plainKMeansQuantizer at weight 1", () => {
   const fixtures: Array<{ name: string; colors: RGB[]; colorCount: number }> = [
-    { name: "two flat colors, k=2", colors: [[0, 0, 0], [0, 0, 0], [255, 255, 255], [255, 255, 255]], colorCount: 2 },
-    { name: "a small gradient, k=4", colors: [[0, 0, 0], [64, 64, 64], [128, 128, 128], [192, 192, 192], [255, 255, 255]], colorCount: 4 },
+    {
+      name: "two flat colors, k=2",
+      colors: [
+        [0, 0, 0],
+        [0, 0, 0],
+        [255, 255, 255],
+        [255, 255, 255],
+      ],
+      colorCount: 2,
+    },
+    {
+      name: "a small gradient, k=4",
+      colors: [
+        [0, 0, 0],
+        [64, 64, 64],
+        [128, 128, 128],
+        [192, 192, 192],
+        [255, 255, 255],
+      ],
+      colorCount: 4,
+    },
     {
       name: "a busy multi-hue set, k=5",
       colors: [
@@ -320,4 +345,3 @@ describe("a cluster with no weight is dropped, and its samples say so (G-051)", 
     expect(Array.from(pattern.cellPalette).every((v) => v < pattern.palette.length)).toBe(true);
   });
 });
-

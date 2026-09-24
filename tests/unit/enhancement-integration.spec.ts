@@ -50,7 +50,13 @@ describe("buildPattern with enhancementMode", () => {
   it("runs every mode together with Crisp edges and a thread palette", () => {
     const source = degradedPhoto();
     for (const mode of ["auto", "vivid", "portrait"] as const) {
-      const pattern = buildPattern(source, { longerSideStitches: 40, colorCount: 8, enhancementMode: mode, edgeMode: "crisp", paletteMode: "dmc" });
+      const pattern = buildPattern(source, {
+        longerSideStitches: 40,
+        colorCount: 8,
+        enhancementMode: mode,
+        edgeMode: "crisp",
+        paletteMode: "dmc",
+      });
       expect(pattern.enhancementMode).toBe(mode);
       expect(pattern.edgeMode).toBe("crisp");
       expect(pattern.threadBrand).toBe("dmc");
@@ -94,7 +100,9 @@ describe("the remembered enhancement preference", () => {
   });
 
   function loadWith(stored: Record<string, unknown>) {
-    vi.stubGlobal("window", { localStorage: { getItem: (key: string) => (key === OPTIONS_KEY ? JSON.stringify(stored) : null), setItem: () => {} } });
+    vi.stubGlobal("window", {
+      localStorage: { getItem: (key: string) => (key === OPTIONS_KEY ? JSON.stringify(stored) : null), setItem: () => {} },
+    });
     return loadWorkspaceOptions();
   }
 

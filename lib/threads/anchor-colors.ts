@@ -14,9 +14,9 @@ import type { ThreadColor } from "./thread-color";
  * code, same merge behavior as any other brand.
  */
 export const DMC_TO_ANCHOR: Readonly<Record<string, string>> = {
-  "B5200": "1",
-  "Ecru": "387",
-  "White": "2",
+  B5200: "1",
+  Ecru: "387",
+  White: "2",
   "150": "59",
   "151": "73",
   "152": "969",

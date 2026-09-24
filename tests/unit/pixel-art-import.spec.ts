@@ -33,11 +33,13 @@ const RED: RGB = [220, 40, 40];
 
 describe("pixel art becomes a chart, one pixel per stitch", () => {
   it("maps every pixel to the stitch at the same position", () => {
-    const result = patternFromPixels(image([
-      [BLACK, WHITE, RED, BLACK, WHITE, RED, BLACK, WHITE, RED, BLACK],
-      [WHITE, RED, BLACK, WHITE, RED, BLACK, WHITE, RED, BLACK, WHITE],
-      ...Array.from({ length: 8 }, () => Array.from({ length: 10 }, () => RED)),
-    ]));
+    const result = patternFromPixels(
+      image([
+        [BLACK, WHITE, RED, BLACK, WHITE, RED, BLACK, WHITE, RED, BLACK],
+        [WHITE, RED, BLACK, WHITE, RED, BLACK, WHITE, RED, BLACK, WHITE],
+        ...Array.from({ length: 8 }, () => Array.from({ length: 10 }, () => RED)),
+      ])
+    );
     expect(result.error).toBeNull();
     const pattern = result.pattern!;
     expect([pattern.width, pattern.height]).toEqual([10, 10]);

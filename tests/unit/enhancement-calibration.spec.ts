@@ -77,7 +77,12 @@ const FIXTURES: Array<{ name: string; source: PixelBuffer }> = [
     source: makeBuffer(300, 360, (x, y) => {
       const n = pseudoNoise(x, y, 18);
       const inFace = ((x - 150) / 90) ** 2 + ((y - 190) / 120) ** 2 < 1;
-      const base: RGB = y < 90 && Math.abs(x - 150) < 110 ? [60, 45, 35] : inFace ? [205 - (y - 190) * 0.15, 160 - (y - 190) * 0.12, 130 - (y - 190) * 0.1] : [90, 100, 110];
+      const base: RGB =
+        y < 90 && Math.abs(x - 150) < 110
+          ? [60, 45, 35]
+          : inFace
+            ? [205 - (y - 190) * 0.15, 160 - (y - 190) * 0.12, 130 - (y - 190) * 0.1]
+            : [90, 100, 110];
       return [clamp(base[0] + n), clamp(base[1] + n), clamp(base[2] + n)];
     }),
   },
@@ -128,7 +133,8 @@ function nearDuplicatePairs(pattern: StitchPattern): number {
   const colors = paletteOklab(pattern);
   const limit = RELEASE_GATES.nearDuplicateDistance ** 2;
   let pairs = 0;
-  for (let i = 0; i < colors.length; i++) for (let j = i + 1; j < colors.length; j++) if (oklabDistanceSquared(colors[i], colors[j]) < limit) pairs++;
+  for (let i = 0; i < colors.length; i++)
+    for (let j = i + 1; j < colors.length; j++) if (oklabDistanceSquared(colors[i], colors[j]) < limit) pairs++;
   return pairs;
 }
 
@@ -177,9 +183,12 @@ describe("enhancement release gates", () => {
           },
           operations: operationsRun(degraded, mode),
         };
-        if (modeOnDegraded < RELEASE_GATES.recoveryMinAgreement) recoveryShortfalls.push(`${name}: recovery agreement ${modeOnDegraded.toFixed(3)}`);
-        if (modeOnDegraded - offOnDegraded < RELEASE_GATES.recoveryMinGainOverOff) recoveryShortfalls.push(`${name}: gain over Off ${(modeOnDegraded - offOnDegraded).toFixed(3)}`);
-        if (modeOnOriginal < RELEASE_GATES.wellExposedMinAgreement) failures.push(`${name}: do-no-harm agreement ${modeOnOriginal.toFixed(3)}`);
+        if (modeOnDegraded < RELEASE_GATES.recoveryMinAgreement)
+          recoveryShortfalls.push(`${name}: recovery agreement ${modeOnDegraded.toFixed(3)}`);
+        if (modeOnDegraded - offOnDegraded < RELEASE_GATES.recoveryMinGainOverOff)
+          recoveryShortfalls.push(`${name}: gain over Off ${(modeOnDegraded - offOnDegraded).toFixed(3)}`);
+        if (modeOnOriginal < RELEASE_GATES.wellExposedMinAgreement)
+          failures.push(`${name}: do-no-harm agreement ${modeOnOriginal.toFixed(3)}`);
       }
 
       const noisy = makeBuffer(480, 320, (x, y) => {
@@ -201,15 +210,17 @@ describe("enhancement release gates", () => {
         const distinctShare = on.palette.length / off.palette.length;
         const extraPairs = nearDuplicatePairs(on) - nearDuplicatePairs(off);
         metrics[`threads.${paletteMode}`] = { offThreads: off.palette.length, onThreads: on.palette.length, distinctShare, extraPairs };
-        if (distinctShare < RELEASE_GATES.minDistinctThreadShare) failures.push(`${paletteMode}: distinct thread share ${distinctShare.toFixed(3)}`);
-        if (extraPairs > RELEASE_GATES.maxExtraNearDuplicatePairs) failures.push(`${paletteMode}: ${extraPairs} extra near-duplicate pairs`);
+        if (distinctShare < RELEASE_GATES.minDistinctThreadShare)
+          failures.push(`${paletteMode}: distinct thread share ${distinctShare.toFixed(3)}`);
+        if (extraPairs > RELEASE_GATES.maxExtraNearDuplicatePairs)
+          failures.push(`${paletteMode}: ${extraPairs} extra near-duplicate pairs`);
       }
 
       report[mode] = { metrics, failures, recoveryShortfalls, passesSafetyGates: failures.length === 0 };
-      if (process.env.ENHANCEMENT_CALIBRATION_REPORT) writeFileSync(process.env.ENHANCEMENT_CALIBRATION_REPORT, JSON.stringify(report, null, 2));
+      if (process.env.ENHANCEMENT_CALIBRATION_REPORT)
+        writeFileSync(process.env.ENHANCEMENT_CALIBRATION_REPORT, JSON.stringify(report, null, 2));
       expect(failures).toEqual([]);
     },
     300_000
   );
 });
-

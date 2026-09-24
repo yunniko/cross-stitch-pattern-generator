@@ -15,7 +15,15 @@ export interface WorkspaceNoticesProps {
 }
 
 /** The strips under the top bar: a failed auto-restore (D101), open and export errors, and the A4 page count. */
-export function WorkspaceNotices({ restoreFailure, onDownloadRestoreReport, onDismissRestoreFailure, openError, openNotice, exportError, a4Layout }: WorkspaceNoticesProps) {
+export function WorkspaceNotices({
+  restoreFailure,
+  onDownloadRestoreReport,
+  onDismissRestoreFailure,
+  openError,
+  openNotice,
+  exportError,
+  a4Layout,
+}: WorkspaceNoticesProps) {
   return (
     <>
       {restoreFailure && (
@@ -24,7 +32,9 @@ export function WorkspaceNotices({ restoreFailure, onDownloadRestoreReport, onDi
           data-testid="restore-failure"
           className="flex flex-wrap items-center gap-3 border-b border-amber-900 bg-amber-950/60 px-4 py-1 text-xs text-amber-200"
         >
-          <span>The autosaved project couldn&apos;t be restored, so this session started fresh. The failed data is available as an error report.</span>
+          <span>
+            The autosaved project couldn&apos;t be restored, so this session started fresh. The failed data is available as an error report.
+          </span>
           <button
             type="button"
             onClick={onDownloadRestoreReport}
@@ -46,7 +56,8 @@ export function WorkspaceNotices({ restoreFailure, onDownloadRestoreReport, onDi
       {exportError && <NoticeBar tone="error">{exportError}</NoticeBar>}
       {a4Layout && (
         <NoticeBar tone="info">
-          {a4Layout.columns} × {a4Layout.rows} pages — {a4Layout.pages.length + 2}+ total (incl. simple + extended legend). Overlap in Options.
+          {a4Layout.columns} × {a4Layout.rows} pages — {a4Layout.pages.length + 2}+ total (incl. simple + extended legend). Overlap in
+          Options.
         </NoticeBar>
       )}
     </>
@@ -54,7 +65,16 @@ export function WorkspaceNotices({ restoreFailure, onDownloadRestoreReport, onDi
 }
 
 /** Selection-bar icons, drawn like the tools dock's (G-042): a 24-box outline, sized to the pill. */
-const ACTION_ICON_PROPS = { viewBox: "0 0 24 24", className: "h-4 w-4", fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true } as const;
+const ACTION_ICON_PROPS = {
+  viewBox: "0 0 24 24",
+  className: "h-4 w-4",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.6,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  "aria-hidden": true,
+} as const;
 
 function CopyIcon() {
   return (
@@ -96,9 +116,17 @@ function FlipIcon({ axis }: { axis: "horizontal" | "vertical" }) {
   const vertical = axis === "vertical";
   return (
     <svg {...ACTION_ICON_PROPS}>
-      {vertical ? <line x1="3" y1="12" x2="21" y2="12" strokeDasharray="3 2" /> : <line x1="12" y1="3" x2="12" y2="21" strokeDasharray="3 2" />}
+      {vertical ? (
+        <line x1="3" y1="12" x2="21" y2="12" strokeDasharray="3 2" />
+      ) : (
+        <line x1="12" y1="3" x2="12" y2="21" strokeDasharray="3 2" />
+      )}
       {vertical ? <path d="M7 9.5 12 5l5 4.5z" /> : <path d="M9.5 7 5 12l4.5 5z" />}
-      {vertical ? <path d="M7 14.5 12 19l5-4.5z" fill="currentColor" opacity="0.35" /> : <path d="M14.5 7 19 12l-4.5 5z" fill="currentColor" opacity="0.35" />}
+      {vertical ? (
+        <path d="M7 14.5 12 19l5-4.5z" fill="currentColor" opacity="0.35" />
+      ) : (
+        <path d="M14.5 7 19 12l-4.5 5z" fill="currentColor" opacity="0.35" />
+      )}
     </svg>
   );
 }
@@ -202,10 +230,20 @@ export function SelectionBar({
         selection is a state nobody asked for (Owner, 2026-09-23). Apply or Cancel first, and the title says so.
       */}
       <div className="flex items-center gap-1.5">
-        <PillButton size="xs" onClick={onUndo} disabled={!canUndo || hasSelection} title={hasSelection ? "Apply or cancel the selection first" : "Ctrl+Z"}>
+        <PillButton
+          size="xs"
+          onClick={onUndo}
+          disabled={!canUndo || hasSelection}
+          title={hasSelection ? "Apply or cancel the selection first" : "Ctrl+Z"}
+        >
           Undo
         </PillButton>
-        <PillButton size="xs" onClick={onRedo} disabled={!canRedo || hasSelection} title={hasSelection ? "Apply or cancel the selection first" : "Ctrl+Y or Ctrl+Shift+Z"}>
+        <PillButton
+          size="xs"
+          onClick={onRedo}
+          disabled={!canRedo || hasSelection}
+          title={hasSelection ? "Apply or cancel the selection first" : "Ctrl+Y or Ctrl+Shift+Z"}
+        >
           Redo
         </PillButton>
       </div>
@@ -226,16 +264,40 @@ export function SelectionBar({
           [
             ["Copy", "Copy the selected piece", <CopyIcon key="i" />, onCopy, !hasSelection],
             ["Paste", "Paste the copied piece as a new floating selection", <PasteIcon key="i" />, onPaste, !hasClipboard],
-            ["Duplicate", "Leave this piece where it is and take a copy of it in hand", <DuplicateIcon key="i" />, onDuplicate, !hasSelection],
+            [
+              "Duplicate",
+              "Leave this piece where it is and take a copy of it in hand",
+              <DuplicateIcon key="i" />,
+              onDuplicate,
+              !hasSelection,
+            ],
             // "Fill selection", not "Fill": the tool rail has a Fill of its own, and both are on screen at once.
             ["Fill selection", fillTitle, <FillSelectionIcon key="i" />, onFill, !hasSelection || !canFill],
             ["Flip horizontal", "Mirror the piece left to right", <FlipIcon key="i" axis="horizontal" />, onFlipHorizontal, !hasSelection],
             ["Flip vertical", "Mirror the piece top to bottom", <FlipIcon key="i" axis="vertical" />, onFlipVertical, !hasSelection],
             ["Rotate right", "Turn the piece a quarter turn clockwise", <RotateIcon key="i" clockwise />, onRotateClockwise, !hasSelection],
-            ["Rotate left", "Turn the piece a quarter turn anticlockwise", <RotateIcon key="i" clockwise={false} />, onRotateAnticlockwise, !hasSelection],
+            [
+              "Rotate left",
+              "Turn the piece a quarter turn anticlockwise",
+              <RotateIcon key="i" clockwise={false} />,
+              onRotateAnticlockwise,
+              !hasSelection,
+            ],
             ["Crop", "Cut the chart down to this rectangle, discarding everything outside it", <CropIcon key="i" />, onCrop, !hasSelection],
-            ["Apply here", "Merge the piece into the picture where it sits \u2014 Enter", <DeselectIcon key="i" />, onDeselect, !hasSelection],
-            ["Cancel", "Put the chart back as it was when this selection started, discarding its changes \u2014 Escape", <CancelIcon key="i" />, onCancel, !hasSelection],
+            [
+              "Apply here",
+              "Merge the piece into the picture where it sits \u2014 Enter",
+              <DeselectIcon key="i" />,
+              onDeselect,
+              !hasSelection,
+            ],
+            [
+              "Cancel",
+              "Put the chart back as it was when this selection started, discarding its changes \u2014 Escape",
+              <CancelIcon key="i" />,
+              onCancel,
+              !hasSelection,
+            ],
           ] as const
         ).map(([label, title, icon, onClick, isDisabled]) => {
           // Apply here sits before Cancel, and the committing pair carry their names (Owner, 2026-09-18).

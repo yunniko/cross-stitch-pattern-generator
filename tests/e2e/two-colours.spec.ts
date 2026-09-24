@@ -38,10 +38,7 @@ async function pickThread(page: Page, nth: number, button: "left" | "right") {
 async function exportChart(page: Page): Promise<{ cellPalette: number[]; palette: Array<{ name: string }>; width: number }> {
   await page.getByRole("tab", { name: "Threads" }).click();
   await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Export", exact: true }).click(),
-  ]);
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8"));
   await page.getByRole("tab", { name: "Chart" }).click();
   return chart;

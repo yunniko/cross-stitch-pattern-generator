@@ -55,7 +55,14 @@ afterAll(() => {
 describe("the server's PNG writer", () => {
   it("writes an A4 grid page and the legend page with the library's exact pixels, as RGB", async () => {
     const layout = calculateA4Layout(pattern.width, pattern.height, { overlapCells: 5 });
-    const page = renderA4GridPage(pattern, "color", layout, layout.pages[layout.pages.length - 1], layout.pages.length - 1, layout.pages.length);
+    const page = renderA4GridPage(
+      pattern,
+      "color",
+      layout,
+      layout.pages[layout.pages.length - 1],
+      layout.pages.length - 1,
+      layout.pages.length
+    );
     expect(await expectSamePixels(page as unknown as NapiCanvas)).toBe(2);
     expect(await expectSamePixels(renderA4LegendPage(pattern, layout) as unknown as NapiCanvas)).toBe(2);
   }, 60_000);

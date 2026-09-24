@@ -3,7 +3,16 @@ import { isValidDitherTexture, type DitherTexture } from "../pipeline/dither-han
 import { isEnhancementModeId, type EnhancementModeId } from "../pipeline/enhance";
 import { findThread, formatThreadName, THREAD_BRANDS, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
 import { effectiveSymmetryAxes, NO_SYMMETRY, SYMMETRY_AXES, type SymmetryAxes, type SymmetryAxis } from "./symmetry-axes";
-import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type SourceImageRef, type StitchPattern, type ThreadSwatchRef } from "../types";
+import {
+  EMPTY_CELL,
+  MAX_COLORS,
+  MAX_STITCHES,
+  type PaletteColor,
+  type RGB,
+  type SourceImageRef,
+  type StitchPattern,
+  type ThreadSwatchRef,
+} from "../types";
 
 // Plain JSON, not a PNG with embedded data (Owner decision, 2026-09-09,
 // HANDOVER.md D21) -- simplest reliable format, at the cost of not being
@@ -101,7 +110,9 @@ export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes 
     isLandscape: pattern.isLandscape,
     cellPalette: Array.from(pattern.cellPalette),
     palette: pattern.palette.map((c) =>
-      c.source ? { rgb: c.rgb, symbol: c.symbol, name: c.name, source: { brand: c.source.brand, code: c.source.code } } : { rgb: c.rgb, symbol: c.symbol, name: c.name }
+      c.source
+        ? { rgb: c.rgb, symbol: c.symbol, name: c.name, source: { brand: c.source.brand, code: c.source.code } }
+        : { rgb: c.rgb, symbol: c.symbol, name: c.name }
     ),
     name: pattern.name,
     sourceImage: pattern.sourceImage,
@@ -281,7 +292,9 @@ function validatePaletteEntry(entry: unknown): { rgb: RGB; symbol: string; name:
     throw new Error("That file's palette contains a color with no name.");
   }
   const source = parseSource(e.source);
-  return source ? { rgb: [rgb[0], rgb[1], rgb[2]], symbol: e.symbol, name: e.name, source } : { rgb: [rgb[0], rgb[1], rgb[2]], symbol: e.symbol, name: e.name };
+  return source
+    ? { rgb: [rgb[0], rgb[1], rgb[2]], symbol: e.symbol, name: e.name, source }
+    : { rgb: [rgb[0], rgb[1], rgb[2]], symbol: e.symbol, name: e.name };
 }
 
 /**

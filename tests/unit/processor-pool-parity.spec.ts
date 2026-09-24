@@ -60,7 +60,8 @@ async function runToCompletion(settings: Omit<JobSettings, "photoHash">, source:
       if (!pattern) throw new Error("a finished job returned no pattern");
       return pattern;
     }
-    if (status.state === "error" || status.state === "cancelled") throw new Error(`job ${status.state}: ${status.message ?? "no reason given"}`);
+    if (status.state === "error" || status.state === "cancelled")
+      throw new Error(`job ${status.state}: ${status.message ?? "no reason given"}`);
     await pool.waitForChange(jobId);
   }
 }

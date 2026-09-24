@@ -46,7 +46,9 @@ if (mode === "generate") {
   const source = makePhotoLikeBuffer(Math.round(size * 1.5), size);
   const pattern = buildPattern(source, { longerSideStitches: size, colorCount: 64, edgeMode: "standard" });
   fs.writeFileSync(out, v8.serialize(pattern));
-  console.log(`generated ${pattern.width}x${pattern.height} (${pattern.width * pattern.height} cells), ${pattern.palette.length} colours -> ${out}`);
+  console.log(
+    `generated ${pattern.width}x${pattern.height} (${pattern.width * pattern.height} cells), ${pattern.palette.length} colours -> ${out}`
+  );
 } else if (mode === "export") {
   const inFile = arg("--in");
   const kind = arg("--kind") as ExportJobKind | undefined;

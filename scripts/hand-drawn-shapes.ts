@@ -26,7 +26,9 @@ function thresholdsFor(shape: Shape | undefined): Float64Array {
   if (!shape) return handDrawnThresholds(WIDTH, HEIGHT);
   // The same marks the pipeline would draw, with only their shape overridden.
   const marks = markLibrary(WIDTH, HEIGHT).map((mark) => ({ ...mark, shape }));
-  return handDrawnThresholds(WIDTH, HEIGHT, DEFAULT_DITHER_TEXTURE, (m: number, dx: number, dy: number, x: number, y: number) => shapeScore(marks[m], m, dx, dy, x, y));
+  return handDrawnThresholds(WIDTH, HEIGHT, DEFAULT_DITHER_TEXTURE, (m: number, dx: number, dy: number, x: number, y: number) =>
+    shapeScore(marks[m], m, dx, dy, x, y)
+  );
 }
 
 /** One row of patches: the same marks at rising tone, lightest first. */

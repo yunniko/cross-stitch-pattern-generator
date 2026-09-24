@@ -27,14 +27,20 @@ describe("buildPattern", () => {
   });
 
   it("flags landscape vs portrait from the source image dimensions", () => {
-    const landscape = buildPattern(makeBuffer(200, 100, () => [10, 10, 10]), {
-      longerSideStitches: 20,
-      colorCount: 2,
-    });
-    const portrait = buildPattern(makeBuffer(100, 200, () => [10, 10, 10]), {
-      longerSideStitches: 20,
-      colorCount: 2,
-    });
+    const landscape = buildPattern(
+      makeBuffer(200, 100, () => [10, 10, 10]),
+      {
+        longerSideStitches: 20,
+        colorCount: 2,
+      }
+    );
+    const portrait = buildPattern(
+      makeBuffer(100, 200, () => [10, 10, 10]),
+      {
+        longerSideStitches: 20,
+        colorCount: 2,
+      }
+    );
     expect(landscape.isLandscape).toBe(true);
     expect(portrait.isLandscape).toBe(false);
   });

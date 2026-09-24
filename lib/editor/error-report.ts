@@ -39,7 +39,10 @@ export function logPatternLoadFailure({ source, error }: Pick<PatternLoadFailure
 }
 
 /** Downloads the exact content that failed to load. No-op where there's no `document` (unit tests, SSR). */
-export function downloadPatternLoadReport({ content, originalFileName }: Pick<PatternLoadFailure, "content" | "originalFileName">, timestamp = new Date().toISOString()): void {
+export function downloadPatternLoadReport(
+  { content, originalFileName }: Pick<PatternLoadFailure, "content" | "originalFileName">,
+  timestamp = new Date().toISOString()
+): void {
   if (typeof document === "undefined") return;
   const blob = content instanceof Blob ? content : new Blob([content], { type: "text/plain" });
   const url = URL.createObjectURL(blob);

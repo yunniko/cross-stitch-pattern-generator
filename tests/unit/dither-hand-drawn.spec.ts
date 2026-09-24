@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { rgbToOklab } from "@/lib/color/color";
 import { ditherToPalette } from "@/lib/pipeline/dither";
-import { DEFAULT_DITHER_TEXTURE, dotScore, handDrawnThresholds, markCentres, markLibrary, MARK_SPACING } from "@/lib/pipeline/dither-hand-drawn";
+import {
+  DEFAULT_DITHER_TEXTURE,
+  dotScore,
+  handDrawnThresholds,
+  markCentres,
+  markLibrary,
+  MARK_SPACING,
+} from "@/lib/pipeline/dither-hand-drawn";
 import { downsampleToGrid } from "@/lib/pipeline/downsample";
 import { buildPattern } from "@/lib/pipeline/pattern";
 import type { PixelBuffer, RGB, StitchPattern } from "@/lib/types";
@@ -215,8 +222,18 @@ describe("hand-drawn marks are placed, not tiled", () => {
       for (let x = 0; x < width; x++) {
         if (labels[y * width + x] !== 1) continue;
         lit++;
-        const neighbours: Array<[number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-        if (neighbours.some(([dx, dy]) => x + dx >= 0 && y + dy >= 0 && x + dx < width && y + dy < height && labels[(y + dy) * width + x + dx] === 1)) withNeighbour++;
+        const neighbours: Array<[number, number]> = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ];
+        if (
+          neighbours.some(
+            ([dx, dy]) => x + dx >= 0 && y + dy >= 0 && x + dx < width && y + dy < height && labels[(y + dy) * width + x + dx] === 1
+          )
+        )
+          withNeighbour++;
       }
     }
     expect(withNeighbour / lit, "a drawn mark is a cluster, not a speck").toBeGreaterThan(0.9);

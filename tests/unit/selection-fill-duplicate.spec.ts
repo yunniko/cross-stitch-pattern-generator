@@ -37,7 +37,13 @@ describe("fillSelection", () => {
       width: 4,
       height: 3,
       cellPalette: Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-      palette: [0, 1, 2].map((index) => ({ index, rgb: [index, index, index] as const, symbol: String(index), name: `c${index}`, count: 0 })),
+      palette: [0, 1, 2].map((index) => ({
+        index,
+        rgb: [index, index, index] as const,
+        symbol: String(index),
+        name: `c${index}`,
+        count: 0,
+      })),
       isLandscape: true,
     };
     const applied = mergeSelection(pattern, fillSelection(piece([0, 0, 0, 0], 2, 2, 1, 1), 2));

@@ -40,7 +40,10 @@ async function download(page: Page, trigger: () => Promise<void>): Promise<Downl
 }
 
 async function exportKinds(page: Page): Promise<string[]> {
-  return page.getByLabel("Export").locator("option").evaluateAll((options) => options.map((o) => (o as HTMLOptionElement).value).filter(Boolean));
+  return page
+    .getByLabel("Export")
+    .locator("option")
+    .evaluateAll((options) => options.map((o) => (o as HTMLOptionElement).value).filter(Boolean));
 }
 
 async function downloadsFor(page: Page, kinds: string[]): Promise<Download[]> {
@@ -67,7 +70,11 @@ async function pdfSummary(bytes: Buffer): Promise<{ pages: number; text: string[
 function withoutTimestamps(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutTimestamps);
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).filter(([key]) => !TIMESTAMP_KEYS.has(key)).map(([key, v]) => [key, withoutTimestamps(v)]));
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !TIMESTAMP_KEYS.has(key))
+        .map(([key, v]) => [key, withoutTimestamps(v)])
+    );
   }
   return value;
 }
@@ -87,8 +94,12 @@ async function compareFile(name: string, a: Buffer, b: Buffer): Promise<string[]
   }
   if (name.endsWith(".zip") || name.endsWith(".cspzip")) {
     const [x, y] = await Promise.all([JSZip.loadAsync(a), JSZip.loadAsync(b)]);
-    const names = Object.keys(x.files).filter((n) => !x.files[n].dir).sort();
-    const otherNames = Object.keys(y.files).filter((n) => !y.files[n].dir).sort();
+    const names = Object.keys(x.files)
+      .filter((n) => !x.files[n].dir)
+      .sort();
+    const otherNames = Object.keys(y.files)
+      .filter((n) => !y.files[n].dir)
+      .sort();
     if (names.join("\n") !== otherNames.join("\n")) return [`${name}: entries differ (${names.length} vs ${otherNames.length})`];
     const problems: string[] = [];
     for (const entry of names) {
@@ -98,7 +109,9 @@ async function compareFile(name: string, a: Buffer, b: Buffer): Promise<string[]
     return problems;
   }
   if (name.endsWith(".json")) {
-    const same = JSON.stringify(withoutTimestamps(JSON.parse(a.toString("utf-8")))) === JSON.stringify(withoutTimestamps(JSON.parse(b.toString("utf-8"))));
+    const same =
+      JSON.stringify(withoutTimestamps(JSON.parse(a.toString("utf-8")))) ===
+      JSON.stringify(withoutTimestamps(JSON.parse(b.toString("utf-8"))));
     return same ? [] : [`${name}: data differs`];
   }
   return a.equals(b) ? [] : [`${name}: bytes differ (${a.length} vs ${b.length})`];

@@ -38,7 +38,10 @@ function validFile(rng: () => number): Json {
     cellPalette,
     palette,
     name: "fuzz",
-    sourceImage: rng() < 0.5 ? { dataUrl: "data:image/png;base64,AAAA", naturalWidth: 10, naturalHeight: 10, cellSizePx: 2, offsetX: 0, offsetY: 0 } : undefined,
+    sourceImage:
+      rng() < 0.5
+        ? { dataUrl: "data:image/png;base64,AAAA", naturalWidth: 10, naturalHeight: 10, cellSizePx: 2, offsetX: 0, offsetY: 0 }
+        : undefined,
     threadBrand: rng() < 0.3 ? "dmc" : undefined,
     edgeMode: rng() < 0.3 ? "crisp" : undefined,
     enhancementMode: rng() < 0.3 ? pick(rng, ["brighten", "auto", "vivid", "portrait"]) : undefined,
@@ -52,7 +55,18 @@ const VALID_SOURCES = [
   { brand: "cosmo", code: "600" },
   { brand: "anchor", code: "403" },
 ];
-const BAD_SOURCES: unknown[] = [null, "310", [], {}, { brand: "dmc" }, { brand: "rainbow", code: "1" }, { brand: "dmc", code: "" }, { brand: "dmc", code: "NOPE" }, { brand: "dmc", code: 310 }, { brand: "dmc", code: "b5200" }];
+const BAD_SOURCES: unknown[] = [
+  null,
+  "310",
+  [],
+  {},
+  { brand: "dmc" },
+  { brand: "rainbow", code: "1" },
+  { brand: "dmc", code: "" },
+  { brand: "dmc", code: "NOPE" },
+  { brand: "dmc", code: 310 },
+  { brand: "dmc", code: "b5200" },
+];
 
 function pick<T>(rng: () => number, items: readonly T[]): T {
   return items[Math.floor(rng() * items.length)];
@@ -71,7 +85,20 @@ function mutate(file: Json, rng: () => number): string {
       return `delete ${key}`;
     }
     case 1: {
-      const key = pick(rng, ["width", "height", "cellPalette", "palette", "isLandscape", "name", "sourceImage", "threadBrand", "edgeMode", "enhancementMode", "formatVersion", "dmcMode"]);
+      const key = pick(rng, [
+        "width",
+        "height",
+        "cellPalette",
+        "palette",
+        "isLandscape",
+        "name",
+        "sourceImage",
+        "threadBrand",
+        "edgeMode",
+        "enhancementMode",
+        "formatVersion",
+        "dmcMode",
+      ]);
       const value = pick(rng, JUNK);
       file[key] = value;
       return `set ${key} = ${JSON.stringify(value)}`;
@@ -140,7 +167,13 @@ function mutate(file: Json, rng: () => number): string {
       return `name = ${JSON.stringify(value)}`;
     }
     case 12: {
-      const value = pick(rng, [{ dataUrl: "nope" }, { dataUrl: "data:x", naturalWidth: -1 }, "data:x", 5, { dataUrl: "data:x", naturalWidth: 10, naturalHeight: 10, cellSizePx: 0, offsetX: 0, offsetY: 0 }]);
+      const value = pick(rng, [
+        { dataUrl: "nope" },
+        { dataUrl: "data:x", naturalWidth: -1 },
+        "data:x",
+        5,
+        { dataUrl: "data:x", naturalWidth: 10, naturalHeight: 10, cellSizePx: 0, offsetX: 0, offsetY: 0 },
+      ]);
       file.sourceImage = value;
       return `sourceImage = ${JSON.stringify(value)}`;
     }

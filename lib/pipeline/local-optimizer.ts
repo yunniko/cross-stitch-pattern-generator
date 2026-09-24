@@ -114,7 +114,8 @@ export function runLocalOptimizer(
         offsetOnNeighbor[o] = 1;
       }
     }
-    if (offset.weight !== canonicalWeight[offsetSlot[o]]) throw new Error("runLocalOptimizer: opposite stencil offsets must share a weight");
+    if (offset.weight !== canonicalWeight[offsetSlot[o]])
+      throw new Error("runLocalOptimizer: opposite stencil offsets must share a weight");
   });
 
   // 1 = a neighbor's label changed since this cell was last evaluated (every cell starts dirty).

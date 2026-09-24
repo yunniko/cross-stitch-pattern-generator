@@ -18,9 +18,18 @@ function chart(width: number, height: number, emptyAt: (x: number, y: number) =>
       : { index: i, rgb: [i * 60, 255 - i * 50, 90], symbol, name: `Ünïcode & "quoted" <${i}>`, count: 0 }
   );
   const cellPalette = new Uint8Array(width * height);
-  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) cellPalette[y * width + x] = emptyAt(x, y) ? EMPTY_CELL : (x * 3 + y) % palette.length;
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) cellPalette[y * width + x] = emptyAt(x, y) ? EMPTY_CELL : (x * 3 + y) % palette.length;
   for (const p of cellPalette) if (p !== EMPTY_CELL) palette[p].count++;
-  return { width, height, cellPalette, palette, isLandscape: width >= height, name: "Tëst & <chart>", threadBrand: threads ? "dmc" : undefined };
+  return {
+    width,
+    height,
+    cellPalette,
+    palette,
+    isLandscape: width >= height,
+    name: "Tëst & <chart>",
+    threadBrand: threads ? "dmc" : undefined,
+  };
 }
 
 describe("the OXS file built a row at a time", () => {
@@ -33,7 +42,7 @@ describe("the OXS file built a row at a time", () => {
   ];
   for (const [name, pattern] of cases) {
     it(`${name}: the same text and its UTF-8 bytes`, () => {
-      const options = { authorName: "Jö & \"Ann\"", aidaCount: 16 };
+      const options = { authorName: 'Jö & "Ann"', aidaCount: 16 };
       const expected = serializeOxsPreG046M4(pattern, options);
       expect(serializeOxs(pattern, options)).toBe(expected);
       expect(serializeOxsParts(pattern, options).join("")).toBe(expected);

@@ -11,7 +11,12 @@ import {
 import { runCrispQuantizationStage } from "@/lib/crisp/crisp-quantization-stage";
 import { downsampleToGrid, gridDimensionsFor } from "@/lib/pipeline/downsample";
 import { computeCellImportance, computeEdgeMagnitude, selectKth } from "@/lib/pipeline/edge-map";
-import { DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, DEFAULT_MULTI_SCALE_WEIGHTS, runLocalOptimizer, type LocalOptimizerWeights } from "@/lib/pipeline/local-optimizer";
+import {
+  DEFAULT_LOCAL_OPTIMIZER_WEIGHTS,
+  DEFAULT_MULTI_SCALE_WEIGHTS,
+  runLocalOptimizer,
+  type LocalOptimizerWeights,
+} from "@/lib/pipeline/local-optimizer";
 import { computePairEdgeEvidence } from "@/lib/pipeline/pair-edge-evidence";
 import { createPipelineContext } from "@/lib/pipeline/pipeline-context";
 import { mulberry32 } from "@/lib/prng";
@@ -92,8 +97,22 @@ describe("runLocalOptimizer is bit-identical to the pre-M3 implementation", () =
     const pairEvidence = computePairEdgeEvidence(source, width, height);
     const quantized = kMeansQuantizer.quantize(cells, 24, importance);
 
-    const changed = compareOptimizers(cells, quantized.cellPaletteIndex, quantized.palette, DEFAULT_MULTI_SCALE_WEIGHTS.coarse, { importance, pairEvidence }, "photo coarse");
-    compareOptimizers(cells, quantized.cellPaletteIndex, quantized.palette, DEFAULT_MULTI_SCALE_WEIGHTS.fine, { importance, pairEvidence }, "photo fine");
+    const changed = compareOptimizers(
+      cells,
+      quantized.cellPaletteIndex,
+      quantized.palette,
+      DEFAULT_MULTI_SCALE_WEIGHTS.coarse,
+      { importance, pairEvidence },
+      "photo coarse"
+    );
+    compareOptimizers(
+      cells,
+      quantized.cellPaletteIndex,
+      quantized.palette,
+      DEFAULT_MULTI_SCALE_WEIGHTS.fine,
+      { importance, pairEvidence },
+      "photo fine"
+    );
     expect(changed).toBe(true);
   });
 
@@ -105,7 +124,14 @@ describe("runLocalOptimizer is bit-identical to the pre-M3 implementation", () =
     expect(splitLayer.evidenceByCell.size).toBeGreaterThan(0);
     const splitQuantized = runCrispQuantizationStage(splitCells, 4, splitImportance, splitLayer, selectWeightedQuantizer(kMeansQuantizer));
     for (const [name, weights] of WEIGHT_SETS) {
-      compareOptimizers(splitCells, splitQuantized.cellPaletteIndex, splitQuantized.palette, weights, { importance: splitImportance, evidenceLayer: splitLayer }, `split ${name}`);
+      compareOptimizers(
+        splitCells,
+        splitQuantized.cellPaletteIndex,
+        splitQuantized.palette,
+        weights,
+        { importance: splitImportance, evidenceLayer: splitLayer },
+        `split ${name}`
+      );
     }
 
     const photo = makePhotoLikeBuffer(240, 160);
@@ -115,7 +141,14 @@ describe("runLocalOptimizer is bit-identical to the pre-M3 implementation", () =
     const pairEvidence = computePairEdgeEvidence(photo, width, height);
     const layer = buildCrispEvidenceLayer(photo, width, height, allCellIndices(width, height));
     const quantized = runCrispQuantizationStage(cells, 16, importance, layer, selectWeightedQuantizer(kMeansQuantizer));
-    compareOptimizers(cells, quantized.cellPaletteIndex, quantized.palette, DEFAULT_MULTI_SCALE_WEIGHTS.fine, { importance, pairEvidence, evidenceLayer: layer }, "photo crisp fine");
+    compareOptimizers(
+      cells,
+      quantized.cellPaletteIndex,
+      quantized.palette,
+      DEFAULT_MULTI_SCALE_WEIGHTS.fine,
+      { importance, pairEvidence, evidenceLayer: layer },
+      "photo crisp fine"
+    );
   });
 });
 
@@ -159,7 +192,8 @@ function nameColorsFullSort(colors: readonly RGB[]): string[] {
   const queries = colors.map(rgbToOklab);
   const pairs: Array<{ colorIndex: number; nameIndex: number; distance: number }> = [];
   for (let ci = 0; ci < queries.length; ci++) {
-    for (let ni = 0; ni < entries.length; ni++) pairs.push({ colorIndex: ci, nameIndex: ni, distance: oklabDistanceSquared(queries[ci], entries[ni].oklab) });
+    for (let ni = 0; ni < entries.length; ni++)
+      pairs.push({ colorIndex: ci, nameIndex: ni, distance: oklabDistanceSquared(queries[ci], entries[ni].oklab) });
   }
   pairs.sort((a, b) => a.distance - b.distance);
   const names = new Array<string>(colors.length);

@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildCrispEvidenceLayer,
-  allCellIndices,
-  selectWeightedQuantizer,
-} from "@/lib/crisp/crisp-evidence-layer";
+import { buildCrispEvidenceLayer, allCellIndices, selectWeightedQuantizer } from "@/lib/crisp/crisp-evidence-layer";
 import { plainKMeansQuantizer, kMeansQuantizer } from "@/lib/pipeline/quantize";
 import { rgbToOklab } from "@/lib/color/color";
 import { makeHardSplitBuffer } from "./crisp-edges-fixtures";

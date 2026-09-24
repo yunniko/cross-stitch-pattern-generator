@@ -247,7 +247,10 @@ export function runWeightedLloydPool(pool: WeightedSamplePool, initialCentroids:
   return { centroids, assignments };
 }
 
-export function runWeightedLloyd(samples: WeightedColorSample[], initialCentroids: Oklab[]): { centroids: Oklab[]; assignments: Uint8Array } {
+export function runWeightedLloyd(
+  samples: WeightedColorSample[],
+  initialCentroids: Oklab[]
+): { centroids: Oklab[]; assignments: Uint8Array } {
   return runWeightedLloydPool(samplePoolOf(samples), initialCentroids);
 }
 
@@ -281,7 +284,11 @@ function buildWeightedPalette(centroids: Oklab[], assignments: Uint8Array, pool:
  * Plain weighted k-means over an explicit weighted sample pool -- the weighted analogue of `quantize.ts`'s
  * `plainKMeansQuantizer`.
  */
-export function weightedQuantizePool(pool: WeightedSamplePool, colorCount: number, distinctCells = groupCells(pool).groupCells.length): WeightedQuantizeResult {
+export function weightedQuantizePool(
+  pool: WeightedSamplePool,
+  colorCount: number,
+  distinctCells = groupCells(pool).groupCells.length
+): WeightedQuantizeResult {
   const k = Math.max(1, Math.min(colorCount, pool.n));
   // Seeded by distinct CELL count, not sample count, so splitting one cell into two samples doesn't reshuffle training
   // everywhere else; with one sample per cell it equals quantize.ts's `cellCount ^ k` seed.
@@ -406,7 +413,11 @@ export function weightedInjectWorstFitClusters(
  * freed slots, re-converge. `importance` works as in `injectWorstFitClusters` (D39). With one weight-1 sample per cell
  * it reproduces `kMeansQuantizer` exactly (weighted-quantize.spec.ts).
  */
-export function weightedKMeansQuantizePool(pool: WeightedSamplePool, colorCount: number, importance: (cellIndex: number) => number = () => 0): WeightedQuantizeResult {
+export function weightedKMeansQuantizePool(
+  pool: WeightedSamplePool,
+  colorCount: number,
+  importance: (cellIndex: number) => number = () => 0
+): WeightedQuantizeResult {
   // Grouping cells is the same for every step, so it is done once rather than per step.
   const groups = groupCells(pool);
   const distinctCells = groups.groupCells.length;
@@ -423,7 +434,15 @@ export function weightedKMeansQuantizePool(pool: WeightedSamplePool, colorCount:
   }
 
   const mergedOklab = merged.palette.map(rgbToOklab);
-  const injected = weightedInjectWorstFitClustersPool(pool, merged.cellPaletteIndex, mergedOklab, freedSlots, importance, WORST_FIT_IMPORTANCE_BOOST, groups);
+  const injected = weightedInjectWorstFitClustersPool(
+    pool,
+    merged.cellPaletteIndex,
+    mergedOklab,
+    freedSlots,
+    importance,
+    WORST_FIT_IMPORTANCE_BOOST,
+    groups
+  );
   const refined = runWeightedLloydPool(pool, injected.centroids);
   return buildWeightedPalette(refined.centroids, refined.assignments, pool);
 }

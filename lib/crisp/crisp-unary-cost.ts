@@ -52,7 +52,12 @@ export function mapModesToLabels(evidence: BoundaryEvidence, paletteOklab: Oklab
 }
 
 /** `alpha·‖palette − mode‖² + beta·(1 − coverage)` for one (label, supporting mode) pair. */
-export function crispUnaryCost(paletteColor: Oklab, modeColor: Oklab, coverage: number, weights: CrispUnaryCostWeights = DEFAULT_CRISP_UNARY_COST_WEIGHTS): number {
+export function crispUnaryCost(
+  paletteColor: Oklab,
+  modeColor: Oklab,
+  coverage: number,
+  weights: CrispUnaryCostWeights = DEFAULT_CRISP_UNARY_COST_WEIGHTS
+): number {
   return weights.alpha * oklabDistanceSquared(paletteColor, modeColor) + weights.beta * (1 - coverage);
 }
 

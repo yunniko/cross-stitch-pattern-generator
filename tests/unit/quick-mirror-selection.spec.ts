@@ -6,9 +6,21 @@ import { EMPTY_CELL, type PaletteColor, type RGB, type StitchPattern } from "@/l
 /** G-037 criterion 5: a quick mirror merges a floating selection and mirrors in one edit. */
 
 function makePattern(width: number, height: number): StitchPattern {
-  const colors: RGB[] = [[10, 10, 10], [200, 30, 30], [30, 200, 30], [30, 30, 200], [250, 250, 0]];
+  const colors: RGB[] = [
+    [10, 10, 10],
+    [200, 30, 30],
+    [30, 200, 30],
+    [30, 30, 200],
+    [250, 250, 0],
+  ];
   const cellPalette = Uint8Array.from({ length: width * height }, (_, i) => (i * 7 + Math.floor(i / width) * 3) % 4);
-  const palette: PaletteColor[] = colors.map((rgb, index) => ({ index, rgb, symbol: String(index), name: `Color ${index}`, count: cellPalette.filter((v) => v === index).length }));
+  const palette: PaletteColor[] = colors.map((rgb, index) => ({
+    index,
+    rgb,
+    symbol: String(index),
+    name: `Color ${index}`,
+    count: cellPalette.filter((v) => v === index).length,
+  }));
   return { width, height, cellPalette, palette, isLandscape: width >= height };
 }
 
@@ -36,7 +48,14 @@ describe("applyQuickMirrorWithSelection", () => {
   });
 
   it("keeps the source photo reference untouched", () => {
-    const sourceImage = { dataUrl: "data:image/png;base64,AA==", naturalWidth: 24, naturalHeight: 15, cellSizePx: 3, offsetX: 0, offsetY: 0 };
+    const sourceImage = {
+      dataUrl: "data:image/png;base64,AA==",
+      naturalWidth: 24,
+      naturalHeight: 15,
+      cellSizePx: 3,
+      offsetX: 0,
+      offsetY: 0,
+    };
     const pattern = { ...makePattern(8, 5), sourceImage };
     expect(applyQuickMirrorWithSelection(pattern, null, "upper-half").sourceImage).toBe(sourceImage);
   });

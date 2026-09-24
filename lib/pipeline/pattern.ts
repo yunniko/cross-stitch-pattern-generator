@@ -29,7 +29,11 @@ import { createPipelineContext } from "./pipeline-context";
 import { kMeansQuantizer, meanOklabAsRgb, vividOklabAsRgb, type ColorQuantizer } from "./quantize";
 import { reserveHueThreads } from "./hue-reserve";
 import { symbolsFor } from "../color/symbols";
-import { runContourRefinement, DEFAULT_CONTOUR_REFINEMENT_OPTIONS, type ContourRefinementOptions } from "../experimental/contour-refinement";
+import {
+  runContourRefinement,
+  DEFAULT_CONTOUR_REFINEMENT_OPTIONS,
+  type ContourRefinementOptions,
+} from "../experimental/contour-refinement";
 import { applyBrandPalette } from "../threads/brand-match";
 import type { ThreadBrand } from "../threads/thread-brands";
 import { EMPTY_CELL, type CellColorBuffer, type PaletteColor, type PixelBuffer, type RGB, type StitchPattern } from "../types";
@@ -107,7 +111,9 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   if (isDithered(dither) && crisp) {
     // Fail before any work: Crisp keeps a hard boundary from becoming an invented blend, dithering manufactures
     // blends deliberately, and running both would mean one silently undoing the other (D199).
-    throw new Error(`edgeMode: "${edgeMode}" cannot be combined with dithering: Crisp preserves hard boundaries, which dithering deliberately blends. Choose one.`);
+    throw new Error(
+      `edgeMode: "${edgeMode}" cannot be combined with dithering: Crisp preserves hard boundaries, which dithering deliberately blends. Choose one.`
+    );
   }
   if (crisp && options.contourRefinement) {
     // Fail before doing any work; runContourRefinement repeats this guard for direct callers (D68).
@@ -121,18 +127,19 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   const enhancementMode = options.enhancementMode ?? "off";
   const colorSource = enhancePixelBuffer(imageData, enhancementMode);
 
-  const { width: gridWidth, height: gridHeight } = gridDimensionsFor(
-    imageData.width,
-    imageData.height,
-    options.longerSideStitches
-  );
+  const { width: gridWidth, height: gridHeight } = gridDimensionsFor(imageData.width, imageData.height, options.longerSideStitches);
   options.onProgress?.(0.1);
   // Transparency becomes absence: a cell the photo barely covers is an empty stitch, takes no colour and joins no
   // cluster (G-050, D196). `emptyCellMask` is null for a photo that covers every cell, and every stage below then runs
   // exactly the code it ran before.
   // Vivid changes what a stitch is made of, before anything chooses colours; structure below still reads the
   // original photo, so edges and importance are the same either way (G-061, D211).
-  const { cells, coverage } = downsampleToGridWithCoverage(colorSource, gridWidth, gridHeight, options.vividTopShare ?? (options.vivid ? VIVID_TOP_SHARE : 0));
+  const { cells, coverage } = downsampleToGridWithCoverage(
+    colorSource,
+    gridWidth,
+    gridHeight,
+    options.vividTopShare ?? (options.vivid ? VIVID_TOP_SHARE : 0)
+  );
   const emptyMask = emptyCellMask(coverage);
 
   // Computed before quantization, not only for the optimizer: reinvestment uses importance to prefer a real rare
@@ -146,7 +153,8 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
 
   // Needed by ICM. Crisp still computes it without `optimize`, as it did while it fed the removed pre-filter (D72, D132).
   const shouldOptimize = options.optimize ?? true;
-  const pairEvidence: Float32Array | undefined = crisp || shouldOptimize ? computePairEdgeEvidence(imageData, gridWidth, gridHeight, undefined, undefined, opaque) : undefined;
+  const pairEvidence: Float32Array | undefined =
+    crisp || shouldOptimize ? computePairEdgeEvidence(imageData, gridWidth, gridHeight, undefined, undefined, opaque) : undefined;
 
   let evidenceLayer: CrispEvidenceLayer | undefined;
   if (crisp) {
@@ -154,7 +162,13 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     const defaultLayerOptions = edgeMode === "crisp-plus" ? CRISP_PLUS_EVIDENCE_LAYER_OPTIONS : DEFAULT_CRISP_EVIDENCE_LAYER_OPTIONS;
     // Only the stitched cells: a cell the photo does not cover has no two colours to be confident between (G-050).
     const candidates = allCellIndices(gridWidth, gridHeight).filter((i) => !emptyMask?.[i]);
-    evidenceLayer = buildCrispEvidenceLayer(colorSource, gridWidth, gridHeight, candidates, options.crispEvidenceLayerOptions ?? defaultLayerOptions);
+    evidenceLayer = buildCrispEvidenceLayer(
+      colorSource,
+      gridWidth,
+      gridHeight,
+      candidates,
+      options.crispEvidenceLayerOptions ?? defaultLayerOptions
+    );
   }
 
   // Every later stage reads the true cells, their OKLab, importance, pair
@@ -172,7 +186,16 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   let rawPalette: RGB[];
   if (crisp && evidenceLayer) {
     const quantizerFn = selectWeightedQuantizer(quantizer);
-    const crispResult = runCrispQuantizationStage(denoised.cells, options.colorCount, importance, evidenceLayer, quantizerFn, undefined, denoised.cellOklab, emptyMask ?? undefined);
+    const crispResult = runCrispQuantizationStage(
+      denoised.cells,
+      options.colorCount,
+      importance,
+      evidenceLayer,
+      quantizerFn,
+      undefined,
+      denoised.cellOklab,
+      emptyMask ?? undefined
+    );
     quantized = crispResult.cellPaletteIndex;
     rawPalette = crispResult.palette;
   } else if (emptyMask) {
@@ -192,7 +215,10 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
       keptOklab[k * 3 + 2] = denoised.cellOklab[cell * 3 + 2];
       keptImportance[k] = importance[cell];
     });
-    const result = kept.length > 0 ? quantizer.quantize(keptCells, options.colorCount, keptImportance, keptOklab) : { cellPaletteIndex: new Uint8Array(0), palette: [] as RGB[] };
+    const result =
+      kept.length > 0
+        ? quantizer.quantize(keptCells, options.colorCount, keptImportance, keptOklab)
+        : { cellPaletteIndex: new Uint8Array(0), palette: [] as RGB[] };
     quantized = new Uint8Array(gridWidth * gridHeight).fill(EMPTY_CELL);
     kept.forEach((cell, k) => {
       quantized[cell] = result.cellPaletteIndex[k];
@@ -241,7 +267,9 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   }
   options.onProgress?.(0.8);
 
-  const merged = smooth ? mergeSimilarColors(optimized, rawPalette, undefined, undefined, true) : { cellPaletteIndex: optimized, palette: rawPalette };
+  const merged = smooth
+    ? mergeSimilarColors(optimized, rawPalette, undefined, undefined, true)
+    : { cellPaletteIndex: optimized, palette: rawPalette };
 
   // The merge remap can leave a crisp cell on a label none of its modes supports; repair against the merged palette (D69).
   if (crisp && evidenceLayer && smooth) {
@@ -377,7 +405,8 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     }
   } else {
     const cellsByFinalIndex: number[][] = usedIndices.map(() => []);
-    for (let i = 0; i < compactCellPaletteIndex.length; i++) if (compactCellPaletteIndex[i] !== EMPTY_CELL) cellsByFinalIndex[compactCellPaletteIndex[i]].push(i);
+    for (let i = 0; i < compactCellPaletteIndex.length; i++)
+      if (compactCellPaletteIndex[i] !== EMPTY_CELL) cellsByFinalIndex[compactCellPaletteIndex[i]].push(i);
     compactPalette = usedIndices.map((originalIndex, newIndex) =>
       // A dithered thread keeps the colour the quantizer chose: its cells are deliberately the ones it does not match.
       !isDithered(dither) && cellsByFinalIndex[newIndex].length > 0
@@ -433,10 +462,14 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
     ditherMode: isDithered(dither) ? dither : undefined,
     // Recorded only when it is not the default, so a chart drawn with the shipped texture stays byte-identical to
     // one made before textures existed (G-055).
-    ditherTexture: isDrawnMode(dither) && options.ditherTexture && !isDefaultDitherTexture(options.ditherTexture) ? options.ditherTexture : undefined,
+    ditherTexture:
+      isDrawnMode(dither) && options.ditherTexture && !isDefaultDitherTexture(options.ditherTexture) ? options.ditherTexture : undefined,
     // Recorded when it acted, not when it was asked for: below `VIVID_MIN_PIXELS_PER_CELL` a stitch holds no
     // sub-stitch colour to rescue and the cells are plain area means (D211).
-    vivid: (options.vivid || options.vividTopShare) && vividApplies(colorSource.width, colorSource.height, gridWidth, gridHeight) ? true : undefined,
+    vivid:
+      (options.vivid || options.vividTopShare) && vividApplies(colorSource.width, colorSource.height, gridWidth, gridHeight)
+        ? true
+        : undefined,
     enhancementMode: enhancementMode === "off" ? undefined : enhancementMode,
   };
 
@@ -451,12 +484,7 @@ export function buildPattern(imageData: PixelBuffer, options: BuildPatternOption
   // way (D71). A dithered chart skips that pass like the others: it would smooth the dither straight back out, which
   // is how the G-052 M3 measurement found this — every pattern on a DMC palette read as barely dithered at all.
   const brandPattern = smooth
-    ? applyBrandPalette(
-        pattern,
-        brand,
-        { context: ctx, weights: options.multiScaleWeights?.fine },
-        evidenceLayer
-      )
+    ? applyBrandPalette(pattern, brand, { context: ctx, weights: options.multiScaleWeights?.fine }, evidenceLayer)
     : applyBrandPalette(pattern, brand, undefined, evidenceLayer);
   options.onProgress?.(1);
   return brandPattern;

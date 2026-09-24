@@ -100,7 +100,14 @@ async function makeSyntheticJpeg(page: Page): Promise<Buffer> {
         const o = (y * width + x) * 4;
         const inDisc = (x - 2600) ** 2 + (y - 900) ** 2 < 350 ** 2;
         const region = (x < width / 2 ? 0 : 1) + (y < height / 2 ? 0 : 2);
-        const base = inDisc ? [250, 240, 120] : [[70, 110, 160], [200, 150, 90], [60, 130, 70], [150, 90, 110]][region];
+        const base = inDisc
+          ? [250, 240, 120]
+          : [
+              [70, 110, 160],
+              [200, 150, 90],
+              [60, 130, 70],
+              [150, 90, 110],
+            ][region];
         const ramp = ((x + y) / (width + height)) * 60;
         d[o] = base[0] + ramp + noise;
         d[o + 1] = base[1] + ramp + noise;
@@ -185,7 +192,10 @@ for (const config of CONFIGS) {
     }
 
     await measure(page, rows, "Export all", async () => {
-      const [download] = await Promise.all([page.waitForEvent("download", { timeout: 1_200_000 }), page.getByRole("button", { name: "Export all" }).click()]);
+      const [download] = await Promise.all([
+        page.waitForEvent("download", { timeout: 1_200_000 }),
+        page.getByRole("button", { name: "Export all" }).click(),
+      ]);
       const saved = testInfo.outputPath(download.suggestedFilename());
       await download.saveAs(saved);
       return `${(statSync(saved).size / 1e6).toFixed(1)} MB`;

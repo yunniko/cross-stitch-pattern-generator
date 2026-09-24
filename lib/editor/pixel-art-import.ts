@@ -1,7 +1,16 @@
 import { luminance } from "../color/color";
 import { nameColors } from "../color/color-names";
 import { symbolsFor } from "../color/symbols";
-import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, MIN_STITCHES, type PaletteColor, type PixelBuffer, type RGB, type StitchPattern } from "../types";
+import {
+  EMPTY_CELL,
+  MAX_COLORS,
+  MAX_STITCHES,
+  MIN_STITCHES,
+  type PaletteColor,
+  type PixelBuffer,
+  type RGB,
+  type StitchPattern,
+} from "../types";
 
 /**
  * Opening pixel art as a chart (G-049 M1): one pixel is one stitch, at its own colour, with nothing resampled or
@@ -106,6 +115,15 @@ export function patternFromPixels(pixels: PixelBuffer, name: string = DEFAULT_PI
     }
   }
 
-  const palette: PaletteColor[] = order.map((entry, index) => ({ index, rgb: entry.rgb, symbol: symbols[index], name: names[index], count: counts[index] }));
-  return { error: null, pattern: { width: chartWidth, height: chartHeight, cellPalette, palette, isLandscape: chartWidth > chartHeight, name } };
+  const palette: PaletteColor[] = order.map((entry, index) => ({
+    index,
+    rgb: entry.rgb,
+    symbol: symbols[index],
+    name: names[index],
+    count: counts[index],
+  }));
+  return {
+    error: null,
+    pattern: { width: chartWidth, height: chartHeight, cellPalette, palette, isLandscape: chartWidth > chartHeight, name },
+  };
 }

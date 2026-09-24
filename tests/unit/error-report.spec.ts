@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { deriveErrorReportFilename, downloadPatternLoadReport, logPatternLoadFailure, reportPatternLoadFailure } from "@/lib/editor/error-report";
+import {
+  deriveErrorReportFilename,
+  downloadPatternLoadReport,
+  logPatternLoadFailure,
+  reportPatternLoadFailure,
+} from "@/lib/editor/error-report";
 
 describe("error-report", () => {
   describe("deriveErrorReportFilename", () => {
@@ -16,15 +21,11 @@ describe("error-report", () => {
     });
 
     it("falls back to .txt when the original file has no extension", () => {
-      expect(deriveErrorReportFilename("README", "2026-09-12T10:00:00.000Z")).toBe(
-        "README_error-report_2026-09-12T10-00-00-000Z.txt"
-      );
+      expect(deriveErrorReportFilename("README", "2026-09-12T10:00:00.000Z")).toBe("README_error-report_2026-09-12T10-00-00-000Z.txt");
     });
 
     it("uses a generic autosave name when there's no original file name (the auto-restore path)", () => {
-      expect(deriveErrorReportFilename(undefined, "2026-09-12T10:00:00.000Z")).toBe(
-        "autosave_error-report_2026-09-12T10-00-00-000Z.json"
-      );
+      expect(deriveErrorReportFilename(undefined, "2026-09-12T10:00:00.000Z")).toBe("autosave_error-report_2026-09-12T10-00-00-000Z.json");
     });
   });
 

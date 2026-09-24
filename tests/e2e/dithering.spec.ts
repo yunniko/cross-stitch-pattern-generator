@@ -130,7 +130,13 @@ test("a painted mark reaches the chart, and is saved with it (G-056)", async ({ 
 
   // A cross, painted on the 5x5 grid: the centre and its four neighbours.
   const grid = page.getByTestId("stamp-grid");
-  for (const [x, y] of [[3, 2], [2, 3], [3, 3], [4, 3], [3, 4]]) {
+  for (const [x, y] of [
+    [3, 2],
+    [2, 3],
+    [3, 3],
+    [4, 3],
+    [3, 4],
+  ]) {
     await grid.getByRole("button", { name: `Stitch ${x}, ${y}` }).click();
   }
 

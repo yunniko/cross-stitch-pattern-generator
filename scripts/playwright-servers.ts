@@ -31,7 +31,12 @@ interface WebServerEntry {
   timeout: number;
 }
 
-export function appWithProcessor({ port, processorPort, reuseExistingServer, appTimeoutMs = 300_000 }: ServerPairOptions): WebServerEntry[] {
+export function appWithProcessor({
+  port,
+  processorPort,
+  reuseExistingServer,
+  appTimeoutMs = 300_000,
+}: ServerPairOptions): WebServerEntry[] {
   const root = path.join(__dirname, "..");
   return [
     {

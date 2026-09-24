@@ -28,7 +28,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ hash: s
   }
 
   try {
-    const upstream = await fetch(processorUrl(`/photos/${hash}/preview?mode=${encodeURIComponent(mode)}`), { method: "POST", signal: req.signal });
+    const upstream = await fetch(processorUrl(`/photos/${hash}/preview?mode=${encodeURIComponent(mode)}`), {
+      method: "POST",
+      signal: req.signal,
+    });
     if (!upstream.ok) {
       return new NextResponse(await upstream.text(), { status: upstream.status, headers: { "content-type": "application/json" } });
     }

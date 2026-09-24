@@ -20,7 +20,10 @@ export async function POST(req: Request): Promise<Response> {
 
   const declared = Number(req.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > LIMITS.exportRequestBytes) {
-    return NextResponse.json({ error: `That pattern is larger than ${Math.round(LIMITS.exportRequestBytes / 1024 / 1024)} MB.` }, { status: 413 });
+    return NextResponse.json(
+      { error: `That pattern is larger than ${Math.round(LIMITS.exportRequestBytes / 1024 / 1024)} MB.` },
+      { status: 413 }
+    );
   }
 
   const body = await req.text();

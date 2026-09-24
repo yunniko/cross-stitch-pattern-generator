@@ -1,5 +1,10 @@
 import { oklabDistanceSquared, rgbToOklab } from "../color/color";
-import { buildAdmissibleLabelCosts, pickBestAdmissibleLabel, DEFAULT_CRISP_UNARY_COST_WEIGHTS, type CrispUnaryCostWeights } from "./crisp-unary-cost";
+import {
+  buildAdmissibleLabelCosts,
+  pickBestAdmissibleLabel,
+  DEFAULT_CRISP_UNARY_COST_WEIGHTS,
+  type CrispUnaryCostWeights,
+} from "./crisp-unary-cost";
 import type { CrispEvidenceLayer, WeightedQuantizerFn } from "./crisp-evidence-layer";
 import { cellsToOklab, oklabAt } from "../pipeline/pipeline-context";
 import { EMPTY_CELL, type CellColorBuffer, type RGB } from "../types";

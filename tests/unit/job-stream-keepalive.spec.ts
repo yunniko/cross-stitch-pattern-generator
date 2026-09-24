@@ -57,8 +57,18 @@ describe("job stream keepalive", () => {
   it("finishes an export whose stream carried a keepalive comment", async () => {
     stubFetch([
       ["/events", () => sseResponse('data: {"state":"running"}\n\n', KEEPALIVE, 'data: {"state":"done"}\n\n')],
-      ["/result", () => new Response("png-bytes", { status: 200, headers: { "content-disposition": 'attachment; filename="chart_color.png"' } })],
-      ["/api/exports", () => new Response(JSON.stringify({ jobId: "11111111-1111-1111-1111-111111111111" }), { status: 202, headers: { "content-type": "application/json" } })],
+      [
+        "/result",
+        () => new Response("png-bytes", { status: 200, headers: { "content-disposition": 'attachment; filename="chart_color.png"' } }),
+      ],
+      [
+        "/api/exports",
+        () =>
+          new Response(JSON.stringify({ jobId: "11111111-1111-1111-1111-111111111111" }), {
+            status: 202,
+            headers: { "content-type": "application/json" },
+          }),
+      ],
     ]);
 
     const result = await runServerExport({
@@ -76,8 +86,23 @@ describe("job stream keepalive", () => {
 
   it("reports a failed generation rather than choking on a keepalive comment", async () => {
     stubFetch([
-      ["/events", () => sseResponse('data: {"state":"running","progress":0.1}\n\n', KEEPALIVE, 'data: {"state":"error","message":"The job ran past its time limit."}\n\n')],
-      ["/api/jobs", () => new Response(JSON.stringify({ jobId: "22222222-2222-2222-2222-222222222222" }), { status: 202, headers: { "content-type": "application/json" } })],
+      [
+        "/events",
+        () =>
+          sseResponse(
+            'data: {"state":"running","progress":0.1}\n\n',
+            KEEPALIVE,
+            'data: {"state":"error","message":"The job ran past its time limit."}\n\n'
+          ),
+      ],
+      [
+        "/api/jobs",
+        () =>
+          new Response(JSON.stringify({ jobId: "22222222-2222-2222-2222-222222222222" }), {
+            status: 202,
+            headers: { "content-type": "application/json" },
+          }),
+      ],
     ]);
 
     await expect(

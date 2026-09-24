@@ -39,7 +39,10 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const { aidaCount, sizeUnit, authorName, overlapCells } = options;
 
-  const a4LayoutPreview = useMemo(() => (pattern ? calculateA4Layout(pattern.width, pattern.height, { overlapCells }) : null), [pattern, overlapCells]);
+  const a4LayoutPreview = useMemo(
+    () => (pattern ? calculateA4Layout(pattern.width, pattern.height, { overlapCells }) : null),
+    [pattern, overlapCells]
+  );
   const baseName = pattern?.name ?? "cross-stitch-pattern";
 
   async function run(kind: ExportChoice, setBusy: (busy: boolean) => void, fallbackMessage: string) {

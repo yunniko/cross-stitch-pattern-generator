@@ -113,7 +113,13 @@ describe("runContourRefinementPass: per-cell decision matches an independently r
       if (c < 20) return 5 + (c - 15) * 5; // a sharp local climb
       return 25;
     });
-    const buffer = makeMultiRegionBuffer(size, size, (nx, ny) => (Math.floor(ny * size) < heights[Math.floor(nx * size)] ? 0 : 1), [fg, bg], 0);
+    const buffer = makeMultiRegionBuffer(
+      size,
+      size,
+      (nx, ny) => (Math.floor(ny * size) < heights[Math.floor(nx * size)] ? 0 : 1),
+      [fg, bg],
+      0
+    );
     const { width: gw, height: gh } = gridDimensionsFor(size, size, size);
     const cells = downsampleToGrid(buffer, gw, gh);
     const labels = new Uint8Array(gw * gh);
@@ -316,7 +322,10 @@ describe("G-024 M4.5 (HANDOVER.md D68): crisp + contourRefinement is explicitly 
     const width = 4;
     const height = 4;
     const cells: CellColorBuffer = { data: new Uint8ClampedArray(width * height * 3), width, height };
-    const palette: RGB[] = [[0, 0, 0], [255, 255, 255]];
+    const palette: RGB[] = [
+      [0, 0, 0],
+      [255, 255, 255],
+    ];
     const assignment = new Uint8Array(width * height);
     const evidence = {
       modes: [rgbToOklab([0, 0, 0]), rgbToOklab([255, 255, 255])],
@@ -330,7 +339,17 @@ describe("G-024 M4.5 (HANDOVER.md D68): crisp + contourRefinement is explicitly 
     const layer = { evidenceByCell: new Map([[0, evidence]]) };
 
     expect(() =>
-      runContourRefinement(cells, assignment, palette, undefined, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, 1, DEFAULT_CONTOUR_REFINEMENT_OPTIONS, undefined, layer)
+      runContourRefinement(
+        cells,
+        assignment,
+        palette,
+        undefined,
+        DEFAULT_LOCAL_OPTIMIZER_WEIGHTS,
+        1,
+        DEFAULT_CONTOUR_REFINEMENT_OPTIONS,
+        undefined,
+        layer
+      )
     ).toThrow(/does not support Crisp edge mode/);
   });
 
@@ -338,7 +357,10 @@ describe("G-024 M4.5 (HANDOVER.md D68): crisp + contourRefinement is explicitly 
     const width = 4;
     const height = 4;
     const cells: CellColorBuffer = { data: new Uint8ClampedArray(width * height * 3), width, height };
-    const palette: RGB[] = [[0, 0, 0], [255, 255, 255]];
+    const palette: RGB[] = [
+      [0, 0, 0],
+      [255, 255, 255],
+    ];
     const assignment = new Uint8Array(width * height);
 
     const withoutLayer = runContourRefinement(cells, assignment, palette, undefined, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, 1);

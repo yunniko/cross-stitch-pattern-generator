@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { LEGACY_PROJECT_KEY, legacyProjectSlot, loadWorkspaceOptions, OPTIONS_KEY, saveWorkspaceOptions } from "@/lib/editor/workspace-storage";
+import {
+  LEGACY_PROJECT_KEY,
+  legacyProjectSlot,
+  loadWorkspaceOptions,
+  OPTIONS_KEY,
+  saveWorkspaceOptions,
+} from "@/lib/editor/workspace-storage";
 import { DEFAULT_DITHER_TEXTURE } from "@/lib/pipeline/dither-hand-drawn";
 import { MAX_STITCHES } from "@/lib/types";
 
@@ -98,7 +104,14 @@ describe("workspace-storage", () => {
     it("falls back field-by-field for individually invalid values", () => {
       window.localStorage.setItem(
         OPTIONS_KEY,
-        JSON.stringify({ aidaCount: -5, sizeUnit: "furlongs", authorName: 42, edgeMode: "chunky", overlapCells: 7, canvasColor: "not-a-color" })
+        JSON.stringify({
+          aidaCount: -5,
+          sizeUnit: "furlongs",
+          authorName: 42,
+          edgeMode: "chunky",
+          overlapCells: 7,
+          canvasColor: "not-a-color",
+        })
       );
       expect(loadWorkspaceOptions()).toEqual(DEFAULTS);
     });
@@ -194,7 +207,10 @@ describe("workspace-storage", () => {
     });
 
     it("defaults canvasColor to white for a workspace saved before this setting existed", () => {
-      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18, sizeUnit: "in", authorName: "Jules", edgeMode: "crisp", overlapCells: 10 }));
+      window.localStorage.setItem(
+        OPTIONS_KEY,
+        JSON.stringify({ aidaCount: 18, sizeUnit: "in", authorName: "Jules", edgeMode: "crisp", overlapCells: 10 })
+      );
       expect(loadWorkspaceOptions().canvasColor).toBe("#ffffff");
     });
 

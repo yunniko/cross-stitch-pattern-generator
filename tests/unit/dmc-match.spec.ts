@@ -45,10 +45,15 @@ describe("nearestColorInBrand", () => {
 describe("applyBrandPalette", () => {
   it("replaces every color with its nearest real DMC thread color and renames it 'CODE - Name'", () => {
     // A 2-color pattern: pure black and pure white, both already exact DMC values.
-    const pattern = makePattern(2, 1, [0, 1], [
-      [0, 0, 0],
-      [255, 255, 255],
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 1],
+      [
+        [0, 0, 0],
+        [255, 255, 255],
+      ]
+    );
     const dmc = applyBrandPalette(pattern, "dmc");
     const names = dmc.palette.map((c) => c.name).sort();
     expect(names).toEqual(["310 - Black", "B5200 - Snow White"]);
@@ -61,10 +66,15 @@ describe("applyBrandPalette", () => {
 
   it("merges two clusters that snap to the same DMC color into one palette entry with combined counts", () => {
     // Two very-slightly-different near-blacks that both snap to DMC 310.
-    const pattern = makePattern(3, 1, [0, 0, 1], [
-      [1, 1, 1],
-      [2, 1, 2],
-    ]);
+    const pattern = makePattern(
+      3,
+      1,
+      [0, 0, 1],
+      [
+        [1, 1, 1],
+        [2, 1, 2],
+      ]
+    );
     const dmc = applyBrandPalette(pattern, "dmc");
     expect(dmc.palette).toHaveLength(1);
     expect(dmc.palette[0].name).toBe("310 - Black");
@@ -73,30 +83,45 @@ describe("applyBrandPalette", () => {
   });
 
   it("keeps distinct colors separate when they snap to different DMC codes", () => {
-    const pattern = makePattern(2, 1, [0, 1], [
-      [0, 0, 0],
-      [255, 255, 255],
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 1],
+      [
+        [0, 0, 0],
+        [255, 255, 255],
+      ]
+    );
     const dmc = applyBrandPalette(pattern, "dmc");
     expect(dmc.palette).toHaveLength(2);
     expect(new Set(dmc.cellPalette)).toEqual(new Set([0, 1]));
   });
 
   it("sorts the resulting palette dark-to-light, matching every other mode's legend convention", () => {
-    const pattern = makePattern(2, 1, [0, 1], [
-      [255, 255, 255], // white listed first in cellPalette/palette...
-      [0, 0, 0], // ...but black must come first in the sorted output
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 1],
+      [
+        [255, 255, 255], // white listed first in cellPalette/palette...
+        [0, 0, 0], // ...but black must come first in the sorted output
+      ]
+    );
     const dmc = applyBrandPalette(pattern, "dmc");
     expect(dmc.palette[0].name).toBe("310 - Black");
     expect(dmc.palette[1].name).toBe("B5200 - Snow White");
   });
 
   it("assigns fresh, distinct symbols to the (possibly smaller) merged palette", () => {
-    const pattern = makePattern(3, 1, [0, 0, 1], [
-      [1, 1, 1],
-      [255, 255, 255],
-    ]);
+    const pattern = makePattern(
+      3,
+      1,
+      [0, 0, 1],
+      [
+        [1, 1, 1],
+        [255, 255, 255],
+      ]
+    );
     const dmc = applyBrandPalette(pattern, "dmc");
     const symbols = dmc.palette.map((c) => c.symbol);
     expect(new Set(symbols).size).toBe(symbols.length);
@@ -140,10 +165,15 @@ describe("applyBrandPalette with reoptimize (G-020 M5, HANDOVER.md D56)", () => 
       [240, 240, 240],
     ];
     const cells = makeCellBuffer(trueColors);
-    const pattern = makePattern(5, 1, [0, 0, 1, 1, 1], [
-      [10, 10, 10],
-      [240, 240, 240],
-    ]);
+    const pattern = makePattern(
+      5,
+      1,
+      [0, 0, 1, 1, 1],
+      [
+        [10, 10, 10],
+        [240, 240, 240],
+      ]
+    );
 
     const withoutReoptimize = applyBrandPalette(pattern, "dmc");
     const withReoptimize = applyBrandPalette(pattern, "dmc", { context: createPipelineContext(cells) });
@@ -177,27 +207,40 @@ describe("applyBrandPalette with reoptimize (G-020 M5, HANDOVER.md D56)", () => 
       [4, 4, 4],
     ];
     const cells = makeCellBuffer(trueColors);
-    const pattern = makePattern(3, 1, [0, 1, 2], [
-      [5, 5, 5],
-      [200, 30, 30], // a clearly distinct red
-      [30, 30, 200], // a clearly distinct blue
-    ]);
+    const pattern = makePattern(
+      3,
+      1,
+      [0, 1, 2],
+      [
+        [5, 5, 5],
+        [200, 30, 30], // a clearly distinct red
+        [30, 30, 200], // a clearly distinct blue
+      ]
+    );
 
-    const dmc = applyBrandPalette(pattern, "dmc", { context: createPipelineContext(cells), weights: { color: 1, smoothness: 0.045, edgeLoss: 0 } });
+    const dmc = applyBrandPalette(pattern, "dmc", {
+      context: createPipelineContext(cells),
+      weights: { color: 1, smoothness: 0.045, edgeLoss: 0 },
+    });
     for (const color of dmc.palette) expect(color.count).toBeGreaterThan(0);
     expect(Array.from(dmc.cellPalette).every((i) => i === dmc.cellPalette[0])).toBe(true);
   });
 
   it("omitting reoptimize context reproduces exactly today's snap-only behavior", () => {
-    const pattern = makePattern(3, 1, [0, 0, 1], [
-      [1, 1, 1],
-      [255, 255, 255],
-    ]);
+    const pattern = makePattern(
+      3,
+      1,
+      [0, 0, 1],
+      [
+        [1, 1, 1],
+        [255, 255, 255],
+      ]
+    );
     expect(applyBrandPalette(pattern, "dmc")).toEqual(applyBrandPalette(pattern, "dmc", undefined));
   });
 });
 
-describe("buildPattern with paletteMode: \"dmc\" (G-020 M5, HANDOVER.md D56)", () => {
+describe('buildPattern with paletteMode: "dmc" (G-020 M5, HANDOVER.md D56)', () => {
   function makeBuffer(width: number, height: number, colorAt: (x: number, y: number) => RGB): PixelBuffer {
     const data = new Uint8ClampedArray(width * height * 4);
     for (let y = 0; y < height; y++) {
@@ -281,10 +324,15 @@ describe("applyBrandPalette with brand: 'cosmo' (G-029 M2)", () => {
   });
 
   it("merges two clusters that snap to the same Cosmo color into one palette entry with combined counts", () => {
-    const pattern = makePattern(3, 1, [0, 0, 1], [
-      [16, 17, 19],
-      [17, 18, 20],
-    ]);
+    const pattern = makePattern(
+      3,
+      1,
+      [0, 0, 1],
+      [
+        [16, 17, 19],
+        [17, 18, 20],
+      ]
+    );
     const cosmo = applyBrandPalette(pattern, "cosmo");
     expect(cosmo.palette).toHaveLength(1);
     expect(cosmo.palette[0].name).toBe("600");
@@ -334,10 +382,15 @@ describe("applyBrandPalette with brand: 'anchor' (G-029 M3 -- dmc-equivalence ma
     // A real collision found directly in the data, not assumed: DMC 469
     // (Avocado Green, exact RGB [114,132,60]) and DMC 470 (Avocado Green -
     // Light, exact RGB [148,171,79]) both map to Anchor 267.
-    const pattern = makePattern(3, 1, [0, 0, 1], [
-      [114, 132, 60],
-      [148, 171, 79],
-    ]);
+    const pattern = makePattern(
+      3,
+      1,
+      [0, 0, 1],
+      [
+        [114, 132, 60],
+        [148, 171, 79],
+      ]
+    );
     const anchor = applyBrandPalette(pattern, "anchor");
     expect(anchor.palette).toHaveLength(1);
     expect(anchor.palette[0].name).toBe("267");

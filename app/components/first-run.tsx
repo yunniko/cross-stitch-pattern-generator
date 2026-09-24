@@ -16,11 +16,21 @@ import { DISABLED_TEXT, PillButton } from "./ui";
  */
 
 const CARD = "flex items-center gap-4 rounded-[10px] border px-[18px] py-4 text-left transition-colors";
-const STEP = "border-line px-[9px] py-1.5 text-[13px] leading-none text-muted transition-colors enabled:hover:bg-raised enabled:hover:text-ink";
+const STEP =
+  "border-line px-[9px] py-1.5 text-[13px] leading-none text-muted transition-colors enabled:hover:bg-raised enabled:hover:text-ink";
 
 function PhotoIcon({ selected }: { selected: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className={`h-[22px] w-[22px] shrink-0 ${selected ? "text-accent" : "text-muted"}`} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      className={`h-[22px] w-[22px] shrink-0 ${selected ? "text-accent" : "text-muted"}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <circle cx="9" cy="10" r="2" />
       <path d="M4 18l5-5 4 4 3-3 4 4" />
@@ -60,7 +70,16 @@ function PixelArtIcon() {
 
 function FolderIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-[22px] w-[22px] shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-[22px] w-[22px] shrink-0 text-muted"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h5l2 3h6A1.5 1.5 0 0 1 20 8.5v10A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5Z" />
     </svg>
   );
@@ -118,7 +137,15 @@ export interface FirstRunProps {
   busy: boolean;
 }
 
-export function FirstRun({ onChoosePhoto, onOpenPattern, onCreateBlank, onImportPixelArt, options, onAidaCountChange, busy }: FirstRunProps) {
+export function FirstRun({
+  onChoosePhoto,
+  onOpenPattern,
+  onCreateBlank,
+  onImportPixelArt,
+  options,
+  onAidaCountChange,
+  busy,
+}: FirstRunProps) {
   const [open, setOpen] = useState(false);
   const [width, setWidth] = useState(100);
   const [height, setHeight] = useState(100);
@@ -143,7 +170,9 @@ export function FirstRun({ onChoosePhoto, onOpenPattern, onCreateBlank, onImport
           <PhotoIcon selected={!open} />
           <span className="flex-1">
             <span className="block text-[15px] font-medium">Choose a photo</span>
-            <span className="block text-xs leading-[17px] text-muted">JPEG, PNG or WebP · uploaded to this site&apos;s server to be charted</span>
+            <span className="block text-xs leading-[17px] text-muted">
+              JPEG, PNG or WebP · uploaded to this site&apos;s server to be charted
+            </span>
           </span>
         </button>
 
@@ -180,7 +209,13 @@ export function FirstRun({ onChoosePhoto, onOpenPattern, onCreateBlank, onImport
                   ))}
                 </select>
               </label>
-              <PillButton variant="primary" size="md" className="ml-auto" onClick={() => onCreateBlank(width, height)} disabled={problem !== null}>
+              <PillButton
+                variant="primary"
+                size="md"
+                className="ml-auto"
+                onClick={() => onCreateBlank(width, height)}
+                disabled={problem !== null}
+              >
                 Create
               </PillButton>
               <p className="m-0 w-full font-mono text-[11px] leading-4 text-muted" data-testid="new-chart-size">
@@ -204,7 +239,9 @@ export function FirstRun({ onChoosePhoto, onOpenPattern, onCreateBlank, onImport
           <PixelArtIcon />
           <span className="flex-1">
             <span className="block text-[15px] font-medium">Import pixel art</span>
-            <span className="block text-xs leading-[17px] text-muted">PNG, GIF or WebP · one pixel becomes one stitch, in its own colour</span>
+            <span className="block text-xs leading-[17px] text-muted">
+              PNG, GIF or WebP · one pixel becomes one stitch, in its own colour
+            </span>
           </span>
         </button>
 

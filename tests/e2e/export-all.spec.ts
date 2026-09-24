@@ -79,10 +79,7 @@ test("opening a file with no valid pattern inside shows a clear error instead of
   const badZipPath = test.info().outputPath("empty.cspzip");
   await import("node:fs/promises").then((fs) => fs.writeFile(badZipPath, bytes));
 
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByLabel("Open pattern file").setInputFiles(badZipPath),
-  ]);
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByLabel("Open pattern file").setInputFiles(badZipPath)]);
 
   await expect(page.getByText("No valid pattern (.json or .oxs) file was found inside that archive.")).toBeVisible();
 

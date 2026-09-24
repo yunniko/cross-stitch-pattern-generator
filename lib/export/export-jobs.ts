@@ -66,7 +66,10 @@ export async function runExportJob(request: ExportJobRequest, onProgress?: Expor
   const compacted = compactUnusedColors(pattern);
   switch (kind) {
     case "oxs":
-      return { blob: new Blob(serializeOxsParts(compacted, { authorName, aidaCount }), { type: "application/xml" }), filename: `${baseName}.oxs` };
+      return {
+        blob: new Blob(serializeOxsParts(compacted, { authorName, aidaCount }), { type: "application/xml" }),
+        filename: `${baseName}.oxs`,
+      };
     case "png-color":
     case "png-bw": {
       const mode = modeOf(kind);
@@ -77,16 +80,38 @@ export async function runExportJob(request: ExportJobRequest, onProgress?: Expor
       return { blob: await renderStitchPreviewPng(compacted), filename: `${baseName}_preview.png` };
     case "a4-color":
     case "a4-bw": {
-      const result = await generateA4Export(compacted, modeOf(kind), { overlapCells, baseName, aidaCount, sizeUnit, authorName, onProgress });
+      const result = await generateA4Export(compacted, modeOf(kind), {
+        overlapCells,
+        baseName,
+        aidaCount,
+        sizeUnit,
+        authorName,
+        onProgress,
+      });
       return { blob: result.blob, filename: result.filename };
     }
     case "pdf-color":
     case "pdf-bw": {
-      const bytes = await buildPatternKeeperPdf(compacted, modeOf(kind), await fetchPdfFontBytes(), { overlapCells, aidaCount, sizeUnit, authorName, onProgress });
+      const bytes = await buildPatternKeeperPdf(compacted, modeOf(kind), await fetchPdfFontBytes(), {
+        overlapCells,
+        aidaCount,
+        sizeUnit,
+        authorName,
+        onProgress,
+      });
       return { blob: new Blob([new Uint8Array(bytes)], { type: "application/pdf" }), filename: `${baseName}_patternkeeper.pdf` };
     }
     case "all":
-      return generateExportAllZip(compacted, { baseName, aidaCount, sizeUnit, authorName, overlapCells, symmetry, fontBytes: await fetchPdfFontBytes(), onProgress });
+      return generateExportAllZip(compacted, {
+        baseName,
+        aidaCount,
+        sizeUnit,
+        authorName,
+        overlapCells,
+        symmetry,
+        fontBytes: await fetchPdfFontBytes(),
+        onProgress,
+      });
     default: {
       const unhandled: never = kind;
       throw new Error(`Unknown export kind: ${String(unhandled)}`);

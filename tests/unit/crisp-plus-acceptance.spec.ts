@@ -62,7 +62,8 @@ describe("Crisp+ acceptance (G-038)", () => {
         const kept = (edgeMode: EdgeMode) => {
           const p = generate(scene.image, edgeMode, colorCount);
           let n = 0;
-          for (let i = 0; i < coverage.length; i++) if (coverage[i] >= 0.5 && matchTrueColor(p.palette[p.cellPalette[i]].rgb, scene.colors) === 2) n++;
+          for (let i = 0; i < coverage.length; i++)
+            if (coverage[i] >= 0.5 && matchTrueColor(p.palette[p.cellPalette[i]].rgb, scene.colors) === 2) n++;
           return n;
         };
         expect(kept("crisp-plus"), `width ${width}, ${colorCount} colours`).toBeGreaterThanOrEqual(kept("crisp"));

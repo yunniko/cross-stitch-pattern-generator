@@ -92,21 +92,36 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
     const edgeMode = parsed.edgeMode === "crisp" || parsed.edgeMode === "crisp-plus" ? parsed.edgeMode : DEFAULT_OPTIONS.edgeMode;
     // A stored dither pattern only survives if it can still run: an unknown value, or one stored alongside Crisp
     // (which the pipeline refuses, D199), reads as off rather than as a request the next Generate would fail on.
-    const storedDither = (DITHER_MODES as readonly string[]).includes(parsed.ditherMode as string) ? (parsed.ditherMode as DitherMode) : DEFAULT_OPTIONS.ditherMode;
+    const storedDither = (DITHER_MODES as readonly string[]).includes(parsed.ditherMode as string)
+      ? (parsed.ditherMode as DitherMode)
+      : DEFAULT_OPTIONS.ditherMode;
     return {
       aidaCount: typeof parsed.aidaCount === "number" && parsed.aidaCount > 0 ? parsed.aidaCount : DEFAULT_OPTIONS.aidaCount,
       sizeUnit: parsed.sizeUnit === "in" || parsed.sizeUnit === "cm" ? parsed.sizeUnit : DEFAULT_OPTIONS.sizeUnit,
       authorName: typeof parsed.authorName === "string" ? parsed.authorName : DEFAULT_OPTIONS.authorName,
       edgeMode,
-      overlapCells: VALID_OVERLAP_CELLS.includes(parsed.overlapCells as OverlapCells) ? (parsed.overlapCells as OverlapCells) : DEFAULT_OPTIONS.overlapCells,
-      canvasColor: typeof parsed.canvasColor === "string" && HEX_COLOR_PATTERN.test(parsed.canvasColor) ? parsed.canvasColor : DEFAULT_OPTIONS.canvasColor,
-      sizePreset: VALID_SIZE_PRESETS.includes(parsed.sizePreset as SizePresetId) ? (parsed.sizePreset as SizePresetId) : DEFAULT_OPTIONS.sizePreset,
+      overlapCells: VALID_OVERLAP_CELLS.includes(parsed.overlapCells as OverlapCells)
+        ? (parsed.overlapCells as OverlapCells)
+        : DEFAULT_OPTIONS.overlapCells,
+      canvasColor:
+        typeof parsed.canvasColor === "string" && HEX_COLOR_PATTERN.test(parsed.canvasColor)
+          ? parsed.canvasColor
+          : DEFAULT_OPTIONS.canvasColor,
+      sizePreset: VALID_SIZE_PRESETS.includes(parsed.sizePreset as SizePresetId)
+        ? (parsed.sizePreset as SizePresetId)
+        : DEFAULT_OPTIONS.sizePreset,
       customSize:
-        typeof parsed.customSize === "number" && Number.isInteger(parsed.customSize) && parsed.customSize >= MIN_STITCHES && parsed.customSize <= MAX_STITCHES
+        typeof parsed.customSize === "number" &&
+        Number.isInteger(parsed.customSize) &&
+        parsed.customSize >= MIN_STITCHES &&
+        parsed.customSize <= MAX_STITCHES
           ? parsed.customSize
           : DEFAULT_OPTIONS.customSize,
       colorCount:
-        typeof parsed.colorCount === "number" && Number.isInteger(parsed.colorCount) && parsed.colorCount >= MIN_COLORS && parsed.colorCount <= MAX_COLORS
+        typeof parsed.colorCount === "number" &&
+        Number.isInteger(parsed.colorCount) &&
+        parsed.colorCount >= MIN_COLORS &&
+        parsed.colorCount <= MAX_COLORS
           ? parsed.colorCount
           : DEFAULT_OPTIONS.colorCount,
       generationMode: parsed.generationMode === "original" ? "original" : DEFAULT_OPTIONS.generationMode,
@@ -123,7 +138,9 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       vivid: typeof parsed.vivid === "boolean" ? parsed.vivid : DEFAULT_OPTIONS.vivid,
       // A size the pane no longer offers, or one stored before G-064, reads as the default rather than as a
       // stamp nothing can draw.
-      brushSize: (BRUSH_SIZES as readonly number[]).includes(parsed.brushSize as number) ? (parsed.brushSize as BrushSize) : DEFAULT_OPTIONS.brushSize,
+      brushSize: (BRUSH_SIZES as readonly number[]).includes(parsed.brushSize as number)
+        ? (parsed.brushSize as BrushSize)
+        : DEFAULT_OPTIONS.brushSize,
       brushShape: parsed.brushShape === "square" || parsed.brushShape === "round" ? parsed.brushShape : DEFAULT_OPTIONS.brushShape,
       shapeFill: parsed.shapeFill === "filled" || parsed.shapeFill === "outline" ? parsed.shapeFill : DEFAULT_OPTIONS.shapeFill,
       // Absent in options stored before G-041, so anything that is not a boolean falls back to the default.

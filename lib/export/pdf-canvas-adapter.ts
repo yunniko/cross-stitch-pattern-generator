@@ -80,7 +80,13 @@ export function parseCssColor(css: string): ParsedColor {
   const hex = css.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
   if (hex) {
     const h = hex[1];
-    const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+    const full =
+      h.length === 3
+        ? h
+            .split("")
+            .map((c) => c + c)
+            .join("")
+        : h;
     const n = parseInt(full, 16);
     return { r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff, alpha: 1 };
   }
@@ -283,7 +289,9 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
 
   private activeFont(): { font: PDFFont; metrics: FontMetricsSource; sizePt: number; bold: boolean } {
     const { bold, sizePt } = parseFont(this.font);
-    return bold ? { font: this.boldFont, metrics: this.boldMetrics, sizePt, bold } : { font: this.regularFont, metrics: this.regularMetrics, sizePt, bold };
+    return bold
+      ? { font: this.boldFont, metrics: this.boldMetrics, sizePt, bold }
+      : { font: this.regularFont, metrics: this.regularMetrics, sizePt, bold };
   }
 
   fillRect(x: number, y: number, w: number, h: number): void {
@@ -363,7 +371,15 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
     const entry = cachedColor(this.requireSolidColor(this.fillStyle));
     if (entry.alpha < 1 || TEXT_NEEDING_CLEANUP.test(text) || rotationDegrees !== 0) {
       this.finish();
-      this.page.drawText(text, { x: pdfX, y: pdfY, size: sizePt, font, color: entry.color, opacity: opacityOption(entry.alpha), rotate: degrees(rotationDegrees) });
+      this.page.drawText(text, {
+        x: pdfX,
+        y: pdfY,
+        size: sizePt,
+        font,
+        color: entry.color,
+        opacity: opacityOption(entry.alpha),
+        rotate: degrees(rotationDegrees),
+      });
       return;
     }
     // The operators pdf-lib's drawText emits, with the font registered once per page and the encoding cached. Unrotated
@@ -409,10 +425,22 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
     const entry = cachedColor(this.requireSolidColor(this.strokeStyle));
     if (entry.alpha < 1) {
       this.finish();
-      this.page.drawLine({ start: { x: x0, y: pageHeight - y0 }, end: { x: x1, y: pageHeight - y1 }, thickness: this.lineWidth, color: entry.color, opacity: entry.alpha });
+      this.page.drawLine({
+        start: { x: x0, y: pageHeight - y0 },
+        end: { x: x1, y: pageHeight - y1 },
+        thickness: this.lineWidth,
+        color: entry.color,
+        opacity: entry.alpha,
+      });
       return;
     }
-    this.pending.push(entry.stroke, `${num(this.lineWidth)} w`, `${num(x0)} ${num(pageHeight - y0)} m`, `${num(x1)} ${num(pageHeight - y1)} l`, "S");
+    this.pending.push(
+      entry.stroke,
+      `${num(this.lineWidth)} w`,
+      `${num(x0)} ${num(pageHeight - y0)} m`,
+      `${num(x1)} ${num(pageHeight - y1)} l`,
+      "S"
+    );
   }
 
   save(): void {

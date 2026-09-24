@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { rgbToOklab } from "@/lib/color/color";
 import { ditherRampWindow, ditherToPalette, drawnRampTone, type DitherMode } from "@/lib/pipeline/dither";
-import { DEFAULT_DITHER_TEXTURE, handDrawnThresholds, handDrawnThresholdWindow, type DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
+import {
+  DEFAULT_DITHER_TEXTURE,
+  handDrawnThresholds,
+  handDrawnThresholdWindow,
+  type DitherTexture,
+} from "@/lib/pipeline/dither-hand-drawn";
 import type { RGB } from "@/lib/types";
 
 /**
@@ -40,7 +45,13 @@ const TEXTURES: Array<[string, DitherTexture]> = [
  * tone — they exist so the chart is the size the swatch claims to be a corner of, which is the whole point: the
  * field a chart draws with depends on its full size.
  */
-function chartOfTheRamp(width: number, height: number, rampRows: number, texture: DitherTexture, mode: Exclude<DitherMode, "off"> = "hand-drawn"): Uint8Array {
+function chartOfTheRamp(
+  width: number,
+  height: number,
+  rampRows: number,
+  texture: DitherTexture,
+  mode: Exclude<DitherMode, "off"> = "hand-drawn"
+): Uint8Array {
   const from = rgbToOklab(DARK);
   const to = rgbToOklab(LIGHT);
   const grid = new Float64Array(width * height * 3);

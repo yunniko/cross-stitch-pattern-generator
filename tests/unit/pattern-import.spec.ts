@@ -99,7 +99,10 @@ describe("loadPatternFromFile", () => {
     const oxsOnly = await makeZipFile("bundle.zip", { "chart.oxs": serializeOxs(pattern) });
     expect((await loadPatternFromFile(oxsOnly)).format).toBe("oxs");
 
-    const both = await makeZipFile("bundle.cspzip", { "chart.oxs": serializeOxs({ ...pattern, name: "oxs copy" }), "chart_editable.json": serializePattern({ ...pattern, name: "json copy" }) });
+    const both = await makeZipFile("bundle.cspzip", {
+      "chart.oxs": serializeOxs({ ...pattern, name: "oxs copy" }),
+      "chart_editable.json": serializePattern({ ...pattern, name: "json copy" }),
+    });
     const loaded = await loadPatternFromFile(both);
     expect(loaded.format).toBe("zip");
     expect(loaded.pattern.name).toBe("json copy");
@@ -107,7 +110,9 @@ describe("loadPatternFromFile", () => {
 
   it("refuses an OXS file over the size limit before reading it, and reports a broken OXS entry's own error", async () => {
     const text = serializeOxs(makePattern());
-    await expect(loadPatternFromFile(makeFile("big.oxs", text), { maxOxsBytes: 100 })).rejects.toThrow("larger than the 1 KB this app can open");
+    await expect(loadPatternFromFile(makeFile("big.oxs", text), { maxOxsBytes: 100 })).rejects.toThrow(
+      "larger than the 1 KB this app can open"
+    );
     const broken = await makeZipFile("bundle.zip", { "chart.oxs": "<chart><palette></chart>" });
     await expect(loadPatternFromFile(broken)).rejects.toThrow("couldn't be read");
   });

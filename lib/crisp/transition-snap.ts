@@ -166,7 +166,8 @@ export function snapTransitionStrips(
             for (let k = -(sa.k - 1); k <= sb.k - 1 && ok; k++) {
               const v = labelAt(px + dx * k, py + dy * k);
               const { t, perpendicular } = onLine(v, sa.value, sb.value);
-              if (!(t > LINE_MARGIN && t < 1 - LINE_MARGIN) || perpendicular > options.maxPerpendicular || t < lastT - MONOTONE_SLACK) ok = false;
+              if (!(t > LINE_MARGIN && t < 1 - LINE_MARGIN) || perpendicular > options.maxPerpendicular || t < lastT - MONOTONE_SLACK)
+                ok = false;
               lastT = Math.max(lastT, t);
             }
             if (!ok) continue;
@@ -178,7 +179,19 @@ export function snapTransitionStrips(
             const key = `${d}:${ay * gridWidth + ax}:${by * gridWidth + bx}`;
             let verdict = verdicts.get(key);
             if (!verdict) {
-              const centre = fitChainProfile(source, cellW, cellH, dx, dy, ax, ay, sa.k + sb.k, options, linear[sa.value], linear[sb.value]);
+              const centre = fitChainProfile(
+                source,
+                cellW,
+                cellH,
+                dx,
+                dy,
+                ax,
+                ay,
+                sa.k + sb.k,
+                options,
+                linear[sa.value],
+                linear[sb.value]
+              );
               verdict = { a: sa.value, b: sb.value, centre };
               verdicts.set(key, verdict);
             }
@@ -192,7 +205,7 @@ export function snapTransitionStrips(
       if (!best) continue;
       const [dx, dy] = DIRECTIONS[best.direction];
       const norm = Math.hypot(dx, dy);
-      const cellCentre = (((px + 0.5) * cellW) * dx + ((py + 0.5) * cellH) * dy) / norm;
+      const cellCentre = ((px + 0.5) * cellW * dx + (py + 0.5) * cellH * dy) / norm;
       const target = cellCentre < best.verdict.centre ? best.verdict.a : best.verdict.b;
       if (target !== c) {
         next[p] = target;
@@ -274,7 +287,11 @@ function fitChainProfile(
       for (let x = x0; x < x1; x++) {
         const o = (y * srcW + x) * 4;
         if (data[o + 3] === 0) continue;
-        const t = ((SRGB_TO_LINEAR[data[o]] - A[0]) * ab0 + (SRGB_TO_LINEAR[data[o + 1]] - A[1]) * ab1 + (SRGB_TO_LINEAR[data[o + 2]] - A[2]) * ab2) / len2;
+        const t =
+          ((SRGB_TO_LINEAR[data[o]] - A[0]) * ab0 +
+            (SRGB_TO_LINEAR[data[o + 1]] - A[1]) * ab1 +
+            (SRGB_TO_LINEAR[data[o + 2]] - A[2]) * ab2) /
+          len2;
         const u = ((x + 0.5) * dx + (y + 0.5) * dy) / norm;
         const bin = Math.min(binCount - 1, Math.max(0, Math.floor((u - uMin) * binScale)));
         w[bin] += 1;

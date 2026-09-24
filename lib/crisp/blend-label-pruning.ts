@@ -164,7 +164,8 @@ export function pruneBlendLabels(
       // The best mixing explanation over pairs and the triple, with distinct constituents and non-negative weights.
       let best: MixFit | null = null;
       const sets: number[][] = [];
-      for (let a = 0; a < constituents.length; a++) for (let b = a + 1; b < constituents.length; b++) sets.push([constituents[a], constituents[b]]);
+      for (let a = 0; a < constituents.length; a++)
+        for (let b = a + 1; b < constituents.length; b++) sets.push([constituents[a], constituents[b]]);
       if (constituents.length === 3) sets.push(constituents);
       for (const set of sets) {
         let scale = 0;
@@ -177,15 +178,22 @@ export function pruneBlendLabels(
             scale = Math.max(scale, Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]));
           }
         if (!distinct || scale <= 0) continue;
-        const { weights, residual } = mixWeights(linear[label], set.map((v) => linear[v]));
+        const { weights, residual } = mixWeights(
+          linear[label],
+          set.map((v) => linear[v])
+        );
         if (weights.some((w) => w < -0.05)) continue;
         const normalized = residual / scale;
-        if (normalized <= options.maxMixResidual && (!best || normalized < best.residual)) best = { constituents: set, residual: normalized };
+        if (normalized <= options.maxMixResidual && (!best || normalized < best.residual))
+          best = { constituents: set, residual: normalized };
       }
       if (!best) continue;
 
       // The photo inside this colour's cells must vary along the mix: the two constituents with the largest weight set the axis.
-      const { weights } = mixWeights(linear[label], best.constituents.map((v) => linear[v]));
+      const { weights } = mixWeights(
+        linear[label],
+        best.constituents.map((v) => linear[v])
+      );
       const order = best.constituents.map((v, k) => ({ v, w: weights[k] })).sort((p, q) => q.w - p.w);
       const A = linear[order[0].v];
       const B = linear[order[1].v];
@@ -212,7 +220,11 @@ export function pruneBlendLabels(
           for (let x = x0; x < x1; x++) {
             const o = (y * source.width + x) * 4;
             if (source.data[o + 3] === 0) continue;
-            const t = ((SRGB_TO_LINEAR[source.data[o]] - A[0]) * ab[0] + (SRGB_TO_LINEAR[source.data[o + 1]] - A[1]) * ab[1] + (SRGB_TO_LINEAR[source.data[o + 2]] - A[2]) * ab[2]) / len2;
+            const t =
+              ((SRGB_TO_LINEAR[source.data[o]] - A[0]) * ab[0] +
+                (SRGB_TO_LINEAR[source.data[o + 1]] - A[1]) * ab[1] +
+                (SRGB_TO_LINEAR[source.data[o + 2]] - A[2]) * ab[2]) /
+              len2;
             n++;
             sum += t;
             sumSq += t * t;
@@ -243,7 +255,10 @@ export function pruneBlendLabels(
             n++;
           }
         const cellColour = n > 0 ? mean.map((m) => m / n) : linear[label];
-        const w = mixWeights(cellColour, best.constituents.map((v) => linear[v])).weights;
+        const w = mixWeights(
+          cellColour,
+          best.constituents.map((v) => linear[v])
+        ).weights;
         let target = 0;
         for (let k = 1; k < w.length; k++) if (w[k] > w[target]) target = k;
         current[i] = best.constituents[target];

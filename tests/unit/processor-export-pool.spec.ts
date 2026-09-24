@@ -55,7 +55,8 @@ async function runExport(kind: Kind) {
     const status = pool.status(jobId);
     if (!status) throw new Error("the export disappeared from the pool");
     if (status.state === "done") return { result: pool.exportResult(jobId)!, status };
-    if (status.state !== "queued" && status.state !== "running") throw new Error(`export ${status.state}: ${status.message ?? "no reason given"}`);
+    if (status.state !== "queued" && status.state !== "running")
+      throw new Error(`export ${status.state}: ${status.message ?? "no reason given"}`);
     await pool.waitForChange(jobId);
   }
 }

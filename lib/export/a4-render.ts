@@ -5,7 +5,16 @@ import type { A4Layout, PageRange } from "./a4-layout";
 import { mmToPx, PRINT_DPI } from "./a4-layout";
 import { formatFinishedSize, type SizeUnit } from "./finished-size";
 import { estimateSkeins } from "../threads/floss-estimate";
-import { drawChart, FONT_STACK, GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX, symbolStampsFor, truncateToWidth, type RenderMode, type SymbolStamps } from "./render";
+import {
+  drawChart,
+  FONT_STACK,
+  GRID_LINE_COLOR,
+  LEGIBILITY_FLOOR_PX,
+  symbolStampsFor,
+  truncateToWidth,
+  type RenderMode,
+  type SymbolStamps,
+} from "./render";
 import { THREAD_BRANDS } from "../threads/thread-brands";
 import { filledStitchCount, formatColorCount, formatStitchCount, type PaletteColor, type StitchPattern } from "../types";
 
@@ -138,7 +147,16 @@ export function drawA4GridPage(
   ctx.save();
   ctx.translate(layout.gridOriginXPx, layout.gridOriginYPx);
 
-  drawChart(ctx, pattern, mode, layout.cellSizePx, { x0: page.startX, y0: page.startY, x1: page.endX, y1: page.endY }, "#ffffff", "stroke", symbolStamps);
+  drawChart(
+    ctx,
+    pattern,
+    mode,
+    layout.cellSizePx,
+    { x0: page.startX, y0: page.startY, x1: page.endX, y1: page.endY },
+    "#ffffff",
+    "stroke",
+    symbolStamps
+  );
 
   const gridWidthPx = (page.endX - page.startX) * layout.cellSizePx;
   const gridHeightPx = (page.endY - page.startY) * layout.cellSizePx;
@@ -356,7 +374,14 @@ export function buildDetailRows(pattern: StitchPattern, aidaCount: number, sizeU
 }
 
 /** Two-column label/value table with a full grid (outer border + row/column rules) -- the details block at the top of page 1. */
-function drawDetailsTable(ctx: ChartDrawingContext, x: number, y: number, width: number, rows: Array<[string, string]>, dpi: number): number {
+function drawDetailsTable(
+  ctx: ChartDrawingContext,
+  x: number,
+  y: number,
+  width: number,
+  rows: Array<[string, string]>,
+  dpi: number
+): number {
   const rowHeightPx = mmToPx(INFO_ROW_HEIGHT_MM, dpi);
   const labelColWidthPx = mmToPx(INFO_LABEL_COLUMN_MM, dpi);
   const labelFontPx = mmToPx(INFO_LABEL_FONT_MM, dpi);
@@ -592,7 +617,13 @@ export function planInfoPages(pattern: StitchPattern, layout: A4Layout, options:
 }
 
 /** Draws info page 1's content (title, details table, color-key table start) -- see `planInfoPages`. */
-export function drawInfoPage1(ctx: ChartDrawingContext, pattern: StitchPattern, plan: InfoPagesPlan, layout: A4Layout, aidaCount: number): void {
+export function drawInfoPage1(
+  ctx: ChartDrawingContext,
+  pattern: StitchPattern,
+  plan: InfoPagesPlan,
+  layout: A4Layout,
+  aidaCount: number
+): void {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, layout.pageWidthPx, layout.pageHeightPx);
 
@@ -619,7 +650,16 @@ export function drawInfoPage1(ctx: ChartDrawingContext, pattern: StitchPattern, 
   y += keyTitleFontPx * 1.6;
 
   const rowsOnPage1Actual = Math.min(plan.rowsOnPage1, plan.totalColors);
-  drawKeyTableBlock(ctx, layout.marginPx, y, plan.cols, plan.hasThreadCode, pattern.palette.slice(0, rowsOnPage1Actual), aidaCount, layout.dpi);
+  drawKeyTableBlock(
+    ctx,
+    layout.marginPx,
+    y,
+    plan.cols,
+    plan.hasThreadCode,
+    pattern.palette.slice(0, rowsOnPage1Actual),
+    aidaCount,
+    layout.dpi
+  );
   drawPageFooter(ctx, layout, 1, plan.totalPages);
 }
 

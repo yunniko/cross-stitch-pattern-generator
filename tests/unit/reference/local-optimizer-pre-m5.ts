@@ -90,7 +90,9 @@ export function runLocalOptimizer(
           const ny = y + offset.dy;
           if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
           const n = ny * width + nx;
-          const edge = pairEvidence ? getPairEdgeEvidence(pairEvidence, i, offset.dx, offset.dy, width) : edgeBetweenCells(importance, i, n);
+          const edge = pairEvidence
+            ? getPairEdgeEvidence(pairEvidence, i, offset.dx, offset.dy, width)
+            : edgeBetweenCells(importance, i, n);
           const cost = offset.weight * boundaryPairEnergy(weights, edge, true);
           pairCost[count] = cost;
           neighborLabel[count] = assignment[n];

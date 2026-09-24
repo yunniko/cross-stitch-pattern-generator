@@ -101,7 +101,13 @@ export function ChartPane({ pattern, options, onChange, name, onNameChange, onNa
             <PillButton variant="primary" size="md" onClick={apply}>
               Apply
             </PillButton>
-            <PillButton size="md" onClick={() => { setDelta(NO_RESIZE); setResizeError(null); }}>
+            <PillButton
+              size="md"
+              onClick={() => {
+                setDelta(NO_RESIZE);
+                setResizeError(null);
+              }}
+            >
               Cancel
             </PillButton>
           </div>
@@ -112,7 +118,11 @@ export function ChartPane({ pattern, options, onChange, name, onNameChange, onNa
       <section className="flex flex-col gap-2.5 border-t border-line pt-3.5">
         <label className="flex items-center justify-between text-[13px]">
           Fabric count
-          <select value={options.aidaCount} onChange={(e) => onChange("aidaCount", Number(e.target.value))} className="rounded-md border border-line bg-sunken px-2 py-1 text-xs text-ink">
+          <select
+            value={options.aidaCount}
+            onChange={(e) => onChange("aidaCount", Number(e.target.value))}
+            className="rounded-md border border-line bg-sunken px-2 py-1 text-xs text-ink"
+          >
             {STANDARD_AIDA_COUNTS.map((count) => (
               <option key={count} value={count}>
                 {count}-count

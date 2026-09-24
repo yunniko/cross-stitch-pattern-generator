@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { oklabDistanceSquared, rgbToOklab, type Oklab } from "@/lib/color/color";
-import { mapModesToLabels, crispUnaryCost, buildAdmissibleLabelCosts, buildUnaryCostEvaluator, DEFAULT_CRISP_UNARY_COST_WEIGHTS } from "@/lib/crisp/crisp-unary-cost";
+import {
+  mapModesToLabels,
+  crispUnaryCost,
+  buildAdmissibleLabelCosts,
+  buildUnaryCostEvaluator,
+  DEFAULT_CRISP_UNARY_COST_WEIGHTS,
+} from "@/lib/crisp/crisp-unary-cost";
 import type { BoundaryEvidence } from "@/lib/crisp/crisp-edge-evidence";
 
 /**

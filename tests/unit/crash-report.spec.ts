@@ -16,7 +16,14 @@ function makePattern(): StitchPattern {
     palette,
     isLandscape: true,
     name: "kitten",
-    sourceImage: { dataUrl: "data:image/png;base64,SECRETPHOTOBYTES", naturalWidth: 40, naturalHeight: 20, cellSizePx: 20, offsetX: 0, offsetY: 0 },
+    sourceImage: {
+      dataUrl: "data:image/png;base64,SECRETPHOTOBYTES",
+      naturalWidth: 40,
+      naturalHeight: 20,
+      cellSizePx: 20,
+      offsetX: 0,
+      offsetY: 0,
+    },
   };
 }
 
@@ -26,7 +33,12 @@ describe("buildCrashReport", () => {
   it("carries the error, what the reader was doing, and the chart", () => {
     const error = new Error("Cannot read properties of undefined (reading 'rgb')");
     const report = JSON.parse(
-      buildCrashReport(error, { viewMode: "color", activeTool: "brush", brush: "5 round", zoomPercent: 200, pattern: makePattern() }, ENVIRONMENT, "2026-09-23T21:00:00.000Z")
+      buildCrashReport(
+        error,
+        { viewMode: "color", activeTool: "brush", brush: "5 round", zoomPercent: 200, pattern: makePattern() },
+        ENVIRONMENT,
+        "2026-09-23T21:00:00.000Z"
+      )
     );
 
     expect(report.error.message).toBe("Cannot read properties of undefined (reading 'rgb')");

@@ -1,7 +1,15 @@
 import { intersectRects, isEmptyRect, moveTileOffsets, type PixelRect } from "@/lib/editor/chart-viewport";
 import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
-import { chartPaintOverhangPx, drawCell, drawChartOnScreen, drawChartOutline, drawHighlightOverlayRaster, type ChartRegion, type RenderMode } from "@/lib/export/render";
+import {
+  chartPaintOverhangPx,
+  drawCell,
+  drawChartOnScreen,
+  drawChartOutline,
+  drawHighlightOverlayRaster,
+  type ChartRegion,
+  type RenderMode,
+} from "@/lib/export/render";
 import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
 import type { Tool, ViewMode } from "./editor-types";
 import { drawSelectionOutline, PHOTO_UNDERLAY_ALPHA } from "./editor-geometry";
@@ -242,13 +250,27 @@ function pieceCellsIn(base: StitchPattern, piece: FloatingSelection) {
  * The scene plus an in-progress gesture, painted into `rect`. `baseDrawn` says the gesture's base scene is already in
  * the bitmap (a restored snapshot), so only the gesture's own paint is added.
  */
-export function drawSceneWithGesture(ctx: CanvasRenderingContext2D, scene: ChartScene, pattern: StitchPattern, gesture: GesturePreview | null, rect: PixelRect, baseDrawn = false) {
+export function drawSceneWithGesture(
+  ctx: CanvasRenderingContext2D,
+  scene: ChartScene,
+  pattern: StitchPattern,
+  gesture: GesturePreview | null,
+  rect: PixelRect,
+  baseDrawn = false
+) {
   drawGestureContent(ctx, scene, pattern, gesture, rect, baseDrawn);
   const shown = gesture?.base ?? pattern;
   drawSymmetryGuides(ctx, shown.width, shown.height, scene, rect);
 }
 
-function drawGestureContent(ctx: CanvasRenderingContext2D, scene: ChartScene, pattern: StitchPattern, gesture: GesturePreview | null, rect: PixelRect, baseDrawn: boolean) {
+function drawGestureContent(
+  ctx: CanvasRenderingContext2D,
+  scene: ChartScene,
+  pattern: StitchPattern,
+  gesture: GesturePreview | null,
+  rect: PixelRect,
+  baseDrawn: boolean
+) {
   if (isEmptyRect(rect)) return;
   const mode = incrementalModeOf(scene.viewMode);
   if (!gesture) {
@@ -268,11 +290,21 @@ function drawGestureContent(ctx: CanvasRenderingContext2D, scene: ChartScene, pa
       // Four wrap-around copies of the pre-drag chart, each clipped to its destination, as the snapshot blit placed them.
       const chart = { x0: 0, y0: 0, x1: gesture.base.width * scene.cellSize, y1: gesture.base.height * scene.cellSize };
       for (const offset of moveTileOffsets(gesture.dx, gesture.dy, gesture.base.width, gesture.base.height, scene.cellSize)) {
-        const destination = intersectRects(rect, { x0: chart.x0 + offset.x, y0: chart.y0 + offset.y, x1: chart.x1 + offset.x, y1: chart.y1 + offset.y });
+        const destination = intersectRects(rect, {
+          x0: chart.x0 + offset.x,
+          y0: chart.y0 + offset.y,
+          x1: chart.x1 + offset.x,
+          y1: chart.y1 + offset.y,
+        });
         if (isEmptyRect(destination)) continue;
         ctx.save();
         ctx.translate(offset.x, offset.y);
-        drawScene(ctx, gesture.base, scene, { x0: destination.x0 - offset.x, y0: destination.y0 - offset.y, x1: destination.x1 - offset.x, y1: destination.y1 - offset.y });
+        drawScene(ctx, gesture.base, scene, {
+          x0: destination.x0 - offset.x,
+          y0: destination.y0 - offset.y,
+          x1: destination.x1 - offset.x,
+          y1: destination.y1 - offset.y,
+        });
         ctx.restore();
       }
       return;

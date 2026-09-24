@@ -52,7 +52,10 @@ async function download(page: Page, trigger: () => Promise<void>): Promise<Downl
 }
 
 async function exportKinds(page: Page): Promise<string[]> {
-  return page.getByLabel("Export").locator("option").evaluateAll((options) => options.map((o) => (o as HTMLOptionElement).value).filter(Boolean));
+  return page
+    .getByLabel("Export")
+    .locator("option")
+    .evaluateAll((options) => options.map((o) => (o as HTMLOptionElement).value).filter(Boolean));
 }
 
 async function downloadsFor(page: Page, kinds: string[]): Promise<Download[]> {
@@ -79,7 +82,11 @@ async function pdfSummary(bytes: Buffer): Promise<{ pages: number; text: string[
 function withoutTimestamps(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutTimestamps);
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).filter(([key]) => !TIMESTAMP_KEYS.has(key)).map(([key, v]) => [key, withoutTimestamps(v)]));
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !TIMESTAMP_KEYS.has(key))
+        .map(([key, v]) => [key, withoutTimestamps(v)])
+    );
   }
   return value;
 }
@@ -154,8 +161,12 @@ async function compareFile(name: string, browserBytes: Buffer, serverBytes: Buff
   }
   if (name.endsWith(".zip") || name.endsWith(".cspzip")) {
     const [x, y] = await Promise.all([JSZip.loadAsync(browserBytes), JSZip.loadAsync(serverBytes)]);
-    const names = Object.keys(x.files).filter((n) => !x.files[n].dir).sort();
-    const otherNames = Object.keys(y.files).filter((n) => !y.files[n].dir).sort();
+    const names = Object.keys(x.files)
+      .filter((n) => !x.files[n].dir)
+      .sort();
+    const otherNames = Object.keys(y.files)
+      .filter((n) => !y.files[n].dir)
+      .sort();
     if (names.join("\n") !== otherNames.join("\n")) {
       return [{ problem: `${name}: entries differ (${names.length} vs ${otherNames.length})` }];
     }
@@ -167,11 +178,17 @@ async function compareFile(name: string, browserBytes: Buffer, serverBytes: Buff
     return findings;
   }
   if (name.endsWith(".json")) {
-    const same = JSON.stringify(withoutTimestamps(JSON.parse(browserBytes.toString("utf-8")))) === JSON.stringify(withoutTimestamps(JSON.parse(serverBytes.toString("utf-8"))));
+    const same =
+      JSON.stringify(withoutTimestamps(JSON.parse(browserBytes.toString("utf-8")))) ===
+      JSON.stringify(withoutTimestamps(JSON.parse(serverBytes.toString("utf-8"))));
     return [same ? { note: `${name}: identical as data` } : { problem: `${name}: data differs` }];
   }
   // OXS and anything else textual must be byte-identical.
-  return [browserBytes.equals(serverBytes) ? { note: `${name}: byte-identical` } : { problem: `${name}: bytes differ (${browserBytes.length} vs ${serverBytes.length})` }];
+  return [
+    browserBytes.equals(serverBytes)
+      ? { note: `${name}: byte-identical` }
+      : { problem: `${name}: bytes differ (${browserBytes.length} vs ${serverBytes.length})` },
+  ];
 }
 
 test("server exports match the browser's, differing only by the recorded font and resampling causes", async ({ browser }) => {

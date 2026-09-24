@@ -47,7 +47,11 @@ describe("fixDiagonalConnections: Standard-compatibility", () => {
     const cells = makeCells(2, 2, (x, y) => (x === y ? A : nearA));
     const assignment = Uint8Array.from([0, 1, 1, 0]);
     const withoutLayer = fixDiagonalConnections(createPipelineContext(cells), assignment, closePalette);
-    const withEmptyLayer = fixDiagonalConnections(createPipelineContext(cells, { evidenceLayer: { evidenceByCell: new Map() } }), assignment, closePalette);
+    const withEmptyLayer = fixDiagonalConnections(
+      createPipelineContext(cells, { evidenceLayer: { evidenceByCell: new Map() } }),
+      assignment,
+      closePalette
+    );
     expect(Array.from(withEmptyLayer)).toEqual(Array.from(withoutLayer));
   });
 });
@@ -123,7 +127,12 @@ describe("recolorSmallComponents: a candidate unsupported for ANY protected memb
     const evidence = makeEvidence(); // black/white only -- gray(1) is never admissible
     const layer: CrispEvidenceLayer = { evidenceByCell: new Map([[memberA, evidence]]) };
 
-    const result = recolorSmallComponents(createPipelineContext(cells, { evidenceLayer: layer }), assignment, palette, defaultComponentRecolorOptions(width * height));
+    const result = recolorSmallComponents(
+      createPipelineContext(cells, { evidenceLayer: layer }),
+      assignment,
+      palette,
+      defaultComponentRecolorOptions(width * height)
+    );
     expect(result[memberA]).not.toBe(1); // never gray
     expect(result[memberB]).not.toBe(1); // the WHOLE component is rejected together, not just the protected member
   });

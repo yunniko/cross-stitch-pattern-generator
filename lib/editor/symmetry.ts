@@ -31,7 +31,12 @@ const REFLECTIONS: Record<SymmetryAxis, SymmetryMatrix> = {
 /** `m ∘ n`: apply `n`, then `m`. Entries are normalised so a product never holds -0. */
 export function composeMatrices(m: SymmetryMatrix, n: SymmetryMatrix): SymmetryMatrix {
   const entry = (value: number) => value || 0;
-  return [entry(m[0] * n[0] + m[1] * n[2]), entry(m[0] * n[1] + m[1] * n[3]), entry(m[2] * n[0] + m[3] * n[2]), entry(m[2] * n[1] + m[3] * n[3])];
+  return [
+    entry(m[0] * n[0] + m[1] * n[2]),
+    entry(m[0] * n[1] + m[1] * n[3]),
+    entry(m[2] * n[0] + m[3] * n[2]),
+    entry(m[2] * n[1] + m[3] * n[3]),
+  ];
 }
 
 const sameMatrix = (m: SymmetryMatrix, n: SymmetryMatrix) => m[0] === n[0] && m[1] === n[1] && m[2] === n[2] && m[3] === n[3];
@@ -130,7 +135,11 @@ export function applyQuickMirror(pattern: StitchPattern, kind: QuickMirror): Sti
  * deselecting does, and the mirror is applied to that result, so the pair commits as a single undo step (G-037
  * criterion 5). The photo underlay is never mirrored.
  */
-export function applyQuickMirrorWithSelection(pattern: StitchPattern, selection: FloatingSelection | null, kind: QuickMirror): StitchPattern {
+export function applyQuickMirrorWithSelection(
+  pattern: StitchPattern,
+  selection: FloatingSelection | null,
+  kind: QuickMirror
+): StitchPattern {
   return applyQuickMirror(selection ? mergeSelection(pattern, selection) : pattern, kind);
 }
 
@@ -139,7 +148,13 @@ export function applyQuickMirrorWithSelection(pattern: StitchPattern, selection:
  * 4-connected (drop-to-fill) or 8-connected (the Fill tool and double-click), painted as one union. On a pattern that
  * isn't already symmetric the regions differ, so the result can be asymmetric (criterion 2).
  */
-export function fillSymmetric(pattern: StitchPattern, cellIndex: number, axes: SymmetryAxes, paletteIndex: number, connectivity: 4 | 8): StitchPattern {
+export function fillSymmetric(
+  pattern: StitchPattern,
+  cellIndex: number,
+  axes: SymmetryAxes,
+  paletteIndex: number,
+  connectivity: 4 | 8
+): StitchPattern {
   assertPattern(pattern);
   const { width, height, cellPalette, palette } = pattern;
   assertCell(cellIndex, width, height);

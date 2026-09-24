@@ -28,11 +28,7 @@ export const DEFAULT_ANNEALING_OPTIONS: SimulatedAnnealingOptions = {
  * Finding 1; HANDOVER.md D43/G-022 M2), matching `local-optimizer.ts`'s own
  * `runLocalOptimizer` so a boundary scores identically under either pass.
  */
-function weightedNeighborsOf(
-  i: number,
-  width: number,
-  height: number
-): Array<{ n: number; weight: number; dx: number; dy: number }> {
+function weightedNeighborsOf(i: number, width: number, height: number): Array<{ n: number; weight: number; dx: number; dy: number }> {
   const x = i % width;
   const y = Math.floor(i / width);
   const result: Array<{ n: number; weight: number; dx: number; dy: number }> = [];

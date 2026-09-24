@@ -25,7 +25,9 @@ export interface GenerationInputs {
 function queueText(position: number, estimatedWaitMs: number): string {
   const ordinal = position === 1 ? "1st" : position === 2 ? "2nd" : position === 3 ? "3rd" : `${position}th`;
   const seconds = Math.round(estimatedWaitMs / 1000);
-  return seconds > 0 ? `Waiting for a free slot — ${ordinal} in line, about ${seconds} s.` : `Waiting for a free slot — ${ordinal} in line.`;
+  return seconds > 0
+    ? `Waiting for a free slot — ${ordinal} in line, about ${seconds} s.`
+    : `Waiting for a free slot — ${ordinal} in line.`;
 }
 
 /** Each failure says what the reader can do about it, rather than one message for every cause (G-034 M3). */

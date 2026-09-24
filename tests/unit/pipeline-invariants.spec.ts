@@ -29,7 +29,8 @@ const SOURCES: Record<string, (w: number, h: number) => PixelBuffer> = {
   flat: (w, h) => makeBuffer(w, h, () => [128, 64, 200]),
   twoTone: (w, h) => makeBuffer(w, h, (x) => (x < w / 2 ? [20, 20, 20] : [235, 235, 235])),
   gradient: (w, h) => makeBuffer(w, h, (x, y) => [(255 * x) / w, (255 * y) / h, 120]),
-  noise: (w, h) => makeBuffer(w, h, (x, y) => [128 + pseudoNoise(x, y, 120), 128 + pseudoNoise(x + 7, y, 120), 128 + pseudoNoise(x, y + 13, 120)]),
+  noise: (w, h) =>
+    makeBuffer(w, h, (x, y) => [128 + pseudoNoise(x, y, 120), 128 + pseudoNoise(x + 7, y, 120), 128 + pseudoNoise(x, y + 13, 120)]),
   nearDuplicates: (w, h) => makeBuffer(w, h, (x) => (x % 3 === 0 ? [100, 100, 100] : x % 3 === 1 ? [101, 100, 100] : [100, 101, 100])),
 };
 
@@ -44,20 +45,31 @@ function check(pattern: StitchPattern, source: PixelBuffer, options: BuildPatter
     expect(index, `${label}: cell points inside the palette`).toBeLessThan(pattern.palette.length);
     counts[index]++;
   }
-  expect(counts.filter((n) => n === 0), `${label}: every palette colour is stitched somewhere`).toEqual([]);
-  expect(pattern.palette.map((c) => c.count), `${label}: counts match the cells`).toEqual(counts);
+  expect(
+    counts.filter((n) => n === 0),
+    `${label}: every palette colour is stitched somewhere`
+  ).toEqual([]);
+  expect(
+    pattern.palette.map((c) => c.count),
+    `${label}: counts match the cells`
+  ).toEqual(counts);
 
   expect(pattern.palette.length, `${label}: never more colours than asked for`).toBeLessThanOrEqual(options.colorCount);
   expect(pattern.palette.length, `${label}: at least one colour`).toBeGreaterThan(0);
 
   for (const color of pattern.palette) {
     for (const channel of color.rgb) {
-      expect(Number.isInteger(channel) && channel >= 0 && channel <= 255, `${label}: ${color.name} is a real colour (${color.rgb})`).toBe(true);
+      expect(Number.isInteger(channel) && channel >= 0 && channel <= 255, `${label}: ${color.name} is a real colour (${color.rgb})`).toBe(
+        true
+      );
     }
   }
   expect(new Set(pattern.palette.map((c) => c.symbol)).size, `${label}: symbols are unique`).toBe(pattern.palette.length);
   expect(new Set(pattern.palette.map((c) => c.name)).size, `${label}: names are unique`).toBe(pattern.palette.length);
-  expect(pattern.palette.map((c) => c.index), `${label}: indices are positional`).toEqual(pattern.palette.map((_, i) => i));
+  expect(
+    pattern.palette.map((c) => c.index),
+    `${label}: indices are positional`
+  ).toEqual(pattern.palette.map((_, i) => i));
 }
 
 describe("every chart the pipeline builds holds these properties", () => {
@@ -106,7 +118,10 @@ describe("every chart the pipeline builds holds these properties", () => {
       const a = buildPattern(source, options);
       const b = buildPattern(source, options);
       expect(Array.from(a.cellPalette), `${edgeMode}: same cells`).toEqual(Array.from(b.cellPalette));
-      expect(a.palette.map((c) => c.rgb), `${edgeMode}: same palette`).toEqual(b.palette.map((c) => c.rgb));
+      expect(
+        a.palette.map((c) => c.rgb),
+        `${edgeMode}: same palette`
+      ).toEqual(b.palette.map((c) => c.rgb));
     }
   });
 
@@ -140,7 +155,9 @@ function totalEnergy(ctx: PipelineContext, assignment: Uint8Array, palette: RGB[
         const ny = y + offset.dy;
         if (nx < 0 || nx >= ctx.width || ny < 0 || ny >= ctx.height) continue;
         const n = ny * ctx.width + nx;
-        const edge = ctx.pairEvidence ? getPairEdgeEvidence(ctx.pairEvidence, i, offset.dx, offset.dy, ctx.width) : edgeBetweenCells(ctx.importance, i, n);
+        const edge = ctx.pairEvidence
+          ? getPairEdgeEvidence(ctx.pairEvidence, i, offset.dx, offset.dy, ctx.width)
+          : edgeBetweenCells(ctx.importance, i, n);
         // Each undirected pair is visited twice; halve.
         boundary += 0.5 * offset.weight * boundaryPairEnergy(weights, edge, assignment[i] !== assignment[n]);
       }
@@ -164,7 +181,11 @@ describe("the optimizer descends the energy it claims to", () => {
       const source = makePhotoLikeBuffer(seed + 20, seed);
       const ctx = contextFor(source, 30);
       const { cellPaletteIndex, palette } = kMeansQuantizer.quantize(ctx.cells, 12, ctx.importance, ctx.cellOklab);
-      for (const weights of [DEFAULT_LOCAL_OPTIMIZER_WEIGHTS, { color: 1, smoothness: 0.09, edgeLoss: 0.015 }, { color: 1, smoothness: 0.045, edgeLoss: 0.05 }]) {
+      for (const weights of [
+        DEFAULT_LOCAL_OPTIMIZER_WEIGHTS,
+        { color: 1, smoothness: 0.09, edgeLoss: 0.015 },
+        { color: 1, smoothness: 0.045, edgeLoss: 0.05 },
+      ]) {
         const before = totalEnergy(ctx, cellPaletteIndex, palette, weights);
         const after = totalEnergy(ctx, runLocalOptimizer(ctx, cellPaletteIndex, palette, weights), palette, weights);
         expect(after, `seed ${seed}, weights ${JSON.stringify(weights)}`).toBeLessThanOrEqual(before + 1e-9);

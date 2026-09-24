@@ -70,7 +70,8 @@ export function renderFullView(canvas: HTMLCanvasElement, p: StitchPattern, scen
 }
 
 export function drawCurrentView(ctx: CanvasRenderingContext2D, p: StitchPattern, scene: Scene) {
-  const { viewMode, cellSize, photo, realisticPreview, activeTool, highlightedColorIndices, selection, canvasColor, isSelectDragging } = scene;
+  const { viewMode, cellSize, photo, realisticPreview, activeTool, highlightedColorIndices, selection, canvasColor, isSelectDragging } =
+    scene;
   const surfaceWidth = p.width * cellSize;
   const surfaceHeight = p.height * cellSize;
 
@@ -121,11 +122,27 @@ export function drawWorkingCell(ctx: CanvasRenderingContext2D, scene: Scene, bas
     drawCurrentView(ctx, { ...base, cellPalette: cells }, scene);
     return;
   }
-  drawCell(ctx, base, incrementalMode, scene.cellSize, cellIndex % base.width, Math.floor(cellIndex / base.width), cells[cellIndex], scene.canvasColor);
+  drawCell(
+    ctx,
+    base,
+    incrementalMode,
+    scene.cellSize,
+    cellIndex % base.width,
+    Math.floor(cellIndex / base.width),
+    cells[cellIndex],
+    scene.canvasColor
+  );
 }
 
 /** The Move preview: the pre-drag canvas blitted at the shifted position with wrap-around copies. */
-export function drawShiftedSnapshot(ctx: CanvasRenderingContext2D, scene: Scene, base: StitchPattern, snapshot: HTMLCanvasElement, dx: number, dy: number) {
+export function drawShiftedSnapshot(
+  ctx: CanvasRenderingContext2D,
+  scene: Scene,
+  base: StitchPattern,
+  snapshot: HTMLCanvasElement,
+  dx: number,
+  dy: number
+) {
   const { cellSize } = scene;
   const w = base.width * cellSize;
   const h = base.height * cellSize;

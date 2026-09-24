@@ -38,13 +38,27 @@ export interface ExportAllResult {
 }
 
 /** Pages an A4 export of `pattern` contains at `dpi`: grid pages, one simple legend and the extended legend pages. */
-function a4PageCount(pattern: StitchPattern, overlapCells: OverlapCells, info: { aidaCount: number; sizeUnit: SizeUnit; authorName: string }, dpi?: number): number {
+function a4PageCount(
+  pattern: StitchPattern,
+  overlapCells: OverlapCells,
+  info: { aidaCount: number; sizeUnit: SizeUnit; authorName: string },
+  dpi?: number
+): number {
   const layout = calculateA4Layout(pattern.width, pattern.height, dpi === undefined ? { overlapCells } : { overlapCells, dpi });
   return layout.pages.length + 1 + planInfoPages(pattern, layout, info).totalPages;
 }
 
 export async function generateExportAllZip(pattern: StitchPattern, options: ExportAllOptions): Promise<ExportAllResult> {
-  const { baseName = "pattern", aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", overlapCells = 5, symmetry, fontBytes, onProgress } = options;
+  const {
+    baseName = "pattern",
+    aidaCount = DEFAULT_AIDA_COUNT,
+    sizeUnit = DEFAULT_SIZE_UNIT,
+    authorName = "",
+    overlapCells = 5,
+    symmetry,
+    fontBytes,
+    onProgress,
+  } = options;
   const info = { aidaCount, sizeUnit, authorName };
 
   const pdfPages = a4PageCount(pattern, overlapCells, info, 72);
@@ -76,7 +90,12 @@ export async function generateExportAllZip(pattern: StitchPattern, options: Expo
   const pdfBytes = await buildPatternKeeperPdf(pattern, "color", fontBytes, {
     overlapCells,
     ...info,
-    onProgress: (p) => onProgress?.({ completed: base + Math.min(p.completed, pdfPages), total, label: `PDF page ${Math.min(p.completed, p.total)} of ${p.total}` }),
+    onProgress: (p) =>
+      onProgress?.({
+        completed: base + Math.min(p.completed, pdfPages),
+        total,
+        label: `PDF page ${Math.min(p.completed, p.total)} of ${p.total}`,
+      }),
   });
   zip.file(`${baseName}_patternkeeper.pdf`, new Uint8Array(pdfBytes));
   completed = base + pdfPages;
@@ -93,7 +112,8 @@ export async function generateExportAllZip(pattern: StitchPattern, options: Expo
       overlapCells,
       baseName,
       ...info,
-      onProgress: (p) => onProgress?.({ completed: base + Math.min(p.completed, a4Pages), total, label: `${label} page ${p.completed} of ${p.total}` }),
+      onProgress: (p) =>
+        onProgress?.({ completed: base + Math.min(p.completed, a4Pages), total, label: `${label} page ${p.completed} of ${p.total}` }),
     });
     completed = base + a4Pages;
   }

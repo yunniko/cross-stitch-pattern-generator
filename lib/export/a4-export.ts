@@ -54,8 +54,20 @@ export function zipEntryName(name: string): string {
  * inside the Export all bundle. Pages are rendered and encoded one at a time, never cropped from one giant canvas, so
  * memory doesn't scale with page count (requirement 12). Returns the number of pages written.
  */
-export async function addA4PagesToZip(folder: JSZip, pattern: StitchPattern, mode: RenderMode, options: A4ExportOptions = {}): Promise<number> {
-  const { baseName = "pattern", aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", onProgress, ...layoutOptions } = options;
+export async function addA4PagesToZip(
+  folder: JSZip,
+  pattern: StitchPattern,
+  mode: RenderMode,
+  options: A4ExportOptions = {}
+): Promise<number> {
+  const {
+    baseName = "pattern",
+    aidaCount = DEFAULT_AIDA_COUNT,
+    sizeUnit = DEFAULT_SIZE_UNIT,
+    authorName = "",
+    onProgress,
+    ...layoutOptions
+  } = options;
   const layout = calculateA4Layout(pattern.width, pattern.height, layoutOptions);
   const totalGridPages = layout.pages.length;
   const infoOptions = { aidaCount, sizeUnit, authorName };

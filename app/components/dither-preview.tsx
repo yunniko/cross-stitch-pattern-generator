@@ -75,15 +75,20 @@ export function DitherPreview({ mode, texture, chartWidth, chartHeight, onShuffl
   return (
     <div className="flex items-start gap-3" data-testid="dither-preview">
       {shuffles ? (
-        <button type="button" onClick={onShuffle} title="Draw the same texture again with the marks in different places" className="shrink-0 rounded-md">
+        <button
+          type="button"
+          onClick={onShuffle}
+          title="Draw the same texture again with the marks in different places"
+          className="shrink-0 rounded-md"
+        >
           {canvas}
         </button>
       ) : (
         canvas
       )}
       <span className="text-[11px] leading-4 text-muted">
-        The top-left corner of this chart, dark to light. A chart picks between each stitch&apos;s own two nearest
-        threads; here there are two.
+        The top-left corner of this chart, dark to light. A chart picks between each stitch&apos;s own two nearest threads; here there are
+        two.
         {shuffles ? " Click it to place the marks differently." : ""}
       </span>
     </div>

@@ -42,7 +42,12 @@ describe("Standard-compatibility: omitting crispEvidenceLayer reproduces today's
     ];
     const initial = new Uint8Array(width * height).fill(0);
     const withoutLayer = runLocalOptimizer(createPipelineContext(cells), initial, palette);
-    const withEmptyLayer = runLocalOptimizer(createPipelineContext(cells, { evidenceLayer: { evidenceByCell: new Map() } }), initial, palette, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS);
+    const withEmptyLayer = runLocalOptimizer(
+      createPipelineContext(cells, { evidenceLayer: { evidenceByCell: new Map() } }),
+      initial,
+      palette,
+      DEFAULT_LOCAL_OPTIMIZER_WEIGHTS
+    );
     expect(Array.from(withEmptyLayer)).toEqual(Array.from(withoutLayer));
   });
 
@@ -72,7 +77,12 @@ describe("Standard-compatibility: omitting crispEvidenceLayer reproduces today's
     const layer: CrispEvidenceLayer = { evidenceByCell: new Map([[35, dummyEvidence]]) }; // cell 35 = bottom-right corner
 
     const withoutLayer = runLocalOptimizer(createPipelineContext(cells), initial, palette);
-    const withLayer = runLocalOptimizer(createPipelineContext(cells, { evidenceLayer: layer }), initial, palette, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS);
+    const withLayer = runLocalOptimizer(
+      createPipelineContext(cells, { evidenceLayer: layer }),
+      initial,
+      palette,
+      DEFAULT_LOCAL_OPTIMIZER_WEIGHTS
+    );
     // Every cell except 35 must match exactly.
     for (let i = 0; i < width * height; i++) {
       if (i === 35) continue;
@@ -111,7 +121,12 @@ describe("admissibility is enforced: a confident cell never gets assigned an uns
     const layer: CrispEvidenceLayer = { evidenceByCell: new Map([[centerIndex, evidence]]) };
     initial[centerIndex] = 0; // start it on black (an admissible label)
 
-    const result = runLocalOptimizer(createPipelineContext(cells, { evidenceLayer: layer }), initial, palette, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS);
+    const result = runLocalOptimizer(
+      createPipelineContext(cells, { evidenceLayer: layer }),
+      initial,
+      palette,
+      DEFAULT_LOCAL_OPTIMIZER_WEIGHTS
+    );
     expect(result[centerIndex]).not.toBe(2); // never gray
     expect([0, 1]).toContain(result[centerIndex]); // must be black or white
   });
@@ -146,7 +161,12 @@ describe("tie-breaking: a protected cell keeps its current admissible label on a
     const layer: CrispEvidenceLayer = { evidenceByCell: new Map([[1, evidence]]) }; // center cell
     const initial = new Uint8Array([0, 1, 0]); // center starts on label 1 (white)
 
-    const result = runLocalOptimizer(createPipelineContext(cells, { evidenceLayer: layer }), initial, palette, DEFAULT_LOCAL_OPTIMIZER_WEIGHTS);
+    const result = runLocalOptimizer(
+      createPipelineContext(cells, { evidenceLayer: layer }),
+      initial,
+      palette,
+      DEFAULT_LOCAL_OPTIMIZER_WEIGHTS
+    );
     // With genuinely tied unary cost and symmetric neighbors, the center
     // cell must KEEP its current label (1), not fall back to label 0
     // (which a naive "first candidate in iteration order" rule would pick
@@ -166,7 +186,11 @@ describe("M4.4 composition: crisp-aware coarse+fine ICM on M1's genuine-gray-els
     const quantizerFn = selectWeightedQuantizer(kMeansQuantizer);
     const quantized = runCrispQuantizationStage(cells, 4, importance, evidenceLayer, quantizerFn);
 
-    const optimized = runMultiScaleOptimizer(createPipelineContext(cells, { importance, evidenceLayer }), quantized.cellPaletteIndex, quantized.palette);
+    const optimized = runMultiScaleOptimizer(
+      createPipelineContext(cells, { importance, evidenceLayer }),
+      quantized.cellPaletteIndex,
+      quantized.palette
+    );
 
     const paletteOklab = quantized.palette.map(rgbToOklab);
     const genuineGrayOklab = rgbToOklab([128, 128, 128]);

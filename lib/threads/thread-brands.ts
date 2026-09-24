@@ -29,7 +29,8 @@ export const THREAD_BRANDS: Record<ThreadBrand, ThreadBrandInfo> = {
     colors: ANCHOR_COLORS,
     matching: "dmc-equivalence",
     dmcEquivalence: DMC_TO_ANCHOR,
-    derivationNote: "matched via each color's nearest real DMC thread, then its documented Anchor equivalent -- not independently measured (no independent Anchor color data exists)",
+    derivationNote:
+      "matched via each color's nearest real DMC thread, then its documented Anchor equivalent -- not independently measured (no independent Anchor color data exists)",
   },
 };
 

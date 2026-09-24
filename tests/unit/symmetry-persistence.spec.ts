@@ -11,9 +11,18 @@ import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
 /** G-037 criterion 1: symmetry is saved with the document and restored when it opens (D138). */
 
 function makePattern(width: number, height: number): StitchPattern {
-  const colors: RGB[] = [[10, 20, 30], [200, 100, 50]];
+  const colors: RGB[] = [
+    [10, 20, 30],
+    [200, 100, 50],
+  ];
   const cellPalette = Uint8Array.from({ length: width * height }, (_, i) => i % 2);
-  const palette: PaletteColor[] = colors.map((rgb, index) => ({ index, rgb, symbol: String(index), name: `Color ${index}`, count: cellPalette.filter((v) => v === index).length }));
+  const palette: PaletteColor[] = colors.map((rgb, index) => ({
+    index,
+    rgb,
+    symbol: String(index),
+    name: `Color ${index}`,
+    count: cellPalette.filter((v) => v === index).length,
+  }));
   return { width, height, cellPalette, palette, isLandscape: width >= height, name: "sym" };
 }
 

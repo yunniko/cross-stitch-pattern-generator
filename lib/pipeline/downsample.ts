@@ -7,11 +7,7 @@ export interface GridDimensions {
 }
 
 /** Grid size for a source image given the longer side's stitch count, rounded so a fractional input can't reach a typed-array allocation (code review 2026-09-09, finding 8). */
-export function gridDimensionsFor(
-  sourceWidth: number,
-  sourceHeight: number,
-  longerSideStitches: number
-): GridDimensions {
+export function gridDimensionsFor(sourceWidth: number, sourceHeight: number, longerSideStitches: number): GridDimensions {
   const longerSide = Math.max(1, Math.round(longerSideStitches));
   if (sourceWidth >= sourceHeight) {
     const height = Math.max(1, Math.round((longerSide * sourceHeight) / sourceWidth));
@@ -152,7 +148,22 @@ export function downsampleToGridWithCoverage(
       coverage[i] = sumArea > 0 ? sumWeight / sumArea : 0;
       if (sumWeight > 0 && chromaWeight) {
         const mean: RGB = [linearToSrgb(sumR / sumWeight), linearToSrgb(sumG / sumWeight), linearToSrgb(sumB / sumWeight)];
-        const vividRgb = vividCellColor(data, mean, srcW, xFirst, xLast, yFirst, yLast, xSrcStart, xSrcEnd, ySrcStart, ySrcEnd, sumWeight, vividTopShare, chromaWeight);
+        const vividRgb = vividCellColor(
+          data,
+          mean,
+          srcW,
+          xFirst,
+          xLast,
+          yFirst,
+          yLast,
+          xSrcStart,
+          xSrcEnd,
+          ySrcStart,
+          ySrcEnd,
+          sumWeight,
+          vividTopShare,
+          chromaWeight
+        );
         out[i * 3] = vividRgb[0];
         out[i * 3 + 1] = vividRgb[1];
         out[i * 3 + 2] = vividRgb[2];

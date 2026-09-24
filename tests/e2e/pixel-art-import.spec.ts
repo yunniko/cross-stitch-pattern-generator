@@ -78,7 +78,9 @@ test("every refusal says what is wrong, and creates no chart", async ({ page }) 
 
   const tooBig = png(MAX_STITCHES + 548, 40, () => [10, 10, 10]);
   await importFile(page, "wallpaper.png", tooBig);
-  await expect(page.getByText(`That image is ${MAX_STITCHES + 548} × 40 pixels; the largest chart is ${MAX_STITCHES} stitches a side.`)).toBeVisible();
+  await expect(
+    page.getByText(`That image is ${MAX_STITCHES + 548} × 40 pixels; the largest chart is ${MAX_STITCHES} stitches a side.`)
+  ).toBeVisible();
   await expect(page.getByTestId("chart-frame")).toHaveCount(0);
 
   const tooManyColors = png(MAX_COLORS + 14, 10, (x) => [x, 0, 255 - x]);
@@ -88,7 +90,9 @@ test("every refusal says what is wrong, and creates no chart", async ({ page }) 
 
   const halfTransparent = png(12, 12, (x, y) => (x === 2 && y === 3 ? [220, 40, 40, 128] : [40, 80, 220]));
   await importFile(page, "faded.png", halfTransparent);
-  await expect(page.getByText("That image has partly transparent pixels (the first at 2, 3); a stitch is either there or not.")).toBeVisible();
+  await expect(
+    page.getByText("That image has partly transparent pixels (the first at 2, 3); a stitch is either there or not.")
+  ).toBeVisible();
   await expect(page.getByTestId("chart-frame")).toHaveCount(0);
 
   // Still on the start screen, and a good file after three bad ones opens normally.

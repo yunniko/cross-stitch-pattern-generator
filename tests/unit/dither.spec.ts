@@ -113,8 +113,22 @@ describe("each pattern is the matrix it claims to be", () => {
     // heavier tone. Stated as ranks rather than as a picture, so it pins the ordering and not one tone's rendering.
     const matrix = DITHER_MATRICES["ring-8"];
     const rank = (x: number, y: number) => matrix[y][x];
-    const ring = [[1, 0], [2, 0], [0, 1], [3, 1], [0, 2], [3, 2], [1, 3], [2, 3]];
-    const hole = [[1, 1], [2, 1], [1, 2], [2, 2]];
+    const ring = [
+      [1, 0],
+      [2, 0],
+      [0, 1],
+      [3, 1],
+      [0, 2],
+      [3, 2],
+      [1, 3],
+      [2, 3],
+    ];
+    const hole = [
+      [1, 1],
+      [2, 1],
+      [1, 2],
+      [2, 2],
+    ];
 
     const lastOfRing = Math.max(...ring.map(([x, y]) => rank(x, y)));
     const firstOfHole = Math.min(...hole.map(([x, y]) => rank(x, y)));
@@ -181,8 +195,18 @@ describe("Atkinson does what it is for (G-053)", () => {
       for (let x = 0; x < width; x++) {
         if (labels[y * width + x] !== 1) continue;
         lit++;
-        const neighbours: Array<[number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-        if (neighbours.some(([dx, dy]) => x + dx >= 0 && y + dy >= 0 && x + dx < width && y + dy < height && labels[(y + dy) * width + x + dx] === 1)) withNeighbour++;
+        const neighbours: Array<[number, number]> = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ];
+        if (
+          neighbours.some(
+            ([dx, dy]) => x + dx >= 0 && y + dy >= 0 && x + dx < width && y + dy < height && labels[(y + dy) * width + x + dx] === 1
+          )
+        )
+          withNeighbour++;
       }
     }
     return withNeighbour / lit;
@@ -246,8 +270,14 @@ describe("dithering earns its place, and costs what it costs", () => {
         expect(index, `${ditherMode}: inside the palette`).toBeLessThan(pattern.palette.length);
         counts[index]++;
       }
-      expect(counts.filter((n) => n === 0), `${ditherMode}: no colour with nothing to stitch`).toEqual([]);
-      expect(pattern.palette.map((c) => c.count), `${ditherMode}: counts match`).toEqual(counts);
+      expect(
+        counts.filter((n) => n === 0),
+        `${ditherMode}: no colour with nothing to stitch`
+      ).toEqual([]);
+      expect(
+        pattern.palette.map((c) => c.count),
+        `${ditherMode}: counts match`
+      ).toEqual(counts);
       expect(pattern.ditherMode, `${ditherMode}: recorded on the chart`).toBe(ditherMode);
     }
   });
@@ -272,7 +302,9 @@ describe("dithering earns its place, and costs what it costs", () => {
 describe("dithering and Crisp are mutually exclusive", () => {
   it("refuses the combination rather than letting one undo the other", () => {
     for (const edgeMode of ["crisp", "crisp-plus"] as const) {
-      expect(() => buildPattern(makePhotoLikeBuffer(60, 40), { longerSideStitches: 20, colorCount: 8, edgeMode, ditherMode: "bayer-4" })).toThrow(/cannot be combined with dithering/);
+      expect(() =>
+        buildPattern(makePhotoLikeBuffer(60, 40), { longerSideStitches: 20, colorCount: 8, edgeMode, ditherMode: "bayer-4" })
+      ).toThrow(/cannot be combined with dithering/);
     }
   });
 

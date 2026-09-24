@@ -3,7 +3,12 @@ import { downsampleToGrid, gridDimensionsFor } from "@/lib/pipeline/downsample";
 import { cellRgb } from "@/lib/types";
 import type { PixelBuffer, RGB } from "@/lib/types";
 
-function makeBuffer(width: number, height: number, colorAt: (x: number, y: number) => RGB, alphaAt?: (x: number, y: number) => number): PixelBuffer {
+function makeBuffer(
+  width: number,
+  height: number,
+  colorAt: (x: number, y: number) => RGB,
+  alphaAt?: (x: number, y: number) => number
+): PixelBuffer {
   const data = new Uint8ClampedArray(width * height * 4);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -98,7 +103,12 @@ describe("downsampleToGrid", () => {
   });
 
   it("falls back to white, not black, for a cell whose only reachable source pixel is fully transparent", () => {
-    const buffer = makeBuffer(8, 1, () => [10, 200, 10], () => 0);
+    const buffer = makeBuffer(
+      8,
+      1,
+      () => [10, 200, 10],
+      () => 0
+    );
     const cells = downsampleToGrid(buffer, 12, 1);
     expect(cellRgb(cells, 2)).toEqual([255, 255, 255]);
   });

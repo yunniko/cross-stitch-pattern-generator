@@ -128,7 +128,14 @@ export const GAMUT_JND = 0.02;
 const GAMUT_CHROMA_EPSILON = 1e-4;
 
 function linearInGamut([r, g, b]: [number, number, number]): boolean {
-  return r >= -GAMUT_EPSILON && r <= 1 + GAMUT_EPSILON && g >= -GAMUT_EPSILON && g <= 1 + GAMUT_EPSILON && b >= -GAMUT_EPSILON && b <= 1 + GAMUT_EPSILON;
+  return (
+    r >= -GAMUT_EPSILON &&
+    r <= 1 + GAMUT_EPSILON &&
+    g >= -GAMUT_EPSILON &&
+    g <= 1 + GAMUT_EPSILON &&
+    b >= -GAMUT_EPSILON &&
+    b <= 1 + GAMUT_EPSILON
+  );
 }
 
 function clipLinearToOklab([r, g, b]: [number, number, number]): Oklab {

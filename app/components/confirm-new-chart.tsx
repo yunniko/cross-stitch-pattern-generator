@@ -44,8 +44,9 @@ export function ConfirmNewChart({ pattern, onExportEditable, onKeepEditing, onSt
           Start a new chart?
         </h3>
         <p className="m-0 text-[13px] leading-[19px] text-muted">
-          Only one chart is autosaved in this browser, so a new one replaces <span className="text-ink">{pattern.name ?? "this chart"}</span> —{" "}
-          {pattern.width} × {pattern.height}, {formatStitchCount(filledStitchCount(pattern))}. Its undo history goes too.
+          Only one chart is autosaved in this browser, so a new one replaces{" "}
+          <span className="text-ink">{pattern.name ?? "this chart"}</span> — {pattern.width} × {pattern.height},{" "}
+          {formatStitchCount(filledStitchCount(pattern))}. Its undo history goes too.
         </p>
 
         <button
@@ -57,7 +58,16 @@ export function ConfirmNewChart({ pattern, onExportEditable, onKeepEditing, onSt
             Export the editable .json first
             <span className="block text-[11px] leading-4 text-muted">Keeps this chart on your machine; you can open it again later</span>
           </span>
-          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="var(--at-accent)" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-4 w-4 shrink-0"
+            fill="none"
+            stroke="var(--at-accent)"
+            strokeWidth={1.7}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
             <path d="M12 4v10" />
             <path d="M8 11l4 4 4-4" />
             <path d="M4 17.5V19a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 19v-1.5" />

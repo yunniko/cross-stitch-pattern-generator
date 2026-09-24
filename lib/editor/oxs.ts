@@ -96,7 +96,8 @@ export function looksLikeOxs(text: string): boolean {
 
 /** Reads an OXS file into a pattern and an honest report of what couldn't be carried over. Throws a descriptive error otherwise. */
 export function parseOxs(text: string): OxsImportResult {
-  if (text.length > MAX_OXS_TEXT_LENGTH) throw new Error(`That OXS file is larger than ${MAX_OXS_TEXT_LENGTH / 1024 / 1024} MB, too large to open.`);
+  if (text.length > MAX_OXS_TEXT_LENGTH)
+    throw new Error(`That OXS file is larger than ${MAX_OXS_TEXT_LENGTH / 1024 / 1024} MB, too large to open.`);
 
   const report: OxsImportReport = {
     approximatedPartStitches: 0,
@@ -118,7 +119,11 @@ export function parseOxs(text: string): OxsImportResult {
     mergedDuplicateColors: 0,
   };
   // Assigned inside the reader callback, so held in one object rather than narrowed `let`s.
-  const state: { root: string | null; properties: Record<string, string>; openPaletteItem: PaletteItem | null } = { root: null, properties: {}, openPaletteItem: null };
+  const state: { root: string | null; properties: Record<string, string>; openPaletteItem: PaletteItem | null } = {
+    root: null,
+    properties: {},
+    openPaletteItem: null,
+  };
   const paletteItems = new Map<number, PaletteItem>();
   const fullX: number[] = [];
   const fullY: number[] = [];
@@ -240,7 +245,8 @@ export function parseOxs(text: string): OxsImportResult {
   const props = state.properties;
   const width = parseWholeNumber(props.chartwidth);
   const height = parseWholeNumber(props.chartheight);
-  if (width === null || height === null || width < 1 || height < 1) throw new Error("That OXS file doesn't state a valid chart width and height.");
+  if (width === null || height === null || width < 1 || height < 1)
+    throw new Error("That OXS file doesn't state a valid chart width and height.");
   if (width > MAX_STITCHES || height > MAX_STITCHES) {
     throw new Error(`That OXS chart is ${width}×${height} stitches, larger than the maximum of ${MAX_STITCHES} stitches per side.`);
   }
@@ -318,7 +324,9 @@ export function parseOxs(text: string): OxsImportResult {
     throw new Error(`This OXS file uses ${colors.length} colours; this app supports at most ${MAX_COLORS}.`);
   }
   report.blendedColors = items.filter((item) => item.blended).length;
-  report.colorsWithOtherStrands = items.filter((item) => item.strands !== undefined && item.strands !== "" && Number(item.strands) !== 2).length;
+  report.colorsWithOtherStrands = items.filter(
+    (item) => item.strands !== undefined && item.strands !== "" && Number(item.strands) !== 2
+  ).length;
 
   const symbols = symbolsFor(colors.length);
   const colorOfPalindex = new Map<number, number>();
@@ -370,29 +378,61 @@ export function summarizeOxsImport(report: OxsImportReport): string[] {
   const sentences: string[] = [];
 
   if (report.approximatedPartStitches > 0) {
-    const lost = report.twoColorPartStitches > 0 ? ` (${n(report.twoColorPartStitches, "of them lost its second colour", "of them lost their second colour")})` : "";
+    const lost =
+      report.twoColorPartStitches > 0
+        ? ` (${n(report.twoColorPartStitches, "of them lost its second colour", "of them lost their second colour")})`
+        : "";
     sentences.push(`${n(report.approximatedPartStitches, "part stitch is", "part stitches are")} shown as full stitches${lost}.`);
   }
-  if (report.hiddenPartStitches > 0) sentences.push(`${n(report.hiddenPartStitches, "part stitch was", "part stitches were")} left out under other stitches.`);
+  if (report.hiddenPartStitches > 0)
+    sentences.push(`${n(report.hiddenPartStitches, "part stitch was", "part stitches were")} left out under other stitches.`);
   const lines = Object.values(report.droppedLines).reduce((sum, count) => sum + count, 0);
-  if (lines > 0) sentences.push(`${n(lines, "backstitch line wasn't", "backstitch lines weren't")} imported (${byType(report.droppedLines)}).`);
+  if (lines > 0)
+    sentences.push(`${n(lines, "backstitch line wasn't", "backstitch lines weren't")} imported (${byType(report.droppedLines)}).`);
   if (Object.keys(report.droppedObjects).length > 0) sentences.push(`Not imported: ${byType(report.droppedObjects)}.`);
-  if (report.droppedCommentBoxes > 0) sentences.push(`${n(report.droppedCommentBoxes, "comment box wasn't", "comment boxes weren't")} imported.`);
-  if (report.completionMarks > 0) sentences.push(`${n(report.completionMarks, "stitch was", "stitches were")} marked as done; stitching progress isn't kept.`);
-  if (report.blendedColors > 0) sentences.push(`${n(report.blendedColors, "blended colour is", "blended colours are")} kept as a single colour.`);
-  if (report.colorsWithOtherStrands > 0) sentences.push(`${n(report.colorsWithOtherStrands, "colour uses", "colours use")} a strand count other than 2, which isn't kept.`);
-  if (report.clothColor) sentences.push(`The fabric colour (#${report.clothColor.map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase()}) isn't kept.`);
+  if (report.droppedCommentBoxes > 0)
+    sentences.push(`${n(report.droppedCommentBoxes, "comment box wasn't", "comment boxes weren't")} imported.`);
+  if (report.completionMarks > 0)
+    sentences.push(`${n(report.completionMarks, "stitch was", "stitches were")} marked as done; stitching progress isn't kept.`);
+  if (report.blendedColors > 0)
+    sentences.push(`${n(report.blendedColors, "blended colour is", "blended colours are")} kept as a single colour.`);
+  if (report.colorsWithOtherStrands > 0)
+    sentences.push(`${n(report.colorsWithOtherStrands, "colour uses", "colours use")} a strand count other than 2, which isn't kept.`);
+  if (report.clothColor)
+    sentences.push(
+      `The fabric colour (#${report.clothColor
+        .map((v) => v.toString(16).padStart(2, "0"))
+        .join("")
+        .toUpperCase()}) isn't kept.`
+    );
   const credits = (["author", "copyright", "instructions"] as const).filter((key) => report[key]);
   if (credits.length > 0) sentences.push(`Not kept from the file: ${credits.join(", ")}.`);
-  if (report.clothStitches > 0) sentences.push(`${n(report.clothStitches, "stitch in the fabric colour is", "stitches in the fabric colour are")} left empty.`);
-  if (report.outOfGridStitches > 0) sentences.push(`${n(report.outOfGridStitches, "stitch lies", "stitches lie")} outside the chart and ${report.outOfGridStitches === 1 ? "was" : "were"} left out.`);
-  if (report.unreadableStitches > 0) sentences.push(`${n(report.unreadableStitches, "stitch couldn't", "stitches couldn't")} be read and ${report.unreadableStitches === 1 ? "was" : "were"} left out.`);
-  if (report.duplicateFullStitches > 0) sentences.push(`${n(report.duplicateFullStitches, "cell had", "cells had")} more than one full stitch; the last one is kept.`);
-  if (report.mergedDuplicateColors > 0) sentences.push(`${n(report.mergedDuplicateColors, "palette entry repeats", "palette entries repeat")} a thread and ${report.mergedDuplicateColors === 1 ? "was" : "were"} merged.`);
-  if (report.colorsOnlyInDroppedContent > 0) sentences.push(`${n(report.colorsOnlyInDroppedContent, "colour is", "colours are")} used only by content that wasn't imported.`);
-  if (report.unusedPaletteEntries > 0) sentences.push(`${n(report.unusedPaletteEntries, "unused palette colour was", "unused palette colours were")} left out.`);
-  if (Object.keys(report.unknownElements).length > 0) sentences.push(`Unrecognised content was skipped: ${byType(report.unknownElements)}.`);
-  if (report.stitchesPerInchY !== undefined) sentences.push(`The file states ${report.stitchesPerInch} stitches per inch across and ${report.stitchesPerInchY} down; this app uses one count.`);
+  if (report.clothStitches > 0)
+    sentences.push(`${n(report.clothStitches, "stitch in the fabric colour is", "stitches in the fabric colour are")} left empty.`);
+  if (report.outOfGridStitches > 0)
+    sentences.push(
+      `${n(report.outOfGridStitches, "stitch lies", "stitches lie")} outside the chart and ${report.outOfGridStitches === 1 ? "was" : "were"} left out.`
+    );
+  if (report.unreadableStitches > 0)
+    sentences.push(
+      `${n(report.unreadableStitches, "stitch couldn't", "stitches couldn't")} be read and ${report.unreadableStitches === 1 ? "was" : "were"} left out.`
+    );
+  if (report.duplicateFullStitches > 0)
+    sentences.push(`${n(report.duplicateFullStitches, "cell had", "cells had")} more than one full stitch; the last one is kept.`);
+  if (report.mergedDuplicateColors > 0)
+    sentences.push(
+      `${n(report.mergedDuplicateColors, "palette entry repeats", "palette entries repeat")} a thread and ${report.mergedDuplicateColors === 1 ? "was" : "were"} merged.`
+    );
+  if (report.colorsOnlyInDroppedContent > 0)
+    sentences.push(`${n(report.colorsOnlyInDroppedContent, "colour is", "colours are")} used only by content that wasn't imported.`);
+  if (report.unusedPaletteEntries > 0)
+    sentences.push(`${n(report.unusedPaletteEntries, "unused palette colour was", "unused palette colours were")} left out.`);
+  if (Object.keys(report.unknownElements).length > 0)
+    sentences.push(`Unrecognised content was skipped: ${byType(report.unknownElements)}.`);
+  if (report.stitchesPerInchY !== undefined)
+    sentences.push(
+      `The file states ${report.stitchesPerInch} stitches per inch across and ${report.stitchesPerInchY} down; this app uses one count.`
+    );
   return sentences;
 }
 
@@ -400,7 +440,11 @@ export function summarizeOxsImport(report: OxsImportReport): string[] {
  * The notice shown after opening an OXS chart: the summary, plus the file's fabric count when it is one this app
  * offers (returned as `aidaCount` for the caller to apply) or a note that it was kept otherwise.
  */
-export function oxsImportNotice(report: OxsImportReport, currentAidaCount: number, standardCounts: readonly number[]): { text: string; aidaCount?: number } {
+export function oxsImportNotice(
+  report: OxsImportReport,
+  currentAidaCount: number,
+  standardCounts: readonly number[]
+): { text: string; aidaCount?: number } {
   const sentences = summarizeOxsImport(report);
   let aidaCount: number | undefined;
   const fileCount = report.stitchesPerInch;
@@ -421,7 +465,8 @@ function describeDropped(report: OxsImportReport): string {
   const lines = Object.values(report.droppedLines).reduce((sum, n) => sum + n, 0);
   if (lines > 0) parts.push(`${lines} backstitch line${lines === 1 ? "" : "s"}`);
   for (const [type, n] of Object.entries(report.droppedObjects)) parts.push(`${n} ${type}`);
-  if (report.droppedCommentBoxes > 0) parts.push(`${report.droppedCommentBoxes} comment box${report.droppedCommentBoxes === 1 ? "" : "es"}`);
+  if (report.droppedCommentBoxes > 0)
+    parts.push(`${report.droppedCommentBoxes} comment box${report.droppedCommentBoxes === 1 ? "" : "es"}`);
   return parts.join(", ");
 }
 
@@ -468,7 +513,12 @@ function resolveColors(items: PaletteItem[], report: OxsImportReport): ResolvedC
         report.mergedDuplicateColors++;
         return;
       }
-      const color: ResolvedColor = { rgb: item.rgb!, name: formatThreadName(thread), sourceIndices: [item.index], source: { brand, code: thread.code } };
+      const color: ResolvedColor = {
+        rgb: item.rgb!,
+        name: formatThreadName(thread),
+        sourceIndices: [item.index],
+        source: { brand, code: thread.code },
+      };
       byCode.set(thread.code, color);
       resolved.push(color);
     });
@@ -490,7 +540,11 @@ function resolveColors(items: PaletteItem[], report: OxsImportReport): ResolvedC
     let name = base;
     for (let n = 2; taken.has(name); n++) name = `${base} (${n})`;
     taken.add(name);
-    resolved.push(identity ? { rgb: item.rgb!, name, sourceIndices: [item.index], source: { brand: identity.brand, code: identity.thread.code } } : { rgb: item.rgb!, name, sourceIndices: [item.index] });
+    resolved.push(
+      identity
+        ? { rgb: item.rgb!, name, sourceIndices: [item.index], source: { brand: identity.brand, code: identity.thread.code } }
+        : { rgb: item.rgb!, name, sourceIndices: [item.index] }
+    );
   });
   return resolved;
 }
@@ -520,10 +574,15 @@ export function serializeOxs(pattern: StitchPattern, options: OxsExportOptions =
  */
 export function serializeOxsParts(pattern: StitchPattern, options: OxsExportOptions = {}): string[] {
   const authorName = options.authorName ?? "";
-  const aidaCount = options.aidaCount !== undefined && Number.isFinite(options.aidaCount) && options.aidaCount > 0 ? options.aidaCount : DEFAULT_STITCHES_PER_INCH;
+  const aidaCount =
+    options.aidaCount !== undefined && Number.isFinite(options.aidaCount) && options.aidaCount > 0
+      ? options.aidaCount
+      : DEFAULT_STITCHES_PER_INCH;
   const attribute = (name: string, value: string | number) => ` ${name}="${escapeXmlAttribute(String(value))}"`;
   const lines: string[] = ['<?xml version="1.0" encoding="UTF-8"?>', "<chart>"];
-  lines.push(`<format${attribute("comments01", `Exported by ${SOFTWARE_NAME}`)}${attribute("comments02", "Palette item 0 is the cloth; stitch coordinates start at 0")}/>`);
+  lines.push(
+    `<format${attribute("comments01", `Exported by ${SOFTWARE_NAME}`)}${attribute("comments02", "Palette item 0 is the cloth; stitch coordinates start at 0")}/>`
+  );
   lines.push(
     "<properties" +
       attribute("oxs", "1.0") +
@@ -542,7 +601,9 @@ export function serializeOxsParts(pattern: StitchPattern, options: OxsExportOpti
   );
 
   lines.push("<palette>");
-  lines.push(`<palette_item${attribute("index", 0)}${attribute("number", "cloth")}${attribute("name", "cloth")}${attribute("color", "FFFFFF")}${attribute("printcolor", "FFFFFF")}${attribute("blendcolor", "nil")}${attribute("strands", 2)}/>`);
+  lines.push(
+    `<palette_item${attribute("index", 0)}${attribute("number", "cloth")}${attribute("name", "cloth")}${attribute("color", "FFFFFF")}${attribute("printcolor", "FFFFFF")}${attribute("blendcolor", "nil")}${attribute("strands", 2)}/>`
+  );
   pattern.palette.forEach((color, i) => {
     const thread = color.source ? findThread(color.source.brand, color.source.code) : undefined;
     const hex = toHex(color.rgb);
@@ -571,7 +632,11 @@ export function serializeOxsParts(pattern: StitchPattern, options: OxsExportOpti
     }
     if (row.length > 0) parts.push(row.join("\n") + "\n");
   }
-  parts.push(["</fullstitches>", "<partstitches/>", "<backstitches/>", "<ornaments_inc_knots_and_beads/>", "<commentboxes/>", "</chart>"].join("\n") + "\n");
+  parts.push(
+    ["</fullstitches>", "<partstitches/>", "<backstitches/>", "<ornaments_inc_knots_and_beads/>", "<commentboxes/>", "</chart>"].join(
+      "\n"
+    ) + "\n"
+  );
   return parts;
 }
 

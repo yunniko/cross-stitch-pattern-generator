@@ -1,9 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { oklabToRgb, type Oklab } from "@/lib/color/color";
-import { DEFAULT_MULTI_SCALE_WEIGHTS, runLocalOptimizer, runMultiScaleOptimizer, type LocalOptimizerWeights } from "@/lib/pipeline/local-optimizer";
+import {
+  DEFAULT_MULTI_SCALE_WEIGHTS,
+  runLocalOptimizer,
+  runMultiScaleOptimizer,
+  type LocalOptimizerWeights,
+} from "@/lib/pipeline/local-optimizer";
 import { createPipelineContext } from "@/lib/pipeline/pipeline-context";
 import { injectWorstFitClusters, kMeansQuantizer, WORST_FIT_IMPORTANCE_BOOST } from "@/lib/pipeline/quantize";
-import { runWeightedLloyd, weightedInjectWorstFitClusters, weightedKMeansQuantize, weightedQuantize, type WeightedColorSample } from "@/lib/crisp/weighted-quantize";
+import {
+  runWeightedLloyd,
+  weightedInjectWorstFitClusters,
+  weightedKMeansQuantize,
+  weightedQuantize,
+  type WeightedColorSample,
+} from "@/lib/crisp/weighted-quantize";
 import {
   runWeightedLloyd as runWeightedLloydPreM5,
   weightedInjectWorstFitClusters as weightedInjectWorstFitClustersPreM5,
@@ -13,7 +24,10 @@ import {
 import { mulberry32 } from "@/lib/prng";
 import type { CellColorBuffer, RGB } from "@/lib/types";
 import { makePhotoLikeBuffer } from "./helpers/fixtures";
-import { runLocalOptimizer as runLocalOptimizerPreM5, runMultiScaleOptimizer as runMultiScaleOptimizerPreM5 } from "./reference/local-optimizer-pre-m5";
+import {
+  runLocalOptimizer as runLocalOptimizerPreM5,
+  runMultiScaleOptimizer as runMultiScaleOptimizerPreM5,
+} from "./reference/local-optimizer-pre-m5";
 import { injectWorstFitClusters as injectWorstFitClustersPreM5 } from "./reference/quantize-pre-m5";
 import { computeCellImportance, computeEdgeMagnitude } from "@/lib/pipeline/edge-map";
 import { computePairEdgeEvidence } from "@/lib/pipeline/pair-edge-evidence";
@@ -29,8 +43,11 @@ import { denoiseForQuantization } from "@/lib/pipeline/denoise";
  * and tied pools. M5_SCALE=1 adds a benchmark-sized 1000×667 comparison.
  */
 
-const FINE_CROSSOVER = DEFAULT_MULTI_SCALE_WEIGHTS.fine.smoothness / (DEFAULT_MULTI_SCALE_WEIGHTS.fine.smoothness + DEFAULT_MULTI_SCALE_WEIGHTS.fine.edgeLoss);
-const COARSE_CROSSOVER = DEFAULT_MULTI_SCALE_WEIGHTS.coarse.smoothness / (DEFAULT_MULTI_SCALE_WEIGHTS.coarse.smoothness + DEFAULT_MULTI_SCALE_WEIGHTS.coarse.edgeLoss);
+const FINE_CROSSOVER =
+  DEFAULT_MULTI_SCALE_WEIGHTS.fine.smoothness / (DEFAULT_MULTI_SCALE_WEIGHTS.fine.smoothness + DEFAULT_MULTI_SCALE_WEIGHTS.fine.edgeLoss);
+const COARSE_CROSSOVER =
+  DEFAULT_MULTI_SCALE_WEIGHTS.coarse.smoothness /
+  (DEFAULT_MULTI_SCALE_WEIGHTS.coarse.smoothness + DEFAULT_MULTI_SCALE_WEIGHTS.coarse.edgeLoss);
 const SPECIAL_EVIDENCE = [0, 1, FINE_CROSSOVER, COARSE_CROSSOVER, 0.5];
 
 const WEIGHT_SETS: Array<[string, LocalOptimizerWeights]> = [
@@ -75,7 +92,9 @@ describe("ICM adversarial cases equal the pre-M5 optimizer exactly", () => {
       const n = width * height;
       const cells = randomCells(width, height, rng, 6); // few levels -> many exact color ties
       const importance = new Float32Array(n).map(() => (rng() < 0.3 ? 0 : rng()));
-      const evidence = new Float32Array(n * 4).map(() => (rng() < 0.5 ? SPECIAL_EVIDENCE[Math.floor(rng() * SPECIAL_EVIDENCE.length)] : rng()));
+      const evidence = new Float32Array(n * 4).map(() =>
+        rng() < 0.5 ? SPECIAL_EVIDENCE[Math.floor(rng() * SPECIAL_EVIDENCE.length)] : rng()
+      );
       const contexts = [
         ["pair evidence", createPipelineContext(cells, { importance, pairEvidence: evidence })],
         ["importance fallback", createPipelineContext(cells, { importance })],
@@ -124,13 +143,17 @@ describe("Standard reinvestment adversarial cases equal the pre-M5 code exactly"
     const rng = mulberry32(99);
     for (const n of [1, 2, 7, 500]) {
       const base: Oklab[] = Array.from({ length: Math.max(1, Math.floor(n / 3)) }, () => [rng(), rng() - 0.5, rng() - 0.5]);
-      const points: Oklab[] = Array.from({ length: n }, (_, i) => (i % 2 === 0 ? base[i % base.length] : [rng(), rng() - 0.5, rng() - 0.5]));
+      const points: Oklab[] = Array.from({ length: n }, (_, i) =>
+        i % 2 === 0 ? base[i % base.length] : [rng(), rng() - 0.5, rng() - 0.5]
+      );
       for (const k of [1, 3, 8]) {
         const centroids: Oklab[] = Array.from({ length: k }, () => [rng(), rng() - 0.5, rng() - 0.5]);
         const assignment = new Uint8Array(n).map(() => Math.floor(rng() * k)); // deliberately not nearest
         for (const importance of [new Float32Array(n), new Float32Array(n).fill(1), new Float32Array(n).map(() => rng())]) {
           for (const slots of [0, 1, 5, 20]) {
-            expect(injectWorstFitClusters(points, assignment, centroids, slots, importance)).toStrictEqual(injectWorstFitClustersPreM5(points, assignment, centroids, slots, importance));
+            expect(injectWorstFitClusters(points, assignment, centroids, slots, importance)).toStrictEqual(
+              injectWorstFitClustersPreM5(points, assignment, centroids, slots, importance)
+            );
           }
         }
       }
@@ -179,16 +202,19 @@ describe("Crisp weighted k-means adversarial cases equal the pre-M5 code exactly
     for (const [label, pool] of pools) {
       for (const k of [1, 2, 3, 8, 16]) {
         expect(weightedQuantize(pool, k), `${label} k=${k}`).toStrictEqual(weightedQuantizePreM5(pool, k));
-        expect(weightedKMeansQuantize(pool, k, importanceAt), `${label} k=${k}`).toStrictEqual(weightedKMeansQuantizePreM5(pool, k, importanceAt));
+        expect(weightedKMeansQuantize(pool, k, importanceAt), `${label} k=${k}`).toStrictEqual(
+          weightedKMeansQuantizePreM5(pool, k, importanceAt)
+        );
       }
       const seeds = [colors[0], colors[3], colors[5]];
       const lloyd = runWeightedLloydPreM5(pool, seeds);
       expect(runWeightedLloyd(pool, seeds), label).toStrictEqual(lloyd);
       const notNearest = new Uint8Array(pool.length).map(() => Math.floor(rng() * 3));
       for (const slots of [0, 1, 4, 12]) {
-        expect(weightedInjectWorstFitClusters(pool, notNearest, seeds, slots, importanceAt, WORST_FIT_IMPORTANCE_BOOST), `${label} slots=${slots}`).toStrictEqual(
-          weightedInjectWorstFitClustersPreM5(pool, notNearest, seeds, slots, importanceAt, WORST_FIT_IMPORTANCE_BOOST)
-        );
+        expect(
+          weightedInjectWorstFitClusters(pool, notNearest, seeds, slots, importanceAt, WORST_FIT_IMPORTANCE_BOOST),
+          `${label} slots=${slots}`
+        ).toStrictEqual(weightedInjectWorstFitClustersPreM5(pool, notNearest, seeds, slots, importanceAt, WORST_FIT_IMPORTANCE_BOOST));
       }
     }
     expect(weightedInjectWorstFitClusters([], new Uint8Array(0), [colors[0]], 3, importanceAt, WORST_FIT_IMPORTANCE_BOOST)).toStrictEqual(
@@ -205,6 +231,8 @@ describe.runIf(process.env.M5_SCALE === "1")("benchmark-sized equivalence (M5_SC
     const importance = computeCellImportance(source, computeEdgeMagnitude(source), width, height);
     const ctx = createPipelineContext(cells, { importance, pairEvidence: computePairEdgeEvidence(source, width, height) });
     const quantized = kMeansQuantizer.quantize(denoiseForQuantization(ctx).cells, 64, importance, ctx.cellOklab);
-    expect(runMultiScaleOptimizer(ctx, quantized.cellPaletteIndex, quantized.palette)).toStrictEqual(runMultiScaleOptimizerPreM5(ctx, quantized.cellPaletteIndex, quantized.palette));
+    expect(runMultiScaleOptimizer(ctx, quantized.cellPaletteIndex, quantized.palette)).toStrictEqual(
+      runMultiScaleOptimizerPreM5(ctx, quantized.cellPaletteIndex, quantized.palette)
+    );
   }, 600_000);
 });

@@ -40,7 +40,10 @@ export class PhotoStore {
   private readonly entries = new Map<string, Entry>();
   private totalBytes = 0;
 
-  constructor(private readonly idleMs: number = LIMITS.photoIdleMs, private readonly capBytes: number = LIMITS.photoStoreBytes) {
+  constructor(
+    private readonly idleMs: number = LIMITS.photoIdleMs,
+    private readonly capBytes: number = LIMITS.photoStoreBytes
+  ) {
     setInterval(() => this.expire(), 60_000).unref();
   }
 

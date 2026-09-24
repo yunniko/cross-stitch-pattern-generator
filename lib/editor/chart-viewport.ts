@@ -44,7 +44,14 @@ export function visibleChartRect(
  * fills) and the chart's outer gridlines stay clipped exactly as on a full-size canvas. The leading edges are also
  * rounded down to a multiple of `align` (see `devicePixelAlignment`), so the canvas starts on a whole device pixel.
  */
-export function paintedRectFor(visible: PixelRect, overscanX: number, overscanY: number, chartWidthPx: number, chartHeightPx: number, align = 1): PixelRect {
+export function paintedRectFor(
+  visible: PixelRect,
+  overscanX: number,
+  overscanY: number,
+  chartWidthPx: number,
+  chartHeightPx: number,
+  align = 1
+): PixelRect {
   if (isEmptyRect(visible)) return { x0: 0, y0: 0, x1: 0, y1: 0 };
   return {
     x0: Math.max(0, Math.floor(Math.floor(visible.x0 - overscanX) / align) * align),
@@ -102,7 +109,13 @@ export function cellRegionFor(bitmap: PixelRect, cellSize: number, guard: number
 }
 
 /** The stitch under a client position, in the frame's content-box coordinates; may lie outside the chart. */
-export function cellAtClient(clientX: number, clientY: number, contentLeft: number, contentTop: number, cellSize: number): { x: number; y: number } {
+export function cellAtClient(
+  clientX: number,
+  clientY: number,
+  contentLeft: number,
+  contentTop: number,
+  cellSize: number
+): { x: number; y: number } {
   return { x: Math.floor((clientX - contentLeft) / cellSize), y: Math.floor((clientY - contentTop) / cellSize) };
 }
 

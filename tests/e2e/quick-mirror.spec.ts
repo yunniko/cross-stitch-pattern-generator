@@ -16,14 +16,12 @@ async function generateSmallPattern(page: Page) {
 
 /** Every stitch colour from the navigator (one pixel per stitch), row-major. */
 async function stitches(page: Page): Promise<string[]> {
-  return page
-    .getByTestId("navigator-raster")
-    .evaluate((el: HTMLCanvasElement) => {
-      const { data } = el.getContext("2d")!.getImageData(0, 0, el.width, el.height);
-      const out: string[] = [];
-      for (let i = 0; i < data.length; i += 4) out.push(`${data[i]},${data[i + 1]},${data[i + 2]}`);
-      return out;
-    });
+  return page.getByTestId("navigator-raster").evaluate((el: HTMLCanvasElement) => {
+    const { data } = el.getContext("2d")!.getImageData(0, 0, el.width, el.height);
+    const out: string[] = [];
+    for (let i = 0; i < data.length; i += 4) out.push(`${data[i]},${data[i + 1]},${data[i + 2]}`);
+    return out;
+  });
 }
 
 function isSymmetric(cells: string[], width: number, height: number, copies: (x: number, y: number) => Array<[number, number]>): boolean {
@@ -47,7 +45,14 @@ test("each straight quick mirror makes the chart symmetric in one undo step", as
   const cases: Array<[string, (x: number, y: number) => Array<[number, number]>]> = [
     ["Mirror left half", (x, y) => [[w - 1 - x, y]]],
     ["Mirror upper half", (x, y) => [[x, h - 1 - y]]],
-    ["Mirror upper-left corner", (x, y) => [[w - 1 - x, y], [x, h - 1 - y], [w - 1 - x, h - 1 - y]]],
+    [
+      "Mirror upper-left corner",
+      (x, y) => [
+        [w - 1 - x, y],
+        [x, h - 1 - y],
+        [w - 1 - x, h - 1 - y],
+      ],
+    ],
   ];
   for (const [label, copies] of cases) {
     await expect(undo).toBeDisabled();

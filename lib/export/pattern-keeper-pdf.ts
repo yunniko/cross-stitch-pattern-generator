@@ -1,7 +1,14 @@
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { calculateA4Layout, type A4LayoutOptions } from "./a4-layout";
-import { drawA4GridPage, drawA4LegendPage, drawInfoContinuationPage, drawInfoPage1, planInfoPages, type A4InfoPageOptions } from "./a4-render";
+import {
+  drawA4GridPage,
+  drawA4LegendPage,
+  drawInfoContinuationPage,
+  drawInfoPage1,
+  planInfoPages,
+  type A4InfoPageOptions,
+} from "./a4-render";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import { PdfCanvasAdapter, type FontMetricsSource } from "./pdf-canvas-adapter";
 import { flushFinishedPage } from "./pdf-page-flush";
@@ -157,7 +164,14 @@ export async function buildPatternKeeperPdf(
   fontBytes: Uint8Array,
   options: PatternKeeperPdfOptions = {}
 ): Promise<Uint8Array> {
-  const { aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", onProgress, retainPageOperators = false, ...layoutOptions } = options;
+  const {
+    aidaCount = DEFAULT_AIDA_COUNT,
+    sizeUnit = DEFAULT_SIZE_UNIT,
+    authorName = "",
+    onProgress,
+    retainPageOperators = false,
+    ...layoutOptions
+  } = options;
   const layout = calculateA4Layout(pattern.width, pattern.height, { ...layoutOptions, dpi: 72 });
   const metrics = fontMetricsFor(fontBytes);
 

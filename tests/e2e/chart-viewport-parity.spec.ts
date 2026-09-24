@@ -67,8 +67,15 @@ async function compare(page: Page, c: Case): Promise<Result> {
         renderStitchPreviewToCanvas: typeof import("../unit/reference/render-pre-g036").renderStitchPreviewToCanvas;
       };
     };
-    const { scene: live, reference, edit, rectGridContext, realistic } = (window as unknown as { __viewportParity: Modules }).__viewportParity;
-    const SYMBOLS = "●■▲◆★✚✖♥♣♠☀☂☘♫✿❖◐◑▣▤▥▦▧▨▩☼♦♪⚑⚙⚡✈✉✎✂✓✗✦✧❀❁❂❃❄❅❆❇❈❉❊❋ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz0123456789+=#%&@".split("");
+    const {
+      scene: live,
+      reference,
+      edit,
+      rectGridContext,
+      realistic,
+    } = (window as unknown as { __viewportParity: Modules }).__viewportParity;
+    const SYMBOLS =
+      "●■▲◆★✚✖♥♣♠☀☂☘♫✿❖◐◑▣▤▥▦▧▨▩☼♦♪⚑⚙⚡✈✉✎✂✓✗✦✧❀❁❂❃❄❅❆❇❈❉❊❋ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz0123456789+=#%&@".split("");
     // Imported files may carry any non-empty, unique string as a symbol: wide and multi-character ones overhang their stitch.
     const LONG = ["WWW", "@@", "Mm", "——", "ẞQ", "%%%", "⌘⌘", "WM"];
     let seed = (c.width * 73856093) ^ (c.height * 19349663) ^ (c.cellSize * 83492791) ^ (c.colors * 2654435761);
@@ -109,21 +116,46 @@ async function compare(page: Page, c: Case): Promise<Result> {
       }
       pctx.putImageData(img, 0, 0);
     }
-    const sourceImage = { dataUrl: "photo", naturalWidth: photoCanvas.width, naturalHeight: photoCanvas.height, cellSizePx, offsetX: -0.4, offsetY: -0.7 };
+    const sourceImage = {
+      dataUrl: "photo",
+      naturalWidth: photoCanvas.width,
+      naturalHeight: photoCanvas.height,
+      cellSizePx,
+      offsetX: -0.4,
+      offsetY: -0.7,
+    };
     const pattern = { width: c.width, height: c.height, isLandscape: c.width >= c.height, cellPalette, palette, sourceImage };
 
     // Realistic: the frozen preview (the real stitch texture, per stitch, at the preview's own cell size) against the
     // live per-colour tiles, at the tile size the view uses.
-    const previewCanvas = c.viewMode === "realistic" ? ((await realistic.renderStitchPreviewToCanvas(pattern as never, { cellSize: c.cellSize })) as HTMLCanvasElement) : null;
+    const previewCanvas =
+      c.viewMode === "realistic"
+        ? ((await realistic.renderStitchPreviewToCanvas(pattern as never, { cellSize: c.cellSize })) as HTMLCanvasElement)
+        : null;
     const tiles = c.viewMode === "realistic" ? await realistic.buildStitchTiles(palette, Math.max(4, c.cellSize)) : null;
 
     const cs = c.cellSize;
     const W = c.width * cs;
     const H = c.height * cs;
     const activeTool =
-      c.gesture === "brush" ? "brush" : c.gesture === "move" ? "move" : c.gesture === "none" ? (c.highlighted ? "highlight" : "brush") : "select";
+      c.gesture === "brush"
+        ? "brush"
+        : c.gesture === "move"
+          ? "move"
+          : c.gesture === "none"
+            ? c.highlighted
+              ? "highlight"
+              : "brush"
+            : "select";
     const highlighted = new Set(c.highlighted ?? []);
-    const selection = { x: 4, y: 3, width: 9, height: 6, cells: Uint8Array.from({ length: 54 }, (_, i) => (i % 11 === 0 ? 255 : i % c.colors)), originRect: { x: 4, y: 3, width: 9, height: 6 } };
+    const selection = {
+      x: 4,
+      y: 3,
+      width: 9,
+      height: 6,
+      cells: Uint8Array.from({ length: 54 }, (_, i) => (i % 11 === 0 ? 255 : i % c.colors)),
+      originRect: { x: 4, y: 3, width: 9, height: 6 },
+    };
     const dragging = c.gesture === "select-rect" || c.gesture === "select-piece";
     const common = {
       viewMode: c.viewMode,
@@ -135,17 +167,40 @@ async function compare(page: Page, c: Case): Promise<Result> {
       selection: c.gesture === "floating" ? selection : null,
       canvasColor: c.canvasColor ?? "#ffffff",
     };
-    const referenceScene = { ...common, realisticPreview: previewCanvas ? { canvas: previewCanvas, width: c.width, height: c.height } : null, isSelectDragging: () => dragging };
+    const referenceScene = {
+      ...common,
+      realisticPreview: previewCanvas ? { canvas: previewCanvas, width: c.width, height: c.height } : null,
+      isSelectDragging: () => dragging,
+    };
     // G-045 M4: the live renderer gates the dimming overlay on Isolate, the frozen oracle still on the
     // highlight tool. Same pixels, different vocabulary -- so each scene is told in its own words (D158).
-    const liveScene = { ...common, realisticTiles: tiles, selectDragging: dragging, isolate: highlighted.size > 0, litColorIndices: highlighted };
+    const liveScene = {
+      ...common,
+      realisticTiles: tiles,
+      selectDragging: dragging,
+      isolate: highlighted.size > 0,
+      litColorIndices: highlighted,
+    };
 
     // The brush stroke: a path that revisits a stitch non-consecutively, with the active colour changed mid-stroke
     // (another pointer can pick a legend colour) and a final EMPTY stitch, so each redraw must use its own moment's colour.
     const brushCells = cellPalette.slice();
     const ops: Array<{ cellIndex: number; paletteIndex: number }> = [];
-    const path = [[1, 1], [2, 1], [3, 2], [3, 3], [2, 3], [2, 2], [3, 2], [0, 0], [c.width - 1, c.height - 1], [Math.floor(c.width / 2), Math.floor(c.height / 2)]];
-    path.forEach(([x, y], step) => ops.push({ cellIndex: y * c.width + x, paletteIndex: step < 5 ? 2 % c.colors : step === 9 ? 255 : 3 % c.colors }));
+    const path = [
+      [1, 1],
+      [2, 1],
+      [3, 2],
+      [3, 3],
+      [2, 3],
+      [2, 2],
+      [3, 2],
+      [0, 0],
+      [c.width - 1, c.height - 1],
+      [Math.floor(c.width / 2), Math.floor(c.height / 2)],
+    ];
+    path.forEach(([x, y], step) =>
+      ops.push({ cellIndex: y * c.width + x, paletteIndex: step < 5 ? 2 % c.colors : step === 9 ? 255 : 3 % c.colors })
+    );
     const [dx, dy] = c.shift ?? [3, -2];
     const selectRect = { x: 2, y: 1, width: 7, height: 5 };
     const piece = { ...selection, x: selection.x + 5, y: selection.y + 2 };
@@ -182,11 +237,22 @@ async function compare(page: Page, c: Case): Promise<Result> {
       reference.drawShiftedSnapshot(fctx, referenceScene as never, pattern as never, snapshot, dx, dy);
     } else if (c.gesture === "select-rect") {
       // Grid + photo: the fresh base render plus the outline (D135: no second, accumulated copy of the snapshot).
-      if (incremental) reference.drawSelectionDragFrame(fctx, referenceScene as never, { kind: "rect", base: pattern as never, rect: selectRect, snapshot: reference.snapshotCanvas(full) });
+      if (incremental)
+        reference.drawSelectionDragFrame(fctx, referenceScene as never, {
+          kind: "rect",
+          base: pattern as never,
+          rect: selectRect,
+          snapshot: reference.snapshotCanvas(full),
+        });
       else reference.drawSelectionOutline(fctx, selectRect, cs);
     } else if (c.gesture === "select-piece") {
       if (incremental) {
-        reference.drawSelectionDragFrame(fctx, referenceScene as never, { kind: "piece", base: pattern as never, piece, snapshot: reference.snapshotCanvas(full) });
+        reference.drawSelectionDragFrame(fctx, referenceScene as never, {
+          kind: "piece",
+          base: pattern as never,
+          piece,
+          snapshot: reference.snapshotCanvas(full),
+        });
       } else {
         // A fresh render of the composited piece plus its outline (D135: no accumulation over an uncleared canvas).
         reference.renderFullView(fullCanvas, edit.compositeSelectionPreview(pattern as never, piece) as never, referenceScene as never);
@@ -255,23 +321,105 @@ for (const cellSize of [1, 3, 4, 5, 6, 8, 12, 28, 56, 112]) {
   for (const viewMode of ["color", "bw", "photo", "realistic", "photo-only"] as const) {
     CASES.push({ label: `${viewMode} @${cellSize}px`, width, height, colors: 24, cellSize, viewMode, gesture: "none", emptyShare: 0.08 });
   }
-  CASES.push({ label: `highlight two colors @${cellSize}px`, width, height, colors: 24, cellSize, viewMode: "color", gesture: "none", highlighted: [1, 5], emptyShare: 0.08 });
+  CASES.push({
+    label: `highlight two colors @${cellSize}px`,
+    width,
+    height,
+    colors: 24,
+    cellSize,
+    viewMode: "color",
+    gesture: "none",
+    highlighted: [1, 5],
+    emptyShare: 0.08,
+  });
 }
 for (const cellSize of [4, 8, 28]) {
   const { width, height } = gridFor(cellSize);
   for (const viewMode of ["color", "bw", "photo"] as const) {
-    CASES.push({ label: `long symbols ${viewMode} @${cellSize}px`, width, height, colors: 12, cellSize, viewMode, gesture: "none", longSymbols: true });
+    CASES.push({
+      label: `long symbols ${viewMode} @${cellSize}px`,
+      width,
+      height,
+      colors: 12,
+      cellSize,
+      viewMode,
+      gesture: "none",
+      longSymbols: true,
+    });
     for (const gesture of ["floating", "brush", "move", "select-rect", "select-piece"] as const) {
-      CASES.push({ label: `${gesture} ${viewMode} @${cellSize}px`, width, height, colors: 16, cellSize, viewMode, gesture, emptyShare: 0.05 });
+      CASES.push({
+        label: `${gesture} ${viewMode} @${cellSize}px`,
+        width,
+        height,
+        colors: 16,
+        cellSize,
+        viewMode,
+        gesture,
+        emptyShare: 0.05,
+      });
     }
   }
-  CASES.push({ label: `highlight three colors @${cellSize}px`, width, height, colors: 16, cellSize, viewMode: "color", gesture: "none", highlighted: [0, 3, 7] });
-  CASES.push({ label: `dark canvas colour @${cellSize}px`, width, height, colors: 16, cellSize, viewMode: "color", gesture: "none", canvasColor: "#1e1e1e", emptyShare: 0.3 });
+  CASES.push({
+    label: `highlight three colors @${cellSize}px`,
+    width,
+    height,
+    colors: 16,
+    cellSize,
+    viewMode: "color",
+    gesture: "none",
+    highlighted: [0, 3, 7],
+  });
+  CASES.push({
+    label: `dark canvas colour @${cellSize}px`,
+    width,
+    height,
+    colors: 16,
+    cellSize,
+    viewMode: "color",
+    gesture: "none",
+    canvasColor: "#1e1e1e",
+    emptyShare: 0.3,
+  });
 }
-CASES.push({ label: "move wrapping more than a whole chart @8px", ...gridFor(8), colors: 16, cellSize: 8, viewMode: "color", gesture: "move", shift: [-157, 211] });
-CASES.push({ label: "move on a chart smaller than the tiles @28px", width: 14, height: 10, colors: 8, cellSize: 28, viewMode: "photo", gesture: "move", shift: [9, 13] });
-CASES.push({ label: "largest: 1000×750 color @4px", width: 1000, height: 750, colors: 64, cellSize: 4, viewMode: "color", gesture: "none", emptyShare: 0.02 });
-CASES.push({ label: "largest: 1000×750 highlight @8px", width: 1000, height: 750, colors: 64, cellSize: 8, viewMode: "color", gesture: "none", highlighted: [2, 9, 40] });
+CASES.push({
+  label: "move wrapping more than a whole chart @8px",
+  ...gridFor(8),
+  colors: 16,
+  cellSize: 8,
+  viewMode: "color",
+  gesture: "move",
+  shift: [-157, 211],
+});
+CASES.push({
+  label: "move on a chart smaller than the tiles @28px",
+  width: 14,
+  height: 10,
+  colors: 8,
+  cellSize: 28,
+  viewMode: "photo",
+  gesture: "move",
+  shift: [9, 13],
+});
+CASES.push({
+  label: "largest: 1000×750 color @4px",
+  width: 1000,
+  height: 750,
+  colors: 64,
+  cellSize: 4,
+  viewMode: "color",
+  gesture: "none",
+  emptyShare: 0.02,
+});
+CASES.push({
+  label: "largest: 1000×750 highlight @8px",
+  width: 1000,
+  height: 750,
+  colors: 64,
+  cellSize: 8,
+  viewMode: "color",
+  gesture: "none",
+  highlighted: [2, 9, 40],
+});
 
 let code: string;
 
@@ -282,7 +430,8 @@ test.beforeAll(async () => {
 test.beforeEach(async ({ page }) => {
   await page.route(`${ORIGIN}/**`, (route) => {
     const url = new URL(route.request().url());
-    if (url.pathname === "/stitch-texture.png") return route.fulfill({ path: path.join(ROOT, "public", "stitch-texture.png"), contentType: "image/png" });
+    if (url.pathname === "/stitch-texture.png")
+      return route.fulfill({ path: path.join(ROOT, "public", "stitch-texture.png"), contentType: "image/png" });
     return route.fulfill({ body: "<!doctype html><html><body></body></html>", contentType: "text/html" });
   });
   await page.goto(`${ORIGIN}/`);
@@ -299,7 +448,8 @@ for (const c of CASES) {
     const outlined = c.gesture === "floating" || c.gesture === "select-rect" || c.gesture === "select-piece";
     const tolerance = photoView ? 16 : outlined ? 1 : 0;
     for (const { rect, differing, maxDelta } of result.rects) {
-      if (differing > 0) test.info().annotations.push({ type: "within-tolerance", description: `rect ${rect}: ${differing} bytes, max ${maxDelta}` });
+      if (differing > 0)
+        test.info().annotations.push({ type: "within-tolerance", description: `rect ${rect}: ${differing} bytes, max ${maxDelta}` });
       expect(maxDelta, `rect ${rect} of ${result.size}: ${differing} differing bytes`).toBeLessThanOrEqual(tolerance);
     }
   });

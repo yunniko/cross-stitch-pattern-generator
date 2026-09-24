@@ -154,12 +154,18 @@ test("the start screen leaves nothing live over the chart it covers, and every d
 
   // And none of them answers the pointer -- the hover is written `enabled:hover:`, so it cannot apply here.
   const readAt = (x: number, y: number) =>
-    page.evaluate(([px, py]: [number, number]) => {
-      const el = document.elementFromPoint(px, py)?.closest("button");
-      if (!el) return null;
-      const cs = getComputedStyle(el);
-      return { label: (el.getAttribute("aria-label") || el.textContent || "?").trim().slice(0, 30), style: `${cs.color}|${cs.backgroundColor}` };
-    }, [x, y] as [number, number]);
+    page.evaluate(
+      ([px, py]: [number, number]) => {
+        const el = document.elementFromPoint(px, py)?.closest("button");
+        if (!el) return null;
+        const cs = getComputedStyle(el);
+        return {
+          label: (el.getAttribute("aria-label") || el.textContent || "?").trim().slice(0, 30),
+          style: `${cs.color}|${cs.backgroundColor}`,
+        };
+      },
+      [x, y] as [number, number]
+    );
 
   for (const { label, cx, cy } of boxes) {
     await page.mouse.move(2, 2);

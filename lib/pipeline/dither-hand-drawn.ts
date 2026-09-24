@@ -293,7 +293,15 @@ function lumpNoise(mark: number, x: number, y: number): number {
  * How early a mark reaches a cell. Distance alone gives a disc; a ring is ranked by distance *from its own circle*,
  * so the annulus is drawn first and the middle closes later, and a lump adds a per-cell wobble to its edge.
  */
-export function shapeScore(mark: Mark, index: number, dx: number, dy: number, x: number, y: number, texture: DitherTexture = DEFAULT_DITHER_TEXTURE): number {
+export function shapeScore(
+  mark: Mark,
+  index: number,
+  dx: number,
+  dy: number,
+  x: number,
+  y: number,
+  texture: DitherTexture = DEFAULT_DITHER_TEXTURE
+): number {
   const distance = Math.sqrt(dx * dx + dy * dy);
   // Each switch adds a term; with all three off every branch below is the expression it was before G-058, which is
   // what keeps an existing texture drawing an existing chart.
@@ -305,8 +313,7 @@ export function shapeScore(mark: Mark, index: number, dx: number, dy: number, x:
    * same cells in the same order, which is exactly what the first attempt at this did (measured: 0% difference).
    * Scattering the spill is what makes the radius visible: a solid dot of the chosen size, then speckle.
    */
-  const withCore = (base: number) =>
-    texture.sizeEveryMark && base > mark.radius ? mark.radius + 1 + lumpNoise(index, x, y) : base;
+  const withCore = (base: number) => (texture.sizeEveryMark && base > mark.radius ? mark.radius + 1 + lumpNoise(index, x, y) : base);
 
   switch (mark.shape) {
     case "dot":

@@ -15,11 +15,16 @@ export function CrashScreen({ error, reset }: { error: Error & { digest?: string
 
   function downloadReport() {
     const timestamp = new Date().toISOString();
-    const report = buildCrashReport(error, readCrashContext(), {
-      url: window.location.href,
-      userAgent: navigator.userAgent,
-      viewport: { width: window.innerWidth, height: window.innerHeight },
-    }, timestamp);
+    const report = buildCrashReport(
+      error,
+      readCrashContext(),
+      {
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+      },
+      timestamp
+    );
     const url = URL.createObjectURL(new Blob([report], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
@@ -34,10 +39,13 @@ export function CrashScreen({ error, reset }: { error: Error & { digest?: string
       <div className="w-full max-w-xl rounded-xl border border-line bg-surface p-6">
         <h2 className="text-base font-medium">Something in the editor failed.</h2>
         <p className="mt-2 text-sm text-muted">
-          Your chart is autosaved, so reloading should bring it back as it was. Before you do, take the report — it is the only record of what
-          went wrong, and without it this can&apos;t be chased.
+          Your chart is autosaved, so reloading should bring it back as it was. Before you do, take the report — it is the only record of
+          what went wrong, and without it this can&apos;t be chased.
         </p>
-        <p className="mt-3 rounded-md border border-line bg-sunken px-3 py-2 font-mono text-xs break-words text-muted" data-testid="crash-message">
+        <p
+          className="mt-3 rounded-md border border-line bg-sunken px-3 py-2 font-mono text-xs break-words text-muted"
+          data-testid="crash-message"
+        >
           {error.message || "Unknown error"}
           {error.digest ? ` (${error.digest})` : ""}
         </p>

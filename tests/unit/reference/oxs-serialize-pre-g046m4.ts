@@ -16,10 +16,15 @@ const DEFAULT_STITCHES_PER_INCH = 14;
  */
 export function serializeOxsPreG046M4(pattern: StitchPattern, options: OxsExportOptions = {}): string {
   const authorName = options.authorName ?? "";
-  const aidaCount = options.aidaCount !== undefined && Number.isFinite(options.aidaCount) && options.aidaCount > 0 ? options.aidaCount : DEFAULT_STITCHES_PER_INCH;
+  const aidaCount =
+    options.aidaCount !== undefined && Number.isFinite(options.aidaCount) && options.aidaCount > 0
+      ? options.aidaCount
+      : DEFAULT_STITCHES_PER_INCH;
   const attribute = (name: string, value: string | number) => ` ${name}="${escapeXmlAttribute(String(value))}"`;
   const lines: string[] = ['<?xml version="1.0" encoding="UTF-8"?>', "<chart>"];
-  lines.push(`<format${attribute("comments01", `Exported by ${SOFTWARE_NAME}`)}${attribute("comments02", "Palette item 0 is the cloth; stitch coordinates start at 0")}/>`);
+  lines.push(
+    `<format${attribute("comments01", `Exported by ${SOFTWARE_NAME}`)}${attribute("comments02", "Palette item 0 is the cloth; stitch coordinates start at 0")}/>`
+  );
   lines.push(
     "<properties" +
       attribute("oxs", "1.0") +
@@ -38,7 +43,9 @@ export function serializeOxsPreG046M4(pattern: StitchPattern, options: OxsExport
   );
 
   lines.push("<palette>");
-  lines.push(`<palette_item${attribute("index", 0)}${attribute("number", "cloth")}${attribute("name", "cloth")}${attribute("color", "FFFFFF")}${attribute("printcolor", "FFFFFF")}${attribute("blendcolor", "nil")}${attribute("strands", 2)}/>`);
+  lines.push(
+    `<palette_item${attribute("index", 0)}${attribute("number", "cloth")}${attribute("name", "cloth")}${attribute("color", "FFFFFF")}${attribute("printcolor", "FFFFFF")}${attribute("blendcolor", "nil")}${attribute("strands", 2)}/>`
+  );
   pattern.palette.forEach((color, i) => {
     const thread = color.source ? findThread(color.source.brand, color.source.code) : undefined;
     const hex = toHex(color.rgb);
@@ -72,4 +79,3 @@ export function serializeOxsPreG046M4(pattern: StitchPattern, options: OxsExport
 function toHex(rgb: RGB): string {
   return rgb.map((v) => v.toString(16).padStart(2, "0").toUpperCase()).join("");
 }
-

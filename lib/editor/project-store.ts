@@ -1,4 +1,11 @@
-import { deserializePattern, deserializePatternData, FORMAT_VERSION, readSymmetry, serializeSymmetry, type SerializedSymmetry } from "./pattern-serialize";
+import {
+  deserializePattern,
+  deserializePatternData,
+  FORMAT_VERSION,
+  readSymmetry,
+  serializeSymmetry,
+  type SerializedSymmetry,
+} from "./pattern-serialize";
 import { NO_SYMMETRY, type SymmetryAxes } from "./symmetry-axes";
 import type { RGB, SourceImageRef, StitchPattern, ThreadSwatchRef } from "../types";
 
@@ -119,7 +126,10 @@ async function prunePhotos(kv: KeyValueStore, keep: string | null): Promise<void
   }
 }
 
-async function encodeRecord(pattern: StitchPattern, symmetry: SymmetryAxes): Promise<{ record: StoredProjectRecord; photo?: { key: string; dataUrl: string } }> {
+async function encodeRecord(
+  pattern: StitchPattern,
+  symmetry: SymmetryAxes
+): Promise<{ record: StoredProjectRecord; photo?: { key: string; dataUrl: string } }> {
   const record: StoredProjectRecord = {
     storeVersion: STORE_VERSION,
     // Still store version 1, so an older open tab can read the record; `formatVersion` tells legacy records apart (D122).
@@ -128,7 +138,9 @@ async function encodeRecord(pattern: StitchPattern, symmetry: SymmetryAxes): Pro
     height: pattern.height,
     isLandscape: pattern.isLandscape,
     cellPalette: pattern.cellPalette,
-    palette: pattern.palette.map((c) => (c.source ? { rgb: c.rgb, symbol: c.symbol, name: c.name, source: c.source } : { rgb: c.rgb, symbol: c.symbol, name: c.name })),
+    palette: pattern.palette.map((c) =>
+      c.source ? { rgb: c.rgb, symbol: c.symbol, name: c.name, source: c.source } : { rgb: c.rgb, symbol: c.symbol, name: c.name }
+    ),
     name: pattern.name,
     threadBrand: pattern.threadBrand,
     edgeMode: pattern.edgeMode,

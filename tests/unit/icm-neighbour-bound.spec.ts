@@ -1,10 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { oklabToRgb } from "@/lib/color/color";
-import { DEFAULT_MULTI_SCALE_WEIGHTS, runLocalOptimizer, runMultiScaleOptimizer, type LocalOptimizerWeights } from "@/lib/pipeline/local-optimizer";
+import {
+  DEFAULT_MULTI_SCALE_WEIGHTS,
+  runLocalOptimizer,
+  runMultiScaleOptimizer,
+  type LocalOptimizerWeights,
+} from "@/lib/pipeline/local-optimizer";
 import { createPipelineContext } from "@/lib/pipeline/pipeline-context";
 import { mulberry32 } from "@/lib/prng";
 import type { CellColorBuffer, RGB } from "@/lib/types";
-import { runLocalOptimizer as runLocalOptimizerPreM5, runMultiScaleOptimizer as runMultiScaleOptimizerPreM5 } from "./reference/local-optimizer-pre-m5";
+import {
+  runLocalOptimizer as runLocalOptimizerPreM5,
+  runMultiScaleOptimizer as runMultiScaleOptimizerPreM5,
+} from "./reference/local-optimizer-pre-m5";
 
 /**
  * G-046 M3 (D170): a Standard cell scans the palette only when no neighbour label scores strictly below `total`, the

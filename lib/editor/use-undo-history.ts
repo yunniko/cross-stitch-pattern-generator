@@ -51,7 +51,9 @@ export function pushHistory<T>(prev: HistoryState<T>, next: T): HistoryState<T> 
 export function replaceSinceHistory<T>(prev: HistoryState<T>, anchor: T, since: readonly T[], next: T): HistoryState<T> {
   const anchorIndex = prev.index - since.length;
   const matches =
-    anchorIndex >= 0 && prev.entries[anchorIndex] === anchor && since.every((entry, offset) => prev.entries[anchorIndex + 1 + offset] === entry);
+    anchorIndex >= 0 &&
+    prev.entries[anchorIndex] === anchor &&
+    since.every((entry, offset) => prev.entries[anchorIndex + 1 + offset] === entry);
   if (!matches) return pushHistory(prev, next);
   return { entries: [...prev.entries.slice(0, anchorIndex + 1), next], index: anchorIndex + 1 };
 }

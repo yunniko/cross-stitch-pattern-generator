@@ -22,7 +22,12 @@ export interface RecordedLine {
 }
 
 /** A `ChartDrawingContext` that records every fill, text and stroked line, for asserting on what a draw function actually did without a canvas. */
-export function makeRecordingContext(): ChartDrawingContext & { styles: string[]; rects: RecordedRect[]; texts: RecordedText[]; lines: RecordedLine[] } {
+export function makeRecordingContext(): ChartDrawingContext & {
+  styles: string[];
+  rects: RecordedRect[];
+  texts: RecordedText[];
+  lines: RecordedLine[];
+} {
   const styles: string[] = [];
   const rects: RecordedRect[] = [];
   const texts: RecordedText[] = [];

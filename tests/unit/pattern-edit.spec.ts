@@ -42,11 +42,16 @@ function makePattern(width: number, height: number, cellPalette: number[], color
 describe("mergeColors", () => {
   it("reassigns every stitch of the source color to the target and removes the source from the palette", () => {
     // 2x2 grid: [0,1] / [1,2]
-    const pattern = makePattern(2, 2, [0, 1, 1, 2], [
-      [255, 0, 0],
-      [0, 255, 0],
-      [0, 0, 255],
-    ]);
+    const pattern = makePattern(
+      2,
+      2,
+      [0, 1, 1, 2],
+      [
+        [255, 0, 0],
+        [0, 255, 0],
+        [0, 0, 255],
+      ]
+    );
     const merged = mergeColors(pattern, 0, 1);
 
     expect(merged.palette).toHaveLength(2);
@@ -61,20 +66,30 @@ describe("mergeColors", () => {
   });
 
   it("is a no-op when source equals target", () => {
-    const pattern = makePattern(1, 2, [0, 1], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      1,
+      2,
+      [0, 1],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     expect(mergeColors(pattern, 0, 0)).toBe(pattern);
   });
 
   it("merging a color into EMPTY_CELL turns its stitches empty and removes it from the palette (Owner request 2026-09-12)", () => {
     // 2x2 grid: [0,1] / [1,2] -- merge color 1 (the middle one) into empty.
-    const pattern = makePattern(2, 2, [0, 1, 1, 2], [
-      [255, 0, 0],
-      [0, 255, 0],
-      [0, 0, 255],
-    ]);
+    const pattern = makePattern(
+      2,
+      2,
+      [0, 1, 1, 2],
+      [
+        [255, 0, 0],
+        [0, 255, 0],
+        [0, 0, 255],
+      ]
+    );
     const merged = mergeColors(pattern, 1, EMPTY_CELL);
 
     expect(merged.palette).toHaveLength(2);
@@ -89,10 +104,15 @@ describe("mergeColors", () => {
   });
 
   it("merging a color into EMPTY_CELL leaves cells that were already empty untouched", () => {
-    const pattern = makePattern(1, 3, [0, EMPTY_CELL, 1], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      1,
+      3,
+      [0, EMPTY_CELL, 1],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     const merged = mergeColors(pattern, 0, EMPTY_CELL);
     expect(Array.from(merged.cellPalette)).toEqual([EMPTY_CELL, EMPTY_CELL, 0]);
     expect(merged.palette).toHaveLength(1);
@@ -104,7 +124,10 @@ describe("fillCluster", () => {
   it("fills the whole connected component the clicked cell belongs to, not just that cell", () => {
     // 3x1 grid, all color 0 -- one connected cluster of 3 cells.
     const pattern = makePattern(3, 1, [0, 0, 0], [[100, 100, 100]]);
-    const withNewColor = { ...pattern, palette: [...pattern.palette, { index: 1, rgb: [200, 50, 50] as RGB, symbol: "1", name: "New", count: 0 }] };
+    const withNewColor = {
+      ...pattern,
+      palette: [...pattern.palette, { index: 1, rgb: [200, 50, 50] as RGB, symbol: "1", name: "New", count: 0 }],
+    };
     const filled = fillCluster(withNewColor, 1, 1);
 
     expect(Array.from(filled.cellPalette)).toEqual([1, 1, 1]);
@@ -114,11 +137,19 @@ describe("fillCluster", () => {
 
   it("does not affect a same-colored but disconnected region", () => {
     // 3x1 grid: [0, 1, 0] -- the two color-0 cells are NOT 4-connected to each other.
-    const pattern = makePattern(3, 1, [0, 1, 0], [
-      [100, 100, 100],
-      [200, 200, 200],
-    ]);
-    const withNewColor = { ...pattern, palette: [...pattern.palette, { index: 2, rgb: [50, 50, 200] as RGB, symbol: "2", name: "New", count: 0 }] };
+    const pattern = makePattern(
+      3,
+      1,
+      [0, 1, 0],
+      [
+        [100, 100, 100],
+        [200, 200, 200],
+      ]
+    );
+    const withNewColor = {
+      ...pattern,
+      palette: [...pattern.palette, { index: 2, rgb: [50, 50, 200] as RGB, symbol: "2", name: "New", count: 0 }],
+    };
     const filled = fillCluster(withNewColor, 0, 2);
 
     expect(Array.from(filled.cellPalette)).toEqual([2, 1, 0]);
@@ -127,10 +158,15 @@ describe("fillCluster", () => {
 
 describe("paintStitch", () => {
   it("repaints exactly one cell", () => {
-    const pattern = makePattern(2, 1, [0, 0], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 0],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     const painted = paintStitch(pattern, 1, 1);
     expect(Array.from(painted.cellPalette)).toEqual([0, 1]);
     expect(painted.palette[0].count).toBe(1);
@@ -157,10 +193,15 @@ describe("editColorToBrandColor", () => {
   });
 
   it("leaves the symbol and other colors untouched", () => {
-    const pattern = makePattern(1, 2, [0, 1], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      1,
+      2,
+      [0, 1],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     const edited = editColorToBrandColor(pattern, 0, "310", "dmc");
     expect(edited.palette[0].symbol).toBe(pattern.palette[0].symbol);
     expect(edited.palette[1]).toEqual(pattern.palette[1]);
@@ -204,7 +245,12 @@ describe("addColor", () => {
 
   it("refuses to add a color past MAX_COLORS", () => {
     const colors: RGB[] = Array.from({ length: MAX_COLORS }, (_, i) => [i, i, i] as RGB);
-    const pattern = makePattern(MAX_COLORS, 1, colors.map((_, i) => i), colors);
+    const pattern = makePattern(
+      MAX_COLORS,
+      1,
+      colors.map((_, i) => i),
+      colors
+    );
     expect(() => addColor(pattern, [1, 2, 3])).toThrow();
   });
 });
@@ -228,7 +274,12 @@ describe("addBrandColor", () => {
 
   it("refuses to add a color past MAX_COLORS", () => {
     const colors: RGB[] = Array.from({ length: MAX_COLORS }, (_, i) => [i, i, i] as RGB);
-    const pattern = makePattern(MAX_COLORS, 1, colors.map((_, i) => i), colors);
+    const pattern = makePattern(
+      MAX_COLORS,
+      1,
+      colors.map((_, i) => i),
+      colors
+    );
     expect(() => addBrandColor(pattern, "310", "dmc")).toThrow();
   });
 
@@ -280,20 +331,30 @@ describe("renameColor", () => {
 
 describe("setColorSymbol", () => {
   it("assigns the symbol when it isn't used by any other color", () => {
-    const pattern = makePattern(1, 2, [0, 1], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      1,
+      2,
+      [0, 1],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     const result = setColorSymbol(pattern, 0, "★");
     expect(result.palette[0].symbol).toBe("★");
     expect(result.palette[1].symbol).toBe("1"); // untouched
   });
 
   it("swaps symbols with whichever color currently holds the requested one, never producing a duplicate", () => {
-    const pattern = makePattern(1, 2, [0, 1], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      1,
+      2,
+      [0, 1],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     // Color 1 already owns symbol "1" -- asking color 0 to take it must
     // give color 0 "1" and hand color 1 color 0's old symbol ("0") back,
     // rather than leaving two colors both named "1".
@@ -309,10 +370,15 @@ describe("setColorSymbol", () => {
   });
 
   it("leaves every other color's rgb/name/count untouched", () => {
-    const pattern = makePattern(1, 2, [0, 1], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      1,
+      2,
+      [0, 1],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     const result = setColorSymbol(pattern, 0, "★");
     expect(result.palette[0].rgb).toEqual([10, 10, 10]);
     expect(result.palette[0].name).toBe("Color 0");
@@ -341,11 +407,16 @@ describe("renamePattern", () => {
 
 describe("compactUnusedColors", () => {
   it("drops zero-count colors and remaps remaining indices contiguously", () => {
-    const pattern = makePattern(2, 1, [0, 2], [
-      [10, 10, 10],
-      [20, 20, 20], // unused
-      [30, 30, 30],
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 2],
+      [
+        [10, 10, 10],
+        [20, 20, 20], // unused
+        [30, 30, 30],
+      ]
+    );
     const compacted = compactUnusedColors(pattern);
     expect(compacted.palette).toHaveLength(2);
     expect(compacted.palette.map((c) => c.rgb)).toEqual([
@@ -356,10 +427,15 @@ describe("compactUnusedColors", () => {
   });
 
   it("is a no-op when every color is used", () => {
-    const pattern = makePattern(2, 1, [0, 1], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 1],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     expect(compactUnusedColors(pattern)).toBe(pattern);
   });
 });
@@ -367,59 +443,92 @@ describe("compactUnusedColors", () => {
 describe("shiftPattern", () => {
   it("cyclically wraps stitch content by (dx, dy) instead of leaving gaps", () => {
     // 3x1: [A, B, C] shifted right by 1 -> [C, A, B].
-    const pattern = makePattern(3, 1, [0, 1, 2], [
-      [255, 0, 0],
-      [0, 255, 0],
-      [0, 0, 255],
-    ]);
+    const pattern = makePattern(
+      3,
+      1,
+      [0, 1, 2],
+      [
+        [255, 0, 0],
+        [0, 255, 0],
+        [0, 0, 255],
+      ]
+    );
     const shifted = shiftPattern(pattern, 1, 0);
     expect(Array.from(shifted.cellPalette)).toEqual([2, 0, 1]);
   });
 
   it("wraps in both axes at once", () => {
     // 2x2: [[0,1],[2,3]] shifted by (1,1) -> [[3,2],[1,0]].
-    const pattern = makePattern(2, 2, [0, 1, 2, 3], [
-      [10, 10, 10],
-      [20, 20, 20],
-      [30, 30, 30],
-      [40, 40, 40],
-    ]);
+    const pattern = makePattern(
+      2,
+      2,
+      [0, 1, 2, 3],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+        [30, 30, 30],
+        [40, 40, 40],
+      ]
+    );
     const shifted = shiftPattern(pattern, 1, 1);
     expect(Array.from(shifted.cellPalette)).toEqual([3, 2, 1, 0]);
   });
 
   it("is a no-op for a zero shift", () => {
-    const pattern = makePattern(2, 1, [0, 1], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 1],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     expect(shiftPattern(pattern, 0, 0)).toBe(pattern);
   });
 
   it("preserves every color's stitch count -- only positions move", () => {
-    const pattern = makePattern(3, 2, [0, 0, 1, 1, 1, 0], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      3,
+      2,
+      [0, 0, 1, 1, 1, 0],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     const shifted = shiftPattern(pattern, 2, -1);
     expect(shifted.palette.map((c) => c.count)).toEqual(pattern.palette.map((c) => c.count));
   });
 
   it("moves the source photo's offset by the same amount, keeping it locked to the grid", () => {
-    const base = makePattern(2, 1, [0, 1], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
-    const pattern = { ...base, sourceImage: { dataUrl: "data:image/png;base64,AA", naturalWidth: 20, naturalHeight: 10, cellSizePx: 10, offsetX: 3, offsetY: -2 } };
+    const base = makePattern(
+      2,
+      1,
+      [0, 1],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
+    const pattern = {
+      ...base,
+      sourceImage: { dataUrl: "data:image/png;base64,AA", naturalWidth: 20, naturalHeight: 10, cellSizePx: 10, offsetX: 3, offsetY: -2 },
+    };
     const shifted = shiftPattern(pattern, 1, 4);
     expect(shifted.sourceImage).toEqual({ ...pattern.sourceImage, offsetX: 4, offsetY: 2 });
   });
 
   it("leaves an absent sourceImage absent after a shift", () => {
-    const pattern = makePattern(2, 1, [0, 1], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 1],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     expect(shiftPattern(pattern, 1, 0).sourceImage).toBeUndefined();
   });
 });
@@ -427,14 +536,19 @@ describe("shiftPattern", () => {
 describe("rotateSelection (G-042)", () => {
   const piece = () =>
     liftSelection(
-      makePattern(3, 2, [0, 1, 2, 3, 4, 5], [
-        [10, 10, 10],
-        [20, 20, 20],
-        [30, 30, 30],
-        [40, 40, 40],
-        [50, 50, 50],
-        [60, 60, 60],
-      ]),
+      makePattern(
+        3,
+        2,
+        [0, 1, 2, 3, 4, 5],
+        [
+          [10, 10, 10],
+          [20, 20, 20],
+          [30, 30, 30],
+          [40, 40, 40],
+          [50, 50, 50],
+          [60, 60, 60],
+        ]
+      ),
       { x: 0, y: 0, width: 3, height: 2 }
     );
 
@@ -474,10 +588,15 @@ describe("rotateSelection (G-042)", () => {
 
 describe("cropToSelection (G-042)", () => {
   const base = () =>
-    makePattern(4, 3, [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    makePattern(
+      4,
+      3,
+      [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
 
   it("reduces the chart to the selection's rectangle, keeping those stitches", () => {
     const pattern = base();
@@ -495,7 +614,10 @@ describe("cropToSelection (G-042)", () => {
   });
 
   it("keeps the photo underlay aligned with the stitches that remain", () => {
-    const pattern = { ...base(), sourceImage: { dataUrl: "data:image/png;base64,AA", naturalWidth: 40, naturalHeight: 30, cellSizePx: 10, offsetX: 0, offsetY: 0 } };
+    const pattern = {
+      ...base(),
+      sourceImage: { dataUrl: "data:image/png;base64,AA", naturalWidth: 40, naturalHeight: 30, cellSizePx: 10, offsetX: 0, offsetY: 0 },
+    };
     const selection = liftSelection(pattern, { x: 1, y: 1, width: 2, height: 1 });
     const cropped = cropToSelection(pattern, selection);
     expect(cropped.sourceImage).toEqual({ ...pattern.sourceImage, offsetX: -1, offsetY: -1 });
@@ -514,11 +636,16 @@ describe("cropToSelection (G-042)", () => {
 describe("resizeCanvas", () => {
   it("crops an edge, dropping the cells on that side and shrinking the grid", () => {
     // 3x1: [A, B, C] cropped by 1 on the left -> 2x1: [B, C].
-    const pattern = makePattern(3, 1, [0, 1, 2], [
-      [255, 0, 0],
-      [0, 255, 0],
-      [0, 0, 255],
-    ]);
+    const pattern = makePattern(
+      3,
+      1,
+      [0, 1, 2],
+      [
+        [255, 0, 0],
+        [0, 255, 0],
+        [0, 0, 255],
+      ]
+    );
     const resized = resizeCanvas(pattern, { left: -1, right: 0, top: 0, bottom: 0 });
     expect(resized.width).toBe(2);
     expect(resized.height).toBe(1);
@@ -526,10 +653,15 @@ describe("resizeCanvas", () => {
   });
 
   it("expands edges with empty stitches and never adds a palette color (D109)", () => {
-    const pattern = makePattern(2, 1, [0, 1], [
-      [255, 0, 0],
-      [0, 255, 0],
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 1],
+      [
+        [255, 0, 0],
+        [0, 255, 0],
+      ]
+    );
     const resized = resizeCanvas(pattern, { left: 1, right: 1, top: 0, bottom: 0 });
     expect(resized.width).toBe(4);
     expect(resized.palette).toHaveLength(2);
@@ -539,12 +671,17 @@ describe("resizeCanvas", () => {
 
   it("expands on multiple edges and crops another in the same call", () => {
     // 2x2 -> expand 1 on the right, crop 1 off the top -> 3x1, keeping only the original bottom row plus a new column.
-    const pattern = makePattern(2, 2, [0, 1, 2, 3], [
-      [1, 1, 1],
-      [2, 2, 2],
-      [3, 3, 3],
-      [4, 4, 4],
-    ]);
+    const pattern = makePattern(
+      2,
+      2,
+      [0, 1, 2, 3],
+      [
+        [1, 1, 1],
+        [2, 2, 2],
+        [3, 3, 3],
+        [4, 4, 4],
+      ]
+    );
     const resized = resizeCanvas(pattern, { left: 0, right: 1, top: -1, bottom: 0 });
     expect(resized.width).toBe(3);
     expect(resized.height).toBe(1);
@@ -552,21 +689,34 @@ describe("resizeCanvas", () => {
   });
 
   it("moves the photo underlay's offset by the left/top deltas only", () => {
-    const base = makePattern(2, 2, [0, 1, 1, 0], [
-      [1, 1, 1],
-      [2, 2, 2],
-    ]);
-    const pattern = { ...base, sourceImage: { dataUrl: "data:image/png;base64,AA", naturalWidth: 20, naturalHeight: 20, cellSizePx: 10, offsetX: 0, offsetY: 0 } };
+    const base = makePattern(
+      2,
+      2,
+      [0, 1, 1, 0],
+      [
+        [1, 1, 1],
+        [2, 2, 2],
+      ]
+    );
+    const pattern = {
+      ...base,
+      sourceImage: { dataUrl: "data:image/png;base64,AA", naturalWidth: 20, naturalHeight: 20, cellSizePx: 10, offsetX: 0, offsetY: 0 },
+    };
     const resized = resizeCanvas(pattern, { left: 2, right: 3, top: -1, bottom: 4 });
     expect(resized.sourceImage?.offsetX).toBe(2);
     expect(resized.sourceImage?.offsetY).toBe(-1);
   });
 
   it("rejects cropping away the entire pattern", () => {
-    const pattern = makePattern(2, 1, [0, 1], [
-      [1, 1, 1],
-      [2, 2, 2],
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 1],
+      [
+        [1, 1, 1],
+        [2, 2, 2],
+      ]
+    );
     expect(() => resizeCanvas(pattern, { left: -2, right: 0, top: 0, bottom: 0 })).toThrow(/entire pattern/);
   });
 
@@ -577,17 +727,27 @@ describe("resizeCanvas", () => {
 
   it("expands a pattern that already uses MAX_COLORS, since no color is added", () => {
     const colors: RGB[] = Array.from({ length: MAX_COLORS }, (_, i) => [i, i, i]);
-    const pattern = makePattern(MAX_COLORS, 1, colors.map((_, i) => i), colors);
+    const pattern = makePattern(
+      MAX_COLORS,
+      1,
+      colors.map((_, i) => i),
+      colors
+    );
     const resized = resizeCanvas(pattern, { left: 0, right: 1, top: 0, bottom: 0 });
     expect(resized.palette).toHaveLength(MAX_COLORS);
     expect(resized.cellPalette[MAX_COLORS]).toBe(EMPTY_CELL);
   });
 
   it("recomputes stitch counts after a crop -- a color entirely cropped away drops to zero, not removed from the palette", () => {
-    const pattern = makePattern(2, 1, [0, 1], [
-      [1, 1, 1],
-      [2, 2, 2],
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 1],
+      [
+        [1, 1, 1],
+        [2, 2, 2],
+      ]
+    );
     const resized = resizeCanvas(pattern, { left: -1, right: 0, top: 0, bottom: 0 });
     expect(resized.palette).toHaveLength(2); // color 0 stays in the palette
     expect(resized.palette[0].count).toBe(0);
@@ -597,10 +757,15 @@ describe("resizeCanvas", () => {
 
 describe("EMPTY_CELL (the empty-stitch pseudo-color, G-012 M5)", () => {
   it("paintStitch can paint a cell empty, and it isn't counted against any real color", () => {
-    const pattern = makePattern(2, 1, [0, 1], [
-      [1, 1, 1],
-      [2, 2, 2],
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 1],
+      [
+        [1, 1, 1],
+        [2, 2, 2],
+      ]
+    );
     const painted = paintStitch(pattern, 0, EMPTY_CELL);
     expect(Array.from(painted.cellPalette)).toEqual([EMPTY_CELL, 1]);
     expect(painted.palette[0].count).toBe(0);
@@ -619,38 +784,58 @@ describe("EMPTY_CELL (the empty-stitch pseudo-color, G-012 M5)", () => {
     // 3x1: [empty, color0, color1] -- merging color0 into color1 must not
     // disturb the empty cell, and must not silently turn it into color 0
     // via an out-of-bounds remap read (the bug this test guards against).
-    const pattern = makePattern(3, 1, [EMPTY_CELL, 0, 1], [
-      [1, 1, 1],
-      [2, 2, 2],
-    ]);
+    const pattern = makePattern(
+      3,
+      1,
+      [EMPTY_CELL, 0, 1],
+      [
+        [1, 1, 1],
+        [2, 2, 2],
+      ]
+    );
     const merged = mergeColors(pattern, 0, 1);
     expect(Array.from(merged.cellPalette)).toEqual([EMPTY_CELL, 0, 0]); // color1 remapped to index 0 after color0's removal
   });
 
   it("compactUnusedColors leaves empty cells untouched and doesn't corrupt them via the palette-index remap", () => {
-    const pattern = makePattern(3, 1, [EMPTY_CELL, 1, 1], [
-      [1, 1, 1], // unused -- will be compacted away
-      [2, 2, 2],
-    ]);
+    const pattern = makePattern(
+      3,
+      1,
+      [EMPTY_CELL, 1, 1],
+      [
+        [1, 1, 1], // unused -- will be compacted away
+        [2, 2, 2],
+      ]
+    );
     const compacted = compactUnusedColors(pattern);
     expect(compacted.palette).toHaveLength(1);
     expect(Array.from(compacted.cellPalette)).toEqual([EMPTY_CELL, 0, 0]);
   });
 
   it("shiftPattern (Move) carries empty cells through a wrap-around shift unchanged", () => {
-    const pattern = makePattern(3, 1, [EMPTY_CELL, 0, 1], [
-      [1, 1, 1],
-      [2, 2, 2],
-    ]);
+    const pattern = makePattern(
+      3,
+      1,
+      [EMPTY_CELL, 0, 1],
+      [
+        [1, 1, 1],
+        [2, 2, 2],
+      ]
+    );
     const shifted = shiftPattern(pattern, 1, 0);
     expect(Array.from(shifted.cellPalette)).toEqual([1, EMPTY_CELL, 0]);
   });
 
   it("resizeCanvas carries empty cells through a crop/expand unchanged", () => {
-    const pattern = makePattern(3, 1, [EMPTY_CELL, 0, 1], [
-      [1, 1, 1],
-      [2, 2, 2],
-    ]);
+    const pattern = makePattern(
+      3,
+      1,
+      [EMPTY_CELL, 0, 1],
+      [
+        [1, 1, 1],
+        [2, 2, 2],
+      ]
+    );
     const resized = resizeCanvas(pattern, { left: 0, right: 1, top: 0, bottom: 0 });
     expect(Array.from(resized.cellPalette)).toEqual([EMPTY_CELL, 0, 1, EMPTY_CELL]);
   });
@@ -660,29 +845,44 @@ describe("fillClusterDiagonal (G-018 Fill tool)", () => {
   it("fills a diagonally-connected region that fillCluster (4-connected) would treat as separate", () => {
     // 0 1
     // 1 0
-    const pattern = makePattern(2, 2, [0, 1, 1, 0], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      2,
+      2,
+      [0, 1, 1, 0],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     const filled = fillClusterDiagonal(pattern, 0, 1);
     // Both diagonal 0-cells (index 0 and 3) become color 1.
     expect(Array.from(filled.cellPalette)).toEqual([1, 1, 1, 1]);
   });
 
   it("does not spill into a differently-colored cell", () => {
-    const pattern = makePattern(2, 2, [0, 0, 1, 1], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      2,
+      2,
+      [0, 0, 1, 1],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     const filled = fillClusterDiagonal(pattern, 0, 1);
     expect(Array.from(filled.cellPalette)).toEqual([1, 1, 1, 1]);
   });
 
   it("recomputes stitch counts for the affected colors", () => {
-    const pattern = makePattern(2, 2, [0, 1, 1, 0], [
-      [10, 10, 10],
-      [20, 20, 20],
-    ]);
+    const pattern = makePattern(
+      2,
+      2,
+      [0, 1, 1, 0],
+      [
+        [10, 10, 10],
+        [20, 20, 20],
+      ]
+    );
     const filled = fillClusterDiagonal(pattern, 0, 1);
     expect(filled.palette[0].count).toBe(0);
     expect(filled.palette[1].count).toBe(4);
@@ -693,14 +893,19 @@ describe("Rectangle Select tool (G-018): liftSelection / moveSelection / flip*",
   function makeGridPattern(): StitchPattern {
     // A B C
     // D E F
-    return makePattern(3, 2, [0, 1, 2, 3, 4, 5], [
-      [0, 0, 0],
-      [1, 1, 1],
-      [2, 2, 2],
-      [3, 3, 3],
-      [4, 4, 4],
-      [5, 5, 5],
-    ]);
+    return makePattern(
+      3,
+      2,
+      [0, 1, 2, 3, 4, 5],
+      [
+        [0, 0, 0],
+        [1, 1, 1],
+        [2, 2, 2],
+        [3, 3, 3],
+        [4, 4, 4],
+        [5, 5, 5],
+      ]
+    );
   }
 
   it("lifts a rectangle's cells and sets originRect to the same (clamped) area", () => {
@@ -760,27 +965,37 @@ describe("compositeSelectionPreview (G-018)", () => {
   });
 
   function makeGridPattern(): StitchPattern {
-    return makePattern(3, 2, [0, 1, 2, 3, 4, 5], [
-      [0, 0, 0],
-      [1, 1, 1],
-      [2, 2, 2],
-      [3, 3, 3],
-      [4, 4, 4],
-      [5, 5, 5],
-    ]);
+    return makePattern(
+      3,
+      2,
+      [0, 1, 2, 3, 4, 5],
+      [
+        [0, 0, 0],
+        [1, 1, 1],
+        [2, 2, 2],
+        [3, 3, 3],
+        [4, 4, 4],
+        [5, 5, 5],
+      ]
+    );
   }
 });
 
 describe("mergeSelection (G-018)", () => {
   function makeGridPattern(): StitchPattern {
-    return makePattern(3, 2, [0, 1, 2, 3, 4, 5], [
-      [0, 0, 0],
-      [1, 1, 1],
-      [2, 2, 2],
-      [3, 3, 3],
-      [4, 4, 4],
-      [5, 5, 5],
-    ]);
+    return makePattern(
+      3,
+      2,
+      [0, 1, 2, 3, 4, 5],
+      [
+        [0, 0, 0],
+        [1, 1, 1],
+        [2, 2, 2],
+        [3, 3, 3],
+        [4, 4, 4],
+        [5, 5, 5],
+      ]
+    );
   }
 
   it("moving a selection vacates its originRect to EMPTY_CELL and stamps the destination", () => {

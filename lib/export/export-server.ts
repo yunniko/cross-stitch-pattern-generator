@@ -73,7 +73,8 @@ async function follow(jobId: string, onProgress: ExportProgressCallback | undefi
         // The exporter's own "Page 12 of 180" is passed through unchanged, so a server export reads exactly as a
         // browser one does; the fraction is only a fallback for the moment before the first page is reported.
         if (last.exportProgress) onProgress?.(last.exportProgress);
-        else if (typeof last.progress === "number") onProgress?.({ completed: Math.round(last.progress * 100), total: 100, label: "Building the file…" });
+        else if (typeof last.progress === "number")
+          onProgress?.({ completed: Math.round(last.progress * 100), total: 100, label: "Building the file…" });
       }
       if (last.state === "queued") onProgress?.({ completed: 0, total: 100, label: "Waiting for a free slot…" });
     }
@@ -103,7 +104,12 @@ export async function runServerExport(request: ExportJobRequest, onProgress?: Ex
 
     let started: Response;
     try {
-      started = await fetch("/api/exports", { method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal, body });
+      started = await fetch("/api/exports", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: controller.signal,
+        body,
+      });
     } catch (error) {
       if (isNetworkFailure(error)) throw new ProcessorUnreachableError();
       throw error;

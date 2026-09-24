@@ -28,6 +28,10 @@ export function downscaleForPreview(source: PixelBuffer, maxSide: number): Pixel
  * white balance, tone curve and CLAHE tiles as generation. Enhancement doesn't commute with downscaling, so this is an
  * approximation of downscaling the full enhanced photo, with its error bounded in tests (Codex round 2, D116).
  */
-export function buildEnhancedPreview(source: PixelBuffer, params: EnhancementParameters, maxSide = ENHANCEMENT_PREVIEW_MAX_SIDE): PixelBuffer {
+export function buildEnhancedPreview(
+  source: PixelBuffer,
+  params: EnhancementParameters,
+  maxSide = ENHANCEMENT_PREVIEW_MAX_SIDE
+): PixelBuffer {
   return applyEnhancement(downscaleForPreview(source, maxSide), params);
 }

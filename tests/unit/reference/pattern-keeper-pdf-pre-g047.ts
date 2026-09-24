@@ -3,7 +3,14 @@
 import { PDFDocument, type PDFPage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { calculateA4Layout } from "@/lib/export/a4-layout";
-import { drawA4GridPage, drawA4LegendPage, drawInfoContinuationPage, drawInfoPage1, planInfoPages, type A4InfoPageOptions } from "@/lib/export/a4-render";
+import {
+  drawA4GridPage,
+  drawA4LegendPage,
+  drawInfoContinuationPage,
+  drawInfoPage1,
+  planInfoPages,
+  type A4InfoPageOptions,
+} from "@/lib/export/a4-render";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT } from "@/lib/export/finished-size";
 import { embedDejaVuSans, type PatternKeeperPdfOptions } from "@/lib/export/pattern-keeper-pdf";
 import { flushFinishedPage } from "@/lib/export/pdf-page-flush";
@@ -32,7 +39,14 @@ export async function buildPatternKeeperPdfPreG047(
   fontBytes: Uint8Array,
   options: PatternKeeperPdfOptions = {}
 ): Promise<Uint8Array> {
-  const { aidaCount = DEFAULT_AIDA_COUNT, sizeUnit = DEFAULT_SIZE_UNIT, authorName = "", onProgress, retainPageOperators = false, ...layoutOptions } = options;
+  const {
+    aidaCount = DEFAULT_AIDA_COUNT,
+    sizeUnit = DEFAULT_SIZE_UNIT,
+    authorName = "",
+    onProgress,
+    retainPageOperators = false,
+    ...layoutOptions
+  } = options;
   const layout = calculateA4Layout(pattern.width, pattern.height, { ...layoutOptions, dpi: 72 });
   const metrics = fontMetricsFor(fontBytes);
 
@@ -73,7 +87,14 @@ export async function buildPatternKeeperPdfPreG047(
   for (let p = 0; p < plan.totalPages - 1; p++) {
     const rowsHere = Math.min(plan.rowsPerContinuationPage, plan.totalColors - consumed);
     const page = doc.addPage(pageSize);
-    drawInfoContinuationPage(new PdfCanvasAdapter(page, font, metrics), plan, pattern.palette.slice(consumed, consumed + rowsHere), p + 2, layout, aidaCount);
+    drawInfoContinuationPage(
+      new PdfCanvasAdapter(page, font, metrics),
+      plan,
+      pattern.palette.slice(consumed, consumed + rowsHere),
+      p + 2,
+      layout,
+      aidaCount
+    );
     consumed += rowsHere;
     await pageDone(page);
   }

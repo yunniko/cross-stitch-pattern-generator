@@ -35,7 +35,15 @@ const results: Array<Record<string, unknown>> = [];
 afterAll(() => {
   rmSync(work, { recursive: true, force: true });
   if (process.env.RUST_EXPORT_OUT) writeFileSync(process.env.RUST_EXPORT_OUT, JSON.stringify(results, null, 2) + "\n");
-  console.table(results.map((r) => ({ case: r.case, tsMs: r.tsMs, rustMs: r.rustMs, maxAbs: r.maxAbs ?? r.worstMaxAbs, meanAbs: r.meanAbs ?? r.worstMeanAbs })));
+  console.table(
+    results.map((r) => ({
+      case: r.case,
+      tsMs: r.tsMs,
+      rustMs: r.rustMs,
+      maxAbs: r.maxAbs ?? r.worstMaxAbs,
+      meanAbs: r.meanAbs ?? r.worstMeanAbs,
+    }))
+  );
 });
 
 function pngSize(bytes: Buffer): { width: number; height: number } {
@@ -65,7 +73,11 @@ async function pixelDifference(a: Buffer, b: Buffer) {
     }
     if (pixelDiffers) differing++;
   }
-  return { meanAbs: Number((total / da.length).toFixed(4)), maxAbs: max, differingPercent: Number(((100 * differing) / (width * height)).toFixed(3)) };
+  return {
+    meanAbs: Number((total / da.length).toFixed(4)),
+    maxAbs: max,
+    differingPercent: Number(((100 * differing) / (width * height)).toFixed(3)),
+  };
 }
 
 async function pdfText(bytes: Buffer): Promise<string[]> {
@@ -102,13 +114,22 @@ async function compareFile(name: string, ts: Buffer, rust: Buffer, keepAs: strin
   }
   if (name.endsWith(".zip") || name.endsWith(".cspzip")) {
     const [za, zb] = await Promise.all([JSZip.loadAsync(ts), JSZip.loadAsync(rust)]);
-    const entries = (z: JSZip) => Object.values(z.files).filter((f) => !f.dir).map((f) => f.name).sort();
+    const entries = (z: JSZip) =>
+      Object.values(z.files)
+        .filter((f) => !f.dir)
+        .map((f) => f.name)
+        .sort();
     expect(entries(zb), `${name} entries`).toEqual(entries(za));
     const inner: Record<string, unknown> = {};
     let worstMax = 0;
     let worstMean = 0;
     for (const entry of entries(za)) {
-      const summary = await compareFile(entry, await za.file(entry)!.async("nodebuffer"), await zb.file(entry)!.async("nodebuffer"), `${keepAs}__${entry.replace(/\//g, "_")}`);
+      const summary = await compareFile(
+        entry,
+        await za.file(entry)!.async("nodebuffer"),
+        await zb.file(entry)!.async("nodebuffer"),
+        `${keepAs}__${entry.replace(/\//g, "_")}`
+      );
       inner[entry] = summary;
       if (typeof summary.maxAbs === "number") worstMax = Math.max(worstMax, summary.maxAbs);
       if (typeof summary.meanAbs === "number") worstMean = Math.max(worstMean, summary.meanAbs);
@@ -119,10 +140,14 @@ async function compareFile(name: string, ts: Buffer, rust: Buffer, keepAs: strin
 }
 
 const referenceFiles = REFERENCE && existsSync(REFERENCE) ? readdirSync(REFERENCE) : [];
-const timings: Record<string, number> = referenceFiles.includes("timings.json") ? JSON.parse(readFileSync(path.join(REFERENCE, "timings.json"), "utf8")) : {};
+const timings: Record<string, number> = referenceFiles.includes("timings.json")
+  ? JSON.parse(readFileSync(path.join(REFERENCE, "timings.json"), "utf8"))
+  : {};
 
 describe("Rust exports match production's TypeScript exports (G-048 M4, criterion 3)", () => {
-  const available = fixtures(false).map((f) => f.name).concat(process.env.RUST_EXPORT_LARGE === "1" ? ["large-1000"] : []);
+  const available = fixtures(false)
+    .map((f) => f.name)
+    .concat(process.env.RUST_EXPORT_LARGE === "1" ? ["large-1000"] : []);
   const cases = available.flatMap((name) => KINDS.map((kind) => [`${name}/${kind}`, name, kind] as const));
   it.each(cases)("%s", async (label, name, kind) => {
     const prefix = `${name}__${kind}__`;
@@ -134,7 +159,10 @@ describe("Rust exports match production's TypeScript exports (G-048 M4, criterio
     const fixture = fixtures(name === "large-1000").find((f) => f.name === name)!;
 
     const outFile = path.join(work, `${label.replace(/\//g, "_")}.out`);
-    const stdout = execFileSync(BINARY, ["export", input, JSON.stringify(requestFor(fixture, kind)), outFile, REPEAT], { encoding: "utf8", maxBuffer: 1 << 26 });
+    const stdout = execFileSync(BINARY, ["export", input, JSON.stringify(requestFor(fixture, kind)), outFile, REPEAT], {
+      encoding: "utf8",
+      maxBuffer: 1 << 26,
+    });
     const rust = JSON.parse(stdout) as { filename: string; runsMs: number[] };
     expect(rust.filename).toBe(filename);
     const summary = await compareFile(filename, tsBytes, readFileSync(outFile), label.replace(/\//g, "_"));

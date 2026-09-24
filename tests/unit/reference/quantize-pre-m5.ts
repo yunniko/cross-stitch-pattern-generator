@@ -180,10 +180,7 @@ export function runLloyd(oklabColors: Oklab[], initialCentroids: Oklab[]): { cen
 }
 
 /** The RGB palette straight from the converged centroids, each already the OKLab mean of its members; empty clusters dropped. */
-function buildPaletteFromAssignment(
-  centroids: Oklab[],
-  assignments: Uint8Array
-): { cellPaletteIndex: Uint8Array; palette: RGB[] } {
+function buildPaletteFromAssignment(centroids: Oklab[], assignments: Uint8Array): { cellPaletteIndex: Uint8Array; palette: RGB[] } {
   const counts = new Array(centroids.length).fill(0);
   for (const c of assignments) counts[c]++;
 

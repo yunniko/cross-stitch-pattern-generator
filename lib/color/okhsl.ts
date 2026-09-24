@@ -62,14 +62,32 @@ function oklabToLinearSrgb(L: number, a: number, b: number): [number, number, nu
 function computeMaxSaturation(a: number, b: number): number {
   let k0: number, k1: number, k2: number, k3: number, k4: number, wl: number, wm: number, ws: number;
   if (-1.88170328 * a - 0.80936493 * b > 1) {
-    k0 = 1.19086277; k1 = 1.76576728; k2 = 0.59662641; k3 = 0.75515197; k4 = 0.56771245;
-    wl = 4.0767416621; wm = -3.3077115913; ws = 0.2309699292;
+    k0 = 1.19086277;
+    k1 = 1.76576728;
+    k2 = 0.59662641;
+    k3 = 0.75515197;
+    k4 = 0.56771245;
+    wl = 4.0767416621;
+    wm = -3.3077115913;
+    ws = 0.2309699292;
   } else if (1.81444104 * a - 1.19445276 * b > 1) {
-    k0 = 0.73956515; k1 = -0.45954404; k2 = 0.08285427; k3 = 0.1254107; k4 = 0.14503204;
-    wl = -1.2684380046; wm = 2.6097574011; ws = -0.3413193965;
+    k0 = 0.73956515;
+    k1 = -0.45954404;
+    k2 = 0.08285427;
+    k3 = 0.1254107;
+    k4 = 0.14503204;
+    wl = -1.2684380046;
+    wm = 2.6097574011;
+    ws = -0.3413193965;
   } else {
-    k0 = 1.35733652; k1 = -0.00915799; k2 = -1.1513021; k3 = -0.50559606; k4 = 0.00692167;
-    wl = -0.0041960863; wm = -0.7034186147; ws = 1.707614701;
+    k0 = 1.35733652;
+    k1 = -0.00915799;
+    k2 = -1.1513021;
+    k3 = -0.50559606;
+    k4 = 0.00692167;
+    wl = -0.0041960863;
+    wm = -0.7034186147;
+    ws = 1.707614701;
   }
 
   let S = k0 + k1 * a + k2 * b + k3 * a * a + k4 * a * b;
@@ -172,10 +190,16 @@ function toe(x: number): number {
 function stMid(a: number, b: number): { S: number; T: number } {
   const S =
     0.11516993 +
-    1 / (7.4477897 + 4.1590124 * b + a * (-2.19557347 + 1.75198401 * b + a * (-2.13704948 - 10.02301043 * b + a * (-4.24894561 + 5.38770819 * b + 4.69891013 * a))));
+    1 /
+      (7.4477897 +
+        4.1590124 * b +
+        a * (-2.19557347 + 1.75198401 * b + a * (-2.13704948 - 10.02301043 * b + a * (-4.24894561 + 5.38770819 * b + 4.69891013 * a))));
   const T =
     0.11239642 +
-    1 / (1.6132032 - 0.68124379 * b + a * (0.40370612 + 0.90148123 * b + a * (-0.27087943 + 0.6122399 * b + a * (0.00299215 - 0.45399568 * b - 0.14661872 * a))));
+    1 /
+      (1.6132032 -
+        0.68124379 * b +
+        a * (0.40370612 + 0.90148123 * b + a * (-0.27087943 + 0.6122399 * b + a * (0.00299215 - 0.45399568 * b - 0.14661872 * a))));
   return { S, T };
 }
 
@@ -202,7 +226,11 @@ function chromaLimits(L: number, a: number, b: number): { C0: number; Cmid: numb
  * for which the reference divides by zero, gets hue 0 and saturation 0, and saturation is clamped to 0–1.
  */
 export function rgbToOkhsl(rgb: RGB): Okhsl {
-  const [L, a, b] = linearSrgbToOklab(srgbTransferInverse(rgb[0] / 255), srgbTransferInverse(rgb[1] / 255), srgbTransferInverse(rgb[2] / 255));
+  const [L, a, b] = linearSrgbToOklab(
+    srgbTransferInverse(rgb[0] / 255),
+    srgbTransferInverse(rgb[1] / 255),
+    srgbTransferInverse(rgb[2] / 255)
+  );
   const l = Math.min(1, Math.max(0, toe(L)));
   const C = Math.sqrt(a * a + b * b);
   if (C < NEUTRAL_CHROMA || L <= 0 || L >= 1) return { h: 0, s: 0, l };

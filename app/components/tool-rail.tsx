@@ -113,19 +113,54 @@ function ZoomIcon() {
 /** 1b groups the rail as paint, piece, view; the dividers are the grouping. */
 const TOOL_GROUPS = [
   [
-    { tool: "brush" as const, label: "Brush", title: "Paint the selected color -- click a color in the Threads list first (B). Double-click to flood-fill instead.", Icon: BrushIcon },
-    { tool: "fill" as const, label: "Fill", title: "Click a color, then click a cell to flood-fill its same-colored region (F)", Icon: FillIcon },
-    { tool: "line" as const, label: "Line", title: "Drag from one stitch to another to draw a straight line, as thick as the brush (L)", Icon: LineIcon },
-    { tool: "rect" as const, label: "Rectangle", title: "Drag from one corner to another to draw a rectangle, outlined or filled (R)", Icon: RectIcon },
+    {
+      tool: "brush" as const,
+      label: "Brush",
+      title: "Paint the selected color -- click a color in the Threads list first (B). Double-click to flood-fill instead.",
+      Icon: BrushIcon,
+    },
+    {
+      tool: "fill" as const,
+      label: "Fill",
+      title: "Click a color, then click a cell to flood-fill its same-colored region (F)",
+      Icon: FillIcon,
+    },
+    {
+      tool: "line" as const,
+      label: "Line",
+      title: "Drag from one stitch to another to draw a straight line, as thick as the brush (L)",
+      Icon: LineIcon,
+    },
+    {
+      tool: "rect" as const,
+      label: "Rectangle",
+      title: "Drag from one corner to another to draw a rectangle, outlined or filled (R)",
+      Icon: RectIcon,
+    },
     { tool: "oval" as const, label: "Oval", title: "Drag a box to draw the oval that fits it, outlined or filled (O)", Icon: OvalIcon },
   ],
   [
-    { tool: "select" as const, label: "Select", title: "Drag a rectangle to select it, then copy, paste, move or flip it before it merges back. Ignores symmetry.", Icon: SelectIcon },
-    { tool: "move" as const, label: "Move", title: "Drag to reposition the whole design within the canvas. Ignores symmetry.", Icon: MoveIcon },
+    {
+      tool: "select" as const,
+      label: "Select",
+      title: "Drag a rectangle to select it, then copy, paste, move or flip it before it merges back. Ignores symmetry.",
+      Icon: SelectIcon,
+    },
+    {
+      tool: "move" as const,
+      label: "Move",
+      title: "Drag to reposition the whole design within the canvas. Ignores symmetry.",
+      Icon: MoveIcon,
+    },
   ],
   [
     { tool: "pan" as const, label: "Pan", title: "Drag to scroll the chart (or hold Space with any tool active)", Icon: PanIcon },
-    { tool: "zoom" as const, label: "Zoom", title: "Click to zoom in, Shift-click to zoom out (the wheel always zooms too)", Icon: ZoomIcon },
+    {
+      tool: "zoom" as const,
+      label: "Zoom",
+      title: "Click to zoom in, Shift-click to zoom out (the wheel always zooms too)",
+      Icon: ZoomIcon,
+    },
   ],
 ];
 
@@ -144,7 +179,9 @@ function MirrorIcon({ kind }: { kind: QuickMirror }) {
       <rect x="4" y="4" width="16" height="16" rx="1" stroke="currentColor" strokeWidth="1.4" opacity="0.6" />
       {kind !== "upper-half" && <line x1="12" y1="4" x2="12" y2="20" stroke="var(--at-guide)" strokeWidth="1.4" strokeDasharray="2 1.5" />}
       {kind !== "left-half" && <line x1="4" y1="12" x2="20" y2="12" stroke="var(--at-guide)" strokeWidth="1.4" strokeDasharray="2 1.5" />}
-      {kind === "upper-left-half-corner" && <line x1="4" y1="4" x2="20" y2="20" stroke="var(--at-guide)" strokeWidth="1.4" strokeDasharray="2 1.5" />}
+      {kind === "upper-left-half-corner" && (
+        <line x1="4" y1="4" x2="20" y2="20" stroke="var(--at-guide)" strokeWidth="1.4" strokeDasharray="2 1.5" />
+      )}
     </svg>
   );
 }
@@ -172,16 +209,7 @@ export interface ToolRailProps {
   newChartDisabled: boolean;
 }
 
-export function ToolRail({
-  activeTool,
-  disabled,
-  onSelect,
-  squareCanvas,
-  onMirror,
-  onNewChart,
-  newChartDisabled,
-}: ToolRailProps) {
-
+export function ToolRail({ activeTool, disabled, onSelect, squareCanvas, onMirror, onNewChart, newChartDisabled }: ToolRailProps) {
   return (
     <aside className="flex w-16 shrink-0 flex-col items-stretch gap-0.5 border-r border-line bg-surface py-2.5">
       <div className="flex justify-center pb-2.5">
@@ -193,7 +221,16 @@ export function ToolRail({
           title="New chart — opens the start screen, where you pick a photo, an empty grid or a saved file"
           className={`flex flex-col items-center gap-[3px] self-center rounded-[7px] border border-line px-2.5 py-1.5 text-muted transition-colors enabled:hover:bg-raised enabled:hover:text-ink ${DISABLED_ICON}`}
         >
-          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-[18px] w-[18px]"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.7}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
             <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
             <path d="M12 8.5v7M8.5 12h7" />
           </svg>
@@ -203,54 +240,56 @@ export function ToolRail({
 
       {/* Only the tools scroll, so New keeps its place at the top however long the tool list grows. */}
       <div className="flex min-h-0 flex-1 flex-col items-stretch gap-0.5 overflow-y-auto">
-      {TOOL_GROUPS.map((group, groupIndex) => (
-        <Fragment key={groupIndex}>
-          {groupIndex > 0 && <div className="mx-3.5 my-1.5 h-px shrink-0 bg-line" aria-hidden="true" />}
-          {group.map(({ tool, label, title, Icon }) => {
-            const active = activeTool === tool;
+        {TOOL_GROUPS.map((group, groupIndex) => (
+          <Fragment key={groupIndex}>
+            {groupIndex > 0 && <div className="mx-3.5 my-1.5 h-px shrink-0 bg-line" aria-hidden="true" />}
+            {group.map(({ tool, label, title, Icon }) => {
+              const active = activeTool === tool;
+              return (
+                <button
+                  key={tool}
+                  type="button"
+                  onClick={() => onSelect(tool)}
+                  disabled={disabled}
+                  title={title}
+                  aria-label={label}
+                  aria-pressed={active}
+                  className={`flex flex-col items-center gap-[3px] border-l-2 py-2 ${DISABLED_ICON} ${
+                    active
+                      ? "border-accent bg-raised text-ink"
+                      : "border-transparent text-muted enabled:hover:bg-raised enabled:hover:text-ink"
+                  }`}
+                >
+                  <Icon />
+                  <span className="text-[10px] leading-[13px]">{label}</span>
+                </button>
+              );
+            })}
+          </Fragment>
+        ))}
+
+        <div className="mx-3.5 my-1.5 h-px shrink-0 bg-line" aria-hidden="true" />
+        <span className="px-1 text-center text-[10px] font-medium tracking-wide text-faint uppercase" id="mirror-heading">
+          Mirror
+        </span>
+        <div role="group" aria-labelledby="mirror-heading" className="grid grid-cols-2 gap-1 px-2 pt-1">
+          {MIRROR_ACTIONS.map(({ kind, label, title }) => {
+            const needsSquare = kind === "upper-left-half-corner" && !squareCanvas;
             return (
               <button
-                key={tool}
+                key={kind}
                 type="button"
-                onClick={() => onSelect(tool)}
-                disabled={disabled}
-                title={title}
+                onClick={() => onMirror(kind)}
+                disabled={disabled || needsSquare}
+                title={needsSquare ? `${title}. Needs a square canvas.` : title}
                 aria-label={label}
-                aria-pressed={active}
-                className={`flex flex-col items-center gap-[3px] border-l-2 py-2 ${DISABLED_ICON} ${
-                  active ? "border-accent bg-raised text-ink" : "border-transparent text-muted enabled:hover:bg-raised enabled:hover:text-ink"
-                }`}
+                className={`flex h-6 w-6 items-center justify-center rounded-md border border-line text-muted enabled:hover:bg-raised ${DISABLED_ICON}`}
               >
-                <Icon />
-                <span className="text-[10px] leading-[13px]">{label}</span>
+                <MirrorIcon kind={kind} />
               </button>
             );
           })}
-        </Fragment>
-      ))}
-
-      <div className="mx-3.5 my-1.5 h-px shrink-0 bg-line" aria-hidden="true" />
-      <span className="px-1 text-center text-[10px] font-medium tracking-wide text-faint uppercase" id="mirror-heading">
-        Mirror
-      </span>
-      <div role="group" aria-labelledby="mirror-heading" className="grid grid-cols-2 gap-1 px-2 pt-1">
-        {MIRROR_ACTIONS.map(({ kind, label, title }) => {
-          const needsSquare = kind === "upper-left-half-corner" && !squareCanvas;
-          return (
-            <button
-              key={kind}
-              type="button"
-              onClick={() => onMirror(kind)}
-              disabled={disabled || needsSquare}
-              title={needsSquare ? `${title}. Needs a square canvas.` : title}
-              aria-label={label}
-              className={`flex h-6 w-6 items-center justify-center rounded-md border border-line text-muted enabled:hover:bg-raised ${DISABLED_ICON}`}
-            >
-              <MirrorIcon kind={kind} />
-            </button>
-          );
-        })}
-      </div>
+        </div>
       </div>
     </aside>
   );

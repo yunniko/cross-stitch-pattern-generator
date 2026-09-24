@@ -75,7 +75,12 @@ function confettiRatio(pattern: StitchPattern): number {
     for (let x = 0; x < width; x++) {
       const here = cellPalette[y * width + x];
       let same = 0;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ] as const) {
         const nx = x + dx;
         const ny = y + dy;
         if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
@@ -153,8 +158,10 @@ it("measures every dither pattern against the same chart undithered", () => {
         const dithered = buildPattern(fixture.source, { ...options, ditherMode });
         const ratio = meanError(fixture.source, dithered, 1) / plainError;
         const confetti = confettiRatio(dithered);
-          lines.push(`| ${ditherMode} | ${ratio.toFixed(2)} | ${(100 * confetti).toFixed(1)} % (+${(100 * (confetti - plainConfetti)).toFixed(1)}) |`);
-      verdict.push({ fixture: fixture.name, colorCount, mode: ditherMode, ratio, addedConfetti: confetti - plainConfetti });
+        lines.push(
+          `| ${ditherMode} | ${ratio.toFixed(2)} | ${(100 * confetti).toFixed(1)} % (+${(100 * (confetti - plainConfetti)).toFixed(1)}) |`
+        );
+        verdict.push({ fixture: fixture.name, colorCount, mode: ditherMode, ratio, addedConfetti: confetti - plainConfetti });
         if (colorCount === 16) {
           perStitch.push({ fixture: fixture.name, mode: ditherMode, ratio: meanError(fixture.source, dithered, 0) / plainPerStitch });
         }
@@ -193,7 +200,12 @@ it("measures every dither pattern against the same chart undithered", () => {
       losses: rows.filter((r) => r.ratio >= 1).map((r) => `${r.fixture} at ${r.colorCount}`),
     };
   });
-  lines.push("## Where each pattern wins", "", "| Pattern | Median error × | Median added confetti | Worst error × | Loses to plain |", "|---|---|---|---|---|");
+  lines.push(
+    "## Where each pattern wins",
+    "",
+    "| Pattern | Median error × | Median added confetti | Worst error × | Loses to plain |",
+    "|---|---|---|---|---|"
+  );
   for (const row of summary) {
     lines.push(
       `| ${row.mode} | ${row.error.toFixed(2)} | +${row.confetti.toFixed(1)} pts | ${row.worst.toFixed(2)} | ${row.losses.length > 0 ? row.losses.join(", ") : "never"} |`
@@ -233,7 +245,7 @@ it("measures every dither pattern against the same chart undithered", () => {
         "that look costs.",
       ];
     })(),
-    "",
+    ""
   );
   lines.push(
     "## Per-stitch error, and why it moves both ways",
@@ -247,7 +259,7 @@ it("measures every dither pattern against the same chart undithered", () => {
     "costs per-stitch accuracy on a smooth ramp where the undithered chart was already close. But an undithered chart",
     "also runs the optimizer, which trades colour accuracy for smoothness — so on a photo the dithered chart, which",
     "skips it, can be closer stitch by stitch as well. The 3×3 tables above are the measure that does not mix the two.",
-    "",
+    ""
   );
   writeFileSync(OUT, `${lines.join("\n")}\n`);
   console.log(`wrote ${OUT}`);

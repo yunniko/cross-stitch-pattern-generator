@@ -223,7 +223,8 @@ test("every view mode shares one zoom and scroll position, and the realistic vie
         const ctx = el.getContext("2d")!;
         const { data } = ctx.getImageData(0, 0, el.width, el.height);
         let differing = 0;
-        for (let i = 0; i < data.length; i += 4 * 97) if (data[i] !== data[0] || data[i + 1] !== data[1] || data[i + 2] !== data[2]) differing++;
+        for (let i = 0; i < data.length; i += 4 * 97)
+          if (data[i] !== data[0] || data[i + 1] !== data[1] || data[i + 2] !== data[2]) differing++;
         return differing;
       })
     )

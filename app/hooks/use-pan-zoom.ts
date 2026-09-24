@@ -59,7 +59,8 @@ export function usePanZoom(
         const clientX = at?.clientX ?? view.left + view.width / 2;
         const clientY = at?.clientY ?? view.top + view.height / 2;
         // Rapid wheel steps before a render measure the same, not-yet-resized frame, so they agree on the point.
-        if (width > 0 && height > 0) anchorRef.current = { fx: (clientX - origin.left) / width, fy: (clientY - origin.top) / height, clientX, clientY };
+        if (width > 0 && height > 0)
+          anchorRef.current = { fx: (clientX - origin.left) / width, fy: (clientY - origin.top) / height, clientX, clientY };
       }
       setZoomLevel(next);
     },
@@ -99,7 +100,13 @@ export function usePanZoom(
   function beginPan(e: PointerLike, frame: HTMLElement) {
     const scroller = scrollerRef.current;
     if (!scroller) return;
-    panRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, scrollLeft: scroller.scrollLeft, scrollTop: scroller.scrollTop };
+    panRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      scrollLeft: scroller.scrollLeft,
+      scrollTop: scroller.scrollTop,
+    };
     frame.setPointerCapture(e.pointerId);
   }
 

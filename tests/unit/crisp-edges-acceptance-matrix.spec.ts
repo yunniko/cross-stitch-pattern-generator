@@ -30,7 +30,12 @@ import type { PixelBuffer, RGB } from "@/lib/types";
  * regression of shape/confetti metrics, never average error.
  */
 
-function makeBuffer(width: number, height: number, colorAt: (x: number, y: number) => RGB, alphaAt?: (x: number, y: number) => number): PixelBuffer {
+function makeBuffer(
+  width: number,
+  height: number,
+  colorAt: (x: number, y: number) => RGB,
+  alphaAt?: (x: number, y: number) => number
+): PixelBuffer {
   const data = new Uint8ClampedArray(width * height * 4);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {

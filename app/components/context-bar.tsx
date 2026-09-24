@@ -221,12 +221,7 @@ export function ContextBar({
                   </option>
                 ))}
               </select>
-              <SegmentedControl
-                tone="chip"
-                options={BRUSH_SHAPE_OPTIONS}
-                value={brushShape}
-                onChange={onBrushShapeChange}
-              />
+              <SegmentedControl tone="chip" options={BRUSH_SHAPE_OPTIONS} value={brushShape} onChange={onBrushShapeChange} />
             </div>
 
             {/* Only Rectangle and Oval enclose anything, so the choice appears with them rather than sitting inert. */}
@@ -242,7 +237,9 @@ export function ContextBar({
 
             <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
 
-            {sourceFileName && !isLoadingImage && <span className="max-w-[12rem] truncate text-xs text-muted">Loaded: {sourceFileName}</span>}
+            {sourceFileName && !isLoadingImage && (
+              <span className="max-w-[12rem] truncate text-xs text-muted">Loaded: {sourceFileName}</span>
+            )}
 
             <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
             <div role="group" aria-label="Symmetry — mirrored drawing" className="flex shrink-0 items-center gap-1.5">
@@ -285,7 +282,16 @@ export function ContextBar({
                 isolate ? "border-accent bg-accent/15 text-ink" : "border-line text-muted hover:bg-raised hover:text-ink"
               }`}
             >
-              <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke={isolate ? "var(--at-accent)" : "currentColor"} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-[15px] w-[15px]"
+                fill="none"
+                stroke={isolate ? "var(--at-accent)" : "currentColor"}
+                strokeWidth={1.7}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" />
                 <circle cx="12" cy="12" r="2.5" />
               </svg>
@@ -323,10 +329,21 @@ export function ContextBar({
                   : "No source photo is associated with this pattern"
               }
               className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors ${DISABLED_ICON} ${
-                photoActive ? "border-accent bg-accent/15 text-ink" : "border-line text-muted enabled:hover:bg-raised enabled:hover:text-ink"
+                photoActive
+                  ? "border-accent bg-accent/15 text-ink"
+                  : "border-line text-muted enabled:hover:bg-raised enabled:hover:text-ink"
               }`}
             >
-              <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-[15px] w-[15px]"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.7}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <rect x="3" y="5" width="18" height="14" rx="2" />
                 <circle cx="9" cy="10" r="1.8" />
                 <path d="M4 18l5-5 4 4 3-3 4 4" />

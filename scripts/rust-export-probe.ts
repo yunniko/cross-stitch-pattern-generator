@@ -18,8 +18,16 @@ import { installServerExportBackend } from "@/processor/export-backend";
  */
 
 const [side, inputFile, requestFile, outFile, binary, threadsArg] = process.argv.slice(2);
-if (side !== "ts" && side !== "rust") throw new Error("usage: export-probe.mjs ts|rust <input.json> <request.json> <out file> [binary] [threads]");
-const request = JSON.parse(readFileSync(requestFile, "utf8")) as { kind: ExportJobKind; baseName: string; aidaCount: number; sizeUnit: "cm" | "in"; authorName: string; overlapCells: 0 | 5 | 10 };
+if (side !== "ts" && side !== "rust")
+  throw new Error("usage: export-probe.mjs ts|rust <input.json> <request.json> <out file> [binary] [threads]");
+const request = JSON.parse(readFileSync(requestFile, "utf8")) as {
+  kind: ExportJobKind;
+  baseName: string;
+  aidaCount: number;
+  sizeUnit: "cm" | "in";
+  authorName: string;
+  overlapCells: 0 | 5 | 10;
+};
 const label = `${request.baseName}/${request.kind}`;
 
 if (side === "ts") {
@@ -39,11 +47,34 @@ if (side === "ts") {
   clearInterval(timer);
   peak = Math.max(peak, process.memoryUsage().rss);
   writeFileSync(outFile, bytes);
-  console.log(JSON.stringify({ side, case: label, wallMs: Math.round(wallMs), peakRssMb: Math.round(peak / 1048576), bytes: bytes.length, filename: result.filename }));
+  console.log(
+    JSON.stringify({
+      side,
+      case: label,
+      wallMs: Math.round(wallMs),
+      peakRssMb: Math.round(peak / 1048576),
+      bytes: bytes.length,
+      filename: result.filename,
+    })
+  );
 } else {
   const threads = Number(threadsArg ?? 1);
-  const run = spawnSync(binary, ["export", inputFile, JSON.stringify(request), outFile, "1"], { encoding: "utf8", env: { ...process.env, RUST_EXPORT_THREADS: String(threads) }, maxBuffer: 1 << 26 });
+  const run = spawnSync(binary, ["export", inputFile, JSON.stringify(request), outFile, "1"], {
+    encoding: "utf8",
+    env: { ...process.env, RUST_EXPORT_THREADS: String(threads) },
+    maxBuffer: 1 << 26,
+  });
   if (run.status !== 0) throw new Error(`binary failed: ${run.stderr}`);
   const out = JSON.parse(run.stdout) as { runsMs: number[]; peakRssMb: number; bytes: number; filename: string };
-  console.log(JSON.stringify({ side, threads, case: label, wallMs: Math.round(out.runsMs[0]), peakRssMb: Math.round(out.peakRssMb), bytes: out.bytes, filename: out.filename }));
+  console.log(
+    JSON.stringify({
+      side,
+      threads,
+      case: label,
+      wallMs: Math.round(out.runsMs[0]),
+      peakRssMb: Math.round(out.peakRssMb),
+      bytes: out.bytes,
+      filename: out.filename,
+    })
+  );
 }

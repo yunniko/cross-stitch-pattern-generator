@@ -40,7 +40,9 @@ export interface PillButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
 }
 
 export function PillButton({ variant = "outline", size = "sm", className, type = "button", ...props }: PillButtonProps) {
-  return <button type={type} className={[PILL_BASE, PILL_VARIANTS[variant], PILL_SIZES[size], className].filter(Boolean).join(" ")} {...props} />;
+  return (
+    <button type={type} className={[PILL_BASE, PILL_VARIANTS[variant], PILL_SIZES[size], className].filter(Boolean).join(" ")} {...props} />
+  );
 }
 
 export interface SegmentOption<T extends string> {
@@ -66,7 +68,14 @@ export interface SegmentedControlProps<T extends string> {
 }
 
 /** A row of mutually exclusive buttons; the selected one is marked. */
-export function SegmentedControl<T extends string>({ options, value, onChange, className, tone = "wash", fill = false }: SegmentedControlProps<T>) {
+export function SegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
+  className,
+  tone = "wash",
+  fill = false,
+}: SegmentedControlProps<T>) {
   const isChip = tone === "chip";
   const track = isChip
     ? "flex items-center gap-0.5 rounded-lg border border-line p-0.5"

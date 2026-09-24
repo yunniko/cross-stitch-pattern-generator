@@ -24,6 +24,10 @@ port.on("message", (job: PreviewJob) => {
     const message: PreviewMessage = { type: "done", requestId: job.requestId, preview };
     port.postMessage(message, [preview.data.buffer as ArrayBuffer]);
   } catch (err) {
-    port.postMessage({ type: "error", requestId: job.requestId, message: err instanceof Error ? err.message : "Unknown error" } satisfies PreviewMessage);
+    port.postMessage({
+      type: "error",
+      requestId: job.requestId,
+      message: err instanceof Error ? err.message : "Unknown error",
+    } satisfies PreviewMessage);
   }
 });

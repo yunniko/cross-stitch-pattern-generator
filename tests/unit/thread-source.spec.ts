@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { addBrandColor, addColor, compactUnusedColors, editColorRgb, editColorToBrandColor, mergeColors, renameColor, restoreColor, setColorSymbol } from "@/lib/editor/pattern-edit";
+import {
+  addBrandColor,
+  addColor,
+  compactUnusedColors,
+  editColorRgb,
+  editColorToBrandColor,
+  mergeColors,
+  renameColor,
+  restoreColor,
+  setColorSymbol,
+} from "@/lib/editor/pattern-edit";
 import { parseOxs, serializeOxs } from "@/lib/editor/oxs";
 import { deserializePattern, deserializePatternData, serializePattern } from "@/lib/editor/pattern-serialize";
 import { printedThreadCodeName } from "@/lib/export/a4-render";
@@ -41,7 +51,10 @@ describe("thread source through edits", () => {
     const pattern = makePattern([threadColor("dmc", "310"), { rgb: [200, 10, 10], name: "Custom red" }]);
     expect(renameColor(pattern, 0, "Sky").palette[0].source).toEqual({ brand: "dmc", code: "310" });
     expect(setColorSymbol(pattern, 0, "Q").palette[0].source).toEqual({ brand: "dmc", code: "310" });
-    const withUnused = { ...pattern, palette: [...pattern.palette, { index: 2, rgb: [1, 1, 1] as RGB, symbol: "Z", name: "Unused", count: 0 }] };
+    const withUnused = {
+      ...pattern,
+      palette: [...pattern.palette, { index: 2, rgb: [1, 1, 1] as RGB, symbol: "Z", name: "Unused", count: 0 }],
+    };
     expect(compactUnusedColors(withUnused).palette[0].source).toEqual({ brand: "dmc", code: "310" });
     // Thread into custom: the custom target survives without a source. Custom into thread: the thread survives.
     expect("source" in mergeColors(pattern, 0, 1).palette[0]).toBe(false);
@@ -53,7 +66,11 @@ describe("thread source through edits", () => {
     const pattern = makePattern([threadColor("dmc", "310")]);
     const snapshot = pattern.palette[0];
     const changed = editColorRgb(renameColor(pattern, 0, "Sky"), 0, [1, 2, 3]);
-    expect(restoreColor(changed, 0, snapshot).palette[0]).toMatchObject({ rgb: snapshot.rgb, name: snapshot.name, source: { brand: "dmc", code: "310" } });
+    expect(restoreColor(changed, 0, snapshot).palette[0]).toMatchObject({
+      rgb: snapshot.rgb,
+      name: snapshot.name,
+      source: { brand: "dmc", code: "310" },
+    });
     const custom = makePattern([{ rgb: [7, 7, 7], name: "Pebble" }]);
     const picked = editColorToBrandColor(custom, 0, "321", "dmc");
     const restored = restoreColor(picked, 0, custom.palette[0]).palette[0];
@@ -104,7 +121,10 @@ describe("thread source from generation", () => {
 
 describe("thread source in saved files", () => {
   it("round-trips version 7 exactly: a renamed thread keeps its source, a custom color named like a thread stays custom", () => {
-    const pattern = makePattern([{ ...threadColor("dmc", "310"), name: "Sky" }, { rgb: thread("dmc", "321").rgb, name: formatThreadName(thread("dmc", "321")) }]);
+    const pattern = makePattern([
+      { ...threadColor("dmc", "310"), name: "Sky" },
+      { rgb: thread("dmc", "321").rgb, name: formatThreadName(thread("dmc", "321")) },
+    ]);
     const restored = deserializePattern(serializePattern(pattern));
     expect(JSON.parse(serializePattern(pattern)).formatVersion).toBe(7);
     expect(restored.palette[0].source).toEqual({ brand: "dmc", code: "310" });
@@ -132,7 +152,10 @@ describe("thread source in saved files", () => {
     ]);
     const anchor = deserializePattern(legacyFile([{ rgb: [0, 0, 0], name: "403" }], { threadBrand: "anchor" }));
     expect(anchor.palette[0].source).toEqual({ brand: "anchor", code: "403" });
-    expect(deserializePattern(legacyFile([named("dmc", "310")], { dmcMode: true })).palette[0].source).toEqual({ brand: "dmc", code: "310" });
+    expect(deserializePattern(legacyFile([named("dmc", "310")], { dmcMode: true })).palette[0].source).toEqual({
+      brand: "dmc",
+      code: "310",
+    });
   });
 
   it("clears the lock of an older file whose renamed color can't be matched, keeping the other sources", () => {
@@ -150,19 +173,44 @@ describe("thread source in saved files", () => {
     const v7 = deserializePattern(legacyFile([named("dmc", "310")], { formatVersion: 7, threadBrand: "dmc" }));
     expect("source" in v7.palette[0]).toBe(false);
     expect(v7.threadBrand).toBeUndefined();
-    expect("source" in deserializePattern(legacyFile([named("dmc", "310")], { formatVersion: 99, threadBrand: "dmc" })).palette[0]).toBe(false);
+    expect("source" in deserializePattern(legacyFile([named("dmc", "310")], { formatVersion: 99, threadBrand: "dmc" })).palette[0]).toBe(
+      false
+    );
   });
 
   it("drops malformed and unknown sources instead of rejecting the file, and restores the canonical code", () => {
-    const junk: unknown[] = ["310", null, [], { brand: "rainbow", code: "1" }, { brand: "dmc", code: "" }, { brand: "dmc", code: "NOPE" }, { brand: "dmc" }];
-    const restored = deserializePattern(legacyFile(junk.map((source) => ({ rgb: [1, 2, 3] as RGB, name: "x", source })), { formatVersion: 7 }));
+    const junk: unknown[] = [
+      "310",
+      null,
+      [],
+      { brand: "rainbow", code: "1" },
+      { brand: "dmc", code: "" },
+      { brand: "dmc", code: "NOPE" },
+      { brand: "dmc" },
+    ];
+    const restored = deserializePattern(
+      legacyFile(
+        junk.map((source) => ({ rgb: [1, 2, 3] as RGB, name: "x", source })),
+        { formatVersion: 7 }
+      )
+    );
     expect(restored.palette.every((c) => !("source" in c))).toBe(true);
-    const lower = deserializePattern(legacyFile([{ rgb: [255, 255, 255], name: "White", source: { brand: "dmc", code: "b5200" } }], { formatVersion: 7 }));
+    const lower = deserializePattern(
+      legacyFile([{ rgb: [255, 255, 255], name: "White", source: { brand: "dmc", code: "b5200" } }], { formatVersion: 7 })
+    );
     expect(lower.palette[0].source).toEqual({ brand: "dmc", code: "B5200" });
   });
 
   it("treats an autosave record without formatVersion as legacy and one with it as explicit", () => {
-    const record = { storeVersion: 1, width: 1, height: 1, isLandscape: true, cellPalette: Uint8Array.from([0]), palette: [{ symbol: "0", ...named("dmc", "310") }], threadBrand: "dmc" };
+    const record = {
+      storeVersion: 1,
+      width: 1,
+      height: 1,
+      isLandscape: true,
+      cellPalette: Uint8Array.from([0]),
+      palette: [{ symbol: "0", ...named("dmc", "310") }],
+      threadBrand: "dmc",
+    };
     expect(deserializePatternData(record).palette[0].source).toEqual({ brand: "dmc", code: "310" });
     const explicit = deserializePatternData({ ...record, formatVersion: 7 });
     expect("source" in explicit.palette[0]).toBe(false);
@@ -175,13 +223,20 @@ describe("thread source in OXS", () => {
     `<chart><properties chartwidth="3" chartheight="1"/><palette><palette_item index="0" number="cloth" name="cloth" color="FFFFFF"/>${items}</palette><fullstitches><stitch x="0" y="0" palindex="1"/><stitch x="1" y="0" palindex="2"/><stitch x="2" y="0" palindex="3"/></fullstitches></chart>`;
 
   it("sets a canonical source for every thread entry, even when the colors aren't all one brand", () => {
-    const { pattern } = parseOxs(chart('<palette_item index="1" number="DMC b5200" name="Snow" color="FFFFFF"/><palette_item index="2" number="Madeira 2400" name="White" color="FEFEFE"/><palette_item index="3" number="anchor 403" name="Black" color="000000"/>'));
+    const { pattern } = parseOxs(
+      chart(
+        '<palette_item index="1" number="DMC b5200" name="Snow" color="FFFFFF"/><palette_item index="2" number="Madeira 2400" name="White" color="FEFEFE"/><palette_item index="3" number="anchor 403" name="Black" color="000000"/>'
+      )
+    );
     expect(pattern.threadBrand).toBeUndefined();
     expect(pattern.palette.map((c) => c.source)).toEqual([{ brand: "dmc", code: "B5200" }, undefined, { brand: "anchor", code: "403" }]);
   });
 
   it("exports thread numbers only from source: a renamed thread keeps its code, a thread-named custom color gets none", () => {
-    const pattern = makePattern([{ ...threadColor("dmc", "310"), name: "Sky" }, { rgb: thread("dmc", "321").rgb, name: formatThreadName(thread("dmc", "321")) }]);
+    const pattern = makePattern([
+      { ...threadColor("dmc", "310"), name: "Sky" },
+      { rgb: thread("dmc", "321").rgb, name: formatThreadName(thread("dmc", "321")) },
+    ]);
     const numbers = [...serializeOxs(pattern).matchAll(/<palette_item index="[12]" number="([^"]*)"/g)].map((m) => m[1]);
     expect(numbers).toEqual(["DMC 310", ""]);
   });

@@ -34,7 +34,12 @@ type PreviewOutcome = { url: string } | { error: string };
  * from the processor's preview worker (D152). Requested whenever the photo or a non-Off mode changes while `enabled`;
  * results are kept per photo and mode, so switching back is instant.
  */
-export function useEnhancePreview(pixelBuffer: PixelBuffer | null, sourceDataUrl: string | null, mode: EnhancementModeId, enabled: boolean) {
+export function useEnhancePreview(
+  pixelBuffer: PixelBuffer | null,
+  sourceDataUrl: string | null,
+  mode: EnhancementModeId,
+  enabled: boolean
+) {
   const [outcomes, setOutcomes] = useState<ReadonlyMap<string, PreviewOutcome>>(new Map());
   // The preview is made from the uploaded photo, so it needs the file's own bytes as well as the decode.
   const ready = enabled && pixelBuffer !== null && mode !== "off" && sourceDataUrl !== null;

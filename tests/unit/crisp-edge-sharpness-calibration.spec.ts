@@ -152,7 +152,11 @@ describe("edgeSharpness: works for a ramp that's linear in OKLab, not just linea
     const rampWidth = 16;
     const buffer = makeBuffer(width, height, (x) => {
       const t = Math.min(1, x / rampWidth);
-      const oklab: Oklab = [black[0] + (white[0] - black[0]) * t, black[1] + (white[1] - black[1]) * t, black[2] + (white[2] - black[2]) * t];
+      const oklab: Oklab = [
+        black[0] + (white[0] - black[0]) * t,
+        black[1] + (white[1] - black[1]) * t,
+        black[2] + (white[2] - black[2]) * t,
+      ];
       return oklabToRgb(oklab);
     });
     const evidence = extractBoundaryEvidence(buffer, 16, 16, 1, 8);

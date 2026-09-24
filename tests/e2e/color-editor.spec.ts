@@ -38,7 +38,9 @@ async function openFirstEditor(page: Page): Promise<string> {
   return name;
 }
 
-test("a DMC color opens on its marked swatch, inside the grid's view; hover and focus compare; a pick applies and stays open", async ({ page }) => {
+test("a DMC color opens on its marked swatch, inside the grid's view; hover and focus compare; a pick applies and stays open", async ({
+  page,
+}) => {
   const errors = collectErrors(page);
   await generate(page, "DMC");
   const originalName = await openFirstEditor(page);
@@ -138,7 +140,8 @@ test("a custom color opens on Full range, and a Full range drag previews live an
   const box = (await saturation.boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.3);
   await page.mouse.down();
-  for (let step = 1; step <= 8; step++) await page.mouse.move(box.x + box.width * (0.3 + step * 0.05), box.y + box.height * (0.3 + step * 0.04));
+  for (let step = 1; step <= 8; step++)
+    await page.mouse.move(box.x + box.width * (0.3 + step * 0.05), box.y + box.height * (0.3 + step * 0.04));
   await expect(undo).toBeDisabled(); // still only a preview while dragging
   await page.mouse.up();
   await expect(undo).toBeEnabled();
@@ -146,7 +149,9 @@ test("a custom color opens on Full range, and a Full range drag previews live an
   await expect(undo).toBeDisabled();
 });
 
-test("a color picked from the DMC tab reopens on DMC with its swatch marked, also after saving and reopening the file", async ({ page }) => {
+test("a color picked from the DMC tab reopens on DMC with its swatch marked, also after saving and reopening the file", async ({
+  page,
+}) => {
   await generate(page, "Full range");
   await openFirstEditor(page);
   let panel = editorPanel(page);

@@ -27,10 +27,15 @@ function makePattern(width: number, height: number, cellPalette: number[], color
 
 describe("applyBrandPalette: Standard-compatibility", () => {
   it("is byte-identical with an omitted vs. empty crispEvidenceLayer", () => {
-    const pattern = makePattern(2, 1, [0, 1], [
-      [50, 50, 50],
-      [0, 0, 0],
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 1],
+      [
+        [50, 50, 50],
+        [0, 0, 0],
+      ]
+    );
     const withoutLayer = applyBrandPalette(pattern, "dmc");
     const withEmptyLayer = applyBrandPalette(pattern, "dmc", undefined, { evidenceByCell: new Map() });
     expect(withEmptyLayer.cellPalette).toEqual(withoutLayer.cellPalette);
@@ -57,11 +62,16 @@ describe("applyBrandPalette: crisp-aware handling works even without reoptimize 
     // black prefers the exact 310 match, white prefers the exact B5200
     // match -- so 934 has zero supporting modes and is genuinely
     // inadmissible, triggering a real repair.
-    const pattern = makePattern(2, 1, [0, 1], [
-      [50, 50, 50],
-      [0, 0, 0],
-      [255, 255, 255],
-    ]);
+    const pattern = makePattern(
+      2,
+      1,
+      [0, 1],
+      [
+        [50, 50, 50],
+        [0, 0, 0],
+        [255, 255, 255],
+      ]
+    );
     const evidence: BoundaryEvidence = {
       modes: [rgbToOklab([0, 0, 0]), rgbToOklab([255, 255, 255])],
       coverage: [0.6, 0.4],
@@ -83,10 +93,15 @@ describe("applyBrandPalette: crisp-aware handling threads through reoptimize too
   it("does not throw and produces a valid pattern when both reoptimize and crispEvidenceLayer are given", () => {
     const width = 2;
     const height = 1;
-    const pattern = makePattern(width, height, [0, 1], [
-      [50, 50, 50],
-      [0, 0, 0],
-    ]);
+    const pattern = makePattern(
+      width,
+      height,
+      [0, 1],
+      [
+        [50, 50, 50],
+        [0, 0, 0],
+      ]
+    );
     const evidence: BoundaryEvidence = {
       modes: [rgbToOklab([0, 0, 0]), rgbToOklab([255, 255, 255])],
       coverage: [0.6, 0.4],

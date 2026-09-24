@@ -67,13 +67,17 @@ async function paintedRect(page: Page): Promise<Rect> {
 
 /** Chart pixel (x, y) as the viewport canvas painted it; throws when that pixel isn't in the painted rectangle. */
 async function chartPixel(page: Page, x: number, y: number): Promise<number[]> {
-  return page.evaluate(([x, y]) => {
-    const el = document.querySelector('[data-testid="chart-frame"]') as HTMLElement;
-    const [x0, y0, x1, y1] = (el.dataset.paintedRect ?? "").split(",").map(Number);
-    if (x < x0 || x >= x1 || y < y0 || y >= y1) throw new Error(`chart pixel ${x},${y} is outside the painted rectangle ${el.dataset.paintedRect}`);
-    const canvas = el.querySelector("canvas") as HTMLCanvasElement;
-    return Array.from(canvas.getContext("2d")!.getImageData(x - x0, y - y0, 1, 1).data);
-  }, [x, y]);
+  return page.evaluate(
+    ([x, y]) => {
+      const el = document.querySelector('[data-testid="chart-frame"]') as HTMLElement;
+      const [x0, y0, x1, y1] = (el.dataset.paintedRect ?? "").split(",").map(Number);
+      if (x < x0 || x >= x1 || y < y0 || y >= y1)
+        throw new Error(`chart pixel ${x},${y} is outside the painted rectangle ${el.dataset.paintedRect}`);
+      const canvas = el.querySelector("canvas") as HTMLCanvasElement;
+      return Array.from(canvas.getContext("2d")!.getImageData(x - x0, y - y0, 1, 1).data);
+    },
+    [x, y]
+  );
 }
 
 /** The navigator's colour for stitch (x, y): one pixel per stitch, the stitch's fill colour. */
@@ -83,7 +87,9 @@ async function stitchColour(page: Page, x: number, y: number): Promise<number[]>
     .evaluate((el: HTMLCanvasElement, [x, y]) => Array.from(el.getContext("2d")!.getImageData(x, y, 1, 1).data), [x, y]);
 }
 
-test("a zoomed-in chart keeps a view-sized canvas, and scroll jumps keep the view painted with the right stitches (D135)", async ({ page }) => {
+test("a zoomed-in chart keeps a view-sized canvas, and scroll jumps keep the view painted with the right stitches (D135)", async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await generateSmallPattern(page);
@@ -93,7 +99,14 @@ test("a zoomed-in chart keeps a view-sized canvas, and scroll jumps keep the vie
     const el = document.querySelector('[data-testid="chart-frame"]') as HTMLElement;
     const view = el.closest(".overflow-auto") as HTMLElement;
     const canvas = el.querySelector("canvas") as HTMLCanvasElement;
-    return { chartWidth: el.clientWidth, chartHeight: el.clientHeight, viewWidth: view.clientWidth, viewHeight: view.clientHeight, canvasWidth: canvas.width, canvasHeight: canvas.height };
+    return {
+      chartWidth: el.clientWidth,
+      chartHeight: el.clientHeight,
+      viewWidth: view.clientWidth,
+      viewHeight: view.clientHeight,
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+    };
   });
   expect(sizes.chartWidth).toBeGreaterThan(sizes.viewWidth);
   expect(sizes.canvasWidth).toBeLessThan(sizes.chartWidth);
@@ -102,11 +115,20 @@ test("a zoomed-in chart keeps a view-sized canvas, and scroll jumps keep the vie
   expect(sizes.canvasHeight).toBeLessThanOrEqual(Math.ceil(sizes.viewHeight * 1.5) + 8);
 
   const cellSize = Number(await frame(page).getAttribute("data-cell-size"));
-  for (const [left, top] of [[1e6, 1e6], [0, 0], [333.5, 211.25], [1e6, 0], [120, 1e6]]) {
-    await scroller(page).evaluate((el, [l, t]) => {
-      el.scrollLeft = l;
-      el.scrollTop = t;
-    }, [left, top]);
+  for (const [left, top] of [
+    [1e6, 1e6],
+    [0, 0],
+    [333.5, 211.25],
+    [1e6, 0],
+    [120, 1e6],
+  ]) {
+    await scroller(page).evaluate(
+      (el, [l, t]) => {
+        el.scrollLeft = l;
+        el.scrollTop = t;
+      },
+      [left, top]
+    );
     await afterFrames(page);
     const visible = await visibleRect(page);
     const painted = await paintedRect(page);

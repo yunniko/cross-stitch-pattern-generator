@@ -252,7 +252,11 @@ function chromaCompensation(L0: number, L: number, skin: number, skinProtection:
 function vibranceBoost(table: Float32Array, L: number, chroma: number, hue: number, amount: number, skinProtection: number): number {
   const cmax = maxChroma(table, L, hue);
   const saturation = cmax > 1e-6 ? Math.min(1, chroma / cmax) : 1;
-  const weight = (1 - saturation) * (1 - saturation) * ramp(chroma, VIBRANCE_RAMP_LOW, VIBRANCE_RAMP_HIGH) * (1 - skinProtection * skinWeight(L, chroma, hue));
+  const weight =
+    (1 - saturation) *
+    (1 - saturation) *
+    ramp(chroma, VIBRANCE_RAMP_LOW, VIBRANCE_RAMP_HIGH) *
+    (1 - skinProtection * skinWeight(L, chroma, hue));
   return 1 + amount * weight;
 }
 
@@ -444,7 +448,8 @@ function buildToneLut(levels: [number, number, number, number] | null, gamma: nu
 
 function maxToneSlope(lut: Float32Array): number {
   let slope = 0;
-  for (let i = Math.ceil(TONE_SLOPE_FROM * TONE_LUT_SIZE); i < TONE_LUT_SIZE; i++) slope = Math.max(slope, (lut[i + 1] - lut[i]) * TONE_LUT_SIZE);
+  for (let i = Math.ceil(TONE_SLOPE_FROM * TONE_LUT_SIZE); i < TONE_LUT_SIZE; i++)
+    slope = Math.max(slope, (lut[i + 1] - lut[i]) * TONE_LUT_SIZE);
   return slope;
 }
 
@@ -514,7 +519,16 @@ function buildClaheLuts(tileL: number[][], clip: number): Float32Array {
  * Four tile CDFs read at L and interpolated bilinearly. Entry j of a CDF sits at the bin's upper edge (j + 1) / BINS and
  * the curve starts at (0, 0); the bin position is computed once for all four tiles.
  */
-function claheBilinear(luts: Float32Array, base00: number, base10: number, base01: number, base11: number, tx: number, ty: number, L: number): number {
+function claheBilinear(
+  luts: Float32Array,
+  base00: number,
+  base10: number,
+  base01: number,
+  base11: number,
+  tx: number,
+  ty: number,
+  L: number
+): number {
   const f = L * CLAHE_BINS - 1;
   let v00: number;
   let v10: number;
@@ -555,7 +569,16 @@ function claheAt(clahe: NonNullable<EnhancementParameters["clahe"]>, u: number, 
   const [x0, x1, tx] = tileAxis(u, clahe.tilesX);
   const [y0, y1, ty] = tileAxis(v, clahe.tilesY);
   const w = clahe.tilesX;
-  return claheBilinear(clahe.luts, (y0 * w + x0) * CLAHE_BINS, (y0 * w + x1) * CLAHE_BINS, (y1 * w + x0) * CLAHE_BINS, (y1 * w + x1) * CLAHE_BINS, tx, ty, L);
+  return claheBilinear(
+    clahe.luts,
+    (y0 * w + x0) * CLAHE_BINS,
+    (y0 * w + x1) * CLAHE_BINS,
+    (y1 * w + x0) * CLAHE_BINS,
+    (y1 * w + x1) * CLAHE_BINS,
+    tx,
+    ty,
+    L
+  );
 }
 
 export function analyzeEnhancement(source: PixelBuffer, preset: EnhancementPreset): EnhancementParameters {
@@ -579,7 +602,9 @@ export function analyzeEnhancement(source: PixelBuffer, preset: EnhancementPrese
   const sortedLeveled = new Float32Array(samples.count);
   for (let i = 0; i < samples.count; i++) sortedLeveled[i] = toneLookup(levelsOnly, labs[i * 3]);
   sortedLeveled.sort();
-  const midtone = preset.midtone.keepMedian ? { ...preset.midtone, bandLow: Math.max(preset.midtone.bandLow, percentile(sortedL, 0.5)) } : preset.midtone;
+  const midtone = preset.midtone.keepMedian
+    ? { ...preset.midtone, bandLow: Math.max(preset.midtone.bandLow, percentile(sortedL, 0.5)) }
+    : preset.midtone;
   const gamma = levels === null && preset.midtone.onlyWithLevels ? 1 : planGamma(percentile(sortedLeveled, 0.5), midtone);
   const toneLut = planToneLut(levels, gamma);
 

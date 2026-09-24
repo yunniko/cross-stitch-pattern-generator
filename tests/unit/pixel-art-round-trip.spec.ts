@@ -71,7 +71,9 @@ describe("a chart exported as pixel art and imported again is the same chart", (
         // The palette is the colours actually stitched, no more and no fewer.
         const used = new Set(colors(original).filter((c): c is string => c !== null));
         expect(new Set(returned.palette.map((c) => c.rgb.join(",")))).toEqual(used);
-        expect(returned.palette.reduce((n, c) => n + c.count, 0)).toBe(used.size === 0 ? 0 : colors(original).filter((c) => c !== null).length);
+        expect(returned.palette.reduce((n, c) => n + c.count, 0)).toBe(
+          used.size === 0 ? 0 : colors(original).filter((c) => c !== null).length
+        );
       }
     });
   }

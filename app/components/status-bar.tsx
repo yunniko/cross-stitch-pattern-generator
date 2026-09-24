@@ -35,7 +35,17 @@ export interface StatusBarProps {
   onResetZoom: () => void;
 }
 
-export function StatusBar({ pattern, aidaCount, sizeUnit, autosaveStatus, hasPattern, zoomLevel, onZoomIn, onZoomOut, onResetZoom }: StatusBarProps) {
+export function StatusBar({
+  pattern,
+  aidaCount,
+  sizeUnit,
+  autosaveStatus,
+  hasPattern,
+  zoomLevel,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
+}: StatusBarProps) {
   // Counted once per pattern, not on every zoom or tool change (G-036 M4).
   const stitchCount = useMemo(() => (pattern ? filledStitchCount(pattern) : 0), [pattern]);
 

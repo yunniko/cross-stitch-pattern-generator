@@ -112,7 +112,8 @@ async function deflateRows(ctx: PixelSource, width: number, height: number, chan
     deflate.on("end", resolve);
     deflate.on("error", reject);
   });
-  const write = (strip: Uint8Array) => new Promise<void>((resolve, reject) => deflate.write(strip, (err) => (err ? reject(err) : resolve())));
+  const write = (strip: Uint8Array) =>
+    new Promise<void>((resolve, reject) => deflate.write(strip, (err) => (err ? reject(err) : resolve())));
 
   const stride = width * channels;
   const words = Math.ceil(stride / 4);

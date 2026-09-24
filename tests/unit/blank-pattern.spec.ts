@@ -61,7 +61,12 @@ describe("isPhotoFree", () => {
   it("is true for a blank chart and false once a photo is attached", () => {
     const blank = createBlankPattern(10, 10);
     expect(isPhotoFree(blank)).toBe(true);
-    expect(isPhotoFree({ ...blank, sourceImage: { dataUrl: "data:,", naturalWidth: 4, naturalHeight: 4, cellSizePx: 1, offsetX: 0, offsetY: 0 } })).toBe(false);
+    expect(
+      isPhotoFree({
+        ...blank,
+        sourceImage: { dataUrl: "data:,", naturalWidth: 4, naturalHeight: 4, cellSizePx: 1, offsetX: 0, offsetY: 0 },
+      })
+    ).toBe(false);
   });
 
   it("is false without a chart at all", () => {
@@ -83,7 +88,10 @@ describe("saving a blank chart", () => {
   });
 
   it("still refuses a file whose stitches name a colour its palette doesn't have", () => {
-    const tampered = JSON.stringify({ ...JSON.parse(serializePattern(createBlankPattern(10, 10))), cellPalette: [0, ...new Array(99).fill(EMPTY_CELL)] });
+    const tampered = JSON.stringify({
+      ...JSON.parse(serializePattern(createBlankPattern(10, 10))),
+      cellPalette: [0, ...new Array(99).fill(EMPTY_CELL)],
+    });
     expect(() => deserializePattern(tampered)).toThrow(/isn't in its own palette/);
   });
 

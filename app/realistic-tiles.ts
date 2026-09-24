@@ -22,7 +22,13 @@ export function tileSizeFor(cellSize: number): number {
  * when the tiles match `cellSize`, or scaled while tiles for a new zoom are still being built. EMPTY stitches stay
  * transparent, so the canvas colour underneath shows through as it did behind the preview.
  */
-export function drawRealisticRegion(ctx: CanvasRenderingContext2D, pattern: StitchPattern, tiles: StitchTiles, cellSize: number, region: ChartRegion) {
+export function drawRealisticRegion(
+  ctx: CanvasRenderingContext2D,
+  pattern: StitchPattern,
+  tiles: StitchTiles,
+  cellSize: number,
+  region: ChartRegion
+) {
   const tileSize = tiles.cellSize;
   const columns = region.x1 - region.x0;
   const rows = region.y1 - region.y0;

@@ -3,7 +3,11 @@ import type { Oklab } from "@/lib/color/color";
 import { kMeansQuantizer, plainKMeansQuantizer, runLloyd } from "@/lib/pipeline/quantize";
 import { mulberry32 } from "@/lib/prng";
 import type { CellColorBuffer } from "@/lib/types";
-import { kMeansQuantizer as kMeansQuantizerPreM5, plainKMeansQuantizer as plainKMeansQuantizerPreM5, runLloyd as runLloydPreM5 } from "./reference/quantize-pre-m5";
+import {
+  kMeansQuantizer as kMeansQuantizerPreM5,
+  plainKMeansQuantizer as plainKMeansQuantizerPreM5,
+  runLloyd as runLloydPreM5,
+} from "./reference/quantize-pre-m5";
 
 /**
  * G-047 M5 (D177): Lloyd's assignment skips a point's scan where Hamerly's bounds prove its centroid still nearest. The
@@ -25,7 +29,9 @@ describe("Lloyd with Hamerly bounds equals the scan-everything Lloyd exactly", (
       for (const levels of [2, 3, 5, 256]) {
         const points = randomPoints(n, rng, levels);
         for (const k of [1, 2, 3, 8, 32, 100]) {
-          const seeds: Oklab[] = Array.from({ length: k }, (_, c) => (c % 3 === 2 ? points[(c * 7) % n] : ([rng(), rng() - 0.5, rng() - 0.5] as Oklab)));
+          const seeds: Oklab[] = Array.from({ length: k }, (_, c) =>
+            c % 3 === 2 ? points[(c * 7) % n] : ([rng(), rng() - 0.5, rng() - 0.5] as Oklab)
+          );
           if (k > 3) seeds[k - 1] = seeds[0]; // an exact duplicate centroid
           expect(runLloyd(points, seeds), `n ${n}, levels ${levels}, k ${k}`).toStrictEqual(runLloydPreM5(points, seeds));
           cases++;
@@ -49,7 +55,10 @@ describe("Lloyd with Hamerly bounds equals the scan-everything Lloyd exactly", (
 
   it("a slowly converging start that runs every iteration, and whole quantizers on tie-heavy grids", () => {
     const rng = mulberry32(5);
-    const points: Oklab[] = Array.from({ length: 3000 }, (_, i) => [0.5 + 0.3 * Math.sin(i * 0.37), 0.1 * Math.cos(i * 0.11), 0.1 * Math.sin(i * 0.05)] as Oklab);
+    const points: Oklab[] = Array.from(
+      { length: 3000 },
+      (_, i) => [0.5 + 0.3 * Math.sin(i * 0.37), 0.1 * Math.cos(i * 0.11), 0.1 * Math.sin(i * 0.05)] as Oklab
+    );
     const seeds: Oklab[] = Array.from({ length: 24 }, () => [0.5 + 0.01 * rng(), 0.001 * rng(), 0.001 * rng()] as Oklab);
     expect(runLloyd(points, seeds)).toStrictEqual(runLloydPreM5(points, seeds));
 

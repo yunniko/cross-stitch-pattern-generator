@@ -219,7 +219,9 @@ function fitTwoModes(samples: WeightedSample[], maxIterations: number): { centro
       sums[label][2] += samples[i].oklab[2] * samples[i].weight;
       weights[label] += samples[i].weight;
     }
-    centroids = [0, 1].map((k): Oklab => (weights[k] > 0 ? [sums[k][0] / weights[k], sums[k][1] / weights[k], sums[k][2] / weights[k]] : centroids[k]));
+    centroids = [0, 1].map((k): Oklab =>
+      weights[k] > 0 ? [sums[k][0] / weights[k], sums[k][1] / weights[k], sums[k][2] / weights[k]] : centroids[k]
+    );
 
     if (!changed) break;
   }
@@ -396,7 +398,10 @@ export function extractBoundaryEvidence(
   let boundaryDirection: [number, number] | null = null;
   let edgeSharpness = 1;
   if (spatialSeparation > 0) {
-    boundaryDirection = [(centroidPos[1][0] - centroidPos[0][0]) / spatialSeparation, (centroidPos[1][1] - centroidPos[0][1]) / spatialSeparation];
+    boundaryDirection = [
+      (centroidPos[1][0] - centroidPos[0][0]) / spatialSeparation,
+      (centroidPos[1][1] - centroidPos[0][1]) / spatialSeparation,
+    ];
     const midpoint: [number, number] = [(centroidPos[0][0] + centroidPos[1][0]) / 2, (centroidPos[0][1] + centroidPos[1][1]) / 2];
     const stepResidual = (spreadSum[0] + spreadSum[1]) / (spreadWeight[0] + spreadWeight[1]);
     edgeSharpness = computeEdgeSharpness(samples, boundaryDirection, midpoint, stepResidual);

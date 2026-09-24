@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_DITHER_TEXTURE, handDrawnThresholds, markCentres, type DitherStamp, type DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
+import {
+  DEFAULT_DITHER_TEXTURE,
+  handDrawnThresholds,
+  markCentres,
+  type DitherStamp,
+  type DitherTexture,
+} from "@/lib/pipeline/dither-hand-drawn";
 import { handDrawnThresholds as frozenThresholds } from "./helpers/dither-frozen-g054";
 import { mulberry32 } from "@/lib/prng";
 
@@ -76,13 +82,7 @@ describe("a painted stamp draws what it says, and cannot break tone (G-056)", ()
   /** A cross: the centre and its four neighbours in step 1, nothing else painted. */
   const CROSS: DitherStamp = {
     size: 5,
-    order: [
-      0, 0, 0, 0, 0,
-      0, 0, 1, 0, 0,
-      0, 1, 1, 1, 0,
-      0, 0, 1, 0, 0,
-      0, 0, 0, 0, 0,
-    ],
+    order: [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
   };
 
   const stamped = (stamp: DitherStamp, spacing = 8): DitherTexture => ({

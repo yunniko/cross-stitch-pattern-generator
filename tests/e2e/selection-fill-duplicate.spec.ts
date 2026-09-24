@@ -29,10 +29,7 @@ async function pickFirstThread(page: Page) {
 async function exportChart(page: Page): Promise<{ width: number; height: number; cellPalette: number[] }> {
   await page.getByRole("tab", { name: "Threads" }).click();
   await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Export", exact: true }).click(),
-  ]);
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   return JSON.parse(await readFile((await download.path())!, "utf8"));
 }
 
@@ -100,8 +97,7 @@ test("Duplicate leaves the original and puts a copy in hand, which Paste can rep
   await generateAndSelect(page);
 
   await expect(page.getByRole("button", { name: "Duplicate" })).toBeEnabled();
-  await page.getByRole("button", { name: "Duplicate" })
-    .click();
+  await page.getByRole("button", { name: "Duplicate" }).click();
 
   // A piece is still in hand -- the copy -- and the clipboard now holds it, so Paste is live without a Copy press.
   await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();

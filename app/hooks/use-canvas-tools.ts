@@ -17,7 +17,14 @@ import {
 } from "@/lib/editor/pattern-edit";
 import { fillSymmetric, symmetryOrbit, type SymmetryAxes } from "@/lib/editor/symmetry";
 import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
-import { cellIndexFromEvent, clampedCellFromEvent, pointInRect, rectFromCorners, releaseCapture, type PointerPosition } from "../editor-geometry";
+import {
+  cellIndexFromEvent,
+  clampedCellFromEvent,
+  pointInRect,
+  rectFromCorners,
+  releaseCapture,
+  type PointerPosition,
+} from "../editor-geometry";
 import type { ChartRenderer } from "./use-chart-renderer";
 
 // The Brush, Move and Select gestures (D104). Each hook keeps its gesture in a ref so pointer moves never re-render,
@@ -73,7 +80,15 @@ export function useBrushTool({
   symmetry: SymmetryAxes;
   replaceSince: (anchor: StitchPattern, since: readonly StitchPattern[], next: StitchPattern) => void;
 }) {
-  const strokeRef = useRef<{ base: StitchPattern; cells: Uint8Array; lastCell: number | null; axes: SymmetryAxes; color: number; click: ClickRecord; stamp: readonly StampOffset[] } | null>(null);
+  const strokeRef = useRef<{
+    base: StitchPattern;
+    cells: Uint8Array;
+    lastCell: number | null;
+    axes: SymmetryAxes;
+    color: number;
+    click: ClickRecord;
+    stamp: readonly StampOffset[];
+  } | null>(null);
   const lastClickRef = useRef<ClickRecord | null>(null);
 
   function cellAt(e: PointerPosition, frame: HTMLElement): number | null {
@@ -85,7 +100,14 @@ export function useBrushTool({
    * stroke buffer, and hands them to the renderer as one batch. Mirroring the stamped cells rather than the centre
    * keeps a wide brush symmetric about the axis rather than a stamp's width away from it (G-064).
    */
-  function paintOrbit(base: StitchPattern, cells: Uint8Array, cellIndex: number, axes: SymmetryAxes, color: number, pressStamp: readonly StampOffset[]) {
+  function paintOrbit(
+    base: StitchPattern,
+    cells: Uint8Array,
+    cellIndex: number,
+    axes: SymmetryAxes,
+    color: number,
+    pressStamp: readonly StampOffset[]
+  ) {
     const orbit: number[] = [];
     const seen = new Set<number>();
     for (const stamped of stampCells(cellIndex, base.width, base.height, pressStamp)) {
@@ -129,7 +151,9 @@ export function useBrushTool({
       last.axes === symmetry &&
       last.commits.length > 0 &&
       last.commits[last.commits.length - 1] === pattern;
-    const click: ClickRecord = isSecondClick ? last : { time: now, cellIndex, anchor: pattern, axes: symmetry, color: activeColorIndex, commits: [] };
+    const click: ClickRecord = isSecondClick
+      ? last
+      : { time: now, cellIndex, anchor: pattern, axes: symmetry, color: activeColorIndex, commits: [] };
     click.time = now;
     lastClickRef.current = click;
     const cells = pattern.cellPalette.slice();
@@ -200,7 +224,6 @@ function shapeSpine(kind: ShapeKind, fill: ShapeFill, from: CellPoint, to: CellP
   }
 }
 
-
 /**
  * A shape gesture (G-064): press to anchor one end, drag to move the other, release to commit. The shape is redrawn
  * from the chart as it was when the gesture started, so dragging back and forth leaves nothing behind, and the whole
@@ -270,7 +293,17 @@ export function useShapeTool({
     const at = clampedCellFromEvent(e, frame, cellSize, pattern.width, pattern.height);
     // A filled shape is exactly the shape: stamping the brush around its edge would grow it by the brush radius.
     const pressStamp = stampForPress(fill, stamp);
-    shapeRef.current = { base: pattern, cells: pattern.cellPalette.slice(), painted: [], from: at, to: at, axes: symmetry, color, stamp: pressStamp, fill };
+    shapeRef.current = {
+      base: pattern,
+      cells: pattern.cellPalette.slice(),
+      painted: [],
+      from: at,
+      to: at,
+      axes: symmetry,
+      color,
+      stamp: pressStamp,
+      fill,
+    };
     drawFrame();
     frame.setPointerCapture(e.pointerId);
   }
@@ -307,11 +340,26 @@ export function useShapeTool({
     return true;
   }
 
-  return { onPointerDown, onPointerMove, onPointerUp, cancel, get isDrawing() { return shapeRef.current !== null; } };
+  return {
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    cancel,
+    get isDrawing() {
+      return shapeRef.current !== null;
+    },
+  };
 }
 
 export function useMoveTool({ frameRef, rendererRef, pattern, cellSize, commit }: CanvasToolInputs) {
-  const moveRef = useRef<{ pointerId: number; basePattern: StitchPattern; startX: number; startY: number; lastDx: number; lastDy: number } | null>(null);
+  const moveRef = useRef<{
+    pointerId: number;
+    basePattern: StitchPattern;
+    startX: number;
+    startY: number;
+    lastDx: number;
+    lastDy: number;
+  } | null>(null);
 
   function onPointerDown(e: PointerLike, frame: HTMLElement) {
     if (!pattern) return;
@@ -402,7 +450,16 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
     if (!pattern) return;
     const { x, y } = clampedCellFromEvent(e, frame, cellSize, pattern.width, pattern.height);
     if (selection && pointInRect(x, y, selection)) {
-      beginDrag(frame, { pointerId: e.pointerId, mode: "moving", basePattern: pattern, selection, startX: x, startY: y, lastDx: 0, lastDy: 0 });
+      beginDrag(frame, {
+        pointerId: e.pointerId,
+        mode: "moving",
+        basePattern: pattern,
+        selection,
+        startX: x,
+        startY: y,
+        lastDx: 0,
+        lastDy: 0,
+      });
       return;
     }
     // Pressing outside the current selection merges it first, then starts a new rectangle.
@@ -412,7 +469,14 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
       commit(workingPattern);
       setSelection(null);
     }
-    beginDrag(frame, { pointerId: e.pointerId, mode: "drawing", basePattern: workingPattern, startX: x, startY: y, rect: { x, y, width: 1, height: 1 } });
+    beginDrag(frame, {
+      pointerId: e.pointerId,
+      mode: "drawing",
+      basePattern: workingPattern,
+      startX: x,
+      startY: y,
+      rect: { x, y, width: 1, height: 1 },
+    });
   }
 
   function onPointerMove(e: PointerLike): boolean {
@@ -423,7 +487,8 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
     const { x, y } = clampedCellFromEvent(e, frame, cellSize, pattern.width, pattern.height);
     if (drag.mode === "drawing") {
       const rect = rectFromCorners(drag.startX, drag.startY, x, y);
-      if (rect.x === drag.rect.x && rect.y === drag.rect.y && rect.width === drag.rect.width && rect.height === drag.rect.height) return true;
+      if (rect.x === drag.rect.x && rect.y === drag.rect.y && rect.width === drag.rect.width && rect.height === drag.rect.height)
+        return true;
       drag.rect = rect;
     } else {
       const dx = x - drag.startX;
@@ -442,7 +507,9 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
     dragRef.current = null;
     // Repaint now: the new selection may equal the old one, in which case no state change would redraw the view.
     rendererRef.current?.endGesture(true);
-    setSelection(drag.mode === "drawing" ? liftSelection(drag.basePattern, drag.rect) : moveSelection(drag.selection, drag.lastDx, drag.lastDy));
+    setSelection(
+      drag.mode === "drawing" ? liftSelection(drag.basePattern, drag.rect) : moveSelection(drag.selection, drag.lastDx, drag.lastDy)
+    );
     releaseCapture(frameRef.current, e.pointerId);
     return true;
   }

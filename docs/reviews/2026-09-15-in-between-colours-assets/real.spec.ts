@@ -27,7 +27,12 @@ it("real photos: Crisp confident share and transition-strip candidates by stitch
     for (const longerSideStitches of [100, 250, 500]) {
       const p = buildPattern(img, { longerSideStitches, colorCount: 24, edgeMode: "crisp" });
       const layer = buildCrispEvidenceLayer(img, p.width, p.height, allCellIndices(p.width, p.height));
-      const snapped = snapTransitions(p.cellPalette, p.width, p.height, p.palette.map((c) => c.rgb));
+      const snapped = snapTransitions(
+        p.cellPalette,
+        p.width,
+        p.height,
+        p.palette.map((c) => c.rgb)
+      );
       rows.push({
         name,
         size: `${img.width}x${img.height}`,
@@ -36,7 +41,10 @@ it("real photos: Crisp confident share and transition-strip candidates by stitch
         crispConfidentShare: (layer.evidenceByCell.size / (p.width * p.height)).toFixed(4),
         snapCandidateShare: (snapped.changed / (p.width * p.height)).toFixed(4),
       });
-      writeFileSync(path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "real-results.json"), JSON.stringify(rows, null, 2));
+      writeFileSync(
+        path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "real-results.json"),
+        JSON.stringify(rows, null, 2)
+      );
     }
   }
   console.log(JSON.stringify(rows));

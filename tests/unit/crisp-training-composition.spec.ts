@@ -55,7 +55,8 @@ describe("M3 composition: weighted training + mode-aware cost together, on M1's 
     const whiteOklab = rgbToOklab([255, 255, 255]);
     const genuineGrayOklab = rgbToOklab([128, 128, 128]);
 
-    const nearestDist = (target: typeof blackOklab) => Math.min(...result.palette.map((rgb) => oklabDistanceSquared(rgbToOklab(rgb), target)));
+    const nearestDist = (target: typeof blackOklab) =>
+      Math.min(...result.palette.map((rgb) => oklabDistanceSquared(rgbToOklab(rgb), target)));
 
     // A generous but meaningful closeness bound -- real recovered colors
     // should sit close to the true source colors, not just "somewhere in

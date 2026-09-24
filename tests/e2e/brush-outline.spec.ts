@@ -198,7 +198,10 @@ test("nothing it draws reaches the chart, the saved file or the stitch count", a
   await page.getByLabel("Export").selectOption("editable");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8"));
-  expect(chart.cellPalette.every((cell: number) => cell === 255), "every stitch is still empty").toBe(true);
+  expect(
+    chart.cellPalette.every((cell: number) => cell === 255),
+    "every stitch is still empty"
+  ).toBe(true);
   expect(errors).toEqual([]);
 });
 

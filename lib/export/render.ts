@@ -1,4 +1,11 @@
-import { createCanvas, onExportBackendChange, pixelSourceToPngBlob, type AnyCanvas, type Canvas2D, type PixelSource } from "./canvas-backend";
+import {
+  createCanvas,
+  onExportBackendChange,
+  pixelSourceToPngBlob,
+  type AnyCanvas,
+  type Canvas2D,
+  type PixelSource,
+} from "./canvas-backend";
 import type { ChartDrawingContext } from "./chart-drawing-context";
 import { hexToRgb, luminance, rgbToHex } from "../color/color";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, formatFinishedSize, type SizeUnit } from "./finished-size";
@@ -217,7 +224,13 @@ export function symbolStampsFor(palette: readonly PaletteColor[], mode: RenderMo
   for (const color of palette) {
     const m = measure.measureText(color.symbol);
     // Glyphs are drawn at (cell centre x, cell centre y + 1), as `drawChart` draws them.
-    reach = Math.max(reach, m.actualBoundingBoxLeft - half, m.actualBoundingBoxRight - half, m.actualBoundingBoxAscent - 1 - half, m.actualBoundingBoxDescent + 1 - half);
+    reach = Math.max(
+      reach,
+      m.actualBoundingBoxLeft - half,
+      m.actualBoundingBoxRight - half,
+      m.actualBoundingBoxAscent - 1 - half,
+      m.actualBoundingBoxDescent + 1 - half
+    );
   }
   // One more pixel for the glyph's anti-aliased edge.
   const pad = Math.max(0, Math.ceil(reach)) + 1;
@@ -330,7 +343,13 @@ function opaqueCanvasRgb(color: string): RGB | null {
 let stitchScratch: { canvas: AnyCanvas; ctx: Canvas2D; w: number; h: number; image: ImageData } | null = null;
 
 /** Writes one pixel per stitch of `region` into a scratch canvas and scales it onto `ctx` with nearest-neighbour sampling. */
-function drawStitchPixels(ctx: CanvasRenderingContext2D, region: ChartRegion, cellSize: number, pixelAt: (cellIndex: number, out: Uint8ClampedArray, offset: number) => void, width: number): boolean {
+function drawStitchPixels(
+  ctx: CanvasRenderingContext2D,
+  region: ChartRegion,
+  cellSize: number,
+  pixelAt: (cellIndex: number, out: Uint8ClampedArray, offset: number) => void,
+  width: number
+): boolean {
   const w = region.x1 - region.x0;
   const h = region.y1 - region.y0;
   if (w <= 0 || h <= 0) return true;
@@ -369,7 +388,14 @@ function drawStitchPixels(ctx: CanvasRenderingContext2D, region: ChartRegion, ce
  * drawn as before. With symbols, or an empty-stitch colour that isn't opaque, it is `drawChart` unchanged. Exports keep
  * `drawChart`. Parity: tests/e2e/chart-render-parity.spec.ts.
  */
-export function drawChartOnScreen(ctx: CanvasRenderingContext2D, pattern: StitchPattern, mode: RenderMode, cellSize: number, region?: ChartRegion, emptyCellColor: string = "#ffffff") {
+export function drawChartOnScreen(
+  ctx: CanvasRenderingContext2D,
+  pattern: StitchPattern,
+  mode: RenderMode,
+  cellSize: number,
+  region?: ChartRegion,
+  emptyCellColor: string = "#ffffff"
+) {
   const emptyRgb = cellSize < LEGIBILITY_FLOOR_PX ? opaqueCanvasRgb(emptyCellColor) : null;
   const { width, height, cellPalette, palette } = pattern;
   const r = region ?? { x0: 0, y0: 0, x1: width, y1: height };
@@ -450,7 +476,17 @@ export function drawCell(
  * (x0, y0) sits on the canvas: 0 for a region drawn at the origin, the
  * cell's own pixel position for an in-place single-cell redraw.
  */
-function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: number, y1: number, cellSize: number, originX = 0, originY = 0, style: GridStyle = "stroke") {
+function drawGridLines(
+  ctx: ChartDrawingContext,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  cellSize: number,
+  originX = 0,
+  originY = 0,
+  style: GridStyle = "stroke"
+) {
   const minorWidth = Math.max(1, Math.round(cellSize * MINOR_LINE_RATIO));
   const mediumWidth = Math.max(1, Math.round(cellSize * MEDIUM_LINE_RATIO));
   const majorWidth = Math.max(1, Math.round(cellSize * MAJOR_LINE_RATIO));
@@ -465,7 +501,8 @@ function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: num
     const alpha = canvasCtx.globalAlpha;
     canvasCtx.fillStyle = GRID_LINE_COLOR;
     const band = (centre: number, w: number, from: number, length: number, vertical: boolean) => {
-      const rect = (at: number, size: number) => (vertical ? canvasCtx.fillRect(at, from, size, length) : canvasCtx.fillRect(from, at, length, size));
+      const rect = (at: number, size: number) =>
+        vertical ? canvasCtx.fillRect(at, from, size, length) : canvasCtx.fillRect(from, at, length, size);
       if (w % 2 === 0) {
         rect(centre - w / 2, w);
         return;
@@ -477,10 +514,22 @@ function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: num
       canvasCtx.globalAlpha = alpha;
     };
     for (let x = x0; x <= x1; x++) {
-      band(originX + (x - x0) * cellSize, x % 10 === 0 ? majorWidth : x % 5 === 0 ? mediumWidth : minorWidth, originY, (y1 - y0) * cellSize, true);
+      band(
+        originX + (x - x0) * cellSize,
+        x % 10 === 0 ? majorWidth : x % 5 === 0 ? mediumWidth : minorWidth,
+        originY,
+        (y1 - y0) * cellSize,
+        true
+      );
     }
     for (let y = y0; y <= y1; y++) {
-      band(originY + (y - y0) * cellSize, y % 10 === 0 ? majorWidth : y % 5 === 0 ? mediumWidth : minorWidth, originX, (x1 - x0) * cellSize, false);
+      band(
+        originY + (y - y0) * cellSize,
+        y % 10 === 0 ? majorWidth : y % 5 === 0 ? mediumWidth : minorWidth,
+        originX,
+        (x1 - x0) * cellSize,
+        false
+      );
     }
     canvasCtx.fillStyle = fill;
     return;
@@ -513,7 +562,13 @@ function drawGridLines(ctx: ChartDrawingContext, x0: number, y0: number, x1: num
  * any color, unlike `drawChart`'s luminance-based text color choice which
  * only has its own flat fill color to contrast against.
  */
-export function drawChartOutline(ctx: CanvasRenderingContext2D, pattern: StitchPattern, cellSize: number, region?: ChartRegion, gridStyle: GridStyle = "stroke") {
+export function drawChartOutline(
+  ctx: CanvasRenderingContext2D,
+  pattern: StitchPattern,
+  cellSize: number,
+  region?: ChartRegion,
+  gridStyle: GridStyle = "stroke"
+) {
   const { width, height, cellPalette, palette } = pattern;
   const { x0, y0, x1, y1 } = region ?? { x0: 0, y0: 0, x1: width, y1: height };
   const drawSymbols = cellSize >= LEGIBILITY_FLOOR_PX;
@@ -552,7 +607,13 @@ const HIGHLIGHT_MASK_ALPHA = 0.6;
  * per stitch. Used on screen only if tests/e2e/chart-render-parity.spec.ts shows it byte-identical to per-stitch
  * `fillRect` compositing; otherwise `drawHighlightOverlay` stays.
  */
-export function drawHighlightOverlayRaster(ctx: CanvasRenderingContext2D, pattern: StitchPattern, cellSize: number, highlightedIndices: ReadonlySet<number>, region?: ChartRegion) {
+export function drawHighlightOverlayRaster(
+  ctx: CanvasRenderingContext2D,
+  pattern: StitchPattern,
+  cellSize: number,
+  highlightedIndices: ReadonlySet<number>,
+  region?: ChartRegion
+) {
   const { width, height, cellPalette } = pattern;
   const alpha = Math.round(HIGHLIGHT_MASK_ALPHA * 255);
   const r = region ?? { x0: 0, y0: 0, x1: width, y1: height };
@@ -594,7 +655,12 @@ export function chartPaintOverhangPx(ctx: CanvasRenderingContext2D, pattern: Sti
   for (const color of pattern.palette) {
     const m = ctx.measureText(color.symbol);
     // Glyphs are drawn at (cell centre x, cell centre y + 1).
-    const reach = Math.max(m.actualBoundingBoxLeft - half, m.actualBoundingBoxRight - half, m.actualBoundingBoxAscent - 1 - half, m.actualBoundingBoxDescent + 1 - half);
+    const reach = Math.max(
+      m.actualBoundingBoxLeft - half,
+      m.actualBoundingBoxRight - half,
+      m.actualBoundingBoxAscent - 1 - half,
+      m.actualBoundingBoxDescent + 1 - half
+    );
     overhang = Math.max(overhang, Math.ceil(reach + haloReach));
   }
   ctx.restore();
@@ -720,14 +786,7 @@ export function truncateToWidth(ctx: ChartDrawingContext, text: string, maxWidth
   return low > 0 ? `${text.slice(0, low)}…` : "…";
 }
 
-function drawLegendItem(
-  ctx: Canvas2D,
-  color: PaletteColor,
-  mode: RenderMode,
-  x: number,
-  y: number,
-  aidaCount: number
-) {
+function drawLegendItem(ctx: Canvas2D, color: PaletteColor, mode: RenderMode, x: number, y: number, aidaCount: number) {
   // The legend swatch always shows the true color, even in B&W mode —
   // otherwise a B&W download carries no color information at all
   // (domain-expert review, HANDOVER.md D7).
@@ -871,7 +930,11 @@ export function findChartLayout(pattern: StitchPattern, requestedCellSize: numbe
     const canvasWidth = Math.max(leftGutter + chartWidthPx + rightGutter + extraWidth, headerWidthPx);
     const canvasHeight = HEADER_HEIGHT + topGutter + chartHeightPx + bottomGutter + extraHeight;
 
-    if (canvasWidth <= MAX_CHART_DIMENSION_PX && canvasHeight <= MAX_CHART_DIMENSION_PX && canvasWidth * canvasHeight <= MAX_CHART_AREA_PX) {
+    if (
+      canvasWidth <= MAX_CHART_DIMENSION_PX &&
+      canvasHeight <= MAX_CHART_DIMENSION_PX &&
+      canvasWidth * canvasHeight <= MAX_CHART_AREA_PX
+    ) {
       return { cellSize, chartWidthPx, chartHeightPx, belowChart, leftGutter, topGutter, canvasWidth, canvasHeight };
     }
   }
@@ -879,7 +942,13 @@ export function findChartLayout(pattern: StitchPattern, requestedCellSize: numbe
   return null;
 }
 
-function computeChartLayout(pattern: StitchPattern, requestedCellSize: number, aidaCount: number, sizeUnit: SizeUnit, authorName?: string): ChartLayout {
+function computeChartLayout(
+  pattern: StitchPattern,
+  requestedCellSize: number,
+  aidaCount: number,
+  sizeUnit: SizeUnit,
+  authorName?: string
+): ChartLayout {
   const { ctx: measureCtx } = createCanvas(1, 1);
   measureCtx.font = HEADER_FONT;
   const headerWidthPx = measureCtx.measureText(headerText(pattern, aidaCount, sizeUnit, authorName)).width + LEGEND_PADDING * 2;
@@ -889,11 +958,7 @@ function computeChartLayout(pattern: StitchPattern, requestedCellSize: number, a
   return layout;
 }
 
-export function renderPatternToCanvas(
-  pattern: StitchPattern,
-  mode: RenderMode,
-  options: RenderOptions = {}
-): AnyCanvas {
+export function renderPatternToCanvas(pattern: StitchPattern, mode: RenderMode, options: RenderOptions = {}): AnyCanvas {
   const aidaCount = options.aidaCount ?? DEFAULT_AIDA_COUNT;
   const sizeUnit = options.sizeUnit ?? DEFAULT_SIZE_UNIT;
   const authorName = options.authorName;

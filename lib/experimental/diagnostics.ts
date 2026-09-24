@@ -50,11 +50,7 @@ function median(values: number[]): number {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-export function computePatternDiagnostics(
-  pattern: StitchPattern,
-  cells: CellColorBuffer,
-  importance?: Float32Array
-): PatternDiagnostics {
+export function computePatternDiagnostics(pattern: StitchPattern, cells: CellColorBuffer, importance?: Float32Array): PatternDiagnostics {
   const { width, height, cellPalette, palette } = pattern;
   const regions = labelRegions(cellPalette, width, height);
   const areas = regions.components.map((c) => c.area);
@@ -92,8 +88,7 @@ export function computePatternDiagnostics(
   const averageCompactness =
     compactComponents.length === 0
       ? 0
-      : compactComponents.reduce((sum, c) => sum + (c.weightedPerimeter * c.weightedPerimeter) / c.area, 0) /
-        compactComponents.length;
+      : compactComponents.reduce((sum, c) => sum + (c.weightedPerimeter * c.weightedPerimeter) / c.area, 0) / compactComponents.length;
 
   const paletteOklab = palette.map((c) => rgbToOklab(c.rgb));
   let reconstructionErrorSum = 0;

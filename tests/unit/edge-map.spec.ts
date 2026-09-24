@@ -162,7 +162,13 @@ describe("every cell reads the pixels it covers, however fine the chart (G-051)"
       });
     };
 
-    for (const [size, grid] of [[240, 60], [240, 37], [100, 100], [512, 150], [64, 16]] as const) {
+    for (const [size, grid] of [
+      [240, 60],
+      [240, 37],
+      [100, 100],
+      [512, 150],
+      [64, 16],
+    ] as const) {
       const source = edgePhoto(size);
       const gray = sourceLuminance(source);
       const edge = computeEdgeMagnitude(source, gray);
@@ -172,4 +178,3 @@ describe("every cell reads the pixels it covers, however fine the chart (G-051)"
     }
   });
 });
-

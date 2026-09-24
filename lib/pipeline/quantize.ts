@@ -161,7 +161,13 @@ const BOUND_MARGIN = 1e-9;
  * Nearest centroid for point `i`, first minimum wins, with the same arithmetic as `oklabDistanceSquared(point,
  * centroid)`; also returns the second-smallest squared distance, for the bounds.
  */
-function scanPoint(points: Float64Array, i: number, flat: Float64Array, k: number, out: { best: number; bestDist: number; secondDist: number }): void {
+function scanPoint(
+  points: Float64Array,
+  i: number,
+  flat: Float64Array,
+  k: number,
+  out: { best: number; bestDist: number; secondDist: number }
+): void {
   const o = i * 3;
   const pl = points[o];
   const pa = points[o + 1];
@@ -324,10 +330,7 @@ export function runLloyd(oklabColors: Oklab[], initialCentroids: Oklab[]): { cen
 }
 
 /** The RGB palette straight from the converged centroids, each already the OKLab mean of its members; empty clusters dropped. */
-function buildPaletteFromAssignment(
-  centroids: Oklab[],
-  assignments: Uint8Array
-): { cellPaletteIndex: Uint8Array; palette: RGB[] } {
+function buildPaletteFromAssignment(centroids: Oklab[], assignments: Uint8Array): { cellPaletteIndex: Uint8Array; palette: RGB[] } {
   const counts = new Array(centroids.length).fill(0);
   for (const c of assignments) counts[c]++;
 
@@ -369,7 +372,13 @@ export function injectWorstFitClusters(
   return injectWorstFitClustersOnPoints(flatten(oklabColors), assignment, centroids, slotsToAdd, importance);
 }
 
-function injectWorstFitClustersOnPoints(points: Float64Array, assignment: Uint8Array, centroids: Oklab[], slotsToAdd: number, importance: Float32Array) {
+function injectWorstFitClustersOnPoints(
+  points: Float64Array,
+  assignment: Uint8Array,
+  centroids: Oklab[],
+  slotsToAdd: number,
+  importance: Float32Array
+) {
   const nextAssignment = assignment.slice();
   let nextCentroids = centroids.slice();
   const n = points.length / 3;

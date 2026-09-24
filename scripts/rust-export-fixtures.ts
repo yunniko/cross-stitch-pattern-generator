@@ -10,7 +10,18 @@ import { makePhotoLikeBuffer } from "../tests/unit/helpers/fixtures";
  * Deterministic: the same fixtures come out wherever they are built.
  */
 
-export const ALL_KINDS: ExportJobKind[] = ["editable", "oxs", "png-color", "png-bw", "png-realistic", "a4-color", "a4-bw", "pdf-color", "pdf-bw", "all"];
+export const ALL_KINDS: ExportJobKind[] = [
+  "editable",
+  "oxs",
+  "png-color",
+  "png-bw",
+  "png-realistic",
+  "a4-color",
+  "a4-bw",
+  "pdf-color",
+  "pdf-bw",
+  "all",
+];
 
 const NO_SYMMETRY: SymmetryAxes = { vertical: false, horizontal: false, diagonal: false, antidiagonal: false };
 
@@ -22,13 +33,23 @@ export interface Fixture {
 }
 
 /** A generated chart with what a real save carries: a name, a photo reference, an empty stitch and an unused colour. */
-function fixture(name: string, stitches: number, colors: number, extra: Partial<StitchPattern>, symmetry: SymmetryAxes, authorName: string): Fixture {
+function fixture(
+  name: string,
+  stitches: number,
+  colors: number,
+  extra: Partial<StitchPattern>,
+  symmetry: SymmetryAxes,
+  authorName: string
+): Fixture {
   const source = makePhotoLikeBuffer(Math.round(stitches * 4), Math.round(stitches * 4 * (2 / 3)));
   const built = buildPattern(source, { longerSideStitches: stitches, colorCount: colors, paletteMode: extra.threadBrand });
   const cellPalette = built.cellPalette.slice();
   cellPalette[0] = EMPTY_CELL;
   // An unused colour, which every export but the editable save drops.
-  const palette = [...built.palette, { index: built.palette.length, rgb: [12, 34, 56] as const, symbol: "Ω", name: "Unused & <odd> \"name\"", count: 0 }];
+  const palette = [
+    ...built.palette,
+    { index: built.palette.length, rgb: [12, 34, 56] as const, symbol: "Ω", name: 'Unused & <odd> "name"', count: 0 },
+  ];
   const counts = new Array(palette.length).fill(0);
   for (const v of cellPalette) if (v !== EMPTY_CELL) counts[v]++;
   const pattern: StitchPattern = {
@@ -36,7 +57,14 @@ function fixture(name: string, stitches: number, colors: number, extra: Partial<
     cellPalette,
     palette: palette.map((c, i) => ({ ...c, count: counts[i] })),
     name: `${name} chart`,
-    sourceImage: { dataUrl: "data:image/png;base64,iVBORw0KGgo=", naturalWidth: 640, naturalHeight: 427, cellSizePx: 4.266666666666667, offsetX: 0, offsetY: -0.5 },
+    sourceImage: {
+      dataUrl: "data:image/png;base64,iVBORw0KGgo=",
+      naturalWidth: 640,
+      naturalHeight: 427,
+      cellSizePx: 4.266666666666667,
+      offsetX: 0,
+      offsetY: -0.5,
+    },
     ...extra,
   };
   return { name, pattern, symmetry, authorName };

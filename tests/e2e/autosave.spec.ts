@@ -110,14 +110,22 @@ test("a pattern from a >4 MB photo survives a reload (the case the localStorage 
   await expect(page.getByRole("button", { name: "Show the photo behind the chart" })).toBeEnabled();
 });
 
-test("a corrupt autosave starts a fresh session with a banner and an on-demand error report, not an unsolicited download", async ({ page }) => {
+test("a corrupt autosave starts a fresh session with a banner and an on-demand error report, not an unsolicited download", async ({
+  page,
+}) => {
   const downloads: string[] = [];
   page.on("download", (d) => downloads.push(d.suggestedFilename()));
 
   // Seed from a same-origin page that doesn't mount the workspace: on "/" the page's own restore could read the corrupt
   // record first, clear it and show the banner there, leaving nothing for the load under test.
   await page.goto("/e2e-seed-without-workspace");
-  await seedProjectRecord(page, { storeVersion: 1, width: 2, height: 2, cellPalette: [0, 9, 0, 0], palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }] });
+  await seedProjectRecord(page, {
+    storeVersion: 1,
+    width: 2,
+    height: 2,
+    cellPalette: [0, 9, 0, 0],
+    palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }],
+  });
 
   await page.goto("/");
   const banner = page.getByTestId("restore-failure");
@@ -125,7 +133,10 @@ test("a corrupt autosave starts a fresh session with a banner and an on-demand e
   await expect(page.getByTestId("chart-canvas")).not.toBeVisible();
   expect(downloads).toEqual([]); // nothing downloaded on page load
 
-  const [download] = await Promise.all([page.waitForEvent("download"), banner.getByRole("button", { name: "Download error report" }).click()]);
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    banner.getByRole("button", { name: "Download error report" }).click(),
+  ]);
   expect(download.suggestedFilename()).toMatch(/^autosave_error-report_.*\.json$/);
 
   // The corrupt slot was cleared: a further reload is a clean start with no banner.

@@ -25,10 +25,7 @@ async function generate(page: Page) {
 async function exportChart(page: Page): Promise<{ cellPalette: number[]; width: number; height: number }> {
   await page.getByRole("tab", { name: "Threads" }).click();
   await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Export", exact: true }).click(),
-  ]);
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8"));
   await page.getByRole("tab", { name: "Chart" }).click();
   return chart;

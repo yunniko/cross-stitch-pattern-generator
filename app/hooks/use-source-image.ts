@@ -67,5 +67,14 @@ export function useSourceImage() {
     }
   }
 
-  return { pixelBuffer, meta, fileName, isLoading, revisionRef, hasPhoto: pixelBuffer !== null || meta !== null, loadFile, adoptPatternPhoto };
+  return {
+    pixelBuffer,
+    meta,
+    fileName,
+    isLoading,
+    revisionRef,
+    hasPhoto: pixelBuffer !== null || meta !== null,
+    loadFile,
+    adoptPatternPhoto,
+  };
 }

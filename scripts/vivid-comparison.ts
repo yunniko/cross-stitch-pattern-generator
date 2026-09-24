@@ -105,7 +105,12 @@ function confettiRatio(pattern: StitchPattern): number {
     for (let x = 0; x < width; x++) {
       const here = cellPalette[y * width + x];
       let same = 0;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ] as const) {
         const nx = x + dx;
         const ny = y + dy;
         if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
@@ -142,8 +147,17 @@ function sourceFamilies(source: PixelBuffer): string[] {
 
 it("measures Vivid against the same chart with it off", async () => {
   const fixtures: Array<{ name: string; note: string; source: PixelBuffer; paletteMode?: PaletteMode }> = [
-    { name: "photo fixture", note: "the project's photo-like fixture: regions, a shading ramp, a small disc and noise", source: makePhotoLikeBuffer(240, 160) },
-    { name: "photo fixture on DMC", note: "the same fixture snapped to real threads", source: makePhotoLikeBuffer(240, 160), paletteMode: "dmc" },
+    {
+      name: "photo fixture",
+      note: "the project's photo-like fixture: regions, a shading ramp, a small disc and noise",
+      source: makePhotoLikeBuffer(240, 160),
+    },
+    {
+      name: "photo fixture on DMC",
+      note: "the same fixture snapped to real threads",
+      source: makePhotoLikeBuffer(240, 160),
+      paletteMode: "dmc",
+    },
     {
       name: "gradient",
       note: "a smooth ramp in all three channels, where every cell is already its own colour",
@@ -162,8 +176,16 @@ it("measures Vivid against the same chart with it off", async () => {
 
   if (PHOTO_DIR) {
     fixtures.unshift(
-      { name: "lattice portrait", note: "the Owner's photo: a subject under a wooden lattice, with small red and blue on a dark shirt (not committed)", source: await load(path.join(PHOTO_DIR, "6.jpg")) },
-      { name: "cat with flowers", note: "the Owner's photo: a grey cat on cream with pale pink and violet flowers (not committed)", source: await load(path.join(PHOTO_DIR, "7.png")) }
+      {
+        name: "lattice portrait",
+        note: "the Owner's photo: a subject under a wooden lattice, with small red and blue on a dark shirt (not committed)",
+        source: await load(path.join(PHOTO_DIR, "6.jpg")),
+      },
+      {
+        name: "cat with flowers",
+        note: "the Owner's photo: a grey cat on cream with pale pink and violet flowers (not committed)",
+        source: await load(path.join(PHOTO_DIR, "7.png")),
+      }
     );
   }
 
@@ -200,7 +222,12 @@ it("measures Vivid against the same chart with it off", async () => {
 
     const families = sourceFamilies(fixture.source);
     if (families.length > 0) {
-      lines.push(`Hue families in the photo itself: ${families.join(", ")}.`, "", "| Hue | First thread, off | First thread, Vivid |", "|---|---|---|");
+      lines.push(
+        `Hue families in the photo itself: ${families.join(", ")}.`,
+        "",
+        "| Hue | First thread, off | First thread, Vivid |",
+        "|---|---|---|"
+      );
       for (const family of families) {
         const off = firstAppearance(fixture.source, family, false, 100, fixture.paletteMode);
         const on = firstAppearance(fixture.source, family, true, 100, fixture.paletteMode);
@@ -232,8 +259,19 @@ it("measures Vivid against the same chart with it off", async () => {
     lines.push("");
 
     // Classic as well as Refined, since the switch is independent of the algorithm (criterion 4, D040).
-    const classicOff = buildPattern(fixture.source, { longerSideStitches: 100, colorCount: 24, quantizer: plainKMeansQuantizer, paletteMode: fixture.paletteMode });
-    const classicOn = buildPattern(fixture.source, { longerSideStitches: 100, colorCount: 24, quantizer: plainKMeansQuantizer, vivid: true, paletteMode: fixture.paletteMode });
+    const classicOff = buildPattern(fixture.source, {
+      longerSideStitches: 100,
+      colorCount: 24,
+      quantizer: plainKMeansQuantizer,
+      paletteMode: fixture.paletteMode,
+    });
+    const classicOn = buildPattern(fixture.source, {
+      longerSideStitches: 100,
+      colorCount: 24,
+      quantizer: plainKMeansQuantizer,
+      vivid: true,
+      paletteMode: fixture.paletteMode,
+    });
     const hues = (p: StitchPattern) => new Set(p.palette.map((c) => familyOf(c.rgb))).size;
     lines.push(
       `With Classic clustering instead of Refined, at 24 colours: ${hues(classicOff)} hue families off, ${hues(classicOn)} with Vivid ` +
@@ -256,5 +294,6 @@ it("measures Vivid against the same chart with it off", async () => {
 
   writeFileSync(OUT, lines.join("\n"));
   console.log(`wrote ${OUT}`);
-  for (const r of rows) console.log(`  ${r.fixture} ${shareLabel(r.share)}: error ${r.ratio.toFixed(3)}x, confetti ${(100 * r.addedConfetti).toFixed(2)}pt`);
+  for (const r of rows)
+    console.log(`  ${r.fixture} ${shareLabel(r.share)}: error ${r.ratio.toFixed(3)}x, confetti ${(100 * r.addedConfetti).toFixed(2)}pt`);
 });

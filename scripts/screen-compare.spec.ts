@@ -24,7 +24,8 @@ const RATIOS = [1, 1.25, 1.5, 2];
  * 10 levels on grid-line edge pixels, 1.1% of pixels at 1.25). A misplaced canvas, border or scroll position differs
  * far more widely, so these limits still catch it.
  */
-const limitsFor = (ratio: number) => (Number.isInteger(ratio) ? { maxDelta: 2, maxShareAboveTwo: 0.005 } : { maxDelta: 16, maxShareAboveTwo: 0.02 });
+const limitsFor = (ratio: number) =>
+  Number.isInteger(ratio) ? { maxDelta: 2, maxShareAboveTwo: 0.005 } : { maxDelta: 16, maxShareAboveTwo: 0.02 };
 
 async function openChart(browser: Browser, url: string, deviceScaleFactor: number): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor });
@@ -46,10 +47,13 @@ async function settle(page: Page, extraMs = 400) {
 const scroller = (page: Page) => page.locator("div.overflow-auto").first();
 
 async function scrollTo(page: Page, left: number, top: number) {
-  await scroller(page).evaluate((el, [l, t]) => {
-    el.scrollLeft = l;
-    el.scrollTop = t;
-  }, [left, top]);
+  await scroller(page).evaluate(
+    (el, [l, t]) => {
+      el.scrollLeft = l;
+      el.scrollTop = t;
+    },
+    [left, top]
+  );
 }
 
 const STATES: Array<[string, (page: Page) => Promise<void>, number?]> = [
@@ -105,7 +109,11 @@ async function compare(page: Page, a: Buffer, b: Buffer): Promise<Difference> {
       const result = { pixels: x.width * x.height, same: 0, one: 0, two: 0, upTo16: 0, above16: 0, max: 0 };
       if (x.width !== y.width || x.height !== y.height) return { ...result, size: `${x.width}×${x.height} vs ${y.width}×${y.height}` };
       for (let i = 0; i < x.data.length; i += 4) {
-        const d = Math.max(Math.abs(x.data[i] - y.data[i]), Math.abs(x.data[i + 1] - y.data[i + 1]), Math.abs(x.data[i + 2] - y.data[i + 2]));
+        const d = Math.max(
+          Math.abs(x.data[i] - y.data[i]),
+          Math.abs(x.data[i + 1] - y.data[i + 1]),
+          Math.abs(x.data[i + 2] - y.data[i + 2])
+        );
         result.max = Math.max(result.max, d);
         if (d === 0) result.same++;
         else if (d === 1) result.one++;

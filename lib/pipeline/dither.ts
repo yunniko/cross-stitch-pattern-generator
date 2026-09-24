@@ -106,7 +106,13 @@ function positionBetween(paletteOklab: Float64Array, first: number, second: numb
 }
 
 /** One label per cell, from the matrix named by `mode`. */
-function orderedDither(cellOklab: Float64Array, width: number, height: number, palette: readonly RGB[], mode: OrderedDitherMode): Uint8Array {
+function orderedDither(
+  cellOklab: Float64Array,
+  width: number,
+  height: number,
+  palette: readonly RGB[],
+  mode: OrderedDitherMode
+): Uint8Array {
   const matrix = DITHER_MATRICES[mode];
   if (!matrix) throw new Error(`Unknown dither pattern "${mode}".`);
   const size = matrix.length;
@@ -178,7 +184,13 @@ const DIFFUSION_KERNELS: Record<DiffusionDitherMode, readonly (readonly [number,
 };
 
 /** One label per cell, each rounded to its nearest thread with the error carried to the stitches not yet decided. */
-function errorDiffusionDither(cellOklab: Float64Array, width: number, height: number, palette: readonly RGB[], mode: DiffusionDitherMode): Uint8Array {
+function errorDiffusionDither(
+  cellOklab: Float64Array,
+  width: number,
+  height: number,
+  palette: readonly RGB[],
+  mode: DiffusionDitherMode
+): Uint8Array {
   const paletteOklab = paletteToOklab(palette);
   const labels = new Uint8Array(width * height);
   // A working copy, because a cell's colour is its own plus whatever error reached it.
@@ -260,11 +272,7 @@ export function ditherRampWindow(
   if (palette.length < 2) return { width, height, labels: new Uint8Array(width * height) };
 
   // The smallest grid whose top-left corner is the chart's own, for this family.
-  const built = isDrawnMode(mode)
-    ? chart
-    : isDiffusionMode(mode)
-      ? { width: chart.width, height }
-      : { width, height };
+  const built = isDrawnMode(mode) ? chart : isDiffusionMode(mode) ? { width: chart.width, height } : { width, height };
   const labels = ditherToPalette(rampGrid(built.width, built.height, height, palette), built.width, built.height, palette, mode, texture);
 
   if (built.width === width && built.height === height) return { width, height, labels };

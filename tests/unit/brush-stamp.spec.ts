@@ -30,15 +30,7 @@ describe("brushStamp", () => {
   it("is a disc when it is round", () => {
     expect(picture(3, "round")).toEqual(["###", "###", "###"]);
     expect(picture(5, "round")).toEqual([".###.", "#####", "#####", "#####", ".###."]);
-    expect(picture(7, "round")).toEqual([
-      "..###..",
-      ".#####.",
-      "#######",
-      "#######",
-      "#######",
-      ".#####.",
-      "..###..",
-    ]);
+    expect(picture(7, "round")).toEqual(["..###..", ".#####.", "#######", "#######", "#######", ".#####.", "..###.."]);
   });
 
   it("is symmetric about the centre, at every size the pane offers", () => {

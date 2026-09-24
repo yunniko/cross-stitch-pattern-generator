@@ -152,7 +152,10 @@ describe("ovalCells", () => {
           if (dx !== 0 || dy !== 0) neighbours.push(`${cell.x + dx},${cell.y + dy}`);
         }
       }
-      expect(neighbours.some((n) => on.has(n)), key(cell)).toBe(true);
+      expect(
+        neighbours.some((n) => on.has(n)),
+        key(cell)
+      ).toBe(true);
     }
   });
 

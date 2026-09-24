@@ -22,10 +22,22 @@ describe("drawCell", () => {
     // Four gridline segments bounding the cell: x=20, x=40, y=0, y=20.
     expect(ctx.lines).toHaveLength(4);
     expect(ctx.lines.map((l) => [l.from, l.to])).toEqual([
-      [[20, 0], [20, 20]],
-      [[40, 0], [40, 20]],
-      [[20, 0], [40, 0]],
-      [[20, 20], [40, 20]],
+      [
+        [20, 0],
+        [20, 20],
+      ],
+      [
+        [40, 0],
+        [40, 20],
+      ],
+      [
+        [20, 0],
+        [40, 0],
+      ],
+      [
+        [20, 20],
+        [40, 20],
+      ],
     ]);
   });
 
@@ -33,11 +45,17 @@ describe("drawCell", () => {
     const full = makeRecordingContext();
     const big: StitchPattern = { ...makePattern(), width: 12, height: 12, cellPalette: new Uint8Array(144) };
     drawChart(full, big, "color", 24);
-    const weightAt = (coord: number, vertical: boolean) => full.lines.find((l) => (vertical ? l.from[0] === coord && l.to[0] === coord : l.from[1] === coord && l.to[1] === coord))!.lineWidth;
+    const weightAt = (coord: number, vertical: boolean) =>
+      full.lines.find((l) => (vertical ? l.from[0] === coord && l.to[0] === coord : l.from[1] === coord && l.to[1] === coord))!.lineWidth;
 
     const one = makeRecordingContext();
     drawCell(one, big, "color", 24, 9, 4, 0); // right edge is column 10 (major), bottom edge is row 5 (medium)
-    expect(one.lines.map((l) => l.lineWidth)).toEqual([weightAt(9 * 24, true), weightAt(10 * 24, true), weightAt(4 * 24, false), weightAt(5 * 24, false)]);
+    expect(one.lines.map((l) => l.lineWidth)).toEqual([
+      weightAt(9 * 24, true),
+      weightAt(10 * 24, true),
+      weightAt(4 * 24, false),
+      weightAt(5 * 24, false),
+    ]);
     expect(weightAt(10 * 24, true)).toBeGreaterThan(weightAt(9 * 24, true));
   });
 

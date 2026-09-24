@@ -19,7 +19,10 @@ export const PHOTO_UNDERLAY_ALPHA = 0.55;
 export function computeCellSize(pattern: StitchPattern | null, zoomLevel: number): number {
   if (!pattern) return IMAGE_WINDOW_MAX_CELL_SIZE;
   const longer = Math.max(pattern.width, pattern.height);
-  const base = Math.max(IMAGE_WINDOW_MIN_CELL_SIZE, Math.min(IMAGE_WINDOW_MAX_CELL_SIZE, Math.floor(IMAGE_WINDOW_TARGET_WIDTH_PX / longer)));
+  const base = Math.max(
+    IMAGE_WINDOW_MIN_CELL_SIZE,
+    Math.min(IMAGE_WINDOW_MAX_CELL_SIZE, Math.floor(IMAGE_WINDOW_TARGET_WIDTH_PX / longer))
+  );
   return Math.round(base * zoomLevel);
 }
 
@@ -70,7 +73,13 @@ export function cellIndexFromEvent(e: PointerPosition, frame: HTMLElement, cellS
 }
 
 /** Like `cellIndexFromEvent` but clamped to the grid, so a drag that drifts past the edge keeps tracking. */
-export function clampedCellFromEvent(e: PointerPosition, frame: HTMLElement, cellSize: number, width: number, height: number): { x: number; y: number } {
+export function clampedCellFromEvent(
+  e: PointerPosition,
+  frame: HTMLElement,
+  cellSize: number,
+  width: number,
+  height: number
+): { x: number; y: number } {
   const { x, y } = cellFromEvent(e, frame, cellSize);
   return { x: Math.max(0, Math.min(width - 1, x)), y: Math.max(0, Math.min(height - 1, y)) };
 }
@@ -90,7 +99,12 @@ export function pointInRect(x: number, y: number, rect: CellRect): boolean {
  * one over it, so it reads on a dark thread and a light one alike -- the selection's blue dashes and symmetry's red
  * guides already mean something else, and this must not be mistaken for either.
  */
-export function drawStampOutline(ctx: CanvasRenderingContext2D, edges: readonly StampEdge[], cell: { x: number; y: number }, cellSize: number) {
+export function drawStampOutline(
+  ctx: CanvasRenderingContext2D,
+  edges: readonly StampEdge[],
+  cell: { x: number; y: number },
+  cellSize: number
+) {
   if (edges.length === 0) return;
   const path = new Path2D();
   for (const { x1, y1, x2, y2 } of edges) {

@@ -69,7 +69,9 @@ test("lighting a thread dims the others as a pure view overlay -- no undo step, 
   const isolate = page.getByRole("button", { name: "Isolate lit threads" });
 
   const readCanvas = () =>
-    page.getByTestId("chart-canvas").evaluate((el: HTMLCanvasElement) => Array.from(el.getContext("2d")!.getImageData(0, 0, el.width, el.height).data));
+    page
+      .getByTestId("chart-canvas")
+      .evaluate((el: HTMLCanvasElement) => Array.from(el.getContext("2d")!.getImageData(0, 0, el.width, el.height).data));
 
   const plain = await readCanvas();
   await expect(isolate).toHaveAttribute("aria-pressed", "false");
