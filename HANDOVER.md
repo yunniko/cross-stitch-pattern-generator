@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-24 at 082e8ad (G-068 M1-M5: Rust is the only pipeline, the regression floor is rebuilt on it, and it is deployed and exercised live)
+Last verified: 2026-09-24 at fe1f55b (G-071: the build targets the CPU the server has; deployed and exercised live, output byte-identical)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 082e8ad (2026-09-24), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Verified on this build by generating, enhancing, exporting a PDF and reloading in a browser.
+**Production** runs fe1f55b (2026-09-24), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Verified on this build by generating, enhancing, exporting a PDF and reloading in a browser.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
@@ -293,10 +293,12 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Next steps and open questions
 
-- **BLOCKED: G-070** asked what the V8 maths port costs. It costs nothing — replacing it is **13–25% slower**
-  with identical output (D223, `docs/reviews/2026-09-24-parity-tax.md`). The goal is premised on a win that
-  does not exist; awaiting the Owner's call to close it. One unrelated win found: `-C target-cpu=native` is
-  ~5% faster with byte-identical output.
+- G-070 is closed as answered: the V8 maths port costs nothing — replacing it is **13–25% slower** with
+  identical output (D223). Its one actionable finding shipped as G-071: the build now targets `x86-64-v3`,
+  worth a mean 6.6% (D224). Both are written up in `docs/reviews/2026-09-24-parity-tax.md`.
+- Watch: `tests/e2e/brush-outline.spec.ts` ("the outline sits on the stitch under the pointer") went flaky
+  once on 2026-09-24, passing on retry. First sighting; if it recurs it is a real pointer-timing race, of
+  the kind D220 fixed elsewhere.
 - Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (14 of 24 on road-mountains), since a refill split learns only from cells inside a colour (D142).
 - Left open: G-028 — OXS symbols use each reader's own font glyph, untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's calibration; G-033 — "+ Add" keeps its old flow.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
@@ -316,8 +318,8 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-24 | 082e8ad | G-068: Rust is the only pipeline — the TypeScript generation pipeline deleted (122 files, 22,185 lines), the processor running `cs-job` with no fallback (D221), and the regression floor rebuilt on Rust (D222) | 732 unit, 123 in the Rust config (73 goldens + 5 enhancement gates + 25 preview-parity + 20 processor), 8 cargo tests, 380 e2e, tsc, eslint, prettier, docs-lint; CI green on both jobs. Live, in a browser on the deployed build: a 640x420 photo generated a 100x66 chart of 6,600 stitches and 15 DMC threads through the sidecar that now has no fallback behind it; the enhancement preview rendered; regenerating with Vivid came back with a different palette, so the mode reaches the chart through Rust; a Pattern Keeper PDF exported at 69,796 bytes; a reload restored the chart from autosave; console clean throughout. `082e8ad` is baked into the shipped bundle, so crash reports name it. 23 containers before and after with an identical name set, and only this project's two restarted; nine sites on the host returned 200 before and after. |
-| 2026-09-23 | 42b4397 | G-066 M2: a crash hands over a report — an error boundary replaces Next's bare "this page couldn't load" with a screen that names the failure, points at the autosave and downloads the error, stack, commit, tool in hand and chart, never the photo (D218) | Vitest 1312 passed, 8 skipped; Playwright 380 passed; tsc, eslint and docs-lint clean. Checked against the real failure by reintroducing D217 locally; the production bundle was grepped to confirm no test-only hook ships. 23 containers before and after with an identical name set and only this app's restarted; eight other sites returned 200 |
+| 2026-09-24 | fe1f55b | G-071: the build targets `x86-64-v3` rather than Rust's 2003 default, for a measured mean 6.6% on generation with byte-identical output (D224) | 732 unit, 123 Rust-config, 8 cargo, 380 e2e (1 flaky retry), docs-lint; all 38 golden hashes unmoved. **The flag was verified inside the image build itself**, not assumed: a throwaway run of the `rust` stage shows rustc receiving `target-cpu=x86-64-v3`. Live on the deployed build, same synthetic photo and settings as the 082e8ad check: the chart came back with the **identical 15-thread palette** (934, 938, 926, 3838, 3839, 935, 3821, 927, 3371, 794, 932, 646, 798, 792, 372) and the Pattern Keeper PDF at **69,796 bytes, the same byte count as before the change** - two independent confirmations of byte-identity in production, through generation and through the Rust exporter. Console clean. 23 containers before and after with an identical name set and only this project's two restarted; nine sites returned 200 either side. |
+| 2026-09-24 | 082e8ad | G-068: Rust is the only pipeline — the TypeScript generation pipeline deleted (122 files, 22,185 lines), the processor running `cs-job` with no fallback (D221), and the regression floor rebuilt on Rust (D222) | 732 unit, 123 in the Rust config, 8 cargo tests, 380 e2e, tsc, eslint, prettier, docs-lint; CI green. Live: generated a 100x66 chart of 6,600 stitches and 15 DMC threads through the sidecar, enhancement preview rendered, Vivid regeneration changed the palette, a Pattern Keeper PDF exported at 69,796 bytes, a reload restored from autosave, console clean. 23 containers before and after, only this project's two restarted; nine sites returned 200 |
 
 ## Decisions
 

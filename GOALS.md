@@ -52,9 +52,21 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 **Milestones** (confirmed at planning, 2026-09-24):
 - [x] M1 — **Choose and prove the baseline** (criteria 1–4): measure `x86-64-v2` and `v3` against the default,
   confirm the hashes and the full suites, wire it so dev, CI and the image all build the same way.
-- [ ] M2 — Deploy, verify live, docs (criterion 5).
+- [x] M2 — Deploy, verify live, docs (criterion 5).
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — **M2 done; live at `fe1f55b`.** All five criteria met.
+  **The risk in this change was never the speed, it was the flag silently doing nothing** — so it was checked
+  inside the production image build rather than inferred: a throwaway run of the Dockerfile's `rust` stage
+  shows rustc receiving `target-cpu=x86-64-v3`. **Criterion 1 held in production, twice over**: the same
+  photo and settings as the previous deploy check returned the identical 15-thread palette, and the Pattern
+  Keeper PDF came back at **69,796 bytes — the same byte count as before the change**, which exercises the
+  Rust exporter as well as generation.
+  23 containers before and after, identical name set, only this project's two restarted; nine sites 200 either
+  side. Console clean.
+  Noted for the future, not acted on: `brush-outline.spec.ts` went flaky once and passed on retry — first
+  sighting, recorded in HANDOVER rather than chased.
+  **PENDING SIGN-OFF**: nothing is left to build.
 - 2026-09-24 — **M1 done. `x86-64-v3`, mean 6.6% faster, output byte-identical** (D224).
   Measured v2 3.8%, **v3 6.6%** (2.1–10.1% per case), native 6.9% — a named, reproducible baseline gets
   essentially all of what `native` offers without compiling for whatever machine ran the build.
