@@ -9,6 +9,8 @@ their last state in `GOALS.md`; decision references (Dnn) now resolve to
 (STANDARDS.md → Documentation). This page is the index: every completed goal, newest first, and the file
 holding it.
 
+- **G-067** · Close the architecture review — DONE (2026-09-24, Owner sign-off 2026-09-24) — [`G-061-to-G-070.md`](goals-archive/G-061-to-G-070.md)
+- **G-065** · The brush shows where it will land — DONE (2026-09-23, Owner sign-off 2026-09-24) — [`G-061-to-G-070.md`](goals-archive/G-061-to-G-070.md)
 - **G-066** · A crash is reported, not just announced — DONE (2026-09-23, Owner sign-off 2026-09-24) — [`G-061-to-G-070.md`](goals-archive/G-061-to-G-070.md)
 - **G-064** · Drawing tools: a sized brush, shapes, and two colours — DONE (2026-09-23, Owner sign-off 2026-09-23) — [`G-061-to-G-070.md`](goals-archive/G-061-to-G-070.md)
 - **G-063** · The selection answers the keys and gains two buttons — DONE (2026-09-23, Owner sign-off 2026-09-23) — [`G-061-to-G-070.md`](goals-archive/G-061-to-G-070.md)
