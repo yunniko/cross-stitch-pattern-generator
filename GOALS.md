@@ -69,6 +69,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   carrying G-064 to G-068, and `cs-g038` sat in another session's temp directory — both branches confirmed
   merged into master first, so nothing was lost. The project directory is fast-forwarded to `082e8ad`, so a
   newcomer sent there by the charter now reads current code (OPERATIONS.md §3).
+  **Found while checking the fast-forwarded project directory is usable**: `npm run test:unit` fails there with
+  five `preview-runner` failures until `npm run build:processor` has run. Not a regression — CI has always run
+  that step first and the README never said so, so a clean checkout looks broken. README now names it; 732/732
+  in the project directory after it.
   **PENDING SIGN-OFF**: nothing is left to build.
 - 2026-09-24 — **M4 done.** The floor is three layers now, not one (D222).
   **1. The goldens reach the whole option surface.** 18 cases → 38. Not one of the original eighteen named
