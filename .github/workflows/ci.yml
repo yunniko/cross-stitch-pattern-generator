@@ -41,3 +41,61 @@ jobs:
             playwright-report
             test-results
           retention-days: 7
+
+  # The engine production actually runs. The job above exercises the TypeScript pipeline; every generation and
+  # every server export on the live site goes through the Rust sidecar instead (D190, D193), so until this job
+  # existed the suite was green about code no user ever reached (G-067 M1, STANDARDS.md -> "Verified means the
+  # path production runs"). Separate from `check` so both run at once rather than the Rust build delaying the rest.
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # `lto = "fat"` with one codegen unit makes a cold release build slow; the cache makes the usual run cheap.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - run: npm ci --legacy-peer-deps
+
+      # Without this file rust/cs-core/tests/jsmath_vectors.rs says so and passes, leaving the bit-exactness it
+      # guards unchecked (D183). 50k samples a domain is ~680k records against the 13.6M a local run writes:
+      # enough that a drifted implementation shows up immediately, small enough not to spend a minute on it.
+      - run: node scripts/rust-jsmath-vectors.mjs rust/target/jsmath-vectors.bin 50000
+
+      - run: cargo build --release --manifest-path rust/Cargo.toml
+      - run: cargo test --release --manifest-path rust/Cargo.toml
+
+      # The gate: every case built by both implementations must hash identically, and the golden cases must still
+      # match what D107 recorded. Timings do not matter here, so one repeat rather than three.
+      - run: npm run compare:rust
+        env:
+          RUST_PARITY_REPEAT: "1"
+
+      - run: npx next typegen
+      - run: npm run build:processor
+      - run: npx playwright install --with-deps chromium
+
+      # The whole suite again, against the sidecar. CS_JOB_REQUIRED makes a missing or crashing binary fail the run
+      # instead of falling back to TypeScript, which would quietly turn this job back into a copy of `check`.
+      - run: npm run test:e2e
+        env:
+          CS_JOB_BINARY: ${{ github.workspace }}/rust/target/release/cs-job
+          CS_JOB_REQUIRED: "1"
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-rust
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

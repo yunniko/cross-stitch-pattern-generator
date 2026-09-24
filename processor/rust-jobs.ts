@@ -23,9 +23,18 @@ function binary(): string {
   return process.env.CS_JOB_BINARY ?? path.join(path.dirname(process.argv[1] ?? "."), "..", "bin", "cs-job");
 }
 
-/** Off when the switch says so, or when there is no binary to run. */
+/**
+ * Off when the switch says so, or when there is no binary to run.
+ *
+ * `CS_JOB_REQUIRED=1` turns the fallback off: a run that meant to exercise the sidecar and quietly got TypeScript
+ * instead proves nothing about the sidecar, and a mistyped path would have passed silently. CI sets it, so the suite
+ * that guards the production engine fails loudly when it is not the engine under test (G-067 M1).
+ */
 export function rustJobsAvailable(): boolean {
-  return process.env.CS_JOB !== "0" && existsSync(binary());
+  if (process.env.CS_JOB === "0") return false;
+  if (existsSync(binary())) return true;
+  if (process.env.CS_JOB_REQUIRED === "1") throw new Error(`CS_JOB_REQUIRED=1, but there is no cs-job binary at ${binary()}`);
+  return false;
 }
 
 interface Run {
@@ -83,7 +92,11 @@ function run(args: string[], input: Buffer | string, notes: Notes = {}): Promise
 }
 
 function logFallback(what: string, error: string | undefined): null {
-  console.warn(`rust ${what} unavailable, falling back to TypeScript: ${error ?? "unknown error"}`);
+  const why = error ?? "unknown error";
+  // Same reasoning as `rustJobsAvailable`: under CS_JOB_REQUIRED a sidecar that fell over is a failure to report,
+  // not a slower path to take quietly.
+  if (process.env.CS_JOB_REQUIRED === "1") throw new Error(`CS_JOB_REQUIRED=1, but rust ${what} failed: ${why}`);
+  console.warn(`rust ${what} unavailable, falling back to TypeScript: ${why}`);
   return null;
 }
 
