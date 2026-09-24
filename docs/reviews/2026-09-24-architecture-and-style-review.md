@@ -142,9 +142,14 @@ framework" is a rule a linter can enforce rather than a tendency.
   commits behind** `origin/master`. Its README and HANDOVER describe a state four goals old.
 - All work happens in `worktrees/cross-stitch-g034m2` on branch `g034-m2`, named for a milestone of G-034, a goal
   archived long ago. That branch now carries the history of G-046 through G-066.
-- A third worktree is registered under a session temp directory (`.../scratchpad/cs-g038`) and is gone.
+- A third worktree is registered under another session's scratchpad (`.../scratchpad/cs-g038`). Corrected
+  2026-09-24: that directory still exists, so `git worktree prune` rightly leaves it alone — it is abandoned,
+  not stale. Its branch `g-038-crisp-plus` is fully merged into master, so nothing is lost by removing it, but
+  it belongs to another session's workspace and is not this goal's to delete.
 
 **Fix.** Fast-forward the main checkout, retire the branch name, `git worktree prune`. Lifecycle rule in R7.
+Done 2026-09-24: the main checkout is fast-forwarded to `origin/master` and now shows shipped code. The
+worktree itself stays until G-065 and G-067 are signed off, which is what R7 asks.
 
 ## A10 — `lib/experimental/` is on the production import graph · **low**
 
