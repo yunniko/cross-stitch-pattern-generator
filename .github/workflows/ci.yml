@@ -66,12 +66,13 @@ jobs:
 
       - run: npm ci --legacy-peer-deps
 
-      # Without this file rust/cs-core/tests/jsmath_vectors.rs says so and passes, leaving the bit-exactness it
-      # guards unchecked (D183). 50k samples a domain is ~680k records against the 13.6M a local run writes:
-      # enough that a drifted implementation shows up immediately, small enough not to spend a minute on it.
-      - run: node scripts/rust-jsmath-vectors.mjs rust/target/jsmath-vectors.bin 50000
-
       - run: cargo build --release --manifest-path rust/Cargo.toml
+
+      # After the build, which is what creates rust/target. Without this file rust/cs-core/tests/jsmath_vectors.rs
+      # says so and passes, leaving the bit-exactness it guards unchecked (D183). 50k samples a domain is ~680k
+      # records against the 13.6M a local run writes: enough that a drifted implementation shows up immediately,
+      # small enough not to spend a minute on it.
+      - run: node scripts/rust-jsmath-vectors.mjs rust/target/jsmath-vectors.bin 50000
       - run: cargo test --release --manifest-path rust/Cargo.toml
 
       # The gate: every case built by both implementations must hash identically, and the golden cases must still
