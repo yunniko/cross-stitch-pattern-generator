@@ -77,8 +77,12 @@ jobs:
       - run: node scripts/rust-jsmath-vectors.mjs rust/target/jsmath-vectors.bin 50000
       - run: cargo test --release --manifest-path rust/Cargo.toml
 
-      # The gate: every case built by both implementations must hash identically, and the golden cases must still
-      # match what D107 recorded. Timings do not matter here, so one repeat rather than three.
+      # The regression floor, asserted against Rust with no TypeScript in the loop: the binary production runs must
+      # still produce the bytes D107 recorded. This is what survives the TypeScript pipeline being deleted (G-068).
+      - run: npm run test:goldens:rust
+
+      # The gate while both implementations exist: every case built by both must hash identically. Timings do not
+      # matter here, so one repeat rather than three.
       - run: npm run compare:rust
         env:
           RUST_PARITY_REPEAT: "1"

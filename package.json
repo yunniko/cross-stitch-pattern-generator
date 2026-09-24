@@ -23,6 +23,7 @@
     "build:processor": "node scripts/build-processor.mjs",
     "compare:export-parity": "playwright test --config scripts/playwright.export-parity.config.ts",
     "compare:rust": "vitest run --config vitest.rust.config.ts scripts/rust-parity.ts",
+    "test:goldens:rust": "vitest run --config vitest.rust.config.ts scripts/rust-goldens.ts",
     "compare:dither": "vitest run --config vitest.rust.config.ts scripts/dither-comparison.ts",
     "compare:vivid": "vitest run --config vitest.rust.config.ts scripts/vivid-comparison.ts",
     "samples:hand-drawn": "vitest run --config vitest.rust.config.ts scripts/hand-drawn-samples.ts",

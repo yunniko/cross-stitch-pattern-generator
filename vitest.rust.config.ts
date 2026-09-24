@@ -7,6 +7,7 @@ export default defineConfig({
   test: {
     include: [
       "scripts/rust-parity.ts",
+      "scripts/rust-goldens.ts",
       "scripts/rust-export-parity.ts",
       "scripts/dither-comparison.ts",
       "scripts/vivid-comparison.ts",

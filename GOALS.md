@@ -35,7 +35,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   goal — if a hash has to move, that is a bug in the migration, not a licence to re-record.
 
 **Milestones**:
-- [ ] M1 — **Move the regression floor to Rust** (criterion 1): goldens from `cs-bench`, proved by deliberate
+- [x] M1 — **Move the regression floor to Rust** (criterion 1): goldens from `cs-bench`, proved by deliberate
   breakage, before a line of TypeScript is deleted.
 - [ ] M2 — **Stop shipping the fallback** (criterion 2): the processor always uses the sidecar, `CS_JOB=0` retired,
   Dockerfile, HANDOVER and `COMPANY/INFRASTRUCTURE_DEPLOY.md` updated, and a decision file reversing D190/D193's
@@ -45,6 +45,14 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M5 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — **M1 done.** The recorded golden hashes now stand on Rust alone: `scripts/rust-goldens.ts` runs
+  all 37 cases through `cs-bench` and asserts the bytes D107 recorded, with no TypeScript in the loop.
+  `compare:rust` only ever asserted the *TypeScript* hash against the record — Rust matched it transitively,
+  which is worth nothing once one side is deleted. **Proved it still bites**: changing one constant in
+  `rust/cs-core/src/denoise.rs` turned it to 10 failed / 27 passed, and reverting returned 37/37. The case list
+  moved to `tests/unit/fixtures/golden-cases.ts` so both suites run the same cases from one place and cannot
+  drift; it names the quantizer as a string rather than importing a TypeScript function, so it survives M3.
+  A missing binary throws rather than skipping. Runs in CI beside the parity harness. M2 next.
 - 2026-09-24 — goal created from the Owner's decision. Scoped before planning: **15 `lib/pipeline` modules have no
   browser importer** (`quantize`, `pattern`, `denoise`, `regions`, `hue-reserve`, `contour-cleanup`, `edge-map`,
   `energy`, `local-optimizer`, `pair-edge-evidence`, `palette-optimizer`, `pipeline-context`, `dither-matrices`,
