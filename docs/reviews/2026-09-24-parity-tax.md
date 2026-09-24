@@ -65,11 +65,16 @@ is switched off crate-wide" overstated it: the attribute is crate-wide, what it 
 
 **There is real SIMD headroom, and it is free.** Rebuilding the unchanged code with `-C target-cpu=native`:
 
-| Case | baseline | `target-cpu=native` | |
-|---|---|---|---|
-| 1200×800 → 150 st, 24 col, standard | 123.9 ms | 118.0 ms | 4.8% faster |
-| 1200×800 → 150 st, 24 col, crisp | 253.1 ms | 241.0 ms | 4.8% faster |
-| 2400×1600 → 300 st, 64 col, standard | 504.8 ms | 474.1 ms | 6.1% faster |
+| Case | baseline | `x86-64-v2` | `x86-64-v3` | `native` |
+|---|---|---|---|---|
+| 1200×800 → 150 st, 24 col, standard | 129.7 ms | 122.2 (5.8%) | **118.3 (8.8%)** | 118.9 (8.3%) |
+| 1200×800 → 150 st, 24 col, crisp | 256.3 ms | 251.1 (2.0%) | **246.4 (3.8%)** | 242.4 (5.4%) |
+| 2400×1600 → 300 st, 64 col, standard | 506.4 ms | 495.9 (2.1%) | **482.6 (4.7%)** | 483.7 (4.5%) |
+| 1200×800 → 150 st, 24 col, DMC | 132.2 ms | 123.6 (6.5%) | **118.8 (10.1%)** | 119.6 (9.5%) |
+| 1200×800 → 150 st, 24 col, auto enhance | 354.1 ms | 344.1 (2.8%) | **335.1 (5.3%)** | 329.7 (6.9%) |
+
+Mean: v2 3.8%, **v3 6.6%**, native 6.9% — a named, reproducible baseline captures essentially all of what
+`native` offers. Levels measured 2026-09-24 under G-071 M1; the decision is D224.
 
 **Output byte-identical in all three** (0 cells differing). This needs no maths change, no hash change and no
 decision about parity — only a build-flag choice. `native` itself is not portable; `x86-64-v2`/`v3` would capture

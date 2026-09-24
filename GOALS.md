@@ -23,87 +23,53 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - **Constraints:** not a line-count exercise. G-067's "under 300 lines" was a bad proxy and is not inherited; a shell
   component taking 38 props would meet it and improve nothing.
 
-### G-070 · Rust stops being shaped by a language that is no longer here — BLOCKED (2026-09-24)
-- **What:** a measured answer to "what does byte-identity with V8 still cost us?", and — only if the answer
-  justifies it and the Owner approves — the removal of that cost: Rust's own maths instead of the 1,153-line V8
-  port, clippy's loop lints back on, `f32` where the data is 8-bit, and parallel reductions where summation order
-  was the only thing blocking them.
-- **Why:** the port was proven correct by matching TypeScript bit for bit, and that was the right call while both
-  existed. TypeScript is gone (G-068), but the constraint outlived it: the golden hashes were recorded from
-  TypeScript's bits, so every parity-driven shape is now frozen by the hashes instead. Today `rust/` carries
-  `jsmath.rs` + `fdlibm.rs` (1,153 lines whose only job is to reproduce V8's last bit), seven clippy lints
-  disabled crate-wide because "loops, comparisons and bounds mirror the TypeScript line for line", `f64`
-  throughout because JavaScript has no `f32`, and a hand-rolled `unsafe impl Send/Sync` around a `*mut f32` in
-  `pair_evidence.rs` to keep index-order writes. None of that is what anyone would write for Rust.
-  **M1 may well conclude the speed case is not there** — that is a valid and useful outcome, and the goal stops
-  at M1 if so. What is not in doubt is the maintenance cost; what is unmeasured is everything else.
+### G-071 · The build uses the CPU the server actually has — ACTIVE (2026-09-24)
+- **What:** a `target-cpu` baseline for every x86-64 build of `rust/`, instead of the 2003 default.
+- **Why:** the one actionable finding of G-070 M1 (`docs/reviews/2026-09-24-parity-tax.md`): rebuilding the
+  unchanged code with `-C target-cpu=native` was **4.8–6.1% faster with byte-identical output**. Rust defaults to
+  the base x86-64 instruction set, so the release image is compiled for a CPU two decades older than the EPYC it
+  runs on — no SSE4.2, no AVX2, no FMA. This is the rare change that costs nothing and risks nothing: no
+  algorithm moves, no hash moves, and the goldens prove it.
 - **Acceptance criteria:**
-  1. **A measurement, before any change**: a `docs/reviews/` document giving `jsmath`/`fdlibm`'s share of
-     generation time by profile, what `f32` would save where the data is 8-bit, and what the indexed loops cost
-     in vectorisation — each a number from a run, not an estimate.
-  2. **The Owner decides whether the hashes may move**, on that evidence. Until then nothing changes.
-  3. If approved: the V8 maths port is **deleted**, not merely bypassed, and `cargo clippy` passes with the
-     crate-wide `allow`s in `lib.rs` removed.
-  4. **The hashes move exactly once**, in one commit that changes nothing else, with a decision file naming what
-     moved and why.
-  5. **No user-visible change**: charts generated before and after are indistinguishable by eye at 1:1, and the
-     property tests, the D118 enhancement gates, the preview-parity suite and all 380 e2e stay green.
+  1. **Not one golden hash moves.** The 38 recorded hashes (D107) pass against the new build; if any moves, the
+     baseline is wrong and is lowered, not re-recorded.
+  2. **The speed-up is measured, not assumed** — the chosen level timed against the default on the same
+     workloads as G-070 M1, so the two are comparable.
+  3. **The flag reaches the build production runs**, and CI builds the same way, so the suites test what ships
+     (STANDARDS → "Verified means the path production runs").
+  4. **The WASM build is unaffected** — an x86 flag must not reach a `wasm32` target.
+  5. Live afterwards: generate, export and reopen a chart.
 - **Constraints:**
-  - **The hashes may move once and only once, deliberately.** Compelled by: they are the whole byte-identity
-    floor (D107, D222), and a floor that can be re-recorded whenever it is inconvenient is not a floor. The
-    recorder still refuses to overwrite; moving them means editing the file by hand.
-  - **`jsfmt.rs` and the JSZip/pdf-lib byte formats stay.** Compelled by D174 and file-format compatibility with
-    Pattern Keeper and other stitching programs — not by TypeScript, so G-068's reasoning does not reach them.
-  - **`prng.rs` stays bit-exact** unless M1 shows a reason: it is 18 lines, and changing it moves every
-    hand-drawn dither placement for no gain.
-  - **Existing saved charts must keep opening unchanged.** They store explicit cells and palette, so they are not
-    at risk; what changes is that regenerating from the same photo may differ in the last bit. Say so to the
-    Owner rather than discovering it in a support question.
+  - **A named baseline, not `native`.** Compelled by: `native` compiles for whatever machine happens to run the
+    build, so the image would differ between a CI build and a host build and could fault if the VPS is
+    migrated. A named level is reproducible.
+  - **The level must be one every machine that builds this can run**: the VPS (AMD EPYC, verified 2026-09-24:
+    sse4_2, avx, avx2, bmi1, bmi2, fma, f16c, movbe, xsave), CI runners, and the Owner's machine. Too high a
+    level is an illegal-instruction crash, not a slow build.
+  - **Byte-identical output is the gate, not a hope.** Compelled by D107/D222: floating-point contraction (FMA)
+    *can* change results. If it does here, the flag is wrong.
 
 **Milestones** (confirmed at planning, 2026-09-24):
-- [x] M1 — **Measure, change nothing** (criterion 1). Profile generation with and without the V8 maths behind a
-  temporary feature flag, so the difference is measured rather than argued. Ends with the review document and a
-  recommendation, which may be "not worth it".
-- [ ] M2 — **BLOCKED on the Owner** (criterion 2): the decision to move the hashes, or not. The goal ends here if
-  the answer is no.
-- [ ] M3 — **Rust's own maths** (criteria 3, 4, 5): delete `jsmath.rs`/`fdlibm.rs`, re-record the hashes in one
-  commit, prove the chart is visually identical.
-- [ ] M4 — **Let the rest be Rust**, scoped to what M1 measured: clippy `allow`s removed, `f32` and parallel
-  reductions where they pay, the `unsafe` in `pair_evidence.rs` replaced with safe slice splitting if the order
-  constraint is gone.
-- [ ] M5 — README, HANDOVER, deploy and verify live.
+- [x] M1 — **Choose and prove the baseline** (criteria 1–4): measure `x86-64-v2` and `v3` against the default,
+  confirm the hashes and the full suites, wire it so dev, CI and the image all build the same way.
+- [ ] M2 — Deploy, verify live, docs (criterion 5).
 
 **Progress log** (newest first; The Company appends at every stopping point):
-- 2026-09-24 — **M1 done, and it refutes the goal.** Full numbers in
-  `docs/reviews/2026-09-24-parity-tax.md`; the decision is D223.
-  **Replacing the V8 maths makes generation 13–25% slower, not faster** — five workloads, two replacements
-  (Rust `std` and the `libm` crate), binaries differing in nothing else, minimum of fifteen runs each. The port
-  is ordinary Rust in the same crate, so LLVM inlines it into the per-pixel colour loops (`color.rs` runs three
-  `cbrt` per pixel); `std` lowers to a non-inlinable C call. It is the fast path, not a tax.
-  **And the bits it protects never reach the chart**: 0 cells differed out of 15,000, and 0 out of 60,000 on
-  the large case, for both replacements, with identical palettes. So removing it costs 13–25% and buys nothing.
-  **A risk that was not on the list**: `std` resolves to the platform's C library — 30% of `cbrt` inputs differ
-  from V8 here (MSVC) against 8.4% for the `libm` crate — so moving to `std` would make a chart depend on the
-  OS that generated it. The port rules that out today.
-  **Two of my own claims at G-068's close were wrong, and the measurement says so**: the clippy `allow`s
-  suppress **19 warnings in 13,574 lines**, not "idiomatic Rust switched off crate-wide"; and `jsmath.rs`'s
-  comment claiming `libm` differs "about one input in fifty thousand" is out by ~4,000x (measured 8.4%).
-  That comment is corrected in this commit — the only code change M1 made.
-  **One real win found, unrelated to parity**: `-C target-cpu=native` is 4.8–6.1% faster with **byte-identical**
-  output, needing no maths change, no hash change and no decision about parity.
-  `f32` is recorded as **unmeasured**: it cannot be known without doing the work.
-  Verified: the temporary feature flag is reverted, the tree is back to what ships, 73 goldens and 8 cargo
-  tests pass. A first attempt at this measurement silently compared two identical binaries — the review says
-  how to avoid that.
-  **BLOCKED: M3 and M4 as drafted should not proceed** — the goal was premised on a speed win that does not
-  exist. The Owner's call: close G-070 as answered (recommended), or keep only the `target-cpu` win as a small
-  separate goal.
-- 2026-09-24 — goal created at the Owner's request, from the parity-tax findings reported at G-068's close.
-  Evidence gathered so far, all from the tree at `3ce410b`: `jsmath.rs` 478 lines + `fdlibm.rs` 675; seven
-  crate-wide clippy `allow`s in `rust/cs-core/src/lib.rs`; `f64` 153 times in `enhance.rs` alone against 103
-  `f32` mentions across the whole core crate; `HashMap<String, Matrix>` for 13 fixed dither matrices;
-  `SharedOut(*mut f32)` with `unsafe impl Send`/`Sync` in `pair_evidence.rs`; order-pinned summation in
-  `quantize.rs` and `downsample.rs`. **Not yet measured: any of the performance impact.**
+- 2026-09-24 — **M1 done. `x86-64-v3`, mean 6.6% faster, output byte-identical** (D224).
+  Measured v2 3.8%, **v3 6.6%** (2.1–10.1% per case), native 6.9% — a named, reproducible baseline gets
+  essentially all of what `native` offers without compiling for whatever machine ran the build.
+  **Criterion 1 holds**: all 38 golden hashes unmoved, 0 cells differing at every level, and the V8 vector test
+  still exact over 2.7M records — so FMA contraction changes nothing here, which was the one real risk.
+  **The subtle part was where the config goes.** Cargo reads config upwards from the *working directory*, and
+  CI, the Dockerfile and the local scripts all build from the root with `--manifest-path rust/Cargo.toml`.
+  In `rust/.cargo/` — the obvious place — it would be silently ignored by all three, with no error and
+  no speed-up. It lives at the repository root, the Dockerfile copies it, and HANDOVER carries that as a rule.
+  Verified the flag reaches rustc (`cargo build -v` shows it) rather than assuming it did.
+  **Criterion 4**: the `wasm32` build of `cs-wasm` shows no `target-cpu` flag and still compiles — which is
+  why the flags are per-target rather than under `[build]`.
+  Verified: 732 unit, 123 Rust-config, 8 cargo, 380 e2e (1 flaky retry in `brush-outline.spec.ts`), docs-lint.
+  M2 next: deploy and verify live.
+- 2026-09-24 — goal created from G-070 M1's one surviving finding, at the Owner's instruction.
 
 ### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
 - **What:** Eventually make the app public, built around **a social

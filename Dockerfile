@@ -13,6 +13,9 @@ RUN npm ci --legacy-peer-deps
 FROM rust:1.96-alpine AS rust
 RUN apk add --no-cache musl-dev
 WORKDIR /src
+# The target-cpu baseline (G-071). Cargo reads config from the working directory upwards, so this must be
+# here at /src beside the build command - not inside rust/, where it would be ignored.
+COPY .cargo ./.cargo
 COPY rust ./rust
 COPY public/stitch-texture.png ./public/stitch-texture.png
 COPY public/fonts/DejaVuSans.ttf ./public/fonts/DejaVuSans.ttf

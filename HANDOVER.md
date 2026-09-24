@@ -143,6 +143,11 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Rules in force
 
+- `.cargo/config.toml` belongs at the **repository root**, not in `rust/` (D224). Cargo reads config upwards from
+  the working directory, and CI, the Dockerfile and the local scripts all build from the root with
+  `--manifest-path rust/Cargo.toml` — moved into `rust/` it is silently ignored by all three and the 6.6%
+  goes away with no error. Building needs a ~2013 CPU or later; below `x86-64-v3` the binary faults.
+
 - The Owner gave standing push and deploy approval on 2026-09-13: deploy verified work without asking, unless
   something needs the Owner's attention. Deploys still follow `COMPANY/INFRASTRUCTURE_DEPLOY.md`.
 - One session per working tree. Never force-kill node processes you did not start: find the owner of the port you actually need and check its start time first. A rule naming a fixed PID goes stale within days and PIDs are recycled -- the number this rule used to carry (17476, 2026-09-12) was long gone by 2026-09-18 and only caused a later session to believe it had killed someone else's server.

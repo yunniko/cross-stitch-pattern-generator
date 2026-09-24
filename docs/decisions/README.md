@@ -223,6 +223,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D221 — The sidecar is the only engine; the TypeScript pipeline stops shipping — active
 - D222 — The safety net is properties and gates, not only recorded hashes — active
 - D223 — The V8 maths port stays; it is the fast path, not a parity tax — active
+- D224 — `x86-64-v3` is the build baseline, and the config lives at the repository root — active
 
 ## Files, formats and storage
 

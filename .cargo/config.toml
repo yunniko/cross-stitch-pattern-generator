@@ -1,0 +1,27 @@
+# The CPU the code is actually compiled for (G-071).
+#
+# Rust's default x86-64 target is the 2003 instruction set: no SSE4.2, no AVX2, no FMA. The server this runs on is an
+# AMD EPYC. Raising the baseline to `x86-64-v3` (AVX2, BMI1/2, FMA, F16C, MOVBE) is worth a mean 6.6% on generation
+# with **byte-identical output** — all 38 golden hashes (D107) unmoved, 0 cells differing across five workloads.
+# `native` measured 6.9%, barely more, and is not reproducible: it compiles for whichever machine ran the build, so a
+# CI image and a host image would differ and either could fault after a VPS migration. See D224 and
+# `docs/reviews/2026-09-24-parity-tax.md`.
+#
+# Listed per target rather than under `[build]`, because `[build] rustflags` would also reach the `wasm32` build of
+# `cs-wasm`, where an x86 flag is meaningless.
+#
+# **This file must be at the repository root, not in `rust/`.** Cargo reads config from the working directory
+# upwards, and every build here runs from the root with `--manifest-path rust/Cargo.toml` — CI, the Dockerfile and
+# the local scripts alike. In `rust/` it would be silently ignored by all three. The Dockerfile copies it explicitly.
+#
+# Anything that builds this needs a CPU from ~2013 (Haswell) or later; below that the binary faults on an illegal
+# instruction rather than running slowly.
+
+[target.x86_64-unknown-linux-musl]
+rustflags = ["-C", "target-cpu=x86-64-v3"]
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-cpu=x86-64-v3"]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-cpu=x86-64-v3"]
