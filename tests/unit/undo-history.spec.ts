@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pushHistory, replaceSinceHistory, type HistoryState } from "@/lib/editor/use-undo-history";
+import { pushHistory, replaceSinceHistory, type HistoryState } from "@/lib/editor/undo-history";
 
 /** G-037 M2 (D138): a brush double-click fill replaces its two click commits with one step. */
 

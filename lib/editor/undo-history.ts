@@ -1,5 +1,8 @@
-import { useCallback, useState } from "react";
-
+/**
+ * The undo/redo state machine, with no framework in it (G-067 M6). `app/hooks/use-undo-history.ts` is the
+ * React wrapper; everything that decides what undo *means* is here, which is why the tests exercise it
+ * directly without rendering anything.
+ */
 export interface HistoryState<T> {
   entries: T[];
   index: number;
@@ -56,39 +59,4 @@ export function replaceSinceHistory<T>(prev: HistoryState<T>, anchor: T, since: 
     since.every((entry, offset) => prev.entries[anchorIndex + 1 + offset] === entry);
   if (!matches) return pushHistory(prev, next);
   return { entries: [...prev.entries.slice(0, anchorIndex + 1), next], index: anchorIndex + 1 };
-}
-
-export function useUndoHistory<T>(initial: T): UndoHistory<T> {
-  const [{ entries, index }, setHistory] = useState<HistoryState<T>>({ entries: [initial], index: 0 });
-
-  const set = useCallback((next: T) => {
-    setHistory((prev) => pushHistory(prev, next));
-  }, []);
-
-  const replaceSince = useCallback((anchor: T, since: readonly T[], next: T) => {
-    setHistory((prev) => replaceSinceHistory(prev, anchor, since, next));
-  }, []);
-
-  const reset = useCallback((next: T) => {
-    setHistory({ entries: [next], index: 0 });
-  }, []);
-
-  const undo = useCallback(() => {
-    setHistory((prev) => ({ ...prev, index: Math.max(0, prev.index - 1) }));
-  }, []);
-
-  const redo = useCallback(() => {
-    setHistory((prev) => ({ ...prev, index: Math.min(prev.entries.length - 1, prev.index + 1) }));
-  }, []);
-
-  return {
-    state: entries[index],
-    set,
-    replaceSince,
-    reset,
-    undo,
-    redo,
-    canUndo: index > 0,
-    canRedo: index < entries.length - 1,
-  };
 }

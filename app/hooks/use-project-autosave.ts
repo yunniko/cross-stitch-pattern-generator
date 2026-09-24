@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ProjectStore } from "./project-store";
-import { NO_SYMMETRY, type SymmetryAxes } from "./symmetry-axes";
-import type { StitchPattern } from "../types";
+import type { ProjectStore } from "@/lib/editor/project-store";
+import { NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry-axes";
+import type { StitchPattern } from "@/lib/types";
 
 export type AutosaveStatus = "idle" | "saving" | "saved" | "unavailable";
 

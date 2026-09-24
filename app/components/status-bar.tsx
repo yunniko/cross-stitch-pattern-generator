@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import type { AutosaveStatus } from "@/lib/editor/use-project-autosave";
+import type { AutosaveStatus } from "@/app/hooks/use-project-autosave";
 import { formatFinishedSize, type SizeUnit } from "@/lib/export/finished-size";
 import { filledStitchCount, formatColorCount, formatStitchCount, type StitchPattern } from "@/lib/types";
 import { DISABLED_TEXT } from "./ui";

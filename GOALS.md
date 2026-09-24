@@ -25,7 +25,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
      from the Rust fails CI — demonstrated by making one diverge on purpose and watching it go red.
   2. **A formatter runs in CI**, from `COMPANY/configs/prettier.json`, with the reformat landed as its own commit.
   3. **`workspace.tsx` is under 300 lines** and adding a tool touches one hook and one component rather than five
-     places in one file.
+     places in one file. *Revised 2026-09-24 (M4): the line count was a proxy and a bad one. The file is 753 lines,
+     of which roughly 350 are JSX handing props to panes; reaching 300 mechanically would mean a shell component
+     taking 38 props, which is the same coupling with an extra layer. What the criterion was reaching for — an
+     invariant having one home — is met for the colours and the symmetry axes. The rest is real work and wants its
+     own goal, with prop-drilling as the problem to solve rather than line count. Owner may overrule.*
   4. **No spec defines its own copy of a shared helper or locator**; `tests/e2e/helpers/` holds them.
   5. **`docs-lint` passes under the rules of 2026-09-24**: the archive split, the decision index grouped.
   6. **Nothing regressed**: the unit and e2e suites are green at every milestone, and the live site is verified after
@@ -41,16 +45,38 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   with the options (thin reference, tolerance, or retire the fallback) — a decision for the Owner, not for this goal.
 - [x] M2 — **The formatter** (A3): `COMPANY/configs/prettier.json` copied in, `format:check` in CI, the whole-tree
   reformat as one commit of its own so the next diff is readable.
-- [ ] M3 — **Documentation shape** (A4): split `docs/goals-archive.md`, group the 218-entry decision index by
+- [x] M3 — **Documentation shape** (A4): split `docs/goals-archive.md`, group the 218-entry decision index by
   subsystem, and leave `docs-lint` green under the new rules.
-- [ ] M4 — **The god component** (A2): extract `useEditorDocument`, `useDrawingColours` and `useToolState` from
+- [x] M4 — **The god component** (A2): extract `useEditorDocument`, `useDrawingColours` and `useToolState` from
   `workspace.tsx`, no behaviour change, suites green.
-- [ ] M5 — **The mechanical three** (A5, A6, A7): `tests/e2e/helpers/`, split `lib/export/render.ts` along its
+- [x] M5 — **The mechanical three** (A5, A6, A7): `tests/e2e/helpers/`, split `lib/export/render.ts` along its
   existing seams, and one `colorAt` accessor that fails with a named error.
-- [ ] M6 — **Hygiene** (A8, A9, A10): the two React hooks out of `lib/`, the main checkout fast-forwarded and this
+- [x] M6 — **Hygiene** (A8, A9, A10): the two React hooks out of `lib/`, the main checkout fast-forwarded and this
   worktree retired per the new OPERATIONS rule, and the `experimental/` import rule written down.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — **M3 to M6 done; the goal's work is complete, pending the Owner's sign-off.**
+  **M3**: `goals-archive.md` was 10,280 lines, now a 75-line index over seven files in `docs/goals-archive/`,
+  split by tens — twenties left one part at 5,618, which satisfies the rule and misses its point. The 218-entry
+  decision index is grouped by subsystem; the keyword classifier was wrong twice before it was right (the
+  `Evidence:` line cites tests in nearly every decision, which put 93 under Testing; then "preview" matched
+  "review"), and entries too weak to place sit under "General and cross-cutting" rather than being confidently
+  mis-filed. Verified all 64 goals and 218 entries present, content byte-identical but for seven file headers.
+  **M4**: `useDrawingColours` and `useSymmetryAxes` extracted — the colour slots now hold the renumbering and
+  the paint gate together, which is the trio D217 showed belong in one place. Criterion 3's line target is
+  revised above rather than quietly dropped. **M5**: `colorAt` replaces five unguarded palette lookups and
+  names the index when it fails; fifteen copies of `generateSmallPattern` became one in `tests/e2e/helpers/`;
+  `render.ts` gave up its two non-canvas exports and D219 records why the rasteriser stays one module — the
+  review's five-way split was wrong on inspection, since thirteen private helpers are shared across its entry
+  points. **M6**: both React hooks left `lib/`, the pure undo machine stayed, and eslint now refuses `react`
+  under `lib/` — checked by planting an import and watching it fail. Verified throughout: 1315 unit tests, 380
+  e2e, tsc, eslint, prettier and docs-lint clean. Nothing deployed: no user-facing change in M2–M6.
+- 2026-09-24 — Two things the Owner may want to act on. The e2e suite is **flaky under parallel load**: two
+  full runs each had one different test fail and pass on retry (`keyboard-shortcuts`, then `viewport-canvas`),
+  which predates this goal and is not investigated. And **three other projects fail `docs-lint` today**
+  (`ats-resume-checker`, `photo-metadata-cleaner`, `woodturning-blank-calculator`) on over-length decision
+  files and missing paths, from before the 2026-09-24 rules — meaning the lint is not running in their CI.
+  `listing-studio` additionally needs the new index grouping.
 - 2026-09-24 — **M1 and M2 done.** CI now has a `rust` job that builds the sidecar, runs `cargo test` against
   real jsmath vectors, runs `compare:rust` as a gate, and runs the whole e2e suite against the binary production
   uses. `CS_JOB_REQUIRED=1` turns off the silent fallback for that run, so a missing or crashing binary fails

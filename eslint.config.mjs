@@ -18,6 +18,23 @@ const eslintConfig = defineConfig([
     // megabytes of third-party code that lint has nothing useful to say about.
     "dist/**",
   ]),
+  // `lib/` is the framework-free layer: pure modules the unit tests exercise without rendering anything, and the
+  // same code the processor runs server-side where there is no React at all (STANDARDS.md -> Software). Two hooks
+  // had drifted in before G-067 M6; this keeps the boundary a rule rather than a tendency.
+  {
+    files: ["lib/**/*.ts", "lib/**/*.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            { name: "react", message: "lib/ stays framework-free: put the hook in app/hooks/ and keep the logic here as a pure module." },
+            { name: "react-dom", message: "lib/ stays framework-free: put the hook in app/hooks/ and keep the logic here as a pure module." },
+          ],
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

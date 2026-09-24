@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-23 at 42b4397 (G-066 M2: the crash report, deployed and downloaded from the live site)
+Last verified: 2026-09-24 at 727398b (G-067 M1-M6: the review's findings closed; not deployed, nothing user-facing changed)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -52,8 +52,8 @@ export, byte-identical to TypeScript at any thread count, plus a WASM build (D18
 - Photo enhancement: Off, Brighten, Auto, Vivid, Portrait, with a "Compare with original" preview and recorded in
   saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-23**: `tsc --noEmit` clean, `npm run lint` 0 errors; Vitest 1312 passed (8 opt-in skips);
-Playwright 380 passed across all 37 specs, one spec per process against the single-path build, the processor serving
+**Checks run 2026-09-24**: `tsc --noEmit` clean, `npm run lint` 0 errors, `prettier --check` clean; Vitest 1315
+passed (8 opt-in skips); Playwright 380 passed across all 37 specs, one spec per process against the single-path build, the processor serving
 generation, exports and previews. Last full Rust pass 2026-09-22: 330 e2e against the sidecar, `npm run compare:rust`
 81 cases identical; export parity in `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the
 type-check and `build:processor` before the unit tests: the worker bundle is git-ignored and specs run against it.
@@ -154,6 +154,10 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - Enhancement calibration photos stay outside the repository; two show identifiable people.
 - A crash report carries the chart but never the photo (D218), and names a commit only when the image is built with `APP_COMMIT=$(git rev-parse --short HEAD)`; the plain deploy command leaves it "unknown".
 - Nothing test-only ships: a build-flagged crash hook was found in the production chunks, so the boundary's spec breaks `fillRect` instead (D218). Grep a production build before trusting a flag to remove code.
+- `lib/` imports no framework. It is the layer the unit tests exercise without rendering and the processor runs server-side; two hooks had drifted in before G-067 M6, so eslint `no-restricted-imports` now refuses `react` there. A hook goes in `app/hooks/`, its logic stays in `lib/` as a pure module.
+- A palette index is read through `colorAt` (`lib/color/palette.ts`), which fails naming the index and the palette size. The renderers stay strict on purpose — a cell nothing can draw is a bug to find (D217, D219).
+- `lib/experimental/` may be imported only behind a flag that is off by default and refuses loudly when combined with something it cannot support, as `contourRefinement` does (D068). It is on the production import graph; that is only safe while the flag is.
+- A helper or locator used by more than two e2e specs lives in `tests/e2e/helpers/`. Fifteen copies of one helper turned a single new canvas into an edit in 27 files (G-067 M5).
 - `EMPTY_CELL` (255) is a sentinel, never an index to shift: renumbering it after a merge made 254, and the next press killed the page (D217). `paintableIndex` gates every press, and the renderers stay strict so a bad index is found, not painted around.
 - `main` holds two canvases: the chart's is `data-testid="chart-canvas"` and the cursor's `brush-outline` (D216). A spec asking for "the canvas in main" gets both and fails strict mode.
 - A shape tool contributes a rasteriser returning spine cells only; thickness is the brush's, and a filled shape never stamps it (D214, D215).
