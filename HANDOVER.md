@@ -283,7 +283,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - From G-048: generation at 1500 stitches holds 42 MB more than TypeScript in Standard, 9 MB more in Crisp+ (D190); the sidecar spawns per job. Archived 2026-09-19: G-046 (raising the 1500 cap needs two Owner decisions, D181) and G-047 (D171–D178). G-030 (public launch) is a far-future draft.
 - The dithering line (G-052 to G-059) is complete and signed off. Open: on a noisy photo at 8 colours the screens can
   read worse than no dithering, and drawn marks become grain on a flat region, which is inherent to dithering one.
-- A crash now hands over a report (D218), so the next one is diagnosable from the file rather than by reproducing it. Still open: the Owner has seen the same dead page **before 2026-09-23**, from a route D217 does not explain — the first report to arrive from the wild is the evidence to chase it with.
+- A crash now hands over a report (D218, G-066 signed off 2026-09-24), so the next one is diagnosable from the file rather than by reproducing it. Still open: the Owner has seen the same dead page **before 2026-09-23**, from a route D217 does not explain — the first report to arrive from the wild is the evidence to chase it with.
 - The colour question that drove G-060 to G-062 is answered (D212); the hues arrive **as the photo holds them**, so
   a dusty pink stays dusty. Open behind it: Photo fix keeps a Vivid of its own until it is redone, and its Auto and
   Vivid modes were measured to *lower* a pastel photo's chroma (median 0.020 → 0.010), which nothing has looked at.
