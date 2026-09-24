@@ -114,11 +114,23 @@ npm run dev
 
 ```
 npm run lint
+npm run format:check
 npx tsc --noEmit
-npm run test:unit   # Vitest: pipeline, editor, export and storage logic, golden hashes
+npm run test:unit   # Vitest: editor, export and storage logic (no Rust toolchain needed)
 npm run test:e2e    # Playwright against a production build on port 30200
-npm run bench       # per-stage generation timings, incl. a 12 MP photo and Crisp stages (slow; not in CI)
 npm run bench:browser  # photo load, generation and every export in a real browser (very slow; not in CI)
+```
+
+The suites that need the binary are separate, because they need `cargo build --release` first. Together they
+are the generation safety net (D222): recorded bytes, properties that hold for any chart, and the gates that
+decide whether an enhancement mode may be offered at all.
+
+```
+cargo test --release --manifest-path rust/Cargo.toml   # Rust's own, incl. chart invariants on odd photos
+npm run test:goldens:rust        # the 38 recorded golden hashes (D107), against cs-bench
+npm run test:enhancement:rust    # the enhancement release gates (D118)
+npm run test:enhance-parity:rust # the shipped preview against the binary, pixel for pixel
+npm run test:processor:rust      # the processor driving a real job
 ```
 
 The pipeline lives in `rust/` and only there (G-068). The TypeScript that it was ported from is deleted:
@@ -130,15 +142,16 @@ toolchain:
 node scripts/rust-jsmath-vectors.mjs rust/target/jsmath-vectors.bin   # V8's maths results, once per Node version
 node --experimental-strip-types scripts/rust-tables.mjs              # after changing a name or thread table
 cd rust && cargo build --release && cargo test --release && cd ..
-npm run compare:rust   # Rust against TypeScript: byte-identity and timings (RUST_PARITY_LARGE=0 skips the big cases)
-RUST_EXPORT_REFERENCE=<dir> npm run compare:rust-exports   # exports against references made in the processor image
-# Options: RUST_THREADS=3 (any count must match), RUST_WASM=1 (after
-# `cargo build --release -p cs-wasm --target wasm32-unknown-unknown`), RUST_PHOTOS_DIR=<folder of photos>
+# Then the suites above. RUST_THREADS=n runs them at another thread count; output must not change.
 ```
 
-CI (`.github/workflows/ci.yml`) runs lint, type-check, unit and e2e on every
-push. Current generation and export timings, with before-and-after tables, are in
-`docs/reviews/2026-09-15-performance-results.md`.
+`compare:rust` and `compare:rust-exports` are gone with the TypeScript they compared against: an intended
+output change now means editing `tests/unit/fixtures/golden-hashes.json` by hand, with a decision file saying
+why. `GOLDEN_RECORD=1` adds a hash for a new case and refuses to overwrite one that already exists.
+
+CI (`.github/workflows/ci.yml`) runs every command above on every push, in two jobs: `check` for the ones that
+need no binary, `rust` for the ones that do. Current generation and export timings, with before-and-after
+tables, are in `docs/reviews/2026-09-15-performance-results.md`.
 
 ## Status and documentation
 
@@ -151,8 +164,9 @@ per file in `docs/decisions/`, research and reviews in `docs/reviews/` and
 Photo enhancement runs before generation, with a preview and a compare toggle.
 Brighten is a cautious exposure fix for dark or flat photos, and leaves
 well-exposed ones untouched. Auto, Vivid and Portrait also correct contrast,
-colour cast and saturation, and are experimental: none met their quality
-gates on real photos (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
+colour cast and saturation, and are experimental: all four pass the safety gates
+(`npm run test:enhancement:rust`), but none recovers a degraded photo well enough
+to meet the recovery bar (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
 The Okhsl conversion in `lib/color/okhsl.ts` is ported from Björn Ottosson's
 `ok_color.h` (<https://bottosson.github.io/misc/ok_color.h>, MIT licence; the

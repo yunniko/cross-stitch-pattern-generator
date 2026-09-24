@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-24 at 509e74c (G-068 M1-M4: Rust is the only pipeline and the regression floor is rebuilt on it; **not deployed** — production still runs 42b4397)
+Last verified: 2026-09-24 at 082e8ad (G-068 M1-M5: Rust is the only pipeline, the regression floor is rebuilt on it, and it is deployed and exercised live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 42b4397 (2026-09-23), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container — the work itself in the Rust sidecar (D190, D193), with TypeScript as the fallback.
+**Production** runs 082e8ad (2026-09-24), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Verified on this build by generating, enhancing, exporting a PDF and reloading in a browser.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
@@ -160,7 +160,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - Enhancement calibration photos stay outside the repository; two show identifiable people.
 - **The TypeScript pipeline is gone** (G-068 M3): generation, crisp edges, quantisation, denoise and the optimiser exist only in `rust/`. `lib/pipeline` keeps the vocabulary (`generation-modes.ts`), the dither preview the browser draws, `regions.ts` behind the Fill tool, `downsample.ts`'s grid maths and `enhance.ts`. Adding a pipeline feature is a Rust change and a golden-hash decision, not two implementations.
 - **`lib/pipeline/enhance.ts` is still TypeScript and still runs**, in the Next API route that serves the photo-enhancement preview — while `rust/cs-core/src/enhance.rs` does the same work during generation. That is the one duplication G-068 did not remove; routing the preview through the processor would.
-- A crash report carries the chart but never the photo (D218), and names a commit only when the image is built with `APP_COMMIT=$(git rev-parse --short HEAD)`; the plain deploy command leaves it "unknown".
+- A crash report carries the chart but never the photo (D218), and names a commit only when the image is built with `APP_COMMIT=$(git rev-parse --short HEAD)`; the plain deploy command leaves it "unknown". Confirmed after a deploy by grepping the shipped chunks for the short SHA.
 - Nothing test-only ships: a build-flagged crash hook was found in the production chunks, so the boundary's spec breaks `fillRect` instead (D218). Grep a production build before trusting a flag to remove code.
 - `lib/` imports no framework. It is the layer the unit tests exercise without rendering and the processor runs server-side; two hooks had drifted in before G-067 M6, so eslint `no-restricted-imports` now refuses `react` there. A hook goes in `app/hooks/`, its logic stays in `lib/` as a pure module.
 - A palette index is read through `colorAt` (`lib/color/palette.ts`), which fails naming the index and the palette size. The renderers stay strict on purpose — a cell nothing can draw is a bug to find (D217, D219).
@@ -288,6 +288,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Next steps and open questions
 
+- **PENDING SIGN-OFF: G-068** — all five milestones done and deployed at 082e8ad. Nothing is left to build; it waits only on the Owner, after which it moves to `docs/goals-archive.md`.
 - Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (14 of 24 on road-mountains), since a refill split learns only from cells inside a colour (D142).
 - Left open: G-028 — OXS symbols use each reader's own font glyph, untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's calibration; G-033 — "+ Add" keeps its old flow.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
@@ -303,9 +304,13 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Deploy log
 
-Every deploy, with what changed and how it was verified, is in `docs/deploy-log.md`. The last two:
+Every deploy, with what changed and how it was verified, is in `docs/deploy-log.md`. The last two, newest first:
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-23 | bd8dbaf | Fix (D217): with the brush holding Empty, any merge then any press killed the page — the 255 sentinel was renumbered to 254 and `drawCell` threw inside the pointer handler. `EMPTY_CELL` is never renumbered, and `paintableIndex` gates every press | Vitest 1305 passed, 8 skipped; Playwright 377 passed across all 36 specs, two of them new here; tsc, eslint and docs-lint clean. Each guard checked by removing it: with both gone the new spec fails with the dead page. 23 containers before and after with an identical name set and only this app's restarted; eight other sites returned 200. Live: the script that reproduced the crash before the deploy now merges, draws and leaves the page alive with a clean console |
-| 2026-09-23 | 42b4397 | G-066 M2: a crash hands over a report — an error boundary replaces Next's bare "this page couldn't load" with a screen that names the failure, points at the autosave and downloads the error, stack, commit, tool in hand and chart, never the photo (D218) | Vitest 1312 passed, 8 skipped; Playwright 380 passed across all 37 specs, three of them new here; tsc, eslint and docs-lint clean. Checked against the real failure by reintroducing D217 locally and watching this boundary catch that pointer-handler crash; the production bundle was grepped to confirm no test-only hook ships. 23 containers before and after with an identical name set and only this app's restarted; eight other sites returned 200. Live: a broken `fillRect` lands on the crash screen, and the report names commit 42b4397, `color/brush/5 round/100%`, a 50x31 chart of 16 colours with 1550 editable cells, a stack, and no photo |
+| 2026-09-24 | 082e8ad | G-068: Rust is the only pipeline — the TypeScript generation pipeline deleted (122 files, 22,185 lines), the processor running `cs-job` with no fallback (D221), and the regression floor rebuilt on Rust (D222) | 732 unit, 123 in the Rust config (73 goldens + 5 enhancement gates + 25 preview-parity + 20 processor), 8 cargo tests, 380 e2e, tsc, eslint, prettier, docs-lint; CI green on both jobs. Live, in a browser on the deployed build: a 640x420 photo generated a 100x66 chart of 6,600 stitches and 15 DMC threads through the sidecar that now has no fallback behind it; the enhancement preview rendered; regenerating with Vivid came back with a different palette, so the mode reaches the chart through Rust; a Pattern Keeper PDF exported at 69,796 bytes; a reload restored the chart from autosave; console clean throughout. `082e8ad` is baked into the shipped bundle, so crash reports name it. 23 containers before and after with an identical name set, and only this project's two restarted; nine sites on the host returned 200 before and after. |
+| 2026-09-23 | 42b4397 | G-066 M2: a crash hands over a report — an error boundary replaces Next's bare "this page couldn't load" with a screen that names the failure, points at the autosave and downloads the error, stack, commit, tool in hand and chart, never the photo (D218) | Vitest 1312 passed, 8 skipped; Playwright 380 passed; tsc, eslint and docs-lint clean. Checked against the real failure by reintroducing D217 locally; the production bundle was grepped to confirm no test-only hook ships. 23 containers before and after with an identical name set and only this app's restarted; eight other sites returned 200 |
+
+## Decisions
+
+One file per decision in `docs/decisions/`, indexed in `docs/decisions/README.md`.

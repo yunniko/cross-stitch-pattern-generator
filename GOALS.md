@@ -42,9 +42,34 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   "TypeScript stays the fallback".
 - [x] M3 — **Delete the duplication** (criteria 3 and 4), module by module, suites green at each step.
 - [x] M4 — **Grow Rust's own tests where the goldens do not reach**, since after M3 they are the whole safety net.
-- [ ] M5 — README, HANDOVER, deploy and verify live.
+- [x] M5 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — **M5 done; G-068 is complete and live at `082e8ad`.** The whole Rust-only migration shipped in
+  one deploy, 33 commits ahead of what production had been running since 2026-09-23.
+  **Verified on the deployed build, in a browser, not by a health check**: a 640x420 photo generated a 100x66
+  chart of 6,600 stitches and 15 DMC threads — through the sidecar that, since M2, has nothing behind it if it
+  fails. The enhancement preview rendered (the TypeScript copy M4 now gates); regenerating with Vivid came back
+  with a different palette, so the mode reaches the chart through Rust; a Pattern Keeper PDF exported at 69,796
+  bytes through `cs-export`; a reload restored the chart from autosave; the console stayed clean throughout.
+  Checked `082e8ad` is baked into the shipped chunks, so crash reports name the right commit (the plain deploy
+  command would have left it "unknown").
+  **Neighbours untouched**: 23 containers before and after with an identical name set, only this project's two
+  restarted; nine sites on the host returned 200 both before and after.
+  **README caught up with the goal**, which mattered more than expected: it still documented `npm run bench`,
+  `compare:rust` and `compare:rust-exports` — all three deleted in M3, so every command it named for checking
+  the pipeline was one that no longer existed. It now lists the four Rust suites, and a check confirms every
+  command it names is in `package.json` and every script file it names exists. That check also found
+  `shapes:hand-drawn` pointing at a deleted file; removed.
+  **HANDOVER**: `Last verified` and the production paragraph now name `082e8ad` and say the sidecar has no
+  fallback rather than "with TypeScript as the fallback"; a deploy row added and the table's two rows put in
+  the newest-first order the text claims. Added the **Decisions** section STANDARDS.md requires and this file
+  never had — a pre-existing gap `docs-lint` does not check for. Net +8 lines.
+  **Worktrees removed** (Owner approved): `cross-stitch-g034m2` was named for a goal archived weeks ago while
+  carrying G-064 to G-068, and `cs-g038` sat in another session's temp directory — both branches confirmed
+  merged into master first, so nothing was lost. The project directory is fast-forwarded to `082e8ad`, so a
+  newcomer sent there by the charter now reads current code (OPERATIONS.md §3).
+  **PENDING SIGN-OFF**: nothing is left to build.
 - 2026-09-24 — **M4 done.** The floor is three layers now, not one (D222).
   **1. The goldens reach the whole option surface.** 18 cases → 38. Not one of the original eighteen named
   enhancement, dither, Vivid or Crisp+ — every recorded hash was an Off, undithered, non-Vivid chart, so all

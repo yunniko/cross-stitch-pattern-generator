@@ -23,8 +23,7 @@
     "test:goldens:rust": "vitest run --config vitest.rust.config.ts scripts/rust-goldens.ts",
     "test:enhancement:rust": "vitest run --config vitest.rust.config.ts scripts/rust-enhancement-gates.ts",
     "test:enhance-parity:rust": "vitest run --config vitest.rust.config.ts scripts/rust-enhance-parity.ts",
-    "test:processor:rust": "vitest run --config vitest.rust.config.ts tests/unit/processor-export-pool.spec.ts tests/unit/processor-pool-limits.spec.ts tests/unit/processor-pool-parity.spec.ts",
-    "shapes:hand-drawn": "vitest run --config vitest.rust.config.ts scripts/hand-drawn-shapes.ts"
+    "test:processor:rust": "vitest run --config vitest.rust.config.ts tests/unit/processor-export-pool.spec.ts tests/unit/processor-pool-limits.spec.ts tests/unit/processor-pool-parity.spec.ts"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.9",
