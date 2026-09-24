@@ -293,8 +293,11 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Next steps and open questions
 
+- **No goal is active.** G-068, G-070 and G-071 all closed on 2026-09-24. Two drafts wait on the Owner:
+  **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public
+  launch, far future).
 - G-070 is closed as answered: the V8 maths port costs nothing — replacing it is **13–25% slower** with
-  identical output (D223). Its one actionable finding shipped as G-071: the build now targets `x86-64-v3`,
+  identical output (D223). Its one actionable finding shipped as G-071: the build targets `x86-64-v3`,
   worth a mean 6.6% (D224). Both are written up in `docs/reviews/2026-09-24-parity-tax.md`.
 - Watch: `tests/e2e/brush-outline.spec.ts` ("the outline sits on the stitch under the pointer") went flaky
   once on 2026-09-24, passing on retry. First sighting; if it recurs it is a real pointer-timing race, of
