@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-24 at fe1f55b (G-071: the build targets the CPU the server has; deployed and exercised live, output byte-identical)
+Last verified: 2026-09-25 at 5273a10 (G-072: Lasso select and Lasso fill; deployed and exercised live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs fe1f55b (2026-09-24), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Verified on this build by generating, enhancing, exporting a PDF and reloading in a browser.
+**Production** runs 5273a10 (2026-09-25), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Verified on this build by generating, enhancing, exporting a PDF and reloading in a browser.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
@@ -302,9 +302,9 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Next steps and open questions
 
-- **No goal is active.** G-068, G-070 and G-071 all closed on 2026-09-24. Two drafts wait on the Owner:
-  **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public
-  launch, far future).
+- **PENDING SIGN-OFF: G-072** — all five milestones done and deployed at 5273a10. Nothing is left to build.
+- Two drafts wait on the Owner: **G-069** (the workspace's shape, from
+  `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public launch, far future).
 - G-070 is closed as answered: the V8 maths port costs nothing — replacing it is **13–25% slower** with
   identical output (D223). Its one actionable finding shipped as G-071: the build targets `x86-64-v3`,
   worth a mean 6.6% (D224). Both are written up in `docs/reviews/2026-09-24-parity-tax.md`.
@@ -330,8 +330,8 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-24 | fe1f55b | G-071: the build targets `x86-64-v3` rather than Rust's 2003 default, for a measured mean 6.6% on generation with byte-identical output (D224) | 732 unit, 123 Rust-config, 8 cargo, 380 e2e (1 flaky retry), docs-lint; all 38 golden hashes unmoved. **The flag was verified inside the image build itself**, not assumed: a throwaway run of the `rust` stage shows rustc receiving `target-cpu=x86-64-v3`. Live on the deployed build, same synthetic photo and settings as the 082e8ad check: the chart came back with the **identical 15-thread palette** (934, 938, 926, 3838, 3839, 935, 3821, 927, 3371, 794, 932, 646, 798, 792, 372) and the Pattern Keeper PDF at **69,796 bytes, the same byte count as before the change** - two independent confirmations of byte-identity in production, through generation and through the Rust exporter. Console clean. 23 containers before and after with an identical name set and only this project's two restarted; nine sites returned 200 either side. |
-| 2026-09-24 | 082e8ad | G-068: Rust is the only pipeline — the TypeScript generation pipeline deleted (122 files, 22,185 lines), the processor running `cs-job` with no fallback (D221), and the regression floor rebuilt on Rust (D222) | 732 unit, 123 in the Rust config, 8 cargo tests, 380 e2e, tsc, eslint, prettier, docs-lint; CI green. Live: generated a 100x66 chart of 6,600 stitches and 15 DMC threads through the sidecar, enhancement preview rendered, Vivid regeneration changed the palette, a Pattern Keeper PDF exported at 69,796 bytes, a reload restored from autosave, console clean. 23 containers before and after, only this project's two restarted; nine sites returned 200 |
+| 2026-09-25 | 5273a10 | G-072: Lasso select and Lasso fill — a selection can be a shape rather than a box (D225), and the drawn path is smoothed by corner cutting (D226) | 758 unit, 388 e2e (8 new across the two tools), tsc, eslint, prettier, docs-lint. Live on the deployed build: a 480x320 photo generated a 100x67 chart of 6,700 stitches and 15 DMC threads; a 70-point freehand loop with ±2.5 cells of deliberate jitter filled as a **smooth rounded blob**, taking 3371 Black Brown from 448 stitches to 1,187; undo returned it to 448 exactly; Lasso select then reported `SELECTION 41 × 29 at 40, 20` and Escape dropped it. Console clean. 23 containers before and after with an identical name set and only this project's two restarted; nine sites returned 200 either side. |
+| 2026-09-24 | fe1f55b | G-071: the build targets `x86-64-v3` rather than Rust's 2003 default, for a measured mean 6.6% on generation with byte-identical output (D224) | 732 unit, 123 Rust-config, 8 cargo, 380 e2e, docs-lint; all 38 golden hashes unmoved. The flag was verified inside the image build itself. Live: the identical 15-thread palette and a 69,796-byte PDF, the same byte count as before the change. 23 containers before and after, only this project's two restarted; nine sites returned 200 |
 
 ## Decisions
 

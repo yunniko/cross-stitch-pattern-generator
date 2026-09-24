@@ -58,9 +58,18 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   symmetry, one undo step.
 - [x] M4 — **Smoothing, measured** (criteria 4, 5). Separate so it can be dropped on evidence rather than
   abandoned halfway — the lesson of G-070.
-- [ ] M5 — README, HANDOVER, deploy and verify live.
+- [x] M5 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-25 — **M5 done; G-072 is complete and live at `5273a10`.** All six criteria met.
+  **Verified on the deployed build, not locally**: a generated 100×67 chart of 6,700 stitches; a 70-point
+  freehand loop with ±2.5 cells of deliberate jitter filled as a **smooth rounded blob**, taking 3371 Black
+  Brown from 448 stitches to 1,187; undo returned it to 448 exactly; Lasso select then reported
+  `SELECTION 41 × 29 at 40, 20` and Escape dropped it. Console clean.
+  23 containers before and after, identical name set, only this project's two restarted; nine sites 200
+  either side.
+  README gained the two tools and their shortcuts; HANDOVER gained the lasso entry and the mask rule (D225).
+  **PENDING SIGN-OFF**: nothing is left to build.
 - 2026-09-24 — **M4 done. Smoothing ships; the fallback was not needed** (D226).
   Two passes of Chaikin's corner cutting over the closed path, so the gap from finish back to start rounds like
   any other corner rather than staying a chord.
