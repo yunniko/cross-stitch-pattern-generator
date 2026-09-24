@@ -15,8 +15,10 @@
     clippy::assign_op_pattern
 )]
 
-/// `Math.cbrt`: V8's `base::ieee754::cbrt` (FreeBSD's `s_cbrt.c`), ported line for line. The `libm` crate's version
-/// differs from V8's in the last bit for about one input in fifty thousand.
+/// `Math.cbrt`: V8's `base::ieee754::cbrt` (FreeBSD's `s_cbrt.c`), ported line for line. The `libm` crate's
+/// version differs from V8's in the last bit for 8.4% of the recorded vectors, and the platform `std` for 30%
+/// (measured 2026-09-24, `docs/reviews/2026-09-24-parity-tax.md`) — so this is not a near-match, and `std` would
+/// additionally vary by operating system.
 pub fn cbrt(x: f64) -> f64 {
     const B1: u32 = 715094163; // (1023-1023/3-0.03306235651)*2**20
     const B2: u32 = 696219795; // (1023-1023/3-54/3-0.03306235651)*2**20

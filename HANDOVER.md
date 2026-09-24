@@ -288,9 +288,10 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Next steps and open questions
 
-- **G-070 is the active goal**: the Rust port is still shaped by TypeScript, because the golden hashes were
-  recorded from its bits. M1 measures what that costs and changes nothing; moving the hashes is an explicit
-  Owner decision at M2, and the goal ends there if the answer is no.
+- **BLOCKED: G-070** asked what the V8 maths port costs. It costs nothing — replacing it is **13–25% slower**
+  with identical output (D223, `docs/reviews/2026-09-24-parity-tax.md`). The goal is premised on a win that
+  does not exist; awaiting the Owner's call to close it. One unrelated win found: `-C target-cpu=native` is
+  ~5% faster with byte-identical output.
 - Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (14 of 24 on road-mountains), since a refill split learns only from cells inside a colour (D142).
 - Left open: G-028 — OXS symbols use each reader's own font glyph, untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's calibration; G-033 — "+ Add" keeps its old flow.
 - Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.

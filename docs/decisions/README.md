@@ -222,6 +222,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D220 — Latest-value refs update before paint, not after — active
 - D221 — The sidecar is the only engine; the TypeScript pipeline stops shipping — active
 - D222 — The safety net is properties and gates, not only recorded hashes — active
+- D223 — The V8 maths port stays; it is the fast path, not a parity tax — active
 
 ## Files, formats and storage
 

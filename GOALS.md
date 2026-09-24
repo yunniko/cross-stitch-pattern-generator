@@ -23,7 +23,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - **Constraints:** not a line-count exercise. G-067's "under 300 lines" was a bad proxy and is not inherited; a shell
   component taking 38 props would meet it and improve nothing.
 
-### G-070 · Rust stops being shaped by a language that is no longer here — ACTIVE (2026-09-24)
+### G-070 · Rust stops being shaped by a language that is no longer here — BLOCKED (2026-09-24)
 - **What:** a measured answer to "what does byte-identity with V8 still cost us?", and — only if the answer
   justifies it and the Owner approves — the removal of that cost: Rust's own maths instead of the 1,153-line V8
   port, clippy's loop lints back on, `f32` where the data is 8-bit, and parallel reductions where summation order
@@ -61,7 +61,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
     Owner rather than discovering it in a support question.
 
 **Milestones** (confirmed at planning, 2026-09-24):
-- [ ] M1 — **Measure, change nothing** (criterion 1). Profile generation with and without the V8 maths behind a
+- [x] M1 — **Measure, change nothing** (criterion 1). Profile generation with and without the V8 maths behind a
   temporary feature flag, so the difference is measured rather than argued. Ends with the review document and a
   recommendation, which may be "not worth it".
 - [ ] M2 — **BLOCKED on the Owner** (criterion 2): the decision to move the hashes, or not. The goal ends here if
@@ -74,6 +74,30 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M5 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — **M1 done, and it refutes the goal.** Full numbers in
+  `docs/reviews/2026-09-24-parity-tax.md`; the decision is D223.
+  **Replacing the V8 maths makes generation 13–25% slower, not faster** — five workloads, two replacements
+  (Rust `std` and the `libm` crate), binaries differing in nothing else, minimum of fifteen runs each. The port
+  is ordinary Rust in the same crate, so LLVM inlines it into the per-pixel colour loops (`color.rs` runs three
+  `cbrt` per pixel); `std` lowers to a non-inlinable C call. It is the fast path, not a tax.
+  **And the bits it protects never reach the chart**: 0 cells differed out of 15,000, and 0 out of 60,000 on
+  the large case, for both replacements, with identical palettes. So removing it costs 13–25% and buys nothing.
+  **A risk that was not on the list**: `std` resolves to the platform's C library — 30% of `cbrt` inputs differ
+  from V8 here (MSVC) against 8.4% for the `libm` crate — so moving to `std` would make a chart depend on the
+  OS that generated it. The port rules that out today.
+  **Two of my own claims at G-068's close were wrong, and the measurement says so**: the clippy `allow`s
+  suppress **19 warnings in 13,574 lines**, not "idiomatic Rust switched off crate-wide"; and `jsmath.rs`'s
+  comment claiming `libm` differs "about one input in fifty thousand" is out by ~4,000x (measured 8.4%).
+  That comment is corrected in this commit — the only code change M1 made.
+  **One real win found, unrelated to parity**: `-C target-cpu=native` is 4.8–6.1% faster with **byte-identical**
+  output, needing no maths change, no hash change and no decision about parity.
+  `f32` is recorded as **unmeasured**: it cannot be known without doing the work.
+  Verified: the temporary feature flag is reverted, the tree is back to what ships, 73 goldens and 8 cargo
+  tests pass. A first attempt at this measurement silently compared two identical binaries — the review says
+  how to avoid that.
+  **BLOCKED: M3 and M4 as drafted should not proceed** — the goal was premised on a speed win that does not
+  exist. The Owner's call: close G-070 as answered (recommended), or keep only the `target-cpu` win as a small
+  separate goal.
 - 2026-09-24 — goal created at the Owner's request, from the parity-tax findings reported at G-068's close.
   Evidence gathered so far, all from the tree at `3ce410b`: `jsmath.rs` 478 lines + `fdlibm.rs` 675; seven
   crate-wide clippy `allow`s in `rust/cs-core/src/lib.rs`; `f64` 153 times in `enhance.rs` alone against 103
