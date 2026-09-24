@@ -35,11 +35,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   (D107) holds throughout: the golden hashes do not move.
 
 **Milestones**:
-- [ ] M1 — **The production path enters CI** (A1). Rust toolchain, `cargo test`, `compare:rust`, and the
+- [x] M1 — **The production path enters CI** (A1). Rust toolchain, `cargo test`, `compare:rust`, and the
   generation/export specs against the sidecar. Prove the gate by diverging the two implementations deliberately and
   watching CI fail. Then write the Owner a short note on the standing cost of two implementations at bit-exactness,
   with the options (thin reference, tolerance, or retire the fallback) — a decision for the Owner, not for this goal.
-- [ ] M2 — **The formatter** (A3): `COMPANY/configs/prettier.json` copied in, `format:check` in CI, the whole-tree
+- [x] M2 — **The formatter** (A3): `COMPANY/configs/prettier.json` copied in, `format:check` in CI, the whole-tree
   reformat as one commit of its own so the next diff is readable.
 - [ ] M3 — **Documentation shape** (A4): split `docs/goals-archive.md`, group the 218-entry decision index by
   subsystem, and leave `docs-lint` green under the new rules.
@@ -51,6 +51,24 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   worktree retired per the new OPERATIONS rule, and the `experimental/` import rule written down.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — **M1 and M2 done.** CI now has a `rust` job that builds the sidecar, runs `cargo test` against
+  real jsmath vectors, runs `compare:rust` as a gate, and runs the whole e2e suite against the binary production
+  uses. `CS_JOB_REQUIRED=1` turns off the silent fallback for that run, so a missing or crashing binary fails
+  loudly rather than quietly handing the job back to TypeScript — without it the job could pass while testing
+  nothing, which is the failure it exists to prevent. **Gate proved both ways**: on master both jobs are green
+  (run e13cbf8, rust 6m33s, 14/14 steps), and a branch with one TypeScript constant changed turned the rust job
+  red at exactly `npm run compare:rust`; the proof branch is deleted. CI caught a bug in my own workflow on its
+  first run (vectors written before `cargo build` created `rust/target`), now fixed. M2: Prettier from
+  `COMPANY/configs/prettier.json`, 325 files reformatted in a commit of its own, `format:check` in CI; Markdown
+  is ignored because the docs are hand-wrapped and capped. Two files needed a second Prettier pass — it is not
+  idempotent on some nested generic arrows — and would have failed CI otherwise. Verified across both: 1312 unit
+  tests, 102/102 parity cases still byte-identical, 380 e2e against the sidecar.
+- 2026-09-24 — **PENDING APPROVAL: two implementations at bit-exactness.** M1 closes the verification hole but
+  not the question under it. `docs/reviews/2026-09-24-two-implementations-cost.md` sets out what the port buys
+  (median 3.1x, range 2.0-22.9x), what it costs (every pipeline feature written twice, a V8 maths port to keep
+  floats identical, 3 tests across 8,991 lines of Rust, CI work roughly doubled), and three ways out. My reading:
+  keep both now that drift is caught, and demote TypeScript to a reference the first time mirroring a feature
+  costs more than writing it. It changes what ships and what happens on a bad build, so it is the Owner's.
 - 2026-09-24 — goal created from the review the Owner asked for. The eight rules the review proposed are already in
   the charter (`COMPANY/STANDARDS.md`, `COMPANY/OPERATIONS.md`, commit bc2bbd1), and `docs-lint` now enforces R3, so
   this project currently fails it on two counts — the 10,280-line archive and the flat decision index — which is
