@@ -116,6 +116,7 @@ npm run dev
 npm run lint
 npm run format:check
 npx tsc --noEmit
+npm run build:processor  # needed first: five preview-runner specs drive the bundled worker
 npm run test:unit   # Vitest: editor, export and storage logic (no Rust toolchain needed)
 npm run test:e2e    # Playwright against a production build on port 30200
 npm run bench:browser  # photo load, generation and every export in a real browser (very slow; not in CI)
