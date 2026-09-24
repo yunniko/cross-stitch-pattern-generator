@@ -3,7 +3,7 @@ import type { StitchPattern } from "../types";
 import type { DitherMode } from "./dither";
 import type { DitherTexture } from "./dither-hand-drawn";
 import type { EnhancementModeId } from "./enhance";
-import type { EdgeMode, GenerationMode, PaletteMode } from "./pattern";
+import type { EdgeMode, GenerationMode, PaletteMode } from "./generation-modes";
 import { ensurePhotoUploaded, forgetPhoto } from "./photo-upload";
 import { errorFromResponse, isNetworkFailure, PhotoExpiredError, ProcessorUnreachableError } from "./server-errors";
 

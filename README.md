@@ -121,7 +121,8 @@ npm run bench       # per-stage generation timings, incl. a 12 MP photo and Cris
 npm run bench:browser  # photo load, generation and every export in a real browser (very slow; not in CI)
 ```
 
-The Rust port of the pipeline (G-048) lives in `rust/`. In production the processor runs each job in the `cs-job`
+The pipeline lives in `rust/` and only there (G-068). The TypeScript that it was ported from is deleted:
+generation is a Rust change, checked against the recorded golden hashes with `npm run test:goldens:rust`. In production the processor runs each job in the `cs-job`
 binary, built into its image, and there is no fallback behind it (D221). Working on it needs a Rust
 toolchain:
 

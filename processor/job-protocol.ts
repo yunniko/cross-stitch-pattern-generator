@@ -6,7 +6,7 @@ import type { SizeUnit } from "@/lib/export/finished-size";
 import type { DitherMode } from "@/lib/pipeline/dither";
 import type { DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
 import type { EnhancementModeId } from "@/lib/pipeline/enhance";
-import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pipeline/pattern";
+import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pipeline/generation-modes";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
 
 /**

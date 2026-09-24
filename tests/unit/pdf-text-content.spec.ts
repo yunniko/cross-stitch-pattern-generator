@@ -6,10 +6,8 @@ import { calculateA4Layout, type OverlapCells } from "@/lib/export/a4-layout";
 import { planInfoPages } from "@/lib/export/a4-render";
 import { buildPatternKeeperPdf } from "@/lib/export/pattern-keeper-pdf";
 import { SYMBOL_SET } from "@/lib/color/symbols";
-import { buildPattern } from "@/lib/pipeline/pattern";
 import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
 import { formatThreadName, THREAD_BRANDS } from "@/lib/threads/thread-brands";
-import { makePhotoLikeBuffer } from "./helpers/fixtures";
 import { buildPatternKeeperPdfPreG047 } from "./reference/pattern-keeper-pdf-pre-g047";
 
 /**
@@ -63,7 +61,9 @@ describe("the PDF written as text", () => {
 
   it("is byte-identical for a thread-matched chart whose colour key runs onto continuation pages", async () => {
     // Forty real DMC threads over a generated chart's layout: snapping a photo merges too many to spill the key.
-    const base = buildPattern(makePhotoLikeBuffer(150, 100), { longerSideStitches: 90, colorCount: 40 });
+    // A generated chart's shape, without generating one: this case is about the PDF's bytes, and every cell
+    // and colour below is replaced anyway. 90x60 is what a 150x100 photo gave at 90 stitches (G-068 M3).
+    const base: StitchPattern = { width: 90, height: 60, cellPalette: new Uint8Array(90 * 60), palette: [], isLandscape: true };
     const threads = THREAD_BRANDS.dmc.colors.slice(0, 40);
     const cellPalette = Uint8Array.from(base.cellPalette, (_, i) => (i * 13 + (i >> 4)) % threads.length);
     const counts = new Array(threads.length).fill(0);

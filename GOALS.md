@@ -40,11 +40,28 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M2 — **Stop shipping the fallback** (criterion 2): the processor always uses the sidecar, `CS_JOB=0` retired,
   Dockerfile, HANDOVER and `COMPANY/INFRASTRUCTURE_DEPLOY.md` updated, and a decision file reversing D190/D193's
   "TypeScript stays the fallback".
-- [ ] M3 — **Delete the duplication** (criteria 3 and 4), module by module, suites green at each step.
+- [x] M3 — **Delete the duplication** (criteria 3 and 4), module by module, suites green at each step.
 - [ ] M4 — **Grow Rust's own tests where the goldens do not reach**, since after M3 they are the whole safety net.
 - [ ] M5 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — **M3 done.** 122 files and 22,185 lines gone: `lib/crisp` (9), `lib/experimental` (5), ten
+  `lib/pipeline` modules, `threads/brand-match`, and the 73 unit specs, 13 scripts and 2 vitest configs that
+  existed to exercise them. Nothing in `app/` or `processor/` broke — the only thing holding the whole pipeline
+  on the shipped import graph was **one type-only import**: `job-protocol.ts` borrowing three string unions from
+  `pattern.ts`. Splitting that vocabulary into `generation-modes.ts` is what made the rest fall out.
+  **What stays, and why** (criterion 4, checked one by one): `dither.ts` and `dither-hand-drawn.ts` — the
+  browser draws the dither preview itself; `regions.ts` — the Fill tool's flood fill; `downsample.ts` — the
+  grid maths the UI shows before generating; `enhance.ts` — still running in the Next API route that serves the
+  enhancement preview, which is the one duplication this goal did **not** remove and is now named in HANDOVER.
+  Retired with the pipeline: `compare:rust`, `compare:rust-exports` and the benches, which compared against a
+  thing that no longer exists; the golden hashes from M1 are the gate now.
+  **The cost, stated plainly: 528 unit tests went** (1315 → 787 across all runs). Crisp behaviour, denoise, the
+  local optimiser, thread matching and the enhancement safety gates D118 requires are now covered only by 37
+  golden hashes, 380 e2e and 3 Rust tests. That is M4, and HANDOVER says so where the rules used to point at
+  specs that no longer exist. One test was saved from the cull: `pdf-text-content.spec.ts` pins PDF bytes
+  (D174) and only borrowed `buildPattern` for a fixture, so it now builds the chart by hand.
+  Verified: 732 unit, 37 goldens, 20 processor, 380 e2e against the sidecar, tsc, eslint, prettier, docs-lint.
 - 2026-09-24 — **M2 done.** The processor runs `cs-job` and nothing else (D221). `rustJobsAvailable` became
   `requireRustJobs`, the silent `logFallback` became a thrown error, and `pool-worker.ts` lost both TypeScript
   branches — removing the `if (rust)` guards alone would have left the old code running *after* the Rust result

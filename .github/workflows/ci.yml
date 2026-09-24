@@ -71,18 +71,13 @@ jobs:
       # still produce the bytes D107 recorded. This is what survives the TypeScript pipeline being deleted (G-068).
       - run: npm run test:goldens:rust
 
-      # The gate while both implementations exist: every case built by both must hash identically. Timings do not
-      # matter here, so one repeat rather than three.
-      - run: npm run compare:rust
-        env:
-          RUST_PARITY_REPEAT: "1"
-
       - run: npx next typegen
       - run: npm run build:processor
 
       # The processor's own job path. It needs the sidecar binary and the worker bundle built just above, and
       # belongs to this job rather than `check`, which has neither.
       - run: npm run test:processor:rust
+
       - run: npx playwright install --with-deps chromium
 
       # The e2e suite, against the only engine there is. A missing or failing binary now fails the job on its own,

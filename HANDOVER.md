@@ -148,10 +148,13 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - Speed-ups must leave `tests/unit/fixtures/golden-hashes.json` unchanged; regenerate it (`UPDATE_GOLDEN_HASHES=1`)
   only for an intended output change, with a decision file (D107).
 - Omitting `edgeMode`, `contourRefinement`, a brand or `enhancementMode` (or passing Off) must reproduce Standard output byte-for-byte.
-- Which enhancement modes are offered is the Owner's decision, made in `releasedEnhancementModes()` (D118); every
-  mode must still pass the safety gates in `tests/unit/enhancement-calibration.spec.ts`.
+- Which enhancement modes are offered is the Owner's decision, made in `releasedEnhancementModes()` (D118).
+  **The safety gates that enforced this are gone**: `enhancement-calibration.spec.ts` drove `buildPattern`
+  and went with it (G-068 M3). Releasing a mode is unguarded until M4 restores them.
 - Brighten must never white-balance, add local contrast or saturate, and must leave a photo with both deep shadows and highlights untouched (D118).
 - Enhancement calibration photos stay outside the repository; two show identifiable people.
+- **The TypeScript pipeline is gone** (G-068 M3): generation, crisp edges, quantisation, denoise and the optimiser exist only in `rust/`. `lib/pipeline` keeps the vocabulary (`generation-modes.ts`), the dither preview the browser draws, `regions.ts` behind the Fill tool, `downsample.ts`'s grid maths and `enhance.ts`. Adding a pipeline feature is a Rust change and a golden-hash decision, not two implementations.
+- **`lib/pipeline/enhance.ts` is still TypeScript and still runs**, in the Next API route that serves the photo-enhancement preview — while `rust/cs-core/src/enhance.rs` does the same work during generation. That is the one duplication G-068 did not remove; routing the preview through the processor would.
 - A crash report carries the chart but never the photo (D218), and names a commit only when the image is built with `APP_COMMIT=$(git rev-parse --short HEAD)`; the plain deploy command leaves it "unknown".
 - Nothing test-only ships: a build-flagged crash hook was found in the production chunks, so the boundary's spec breaks `fillRect` instead (D218). Grep a production build before trusting a flag to remove code.
 - `lib/` imports no framework. It is the layer the unit tests exercise without rendering and the processor runs server-side; two hooks had drifted in before G-067 M6, so eslint `no-restricted-imports` now refuses `react` there. A hook goes in `app/hooks/`, its logic stays in `lib/` as a pure module.
@@ -171,10 +174,9 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - The PDF adapter keeps opaque drawing on direct operators, written as text, with one font resource per page (D126,
   D174); `tests/unit/pdf-text-content.spec.ts` pins the bytes. Call `finish()` on each page's adapter before the page
   is flushed or saved, or the page loses its content.
-- Crisp consumers use the shared admissible-cost functions or throw; Crisp with contour refinement throws (D063, D068).
-- Crisp boundary evidence must stay identical to its verbatim reference copy:
-  `tests/unit/crisp-evidence-equivalence.spec.ts` (G-035 M4). Crisp+ changes stay behind
-  `edgeModel: "blurred-step"` and `"crisp-plus"`, never Crisp's defaults (D139).
+- Crisp lives in Rust only (G-068 M3). The rules that governed the TypeScript copy — shared admissible-cost
+  functions, evidence identical to a verbatim reference, Crisp+ behind its own flags (D063, D068, D139) —
+  described code deleted at bf726db; they bind `rust/cs-core/src/crisp/` now, and nothing checks them.
 - ICM inner loops use no closures or array scans (D044).
 - Pixel art is never resampled, colour-converted or premultiplied on the way in: every pixel is a stitch, so the photo path's 4000 px downscale would destroy the work (`pixel-art-file.ts`, D194).
 - Cell importance reads each cell's own footprint, never pixels assigned by truncation (D197): the two agree exactly below 1:1, and only the footprint fills a finer chart's cells.
@@ -207,9 +209,9 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - Code e2e specs load in Node takes symmetry types from `lib/editor/symmetry-axes.ts`, not `symmetry.ts` (G-037).
 - Screen drawing = frozen pre-G-036 drawing with band grid lines (photos ±16, outlines ±1),
   per `tests/e2e/chart-viewport-parity.spec.ts`; exports keep stroked grid lines (D135).
-- ICM and both k-means paths stay identical to their pre-M5 copies (D133):
-  `tests/unit/m5-equivalence.spec.ts`, `tests/unit/m5-equivalence-adversarial.spec.ts`,
-  `tests/unit/icm-neighbour-bound.spec.ts`. ICM's skipped scan needs a colour weight of zero or more (D170).
+- ICM and both k-means paths had to stay identical to their pre-M5 TypeScript copies (D133, D170). Those
+  copies and their equivalence specs went with the pipeline at bf726db; the Rust implementations are
+  now held only by the golden hashes.
 - Brand-aware UI reads `pattern.threadBrand`. A new brand needs data, a
   provenance doc, a registry entry, and the inline union in `lib/types.ts`
   widened (D093).
@@ -287,6 +289,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - From G-048: generation at 1500 stitches holds 42 MB more than TypeScript in Standard, 9 MB more in Crisp+ (D190); the sidecar spawns per job. Archived 2026-09-19: G-046 (raising the 1500 cap needs two Owner decisions, D181) and G-047 (D171–D178). G-030 (public launch) is a far-future draft.
 - The dithering line (G-052 to G-059) is complete and signed off. Open: on a noisy photo at 8 colours the screens can
   read worse than no dithering, and drawn marks become grain on a flat region, which is inherent to dithering one.
+- **528 unit tests went with the TypeScript pipeline** (1315 → 787). What they covered — crisp-edge behaviour, denoise, the local optimiser, thread matching, and the enhancement safety gates the rule below names — is now covered only by 37 golden hashes, 380 e2e and 3 Rust tests. G-068 M4 is rebuilding it on the Rust side; until then this is the project's thinnest area, and it is thin on purpose rather than by accident.
 - A crash now hands over a report (D218, G-066 signed off 2026-09-24), so the next one is diagnosable from the file rather than by reproducing it. Still open: the Owner has seen the same dead page **before 2026-09-23**, from a route D217 does not explain — the first report to arrive from the wild is the evidence to chase it with.
 - The colour question that drove G-060 to G-062 is answered (D212); the hues arrive **as the photo holds them**, so
   a dusty pink stays dusty. Open behind it: Photo fix keeps a Vivid of its own until it is redone, and its Auto and

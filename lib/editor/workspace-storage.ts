@@ -6,7 +6,7 @@ import { BRUSH_SIZES, DEFAULT_BRUSH_SHAPE, DEFAULT_BRUSH_SIZE, type BrushShape, 
 import type { ShapeFill } from "./shape-raster";
 import { DEFAULT_DITHER_TEXTURE, isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
 import { isReleasedEnhancementMode, type EnhancementModeId } from "../pipeline/enhance";
-import type { EdgeMode, GenerationMode, PaletteMode } from "../pipeline/pattern";
+import type { EdgeMode, GenerationMode, PaletteMode } from "../pipeline/generation-modes";
 import { THREAD_BRAND_IDS } from "../threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, type SizePresetId } from "../types";
 

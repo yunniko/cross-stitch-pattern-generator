@@ -1,22 +1,15 @@
 import path from "node:path";
 import { defineConfig } from "vitest/config";
 
-// `npm run compare:rust` / `compare:rust-exports` -- runs scripts/rust-parity.ts or rust-export-parity.ts (G-048) through Vitest for the same TypeScript/alias handling
-// as the unit suite, like `npm run bench` (D105). Sequential and untimed-out: the large cases take minutes.
+// The runs that need the Rust binary: the golden hashes against `cs-bench`, and the processor specs that drive a
+// real job. Through Vitest for the same alias handling as the unit suite. Sequential and untimed-out.
 export default defineConfig({
   test: {
     include: [
-      "scripts/rust-parity.ts",
       "scripts/rust-goldens.ts",
       "tests/unit/processor-export-pool.spec.ts",
       "tests/unit/processor-pool-limits.spec.ts",
       "tests/unit/processor-pool-parity.spec.ts",
-      "tests/unit/rust-sidecar.spec.ts",
-      "scripts/rust-export-parity.ts",
-      "scripts/dither-comparison.ts",
-      "scripts/vivid-comparison.ts",
-      "scripts/hand-drawn-samples.ts",
-      "scripts/hand-drawn-shapes.ts",
     ],
     testTimeout: 0,
     hookTimeout: 0,

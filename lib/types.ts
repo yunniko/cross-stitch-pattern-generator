@@ -1,7 +1,7 @@
 import type { EnhancementModeId } from "./pipeline/enhance";
 import type { DitherMode } from "./pipeline/dither";
 import type { DitherTexture } from "./pipeline/dither-hand-drawn";
-import type { EdgeMode } from "./pipeline/pattern";
+import type { EdgeMode } from "./pipeline/generation-modes";
 import type { ThreadBrand } from "./threads/thread-brands";
 
 export type RGB = readonly [number, number, number];

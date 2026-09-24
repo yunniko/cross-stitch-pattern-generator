@@ -13,7 +13,6 @@ export default defineConfig({
       "**/processor-export-pool.spec.ts",
       "**/processor-pool-limits.spec.ts",
       "**/processor-pool-parity.spec.ts",
-      "**/rust-sidecar.spec.ts",
     ],
     // pdfjs-dist's dynamic import (used by pattern-keeper-pdf.spec.ts and
     // pdf-canvas-adapter.spec.ts to verify real text extraction) is slow on
