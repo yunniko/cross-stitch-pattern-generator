@@ -20,6 +20,8 @@ jobs:
       - run: npm ci --legacy-peer-deps
 
       - run: npm run lint
+      # STANDARDS.md -> Code style: the formatter is a check, not a habit.
+      - run: npm run format:check
       # Route/layout types (e.g. LayoutProps) and next-env.d.ts are generated and git-ignored; a fresh checkout lacks them.
       - run: npx next typegen
       - run: npx tsc --noEmit
