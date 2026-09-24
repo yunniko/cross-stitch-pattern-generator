@@ -14,6 +14,17 @@ import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "./helpers/fixtures
  */
 
 const WORKER = path.join(__dirname, "..", "..", "dist", "processor", "pool-worker.mjs");
+// The build tree's binary stands in for `/app/bin/cs-job`: the pool worker runs jobs in the sidecar and
+// nothing else since G-068 M2 (D221), so this spec needs it the same way production does.
+process.env.CS_JOB_BINARY = path.join(
+  __dirname,
+  "..",
+  "..",
+  "rust",
+  "target",
+  "release",
+  process.platform === "win32" ? "cs-job.exe" : "cs-job"
+);
 
 const small = makeBuffer(60, 40, (x, y) => {
   const base = x < 30 ? [200, 150, 100] : [80, 120, 90];

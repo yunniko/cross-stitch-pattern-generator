@@ -8,6 +8,10 @@ export default defineConfig({
     include: [
       "scripts/rust-parity.ts",
       "scripts/rust-goldens.ts",
+      "tests/unit/processor-export-pool.spec.ts",
+      "tests/unit/processor-pool-limits.spec.ts",
+      "tests/unit/processor-pool-parity.spec.ts",
+      "tests/unit/rust-sidecar.spec.ts",
       "scripts/rust-export-parity.ts",
       "scripts/dither-comparison.ts",
       "scripts/vivid-comparison.ts",

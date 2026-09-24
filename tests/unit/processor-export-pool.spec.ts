@@ -19,6 +19,17 @@ import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
 const WORKER = path.join(__dirname, "..", "..", "dist", "processor", "pool-worker.mjs");
 // The repo's own assets stand in for the ones the image copies next to the bundle.
 process.env.EXPORT_ASSET_ROOT = path.join(__dirname, "..", "..", "public");
+// The build tree's binary stands in for `/app/bin/cs-job`. Since G-068 M2 there is nothing behind the sidecar, so
+// this spec exercises the same path production does -- and fails plainly if the binary was never built.
+process.env.CS_JOB_BINARY = path.join(
+  __dirname,
+  "..",
+  "..",
+  "rust",
+  "target",
+  "release",
+  process.platform === "win32" ? "cs-job.exe" : "cs-job"
+);
 
 function chart(): StitchPattern {
   const pattern = createBlankPattern(16, 12);

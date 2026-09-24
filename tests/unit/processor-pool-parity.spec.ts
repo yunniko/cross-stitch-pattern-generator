@@ -24,6 +24,17 @@ import { hashPattern } from "./helpers/pattern-hash";
 
 const ROOT = path.join(__dirname, "..", "..");
 const WORKER = path.join(ROOT, "dist", "processor", "pool-worker.mjs");
+// The build tree's binary stands in for `/app/bin/cs-job`: the pool worker runs jobs in the sidecar and
+// nothing else since G-068 M2 (D221), so this spec needs it the same way production does.
+process.env.CS_JOB_BINARY = path.join(
+  __dirname,
+  "..",
+  "..",
+  "rust",
+  "target",
+  "release",
+  process.platform === "win32" ? "cs-job.exe" : "cs-job"
+);
 const HASH_FILE = path.join(__dirname, "fixtures", "golden-hashes.json");
 
 const twoRegion = makeBuffer(60, 40, (x, y) => {
