@@ -221,6 +221,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D219 — The chart rasteriser stays one module; only its words move out — active
 - D220 — Latest-value refs update before paint, not after — active
 - D221 — The sidecar is the only engine; the TypeScript pipeline stops shipping — active
+- D222 — The safety net is properties and gates, not only recorded hashes — active
 
 ## Files, formats and storage
 

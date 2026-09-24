@@ -7,6 +7,8 @@ export default defineConfig({
   test: {
     include: [
       "scripts/rust-goldens.ts",
+      "scripts/rust-enhancement-gates.ts",
+      "scripts/rust-enhance-parity.ts",
       "tests/unit/processor-export-pool.spec.ts",
       "tests/unit/processor-pool-limits.spec.ts",
       "tests/unit/processor-pool-parity.spec.ts",

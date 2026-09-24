@@ -130,10 +130,13 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   `jsmath.rs` and `fdlibm.rs` the V8-exact maths (D183, D184) pinned by `rust/cs-core/tests/jsmath_vectors.rs`.
   `rust/cs-export` ports every export: `text.rs`/`canvas.rs` draw DejaVu text as the processor's canvas does (D187),
   `pdf.rs` pdf-lib's structure (D189), `bundle.rs` JSZip's ZIPs. `rust/cs-bench` is the CLI behind `npm run compare:rust`.
-- **Tests**: unit specs in `tests/unit/`. `golden-hashes.spec.ts` pins exact `buildPattern` output for 18
-  configurations (D107), and `m3-equivalence.spec.ts` compares the optimizer with a verbatim pre-M3 copy. E2E specs are
-  in `tests/e2e/`; `npm run test:e2e` starts the processor and the app together, since the page needs both.
-  `compare:export-parity` diffs two running builds, `compare:rust`/`compare:dither` measure the port and the patterns.
+- **Tests**: four layers (D222). Unit specs in `tests/unit/` cover the browser and the editor. The generation
+  pipeline is covered by `scripts/rust-goldens.ts` (38 recorded hashes, D107), `rust/cs-core/tests/
+  pattern_invariants.rs` (what must hold of *any* chart), `scripts/rust-enhancement-gates.ts` (D118's release
+  gates) and `scripts/rust-enhance-parity.ts` (the shipped preview against the binary). All four need
+  `cargo build --release` first and run under `vitest.rust.config.ts`. E2E specs are in `tests/e2e/`;
+  `npm run test:e2e` starts the processor and the app together, since the page needs both.
+  `compare:export-parity` diffs two running builds.
 - **Deploy**: `Dockerfile` builds two targets (`runtime`, `processor`) and `docker-compose.yml` runs both under
   D149's caps (app on `127.0.0.1:30150`; the processor publishes no port). Recipe and shared-host rules:
   `COMPANY/INFRASTRUCTURE_DEPLOY.md`; verification per D027.
@@ -145,12 +148,14 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - One session per working tree. Never force-kill node processes you did not start: find the owner of the port you actually need and check its start time first. A rule naming a fixed PID goes stale within days and PIDs are recycled -- the number this rule used to carry (17476, 2026-09-12) was long gone by 2026-09-18 and only caused a later session to believe it had killed someone else's server.
 - A goal isn't DONE with a dirty tree, placeholders, or no logged Owner sign-off (OPERATIONS.md §5, D098).
 - E2E runs against a production build on port 30200 (D102); locally an existing server is reused, so stop it after code changes.
-- Speed-ups must leave `tests/unit/fixtures/golden-hashes.json` unchanged; regenerate it (`UPDATE_GOLDEN_HASHES=1`)
-  only for an intended output change, with a decision file (D107).
+- Speed-ups must leave `tests/unit/fixtures/golden-hashes.json` unchanged. `GOLDEN_RECORD=1` adds a hash for a
+  *new* case and refuses to overwrite an existing one, so an intended output change means editing the file by
+  hand with a decision file (D107, D222).
 - Omitting `edgeMode`, `contourRefinement`, a brand or `enhancementMode` (or passing Off) must reproduce Standard output byte-for-byte.
 - Which enhancement modes are offered is the Owner's decision, made in `releasedEnhancementModes()` (D118).
-  **The safety gates that enforced this are gone**: `enhancement-calibration.spec.ts` drove `buildPattern`
-  and went with it (G-068 M3). Releasing a mode is unguarded until M4 restores them.
+  A mode is released only once `scripts/rust-enhancement-gates.ts` passes it: do-no-harm, noise and thread
+  palette are gated, recovery is reported and not gated (D115). All four released modes pass; the thinnest
+  margin is do-no-harm on the landscape fixture at 0.919 against a gate of 0.90.
 - Brighten must never white-balance, add local contrast or saturate, and must leave a photo with both deep shadows and highlights untouched (D118).
 - Enhancement calibration photos stay outside the repository; two show identifiable people.
 - **The TypeScript pipeline is gone** (G-068 M3): generation, crisp edges, quantisation, denoise and the optimiser exist only in `rust/`. `lib/pipeline` keeps the vocabulary (`generation-modes.ts`), the dither preview the browser draws, `regions.ts` behind the Fill tool, `downsample.ts`'s grid maths and `enhance.ts`. Adding a pipeline feature is a Rust change and a golden-hash decision, not two implementations.
@@ -289,7 +294,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - From G-048: generation at 1500 stitches holds 42 MB more than TypeScript in Standard, 9 MB more in Crisp+ (D190); the sidecar spawns per job. Archived 2026-09-19: G-046 (raising the 1500 cap needs two Owner decisions, D181) and G-047 (D171–D178). G-030 (public launch) is a far-future draft.
 - The dithering line (G-052 to G-059) is complete and signed off. Open: on a noisy photo at 8 colours the screens can
   read worse than no dithering, and drawn marks become grain on a flat region, which is inherent to dithering one.
-- **528 unit tests went with the TypeScript pipeline** (1315 → 787). What they covered — crisp-edge behaviour, denoise, the local optimiser, thread matching, and the enhancement safety gates the rule below names — is now covered only by 37 golden hashes, 380 e2e and 3 Rust tests. G-068 M4 is rebuilding it on the Rust side; until then this is the project's thinnest area, and it is thin on purpose rather than by accident.
+- **528 unit tests went with the TypeScript pipeline** (1315 → 787), and M4 rebuilt the floor on the Rust side rather than porting them: 38 golden hashes (up from 18, now covering enhancement, all 13 dither modes, Vivid sampling and Crisp+), 5 Rust property tests over degenerate and arbitrary input, the D118 release gates, and preview-against-binary enhancement parity. What is still covered only by a hash is the *internals* — crisp-edge behaviour, denoise, the local optimiser, thread matching — which is to say a change there is caught but not explained. That is the thinnest area now.
 - A crash now hands over a report (D218, G-066 signed off 2026-09-24), so the next one is diagnosable from the file rather than by reproducing it. Still open: the Owner has seen the same dead page **before 2026-09-23**, from a route D217 does not explain — the first report to arrive from the wild is the evidence to chase it with.
 - The colour question that drove G-060 to G-062 is answered (D212); the hues arrive **as the photo holds them**, so
   a dusty pink stays dusty. Open behind it: Photo fix keeps a Vivid of its own until it is redone, and its Auto and

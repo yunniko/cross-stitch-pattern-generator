@@ -41,10 +41,42 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   Dockerfile, HANDOVER and `COMPANY/INFRASTRUCTURE_DEPLOY.md` updated, and a decision file reversing D190/D193's
   "TypeScript stays the fallback".
 - [x] M3 — **Delete the duplication** (criteria 3 and 4), module by module, suites green at each step.
-- [ ] M4 — **Grow Rust's own tests where the goldens do not reach**, since after M3 they are the whole safety net.
+- [x] M4 — **Grow Rust's own tests where the goldens do not reach**, since after M3 they are the whole safety net.
 - [ ] M5 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-24 — **M4 done.** The floor is three layers now, not one (D222).
+  **1. The goldens reach the whole option surface.** 18 cases → 38. Not one of the original eighteen named
+  enhancement, dither, Vivid or Crisp+ — every recorded hash was an Off, undithered, non-Vivid chart, so all
+  four enhancement modes, all thirteen dither modes, Vivid's sampling and Crisp+ could change output silently.
+  Cases also assert what the chart *records* (`ditherMode`, `vivid`), which `hashPattern` does not cover and
+  which is what reopens a saved file in the state it was saved. **None of the 18 recorded hashes moved** — the
+  goal's constraint is now enforced by the tool: `GOLDEN_RECORD=1` only ever *adds*, and fails on a hash that
+  changed rather than regenerating it (verified by tampering with one).
+  **2. Rust has property tests** (`rust/cs-core/tests/pattern_invariants.rs`, Rust's own count 3 → 8): every
+  cell names a colour that exists, palette counts add up, no two colours share a symbol, a brand chart's
+  colours all have threads behind them, generation is deterministic, and a chart survives inputs no golden has
+  — 1x1, one-column, 200x3, fully transparent, single-colour, more colours requested than the photo holds.
+  **3. The D118 release gates are back** (`scripts/rust-enhancement-gates.ts`), driving `cs-bench` instead of
+  the deleted `buildPattern`. Measurements unchanged; only what is measured moved. All four released modes
+  pass; thinnest margin is do-no-harm 0.919 against a gate of 0.90, and recovery still falls short on every
+  mode exactly as it did in G-032 (reported, ungated, D115).
+  **Also: the one duplication M3 left is now checked.** `lib/pipeline/enhance.ts` still ships as the photo
+  pane's preview while Rust builds the chart (D221), and nothing compared them. A new `cs-bench enhance`
+  subcommand exposes the stage alone; `scripts/rust-enhance-parity.ts` finds them byte-identical across 5
+  fixtures x 5 modes, and asserts enhancement *acted* (68-75% of bytes change) so the comparison cannot
+  quietly become two untouched copies.
+  **Proved each layer bites, by breaking things on purpose**: a changed Floyd-Steinberg weight failed exactly
+  the 2 Floyd-Steinberg assertions; dropping palette compaction failed the invariant suite; tightening
+  do-no-harm to 0.95 failed all 4 modes naming the fixture. The one that justifies the whole milestone:
+  **breaking transparency handling entirely left all 73 golden assertions passing**, and only the new Rust
+  property test caught it. A hash per input never generalises.
+  Verified: 732 unit, 123 in the Rust config (73 goldens + 5 gates + 25 parity + 20 processor, was 57), 8
+  cargo tests, 380 e2e, tsc, eslint, prettier, rustfmt on the new file, docs-lint.
+  **HANDOVER**: four claims replaced, none added as a new bullet — the Tests bullet named two specs deleted in
+  M3, the golden-hash rule named `UPDATE_GOLDEN_HASHES=1` which no longer exists, the enhancement rule said
+  the gates were gone, and the coverage note apologised for a hole this milestone filled. Net +5 lines.
+  **M5 next, and it is the only thing left: production is still on `42b4397`** — none of M1-M4 has shipped.
 - 2026-09-24 — **M3 done.** 122 files and 22,185 lines gone: `lib/crisp` (9), `lib/experimental` (5), ten
   `lib/pipeline` modules, `threads/brand-match`, and the 73 unit specs, 13 scripts and 2 vitest configs that
   existed to exercise them. Nothing in `app/` or `processor/` broke — the only thing holding the whole pipeline

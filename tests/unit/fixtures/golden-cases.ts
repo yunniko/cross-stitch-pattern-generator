@@ -1,3 +1,5 @@
+import type { DitherMode } from "@/lib/pipeline/dither";
+import type { EnhancementModeId } from "@/lib/pipeline/enhance";
 import type { PixelBuffer } from "@/lib/types";
 import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "../helpers/fixtures";
 
@@ -21,12 +23,31 @@ export interface GoldenCaseOptions {
   optimize?: boolean;
   edgeMode?: "standard" | "crisp" | "crisp-plus";
   paletteMode?: "full" | "dmc" | "cosmo" | "anchor";
+  /**
+   * The rest of the shipped option surface (G-068 M4). `JobSettings` has carried these since G-032/G-052/G-061, and
+   * not one of the original cases named any of them: every recorded hash was an Off, undithered, non-Vivid chart, so
+   * enhancement, all thirteen dither modes and Vivid's sampling could have changed output silently.
+   */
+  enhancementMode?: EnhancementModeId;
+  ditherMode?: DitherMode;
+  /** Only the knobs a case actually varies; the rest take the shipped texture's values (G-055). */
+  ditherTexture?: { spacing?: number; wobble?: number; seed?: number };
+  vivid?: boolean;
 }
 
 export interface GoldenCase {
   name: string;
   source: PixelBuffer;
   options: GoldenCaseOptions;
+  /**
+   * What the finished pattern must say it was built with.
+   *
+   * `hashPattern` covers the cells and the palette, so a dither or Vivid change shows up there, but it does not
+   * cover `ditherMode`, `ditherTexture` or `vivid` — and those fields are what reopens a saved chart in the state
+   * it was saved. A case that asks for one of them asserts it came back (D211: Vivid records that it *acted*,
+   * which is why the 150-stitch photo asks for it and does not expect it).
+   */
+  records?: { ditherMode?: string; vivid?: true; enhancementMode?: string; edgeMode?: string };
 }
 
 const twoRegion = makeBuffer(60, 40, (x, y) => {
@@ -92,4 +113,67 @@ export const GOLDEN_CASES: GoldenCase[] = [
   },
   { name: "photo/standard/latest/64", source: photo, options: { longerSideStitches: 300, colorCount: 64 } },
   { name: "photo/standard/latest/100", source: photo, options: { longerSideStitches: 120, colorCount: 100 } },
+
+  // G-068 M4: the shipped options the eighteen cases above never named. Each one is a feature a user can turn on
+  // whose output nothing pinned — Crisp+ (G-038), enhancement (G-032), Vivid sampling (G-061) and every dither
+  // family (G-052, G-054, G-059).
+  {
+    name: "photo/crisp-plus/latest/24",
+    source: photo,
+    options: { longerSideStitches: 150, colorCount: 24, edgeMode: "crisp-plus" },
+    records: { edgeMode: "crisp-plus" },
+  },
+  {
+    name: "hard-split/crisp-plus/latest/3",
+    source: hardSplit,
+    options: { longerSideStitches: 16, colorCount: 3, edgeMode: "crisp-plus" },
+    records: { edgeMode: "crisp-plus" },
+  },
+  ...(["brighten", "auto", "vivid", "portrait"] as const).map((enhancementMode) => ({
+    name: `photo/standard/latest/24/${enhancementMode}`,
+    source: photo,
+    options: { longerSideStitches: 150, colorCount: 24, enhancementMode },
+    records: { enhancementMode },
+  })),
+  // 600x400 over a 100x66 grid is 36 pixels a stitch, above the 24 Vivid needs to act (D211).
+  {
+    name: "photo/standard/latest/24/vivid-sampling",
+    source: photo,
+    options: { longerSideStitches: 100, colorCount: 24, vivid: true },
+    records: { vivid: true },
+  },
+  // A smooth ramp at four colours is where dithering does its visible work, and it is cheap to generate.
+  ...(
+    [
+      "bayer-4",
+      "bayer-8",
+      "clustered-8",
+      "ring-8",
+      "lines-horizontal",
+      "lines-vertical",
+      "lines-diagonal",
+      "lines-anti-diagonal",
+      "blue-noise-16",
+      "floyd-steinberg",
+      "atkinson",
+      "hand-drawn",
+    ] as const
+  ).map((ditherMode) => ({
+    name: `gradient/dither/${ditherMode}`,
+    source: gradient,
+    options: { longerSideStitches: 40, colorCount: 4, ditherMode },
+    records: { ditherMode },
+  })),
+  // The drawn family's knobs reach the binary: a texture that is not the shipped one is recorded as well as applied.
+  {
+    name: "gradient/dither/hand-drawn/custom-texture",
+    source: gradient,
+    options: {
+      longerSideStitches: 40,
+      colorCount: 4,
+      ditherMode: "hand-drawn" as const,
+      ditherTexture: { spacing: 1.4, wobble: 0.35, seed: 7 },
+    },
+    records: { ditherMode: "hand-drawn" },
+  },
 ];
