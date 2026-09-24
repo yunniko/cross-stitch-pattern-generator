@@ -8,11 +8,12 @@ import {
   type PixelSource,
 } from "./canvas-backend";
 import type { ChartDrawingContext } from "./chart-drawing-context";
+import { headerText, truncateToWidth } from "./render-text";
 import { hexToRgb, luminance, rgbToHex } from "../color/color";
-import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, formatFinishedSize, type SizeUnit } from "./finished-size";
+import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import { formatSkeinEstimate } from "../threads/floss-estimate";
 import { buildStitchTiles, type StitchTiles } from "./stitch-texture";
-import { EMPTY_CELL, filledStitchCount, formatStitchCount, type PaletteColor, type StitchPattern, type RGB } from "../types";
+import { EMPTY_CELL, type PaletteColor, type StitchPattern, type RGB } from "../types";
 
 export type RenderMode = "color" | "bw";
 
@@ -758,12 +759,6 @@ function drawRowColumnNumbers(ctx: Canvas2D, width: number, height: number, cell
 
 const HEADER_FONT = `13px ${FONT_STACK}`;
 
-/** Exported for unit testing -- the exported-PNG header text (also used to size its canvas), verified without needing a real canvas/DOM. */
-export function headerText(pattern: StitchPattern, aidaCount: number, sizeUnit: SizeUnit, authorName?: string): string {
-  const base = `${pattern.width} × ${pattern.height} grid, ${formatStitchCount(filledStitchCount(pattern))} — approx. ${formatFinishedSize(pattern.width, pattern.height, aidaCount, sizeUnit)} on ${aidaCount}-count Aida`;
-  return authorName?.trim() ? `${base} — Designed by ${authorName.trim()}` : base;
-}
-
 /** Design size (the canvas grid), the number of filled stitches (D120) and an estimated finished size at the selected Aida count — conventional on published charts (docs/domain-reference.md §1, §4). The canvas is always sized wide enough to fit this beforehand (see computeChartLayout) -- no wrapping/clipping needed here. */
 function drawHeader(ctx: Canvas2D, pattern: StitchPattern, aidaCount: number, sizeUnit: SizeUnit, authorName?: string) {
   ctx.fillStyle = "#111111";
@@ -771,20 +766,6 @@ function drawHeader(ctx: Canvas2D, pattern: StitchPattern, aidaCount: number, si
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText(headerText(pattern, aidaCount, sizeUnit, authorName), LEGEND_PADDING, HEADER_HEIGHT / 2);
-}
-
-/** Shortens text with a trailing ellipsis if it doesn't fit maxWidth in the context's current font -- names from the reference list have no fixed length cap. */
-export function truncateToWidth(ctx: ChartDrawingContext, text: string, maxWidth: number): string {
-  if (ctx.measureText(text).width <= maxWidth) return text;
-  let low = 0;
-  let high = text.length;
-  while (low < high) {
-    const mid = Math.ceil((low + high) / 2);
-    const candidate = `${text.slice(0, mid)}…`;
-    if (ctx.measureText(candidate).width <= maxWidth) low = mid;
-    else high = mid - 1;
-  }
-  return low > 0 ? `${text.slice(0, low)}…` : "…";
 }
 
 function drawLegendItem(ctx: Canvas2D, color: PaletteColor, mode: RenderMode, x: number, y: number, aidaCount: number) {
@@ -1026,3 +1007,6 @@ export function stitchPreviewPixels(pattern: StitchPattern, tiles: StitchTiles):
     },
   };
 }
+
+// The chart's words live beside it rather than inside it (D219); callers still find them here.
+export { headerText, truncateToWidth } from "./render-text";

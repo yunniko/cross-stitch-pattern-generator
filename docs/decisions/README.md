@@ -218,6 +218,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D195 — The pixel-art PNG is written in the page, and is not a processor export — active
 - D203 — A texture is data with ranges, and its default is frozen — active
 - D218 — A crash hands over a report, and the test breaks the browser rather than the app — active
+- D219 — The chart rasteriser stays one module; only its words move out — active
 
 ## Files, formats and storage
 
