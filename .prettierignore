@@ -1,0 +1,17 @@
+# Generated or foreign output.
+.next/
+.next-*/
+out/
+build/
+dist/
+node_modules/
+rust/target/
+playwright-report/
+test-results/
+coverage/
+package-lock.json
+
+# Markdown is hand-wrapped on purpose: HANDOVER.md is capped per section and the
+# decision files are capped by word count, so a reflow would rewrite every one of
+# them and change what those caps measure. Prose is formatted by the writer here.
+*.md
