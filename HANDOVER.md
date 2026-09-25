@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-25 at 1437439 (G-073 complete, M1-M6 plus the split thread lights; deployed and exercised live)
+Last verified: 2026-09-25 at 604002c (G-073 complete, M1-M6 plus the split lights and drag-to-draw; deployed and exercised live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -341,8 +341,8 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-25 | 604002c | **A drag places the backstitch line where it lets go** (Owner, on mobile). The draw tool had no pointer-up handler at all — written for click-then-click, it never saw a release, so a finger opened a run that nothing closed and the next tap ended the line elsewhere (D236). A tap is still a tap, so click-click drawing is unchanged | 824 unit, 436 e2e (4 new, one driving real touch pointer events), tsc, eslint, prettier, docs-lint clean. Mutation-checked: removing the handler fails three of the four. Live on the deployed build: dragged a line with touch events and it landed where the finger lifted, then two taps drew a separate line. 23 containers before and after with an identical name set and only this project's app restarted; ten sites returned 200. |
 | 2026-09-25 | 1437439 | **Each section of the thread list lights its own layer** (Owner): the cross row's eye lights a thread's stitches, the backstitch row's lights its lines, where one shared set had lit the whole thread (D235). Isolate dims what is not lit in both layers | 824 unit, 432 e2e (9 in the threads spec, including the pixel test), tsc, eslint, prettier, docs-lint clean. The test caught a gap in the first version — with no backstitch lit, nothing dimmed, so lighting a thread's stitches left every outline bright over a dimmed chart. Live on the deployed build: lit a thread's backstitch and watched its stitches stay unlit, then lit the stitches and watched the two toggle independently. 23 containers before and after with an identical name set and only this project's app restarted; ten sites returned 200. |
-| 2026-09-25 | 354c7c2 | **G-073 M6: the docs catch up with the finished goal.** The README describes backstitch as a reader meets it and stops claiming the app drops it on open — which it has not done since M1 — and lists the two Rust parity suites, which had never been written down. `HANDOVER.md` reads as a finished goal and names the Rust side of backstitch. No behaviour change | 824 unit, 432 e2e, 73 golden hashes, both Rust parity suites, tsc, eslint, prettier, docs-lint clean. Live on the deployed build: a chart drawn with backstitch, an editing gesture, and a full-chart PNG exported through the live processor showing its dashes and symbol beads. 23 containers before and after with an identical name set and only this project's app restarted; ten sites returned 200. |
 
 ## Decisions
 
