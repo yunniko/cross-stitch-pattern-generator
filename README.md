@@ -60,7 +60,7 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   four built-in ones with a share of its own, and what you leave unpainted
   fills after it rather than leaving holes, so a sketch is a shape. A grid
   wider than the mark spacing says so instead of cropping quietly.
-- **Edit** with brush, fill, line, rectangle, oval, lasso fill, rectangle select and lasso select (copy,
+- **Edit** with brush, fill, line, rectangle, oval, lasso fill, backstitch, rectangle select and lasso select (copy,
   paste, move, flip, rotate, crop the chart to the selection, apply the piece where it sits, or discard it),
   move, pan and zoom tools. Isolate dims every thread but the ones you light, and
   stays on while you paint. Merge, recolor, rename and re-symbol colors,
@@ -86,6 +86,18 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   finished and where you started becomes a curve rather than a straight cut across your shape. A path drawn as
   a few deliberate corners is left exactly where you put it. Crossing your own line carves a hole rather than
   swallowing it, so a figure-of-eight gives you two lobes.
+- **Backstitch**: the outlines a cross-stitch design is finished with — straight lines drawn corner to
+  corner over the stitches, a fifth of a cell wide. **Backstitch** (`K`) draws one: click where it starts,
+  then where it ends. Hold **Ctrl** as you place that end to carry straight on into the next line, which is
+  how an outline is drawn in one run. **BS edit** (`J`) picks a line up — drag it anywhere to move it, and
+  once it is in hand drag either end to re-aim it. A **double-click takes the whole run**: every line joined
+  to it end to end in the same thread, which then moves, mirrors, turns, recolours or deletes as one.
+  **Delete** removes what is in hand. Symmetry mirrors a line as it does a stitch, and a rectangle or lasso
+  selection takes a line only when **both** its ends are inside it.
+- **Backstitch threads**: the thread list grows a second section under the crosses for the threads carrying
+  lines, counted by length rather than by stitches — one thread used for both is one entry listed twice, so
+  renaming, recolouring or merging it shows in both at once. Merging a thread carries its backstitch;
+  merging into the empty thread deletes it, since a line cannot be no colour.
 - **Draw symmetrically**: toggle vertical, horizontal and diagonal symmetry (diagonals on
   square canvases) and every brush stroke and fill lands on each mirrored stitch, with
   red guide lines on the chart. Quick mirror copies the left half, upper half, upper-left
@@ -99,6 +111,15 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   empty stitches. Nothing is resampled or re-quantized. An image over 1500 px a
   side, over 100 colours, or partly transparent is refused and says why; one
   smaller than 10 stitches is centred in a chart of that minimum.
+- **Backstitch on paper**: the chart PNGs and the A4 pages draw each line in its thread's colour, and tell
+  one thread from another by a **dash pattern** — solid, dashed, dotted, dash-dot, long-dash — with a
+  **bead carrying the thread's symbol** every few cells on a long line, and a hairline casing where a line
+  crosses stitches close to its own lightness. A glyph will not fit inside a 0.55 mm stroke; a dash does.
+  The Pattern Keeper PDF keeps its grid free of it and reports the lengths as text, because that app cannot
+  use backstitch and its grid is there to be machine-read.
+- **Two legends**: the simple one is a thread shopping list — the pattern's name, its designer, and a
+  skein count per colour. The extended one is for stitching from: symbol, name, stitch count and, when
+  there is backstitch, how much of each thread it needs and the total.
 - **Export** editable JSON, a realistic stitched preview, full-chart PNGs,
   paginated A4 ZIPs, a Pattern Keeper–compatible PDF, an OXS chart for other
   cross-stitch programs, a pixel-art PNG at 1 px per stitch (which imports back
@@ -107,8 +128,8 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
 - **If the editor ever falls over**, it says so instead of going blank, and offers the failure as a file: what
   went wrong, where, what you had in hand, and your chart — but not the photo behind it. Your work is autosaved,
   so reloading brings the chart back.
-- **Open** this app's own files or an `.oxs` chart from another program. Content
-  the app can't show, such as backstitch lines and French knots, is listed
+- **Open** this app's own files or an `.oxs` chart from another program. Backstitch comes in and goes back
+  out exactly; content the app still can't show, such as French knots and fractional stitches, is listed
   after opening rather than silently dropped.
 
 ## Run locally
@@ -140,6 +161,8 @@ npm run test:goldens:rust        # the 38 recorded golden hashes (D107), against
 npm run test:enhancement:rust    # the enhancement release gates (D118)
 npm run test:enhance-parity:rust # the shipped preview against the binary, pixel for pixel
 npm run test:processor:rust      # the processor driving a real job
+npm run test:backstitch:rust       # backstitch out through the real exporter and back in, as OXS
+npm run test:backstitch-style:rust # the dash table the screen draws with against the one exports draw with
 ```
 
 The pipeline lives in `rust/` and only there (G-068). The TypeScript that it was ported from is deleted:

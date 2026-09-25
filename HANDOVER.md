@@ -145,7 +145,10 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   D149's caps (app on `127.0.0.1:30150`; the processor publishes no port). Recipe and shared-host rules:
   `COMPANY/INFRASTRUCTURE_DEPLOY.md`; verification per D027.
 
-(Backstitch is corners rather than cells, so it has its own geometry module: `lib/editor/backstitch.ts` holds hit-testing, the transforms, the symmetry orbit and the both-ends rule, with no React and no canvas in it. `app/hooks/use-canvas-tools.ts` has the two hooks that drive it and `app/editor-geometry.ts` draws it.)
+(Backstitch is corners rather than cells, so it has its own geometry module: `lib/editor/backstitch.ts` holds hit-testing, the transforms, the symmetry orbit and the both-ends rule, with no React and no canvas in it. `app/hooks/use-canvas-tools.ts` has the two hooks that drive it and `app/editor-geometry.ts` draws it.
+Every *export* of it is Rust: `rust/cs-export/src/backstitch.rs` for the dash and bead rules,
+`draw_backstitch` in `render.rs` for the drawing, called by the chart PNG and by `a4::draw_grid_page` —
+which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Rules in force
 
@@ -307,12 +310,12 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Next steps and open questions
 
-- **G-073 is active at M3 of 6**, with two Owner-reported fixes on top of it: backstitch was displaced by the painted region's origin as soon as the chart was zoomed, and the two editing tools became one (D229).
-- **G-073 next steps.** Next is **M4, threads**: backstitch in its own section under the crosses, one palette entry with two counts, adding, picking, Isolate, merging, and merging into the empty thread deleting the lines. Then M5 (exports and the legend) and M6 (docs and deploy).
+- **G-073 is at M6 of 6, all six milestones built and deployed, waiting on the Owner's sign-off.** Backstitch draws, edits, lives in the thread list, and reaches every export. Five Owner-reported changes landed on top of the plan: the zoom displacement, the two editing tools becoming one (D229), the run selection (D230), the Delete key, and drawing that ends where it is placed rather than chaining by default (D231).
+- **Left for a future goal, found while building it:** the casing threshold and bead spacing were judged on screen, never on paper — only a print settles how a 0.55 mm dashed line reads at a 2.75 mm cell (`docs/reviews/2026-09-25-backstitch-samples.md`). Backstitch is also absent from the realistic preview,
+  which draws stitches from tiles and has no notion of a line.
 - Two drafts wait on the Owner: **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public launch, far future).
-- Weakest area, from two Owner-found defects in G-072: tests assert the chart **after** a gesture, where a
-  merge is correct, and almost nothing asserts a frame **during** one. The piece preview is now covered
-  (`tests/unit/piece-preview-cells.spec.ts`); the other gesture previews are not.
+- Weakest area, unchanged by G-073 and reinforced by it: **tests assert data, not what is drawn.** Every backstitch defect the Owner found in G-073 — the zoom displacement, the missing highlight — was invisible to a suite asserting exported coordinates, and two more were found only by *looking* at a sample export. Three pixel-level tests now exist (`backstitch-scene-placement.spec.ts`, and the highlight and Isolate cases in the e2e); nothing else asserts a frame during a gesture except `tests/unit/piece-preview-cells.spec.ts`.
+- **`cargo fmt --check` is not clean and not in CI**: 11 pre-existing diffs in `cs-core`, against STANDARDS → Code style, which names `cargo fmt --check` as a required CI check. Found 2026-09-25 during G-073 M5 and left alone rather than mixed into that change.
 - G-070 is closed as answered: the V8 maths port costs nothing — replacing it is **13–25% slower** with
   identical output (D223). Its one actionable finding shipped as G-071: the build targets `x86-64-v3`,
   worth a mean 6.6% (D224). Both are written up in `docs/reviews/2026-09-24-parity-tax.md`.

@@ -85,9 +85,12 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M5 — **Exports and the legend** (criteria 5, 6): dashes first, since they identify a thread at any width
   and are shippable on their own; then beads. Sample exports go to the Owner rather than a test asserting a
   casing threshold. Then the consumption table and the extended legend's length.
-- [ ] M6 — README, HANDOVER, deploy and verify live.
+- [x] M6 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-25 — **M6 done. G-073 is complete and waiting on sign-off.** The README describes backstitch as a reader meets it — drawing and its Ctrl chain, the editing tool and its run selection, the second thread section, the dashes and beads on paper, and the two legends — and **stops claiming the app drops backstitch on open**, which it has not done since M1. Its list of Rust suites gained the two backstitch parity scripts, which had never been written down.
+  `HANDOVER.md` is regenerated: the goal now reads as finished rather than mid-flight, the architecture note names the Rust side as well as the TypeScript one, and two things are carried forward as open — the casing and bead numbers were judged on screen and never on paper, and backstitch is absent from the realistic preview, which draws from tiles and has no notion of a line.
+  **Verified:** 824 unit, 432 e2e, 73 golden hashes, both Rust parity suites, tsc, eslint, prettier, docs-lint all clean, then deployed and exercised live.
 - 2026-09-25 — **M5 done. Backstitch reaches the exports, and the two legends split.**
   **On the chart** (criterion 5): the PNGs and the A4 pages draw it at a fifth of a cell in the thread's colour, each thread carrying one of five dash patterns by its rank among the backstitch threads, beads carrying its symbol on lines of five cells or more, and a hairline casing where it crosses cells close to its own lightness (D233). The Pattern Keeper PDF keeps it **off its grid** and reports it as text.
   **The legends** (criterion 6, D234): the simple one is now a thread consumption table headed with the pattern's name and its designer — colour cell, name, skeins — and the extended one drops skeins for a per-thread backstitch length, with the chart's total in its details table.
