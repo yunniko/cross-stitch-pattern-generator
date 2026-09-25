@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-25 at f99500a (G-073 M3 plus four Owner-reported changes; deployed and exercised live)
+Last verified: 2026-09-25 at 8c854d5 (G-073 M3 plus five Owner-reported changes; deployed and exercised live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -334,8 +334,8 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-25 | 8c854d5 | **Drawing reworked (Owner): a backstitch line ends where it is placed**, and a press holding Ctrl (or Cmd) as it places that end carries the run on into the next line — the only way a chain now continues (D231). It chained by default before, so drawing one short line cost an extra gesture to stop | 809 unit, 423 e2e (2 new for the rework), tsc, eslint, prettier, docs-lint. Mutation-checked: restoring chain-by-default fails the new test and nothing else. The shared `drawChain` helper holds Ctrl for every press but its last, so all 35 backstitch specs still draw the chains they meant to. The goal's criterion 1 said the opposite and was corrected rather than left to contradict the build. Live on the deployed build: two plain presses drew one line and a third started a separate one; with Ctrl held, three presses drew a joined two-segment chain. 23 containers before and after with an identical name set and only this project's app restarted; ten sites returned 200. |
 | 2026-09-25 | f99500a | **A double-click takes the whole backstitch run** (Owner request): every line reachable end to end in the same thread (D230). With a run in hand no end grabs, and a press on a line already in hand carries everything in hand, so a run moves, mirrors, turns and deletes as one | 809 unit (7 new on what counts as one run), 421 e2e (5 new, no flakes), tsc, eslint, prettier, docs-lint. The unit tests pin the awkward cases: a chain reached through its middle segment, every branch of a junction, a crossing that is *not* a join, and a walk that stops at another thread sharing the same corner. Live on the deployed build: drew a three-segment chain, double-clicked it to 3 selected, dragged it as one, and Delete removed all three with Ctrl+Z restoring them. 23 containers before and after with an identical name set and only this project's app restarted; ten sites returned 200. |
-| 2026-09-25 | e412167 | **Delete (and Backspace) removes the backstitch in hand** (Owner request). One undo step, nothing to do with no line in hand, and the key is claimed only while the backstitch tool is held | 802 unit, 416 e2e (4 new), tsc, eslint, prettier, docs-lint. The guard is mutation-checked: with it removed the key is swallowed under every tool and the new test fails. Its first version was vacuous — a tool switch already drops the selection, so it passed with the guard gone — and now asserts whether the key is swallowed instead. Live on the deployed build: picked a line up with BS edit and Delete removed it, Ctrl+Z brought it back. 23 containers before and after with an identical name set and only this project's app restarted; ten sites returned 200. |
 
 ## Decisions
 
