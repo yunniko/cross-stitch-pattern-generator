@@ -402,6 +402,7 @@ export default function Workspace() {
       select.onPointerUp(e) ||
       shape.onPointerUp(e) ||
       lassoFill.onPointerUp(e) ||
+      backstitch.onPointerUp(e) ||
       backstitchEdit.onPointerUp(e)
     )
       return;

@@ -529,6 +529,15 @@ export function useBackstitchTool({
     added: BackstitchLine[];
   } | null>(null);
   const hoverRef = useRef<CellPoint | null>(null);
+  /**
+   * The press that opened the run, while it is still down.
+   *
+   * A finger draws by dragging, and a drag has to place the line where it lets go: without this the run
+   * stayed open at the press corner and the *next* tap ended the line somewhere else entirely (Owner,
+   * on mobile, 2026-09-25). Only the press that opens a run is tracked — a press that continues a chain
+   * already places its own segment, and would otherwise place a second one on release.
+   */
+  const pressRef = useRef<{ pointerId: number; anchor: CellPoint } | null>(null);
 
   function drawFrame() {
     const run = runRef.current;
@@ -568,8 +577,10 @@ export function useBackstitchTool({
     if (!run) {
       runRef.current = { anchor: at, color, base: pattern, added: [] };
       hoverRef.current = at;
+      pressRef.current = { pointerId: e.pointerId, anchor: at };
       return;
     }
+    pressRef.current = null;
     if (run.anchor.x === at.x && run.anchor.y === at.y) return;
     commitSegment(at);
     // A line ends where it is placed. Held Ctrl (or Cmd) makes that end the start of the next one, which is
@@ -596,6 +607,33 @@ export function useBackstitchTool({
   }
 
   /**
+   * Letting go somewhere other than where the press landed places the line there (Owner, 2026-09-25).
+   *
+   * This is what makes the tool work with a finger, where drawing means dragging. A press and release on
+   * the same corner is a tap, and leaves the run open for the second tap that places the end — so both
+   * ways of drawing a line still work, and Ctrl still carries the run on from either.
+   */
+  function onPointerUp(e: PointerLike): boolean {
+    const press = pressRef.current;
+    if (!press || press.pointerId !== e.pointerId) return false;
+    pressRef.current = null;
+    const run = runRef.current;
+    const frame = frameRef.current;
+    if (!run || !frame) return true;
+    const at = cornerFromEvent(e, frame, cellSize, run.base.width, run.base.height);
+    // Released on the corner it started from: a tap, not a drag.
+    if (at.x === press.anchor.x && at.y === press.anchor.y) return true;
+    commitSegment(at);
+    if (!wantsToContinue(e)) {
+      cancel();
+      return true;
+    }
+    run.anchor = at;
+    hoverRef.current = at;
+    return true;
+  }
+
+  /**
    * A double-click ends the run without drawing the segment its second press would have made.
    *
    * Still here with Ctrl-to-continue: a chain now ends by simply letting go of Ctrl on its last press, but a
@@ -610,6 +648,7 @@ export function useBackstitchTool({
     if (!runRef.current) return false;
     runRef.current = null;
     hoverRef.current = null;
+    pressRef.current = null;
     rendererRef.current?.endGesture(true);
     return true;
   }
@@ -617,6 +656,7 @@ export function useBackstitchTool({
   return {
     onPointerDown,
     onPointerMove,
+    onPointerUp,
     onDoubleClick,
     cancel,
     get isDrawing() {

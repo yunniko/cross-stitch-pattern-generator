@@ -87,9 +87,10 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   a few deliberate corners is left exactly where you put it. Crossing your own line carves a hole rather than
   swallowing it, so a figure-of-eight gives you two lobes.
 - **Backstitch**: the outlines a cross-stitch design is finished with — straight lines drawn corner to
-  corner over the stitches, a fifth of a cell wide. **Backstitch** (`K`) draws one: click where it starts,
-  then where it ends. Hold **Ctrl** as you place that end to carry straight on into the next line, which is
-  how an outline is drawn in one run. **BS edit** (`J`) picks a line up — drag it anywhere to move it, and
+  corner over the stitches, a fifth of a cell wide. **Backstitch** (`K`) draws one either way round: drag
+  from where it starts to where it ends, or click the two corners in turn. Hold **Ctrl** as you place that
+  end to carry straight on into the next line, which is how an outline is drawn in one run — or, with a
+  finger, just drag each line from where the last one finished, which joins them the same way. **BS edit** (`J`) picks a line up — drag it anywhere to move it, and
   once it is in hand drag either end to re-aim it. A **double-click takes the whole run**: every line joined
   to it end to end in the same thread, which then moves, mirrors, turns, recolours or deletes as one.
   **Delete** removes what is in hand. Symmetry mirrors a line as it does a stitch, and a rectangle or lasso
