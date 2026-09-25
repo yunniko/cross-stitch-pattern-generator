@@ -236,14 +236,27 @@ export function brushOpsIn(ops: readonly BrushOp[], width: number) {
 }
 
 /** A floating piece's stitches on the chart and inside `region`, row-major as the pre-G-036 frame drew them. */
-function pieceCellsIn(base: StitchPattern, piece: FloatingSelection) {
+/**
+ * The cells a floating piece paints, for the incremental redraw path.
+ *
+ * Exported for its own test: this is the fast path, and the slow one goes through `compositeSelectionPreview`,
+ * so the two can disagree without any end-to-end test noticing. They did — this drew the whole bounding box
+ * while a merge stamped only the shape, so dragging a lassoed piece carried the stitches around it along for
+ * the ride and then dropped them on release (Owner, 2026-09-25).
+ */
+export function pieceCellsIn(base: StitchPattern, piece: FloatingSelection) {
   return (region: ChartRegion, draw: (x: number, y: number, paletteIndex: number) => void) => {
     const ly0 = Math.max(0, region.y0 - piece.y);
     const ly1 = Math.min(piece.height, region.y1 - piece.y, base.height - piece.y);
     const lx0 = Math.max(0, region.x0 - piece.x);
     const lx1 = Math.min(piece.width, region.x1 - piece.x, base.width - piece.x);
     for (let ly = ly0; ly < ly1; ly++) {
-      for (let lx = lx0; lx < lx1; lx++) draw(piece.x + lx, piece.y + ly, piece.cells[ly * piece.width + lx]);
+      for (let lx = lx0; lx < lx1; lx++) {
+        const local = ly * piece.width + lx;
+        // A cell the mask excludes is not part of the piece; the base scene underneath it stays visible.
+        if (piece.mask && !piece.mask[local]) continue;
+        draw(piece.x + lx, piece.y + ly, piece.cells[local]);
+      }
     }
   };
 }

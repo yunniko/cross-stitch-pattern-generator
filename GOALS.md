@@ -61,6 +61,19 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M5 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-25 — **Fix (Owner report): dragging a lassoed piece carried the stitches around it along.**
+  Not a limitation of the design — **one function**. There are two preview paths: a full redraw through
+  `compositeSelectionPreview`, which has respected the mask since M1, and an incremental one for the view
+  modes that repaint only changed cells (D135). Only the first went through the selection code;
+  `pieceCellsIn` in `app/chart-scene.ts` was written for rectangles and drew the whole bounding box. It was
+  the only place in `app/` or `lib/` reading a piece's cells without asking the mask, so the data model
+  needed no rework.
+  **Why nothing caught it**: every test asserted the chart *after* the drop, where the merge was always
+  correct, and nothing asserted a frame mid-drag. `pieceCellsIn` is now exported and has its own spec;
+  putting the bug back fails 3 of its 5 cases.
+  Verified: 763 unit (5 new), 388 e2e, tsc, eslint, prettier, docs-lint. Sampled live during a drag: three of
+  the four bounding-box corners show the chart's own stitches through the piece (the fourth sits on red in the
+  chart itself, so it says nothing either way).
 - 2026-09-25 — **M5 done; G-072 is complete and live at `5273a10`.** All six criteria met.
   **Verified on the deployed build, not locally**: a generated 100×67 chart of 6,700 stitches; a 70-point
   freehand loop with ±2.5 cells of deliberate jitter filled as a **smooth rounded blob**, taking 3371 Black
