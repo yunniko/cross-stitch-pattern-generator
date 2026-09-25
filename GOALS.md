@@ -44,8 +44,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
      thread deletes them.
   4. **Symmetry mirrors a line to every axis that is on**, as it does a stitch. A cell selection acts on a
      line only when **both** its ends are inside the selected area.
-  5. **Exports carry it**: drawn on the chart images and the A4 pages, written to OXS exactly (straight lines
-     are what that format holds), and **kept off the Pattern Keeper PDF's grid** — see the constraint below.
+  5. **Exports carry it**: drawn on the chart images and the A4 pages in the thread's colour at a fifth of a
+     cell, identified by **a dash pattern per thread** with **a bead carrying its symbol** where dashes are
+     not enough, and cased in a contrasting hairline where it crosses cells close to its own lightness;
+     written to OXS exactly (straight lines are what that format holds); and **kept off the Pattern Keeper
+     PDF's grid** — see the constraint below.
   6. **The legend is reworked** as the Owner specified: the simple legend becomes a thread consumption table
      headed `PATTERN NAME by CREATOR NAME`, each row a colour cell, the colour name and a skein count. The
      extended legend drops skein counts and, when the chart has backstitch, gains its approximate total length.
@@ -61,7 +64,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   - **Generation does not change.** Backstitch is drawn by hand; the 38 golden hashes must not move.
   - **The editable save stays readable by older builds**: an additive optional field, the D138 convention, not
     a format version bump.
-  - Research behind the two questions the Owner left open:
+  - **A glyph is never drawn inside the stroke.** Compelled by arithmetic: at the A4 cell of 2.75 mm a fifth
+    of a cell leaves a glyph under 1 pt, below this project's own `LEGIBILITY_FLOOR_PX` (D7). A thread is
+    identified by its dash pattern, and by a bead the line swells into where a symbol is needed.
+  - Research behind the two questions the Owner left open, and the arithmetic above:
     `docs/reviews/2026-09-25-backstitch-research.md`.
 
 **Milestones** (proposed — confirmed at planning, OPERATIONS.md §2):
@@ -74,11 +80,18 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   cell selection takes a line only when both ends are inside it.
 - [ ] M4 — **Threads** (criterion 3): the second section in the list, two counts against one entry, adding,
   picking, Isolate, merging, and merging into the empty thread.
-- [ ] M5 — **Exports and the legend** (criteria 5, 6): the line on the chart images and A4 pages with the
-  contrast problem solved and *shown* to the Owner, the consumption table, the extended legend's length.
+- [ ] M5 — **Exports and the legend** (criteria 5, 6): dashes first, since they identify a thread at any width
+  and are shippable on their own; then beads. Sample exports go to the Owner rather than a test asserting a
+  casing threshold. Then the consumption table and the extended legend's length.
 - [ ] M6 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-25 — **Rendering settled: dashes as the base, beads on top** (Owner). The first proposal, a glyph
+  inside the stroke, is impossible at print size and the project's own constants say so: an A4 cell is 2.75 mm,
+  a fifth of that leaves a glyph under 1 pt after casing, against a `LEGIBILITY_FLOOR_PX` of 6 px below which
+  this app already refuses to draw symbols. The in-cell symbol is itself only ≈ 4.7 pt. A dash pattern costs
+  nothing at that width because a dash is presence or absence of ink; a bead is the same idea as the glyph,
+  moved to where it fits.
 - 2026-09-25 — goal created from the Owner's spec, after two rounds of scoping.
   **The curved design was dropped by the Owner mid-planning**, which removed the only part with no clean
   representation: OXS holds straight corner-to-corner lines and nothing else, so an arc would have had to be
