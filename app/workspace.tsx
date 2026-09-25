@@ -88,6 +88,9 @@ export default function Workspace() {
    */
   const [isolate, setIsolate] = useState(false);
   const [litColorIndices, setLitColorIndices] = useState<ReadonlySet<number>>(new Set());
+  // Backstitch lights separately from stitches: lighting an outline should show that outline, not bring
+  // the thread's fill up with it (Owner, 2026-09-25).
+  const [litBackstitchIndices, setLitBackstitchIndices] = useState<ReadonlySet<number>>(new Set());
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("photo");
   const symmetryState = useSymmetryAxes(pattern);
   const liveSymmetry = symmetryState.live;
@@ -183,6 +186,7 @@ export default function Workspace() {
     highlightBackstitch: isBackstitchEditTool(activeTool) ? backstitchEdit.isSelected : undefined,
     isolate,
     litColorIndices,
+    litBackstitchIndices,
     canvasColor: options.canvasColor,
     symmetryAxes: liveSymmetry,
     // The renderer applies a zoom's anchor itself, between sizing the frame and measuring the view (D124, D135).
@@ -440,6 +444,7 @@ export default function Workspace() {
     colours.forgetColor(sourceIndex);
     // A merge renumbers palette indices, so lit indices could now point at other colors.
     if (litColorIndices.size > 0) setLitColorIndices(new Set());
+    if (litBackstitchIndices.size > 0) setLitBackstitchIndices(new Set());
   }
 
   /** A quick mirror (G-037): any floating selection is merged and the mirror applied, committed as one undo step. */
@@ -453,12 +458,27 @@ export default function Workspace() {
    * Lights or unlights one thread for Isolate. Turning the first one on turns Isolate on, so the eye does something
    * visible; putting the last one out turns it off again, so the control never claims to be isolating nothing (D158).
    */
+  function toggleLitBackstitch(index: number) {
+    setLitBackstitchIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+        // Isolate goes out only when nothing at all is lit, in either section.
+        if (next.size === 0 && litColorIndices.size === 0) setIsolate(false);
+      } else {
+        next.add(index);
+        setIsolate(true);
+      }
+      return next;
+    });
+  }
+
   function toggleLit(index: number) {
     setLitColorIndices((prev) => {
       const next = new Set(prev);
       if (next.has(index)) {
         next.delete(index);
-        if (next.size === 0) setIsolate(false);
+        if (next.size === 0 && litBackstitchIndices.size === 0) setIsolate(false);
       } else {
         next.add(index);
         setIsolate(true);
@@ -642,7 +662,7 @@ export default function Workspace() {
             hasSourcePhoto={source.hasPhoto}
             isolate={isolate}
             onIsolateChange={setIsolate}
-            litCount={litColorIndices.size}
+            litCount={litColorIndices.size + litBackstitchIndices.size}
             symmetry={liveSymmetry}
             squareCanvas={pattern !== null && pattern.width === pattern.height}
             onToggleSymmetry={symmetryState.toggle}
@@ -776,6 +796,8 @@ export default function Workspace() {
             onBackgroundColorChange={setBackgroundColorIndex}
             litColorIndices={litColorIndices}
             onToggleLit={toggleLit}
+            litBackstitchIndices={litBackstitchIndices}
+            onToggleLitBackstitch={toggleLitBackstitch}
             aidaCount={options.aidaCount}
             onChange={history.set}
             onPreviewChange={setColorPreview}

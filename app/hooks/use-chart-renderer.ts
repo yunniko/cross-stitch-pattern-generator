@@ -50,6 +50,8 @@ export interface ChartRendererInputs {
   /** Isolate is a way of looking at the chart, so it is independent of the active tool (G-045 M4). */
   isolate: boolean;
   litColorIndices: ReadonlySet<number>;
+  /** The threads whose backstitch Isolate keeps bright; its own set (see `ChartScene`). */
+  litBackstitchIndices: ReadonlySet<number>;
   canvasColor: string;
   /** The symmetry axes in effect, drawn as red guide lines in every view (G-037). */
   symmetryAxes: SymmetryAxes;
@@ -106,6 +108,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     isSelectDragging,
     isolate,
     litColorIndices,
+    litBackstitchIndices,
     canvasColor,
     applyZoomAnchor,
     symmetryAxes,
@@ -124,6 +127,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       activeTool,
       isolate,
       litColorIndices,
+      litBackstitchIndices,
       selection,
       highlightBackstitch,
       canvasColor,
@@ -137,6 +141,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       activeTool,
       isolate,
       litColorIndices,
+      litBackstitchIndices,
       selection,
       highlightBackstitch,
       canvasColor,

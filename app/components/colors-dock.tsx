@@ -174,6 +174,9 @@ export interface ColorsDockProps {
   /** The threads lit for Isolate. Lighting one is independent of which colour is selected for painting. */
   litColorIndices: ReadonlySet<number>;
   onToggleLit: (index: number) => void;
+  /** The threads whose backstitch is lit; its own set, so an outline lights without its fill. */
+  litBackstitchIndices: ReadonlySet<number>;
+  onToggleLitBackstitch: (index: number) => void;
   aidaCount: number;
   /** Pushes an edited pattern as an undoable step. */
   onChange: (next: StitchPattern) => void;
@@ -197,6 +200,8 @@ export function ColorsDock({
   onBackgroundColorChange,
   litColorIndices,
   onToggleLit,
+  litBackstitchIndices,
+  onToggleLitBackstitch,
   aidaCount,
   onChange,
   onPreviewChange,
@@ -455,36 +460,30 @@ export function ColorsDock({
           dimmed={dimmed}
           swatchProps={{ [DISMISS_RETARGET_ATTRIBUTE]: "" }}
           symbolProps={{ [DISMISS_RETARGET_ATTRIBUTE]: "" }}
-          renderLight={(color) => {
-            const lit = litColorIndices.has(color.index);
-            return (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleLit(color.index);
-                }}
-                aria-pressed={lit}
-                aria-label={`Show only ${color.name}`}
-                title={lit ? "Lit — shown at full strength while Isolate is on" : "Light this thread while Isolate is on"}
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded ${lit ? "bg-accent/20 text-accent" : "text-faint hover:bg-raised hover:text-muted"}`}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.7}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" />
-                  <circle cx="12" cy="12" r="2.5" />
-                </svg>
-              </button>
-            );
-          }}
+          renderLight={(color) => (
+            <ThreadLight
+              lit={litColorIndices.has(color.index)}
+              label={`Show only ${color.name}`}
+              title={
+                litColorIndices.has(color.index)
+                  ? "Lit — these stitches stay at full strength while Isolate is on"
+                  : "Light this thread's stitches while Isolate is on"
+              }
+              onToggle={() => onToggleLit(color.index)}
+            />
+          )}
+          renderBackstitchLight={(color) => (
+            <ThreadLight
+              lit={litBackstitchIndices.has(color.index)}
+              label={`Show only ${color.name} backstitch`}
+              title={
+                litBackstitchIndices.has(color.index)
+                  ? "Lit — these lines stay at full strength while Isolate is on"
+                  : "Light this thread's backstitch while Isolate is on"
+              }
+              onToggle={() => onToggleLitBackstitch(color.index)}
+            />
+          )}
           renderUnderRow={(color) =>
             editing?.index === color.index ? renderColorEditor() : editingSymbolIndex === color.index ? renderSymbolPicker() : null
           }
@@ -529,5 +528,42 @@ export function ColorsDock({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * The eye that lights one layer of one thread while Isolate is on.
+ *
+ * Each section of the list lights its own layer (Owner, 2026-09-25): the cross row lights that thread's
+ * stitches, the backstitch row lights its lines. A thread used for both has an eye in each, so “show me
+ * this outline” does not bring its fill up with it.
+ */
+function ThreadLight({ lit, label, title, onToggle }: { lit: boolean; label: string; title: string; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      aria-pressed={lit}
+      aria-label={label}
+      title={title}
+      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded ${lit ? "bg-accent/20 text-accent" : "text-faint hover:bg-raised hover:text-muted"}`}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        className="h-3.5 w-3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.7}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" />
+        <circle cx="12" cy="12" r="2.5" />
+      </svg>
+    </button>
   );
 }

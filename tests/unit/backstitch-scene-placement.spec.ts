@@ -32,6 +32,7 @@ function scene(): ChartScene {
     activeTool: "backstitch",
     isolate: false,
     litColorIndices: new Set<number>(),
+    litBackstitchIndices: new Set<number>(),
     selection: null,
     canvasColor: "#ffffff",
     selectDragging: false,

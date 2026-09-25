@@ -269,4 +269,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D232 — Backstitch is a second section of one palette, counted by length — active
 - D233 — A backstitch thread is told apart by its dash, and the table is mirrored — active
 - D234 — One legend to buy from, one to stitch from — active
+- D235 — Each section of the thread list lights its own layer — active
 - D228 — A cell selection takes a line by both ends — active

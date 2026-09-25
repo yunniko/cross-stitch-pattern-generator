@@ -96,7 +96,8 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   selection takes a line only when **both** its ends are inside it.
 - **Backstitch threads**: the thread list grows a second section under the crosses for the threads carrying
   lines, counted by length rather than by stitches — one thread used for both is one entry listed twice, so
-  renaming, recolouring or merging it shows in both at once. Merging a thread carries its backstitch;
+  renaming, recolouring or merging it shows in both at once. Each section has its own light: lighting a
+  thread's backstitch shows that outline while Isolate is on, without bringing its stitches up with it. Merging a thread carries its backstitch;
   merging into the empty thread deletes it, since a line cannot be no colour.
 - **Draw symmetrically**: toggle vertical, horizontal and diagonal symmetry (diagonals on
   square canvases) and every brush stroke and fill lands on each mirrored stitch, with

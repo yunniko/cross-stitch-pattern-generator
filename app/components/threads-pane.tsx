@@ -31,6 +31,13 @@ export interface ThreadRowsProps {
   onMergeColors: (sourceIndex: number, targetIndex: number) => void;
   /** Rendered after the swatch. M4 puts each thread's own light here. */
   renderLight?: (color: PaletteColor) => ReactNode;
+  /**
+   * The backstitch section's own light (G-073, Owner 2026-09-25).
+   *
+   * Separate from `renderLight` because each section lights its own layer: lighting a thread's backstitch
+   * shows that outline without bringing its stitches up with it.
+   */
+  renderBackstitchLight?: (color: PaletteColor) => ReactNode;
   /** Dimmed while a floating selection is in hand, as 1b draws its select state. */
   dimmed?: boolean;
   /** Spread onto the swatch button, so a click on it does not dismiss the editor it opens. */
@@ -67,6 +74,7 @@ export function ThreadRows({
   editingColorIndex,
   onMergeColors,
   renderLight,
+  renderBackstitchLight,
   dimmed = false,
   swatchProps,
   symbolProps,
@@ -216,7 +224,7 @@ export function ThreadRows({
         activeColorIndex={activeColorIndex}
         onRowActivate={onRowActivate}
         onMergeColors={onMergeColors}
-        renderLight={renderLight}
+        renderLight={renderBackstitchLight}
       />
     </div>
   );

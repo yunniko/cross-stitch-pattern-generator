@@ -106,7 +106,7 @@ test("picking a thread in the list is what the backstitch tool then draws with",
   await expect(page.getByTestId("backstitch-color-name")).toHaveText(chosen);
 });
 
-test("a backstitch row lights its thread for Isolate", async ({ page }) => {
+test("each section lights its own layer: an outline without its fill", async ({ page }) => {
   await generateSmallPattern(page);
   await lineInThread(page, 0, [
     [4, 4],
@@ -114,18 +114,29 @@ test("a backstitch row lights its thread for Isolate", async ({ page }) => {
   ]);
   await threads(page);
 
-  const row = page.getByTestId("backstitch-color-row").first();
-  const light = row.getByRole("button", { name: /^Show only / });
-  await expect(light).toHaveAttribute("aria-pressed", "false");
-  await light.click();
-  await expect(light).toHaveAttribute("aria-pressed", "true");
-  // The same thread's cross row shows it lit too: one entry, one light.
-  await expect(
-    page
-      .getByTestId("legend-color-row")
-      .first()
-      .getByRole("button", { name: /^Show only / })
-  ).toHaveAttribute("aria-pressed", "true");
+  // Two eyes on one thread: one for its stitches, one for its lines (Owner, 2026-09-25). Lighting the
+  // backstitch used to light the whole thread, fill included.
+  const stitches = page
+    .getByTestId("legend-color-row")
+    .first()
+    .getByRole("button", { name: /^Show only (?!.*backstitch)/ });
+  const lines = page
+    .getByTestId("backstitch-color-row")
+    .first()
+    .getByRole("button", { name: /backstitch$/ });
+  await expect(stitches).toHaveAttribute("aria-pressed", "false");
+  await expect(lines).toHaveAttribute("aria-pressed", "false");
+
+  await lines.click();
+  await expect(lines).toHaveAttribute("aria-pressed", "true");
+  await expect(stitches).toHaveAttribute("aria-pressed", "false");
+
+  // The two are independent in both directions.
+  await stitches.click();
+  await expect(stitches).toHaveAttribute("aria-pressed", "true");
+  await lines.click();
+  await expect(lines).toHaveAttribute("aria-pressed", "false");
+  await expect(stitches).toHaveAttribute("aria-pressed", "true");
 });
 
 test("merging a thread carries its backstitch, and merging into empty deletes it", async ({ page }) => {
@@ -233,23 +244,24 @@ test("Isolate leaves a lit thread's lines alone and dims the rest", async ({ pag
   await page
     .getByTestId("backstitch-color-row")
     .first()
-    .getByRole("button", { name: /^Show only / })
+    .getByRole("button", { name: /backstitch$/ })
     .click();
   await page.getByRole("button", { name: "Isolate lit threads" }).click();
   await page.waitForTimeout(400);
   const lit = await distanceFromThreadColour(page, 22, 20);
   expect(lit).toBeLessThan(30);
 
-  // Light a different thread instead: the line is now the unlit one, and is drawn faint.
+  // Put that light out and light a thread's *stitches* instead. No backstitch is lit now, so the line is
+  // drawn faint: the two sections light their own layer and do not stand in for each other.
   await page
     .getByTestId("backstitch-color-row")
     .first()
-    .getByRole("button", { name: /^Show only / })
+    .getByRole("button", { name: /backstitch$/ })
     .click();
   await page
     .getByTestId("legend-color-row")
     .nth(1)
-    .getByRole("button", { name: /^Show only / })
+    .getByRole("button", { name: /^Show only (?!.*backstitch)/ })
     .click();
   await page.waitForTimeout(400);
   expect(await distanceFromThreadColour(page, 22, 20)).toBeGreaterThan(lit + 20);

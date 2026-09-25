@@ -88,6 +88,9 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M6 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-25 — **Each section of the thread list lights its own layer** (Owner: highlighting backstitch should highlight only that colour's backstitch). The backstitch row's eye lit the whole thread, fill included, because M4 gave both sections one shared set of lit threads. They are two sets now: the cross row lights a thread's stitches, the backstitch row lights its lines (D235).
+  The test caught a gap in the first version: with no backstitch lit, nothing dimmed, so lighting a thread's *stitches* left every outline at full strength over a dimmed chart. Isolate now dims what is not lit in both layers, whichever section the lighting came from.
+  **Verified:** 9 e2e in `backstitch-threads.spec.ts` including the pixel test, full suites below.
 - 2026-09-25 — **M6 done. G-073 is complete and waiting on sign-off.** The README describes backstitch as a reader meets it — drawing and its Ctrl chain, the editing tool and its run selection, the second thread section, the dashes and beads on paper, and the two legends — and **stops claiming the app drops backstitch on open**, which it has not done since M1. Its list of Rust suites gained the two backstitch parity scripts, which had never been written down.
   `HANDOVER.md` is regenerated: the goal now reads as finished rather than mid-flight, the architecture note names the Rust side as well as the TypeScript one, and two things are carried forward as open — the casing and bead numbers were judged on screen and never on paper, and backstitch is absent from the realistic preview, which draws from tiles and has no notion of a line.
   **Verified:** 824 unit, 432 e2e, 73 golden hashes, both Rust parity suites, tsc, eslint, prettier, docs-lint all clean, then deployed and exercised live.

@@ -33,8 +33,15 @@ export interface ChartScene {
   activeTool: Tool;
   /** Isolate dims every thread but the lit ones. It is not a tool, so it stays on while you paint (G-045 M4). */
   isolate: boolean;
-  /** The threads shown at full strength while Isolate is on. */
+  /** The threads whose **stitches** are shown at full strength while Isolate is on. */
   litColorIndices: ReadonlySet<number>;
+  /**
+   * The threads whose **backstitch** is shown at full strength (G-073, Owner 2026-09-25).
+   *
+   * Its own set, because the two sections of the thread list light their own layer: lighting a thread's
+   * backstitch shows that outline and nothing else, rather than bringing its fill up with it.
+   */
+  litBackstitchIndices: ReadonlySet<number>;
   selection: FloatingSelection | null;
   /** Which backstitch lines are drawn thicker; absent means none (G-073 M3).
    */
@@ -161,7 +168,19 @@ function atRegion(ctx: CanvasRenderingContext2D, region: ChartRegion, cellSize: 
 /** The scene for pattern `p`, painted into `rect` only (chart pixels, integer bounds). */
 export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene: ChartScene, rect: PixelRect) {
   if (isEmptyRect(rect)) return;
-  const { viewMode, cellSize, photo, realisticTiles, activeTool, isolate, litColorIndices, selection, canvasColor, selectDragging } = scene;
+  const {
+    viewMode,
+    cellSize,
+    photo,
+    realisticTiles,
+    activeTool,
+    isolate,
+    litColorIndices,
+    litBackstitchIndices,
+    selection,
+    canvasColor,
+    selectDragging,
+  } = scene;
   ctx.save();
   clipTo(ctx, rect);
 
@@ -201,7 +220,9 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
     atRegion(ctx, region, cellSize, () => drawChartOnScreen(ctx, displayPattern, viewMode as RenderMode, cellSize, region, canvasColor));
   }
 
-  if (isolate && litColorIndices.size > 0) {
+  // Anything lit, in either section, dims the stitches that are not: lighting only an outline is how a
+  // reader sees where that outline runs.
+  if (isolate && (litColorIndices.size > 0 || litBackstitchIndices.size > 0)) {
     atRegion(ctx, region, cellSize, () => drawHighlightOverlayRaster(ctx, displayPattern, cellSize, litColorIndices, region));
   }
   // Over the stitches and the highlight, under the selection outline: backstitch sits on top of the cloth.
@@ -212,7 +233,13 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
   // while the whole chart is on screen, which is why it looked right until the chart was zoomed (Owner,
   // 2026-09-25). `clipTo(ctx, rect)` above already keeps the drawing inside the painted rectangle.
   if (displayPattern.backstitch?.length) {
-    const dimmed = isolate && litColorIndices.size > 0 ? (l: BackstitchLine) => !litColorIndices.has(l.paletteIndex) : undefined;
+    // Isolate shows what is lit and dims what is not, in both layers: with anything lit, a line is bright
+    // only if its own thread is lit in the backstitch section. Lighting a thread's stitches and having its
+    // outline come up with them is the behaviour the Owner asked to be rid of (2026-09-25).
+    const dimmed =
+      isolate && (litColorIndices.size > 0 || litBackstitchIndices.size > 0)
+        ? (l: BackstitchLine) => !litBackstitchIndices.has(l.paletteIndex)
+        : undefined;
     drawBackstitch(ctx, displayPattern.backstitch, displayPattern.palette, cellSize, scene.highlightBackstitch, dimmed);
   }
   if (isSelectTool(activeTool) && selection && !selectDragging) {
