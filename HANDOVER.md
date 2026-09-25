@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-25 at e412167 (G-073 M3 plus three Owner-reported changes; deployed and exercised live)
+Last verified: 2026-09-25 at f99500a (G-073 M3 plus four Owner-reported changes; deployed and exercised live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -334,8 +334,8 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-25 | f99500a | **A double-click takes the whole backstitch run** (Owner request): every line reachable end to end in the same thread (D230). With a run in hand no end grabs, and a press on a line already in hand carries everything in hand, so a run moves, mirrors, turns and deletes as one | 809 unit (7 new on what counts as one run), 421 e2e (5 new, no flakes), tsc, eslint, prettier, docs-lint. The unit tests pin the awkward cases: a chain reached through its middle segment, every branch of a junction, a crossing that is *not* a join, and a walk that stops at another thread sharing the same corner. Live on the deployed build: drew a three-segment chain, double-clicked it to 3 selected, dragged it as one, and Delete removed all three with Ctrl+Z restoring them. 23 containers before and after with an identical name set and only this project's app restarted; ten sites returned 200. |
 | 2026-09-25 | e412167 | **Delete (and Backspace) removes the backstitch in hand** (Owner request). One undo step, nothing to do with no line in hand, and the key is claimed only while the backstitch tool is held | 802 unit, 416 e2e (4 new), tsc, eslint, prettier, docs-lint. The guard is mutation-checked: with it removed the key is swallowed under every tool and the new test fails. Its first version was vacuous — a tool switch already drops the selection, so it passed with the guard gone — and now asserts whether the key is swallowed instead. Live on the deployed build: picked a line up with BS edit and Delete removed it, Ctrl+Z brought it back. 23 containers before and after with an identical name set and only this project's app restarted; ten sites returned 200. |
-| 2026-09-25 | 5a849de | Two Owner-reported fixes on G-073 M3: **zooming repositioned every backstitch line** (the scene drew it inside the translate the cell draws use, so each line sat a painted-region origin away from its corners — zero only while the whole chart is on screen), and **BS select and BS move became one tool, BS edit** (D229 superseding D227): a press takes the line it lands on, and only a line already in hand has live ends | 802 unit (4 new: 2 on scene placement, 2 on the hit test), 413 e2e (3 new, no flakes), tsc, eslint, prettier, docs-lint. Both fixes mutation-checked: with the translate back the line records at 680,380 instead of 400,240 and the e2e zoom test fails. The merge's own short-line test caught that presses were snapped to a corner before hit-testing, so a one-cell line had no body to grab. Live on the deployed build: drew a chain, zoomed in five steps and the lines stayed on their corners; moved a line by a press on its end, then picked it up and re-aimed that end. 23 containers before and after with an identical name set and only this project's app restarted; ten sites returned 200. |
 
 ## Decisions
 
