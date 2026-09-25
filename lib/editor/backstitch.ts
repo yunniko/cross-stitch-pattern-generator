@@ -179,6 +179,16 @@ export function symmetryLineOrbit(line: BackstitchLine, width: number, height: n
 /** How close to an end, in cells, counts as grabbing that end rather than the body (G-073 M3). */
 export const END_ZONE_CELLS = 0.42;
 
+/**
+ * How close to an end counts as grabbing it, for a line of `length` cells (D229).
+ *
+ * Never more than a third of the line, so the body is always the middle third at worst. At the flat 0.42 a
+ * one-cell line was 84% end zone and could not be moved at all.
+ */
+export function endZoneFor(length: number): number {
+  return Math.min(END_ZONE_CELLS, length / 3);
+}
+
 /** How close to a line, in cells, counts as being on it. Generous enough to catch a fifth-of-a-cell stroke. */
 export const LINE_HIT_CELLS = 0.3;
 
@@ -204,13 +214,28 @@ export function distanceToLine(line: BackstitchLine, x: number, y: number): numb
  * `grabEnds` is false for the Move tool, where a press anywhere on a line takes the whole line (Owner,
  * 2026-09-25): that is the difference between the two tools, and it is why Move exists at all.
  */
-export function hitLine(lines: readonly BackstitchLine[], x: number, y: number, grabEnds = true): { index: number; part: LinePart } | null {
+/**
+ * What a press at `(x, y)` takes hold of: one end of a line, a line's body, or nothing (D229).
+ *
+ * **An end grabs only on a line `inHand` already holds.** A press on a line nobody has picked up means "take
+ * this line", wherever on it the press lands, so a line can always be moved in one gesture; once it is in
+ * hand, its ends are live and it can be re-aimed. That is what lets one tool do both jobs.
+ *
+ * Ends win over bodies, and where two lines overlap the later one wins, as it is the one drawn on top.
+ */
+export function hitLine(
+  lines: readonly BackstitchLine[],
+  x: number,
+  y: number,
+  inHand: (line: BackstitchLine) => boolean = () => false
+): { index: number; part: LinePart } | null {
   let body: { index: number; part: LinePart } | null = null;
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
-    if (grabEnds) {
-      if (Math.hypot(x - line.x1, y - line.y1) <= END_ZONE_CELLS) return { index: i, part: "start" };
-      if (Math.hypot(x - line.x2, y - line.y2) <= END_ZONE_CELLS) return { index: i, part: "end" };
+    if (inHand(line)) {
+      const zone = endZoneFor(lineLengthCells(line));
+      if (Math.hypot(x - line.x1, y - line.y1) <= zone) return { index: i, part: "start" };
+      if (Math.hypot(x - line.x2, y - line.y2) <= zone) return { index: i, part: "end" };
     }
     if (!body && distanceToLine(line, x, y) <= LINE_HIT_CELLS) body = { index: i, part: "body" };
   }

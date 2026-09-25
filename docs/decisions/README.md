@@ -262,5 +262,6 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D200 — Atkinson is a second kernel that drops part of the error, and runs serpentine — active
 - D202 — One fixed seed, and marks sized in stitches — active
 - D207 — Switches let the knobs reach every mark, and the size knob is read backwards — active
-- D227 — Backstitch editing is two tools, separated by whether the end zones grab — active
+- D227 — Backstitch editing is two tools, separated by whether the end zones grab — superseded by D229
+- D229 — Backstitch editing is one tool; ends go live only on the line in hand — active
 - D228 — A cell selection takes a line by both ends — active

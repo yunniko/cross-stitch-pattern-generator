@@ -93,6 +93,26 @@ export function clampedCellFromEvent(
  * A backstitch starts and ends on a corner, never inside a cell, so the pointer is **rounded** to the nearest
  * one rather than floored to the cell it is in. Corners run `0..width` and `0..height` inclusive.
  */
+/**
+ * Where the pointer is in corner coordinates, **unrounded** (D229).
+ *
+ * Hit-testing needs this rather than the snapped corner: snapping first quantises every press to the
+ * nearest corner, which makes each endpoint claim the whole half-cell around it however small the end
+ * zone says it is — and leaves a one-cell line with no body to press at all.
+ */
+export function preciseCornerFromEvent(
+  e: PointerPosition,
+  frame: HTMLElement,
+  cellSize: number,
+  width: number,
+  height: number
+): { x: number; y: number } {
+  const origin = chartOrigin(frame);
+  const x = (e.clientX - origin.left) / cellSize;
+  const y = (e.clientY - origin.top) / cellSize;
+  return { x: Math.max(0, Math.min(width, x)), y: Math.max(0, Math.min(height, y)) };
+}
+
 export function cornerFromEvent(
   e: PointerPosition,
   frame: HTMLElement,

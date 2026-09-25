@@ -86,6 +86,25 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M6 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-25 — **Two Owner-reported corrections to M3, both shipped.**
+  1. **Backstitch was repositioned by zooming.** The scene drew it inside the same `translate` the cell draws
+     use — they build a bitmap of the visible region and count cells from its corner, while a line already
+     carries chart corners — so every line sat a region-origin away from where it belonged. That origin is
+     zero only while the whole chart is on screen, which is why it looked right until the chart was zoomed.
+     Guarded at both levels: a unit test on `drawScene` that puts the painted window away from the origin
+     (the line lands at 680,380 instead of 400,240 with the bug back), and an e2e that zooms, scrolls and
+     reads the canvas. **The unit harness had to be fixed first**: `makeRecordingContext` treated `translate`
+     as a no-op, so a draw placed a whole region away recorded the same numbers as a correct one.
+  2. **The two editing tools became one (D229, superseding D227).** The Owner asked why Select and Move could
+     not be a single tool; they could. A press now takes the line it lands on wherever on it, and only a line
+     already in hand has live ends. D227's reason for the split — "a press must select and act in one
+     gesture" — did not hold: cell selection already behaves differently inside its own selection, which is
+     the same idea. **The merge exposed a real flaw the two-tool version hid**: presses were snapped to the
+     nearest corner before hit-testing, so each endpoint claimed the half-cell around it whatever
+     `END_ZONE_CELLS` said, and a one-cell line had no body to grab at all. Hit-testing now reads the
+     unrounded pointer, and the end zone is capped at a third of the line. Found by the short-line test
+     written for the merge.
+  **Verified:** 802 unit, e2e green on the backstitch specs; full suites below.
 - 2026-09-25 — **M3 done. Backstitch can be picked up and edited (J).** Two tools share one hook and differ in one rule: BS select grabs an end within 0.42 of a cell, BS move never does (D227). The bar carries Copy, Paste, Duplicate, Mirror both ways, Turn both ways, Recolour and Delete; each is one undo step, and the selected line is drawn thicker. A cell selection takes a line only when **both** ends are inside it and then carries it through a move, a flip and a turn, in the piece's own corner coordinates (D228).
   **Verified:** 797 unit (34 in `backstitch.spec.ts`, 8 of them new for the piece rules), 410 e2e (17 new across `backstitch-edit.spec.ts`), tsc, eslint, prettier, docs-lint all clean. Two mutation checks rather than assertions taken on trust: changing the corner arithmetic to the cells' `width - 1 - x` fails 2 unit tests, and cutting the highlight wiring fails the new pixel test and nothing else.
   **Three things went wrong, all worth keeping:**

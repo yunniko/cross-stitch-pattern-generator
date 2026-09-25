@@ -115,7 +115,7 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
       else if (key === "q") ctx.switchTool("lasso");
       else if (key === "g") ctx.switchTool("lasso-fill");
       else if (key === "k") ctx.switchTool("backstitch");
-      else if (key === "j") ctx.switchTool("backstitch-select");
+      else if (key === "j") ctx.switchTool("backstitch-edit");
       else if (e.key === "1") ctx.setViewMode("color");
       else if (e.key === "2") ctx.setViewMode("bw");
       else if (e.key === "3") ctx.setViewMode("realistic");

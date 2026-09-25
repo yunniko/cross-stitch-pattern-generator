@@ -27,8 +27,7 @@ export type Tool =
   | "lasso"
   | "lasso-fill"
   | "backstitch"
-  | "backstitch-select"
-  | "backstitch-move"
+  | "backstitch-edit"
   | "fill";
 
 /**
@@ -40,11 +39,11 @@ export function isSelectTool(tool: Tool): tool is "select" | "lasso" {
 }
 
 /**
- * The tools that edit backstitch rather than draw it (G-073). They share a hook and a bar; they differ only
- * in whether the zone at each end of a line grabs that end.
+ * The tool that edits backstitch rather than drawing it (G-073). One tool, not two: a press takes the line
+ * it lands on, and only a line already in hand has live ends (D229).
  */
-export function isBackstitchEditTool(tool: Tool): tool is "backstitch-select" | "backstitch-move" {
-  return tool === "backstitch-select" || tool === "backstitch-move";
+export function isBackstitchEditTool(tool: Tool): tool is "backstitch-edit" {
+  return tool === "backstitch-edit";
 }
 
 /** Every tool that works on backstitch, including the one that draws it. */

@@ -205,10 +205,14 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
     atRegion(ctx, region, cellSize, () => drawHighlightOverlayRaster(ctx, displayPattern, cellSize, litColorIndices, region));
   }
   // Over the stitches and the highlight, under the selection outline: backstitch sits on top of the cloth.
+  //
+  // **Not** inside `atRegion`, unlike everything above it. The cell draws build a bitmap of the visible region
+  // and place it with that translate, so they count cells from the region's corner; a line already carries its
+  // own chart corners, so the same translate displaced every line by the region's origin. That is zero only
+  // while the whole chart is on screen, which is why it looked right until the chart was zoomed (Owner,
+  // 2026-09-25). `clipTo(ctx, rect)` above already keeps the drawing inside the painted rectangle.
   if (displayPattern.backstitch?.length) {
-    atRegion(ctx, region, cellSize, () =>
-      drawBackstitch(ctx, displayPattern.backstitch!, displayPattern.palette, cellSize, scene.highlightBackstitch)
-    );
+    drawBackstitch(ctx, displayPattern.backstitch, displayPattern.palette, cellSize, scene.highlightBackstitch);
   }
   if (isSelectTool(activeTool) && selection && !selectDragging) {
     drawSelectionOutline(ctx, selection, cellSize, selection.mask);

@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-25 at f035b6b (G-073 M3, deployed and exercised on the live build)
+Last verified: 2026-09-25 at HEAD_SHA (G-073 M3 plus two Owner-reported fixes; deployed and exercised live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -51,7 +51,7 @@ export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-compar
   `docs/reviews/2026-09-21-dithering-comparison.md`: kernels lowest error (median 0.44–0.51×) and never worse,
   screens and drawn marks cheapest (+3.3 to +4.3 points), matrices between.
 - **Color detail — Averaged or Vivid** (G-061/G-062, D211, D212), off by default and byte-identical off. Two halves under one switch: a stitch keeps its area-mean lightness with the chroma of its most colourful quarter instead of averaging a small bright thing into a grey, and then every hue the cells hold that no thread speaks for takes a palette slot, paid for by merging the closest pair. It stands down below 24 source pixels a stitch (at ~4 pixels a cell, noise alone produces more chroma, 0.127, than real sub-stitch colour does at 144–400, 0.03–0.04; ungated it cost 121× the error on `flat regions`), and Crisp keeps its own palette stage. Measured in `docs/reviews/2026-09-22-vivid.md`: a red that needed 64 colours arrives at 20, a blue that needed 32 at 8, a pink that never arrived at 16, for 1.01–1.07× the 3×3 error and −0.37 to +0.55 points of confetti; the flat-region control is untouched.
-- **Backstitch** (G-073 M1–M3): straight lines over the stitches, corner to corner at a fifth of a cell. Drawn as a chain — each click starts the next line from the last one's end until a double-click or Escape (K). Two editing tools share one hook and differ in one rule: **BS select** (J) grabs an end within 0.42 of a cell to re-aim it, or moves the line by its body; **BS move** never catches an end (D227). Copy, paste, duplicate, mirror both ways, turn both ways, recolour and delete act on the line in hand, each one undo step, and the selected line is drawn thicker. Symmetry mirrors a line as it does a stitch. A cell selection takes a line only when **both** ends are inside it, and then carries it through a move, a flip and a turn (D228). Saved as an additive optional field (D138) and traded with OXS in both directions. **Not yet**: the thread list (M4) and every export but the save and OXS (M5).
+- **Backstitch** (G-073 M1–M3): straight lines over the stitches, corner to corner at a fifth of a cell. Drawn as a chain — each click starts the next line from the last one's end until a double-click or Escape (K). One editing tool, **BS edit** (J): a press takes the line it lands on, wherever on it, and only a line already in hand has live ends, which then drag to re-aim it (D229). Copy, paste, duplicate, mirror both ways, turn both ways, recolour and delete act on the line in hand, each one undo step, and the selected line is drawn thicker. Symmetry mirrors a line as it does a stitch. A cell selection takes a line only when **both** ends are inside it, and then carries it through a move, a flip and a turn (D228). Saved as an additive optional field (D138) and traded with OXS in both directions. **Not yet**: the thread list (M4) and every export but the save and OXS (M5).
 - Photo upload and reopening a save decode in a worker, the old decode a logged fallback (D128).
 - Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores on
   reload; a corrupt record shows a banner with an on-demand error report. Options live in localStorage.
@@ -152,7 +152,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - **The autosave record is assembled field by field** (`encodeRecord` in `lib/editor/project-store.ts`), so a new field on `StitchPattern` is silently dropped from it until someone names it there — the editable save carries the whole object and hides the gap. Backstitch was lost this way, found on the live build and fixed on 2026-09-25; `tests/unit/project-store.spec.ts` and a reload in `backstitch-edit.spec.ts` now hold it.
 - **Backstitch is corners, not cells.** A line's ends run `0..width` and `0..height` **inclusive**, and its arithmetic differs from the cells' by one: a cell mirrors to `width - 1 - cx`, the corner bounding it to `width - x` (D228). Anything that rearranges a floating piece supplies both transforms to `withShape`.
 - **A line has no partial form** and is never cut at a boundary. A resize, a crop or a drag that would put an end outside the chart drops or refuses the whole line (`clipLines`), and a cell selection takes one only when **both** ends are inside it (D228).
-- The two backstitch editing tools differ in exactly one flag, `hitLine`'s `grabEnds` (D227). Branching on the active tool anywhere else means that difference has leaked out of the one place that holds it.
+- **A backstitch press is hit-tested where the pointer is, not where its corner snaps to** (D229). `preciseCornerFromEvent` decides what a press grabs; `cornerFromEvent` decides only where a drag *puts* an end. Snapping first makes every endpoint claim the half-cell around it whatever the end zone says, and leaves a one-cell line with no body to press.
 - A floating selection may be a shape, not just a box (D225). Anything that rearranges a piece moves `cells`
   and `mask` together — use `withShape` — and leaves `originMask` alone, because that describes the hole left
   behind and does not turn with the piece. Code that reads `cells` directly must ask the mask first.
@@ -302,7 +302,8 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Next steps and open questions
 
-- **G-073 is active at M3 of 6.** Next is **M4, threads**: backstitch in its own section under the crosses, one palette entry with two counts, adding, picking, Isolate, merging, and merging into the empty thread deleting the lines. Then M5 (exports and the legend) and M6 (docs and deploy).
+- **G-073 is active at M3 of 6**, with two Owner-reported fixes on top of it: backstitch was displaced by the painted region's origin as soon as the chart was zoomed, and the two editing tools became one (D229).
+- **G-073 next steps.** Next is **M4, threads**: backstitch in its own section under the crosses, one palette entry with two counts, adding, picking, Isolate, merging, and merging into the empty thread deleting the lines. Then M5 (exports and the legend) and M6 (docs and deploy).
 - Two drafts wait on the Owner: **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public launch, far future).
 - Weakest area, from two Owner-found defects in G-072: tests assert the chart **after** a gesture, where a
   merge is correct, and almost nothing asserts a frame **during** one. The piece preview is now covered

@@ -36,7 +36,7 @@ import { PillButton } from "./components/ui";
 import type { Tool, ViewMode } from "./editor-types";
 import { cellIndexFromEvent, computeCellSize } from "./editor-geometry";
 import {
-  useBackstitchSelectTool,
+  useBackstitchEditTool,
   useBackstitchTool,
   useBrushTool,
   useLassoFillTool,
@@ -148,12 +148,7 @@ export default function Workspace() {
   });
   const lassoFill = useLassoFillTool({ ...toolInputs, colorForPointer, symmetry: liveSymmetry });
   const backstitch = useBackstitchTool({ ...toolInputs, colorForPointer, symmetry: liveSymmetry });
-  // Select and Move share one hook: the end zones are the only thing that differs between them (G-073 M3).
-  const backstitchEdit = useBackstitchSelectTool({
-    ...toolInputs,
-    colorForPointer,
-    grabEnds: activeTool === "backstitch-select",
-  });
+  const backstitchEdit = useBackstitchEditTool({ ...toolInputs, colorForPointer });
   const move = useMoveTool(toolInputs);
   /**
    * The outline the cursor carries (G-065): the press the tool in hand would make, or null for a tool that

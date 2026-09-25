@@ -1,5 +1,5 @@
 # D227 · Backstitch editing is two tools, separated by whether the end zones grab
-Date: 2026-09-25 · Goal: G-073 M3 · Status: active (superseded by: —)
+Date: 2026-09-25 · Goal: G-073 M3 · Status: superseded by D229
 Context: a line must be both re-aimable (drag one end) and movable (drag the whole line), and a press near an end cannot mean both.
 Decision: one hook, two rail entries. **BS select** grabs an endpoint within `END_ZONE_CELLS` (0.42) of the press; **BS move** grabs only the body. Ends win over bodies, and the later line wins where two overlap.
 Force: requirement — the Owner asked for both behaviours (2026-09-25). One tool cannot offer both for a press near an end, and a six-cell line is over half end zone.

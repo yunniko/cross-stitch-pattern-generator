@@ -36,6 +36,7 @@ import {
   cellIndexFromEvent,
   clampedCellFromEvent,
   cornerFromEvent,
+  preciseCornerFromEvent,
   pointInRect,
   rectFromCorners,
   releaseCapture,
@@ -608,27 +609,25 @@ export function useBackstitchTool({
 }
 
 /**
- * Selecting and editing backstitch (G-073 M3).
+ * Editing backstitch: one tool for picking a line up, moving it, re-aiming it and acting on it (G-073 M3).
  *
- * Two tools share this hook because they differ in one rule: with **Select**, the small zone at each end grabs
- * that end, so a line can be re-aimed; with **Move**, nothing grabs but the body, so a line can be shifted
- * without nudging an endpoint (Owner, 2026-09-25). That is the whole reason Move exists as a separate tool.
+ * A press takes whatever line it lands on, wherever on that line it lands, so any line can be moved in one
+ * gesture. **Only a line already in hand has live ends**, and then a press within `endZoneFor` of one drags
+ * that end instead of the whole line (D229). Select and Move were two tools until the Owner asked why
+ * (2026-09-25); separating the two meanings in time rather than by tool is what let them become one.
  *
- * A selected line is drawn thicker. Everything else — copy, paste, duplicate, mirror, turn, recolour, delete —
- * acts on the selection and is one undo step.
+ * The line in hand is drawn thicker. Everything else — copy, paste, duplicate, mirror, turn, recolour,
+ * delete — acts on it and is one undo step.
  */
-export function useBackstitchSelectTool({
+export function useBackstitchEditTool({
   frameRef,
   rendererRef,
   pattern,
   cellSize,
   commit,
   colorForPointer,
-  grabEnds,
 }: CanvasToolInputs & {
   colorForPointer: (button: number) => number | null;
-  /** True for Select, false for Move. */
-  grabEnds: boolean;
 }) {
   const [selected, setSelected] = useState<readonly BackstitchLine[]>([]);
   const [clipboard, setClipboard] = useState<readonly BackstitchLine[]>([]);
@@ -664,7 +663,9 @@ export function useBackstitchSelectTool({
   function onPointerDown(e: PointerLike, frame: HTMLElement) {
     if (!pattern) return;
     const at = cornerFromEvent(e, frame, cellSize, pattern.width, pattern.height);
-    const hit = hitLine(lines, at.x, at.y, grabEnds);
+    // The hit test reads the pointer itself; only what the drag *places* is snapped to a corner (D229).
+    const on = preciseCornerFromEvent(e, frame, cellSize, pattern.width, pattern.height);
+    const hit = hitLine(lines, on.x, on.y, isSelected);
     if (!hit) {
       setSelected([]);
       return;

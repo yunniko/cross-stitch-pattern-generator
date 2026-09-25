@@ -4,6 +4,8 @@ import {
   dedupeLines,
   symmetryLineOrbit,
   distanceToLine,
+  endZoneFor,
+  END_ZONE_CELLS,
   hitLine,
   linesBounds,
   mirrorLines,
@@ -194,17 +196,40 @@ describe("what the pointer is on", () => {
     expect(distanceToLine(l, 7, 0)).toBe(3);
   });
 
-  it("takes an end before the body it also touches", () => {
+  it("takes the whole line, ends included, when nothing is in hand", () => {
+    // One tool does both jobs, so a press on a line nobody holds always means "take this line" — otherwise
+    // a line could not be moved by a press near its end without a second tool for it (D229).
     const lines = [line(0, 0, 4, 0)];
-    expect(hitLine(lines, 0.1, 0)).toEqual({ index: 0, part: "start" });
-    expect(hitLine(lines, 3.95, 0)).toEqual({ index: 0, part: "end" });
+    expect(hitLine(lines, 0.1, 0)).toEqual({ index: 0, part: "body" });
+    expect(hitLine(lines, 3.95, 0)).toEqual({ index: 0, part: "body" });
     expect(hitLine(lines, 2, 0)).toEqual({ index: 0, part: "body" });
     expect(hitLine(lines, 2, 2)).toBeNull();
   });
 
-  it("gives the body when ends do not grab, which is what the Move tool asks for", () => {
+  it("takes an end, before the body it also touches, once the line is in hand", () => {
     const lines = [line(0, 0, 4, 0)];
-    expect(hitLine(lines, 0.1, 0, false)).toEqual({ index: 0, part: "body" });
+    const inHand = () => true;
+    expect(hitLine(lines, 0.1, 0, inHand)).toEqual({ index: 0, part: "start" });
+    expect(hitLine(lines, 3.95, 0, inHand)).toEqual({ index: 0, part: "end" });
+    expect(hitLine(lines, 2, 0, inHand)).toEqual({ index: 0, part: "body" });
+  });
+
+  it("makes only the held line's ends live, not its neighbour's", () => {
+    const held = line(0, 0, 4, 0);
+    const other = line(0, 2, 4, 2);
+    const inHand = (l: BackstitchLine) => sameLine(l, held);
+    expect(hitLine([held, other], 0.1, 0, inHand)).toEqual({ index: 0, part: "start" });
+    expect(hitLine([held, other], 0.1, 2, inHand)).toEqual({ index: 1, part: "body" });
+  });
+
+  it("leaves a short line a body to grab: the end zone is never more than a third of it", () => {
+    // At the flat 0.42 a one-cell line was 84% end zone, and could not be moved at all once selected.
+    expect(endZoneFor(1)).toBeCloseTo(1 / 3);
+    expect(endZoneFor(10)).toBe(END_ZONE_CELLS);
+    const short = [line(0, 0, 1, 0)];
+    const inHand = () => true;
+    expect(hitLine(short, 0.5, 0, inHand)).toEqual({ index: 0, part: "body" });
+    expect(hitLine(short, 0.05, 0, inHand)).toEqual({ index: 0, part: "start" });
   });
 
   it("takes the line drawn last where two overlap", () => {

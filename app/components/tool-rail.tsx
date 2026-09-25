@@ -62,17 +62,6 @@ function BackstitchSelectIcon() {
   );
 }
 
-/** The line with arrows across it: the whole thing moves, ends and all. */
-function BackstitchMoveIcon() {
-  return (
-    <svg {...TOOL_ICON_PROPS}>
-      <path d="M5 17 17 5" strokeWidth={2.6} />
-      <path d="M14 17h6v-6" />
-      <path d="M10 7H4v6" />
-    </svg>
-  );
-}
-
 /** A line running corner to corner across a cell, with the corners it can land on marked. */
 function BackstitchIcon() {
   return (
@@ -205,16 +194,10 @@ const TOOL_GROUPS = [
       Icon: BackstitchIcon,
     },
     {
-      tool: "backstitch-select" as const,
-      label: "BS select",
-      title: "Pick a backstitch line (J). Drag an end to re-aim it, or its middle to move it.",
+      tool: "backstitch-edit" as const,
+      label: "BS edit",
+      title: "Edit backstitch (J). Drag a line anywhere to move it; once it is in hand, drag either end to re-aim it.",
       Icon: BackstitchSelectIcon,
-    },
-    {
-      tool: "backstitch-move" as const,
-      label: "BS move",
-      title: "Drag anywhere on a backstitch line to move the whole line, without catching its ends.",
-      Icon: BackstitchMoveIcon,
     },
   ],
   [
