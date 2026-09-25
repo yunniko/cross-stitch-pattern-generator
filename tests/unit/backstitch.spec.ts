@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   clipLines,
+  connectedRun,
+  linesMeet,
   dedupeLines,
   symmetryLineOrbit,
   distanceToLine,
@@ -331,5 +333,50 @@ describe("a cell selection carries backstitch", () => {
     const piece = liftSelection(plain, { x: 0, y: 0, width: 3, height: 2 });
     expect(piece.backstitch).toBeUndefined();
     expect(mergeSelection(plain, moveSelection(piece, 1, 1)).backstitch).toBeUndefined();
+  });
+});
+
+describe("a run of connected backstitch", () => {
+  it("joins lines that meet at an end, whichever ends those are", () => {
+    expect(linesMeet(line(0, 0, 2, 0), line(2, 0, 2, 2))).toBe(true);
+    // Drawn the other way round, the same two still meet.
+    expect(linesMeet(line(2, 0, 0, 0), line(2, 2, 2, 0))).toBe(true);
+    expect(linesMeet(line(0, 0, 2, 0), line(3, 0, 5, 0))).toBe(false);
+  });
+
+  it("does not join a line that merely crosses another's middle", () => {
+    // A cross is two strokes, not one: only ends join (Owner, 2026-09-25).
+    expect(linesMeet(line(0, 0, 4, 0), line(2, -2, 2, 2))).toBe(false);
+  });
+
+  it("follows the chain as far as it goes, past lines that never touch the first", () => {
+    const chain = [line(0, 0, 2, 0), line(2, 0, 2, 2), line(2, 2, 0, 2)];
+    // The third never touches the first, but the run reaches it through the second.
+    expect(connectedRun(chain, 0)).toEqual(chain);
+    expect(connectedRun(chain, 2)).toEqual(chain);
+  });
+
+  it("takes every branch of a junction", () => {
+    const star = [line(2, 2, 0, 2), line(2, 2, 4, 2), line(2, 2, 2, 0)];
+    expect(connectedRun(star, 1)).toHaveLength(3);
+  });
+
+  it("stops at another thread, even where it shares the corner", () => {
+    const lines = [line(0, 0, 2, 0), line(2, 0, 2, 2, 1), line(2, 0, 4, 0)];
+    // The middle line is a different thread: the run passes it by and takes the third, which shares the
+    // same corner in the same thread.
+    expect(connectedRun(lines, 0)).toEqual([line(0, 0, 2, 0), line(2, 0, 4, 0)]);
+    expect(connectedRun(lines, 1)).toEqual([line(2, 0, 2, 2, 1)]);
+  });
+
+  it("gives a lone line as a run of itself, and nothing for an index that is not there", () => {
+    const lines = [line(0, 0, 2, 0), line(5, 5, 6, 6)];
+    expect(connectedRun(lines, 1)).toEqual([line(5, 5, 6, 6)]);
+    expect(connectedRun(lines, 7)).toEqual([]);
+  });
+
+  it("returns the run in the chart's own order, whichever line it started from", () => {
+    const chain = [line(0, 0, 2, 0), line(2, 0, 2, 2), line(2, 2, 0, 2)];
+    expect(connectedRun(chain, 1)).toEqual(chain);
   });
 });

@@ -242,6 +242,46 @@ export function hitLine(
   return body;
 }
 
+/**
+ * Whether two lines meet at an end (Owner, 2026-09-25: “one stitch is started where another ends”).
+ *
+ * Ends only. A line whose *middle* another line happens to cross is not joined to it: crossing is what a
+ * drawing does, joining is what a stroke does, and a run is the stroke.
+ */
+export function linesMeet(a: BackstitchLine, b: BackstitchLine): boolean {
+  const ends: Array<[number, number]> = [
+    [a.x1, a.y1],
+    [a.x2, a.y2],
+  ];
+  return ends.some(([x, y]) => (x === b.x1 && y === b.y1) || (x === b.x2 && y === b.y2));
+}
+
+/**
+ * Every line reachable from `lines[index]` by meeting ends, in that line's own thread, including itself.
+ *
+ * Reachable, not merely touching: a run follows the drawing as far as it goes, so three segments joined in a
+ * chain are one run even though the first and last never touch. A junction where several lines meet takes all
+ * of them. Another thread's line stops the walk even where it shares the corner — a run is one thread.
+ *
+ * Returned in the chart's own order, so a run reads the same way twice.
+ */
+export function connectedRun(lines: readonly BackstitchLine[], index: number): BackstitchLine[] {
+  const start = lines[index];
+  if (!start) return [];
+  const taken = new Set<number>([index]);
+  const queue = [index];
+  while (queue.length > 0) {
+    const current = lines[queue.pop()!];
+    for (let i = 0; i < lines.length; i++) {
+      if (taken.has(i) || lines[i].paletteIndex !== start.paletteIndex) continue;
+      if (!linesMeet(current, lines[i])) continue;
+      taken.add(i);
+      queue.push(i);
+    }
+  }
+  return lines.filter((_, i) => taken.has(i));
+}
+
 /** One end of a line moved to a new corner. */
 export function withEndAt(line: BackstitchLine, part: "start" | "end", x: number, y: number): BackstitchLine {
   return part === "start" ? { ...line, x1: x, y1: y } : { ...line, x2: x, y2: y };

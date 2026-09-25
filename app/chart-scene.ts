@@ -98,8 +98,8 @@ export type GesturePreview =
   | { kind: "select-rect"; base: StitchPattern; rect: CellRect }
   | { kind: "select-piece"; base: StitchPattern; piece: FloatingSelection }
   | { kind: "select-lasso"; base: StitchPattern; path: readonly CellPoint[]; stroke?: string }
-  /** The backstitch segment being drawn (G-073), from the anchor to the corner under the pointer. */
-  | { kind: "backstitch-line"; base: StitchPattern; line: BackstitchLine };
+  /** The backstitch a gesture is placing (G-073): the segment being drawn, or the run being dragged. */
+  | { kind: "backstitch-line"; base: StitchPattern; lines: readonly BackstitchLine[] };
 
 /** One single-stitch redraw of a brush stroke, with the colour it was painted in at that moment. */
 export interface BrushOp {
@@ -358,7 +358,7 @@ function drawGestureContent(
       if (!baseDrawn) drawScene(ctx, gesture.base, scene, rect);
       ctx.save();
       clipTo(ctx, rect);
-      drawBackstitch(ctx, [gesture.line], gesture.base.palette, scene.cellSize);
+      drawBackstitch(ctx, gesture.lines, gesture.base.palette, scene.cellSize);
       ctx.restore();
       return;
     case "select-piece": {

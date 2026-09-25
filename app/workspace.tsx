@@ -412,6 +412,11 @@ export default function Workspace() {
       backstitch.onDoubleClick();
       return;
     }
+    // With the editing tool, a double-click takes the whole run the line belongs to (D230).
+    if (frame && isBackstitchEditTool(activeTool)) {
+      backstitchEdit.onDoubleClick(e, frame);
+      return;
+    }
     if (frame && activeTool === "brush" && !isViewOnlyMode(viewMode) && options.doubleClickFill) brush.onDoubleClick(e, frame);
   }
 

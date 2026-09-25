@@ -1,8 +1,9 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
 import { stampCells, type StampOffset } from "@/lib/editor/brush-stamp";
 import {
-  dedupeLines,
   clipLines,
+  connectedRun,
+  dedupeLines,
   hitLine,
   isDegenerate,
   mirrorLines,
@@ -523,13 +524,9 @@ export function useBackstitchTool({
     const run = runRef.current;
     const to = hoverRef.current;
     if (!run || !to) return;
-    rendererRef.current?.previewBackstitch(chartSoFar(run), {
-      x1: run.anchor.x,
-      y1: run.anchor.y,
-      x2: to.x,
-      y2: to.y,
-      paletteIndex: run.color,
-    });
+    rendererRef.current?.previewBackstitch(chartSoFar(run), [
+      { x1: run.anchor.x, y1: run.anchor.y, x2: to.x, y2: to.y, paletteIndex: run.color },
+    ]);
   }
 
   /** The chart as the run has left it so far: its base plus everything the run has added. */
@@ -634,21 +631,26 @@ export function useBackstitchEditTool({
   const dragRef = useRef<{
     pointerId: number;
     base: StitchPattern;
-    index: number;
+    /** The lines the drag is carrying: one, or the whole run when a run is in hand. */
+    moving: readonly BackstitchLine[];
     part: "start" | "end" | "body";
     from: CellPoint;
-    current: BackstitchLine;
+    current: readonly BackstitchLine[];
   } | null>(null);
 
   const lines = pattern?.backstitch ?? [];
   // The renderer memoises its scene on this identity, so it holds still while the selection does.
   const isSelected = useCallback((line: BackstitchLine) => selected.some((sel) => sameLine(sel, line)), [selected]);
 
-  /** The pattern with `index` replaced by `line`, for a live drag frame or a commit. */
-  function withLineAt(base: StitchPattern, index: number, line: BackstitchLine): StitchPattern {
-    const next = [...(base.backstitch ?? [])];
-    next[index] = line;
-    return { ...base, backstitch: next };
+  /** The pattern with `from` swapped for `to`, for a live drag frame or a commit. */
+  function withLinesSwapped(base: StitchPattern, from: readonly BackstitchLine[], to: readonly BackstitchLine[]) {
+    const kept = (base.backstitch ?? []).filter((l) => !from.some((f) => sameLine(f, l)));
+    return { ...base, backstitch: [...kept, ...to] };
+  }
+
+  /** Whether two sets of lines are the same lines, so a frame that changed nothing is not repainted. */
+  function sameLines(a: readonly BackstitchLine[], b: readonly BackstitchLine[]): boolean {
+    return a.length === b.length && a.every((l, i) => sameLine(l, b[i]));
   }
 
   /** Replaces the selected lines wholesale — every action that transforms them goes through here. */
@@ -665,19 +667,26 @@ export function useBackstitchEditTool({
     const at = cornerFromEvent(e, frame, cellSize, pattern.width, pattern.height);
     // The hit test reads the pointer itself; only what the drag *places* is snapped to a corner (D229).
     const on = preciseCornerFromEvent(e, frame, cellSize, pattern.width, pattern.height);
-    const hit = hitLine(lines, on.x, on.y, isSelected);
+    // An end grabs only on a single line in hand: with a run in hand, re-aiming one of its ends by itself is
+    // not what a press on the run means, so only the whole run moves (D230).
+    const grabs = selected.length === 1 ? isSelected : () => false;
+    const hit = hitLine(lines, on.x, on.y, grabs);
     if (!hit) {
       setSelected([]);
       return;
     }
-    setSelected([lines[hit.index]]);
+    // Pressing on a line already in hand carries everything in hand, as pressing inside a cell selection
+    // moves the whole piece. Pressing anywhere else takes that one line instead.
+    const inHand = isSelected(lines[hit.index]);
+    const moving = inHand ? selected : [lines[hit.index]];
+    if (!inHand) setSelected(moving);
     dragRef.current = {
       pointerId: e.pointerId,
       base: pattern,
-      index: hit.index,
+      moving,
       part: hit.part,
       from: at,
-      current: lines[hit.index],
+      current: moving,
     };
     frame.setPointerCapture(e.pointerId);
   }
@@ -688,15 +697,16 @@ export function useBackstitchEditTool({
     const frame = frameRef.current;
     if (!frame) return true;
     const at = cornerFromEvent(e, frame, cellSize, drag.base.width, drag.base.height);
-    const original = (drag.base.backstitch ?? [])[drag.index];
-    if (!original) return true;
     const moved =
-      drag.part === "body" ? shiftLines([original], at.x - drag.from.x, at.y - drag.from.y)[0] : withEndAt(original, drag.part, at.x, at.y);
-    if (isDegenerate(moved)) return true;
-    if (clipLines([moved], drag.base.width, drag.base.height).length === 0) return true;
-    if (sameLine(moved, drag.current)) return true;
+      drag.part === "body"
+        ? shiftLines(drag.moving, at.x - drag.from.x, at.y - drag.from.y)
+        : [withEndAt(drag.moving[0], drag.part, at.x, at.y)];
+    // All or nothing: a run keeps its shape, so one line falling off the chart declines the whole frame.
+    if (moved.some(isDegenerate)) return true;
+    if (clipLines(moved, drag.base.width, drag.base.height).length !== moved.length) return true;
+    if (sameLines(moved, drag.current)) return true;
     drag.current = moved;
-    rendererRef.current?.previewBackstitch(withLineAt(drag.base, drag.index, moved), moved);
+    rendererRef.current?.previewBackstitch(withLinesSwapped(drag.base, drag.moving, moved), moved);
     return true;
   }
 
@@ -705,16 +715,28 @@ export function useBackstitchEditTool({
     if (!drag || drag.pointerId !== e.pointerId) return false;
     dragRef.current = null;
     releaseCapture(frameRef.current, e.pointerId);
-    const original = (drag.base.backstitch ?? [])[drag.index];
-    if (!original || sameLine(original, drag.current)) {
+    if (sameLines(drag.moving, drag.current)) {
       rendererRef.current?.endGesture(true);
       return true;
     }
     rendererRef.current?.endGesture(false);
-    const next = withLineAt(drag.base, drag.index, drag.current);
+    const next = withLinesSwapped(drag.base, drag.moving, drag.current);
     commit({ ...next, backstitch: dedupeLines(next.backstitch ?? []) });
-    setSelected([drag.current]);
+    setSelected(drag.current);
     return true;
+  }
+
+  /**
+   * A double-click takes the whole run the line belongs to (Owner, 2026-09-25): every line joined to it end
+   * to end, in the same thread. The first click of the pair has already taken the single line.
+   */
+  function onDoubleClick(e: PointerPosition, frame: HTMLElement) {
+    if (!pattern) return;
+    const on = preciseCornerFromEvent(e, frame, cellSize, pattern.width, pattern.height);
+    const hit = hitLine(lines, on.x, on.y);
+    if (!hit) return;
+    dragRef.current = null;
+    setSelected(connectedRun(lines, hit.index));
   }
 
   function cancel(): boolean {
@@ -741,6 +763,7 @@ export function useBackstitchEditTool({
     onPointerDown,
     onPointerMove,
     onPointerUp,
+    onDoubleClick,
     cancel,
     /** Whether a given line is in the selection, for the renderer's thicker stroke. */
     isSelected,

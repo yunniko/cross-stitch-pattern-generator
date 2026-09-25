@@ -495,9 +495,9 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   }
 
   /** One frame of a select drag: the base scene (restored from its snapshot when unchanged) plus the rectangle or piece. */
-  /** One frame of a backstitch run (G-073): the chart plus the segment from the anchor to the pointer. */
-  function previewBackstitch(base: StitchPattern, line: BackstitchLine) {
-    gestureRef.current = { kind: "backstitch-line", base, line };
+  /** One frame of a backstitch gesture (G-073): the chart, plus the lines the gesture is placing. */
+  function previewBackstitch(base: StitchPattern, lines: readonly BackstitchLine[]) {
+    gestureRef.current = { kind: "backstitch-line", base, lines };
     paint();
   }
 

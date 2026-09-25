@@ -1,6 +1,15 @@
 import { test, expect, type Page } from "@playwright/test";
 import { generateSmallPattern, pickTool } from "./helpers/app";
-import { asEndpoints, chartBox, clickCorner, dragCorner, drawChain, exportLines, pickThread } from "./helpers/backstitch";
+import {
+  asEndpoints,
+  chartBox,
+  clickCorner,
+  doubleClickCorner,
+  dragCorner,
+  drawChain,
+  exportLines,
+  pickThread,
+} from "./helpers/backstitch";
 
 /**
  * G-073 M3: editing backstitch, with one tool (D229).
@@ -448,4 +457,84 @@ test("Delete belongs to the backstitch tool alone, and is left alone by every ot
   await pickTool(page, "Brush");
   expect(await deleteIsSwallowed(page)).toBe(false);
   expect(asEndpoints(await exportLines(page))).toEqual(["4,4-10,4"]);
+});
+
+/** Three segments drawn as one chain: (4,4)–(10,4)–(10,10)–(16,10). */
+async function threeSegmentRun(page: Page) {
+  await generateSmallPattern(page);
+  await pickThread(page);
+  await drawChain(page, [
+    [4, 4],
+    [10, 4],
+    [10, 10],
+    [16, 10],
+  ]);
+}
+
+test("a double-click takes the whole run joined end to end", async ({ page }) => {
+  await threeSegmentRun(page);
+  await useEdit(page);
+
+  await clickCorner(page, 7, 4);
+  await expect(page.getByText("1 selected")).toBeVisible();
+
+  // The far segment never touches the first; the run reaches it through the middle one.
+  await doubleClickCorner(page, 7, 4);
+  await expect(page.getByText("3 selected")).toBeVisible();
+});
+
+test("a run stops at a line of another thread", async ({ page }) => {
+  await threeSegmentRun(page);
+  // A fourth segment continues the chain, in a different thread.
+  await pickThread(page, 1);
+  await drawChain(page, [
+    [16, 10],
+    [16, 16],
+  ]);
+  await useEdit(page);
+
+  await doubleClickCorner(page, 7, 4);
+  await expect(page.getByText("3 selected")).toBeVisible();
+});
+
+test("the whole run is deleted, mirrored and moved as one", async ({ page }) => {
+  await threeSegmentRun(page);
+  await useEdit(page);
+
+  await doubleClickCorner(page, 7, 4);
+  await expect(page.getByText("3 selected")).toBeVisible();
+
+  // A press on a line already in hand carries everything in hand, as it does for a cell selection.
+  await dragCorner(page, [7, 4], [7, 9]);
+  expect(asEndpoints(await exportLines(page)).sort()).toEqual(["10,15-16,15", "10,9-10,15", "4,9-10,9"]);
+  await expect(page.getByText("3 selected")).toBeVisible();
+
+  await page.keyboard.press("Delete");
+  expect(await exportLines(page)).toHaveLength(0);
+  await page.keyboard.press("Control+z");
+  expect(await exportLines(page)).toHaveLength(3);
+});
+
+test("with a run in hand, a press on an end moves the run rather than re-aiming it", async ({ page }) => {
+  await threeSegmentRun(page);
+  await useEdit(page);
+
+  await doubleClickCorner(page, 7, 4);
+  await expect(page.getByText("3 selected")).toBeVisible();
+
+  // Corner (4,4) is an end of the first segment. With a run in hand that press means the run (D230).
+  await dragCorner(page, [4, 4], [4, 7]);
+  expect(asEndpoints(await exportLines(page)).sort()).toEqual(["10,13-16,13", "10,7-10,13", "4,7-10,7"]);
+});
+
+test("a double-click on empty cloth lets go, as a single press there does", async ({ page }) => {
+  await threeSegmentRun(page);
+  await useEdit(page);
+
+  await clickCorner(page, 7, 4);
+  await expect(page.getByText("1 selected")).toBeVisible();
+  // Near the top-right: clear of every line, and inside a chart that is wider than it is tall.
+  await doubleClickCorner(page, 40, 2);
+  await expect(page.getByText("none selected")).toBeVisible();
+  expect(await exportLines(page)).toHaveLength(3);
 });

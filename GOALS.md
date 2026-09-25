@@ -86,6 +86,9 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M6 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-25 — **A double-click takes the whole run** (Owner request): every line reachable end to end from the one under the pointer, in the same thread (D230). Ends only — a line crossing another's middle is a separate stroke — and the walk stops at another thread even where it shares the corner.
+  Two rules follow, both implemented and tested: with a run in hand **no end grabs**, so a press moves the run instead of re-aiming one of its ends; and a press on a line already in hand carries everything in hand, as pressing inside a cell selection moves the whole piece. The drag now carries a set, and a frame is all-or-nothing so the run keeps its shape.
+  **Verified:** 7 new unit tests on what counts as one run, 5 new e2e. Three of the new e2e failed first time, all three my own expectations rather than the code: two compared a sorted array against an unsorted literal, and one probed a corner below a landscape chart, where the press never reached the frame.
 - 2026-09-25 — **Delete removes the backstitch in hand** (Owner request). Backspace too, since that is the key labelled *delete* on a Mac. It is one undo step, does nothing with no line in hand, and the key is claimed **only** while the backstitch tool is held — under any other tool it is handed back rather than swallowed.
   The first version of the guard's test passed with the guard removed: switching tools already drops the selection, so there was nothing left for the key to delete either way. Rewritten to assert what the guard actually does — whether the key is swallowed — and it now fails when the guard goes.
 - 2026-09-25 — **Two Owner-reported corrections to M3, both shipped.**

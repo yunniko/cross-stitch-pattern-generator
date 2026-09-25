@@ -86,3 +86,9 @@ export async function clickCorner(page: Page, cx: number, cy: number): Promise<v
   const { x, y, cell } = await chartBox(page);
   await page.mouse.click(x + cell * cx, y + cell * cy);
 }
+
+/** Double-clicks a grid corner — how the editing tool is asked for a whole run. */
+export async function doubleClickCorner(page: Page, cx: number, cy: number): Promise<void> {
+  const { x, y, cell } = await chartBox(page);
+  await page.mouse.dblclick(x + cell * cx, y + cell * cy);
+}
