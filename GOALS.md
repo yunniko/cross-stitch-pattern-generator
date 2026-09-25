@@ -86,6 +86,8 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M6 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-25 — **Delete removes the backstitch in hand** (Owner request). Backspace too, since that is the key labelled *delete* on a Mac. It is one undo step, does nothing with no line in hand, and the key is claimed **only** while the backstitch tool is held — under any other tool it is handed back rather than swallowed.
+  The first version of the guard's test passed with the guard removed: switching tools already drops the selection, so there was nothing left for the key to delete either way. Rewritten to assert what the guard actually does — whether the key is swallowed — and it now fails when the guard goes.
 - 2026-09-25 — **Two Owner-reported corrections to M3, both shipped.**
   1. **Backstitch was repositioned by zooming.** The scene drew it inside the same `translate` the cell draws
      use — they build a bitmap of the visible region and count cells from its corner, while a line already

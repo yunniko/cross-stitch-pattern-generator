@@ -19,6 +19,8 @@ export interface KeyboardShortcutContext {
   swapColors(): void;
   /** Escape: put the chart back as it was when the selection started. */
   cancelSelection(): void;
+  /** Delete or Backspace: remove the backstitch in hand (Owner, 2026-09-25). Does nothing with none. */
+  deleteBackstitch(): void;
   /** A piece is in hand, so history is not the reader's to step through yet (G-063). */
   hasSelection: boolean;
 }
@@ -31,7 +33,8 @@ function isTypingTarget(target: EventTarget | null): boolean {
 /**
  * Global keyboard shortcuts: Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z for undo/redo,
  * B/F for Brush/Fill, X to swap the two drawing colours, 1-5 for the view modes, Enter to apply a floating
- * selection and Escape to cancel it, and Space held to pan temporarily.
+ * selection and Escape to cancel it, Delete or Backspace to remove the backstitch in hand, and Space held
+ * to pan temporarily.
  * Skipped while typing in a field. Space is only claimed when focus is on
  * the page body or inside the canvas scroller -- a focused button, select,
  * radio or checkbox keeps its own Space activation (review B5).
@@ -87,6 +90,15 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
           isBackstitchEditTool(ctx.activeTool)
         )
           ctx.cancelSelection();
+        return;
+      }
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        // Backspace as well as Delete: it is the key labelled *delete* on a Mac keyboard, and preventing
+        // its default keeps a browser that still treats it as Back from leaving the page.
+        if (!isBackstitchEditTool(ctx.activeTool)) return;
+        e.preventDefault();
+        ctx.deleteBackstitch();
         return;
       }
 

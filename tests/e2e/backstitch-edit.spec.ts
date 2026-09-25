@@ -390,3 +390,62 @@ test("a one-cell line can still be moved once it is in hand", async ({ page }) =
 
   expect(asEndpoints(await exportLines(page))).toEqual(["8,14-9,14"]);
 });
+
+test("Delete removes the line in hand, and Backspace does the same", async ({ page }) => {
+  await generateSmallPattern(page);
+  await pickThread(page);
+  await drawChain(page, [
+    [4, 4],
+    [10, 4],
+    [10, 10],
+  ]);
+  await useEdit(page);
+
+  await clickCorner(page, 7, 4);
+  await page.keyboard.press("Delete");
+  expect(asEndpoints(await exportLines(page))).toEqual(["10,4-10,10"]);
+
+  // Backspace is the key labelled *delete* on a Mac, so it has to mean the same thing.
+  await clickCorner(page, 10, 7);
+  await page.keyboard.press("Backspace");
+  expect(await exportLines(page)).toHaveLength(0);
+});
+
+test("Delete is one undo step, and does nothing with no line in hand", async ({ page }) => {
+  await oneLine(page);
+  await useEdit(page);
+
+  // Nothing selected: the key must not reach for a line of its own choosing.
+  await page.keyboard.press("Delete");
+  expect(asEndpoints(await exportLines(page))).toEqual(["4,4-10,4"]);
+
+  await clickCorner(page, 7, 4);
+  await page.keyboard.press("Delete");
+  expect(await exportLines(page)).toHaveLength(0);
+  await page.keyboard.press("Control+z");
+  expect(asEndpoints(await exportLines(page))).toEqual(["4,4-10,4"]);
+});
+
+/** Dispatches a cancelable Delete and reports whether the app claimed it. */
+async function deleteIsSwallowed(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const event = new KeyboardEvent("keydown", { key: "Delete", bubbles: true, cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+}
+
+test("Delete belongs to the backstitch tool alone, and is left alone by every other", async ({ page }) => {
+  await oneLine(page);
+  await useEdit(page);
+
+  // Probed with nothing in hand, so the probe itself cannot delete anything: the question is only whether
+  // this tool claims the key at all.
+  expect(await deleteIsSwallowed(page)).toBe(true);
+
+  // Under any other tool the key is handed back rather than quietly swallowed on behalf of a tool nobody
+  // is holding.
+  await pickTool(page, "Brush");
+  expect(await deleteIsSwallowed(page)).toBe(false);
+  expect(asEndpoints(await exportLines(page))).toEqual(["4,4-10,4"]);
+});

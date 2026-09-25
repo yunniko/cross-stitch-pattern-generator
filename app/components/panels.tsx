@@ -293,7 +293,7 @@ export function BackstitchBar({
       >
         Recolour
       </PillButton>
-      <PillButton size="xs" onClick={onDelete} disabled={none} title="Delete the selected line">
+      <PillButton size="xs" onClick={onDelete} disabled={none} title="Delete the selected line (Delete)">
         Delete
       </PillButton>
       <div className="ml-auto flex items-center gap-2.5">

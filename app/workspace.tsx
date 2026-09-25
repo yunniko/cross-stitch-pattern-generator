@@ -344,6 +344,7 @@ export default function Workspace() {
       cancelSelection: () => {
         if (!shape.cancel() && !lassoFill.cancel() && !backstitch.cancel() && !backstitchEdit.cancel()) select.cancel();
       },
+      deleteBackstitch: backstitchEdit.remove,
       hasSelection: select.selection !== null,
     },
     scrollerRef
