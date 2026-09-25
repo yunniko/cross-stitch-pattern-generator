@@ -7,7 +7,7 @@ import {
   type SerializedSymmetry,
 } from "./pattern-serialize";
 import { NO_SYMMETRY, type SymmetryAxes } from "./symmetry-axes";
-import type { RGB, SourceImageRef, StitchPattern, ThreadSwatchRef } from "../types";
+import type { BackstitchLine, RGB, SourceImageRef, StitchPattern, ThreadSwatchRef } from "../types";
 
 /**
  * The auto-saved project lives in IndexedDB, not localStorage: a large grid
@@ -66,6 +66,8 @@ export interface StoredProjectRecord {
   sourceImage?: StoredSourceImage;
   /** The symmetry axes that were on (G-037); absent when none were, and on records written before G-037. */
   symmetry?: SerializedSymmetry;
+  /** The backstitch on the chart (G-073); absent when there is none, and on records written before it. */
+  backstitch?: BackstitchLine[];
 }
 
 export interface ProjectLoadFailure {
@@ -149,6 +151,9 @@ async function encodeRecord(
     ditherTexture: pattern.ditherTexture,
     vivid: pattern.vivid,
   };
+  // Every field of this record is named by hand, so anything new on a pattern is dropped until someone adds
+  // it here. Backstitch was: a reload silently lost every line (found on the live build, 2026-09-25).
+  if (pattern.backstitch?.length) record.backstitch = [...pattern.backstitch];
   const storedSymmetry = serializeSymmetry(symmetry);
   if (storedSymmetry) record.symmetry = storedSymmetry;
   if (!pattern.sourceImage) return { record };

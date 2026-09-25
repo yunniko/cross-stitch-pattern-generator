@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-25 at HEAD_SHA (G-073 M3; deployed and exercised live)
+Last verified: 2026-09-25 at HEAD_SHA (G-073 M3, deployed and exercised on the live build)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -58,7 +58,7 @@ export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-compar
 - Photo enhancement: Off, Brighten, Auto, Vivid, Portrait, with a "Compare with original" preview and recorded in
   saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-25**: `tsc --noEmit` clean, `npm run lint` 0 errors, `prettier --check` clean, `docs-lint` ok; Vitest 797 passed; Playwright 410 passed across all 39 specs, one spec per process against the single-path build, the processor serving generation, exports and previews, run with `CS_JOB_BINARY` set. **The e2e suite needs that variable and the app server needs `PROCESSOR_URL`** — without either, generation fails and every spec that opens a chart fails with it. Last full Rust pass 2026-09-22: 330 e2e against the sidecar, `npm run compare:rust`
+**Checks run 2026-09-25**: `tsc --noEmit` clean, `npm run lint` 0 errors, `prettier --check` clean, `docs-lint` ok; Vitest 797 passed; Playwright 411 passed across all 39 specs (2 pre-existing flakes in color-editor and shape-tools, green on retry), one spec per process against the single-path build, the processor serving generation, exports and previews, run with `CS_JOB_BINARY` set. **The e2e suite needs that variable and the app server needs `PROCESSOR_URL`** — without either, generation fails and every spec that opens a chart fails with it. Last full Rust pass 2026-09-22: 330 e2e against the sidecar, `npm run compare:rust`
 81 cases identical; export parity in `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the
 type-check and `build:processor` before the unit tests: the worker bundle is git-ignored and specs run against it.
 
@@ -149,6 +149,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Rules in force
 
+- **The autosave record is assembled field by field** (`encodeRecord` in `lib/editor/project-store.ts`), so a new field on `StitchPattern` is silently dropped from it until someone names it there — the editable save carries the whole object and hides the gap. Backstitch was lost this way, found on the live build and fixed on 2026-09-25; `tests/unit/project-store.spec.ts` and a reload in `backstitch-edit.spec.ts` now hold it.
 - **Backstitch is corners, not cells.** A line's ends run `0..width` and `0..height` **inclusive**, and its arithmetic differs from the cells' by one: a cell mirrors to `width - 1 - cx`, the corner bounding it to `width - x` (D228). Anything that rearranges a floating piece supplies both transforms to `withShape`.
 - **A line has no partial form** and is never cut at a boundary. A resize, a crop or a drag that would put an end outside the chart drops or refuses the whole line (`clipLines`), and a cell selection takes one only when **both** ends are inside it (D228).
 - The two backstitch editing tools differ in exactly one flag, `hitLine`'s `grabEnds` (D227). Branching on the active tool anywhere else means that difference has leaked out of the one place that holds it.
@@ -331,8 +332,8 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-25 | 36bc22a | Fix: dragging a lassoed piece carried the stitches around it on screen — the incremental preview path drew the whole bounding box while the merge stamped only the shape | 763 unit (5 new for the preview path), 388 e2e, tsc, eslint, prettier, docs-lint. Reintroducing the bug fails 3 of the 5 new cases. Sampled live during a drag: three of the four bounding-box corners show the chart's own stitches through the piece. 23 containers before and after with an identical name set and only this project's two restarted; nine sites returned 200. |
-| 2026-09-25 | 5273a10 | G-072: Lasso select and Lasso fill — a selection can be a shape rather than a box (D225), and the drawn path is smoothed by corner cutting (D226) | 758 unit, 388 e2e (8 new). Live: a 70-point freehand loop with jitter filled as a smooth blob, 3371 Black Brown 448 → 1,187 stitches, undo back to 448 exactly; Lasso select reported a 41 × 29 piece. 23 containers, only this project's two restarted; nine sites 200 |
+| 2026-09-25 | M3_SHA | G-073 M3: backstitch can be picked up and edited — BS select and BS move (D227), the seven bar actions, and a cell selection that takes a line only when both ends are inside it (D228). Includes a fix found on the live build: **the autosave dropped every line on reload**, because its record is assembled field by field and backstitch was never named in it | 798 unit, 411 e2e (2 pre-existing flakes green on retry), tsc, eslint, prettier, docs-lint. Three mutation checks rather than assertions taken on trust: the cells' corner arithmetic fails 2 unit tests, cutting the highlight wiring fails the new pixel test alone, and reverting the autosave line fails both its unit test and its reload test. Live on the deployed build: drew a two-segment chain on the 100x67 chart, dragged an end with BS select (bar read "1 selected", all seven actions enabled), reloaded, and the line came back and was selectable again. 23 containers before and after with an identical name set and only this project's app restarted; ten sites returned 200. Two neighbours, `yarn.svc` and `fractions.svc`, return 502 **before and after** — no container for either, pre-existing and reported to the Owner. |
+| 2026-09-25 | be9eb0a | G-073 M1–M2: a chart can hold backstitch and the Line tool draws it as a chain (K). The data model, the save, OXS in and out, corner snapping, symmetry, one undo step per segment | 789 unit, 393 e2e, tsc, eslint, prettier, docs-lint. All 38 golden hashes unmoved — generation is untouched. Live: drew a four-corner chain and read three joined segments back out of the editable save. 23 containers before and after with an identical name set and only this project's two restarted; nine sites returned 200. **Row written on 2026-09-25 with the M3 deploy** — the deploy happened at the milestone, but was not logged then. |
 
 ## Decisions
 

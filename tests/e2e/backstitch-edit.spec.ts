@@ -271,3 +271,19 @@ test("the selected line is drawn thicker as soon as it is picked up", async ({ p
   expect(await strokeWidthAt(page, 12, 4)).toBeGreaterThan(before);
   expect(await strokeWidthAt(page, 12, 12)).toBe(before);
 });
+
+test("backstitch survives a reload, which is where the autosave had dropped it", async ({ page }) => {
+  await oneLine(page);
+  await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
+
+  // The editable save carried the line from M1 onwards; the autosave record, assembled field by field, did
+  // not, so every line vanished on reload. Found on the live build, 2026-09-25.
+  await page.reload();
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+
+  expect(asEndpoints(await exportLines(page))).toEqual(["4,4-10,4"]);
+  // And it is still a line the tools can take hold of, not just bytes in a file.
+  await useSelect(page);
+  await clickCorner(page, 7, 4);
+  await expect(page.getByText("1 selected")).toBeVisible();
+});

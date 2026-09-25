@@ -81,6 +81,24 @@ describe("project-store", () => {
     expect(pattern!.edgeMode).toBe("crisp-plus");
   });
 
+  it("keeps backstitch through autosave, and leaves a chart without any unchanged (G-073)", async () => {
+    // The record is assembled field by field, so a new pattern field is dropped unless it is named there.
+    // This was: a reload lost every line, on the live build, while the editable save carried them fine.
+    const lines = [
+      { x1: 0, y1: 0, x2: 2, y2: 0, paletteIndex: 1 },
+      { x1: 2, y1: 0, x2: 2, y2: 2, paletteIndex: 0 },
+    ];
+    const store = createProjectStore(createMemoryKeyValueStore());
+    await store.save(makePattern({ backstitch: lines }));
+    const { pattern, failure } = await store.load();
+    expect(failure).toBeUndefined();
+    expect(pattern!.backstitch).toEqual(lines);
+
+    const plain = createProjectStore(createMemoryKeyValueStore());
+    await plain.save(makePattern());
+    expect((await plain.load()).pattern!.backstitch).toBeUndefined();
+  });
+
   it("stores cellPalette as the typed array itself, not a JSON number array", async () => {
     const kv = createMemoryKeyValueStore();
     await createProjectStore(kv).save(makePattern());
