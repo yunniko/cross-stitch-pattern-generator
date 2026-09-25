@@ -245,7 +245,9 @@ describe("parseOxs", () => {
     ]);
     expect(report.approximatedPartStitches).toBe(2);
     expect(report.droppedObjects).toEqual({ knot: 2, bead3mm: 1 });
-    expect(report.droppedLines).toEqual({ backstitch: 1, daisy: 1 });
+    // A straight corner-to-corner backstitch is imported from G-073 on; the daisy still has no representation.
+    expect(report.droppedLines).toEqual({ daisy: 1 });
+    expect(pattern.backstitch).toEqual([{ x1: 0, y1: 0, x2: 2, y2: 2, paletteIndex: 0 }]);
     expect(report.droppedCommentBoxes).toBe(1);
     expect(report.colorsOnlyInDroppedContent).toBe(1);
     expect(report.unusedPaletteEntries).toBe(0);
@@ -366,10 +368,11 @@ describe("parseOxs", () => {
     ["a file whose root isn't chart", '<?xml version="1.0"?><svg width="1"/>', "isn't an OXS chart"],
     ["a chart with no stitches", chart({ palette: CLOTH }), "no stitches this app can show."],
     [
-      "a chart holding only lines and knots",
+      "a chart holding only knots and a backstitch it cannot place",
       chart({
         palette: CLOTH + '<palette_item index="1" name="A" color="111111"/>',
-        back: '<backstitch x1="0" y1="0" x2="1" y2="1" palindex="1" objecttype="backstitch"/>',
+        // Half-cell coordinates: a real backstitch, but not one that runs corner to corner, so still dropped.
+        back: '<backstitch x1="0.5" y1="0" x2="1" y2="1" palindex="1" objecttype="backstitch"/>',
         objects: '<object x1="0" y1="0" palindex="1" objecttype="knot"/>',
       }),
       "it holds only 1 backstitch line, 1 knot",
@@ -405,7 +408,6 @@ describe("summarizeOxsImport and oxsImportNotice", () => {
     expect(summarizeOxsImport(report)).toEqual([
       "1 part stitch is shown as full stitches (1 of them lost its second colour).",
       "1 part stitch was left out under other stitches.",
-      "1 backstitch line wasn't imported (1 backstitch).",
       "Not imported: 1 knot.",
       "1 comment box wasn't imported.",
       "1 stitch was marked as done; stitching progress isn't kept.",
@@ -415,7 +417,6 @@ describe("summarizeOxsImport and oxsImportNotice", () => {
       "1 stitch in the fabric colour is left empty.",
       "1 stitch lies outside the chart and was left out.",
       "1 cell had more than one full stitch; the last one is kept.",
-      "1 colour is used only by content that wasn't imported.",
       "1 unused palette colour was left out.",
       "Unrecognised content was skipped: 1 layers.",
       "The file states 14 stitches per inch across and 16 down; this app uses one count.",

@@ -25,7 +25,8 @@ test("opens an OXS chart, summarises what wasn't imported, and takes the file's 
   const notice = page.getByTestId("open-notice");
   await expect(notice).toContainText("Opened the OXS chart.");
   await expect(notice).toContainText("1 part stitch is shown as full stitches.");
-  await expect(notice).toContainText("1 backstitch line wasn't imported (1 backstitch).");
+  // From G-073 the line is imported rather than counted as a loss, so the notice must no longer mention it.
+  await expect(notice).not.toContainText("backstitch");
   await expect(notice).toContainText("Not imported: 1 knot.");
   await expect(notice).toContainText("Fabric count set to 18-count, as the file states.");
   await page.getByRole("tab", { name: "Chart" }).click();

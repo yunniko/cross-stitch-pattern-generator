@@ -1,3 +1,4 @@
+import { dedupeLines } from "./backstitch";
 import { DITHER_MODES, type DitherMode } from "../pipeline/dither";
 import { isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
 import { isEnhancementModeId, type EnhancementModeId } from "../pipeline/enhance";
@@ -6,6 +7,7 @@ import { effectiveSymmetryAxes, NO_SYMMETRY, SYMMETRY_AXES, type SymmetryAxes, t
 import {
   EMPTY_CELL,
   MAX_COLORS,
+  type BackstitchLine,
   MAX_STITCHES,
   type PaletteColor,
   type RGB,
@@ -75,6 +77,11 @@ export interface SerializedPattern {
    * older builds ignore, so the format version stays the same (D138).
    */
   symmetry?: SerializedSymmetry;
+  /**
+   * Backstitch lines (G-073), absent for a chart with none. Additive and optional like `symmetry`, so the format
+   * version stays where it is and a build that predates backstitch opens the file as the crosses alone.
+   */
+  backstitch?: BackstitchLine[];
 }
 
 /** Only the axes that are on, each `true`. */
@@ -123,6 +130,7 @@ export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes 
     ditherTexture: pattern.ditherTexture,
     vivid: pattern.vivid,
     symmetry: serializeSymmetry(effectiveSymmetryAxes(symmetry, pattern.width, pattern.height)),
+    backstitch: pattern.backstitch?.length ? pattern.backstitch : undefined,
   };
   return JSON.stringify(data);
 }
@@ -161,6 +169,41 @@ export function deserializePattern(json: string): StitchPattern {
  * malformed entry would reach the renderer as `rgb(undefined, ...)` /
  * a `NaN` luminance / a "null" legend row. See D099.
  */
+/**
+ * Backstitch lines from a file (G-073), validated as strictly as the grid is (D099).
+ *
+ * A line names corners, so its coordinates run `0..width` and `0..height` **inclusive** — one past the last
+ * cell index, which is the off-by-one worth being deliberate about. Anything malformed is refused rather than
+ * silently dropped: a line pointing at a colour the palette does not have would reach the renderer as an
+ * undefined thread, exactly the class of bug D099 exists to stop.
+ */
+function readBackstitch(raw: unknown, width: number, height: number, paletteLength: number): BackstitchLine[] | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (!Array.isArray(raw)) throw new Error("That file's backstitch data isn't a list.");
+  if (raw.length === 0) return undefined;
+  const corner = (v: unknown, limit: number) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= limit;
+  const lines = raw.map((entry) => {
+    if (typeof entry !== "object" || entry === null) throw new Error("That file has a backstitch line that isn't an object.");
+    const l = entry as Record<string, unknown>;
+    if (!corner(l.x1, width) || !corner(l.x2, width) || !corner(l.y1, height) || !corner(l.y2, height)) {
+      throw new Error("That file has a backstitch line outside its own grid.");
+    }
+    if (l.x1 === l.x2 && l.y1 === l.y2) throw new Error("That file has a backstitch line with no length.");
+    const index = l.paletteIndex;
+    if (!Number.isInteger(index) || (index as number) < 0 || (index as number) >= paletteLength) {
+      throw new Error("That file has a backstitch line in a color that isn't in its own palette.");
+    }
+    return {
+      x1: l.x1 as number,
+      y1: l.y1 as number,
+      x2: l.x2 as number,
+      y2: l.y2 as number,
+      paletteIndex: index as number,
+    } satisfies BackstitchLine;
+  });
+  return dedupeLines(lines);
+}
+
 export function deserializePatternData(data: unknown): StitchPattern {
   if (typeof data !== "object" || data === null) throw new Error("That file doesn't look like an editable pattern.");
   const d = data as Record<string, unknown>;
@@ -228,6 +271,8 @@ export function deserializePatternData(data: unknown): StitchPattern {
     return c.source ? { ...color, source: c.source } : color;
   });
 
+  const backstitch = readBackstitch(d.backstitch, width, height, entries.length);
+
   return {
     width,
     height,
@@ -245,6 +290,7 @@ export function deserializePatternData(data: unknown): StitchPattern {
     ditherTexture: isValidDitherTexture(d.ditherTexture) ? d.ditherTexture : undefined,
     // Anything but a literal true, including its absence in a file saved before G-061, reads as off.
     vivid: d.vivid === true ? true : undefined,
+    backstitch,
   };
 }
 

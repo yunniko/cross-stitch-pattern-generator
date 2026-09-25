@@ -1,4 +1,5 @@
 import { nameNewColor } from "../color/color-names";
+import { clipLines, shiftLines } from "./backstitch";
 import { floodFillDiagonal, labelRegions } from "../pipeline/regions";
 import { SYMBOL_SET } from "../color/symbols";
 import { formatThreadName, THREAD_BRANDS, type ThreadBrand } from "../threads/thread-brands";
@@ -139,8 +140,18 @@ export function shiftPattern(pattern: StitchPattern, dx: number, dy: number): St
   return {
     ...pattern,
     cellPalette: shifted,
+    // Stitches wrap around the edges; a backstitch cannot, because half a straight line on each side of the
+    // chart is not the line anyone drew. Lines move with the design and a line pushed off it goes (G-073).
+    backstitch: movedLines(pattern, dx, dy, pattern.width, pattern.height),
     sourceImage: sourceImage ? { ...sourceImage, offsetX: sourceImage.offsetX + dx, offsetY: sourceImage.offsetY + dy } : undefined,
   };
+}
+
+/** Lines shifted by whole cells and clipped to a chart of the given size; `undefined` when none survive. */
+function movedLines(pattern: StitchPattern, dx: number, dy: number, width: number, height: number) {
+  if (!pattern.backstitch?.length) return undefined;
+  const kept = clipLines(shiftLines(pattern.backstitch, dx, dy), width, height);
+  return kept.length ? kept : undefined;
 }
 
 /** Signed per-edge cell counts for `resizeCanvas` -- positive expands that edge, negative crops it, 0 leaves it alone. */
@@ -186,6 +197,8 @@ export function resizeCanvas(pattern: StitchPattern, delta: CanvasResizeDelta): 
     width: newWidth,
     height: newHeight,
     isLandscape: newWidth >= newHeight,
+    // The grid moved by (left, top); lines move with it, and one the new canvas no longer holds goes.
+    backstitch: movedLines(pattern, left, top, newWidth, newHeight),
     sourceImage: pattern.sourceImage
       ? { ...pattern.sourceImage, offsetX: pattern.sourceImage.offsetX + left, offsetY: pattern.sourceImage.offsetY + top }
       : undefined,

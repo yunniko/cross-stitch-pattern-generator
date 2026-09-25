@@ -23,7 +23,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - **Constraints:** not a line-count exercise. G-067's "under 300 lines" was a bad proxy and is not inherited; a shell
   component taking 38 props would meet it and improve nothing.
 
-### G-073 · Backstitch: lines over the stitches — DRAFT (2026-09-25)
+### G-073 · Backstitch: lines over the stitches — ACTIVE (2026-09-25)
 - **What:** a whole class of stitch the chart cannot hold today — straight lines drawn corner to corner over
   the crosses, about a fifth of a cell wide, with their own drawing and editing tools, their own place in the
   thread list, and their own line in the legend.
@@ -70,8 +70,8 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   - Research behind the two questions the Owner left open, and the arithmetic above:
     `docs/reviews/2026-09-25-backstitch-research.md`.
 
-**Milestones** (proposed — confirmed at planning, OPERATIONS.md §2):
-- [ ] M1 — **A chart can hold a line** (criterion 7, and the half of 5 that is OXS): the data model, the save,
+**Milestones** (confirmed at planning, 2026-09-25):
+- [x] M1 — **A chart can hold a line** (criterion 7, and the half of 5 that is OXS): the data model, the save,
   OXS in *and* out — import stops dropping them — and what resize, crop and shift do to a line. No UI.
   Proven by round-trips and by every existing export staying byte-identical.
 - [ ] M2 — **Drawing** (criterion 1): the Line tool, corner snapping, the chain and its two ways to end, the
@@ -86,6 +86,28 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M6 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-25 — **M1 done. A chart holds backstitch, saves it, and trades it with OXS exactly.**
+  `lib/editor/backstitch.ts` is the geometry: corner coordinates `0..width` **inclusive** (one past the last
+  cell, the off-by-one worth being deliberate about), length measured as a real diagonal so the legend's metres
+  will be honest, and the rule that a cell selection takes a line only when both ends are inside.
+  **OXS import stops dropping them.** The app has counted these lines since G-028; now a straight
+  corner-to-corner one is imported, its colour survives palette compaction, and a file holding *only*
+  backstitch is no longer refused. A line placed mid-cell still has no representation here and is still
+  reported as dropped — honest rather than moved to the nearest corner.
+  **Export is exact, proved against the real binary**: `scripts/rust-backstitch-oxs.ts` runs a chart through
+  `cs-bench export` and reads the file back, and a chart with no backstitch still writes `<backstitches/>` with
+  the same bytes as before (criterion 7).
+  **Decided, and worth the Owner knowing**: stitches wrap around the edges on a Move, but a line does not —
+  half a straight segment on each side of the chart is not the line anyone drew, so a line pushed off the
+  canvas goes, undoably, the same way a resize crops stitches away.
+  **Four existing specs asserted the old contract** (that backstitch is dropped) and were updated, which is the
+  right call here: the behaviour change *is* the deliverable, unlike G-072 M2 where a spec caught a string I
+  had no business changing. One refusal case now uses a mid-cell line, so it still tests the refusal path.
+  **Fixed a flake I introduced yesterday**: the lasso smoothing cost test failed at 275 ms against its 250 ms
+  bound on a loaded machine with the code unchanged. A wall-clock bound measures the machine; it now asserts
+  the smoothed run stays within a small multiple of the unsmoothed one, which is load-independent.
+  Verified: 778 unit (15 new), 125 Rust-config (2 new), 389 e2e, tsc, eslint, prettier, docs-lint.
+  M2 next: the Line tool.
 - 2026-09-25 — **Rendering settled: dashes as the base, beads on top** (Owner). The first proposal, a glyph
   inside the stroke, is impossible at print size and the project's own constants say so: an A4 cell is 2.75 mm,
   a fifth of that leaves a glyph under 1 pt after casing, against a `LEGIBILITY_FLOOR_PX` of 6 px below which

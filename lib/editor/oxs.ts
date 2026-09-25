@@ -1,6 +1,16 @@
+import { clipLines, dedupeLines } from "./backstitch";
 import { symbolsFor } from "../color/symbols";
 import { findThread, formatThreadName, THREAD_BRANDS, type ThreadBrand } from "../threads/thread-brands";
-import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern, type ThreadSwatchRef } from "../types";
+import {
+  EMPTY_CELL,
+  MAX_COLORS,
+  MAX_STITCHES,
+  type BackstitchLine,
+  type PaletteColor,
+  type RGB,
+  type StitchPattern,
+  type ThreadSwatchRef,
+} from "../types";
 import { escapeXmlAttribute, readXmlTags, XmlReadError } from "./oxs-xml";
 
 /**
@@ -129,6 +139,8 @@ export function parseOxs(text: string): OxsImportResult {
   const fullY: number[] = [];
   const fullPalindex: number[] = [];
   const parts: PartCandidate[] = [];
+  /** Backstitch lines that can be represented here, still in the file's own palette indices (G-073). */
+  const lineCandidates: Array<{ x1: number; y1: number; x2: number; y2: number; palindex: number }> = [];
   const referencedByDropped = new Set<number>();
 
   try {
@@ -203,9 +215,21 @@ export function parseOxs(text: string): OxsImportResult {
         }
         case "chart/backstitches/backstitch": {
           if (!hasAttributes) return;
-          increment(report.droppedLines, attributes.objecttype?.trim() || "backstitch");
+          const kind = attributes.objecttype?.trim() || "backstitch";
           const palindex = parseWholeNumber(attributes.palindex);
-          if (palindex !== null) referencedByDropped.add(palindex);
+          // Corner coordinates, integers only: this app's lines run corner to corner (G-073), so a file placing
+          // one mid-cell has no representation here and is still reported as dropped rather than moved.
+          const x1 = parseCorner(attributes.x1);
+          const y1 = parseCorner(attributes.y1);
+          const x2 = parseCorner(attributes.x2);
+          const y2 = parseCorner(attributes.y2);
+          const straight = x1 !== null && y1 !== null && x2 !== null && y2 !== null;
+          if (kind.toLowerCase() !== "backstitch" || !straight || palindex === null || (x1 === x2 && y1 === y2)) {
+            increment(report.droppedLines, kind);
+            if (palindex !== null) referencedByDropped.add(palindex);
+            return;
+          }
+          lineCandidates.push({ x1, y1, x2, y2, palindex });
           return;
         }
         case "chart/ornaments_inc_knots_and_beads/object": {
@@ -301,6 +325,8 @@ export function parseOxs(text: string): OxsImportResult {
 
   const used = new Set<number>();
   for (const value of cells) if (value >= 0) used.add(value);
+  // A colour used only by backstitch is used: dropping it would take the lines with it.
+  for (const line of lineCandidates) used.add(line.palindex);
   for (const item of paletteItems.values()) {
     if (item.isCloth || used.has(item.index)) continue;
     if (referencedByDropped.has(item.index)) report.colorsOnlyInDroppedContent++;
@@ -313,7 +339,7 @@ export function parseOxs(text: string): OxsImportResult {
     if (value) report[key] = value;
   }
 
-  if (used.size === 0) {
+  if (used.size === 0 && lineCandidates.length === 0) {
     const dropped = describeDropped(report);
     throw new Error(`That OXS file has no stitches this app can show${dropped ? ` -- it holds only ${dropped}` : ""}.`);
   }
@@ -344,6 +370,18 @@ export function parseOxs(text: string): OxsImportResult {
     return c.source ? { ...color, source: c.source } : color;
   });
 
+  // Lines follow the same compaction the cells did; one whose colour did not survive it goes, and says so.
+  const backstitchLines: BackstitchLine[] = [];
+  for (const line of lineCandidates) {
+    const paletteIndex = colorOfPalindex.get(line.palindex);
+    if (paletteIndex === undefined) {
+      increment(report.droppedLines, "backstitch");
+      continue;
+    }
+    backstitchLines.push({ x1: line.x1, y1: line.y1, x2: line.x2, y2: line.y2, paletteIndex });
+  }
+  const backstitch = dedupeLines(clipLines(backstitchLines, width, height));
+
   const spi = parsePositiveNumber(props.stitchesperinch);
   const spiY = parsePositiveNumber(props.stitchesperinch_y);
   if (spi !== null) report.stitchesPerInch = spi;
@@ -360,6 +398,7 @@ export function parseOxs(text: string): OxsImportResult {
       isLandscape: width >= height,
       name: title !== "" ? title : undefined,
       threadBrand: report.threadBrand,
+      backstitch: backstitch.length ? backstitch : undefined,
     },
     report,
   };
@@ -681,6 +720,13 @@ function parseCoordinate(value: string | undefined): { cell: number; fractional:
   if (value === undefined || !/^\s*\d+(\.\d+)?\s*$/.test(value)) return null;
   const n = Number(value);
   return { cell: Math.floor(n), fractional: !Number.isInteger(n) };
+}
+
+/** A backstitch corner: a whole number only. A fractional coordinate is a mid-cell point this app cannot hold. */
+function parseCorner(value: string | undefined): number | null {
+  if (value === undefined || !/^\s*\d+(\.0+)?\s*$/.test(value)) return null;
+  const n = Number(value);
+  return Number.isInteger(n) ? n : null;
 }
 
 function parsePositiveNumber(value: string | undefined): number | null {

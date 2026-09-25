@@ -38,6 +38,18 @@ pub struct Pattern {
     pub enhancement_mode: Option<String>,
     /// The axes that are on, in `SYMMETRY_AXES` order.
     pub symmetry: Vec<&'static str>,
+    /// Backstitch lines, corner to corner (G-073); empty for a chart with none.
+    pub backstitch: Vec<Backstitch>,
+}
+
+/// One backstitch line. Coordinates are grid corners, `0..=width` and `0..=height`.
+#[derive(Clone, Debug)]
+pub struct Backstitch {
+    pub x1: usize,
+    pub y1: usize,
+    pub x2: usize,
+    pub y2: usize,
+    pub palette_index: usize,
 }
 
 fn str_field(o: &Map<String, Value>, key: &str) -> Option<String> {
@@ -113,6 +125,26 @@ impl Pattern {
             edge_mode: str_field(o, "edgeMode"),
             enhancement_mode: str_field(o, "enhancementMode"),
             symmetry,
+            backstitch: o
+                .get("backstitch")
+                .and_then(Value::as_array)
+                .map(|lines| {
+                    lines
+                        .iter()
+                        .filter_map(|l| {
+                            let e = l.as_object()?;
+                            let n = |k: &str| e.get(k).and_then(Value::as_u64).map(|v| v as usize);
+                            Some(Backstitch {
+                                x1: n("x1")?,
+                                y1: n("y1")?,
+                                x2: n("x2")?,
+                                y2: n("y2")?,
+                                palette_index: n("paletteIndex")?,
+                            })
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
         })
     }
 

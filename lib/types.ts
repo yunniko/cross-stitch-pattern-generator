@@ -108,6 +108,22 @@ export interface SourceImageRef {
   offsetY: number;
 }
 
+/**
+ * A backstitch line (G-073): straight, corner to corner, drawn over the crosses.
+ *
+ * Coordinates are grid **corners**, so a chart `width` stitches across has corners `0..width` inclusive. That
+ * is also how OXS stores a backstitch, which is why export is exact. There is no curve and no width here — the
+ * fifth-of-a-cell stroke is a drawing decision, not part of the stitch.
+ */
+export interface BackstitchLine {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  /** Indexes `palette`: one thread serves both crosses and backstitch, counted separately (Owner, 2026-09-25). */
+  paletteIndex: number;
+}
+
 export interface StitchPattern {
   width: number;
   height: number;
@@ -132,6 +148,8 @@ export interface StitchPattern {
   ditherTexture?: DitherTexture;
   /** Generated with Vivid (G-061). Informational; absent means the stitches are plain area means. */
   vivid?: true;
+  /** Backstitch lines drawn over the crosses (G-073); absent for a chart with none. */
+  backstitch?: BackstitchLine[];
 }
 
 /** An axis-aligned, end-exclusive rectangle in stitch-cell coordinates. */

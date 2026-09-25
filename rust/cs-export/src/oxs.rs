@@ -146,11 +146,27 @@ pub fn serialize(p: &Pattern, author_name: &str, aida_count: f64) -> Vec<u8> {
             }
         }
     }
+    out.push_str("</fullstitches>\n<partstitches/>\n");
+    // Backstitch is the one thing OXS holds exactly as this app does: a straight line between two grid
+    // corners, with a 1-based palette reference (G-073). No approximation is needed in either direction.
+    if p.backstitch.is_empty() {
+        out.push_str("<backstitches/>\n");
+    } else {
+        out.push_str("<backstitches>\n");
+        for line in &p.backstitch {
+            out.push_str(&format!(
+                "<backstitch x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" palindex=\"{}\" objecttype=\"backstitch\"/>\n",
+                line.x1,
+                line.y1,
+                line.x2,
+                line.y2,
+                line.palette_index + 1
+            ));
+        }
+        out.push_str("</backstitches>\n");
+    }
     out.push_str(
         &[
-            "</fullstitches>",
-            "<partstitches/>",
-            "<backstitches/>",
             "<ornaments_inc_knots_and_beads/>",
             "<commentboxes/>",
             "</chart>",

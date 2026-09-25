@@ -79,14 +79,25 @@ describe("smoothing the drawn path", () => {
 
   it("costs little enough on the longest path a hand can draw", () => {
     // The chart cap is 1500 stitches a side (D181); a lasso right around a chart that size is about 5,000 cells,
-    // far more than any real gesture. Measured 2026-09-24: 59 ms here against 18 ms unsmoothed, and 1.0 ms against
-    // 0.6 ms for a 200-point gesture, which is the size a hand actually draws. The bound leaves room for a slower
-    // CI machine; it exists to catch a change of algorithm, not to police milliseconds.
+    // far more than any real gesture. Measured 2026-09-24: 59 ms against 18 ms unsmoothed, and 1.0 ms against
+    // 0.6 ms for the 200-point gesture a hand actually draws.
+    //
+    // Asserted as a **ratio**, not a wall time: a millisecond bound measures the machine as much as the code,
+    // and this one failed at 275 ms against 250 on a loaded desktop while the code was unchanged (2026-09-25).
+    // Smoothing quadruples the point count, so the honest ceiling is a small multiple of the unsmoothed run.
     const long = circle(5000, 750, 500, 480);
-    const started = performance.now();
-    const region = lassoRegion(long, 1500, 1000);
-    const elapsed = performance.now() - started;
-    expect(region).not.toBeNull();
-    expect(elapsed).toBeLessThan(250);
+    const time = (smooth: boolean) => {
+      let best = Infinity;
+      for (let i = 0; i < 3; i++) {
+        const started = performance.now();
+        const region = lassoRegion(long, 1500, 1000, { smooth });
+        best = Math.min(best, performance.now() - started);
+        expect(region).not.toBeNull();
+      }
+      return best;
+    };
+    const raw = time(false);
+    const smoothed = time(true);
+    expect(smoothed).toBeLessThan(raw * 6);
   });
 });
