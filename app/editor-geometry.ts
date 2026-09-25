@@ -1,6 +1,7 @@
 import { cellAtClient } from "@/lib/editor/chart-viewport";
 import type { StampEdge } from "@/lib/editor/brush-stamp";
 import { smoothClosedPath } from "@/lib/editor/lasso";
+import { HIGHLIGHT_MASK_ALPHA } from "@/lib/export/render";
 import type { CellPoint } from "@/lib/editor/shape-raster";
 import type { BackstitchLine, PaletteColor } from "@/lib/types";
 import type { CellRect, StitchPattern } from "@/lib/types";
@@ -257,7 +258,9 @@ export function drawBackstitch(
   lines: readonly BackstitchLine[],
   palette: readonly PaletteColor[],
   cellSize: number,
-  highlight?: (line: BackstitchLine) => boolean
+  highlight?: (line: BackstitchLine) => boolean,
+  /** Isolate: a line whose thread is not lit is drawn faint, as its stitches are (G-073 M4). */
+  dim?: (line: BackstitchLine) => boolean
 ) {
   if (lines.length === 0) return;
   ctx.save();
@@ -269,6 +272,9 @@ export function drawBackstitch(
     if (!color) continue;
     // A selected line is drawn thicker, which is how the Select tool shows what it has hold of (G-073 M3).
     ctx.lineWidth = highlight?.(line) ? base * 1.8 : base;
+    // The same strength the cell mask leaves an unlit stitch at, so a dimmed line and a dimmed stitch
+    // read as one picture rather than two.
+    ctx.globalAlpha = dim?.(line) ? 1 - HIGHLIGHT_MASK_ALPHA : 1;
     ctx.strokeStyle = `rgb(${color.rgb[0]} ${color.rgb[1]} ${color.rgb[2]})`;
     ctx.beginPath();
     ctx.moveTo(line.x1 * cellSize, line.y1 * cellSize);

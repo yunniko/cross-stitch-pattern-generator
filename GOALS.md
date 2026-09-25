@@ -80,7 +80,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   line on screen at a fifth of a cell, symmetry, one undo step per segment.
 - [x] M3 — **Editing** (criteria 2, 4): Select and Move, the end zones, and the seven actions. The rule that a
   cell selection takes a line only when both ends are inside it.
-- [ ] M4 — **Threads** (criterion 3): the second section in the list, two counts against one entry, adding,
+- [x] M4 — **Threads** (criterion 3): the second section in the list, two counts against one entry, adding,
   picking, Isolate, merging, and merging into the empty thread.
 - [ ] M5 — **Exports and the legend** (criteria 5, 6): dashes first, since they identify a thread at any width
   and are shippable on their own; then beads. Sample exports go to the Owner rather than a test asserting a
@@ -88,6 +88,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M6 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-25 — **M4 done. Backstitch has its own section in the thread list** (D232), under the crosses and the empty row, listing the same palette entries that have lines. One entry, two counts: stitches above, length in cm here — length rather than a count of lines, since a cell's diagonal is √2 and two lines of equal length cost the same thread however they were drawn. The section is absent entirely until the chart has backstitch, so a chart of plain crosses looks exactly as it did.
+  **Isolate now reaches backstitch**: an unlit thread's lines are drawn at the same strength the cell mask leaves its stitches, and the constant is shared rather than copied. **Merging was silently broken** — `mergeColors` never touched `backstitch`, so merging a thread left its lines pointing at a palette entry that had gone. `withColorRemovedFromLines` had existed unused since M1; it is wired up now, and merging into the empty thread deletes the lines.
+  **Verified:** 48 unit in `backstitch.spec.ts` (5 new on merging), 9 new e2e in `backstitch-threads.spec.ts`. Two mutation checks: dropping the merge fix fails 4 unit tests, and cutting the Isolate dimming fails the pixel test alone.
+  Three of the new e2e failed first time and taught two things now in HANDOVER's rules: a row's text carries its symbol and counts as well as its name (so rows name themselves through a testid now), and activating a row **toggles** it — picking the same thread twice left the tool with no colour and drew nothing.
 - 2026-09-25 — **Drawing reworked: a line ends where it is placed** (Owner). Chaining used to be the default and a run only stopped at a double-click or Escape, so drawing one short line cost an extra gesture. Now two presses make one line, and a press holding **Ctrl** (or Cmd, since Ctrl with the primary button is a Mac's right-click) starts the next line at that end. Double-click and Escape still end a run held open by Ctrl. Criterion 1 of this goal is corrected above to match (D231).
   **Verified:** 2 new e2e for the behaviour itself, and the shared `drawChain` helper now holds Ctrl for every press but its last, so all 35 backstitch e2e still draw the chains they meant to. Mutation-checked: restoring chain-by-default fails the new test and nothing else.
 - 2026-09-25 — **A double-click takes the whole run** (Owner request): every line reachable end to end from the one under the pointer, in the same thread (D230). Ends only — a line crossing another's middle is a separate stroke — and the walk stops at another thread even where it shares the corner.

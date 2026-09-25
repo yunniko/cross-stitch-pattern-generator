@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { rgbToHex } from "@/lib/color/color";
 import { estimateSkeins, formatSkeinEstimate } from "@/lib/threads/floss-estimate";
+import { lengthByColor } from "@/lib/editor/backstitch";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 /**
@@ -99,6 +100,8 @@ export function ThreadRows({
             <div
               draggable
               data-testid="legend-color-row"
+              // Activating a row toggles it, so anything driving the list has to know it is already on.
+              data-active={active}
               onDragStart={(e) => e.dataTransfer.setData("text/plain", String(color.index))}
               onDragOver={(e) => e.preventDefault()}
               onDrop={dropOnto(color.index)}
@@ -154,6 +157,7 @@ export function ThreadRows({
                   />
                 ) : (
                   <span
+                    data-testid="legend-color-name"
                     className="truncate text-[13px]"
                     onDoubleClick={(e) => {
                       e.stopPropagation();
@@ -205,6 +209,115 @@ export function ThreadRows({
         />
         <span className="flex-1 text-[13px] text-muted">Empty (no stitch)</span>
       </div>
+
+      <BackstitchRows
+        pattern={pattern}
+        aidaCount={aidaCount}
+        activeColorIndex={activeColorIndex}
+        onRowActivate={onRowActivate}
+        onMergeColors={onMergeColors}
+        renderLight={renderLight}
+      />
     </div>
+  );
+}
+
+/**
+ * The backstitch section (G-073 M4): the threads with lines on the chart, under the crosses.
+ *
+ * A thread used for both is **one palette entry with two counts**, listed in both sections (Owner,
+ * 2026-09-25) — these rows read the same palette, so a rename, a recolour or a merge shows in both at once.
+ * The count here is length in cells rather than a number of lines: two lines of the same length cost the same
+ * thread whether they were drawn as one stroke or two.
+ *
+ * Absent entirely when the chart has no backstitch, so a chart of plain crosses looks exactly as it did.
+ */
+function BackstitchRows({
+  pattern,
+  aidaCount,
+  activeColorIndex,
+  onRowActivate,
+  onMergeColors,
+  renderLight,
+}: {
+  pattern: StitchPattern;
+  aidaCount: number;
+  activeColorIndex: number | null;
+  onRowActivate: (index: number) => void;
+  onMergeColors: (sourceIndex: number, targetIndex: number) => void;
+  renderLight?: (color: PaletteColor) => ReactNode;
+}) {
+  const lines = pattern.backstitch ?? [];
+  const lengths = lengthByColor(lines, pattern.palette.length);
+  const used = pattern.palette.filter((color) => lengths[color.index] > 0).sort((a, b) => lengths[b.index] - lengths[a.index]);
+  if (used.length === 0) return null;
+  const longest = lengths[used[0].index];
+
+  return (
+    <div data-testid="backstitch-section" className="mt-1 flex flex-col">
+      <div className="flex items-baseline justify-between px-2.5 pt-2 pb-1">
+        <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Backstitch</span>
+        <span className="font-mono text-[11px] text-faint">{formatBackstitchTotal(lengths, aidaCount)}</span>
+      </div>
+      {used.map((color) => {
+        const active = activeColorIndex === color.index;
+        const share = longest > 0 ? Math.max(0.04, lengths[color.index] / longest) : 0;
+        return (
+          <div
+            key={color.index}
+            draggable
+            data-testid="backstitch-color-row"
+            data-active={active}
+            onDragStart={(e) => e.dataTransfer.setData("text/plain", String(color.index))}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const raw = e.dataTransfer.getData("text/plain");
+              if (raw !== "") onMergeColors(Number(raw), color.index);
+            }}
+            onClick={() => onRowActivate(color.index)}
+            className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-1.5 transition-colors ${
+              active ? "bg-raised shadow-[inset_2px_0_0_var(--at-accent)]" : "hover:bg-raised"
+            }`}
+          >
+            {/* A line, not a square: the swatch says what this thread is doing here, not just which it is. */}
+            <span aria-hidden className="flex h-5 w-5 shrink-0 items-center justify-center">
+              <span className="block h-[3px] w-full rounded-full" style={{ backgroundColor: rgbToHex(color.rgb) }} />
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+              <span data-testid="backstitch-color-name" className="truncate text-[13px]">
+                {color.name}
+              </span>
+              <span aria-hidden className="block h-[3px] w-full rounded-sm bg-line">
+                <span className="block h-full rounded-sm bg-accent/70" style={{ width: `${Math.round(share * 100)}%` }} />
+              </span>
+            </span>
+            <span
+              data-testid="backstitch-color-length"
+              className="shrink-0 font-mono text-[11px] text-muted"
+              title="Length of this thread's backstitch on the chart"
+            >
+              {formatBackstitchLength(lengths[color.index], aidaCount)}
+            </span>
+            {renderLight?.(color)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** One thread's backstitch as a length a stitcher can act on: centimetres at this fabric count. */
+export function formatBackstitchLength(cells: number, aidaCount: number): string {
+  if (cells <= 0) return "0 cm";
+  const cm = (cells * 2.54) / aidaCount;
+  return cm < 10 ? `${cm.toFixed(1)} cm` : `${Math.round(cm)} cm`;
+}
+
+/** The section's own total, so the heading carries the same fact the rows add up to. */
+function formatBackstitchTotal(lengths: readonly number[], aidaCount: number): string {
+  return formatBackstitchLength(
+    lengths.reduce((total, cells) => total + cells, 0),
+    aidaCount
   );
 }

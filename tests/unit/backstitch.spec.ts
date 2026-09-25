@@ -26,6 +26,7 @@ import {
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
 import {
   compositeSelectionPreview,
+  mergeColors,
   flipSelectionHorizontal,
   liftSelection,
   mergeSelection,
@@ -34,7 +35,7 @@ import {
   rotateSelectionClockwise,
   shiftPattern,
 } from "@/lib/editor/pattern-edit";
-import type { BackstitchLine, PaletteColor, StitchPattern } from "@/lib/types";
+import { EMPTY_CELL, type BackstitchLine, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 /** Backstitch as data (G-073 M1): corner coordinates, what survives a resize, and what a file round-trips. */
 
@@ -378,5 +379,49 @@ describe("a run of connected backstitch", () => {
   it("returns the run in the chart's own order, whichever line it started from", () => {
     const chain = [line(0, 0, 2, 0), line(2, 0, 2, 2), line(2, 2, 0, 2)];
     expect(connectedRun(chain, 1)).toEqual(chain);
+  });
+});
+
+describe("a thread's backstitch goes where the thread goes", () => {
+  /** A 6x4 chart whose three threads are all used, so a merge has to renumber. */
+  function charted(lines: BackstitchLine[]): StitchPattern {
+    const cells = new Uint8Array(24);
+    cells[0] = 0;
+    cells[1] = 1;
+    cells[2] = 2;
+    return { ...chart(lines), cellPalette: cells, palette: palette(3) };
+  }
+
+  it("gives the merged thread's lines to the thread it merged into", () => {
+    const merged = mergeColors(charted([line(0, 0, 2, 0, 1), line(2, 0, 4, 0, 0)]), 1, 0);
+    expect(merged.backstitch?.map((l) => l.paletteIndex)).toEqual([0, 0]);
+  });
+
+  it("renumbers the lines of every thread above the one that went", () => {
+    // Thread 1 goes, so thread 2's lines have to become thread 1 or they would point at a thread that
+    // is no longer there — the failure that would corrupt a chart rather than just look wrong.
+    const merged = mergeColors(charted([line(0, 0, 2, 0, 2), line(0, 1, 2, 1, 0)]), 1, 0);
+    expect(merged.palette).toHaveLength(2);
+    expect(merged.backstitch?.map((l) => l.paletteIndex)).toEqual([1, 0]);
+  });
+
+  it("deletes the lines when a thread is merged into the empty one", () => {
+    // A line cannot be “no colour”, so merging into empty is the way to delete a thread's backstitch.
+    const merged = mergeColors(charted([line(0, 0, 2, 0, 1), line(0, 1, 2, 1, 0)]), 1, EMPTY_CELL);
+    expect(merged.backstitch?.map((l) => l.paletteIndex)).toEqual([0]);
+  });
+
+  it("leaves a chart with no backstitch without any", () => {
+    const plain: StitchPattern = { ...charted([]), backstitch: undefined };
+    expect(mergeColors(plain, 1, 0).backstitch).toBeUndefined();
+    expect(mergeColors(charted([line(0, 0, 2, 0, 1)]), 1, EMPTY_CELL).backstitch).toBeUndefined();
+  });
+
+  it("counts a thread's backstitch by length, so a diagonal costs more than a side", () => {
+    // The diagonal of a cell is √2: a legend that counted lines would price the two the same.
+    const totals = lengthByColor([line(0, 0, 1, 0, 0), line(0, 0, 1, 1, 1)], 3);
+    expect(totals[0]).toBe(1);
+    expect(totals[1]).toBeCloseTo(Math.SQRT2);
+    expect(totals[2]).toBe(0);
   });
 });

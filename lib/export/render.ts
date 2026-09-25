@@ -602,7 +602,8 @@ export function drawChartOutline(
 // A dark "spotlight" mask over everything *not* highlighted reads more
 // clearly at a glance than brightening the matches themselves would --
 // works the same regardless of which colors/how many are underneath.
-const HIGHLIGHT_MASK_ALPHA = 0.6;
+// Exported since G-073 M4: backstitch dims itself to the same strength, and two numbers would drift apart.
+export const HIGHLIGHT_MASK_ALPHA = 0.6;
 
 /**
  * Candidate raster highlight mask (G-036 M2): the same dimming as `drawHighlightOverlay`, composited from one pixel

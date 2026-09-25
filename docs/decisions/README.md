@@ -266,4 +266,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D229 — Backstitch editing is one tool; ends go live only on the line in hand — active
 - D230 — A double-click takes the run, and a run moves as one — active
 - D231 — A line ends where it is placed; Ctrl carries the run on — active
+- D232 — Backstitch is a second section of one palette, counted by length — active
 - D228 — A cell selection takes a line by both ends — active

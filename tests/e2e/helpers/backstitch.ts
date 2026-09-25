@@ -45,11 +45,23 @@ export function asEndpoints(lines: readonly SavedLine[]): string[] {
   return lines.map((l) => `${l.x1},${l.y1}-${l.x2},${l.y2}`);
 }
 
-/** Puts a thread in hand, which the backstitch tool needs before it will draw anything. */
+/**
+ * Puts a thread in hand, which the backstitch tool needs before it will draw anything.
+ *
+ * Activating a row **toggles** it, so picking the same thread twice would put it down again and leave the
+ * tool with nothing to draw with. This asks first.
+ */
 export async function pickThread(page: Page, nth = 0): Promise<void> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  await page.locator('[data-testid="legend-color-row"]').nth(nth).click();
+  const row = page.locator('[data-testid="legend-color-row"]').nth(nth);
+  if ((await row.getAttribute("data-active")) !== "true") await row.click();
   await page.getByRole("tab", { name: "Chart" }).click();
+}
+
+/** The name of the nth thread in the cross list, read from its own element rather than the row's text. */
+export async function threadName(page: Page, nth = 0): Promise<string> {
+  await page.getByRole("tab", { name: "Threads" }).click();
+  return (await page.getByTestId("legend-color-name").nth(nth).innerText()).trim();
 }
 
 /**

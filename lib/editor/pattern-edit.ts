@@ -1,5 +1,13 @@
 import { nameNewColor } from "../color/color-names";
-import { clipLines, dedupeLines, flipLinesInBox, lineWithinRect, rotateLinesInBox, shiftLines } from "./backstitch";
+import {
+  clipLines,
+  dedupeLines,
+  flipLinesInBox,
+  lineWithinRect,
+  rotateLinesInBox,
+  shiftLines,
+  withColorRemovedFromLines,
+} from "./backstitch";
 import { floodFillDiagonal, labelRegions } from "../pipeline/regions";
 import { SYMBOL_SET } from "../color/symbols";
 import { formatThreadName, THREAD_BRANDS, type ThreadBrand } from "../threads/thread-brands";
@@ -42,6 +50,10 @@ function withCounts(pattern: StitchPattern, cellPalette: Uint8Array, palette: Pa
  * Merges `sourceIndex` into `targetIndex` at any distance -- an explicit user action, unlike the generation-time
  * near-duplicate merge -- and removes the source from the palette. `targetIndex` may be `EMPTY_CELL`, which turns the
  * source's stitches into empty cells (Owner request, 2026-09-12).
+ *
+ * The source's **backstitch goes with it** (G-073 M4): its lines take the target's thread, or are deleted
+ * when the target is the empty thread, since a line cannot be “no colour”. Every surviving line is
+ * renumbered with the palette, which is the part that would corrupt a chart if it were missed.
  */
 export function mergeColors(pattern: StitchPattern, sourceIndex: number, targetIndex: number): StitchPattern {
   if (sourceIndex === targetIndex) return pattern;
@@ -63,7 +75,11 @@ export function mergeColors(pattern: StitchPattern, sourceIndex: number, targetI
     remappedCellPalette[i] = value === EMPTY_CELL ? EMPTY_CELL : remap[value];
   }
 
-  return withCounts(pattern, remappedCellPalette, survivingPalette);
+  const backstitch = withColorRemovedFromLines(pattern.backstitch ?? [], sourceIndex, targetIndex === EMPTY_CELL ? null : targetIndex);
+  return {
+    ...withCounts(pattern, remappedCellPalette, survivingPalette),
+    backstitch: backstitch.length ? backstitch : undefined,
+  };
 }
 
 /**

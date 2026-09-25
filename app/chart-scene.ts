@@ -212,7 +212,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
   // while the whole chart is on screen, which is why it looked right until the chart was zoomed (Owner,
   // 2026-09-25). `clipTo(ctx, rect)` above already keeps the drawing inside the painted rectangle.
   if (displayPattern.backstitch?.length) {
-    drawBackstitch(ctx, displayPattern.backstitch, displayPattern.palette, cellSize, scene.highlightBackstitch);
+    const dimmed = isolate && litColorIndices.size > 0 ? (l: BackstitchLine) => !litColorIndices.has(l.paletteIndex) : undefined;
+    drawBackstitch(ctx, displayPattern.backstitch, displayPattern.palette, cellSize, scene.highlightBackstitch, dimmed);
   }
   if (isSelectTool(activeTool) && selection && !selectDragging) {
     drawSelectionOutline(ctx, selection, cellSize, selection.mask);
