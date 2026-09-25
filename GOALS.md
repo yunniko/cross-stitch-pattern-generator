@@ -31,8 +31,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   the app makes blocks of colour and nothing that draws over them. The chart already *knows* the shape of the
   gap: it has parsed OXS `<backstitch>` elements since G-028 and reports them as content it had to drop.
 - **Acceptance criteria:**
-  1. **A line is drawn corner to corner and chains**: the end of one starts the next until a double-click or
-     `Escape` ends the run. Each segment is its own line, so each can be moved or deleted alone.
+  1. **A line is drawn corner to corner**: two presses make one line. A press holding **Ctrl** as it places
+     the end starts the next line there instead, which is how a chain continues (reworked by the Owner,
+     2026-09-25, D231; it chained by default until then). Each segment is its own line, so each can be
+     moved or deleted alone.
   2. **Editing**: a Select tool that shows the selected line thicker, drags either end by its own small zone,
      and moves the whole line by its body; a Move tool where the ends do not grab, so a line can be shifted
      without nudging an endpoint; copy, paste, duplicate, mirror in both axes, rotate both ways, and recolour
@@ -86,6 +88,8 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M6 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-25 — **Drawing reworked: a line ends where it is placed** (Owner). Chaining used to be the default and a run only stopped at a double-click or Escape, so drawing one short line cost an extra gesture. Now two presses make one line, and a press holding **Ctrl** (or Cmd, since Ctrl with the primary button is a Mac's right-click) starts the next line at that end. Double-click and Escape still end a run held open by Ctrl. Criterion 1 of this goal is corrected above to match (D231).
+  **Verified:** 2 new e2e for the behaviour itself, and the shared `drawChain` helper now holds Ctrl for every press but its last, so all 35 backstitch e2e still draw the chains they meant to. Mutation-checked: restoring chain-by-default fails the new test and nothing else.
 - 2026-09-25 — **A double-click takes the whole run** (Owner request): every line reachable end to end from the one under the pointer, in the same thread (D230). Ends only — a line crossing another's middle is a separate stroke — and the walk stops at another thread even where it shares the corner.
   Two rules follow, both implemented and tested: with a run in hand **no end grabs**, so a press moves the run instead of re-aiming one of its ends; and a press on a line already in hand carries everything in hand, as pressing inside a cell selection moves the whole piece. The drag now carries a set, and a frame is all-or-nothing so the run keeps its shape.
   **Verified:** 7 new unit tests on what counts as one run, 5 new e2e. Three of the new e2e failed first time, all three my own expectations rather than the code: two compared a sorted array against an unsorted literal, and one probed a corner below a landscape chart, where the press never reached the frame.

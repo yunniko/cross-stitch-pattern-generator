@@ -1,14 +1,19 @@
 import { test, expect } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { generateSmallPattern, pickTool } from "./helpers/app";
 import { asEndpoints, chartBox, drawChain, exportLines, pickThread } from "./helpers/backstitch";
 
-/** G-073 M2: drawing backstitch as a chain. The shared affordances live in `helpers/backstitch.ts`. */
+/**
+ * G-073: drawing backstitch. The shared affordances live in `helpers/backstitch.ts`.
+ *
+ * A line ends where it is placed; a press that holds Ctrl carries the run on into the next line instead
+ * (D231). `drawChain` holds Ctrl for every press but its last, so it draws one connected chain.
+ */
 
-test("each click chains the next line from the last one's end", async ({ page }) => {
+test("a press holding Ctrl starts the next line from this one's end", async ({ page }) => {
   await generateSmallPattern(page);
   await pickThread(page);
 
-  // Four corners means three segments, each joined to the one before.
+  // Four corners, Ctrl held on all but the last: three segments, each joined to the one before.
   await drawChain(page, [
     [4, 4],
     [8, 4],
@@ -98,18 +103,21 @@ test("a chain clicked faster than the chart can re-render still keeps every segm
     const box = canvas.getBoundingClientRect();
     const cell = box.width / 50;
     let id = 1;
-    for (const [cx, cy] of [
+    const corners: Array<[number, number]> = [
       [4, 4],
       [8, 4],
       [8, 8],
       [4, 8],
-    ]) {
+    ];
+    for (const [i, [cx, cy]] of corners.entries()) {
       const init = {
         bubbles: true,
         cancelable: true,
         pointerId: id++,
         pointerType: "mouse",
         button: 0,
+        // Ctrl on every press but the last, which is what keeps this one run rather than four (D231).
+        ctrlKey: i < corners.length - 1,
         clientX: box.x + cx * cell,
         clientY: box.y + cy * cell,
       };
@@ -120,4 +128,43 @@ test("a chain clicked faster than the chart can re-render still keeps every segm
   });
 
   expect(await exportLines(page)).toHaveLength(3);
+});
+
+test("a plain press ends the line and does not start another", async ({ page }) => {
+  await generateSmallPattern(page);
+  await pickThread(page);
+
+  const { x, y, cell } = await chartBox(page);
+  await pickTool(page, "Backstitch");
+  const click = (cx: number, cy: number) => page.mouse.click(x + cell * cx, y + cell * cy);
+
+  // Two presses make one line, and the run is over: the third press starts a line of its own rather than
+  // carrying on from where the second left off (Owner, 2026-09-25).
+  await click(4, 4);
+  await click(10, 4);
+  expect(asEndpoints(await exportLines(page))).toEqual(["4,4-10,4"]);
+
+  await click(20, 20);
+  await click(26, 20);
+  expect(asEndpoints(await exportLines(page))).toEqual(["4,4-10,4", "20,20-26,20"]);
+});
+
+test("letting go of Ctrl ends a chain where it is, mid-run", async ({ page }) => {
+  await generateSmallPattern(page);
+  await pickThread(page);
+
+  const { x, y, cell } = await chartBox(page);
+  await pickTool(page, "Backstitch");
+  const click = (cx: number, cy: number) => page.mouse.click(x + cell * cx, y + cell * cy);
+
+  await page.keyboard.down("Control");
+  await click(4, 4);
+  await click(10, 4);
+  await page.keyboard.up("Control");
+  // This press ends the chain where it lands, and the one after it begins something separate.
+  await click(10, 10);
+  await click(30, 30);
+  await click(36, 30);
+
+  expect(asEndpoints(await exportLines(page))).toEqual(["4,4-10,4", "10,4-10,10", "30,30-36,30"]);
 });

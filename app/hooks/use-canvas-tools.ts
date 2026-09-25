@@ -50,7 +50,17 @@ import type { ChartRenderer } from "./use-chart-renderer";
 // capture and hit-testing belong to the chart frame; previews are handed to the renderer, which replays them on every
 // repaint (D135). The renderer is read through a ref assigned after render, because it needs the selection state here.
 
-type PointerLike = PointerPosition & { pointerId: number; button?: number };
+type PointerLike = PointerPosition & { pointerId: number; button?: number; ctrlKey?: boolean; metaKey?: boolean };
+
+/**
+ * Whether a press asks to carry on rather than to finish (Owner, 2026-09-25).
+ *
+ * Cmd counts as well as Ctrl: on a Mac, Ctrl with the primary button is the system's own right-click, so a
+ * Mac reader who only had Ctrl would be opening a context menu instead of drawing.
+ */
+function wantsToContinue(e: PointerLike): boolean {
+  return e.ctrlKey === true || e.metaKey === true;
+}
 
 export interface CanvasToolInputs {
   frameRef: RefObject<HTMLDivElement | null>;
@@ -562,7 +572,12 @@ export function useBackstitchTool({
     }
     if (run.anchor.x === at.x && run.anchor.y === at.y) return;
     commitSegment(at);
-    // The end of this segment is the start of the next: that is what chains the run together.
+    // A line ends where it is placed. Held Ctrl (or Cmd) makes that end the start of the next one, which is
+    // what chains a run together — the Owner's rework of a chain that used to continue by default (D231).
+    if (!wantsToContinue(e)) {
+      cancel();
+      return;
+    }
     run.anchor = at;
     hoverRef.current = at;
   }
@@ -580,7 +595,12 @@ export function useBackstitchTool({
     return true;
   }
 
-  /** A double-click ends the run without drawing the segment its second press would have made. */
+  /**
+   * A double-click ends the run without drawing the segment its second press would have made.
+   *
+   * Still here with Ctrl-to-continue: a chain now ends by simply letting go of Ctrl on its last press, but a
+   * run held open by Ctrl still needs a way out that is not Escape.
+   */
   function onDoubleClick(): boolean {
     return cancel();
   }

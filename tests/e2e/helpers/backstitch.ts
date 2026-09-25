@@ -52,7 +52,12 @@ export async function pickThread(page: Page, nth = 0): Promise<void> {
   await page.getByRole("tab", { name: "Chart" }).click();
 }
 
-/** Clicks the given grid corners in order with the Backstitch tool active. */
+/**
+ * Clicks the given grid corners in order with the Backstitch tool active, drawing them as one chain.
+ *
+ * Ctrl is held for every press but the last, because a line now ends where it is placed unless the press
+ * asks to carry on (D231). The last press lets the run finish, which is what the reader would do.
+ */
 export async function drawChain(
   page: Page,
   corners: Array<[number, number]>,
@@ -60,8 +65,12 @@ export async function drawChain(
 ): Promise<void> {
   const { x, y, cell } = await chartBox(page);
   await pickTool(page, "Backstitch");
-  for (const [cx, cy] of corners) {
+  for (let i = 0; i < corners.length; i++) {
+    const [cx, cy] = corners[i];
+    const carryOn = i < corners.length - 1;
+    if (carryOn) await page.keyboard.down("Control");
     await page.mouse.click(x + cell * cx, y + cell * cy);
+    if (carryOn) await page.keyboard.up("Control");
   }
   if (finish === "escape") await page.keyboard.press("Escape");
   if (finish === "double") {

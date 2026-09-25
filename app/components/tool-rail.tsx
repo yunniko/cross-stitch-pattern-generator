@@ -190,7 +190,7 @@ const TOOL_GROUPS = [
       tool: "backstitch" as const,
       label: "Backstitch",
       title:
-        "Draw a line over the stitches, corner to corner (K). Each click starts the next line from the last one's end; double-click or Escape to finish.",
+        "Draw a line over the stitches, corner to corner (K). Click where it starts, then where it ends. Hold Ctrl as you place that end to carry straight on into the next line.",
       Icon: BackstitchIcon,
     },
     {
