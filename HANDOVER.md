@@ -302,9 +302,11 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Next steps and open questions
 
-- **PENDING SIGN-OFF: G-072** — all five milestones done and deployed at 5273a10. Nothing is left to build.
-- Two drafts wait on the Owner: **G-069** (the workspace's shape, from
-  `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public launch, far future).
+- **No goal is active.** G-072 closed 2026-09-25. Two drafts wait on the Owner: **G-069** (the workspace's
+  shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public launch, far future).
+- Weakest area, from two Owner-found defects in G-072: tests assert the chart **after** a gesture, where a
+  merge is correct, and almost nothing asserts a frame **during** one. The piece preview is now covered
+  (`tests/unit/piece-preview-cells.spec.ts`); the other gesture previews are not.
 - G-070 is closed as answered: the V8 maths port costs nothing — replacing it is **13–25% slower** with
   identical output (D223). Its one actionable finding shipped as G-071: the build targets `x86-64-v3`,
   worth a mean 6.6% (D224). Both are written up in `docs/reviews/2026-09-24-parity-tax.md`.
