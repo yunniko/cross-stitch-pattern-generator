@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-25 at 5273a10 (G-072: Lasso select and Lasso fill; deployed and exercised live)
+Last verified: 2026-09-25 at 36bc22a (G-072 plus the Owner-reported preview fix; deployed and exercised live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 5273a10 (2026-09-25), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Verified on this build by generating, enhancing, exporting a PDF and reloading in a browser.
+**Production** runs 36bc22a (2026-09-25), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Verified on this build by generating, enhancing, exporting a PDF and reloading in a browser.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
@@ -330,8 +330,8 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
-| 2026-09-25 | 5273a10 | G-072: Lasso select and Lasso fill — a selection can be a shape rather than a box (D225), and the drawn path is smoothed by corner cutting (D226) | 758 unit, 388 e2e (8 new across the two tools), tsc, eslint, prettier, docs-lint. Live on the deployed build: a 480x320 photo generated a 100x67 chart of 6,700 stitches and 15 DMC threads; a 70-point freehand loop with ±2.5 cells of deliberate jitter filled as a **smooth rounded blob**, taking 3371 Black Brown from 448 stitches to 1,187; undo returned it to 448 exactly; Lasso select then reported `SELECTION 41 × 29 at 40, 20` and Escape dropped it. Console clean. 23 containers before and after with an identical name set and only this project's two restarted; nine sites returned 200 either side. |
-| 2026-09-24 | fe1f55b | G-071: the build targets `x86-64-v3` rather than Rust's 2003 default, for a measured mean 6.6% on generation with byte-identical output (D224) | 732 unit, 123 Rust-config, 8 cargo, 380 e2e, docs-lint; all 38 golden hashes unmoved. The flag was verified inside the image build itself. Live: the identical 15-thread palette and a 69,796-byte PDF, the same byte count as before the change. 23 containers before and after, only this project's two restarted; nine sites returned 200 |
+| 2026-09-25 | 36bc22a | Fix: dragging a lassoed piece carried the stitches around it on screen — the incremental preview path drew the whole bounding box while the merge stamped only the shape | 763 unit (5 new for the preview path), 388 e2e, tsc, eslint, prettier, docs-lint. Reintroducing the bug fails 3 of the 5 new cases. Sampled live during a drag: three of the four bounding-box corners show the chart's own stitches through the piece. 23 containers before and after with an identical name set and only this project's two restarted; nine sites returned 200. |
+| 2026-09-25 | 5273a10 | G-072: Lasso select and Lasso fill — a selection can be a shape rather than a box (D225), and the drawn path is smoothed by corner cutting (D226) | 758 unit, 388 e2e (8 new). Live: a 70-point freehand loop with jitter filled as a smooth blob, 3371 Black Brown 448 → 1,187 stitches, undo back to 448 exactly; Lasso select reported a 41 × 29 piece. 23 containers, only this project's two restarted; nine sites 200 |
 
 ## Decisions
 
