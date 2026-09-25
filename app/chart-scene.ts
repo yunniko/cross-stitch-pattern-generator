@@ -1,6 +1,7 @@
 import { intersectRects, isEmptyRect, moveTileOffsets, type PixelRect } from "@/lib/editor/chart-viewport";
 import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
 import type { CellPoint } from "@/lib/editor/shape-raster";
+import type { BackstitchLine } from "@/lib/types";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
 import {
   chartPaintOverhangPx,
@@ -13,7 +14,7 @@ import {
 } from "@/lib/export/render";
 import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
 import { isSelectTool, type Tool, type ViewMode } from "./editor-types";
-import { drawLassoPath, drawSelectionOutline, PHOTO_UNDERLAY_ALPHA } from "./editor-geometry";
+import { drawBackstitch, drawLassoPath, drawSelectionOutline, PHOTO_UNDERLAY_ALPHA } from "./editor-geometry";
 import type { StitchTiles } from "@/lib/export/stitch-texture";
 import { drawRealisticRegion } from "./realistic-tiles";
 
@@ -35,6 +36,9 @@ export interface ChartScene {
   /** The threads shown at full strength while Isolate is on. */
   litColorIndices: ReadonlySet<number>;
   selection: FloatingSelection | null;
+  /** Which backstitch lines are drawn thicker; absent means none (G-073 M3).
+   */
+  highlightBackstitch?: (line: BackstitchLine) => boolean;
   canvasColor: string;
   /** While a select drag runs, the floating selection is neither composited nor outlined: the drag frame draws it. */
   selectDragging: boolean;
@@ -93,7 +97,9 @@ export type GesturePreview =
   | { kind: "move"; base: StitchPattern; dx: number; dy: number }
   | { kind: "select-rect"; base: StitchPattern; rect: CellRect }
   | { kind: "select-piece"; base: StitchPattern; piece: FloatingSelection }
-  | { kind: "select-lasso"; base: StitchPattern; path: readonly CellPoint[]; stroke?: string };
+  | { kind: "select-lasso"; base: StitchPattern; path: readonly CellPoint[]; stroke?: string }
+  /** The backstitch segment being drawn (G-073), from the anchor to the corner under the pointer. */
+  | { kind: "backstitch-line"; base: StitchPattern; line: BackstitchLine };
 
 /** One single-stitch redraw of a brush stroke, with the colour it was painted in at that moment. */
 export interface BrushOp {
@@ -197,6 +203,12 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
 
   if (isolate && litColorIndices.size > 0) {
     atRegion(ctx, region, cellSize, () => drawHighlightOverlayRaster(ctx, displayPattern, cellSize, litColorIndices, region));
+  }
+  // Over the stitches and the highlight, under the selection outline: backstitch sits on top of the cloth.
+  if (displayPattern.backstitch?.length) {
+    atRegion(ctx, region, cellSize, () =>
+      drawBackstitch(ctx, displayPattern.backstitch!, displayPattern.palette, cellSize, scene.highlightBackstitch)
+    );
   }
   if (isSelectTool(activeTool) && selection && !selectDragging) {
     drawSelectionOutline(ctx, selection, cellSize, selection.mask);
@@ -336,6 +348,13 @@ function drawGestureContent(
       ctx.save();
       clipTo(ctx, rect);
       drawLassoPath(ctx, gesture.path, scene.cellSize, gesture.stroke);
+      ctx.restore();
+      return;
+    case "backstitch-line":
+      if (!baseDrawn) drawScene(ctx, gesture.base, scene, rect);
+      ctx.save();
+      clipTo(ctx, rect);
+      drawBackstitch(ctx, [gesture.line], gesture.base.palette, scene.cellSize);
       ctx.restore();
       return;
     case "select-piece": {

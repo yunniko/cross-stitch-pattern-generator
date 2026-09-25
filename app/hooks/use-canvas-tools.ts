@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
 import { stampCells, type StampOffset } from "@/lib/editor/brush-stamp";
+import { dedupeLines, isDegenerate, symmetryLineOrbit } from "@/lib/editor/backstitch";
 import { lassoRegion, maskedCell, type LassoRegion } from "@/lib/editor/lasso";
 import { lineCells, ovalCells, rectCells, stampForPress, type CellPoint, type ShapeFill } from "@/lib/editor/shape-raster";
 import {
@@ -17,10 +18,11 @@ import {
   withCellPalette,
 } from "@/lib/editor/pattern-edit";
 import { fillSymmetric, symmetryOrbit, type SymmetryAxes } from "@/lib/editor/symmetry";
-import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
+import type { BackstitchLine, CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
 import {
   cellIndexFromEvent,
   clampedCellFromEvent,
+  cornerFromEvent,
   pointInRect,
   rectFromCorners,
   releaseCapture,
@@ -462,6 +464,134 @@ function filledCells(base: StitchPattern, region: LassoRegion, color: number, ax
     }
   }
   return cells;
+}
+
+/**
+ * The backstitch Line tool (G-073 M2).
+ *
+ * A press fixes a corner; the next press fixes the second and **commits that segment, then starts the next from
+ * its end** (Owner, 2026-09-25). A double-click or `Escape` ends the run. Each segment is its own line, so each
+ * can later be moved or deleted alone, and each is its own undo step.
+ *
+ * The anchor is deliberately *not* cleared when a segment commits: it becomes the start of the next one, which
+ * is what makes a chain feel like one gesture rather than a sequence of pairs.
+ */
+export function useBackstitchTool({
+  frameRef,
+  rendererRef,
+  pattern,
+  cellSize,
+  commit,
+  colorForPointer,
+  symmetry,
+}: CanvasToolInputs & {
+  colorForPointer: (button: number) => number | null;
+  symmetry: SymmetryAxes;
+}) {
+  /**
+   * The run in progress: where the next segment starts, the thread it draws in, the chart as it was when the
+   * run began, and every line added since.
+   *
+   * The lines accumulate here rather than being read back from the committed pattern, because a click can
+   * land before React has re-rendered from the click before it — five fast clicks each saw the chart as it was
+   * at the first one, and each commit overwrote the last, leaving a chain of one line (found by drawing in a
+   * browser, 2026-09-25). Capturing a base at the start is what the shape tools already do.
+   */
+  const runRef = useRef<{
+    anchor: CellPoint;
+    color: number;
+    base: StitchPattern;
+    added: BackstitchLine[];
+  } | null>(null);
+  const hoverRef = useRef<CellPoint | null>(null);
+
+  function drawFrame() {
+    const run = runRef.current;
+    const to = hoverRef.current;
+    if (!run || !to) return;
+    rendererRef.current?.previewBackstitch(chartSoFar(run), {
+      x1: run.anchor.x,
+      y1: run.anchor.y,
+      x2: to.x,
+      y2: to.y,
+      paletteIndex: run.color,
+    });
+  }
+
+  /** The chart as the run has left it so far: its base plus everything the run has added. */
+  function chartSoFar(run: { base: StitchPattern; added: BackstitchLine[] }): StitchPattern {
+    return { ...run.base, backstitch: dedupeLines([...(run.base.backstitch ?? []), ...run.added]) };
+  }
+
+  /** Adds one segment and its mirrors, as a single undo step. */
+  function commitSegment(to: CellPoint) {
+    const run = runRef.current;
+    if (!run) return;
+    const line: BackstitchLine = {
+      x1: run.anchor.x,
+      y1: run.anchor.y,
+      x2: to.x,
+      y2: to.y,
+      paletteIndex: run.color,
+    };
+    if (isDegenerate(line)) return;
+    run.added.push(...symmetryLineOrbit(line, run.base.width, run.base.height, symmetry));
+    commit(chartSoFar(run));
+  }
+
+  function onPointerDown(e: PointerLike, frame: HTMLElement) {
+    const color = colorForPointer(e.button ?? 0);
+    if (!pattern || color === null) return;
+    const at = cornerFromEvent(e, frame, cellSize, pattern.width, pattern.height);
+    const run = runRef.current;
+    if (!run) {
+      runRef.current = { anchor: at, color, base: pattern, added: [] };
+      hoverRef.current = at;
+      return;
+    }
+    if (run.anchor.x === at.x && run.anchor.y === at.y) return;
+    commitSegment(at);
+    // The end of this segment is the start of the next: that is what chains the run together.
+    run.anchor = at;
+    hoverRef.current = at;
+  }
+
+  function onPointerMove(e: PointerLike): boolean {
+    const run = runRef.current;
+    if (!run) return false;
+    const frame = frameRef.current;
+    if (!frame) return true;
+    const at = cornerFromEvent(e, frame, cellSize, run.base.width, run.base.height);
+    const last = hoverRef.current;
+    if (last && last.x === at.x && last.y === at.y) return true;
+    hoverRef.current = at;
+    drawFrame();
+    return true;
+  }
+
+  /** A double-click ends the run without drawing the segment its second press would have made. */
+  function onDoubleClick(): boolean {
+    return cancel();
+  }
+
+  /** Escape, a tool change, or a double-click: the run ends and the pending segment is not drawn. */
+  function cancel(): boolean {
+    if (!runRef.current) return false;
+    runRef.current = null;
+    hoverRef.current = null;
+    rendererRef.current?.endGesture(true);
+    return true;
+  }
+
+  return {
+    onPointerDown,
+    onPointerMove,
+    onDoubleClick,
+    cancel,
+    get isDrawing() {
+      return runRef.current !== null;
+    },
+  };
 }
 
 export function useMoveTool({ frameRef, rendererRef, pattern, cellSize, commit }: CanvasToolInputs) {

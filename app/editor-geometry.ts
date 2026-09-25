@@ -2,6 +2,7 @@ import { cellAtClient } from "@/lib/editor/chart-viewport";
 import type { StampEdge } from "@/lib/editor/brush-stamp";
 import { smoothClosedPath } from "@/lib/editor/lasso";
 import type { CellPoint } from "@/lib/editor/shape-raster";
+import type { BackstitchLine, PaletteColor } from "@/lib/types";
 import type { CellRect, StitchPattern } from "@/lib/types";
 
 // The Image window's target on-screen width: cell size derives from it, so a small pattern isn't tiny and a large one fits.
@@ -84,6 +85,25 @@ export function clampedCellFromEvent(
 ): { x: number; y: number } {
   const { x, y } = cellFromEvent(e, frame, cellSize);
   return { x: Math.max(0, Math.min(width - 1, x)), y: Math.max(0, Math.min(height - 1, y)) };
+}
+
+/**
+ * The grid corner nearest the pointer, clamped to the chart (G-073).
+ *
+ * A backstitch starts and ends on a corner, never inside a cell, so the pointer is **rounded** to the nearest
+ * one rather than floored to the cell it is in. Corners run `0..width` and `0..height` inclusive.
+ */
+export function cornerFromEvent(
+  e: PointerPosition,
+  frame: HTMLElement,
+  cellSize: number,
+  width: number,
+  height: number
+): { x: number; y: number } {
+  const origin = chartOrigin(frame);
+  const x = Math.round((e.clientX - origin.left) / cellSize);
+  const y = Math.round((e.clientY - origin.top) / cellSize);
+  return { x: Math.max(0, Math.min(width, x)), y: Math.max(0, Math.min(height, y)) };
 }
 
 export function rectFromCorners(x0: number, y0: number, x1: number, y1: number): CellRect {
@@ -200,6 +220,41 @@ export function drawLassoPath(ctx: CanvasRenderingContext2D, path: readonly Cell
   for (let i = 1; i < path.length; i++) ctx.lineTo((path[i].x + 0.5) * cellSize, (path[i].y + 0.5) * cellSize);
   ctx.closePath();
   ctx.stroke();
+  ctx.restore();
+}
+
+/** A backstitch is a fifth of a cell wide (Owner, 2026-09-25), never thinner than a pixel on screen. */
+export const BACKSTITCH_WIDTH_RATIO = 1 / 5;
+
+/**
+ * Draws backstitch lines over the chart (G-073).
+ *
+ * Round caps and joins, because a chain of segments meeting at a corner should read as one continuous line
+ * rather than as separate strokes with a notch between them.
+ */
+export function drawBackstitch(
+  ctx: CanvasRenderingContext2D,
+  lines: readonly BackstitchLine[],
+  palette: readonly PaletteColor[],
+  cellSize: number,
+  highlight?: (line: BackstitchLine) => boolean
+) {
+  if (lines.length === 0) return;
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const base = Math.max(1, cellSize * BACKSTITCH_WIDTH_RATIO);
+  for (const line of lines) {
+    const color = palette[line.paletteIndex];
+    if (!color) continue;
+    // A selected line is drawn thicker, which is how the Select tool shows what it has hold of (G-073 M3).
+    ctx.lineWidth = highlight?.(line) ? base * 1.8 : base;
+    ctx.strokeStyle = `rgb(${color.rgb[0]} ${color.rgb[1]} ${color.rgb[2]})`;
+    ctx.beginPath();
+    ctx.moveTo(line.x1 * cellSize, line.y1 * cellSize);
+    ctx.lineTo(line.x2 * cellSize, line.y2 * cellSize);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 

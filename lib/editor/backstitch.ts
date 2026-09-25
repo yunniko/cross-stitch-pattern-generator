@@ -1,4 +1,5 @@
 import type { BackstitchLine, CellRect } from "../types";
+import { effectiveSymmetryAxes, symmetryGroup, type SymmetryAxes } from "./symmetry-axes";
 
 /**
  * Backstitch lines: straight, corner to corner, drawn over the crosses (G-073).
@@ -99,4 +100,28 @@ export function dedupeLines(lines: readonly BackstitchLine[]): BackstitchLine[] 
 /** A line with both ends on the same corner is not a stitch. */
 export function isDegenerate(line: BackstitchLine): boolean {
   return line.x1 === line.x2 && line.y1 === line.y2;
+}
+
+/**
+ * A line and every mirror of it the active axes ask for (G-073).
+ *
+ * Corners use a different centred coordinate from cells: a cell's centre sits at `2x - (width - 1)`, but a
+ * corner runs `0..width`, so its reflection is `2x - width`. Getting that wrong shifts every mirrored line
+ * half a cell, which is the kind of error that looks almost right.
+ */
+export function symmetryLineOrbit(line: BackstitchLine, width: number, height: number, axes: SymmetryAxes): BackstitchLine[] {
+  const out: BackstitchLine[] = [];
+  for (const [a, b, c, d] of symmetryGroup(effectiveSymmetryAxes(axes, width, height))) {
+    const at = (x: number, y: number) => {
+      const u = 2 * x - width;
+      const v = 2 * y - height;
+      return { x: (a * u + b * v + width) / 2, y: (c * u + d * v + height) / 2 };
+    };
+    const from = at(line.x1, line.y1);
+    const to = at(line.x2, line.y2);
+    const mirrored = { ...line, x1: from.x, y1: from.y, x2: to.x, y2: to.y };
+    if (isDegenerate(mirrored)) continue;
+    if (!out.some((existing) => sameLine(existing, mirrored))) out.push(mirrored);
+  }
+  return out;
 }

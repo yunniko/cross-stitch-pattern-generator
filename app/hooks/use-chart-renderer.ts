@@ -12,7 +12,7 @@ import {
 import type { StampEdge } from "@/lib/editor/brush-stamp";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
 import { renderNavigatorPixels } from "@/lib/export/render";
-import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
+import type { BackstitchLine, CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
 import {
   brushOpsIn,
   drawCellsInto,
@@ -478,6 +478,12 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   }
 
   /** One frame of a select drag: the base scene (restored from its snapshot when unchanged) plus the rectangle or piece. */
+  /** One frame of a backstitch run (G-073): the chart plus the segment from the anchor to the pointer. */
+  function previewBackstitch(base: StitchPattern, line: BackstitchLine) {
+    gestureRef.current = { kind: "backstitch-line", base, line };
+    paint();
+  }
+
   function previewSelect(frame: SelectDragFrame) {
     gestureRef.current =
       frame.kind === "rect"
@@ -600,6 +606,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     paintBrushCells,
     previewMove,
     previewSelect,
+    previewBackstitch,
     previewShape,
     previewHover,
     setHoverOutline,

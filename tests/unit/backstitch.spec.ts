@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   clipLines,
   dedupeLines,
+  symmetryLineOrbit,
   lengthByColor,
   lineLengthCells,
   lineWithinRect,
@@ -141,5 +142,28 @@ describe("backstitch in a saved file", () => {
     const doc = JSON.parse(serializePattern(chart([])));
     const json = JSON.stringify({ ...doc, backstitch: [{ x1: 5, y1: 3, x2: 6, y2: 4, paletteIndex: 0 }] });
     expect(deserializePattern(json).backstitch).toHaveLength(1);
+  });
+});
+
+describe("backstitch under symmetry", () => {
+  const axes = (on: Record<string, boolean>) =>
+    ({ vertical: false, horizontal: false, diagonal: false, antidiagonal: false, ...on }) as never;
+
+  it("mirrors a line about the chart's middle, not half a cell off it", () => {
+    // Corners run 0..6 on a 6-wide chart, so the mirror of 0 is 6 and the mirror of 2 is 4. Using the cell
+    // formula here would put them at 5 and 3 — a shift of half a cell, which looks almost right.
+    const mirrored = symmetryLineOrbit(line(0, 0, 2, 0), 6, 4, axes({ vertical: true }));
+    expect(mirrored).toContainEqual(line(6, 0, 4, 0));
+    expect(mirrored).toHaveLength(2);
+  });
+
+  it("gives four lines for two axes, and one for none", () => {
+    expect(symmetryLineOrbit(line(0, 0, 1, 1), 6, 4, axes({ vertical: true, horizontal: true }))).toHaveLength(4);
+    expect(symmetryLineOrbit(line(0, 0, 1, 1), 6, 4, axes({}))).toHaveLength(1);
+  });
+
+  it("does not repeat a line lying on the axis it is mirrored about", () => {
+    // A line straight down the middle of a 6-wide chart maps onto itself.
+    expect(symmetryLineOrbit(line(3, 0, 3, 4), 6, 4, axes({ vertical: true }))).toHaveLength(1);
   });
 });

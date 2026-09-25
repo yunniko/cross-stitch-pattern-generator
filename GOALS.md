@@ -74,7 +74,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M1 — **A chart can hold a line** (criterion 7, and the half of 5 that is OXS): the data model, the save,
   OXS in *and* out — import stops dropping them — and what resize, crop and shift do to a line. No UI.
   Proven by round-trips and by every existing export staying byte-identical.
-- [ ] M2 — **Drawing** (criterion 1): the Line tool, corner snapping, the chain and its two ways to end, the
+- [x] M2 — **Drawing** (criterion 1): the Line tool, corner snapping, the chain and its two ways to end, the
   line on screen at a fifth of a cell, symmetry, one undo step per segment.
 - [ ] M3 — **Editing** (criteria 2, 4): Select and Move, the end zones, and the seven actions. The rule that a
   cell selection takes a line only when both ends are inside it.
@@ -86,6 +86,25 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M6 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-25 — **M2 done. Backstitch draws as a chain (K).** Each click fixes a corner and starts the next line
+  from the last one's end, until a double-click or `Escape`. Corners are snapped by rounding, not by flooring
+  to a cell; symmetry mirrors each segment; each segment is its own undo step.
+  **Two bugs, both found by drawing in a browser rather than by the tests.**
+  1. **A chain clicked faster than React re-renders kept only its last segment.** Every handler read the
+     `pattern` prop as it was at the first click, so each commit overwrote the one before it. Five e2e tests
+     passed throughout, because Playwright's clicks yield between presses and React caught up each time. The
+     run now accumulates against a base captured at its start — what the shape tools already do — and a new
+     test fires the clicks in one synchronous loop. Putting the bug back fails that test and no other.
+  2. **The 768 px layout test failed again**, as it did when the lasso added a twelfth tool. Shaving pixels
+     would have bought one milestone, so **Mirror left the scrolling tool list and is pinned** — it is not a
+     tool, and the comment above that scroller already said only tools should scroll.
+  **Also moved the symmetry matrix group** from `symmetry.ts` to `symmetry-axes.ts`. Importing it from the
+  heavy side pulled `pattern-edit`, and through it a UMD colour bundle, into the e2e runner's Node context and
+  broke every spec that opens a saved file. `symmetry-axes.ts` exists to be dependency-free for this exact
+  reason; its own doc comment says so.
+  Verified: 781 unit (3 new), 394 e2e (6 new, no flakes), tsc, eslint, prettier, docs-lint. Seen by hand: a
+  six-click house outline draws as one continuous line, round joins and all.
+  M3 next: Select and Move, the end zones, and the seven actions.
 - 2026-09-25 — **M1 done. A chart holds backstitch, saves it, and trades it with OXS exactly.**
   `lib/editor/backstitch.ts` is the geometry: corner coordinates `0..width` **inclusive** (one past the last
   cell, the off-by-one worth being deliberate about), length measured as a real diagonal so the legend's metres

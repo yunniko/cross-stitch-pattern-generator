@@ -51,6 +51,17 @@ function SelectIcon() {
   );
 }
 
+/** A line running corner to corner across a cell, with the corners it can land on marked. */
+function BackstitchIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <path d="M4 20 13 11l7-7" strokeWidth={2.6} />
+      <circle cx="4" cy="20" r="1.6" fill="currentColor" />
+      <circle cx="20" cy="4" r="1.6" fill="currentColor" />
+    </svg>
+  );
+}
+
 /** The lasso loop again, this time solid and shaded: the area it encloses is what gets painted. */
 function LassoFillIcon() {
   return (
@@ -163,6 +174,13 @@ const TOOL_GROUPS = [
       label: "Lasso fill",
       title: "Draw around an area (G); letting go fills everything inside it with the colour in hand, in one step.",
       Icon: LassoFillIcon,
+    },
+    {
+      tool: "backstitch" as const,
+      label: "Backstitch",
+      title:
+        "Draw a line over the stitches, corner to corner (K). Each click starts the next line from the last one's end; double-click or Escape to finish.",
+      Icon: BackstitchIcon,
     },
   ],
   [
@@ -299,29 +317,33 @@ export function ToolRail({ activeTool, disabled, onSelect, squareCanvas, onMirro
             })}
           </Fragment>
         ))}
-
-        <div className="mx-3.5 my-1 h-px shrink-0 bg-line" aria-hidden="true" />
-        <span className="px-1 text-center text-[10px] font-medium tracking-wide text-faint uppercase" id="mirror-heading">
-          Mirror
-        </span>
-        <div role="group" aria-labelledby="mirror-heading" className="grid grid-cols-2 gap-1 px-2 pt-1">
-          {MIRROR_ACTIONS.map(({ kind, label, title }) => {
-            const needsSquare = kind === "upper-left-half-corner" && !squareCanvas;
-            return (
-              <button
-                key={kind}
-                type="button"
-                onClick={() => onMirror(kind)}
-                disabled={disabled || needsSquare}
-                title={needsSquare ? `${title}. Needs a square canvas.` : title}
-                aria-label={label}
-                className={`flex h-6 w-6 items-center justify-center rounded-md border border-line text-muted enabled:hover:bg-raised ${DISABLED_ICON}`}
-              >
-                <MirrorIcon kind={kind} />
-              </button>
-            );
-          })}
-        </div>
+      </div>
+      {/*
+        Mirror is not a tool, so it sits outside the scroller: the tool list grows with every goal, and the
+        Symmetry and Mirror groups have to stay reachable at 768 px without scrolling (symmetry.spec.ts). It
+        was inside, which meant each new tool pushed it a little further down (G-073).
+      */}
+      <div className="mx-3.5 my-1 h-px shrink-0 bg-line" aria-hidden="true" />
+      <span className="px-1 text-center text-[10px] font-medium tracking-wide text-faint uppercase" id="mirror-heading">
+        Mirror
+      </span>
+      <div role="group" aria-labelledby="mirror-heading" className="grid grid-cols-2 gap-1 px-2 pt-1">
+        {MIRROR_ACTIONS.map(({ kind, label, title }) => {
+          const needsSquare = kind === "upper-left-half-corner" && !squareCanvas;
+          return (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => onMirror(kind)}
+              disabled={disabled || needsSquare}
+              title={needsSquare ? `${title}. Needs a square canvas.` : title}
+              aria-label={label}
+              className={`flex h-6 w-6 items-center justify-center rounded-md border border-line text-muted enabled:hover:bg-raised ${DISABLED_ICON}`}
+            >
+              <MirrorIcon kind={kind} />
+            </button>
+          );
+        })}
       </div>
     </aside>
   );
