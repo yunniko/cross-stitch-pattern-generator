@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { generateSmallPattern, pickTool } from "./helpers/app";
 
 // G-036 M3 (D135): the chart frame is full chart size; one canvas inside it paints only the visible part plus overscan.
 
@@ -175,7 +175,7 @@ test("zooming during a Move drag keeps the gesture working and commits one undo 
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await generateSmallPattern(page);
-  await page.getByRole("button", { name: "Move" }).click();
+  await pickTool(page, "Move");
   const box = (await frame(page).boundingBox())!;
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;

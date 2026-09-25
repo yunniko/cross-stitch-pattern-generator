@@ -198,6 +198,115 @@ export interface SelectionBarProps {
   onDeselect: () => void;
 }
 
+export interface BackstitchBarProps {
+  /** How many lines are in hand; every action but Paste needs at least one. */
+  selectedCount: number;
+  hasClipboard: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  onCopy: () => void;
+  onPaste: () => void;
+  onDuplicate: () => void;
+  onMirrorHorizontal: () => void;
+  onMirrorVertical: () => void;
+  onRotateClockwise: () => void;
+  onRotateAnticlockwise: () => void;
+  onRecolour: () => void;
+  /** False when no thread is in hand, which leaves nothing to recolour to. */
+  canRecolour: boolean;
+  onDelete: () => void;
+  onDeselect: () => void;
+}
+
+/**
+ * What can be done to the backstitch in hand (G-073 M3).
+ *
+ * The same shape as the selection bar, for the same reason: these tools replace the context bar, and Undo and
+ * Redo would otherwise vanish while a line is selected. Unlike a floating selection, a backstitch edit is
+ * committed as it happens, so history stays usable and Undo is never disabled here.
+ */
+export function BackstitchBar({
+  selectedCount,
+  hasClipboard,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  onCopy,
+  onPaste,
+  onDuplicate,
+  onMirrorHorizontal,
+  onMirrorVertical,
+  onRotateClockwise,
+  onRotateAnticlockwise,
+  onRecolour,
+  canRecolour,
+  onDelete,
+  onDeselect,
+}: BackstitchBarProps) {
+  const none = selectedCount === 0;
+  return (
+    <div className="flex h-11 shrink-0 items-center gap-2.5 border-b border-line bg-surface px-4">
+      <div className="flex items-center gap-1.5">
+        <PillButton size="xs" onClick={onUndo} disabled={!canUndo} title="Ctrl+Z">
+          Undo
+        </PillButton>
+        <PillButton size="xs" onClick={onRedo} disabled={!canRedo} title="Ctrl+Y or Ctrl+Shift+Z">
+          Redo
+        </PillButton>
+      </div>
+      <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+      <div className="flex items-center gap-1.5">
+        <PillButton size="xs" onClick={onCopy} disabled={none} title="Copy the selected line">
+          Copy
+        </PillButton>
+        <PillButton size="xs" onClick={onPaste} disabled={!hasClipboard} title="Paste the copied line">
+          Paste
+        </PillButton>
+        <PillButton size="xs" onClick={onDuplicate} disabled={none} title="Leave this line and take a copy of it">
+          Duplicate
+        </PillButton>
+      </div>
+      <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+      <div className="flex items-center gap-1.5">
+        <PillButton size="xs" onClick={onMirrorHorizontal} disabled={none} title="Mirror left to right">
+          Mirror ↔
+        </PillButton>
+        <PillButton size="xs" onClick={onMirrorVertical} disabled={none} title="Mirror top to bottom">
+          Mirror ↕
+        </PillButton>
+        <PillButton size="xs" onClick={onRotateAnticlockwise} disabled={none} title="Turn a quarter turn left">
+          Turn ↺
+        </PillButton>
+        <PillButton size="xs" onClick={onRotateClockwise} disabled={none} title="Turn a quarter turn right">
+          Turn ↻
+        </PillButton>
+      </div>
+      <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+      <PillButton
+        size="xs"
+        onClick={onRecolour}
+        disabled={none || !canRecolour}
+        title={canRecolour ? "Give the selected line the colour in hand" : "Pick a thread in the list first — there is no colour to use"}
+      >
+        Recolour
+      </PillButton>
+      <PillButton size="xs" onClick={onDelete} disabled={none} title="Delete the selected line">
+        Delete
+      </PillButton>
+      <div className="ml-auto flex items-center gap-2.5">
+        <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Backstitch</span>
+        <span className="font-mono text-xs text-muted">{none ? "none selected" : `${selectedCount} selected`}</span>
+        <PillButton size="xs" onClick={onDeselect} disabled={none} title="Escape">
+          Deselect
+        </PillButton>
+      </div>
+    </div>
+  );
+}
+
 export function SelectionBar({
   hasSelection,
   hasClipboard,

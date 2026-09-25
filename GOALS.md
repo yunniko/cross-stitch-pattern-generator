@@ -76,7 +76,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   Proven by round-trips and by every existing export staying byte-identical.
 - [x] M2 — **Drawing** (criterion 1): the Line tool, corner snapping, the chain and its two ways to end, the
   line on screen at a fifth of a cell, symmetry, one undo step per segment.
-- [ ] M3 — **Editing** (criteria 2, 4): Select and Move, the end zones, and the seven actions. The rule that a
+- [x] M3 — **Editing** (criteria 2, 4): Select and Move, the end zones, and the seven actions. The rule that a
   cell selection takes a line only when both ends are inside it.
 - [ ] M4 — **Threads** (criterion 3): the second section in the list, two counts against one entry, adding,
   picking, Isolate, merging, and merging into the empty thread.
@@ -86,6 +86,13 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M6 — README, HANDOVER, deploy and verify live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-25 — **M3 done. Backstitch can be picked up and edited (J).** Two tools share one hook and differ in one rule: BS select grabs an end within 0.42 of a cell, BS move never does (D227). The bar carries Copy, Paste, Duplicate, Mirror both ways, Turn both ways, Recolour and Delete; each is one undo step, and the selected line is drawn thicker. A cell selection takes a line only when **both** ends are inside it and then carries it through a move, a flip and a turn, in the piece's own corner coordinates (D228).
+  **Verified:** 797 unit (34 in `backstitch.spec.ts`, 8 of them new for the piece rules), 410 e2e (17 new across `backstitch-edit.spec.ts`), tsc, eslint, prettier, docs-lint all clean. Two mutation checks rather than assertions taken on trust: changing the corner arithmetic to the cells' `width - 1 - x` fails 2 unit tests, and cutting the highlight wiring fails the new pixel test and nothing else.
+  **Three things went wrong, all worth keeping:**
+  1. **The thirteenth and fourteenth tools broke four unrelated specs.** "BS move" contains "Move", so `getByRole("button", { name: "Move" })` became a strict-mode violation — the same failure "Lasso fill" caused over "Fill" in G-072. Rather than sprinkle `exact: true` a third time, tools are now picked through one `pickTool` helper that matches exactly.
+  2. **A browser check reported a bug that was not there.** The extension shrank the window to 230×210, where the chart is scrolled out of view and nothing paints, and the missing highlight looked like a missed repaint. The claim was checked before being written down: it is now a Playwright test that reads canvas pixels, passes on the real build, and fails when the wiring is cut. Nothing in the suite had asserted a stroke width before.
+  3. **A hand-started dev server without `PROCESSOR_URL` was reused by Playwright** and failed all 16 specs of a run with "Couldn't generate a pattern". Recorded in HANDOVER's rules beside the existing one about reused servers.
+  **Also:** `HANDOVER.md` had not been regenerated since G-072 — M1 and M2 shipped without it, against OPERATIONS §3. It is rewritten now and covers all three milestones, and the be9eb0a deploy has its deploy-log row.
 - 2026-09-25 — **M2 done. Backstitch draws as a chain (K).** Each click fixes a corner and starts the next line
   from the last one's end, until a double-click or `Escape`. Corners are snapped by rounding, not by flooring
   to a cell; symmetry mirrors each segment; each segment is its own undo step.

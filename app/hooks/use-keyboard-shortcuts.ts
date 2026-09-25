@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
-import { isSelectTool, isShapeTool, type Tool, type ViewMode } from "../editor-types";
+import { isBackstitchEditTool, isSelectTool, isShapeTool, type Tool, type ViewMode } from "../editor-types";
 
 /** Everything the shortcut handlers read or call. Rebuilt every render and read through a ref, so a handler never sees stale state (D103). */
 export interface KeyboardShortcutContext {
@@ -83,7 +83,8 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
           isSelectTool(ctx.activeTool) ||
           isShapeTool(ctx.activeTool) ||
           ctx.activeTool === "lasso-fill" ||
-          ctx.activeTool === "backstitch"
+          ctx.activeTool === "backstitch" ||
+          isBackstitchEditTool(ctx.activeTool)
         )
           ctx.cancelSelection();
         return;
@@ -114,6 +115,7 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
       else if (key === "q") ctx.switchTool("lasso");
       else if (key === "g") ctx.switchTool("lasso-fill");
       else if (key === "k") ctx.switchTool("backstitch");
+      else if (key === "j") ctx.switchTool("backstitch-select");
       else if (e.key === "1") ctx.setViewMode("color");
       else if (e.key === "2") ctx.setViewMode("bw");
       else if (e.key === "3") ctx.setViewMode("realistic");

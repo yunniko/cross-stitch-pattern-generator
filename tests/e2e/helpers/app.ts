@@ -16,6 +16,17 @@ import path from "node:path";
 
 export const FIXTURE = path.join(__dirname, "..", "fixtures", "sample.png");
 
+/**
+ * Puts a tool in hand by its rail label, matched exactly.
+ *
+ * Exactness is the point. A label that contains another label — "Lasso fill" over "Fill" in G-072, "BS
+ * move" over "Move" in G-073 — turns every loose locator in the suite into a strict-mode violation at once.
+ * One definition here means the next tool costs nobody an afternoon.
+ */
+export async function pickTool(page: Page, label: string): Promise<void> {
+  await page.getByRole("button", { name: label, exact: true }).click();
+}
+
 /** Uploads the sample photo and generates the small chart the specs are written against. */
 export async function generateSmallPattern(page: Page): Promise<void> {
   await page.goto("/");

@@ -57,10 +57,60 @@ export function clipLines(lines: readonly BackstitchLine[], width: number, heigh
   return lines.filter((l) => inside(l.x1, l.y1) && inside(l.x2, l.y2));
 }
 
-/** Whether both ends sit inside a cell rectangle — the rule for whether a cell selection takes a line (G-073). */
-export function lineWithinRect(line: BackstitchLine, rect: CellRect): boolean {
-  const inside = (x: number, y: number) => x >= rect.x && y >= rect.y && x <= rect.x + rect.width && y <= rect.y + rect.height;
-  return inside(line.x1, line.y1) && inside(line.x2, line.y2);
+/**
+ * Whether a cell selection takes this line: both ends inside the rectangle (Owner, 2026-09-25).
+ *
+ * A line with one end outside stays on the chart. Half a line cannot travel with a piece — it has no partial
+ * form — and leaving it where it is keeps the drawing it belongs to intact.
+ *
+ * `mask` narrows the rectangle to a shaped piece (G-072). A corner is not a cell, so a corner counts as inside
+ * when any of the up-to-four cells meeting at it is one the mask keeps: a line drawn along the edge of a lasso
+ * belongs to the shape the lasso drew.
+ */
+export function lineWithinRect(line: BackstitchLine, rect: CellRect, mask?: Uint8Array): boolean {
+  return cornerWithin(line.x1, line.y1, rect, mask) && cornerWithin(line.x2, line.y2, rect, mask);
+}
+
+function cornerWithin(x: number, y: number, rect: CellRect, mask?: Uint8Array): boolean {
+  if (x < rect.x || y < rect.y || x > rect.x + rect.width || y > rect.y + rect.height) return false;
+  if (!mask) return true;
+  for (const cx of [x - 1, x]) {
+    for (const cy of [y - 1, y]) {
+      const lx = cx - rect.x;
+      const ly = cy - rect.y;
+      if (lx < 0 || ly < 0 || lx >= rect.width || ly >= rect.height) continue;
+      if (mask[ly * rect.width + lx]) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Mirrors lines inside a `width` x `height` box of cells, in that box's own corner coordinates (G-073 M3).
+ *
+ * The cells of a floating piece are flipped by index and its lines by coordinate, so the two must agree: cell
+ * `cx` becomes `width - 1 - cx`, and the corner `x` bounding it becomes `width - x`. The tests below pin that.
+ */
+export function flipLinesInBox(
+  lines: readonly BackstitchLine[],
+  width: number,
+  height: number,
+  axis: "horizontal" | "vertical"
+): BackstitchLine[] {
+  const fx = (x: number) => (axis === "horizontal" ? width - x : x);
+  const fy = (y: number) => (axis === "vertical" ? height - y : y);
+  return lines.map((l) => ({ ...l, x1: fx(l.x1), y1: fy(l.y1), x2: fx(l.x2), y2: fy(l.y2) }));
+}
+
+/** Turns lines a quarter turn inside a `width` x `height` box, whose own width and height swap. */
+export function rotateLinesInBox(lines: readonly BackstitchLine[], width: number, height: number, clockwise: boolean): BackstitchLine[] {
+  // Clockwise sends the point (x, y) to (height - y, x); anticlockwise sends it to (y, width - x).
+  const at = (x: number, y: number) => (clockwise ? { x: height - y, y: x } : { x: y, y: width - x });
+  return lines.map((l) => {
+    const a = at(l.x1, l.y1);
+    const b = at(l.x2, l.y2);
+    return { ...l, x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+  });
 }
 
 /**
@@ -124,4 +174,107 @@ export function symmetryLineOrbit(line: BackstitchLine, width: number, height: n
     if (!out.some((existing) => sameLine(existing, mirrored))) out.push(mirrored);
   }
   return out;
+}
+
+/** How close to an end, in cells, counts as grabbing that end rather than the body (G-073 M3). */
+export const END_ZONE_CELLS = 0.42;
+
+/** How close to a line, in cells, counts as being on it. Generous enough to catch a fifth-of-a-cell stroke. */
+export const LINE_HIT_CELLS = 0.3;
+
+/** Which part of a line a point is on: one of its ends, its body, or nothing. */
+export type LinePart = "start" | "end" | "body";
+
+/** The distance from a point to a line segment, in cells. */
+export function distanceToLine(line: BackstitchLine, x: number, y: number): number {
+  const dx = line.x2 - line.x1;
+  const dy = line.y2 - line.y1;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared === 0) return Math.hypot(x - line.x1, y - line.y1);
+  const t = Math.max(0, Math.min(1, ((x - line.x1) * dx + (y - line.y1) * dy) / lengthSquared));
+  return Math.hypot(x - (line.x1 + t * dx), y - (line.y1 + t * dy));
+}
+
+/**
+ * The line under a point and which part of it, or null (G-073 M3).
+ *
+ * Ends win over bodies, and a later line wins over an earlier one, so the most recently drawn thing on top is
+ * what a click takes — which is what it looks like it should do.
+ *
+ * `grabEnds` is false for the Move tool, where a press anywhere on a line takes the whole line (Owner,
+ * 2026-09-25): that is the difference between the two tools, and it is why Move exists at all.
+ */
+export function hitLine(lines: readonly BackstitchLine[], x: number, y: number, grabEnds = true): { index: number; part: LinePart } | null {
+  let body: { index: number; part: LinePart } | null = null;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (grabEnds) {
+      if (Math.hypot(x - line.x1, y - line.y1) <= END_ZONE_CELLS) return { index: i, part: "start" };
+      if (Math.hypot(x - line.x2, y - line.y2) <= END_ZONE_CELLS) return { index: i, part: "end" };
+    }
+    if (!body && distanceToLine(line, x, y) <= LINE_HIT_CELLS) body = { index: i, part: "body" };
+  }
+  return body;
+}
+
+/** One end of a line moved to a new corner. */
+export function withEndAt(line: BackstitchLine, part: "start" | "end", x: number, y: number): BackstitchLine {
+  return part === "start" ? { ...line, x1: x, y1: y } : { ...line, x2: x, y2: y };
+}
+
+/** The smallest box holding every line, in corner coordinates; null for an empty list. */
+export function linesBounds(lines: readonly BackstitchLine[]): { x: number; y: number; width: number; height: number } | null {
+  if (lines.length === 0) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const l of lines) {
+    minX = Math.min(minX, l.x1, l.x2);
+    maxX = Math.max(maxX, l.x1, l.x2);
+    minY = Math.min(minY, l.y1, l.y2);
+    maxY = Math.max(maxY, l.y1, l.y2);
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+/**
+ * Mirrors lines within their own bounding box (G-073 M3).
+ *
+ * About the selection's own box, not the chart's centre, because that is what the floating-selection flips
+ * already do: a mirrored piece stays where it was put.
+ */
+export function mirrorLines(lines: readonly BackstitchLine[], axis: "horizontal" | "vertical"): BackstitchLine[] {
+  const bounds = linesBounds(lines);
+  if (!bounds) return [];
+  const flipX = (x: number) => (axis === "horizontal" ? 2 * bounds.x + bounds.width - x : x);
+  const flipY = (y: number) => (axis === "vertical" ? 2 * bounds.y + bounds.height - y : y);
+  return lines.map((l) => ({
+    ...l,
+    x1: flipX(l.x1),
+    y1: flipY(l.y1),
+    x2: flipX(l.x2),
+    y2: flipY(l.y2),
+  }));
+}
+
+/** Turns lines a quarter turn about their own bounding box, keeping its top-left corner. */
+export function rotateLines(lines: readonly BackstitchLine[], clockwise: boolean): BackstitchLine[] {
+  const bounds = linesBounds(lines);
+  if (!bounds) return [];
+  const at = (x: number, y: number) => {
+    const lx = x - bounds.x;
+    const ly = y - bounds.y;
+    return clockwise ? { x: bounds.x + (bounds.height - ly), y: bounds.y + lx } : { x: bounds.x + ly, y: bounds.y + (bounds.width - lx) };
+  };
+  return lines.map((l) => {
+    const a = at(l.x1, l.y1);
+    const b = at(l.x2, l.y2);
+    return { ...l, x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+  });
+}
+
+/** Every line given the colour in hand — the Recolour action. */
+export function recolourLines(lines: readonly BackstitchLine[], paletteIndex: number): BackstitchLine[] {
+  return lines.map((l) => ({ ...l, paletteIndex }));
 }

@@ -358,7 +358,9 @@ function drawGestureContent(
       ctx.restore();
       return;
     case "select-piece": {
-      if (mode) {
+      // A piece carrying backstitch takes the full repaint: the incremental path redraws cells, and a line
+      // is not a cell, so its old position would stay painted as the piece moved away from it (G-073 M3).
+      if (mode && !gesture.piece.backstitch?.length) {
         if (!baseDrawn) drawScene(ctx, gesture.base, scene, rect);
         drawCellsInto(ctx, gesture.base, mode, scene, rect, pieceCellsIn(gesture.base, gesture.piece));
       } else {

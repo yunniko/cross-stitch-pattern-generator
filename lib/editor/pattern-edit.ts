@@ -1,5 +1,5 @@
 import { nameNewColor } from "../color/color-names";
-import { clipLines, shiftLines } from "./backstitch";
+import { clipLines, dedupeLines, flipLinesInBox, lineWithinRect, rotateLinesInBox, shiftLines } from "./backstitch";
 import { floodFillDiagonal, labelRegions } from "../pipeline/regions";
 import { SYMBOL_SET } from "../color/symbols";
 import { formatThreadName, THREAD_BRANDS, type ThreadBrand } from "../threads/thread-brands";
@@ -7,6 +7,7 @@ import {
   EMPTY_CELL,
   MAX_COLORS,
   MAX_STITCHES,
+  type BackstitchLine,
   type CellRect,
   type FloatingSelection,
   type PaletteColor,
@@ -428,6 +429,9 @@ export function liftSelection(pattern: StitchPattern, rect: CellRect, mask?: Uin
     cells.set(pattern.cellPalette.subarray(srcRowStart, srcRowStart + clamped.width), ly * clamped.width);
   }
   const clampedMask = mask && cropMask(mask, rect, clamped);
+  // The lines the piece takes, in its own coordinates. Copied, not cut: the chart keeps them until the
+  // merge vacates `originRect`, exactly as it keeps the cells underneath (G-073 M3).
+  const taken = (pattern.backstitch ?? []).filter((line) => lineWithinRect(line, clamped, clampedMask));
   return {
     x: clamped.x,
     y: clamped.y,
@@ -435,6 +439,7 @@ export function liftSelection(pattern: StitchPattern, rect: CellRect, mask?: Uin
     height: clamped.height,
     cells,
     ...(clampedMask ? { mask: clampedMask, originMask: clampedMask } : {}),
+    ...(taken.length ? { backstitch: shiftLines(taken, -clamped.x, -clamped.y) } : {}),
     originRect: clamped,
   };
 }
@@ -501,12 +506,20 @@ function flipCells(cells: Uint8Array, width: number, height: number, axis: "hori
 
 /** Mirrors a floating selection's cells left-right, in place -- position/size/originRect are untouched. */
 export function flipSelectionHorizontal(selection: FloatingSelection): FloatingSelection {
-  return withShape(selection, (cells) => flipCells(cells, selection.width, selection.height, "horizontal"));
+  return withShape(
+    selection,
+    (cells) => flipCells(cells, selection.width, selection.height, "horizontal"),
+    (lines) => flipLinesInBox(lines, selection.width, selection.height, "horizontal")
+  );
 }
 
 /** Mirrors a floating selection's cells top-bottom, in place -- position/size/originRect are untouched. */
 export function flipSelectionVertical(selection: FloatingSelection): FloatingSelection {
-  return withShape(selection, (cells) => flipCells(cells, selection.width, selection.height, "vertical"));
+  return withShape(
+    selection,
+    (cells) => flipCells(cells, selection.width, selection.height, "vertical"),
+    (lines) => flipLinesInBox(lines, selection.width, selection.height, "vertical")
+  );
 }
 
 /**
@@ -515,12 +528,21 @@ export function flipSelectionVertical(selection: FloatingSelection): FloatingSel
  * The two are the same shape and must stay in step: a flip that moved the cells but left the mask would leave
  * the piece showing through its old outline. `originMask` is deliberately not transformed -- it describes the
  * hole left behind, which does not turn with the piece.
+ *
+ * The carried backstitch is rearranged by its own function (G-073 M3): it is stored in corners, not cells, so
+ * it cannot share the cells' index arithmetic — `width - 1 - cx` for a cell, `width - x` for the corner
+ * bounding it.
  */
-function withShape(selection: FloatingSelection, rearrange: (cells: Uint8Array) => Uint8Array): FloatingSelection {
+function withShape(
+  selection: FloatingSelection,
+  rearrange: (cells: Uint8Array) => Uint8Array,
+  rearrangeLines: (lines: readonly BackstitchLine[]) => BackstitchLine[]
+): FloatingSelection {
   return {
     ...selection,
     cells: rearrange(selection.cells),
     ...(selection.mask ? { mask: rearrange(selection.mask) } : {}),
+    ...(selection.backstitch ? { backstitch: rearrangeLines(selection.backstitch) } : {}),
   };
 }
 
@@ -544,7 +566,11 @@ function rotateCells(cells: Uint8Array, width: number, height: number, clockwise
 
 export function rotateSelectionClockwise(selection: FloatingSelection): FloatingSelection {
   return {
-    ...withShape(selection, (cells) => rotateCells(cells, selection.width, selection.height, true)),
+    ...withShape(
+      selection,
+      (cells) => rotateCells(cells, selection.width, selection.height, true),
+      (lines) => rotateLinesInBox(lines, selection.width, selection.height, true)
+    ),
     width: selection.height,
     height: selection.width,
   };
@@ -552,7 +578,11 @@ export function rotateSelectionClockwise(selection: FloatingSelection): Floating
 
 export function rotateSelectionAnticlockwise(selection: FloatingSelection): FloatingSelection {
   return {
-    ...withShape(selection, (cells) => rotateCells(cells, selection.width, selection.height, false)),
+    ...withShape(
+      selection,
+      (cells) => rotateCells(cells, selection.width, selection.height, false),
+      (lines) => rotateLinesInBox(lines, selection.width, selection.height, false)
+    ),
     width: selection.height,
     height: selection.width,
   };
@@ -603,7 +633,12 @@ function stampSelection(cellPalette: Uint8Array, width: number, height: number, 
 export function compositeSelectionPreview(pattern: StitchPattern, selection: FloatingSelection): StitchPattern {
   const cellPalette = pattern.cellPalette.slice();
   stampSelection(cellPalette, pattern.width, pattern.height, selection);
-  return { ...pattern, cellPalette };
+  // The lines the piece carries are shown where the piece is. The originals stay visible where they were
+  // drawn until the merge, which is what the cells under the piece do too.
+  const backstitch = selection.backstitch?.length
+    ? [...(pattern.backstitch ?? []), ...shiftLines(selection.backstitch, selection.x, selection.y)]
+    : pattern.backstitch;
+  return { ...pattern, cellPalette, backstitch };
 }
 
 /**
@@ -636,5 +671,25 @@ export function mergeSelection(pattern: StitchPattern, selection: FloatingSelect
     }
   }
   stampSelection(cellPalette, pattern.width, pattern.height, selection);
-  return withCounts(pattern, cellPalette, pattern.palette);
+  return { ...withCounts(pattern, cellPalette, pattern.palette), backstitch: mergedLines(pattern, selection) };
+}
+
+/**
+ * The chart's backstitch after a piece is put down: the lines the piece took out of `originRect` are dropped,
+ * and the ones it carries are laid down where it now sits.
+ *
+ * The same `lineWithinRect` rule chooses both, so a line is never dropped from the chart without the piece
+ * having a copy of it to put back.
+ */
+function mergedLines(pattern: StitchPattern, selection: FloatingSelection): BackstitchLine[] | undefined {
+  let lines: readonly BackstitchLine[] = pattern.backstitch ?? [];
+  if (selection.originRect) {
+    const from = selection.originRect;
+    lines = lines.filter((line) => !lineWithinRect(line, from, selection.originMask));
+  }
+  if (selection.backstitch?.length) {
+    lines = [...lines, ...shiftLines(selection.backstitch, selection.x, selection.y)];
+  }
+  const kept = dedupeLines(clipLines(lines, pattern.width, pattern.height));
+  return kept.length ? kept : undefined;
 }

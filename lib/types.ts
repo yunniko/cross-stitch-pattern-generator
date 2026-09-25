@@ -187,4 +187,13 @@ export interface FloatingSelection {
    * after a rotation `mask` describes the turned piece while this still describes the hole it left behind.
    */
   originMask?: Uint8Array;
+  /**
+   * The backstitch travelling with the piece (G-073 M3), in the piece's own corner coordinates: `0` is its
+   * left edge, `width` its right. Kept local so a flip, a turn and a move need no knowledge of where the
+   * piece currently sits.
+   *
+   * A line is taken only when both its ends are inside the piece (`lineWithinRect`); the rest stay on the
+   * chart. Like the cells, these are copied at lift and the originals are cleared at merge, not before.
+   */
+  backstitch?: readonly BackstitchLine[];
 }

@@ -3,15 +3,33 @@ import {
   clipLines,
   dedupeLines,
   symmetryLineOrbit,
+  distanceToLine,
+  hitLine,
+  linesBounds,
+  mirrorLines,
+  recolourLines,
+  rotateLines,
+  withEndAt,
   lengthByColor,
   lineLengthCells,
   lineWithinRect,
+  flipLinesInBox,
+  rotateLinesInBox,
   normalizeLine,
   sameLine,
   withColorRemovedFromLines,
 } from "@/lib/editor/backstitch";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
-import { resizeCanvas, shiftPattern } from "@/lib/editor/pattern-edit";
+import {
+  compositeSelectionPreview,
+  flipSelectionHorizontal,
+  liftSelection,
+  mergeSelection,
+  moveSelection,
+  resizeCanvas,
+  rotateSelectionClockwise,
+  shiftPattern,
+} from "@/lib/editor/pattern-edit";
 import type { BackstitchLine, PaletteColor, StitchPattern } from "@/lib/types";
 
 /** Backstitch as data (G-073 M1): corner coordinates, what survives a resize, and what a file round-trips. */
@@ -165,5 +183,128 @@ describe("backstitch under symmetry", () => {
   it("does not repeat a line lying on the axis it is mirrored about", () => {
     // A line straight down the middle of a 6-wide chart maps onto itself.
     expect(symmetryLineOrbit(line(3, 0, 3, 4), 6, 4, axes({ vertical: true }))).toHaveLength(1);
+  });
+});
+
+describe("what the pointer is on", () => {
+  it("measures to the segment, not to the infinite line it lies on", () => {
+    const l = line(0, 0, 4, 0);
+    expect(distanceToLine(l, 2, 1)).toBe(1);
+    // Past the end, the distance is to the end itself, so a click far off the end does not count as on it.
+    expect(distanceToLine(l, 7, 0)).toBe(3);
+  });
+
+  it("takes an end before the body it also touches", () => {
+    const lines = [line(0, 0, 4, 0)];
+    expect(hitLine(lines, 0.1, 0)).toEqual({ index: 0, part: "start" });
+    expect(hitLine(lines, 3.95, 0)).toEqual({ index: 0, part: "end" });
+    expect(hitLine(lines, 2, 0)).toEqual({ index: 0, part: "body" });
+    expect(hitLine(lines, 2, 2)).toBeNull();
+  });
+
+  it("gives the body when ends do not grab, which is what the Move tool asks for", () => {
+    const lines = [line(0, 0, 4, 0)];
+    expect(hitLine(lines, 0.1, 0, false)).toEqual({ index: 0, part: "body" });
+  });
+
+  it("takes the line drawn last where two overlap", () => {
+    const lines = [line(0, 0, 4, 0), line(0, 0, 4, 0, 1)];
+    expect(hitLine(lines, 2, 0)?.index).toBe(1);
+  });
+});
+
+describe("editing a line", () => {
+  it("moves one end and leaves the other", () => {
+    expect(withEndAt(line(0, 0, 4, 0), "start", 1, 1)).toEqual(line(1, 1, 4, 0));
+    expect(withEndAt(line(0, 0, 4, 0), "end", 1, 1)).toEqual(line(0, 0, 1, 1));
+  });
+
+  it("mirrors within its own box, so the piece stays where it was put", () => {
+    const lines = [line(2, 2, 6, 4)];
+    expect(linesBounds(lines)).toEqual({ x: 2, y: 2, width: 4, height: 2 });
+    expect(mirrorLines(lines, "horizontal")).toEqual([line(6, 2, 2, 4)]);
+    expect(mirrorLines(lines, "vertical")).toEqual([line(2, 4, 6, 2)]);
+  });
+
+  it("turns a quarter turn each way, and four turns come home", () => {
+    const lines = [line(0, 0, 2, 1)];
+    let turned = lines as ReturnType<typeof rotateLines>;
+    for (let i = 0; i < 4; i++) turned = rotateLines(turned, true);
+    expect(turned).toEqual(lines);
+    expect(rotateLines(rotateLines(lines, true), false)).toEqual(lines);
+  });
+
+  it("recolours every line and changes nothing else", () => {
+    expect(recolourLines([line(0, 0, 1, 1, 0), line(1, 1, 2, 2, 1)], 3)).toEqual([line(0, 0, 1, 1, 3), line(1, 1, 2, 2, 3)]);
+  });
+});
+
+describe("a cell selection carries backstitch", () => {
+  /** A 6x4 chart with one line across its middle, from corner (1,1) to corner (4,1). */
+  const withLine = () => chart([line(1, 1, 4, 1)]);
+
+  it("takes a line only when both ends are inside the rectangle", () => {
+    const inside = liftSelection(withLine(), { x: 1, y: 0, width: 4, height: 3 });
+    // Lifted into the piece's own corners: the rectangle starts at cell 1, so corner 1 becomes corner 0.
+    expect(inside.backstitch).toEqual([line(0, 1, 3, 1)]);
+
+    // One end at corner 4, a rectangle reaching only corner 3: the line is left on the chart.
+    const partial = liftSelection(withLine(), { x: 1, y: 0, width: 2, height: 3 });
+    expect(partial.backstitch).toBeUndefined();
+  });
+
+  it("counts a corner as inside a shaped piece when any cell meeting it is", () => {
+    const rect = { x: 0, y: 0, width: 6, height: 4 };
+    // Only the top-left 2x2 cells are in the piece, so corners 0..2 in each direction belong to it.
+    const mask = new Uint8Array(24);
+    for (const i of [0, 1, 6, 7]) mask[i] = 1;
+    expect(lineWithinRect(line(0, 0, 2, 2), rect, mask)).toBe(true);
+    // Corner (3,1) touches only cells the mask excludes.
+    expect(lineWithinRect(line(0, 0, 3, 1), rect, mask)).toBe(false);
+  });
+
+  it("shows the carried line where the piece is, and the chart's own where it was drawn", () => {
+    const base = withLine();
+    const piece = moveSelection(liftSelection(base, { x: 0, y: 0, width: 6, height: 2 }), 0, 2);
+    const shown = compositeSelectionPreview(base, piece);
+    // Two lines until the piece is put down, exactly as the cells under it stay until then.
+    expect(shown.backstitch).toEqual([line(1, 1, 4, 1), line(1, 3, 4, 3)]);
+  });
+
+  it("moves the line with the piece when it merges, leaving nothing behind", () => {
+    const base = withLine();
+    const piece = moveSelection(liftSelection(base, { x: 0, y: 0, width: 6, height: 2 }), 0, 2);
+    expect(mergeSelection(base, piece).backstitch).toEqual([line(1, 3, 4, 3)]);
+  });
+
+  it("leaves a line the piece did not take exactly where it was", () => {
+    const base = chart([line(1, 1, 4, 1), line(0, 3, 6, 3)]);
+    const piece = moveSelection(liftSelection(base, { x: 0, y: 0, width: 6, height: 2 }), 0, 1);
+    expect(mergeSelection(base, piece).backstitch).toEqual([line(0, 3, 6, 3), line(1, 2, 4, 2)]);
+  });
+
+  it("flips and turns the carried line with the cells, not against them", () => {
+    const piece = liftSelection(withLine(), { x: 0, y: 0, width: 6, height: 4 });
+    // A 6-wide box: corner 1 mirrors to 5 and corner 4 to 2.
+    expect(flipSelectionHorizontal(piece).backstitch).toEqual([line(5, 1, 2, 1)]);
+    // Clockwise in a 6x4 box: (x, y) goes to (4 - y, x), and the box becomes 4 wide.
+    expect(rotateSelectionClockwise(piece).backstitch).toEqual([line(3, 1, 3, 4)]);
+  });
+
+  it("keeps corners and cells in step under a flip and a turn", () => {
+    // The cell arithmetic is `width - 1 - cx`; the corner bounding it is `width - x`. A line drawn along the
+    // left edge of the box must land along its right edge, not one cell inside it.
+    expect(flipLinesInBox([line(0, 0, 0, 4)], 6, 4, "horizontal")).toEqual([line(6, 0, 6, 4)]);
+    expect(flipLinesInBox([line(0, 0, 6, 0)], 6, 4, "vertical")).toEqual([line(0, 4, 6, 4)]);
+    // The box's top-left corner goes to its top-right under a clockwise turn.
+    expect(rotateLinesInBox([line(0, 0, 6, 0)], 6, 4, true)).toEqual([line(4, 0, 4, 6)]);
+    expect(rotateLinesInBox([line(0, 0, 6, 0)], 6, 4, false)).toEqual([line(0, 6, 0, 0)]);
+  });
+
+  it("leaves a chart without backstitch untouched", () => {
+    const plain: StitchPattern = { ...chart([]), backstitch: undefined };
+    const piece = liftSelection(plain, { x: 0, y: 0, width: 3, height: 2 });
+    expect(piece.backstitch).toBeUndefined();
+    expect(mergeSelection(plain, moveSelection(piece, 1, 1)).backstitch).toBeUndefined();
   });
 });

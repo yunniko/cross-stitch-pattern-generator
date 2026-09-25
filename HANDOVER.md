@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-25 at 36bc22a (G-072 plus the Owner-reported preview fix; deployed and exercised live)
+Last verified: 2026-09-25 at HEAD_SHA (G-073 M3; deployed and exercised live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -51,15 +51,14 @@ export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-compar
   `docs/reviews/2026-09-21-dithering-comparison.md`: kernels lowest error (median 0.44–0.51×) and never worse,
   screens and drawn marks cheapest (+3.3 to +4.3 points), matrices between.
 - **Color detail — Averaged or Vivid** (G-061/G-062, D211, D212), off by default and byte-identical off. Two halves under one switch: a stitch keeps its area-mean lightness with the chroma of its most colourful quarter instead of averaging a small bright thing into a grey, and then every hue the cells hold that no thread speaks for takes a palette slot, paid for by merging the closest pair. It stands down below 24 source pixels a stitch (at ~4 pixels a cell, noise alone produces more chroma, 0.127, than real sub-stitch colour does at 144–400, 0.03–0.04; ungated it cost 121× the error on `flat regions`), and Crisp keeps its own palette stage. Measured in `docs/reviews/2026-09-22-vivid.md`: a red that needed 64 colours arrives at 20, a blue that needed 32 at 8, a pink that never arrived at 16, for 1.01–1.07× the 3×3 error and −0.37 to +0.55 points of confetti; the flat-region control is untouched.
+- **Backstitch** (G-073 M1–M3): straight lines over the stitches, corner to corner at a fifth of a cell. Drawn as a chain — each click starts the next line from the last one's end until a double-click or Escape (K). Two editing tools share one hook and differ in one rule: **BS select** (J) grabs an end within 0.42 of a cell to re-aim it, or moves the line by its body; **BS move** never catches an end (D227). Copy, paste, duplicate, mirror both ways, turn both ways, recolour and delete act on the line in hand, each one undo step, and the selected line is drawn thicker. Symmetry mirrors a line as it does a stitch. A cell selection takes a line only when **both** ends are inside it, and then carries it through a move, a flip and a turn (D228). Saved as an additive optional field (D138) and traded with OXS in both directions. **Not yet**: the thread list (M4) and every export but the save and OXS (M5).
 - Photo upload and reopening a save decode in a worker, the old decode a logged fallback (D128).
 - Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores on
   reload; a corrupt record shows a banner with an on-demand error report. Options live in localStorage.
 - Photo enhancement: Off, Brighten, Auto, Vivid, Portrait, with a "Compare with original" preview and recorded in
   saved files; only Brighten is released (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
 
-**Checks run 2026-09-24**: `tsc --noEmit` clean, `npm run lint` 0 errors, `prettier --check` clean; Vitest 1315
-passed (8 opt-in skips); Playwright 380 passed across all 37 specs, one spec per process against the single-path build, the processor serving
-generation, exports and previews. Last full Rust pass 2026-09-22: 330 e2e against the sidecar, `npm run compare:rust`
+**Checks run 2026-09-25**: `tsc --noEmit` clean, `npm run lint` 0 errors, `prettier --check` clean, `docs-lint` ok; Vitest 797 passed; Playwright 410 passed across all 39 specs, one spec per process against the single-path build, the processor serving generation, exports and previews, run with `CS_JOB_BINARY` set. **The e2e suite needs that variable and the app server needs `PROCESSOR_URL`** — without either, generation fails and every spec that opens a chart fails with it. Last full Rust pass 2026-09-22: 330 e2e against the sidecar, `npm run compare:rust`
 81 cases identical; export parity in `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the
 type-check and `build:processor` before the unit tests: the worker bundle is git-ignored and specs run against it.
 
@@ -146,8 +145,13 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   D149's caps (app on `127.0.0.1:30150`; the processor publishes no port). Recipe and shared-host rules:
   `COMPANY/INFRASTRUCTURE_DEPLOY.md`; verification per D027.
 
+(Backstitch is corners rather than cells, so it has its own geometry module: `lib/editor/backstitch.ts` holds hit-testing, the transforms, the symmetry orbit and the both-ends rule, with no React and no canvas in it. `app/hooks/use-canvas-tools.ts` has the two hooks that drive it and `app/editor-geometry.ts` draws it.)
+
 ## Rules in force
 
+- **Backstitch is corners, not cells.** A line's ends run `0..width` and `0..height` **inclusive**, and its arithmetic differs from the cells' by one: a cell mirrors to `width - 1 - cx`, the corner bounding it to `width - x` (D228). Anything that rearranges a floating piece supplies both transforms to `withShape`.
+- **A line has no partial form** and is never cut at a boundary. A resize, a crop or a drag that would put an end outside the chart drops or refuses the whole line (`clipLines`), and a cell selection takes one only when **both** ends are inside it (D228).
+- The two backstitch editing tools differ in exactly one flag, `hitLine`'s `grabEnds` (D227). Branching on the active tool anywhere else means that difference has leaked out of the one place that holds it.
 - A floating selection may be a shape, not just a box (D225). Anything that rearranges a piece moves `cells`
   and `mask` together — use `withShape` — and leaves `originMask` alone, because that describes the hole left
   behind and does not turn with the piece. Code that reads `cells` directly must ask the mask first.
@@ -161,7 +165,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   something needs the Owner's attention. Deploys still follow `COMPANY/INFRASTRUCTURE_DEPLOY.md`.
 - One session per working tree. Never force-kill node processes you did not start: find the owner of the port you actually need and check its start time first. A rule naming a fixed PID goes stale within days and PIDs are recycled -- the number this rule used to carry (17476, 2026-09-12) was long gone by 2026-09-18 and only caused a later session to believe it had killed someone else's server.
 - A goal isn't DONE with a dirty tree, placeholders, or no logged Owner sign-off (OPERATIONS.md §5, D098).
-- E2E runs against a production build on port 30200 (D102); locally an existing server is reused, so stop it after code changes.
+- E2E runs against a production build on port 30200 (D102); locally an existing server is reused, so stop it after code changes — **and never leave a hand-started one behind**: one without `PROCESSOR_URL` was reused on 2026-09-25 and failed all 16 specs of a run with "Couldn't generate a pattern".
 - Speed-ups must leave `tests/unit/fixtures/golden-hashes.json` unchanged. `GOLDEN_RECORD=1` adds a hash for a
   *new* case and refuses to overwrite an existing one, so an intended output change means editing the file by
   hand with a decision file (D107, D222).
@@ -179,7 +183,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - `lib/` imports no framework. It is the layer the unit tests exercise without rendering and the processor runs server-side; two hooks had drifted in before G-067 M6, so eslint `no-restricted-imports` now refuses `react` there. A hook goes in `app/hooks/`, its logic stays in `lib/` as a pure module.
 - A palette index is read through `colorAt` (`lib/color/palette.ts`), which fails naming the index and the palette size. The renderers stay strict on purpose — a cell nothing can draw is a bug to find (D217, D219).
 - `lib/experimental/` may be imported only behind a flag that is off by default and refuses loudly when combined with something it cannot support, as `contourRefinement` does (D068). It is on the production import graph; that is only safe while the flag is.
-- A helper or locator used by more than two e2e specs lives in `tests/e2e/helpers/`. Fifteen copies of one helper turned a single new canvas into an edit in 27 files (G-067 M5).
+- A helper or locator used by more than two e2e specs lives in `tests/e2e/helpers/`. Fifteen copies of one helper turned a single new canvas into an edit in 27 files (G-067 M5). A tool is put in hand with `pickTool`, which matches the rail label **exactly**: a new label containing an old one ("Lasso fill" over "Fill", "BS move" over "Move") turns every loose locator in the suite into a strict-mode violation at once.
 - `EMPTY_CELL` (255) is a sentinel, never an index to shift: renumbering it after a merge made 254, and the next press killed the page (D217). `paintableIndex` gates every press, and the renderers stay strict so a bad index is found, not painted around.
 - `main` holds two canvases: the chart's is `data-testid="chart-canvas"` and the cursor's `brush-outline` (D216). A spec asking for "the canvas in main" gets both and fails strict mode.
 - A shape tool contributes a rasteriser returning spine cells only; thickness is the brush's, and a filled shape never stamps it (D214, D215).
@@ -228,9 +232,6 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - Code e2e specs load in Node takes symmetry types from `lib/editor/symmetry-axes.ts`, not `symmetry.ts` (G-037).
 - Screen drawing = frozen pre-G-036 drawing with band grid lines (photos ±16, outlines ±1),
   per `tests/e2e/chart-viewport-parity.spec.ts`; exports keep stroked grid lines (D135).
-- ICM and both k-means paths had to stay identical to their pre-M5 TypeScript copies (D133, D170). Those
-  copies and their equivalence specs went with the pipeline at bf726db; the Rust implementations are
-  now held only by the golden hashes.
 - Brand-aware UI reads `pattern.threadBrand`. A new brand needs data, a
   provenance doc, a registry entry, and the inline union in `lib/types.ts`
   widened (D093).
@@ -239,8 +240,6 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   OXS thread numbers and printed codes come from `source` (D122).
 - Anchor uses code pairs from an unlicensed table under an Owner judgment call; read `docs/anchor-colors-provenance.md` first (D094).
 - Don't strip the embedded photo from saved files without asking (D028).
-- Mount-time restores defer setState in a microtask, because of the
-  set-state-in-effect lint rule (D033).
 - E2E acts on `getByTestId("chart-frame")` and reads pixels from `main canvas` inside
   its `data-painted-rect`; export options are selected by value (D080, D085, D135).
 - The inspector mounts one pane at a time: a Photo, Chart or Threads control is absent from the DOM while another
@@ -302,8 +301,8 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 
 ## Next steps and open questions
 
-- **No goal is active.** G-072 closed 2026-09-25. Two drafts wait on the Owner: **G-069** (the workspace's
-  shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public launch, far future).
+- **G-073 is active at M3 of 6.** Next is **M4, threads**: backstitch in its own section under the crosses, one palette entry with two counts, adding, picking, Isolate, merging, and merging into the empty thread deleting the lines. Then M5 (exports and the legend) and M6 (docs and deploy).
+- Two drafts wait on the Owner: **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public launch, far future).
 - Weakest area, from two Owner-found defects in G-072: tests assert the chart **after** a gesture, where a
   merge is correct, and almost nothing asserts a frame **during** one. The piece preview is now covered
   (`tests/unit/piece-preview-cells.spec.ts`); the other gesture previews are not.

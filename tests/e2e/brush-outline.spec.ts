@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { pickTool } from "./helpers/app";
 
 /**
  * G-065: the outline the cursor carries. It says where a press would land and how big it would be, on a canvas of its
@@ -161,7 +162,7 @@ test("it leaves with the pointer, and with a tool that paints nothing", async ({
   await page.getByRole("button", { name: "Pan" }).click();
   expect(await outlineBounds(page), "Pan paints nothing").toBeNull();
 
-  await page.getByRole("button", { name: "Select" }).click();
+  await pickTool(page, "Select");
   expect(await outlineBounds(page), "nor does Select").toBeNull();
 
   await page.keyboard.press("b");

@@ -26,16 +26,24 @@ import { ContextBar } from "./components/context-bar";
 import { ExportControls } from "./components/export-controls";
 import { ImageWindow } from "./components/image-window";
 import { Inspector, type InspectorTab } from "./components/inspector";
-import { hasFillChoice, isSelectTool, isShapeTool, isViewOnlyMode } from "./editor-types";
+import { hasFillChoice, isBackstitchEditTool, isSelectTool, isShapeTool, isViewOnlyMode } from "./editor-types";
 import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
-import { SelectionBar, WorkspaceNotices } from "./components/panels";
+import { BackstitchBar, SelectionBar, WorkspaceNotices } from "./components/panels";
 import { PhotoPane } from "./components/photo-pane";
 import { StatusBar } from "./components/status-bar";
 import { ToolRail } from "./components/tool-rail";
 import { PillButton } from "./components/ui";
 import type { Tool, ViewMode } from "./editor-types";
 import { cellIndexFromEvent, computeCellSize } from "./editor-geometry";
-import { useBackstitchTool, useBrushTool, useLassoFillTool, useMoveTool, useSelectTool, useShapeTool } from "./hooks/use-canvas-tools";
+import {
+  useBackstitchSelectTool,
+  useBackstitchTool,
+  useBrushTool,
+  useLassoFillTool,
+  useMoveTool,
+  useSelectTool,
+  useShapeTool,
+} from "./hooks/use-canvas-tools";
 import { useChartRenderer, type ChartRenderer } from "./hooks/use-chart-renderer";
 import { paginatesAsA4, useExports } from "./hooks/use-exports";
 import { useGeneration } from "./hooks/use-generation";
@@ -140,6 +148,12 @@ export default function Workspace() {
   });
   const lassoFill = useLassoFillTool({ ...toolInputs, colorForPointer, symmetry: liveSymmetry });
   const backstitch = useBackstitchTool({ ...toolInputs, colorForPointer, symmetry: liveSymmetry });
+  // Select and Move share one hook: the end zones are the only thing that differs between them (G-073 M3).
+  const backstitchEdit = useBackstitchSelectTool({
+    ...toolInputs,
+    colorForPointer,
+    grabEnds: activeTool === "backstitch-select",
+  });
   const move = useMoveTool(toolInputs);
   /**
    * The outline the cursor carries (G-065): the press the tool in hand would make, or null for a tool that
@@ -169,6 +183,9 @@ export default function Workspace() {
     activeTool,
     selection: select.selection,
     isSelectDragging: select.isDragging,
+    // Only while an editing tool is in hand: a thicker line claims 'this is selected', which would be a lie
+    // once the tool that could act on it has been put down.
+    highlightBackstitch: isBackstitchEditTool(activeTool) ? backstitchEdit.isSelected : undefined,
     isolate,
     litColorIndices,
     canvasColor: options.canvasColor,
@@ -311,6 +328,8 @@ export default function Workspace() {
     shape.cancel();
     lassoFill.cancel();
     backstitch.cancel();
+    // A line stays selected only while a tool that can act on it is in hand.
+    backstitchEdit.cancel();
     setActiveTool(tool);
   }
 
@@ -328,7 +347,7 @@ export default function Workspace() {
       swapColors: colours.swap,
       // Escape drops a shape being dragged before it reaches a selection, since only one of the two can be live.
       cancelSelection: () => {
-        if (!shape.cancel() && !lassoFill.cancel() && !backstitch.cancel()) select.cancel();
+        if (!shape.cancel() && !lassoFill.cancel() && !backstitch.cancel() && !backstitchEdit.cancel()) select.cancel();
       },
       hasSelection: select.selection !== null,
     },
@@ -350,6 +369,7 @@ export default function Workspace() {
     else if (isShapeTool(activeTool)) shape.onPointerDown(e, frame);
     else if (activeTool === "lasso-fill") lassoFill.onPointerDown(e, frame);
     else if (activeTool === "backstitch") backstitch.onPointerDown(e, frame);
+    else if (isBackstitchEditTool(activeTool)) backstitchEdit.onPointerDown(e, frame);
   }
 
   /** Hands the cursor its outline, or takes it away when the tool in hand would paint nothing. */
@@ -368,7 +388,8 @@ export default function Workspace() {
       select.onPointerMove(e) ||
       shape.onPointerMove(e) ||
       lassoFill.onPointerMove(e) ||
-      backstitch.onPointerMove(e)
+      backstitch.onPointerMove(e) ||
+      backstitchEdit.onPointerMove(e)
     )
       return;
     brush.onPointerMove(e);
@@ -380,7 +401,8 @@ export default function Workspace() {
       move.onPointerUp(e) ||
       select.onPointerUp(e) ||
       shape.onPointerUp(e) ||
-      lassoFill.onPointerUp(e)
+      lassoFill.onPointerUp(e) ||
+      backstitchEdit.onPointerUp(e)
     )
       return;
     brush.onPointerUp(e);
@@ -560,7 +582,27 @@ export default function Workspace() {
           the tool rail is disabled over the start screen, so leaving it here stranded a reader with a selection in
           hand: the "Back to your chart" button lives in the bar it replaced.
         */}
-        {isSelectTool(activeTool) && pattern && !startingNew ? (
+        {isBackstitchEditTool(activeTool) && pattern && !startingNew ? (
+          <BackstitchBar
+            selectedCount={backstitchEdit.selected.length}
+            hasClipboard={backstitchEdit.hasClipboard}
+            canUndo={history.canUndo}
+            canRedo={history.canRedo}
+            onUndo={history.undo}
+            onRedo={history.redo}
+            onCopy={backstitchEdit.copy}
+            onPaste={backstitchEdit.paste}
+            onDuplicate={backstitchEdit.duplicate}
+            onMirrorHorizontal={backstitchEdit.mirrorHorizontal}
+            onMirrorVertical={backstitchEdit.mirrorVertical}
+            onRotateClockwise={backstitchEdit.rotateClockwise}
+            onRotateAnticlockwise={backstitchEdit.rotateAnticlockwise}
+            onRecolour={backstitchEdit.recolour}
+            canRecolour={activeColorIndex !== null}
+            onDelete={backstitchEdit.remove}
+            onDeselect={backstitchEdit.clear}
+          />
+        ) : isSelectTool(activeTool) && pattern && !startingNew ? (
           <SelectionBar
             tool={activeTool === "lasso" ? "lasso" : "select"}
             hasSelection={select.selection !== null}

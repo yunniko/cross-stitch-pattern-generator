@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { generateSmallPattern, pickTool } from "./helpers/app";
 
 async function cornerPixel(canvas: import("@playwright/test").Locator) {
   return canvas.evaluate((el: HTMLCanvasElement) => {
@@ -18,7 +18,7 @@ test("the Move tool repositions the whole design as a single undoable step (G-01
 
   const before = await cornerPixel(page.getByTestId("chart-canvas"));
 
-  await page.getByRole("button", { name: "Move" }).click();
+  await pickTool(page, "Move");
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 20, { steps: 5 });
@@ -40,7 +40,7 @@ test("the Move tool does nothing (no undo step) when the drag doesn't cross a st
   const box = await canvas.boundingBox();
   if (!box) throw new Error("canvas not visible");
 
-  await page.getByRole("button", { name: "Move" }).click();
+  await pickTool(page, "Move");
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 1, box.y + box.height / 2, { steps: 1 });

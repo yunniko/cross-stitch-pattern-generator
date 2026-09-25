@@ -42,6 +42,9 @@ export interface ChartRendererInputs {
   /** The cursor's own canvas (G-065): the stamp outline is drawn here so a pointer move never repaints the chart. */
   hoverCanvasRef: RefObject<HTMLCanvasElement | null>;
   selection: FloatingSelection | null;
+  /** Which backstitch lines are drawn thicker (G-073 M3); absent means none. Memoise it: the scene is.
+   */
+  highlightBackstitch?: (line: BackstitchLine) => boolean;
   /** Must be stable across renders; while a select drag is active its frames draw the selection themselves. */
   isSelectDragging: () => boolean;
   /** Isolate is a way of looking at the chart, so it is independent of the active tool (G-045 M4). */
@@ -99,6 +102,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     cellSize,
     activeTool,
     selection,
+    highlightBackstitch,
     isSelectDragging,
     isolate,
     litColorIndices,
@@ -121,10 +125,23 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       isolate,
       litColorIndices,
       selection,
+      highlightBackstitch,
       canvasColor,
       symmetryAxes,
     }),
-    [viewMode, cellSize, photo, realisticTiles, activeTool, isolate, litColorIndices, selection, canvasColor, symmetryAxes]
+    [
+      viewMode,
+      cellSize,
+      photo,
+      realisticTiles,
+      activeTool,
+      isolate,
+      litColorIndices,
+      selection,
+      highlightBackstitch,
+      canvasColor,
+      symmetryAxes,
+    ]
   );
   // What the last commit asked to show; scroll, resize and gesture handlers paint from it.
   const shownRef = useRef<{ pattern: StitchPattern | null; scene: Omit<ChartScene, "selectDragging"> }>({ pattern: null, scene });

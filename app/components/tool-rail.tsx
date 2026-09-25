@@ -51,6 +51,28 @@ function SelectIcon() {
   );
 }
 
+/** The same line with its ends ringed: those are the zones that grab an end. */
+function BackstitchSelectIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <path d="M6 18 18 6" strokeWidth={2.6} />
+      <circle cx="6" cy="18" r="2.8" />
+      <circle cx="18" cy="6" r="2.8" />
+    </svg>
+  );
+}
+
+/** The line with arrows across it: the whole thing moves, ends and all. */
+function BackstitchMoveIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <path d="M5 17 17 5" strokeWidth={2.6} />
+      <path d="M14 17h6v-6" />
+      <path d="M10 7H4v6" />
+    </svg>
+  );
+}
+
 /** A line running corner to corner across a cell, with the corners it can land on marked. */
 function BackstitchIcon() {
   return (
@@ -181,6 +203,18 @@ const TOOL_GROUPS = [
       title:
         "Draw a line over the stitches, corner to corner (K). Each click starts the next line from the last one's end; double-click or Escape to finish.",
       Icon: BackstitchIcon,
+    },
+    {
+      tool: "backstitch-select" as const,
+      label: "BS select",
+      title: "Pick a backstitch line (J). Drag an end to re-aim it, or its middle to move it.",
+      Icon: BackstitchSelectIcon,
+    },
+    {
+      tool: "backstitch-move" as const,
+      label: "BS move",
+      title: "Drag anywhere on a backstitch line to move the whole line, without catching its ends.",
+      Icon: BackstitchMoveIcon,
     },
   ],
   [

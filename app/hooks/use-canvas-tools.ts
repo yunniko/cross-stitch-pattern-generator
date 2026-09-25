@@ -1,6 +1,18 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
 import { stampCells, type StampOffset } from "@/lib/editor/brush-stamp";
-import { dedupeLines, isDegenerate, symmetryLineOrbit } from "@/lib/editor/backstitch";
+import {
+  dedupeLines,
+  clipLines,
+  hitLine,
+  isDegenerate,
+  mirrorLines,
+  recolourLines,
+  rotateLines,
+  sameLine,
+  shiftLines,
+  symmetryLineOrbit,
+  withEndAt,
+} from "@/lib/editor/backstitch";
 import { lassoRegion, maskedCell, type LassoRegion } from "@/lib/editor/lasso";
 import { lineCells, ovalCells, rectCells, stampForPress, type CellPoint, type ShapeFill } from "@/lib/editor/shape-raster";
 import {
@@ -10,6 +22,7 @@ import {
   mergeSelection,
   moveSelection,
   duplicateSelection,
+  DUPLICATE_OFFSET,
   fillSelection,
   rotateSelectionClockwise,
   rotateSelectionAnticlockwise,
@@ -590,6 +603,163 @@ export function useBackstitchTool({
     cancel,
     get isDrawing() {
       return runRef.current !== null;
+    },
+  };
+}
+
+/**
+ * Selecting and editing backstitch (G-073 M3).
+ *
+ * Two tools share this hook because they differ in one rule: with **Select**, the small zone at each end grabs
+ * that end, so a line can be re-aimed; with **Move**, nothing grabs but the body, so a line can be shifted
+ * without nudging an endpoint (Owner, 2026-09-25). That is the whole reason Move exists as a separate tool.
+ *
+ * A selected line is drawn thicker. Everything else — copy, paste, duplicate, mirror, turn, recolour, delete —
+ * acts on the selection and is one undo step.
+ */
+export function useBackstitchSelectTool({
+  frameRef,
+  rendererRef,
+  pattern,
+  cellSize,
+  commit,
+  colorForPointer,
+  grabEnds,
+}: CanvasToolInputs & {
+  colorForPointer: (button: number) => number | null;
+  /** True for Select, false for Move. */
+  grabEnds: boolean;
+}) {
+  const [selected, setSelected] = useState<readonly BackstitchLine[]>([]);
+  const [clipboard, setClipboard] = useState<readonly BackstitchLine[]>([]);
+  const dragRef = useRef<{
+    pointerId: number;
+    base: StitchPattern;
+    index: number;
+    part: "start" | "end" | "body";
+    from: CellPoint;
+    current: BackstitchLine;
+  } | null>(null);
+
+  const lines = pattern?.backstitch ?? [];
+  // The renderer memoises its scene on this identity, so it holds still while the selection does.
+  const isSelected = useCallback((line: BackstitchLine) => selected.some((sel) => sameLine(sel, line)), [selected]);
+
+  /** The pattern with `index` replaced by `line`, for a live drag frame or a commit. */
+  function withLineAt(base: StitchPattern, index: number, line: BackstitchLine): StitchPattern {
+    const next = [...(base.backstitch ?? [])];
+    next[index] = line;
+    return { ...base, backstitch: next };
+  }
+
+  /** Replaces the selected lines wholesale — every action that transforms them goes through here. */
+  function replaceSelection(next: readonly BackstitchLine[]) {
+    if (!pattern || selected.length === 0) return;
+    const kept = (pattern.backstitch ?? []).filter((l) => !selected.some((sel) => sameLine(sel, l)));
+    const all = dedupeLines(clipLines([...kept, ...next], pattern.width, pattern.height));
+    commit({ ...pattern, backstitch: all.length ? all : undefined });
+    setSelected(all.filter((l) => next.some((n) => sameLine(n, l))));
+  }
+
+  function onPointerDown(e: PointerLike, frame: HTMLElement) {
+    if (!pattern) return;
+    const at = cornerFromEvent(e, frame, cellSize, pattern.width, pattern.height);
+    const hit = hitLine(lines, at.x, at.y, grabEnds);
+    if (!hit) {
+      setSelected([]);
+      return;
+    }
+    setSelected([lines[hit.index]]);
+    dragRef.current = {
+      pointerId: e.pointerId,
+      base: pattern,
+      index: hit.index,
+      part: hit.part,
+      from: at,
+      current: lines[hit.index],
+    };
+    frame.setPointerCapture(e.pointerId);
+  }
+
+  function onPointerMove(e: PointerLike): boolean {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return false;
+    const frame = frameRef.current;
+    if (!frame) return true;
+    const at = cornerFromEvent(e, frame, cellSize, drag.base.width, drag.base.height);
+    const original = (drag.base.backstitch ?? [])[drag.index];
+    if (!original) return true;
+    const moved =
+      drag.part === "body" ? shiftLines([original], at.x - drag.from.x, at.y - drag.from.y)[0] : withEndAt(original, drag.part, at.x, at.y);
+    if (isDegenerate(moved)) return true;
+    if (clipLines([moved], drag.base.width, drag.base.height).length === 0) return true;
+    if (sameLine(moved, drag.current)) return true;
+    drag.current = moved;
+    rendererRef.current?.previewBackstitch(withLineAt(drag.base, drag.index, moved), moved);
+    return true;
+  }
+
+  function onPointerUp(e: PointerLike): boolean {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return false;
+    dragRef.current = null;
+    releaseCapture(frameRef.current, e.pointerId);
+    const original = (drag.base.backstitch ?? [])[drag.index];
+    if (!original || sameLine(original, drag.current)) {
+      rendererRef.current?.endGesture(true);
+      return true;
+    }
+    rendererRef.current?.endGesture(false);
+    const next = withLineAt(drag.base, drag.index, drag.current);
+    commit({ ...next, backstitch: dedupeLines(next.backstitch ?? []) });
+    setSelected([drag.current]);
+    return true;
+  }
+
+  function cancel(): boolean {
+    if (!dragRef.current && selected.length === 0) return false;
+    dragRef.current = null;
+    setSelected([]);
+    rendererRef.current?.endGesture(true);
+    return true;
+  }
+
+  /** Lines dropped a little down and right, so a pasted or duplicated copy reads as a second piece. */
+  const offset = (ls: readonly BackstitchLine[]) => shiftLines(ls, DUPLICATE_OFFSET, DUPLICATE_OFFSET);
+
+  function add(ls: readonly BackstitchLine[]) {
+    if (!pattern || ls.length === 0) return;
+    const all = dedupeLines(clipLines([...(pattern.backstitch ?? []), ...ls], pattern.width, pattern.height));
+    commit({ ...pattern, backstitch: all.length ? all : undefined });
+    setSelected(all.filter((l) => ls.some((n) => sameLine(n, l))));
+  }
+
+  return {
+    selected,
+    hasClipboard: clipboard.length > 0,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    cancel,
+    /** Whether a given line is in the selection, for the renderer's thicker stroke. */
+    isSelected,
+    clear: () => setSelected([]),
+    copy: () => selected.length > 0 && setClipboard(selected),
+    paste: () => add(offset(clipboard)),
+    duplicate: () => add(offset(selected)),
+    mirrorHorizontal: () => replaceSelection(mirrorLines(selected, "horizontal")),
+    mirrorVertical: () => replaceSelection(mirrorLines(selected, "vertical")),
+    rotateClockwise: () => replaceSelection(rotateLines(selected, true)),
+    rotateAnticlockwise: () => replaceSelection(rotateLines(selected, false)),
+    recolour: () => {
+      const color = colorForPointer(0);
+      if (color !== null) replaceSelection(recolourLines(selected, color));
+    },
+    remove: () => {
+      if (!pattern || selected.length === 0) return;
+      const kept = (pattern.backstitch ?? []).filter((l) => !selected.some((sel) => sameLine(sel, l)));
+      commit({ ...pattern, backstitch: kept.length ? kept : undefined });
+      setSelected([]);
     },
   };
 }
