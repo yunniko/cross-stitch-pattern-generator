@@ -76,6 +76,7 @@ jobs:
       # Backstitch is the one stitch type OXS holds exactly as this app does, so the round trip is asserted
       # against the real exporter rather than a hand-written string (G-073).
       - run: npm run test:backstitch:rust
+      - run: npm run test:backstitch-style:rust
 
       - run: npm run test:enhancement:rust
 

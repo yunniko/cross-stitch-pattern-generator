@@ -2,12 +2,12 @@
 //! same pages) and `a4-export.ts` (the ZIP of PNG pages).
 
 use crate::format::{
-    color_count, finished_size, hex, luminance, skeins, split_thread_code_name, stitch_count,
+    color_count, finished_size, luminance, skein_estimate, split_thread_code_name, stitch_count,
 };
 use crate::model::{Color, Pattern, SizeUnit};
 use crate::render::{
-    draw_chart, truncate_to_width, Ctx, Mode, Region, SymbolStamps, FONT_STACK, GRID_LINE_COLOR,
-    LEGIBILITY_FLOOR_PX,
+    draw_backstitch, draw_chart, truncate_to_width, Ctx, Mode, Region, SymbolStamps, FONT_STACK,
+    GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX,
 };
 use crate::text::{Align, Baseline};
 use crate::threads::brand_label;
@@ -141,6 +141,11 @@ fn bold(px: f64) -> String {
 }
 
 /// `drawA4GridPage`.
+/// One grid page of an A4 export.
+///
+/// `backstitch` is false for the Pattern Keeper PDF, which shares this routine and must keep its grid
+/// pages free of anything its parser does not expect — that export exists to be machine-read, and the app
+/// cannot use backstitch anyway (`docs/reviews/2026-09-25-backstitch-research.md`).
 #[allow(clippy::too_many_arguments)]
 pub fn draw_grid_page(
     ctx: &mut dyn Ctx,
@@ -151,6 +156,7 @@ pub fn draw_grid_page(
     index: usize,
     total: usize,
     stamps: Option<&SymbolStamps>,
+    backstitch: bool,
 ) {
     ctx.set_fill("#ffffff");
     ctx.fill_rect(0.0, 0.0, l.page_w, l.page_h);
@@ -177,6 +183,9 @@ pub fn draw_grid_page(
         y1: page.end_y,
     };
     draw_chart(ctx, p, mode, l.cell as i64, Some(region), stamps);
+    if backstitch {
+        draw_backstitch(ctx, p, mode, l.cell as i64, Some(region));
+    }
 
     let gw = (page.end_x - page.start_x) as f64 * l.cell;
     let gh = (page.end_y - page.start_y) as f64 * l.cell;
@@ -234,8 +243,12 @@ fn swatch(ctx: &mut dyn Ctx, color: &Color, x: f64, y: f64, size: f64) {
     ctx.stroke_rect(x, y, size, size);
 }
 
-/// `drawA4LegendPage`.
-pub fn draw_legend_page(ctx: &mut dyn Ctx, p: &Pattern, l: &Layout) {
+/// The simple legend page: **what to buy** (G-073 M5, criterion 6).
+///
+/// A thread consumption table headed with the pattern's own name and its designer, one row per thread:
+/// the colour cell, the colour's name, and how many skeins it needs. The hex and the stitch count moved
+/// to the extended legend, which is the page for reading the chart rather than for shopping.
+pub fn draw_legend_page(ctx: &mut dyn Ctx, p: &Pattern, l: &Layout, aida: f64, author: &str) {
     ctx.set_fill("#ffffff");
     ctx.fill_rect(0.0, 0.0, l.page_w, l.page_h);
     let title_px = mm_to_px(6.0, l.dpi);
@@ -243,14 +256,18 @@ pub fn draw_legend_page(ctx: &mut dyn Ctx, p: &Pattern, l: &Layout) {
     ctx.set_font(&bold(title_px));
     ctx.set_align(Align::Left);
     ctx.set_baseline(Baseline::Top);
-    ctx.fill_text("Legend", l.margin, l.margin);
+    ctx.fill_text(&info_title(p.name.as_deref(), author), l.margin, l.margin);
+    let sub_px = mm_to_px(3.4, l.dpi);
+    ctx.set_fill("#666666");
+    ctx.set_font(&font(sub_px));
+    ctx.fill_text("Threads needed", l.margin, l.margin + title_px * 1.25);
 
     let swatch_px = mm_to_px(6.0, l.dpi);
     let row_h = mm_to_px(9.0, l.dpi);
     let col_w = mm_to_px(45.0, l.dpi);
     let name_px = mm_to_px(3.2, l.dpi);
     let detail_px = mm_to_px(2.6, l.dpi);
-    let mut grid_top = l.margin + title_px * 1.8;
+    let mut grid_top = l.margin + title_px * 1.8 + sub_px;
 
     if l.overlap > 0 {
         let note = mm_to_px(4.0, l.dpi);
@@ -274,6 +291,7 @@ pub fn draw_legend_page(ctx: &mut dyn Ctx, p: &Pattern, l: &Layout) {
 
     let printable_w = l.page_w - 2.0 * l.margin;
     let columns = (printable_w / col_w).floor().max(1.0) as usize;
+    let bs_length = crate::backstitch::length_by_color(&p.backstitch, p.palette.len());
     for (i, color) in p.palette.iter().enumerate() {
         let (col, row) = (i % columns, i / columns);
         let x = l.margin + col as f64 * col_w;
@@ -303,11 +321,14 @@ pub fn draw_legend_page(ctx: &mut dyn Ctx, p: &Pattern, l: &Layout) {
         ctx.fill_text(&name, text_x, y + swatch_px / 2.0 - detail_px * 0.6);
         ctx.set_fill("#666666");
         ctx.set_font(&font(detail_px));
-        ctx.fill_text(
-            &format!("{} · {} sts", hex(color.rgb), color.count),
-            text_x,
-            y + swatch_px / 2.0 + name_px * 0.6,
-        );
+        // A thread that carries only backstitch has no stitches to estimate skeins from, and “0
+        // skeins” would read as “do not buy this”. It says what it is for instead (G-073 M5).
+        let need = if color.count == 0 && bs_length.get(i).copied().unwrap_or(0.0) > 0.0 {
+            "backstitch only".to_string()
+        } else {
+            skein_estimate(color.count, aida)
+        };
+        ctx.fill_text(&need, text_x, y + swatch_px / 2.0 + name_px * 0.6);
     }
 }
 
@@ -356,6 +377,19 @@ fn detail_rows(p: &Pattern, aida: f64, unit: SizeUnit) -> Vec<(String, String)> 
         rows.push(("Thread".into(), brand_label(brand).to_string()));
     }
     rows.push(("Color count".into(), color_count(p.palette.len())));
+    // The chart's own backstitch total, next to its stitch count — what a stitcher needs before starting,
+    // where the per-thread lengths in the colour key are what they need while stitching (G-073 M5).
+    if !p.backstitch.is_empty() {
+        let cells: f64 = p
+            .backstitch
+            .iter()
+            .map(crate::backstitch::line_length_cells)
+            .sum();
+        rows.push((
+            "Backstitch".into(),
+            format!("approx. {}", crate::backstitch::format_length(cells, aida)),
+        ));
+    }
     rows
 }
 
@@ -368,22 +402,28 @@ struct KeyColumns {
     name_w: f64,
     stitch_x: f64,
     stitch_w: f64,
-    skein_x: f64,
-    skein_w: f64,
+    /// Backstitch length, replacing the skein count: skeins are on the simple legend now, which is the
+    /// page for buying thread (G-073 M5, criterion 6). Zero width when the chart has no backstitch.
+    backstitch_x: f64,
+    backstitch_w: f64,
     total: f64,
 }
 
-fn key_columns(printable_w: f64, has_code: bool, dpi: f64) -> KeyColumns {
+fn key_columns(printable_w: f64, has_code: bool, has_backstitch: bool, dpi: f64) -> KeyColumns {
     let symbol_w = mm_to_px(12.0, dpi);
     let code_w = if has_code { mm_to_px(18.0, dpi) } else { 0.0 };
     let stitch_w = mm_to_px(28.0, dpi);
-    let skein_w = mm_to_px(28.0, dpi);
-    let name_w = mm_to_px(30.0, dpi).max(printable_w - symbol_w - code_w - stitch_w - skein_w);
+    let backstitch_w = if has_backstitch {
+        mm_to_px(28.0, dpi)
+    } else {
+        0.0
+    };
+    let name_w = mm_to_px(30.0, dpi).max(printable_w - symbol_w - code_w - stitch_w - backstitch_w);
     let symbol_x = 0.0;
     let code_x = symbol_x + symbol_w;
     let name_x = code_x + code_w;
     let stitch_x = name_x + name_w;
-    let skein_x = stitch_x + stitch_w;
+    let backstitch_x = stitch_x + stitch_w;
     KeyColumns {
         symbol_x,
         symbol_w,
@@ -393,9 +433,9 @@ fn key_columns(printable_w: f64, has_code: bool, dpi: f64) -> KeyColumns {
         name_w,
         stitch_x,
         stitch_w,
-        skein_x,
-        skein_w,
-        total: skein_x + skein_w,
+        backstitch_x,
+        backstitch_w,
+        total: backstitch_x + backstitch_w,
     }
 }
 
@@ -405,6 +445,8 @@ pub struct InfoPlan {
     cols: KeyColumns,
     has_code: bool,
     printable_w: f64,
+    /// Backstitch length per palette index, for the column that replaced the skein count (G-073 M5).
+    bs_length: Vec<f64>,
     pub rows_on_page1: usize,
     pub rows_per_continuation: usize,
     pub total_colors: usize,
@@ -420,6 +462,7 @@ pub fn plan_info_pages(
     author: &str,
 ) -> InfoPlan {
     let has_code = p.thread_brand.is_some();
+    let bs_length = crate::backstitch::length_by_color(&p.backstitch, p.palette.len());
     let printable_w = l.page_w - 2.0 * l.margin;
     let printable_h = l.page_h - 2.0 * l.margin;
     let details = detail_rows(p, aida, unit);
@@ -441,9 +484,10 @@ pub fn plan_info_pages(
         remaining.div_ceil(rows_per_continuation)
     };
     InfoPlan {
+        bs_length,
         title: info_title(p.name.as_deref(), author),
         details,
-        cols: key_columns(printable_w, has_code, l.dpi),
+        cols: key_columns(printable_w, has_code, !p.backstitch.is_empty(), l.dpi),
         has_code,
         printable_w,
         rows_on_page1,
@@ -507,6 +551,8 @@ fn draw_key_block(
     colors: &[Color],
     aida: f64,
     dpi: f64,
+    // Backstitch length per palette index, for the column that replaced the skein count.
+    bs_length: &[f64],
 ) -> f64 {
     let header_h = mm_to_px(6.5, dpi);
     let row_h = mm_to_px(8.0, dpi);
@@ -532,7 +578,13 @@ fn draw_key_block(
         x + c.stitch_x + c.stitch_w / 2.0,
         header_mid,
     );
-    ctx.fill_text("Skein count", x + c.skein_x + c.skein_w / 2.0, header_mid);
+    if c.backstitch_w > 0.0 {
+        ctx.fill_text(
+            "Backstitch",
+            x + c.backstitch_x + c.backstitch_w / 2.0,
+            header_mid,
+        );
+    }
 
     for (i, color) in colors.iter().enumerate() {
         let top = y0 + header_h + i as f64 * row_h;
@@ -573,11 +625,17 @@ fn draw_key_block(
             x + c.stitch_x + c.stitch_w / 2.0,
             mid,
         );
-        ctx.fill_text(
-            &skeins(color.count, aida).to_string(),
-            x + c.skein_x + c.skein_w / 2.0,
-            mid,
-        );
+        if c.backstitch_w > 0.0 {
+            let cells = bs_length.get(color.index).copied().unwrap_or(0.0);
+            // A dash rather than “0 cm”: this thread has no backstitch at all, which is a different
+            // thing from having a very short run of it.
+            let text = if cells > 0.0 {
+                crate::backstitch::format_length(cells, aida)
+            } else {
+                "\u{2014}".to_string()
+            };
+            ctx.fill_text(&text, x + c.backstitch_x + c.backstitch_w / 2.0, mid);
+        }
     }
 
     ctx.set_stroke(GRID_LINE_COLOR);
@@ -591,7 +649,10 @@ fn draw_key_block(
     if has_code {
         xs.push(c.code_x);
     }
-    xs.extend([c.name_x, c.stitch_x, c.skein_x]);
+    xs.extend([c.name_x, c.stitch_x]);
+    if c.backstitch_w > 0.0 {
+        xs.push(c.backstitch_x);
+    }
     for cx in xs {
         if cx == 0.0 {
             continue;
@@ -648,6 +709,7 @@ pub fn draw_info_page1(ctx: &mut dyn Ctx, p: &Pattern, plan: &InfoPlan, l: &Layo
         &p.palette[..n],
         aida,
         l.dpi,
+        &plan.bs_length,
     );
     draw_footer(ctx, l, 1, plan.total_pages);
 }
@@ -678,6 +740,7 @@ pub fn draw_info_continuation(
         colors,
         aida,
         l.dpi,
+        &plan.bs_length,
     );
     draw_footer(ctx, l, page_number, plan.total_pages);
 }

@@ -95,10 +95,53 @@ fn enhance(args: &[String]) {
     println!("{}", json!({ "mode": args[5], "applied": applied }));
 }
 
+/// Prints the dash pattern and pieces the exporter would draw for each line (G-073 M5).
+///
+/// Only a way to look inside: `scripts/rust-backstitch-style.ts` compares this against the TypeScript the
+/// editor draws with, so the two copies of the dash table cannot drift apart unnoticed.
+fn backstitch_style(args: &[String]) {
+    let text = std::fs::read_to_string(&args[2]).expect("read pattern");
+    let pattern = cs_export::model::Pattern::from_editable_json(&text).expect("pattern");
+    let threads = cs_export::backstitch::backstitch_threads(&pattern.backstitch);
+    let out: Vec<_> = pattern
+        .backstitch
+        .iter()
+        .map(|line| {
+            let pattern_for = cs_export::backstitch::dash_pattern_for(line.palette_index, &threads);
+            let segments: Vec<_> = cs_export::backstitch::dash_segments(line, pattern_for)
+                .into_iter()
+                .map(|s| {
+                    vec![
+                        round6(s.x1),
+                        round6(s.y1),
+                        round6(s.x2),
+                        round6(s.y2),
+                    ]
+                })
+                .collect();
+            json!({
+                "paletteIndex": line.palette_index,
+                "pattern": pattern_for,
+                "segments": segments,
+            })
+        })
+        .collect();
+    std::fs::write(&args[3], json!(out).to_string()).expect("write output");
+}
+
+/// Six decimals, which is where two languages' floating point stop agreeing about a diagonal.
+fn round6(v: f64) -> f64 {
+    (v * 1e6).round() / 1e6
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() >= 5 && args[1] == "export" {
         export(&args);
+        return;
+    }
+    if args.len() >= 4 && args[1] == "backstitch-style" {
+        backstitch_style(&args);
         return;
     }
     if args.len() >= 7 && args[1] == "enhance" {

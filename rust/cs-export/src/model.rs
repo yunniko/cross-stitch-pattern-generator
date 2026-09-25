@@ -149,11 +149,19 @@ impl Pattern {
     }
 
     /// `compactUnusedColors`: drops colours no stitch uses, keeping the rest in order.
+    /// Drops palette entries nothing uses, and renumbers what is left.
+    ///
+    /// **A thread carrying only backstitch has no stitches** and was dropped by the count test alone
+    /// (G-073 M5): its lines then pointed at whatever thread took its number, so a chart exported in the
+    /// wrong colours, or lost the lines entirely. Backstitch keeps a thread alive, and is renumbered with
+    /// the cells.
     pub fn compact_unused_colors(&self) -> Pattern {
+        let in_backstitch: std::collections::HashSet<usize> =
+            self.backstitch.iter().map(|l| l.palette_index).collect();
         let used: Vec<usize> = self
             .palette
             .iter()
-            .filter(|c| c.count > 0)
+            .filter(|c| c.count > 0 || in_backstitch.contains(&c.index))
             .map(|c| c.index)
             .collect();
         if used.len() == self.palette.len() {
@@ -182,9 +190,19 @@ impl Pattern {
                 ..self.palette[old].clone()
             })
             .collect();
+        let backstitch = self
+            .backstitch
+            .iter()
+            .filter(|l| l.palette_index < remap.len())
+            .map(|l| Backstitch {
+                palette_index: remap[l.palette_index] as usize,
+                ..*l
+            })
+            .collect();
         Pattern {
             cells,
             palette,
+            backstitch,
             ..self.clone()
         }
     }

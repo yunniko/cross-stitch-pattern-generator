@@ -1,10 +1,13 @@
 //! Port of the raster chart in `lib/export/render.ts`: `renderPatternToCanvas` (the colour and B&W chart PNGs) and the
 //! shared `drawChart` and grid lines the A4 pages reuse.
 
+use crate::backstitch::{
+    backstitch_threads, bead_positions, dash_pattern_for, dash_segments, line_length_cells,
+};
 use crate::canvas::Canvas;
 use crate::format::{finished_size, hex, luminance, skein_estimate, stitch_count};
 use crate::jsfmt::number;
-use crate::model::{Color, Pattern, SizeUnit, EMPTY_CELL};
+use crate::model::{Backstitch, Color, Pattern, SizeUnit, EMPTY_CELL};
 use crate::text::{self, Align, Baseline};
 use tiny_skia::Pixmap;
 
@@ -134,6 +137,10 @@ pub trait Ctx {
     fn translate(&mut self, x: f64, y: f64);
     /// Raster only: a symbol stamp at whole pixels.
     fn stamp(&mut self, _tile: &Pixmap, _x: f64, _y: f64) {}
+    /// Raster only: a backstitch bead (G-073 M5). The one PDF this project writes is the Pattern
+    /// Keeper export, which deliberately carries no backstitch on its grid, so nothing calls this
+    /// through the PDF adapter (`docs/reviews/2026-09-25-backstitch-research.md`).
+    fn fill_circle(&mut self, _cx: f64, _cy: f64, _radius: f64) {}
 }
 
 impl Ctx for Canvas {
@@ -181,6 +188,9 @@ impl Ctx for Canvas {
     }
     fn translate(&mut self, x: f64, y: f64) {
         Canvas::translate(self, x, y)
+    }
+    fn fill_circle(&mut self, cx: f64, cy: f64, radius: f64) {
+        Canvas::fill_circle(self, cx, cy, radius)
     }
     fn stamp(&mut self, tile: &Pixmap, x: f64, y: f64) {
         self.draw_stamp(tile, x, y)
@@ -246,6 +256,162 @@ pub fn draw_chart(
         }
     }
     draw_grid_lines(ctx, r, cell_size);
+}
+
+/// The width of a backstitch stroke: the Owner's fifth of a cell, never thinner than one pixel.
+pub fn backstitch_width(cell_size: i64) -> f64 {
+    (cell_size as f64 / 5.0).max(1.0)
+}
+
+/// How close in lightness a line and the cell under it may be before the line needs a casing to be seen.
+///
+/// Calibrated by eye on sample exports rather than derived (`docs/reviews/2026-09-25-backstitch-research.md`).
+/// Below this the line and its background are near enough in tone that the stroke disappears into them.
+///
+/// On `format::luminance`'s own 0..255 scale, which is the measure the in-cell symbol already uses to
+/// choose black or white text — one notion of lightness in this codebase rather than two.
+const CASING_LIGHTNESS_GAP: f64 = 56.0;
+
+/// Every cell a line passes over, so the casing asks about what the line is actually crossing.
+fn cells_under(line: &Backstitch, steps: usize) -> Vec<(usize, usize)> {
+    let mut out = Vec::new();
+    for i in 0..=steps {
+        let t = i as f64 / steps as f64;
+        let x = line.x1 as f64 + (line.x2 as f64 - line.x1 as f64) * t;
+        let y = line.y1 as f64 + (line.y2 as f64 - line.y1 as f64) * t;
+        // A corner belongs to the cell below and right of it, except at the far edges.
+        let cx = x.floor().max(0.0) as usize;
+        let cy = y.floor().max(0.0) as usize;
+        out.push((cx, cy));
+    }
+    out.dedup();
+    out
+}
+
+/// Whether this line would be lost against the cells it crosses, and so needs its hairline casing.
+fn needs_casing(p: &Pattern, line: &Backstitch, mode: Mode) -> bool {
+    let Some(thread) = p.palette.get(line.palette_index) else {
+        return false;
+    };
+    let line_l = luminance(match mode {
+        Mode::Bw => {
+            let g = bw_gray(thread.rgb);
+            [g, g, g]
+        }
+        _ => thread.rgb,
+    });
+    let steps = (line_length_cells(line).ceil() as usize).max(1) * 2;
+    cells_under(line, steps).into_iter().any(|(cx, cy)| {
+        if cx >= p.width || cy >= p.height {
+            return false;
+        }
+        let v = p.cells[cy * p.width + cx];
+        // An empty cell is white, which no thread this dark is close to.
+        let under = if v == EMPTY_CELL {
+            [255, 255, 255]
+        } else {
+            match (mode, p.palette.get(v as usize)) {
+                (Mode::Bw, Some(c)) => {
+                    let g = bw_gray(c.rgb);
+                    [g, g, g]
+                }
+                (_, Some(c)) => c.rgb,
+                (_, None) => return false,
+            }
+        };
+        (luminance(under) - line_l).abs() < CASING_LIGHTNESS_GAP
+    })
+}
+
+/// Backstitch over a drawn chart (G-073 M5): dashes in the thread's colour, beads carrying its symbol.
+///
+/// Drawn after the stitches and the grid, in chart coordinates offset by the region, so a page of an A4
+/// export shows the part of each line that crosses it. A chart with no backstitch draws nothing at all and
+/// is byte-identical to before this existed (criterion 7).
+///
+/// Called by each export that wants it rather than from inside `draw_chart`: the Pattern Keeper PDF
+/// shares `a4::draw_grid_page` with the A4 ZIP and must carry **no** backstitch on its grid pages, so
+/// the difference is a parameter someone has to pass rather than something to remember
+/// (`docs/reviews/2026-09-25-backstitch-research.md`).
+pub fn draw_backstitch(
+    ctx: &mut dyn Ctx,
+    p: &Pattern,
+    mode: Mode,
+    cell_size: i64,
+    region: Option<Region>,
+) {
+    if p.backstitch.is_empty() {
+        return;
+    }
+    let r = region.unwrap_or(Region {
+        x0: 0,
+        y0: 0,
+        x1: p.width,
+        y1: p.height,
+    });
+    let cs = cell_size as f64;
+    let width = backstitch_width(cell_size);
+    let threads = backstitch_threads(&p.backstitch);
+    let draw_symbols = cell_size >= LEGIBILITY_FLOOR_PX;
+
+    for line in &p.backstitch {
+        let Some(thread) = p.palette.get(line.palette_index) else {
+            continue;
+        };
+        let stroke = fill_for_cell(mode, thread.rgb);
+        let segments = dash_segments(line, dash_pattern_for(line.palette_index, &threads));
+        let at = |x: f64, y: f64| ((x - r.x0 as f64) * cs, (y - r.y0 as f64) * cs);
+
+        if needs_casing(p, line, mode) {
+            // A hairline of the opposite tone under the stroke, so the line keeps an edge against cells of
+            // its own lightness. Drawn first and wider, which is what makes it a casing rather than a line.
+            ctx.set_stroke(if luminance(thread.rgb) < 128.0 {
+                "#ffffff"
+            } else {
+                "#000000"
+            });
+            ctx.set_line_width(width + (cs / 12.0).max(1.0));
+            for s in &segments {
+                let (x0, y0) = at(s.x1, s.y1);
+                let (x1, y1) = at(s.x2, s.y2);
+                ctx.line(x0, y0, x1, y1);
+            }
+        }
+
+        ctx.set_stroke(&stroke);
+        ctx.set_line_width(width);
+        for s in &segments {
+            let (x0, y0) = at(s.x1, s.y1);
+            let (x1, y1) = at(s.x2, s.y2);
+            ctx.line(x0, y0, x1, y1);
+        }
+
+        if !draw_symbols {
+            continue;
+        }
+        // The bead: the line swells to a lozenge the size of an in-cell symbol, which is what lets the
+        // glyph be read at all (`docs/reviews/2026-09-25-backstitch-research.md`).
+        let length = line_length_cells(line);
+        if length <= 0.0 {
+            continue;
+        }
+        let ux = (line.x2 as f64 - line.x1 as f64) / length;
+        let uy = (line.y2 as f64 - line.y1 as f64) / length;
+        for d in bead_positions(line) {
+            let (bx, by) = at(line.x1 as f64 + ux * d, line.y1 as f64 + uy * d);
+            let radius = cs * 0.3;
+            ctx.set_fill(&stroke);
+            ctx.fill_circle(bx, by, radius);
+            ctx.set_fill(symbol_text_color(mode, thread.rgb));
+            ctx.set_font(&format!(
+                "{}px {FONT_STACK}",
+                number((cell_size as f64 * 0.6).round())
+            ));
+            ctx.set_align(Align::Center);
+            ctx.set_baseline(Baseline::Middle);
+            ctx.fill_text(&thread.symbol, bx, by + 1.0);
+        }
+    }
 }
 
 /// `drawGridLines` in its stroked form: every 5th line medium, every 10th major.
@@ -546,6 +712,7 @@ pub fn render_pattern(
     Canvas::translate(&mut c, l.left, HEADER_HEIGHT + l.top);
     let stamps = symbol_stamps(&p.palette, mode, l.cell_size);
     draw_chart(&mut c, p, mode, l.cell_size, None, stamps.as_ref());
+    draw_backstitch(&mut c, p, mode, l.cell_size, None);
     draw_legend(&mut c, p, &l, aida);
     draw_center_markers(&mut c, l.chart_w, l.chart_h);
     draw_row_column_numbers(&mut c, p.width, p.height, l.cell_size);

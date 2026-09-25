@@ -43,7 +43,9 @@ test("export as PDF (Pattern Keeper) downloads a real PDF with every actually-us
   expect(pdfBytes.subarray(0, 5).toString("utf-8")).toBe("%PDF-");
 
   const extracted = await extractAllText(pdfBytes);
-  expect(extracted).toContain("Legend");
+  // The simple legend page is headed with the pattern's own name now and subtitled "Threads needed"
+  // (D234), so the subtitle is the stable thing to look for rather than the old "Legend" title.
+  expect(extracted).toContain("Threads needed");
   expect(extracted).toContain("Color key");
   for (const symbol of symbols) {
     // Same documented µ/μ pdfjs-dist extraction quirk as M1/M2's own tests.

@@ -2,6 +2,7 @@ import { cellAtClient } from "@/lib/editor/chart-viewport";
 import type { StampEdge } from "@/lib/editor/brush-stamp";
 import { smoothClosedPath } from "@/lib/editor/lasso";
 import { HIGHLIGHT_MASK_ALPHA } from "@/lib/export/render";
+import { backstitchThreads, dashPatternFor, dashSegments } from "@/lib/editor/backstitch-style";
 import type { CellPoint } from "@/lib/editor/shape-raster";
 import type { BackstitchLine, PaletteColor } from "@/lib/types";
 import type { CellRect, StitchPattern } from "@/lib/types";
@@ -267,6 +268,8 @@ export function drawBackstitch(
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   const base = Math.max(1, cellSize * BACKSTITCH_WIDTH_RATIO);
+  // The same dash a thread is printed with, so the chart on screen is the chart on paper (G-073 M5).
+  const threads = backstitchThreads(lines);
   for (const line of lines) {
     const color = palette[line.paletteIndex];
     if (!color) continue;
@@ -277,8 +280,10 @@ export function drawBackstitch(
     ctx.globalAlpha = dim?.(line) ? 1 - HIGHLIGHT_MASK_ALPHA : 1;
     ctx.strokeStyle = `rgb(${color.rgb[0]} ${color.rgb[1]} ${color.rgb[2]})`;
     ctx.beginPath();
-    ctx.moveTo(line.x1 * cellSize, line.y1 * cellSize);
-    ctx.lineTo(line.x2 * cellSize, line.y2 * cellSize);
+    for (const s of dashSegments(line, dashPatternFor(line.paletteIndex, threads))) {
+      ctx.moveTo(s.x1 * cellSize, s.y1 * cellSize);
+      ctx.lineTo(s.x2 * cellSize, s.y2 * cellSize);
+    }
     ctx.stroke();
   }
   ctx.restore();

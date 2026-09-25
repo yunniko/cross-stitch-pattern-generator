@@ -106,7 +106,7 @@ pub fn add_a4_pages_reporting(
         .enumerate()
         .map(|(i, page)| {
             let bytes = page_png(l.page_w, l.page_h, |c| {
-                a4::draw_grid_page(c, p, mode, &l, page, i, total, stamps.as_ref())
+                a4::draw_grid_page(c, p, mode, &l, page, i, total, stamps.as_ref(), true)
             });
             report(finished.fetch_add(1, Ordering::Relaxed) + 1, all_pages);
             bytes
@@ -127,7 +127,9 @@ pub fn add_a4_pages_reporting(
         );
         written += 1;
     }
-    let bytes = page_png(l.page_w, l.page_h, |c| a4::draw_legend_page(c, p, &l));
+    let bytes = page_png(l.page_w, l.page_h, |c| {
+        a4::draw_legend_page(c, p, &l, request.aida_count, &request.author_name)
+    });
     report(total + 1, all_pages);
     zip.file(
         &format!("{prefix}{}", zip_entry_name(&format!("{base}_legend.png"))),

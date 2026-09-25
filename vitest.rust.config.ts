@@ -8,6 +8,7 @@ export default defineConfig({
     include: [
       "scripts/rust-goldens.ts",
       "scripts/rust-backstitch-oxs.ts",
+      "scripts/rust-backstitch-style.ts",
       "scripts/rust-enhancement-gates.ts",
       "scripts/rust-enhance-parity.ts",
       "tests/unit/processor-export-pool.spec.ts",

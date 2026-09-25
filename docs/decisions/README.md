@@ -267,4 +267,6 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D230 — A double-click takes the run, and a run moves as one — active
 - D231 — A line ends where it is placed; Ctrl carries the run on — active
 - D232 — Backstitch is a second section of one palette, counted by length — active
+- D233 — A backstitch thread is told apart by its dash, and the table is mirrored — active
+- D234 — One legend to buy from, one to stitch from — active
 - D228 — A cell selection takes a line by both ends — active

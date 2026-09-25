@@ -2,6 +2,7 @@
 //! arrives as the editable save; `export` returns the file `runExportJob` would.
 
 pub mod a4;
+pub mod backstitch;
 pub mod bundle;
 pub mod canvas;
 pub mod editable;

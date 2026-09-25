@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { generateSmallPattern, pickTool } from "./helpers/app";
-import { asEndpoints, clickCorner, drawChain, exportLines, pickThread, threadName } from "./helpers/backstitch";
+import { clickCorner, drawChain, exportLines, pickThread, threadName } from "./helpers/backstitch";
 
 /**
  * G-073 M4: backstitch in the thread list.

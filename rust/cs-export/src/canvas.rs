@@ -197,6 +197,22 @@ impl Canvas {
         );
     }
 
+    /// A filled disc, for a backstitch bead (G-073 M5).
+    pub fn fill_circle(&mut self, cx: f64, cy: f64, radius: f64) {
+        let mut builder = PathBuilder::new();
+        builder.push_circle(cx as f32, cy as f32, radius as f32);
+        let Some(path) = builder.finish() else {
+            return;
+        };
+        self.pixmap.fill_path(
+            &path,
+            &paint(self.state.fill),
+            FillRule::Winding,
+            self.transform(),
+            None,
+        );
+    }
+
     pub fn begin_path(&mut self) {
         self.path = PathBuilder::new();
     }

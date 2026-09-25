@@ -379,11 +379,14 @@ pub fn build_reporting(
     let total = l.pages.len();
     for (i, range) in l.pages.iter().enumerate() {
         draw(&mut fonts, &mut |pg| {
-            a4::draw_grid_page(pg, p, mode, &l, range, i, total, None)
+            // No backstitch: Pattern Keeper reads these pages, and cannot use it (see `draw_grid_page`).
+            a4::draw_grid_page(pg, p, mode, &l, range, i, total, None, false)
         });
         page_done(report, &mut drawn);
     }
-    draw(&mut fonts, &mut |pg| a4::draw_legend_page(pg, p, &l));
+    draw(&mut fonts, &mut |pg| {
+        a4::draw_legend_page(pg, p, &l, request.aida_count, &request.author_name)
+    });
     page_done(report, &mut drawn);
     draw(&mut fonts, &mut |pg| {
         a4::draw_info_page1(pg, p, &plan, &l, request.aida_count)
