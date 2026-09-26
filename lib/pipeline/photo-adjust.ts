@@ -66,6 +66,36 @@ export function readAdjust(value: unknown): PhotoAdjust {
 }
 
 /**
+ * The sliders a saved chart or a generated pattern records, or `undefined` when they came to neutral.
+ *
+ * Absent rather than four zeroes, so a chart made without touching them is the file it would have been
+ * before they existed (G-074 criterion 4), and a file from an older build reads the same way.
+ */
+export function readSavedAdjust(value: unknown): PhotoAdjust | undefined {
+  if (value === undefined || value === null) return undefined;
+  const adjust = readAdjust(value);
+  return isNeutralAdjust(adjust) ? undefined : adjust;
+}
+
+/**
+ * Whether a request's sliders are ones a slider could have sent: four whole numbers in range, or nothing.
+ *
+ * Checked before any worker is given the job, as the other settings are. The pipeline clamps as well, but a
+ * request that is wrong should be refused where it can still be explained.
+ */
+export function isValidPhotoAdjust(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const v = value as Record<string, unknown>;
+  const keys: Array<keyof PhotoAdjust> = ["brightness", "contrast", "saturation", "temperature"];
+  if (Object.keys(v).some((key) => !(keys as string[]).includes(key))) return false;
+  return keys.every((key) => {
+    const slider = v[key];
+    return slider === undefined || (typeof slider === "number" && Number.isInteger(slider) && slider >= -100 && slider <= 100);
+  });
+}
+
+/**
  * One pixel's OKLab, adjusted. Written into `out` so a whole photo needs no allocation per pixel.
  *
  * Brightness keeps both ends where they are — lifting pulls towards white rather than adding a constant, so a

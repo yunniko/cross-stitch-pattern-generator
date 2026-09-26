@@ -33,6 +33,7 @@ interface RustPattern {
   ditherMode?: string | null;
   ditherTexture?: StitchPattern["ditherTexture"] | null;
   vivid?: boolean | null;
+  photoAdjust?: StitchPattern["photoAdjust"] | null;
 }
 
 export interface CsBench {
@@ -73,6 +74,7 @@ export function openCsBench(label: string): CsBench {
         ditherMode: (pattern.ditherMode ?? undefined) as StitchPattern["ditherMode"],
         ditherTexture: (pattern.ditherTexture ?? undefined) as StitchPattern["ditherTexture"],
         vivid: pattern.vivid ? true : undefined,
+        photoAdjust: pattern.photoAdjust ?? undefined,
       };
     },
     dispose() {

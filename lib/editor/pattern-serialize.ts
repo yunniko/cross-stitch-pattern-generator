@@ -2,6 +2,7 @@ import { dedupeLines } from "./backstitch";
 import { DITHER_MODES, type DitherMode } from "../pipeline/dither";
 import { isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
 import { isEnhancementModeId, type EnhancementModeId } from "../pipeline/enhance";
+import { readSavedAdjust, type PhotoAdjust } from "../pipeline/photo-adjust";
 import { findThread, formatThreadName, THREAD_BRANDS, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
 import { effectiveSymmetryAxes, NO_SYMMETRY, SYMMETRY_AXES, type SymmetryAxes, type SymmetryAxis } from "./symmetry-axes";
 import {
@@ -57,6 +58,12 @@ export interface SerializedPattern {
   edgeMode?: "crisp" | "crisp-plus";
   /** The photo enhancement the pattern was generated with; absent for Off and on files saved before G-032. */
   enhancementMode?: Exclude<EnhancementModeId, "off">;
+  /**
+   * The four photo sliders the chart was generated with (G-074); absent when they were all centred and
+   * on files saved before it. Additive, like `ditherMode` above, so the format version stays where it is
+   * and an older build simply ignores it (D138).
+   */
+  photoAdjust?: PhotoAdjust;
   /**
    * The dither pattern the chart was generated with (G-052); absent for Off and on files saved before it. Optional,
    * like `symmetry`, so the format version stays where it is and an older build simply ignores it (D138).
@@ -126,6 +133,7 @@ export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes 
     threadBrand: pattern.threadBrand,
     edgeMode: pattern.edgeMode,
     enhancementMode: pattern.enhancementMode,
+    photoAdjust: pattern.photoAdjust,
     ditherMode: pattern.ditherMode,
     ditherTexture: pattern.ditherTexture,
     vivid: pattern.vivid,
@@ -285,6 +293,9 @@ export function deserializePatternData(data: unknown): StitchPattern {
     edgeMode: d.edgeMode === "crisp" || d.edgeMode === "crisp-plus" ? d.edgeMode : undefined,
     // Any recognized mode is kept, released or not: the file records how it was built (D113).
     enhancementMode: isEnhancementModeId(d.enhancementMode) && d.enhancementMode !== "off" ? d.enhancementMode : undefined,
+    // Every field clamped, and dropped entirely when it comes to neutral: a file cannot ask generation
+    // for an adjustment no slider could have made.
+    photoAdjust: readSavedAdjust(d.photoAdjust),
     ditherMode: isDitherModeId(d.ditherMode) && d.ditherMode !== "off" ? d.ditherMode : undefined,
     // A texture that is out of range or from a newer build falls back to the default, so the file still opens.
     ditherTexture: isValidDitherTexture(d.ditherTexture) ? d.ditherTexture : undefined,

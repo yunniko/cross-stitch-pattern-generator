@@ -1,6 +1,7 @@
 import { DITHER_MODES, isDithered, type DitherMode } from "@/lib/pipeline/dither";
 import { isValidDitherTexture } from "@/lib/pipeline/dither-hand-drawn";
 import { ENHANCEMENT_MODE_IDS } from "@/lib/pipeline/enhance";
+import { isValidPhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import { THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES } from "@/lib/types";
 
@@ -51,6 +52,11 @@ export function settingsError(body: unknown): string | null {
   // A plain flag, checked so a stray string cannot reach the pipeline as a truthy value (G-061).
   if (b.vivid !== undefined && typeof b.vivid !== "boolean") {
     return "vivid must be true or false.";
+  }
+  // Whole numbers in range, or nothing: a slider cannot produce anything else, and the pipeline should not
+  // be asked to make sense of one that did (G-074).
+  if (!isValidPhotoAdjust(b.photoAdjust)) {
+    return "photoAdjust must be an object whose brightness, contrast, saturation and temperature are whole numbers between -100 and 100.";
   }
   // Ranges, not a type union: a texture is numbers, and the union trick the other fields use cannot check a number.
   if (b.ditherTexture !== undefined && !isValidDitherTexture(b.ditherTexture)) {

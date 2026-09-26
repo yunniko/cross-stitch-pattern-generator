@@ -218,6 +218,47 @@ describe("pattern-serialize", () => {
     expect(deserializePattern(tampered).ditherMode).toBeUndefined();
   });
 
+  it("round-trips the four photo sliders, and writes nothing for a chart made without them", () => {
+    const pattern = { ...makePattern(), photoAdjust: { brightness: 40, contrast: -20, saturation: 65, temperature: 10 } };
+    expect(deserializePattern(serializePattern(pattern)).photoAdjust).toEqual({
+      brightness: 40,
+      contrast: -20,
+      saturation: 65,
+      temperature: 10,
+    });
+
+    // Absent, not four zeroes: a chart made without touching them is the file it was before they existed.
+    const plain = JSON.parse(serializePattern(makePattern()));
+    expect("photoAdjust" in plain).toBe(false);
+    expect(deserializePattern(serializePattern(makePattern())).photoAdjust).toBeUndefined();
+  });
+
+  it("opens a file whose sliders are rubbish, and a file saved before they existed", () => {
+    const base = JSON.parse(serializePattern(makePattern()));
+    // Out of range, wrong type, missing field, and neutral: none of them is something a slider sent, and
+    // none of them should stop the chart opening.
+    const cases: Array<[unknown, unknown]> = [
+      [
+        { brightness: 9999, contrast: 0, saturation: 0, temperature: 0 },
+        { brightness: 100, contrast: 0, saturation: 0, temperature: 0 },
+      ],
+      [{ brightness: "40" }, undefined],
+      [{ saturation: 30 }, { brightness: 0, contrast: 0, saturation: 30, temperature: 0 }],
+      [{ brightness: 0, contrast: 0, saturation: 0, temperature: 0 }, undefined],
+      [null, undefined],
+      ["not an object", undefined],
+    ];
+    for (const [stored, expected] of cases) {
+      const restored = deserializePattern(JSON.stringify({ ...base, photoAdjust: stored }));
+      expect(restored.photoAdjust, JSON.stringify(stored)).toEqual(expected);
+    }
+
+    // A file from before G-074, carrying the enhancement mode it was made with (criterion 5).
+    const older = deserializePattern(JSON.stringify({ ...base, enhancementMode: "brighten" }));
+    expect(older.enhancementMode).toBe("brighten");
+    expect(older.photoAdjust).toBeUndefined();
+  });
+
   it("round-trips an EMPTY_CELL stitch without rejecting the file (G-012 M5)", () => {
     const pattern = { ...makePattern(), cellPalette: Uint8Array.from([EMPTY_CELL, 1, 1, 0]) };
     const restored = deserializePattern(serializePattern(pattern));

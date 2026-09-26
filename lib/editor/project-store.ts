@@ -63,6 +63,8 @@ export interface StoredProjectRecord {
   ditherTexture?: StitchPattern["ditherTexture"];
   vivid?: StitchPattern["vivid"];
   enhancementMode?: StitchPattern["enhancementMode"];
+  /** The four photo sliders (G-074); absent when they were all centred, and on records written before them. */
+  photoAdjust?: StitchPattern["photoAdjust"];
   sourceImage?: StoredSourceImage;
   /** The symmetry axes that were on (G-037); absent when none were, and on records written before G-037. */
   symmetry?: SerializedSymmetry;
@@ -147,6 +149,7 @@ async function encodeRecord(
     threadBrand: pattern.threadBrand,
     edgeMode: pattern.edgeMode,
     enhancementMode: pattern.enhancementMode,
+    photoAdjust: pattern.photoAdjust,
     ditherMode: pattern.ditherMode,
     ditherTexture: pattern.ditherTexture,
     vivid: pattern.vivid,

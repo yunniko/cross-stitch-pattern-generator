@@ -27,6 +27,7 @@ function requestFrom(overrides: Record<string, unknown> = {}) {
     paletteMode: options.paletteMode,
     edgeMode: options.edgeMode,
     enhancementMode: options.enhancementMode,
+    photoAdjust: options.photoAdjust,
     ditherMode: options.ditherMode,
     vivid: options.vivid,
     ...overrides,
@@ -36,6 +37,26 @@ function requestFrom(overrides: Record<string, unknown> = {}) {
 describe("processor settings validation", () => {
   it("accepts the editor's default options", () => {
     expect(settingsError(requestFrom())).toBeNull();
+  });
+
+  it("accepts the four photo sliders, and refuses anything a slider could not have sent", () => {
+    expect(settingsError(requestFrom({ photoAdjust: { brightness: -100, contrast: 0, saturation: 100, temperature: 7 } }))).toBeNull();
+    expect(settingsError(requestFrom({ photoAdjust: undefined }))).toBeNull();
+    expect(settingsError(requestFrom({ photoAdjust: {} }))).toBeNull();
+
+    for (const bad of [
+      { brightness: 101, contrast: 0, saturation: 0, temperature: 0 },
+      { brightness: -101, contrast: 0, saturation: 0, temperature: 0 },
+      { brightness: 12.5, contrast: 0, saturation: 0, temperature: 0 },
+      { brightness: "40", contrast: 0, saturation: 0, temperature: 0 },
+      { brightness: Number.NaN, contrast: 0, saturation: 0, temperature: 0 },
+      { gamma: 10 },
+      [0, 0, 0, 0],
+      "neutral",
+      null,
+    ]) {
+      expect(settingsError(requestFrom({ photoAdjust: bad })), JSON.stringify(bad)).toMatch(/photoAdjust/);
+    }
   });
 
   it("accepts every palette mode the editor can hold", () => {

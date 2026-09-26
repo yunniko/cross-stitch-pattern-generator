@@ -59,7 +59,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   Rust, with a parity script comparing them through the real binary. No UI.
 - [x] M2 — **The sliders, live** (criteria 1, 2): the four sliders in the Photo tab, applied to the decoded
   photo in the browser as they move, with no request to the server. “Compare with original” is kept.
-- [ ] M3 — **Generation uses them** (criteria 3, 5): the values travel with the generate request and Rust
+- [x] M3 — **Generation uses them** (criteria 3, 5): the values travel with the generate request and Rust
   applies them at full resolution; they are saved with the pattern, and a file carrying the old
   `enhancementMode` still opens.
 - [ ] M4 — **The modes retire** (criterion 6): the buttons, the per-mode preview route and the adaptive
@@ -67,6 +67,15 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   HANDOVER catch up, and it is deployed and verified live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-26 — **M3 reached.** The sliders travel with the generate request, through the processor's
+  validation, into the binary, which applies them before any stage reads the photo (D239); they are
+  recorded on the pattern, in the save file and in the autosave, and absent when neutral. Verified:
+  a new suite (`npm run test:photo-adjust-pipeline:rust`, 8 cases) proving generating *with* the
+  sliders is byte-identical to generating the *already adjusted* photo — criterion 3 demonstrated, not
+  asserted — mutation-checked with 5 deliberate breaks, 5 caught, including "adjusts only the colours,
+  not the structure"; 864 unit tests (4 new, 5 mutations caught); 444 e2e (2 new, one of which
+  generates grey threads from a colour photo and reopens a pre-G-074 file); 73 golden hashes unmoved.
+  Next: M4, retiring the five enhancement modes.
 - 2026-09-26 — **M2 reached.** The four sliders are in the Photo tab and applied in the browser:
   a downscaled preview (1440 px) adjusted in a worker, quarter-size while a slider moves and full when it
   settles. Measured in Chrome: first frame 16 ms, sharp frame 340—414 ms after release, 1.3 ms median on

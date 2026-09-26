@@ -274,3 +274,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D228 — A cell selection takes a line by both ends — active
 - D237 — Four sliders in OKLab, and neutral means untouched — active
 - D238 — The adjustment clips rather than gamut-maps — active
+- D239 — The sliders are the photo, not a colour stage — active

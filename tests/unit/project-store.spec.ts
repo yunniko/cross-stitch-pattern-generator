@@ -99,6 +99,19 @@ describe("project-store", () => {
     expect((await plain.load()).pattern!.backstitch).toBeUndefined();
   });
 
+  it("keeps the four photo sliders through autosave (G-074)", async () => {
+    // Same trap as backstitch above: the record names every field by hand, so a chart reloaded after a
+    // browser restart would forget what it was generated from.
+    const photoAdjust = { brightness: 25, contrast: -40, saturation: 60, temperature: -15 };
+    const store = createProjectStore(createMemoryKeyValueStore());
+    await store.save(makePattern({ photoAdjust }));
+    expect((await store.load()).pattern!.photoAdjust).toEqual(photoAdjust);
+
+    const plain = createProjectStore(createMemoryKeyValueStore());
+    await plain.save(makePattern());
+    expect((await plain.load()).pattern!.photoAdjust).toBeUndefined();
+  });
+
   it("stores cellPalette as the typed array itself, not a JSON number array", async () => {
     const kv = createMemoryKeyValueStore();
     await createProjectStore(kv).save(makePattern());

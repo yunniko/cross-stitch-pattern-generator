@@ -84,6 +84,8 @@ export function useGeneration(inputs: GenerationInputs) {
         edgeMode: options.edgeMode,
         // Release eligibility is resolved at Generate time, so a preference for a withdrawn mode can't run it (D113).
         enhancementMode: isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off",
+        // What the reader has been looking at on the photo, applied to it at full resolution (G-074 M3).
+        photoAdjust: options.photoAdjust,
         ditherMode: options.ditherMode,
         ditherTexture: options.ditherTexture,
         vivid: options.vivid,

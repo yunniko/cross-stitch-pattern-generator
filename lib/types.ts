@@ -1,4 +1,5 @@
 import type { EnhancementModeId } from "./pipeline/enhance";
+import type { PhotoAdjust } from "./pipeline/photo-adjust";
 import type { DitherMode } from "./pipeline/dither";
 import type { DitherTexture } from "./pipeline/dither-hand-drawn";
 import type { EdgeMode } from "./pipeline/generation-modes";
@@ -148,6 +149,8 @@ export interface StitchPattern {
   ditherTexture?: DitherTexture;
   /** Generated with Vivid (G-061). Informational; absent means the stitches are plain area means. */
   vivid?: true;
+  /** The four photo sliders the chart was generated with (G-074); absent when they were all centred. */
+  photoAdjust?: PhotoAdjust;
   /** Backstitch lines drawn over the crosses (G-073); absent for a chart with none. */
   backstitch?: BackstitchLine[];
 }

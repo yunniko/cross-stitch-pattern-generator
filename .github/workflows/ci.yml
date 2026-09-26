@@ -88,6 +88,10 @@ jobs:
       # thing holds for them: one of the two copies changing alone means a chart that is not its own preview.
       - run: npm run test:photo-adjust:rust
 
+      # And that generation applies them: a chart made with the sliders is the chart of the photo the
+      # reader was looking at, not merely one built by the same function (G-074 M3, criterion 3).
+      - run: npm run test:photo-adjust-pipeline:rust
+
       - run: npx next typegen
       - run: npm run build:processor
 

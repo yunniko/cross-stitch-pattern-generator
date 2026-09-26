@@ -106,6 +106,7 @@ export async function generateWithRust(
     paletteMode: settings.paletteMode ?? undefined,
     edgeMode: settings.edgeMode ?? undefined,
     enhancementMode: settings.enhancementMode ?? undefined,
+    photoAdjust: settings.photoAdjust ?? undefined,
     ditherMode: settings.ditherMode ?? undefined,
     ditherTexture: settings.ditherTexture ?? undefined,
     vivid: settings.vivid ?? undefined,

@@ -13,6 +13,7 @@ use crate::edge_map::{
     source_luminance,
 };
 use crate::enhance::{enhance, Mode as EnhancementMode};
+use crate::photo_adjust::{adjust_image, PhotoAdjust};
 use crate::names::{name_colors, symbol_set};
 use crate::optimize::{
     fix_diagonal_connections, recolor_small_components, run_multi_scale_optimizer, Ctx,
@@ -58,6 +59,8 @@ pub struct BuildOptions {
     pub dither_texture: DitherTexture,
     /// Vivid (G-061): a stitch keeps its area-mean lightness and the chroma of its most colourful part.
     pub vivid: bool,
+    /// The four photo sliders (G-074). Neutral leaves the photo exactly as it was decoded.
+    pub photo_adjust: PhotoAdjust,
 }
 
 #[derive(Clone, Debug)]
@@ -95,6 +98,8 @@ pub struct StitchPattern {
     /// Generated with Vivid (G-061); `None` means the stitches are plain area means.
     pub vivid: Option<bool>,
     pub enhancement_mode: Option<&'static str>,
+    /// The sliders the chart was generated with (G-074); `None` when they were all centred.
+    pub photo_adjust: Option<PhotoAdjust>,
 }
 
 /// Wall time per stage, in milliseconds, in pipeline order.
@@ -161,6 +166,13 @@ pub fn build_pattern_reporting(
         !(dithered && crisp),
         "Crisp preserves hard boundaries, which dithering deliberately blends: choose one (D199)"
     );
+
+    // The sliders come first and apply to everything after (G-074 M3): an adjusted photo *is* the photo,
+    // so structure is read from it too, exactly as if the reader had uploaded it that way. Neutral
+    // returns `None` and the photo travels on untouched, byte for byte (criterion 4).
+    let adjusted = adjust_image(image, &options.photo_adjust);
+    let image = adjusted.as_ref().unwrap_or(image);
+    lap("adjust", times);
 
     // Colour stages read the enhanced photo; importance and pair evidence read the original (D112).
     let enhanced = enhance(image, options.enhancement);
@@ -509,6 +521,9 @@ pub fn build_pattern_reporting(
         // Recorded whenever requested, even when every stage abstained, as the TypeScript does.
         enhancement_mode: (options.enhancement != EnhancementMode::Off)
             .then(|| options.enhancement.id()),
+        // Centred sliders are recorded as nothing at all, so a chart made without them is the file it
+        // was before they existed.
+        photo_adjust: (!options.photo_adjust.is_neutral()).then_some(options.photo_adjust),
     };
     let Some(brand) = options.brand else {
         on_progress(1.0);

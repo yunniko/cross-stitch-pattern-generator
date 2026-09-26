@@ -6,6 +6,7 @@ import type { SizeUnit } from "@/lib/export/finished-size";
 import type { DitherMode } from "@/lib/pipeline/dither";
 import type { DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
 import type { EnhancementModeId } from "@/lib/pipeline/enhance";
+import type { PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pipeline/generation-modes";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
 
@@ -26,6 +27,7 @@ export interface JobSettings {
   paletteMode?: PaletteMode;
   edgeMode?: EdgeMode;
   enhancementMode?: EnhancementModeId;
+  photoAdjust?: PhotoAdjust;
   ditherMode?: DitherMode;
   ditherTexture?: DitherTexture;
   vivid?: boolean;

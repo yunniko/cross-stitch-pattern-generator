@@ -5,6 +5,7 @@ use crate::dither::DitherMode;
 use crate::dither_hand_drawn::{default_dither_texture, DitherStamp, DitherTexture};
 use crate::enhance::Mode;
 use crate::pattern::{BuildOptions, EdgeMode, StageTimes, StitchPattern};
+use crate::photo_adjust::{PhotoAdjust, NEUTRAL_ADJUST};
 use crate::quantize::Quantizer;
 use crate::threads::Brand;
 use serde::Deserialize;
@@ -32,7 +33,41 @@ struct Options {
     #[serde(default)]
     vivid: Option<bool>,
     #[serde(default)]
+    photo_adjust: Option<AdjustOptions>,
+    #[serde(default)]
     threads: Option<usize>,
+}
+
+/// The four photo sliders (G-074). Absent, or absent field by field, means neutral.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AdjustOptions {
+    #[serde(default)]
+    brightness: Option<f64>,
+    #[serde(default)]
+    contrast: Option<f64>,
+    #[serde(default)]
+    saturation: Option<f64>,
+    #[serde(default)]
+    temperature: Option<f64>,
+}
+
+impl AdjustOptions {
+    /// Mirrors `clampAdjust`: a value out of range or not a number cannot reach a photo.
+    fn resolve(&self) -> PhotoAdjust {
+        fn slider(v: Option<f64>) -> f64 {
+            match v {
+                Some(v) if v.is_finite() => v.clamp(-100.0, 100.0),
+                _ => 0.0,
+            }
+        }
+        PhotoAdjust {
+            brightness: slider(self.brightness),
+            contrast: slider(self.contrast),
+            saturation: slider(self.saturation),
+            temperature: slider(self.temperature),
+        }
+    }
 }
 
 /// What a drawn pattern is made of (G-055). Absent fields take the default texture's value, so a request naming one
@@ -159,6 +194,11 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
             .map(TextureOptions::resolve)
             .unwrap_or_else(default_dither_texture),
         vivid: o.vivid.unwrap_or(false),
+        photo_adjust: o
+            .photo_adjust
+            .as_ref()
+            .map(AdjustOptions::resolve)
+            .unwrap_or(NEUTRAL_ADJUST),
     };
     Ok((options, o.threads.unwrap_or(1).max(1)))
 }
@@ -187,6 +227,12 @@ pub fn pattern_json(p: &StitchPattern) -> Value {
         "ditherMode": p.dither_mode,
         "ditherTexture": p.dither_texture.as_ref().map(texture_json),
         "vivid": p.vivid,
+        "photoAdjust": p.photo_adjust.map(|a| json!({
+            "brightness": a.brightness,
+            "contrast": a.contrast,
+            "saturation": a.saturation,
+            "temperature": a.temperature,
+        })),
     })
 }
 

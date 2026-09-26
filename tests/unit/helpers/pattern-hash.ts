@@ -14,5 +14,10 @@ export function hashPattern(pattern: StitchPattern): string {
   hash.update(`${pattern.threadBrand ?? ""};${pattern.edgeMode ?? ""}`);
   // Appended only when set, so every hash recorded before G-032 still applies to Off.
   if (pattern.enhancementMode) hash.update(`;${pattern.enhancementMode}`);
+  // The same, for the four photo sliders (G-074): absent when they were centred, so no earlier hash moves.
+  if (pattern.photoAdjust) {
+    const a = pattern.photoAdjust;
+    hash.update(`;${a.brightness},${a.contrast},${a.saturation},${a.temperature}`);
+  }
   return hash.digest("hex");
 }
