@@ -54,7 +54,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   - **Generation itself does not change.** The pipeline is untouched; only what reaches it does.
 
 **Milestones** (confirmed at planning, 2026-09-26):
-- [ ] M1 — **The adjustment** (criterion 4, and the constraint): one definition of what the four sliders do
+- [x] M1 — **The adjustment** (criterion 4, and the constraint): one definition of what the four sliders do
   — the colour space, each curve, and neutral meaning identity — written once in TypeScript and once in
   Rust, with a parity script comparing them through the real binary. No UI.
 - [ ] M2 — **The sliders, live** (criteria 1, 2): the four sliders in the Photo tab, applied to the decoded
@@ -67,6 +67,14 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   HANDOVER catch up, and it is deployed and verified live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-26 — **M1 reached.** The four sliders defined once in `lib/pipeline/photo-adjust.ts`
+  and mirrored in `rust/cs-core/src/photo_adjust.rs`: OKLab, contrast pivoting on the measured L of
+  sRGB 128 (0.5999), neutral returning the source buffer itself. Verified: 13 unit tests on the
+  adjustment's own properties, mutation-checked (8 deliberate breaks, 8 caught); 11 parity cases
+  byte-identical through the real `cs-bench` binary, also mutation-checked (one digit of
+  `TEMPERATURE_B` fails 4 of them); 837 unit tests and the 73 golden hashes unmoved; lint, tsc and
+  clippy clean. `test:photo-adjust:rust` wired into CI beside the other parity suites. D237 written.
+  Next: M2, the sliders in the Photo tab, applied in the browser.
 - 2026-09-26 — goal created and planned.
 
 ### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)

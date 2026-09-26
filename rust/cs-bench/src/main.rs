@@ -134,10 +134,43 @@ fn round6(v: f64) -> f64 {
     (v * 1e6).round() / 1e6
 }
 
+/// Applies the four photo sliders to a raw RGBA file and writes the result (G-074 M1).
+///
+/// Only a way to look inside: `scripts/rust-photo-adjust.ts` compares this against the TypeScript the
+/// browser previews with, so the two copies of the adjustment cannot drift apart unnoticed.
+fn photo_adjust(args: &[String]) {
+    let data = std::fs::read(&args[2]).expect("read image");
+    let width: usize = args[3].parse().expect("width");
+    let height: usize = args[4].parse().expect("height");
+    let adjust: Vec<f64> = args[5]
+        .split(',')
+        .map(|v| v.parse().expect("adjust value"))
+        .collect();
+    let image = cs_core::Image {
+        width,
+        height,
+        data,
+    };
+    let adjust = cs_core::photo_adjust::PhotoAdjust {
+        brightness: adjust[0],
+        contrast: adjust[1],
+        saturation: adjust[2],
+        temperature: adjust[3],
+    };
+    let out = cs_core::photo_adjust::adjust_image(&image, &adjust);
+    // Neutral gives no image at all, which is the point: the photo passes through untouched.
+    let bytes = out.map(|i| i.data).unwrap_or(image.data);
+    std::fs::write(&args[6], &bytes).expect("write output");
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() >= 5 && args[1] == "export" {
         export(&args);
+        return;
+    }
+    if args.len() >= 7 && args[1] == "photo-adjust" {
+        photo_adjust(&args);
         return;
     }
     if args.len() >= 4 && args[1] == "backstitch-style" {

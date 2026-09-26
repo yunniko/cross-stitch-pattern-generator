@@ -165,6 +165,7 @@ npm run test:enhance-parity:rust # the shipped preview against the binary, pixel
 npm run test:processor:rust      # the processor driving a real job
 npm run test:backstitch:rust       # backstitch out through the real exporter and back in, as OXS
 npm run test:backstitch-style:rust # the dash table the screen draws with against the one exports draw with
+npm run test:photo-adjust:rust     # the four photo sliders: the browser's preview against the pipeline's
 ```
 
 The pipeline lives in `rust/` and only there (G-068). The TypeScript that it was ported from is deleted:

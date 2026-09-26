@@ -272,3 +272,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D235 — Each section of the thread list lights its own layer — active
 - D236 — A drag places the line where it lets go — active
 - D228 — A cell selection takes a line by both ends — active
+- D237 — Four sliders in OKLab, and neutral means untouched — active

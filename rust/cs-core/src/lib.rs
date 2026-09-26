@@ -31,6 +31,7 @@ pub mod optimize;
 pub mod pair_evidence;
 pub mod palette_merge;
 pub mod pattern;
+pub mod photo_adjust;
 pub mod prng;
 pub mod quantize;
 pub mod threads;

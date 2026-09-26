@@ -84,6 +84,10 @@ jobs:
       # from different languages, so this is what says they still agree pixel for pixel.
       - run: npm run test:enhance-parity:rust
 
+      # The four sliders replacing those modes (G-074) are previewed in the browser and applied here, so the same
+      # thing holds for them: one of the two copies changing alone means a chart that is not its own preview.
+      - run: npm run test:photo-adjust:rust
+
       - run: npx next typegen
       - run: npm run build:processor
 

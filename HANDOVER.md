@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-26 at SIGNOFF_SHA (G-073 signed off and archived; G-074 starting)
+Last verified: 2026-09-26 at HEAD (G-074 M1: the photo adjustment defined in both languages, no UI yet)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -39,6 +39,9 @@ export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-compar
 - Exports: editable JSON (format version 7, embeds the source photo and each color's thread swatch), realistic preview
   PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF, an OXS chart, a pixel-art PNG at 1 px per stitch
   (D195), "Export all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs` by content; OXS lists what it couldn't keep.
+- **Not reachable yet (G-074 M1):** `lib/pipeline/photo-adjust.ts` and `rust/cs-core/src/photo_adjust.rs`
+  define what the four photo sliders do (D237), mirrored and compared byte for byte by
+  `npm run test:photo-adjust:rust`. Nothing in the UI or the pipeline calls either one; that is M2 and M3.
 - A transparent background generates as empty stitches (G-050, D196): a cell covered less than half takes no colour, and every stage reads covered pixels only.
 - Pixel art in and out (G-049): the start screen's fourth card opens an image as a chart, one pixel per stitch,
   nothing resampled; too large, too colourful or partly transparent is refused with the numbers, under 10 stitches is centred in a chart of the minimum (D194), and the pixel-art PNG writes the image back.
@@ -310,7 +313,10 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-074 is active**: the photo's five enhancement buttons become four sliders — brightness, contrast, saturation and warm/cool — that work in the browser. G-073 (backstitch) was signed off on 2026-09-26 and is archived.
+- **G-074 is active, M1 reached**: the photo's five enhancement buttons become four sliders — brightness,
+  contrast, saturation and warm/cool — that work in the browser. The adjustment itself is defined and
+  mirrored (D237); next is M2, the sliders in the Photo tab applied as they move. G-073 (backstitch) was
+  signed off on 2026-09-26 and is archived.
 - **Left for a future goal, found while building it:** the casing threshold and bead spacing were judged on screen, never on paper — only a print settles how a 0.55 mm dashed line reads at a 2.75 mm cell (`docs/reviews/2026-09-25-backstitch-samples.md`). Backstitch is also absent from the realistic preview,
   which draws stitches from tiles and has no notion of a line.
 - Two drafts wait on the Owner: **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public launch, far future).
