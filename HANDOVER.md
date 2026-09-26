@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-26 at HEAD (G-074 M1: the photo adjustment defined in both languages, no UI yet)
+Last verified: 2026-09-26 at bbe7daf (G-074 M1: the photo adjustment defined in both languages, no UI yet)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
