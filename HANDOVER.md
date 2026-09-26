@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-26 at HEAD (G-074 M2: the four photo sliders, applied in the browser)
+Last verified: 2026-09-26 at 571efdb (G-074 M2: the four photo sliders, applied in the browser)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
