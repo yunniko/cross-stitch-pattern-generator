@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-25 at 604002c (G-073 complete, M1-M6 plus the split lights and drag-to-draw; deployed and exercised live)
+Last verified: 2026-09-26 at SIGNOFF_SHA (G-073 signed off and archived; G-074 starting)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -310,7 +310,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-073 is at M6 of 6, all six milestones built and deployed, waiting on the Owner's sign-off.** Backstitch draws, edits, lives in the thread list, and reaches every export. Five Owner-reported changes landed on top of the plan: the zoom displacement, the two editing tools becoming one (D229), the run selection (D230), the Delete key, and drawing that ends where it is placed rather than chaining by default (D231).
+- **G-074 is active**: the photo's five enhancement buttons become four sliders — brightness, contrast, saturation and warm/cool — that work in the browser. G-073 (backstitch) was signed off on 2026-09-26 and is archived.
 - **Left for a future goal, found while building it:** the casing threshold and bead spacing were judged on screen, never on paper — only a print settles how a 0.55 mm dashed line reads at a 2.75 mm cell (`docs/reviews/2026-09-25-backstitch-samples.md`). Backstitch is also absent from the realistic preview,
   which draws stitches from tiles and has no notion of a line.
 - Two drafts wait on the Owner: **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public launch, far future).
