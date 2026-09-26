@@ -14,6 +14,7 @@ import {
   type LineDitherMode,
 } from "@/lib/pipeline/dither";
 import { isReleasedEnhancementMode, releasedEnhancementModes, type EnhancementModeId } from "@/lib/pipeline/enhance";
+import { isNeutralAdjust, NEUTRAL_ADJUST, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
 import { gridDimensionsFor } from "@/lib/pipeline/downsample";
@@ -21,7 +22,7 @@ import { longerSideFor } from "../hooks/use-generation";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
 import { DitherPreview } from "./dither-preview";
 import { TextureEditor } from "./texture-editor";
-import { PillButton, SegmentedControl, type SegmentOption } from "./ui";
+import { PillButton, SegmentedControl, Slider, type SegmentOption } from "./ui";
 
 /**
  * The Photo pane (G-045 M3, direction 1b): everything the next Generate reads, in the order someone decides it --
@@ -30,6 +31,13 @@ import { PillButton, SegmentedControl, type SegmentOption } from "./ui";
  * While a job runs this pane becomes its progress, as 1b draws it: there is nothing to change until it finishes, and
  * the settings would only invite edits that the running job would ignore.
  */
+
+const ADJUST_SLIDERS: ReadonlyArray<{ key: keyof PhotoAdjust; label: string; hint: string }> = [
+  { key: "brightness", label: "Brightness", hint: "Lighter or darker, without blowing out what is already white" },
+  { key: "contrast", label: "Contrast", hint: "Pushes light and dark apart, or flattens them together" },
+  { key: "saturation", label: "Saturation", hint: "How colourful: all the way down is grey" },
+  { key: "temperature", label: "Warm / cool", hint: "Right is warmer (amber), left is cooler (blue)" },
+];
 
 const GROUP_LABEL = "text-[11px] font-medium uppercase tracking-[0.08em] text-muted";
 
@@ -171,6 +179,8 @@ export interface PhotoPaneProps {
   /** A chosen photo is still decoding: not yet `hasPhoto`, but no longer first run. */
   isLoadingImage: boolean;
   onCancel: () => void;
+  /** A slider has been let go, so the preview can stop drawing coarse and draw the photo properly. */
+  onAdjustSettled: () => void;
   error: string | null;
 }
 
@@ -224,6 +234,7 @@ export function PhotoPane({
   hasPhoto,
   isLoadingImage,
   onCancel,
+  onAdjustSettled,
   error,
 }: PhotoPaneProps) {
   if (isProcessing) return <GeneratingCard progress={progress} queueMessage={queueMessage} hasPattern={hasPattern} onCancel={onCancel} />;
@@ -456,6 +467,39 @@ export function PhotoPane({
           <TextureEditor texture={options.ditherTexture} onChange={(texture) => onChange("ditherTexture", texture)} />
         )}
       </section>
+
+      {hasPhoto && (
+        <section className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between">
+            <span className={GROUP_LABEL}>Photo</span>
+            <button
+              type="button"
+              disabled={isNeutralAdjust(options.photoAdjust)}
+              onClick={() => onChange("photoAdjust", NEUTRAL_ADJUST)}
+              aria-label="Put the photo sliders back to neutral"
+              title="Put all four sliders back in the middle"
+              className="text-[11px] text-muted enabled:hover:text-ink disabled:cursor-not-allowed disabled:text-faint"
+            >
+              Reset
+            </button>
+          </div>
+          <div className="flex flex-col gap-2">
+            {ADJUST_SLIDERS.map(({ key, label, hint }) => (
+              <Slider
+                key={key}
+                label={label}
+                hint={hint}
+                min={-100}
+                max={100}
+                neutral={0}
+                value={options.photoAdjust[key]}
+                onChange={(value) => onChange("photoAdjust", { ...options.photoAdjust, [key]: value })}
+                onSettled={onAdjustSettled}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {photoOptions.length > 1 && (
         <section className="flex flex-col gap-2">

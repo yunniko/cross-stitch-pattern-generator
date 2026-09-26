@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { oklabFromBytes } from "@/lib/color/color";
 import {
+  adjustFromCache,
   adjustOklab,
   adjustPixelBuffer,
   clampAdjust,
   isNeutralAdjust,
   MID_L,
   NEUTRAL_ADJUST,
+  oklabCacheFor,
   readAdjust,
   type PhotoAdjust,
 } from "@/lib/pipeline/photo-adjust";
@@ -144,5 +146,68 @@ describe("reading the sliders back", () => {
   it("is neutral wherever the data does not say otherwise", () => {
     expect(readAdjust(undefined)).toEqual(NEUTRAL_ADJUST);
     expect(readAdjust({ brightness: 20 })).toEqual({ ...NEUTRAL_ADJUST, brightness: 20 });
+  });
+});
+
+describe("out of sRGB", () => {
+  it("clips to the edge of the gamut instead of taking the colour back out (D238)", () => {
+    // A saturated red at +100 saturation has nowhere to go: the answer is the reddest red sRGB holds, not a
+    // paler one. The gamut map this replaced would have reduced chroma until it fit, so red would go pink.
+    const source = photo([[220, 40, 40, 255]]);
+    const out = adjustPixelBuffer(source, only("saturation", 100));
+    expect(out.data[0]).toBe(255);
+    expect(out.data[1]).toBeLessThan(40);
+  });
+
+  it("leaves a colour that still fits alone", () => {
+    const source = photo([[120, 118, 122, 255]]);
+    const out = adjustPixelBuffer(source, only("saturation", 20));
+    for (let c = 0; c < 3; c++) {
+      expect(out.data[c]).toBeGreaterThan(0);
+      expect(out.data[c]).toBeLessThan(255);
+    }
+  });
+});
+
+describe("the preview's cached path", () => {
+  it("gives exactly what adjusting the buffer gives", () => {
+    // The preview adjusts a cache of the photo's OKLab and generation adjusts bytes. If those two ever
+    // disagree the chart stops being the preview it was made from (criterion 3), so they are compared here
+    // rather than assumed to be the same arithmetic.
+    const source = photo([
+      [0, 0, 0, 255],
+      [255, 255, 255, 255],
+      [220, 40, 40, 200],
+      [17, 90, 200, 0],
+      [128, 128, 128, 255],
+      [250, 250, 10, 255],
+    ]);
+    const cache = oklabCacheFor(source);
+    const out = new Uint8ClampedArray(source.data.length);
+    for (const adjust of [
+      { brightness: 30, contrast: 0, saturation: 0, temperature: 0 },
+      { brightness: 0, contrast: -45, saturation: 0, temperature: 0 },
+      { brightness: -20, contrast: 60, saturation: 100, temperature: -80 },
+      { brightness: 100, contrast: 100, saturation: 100, temperature: 100 },
+    ]) {
+      adjustFromCache(cache, source.data, adjust, out);
+      expect([...out]).toEqual([...adjustPixelBuffer(source, adjust).data]);
+    }
+  });
+
+  it("is the photo itself when the sliders are centred", () => {
+    // adjustPixelBuffer short-circuits on neutral; the cached path has no shortcut, so this is what says the
+    // arithmetic really is the identity rather than the early return covering for it.
+    const source = photo([
+      [0, 0, 0, 255],
+      [255, 255, 255, 255],
+      [220, 40, 40, 200],
+      [17, 90, 200, 0],
+      [128, 128, 128, 255],
+      [250, 250, 10, 255],
+    ]);
+    const out = new Uint8ClampedArray(source.data.length);
+    adjustFromCache(oklabCacheFor(source), source.data, NEUTRAL_ADJUST, out);
+    expect([...out]).toEqual([...source.data]);
   });
 });

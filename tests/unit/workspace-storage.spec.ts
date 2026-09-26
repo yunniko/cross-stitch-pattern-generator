@@ -7,6 +7,7 @@ import {
   saveWorkspaceOptions,
 } from "@/lib/editor/workspace-storage";
 import { DEFAULT_DITHER_TEXTURE } from "@/lib/pipeline/dither-hand-drawn";
+import { NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
 import { MAX_STITCHES } from "@/lib/types";
 
 // This project's default Vitest environment is plain Node (no jsdom/window),
@@ -56,6 +57,7 @@ describe("workspace-storage", () => {
       generationMode: "latest",
       paletteMode: "full",
       enhancementMode: "off",
+      photoAdjust: NEUTRAL_ADJUST,
       ditherMode: "off",
       ditherTexture: DEFAULT_DITHER_TEXTURE,
       vivid: false,
@@ -83,6 +85,7 @@ describe("workspace-storage", () => {
         generationMode: "original" as const,
         paletteMode: "dmc" as const,
         enhancementMode: "off" as const,
+        photoAdjust: { brightness: 20, contrast: -15, saturation: 40, temperature: -5 },
         // Crisp is stored above, so a dither pattern here would be resolved away on load; its own cases are below.
         ditherMode: "off" as const,
         ditherTexture: DEFAULT_DITHER_TEXTURE,

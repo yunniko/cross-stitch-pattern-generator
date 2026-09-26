@@ -1,4 +1,4 @@
-import { gamutMapOklabToLinear, linearToSrgb, writeOklab } from "../color/color";
+import { linearToSrgb, writeOklab } from "../color/color";
 import type { PixelBuffer } from "../types";
 
 /**
@@ -88,6 +88,56 @@ export function adjustOklab(L: number, a: number, b: number, adjust: PhotoAdjust
 }
 
 /**
+ * Adjusted OKLab back to an sRGB pixel, written into `out` at `at`.
+ *
+ * The clamp is the whole of D238: a colour pushed out of sRGB is clipped per channel, not chroma-reduced by
+ * `gamutMapOklabToLinear`. The map costs 8x everything else here put together, and it answers "more saturation"
+ * by removing saturation -- see `docs/reviews/2026-09-26-photo-adjust-cost.md`.
+ */
+function writeAdjustedPixel(L: number, a: number, b: number, out: Uint8ClampedArray, at: number): void {
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  out[at] = linearToSrgb(clampUnit(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s));
+  out[at + 1] = linearToSrgb(clampUnit(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s));
+  out[at + 2] = linearToSrgb(clampUnit(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s));
+}
+
+function clampUnit(v: number): number {
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+/**
+ * A photo's OKLab, one pixel after another, for a preview that will be adjusted many times.
+ *
+ * The conversion into OKLab does not depend on the sliders, so paying it on every move is waste: it is a fifth
+ * of the work, and it is the same answer every time. Only worth keeping for a buffer that is adjusted more than
+ * once -- `adjustPixelBuffer` does not use it.
+ */
+export function oklabCacheFor(source: PixelBuffer): Float64Array {
+  const cache = new Float64Array((source.data.length / 4) * 3);
+  for (let i = 0, j = 0; i < source.data.length; i += 4, j += 3) {
+    writeOklab(source.data[i], source.data[i + 1], source.data[i + 2], cache, j);
+  }
+  return cache;
+}
+
+/**
+ * The sliders applied to a cached photo, written into `out`.
+ *
+ * `alpha` is the source's own bytes, because transparency is absence (D196) and an adjustment changes colour,
+ * never what is or is not there. `out` is reused across moves; it is `width * height * 4` bytes.
+ */
+export function adjustFromCache(cache: Float64Array, alpha: Uint8ClampedArray, adjust: PhotoAdjust, out: Uint8ClampedArray): void {
+  const adjusted = new Float64Array(3);
+  for (let i = 0, j = 0; i < out.length; i += 4, j += 3) {
+    adjustOklab(cache[j], cache[j + 1], cache[j + 2], adjust, adjusted);
+    writeAdjustedPixel(adjusted[0], adjusted[1], adjusted[2], out, i);
+    out[i + 3] = alpha[i + 3];
+  }
+}
+
+/**
  * A photo with the four sliders applied.
  *
  * **Neutral returns the very same buffer**, not a copy of it: an untouched photo has to reach generation as the
@@ -100,14 +150,10 @@ export function adjustPixelBuffer(source: PixelBuffer, adjust: PhotoAdjust): Pix
   const out = new Uint8ClampedArray(data.length);
   const lab = new Float64Array(3);
   const adjusted = new Float64Array(3);
-  const linear = new Float64Array(3);
   for (let i = 0; i < data.length; i += 4) {
     writeOklab(data[i], data[i + 1], data[i + 2], lab);
     adjustOklab(lab[0], lab[1], lab[2], adjust, adjusted);
-    gamutMapOklabToLinear(adjusted[0], adjusted[1], adjusted[2], linear);
-    out[i] = linearToSrgb(linear[0]);
-    out[i + 1] = linearToSrgb(linear[1]);
-    out[i + 2] = linearToSrgb(linear[2]);
+    writeAdjustedPixel(adjusted[0], adjusted[1], adjusted[2], out, i);
     // Transparency is absence (D196): an adjustment changes colour, never what is or is not there.
     out[i + 3] = data[i + 3];
   }

@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-26 at bbe7daf (G-074 M1: the photo adjustment defined in both languages, no UI yet)
+Last verified: 2026-09-26 at HEAD (G-074 M2: the four photo sliders, applied in the browser)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -39,9 +39,14 @@ export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-compar
 - Exports: editable JSON (format version 7, embeds the source photo and each color's thread swatch), realistic preview
   PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF, an OXS chart, a pixel-art PNG at 1 px per stitch
   (D195), "Export all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs` by content; OXS lists what it couldn't keep.
-- **Not reachable yet (G-074 M1):** `lib/pipeline/photo-adjust.ts` and `rust/cs-core/src/photo_adjust.rs`
-  define what the four photo sliders do (D237), mirrored and compared byte for byte by
-  `npm run test:photo-adjust:rust`. Nothing in the UI or the pipeline calls either one; that is M2 and M3.
+- **The four photo sliders** (G-074 M2): brightness, contrast, saturation and warm/cool in the Photo tab,
+  applied to the photo in the browser as they move, with no request to the server. One definition
+  (`lib/pipeline/photo-adjust.ts`) mirrored in Rust (`rust/cs-core/src/photo_adjust.rs`) and compared byte
+  for byte by `npm run test:photo-adjust:rust` (D237); it clips out-of-gamut colours rather than
+  chroma-reducing them, which is both what a saturation slider should do and what makes it affordable
+  (D238). The preview is a downscaled copy at 1440 px, drawn in a worker: quarter-size while a slider
+  moves, full when it settles. **Generation does not read the sliders yet** — that is M3, so a chart
+  made now comes from the unadjusted photo.
 - A transparent background generates as empty stitches (G-050, D196): a cell covered less than half takes no colour, and every stage reads covered pixels only.
 - Pixel art in and out (G-049): the start screen's fourth card opens an image as a chart, one pixel per stitch,
   nothing resampled; too large, too colourful or partly transparent is refused with the numbers, under 10 stitches is centred in a chart of the minimum (D194), and the pixel-art PNG writes the image back.
@@ -313,10 +318,11 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-074 is active, M1 reached**: the photo's five enhancement buttons become four sliders — brightness,
-  contrast, saturation and warm/cool — that work in the browser. The adjustment itself is defined and
-  mirrored (D237); next is M2, the sliders in the Photo tab applied as they move. G-073 (backstitch) was
-  signed off on 2026-09-26 and is archived.
+- **G-074 is active, M2 reached**: the photo's five enhancement buttons become four sliders that work in
+  the browser. The sliders are in and live (D237, D238); next is M3 — the values travelling with the
+  generate request so the chart matches its preview, and being saved with the pattern. Until then the
+  preview and the chart disagree whenever a slider is off neutral. G-073 (backstitch) was signed off on
+  2026-09-26 and is archived.
 - **Left for a future goal, found while building it:** the casing threshold and bead spacing were judged on screen, never on paper — only a print settles how a 0.55 mm dashed line reads at a 2.75 mm cell (`docs/reviews/2026-09-25-backstitch-samples.md`). Backstitch is also absent from the realistic preview,
   which draws stitches from tiles and has no notion of a line.
 - Two drafts wait on the Owner: **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public launch, far future).
@@ -325,6 +331,9 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - G-070 is closed as answered: the V8 maths port costs nothing — replacing it is **13–25% slower** with
   identical output (D223). Its one actionable finding shipped as G-071: the build targets `x86-64-v3`,
   worth a mean 6.6% (D224). Both are written up in `docs/reviews/2026-09-24-parity-tax.md`.
+- Watch: `tests/unit/preview-runner.spec.ts` ("keeps serving on the same runner after a deadline kill")
+  failed once on 2026-09-26 under full-suite load and passed on its own four times running. It is the
+  processor's realistic-preview pool, untouched by G-074, and the test turns on a real deadline.
 - Watch: `tests/e2e/brush-outline.spec.ts` ("the outline sits on the stitch under the pointer") went flaky
   once on 2026-09-24, passing on retry. First sighting; if it recurs it is a real pointer-timing race, of
   the kind D220 fixed elsewhere.

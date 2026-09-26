@@ -57,7 +57,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M1 — **The adjustment** (criterion 4, and the constraint): one definition of what the four sliders do
   — the colour space, each curve, and neutral meaning identity — written once in TypeScript and once in
   Rust, with a parity script comparing them through the real binary. No UI.
-- [ ] M2 — **The sliders, live** (criteria 1, 2): the four sliders in the Photo tab, applied to the decoded
+- [x] M2 — **The sliders, live** (criteria 1, 2): the four sliders in the Photo tab, applied to the decoded
   photo in the browser as they move, with no request to the server. “Compare with original” is kept.
 - [ ] M3 — **Generation uses them** (criteria 3, 5): the values travel with the generate request and Rust
   applies them at full resolution; they are saved with the pattern, and a file carrying the old
@@ -67,6 +67,16 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   HANDOVER catch up, and it is deployed and verified live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-26 — **M2 reached.** The four sliders are in the Photo tab and applied in the browser:
+  a downscaled preview (1440 px) adjusted in a worker, quarter-size while a slider moves and full when it
+  settles. Measured in Chrome: first frame 16 ms, sharp frame 340—414 ms after release, 1.3 ms median on
+  the page's own thread per value, no frame over 100 ms in a 60-value drag
+  (`docs/reviews/2026-09-26-photo-adjust-cost.md`). **D238 changed M1's adjustment**: the gamut map cost
+  145—572 ms for 0.23 MP and answered "more saturation" by removing saturation, so both copies now clip;
+  a 3D LUT was measured and rejected (worst-case error 83—162 per channel at 49 nodes). Verified: 860 unit
+  tests (36 new, the runner's six guards mutation-checked), 442 e2e (6 new), 73 golden hashes and all four
+  Rust parity suites unmoved, lint/tsc/prettier clean; driven by hand in Chrome on a 2816x1536 photo.
+  Next: M3, generation reading the sliders — until then a chart does not match its preview.
 - 2026-09-26 — **M1 reached.** The four sliders defined once in `lib/pipeline/photo-adjust.ts`
   and mirrored in `rust/cs-core/src/photo_adjust.rs`: OKLab, contrast pivoting on the measured L of
   sRGB 128 (0.5999), neutral returning the source buffer itself. Verified: 13 unit tests on the

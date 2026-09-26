@@ -42,6 +42,12 @@ export interface ImageWindowProps {
   onRetryPreview: () => void;
   /** True when a non-Off photo enhancement applies to the photo shown before Generate. */
   enhancementActive: boolean;
+  /** The four sliders (G-074): the photo they make is drawn here, in the browser, not fetched. */
+  adjustActive: boolean;
+  /** A frame for this photo has been painted; until then the photo itself is what is up. */
+  adjustReady: boolean;
+  adjustSize: { width: number; height: number } | null;
+  adjustCanvasRef: (canvas: HTMLCanvasElement | null) => void;
   enhancedPreviewUrl: string | null;
   isPreparingEnhancedPreview: boolean;
   enhancedPreviewError: string | null;
@@ -89,6 +95,10 @@ export function ImageWindow({
   startScreen,
   previewError,
   onRetryPreview,
+  adjustActive,
+  adjustReady,
+  adjustSize,
+  adjustCanvasRef,
   enhancementActive,
   enhancedPreviewUrl,
   isPreparingEnhancedPreview,
@@ -102,6 +112,10 @@ export function ImageWindow({
 }: ImageWindowProps) {
   const [showOriginal, setShowOriginal] = useState(false);
   const showEnhanced = enhancementActive && enhancedPreviewUrl !== null && !showOriginal;
+  // The sliders draw here; until the first frame is painted the photo itself is still what is up, so the well
+  // never goes blank while a preview is being prepared.
+  const showAdjusted = adjustActive && adjustReady && adjustSize !== null && !showOriginal;
+  const comparable = adjustActive && (adjustReady || showOriginal);
 
   return (
     <div
@@ -112,12 +126,31 @@ export function ImageWindow({
     >
       {!startingNew && !pattern && sourceMeta && (
         <figure className="flex max-h-full max-w-full flex-col items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize */}
-          <img
-            src={showEnhanced ? enhancedPreviewUrl! : sourceMeta.dataUrl}
-            alt={showEnhanced ? "Enhanced photo preview" : "Uploaded photo"}
-            className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
-          />
+          {showAdjusted ? (
+            <canvas
+              ref={adjustCanvasRef}
+              data-testid="adjusted-photo"
+              width={adjustSize!.width}
+              height={adjustSize!.height}
+              role="img"
+              aria-label="Adjusted photo"
+              className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
+            />
+          ) : (
+            /* eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize */
+            <img
+              src={showEnhanced ? enhancedPreviewUrl! : sourceMeta.dataUrl}
+              alt={showEnhanced ? "Enhanced photo preview" : "Uploaded photo"}
+              className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
+            />
+          )}
+          {comparable && (
+            <figcaption className="flex items-center gap-2 text-xs text-muted">
+              <PillButton size="xs" aria-pressed={showOriginal} onClick={() => setShowOriginal((shown) => !shown)}>
+                Compare with original
+              </PillButton>
+            </figcaption>
+          )}
           {enhancementActive && (
             <figcaption className="flex items-center gap-2 text-xs text-muted">
               {isPreparingEnhancedPreview && <span>Preparing enhanced preview…</span>}

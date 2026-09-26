@@ -105,6 +105,60 @@ export function SegmentedControl<T extends string>({
   );
 }
 
+export interface SliderProps {
+  label: string;
+  /** What the slider does, on the control itself, for a reader who is not sure which way is which. */
+  hint: string;
+  value: number;
+  min: number;
+  max: number;
+  /** The value the slider means "leave this alone": shown as a dash, and where a double-click puts it back. */
+  neutral?: number;
+  onChange: (value: number) => void;
+  /** While the reader is still dragging, so a preview can stay coarse until they let go. */
+  onSettled?: () => void;
+  disabled?: boolean;
+}
+
+/**
+ * One labelled range with its value beside it (G-074 M2).
+ *
+ * A slider with a neutral point reads its own state: at neutral the number is a dash rather than a 0, because
+ * "0" invites the reader to wonder what a zero of brightness would be. A double-click puts it back there --
+ * the only way back to *exactly* neutral with a pointer, since dragging can land one short of it.
+ */
+export function Slider({ label, hint, value, min, max, neutral, onChange, onSettled, disabled }: SliderProps) {
+  const id = `slider-${label.toLowerCase().replace(/[^a-z]+/g, "-")}`;
+  const at = neutral !== undefined && value === neutral;
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-baseline justify-between">
+        <label className="text-[11px] text-muted" htmlFor={id} title={hint}>
+          {label}
+        </label>
+        <span className={`font-mono text-[11px] ${at ? "text-faint" : "text-ink"}`}>{at ? "--" : value > 0 ? `+${value}` : value}</span>
+      </div>
+      <input
+        id={id}
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        disabled={disabled}
+        title={hint}
+        aria-label={label}
+        aria-valuetext={at ? "neutral" : String(value)}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onPointerUp={onSettled}
+        onKeyUp={onSettled}
+        onBlur={onSettled}
+        onDoubleClick={() => neutral !== undefined && onChange(neutral)}
+        className="min-w-0 accent-[var(--at-accent)] disabled:cursor-not-allowed disabled:opacity-40"
+      />
+    </div>
+  );
+}
+
 /** Full-width message strip. */
 export function NoticeBar({ tone, children }: { tone: "error" | "info"; children: ReactNode }) {
   const toneClass = tone === "error" ? "border-red-900 bg-red-950/60 text-red-300" : "border-line bg-surface text-muted";

@@ -7,9 +7,7 @@
 //! The work happens in OKLab, the space this project already clusters and matches threads in: lightness is
 //! separate from colour there, so brightness and contrast move one without dragging the other.
 
-use crate::color::{
-    gamut_map_oklab_to_linear, linear_to_srgb, oklab_from_bytes, srgb_to_linear_table,
-};
+use crate::color::{linear_to_srgb, oklab_from_bytes, srgb_to_linear_table};
 use crate::Image;
 
 /// Each slider runs -100 to 100, neutral at 0.
@@ -74,6 +72,37 @@ pub fn adjust_oklab(l: f64, a: f64, b: f64, adjust: &PhotoAdjust) -> (f64, f64, 
     )
 }
 
+/// Adjusted OKLab back to an sRGB pixel.
+///
+/// The clamp is the whole of D238: a colour pushed out of sRGB is clipped per channel, not chroma-reduced by
+/// `gamut_map_oklab_to_linear`. Mirrors `writeAdjustedPixel` in the TypeScript.
+fn adjusted_srgb(l: f64, a: f64, b: f64) -> (u8, u8, u8) {
+    let ll = (l + 0.3963377774 * a + 0.2158037573 * b).powi(3);
+    let m = (l - 0.1055613458 * a - 0.0638541728 * b).powi(3);
+    let s = (l - 0.0894841775 * a - 1.291485548 * b).powi(3);
+    (
+        linear_to_srgb(clamp_unit(
+            4.0767416621 * ll - 3.3077115913 * m + 0.2309699292 * s,
+        )),
+        linear_to_srgb(clamp_unit(
+            -1.2684380046 * ll + 2.6097574011 * m - 0.3413193965 * s,
+        )),
+        linear_to_srgb(clamp_unit(
+            -0.0041960863 * ll - 0.7034186147 * m + 1.707614701 * s,
+        )),
+    )
+}
+
+fn clamp_unit(v: f64) -> f64 {
+    if v < 0.0 {
+        0.0
+    } else if v > 1.0 {
+        1.0
+    } else {
+        v
+    }
+}
+
 /// A photo with the four sliders applied.
 ///
 /// Neutral returns `None`: an untouched photo has to reach the pipeline as the bytes that were decoded, or a
@@ -88,10 +117,10 @@ pub fn adjust_image(image: &Image, adjust: &PhotoAdjust) -> Option<Image> {
     for i in (0..image.data.len()).step_by(4) {
         let lab = oklab_from_bytes(table, image.data[i], image.data[i + 1], image.data[i + 2]);
         let (l, a, b) = adjust_oklab(lab[0], lab[1], lab[2], adjust);
-        let linear = gamut_map_oklab_to_linear(l, a, b);
-        data[i] = linear_to_srgb(linear[0]);
-        data[i + 1] = linear_to_srgb(linear[1]);
-        data[i + 2] = linear_to_srgb(linear[2]);
+        let (r, g, bl) = adjusted_srgb(l, a, b);
+        data[i] = r;
+        data[i + 1] = g;
+        data[i + 2] = bl;
         // Transparency is absence (D196): an adjustment changes colour, never what is or is not there.
         data[i + 3] = image.data[i + 3];
     }

@@ -50,6 +50,7 @@ import { useGeneration } from "./hooks/use-generation";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { usePanZoom, ZOOM_STEP } from "./hooks/use-pan-zoom";
 import { useEnhancePreview } from "./hooks/use-enhance-preview";
+import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useProjectRestore } from "./hooks/use-project-restore";
 import { useSourceImage } from "./hooks/use-source-image";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
@@ -75,6 +76,8 @@ export default function Workspace() {
   // The enhanced preview replaces the plain photo only before the first Generate; afterwards the grid views take over.
   const enhancementMode = isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off";
   const photoPreview = useEnhancePreview(source.pixelBuffer, source.meta?.dataUrl ?? null, enhancementMode, pattern === null);
+  // The four sliders (G-074), drawn in the browser from the decoded photo -- no request to the server.
+  const adjustPreview = usePhotoAdjustPreview(source.pixelBuffer, options.photoAdjust, pattern === null);
 
   const [viewMode, setViewMode] = useState<ViewMode>("color");
   const [activeTool, setActiveTool] = useState<Tool>("brush");
@@ -725,6 +728,10 @@ export default function Workspace() {
           isLoadingImage={source.isLoading}
           previewError={renderer.previewError}
           onRetryPreview={renderer.retryPreview}
+          adjustActive={adjustPreview.active}
+          adjustReady={adjustPreview.ready}
+          adjustSize={adjustPreview.size}
+          adjustCanvasRef={adjustPreview.attach}
           enhancementActive={pattern === null && enhancementMode !== "off"}
           enhancedPreviewUrl={photoPreview.previewUrl}
           isPreparingEnhancedPreview={photoPreview.isPreparing}
@@ -773,6 +780,7 @@ export default function Workspace() {
               sourceSize={source.meta ? { width: source.meta.naturalWidth, height: source.meta.naturalHeight } : null}
               isLoadingImage={!startingNew && source.isLoading}
               onCancel={generation.cancel}
+              onAdjustSettled={adjustPreview.settle}
               error={generation.error}
             />
           )

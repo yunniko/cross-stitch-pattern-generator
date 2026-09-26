@@ -196,6 +196,13 @@ per file in `docs/decisions/`, research and reviews in `docs/reviews/` and
 `docs/domain-reference*.md`, and thread-data and font licensing in
 `docs/*-provenance.md`.
 
+The Photo tab carries four sliders -- brightness, contrast, saturation and warm/cool -- that adjust the
+photo before generation. They are applied in the browser as they move, in a worker
+(`lib/editor/photo-adjust.worker.ts`), from one definition mirrored in Rust for
+generation (`lib/pipeline/photo-adjust.ts`, `rust/cs-core/src/photo_adjust.rs`,
+D237/D238, checked by `npm run test:photo-adjust:rust`). Centred, they leave the
+photo exactly as it was decoded. Generation does not read them yet (G-074 M3).
+
 Photo enhancement runs before generation, with a preview and a compare toggle.
 Brighten is a cautious exposure fix for dark or flat photos, and leaves
 well-exposed ones untouched. Auto, Vivid and Portrait also correct contrast,
