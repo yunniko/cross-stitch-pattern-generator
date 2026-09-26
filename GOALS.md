@@ -43,6 +43,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
      values are saved with the pattern as the other photo settings are (D138: an additive field, no format
      version bump).
   6. **The five modes and the machinery only they used are gone**, not left dead in the tree.
+  7. **The photo views show the adjusted photo** (Owner, 2026-09-27): "Grid + photo" and "Original
+     photo" draw what the chart was made from, not the file as it was uploaded.
+  8. **Opening a chart restores its sliders** (Owner, 2026-09-27): a chart saved with sliders opens with
+     them set, so pressing Regenerate reproduces that chart rather than silently making a different one.
 - **Constraints:**
   - **The adjustment exists twice and must not drift.** The browser applies it in TypeScript and generation
     applies it in Rust, exactly as the backstitch dash table does (D233), so it needs the same kind of
@@ -65,8 +69,20 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M4 — **The modes retire** (criterion 6): the buttons, the per-mode preview route and the adaptive
   analysis only they used are removed, D118's release gates are settled one way or the other, README and
   HANDOVER catch up, and it is deployed and verified live.
+- [x] M5 — **The photo you adjusted, everywhere it appears** (criteria 7, 8; Owner, 2026-09-27):
+  the two photo view modes draw the photo the chart was made from rather than the file as uploaded, and
+  opening a chart puts its sliders back in the Photo tab, so Regenerate reproduces it instead of quietly
+  making a different chart.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-27 — **M5 reached** (Owner asked two questions after M4 and both were gaps): the photo views draw
+  the photo as adjusted, prepared in the slider worker, and opening a chart puts its sliders back so that
+  Regenerate reproduces it (D241). Verified: 813 unit tests (4 new on the photo key), 405 e2e (2 new).
+  **The first version of the photo-view test passed with the feature reverted** — `expect.poll` was
+  satisfied by the frame still holding the previous chart. Replacing it with a wait on the frame's new
+  `data-photo` marker then failed honestly, and exposed a real bug: the interim `setPhoto` re-ran its own
+  effect, whose cleanup disposed the worker before the adjusted frame arrived. Both changes are now
+  mutation-checked (3 breaks, 3 caught). Not yet deployed.
 - 2026-09-27 — **M4 reached; deployed.** The five enhancement modes and everything only they used are
   removed: the analysis, the preview endpoint, its worker, its cache, its rate-limit allowance and two test
   suites — 3,843 lines deleted against 142 added, across 50 files (D240). D118 is settled as never

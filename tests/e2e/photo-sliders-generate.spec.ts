@@ -55,6 +55,47 @@ function meanChroma(chart: ExportedChart): number {
   return spread.reduce((a, b) => a + b, 0) / spread.length;
 }
 
+/**
+ * The bare photo. One press shows the grid over it, a second the photo alone, a third returns to the chart
+ * (context-bar.tsx), so this presses until it arrives rather than assuming where it started.
+ */
+async function showPhotoOnly(page: Page) {
+  const button = page.getByRole("button", { name: "Show the photo behind the chart" });
+  const frame = page.getByTestId("chart-frame");
+  for (let press = 0; press < 3; press++) {
+    if ((await frame.getAttribute("data-view-mode")) === "photo-only") break;
+    await button.click();
+  }
+  await expect(frame).toHaveAttribute("data-view-mode", "photo-only");
+}
+
+/** Waits for the frame to be showing the photo *as the chart was made from it*, then reads it. */
+async function adjustedPhotoChroma(page: Page): Promise<number> {
+  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-photo", "adjusted", { timeout: 30_000 });
+  return photoViewChroma(page);
+}
+
+/** The same, for a chart made with the sliders centred: the photo shown is the file as uploaded. */
+async function uploadedPhotoChroma(page: Page): Promise<number> {
+  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-photo", "uploaded", { timeout: 30_000 });
+  return photoViewChroma(page);
+}
+
+/** How far the photo the view is drawing is from grey. Reads the chart canvas, which is where it lands. */
+async function photoViewChroma(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="chart-canvas"]');
+    if (!canvas) return -1;
+    const { data } = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height);
+    let worst = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] < 200) continue;
+      worst = Math.max(worst, Math.max(data[i], data[i + 1], data[i + 2]) - Math.min(data[i], data[i + 1], data[i + 2]));
+    }
+    return worst;
+  });
+}
+
 test("a chart generated with the sliders is made from the adjusted photo, and records them", async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto("/");
@@ -112,4 +153,61 @@ test("a chart saved with the sliders reopens with them, and a file from before t
   expect(reopened.enhancementMode).toBe("brighten");
   await rm(file, { force: true });
   expect(errors).toEqual([]);
+});
+
+test("the photo views show the photo the chart was made from, and reopening restores the sliders", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await page.getByRole("radio", { name: /Small/ }).check();
+
+  await setSlider(page, "Saturation", -100);
+  const chart = await generateAndExport(page);
+  expect(chart.photoAdjust).toEqual({ brightness: 0, contrast: 0, saturation: -100, temperature: 0 });
+
+  // "Original photo" draws the photo the chart came from. With every bit of colour taken out of it, it is grey.
+  await showPhotoOnly(page);
+  // Waited for, not polled for: a poll would be satisfied by the frame still holding the grey chart
+  // from a moment ago, and would pass just as happily with the adjustment never applied.
+  expect(await adjustedPhotoChroma(page)).toBeLessThan(6);
+
+  // And with the sliders centred it is the photo as uploaded, which this one is not: it is vividly coloured.
+  await page.getByRole("tab", { name: "Photo" }).click();
+  await setSlider(page, "Saturation", 0);
+  await generateAndExport(page);
+  await showPhotoOnly(page);
+  expect(await uploadedPhotoChroma(page)).toBeGreaterThan(30);
+
+  expect(errors).toEqual([]);
+});
+
+test("a chart saved with the sliders opens with them set, so Regenerate reproduces it", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await page.getByRole("radio", { name: /Small/ }).check();
+
+  await setSlider(page, "Brightness", -45);
+  await setSlider(page, "Saturation", 70);
+  const saved = await generateAndExport(page);
+  const file = path.join(tmpdir(), `sliders-${process.pid}.json`);
+  await writeFile(file, JSON.stringify({ ...saved, name: "slider-chart" }), "utf8");
+
+  // A fresh page, with the sliders left somewhere else entirely.
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await setSlider(page, "Brightness", 100);
+
+  await page.getByLabel("Open pattern file").setInputFiles(file);
+  await page.getByRole("tab", { name: "Photo" }).click();
+  await expect(page.getByRole("slider", { name: "Brightness" })).toHaveValue("-45");
+  await expect(page.getByRole("slider", { name: "Saturation" })).toHaveValue("70");
+
+  // The point of restoring them: pressing Regenerate gives back the chart that was opened, not another one.
+  const again = await generateAndExport(page);
+  expect(again.photoAdjust).toEqual(saved.photoAdjust);
+  expect(again.cellPalette).toEqual(saved.cellPalette);
+  await rm(file, { force: true });
 });

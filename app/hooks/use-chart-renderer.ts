@@ -9,6 +9,10 @@ import {
   visibleChartRect,
   type PixelRect,
 } from "@/lib/editor/chart-viewport";
+import { photoKey } from "@/lib/editor/adjusted-photo";
+import { createAdjustPreviewRunner, type AdjustPreviewRunner } from "@/lib/editor/photo-adjust-preview";
+import { isNeutralAdjust } from "@/lib/pipeline/photo-adjust";
+import { previewSizeFor } from "@/lib/pipeline/photo-preview";
 import type { StampEdge } from "@/lib/editor/brush-stamp";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
 import { renderNavigatorPixels } from "@/lib/export/render";
@@ -113,7 +117,15 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     applyZoomAnchor,
     symmetryAxes,
   } = inputs;
-  const [photo, setPhoto] = useState<{ dataUrl: string; img: HTMLImageElement } | null>(null);
+  const [photo, setPhoto] = useState<{ key: string; img: CanvasImageSource } | null>(null);
+  /**
+   * What the photo effect below already has, as a ref rather than by reading `photo`.
+   *
+   * The effect puts the unadjusted photo up first and then waits for the worker's adjusted frame. With
+   * `photo` in its dependencies that first `setPhoto` re-ran the effect, and the cleanup disposed the very
+   * worker whose answer it was waiting for, so the adjusted photo never arrived.
+   */
+  const heldPhotoKeyRef = useRef<string | null>(null);
   const [realisticTiles, setRealisticTiles] = useState<StitchTiles | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewRetryToken, setPreviewRetryToken] = useState(0);
@@ -221,6 +233,12 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       shown.viewMode === "realistic" &&
       (!tiles || tiles.cellSize !== tileSizeFor(shown.cellSize) || tiles.palette !== shownPattern?.palette);
     frame.dataset.scenePending = realisticPending ? "realistic" : "";
+    // Which photo the photo views are showing: the file as uploaded, or that file adjusted by the four
+    // sliders (G-074 M5). The adjusted one is prepared in a worker and arrives a moment later, and this
+    // is how anything waiting for it -- a test, a person reading the DOM -- can tell which is on screen.
+    const shownPhoto = shown.photo;
+    frame.dataset.photo =
+      !shownPhoto || !shownPattern?.sourceImage ? "" : shownPhoto.key === shownPattern.sourceImage.dataUrl ? "uploaded" : "adjusted";
   }
 
   /** A full frame: re-measure, resize and place the canvas (which clears it and resets its state), draw scene and gesture. */
@@ -315,20 +333,56 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     };
   }, [scrollerRef, frameRef, hasPattern, ensureCoverageRef]);
 
-  // Decodes the embedded photo once per data URL, and only while a view that shows it is active.
+  // Decodes the embedded photo once per photo and adjustment, and only while a view that shows it is
+  // active. A chart made with the sliders is compared against the photo it was made from, not the file
+  // that was uploaded (G-074 M5), so the adjustment is applied here -- in the same worker the sliders
+  // use, because a full pass on this thread would stall the view switch.
   const sourceImage = pattern?.sourceImage;
+  const photoAdjust = pattern?.photoAdjust;
   useEffect(() => {
-    if ((viewMode !== "photo" && viewMode !== "photo-only") || !sourceImage || photo?.dataUrl === sourceImage.dataUrl) return;
+    const showsPhoto = viewMode === "photo" || viewMode === "photo-only";
+    if (!showsPhoto || !sourceImage) return;
+    const wanted = photoKey(sourceImage.dataUrl, photoAdjust);
+    if (heldPhotoKeyRef.current === wanted) return;
     let cancelled = false;
+    let runner: AdjustPreviewRunner | null = null;
     const img = new Image();
     img.onload = () => {
-      if (!cancelled) setPhoto({ dataUrl: sourceImage.dataUrl, img });
+      if (cancelled) return;
+      if (!photoAdjust || isNeutralAdjust(photoAdjust)) {
+        heldPhotoKeyRef.current = wanted;
+        setPhoto({ key: wanted, img });
+        return;
+      }
+      // The unadjusted photo goes up first so the view is never blank while the frame is prepared.
+      heldPhotoKeyRef.current = sourceImage.dataUrl;
+      setPhoto({ key: sourceImage.dataUrl, img });
+      const size = previewSizeFor(img.naturalWidth, img.naturalHeight);
+      const scratch = document.createElement("canvas");
+      scratch.width = size.width;
+      scratch.height = size.height;
+      const ctx = scratch.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, size.width, size.height);
+      const pixels = ctx.getImageData(0, 0, size.width, size.height);
+      runner = createAdjustPreviewRunner((frame) => {
+        if (cancelled) return;
+        const out = document.createElement("canvas");
+        out.width = frame.width;
+        out.height = frame.height;
+        out.getContext("2d")?.putImageData(new ImageData(frame.data as Uint8ClampedArray<ArrayBuffer>, frame.width, frame.height), 0, 0);
+        heldPhotoKeyRef.current = wanted;
+        setPhoto({ key: wanted, img: out });
+      });
+      runner.setPhoto({ data: pixels.data, width: size.width, height: size.height });
+      runner.request(photoAdjust, "fine");
     };
     img.src = sourceImage.dataUrl;
     return () => {
       cancelled = true;
+      runner?.dispose();
     };
-  }, [viewMode, sourceImage, photo]);
+  }, [viewMode, sourceImage, photoAdjust]);
 
   // The navigator shows the whole pattern at one pixel per stitch.
   useEffect(() => {

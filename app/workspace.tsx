@@ -48,6 +48,7 @@ import { paginatesAsA4, useExports } from "./hooks/use-exports";
 import { useGeneration } from "./hooks/use-generation";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { usePanZoom, ZOOM_STEP } from "./hooks/use-pan-zoom";
+import { NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
 import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useProjectRestore } from "./hooks/use-project-restore";
 import { useSourceImage } from "./hooks/use-source-image";
@@ -224,6 +225,11 @@ export default function Workspace() {
   /** Lands a restored or opened pattern in every piece of state that depends on it, including its embedded photo. */
   async function loadPatternIntoWorkspace(loaded: StitchPattern, fallbackName: string, savedSymmetry: SymmetryAxes = NO_SYMMETRY) {
     const withName = { ...loaded, name: loaded.name ?? fallbackName };
+    // The sliders come back with the chart (G-074 M5): a chart made with them, reopened and regenerated,
+    // must be the chart it was rather than quietly a different one. Only for a chart that has a photo --
+    // one started from an empty canvas has no photo settings at all, and its sliders are not the reader's
+    // to lose.
+    if (withName.sourceImage) updateOption("photoAdjust", withName.photoAdjust ?? NEUTRAL_ADJUST);
     history.reset(withName);
     resetDocumentView();
     symmetryState.reset(savedSymmetry);

@@ -276,3 +276,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D238 — The adjustment clips rather than gamut-maps — active
 - D239 — The sliders are the photo, not a colour stage — active
 - D240 — The five enhancement modes are removed, and D118 is settled — active
+- D241 — A chart carries its sliders wherever it goes — active
