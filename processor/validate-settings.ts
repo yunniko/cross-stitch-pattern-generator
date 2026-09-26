@@ -1,6 +1,5 @@
 import { DITHER_MODES, isDithered, type DitherMode } from "@/lib/pipeline/dither";
 import { isValidDitherTexture } from "@/lib/pipeline/dither-hand-drawn";
-import { ENHANCEMENT_MODE_IDS } from "@/lib/pipeline/enhance";
 import { isValidPhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import { THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES } from "@/lib/types";
@@ -35,7 +34,6 @@ export function settingsError(body: unknown): string | null {
     ["generationMode", ["original", "latest"]],
     ["paletteMode", ["full", ...THREAD_BRAND_IDS]],
     ["edgeMode", ["standard", "crisp", "crisp-plus"]],
-    ["enhancementMode", ENHANCEMENT_MODE_IDS],
     ["ditherMode", DITHER_MODES],
   ];
   for (const [field, allowed] of enums) {

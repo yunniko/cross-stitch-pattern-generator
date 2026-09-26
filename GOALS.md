@@ -62,11 +62,19 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M3 — **Generation uses them** (criteria 3, 5): the values travel with the generate request and Rust
   applies them at full resolution; they are saved with the pattern, and a file carrying the old
   `enhancementMode` still opens.
-- [ ] M4 — **The modes retire** (criterion 6): the buttons, the per-mode preview route and the adaptive
+- [x] M4 — **The modes retire** (criterion 6): the buttons, the per-mode preview route and the adaptive
   analysis only they used are removed, D118's release gates are settled one way or the other, README and
   HANDOVER catch up, and it is deployed and verified live.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-27 — **M4 reached; deployed.** The five enhancement modes and everything only they used are
+  removed: the analysis, the preview endpoint, its worker, its cache, its rate-limit allowance and two test
+  suites — 3,843 lines deleted against 142 added, across 50 files (D240). D118 is settled as never
+  released. Verified: 809 unit tests, 440 e2e (1 flaky, passed on retry), 74 golden tests, and every Rust
+  suite; `cargo test`, lint, tsc, prettier and docs-lint clean. Four golden hashes were **removed** — the
+  first break of D107's "only ever add" — and five slider cases recorded in their place; the production
+  bundle greps clean but for the id list old files are read by. Deployed and verified live. Awaiting the
+  Owner's sign-off.
 - 2026-09-26 — **M3 reached.** The sliders travel with the generate request, through the processor's
   validation, into the binary, which applies them before any stage reads the photo (D239); they are
   recorded on the pattern, in the save file and in the autosave, and absent when neutral. Verified:

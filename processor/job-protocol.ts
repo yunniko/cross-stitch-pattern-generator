@@ -5,7 +5,6 @@ import type { ExportProgress } from "@/lib/export/export-progress";
 import type { SizeUnit } from "@/lib/export/finished-size";
 import type { DitherMode } from "@/lib/pipeline/dither";
 import type { DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
-import type { EnhancementModeId } from "@/lib/pipeline/enhance";
 import type { PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pipeline/generation-modes";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
@@ -26,7 +25,6 @@ export interface JobSettings {
   generationMode?: GenerationMode;
   paletteMode?: PaletteMode;
   edgeMode?: EdgeMode;
-  enhancementMode?: EnhancementModeId;
   photoAdjust?: PhotoAdjust;
   ditherMode?: DitherMode;
   ditherTexture?: DitherTexture;
@@ -63,17 +61,6 @@ export type WorkerMessage =
   | { type: "done"; jobId: string; pattern: StitchPattern }
   | { type: "export-done"; jobId: string; bytes: Uint8Array; filename: string; contentType: string }
   | { type: "error"; jobId: string; message: string };
-
-/** What the preview worker is asked for: the decoded photo, the mode to analyse it in, and the size to return. */
-export interface PreviewJob {
-  requestId: string;
-  imageData: PixelBuffer;
-  mode: Exclude<EnhancementModeId, "off">;
-  maxSide: number;
-}
-
-export type PreviewMessage =
-  { type: "done"; requestId: string; preview: PixelBuffer } | { type: "error"; requestId: string; message: string };
 
 /** A job's life, as the client sees it over the event stream. */
 export type JobState = "queued" | "running" | "done" | "error" | "cancelled";

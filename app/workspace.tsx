@@ -17,7 +17,6 @@ import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
 import { getProjectStore } from "@/lib/editor/project-store";
 import { useProjectAutosave } from "./hooks/use-project-autosave";
 import { useUndoHistory } from "./hooks/use-undo-history";
-import { isReleasedEnhancementMode } from "@/lib/pipeline/enhance";
 import type { StitchPattern } from "@/lib/types";
 import { ChartPane } from "./components/chart-pane";
 import { ColorsDock } from "./components/colors-dock";
@@ -49,7 +48,6 @@ import { paginatesAsA4, useExports } from "./hooks/use-exports";
 import { useGeneration } from "./hooks/use-generation";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { usePanZoom, ZOOM_STEP } from "./hooks/use-pan-zoom";
-import { useEnhancePreview } from "./hooks/use-enhance-preview";
 import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useProjectRestore } from "./hooks/use-project-restore";
 import { useSourceImage } from "./hooks/use-source-image";
@@ -73,9 +71,6 @@ export default function Workspace() {
   const pattern = history.state;
   const { options, update: updateOption } = useWorkspaceOptions();
   const source = useSourceImage();
-  // The enhanced preview replaces the plain photo only before the first Generate; afterwards the grid views take over.
-  const enhancementMode = isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off";
-  const photoPreview = useEnhancePreview(source.pixelBuffer, source.meta?.dataUrl ?? null, enhancementMode, pattern === null);
   // The four sliders (G-074), drawn in the browser from the decoded photo -- no request to the server.
   const adjustPreview = usePhotoAdjustPreview(source.pixelBuffer, options.photoAdjust, pattern === null);
 
@@ -732,10 +727,6 @@ export default function Workspace() {
           adjustReady={adjustPreview.ready}
           adjustSize={adjustPreview.size}
           adjustCanvasRef={adjustPreview.attach}
-          enhancementActive={pattern === null && enhancementMode !== "off"}
-          enhancedPreviewUrl={photoPreview.previewUrl}
-          isPreparingEnhancedPreview={photoPreview.isPreparing}
-          enhancedPreviewError={photoPreview.error}
           hoverCanvasRef={hoverCanvasRef}
           onPointerLeave={() => updateHoverOutline(null)}
           onPointerDown={handleCanvasPointerDown}

@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-26 at a2101b1 (G-074 M3: generation reads the four photo sliders)
+Last verified: 2026-09-27 at HEAD (G-074 M4: the enhancement modes removed, sliders deployed)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -48,7 +48,12 @@ export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-compar
   moves, full when it settles. Generation applies them at full resolution before any stage reads the
   photo (D239), so the chart is the chart of the photo on screen; the values travel with the request,
   are recorded on the pattern and saved with it, and are absent when neutral so a chart made without
-  them is the file it always was. A file carrying the old `enhancementMode` still opens.
+  them is the file it always was.
+- **The five photo-enhancement modes are gone** (D240, G-074 M4): the modes, their analysis, the preview
+  endpoint, its worker, its cache and its rate-limit allowance — about 2,300 lines. D118 is settled as
+  never released. A chart saved with one still opens and still says which; regenerating it will not
+  reproduce it, because the mode that made it no longer exists. `lib/editor/legacy-enhancement.ts` is all
+  that is left: the ids, to read them by.
 - A transparent background generates as empty stitches (G-050, D196): a cell covered less than half takes no colour, and every stage reads covered pixels only.
 - Pixel art in and out (G-049): the start screen's fourth card opens an image as a chart, one pixel per stitch,
   nothing resampled; too large, too colourful or partly transparent is refused with the numbers, under 10 stitches is centred in a chart of the minimum (D194), and the pixel-art PNG writes the image back.
@@ -102,8 +107,10 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   `scripts/build-processor.mjs`. The photo is uploaded once by `lib/pipeline/photo-upload.ts` and referred to by hash;
   `lib/pipeline/server-errors.ts` separates a busy server, an unreachable one and an expired photo, and
   `processor/validate-settings.ts` checks requests against the type unions. It is the only path (M5).
-- **Preview path (server, G-034 M3, D152)**: `use-enhance-preview.ts` → `lib/pipeline/enhance-preview-server.ts` →
-  `app/api/photos/[hash]/preview/route.ts` → its own worker (`processor/preview-{runner,worker}.ts`), cached as WebP.
+- **Photo preview path (in the page, G-074 M2)**: `app/hooks/use-photo-adjust-preview.ts` →
+  `lib/editor/photo-adjust-preview.ts` → `lib/editor/photo-adjust.worker.ts`, painting a downscaled copy
+  (`lib/pipeline/photo-preview.ts`) onto a canvas. Nothing leaves the page; the server has no preview endpoint
+  since D240.
 - **Export path (server, G-034 M4, D153)**: `app/hooks/use-exports.ts` → `lib/export/export-server.ts` →
   `app/api/exports/route.ts` → the same pool as generation, inside D149's cap. The drawing asks
   `lib/export/canvas-backend.ts` for canvases, PNG encoding, images and the PDF font, which
@@ -118,11 +125,10 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   (`lib/pipeline/dither.ts`, D198, D199); otherwise coarse then fine ICM on an 8-neighbour stencil, re-evaluating a cell only after a neighbour changes
   (D043, D045, D133); small-component recolor and diagonal-pinch fixes; palette merge, zero-count compaction and
   OKLab recompute; thread-brand snap with fine ICM re-run (D056), then dark-to-light sort, symbols and names.
-- **Photo enhancement** (`lib/pipeline/enhance.ts`): a preset is analysed from the photo (white balance, levels and
-  gamma, CLAHE, vibrance) then applied per pixel, once, inside `buildPattern`. Downsampling and Crisp's colour fits
-  read the enhanced photo; importance and pair evidence read the original (D112). Off, or every stage abstaining,
-  returns the input untouched (D118). `releasedEnhancementModes()` decides what the UI offers, while files may record
-  any recognized mode (D113).
+- **The four photo sliders** (`lib/pipeline/photo-adjust.ts`, mirrored in `rust/cs-core/src/photo_adjust.rs`):
+  brightness, contrast, saturation and warm/cool as fixed per-pixel transforms in OKLab, clipping rather than
+  gamut-mapping (D238). Applied first in the pipeline, so every later stage reads the adjusted photo (D239);
+  neutral returns the photo untouched, byte for byte.
 - **Crisp mode** (`lib/crisp/`): a frozen evidence layer (D065) feeds weighted quantization, admissible-label unary
   costs in ICM and cleanup, repair after merges, and mode-aware finalization (D061–D072); it evaluates every cell
   (D132). Crisp+ (G-038) adds blurred-step evidence (D139), strip snapping (D140), pruning (D141), refill (D142).
@@ -140,14 +146,15 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   in, the file out, progress as JSON lines on stderr — and returns null on any failure, falling back to TypeScript
   (D193). The image builds it in its own `rust` stage; a missing binary fails the job rather than disabling it.
 - **Rust port (G-048)**: `rust/cs-core` ports the pipeline module by module, each file naming the TypeScript it ports:
-  `crisp/` holds Crisp and Crisp+, `threads.rs` brand matching, `enhance.rs` enhancement, `dither.rs` G-052's patterns,
+  `crisp/` holds Crisp and Crisp+, `threads.rs` brand matching, `photo_adjust.rs` the four sliders, `dither.rs` G-052's patterns,
   `jsmath.rs` and `fdlibm.rs` the V8-exact maths (D183, D184) pinned by `rust/cs-core/tests/jsmath_vectors.rs`.
   `rust/cs-export` ports every export: `text.rs`/`canvas.rs` draw DejaVu text as the processor's canvas does (D187),
   `pdf.rs` pdf-lib's structure (D189), `bundle.rs` JSZip's ZIPs. `rust/cs-bench` is the CLI behind `npm run compare:rust`.
 - **Tests**: four layers (D222). Unit specs in `tests/unit/` cover the browser and the editor. The generation
-  pipeline is covered by `scripts/rust-goldens.ts` (38 recorded hashes, D107), `rust/cs-core/tests/
-  pattern_invariants.rs` (what must hold of *any* chart), `scripts/rust-enhancement-gates.ts` (D118's release
-  gates) and `scripts/rust-enhance-parity.ts` (the shipped preview against the binary). All four need
+  pipeline is covered by `scripts/rust-goldens.ts` (39 recorded hashes, D107), `rust/cs-core/tests/
+  pattern_invariants.rs` (what must hold of *any* chart), `scripts/rust-photo-adjust.ts` (the two copies of the
+  adjustment) and `scripts/rust-photo-adjust-pipeline.ts` (that a chart made with the sliders is the adjusted
+  photo's chart). All four need
   `cargo build --release` first and run under `vitest.rust.config.ts`. E2E specs are in `tests/e2e/`;
   `npm run test:e2e` starts the processor and the app together, since the page needs both.
   `compare:export-parity` diffs two running builds.
@@ -188,15 +195,9 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - Speed-ups must leave `tests/unit/fixtures/golden-hashes.json` unchanged. `GOLDEN_RECORD=1` adds a hash for a
   *new* case and refuses to overwrite an existing one, so an intended output change means editing the file by
   hand with a decision file (D107, D222).
-- Omitting `edgeMode`, `contourRefinement`, a brand or `enhancementMode` (or passing Off) must reproduce Standard output byte-for-byte.
-- Which enhancement modes are offered is the Owner's decision, made in `releasedEnhancementModes()` (D118).
-  A mode is released only once `scripts/rust-enhancement-gates.ts` passes it: do-no-harm, noise and thread
-  palette are gated, recovery is reported and not gated (D115). All four released modes pass; the thinnest
-  margin is do-no-harm on the landscape fixture at 0.919 against a gate of 0.90.
-- Brighten must never white-balance, add local contrast or saturate, and must leave a photo with both deep shadows and highlights untouched (D118).
-- Enhancement calibration photos stay outside the repository; two show identifiable people.
+- Omitting `edgeMode`, `contourRefinement`, a brand or `photoAdjust` (or passing it neutral) must reproduce
+  Standard output byte-for-byte — `scripts/rust-goldens.ts` asserts it on every recorded case.
 - **The TypeScript pipeline is gone** (G-068 M3): generation, crisp edges, quantisation, denoise and the optimiser exist only in `rust/`. `lib/pipeline` keeps the vocabulary (`generation-modes.ts`), the dither preview the browser draws, `regions.ts` behind the Fill tool, `downsample.ts`'s grid maths and `enhance.ts`. Adding a pipeline feature is a Rust change and a golden-hash decision, not two implementations.
-- **`lib/pipeline/enhance.ts` is still TypeScript and still runs**, in the Next API route that serves the photo-enhancement preview — while `rust/cs-core/src/enhance.rs` does the same work during generation. That is the one duplication G-068 did not remove; routing the preview through the processor would.
 - A crash report carries the chart but never the photo (D218), and names a commit only when the image is built with `APP_COMMIT=$(git rev-parse --short HEAD)`; the plain deploy command leaves it "unknown". Confirmed after a deploy by grepping the shipped chunks for the short SHA.
 - Nothing test-only ships: a build-flagged crash hook was found in the production chunks, so the boundary's spec breaks `fillRect` instead (D218). Grep a production build before trusting a flag to remove code.
 - `lib/` imports no framework. It is the layer the unit tests exercise without rendering and the processor runs server-side; two hooks had drifted in before G-067 M6, so eslint `no-restricted-imports` now refuses `react` there. A hook goes in `app/hooks/`, its logic stays in `lib/` as a pure module.
@@ -320,10 +321,9 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-074 is active, M3 reached**: the photo's five enhancement buttons become four sliders that work in
-  the browser (D237, D238) and that generation now reads (D239). Next is M4 — removing the five modes,
-  the per-mode preview route and the adaptive analysis only they used, settling D118's release gates,
-  then deploying. G-073 (backstitch) was signed off on 2026-09-26 and is archived.
+- **G-074 is active, M4 reached and deployed; it awaits the Owner's sign-off.** The photo's five enhancement
+  modes are four sliders that work in the browser (D237, D238), that generation reads (D239), and the modes
+  themselves are removed (D240). G-073 (backstitch) was signed off on 2026-09-26 and is archived.
 - **Left for a future goal, found while building it:** the casing threshold and bead spacing were judged on screen, never on paper — only a print settles how a 0.55 mm dashed line reads at a 2.75 mm cell (`docs/reviews/2026-09-25-backstitch-samples.md`). Backstitch is also absent from the realistic preview,
   which draws stitches from tiles and has no notion of a line.
 - Two drafts wait on the Owner: **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public launch, far future).
@@ -332,9 +332,9 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - G-070 is closed as answered: the V8 maths port costs nothing — replacing it is **13–25% slower** with
   identical output (D223). Its one actionable finding shipped as G-071: the build targets `x86-64-v3`,
   worth a mean 6.6% (D224). Both are written up in `docs/reviews/2026-09-24-parity-tax.md`.
-- Watch: `tests/unit/preview-runner.spec.ts` ("keeps serving on the same runner after a deadline kill")
-  failed once on 2026-09-26 under full-suite load and passed on its own four times running. It is the
-  processor's realistic-preview pool, untouched by G-074, and the test turns on a real deadline.
+- Watch: `tests/e2e/shape-tools.spec.ts` ("the outline/filled choice belongs to the shapes that enclose
+  something") went flaky once on 2026-09-27, passing on retry: a blank chart's Create did not settle in
+  time. Second flaky e2e sighting in the suite, and of the same kind as the one below.
 - Watch: `tests/e2e/brush-outline.spec.ts` ("the outline sits on the stitch under the pointer") went flaky
   once on 2026-09-24, passing on retry. First sighting; if it recurs it is a real pointer-timing race, of
   the kind D220 fixed elsewhere.

@@ -1,21 +1,18 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createCanvas } from "@napi-rs/canvas";
 import { serializePattern } from "@/lib/editor/pattern-serialize";
-import { ENHANCEMENT_PRESETS, type EnhancementModeId } from "@/lib/pipeline/enhance";
-import { ENHANCEMENT_PREVIEW_MAX_SIDE } from "@/lib/pipeline/enhance-preview";
 import { settingsError } from "./validate-settings";
 import { parseExportRequest } from "./validate-export";
 import { GenerationPool, QueueFullError } from "./pool";
 import { PhotoStore, PhotoTooLargeError } from "./photo-store";
-import { PreviewCache } from "./preview-cache";
-import { PreviewBusyError, PreviewRunner } from "./preview-runner";
 import { estimatedWaitMs, LIMITS, type JobSettings } from "./job-protocol";
 
 /**
- * The processor (G-034 M2, M3): decoded photos, a bounded worker pool, an enhancement preview, and a small HTTP
- * surface over all three.
+ * The processor (G-034 M2, M3): decoded photos, a bounded worker pool, and a small HTTP surface over both.
+ *
+ * It had a third job until G-074 M4: rendering the enhanced photo preview, which the four photo sliders
+ * replaced by drawing in the browser (D240).
  *
  * It listens only on the internal Docker network with no published port, so the app's Route Handlers are its only
  * caller; the Origin check and the per-address rate limit live there. Its own job is to do the work inside the caps
@@ -29,8 +26,6 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 const photos = new PhotoStore();
 const pool = new GenerationPool(path.join(here, "pool-worker.mjs"));
-const previews = new PreviewRunner(path.join(here, "preview-worker.mjs"));
-const previewCache = new PreviewCache();
 
 function send(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}): void {
   const payload = JSON.stringify(body);
@@ -68,45 +63,6 @@ async function handlePhotoUpload(req: IncomingMessage, res: ServerResponse): Pro
     naturalWidth: photo.naturalWidth,
     naturalHeight: photo.naturalHeight,
   });
-}
-
-/** The enhanced preview of a held photo, encoded once per photo and mode (D152). */
-async function handlePreview(res: ServerResponse, hash: string, mode: string): Promise<void> {
-  if (!(mode in ENHANCEMENT_PRESETS)) {
-    send(res, 400, { error: "That is not a photo enhancement mode." });
-    return;
-  }
-  const cached = previewCache.get(hash, mode);
-  if (cached) {
-    res.writeHead(200, { "content-type": cached.contentType, "content-length": cached.bytes.byteLength });
-    res.end(cached.bytes);
-    return;
-  }
-
-  const photo = photos.get(hash);
-  if (!photo) {
-    // Its previews are worthless without it, and the client re-uploads and asks again.
-    previewCache.dropPhoto(hash);
-    send(res, 410, { error: "That photo is no longer held; upload it again." });
-    return;
-  }
-
-  const started = Date.now();
-  const preview = await previews.run(photo.pixelBuffer, mode as Exclude<EnhancementModeId, "off">, ENHANCEMENT_PREVIEW_MAX_SIDE);
-  const canvas = createCanvas(preview.width, preview.height);
-  const ctx = canvas.getContext("2d");
-  const image = ctx.createImageData(preview.width, preview.height);
-  image.data.set(preview.data);
-  ctx.putImageData(image, 0, 0);
-  const bytes = await canvas.encode("webp", 82);
-  previewCache.set(hash, mode, bytes, "image/webp");
-
-  const { previews: count, bytes: held } = previewCache.stats();
-  console.log(
-    `preview ${hash.slice(0, 8)} ${mode} ${preview.width}x${preview.height} in ${Date.now() - started} ms, ${bytes.byteLength} B; cache ${count} entries, ${Math.round(held / 1024 / 1024)} MB`
-  );
-  res.writeHead(200, { "content-type": "image/webp", "content-length": bytes.byteLength });
-  res.end(bytes);
 }
 
 async function handleJobCreate(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -229,23 +185,13 @@ function handleJobResult(res: ServerResponse, jobId: string): void {
 const server = createServer((req, res) => {
   const url = new URL(req.url ?? "/", "http://processor");
   const jobMatch = /^\/jobs\/([0-9a-f-]{36})(\/events|\/result)?$/.exec(url.pathname);
-  const previewMatch = /^\/photos\/([0-9a-f]{64})\/preview$/.exec(url.pathname);
 
   void (async () => {
     try {
       if (req.method === "GET" && url.pathname === "/health") {
-        // Named apart: both stats objects carry `bytes`, and spreading them together hid the photo total behind the preview one.
-        send(res, 200, {
-          ok: true,
-          photos: photos.stats().photos,
-          photoBytes: photos.stats().bytes,
-          previews: previewCache.stats().previews,
-          previewBytes: previewCache.stats().bytes,
-        });
+        send(res, 200, { ok: true, photos: photos.stats().photos, photoBytes: photos.stats().bytes });
       } else if (req.method === "POST" && url.pathname === "/photos") {
         await handlePhotoUpload(req, res);
-      } else if (req.method === "POST" && previewMatch) {
-        await handlePreview(res, previewMatch[1], url.searchParams.get("mode") ?? "");
       } else if (req.method === "HEAD" && /^\/photos\/[0-9a-f]{64}$/.test(url.pathname)) {
         res.writeHead(photos.has(url.pathname.slice("/photos/".length)) ? 200 : 404).end();
       } else if (req.method === "POST" && url.pathname === "/exports") {
@@ -266,7 +212,7 @@ const server = createServer((req, res) => {
         send(res, 404, { error: "Not found." });
       }
     } catch (err) {
-      if (err instanceof QueueFullError || err instanceof PreviewBusyError) {
+      if (err instanceof QueueFullError) {
         send(res, 503, { error: err.message }, { "retry-after": String(err.retryAfterSeconds) });
       } else if (err instanceof PhotoTooLargeError) {
         send(res, 413, { error: err.message });
@@ -287,6 +233,6 @@ server.listen(PORT, () => console.log(`processor listening on ${PORT}, pool of $
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.on(signal, () => {
     server.close();
-    void Promise.all([pool.close(), previews.close()]).then(() => process.exit(0));
+    void pool.close().then(() => process.exit(0));
   });
 }

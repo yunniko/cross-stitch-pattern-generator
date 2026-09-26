@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_OPTIONS } from "@/lib/editor/workspace-storage";
 import { DITHER_MODES } from "@/lib/pipeline/dither";
-import { ENHANCEMENT_MODE_IDS } from "@/lib/pipeline/enhance";
 import { THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { SIZE_PRESETS } from "@/lib/types";
 import { settingsError } from "@/processor/validate-settings";
@@ -26,7 +25,6 @@ function requestFrom(overrides: Record<string, unknown> = {}) {
     generationMode: options.generationMode,
     paletteMode: options.paletteMode,
     edgeMode: options.edgeMode,
-    enhancementMode: options.enhancementMode,
     photoAdjust: options.photoAdjust,
     ditherMode: options.ditherMode,
     vivid: options.vivid,
@@ -74,10 +72,10 @@ describe("processor settings validation", () => {
     }
   });
 
-  it("accepts every enhancement mode, including the explicit off the editor sends", () => {
-    for (const enhancementMode of ENHANCEMENT_MODE_IDS) {
-      expect(settingsError(requestFrom({ enhancementMode })), `enhancementMode ${enhancementMode}`).toBeNull();
-    }
+  it("ignores an enhancement mode, which nothing sends since G-074 M4", () => {
+    // Not an error: an older tab left open would still send one, and there is no reason to fail its
+    // generation over a field the pipeline no longer reads.
+    expect(settingsError(requestFrom({ enhancementMode: "brighten" }))).toBeNull();
   });
 
   it("accepts every dither pattern the editor can hold (G-052)", () => {
@@ -110,7 +108,6 @@ describe("processor settings validation", () => {
     expect(settingsError(requestFrom({ colorCount: 1 }))).toMatch(/colorCount/);
     expect(settingsError(requestFrom({ paletteMode: "sparkle" }))).toMatch(/paletteMode/);
     expect(settingsError(requestFrom({ edgeMode: "soft" }))).toMatch(/edgeMode/);
-    expect(settingsError(requestFrom({ enhancementMode: "glow" }))).toMatch(/enhancementMode/);
     expect(settingsError(requestFrom({ ditherMode: "halftone-spiral" }))).toMatch(/ditherMode/);
     expect(settingsError("not an object")).toMatch(/JSON object/);
   });

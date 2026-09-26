@@ -71,21 +71,13 @@ jobs:
       # still produce the bytes D107 recorded. This is what survives the TypeScript pipeline being deleted (G-068).
       - run: npm run test:goldens:rust
 
-      # Releasing an enhancement mode is the Owner's decision (D118) and these are the gates it rests on. They
-      # drove the TypeScript pipeline until G-068 M3 deleted it; they drive the binary now.
       # Backstitch is the one stitch type OXS holds exactly as this app does, so the round trip is asserted
       # against the real exporter rather than a hand-written string (G-073).
       - run: npm run test:backstitch:rust
       - run: npm run test:backstitch-style:rust
 
-      - run: npm run test:enhancement:rust
-
-      # `lib/pipeline/enhance.ts` still ships as the photo pane's preview (D221). The preview and the chart come
-      # from different languages, so this is what says they still agree pixel for pixel.
-      - run: npm run test:enhance-parity:rust
-
-      # The four sliders replacing those modes (G-074) are previewed in the browser and applied here, so the same
-      # thing holds for them: one of the two copies changing alone means a chart that is not its own preview.
+      # The four sliders are previewed in the browser and applied in the binary, so one of the two copies
+      # changing alone would mean a chart that is not its own preview.
       - run: npm run test:photo-adjust:rust
 
       # And that generation applies them: a chart made with the sliders is the chart of the photo the

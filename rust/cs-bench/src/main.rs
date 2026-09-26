@@ -1,7 +1,6 @@
 //! G-048 benchmark and parity CLI.
 //!
 //!   cs-bench generate <image.rgba> <width> <height> '<options json>' [repeat]
-//!   cs-bench enhance <image.rgba> <width> <height> <mode> <out.rgba>
 //!   [RUST_EXPORT_THREADS=n] cs-bench export <pattern.json> '<request json>' <out file> [repeat]
 //!
 //! `export` reads an editable save and an export request (`kind`, `baseName`, `aidaCount`, `sizeUnit`, `authorName`,
@@ -10,9 +9,8 @@
 //! Reads raw RGBA bytes, builds the pattern `repeat` times (default 1) and prints one JSON object: the pattern of the
 //! last run (for the parity harness), every run's stage times in milliseconds, and the peak resident set where the
 //! platform reports one (Linux `VmHWM`). Options (`cs_core::json`): `longerSideStitches`, `colorCount`, `quantizer`,
-//! `optimize`, `edgeMode`, `paletteMode` and `enhancementMode` as in `BuildPatternOptions`, plus `threads`.
+//! `optimize`, `edgeMode`, `paletteMode` and `photoAdjust` as in `BuildPatternOptions`, plus `threads`.
 
-use cs_core::enhance::Mode;
 use cs_core::json::{parse_options, pattern_json, run_json};
 use cs_core::pattern::{build_pattern, StageTimes};
 use cs_core::Image;
@@ -58,41 +56,6 @@ fn export(args: &[String]) {
     std::fs::write(&args[4], &file.bytes).expect("write output");
     let out = json!({ "filename": file.filename, "bytes": file.bytes.len(), "runsMs": runs, "peakRssMb": peak_rss_mb(), "threads": threads });
     println!("{out}");
-}
-
-/// `enhance <image.rgba> <width> <height> <mode> <out.rgba>`: the enhancement stage on its own (G-068 M4).
-///
-/// The pattern hashes cover enhancement only through a finished chart, where quantization hides small
-/// differences. `lib/pipeline/enhance.ts` still ships as the preview the photo pane shows (D221), so the two
-/// implementations have to agree pixel for pixel on the same buffer; this exposes the Rust side so a test can
-/// say whether they do. Prints whether the stage acted at all, which is part of the behaviour.
-fn enhance(args: &[String]) {
-    let data = std::fs::read(&args[2]).expect("read image");
-    let width: usize = args[3].parse().expect("width");
-    let height: usize = args[4].parse().expect("height");
-    assert_eq!(
-        data.len(),
-        width * height * 4,
-        "image is not width x height RGBA"
-    );
-    let mode = match args[5].as_str() {
-        "off" => Mode::Off,
-        "brighten" => Mode::Brighten,
-        "auto" => Mode::Auto,
-        "vivid" => Mode::Vivid,
-        "portrait" => Mode::Portrait,
-        other => panic!("unknown mode {other}"),
-    };
-    let image = Image {
-        width,
-        height,
-        data,
-    };
-    let enhanced = cs_core::enhance::enhance(&image, mode);
-    let applied = enhanced.is_some();
-    let out = enhanced.unwrap_or(image);
-    std::fs::write(&args[6], &out.data).expect("write output");
-    println!("{}", json!({ "mode": args[5], "applied": applied }));
 }
 
 /// Prints the dash pattern and pieces the exporter would draw for each line (G-073 M5).
@@ -177,13 +140,9 @@ fn main() {
         backstitch_style(&args);
         return;
     }
-    if args.len() >= 7 && args[1] == "enhance" {
-        enhance(&args);
-        return;
-    }
     if args.len() < 6 || args[1] != "generate" {
         eprintln!(
-            "usage: cs-bench generate <image.rgba> <width> <height> '<options json>' [repeat]\n       cs-bench enhance <image.rgba> <width> <height> <mode> <out.rgba>"
+            "usage: cs-bench generate <image.rgba> <width> <height> '<options json>' [repeat]"
         );
         std::process::exit(2);
     }

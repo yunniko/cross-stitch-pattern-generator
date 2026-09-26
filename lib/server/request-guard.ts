@@ -13,24 +13,22 @@ import { NextResponse } from "next/server";
  */
 
 /**
- * Requests per minute per address, refilled continuously rather than in steps. Previews get a larger allowance than
- * generations because trying several modes in a row is normal use and costs the server far less (G-034 M3).
+ * Requests per minute per address, refilled continuously rather than in steps.
+ *
+ * There was a second, larger allowance for photo previews until G-074 M4: the four sliders draw the preview
+ * in the browser, so nothing asks the server for one (D240).
  */
-export type RateKind = "job" | "preview";
-const DEFAULT_CAPACITY: Record<RateKind, number> = { job: 6, preview: 30 };
-const CAPACITY_ENV: Record<RateKind, string> = {
-  job: "RATE_LIMIT_JOBS_PER_MINUTE",
-  preview: "RATE_LIMIT_PREVIEWS_PER_MINUTE",
-};
+const CAPACITY = 6;
+const CAPACITY_ENV = "RATE_LIMIT_JOBS_PER_MINUTE";
 
 /**
  * The production allowance is the default. It is overridable by environment variable for one reason: the e2e suite
  * drives far more generations per minute than any person would, and would otherwise spend the whole run being
  * correctly refused. The limit's own behaviour is covered by unit tests rather than by the browser suite.
  */
-function capacityFor(kind: RateKind): number {
-  const override = Number(process.env[CAPACITY_ENV[kind]]);
-  return Number.isFinite(override) && override > 0 ? override : DEFAULT_CAPACITY[kind];
+function capacity(): number {
+  const override = Number(process.env[CAPACITY_ENV]);
+  return Number.isFinite(override) && override > 0 ? override : CAPACITY;
 }
 /** Bounds the map itself, so a spray of forged addresses cannot grow it without limit. */
 const MAX_TRACKED = 5000;
@@ -105,17 +103,17 @@ function makeRoom(now: number): void {
   for (const [key] of oldest.slice(0, Math.ceil(MAX_TRACKED / 10))) buckets.delete(key);
 }
 
-/** Spends one token of this kind for this address, or refuses with the seconds until the next one is available. */
-export function rateLimited(req: Request, kind: RateKind = "job"): NextResponse | null {
-  const capacity = capacityFor(kind);
-  const refillPerMs = capacity / 60_000;
-  const key = `${kind}:${clientIp(req)}`;
+/** Spends one token for this address, or refuses with the seconds until the next one is available. */
+export function rateLimited(req: Request): NextResponse | null {
+  const allowance = capacity();
+  const refillPerMs = allowance / 60_000;
+  const key = clientIp(req);
   const now = Date.now();
 
   if (buckets.size >= MAX_TRACKED && !buckets.has(key)) makeRoom(now);
 
-  const bucket = buckets.get(key) ?? { tokens: capacity, updated: now };
-  bucket.tokens = Math.min(capacity, bucket.tokens + (now - bucket.updated) * refillPerMs);
+  const bucket = buckets.get(key) ?? { tokens: allowance, updated: now };
+  bucket.tokens = Math.min(allowance, bucket.tokens + (now - bucket.updated) * refillPerMs);
   bucket.updated = now;
   buckets.set(key, bucket);
 
@@ -131,8 +129,8 @@ export function rateLimited(req: Request, kind: RateKind = "job"): NextResponse 
 }
 
 /** Both checks, in the order a state-changing request needs them. Returns the refusal to send, or null to proceed. */
-export function guardMutation(req: Request, kind: RateKind = "job"): NextResponse | null {
-  return originRejected(req) ?? rateLimited(req, kind);
+export function guardMutation(req: Request): NextResponse | null {
+  return originRejected(req) ?? rateLimited(req);
 }
 
 /** Where the processor lives on the internal network; only these handlers ever address it. */

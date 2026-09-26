@@ -1,4 +1,4 @@
-import type { EnhancementModeId } from "./pipeline/enhance";
+import type { EnhancementModeId } from "./editor/legacy-enhancement";
 import type { PhotoAdjust } from "./pipeline/photo-adjust";
 import type { DitherMode } from "./pipeline/dither";
 import type { DitherTexture } from "./pipeline/dither-hand-drawn";
@@ -141,7 +141,10 @@ export interface StitchPattern {
   threadBrand?: ThreadBrand;
   /** Set when generated in Crisp or Crisp+ mode. Informational only; absent means Standard (G-024, G-038). */
   edgeMode?: Extract<EdgeMode, "crisp" | "crisp-plus">;
-  /** The photo enhancement the pattern was generated with (G-032). Informational; absent means Off. */
+  /**
+   * The photo enhancement a chart was generated with, for charts made before G-074 M4 removed the five
+   * modes (D240). Read and kept, never written: nothing generates it now.
+   */
   enhancementMode?: Exclude<EnhancementModeId, "off">;
   /** The dither pattern the chart was generated with (G-052). Informational; absent means none. */
   ditherMode?: Exclude<DitherMode, "off">;

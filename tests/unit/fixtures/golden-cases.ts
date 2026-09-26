@@ -1,5 +1,5 @@
 import type { DitherMode } from "@/lib/pipeline/dither";
-import type { EnhancementModeId } from "@/lib/pipeline/enhance";
+import type { PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import type { PixelBuffer } from "@/lib/types";
 import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "../helpers/fixtures";
 
@@ -24,15 +24,16 @@ export interface GoldenCaseOptions {
   edgeMode?: "standard" | "crisp" | "crisp-plus";
   paletteMode?: "full" | "dmc" | "cosmo" | "anchor";
   /**
-   * The rest of the shipped option surface (G-068 M4). `JobSettings` has carried these since G-032/G-052/G-061, and
-   * not one of the original cases named any of them: every recorded hash was an Off, undithered, non-Vivid chart, so
-   * enhancement, all thirteen dither modes and Vivid's sampling could have changed output silently.
+   * The rest of the shipped option surface (G-068 M4). `JobSettings` has carried these since G-052/G-061, and
+   * not one of the original cases named any of them: every recorded hash was an undithered, non-Vivid chart, so
+   * all thirteen dither modes and Vivid's sampling could have changed output silently.
    */
-  enhancementMode?: EnhancementModeId;
   ditherMode?: DitherMode;
   /** Only the knobs a case actually varies; the rest take the shipped texture's values (G-055). */
   ditherTexture?: { spacing?: number; wobble?: number; seed?: number };
   vivid?: boolean;
+  /** The four photo sliders (G-074), which replaced the enhancement modes these cases used to cover. */
+  photoAdjust?: PhotoAdjust;
 }
 
 export interface GoldenCase {
@@ -47,7 +48,7 @@ export interface GoldenCase {
    * it was saved. A case that asks for one of them asserts it came back (D211: Vivid records that it *acted*,
    * which is why the 150-stitch photo asks for it and does not expect it).
    */
-  records?: { ditherMode?: string; vivid?: true; enhancementMode?: string; edgeMode?: string };
+  records?: { ditherMode?: string; vivid?: true; photoAdjust?: PhotoAdjust; edgeMode?: string };
 }
 
 const twoRegion = makeBuffer(60, 40, (x, y) => {
@@ -129,11 +130,21 @@ export const GOLDEN_CASES: GoldenCase[] = [
     options: { longerSideStitches: 16, colorCount: 3, edgeMode: "crisp-plus" },
     records: { edgeMode: "crisp-plus" },
   },
-  ...(["brighten", "auto", "vivid", "portrait"] as const).map((enhancementMode) => ({
-    name: `photo/standard/latest/24/${enhancementMode}`,
+  // The four photo sliders, where the five enhancement modes used to be (G-074 M4). Each slider on its own and
+  // all four together, on the same photo and size the modes were recorded at.
+  ...(
+    [
+      ["brightness", { brightness: 55, contrast: 0, saturation: 0, temperature: 0 }],
+      ["contrast", { brightness: 0, contrast: -60, saturation: 0, temperature: 0 }],
+      ["saturation", { brightness: 0, contrast: 0, saturation: 80, temperature: 0 }],
+      ["warmth", { brightness: 0, contrast: 0, saturation: 0, temperature: -70 }],
+      ["all-four", { brightness: 30, contrast: 40, saturation: -35, temperature: 20 }],
+    ] as const
+  ).map(([name, photoAdjust]) => ({
+    name: `photo/standard/latest/24/adjust-${name}`,
     source: photo,
-    options: { longerSideStitches: 150, colorCount: 24, enhancementMode },
-    records: { enhancementMode },
+    options: { longerSideStitches: 150, colorCount: 24, photoAdjust },
+    records: { photoAdjust },
   })),
   // 600x400 over a 100x66 grid is 36 pixels a stitch, above the 24 Vivid needs to act (D211).
   {

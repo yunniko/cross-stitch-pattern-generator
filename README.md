@@ -2,8 +2,8 @@
 
 Turns a photo into an editable, printable cross-stitch chart. Editing is local —
 the chart, undo and autosave to the browser's IndexedDB all stay on your machine —
-while generating a chart, previewing a photo enhancement and building the export
-files run on this site's own server, so your photo is uploaded to it. The editable
+while generating a chart and building the export files run on this site's own
+server, so your photo is uploaded to it. The editable
 `.json` save is still written in the browser, so work can be saved even when the
 server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
 
@@ -154,14 +154,12 @@ npm run bench:browser  # photo load, generation and every export in a real brows
 ```
 
 The suites that need the binary are separate, because they need `cargo build --release` first. Together they
-are the generation safety net (D222): recorded bytes, properties that hold for any chart, and the gates that
-decide whether an enhancement mode may be offered at all.
+are the generation safety net (D222): recorded bytes, properties that hold for any chart, and the two copies
+of the photo adjustment held against each other.
 
 ```
 cargo test --release --manifest-path rust/Cargo.toml   # Rust's own, incl. chart invariants on odd photos
-npm run test:goldens:rust        # the 38 recorded golden hashes (D107), against cs-bench
-npm run test:enhancement:rust    # the enhancement release gates (D118)
-npm run test:enhance-parity:rust # the shipped preview against the binary, pixel for pixel
+npm run test:goldens:rust        # the 39 recorded golden hashes (D107), against cs-bench
 npm run test:processor:rust      # the processor driving a real job
 npm run test:backstitch:rust       # backstitch out through the real exporter and back in, as OXS
 npm run test:backstitch-style:rust # the dash table the screen draws with against the one exports draw with
@@ -197,19 +195,20 @@ per file in `docs/decisions/`, research and reviews in `docs/reviews/` and
 `docs/domain-reference*.md`, and thread-data and font licensing in
 `docs/*-provenance.md`.
 
-The Photo tab carries four sliders -- brightness, contrast, saturation and warm/cool -- that adjust the
-photo before generation. They are applied in the browser as they move, in a worker
-(`lib/editor/photo-adjust.worker.ts`), from one definition mirrored in Rust for
-generation (`lib/pipeline/photo-adjust.ts`, `rust/cs-core/src/photo_adjust.rs`,
-D237/D238, checked by `npm run test:photo-adjust:rust`). Centred, they leave the
-photo exactly as it was decoded. Generation does not read them yet (G-074 M3).
+The Photo tab carries four sliders -- brightness, contrast, saturation and
+warm/cool -- that adjust the photo before generation. They are applied in the
+browser as they move, in a worker (`lib/editor/photo-adjust.worker.ts`), from one
+definition mirrored in Rust for generation (`lib/pipeline/photo-adjust.ts`,
+`rust/cs-core/src/photo_adjust.rs`, D237-D239, checked by
+`npm run test:photo-adjust:rust` and `npm run test:photo-adjust-pipeline:rust`).
+Centred, they leave the photo exactly as it was decoded, so a chart made without
+touching them is the chart this app made before they existed.
 
-Photo enhancement runs before generation, with a preview and a compare toggle.
-Brighten is a cautious exposure fix for dark or flat photos, and leaves
-well-exposed ones untouched. Auto, Vivid and Portrait also correct contrast,
-colour cast and saturation, and are experimental: all four pass the safety gates
-(`npm run test:enhancement:rust`), but none recovers a degraded photo well enough
-to meet the recovery bar (`docs/reviews/2026-09-13-photo-enhancement-calibration.md`).
+They replaced five photo-enhancement modes (Off, Brighten, Auto, Vivid, Portrait),
+removed in G-074 M4 with their preview endpoint, worker and cache: only one of the
+five was ever released, they analysed the photo and decided for the reader, and a
+slider is the reader deciding (D240). A chart saved before that still opens and
+still records the mode it was made with; regenerating it will not reproduce it.
 
 The Okhsl conversion in `lib/color/okhsl.ts` is ported from Björn Ottosson's
 `ok_color.h` (<https://bottosson.github.io/misc/ok_color.h>, MIT licence; the

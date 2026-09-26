@@ -62,7 +62,6 @@ export function appWithProcessor({
         // Suites and benches generate and export far more often than a person; the real limits are covered in
         // tests/unit/request-guard.spec.ts rather than by being refused here.
         RATE_LIMIT_JOBS_PER_MINUTE: "1000",
-        RATE_LIMIT_PREVIEWS_PER_MINUTE: "1000",
       },
       url: `http://localhost:${port}`,
       reuseExistingServer,

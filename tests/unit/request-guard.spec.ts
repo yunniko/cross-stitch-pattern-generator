@@ -123,16 +123,6 @@ describe("rate limit", () => {
     // Behind nginx the header is "client, proxy1, proxy2" -- taking the last entry would rate-limit the proxy instead.
     expect(clientIp(request({ ip: "203.0.113.7, 10.0.0.1" }))).toBe("203.0.113.7");
   });
-
-  it("gives previews their own, larger allowance", () => {
-    // Spending the whole generation budget must not stop the same person from looking at enhancement modes.
-    for (let i = 0; i < 6; i++) rateLimited(request({ ip: "203.0.113.8" }));
-    expect(rateLimited(request({ ip: "203.0.113.8" }))?.status).toBe(429);
-
-    const previews = Array.from({ length: 30 }, () => rateLimited(request({ ip: "203.0.113.8" }), "preview"));
-    expect(previews.every((result) => result === null)).toBe(true);
-    expect(rateLimited(request({ ip: "203.0.113.8" }), "preview")?.status).toBe(429);
-  });
 });
 
 describe("configurable capacity", () => {
@@ -180,11 +170,5 @@ describe("guardMutation", () => {
 
   it("passes a same-origin request within its rate", () => {
     expect(guardMutation(request({ origin: SITE, ip: "203.0.113.11" }))).toBeNull();
-  });
-
-  it("applies the preview allowance when asked for one", () => {
-    const allowed = Array.from({ length: 30 }, () => guardMutation(request({ origin: SITE, ip: "203.0.113.12" }), "preview"));
-    expect(allowed.every((result) => result === null)).toBe(true);
-    expect(guardMutation(request({ origin: SITE, ip: "203.0.113.12" }), "preview")?.status).toBe(429);
   });
 });

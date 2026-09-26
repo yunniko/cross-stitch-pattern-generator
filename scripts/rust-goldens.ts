@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
 import type { StitchPattern } from "@/lib/types";
 import { GOLDEN_CASES, type GoldenCase } from "../tests/unit/fixtures/golden-cases";
 import { openCsBench } from "../tests/unit/helpers/cs-bench";
@@ -33,7 +34,7 @@ function generate(c: GoldenCase, extra: Record<string, unknown> = {}): StitchPat
     optimize: c.options.optimize ?? true,
     edgeMode: c.options.edgeMode,
     paletteMode: c.options.paletteMode,
-    enhancementMode: c.options.enhancementMode,
+    photoAdjust: c.options.photoAdjust,
     ditherMode: c.options.ditherMode,
     ditherTexture: c.options.ditherTexture,
     vivid: c.options.vivid,
@@ -64,8 +65,8 @@ function checkHash(name: string, pattern: StitchPattern): void {
   expect(hash).toBe(RECORDED[name]);
 }
 
-/** Cases that do not name a mode: "off" must reproduce them exactly (D112). One that names a mode has nothing to say here. */
-const OFF_CASES = GOLDEN_CASES.filter((c) => c.options.enhancementMode === undefined);
+/** Cases that leave the sliders alone: asking for neutral explicitly must reproduce them exactly (G-074). */
+const NEUTRAL_CASES = GOLDEN_CASES.filter((c) => c.options.photoAdjust === undefined);
 
 describe("golden hashes: the Rust pipeline still produces the recorded bytes (D107)", () => {
   it("has a recorded hash for every case, and no stale ones", () => {
@@ -83,7 +84,7 @@ describe("golden hashes: the Rust pipeline still produces the recorded bytes (D1
         expect({
           ditherMode: pattern.ditherMode,
           vivid: pattern.vivid,
-          enhancementMode: pattern.enhancementMode,
+          photoAdjust: pattern.photoAdjust,
           edgeMode: pattern.edgeMode,
         }).toMatchObject(c.records);
       }
@@ -91,13 +92,14 @@ describe("golden hashes: the Rust pipeline still produces the recorded bytes (D1
     180_000
   );
 
-  // D112: asking for "off" explicitly must reproduce the same bytes as not asking at all.
-  it.each(OFF_CASES.map((c) => [c.name, c] as const))(
-    "%s with enhancementMode off",
+  // Criterion 4, on every case rather than one: sliders sent at neutral must produce the bytes a request
+  // without them produces. It is what lets the sliders exist without moving anything that came before.
+  it.each(NEUTRAL_CASES.map((c) => [c.name, c] as const))(
+    "%s with the sliders centred",
     (name, c) => {
       // While recording there is nothing yet to be equal to; the assertion below runs on every normal run after.
       if (RECORDING && RECORDED[name] === undefined) return;
-      expect(hashPattern(generate(c, { enhancementMode: "off" }))).toBe(RECORDED[name]);
+      expect(hashPattern(generate(c, { photoAdjust: NEUTRAL_ADJUST }))).toBe(RECORDED[name]);
     },
     180_000
   );

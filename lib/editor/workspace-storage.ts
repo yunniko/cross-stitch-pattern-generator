@@ -5,7 +5,6 @@ import { DITHER_MODES, isDithered, type DitherMode } from "../pipeline/dither";
 import { BRUSH_SIZES, DEFAULT_BRUSH_SHAPE, DEFAULT_BRUSH_SIZE, type BrushShape, type BrushSize } from "./brush-stamp";
 import type { ShapeFill } from "./shape-raster";
 import { DEFAULT_DITHER_TEXTURE, isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
-import { isReleasedEnhancementMode, type EnhancementModeId } from "../pipeline/enhance";
 import { NEUTRAL_ADJUST, readAdjust, type PhotoAdjust } from "../pipeline/photo-adjust";
 import type { EdgeMode, GenerationMode, PaletteMode } from "../pipeline/generation-modes";
 import { THREAD_BRAND_IDS } from "../threads/thread-brands";
@@ -38,8 +37,6 @@ export interface WorkspaceOptions {
   colorCount: number;
   generationMode: GenerationMode;
   paletteMode: PaletteMode;
-  /** Photo enhancement for the next Generate. Only released modes survive a reload (D113). */
-  enhancementMode: EnhancementModeId;
   /** The four photo sliders (G-074): what the reader asked for, neutral at 0. Shown live, and read by the next Generate. */
   photoAdjust: PhotoAdjust;
   /** The dither pattern for the *next* Generate; "off" is the pipeline as it was. Never dithered while `edgeMode` is Crisp (D199). */
@@ -70,7 +67,6 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   colorCount: 16,
   generationMode: "latest",
   paletteMode: "full",
-  enhancementMode: "off",
   photoAdjust: NEUTRAL_ADJUST,
   ditherMode: "off",
   ditherTexture: DEFAULT_DITHER_TEXTURE,
@@ -134,7 +130,6 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
         parsed.paletteMode === "full" || (THREAD_BRAND_IDS as string[]).includes(parsed.paletteMode as string)
           ? (parsed.paletteMode as PaletteMode)
           : DEFAULT_OPTIONS.paletteMode,
-      enhancementMode: isReleasedEnhancementMode(parsed.enhancementMode) ? parsed.enhancementMode : DEFAULT_OPTIONS.enhancementMode,
       // Absent before G-074, and every field of it is clamped, so a hand-edited or corrupt value reads as neutral
       // rather than as an adjustment no slider could have asked for.
       photoAdjust: readAdjust(parsed.photoAdjust),

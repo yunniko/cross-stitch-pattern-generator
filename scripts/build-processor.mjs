@@ -25,7 +25,6 @@ await build({
     server: path.join(ROOT, "processor", "server.ts"),
     // Separate entries, not imports: each is spawned by path as a worker thread.
     "pool-worker": path.join(ROOT, "processor", "pool-worker.ts"),
-    "preview-worker": path.join(ROOT, "processor", "preview-worker.ts"),
   },
   platform: "node",
   external: ["@napi-rs/canvas"],

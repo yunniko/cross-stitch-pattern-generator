@@ -2,7 +2,6 @@ import { deserializePatternData } from "../editor/pattern-serialize";
 import type { StitchPattern } from "../types";
 import type { DitherMode } from "./dither";
 import type { DitherTexture } from "./dither-hand-drawn";
-import type { EnhancementModeId } from "./enhance";
 import type { PhotoAdjust } from "./photo-adjust";
 import type { EdgeMode, GenerationMode, PaletteMode } from "./generation-modes";
 import { ensurePhotoUploaded, forgetPhoto } from "./photo-upload";
@@ -35,7 +34,6 @@ export interface RunServerPatternJobOptions {
   generationMode?: GenerationMode;
   paletteMode?: PaletteMode;
   edgeMode?: EdgeMode;
-  enhancementMode?: EnhancementModeId;
   /** The four photo sliders (G-074); the pipeline applies them before it reads the photo at all. */
   photoAdjust?: PhotoAdjust;
   ditherMode?: DitherMode;
@@ -84,7 +82,6 @@ async function submit(options: RunServerPatternJobOptions, signal: AbortSignal):
         generationMode: options.generationMode,
         paletteMode: options.paletteMode,
         edgeMode: options.edgeMode,
-        enhancementMode: options.enhancementMode,
         photoAdjust: options.photoAdjust,
         ditherMode: options.ditherMode,
         ditherTexture: options.ditherTexture,

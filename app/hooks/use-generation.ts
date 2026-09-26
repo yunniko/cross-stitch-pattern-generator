@@ -1,6 +1,5 @@
 import { useState, type RefObject } from "react";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
-import { isReleasedEnhancementMode } from "@/lib/pipeline/enhance";
 import { cancelServerPatternJob, PatternJobCancelledError, runServerPatternJob } from "@/lib/pipeline/pattern-server";
 import { PhotoExpiredError, ProcessorUnreachableError, ServerBusyError } from "@/lib/pipeline/server-errors";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, type PixelBuffer, type StitchPattern } from "@/lib/types";
@@ -82,8 +81,6 @@ export function useGeneration(inputs: GenerationInputs) {
         generationMode: options.generationMode,
         paletteMode: options.paletteMode,
         edgeMode: options.edgeMode,
-        // Release eligibility is resolved at Generate time, so a preference for a withdrawn mode can't run it (D113).
-        enhancementMode: isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off",
         // What the reader has been looking at on the photo, applied to it at full resolution (G-074 M3).
         photoAdjust: options.photoAdjust,
         ditherMode: options.ditherMode,

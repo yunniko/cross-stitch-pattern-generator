@@ -13,7 +13,6 @@ import {
   type DitherMode,
   type LineDitherMode,
 } from "@/lib/pipeline/dither";
-import { isReleasedEnhancementMode, releasedEnhancementModes, type EnhancementModeId } from "@/lib/pipeline/enhance";
 import { isNeutralAdjust, NEUTRAL_ADJUST, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
@@ -138,30 +137,6 @@ const DITHER_GROUPS: Array<{ label: string; modes: readonly DitherMode[]; withLi
   { label: "Drawn — marks, not a pattern", modes: DRAWN_DITHER_MODES },
 ];
 
-const ENHANCEMENT_OPTIONS: Record<EnhancementModeId, SegmentOption<EnhancementModeId>> = {
-  off: { value: "off", label: "Off", title: "Use the photo exactly as it is" },
-  brighten: {
-    value: "brighten",
-    label: "Brighten",
-    title: "A cautious exposure fix for dark or flat photos; colours and well-exposed photos are left as they are",
-  },
-  auto: {
-    value: "auto",
-    label: "Auto",
-    title: "Experimental: corrects exposure, contrast, colour cast and saturation, measured from the photo itself",
-  },
-  vivid: {
-    value: "vivid",
-    label: "Vivid",
-    title: "Experimental: stronger local contrast and saturation, for landscapes, objects and faded prints",
-  },
-  portrait: {
-    value: "portrait",
-    label: "Portrait",
-    title: "Experimental: a gentle correction without local contrast, protecting skin tones",
-  },
-};
-
 const PRESETS = ["small", "medium", "large", "xl", "xxl"] as const;
 
 export interface PhotoPaneProps {
@@ -254,9 +229,6 @@ export function PhotoPane({
     );
 
   const longerSide = longerSideFor(options);
-  // Only released modes are offered; with Off the only one, the control stays hidden (D113, D118).
-  const photoOptions = releasedEnhancementModes().map((mode) => ENHANCEMENT_OPTIONS[mode]);
-  const photoMode = isReleasedEnhancementMode(options.enhancementMode) ? options.enhancementMode : "off";
   const dithering = isDithered(options.ditherMode);
   // The grid the next Generate would make, so the swatch can show that chart's own marks (G-057). Without a photo's
   // proportions yet, a square is the honest guess — and the swatch is only offered once a photo is loaded anyway.
@@ -498,13 +470,6 @@ export function PhotoPane({
               />
             ))}
           </div>
-        </section>
-      )}
-
-      {photoOptions.length > 1 && (
-        <section className="flex flex-col gap-2">
-          <span className={GROUP_LABEL}>Photo fix</span>
-          <SegmentedControl fill options={photoOptions} value={photoMode} onChange={(mode) => onChange("enhancementMode", mode)} />
         </section>
       )}
 

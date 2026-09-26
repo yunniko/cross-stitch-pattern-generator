@@ -3,7 +3,6 @@
 
 use crate::dither::DitherMode;
 use crate::dither_hand_drawn::{default_dither_texture, DitherStamp, DitherTexture};
-use crate::enhance::Mode;
 use crate::pattern::{BuildOptions, EdgeMode, StageTimes, StitchPattern};
 use crate::photo_adjust::{PhotoAdjust, NEUTRAL_ADJUST};
 use crate::quantize::Quantizer;
@@ -24,8 +23,6 @@ struct Options {
     edge_mode: Option<String>,
     #[serde(default)]
     palette_mode: Option<String>,
-    #[serde(default)]
-    enhancement_mode: Option<String>,
     #[serde(default)]
     dither_mode: Option<String>,
     #[serde(default)]
@@ -155,14 +152,6 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
         Some("anchor") => Some(Brand::Anchor),
         Some(other) => return Err(format!("unknown paletteMode {other}")),
     };
-    let enhancement = match o.enhancement_mode.as_deref() {
-        None | Some("off") => Mode::Off,
-        Some("brighten") => Mode::Brighten,
-        Some("auto") => Mode::Auto,
-        Some("vivid") => Mode::Vivid,
-        Some("portrait") => Mode::Portrait,
-        Some(other) => return Err(format!("unknown enhancementMode {other}")),
-    };
     let dither = match o.dither_mode.as_deref() {
         None | Some("off") => DitherMode::Off,
         Some("bayer-4") => DitherMode::Bayer4,
@@ -186,7 +175,6 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
         optimize: o.optimize.unwrap_or(true),
         edge_mode,
         brand,
-        enhancement,
         dither,
         dither_texture: o
             .dither_texture
@@ -223,7 +211,6 @@ pub fn pattern_json(p: &StitchPattern) -> Value {
         "isLandscape": p.is_landscape,
         "threadBrand": p.thread_brand,
         "edgeMode": p.edge_mode,
-        "enhancementMode": p.enhancement_mode,
         "ditherMode": p.dither_mode,
         "ditherTexture": p.dither_texture.as_ref().map(texture_json),
         "vivid": p.vivid,

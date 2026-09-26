@@ -25,8 +25,6 @@
     "test:backstitch-style:rust": "vitest run --config vitest.rust.config.ts scripts/rust-backstitch-style.ts",
     "test:photo-adjust:rust": "vitest run --config vitest.rust.config.ts scripts/rust-photo-adjust.ts",
     "test:photo-adjust-pipeline:rust": "vitest run --config vitest.rust.config.ts scripts/rust-photo-adjust-pipeline.ts",
-    "test:enhancement:rust": "vitest run --config vitest.rust.config.ts scripts/rust-enhancement-gates.ts",
-    "test:enhance-parity:rust": "vitest run --config vitest.rust.config.ts scripts/rust-enhance-parity.ts",
     "test:processor:rust": "vitest run --config vitest.rust.config.ts tests/unit/processor-export-pool.spec.ts tests/unit/processor-pool-limits.spec.ts tests/unit/processor-pool-parity.spec.ts"
   },
   "dependencies": {

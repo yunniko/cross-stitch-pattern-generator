@@ -40,17 +40,12 @@ export interface ImageWindowProps {
   activeColorIndex: number | null;
   previewError: string | null;
   onRetryPreview: () => void;
-  /** True when a non-Off photo enhancement applies to the photo shown before Generate. */
-  enhancementActive: boolean;
   /** The four sliders (G-074): the photo they make is drawn here, in the browser, not fetched. */
   adjustActive: boolean;
   /** A frame for this photo has been painted; until then the photo itself is what is up. */
   adjustReady: boolean;
   adjustSize: { width: number; height: number } | null;
   adjustCanvasRef: (canvas: HTMLCanvasElement | null) => void;
-  enhancedPreviewUrl: string | null;
-  isPreparingEnhancedPreview: boolean;
-  enhancedPreviewError: string | null;
   onPointerDown: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerMove: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerUp: (e: PointerEvent<HTMLDivElement>) => void;
@@ -99,10 +94,6 @@ export function ImageWindow({
   adjustReady,
   adjustSize,
   adjustCanvasRef,
-  enhancementActive,
-  enhancedPreviewUrl,
-  isPreparingEnhancedPreview,
-  enhancedPreviewError,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -111,7 +102,6 @@ export function ImageWindow({
   onDrop,
 }: ImageWindowProps) {
   const [showOriginal, setShowOriginal] = useState(false);
-  const showEnhanced = enhancementActive && enhancedPreviewUrl !== null && !showOriginal;
   // The sliders draw here; until the first frame is painted the photo itself is still what is up, so the well
   // never goes blank while a preview is being prepared.
   const showAdjusted = adjustActive && adjustReady && adjustSize !== null && !showOriginal;
@@ -139,8 +129,8 @@ export function ImageWindow({
           ) : (
             /* eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize */
             <img
-              src={showEnhanced ? enhancedPreviewUrl! : sourceMeta.dataUrl}
-              alt={showEnhanced ? "Enhanced photo preview" : "Uploaded photo"}
+              src={sourceMeta.dataUrl}
+              alt="Uploaded photo"
               className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
             />
           )}
@@ -149,17 +139,6 @@ export function ImageWindow({
               <PillButton size="xs" aria-pressed={showOriginal} onClick={() => setShowOriginal((shown) => !shown)}>
                 Compare with original
               </PillButton>
-            </figcaption>
-          )}
-          {enhancementActive && (
-            <figcaption className="flex items-center gap-2 text-xs text-muted">
-              {isPreparingEnhancedPreview && <span>Preparing enhanced preview…</span>}
-              {enhancedPreviewError && <span className="text-red-300">{enhancedPreviewError}</span>}
-              {enhancedPreviewUrl && (
-                <PillButton size="xs" aria-pressed={showOriginal} onClick={() => setShowOriginal((shown) => !shown)}>
-                  Compare with original
-                </PillButton>
-              )}
             </figcaption>
           )}
         </figure>

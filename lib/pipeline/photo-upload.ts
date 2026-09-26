@@ -3,7 +3,7 @@ import { errorFromResponse, isNetworkFailure, ProcessorUnreachableError } from "
 /**
  * The photo the server is working from (G-034 M3).
  *
- * Generation and the enhancement preview both need the same uploaded photo, so the upload and its content hash live
+ * Generation needs the uploaded photo, so the upload and its content hash live
  * here rather than inside either one. A photo is sent once per session however many patterns and previews are made
  * from it; the server drops it after 30 idle minutes, and `forgetPhoto` lets a caller re-upload after a 410.
  *

@@ -1,7 +1,7 @@
 import { dedupeLines } from "./backstitch";
 import { DITHER_MODES, type DitherMode } from "../pipeline/dither";
 import { isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
-import { isEnhancementModeId, type EnhancementModeId } from "../pipeline/enhance";
+import { isEnhancementModeId, type EnhancementModeId } from "./legacy-enhancement";
 import { readSavedAdjust, type PhotoAdjust } from "../pipeline/photo-adjust";
 import { findThread, formatThreadName, THREAD_BRANDS, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
 import { effectiveSymmetryAxes, NO_SYMMETRY, SYMMETRY_AXES, type SymmetryAxes, type SymmetryAxis } from "./symmetry-axes";
@@ -56,7 +56,7 @@ export interface SerializedPattern {
   threadBrand?: ThreadBrand;
   /** Absent on files saved before G-024 M5, or for a Standard pattern. "crisp-plus" is written from G-038 on; older builds read it as Standard. */
   edgeMode?: "crisp" | "crisp-plus";
-  /** The photo enhancement the pattern was generated with; absent for Off and on files saved before G-032. */
+  /** The photo enhancement the chart was generated with, for files saved before G-074 M4 removed the modes. */
   enhancementMode?: Exclude<EnhancementModeId, "off">;
   /**
    * The four photo sliders the chart was generated with (G-074); absent when they were all centred and

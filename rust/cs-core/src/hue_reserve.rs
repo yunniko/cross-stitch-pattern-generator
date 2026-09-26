@@ -18,7 +18,7 @@ const FLOOR_SQUARED: f64 = HUE_RESERVE_CHROMA_FLOOR * HUE_RESERVE_CHROMA_FLOOR;
 const COVERAGE_SHARE_SQUARED: f64 = HUE_RESERVE_COVERAGE_SHARE * HUE_RESERVE_COVERAGE_SHARE;
 const COVERAGE_FLOOR_SQUARED: f64 = HUE_RESERVE_COVERAGE_FLOOR * HUE_RESERVE_COVERAGE_FLOOR;
 
-/// `Math.atan2` is bit-exact in both languages (fdlibm), as photo enhancement already relies on.
+/// `Math.atan2` is bit-exact in both languages (fdlibm), as the rest of this port relies on.
 pub fn hue_bin_of(a: f64, b: f64) -> usize {
     let turns = (jsmath::atan2(b, a) / (2.0 * std::f64::consts::PI) + 1.0) % 1.0;
     let bin = (turns * HUE_BINS as f64).floor() as usize;

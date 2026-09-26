@@ -157,7 +157,8 @@ function clipLinearToOklab([r, g, b]: [number, number, number]): Oklab {
  * CSS Color 4 gamut mapping into `out` as linear sRGB: binary search on chroma at constant lightness and hue, accepting
  * the per-channel clip once it is within GAMUT_JND of the candidate (keeps bright yellows and dark blues from fully
  * desaturating). Gamut membership is tested on unclamped linear RGB, because `oklabToRgb` clamps and testing its output
- * would call everything in gamut. The one implementation behind both `oklabToRgbGamutMapped` and photo enhancement. See D111.
+ * would call everything in gamut. The one implementation behind `oklabToRgbGamutMapped`, and so behind every
+ * thread match. The four photo sliders deliberately do not use it -- they clip instead (D238). See D111.
  */
 export function gamutMapOklabToLinear(L: number, a: number, b: number, out: Float64Array): void {
   if (L <= 0) {

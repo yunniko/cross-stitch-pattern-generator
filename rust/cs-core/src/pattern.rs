@@ -1,5 +1,6 @@
 //! Port of `buildPattern` (`lib/pipeline/pattern.ts`): every edge mode, both quantizers, thread brands and photo
-//! enhancement. Contour refinement (experimental, off by default) and custom quantizers are not ported.
+//! the four photo sliders. Contour refinement (experimental, off by default) and custom quantizers are not
+//! ported, and the five enhancement modes were removed with G-074 M4 (D240).
 
 use crate::color::{luminance, rgb_to_oklab, Oklab, Rgb};
 use crate::crisp::evidence::{build_evidence_layer_masked, EdgeModel, EvidenceLayer};
@@ -12,7 +13,6 @@ use crate::edge_map::{
     compute_cell_importance_masked, compute_edge_magnitude_masked, opaque_pixel_mask,
     source_luminance,
 };
-use crate::enhance::{enhance, Mode as EnhancementMode};
 use crate::photo_adjust::{adjust_image, PhotoAdjust};
 use crate::names::{name_colors, symbol_set};
 use crate::optimize::{
@@ -52,7 +52,6 @@ pub struct BuildOptions {
     pub edge_mode: EdgeMode,
     /// `None` is the full palette.
     pub brand: Option<Brand>,
-    pub enhancement: EnhancementMode,
     /// Dithering (G-052); `Off` is the pipeline as it was. Refused with Crisp, whose purpose is the opposite (D199).
     pub dither: DitherMode,
     /// What a drawn pattern is made of (G-055); ignored by every other pattern.
@@ -97,7 +96,6 @@ pub struct StitchPattern {
     pub dither_texture: Option<DitherTexture>,
     /// Generated with Vivid (G-061); `None` means the stitches are plain area means.
     pub vivid: Option<bool>,
-    pub enhancement_mode: Option<&'static str>,
     /// The sliders the chart was generated with (G-074); `None` when they were all centred.
     pub photo_adjust: Option<PhotoAdjust>,
 }
@@ -174,11 +172,6 @@ pub fn build_pattern_reporting(
     let image = adjusted.as_ref().unwrap_or(image);
     lap("adjust", times);
 
-    // Colour stages read the enhanced photo; importance and pair evidence read the original (D112).
-    let enhanced = enhance(image, options.enhancement);
-    let color_source = enhanced.as_ref().unwrap_or(image);
-    lap("enhance", times);
-
     let (gw, gh) = grid_dimensions_for(image.width, image.height, options.longer_side_stitches);
     on_progress(0.1);
     // Transparency becomes absence: a cell the photo barely covers is an empty stitch, and the stages below read
@@ -186,7 +179,7 @@ pub fn build_pattern_reporting(
     // photo, which keeps it on exactly the path it had before.
     // Vivid changes what a stitch is made of, before anything chooses colours (G-061, D211).
     let (cells, coverage) = downsample_to_grid_vivid(
-        color_source,
+        image,
         gw,
         gh,
         if options.vivid { VIVID_TOP_SHARE } else { 0.0 },
@@ -216,7 +209,7 @@ pub fn build_pattern_reporting(
         } else {
             EdgeModel::Step
         };
-        build_evidence_layer_masked(color_source, gw, gh, model, empty_ref)
+        build_evidence_layer_masked(image, gw, gh, model, empty_ref)
     });
     if crisp {
         lap("crispEvidence", times);
@@ -353,8 +346,8 @@ pub fn build_pattern_reporting(
     let mut finalize_oklab: Option<Vec<f64>> = None;
     if options.edge_mode == EdgeMode::CrispPlus && smooth {
         let before = merged_index.clone();
-        let snap = plus::snap_transition_strips(&before, gw, gh, &merged_palette, color_source);
-        let prune = plus::prune_blend_labels(&snap.labels, gw, gh, &merged_palette, color_source);
+        let snap = plus::snap_transition_strips(&before, gw, gh, &merged_palette, image);
+        let prune = plus::prune_blend_labels(&snap.labels, gw, gh, &merged_palette, image);
         let changed: Vec<u8> = (0..before.len())
             .map(|i| (prune.labels[i] != before[i]) as u8)
             .collect();
@@ -517,10 +510,7 @@ pub fn build_pattern_reporting(
             .then(|| options.dither_texture.clone()),
         // Recorded when it acted, not when it was asked for: below the pixels-a-stitch floor there is no
         // sub-stitch colour to rescue and the cells are plain area means (D211).
-        vivid: (options.vivid && vivid_applies(color_source.width, color_source.height, gw, gh)).then_some(true),
-        // Recorded whenever requested, even when every stage abstained, as the TypeScript does.
-        enhancement_mode: (options.enhancement != EnhancementMode::Off)
-            .then(|| options.enhancement.id()),
+        vivid: (options.vivid && vivid_applies(image.width, image.height, gw, gh)).then_some(true),
         // Centred sliders are recorded as nothing at all, so a chart made without them is the file it
         // was before they existed.
         photo_adjust: (!options.photo_adjust.is_neutral()).then_some(options.photo_adjust),
