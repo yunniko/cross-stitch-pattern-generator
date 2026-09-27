@@ -80,6 +80,14 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   without generating gives the change up and puts the chart's own sliders back.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-27 — **Owner-reported fix on M6: the photo view did not move while a slider was dragged.** The
+  worker keeps the callback it was created with, and that callback closed over the effect's `cancelled`
+  flag; the second slider value cleaned up the first closure, so every frame after the first was dropped.
+  One value worked, a drag never did — and the M6 test used `fill()`, one value, so the suite was green.
+  What is current now lives in refs, and the photo is handed to the worker once per photo rather than once
+  per value. Verified: a new e2e case drives twenty values with the change event only at the end and reads
+  the chart canvas as it goes (chroma 36 → 27 → 19 → 10 → 0); it fails against the bug.
+  814 unit, 447 e2e, lint/tsc/prettier/docs-lint clean.
 - 2026-09-27 — **M6 reached** (Owner, same day): a photo view now follows the sliders while the Photo tab
   is up, and a change never generated with is given up on the way out (D243). The decode-and-adjust path
   became one hook shared by both previews, with the coarse-then-sharp cadence in one place; `photoKey` is

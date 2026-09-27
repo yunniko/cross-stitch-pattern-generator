@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-27 at 3e720a1 (G-074 M6: the sliders move the photo views live; deployed)
+Last verified: 2026-09-27 at HEAD (G-074: the photo view keeps up with a dragged slider)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -200,6 +200,12 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
   hand with a decision file (D107, D222).
 - Omitting `edgeMode`, `contourRefinement`, a brand or `photoAdjust` (or passing it neutral) must reproduce
   Standard output byte-for-byte — `scripts/rust-goldens.ts` asserts it on every recorded case.
+- **A callback handed to a long-lived worker must not close over an effect's state.** The worker keeps the
+  callback it was created with, while the effect re-runs on every change; a `cancelled` flag from the
+  first closure then silences every later answer. Found 2026-09-27 on the live build: the photo view
+  moved for one keystroke and never for a drag. What is current goes in a ref.
+- **A slider is tested by a drag, not by one value.** `fill()` sets a value once and passes where a real
+  drag fails; the bug above survived a green suite that way (`tests/e2e/photo-sliders-generate.spec.ts`).
 - **The TypeScript pipeline is gone** (G-068 M3): generation, crisp edges, quantisation, denoise and the optimiser exist only in `rust/`. `lib/pipeline` keeps the vocabulary (`generation-modes.ts`), the dither preview the browser draws, `regions.ts` behind the Fill tool, `downsample.ts`'s grid maths and `enhance.ts`. Adding a pipeline feature is a Rust change and a golden-hash decision, not two implementations.
 - A crash report carries the chart but never the photo (D218), and names a commit only when the image is built with `APP_COMMIT=$(git rev-parse --short HEAD)`; the plain deploy command leaves it "unknown". Confirmed after a deploy by grepping the shipped chunks for the short SHA.
 - Nothing test-only ships: a build-flagged crash hook was found in the production chunks, so the boundary's spec breaks `fillRect` instead (D218). Grep a production build before trusting a flag to remove code.

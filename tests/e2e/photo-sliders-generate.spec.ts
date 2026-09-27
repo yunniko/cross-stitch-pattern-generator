@@ -230,6 +230,53 @@ test("with a photo view up, the Photo tab's sliders move the photo without regen
   expect(errors).toEqual([]);
 });
 
+test("the photo keeps up with a slider being dragged, not just with one value", async ({ page }) => {
+  // A drag is dozens of values, a `fill` is one, and the difference hid a real bug: the worker kept the
+  // callback from the effect's first run, whose cleanup the *second* value fired, so every frame after the
+  // first was dropped. One keystroke moved the picture; a drag never did (Owner, 2026-09-27).
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await page.getByRole("radio", { name: /Small/ }).check();
+  await generateAndExport(page);
+
+  await showPhotoOnly(page);
+  await page.getByRole("tab", { name: "Photo" }).click();
+  const before = await uploadedPhotoChroma(page);
+  expect(before).toBeGreaterThan(30);
+
+  const seen = await page.evaluate(async () => {
+    const input = document.querySelector<HTMLInputElement>('input[aria-label="Saturation"]')!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    const chroma = () => {
+      const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="chart-canvas"]')!;
+      const { data } = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height);
+      let worst = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] < 200) continue;
+        worst = Math.max(worst, Math.max(data[i], data[i + 1], data[i + 2]) - Math.min(data[i], data[i + 1], data[i + 2]));
+      }
+      return worst;
+    };
+    const readings: number[] = [];
+    // Twenty values, as a drag delivers them, with the change event only at the end.
+    for (let step = 1; step <= 20; step++) {
+      setter.call(input, String(-5 * step));
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 40));
+      readings.push(chroma());
+    }
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 1200));
+    return { readings, settled: chroma() };
+  });
+
+  // It kept up on the way down, rather than only arriving at the end -- or never.
+  expect(seen.readings[9]).toBeLessThan(before);
+  expect(seen.readings[19]).toBeLessThan(seen.readings[9]);
+  expect(seen.settled).toBeLessThan(6);
+});
+
 test("sliders moved but never generated are given up on the way out", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
