@@ -86,7 +86,9 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   gone, because keying the photo by the sliders made it vanish mid-drag. Verified: 814 unit (5 new), 445
   e2e (3 new), 74 golden tests, both Rust parity suites. Mutation-checked: 4 breaks of the two behaviours
   caught through the UI, and the fifth — a chart with no photo — was not observable there, so the rule
-  moved into `slidersToRestore` and is covered by unit tests (3 more breaks, 3 caught). Not yet deployed.
+  moved into `slidersToRestore` and is covered by unit tests (3 more breaks, 3 caught). Deployed; both new
+  behaviours verified against the live site, each passing alone on the first try. **All nine criteria are
+  met and the goal awaits the Owner's sign-off.**
 - 2026-09-27 — **M5 reached** (Owner asked two questions after M4 and both were gaps): the photo views draw
   the photo as adjusted, prepared in the slider worker, and opening a chart puts its sliders back so that
   Regenerate reproduces it (D241). Verified: 813 unit tests (4 new on the photo key), 405 e2e (2 new).
