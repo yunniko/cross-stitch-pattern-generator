@@ -88,7 +88,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M2 — **The personal cabinet**: an account page — name and email shown, change name, change password
   (current + new), delete account behind a confirmation. The header/nav shows "Log in" or the account depending
   on session. e2e over the whole loop, including deletion.
-- [ ] M3 — **Admin: users**: a role-gated `/admin` layout that redirects a non-admin, the bootstrap-by-env-email
+- [x] M3 — **Admin: users**: a role-gated `/admin` layout that redirects a non-admin, the bootstrap-by-env-email
   mechanic, `/admin/users` with search, pagination, promote/demote and disable-login actions. Unit + e2e tests,
   including that a non-admin genuinely cannot reach it.
 - [ ] M4 — **Admin: usage stats**: a usage-event table (job kind, optional `userId`, timestamp, no photo or
@@ -102,6 +102,24 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   unaffected), README + HANDOVER updated, other containers/sites on the host unaffected.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-27 — **M3 reached.** `app/admin/layout.tsx` guards every `/admin/*` page: signed out → `/login`,
+  signed in but not `ADMIN` → `/` (not back to the login form, which the reader would just pass again).
+  `/admin` itself redirects to `/admin/users` (the only admin page so far). `/admin/users/page.tsx` is a
+  plain GET search form (`q`) plus pagination (`page`) over `prisma.user`, paginated by
+  `lib/admin/pagination.ts` (`paginate`, unit-tested against zero accounts, an out-of-range page and a
+  malformed one; `adminUsersPageSize`, overridable by `ADMIN_USERS_PAGE_SIZE` the way the job/auth rate
+  limits already are, defaulting to 20). Row actions (promote/demote/disable-login) live in
+  `lib/admin/user-actions.ts` as server actions bound to a row's id (`.bind(null, userId)`); each re-checks
+  the caller is `ADMIN` on the server (never trusting the layout alone) and refuses to act on the caller's
+  own account, and `UserRowActions` hides the buttons for that row too rather than only failing silently.
+  Verified: `tests/e2e/admin.spec.ts` (4 cases: an anonymous visitor and a signed-in non-admin are both
+  turned away; the admin workflow — search narrows to one row, promote then demote, disable a reader's login
+  and confirm the disabled reader is genuinely refused at `/login`, then re-enable and confirm they can sign
+  in again; pagination's Next/Previous links) against a real Postgres container through the production
+  build/start pipeline, plus the full `tests/e2e/accounts.spec.ts` re-run alongside it for regressions; 8 new
+  unit tests (`tests/unit/admin-pagination.spec.ts`, 825 total); lint/tsc/prettier/docs-lint clean (`next
+  typegen` was needed first — the generated route-type file had gone stale for the new `/admin` routes, same
+  as HANDOVER already notes CI does before every type-check). Next: M4, admin usage stats.
 - 2026-09-27 — **M2 reached.** `/account` (`app/account/page.tsx`) re-reads the account from Prisma on every
   request rather than trusting the JWT session (D246), and holds three sections: Profile (`NameForm`, rename),
   Password (`PasswordForm`, current+new with the current password checked against the real hash before

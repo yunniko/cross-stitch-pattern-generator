@@ -73,6 +73,8 @@ export function appWithProcessor({
         AUTH_TRUST_HOST: "true",
         ADMIN_EMAIL: "e2e-admin@example.com",
         ADMIN_BOOTSTRAP_ENABLED: "true",
+        // Small on purpose (G-075 M3): lets a pagination test exercise page 2 without seeding dozens of accounts.
+        ADMIN_USERS_PAGE_SIZE: "3",
       },
       url: `http://localhost:${port}`,
       reuseExistingServer,

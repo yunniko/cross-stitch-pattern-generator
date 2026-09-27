@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-27 at HEAD (G-075 M2: personal cabinet, in a worktree)
+Last verified: 2026-09-27 at HEAD (G-075 M3: admin user management, in a worktree)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -12,15 +12,18 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 **Production** runs a6c6657 (2026-09-27, per the deploy log below — this line had drifted to 2026-09-25's commit in an earlier regen and is corrected here): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-075, accounts — in progress, M2 of 5 done (this session's worktree, not yet merged or deployed).** Optional
+**G-075, accounts — in progress, M3 of 5 done (this session's worktree, not yet merged or deployed).** Optional
 registration, login and logout on NextAuth v5 + Prisma + Postgres + bcryptjs (D244); register/login are server
 actions rate-limited by a second `kind` on the existing job limiter (D245, `lib/server/request-guard.ts`).
 `/account` (M2) is a personal cabinet: rename, change password, delete the account (typed-email confirmation,
 no native `confirm()`), and its own logout button; the canvas app shows a corner badge (`AccountBadge`) naming
-the signed-in reader and linking to it. No admin UI yet (M3–M4); the schema also carries empty
-`Tier`/`Subscription`/`UsageEvent` scaffolding for the milestones after that. Verified: `tests/e2e/accounts.spec.ts`
-(7 cases, one driving the whole M2 loop including deletion) against a real Postgres container through the
-production build/start path every e2e spec shares; 817 unit tests.
+the signed-in reader and linking to it. `/admin/users` (M3): search, pagination, promote/demote-admin and
+disable-login, gated by `app/admin/layout.tsx` (signed out → `/login`, signed in but not admin → `/`); every
+row action re-checks admin on the server and refuses to act on the caller's own account. No usage-stats page
+yet (M4); the schema also carries empty `Tier`/`Subscription` scaffolding for the billing goal after that.
+Verified: `tests/e2e/accounts.spec.ts` (7 cases) and `tests/e2e/admin.spec.ts` (4 cases, including that a
+disabled login is genuinely refused) against a real Postgres container through the production build/start
+path every e2e spec shares; 825 unit tests.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
 export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-comparison-report.md`). Since G-068 M2 it is the only engine: nothing falls back to TypeScript, and the recorded golden hashes are checked against the binary by `npm run test:goldens:rust` (D221).
@@ -188,6 +191,14 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   reads the signed-in id from `auth()` and never trusts a form-carried id. `AccountBadge`
   (`app/components/auth/account-badge.tsx`) is a `position: fixed` corner pill rendered from `app/page.tsx` /
   `app/workspace.tsx`, chosen over the top bar to avoid D213's sideways-scroll hazard.
+- **Admin users (G-075 M3)**: `app/admin/layout.tsx` is the one guard every `/admin/*` page shares; `/admin`
+  itself redirects to `/admin/users`. `app/admin/users/page.tsx` reads `searchParams` for `q`/`page`, queries
+  Prisma directly (search is a plain GET form, no client JS), and paginates through `lib/admin/pagination.ts`
+  (`paginate`, unit-tested, and `adminUsersPageSize`, overridable by `ADMIN_USERS_PAGE_SIZE` the way the rate
+  limiter's env vars work). Row actions (`app/admin/users/user-row-actions.tsx` →
+  `lib/admin/user-actions.ts`) are server actions bound to a row's id with `.bind(null, userId)`; each
+  re-checks the caller is an admin and refuses to demote/disable the caller's own account, and the row's own
+  actions are hidden client-side too rather than only failing silently.
 
 (Backstitch is corners rather than cells, so it has its own geometry module: `lib/editor/backstitch.ts` holds hit-testing, the transforms, the symmetry orbit and the both-ends rule, with no React and no canvas in it. `app/hooks/use-canvas-tools.ts` has the two hooks that drive it and `app/editor-geometry.ts` draws it.
 Every *export* of it is Rust: `rust/cs-export/src/backstitch.rs` for the dash and bead rules,
@@ -346,11 +357,15 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - The corner badge's name is stale until the next login (D246): it reads the JWT session, which a rename on
   `/account` does not touch. `/account` itself is always fresh. Don't "fix" this by reaching for the `jwt`
   callback first — call NextAuth's `update()` from `NameForm` instead (D246's rejected alternative explains why).
+- An admin can never demote or disable their own account (`lib/admin/user-actions.ts` checks the target id
+  against the caller's own before every write): the only way to undo the one signed-in admin would be another
+  admin, and there may not be one. `UserRowActions` hides the buttons for that row too, so the only way to hit
+  the check is a hand-crafted request, not a normal click.
 
 ## Next steps and open questions
 
-- **G-075 is active (accounts): M2 of 5 done, in a worktree not yet merged.** Next: M3 admin user management,
-  M4 admin usage stats, M5 deploy and verify. G-074 (the four photo sliders) was signed
+- **G-075 is active (accounts): M3 of 5 done, in a worktree not yet merged.** Next: M4 admin usage stats,
+  M5 deploy and verify. G-074 (the four photo sliders) was signed
   off on 2026-09-27 and is archived, as is G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner:
   **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and **G-030** (public
   launch, far future).
