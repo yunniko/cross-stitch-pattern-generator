@@ -1,16 +1,23 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-27 at HEAD (G-074 signed off and archived; no goal is active)
+Last verified: 2026-09-27 at HEAD (G-075 M1: accounts foundation, in a worktree)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
-standalone Owner project (not svc-lab, no monetization), live at
+standalone Owner project (not svc-lab), live at
 <https://cross-stitch.craftodejnice.cz>. Goals are in `GOALS.md`, completed
 goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 36bc22a (2026-09-25), the last deployed commit: the 1b shell with the Owner's corrections, and generation, the enhancement preview and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Verified on this build by generating, enhancing, exporting a PDF and reloading in a browser.
+**Production** runs a6c6657 (2026-09-27, per the deploy log below — this line had drifted to 2026-09-25's commit in an earlier regen and is corrected here): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
+
+**G-075, accounts — in progress, M1 of 5 done (this session's worktree, not yet merged or deployed).** Optional
+registration, login and logout on NextAuth v5 + Prisma + Postgres + bcryptjs (D244); register/login are server
+actions rate-limited by a second `kind` on the existing job limiter (D245, `lib/server/request-guard.ts`). No
+personal cabinet or admin UI yet (M2–M4); the schema also carries empty `Tier`/`Subscription`/`UsageEvent`
+scaffolding for the milestones after that. Verified: `tests/e2e/accounts.spec.ts` (6 cases) against a real
+Postgres container through the production build/start path every e2e spec shares; 817 unit tests.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
 export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-comparison-report.md`). Since G-068 M2 it is the only engine: nothing falls back to TypeScript, and the recorded golden hashes are checked against the binary by `npm run test:goldens:rust` (D221).
@@ -164,6 +171,14 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - **Deploy**: `Dockerfile` builds two targets (`runtime`, `processor`) and `docker-compose.yml` runs both under
   D149's caps (app on `127.0.0.1:30150`; the processor publishes no port). Recipe and shared-host rules:
   `COMPANY/INFRASTRUCTURE_DEPLOY.md`; verification per D027.
+- **Accounts (G-075)**: `auth.ts` (NextAuth v5, Credentials provider, JWT sessions) sits in front of
+  `prisma/schema.prisma` through `lib/prisma.ts`'s singleton client (D244); `lib/auth/actions.ts` holds
+  register/login/logout as server actions (D245), validated by `lib/auth/validation.ts`, rate-limited by
+  `authRateLimited` in `lib/server/request-guard.ts`. `docker-compose.yml` gained an un-profiled `db` service
+  (local dev needs only `docker compose up -d db`) and a one-shot `migrate` service the `app` profile depends
+  on; `prisma.config.ts` reads `DATABASE_URL` from `.env` for local Prisma CLI commands. The generated client
+  (`generated/prisma/`) is gitignored and rebuilt by `npx prisma generate` — the Dockerfile's `build` stage and
+  every e2e run do this before `next build`, which otherwise fails to typecheck pages importing it.
 
 (Backstitch is corners rather than cells, so it has its own geometry module: `lib/editor/backstitch.ts` holds hit-testing, the transforms, the symmetry orbit and the both-ends rule, with no React and no canvas in it. `app/hooks/use-canvas-tools.ts` has the two hooks that drive it and `app/editor-geometry.ts` draws it.
 Every *export* of it is Rust: `rust/cs-export/src/backstitch.rs` for the dash and bead rules,
@@ -234,25 +249,10 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - Cell importance reads each cell's own footprint, never pixels assigned by truncation (D197): the two agree exactly below 1:1, and only the footprint fills a finer chart's cells.
 - A new pass after quantization is gated on `smooth` in both languages, or it silently undoes dithering (D199); a
   matrix pattern is generated data, never computed at runtime (D198).
-- A drawn pattern's randomness comes from `lib/prng.ts`/`prng.rs` on a seed in its texture, consumed in the same
-  order by both languages, and its shapes use no transcendental function — `atan2` differs between V8 and libm (D183,
-  D201, D202). Its cells are ranked and spread evenly over 0..1, which is what holds tone.
-- A texture is data with ranges, validated by number not by type union, and its default is frozen against
-  `tests/unit/helpers/dither-frozen-g054.ts` — never update that copy to match a change (D203). A texture is compared
-  **by value**: it crosses the wire as JSON, so a reference check silently writes a default into every drawn chart
-  (D204). A new knob needs a range, a Rust field, a parity case and a line in the editor.
-- A drawn mark's shape list only grows at the end and a short weight list falls back to `lump` by name, never "the
-  last shape" (D205); every cell keeps an order, painted or not, because that ranking is what holds tone.
-- A drawn chart's field depends on the grid's **width and height**: marks are placed across the whole grid and their
-  shapes drawn from the stream left afterwards. So a preview of a corner has to build the chart's own field (D206),
-  and a tone compared with a threshold is the pipeline's rule only while the dark thread is the nearer one.
-- A knob that reaches a shape it was not written for goes behind a switch that starts off, or it changes every
-  texture already drawn (D207). The panel's Ring thickness is the stored radius read backwards: ink is fixed by tone,
-  so a wider circle is a thinner stroke.
-- The preview is shown for every pattern and builds only what that family forces: a matrix needs its window, a kernel
-  the chart's full width down to the window, the drawn marks the whole grid (D208). The four line screens are one
-  option with a direction, stored as four `lines-*` ids so old files keep opening; the list row carries its own value
-  because a `select` cannot show one its options lack.
+- Six rules specific to the drawn dither pattern subsystem (G-052–G-059: seeding, texture validation, shape
+  ranking, the field, per-shape knobs, the preview) moved to
+  `docs/reviews/2026-09-27-drawn-pattern-rules.md` on 2026-09-27 — this section passed its cap. Read that file
+  before touching `lib/pipeline/dither-hand-drawn.ts`, its Rust port, or the Texture editor.
 - A pipeline stage that reads `cellPalette` must skip `EMPTY_CELL`: it is a sentinel, not palette index 255, and both
   TypeScript and Rust must skip it in the same places or the two diverge (D196).
 - Rust export references are generated in the processor image, never on a laptop: only DejaVu Sans is installed there, so every raster would differ (D188).
@@ -325,14 +325,23 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
   512 MB a 1500-stitch Pattern Keeper PDF and Export all complete, where 1000 once failed at every cap to 1536 MB (D169).
 - `MAX_STITCHES` (1500) is measured: raising it means re-running `docs/reviews/2026-09-19-new-cap-measurements.md`, and above ~1550 Export all's chart PNG no longer fits its budget (D026, D181).
 - The PDF releases each page as it is drawn through two private pdf-lib 1.17.1 fields (D169); an upgrade must keep `tests/unit/pdf-page-flush.spec.ts` green, or the flush stops silently and the heap grows back.
-- Rate-limit capacities default to production values, overridable by `RATE_LIMIT_JOBS_PER_MINUTE` and
-  `RATE_LIMIT_PREVIEWS_PER_MINUTE` so the e2e suite is not refused; a zero or malformed value falls back to the default.
+- Rate-limit capacities default to production values, overridable by `RATE_LIMIT_JOBS_PER_MINUTE` and (G-075)
+  `RATE_LIMIT_AUTH_PER_15MIN`, keyed separately per `kind` so spending one never spends the other; a zero or
+  malformed value falls back to the default. (Corrected 2026-09-27: the line here named a
+  `RATE_LIMIT_PREVIEWS_PER_MINUTE` that D240 removed along with the preview endpoint itself.)
+- `ADMIN_BOOTSTRAP_ENABLED` must be set to `"false"` once the real admin account exists (G-075): left `"true"`,
+  anyone who registers `ADMIN_EMAIL` becomes an admin, since there is no email verification to stop them.
+- Prisma's own CLI and `@prisma/client` must stay on the same major version by hand: npm's `prisma` `latest`
+  dist-tag currently points at an 8.x release candidate while `@prisma/client`/`@prisma/adapter-pg` resolve to
+  7.x. `npm install -D prisma` alone installs the mismatched RC; pin `prisma@^7.x` explicitly (G-075 M1).
 
 ## Next steps and open questions
 
-- **No goal is active.** G-074 (the four photo sliders) was signed off on 2026-09-27 and is archived, as is
-  G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner: **G-069** (the workspace's shape, from
-  `docs/reviews/2026-09-24-workspace-shape.md`) and **G-030** (public launch, far future).
+- **G-075 is active (accounts): M1 of 5 done, in a worktree not yet merged.** Next: M2 the personal cabinet, M3
+  admin user management, M4 admin usage stats, M5 deploy and verify. G-074 (the four photo sliders) was signed
+  off on 2026-09-27 and is archived, as is G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner:
+  **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and **G-030** (public
+  launch, far future).
 - **Left for a future goal, found while building it:** the casing threshold and bead spacing were judged on screen, never on paper — only a print settles how a 0.55 mm dashed line reads at a 2.75 mm cell (`docs/reviews/2026-09-25-backstitch-samples.md`). Backstitch is also absent from the realistic preview,
   which draws stitches from tiles and has no notion of a line.
 - Weakest area, unchanged by G-073 and reinforced by it: **tests assert data, not what is drawn.** Every backstitch defect the Owner found in G-073 — the zoom displacement, the missing highlight — was invisible to a suite asserting exported coordinates, and two more were found only by *looking* at a sample export. Three pixel-level tests now exist (`backstitch-scene-placement.spec.ts`, and the highlight and Isolate cases in the e2e); nothing else asserts a frame during a gesture except `tests/unit/piece-preview-cells.spec.ts`.

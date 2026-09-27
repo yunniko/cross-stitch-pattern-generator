@@ -1,10 +1,47 @@
-# Two services, both from this repo's Dockerfile: the Next app, and the processor that does photo
-# decoding and pattern generation (G-034). The caps are D149's, measured on the production host --
-# this box runs ~20 other sites, so neither service may take more than its share.
+# Three services from this repo's Dockerfile (app, processor), plus Postgres for accounts (G-075) -- this
+# project's first database. The caps on app/processor are D149's, measured on the production host -- this box
+# runs ~20 other sites, so no service may take more than its share.
 services:
+  # `db` and `migrate` have no profile: `docker compose up -d db` alone is enough for local dev
+  # (`npm run dev` reads DATABASE_URL from .env and talks to it directly, no container build needed).
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cross_stitch
+      POSTGRES_PASSWORD: cross_stitch
+      POSTGRES_DB: cross_stitch
+    ports:
+      # Port chosen following this host's registry (COMPANY/INFRASTRUCTURE_DEPLOY.md: 54320-54323 taken by
+      # other projects' db containers) -- re-verify live before the M5 deploy, per INFRASTRUCTURE.md's
+      # "never trust a cached port fact" rule, rather than trusting this number.
+      - "127.0.0.1:54324:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cross_stitch -d cross_stitch"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot migration runner (the `build` stage has the full source tree and devDependencies, incl. the
+  # Prisma CLI, which the slim `runtime` image below does not carry).
+  migrate:
+    profiles: ["app"]
+    build:
+      context: .
+      target: build
+    command: npx prisma migrate deploy
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://cross_stitch:cross_stitch@db:5432/cross_stitch
+
   # Production-style app container -- opt in with:
   #   docker compose --profile app up -d --build
-  # (dev flow is just `npm run dev`, no compose needed)
+  # (dev flow is `npm run dev` against `docker compose up -d db`, no app/processor build needed)
   app:
     profiles: ["app"]
     build:
@@ -22,8 +59,16 @@ services:
       # here if the deploy .env ever went missing, so the safe value is nothing at all.
       APP_URL: ${APP_URL:-}
       PROCESSOR_URL: http://processor:8081
+      DATABASE_URL: postgresql://cross_stitch:cross_stitch@db:5432/cross_stitch
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      AUTH_TRUST_HOST: "true"
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-true}
     depends_on:
-      - processor
+      processor:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:30150:3000"
 
@@ -40,3 +85,6 @@ services:
       PROCESSOR_PORT: 8081
     # Deliberately no `ports`: reachable only on the internal network, so the app's Route Handlers --
     # which hold the Origin check and the rate limit -- are its only caller.
+
+volumes:
+  db-data:

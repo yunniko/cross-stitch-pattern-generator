@@ -79,7 +79,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
     log in" flag is enough for now, matching "simple personal cabinet" in the ask.
 
 **Milestones** (drafted 2026-09-27; not yet confirmed with the Owner):
-- [ ] M1 — **Accounts foundation**: Postgres in `docker-compose.yml` (dev + the `--profile app` deploy shape),
+- [x] M1 — **Accounts foundation**: Postgres in `docker-compose.yml` (dev + the `--profile app` deploy shape),
   Prisma schema (`User`, `Role`, the NextAuth adapter tables, plus the empty `Tier`/`Subscription` scaffolding from
   Constraints), NextAuth wired with the Credentials provider (register, login, logout), `AUTH_SECRET`,
   register/login rate-limited by extending the existing `lib/server/request-guard.ts` token bucket rather than a
@@ -102,6 +102,30 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   unaffected), README + HANDOVER updated, other containers/sites on the host unaffected.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-27 — **M1 reached.** Postgres added to `docker-compose.yml` (un-profiled `db` + one-shot `migrate`
+  under the `app` profile, D244); `prisma/schema.prisma` covers `User`/`Role` plus the NextAuth adapter tables
+  and the `Tier`/`Subscription`/`UsageEvent` scaffolding from Constraints, one migration for the whole goal.
+  NextAuth v5 (Credentials, JWT sessions, admin-bootstrap-by-`ADMIN_EMAIL`) in `auth.ts`; register/login/logout
+  as server actions (D245) in `lib/auth/actions.ts`, validated by `lib/auth/validation.ts`, rate-limited by a
+  new `auth` kind on the existing job limiter (`lib/server/request-guard.ts`, 8/15min, its own bucket so a
+  generation burst never costs a login attempt). `/login` and `/register` pages; visiting `/login` while
+  already signed in shows the account and a real logout button, since there is no cabinet yet to put one in
+  (M2). Verified: `tests/e2e/accounts.spec.ts` (6 cases: register-signs-in-and-survives-reload, logout, log
+  back in, wrong password, duplicate email, field validation) against a real Postgres container through the
+  production build/start path every e2e spec shares; 3 new unit tests on the `auth` rate-limit bucket (20 total
+  in that file); 817 unit tests; a 20-spec cross-section (accounts + generation + navigation, 3 workers) to
+  confirm the shared webServer change doesn't regress unrelated specs, rather than the full ~440-spec suite (a
+  first full run was started pointed at a not-yet-built Rust binary and stopped rather than trusted). Found and
+  fixed live: `npm install -D prisma` alone resolves an 8.x release candidate while `@prisma/client` stays on
+  7.x (npm's `latest` dist-tag), pinned explicitly; a `role="alert"` on the error banner collided with Next's
+  own route-announcer div in Playwright's strict mode, given its own `data-testid`; `<input type="email">`'s
+  native validation was intercepting the field-validation test before the server action ran, so both forms
+  gained `noValidate` and rely on the server-rendered field errors instead. Also found and corrected in
+  HANDOVER, unrelated to G-075: "Current state" had drifted to a commit two deploys behind the real one, and a
+  "Rules in force" line named an env var G-074 M4 had already removed. Lint/tsc/prettier/docs-lint clean.
+  Rules in force was over its 160-line cap after M1's additions; six drawn-dither-pattern rules moved to
+  `docs/reviews/2026-09-27-drawn-pattern-rules.md`, replaced by one pointer line. Next: M2, the personal
+  cabinet.
 - 2026-09-27 — Owner: "go ahead through all milestones." worktree:
   `E:\CLAUDE\worktrees\cross-stitch-pattern-generator--G-075` (branch `goal/G-075`). Starting M1.
 - 2026-09-27 — Owner confirmed billing direction: Stripe, subscription-based tiers unlocking features/limits

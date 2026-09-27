@@ -55,13 +55,24 @@ export function appWithProcessor({
     },
     {
       // A production build, not `next dev`: Next 16 allows one dev server per directory (D102).
-      command: `npm run build && npm run start -- -p ${port} -H 127.0.0.1`,
+      // Postgres (G-075) comes up first (the compose file's un-profiled `db` service, `--wait` for its
+      // healthcheck), then the schema, then the build -- `prisma generate` has to run before `next build`
+      // typechecks pages that import the generated client, same as the Dockerfile's `build` stage.
+      command: `docker compose up -d db --wait && npx prisma generate && npx prisma migrate deploy && npm run build && npm run start -- -p ${port} -H 127.0.0.1`,
       cwd: root,
       env: {
         PROCESSOR_URL: `http://127.0.0.1:${processorPort}`,
         // Suites and benches generate and export far more often than a person; the real limits are covered in
-        // tests/unit/request-guard.spec.ts rather than by being refused here.
+        // tests/unit/request-guard.spec.ts rather than by being refused here. Same reasoning for auth attempts.
         RATE_LIMIT_JOBS_PER_MINUTE: "1000",
+        RATE_LIMIT_AUTH_PER_15MIN: "1000",
+        // The e2e suite's own Postgres (docker-compose.yml's `db` service; port per that file's own note).
+        // Not a secret worth generating fresh -- nothing this database holds needs to survive a suite run.
+        DATABASE_URL: "postgresql://cross_stitch:cross_stitch@127.0.0.1:54324/cross_stitch",
+        AUTH_SECRET: "e2e-suite-only-not-a-real-secret-00000000",
+        AUTH_TRUST_HOST: "true",
+        ADMIN_EMAIL: "e2e-admin@example.com",
+        ADMIN_BOOTSTRAP_ENABLED: "true",
       },
       url: `http://localhost:${port}`,
       reuseExistingServer,

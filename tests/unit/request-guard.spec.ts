@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { clientIp, guardMutation, originRejected, rateLimited, resetRateLimits } from "@/lib/server/request-guard";
+import { authRateLimited, clientIp, guardMutation, originRejected, rateLimited, resetRateLimits } from "@/lib/server/request-guard";
 
 /**
  * The two checks standing in front of the processor (G-034 M2, acceptance criterion 6): a state-changing request must
@@ -156,6 +156,33 @@ describe("configurable capacity", () => {
       } finally {
         delete process.env.RATE_LIMIT_JOBS_PER_MINUTE;
       }
+    }
+  });
+});
+
+describe("auth rate limit (G-075)", () => {
+  it("allows a burst up to its own, smaller capacity, then refuses", () => {
+    const results = Array.from({ length: 9 }, () => authRateLimited("203.0.113.30"));
+    expect(results.filter((r) => r.ok)).toHaveLength(8);
+    const refused = results[8];
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) expect(refused.retryAfterSeconds).toBeGreaterThan(0);
+  });
+
+  it("does not share a bucket with job requests from the same address", () => {
+    // A person who has just triggered six generations must still be able to log in.
+    for (let i = 0; i < 6; i++) rateLimited(request({ ip: "203.0.113.31" }));
+    expect(rateLimited(request({ ip: "203.0.113.31" }))?.status).toBe(429);
+    expect(authRateLimited("203.0.113.31").ok).toBe(true);
+  });
+
+  it("honours its own override, separately from the job one", () => {
+    process.env.RATE_LIMIT_AUTH_PER_15MIN = "50";
+    try {
+      const results = Array.from({ length: 20 }, () => authRateLimited("203.0.113.32"));
+      expect(results.every((r) => r.ok)).toBe(true);
+    } finally {
+      delete process.env.RATE_LIMIT_AUTH_PER_15MIN;
     }
   });
 });

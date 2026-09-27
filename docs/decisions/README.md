@@ -278,3 +278,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D240 — The five enhancement modes are removed, and D118 is settled — active
 - D241 — A chart carries its sliders wherever it goes — active
 - D243 — The sliders are provisional until a Generate — active
+- D244 — Accounts run on NextAuth v5 + Prisma + Postgres + bcryptjs — active
+- D245 — Register/login are server actions, and reuse the job rate limiter — active

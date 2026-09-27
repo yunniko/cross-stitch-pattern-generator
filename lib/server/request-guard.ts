@@ -13,22 +13,28 @@ import { NextResponse } from "next/server";
  */
 
 /**
- * Requests per minute per address, refilled continuously rather than in steps.
+ * Tokens per address, refilled continuously rather than in steps, per `kind` -- each with its own bucket,
+ * capacity and window, so spending a generation does not spend a login attempt (there was a second kind for
+ * photo previews until G-074 M4 removed it entirely, D240; `auth` is the first since).
  *
- * There was a second, larger allowance for photo previews until G-074 M4: the four sliders draw the preview
- * in the browser, so nothing asks the server for one (D240).
+ * `job`'s window is a minute, matching how often a person actually presses Generate. `auth`'s is fifteen
+ * minutes at a much smaller capacity: brute-forcing a password is the threat, not a reader who mistypes it
+ * twice, and a fast-refilling bucket does nothing against a script patient enough to stay under it.
  */
-const CAPACITY = 6;
-const CAPACITY_ENV = "RATE_LIMIT_JOBS_PER_MINUTE";
+export type RateKind = "job" | "auth";
+const CONFIG: Record<RateKind, { capacity: number; windowMs: number; env: string }> = {
+  job: { capacity: 6, windowMs: 60_000, env: "RATE_LIMIT_JOBS_PER_MINUTE" },
+  auth: { capacity: 8, windowMs: 15 * 60_000, env: "RATE_LIMIT_AUTH_PER_15MIN" },
+};
 
 /**
  * The production allowance is the default. It is overridable by environment variable for one reason: the e2e suite
  * drives far more generations per minute than any person would, and would otherwise spend the whole run being
  * correctly refused. The limit's own behaviour is covered by unit tests rather than by the browser suite.
  */
-function capacity(): number {
-  const override = Number(process.env[CAPACITY_ENV]);
-  return Number.isFinite(override) && override > 0 ? override : CAPACITY;
+function capacity(kind: RateKind): number {
+  const override = Number(process.env[CONFIG[kind].env]);
+  return Number.isFinite(override) && override > 0 ? override : CONFIG[kind].capacity;
 }
 /** Bounds the map itself, so a spray of forged addresses cannot grow it without limit. */
 const MAX_TRACKED = 5000;
@@ -103,11 +109,12 @@ function makeRoom(now: number): void {
   for (const [key] of oldest.slice(0, Math.ceil(MAX_TRACKED / 10))) buckets.delete(key);
 }
 
-/** Spends one token for this address, or refuses with the seconds until the next one is available. */
-export function rateLimited(req: Request): NextResponse | null {
-  const allowance = capacity();
-  const refillPerMs = allowance / 60_000;
-  const key = clientIp(req);
+type SpendResult = { ok: true } | { ok: false; retryAfterSeconds: number };
+
+/** The bucket mechanics alone, shared by the `Request`-based check below and `authRateLimited`. */
+function spend(key: string, kind: RateKind): SpendResult {
+  const allowance = capacity(kind);
+  const refillPerMs = allowance / CONFIG[kind].windowMs;
   const now = Date.now();
 
   if (buckets.size >= MAX_TRACKED && !buckets.has(key)) makeRoom(now);
@@ -118,19 +125,35 @@ export function rateLimited(req: Request): NextResponse | null {
   buckets.set(key, bucket);
 
   if (bucket.tokens < 1) {
-    const waitSeconds = Math.ceil((1 - bucket.tokens) / refillPerMs / 1000);
-    return NextResponse.json(
-      { error: "Too many requests from this address; wait a moment and try again." },
-      { status: 429, headers: { "retry-after": String(waitSeconds) } }
-    );
+    return { ok: false, retryAfterSeconds: Math.ceil((1 - bucket.tokens) / refillPerMs / 1000) };
   }
   bucket.tokens -= 1;
-  return null;
+  return { ok: true };
+}
+
+/** Spends one token of `kind` for this address, or refuses with the seconds until the next one is available. */
+export function rateLimited(req: Request, kind: RateKind = "job"): NextResponse | null {
+  const result = spend(`${kind}:${clientIp(req)}`, kind);
+  if (result.ok) return null;
+  return NextResponse.json(
+    { error: "Too many requests from this address; wait a moment and try again." },
+    { status: 429, headers: { "retry-after": String(result.retryAfterSeconds) } }
+  );
 }
 
 /** Both checks, in the order a state-changing request needs them. Returns the refusal to send, or null to proceed. */
-export function guardMutation(req: Request): NextResponse | null {
-  return originRejected(req) ?? rateLimited(req);
+export function guardMutation(req: Request, kind: RateKind = "job"): NextResponse | null {
+  return originRejected(req) ?? rateLimited(req, kind);
+}
+
+/**
+ * The `auth` bucket alone, for a server action rather than a Route Handler (G-075: register/login are
+ * actions, D245, so there is no `Request` for `originRejected` to read -- a same-origin form's POST is
+ * already outside a script's reach without the browser's own cross-origin rules getting in the way first).
+ * `address` is read by the caller from `headers()`, the same way `clientIp` reads it from a `Request`.
+ */
+export function authRateLimited(address: string): SpendResult {
+  return spend(`auth:${address}`, "auth");
 }
 
 /** Where the processor lives on the internal network; only these handlers ever address it. */

@@ -29,6 +29,9 @@ COPY . .
 # (G-066 M2). Unset it and the report says "unknown"; the deploy command passes it.
 ARG APP_COMMIT=unknown
 ENV NEXT_PUBLIC_APP_COMMIT=$APP_COMMIT
+# The generated client (`generated/prisma`, gitignored) has to exist before `next build` typechecks pages that
+# import it (G-075). This needs no DATABASE_URL -- it reads only prisma/schema.prisma, not the database.
+RUN npx prisma generate
 RUN npm run build && npm run build:processor
 
 FROM node:22-alpine AS runtime
