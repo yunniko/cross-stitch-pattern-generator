@@ -82,7 +82,9 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   satisfied by the frame still holding the previous chart. Replacing it with a wait on the frame's new
   `data-photo` marker then failed honestly, and exposed a real bug: the interim `setPhoto` re-ran its own
   effect, whose cleanup disposed the worker before the adjusted frame arrived. Both changes are now
-  mutation-checked (3 breaks, 3 caught). Not yet deployed.
+  mutation-checked (3 breaks, 3 caught). Deployed and verified live: all 10 slider specs pass against the
+  deployed site through `scripts/playwright.live.config.ts`. **The goal's six criteria are met and it
+  awaits the Owner's sign-off.**
 - 2026-09-27 — **M4 reached; deployed.** The five enhancement modes and everything only they used are
   removed: the analysis, the preview endpoint, its worker, its cache, its rate-limit allowance and two test
   suites — 3,843 lines deleted against 142 added, across 50 files (D240). D118 is settled as never
