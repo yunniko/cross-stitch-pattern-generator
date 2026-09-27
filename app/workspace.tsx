@@ -48,6 +48,7 @@ import { paginatesAsA4, useExports } from "./hooks/use-exports";
 import { useGeneration } from "./hooks/use-generation";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { usePanZoom, ZOOM_STEP } from "./hooks/use-pan-zoom";
+import { slidersToRestore } from "@/lib/editor/photo-adjust-session";
 import { NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
 import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useProjectRestore } from "./hooks/use-project-restore";
@@ -168,6 +169,37 @@ export default function Workspace() {
     return null;
   }, [activeTool, viewMode, stamp, options.shapeFill]);
   const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
+  /**
+   * The sliders are provisional until a Generate acts on them (D243).
+   *
+   * On the Photo tab with a photo view up, those views follow the sliders as they move, so the sliders
+   * still mean something once a chart exists. Anywhere else they show the chart's own, because that is
+   * what the chart was made from (D241).
+   */
+  const photoViewShown = viewMode === "photo" || viewMode === "photo-only";
+  const previewingSliders = inspectorTab === "photo" && photoViewShown;
+  const chartAdjust = pattern?.photoAdjust ?? NEUTRAL_ADJUST;
+  const shownPhotoAdjust = previewingSliders ? options.photoAdjust : chartAdjust;
+
+  /**
+   * Leaving the Photo tab, or the photo view, without regenerating abandons the change: the chart on
+   * screen was not made with those sliders, so it must not look as though it was (Owner, 2026-09-27).
+   */
+  function abandonUnusedSliders() {
+    const restore = slidersToRestore(options.photoAdjust, pattern);
+    if (restore) updateOption("photoAdjust", restore);
+  }
+
+  function chooseInspectorTab(tab: InspectorTab) {
+    if (tab !== "photo") abandonUnusedSliders();
+    setInspectorTab(tab);
+  }
+
+  function chooseViewMode(mode: ViewMode) {
+    if (mode !== "photo" && mode !== "photo-only") abandonUnusedSliders();
+    setViewMode(mode);
+  }
+
   const renderer = useChartRenderer({
     canvasRef,
     frameRef,
@@ -188,6 +220,7 @@ export default function Workspace() {
     litBackstitchIndices,
     canvasColor: options.canvasColor,
     symmetryAxes: liveSymmetry,
+    photoAdjust: shownPhotoAdjust,
     // The renderer applies a zoom's anchor itself, between sizing the frame and measuring the view (D124, D135).
     applyZoomAnchor: panZoom.applyZoomAnchor,
   });
@@ -345,7 +378,7 @@ export default function Workspace() {
       redo: history.redo,
       switchTool,
       setActiveTool,
-      setViewMode,
+      setViewMode: chooseViewMode,
       mergeSelection: select.merge,
       swapColors: colours.swap,
       // Escape drops a shape being dragged before it reaches a selection, since only one of the two can be live.
@@ -659,7 +692,7 @@ export default function Workspace() {
             onUndo={history.undo}
             onRedo={history.redo}
             viewMode={viewMode}
-            onViewModeChange={setViewMode}
+            onViewModeChange={chooseViewMode}
             canvasColor={options.canvasColor}
             onCanvasColorChange={(hex) => updateOption("canvasColor", hex)}
             sourceFileName={source.fileName}
@@ -760,7 +793,7 @@ export default function Workspace() {
         // than leaving sixteen thread rows and the exports disabled behind it, and the Photo tab locks with the
         // other two -- two tabs reading dead beside one reading live is the inconsistency, not the disabling.
         tab={startingNew ? "photo" : inspectorTab}
-        onTabChange={setInspectorTab}
+        onTabChange={chooseInspectorTab}
         disabled={{ chart: pattern === null || startingNew, threads: pattern === null || startingNew }}
         photo={
           photoFree && !startingNew ? (

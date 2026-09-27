@@ -47,6 +47,8 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
      photo" draw what the chart was made from, not the file as it was uploaded.
   8. **Opening a chart restores its sliders** (Owner, 2026-09-27): a chart saved with sliders opens with
      them set, so pressing Regenerate reproduces that chart rather than silently making a different one.
+  9. **The sliders still work once a chart exists** (Owner, 2026-09-27): with a photo view up and the
+     Photo tab open, moving a slider moves that view; walking away without generating gives it up.
 - **Constraints:**
   - **The adjustment exists twice and must not drift.** The browser applies it in TypeScript and generation
     applies it in Rust, exactly as the backstitch dash table does (D233), so it needs the same kind of
@@ -73,8 +75,18 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   the two photo view modes draw the photo the chart was made from rather than the file as uploaded, and
   opening a chart puts its sliders back in the Photo tab, so Regenerate reproduces it instead of quietly
   making a different chart.
+- [x] M6 — **The sliders mean something after Generate too** (criterion 9; Owner, 2026-09-27): on the
+  Photo tab with a photo view up, that view follows the sliders as they move; leaving the tab or the view
+  without generating gives the change up and puts the chart's own sliders back.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-27 — **M6 reached** (Owner, same day): a photo view now follows the sliders while the Photo tab
+  is up, and a change never generated with is given up on the way out (D243). The decode-and-adjust path
+  became one hook shared by both previews, with the coarse-then-sharp cadence in one place; `photoKey` is
+  gone, because keying the photo by the sliders made it vanish mid-drag. Verified: 814 unit (5 new), 445
+  e2e (3 new), 74 golden tests, both Rust parity suites. Mutation-checked: 4 breaks of the two behaviours
+  caught through the UI, and the fifth — a chart with no photo — was not observable there, so the rule
+  moved into `slidersToRestore` and is covered by unit tests (3 more breaks, 3 caught). Not yet deployed.
 - 2026-09-27 — **M5 reached** (Owner asked two questions after M4 and both were gaps): the photo views draw
   the photo as adjusted, prepared in the slider worker, and opening a chart puts its sliders back so that
   Regenerate reproduces it (D241). Verified: 813 unit tests (4 new on the photo key), 405 e2e (2 new).

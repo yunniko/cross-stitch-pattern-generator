@@ -160,10 +160,9 @@ async function compare(page: Page, c: Case): Promise<Result> {
     const common = {
       viewMode: c.viewMode,
       cellSize: cs,
-      // The live scene identifies a decoded photo by `photoKey` (G-074 M5) and the frozen pre-G036 reference
-      // by its data URL. Both are given, so the reference stays the historical copy it is meant to be; this
-      // chart has no sliders on it, so the two are the same string anyway.
-      photo: { key: "photo", dataUrl: "photo", img: photoCanvas },
+      // Both scenes, the live one and the frozen pre-G036 reference, match a decoded photo to a chart by its
+      // data URL; `adjusted` is only what the live one reports in `data-photo`.
+      photo: { dataUrl: "photo", adjusted: false, img: photoCanvas },
 
       activeTool: activeTool as "brush",
       highlightedColorIndices: highlighted,

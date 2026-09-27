@@ -47,6 +47,11 @@ export function isNeutralAdjust(adjust: PhotoAdjust): boolean {
   return adjust.brightness === 0 && adjust.contrast === 0 && adjust.saturation === 0 && adjust.temperature === 0;
 }
 
+/** Whether two sets of sliders are the same, so a change can be told from a no-op. */
+export function samePhotoAdjust(a: PhotoAdjust, b: PhotoAdjust): boolean {
+  return a.brightness === b.brightness && a.contrast === b.contrast && a.saturation === b.saturation && a.temperature === b.temperature;
+}
+
 /** Clamps a slider to its range and drops anything that is not a number, so a bad saved file cannot poison a photo. */
 export function clampAdjust(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return 0;

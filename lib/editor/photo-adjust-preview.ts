@@ -149,6 +149,53 @@ export function createAdjustPreviewRunner(
   };
 }
 
+/** How long after the last change to draw the sharp one, for a slider moved by keyboard or touch. */
+export const SETTLE_MS = 180;
+
+/**
+ * Coarse while the sliders move, sharp once they stop.
+ *
+ * A full pass is a few hundred milliseconds and a quarter-size one is tens
+ * (`docs/reviews/2026-09-26-photo-adjust-cost.md`), so every change draws coarse at once and schedules the
+ * sharp one for when the change stops coming. Both previews that show an adjusted photo -- the Photo tab's
+ * own, and the photo views of a generated chart -- want exactly this, so it lives here rather than twice.
+ */
+export class AdjustCadence {
+  private timer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor(
+    private readonly runner: AdjustPreviewRunner,
+    private readonly settleMs: number = SETTLE_MS
+  ) {}
+
+  request(adjust: PhotoAdjust): void {
+    this.runner.request(adjust, "coarse");
+    this.clear();
+    this.timer = setTimeout(() => this.runner.request(adjust, "fine"), this.settleMs);
+  }
+
+  /** The reader let go: draw the sharp one now rather than waiting the delay out. */
+  settleNow(adjust: PhotoAdjust): void {
+    this.clear();
+    this.runner.request(adjust, "fine");
+  }
+
+  setPhoto(source: PixelBuffer | null): void {
+    this.clear();
+    this.runner.setPhoto(source);
+  }
+
+  dispose(): void {
+    this.clear();
+    this.runner.dispose();
+  }
+
+  private clear(): void {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+  }
+}
+
 function copy(buffer: PixelBuffer): PixelBuffer {
   return { data: new Uint8ClampedArray(buffer.data), width: buffer.width, height: buffer.height };
 }

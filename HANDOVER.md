@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-27 at a2b18a3 (G-074 M5: the sliders travel with the chart; deployed)
+Last verified: 2026-09-27 at HEAD (G-074 M6: the sliders move the photo views live)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -49,7 +49,9 @@ export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-compar
   photo (D239), so the chart is the chart of the photo on screen; the values travel with the request,
   are recorded on the pattern and saved with it, and are absent when neutral so a chart made without
   them is the file it always was. A chart carries its sliders wherever it goes (D241): the photo views draw
-  the photo *as adjusted*, and opening a chart puts its sliders back, so Regenerate reproduces it.
+  the photo *as adjusted*, and opening a chart puts its sliders back, so Regenerate reproduces it. The
+  sliders are provisional until a Generate (D243): on the Photo tab with a photo view up that view follows
+  them live, and leaving without generating gives the change up.
 - **The five photo-enhancement modes are gone** (D240, G-074 M4): the modes, their analysis, the preview
   endpoint, its worker, its cache and its rate-limit allowance — about 2,300 lines. D118 is settled as
   never released. A chart saved with one still opens and still says which; regenerating it will not
@@ -322,7 +324,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-074 is active, M5 reached; it awaits the Owner's sign-off.** The photo's five enhancement modes are
+- **G-074 is active, M6 reached; it awaits the Owner's sign-off.** The photo's five enhancement modes are
   four sliders that work in the browser (D237, D238), that generation reads (D239), with the modes removed
   (D240) and the sliders travelling with the chart into the photo views and back out of a saved file (D241).
   All five milestones are deployed and verified live. G-073 (backstitch) was signed off on 2026-09-26 and is

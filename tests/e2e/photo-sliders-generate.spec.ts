@@ -211,3 +211,66 @@ test("a chart saved with the sliders opens with them set, so Regenerate reproduc
   expect(again.cellPalette).toEqual(saved.cellPalette);
   await rm(file, { force: true });
 });
+
+test("with a photo view up, the Photo tab's sliders move the photo without regenerating", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await page.getByRole("radio", { name: /Small/ }).check();
+  await generateAndExport(page);
+
+  await showPhotoOnly(page);
+  await page.getByRole("tab", { name: "Photo" }).click();
+  expect(await uploadedPhotoChroma(page)).toBeGreaterThan(30);
+
+  // No Generate: the sliders alone must move what the photo view is showing.
+  await page.getByRole("slider", { name: "Saturation" }).fill("-100");
+  expect(await adjustedPhotoChroma(page)).toBeLessThan(6);
+  expect(errors).toEqual([]);
+});
+
+test("sliders moved but never generated are given up on the way out", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await page.getByRole("radio", { name: /Small/ }).check();
+  await setSlider(page, "Brightness", -40);
+  await generateAndExport(page);
+
+  await showPhotoOnly(page);
+  await page.getByRole("tab", { name: "Photo" }).click();
+  await page.getByRole("slider", { name: "Saturation" }).fill("-100");
+  await expect(page.getByRole("slider", { name: "Saturation" })).toHaveValue("-100");
+
+  // Another tab: the chart on screen was not made with that slider, so it goes back to what made it.
+  await page.getByRole("tab", { name: "Threads" }).click();
+  await page.getByRole("tab", { name: "Photo" }).click();
+  await expect(page.getByRole("slider", { name: "Saturation" })).toHaveValue("0");
+  await expect(page.getByRole("slider", { name: "Brightness" })).toHaveValue("-40");
+
+  // And the same on leaving the photo view, rather than the tab.
+  await page.getByRole("slider", { name: "Saturation" }).fill("-100");
+  await page.getByRole("button", { name: "Show the photo behind the chart" }).click();
+  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-mode", "color");
+  await expect(page.getByRole("slider", { name: "Saturation" })).toHaveValue("0");
+});
+
+test("a slider that was generated with is kept, not given up", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(FIXTURE);
+  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await page.getByRole("radio", { name: /Small/ }).check();
+  // The photo view belongs to a chart, so there has to be one before it can be shown.
+  await generateAndExport(page);
+
+  await showPhotoOnly(page);
+  await page.getByRole("tab", { name: "Photo" }).click();
+  await page.getByRole("slider", { name: "Saturation" }).fill("-100");
+  const chart = await generateAndExport(page);
+  expect(chart.photoAdjust).toEqual({ brightness: 0, contrast: 0, saturation: -100, temperature: 0 });
+
+  // Generate committed it, so leaving must leave it alone.
+  await page.getByRole("tab", { name: "Photo" }).click();
+  await expect(page.getByRole("slider", { name: "Saturation" })).toHaveValue("-100");
+});

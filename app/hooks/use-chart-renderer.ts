@@ -9,10 +9,8 @@ import {
   visibleChartRect,
   type PixelRect,
 } from "@/lib/editor/chart-viewport";
-import { photoKey } from "@/lib/editor/adjusted-photo";
-import { createAdjustPreviewRunner, type AdjustPreviewRunner } from "@/lib/editor/photo-adjust-preview";
-import { isNeutralAdjust } from "@/lib/pipeline/photo-adjust";
-import { previewSizeFor } from "@/lib/pipeline/photo-preview";
+import { useAdjustedPhoto } from "./use-adjusted-photo";
+import type { PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import type { StampEdge } from "@/lib/editor/brush-stamp";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
 import { renderNavigatorPixels } from "@/lib/export/render";
@@ -59,6 +57,11 @@ export interface ChartRendererInputs {
   canvasColor: string;
   /** The symmetry axes in effect, drawn as red guide lines in every view (G-037). */
   symmetryAxes: SymmetryAxes;
+  /**
+   * The sliders the photo views should draw the photo with: the chart's own, or -- while the reader is on
+   * the Photo tab looking at one of those views -- the ones they are moving right now (D241, D243).
+   */
+  photoAdjust: PhotoAdjust | undefined;
   /** Scrolls a pending zoom's anchor back under the pointer; run once the frame has its new size, before measuring (D124). */
   applyZoomAnchor: () => void;
 }
@@ -116,16 +119,15 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     canvasColor,
     applyZoomAnchor,
     symmetryAxes,
+    photoAdjust,
   } = inputs;
-  const [photo, setPhoto] = useState<{ key: string; img: CanvasImageSource } | null>(null);
-  /**
-   * What the photo effect below already has, as a ref rather than by reading `photo`.
-   *
-   * The effect puts the unadjusted photo up first and then waits for the worker's adjusted frame. With
-   * `photo` in its dependencies that first `setPhoto` re-ran the effect, and the cleanup disposed the very
-   * worker whose answer it was waiting for, so the adjusted photo never arrived.
-   */
-  const heldPhotoKeyRef = useRef<string | null>(null);
+  // The photo a photo view draws, adjusted as the chart was made (D241) and, while the reader is on the
+  // Photo tab, as the sliders stand right now (D243). `photoAdjust` is that effective value, decided in
+  // workspace.tsx -- the renderer only draws what it is told to.
+  const sourceImage = pattern?.sourceImage;
+  const showsPhoto = viewMode === "photo" || viewMode === "photo-only";
+  const photo = useAdjustedPhoto(sourceImage?.dataUrl ?? null, photoAdjust, showsPhoto);
+
   const [realisticTiles, setRealisticTiles] = useState<StitchTiles | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewRetryToken, setPreviewRetryToken] = useState(0);
@@ -237,8 +239,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     // sliders (G-074 M5). The adjusted one is prepared in a worker and arrives a moment later, and this
     // is how anything waiting for it -- a test, a person reading the DOM -- can tell which is on screen.
     const shownPhoto = shown.photo;
-    frame.dataset.photo =
-      !shownPhoto || !shownPattern?.sourceImage ? "" : shownPhoto.key === shownPattern.sourceImage.dataUrl ? "uploaded" : "adjusted";
+    frame.dataset.photo = !shownPhoto ? "" : shownPhoto.adjusted ? "adjusted" : "uploaded";
   }
 
   /** A full frame: re-measure, resize and place the canvas (which clears it and resets its state), draw scene and gesture. */
@@ -332,57 +333,6 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       observer.disconnect();
     };
   }, [scrollerRef, frameRef, hasPattern, ensureCoverageRef]);
-
-  // Decodes the embedded photo once per photo and adjustment, and only while a view that shows it is
-  // active. A chart made with the sliders is compared against the photo it was made from, not the file
-  // that was uploaded (G-074 M5), so the adjustment is applied here -- in the same worker the sliders
-  // use, because a full pass on this thread would stall the view switch.
-  const sourceImage = pattern?.sourceImage;
-  const photoAdjust = pattern?.photoAdjust;
-  useEffect(() => {
-    const showsPhoto = viewMode === "photo" || viewMode === "photo-only";
-    if (!showsPhoto || !sourceImage) return;
-    const wanted = photoKey(sourceImage.dataUrl, photoAdjust);
-    if (heldPhotoKeyRef.current === wanted) return;
-    let cancelled = false;
-    let runner: AdjustPreviewRunner | null = null;
-    const img = new Image();
-    img.onload = () => {
-      if (cancelled) return;
-      if (!photoAdjust || isNeutralAdjust(photoAdjust)) {
-        heldPhotoKeyRef.current = wanted;
-        setPhoto({ key: wanted, img });
-        return;
-      }
-      // The unadjusted photo goes up first so the view is never blank while the frame is prepared.
-      heldPhotoKeyRef.current = sourceImage.dataUrl;
-      setPhoto({ key: sourceImage.dataUrl, img });
-      const size = previewSizeFor(img.naturalWidth, img.naturalHeight);
-      const scratch = document.createElement("canvas");
-      scratch.width = size.width;
-      scratch.height = size.height;
-      const ctx = scratch.getContext("2d");
-      if (!ctx) return;
-      ctx.drawImage(img, 0, 0, size.width, size.height);
-      const pixels = ctx.getImageData(0, 0, size.width, size.height);
-      runner = createAdjustPreviewRunner((frame) => {
-        if (cancelled) return;
-        const out = document.createElement("canvas");
-        out.width = frame.width;
-        out.height = frame.height;
-        out.getContext("2d")?.putImageData(new ImageData(frame.data as Uint8ClampedArray<ArrayBuffer>, frame.width, frame.height), 0, 0);
-        heldPhotoKeyRef.current = wanted;
-        setPhoto({ key: wanted, img: out });
-      });
-      runner.setPhoto({ data: pixels.data, width: size.width, height: size.height });
-      runner.request(photoAdjust, "fine");
-    };
-    img.src = sourceImage.dataUrl;
-    return () => {
-      cancelled = true;
-      runner?.dispose();
-    };
-  }, [viewMode, sourceImage, photoAdjust]);
 
   // The navigator shows the whole pattern at one pixel per stitch.
   useEffect(() => {

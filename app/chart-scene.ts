@@ -1,7 +1,6 @@
 import { intersectRects, isEmptyRect, moveTileOffsets, type PixelRect } from "@/lib/editor/chart-viewport";
 import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
 import type { CellPoint } from "@/lib/editor/shape-raster";
-import { photoKey } from "@/lib/editor/adjusted-photo";
 import type { BackstitchLine } from "@/lib/types";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
 import {
@@ -28,7 +27,7 @@ import { drawRealisticRegion } from "./realistic-tiles";
 export interface ChartScene {
   viewMode: ViewMode;
   cellSize: number;
-  photo: { key: string; img: CanvasImageSource } | null;
+  photo: { dataUrl: string; adjusted: boolean; img: CanvasImageSource } | null;
   /** Stitch tiles for the Realistic view; tiles of another size are drawn scaled until the right ones exist. */
   realisticTiles: StitchTiles | null;
   activeTool: Tool;
@@ -201,7 +200,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
         };
         drawRealisticRegion(ctx, p, realisticTiles, cellSize, region);
       }
-    } else if (p.sourceImage && photo && photo.key === photoKey(p.sourceImage.dataUrl, p.photoAdjust)) {
+    } else if (p.sourceImage && photo && photo.dataUrl === p.sourceImage.dataUrl) {
       drawSourcePhoto(ctx, photo.img, p.sourceImage, cellSize, 1);
     }
     ctx.restore();
@@ -213,7 +212,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
   const region = regionFor(ctx, displayPattern, scene, rect);
 
   if (viewMode === "photo" && displayPattern.sourceImage) {
-    if (photo && photo.key === photoKey(displayPattern.sourceImage.dataUrl, displayPattern.photoAdjust)) {
+    if (photo && photo.dataUrl === displayPattern.sourceImage.dataUrl) {
       drawSourcePhoto(ctx, photo.img, displayPattern.sourceImage, cellSize, PHOTO_UNDERLAY_ALPHA);
     }
     atRegion(ctx, region, cellSize, () => drawChartOutline(ctx, displayPattern, cellSize, region, "rects"));
