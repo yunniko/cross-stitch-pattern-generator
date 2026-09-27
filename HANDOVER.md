@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-27 at a6c6657 (G-074: the photo view keeps up with a dragged slider; deployed)
+Last verified: 2026-09-27 at HEAD (G-074 signed off and archived; no goal is active)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab, no monetization), live at
@@ -330,14 +330,11 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-074 is active, M6 reached; it awaits the Owner's sign-off.** The photo's five enhancement modes are
-  four sliders that work in the browser (D237, D238), that generation reads (D239), with the modes removed
-  (D240) and the sliders travelling with the chart into the photo views and back out of a saved file (D241).
-  All five milestones are deployed and verified live. G-073 (backstitch) was signed off on 2026-09-26 and is
-  archived.
+- **No goal is active.** G-074 (the four photo sliders) was signed off on 2026-09-27 and is archived, as is
+  G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner: **G-069** (the workspace's shape, from
+  `docs/reviews/2026-09-24-workspace-shape.md`) and **G-030** (public launch, far future).
 - **Left for a future goal, found while building it:** the casing threshold and bead spacing were judged on screen, never on paper — only a print settles how a 0.55 mm dashed line reads at a 2.75 mm cell (`docs/reviews/2026-09-25-backstitch-samples.md`). Backstitch is also absent from the realistic preview,
   which draws stitches from tiles and has no notion of a line.
-- Two drafts wait on the Owner: **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and G-030 (public launch, far future).
 - Weakest area, unchanged by G-073 and reinforced by it: **tests assert data, not what is drawn.** Every backstitch defect the Owner found in G-073 — the zoom displacement, the missing highlight — was invisible to a suite asserting exported coordinates, and two more were found only by *looking* at a sample export. Three pixel-level tests now exist (`backstitch-scene-placement.spec.ts`, and the highlight and Isolate cases in the e2e); nothing else asserts a frame during a gesture except `tests/unit/piece-preview-cells.spec.ts`.
 - **`cargo fmt --check` is not clean and not in CI**: 11 pre-existing diffs in `cs-core`, against STANDARDS → Code style, which names `cargo fmt --check` as a required CI check. Found 2026-09-25 during G-073 M5 and left alone rather than mixed into that change.
 - G-070 is closed as answered: the V8 maths port costs nothing — replacing it is **13–25% slower** with

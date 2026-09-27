@@ -9,6 +9,7 @@ their last state in `GOALS.md`; decision references (Dnn) now resolve to
 (STANDARDS.md → Documentation). This page is the index: every completed goal, newest first, and the file
 holding it.
 
+- **G-074** · The photo is adjusted by hand, with sliders — DONE (2026-09-27, deployed 2026-09-27, Owner sign-off 2026-09-27) — [`G-071-to-G-080.md`](goals-archive/G-071-to-G-080.md)
 - **G-073** · Backstitch: lines over the stitches — DONE (2026-09-26, deployed 2026-09-25/26, Owner sign-off 2026-09-26) — [`G-071-to-G-080.md`](goals-archive/G-071-to-G-080.md)
 - **G-072** · Lasso: select a shape, and fill one — DONE (2026-09-25, deployed 2026-09-25, Owner sign-off 2026-09-25) — [`G-071-to-G-080.md`](goals-archive/G-071-to-G-080.md)
 - **G-071** · The build uses the CPU the server actually has — DONE (2026-09-24, deployed 2026-09-24, Owner sign-off 2026-09-24) — [`G-071-to-G-080.md`](goals-archive/G-071-to-G-080.md)
