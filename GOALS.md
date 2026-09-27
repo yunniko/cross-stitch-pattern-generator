@@ -2,7 +2,7 @@
 
 Template, numbering, and cross-project conventions live in
 `E:\CLAUDE\COMPANY\GOALS.md`. This is a **standalone project** (Owner
-decision, 2026-09-09) — not a svc-lab service: no monetization. Deployed
+decision, 2026-09-09) — not a svc-lab service. Deployed
 live at the Owner's direct instruction after M9 (see progress log below)
 to `cross-stitch.craftodejnice.cz`; see
 `docs/decisions/D013-deployed-to-cross-stitch-craftodejnice.md`, the deploy
@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-075 · Accounts: login, a personal cabinet, and admin tools — DRAFT (2026-09-27)
+### G-075 · Accounts: login, a personal cabinet, and admin tools — ACTIVE (2026-09-27)
 - **What:** optional user accounts bolted onto the app as it is today — generation and export keep working with no
   account, exactly as now. A visitor can register and log in with email + password; a logged-in reader gets a
   small personal cabinet (email/name, change password, delete account — nothing pattern-related yet, see
@@ -102,6 +102,8 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   unaffected), README + HANDOVER updated, other containers/sites on the host unaffected.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-27 — Owner: "go ahead through all milestones." worktree:
+  `E:\CLAUDE\worktrees\cross-stitch-pattern-generator--G-075` (branch `goal/G-075`). Starting M1.
 - 2026-09-27 — Owner confirmed billing direction: Stripe, subscription-based tiers unlocking features/limits
   (which tiers/limits not yet decided). M1's schema now includes empty `Tier`/`Subscription` scaffolding so the
   future billing goal is additive rather than a rework; the webhook's Origin-check seam and the
