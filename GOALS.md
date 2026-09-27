@@ -18,11 +18,13 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   small personal cabinet (email/name, change password, delete account — nothing pattern-related yet, see
   Constraints). An admin role can list and manage users, and see site-wide counts of how many charts have been
   generated and how many exports made, over rolling windows.
-- **Why:** Owner request, 2026-09-27. Groundwork for subscriptions and saved patterns, both explicitly **far
-  away** — this goal builds the account and admin layer those will need, without building either of them. It also
-  gives the Owner visibility (usage volume) and control (user management) the app has never had. Distinct from
-  G-030 ("a social ecosystem", far-future, intentionally unplanned): that goal is about public/community features
-  built *on top of* accounts; this one is the accounts themselves, asked for directly and concretely.
+- **Why:** Owner request, 2026-09-27. Groundwork for subscriptions and saved patterns — subscriptions are decided
+  in *shape* (Stripe, subscription-based tiers unlocking features/limits) but not in *content* (which tiers, which
+  limits, not yet chosen), so billing itself stays a separate future goal while this one's schema is shaped not to
+  need reworking when that goal starts. It also gives the Owner visibility (usage volume) and control (user
+  management) the app has never had. Distinct from G-030 ("a social ecosystem", far-future, intentionally
+  unplanned): that goal is about public/community features built *on top of* accounts; this one is the accounts
+  themselves, asked for directly and concretely.
 - **Acceptance criteria:**
   1. A visitor can register (email + password) and log in / out; a session persists across a reload. Generating a
      chart and exporting it work exactly as today with no account at all — nothing about the anonymous path
@@ -56,19 +58,33 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
     existing Route Handlers (`app/api/jobs`, `app/api/exports`), not from inside `processor/`.
   - **The stats write must be best-effort.** A failed or slow write to the usage-event table is never a reason a
     generate or export job fails or waits — judgment, revisit if it ever causes a real problem.
-  - **Deferred, not built here** (judgment, keeps this goal to something one milestone plan can hold): OAuth sign-in
-    (email + password only for M1); email verification and password-reset-by-email (a real flow needs a mail
-    provider only the Owner can provision — build the account flow so adding either later is additive, but ship
-    without them); saved patterns and any patterns↔user relationship; subscriptions/billing; a detailed ban
-    workflow (reasons, expiry) — a plain "can this account log in" flag is enough for now, matching "simple
-    personal cabinet" in the ask.
+  - **Schema shaped for Stripe subscriptions, not built here.** M1's Prisma schema adds an empty `Tier` table
+    (admin-editable rows, not a hardcoded enum — the actual tiers/limits aren't decided yet, and a table means
+    changing them later is a data edit, not a deploy) and a `Subscription` model (`userId`, `tierId`, status,
+    Stripe customer/subscription ids, current period end) alongside `User`. Nothing reads or writes them, no
+    Stripe key, no checkout, no webhook — that is the future billing goal, once the tiers themselves are decided.
+    Kept here only so that goal is additive, not a schema rework.
+  - **A Stripe webhook will need a seam later that does not exist yet**: `lib/server/request-guard.ts` Origin-checks
+    every state-changing request, but a Stripe webhook arrives from Stripe's servers with no Origin header and is
+    authenticated by signature instead. Noted for whoever plans the billing goal; nothing to build now.
+  - **Password-reset-by-email moves from "maybe never" to "before real money is involved."** Deferred past M1–M5
+    like the rest of email delivery (still needs a mail provider only the Owner can provision), but once a paid
+    tier exists, a reader who is locked out of a subscription they're paying for is a real support cost, not a
+    nice-to-have gap — flag this again when the billing goal is planned rather than letting it stay deferred
+    indefinitely.
+  - **Deferred, not built here** (judgment, keeps this goal to something one milestone plan can hold): OAuth
+    sign-in (email + password only for M1); email verification (same mail-provider dependency as password reset);
+    saved patterns and any patterns↔user relationship; the billing goal itself (Stripe checkout, the webhook,
+    tier-gating logic in generation/export); a detailed ban workflow (reasons, expiry) — a plain "can this account
+    log in" flag is enough for now, matching "simple personal cabinet" in the ask.
 
 **Milestones** (drafted 2026-09-27; not yet confirmed with the Owner):
 - [ ] M1 — **Accounts foundation**: Postgres in `docker-compose.yml` (dev + the `--profile app` deploy shape),
-  Prisma schema (`User`, `Role`, the NextAuth adapter tables), NextAuth wired with the Credentials provider
-  (register, login, logout), `AUTH_SECRET`, register/login rate-limited by extending the existing
-  `lib/server/request-guard.ts` token bucket rather than a new one. Unit tests on validation/hashing, e2e for the
-  full register → log in → log out loop. No cabinet or admin UI yet.
+  Prisma schema (`User`, `Role`, the NextAuth adapter tables, plus the empty `Tier`/`Subscription` scaffolding from
+  Constraints), NextAuth wired with the Credentials provider (register, login, logout), `AUTH_SECRET`,
+  register/login rate-limited by extending the existing `lib/server/request-guard.ts` token bucket rather than a
+  new one. Unit tests on validation/hashing, e2e for the full register → log in → log out loop. No cabinet, admin
+  or billing UI yet.
 - [ ] M2 — **The personal cabinet**: an account page — name and email shown, change name, change password
   (current + new), delete account behind a confirmation. The header/nav shows "Log in" or the account depending
   on session. e2e over the whole loop, including deletion.
@@ -86,6 +102,12 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   unaffected), README + HANDOVER updated, other containers/sites on the host unaffected.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-27 — Owner confirmed billing direction: Stripe, subscription-based tiers unlocking features/limits
+  (which tiers/limits not yet decided). M1's schema now includes empty `Tier`/`Subscription` scaffolding so the
+  future billing goal is additive rather than a rework; the webhook's Origin-check seam and the
+  password-reset-before-paid-tiers point are noted in Constraints for that goal. No milestone content otherwise
+  changed — the login system's own mechanics (Credentials, sessions, rate limiting) are unaffected by the billing
+  model chosen.
 - 2026-09-27 — goal drafted at the Owner's request: milestone plan above, not yet started. Researched the
   portfolio before choosing a stack rather than picking one blind — read `listing-studio`'s `auth.ts`, Prisma
   schema (`User`/`Generation`/`EventLog` shapes), admin layout and users page, and its mail-transport fallback
