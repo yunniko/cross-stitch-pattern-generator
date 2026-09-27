@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** `/admin/users` is the only admin page so far (M4 adds usage stats); nothing to show at the bare index yet. */
+/** Users is the more frequent task of the two admin pages, so the bare index lands there. */
 export default function AdminIndexPage() {
   redirect("/admin/users");
 }

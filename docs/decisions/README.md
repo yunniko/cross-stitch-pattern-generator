@@ -281,3 +281,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D244 — Accounts run on NextAuth v5 + Prisma + Postgres + bcryptjs — active
 - D245 — Register/login are server actions, and reuse the job rate limiter — active
 - D246 — The corner badge's name goes stale until the next login — active
+- D247 — Usage counts are recorded at job acceptance, windowed by UTC calendar days — active

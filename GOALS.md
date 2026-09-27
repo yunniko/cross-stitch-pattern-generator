@@ -91,7 +91,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M3 — **Admin: users**: a role-gated `/admin` layout that redirects a non-admin, the bootstrap-by-env-email
   mechanic, `/admin/users` with search, pagination, promote/demote and disable-login actions. Unit + e2e tests,
   including that a non-admin genuinely cannot reach it.
-- [ ] M4 — **Admin: usage stats**: a usage-event table (job kind, optional `userId`, timestamp, no photo or
+- [x] M4 — **Admin: usage stats**: a usage-event table (job kind, optional `userId`, timestamp, no photo or
   personal data) written best-effort from the existing job routes; an admin page with generation/export counts
   over today/7d/30d/all-time. Verified by generating and exporting a known number of times in a real dev run and
   reading the same numbers back on the page.
@@ -102,6 +102,21 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   unaffected), README + HANDOVER updated, other containers/sites on the host unaffected.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-27 — **M4 reached.** `recordUsage` (`lib/admin/usage.ts`) is called, never awaited, from
+  `app/api/jobs/route.ts` and `app/api/exports/route.ts` right after the processor accepts the job (D247) —
+  the constraint that a usage write may never be why a job fails or waits. `/admin/stats` shows
+  today/7d/30d/all-time counts for GENERATE and EXPORT via `usageCountsByKind`, windowed by
+  `lib/admin/usage-windows.ts`'s `usageWindowStarts` (UTC calendar days, D247, unit-tested for the month-
+  boundary and off-by-one cases). Verified exactly as the milestone asked: `tests/e2e/admin-stats.spec.ts`
+  reads the stats page's counts before and after generating once and exporting twice (both signed in and
+  anonymous), and asserts the deltas are exactly 1 and 2 -- not just that some row got written. Needed
+  `CS_JOB_BINARY` pointed at the Rust binary built earlier this session (`rust/target/release/cs-job.exe`) to
+  actually generate a pattern; without it every spec that opens a chart fails with "Couldn't generate a
+  pattern", as HANDOVER's own Rules in force already warns. Extracted `uniqueEmail`/`registerReader`/
+  `signInAsAdmin` into `tests/e2e/helpers/auth.ts` (STANDARDS -> "one home per shared test affordance") once a
+  third spec needed them, and updated `accounts.spec.ts`/`admin.spec.ts` to import from there. 5 new unit
+  tests (830 total); `tests/e2e/accounts.spec.ts` + `admin.spec.ts` + `admin-stats.spec.ts` (13 cases) all
+  green together; lint/tsc/prettier/docs-lint clean. Only M5 (deploy and verify) remains.
 - 2026-09-27 — **M3 reached.** `app/admin/layout.tsx` guards every `/admin/*` page: signed out → `/login`,
   signed in but not `ADMIN` → `/` (not back to the login form, which the reader would just pass again).
   `/admin` itself redirects to `/admin/users` (the only admin page so far). `/admin/users/page.tsx` is a

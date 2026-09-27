@@ -1,50 +1,11 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import { ADMIN_EMAIL, READER_PASSWORD, registerReader, signInAsAdmin, uniqueEmail } from "./helpers/auth";
 
 /**
  * G-075 M3: `/admin/users` end to end against the real database -- access control (anonymous and a
  * signed-in non-admin are both turned away), then the admin workflow (search, promote/demote, disable a
- * login and confirm it actually refuses that reader, pagination). `ADMIN_EMAIL` is one fixed address shared
- * by the whole suite run (`scripts/playwright-servers.ts`), unlike every other account here, which gets a
- * fresh one per test.
+ * login and confirm it actually refuses that reader, pagination).
  */
-
-const ADMIN_EMAIL = "e2e-admin@example.com";
-const ADMIN_PASSWORD = "the e2e admin's own password";
-const READER_PASSWORD = "a genuinely fine password";
-
-function uniqueEmail(tag: string): string {
-  return `${tag}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
-}
-
-async function registerReader(page: Page, email: string, password = READER_PASSWORD): Promise<void> {
-  await page.goto("/register");
-  await page.fill("#name", "");
-  await page.fill("#email", email);
-  await page.fill("#password", password);
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL(/\/account$/);
-}
-
-/** Registers the bootstrap admin the first time this suite runs against a given database, or logs in if an
- *  earlier run already created it (the account, and its promotion to ADMIN, both persist in Postgres). */
-async function signInAsAdmin(page: Page): Promise<void> {
-  await page.goto("/register");
-  await page.fill("#name", "E2E Admin");
-  await page.fill("#email", ADMIN_EMAIL);
-  await page.fill("#password", ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
-  try {
-    await page.waitForURL(/\/account$/, { timeout: 5000 });
-    return;
-  } catch {
-    // Already registered by an earlier run -- log in instead.
-  }
-  await page.goto("/login");
-  await page.fill("#email", ADMIN_EMAIL);
-  await page.fill("#password", ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL(/\/account$/);
-}
 
 test("an anonymous visitor is redirected away from /admin", async ({ page }) => {
   await page.goto("/admin/users");

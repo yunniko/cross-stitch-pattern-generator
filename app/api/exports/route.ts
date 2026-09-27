@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { guardMutation, processorUnreachable, processorUrl } from "@/lib/server/request-guard";
+import { recordUsage } from "@/lib/admin/usage";
 import { LIMITS } from "@/processor/job-protocol";
 
 /**
@@ -37,6 +39,7 @@ export async function POST(req: Request): Promise<Response> {
       headers: { "content-type": "application/json" },
       body,
     });
+    if (upstream.ok) recordUsage("EXPORT", (await auth())?.user?.id ?? null);
     const headers: Record<string, string> = { "content-type": "application/json" };
     const retryAfter = upstream.headers.get("retry-after");
     if (retryAfter) headers["retry-after"] = retryAfter;

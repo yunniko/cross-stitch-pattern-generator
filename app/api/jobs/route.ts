@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { guardMutation, processorUnreachable, processorUrl } from "@/lib/server/request-guard";
+import { recordUsage } from "@/lib/admin/usage";
 
 /**
  * Starts a generation (G-034 M2). The settings are forwarded as they arrive and validated by the processor, which is
@@ -30,6 +32,7 @@ export async function POST(req: Request): Promise<Response> {
       headers: { "content-type": "application/json" },
       body,
     });
+    if (upstream.ok) recordUsage("GENERATE", (await auth())?.user?.id ?? null);
     const headers: Record<string, string> = { "content-type": "application/json" };
     const retryAfter = upstream.headers.get("retry-after");
     if (retryAfter) headers["retry-after"] = retryAfter;

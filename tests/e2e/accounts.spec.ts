@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { uniqueEmail } from "./helpers/auth";
 
 /**
  * G-075 M1: register, log in, log out, end to end against the real database and the real NextAuth session
@@ -6,10 +7,6 @@ import { test, expect, type Page } from "@playwright/test";
  * driving the actual pages proves a session survives a reload and that logging out really clears it.
  * Register/login land on /account (M2's personal cabinet); logout still goes home.
  */
-
-function uniqueEmail(tag: string): string {
-  return `${tag}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
-}
 
 async function session(page: Page): Promise<{ user?: { email: string } } | null> {
   return page.evaluate(async () => (await fetch("/api/auth/session")).json());
