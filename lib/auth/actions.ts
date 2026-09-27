@@ -52,7 +52,7 @@ export async function registerAction(_prev: AuthFormState, formData: FormData): 
   });
 
   try {
-    await signIn("credentials", { email: values.email, password, redirectTo: "/" });
+    await signIn("credentials", { email: values.email, password, redirectTo: "/account" });
     return {};
   } catch (error) {
     // signIn signals a successful redirect by throwing Next's own redirect error -- let that one through.
@@ -70,7 +70,7 @@ export async function loginAction(_prev: AuthFormState, formData: FormData): Pro
   if (!limited.ok) return { error: "Too many attempts. Try again in a few minutes.", values };
 
   try {
-    await signIn("credentials", { email: values.email, password, redirectTo: "/" });
+    await signIn("credentials", { email: values.email, password, redirectTo: "/account" });
     return {};
   } catch (error) {
     if (error instanceof AuthError) return { error: "Invalid email or password.", values };

@@ -77,11 +77,15 @@ export function AuthError({ message }: { message: string }) {
   );
 }
 
-/** `useFormStatus` reads the nearest enclosing `<form>`'s pending state, so this has to be the form's child. */
-export function AuthSubmitButton({ children }: { children: ReactNode }) {
+/**
+ * `useFormStatus` reads the nearest enclosing `<form>`'s pending state, so this has to be the form's child.
+ * Full width fits the single-purpose register/login forms; the personal cabinet's smaller forms (G-075 M2)
+ * pass their own width instead.
+ */
+export function AuthSubmitButton({ children, className = "w-full justify-center" }: { children: ReactNode; className?: string }) {
   const { pending } = useFormStatus();
   return (
-    <PillButton type="submit" variant="primary" size="md" disabled={pending} className="w-full justify-center">
+    <PillButton type="submit" variant="primary" size="md" disabled={pending} className={className}>
       {pending ? "Working…" : children}
     </PillButton>
   );

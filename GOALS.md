@@ -85,7 +85,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   register/login rate-limited by extending the existing `lib/server/request-guard.ts` token bucket rather than a
   new one. Unit tests on validation/hashing, e2e for the full register → log in → log out loop. No cabinet, admin
   or billing UI yet.
-- [ ] M2 — **The personal cabinet**: an account page — name and email shown, change name, change password
+- [x] M2 — **The personal cabinet**: an account page — name and email shown, change name, change password
   (current + new), delete account behind a confirmation. The header/nav shows "Log in" or the account depending
   on session. e2e over the whole loop, including deletion.
 - [ ] M3 — **Admin: users**: a role-gated `/admin` layout that redirects a non-admin, the bootstrap-by-env-email
@@ -102,6 +102,25 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   unaffected), README + HANDOVER updated, other containers/sites on the host unaffected.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-27 — **M2 reached.** `/account` (`app/account/page.tsx`) re-reads the account from Prisma on every
+  request rather than trusting the JWT session (D246), and holds three sections: Profile (`NameForm`, rename),
+  Password (`PasswordForm`, current+new with the current password checked against the real hash before
+  anything changes), Danger zone (`DeleteAccount`, a two-step reveal that requires typing the account's own
+  email — no native `confirm()`, matching this app's own rule for irreversible actions). Its own "Log out"
+  button was added (the page had none at first — a personal cabinet needing a detour through `/login` to sign
+  out was a real gap, not a deferred nice-to-have). `AccountBadge` (`app/components/auth/account-badge.tsx`) is
+  a fixed corner pill on the canvas app naming the signed-in reader (or "Log in") and linking to `/account`,
+  chosen over the top bar to avoid D213's sideways-scroll hazard. `lib/auth/account-actions.ts` holds the three
+  server actions, each reading the signed-in id from `auth()`, never a form-carried id. Verified:
+  `tests/e2e/accounts.spec.ts` now 7 cases (6 from M1, updated for register/login now landing on `/account`
+  rather than `/`, plus one new case driving the whole M2 loop: rename → wrong-then-right password change →
+  login with each password → wrong-then-right delete confirmation → login after deletion fails) against a real
+  Postgres container through the production build/start pipeline; 817 unit tests; lint/tsc/prettier/docs-lint
+  clean. A first pass reported two suspicious results (a wrong-password attempt showing no error, a
+  correct-password change showing no success) — traced to the dev server used for manual verification having
+  gotten into a stuck state after many hot-reloads across earlier probes (no network request was even sent on
+  click), not a real bug: a clean server restart plus a corrected probe confirmed the actual behavior is
+  correct, and the same behavior is what the new e2e case now pins. Next: M3, admin user management.
 - 2026-09-27 — **M1 reached.** Postgres added to `docker-compose.yml` (un-profiled `db` + one-shot `migrate`
   under the `app` profile, D244); `prisma/schema.prisma` covers `User`/`Role` plus the NextAuth adapter tables
   and the `Tier`/`Subscription`/`UsageEvent` scaffolding from Constraints, one migration for the whole goal.

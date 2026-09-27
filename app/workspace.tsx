@@ -17,6 +17,7 @@ import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
 import { getProjectStore } from "@/lib/editor/project-store";
 import { useProjectAutosave } from "./hooks/use-project-autosave";
 import { useUndoHistory } from "./hooks/use-undo-history";
+import { AccountBadge } from "./components/auth/account-badge";
 import type { StitchPattern } from "@/lib/types";
 import { ChartPane } from "./components/chart-pane";
 import { ColorsDock } from "./components/colors-dock";
@@ -68,7 +69,12 @@ const NO_OUTLINE: readonly StampEdge[] = [];
  * The frame is 1b's: a tool rail, a context bar over the chart well with a status bar beneath it, and one inspector on
  * the right showing a single pane at a time.
  */
-export default function Workspace() {
+export interface WorkspaceProps {
+  /** Null when signed out (G-075 M2); read once at load, same as every other prop here. */
+  account: { name: string | null; email: string } | null;
+}
+
+export default function Workspace({ account }: WorkspaceProps) {
   const history = useUndoHistory<StitchPattern | null>(null);
   const pattern = history.state;
   const { options, update: updateOption } = useWorkspaceOptions();
@@ -578,6 +584,7 @@ export default function Workspace() {
     <div className="flex h-screen bg-app font-sans text-ink">
       {/* 1b draws no visible title, but the document still needs one heading: for assistive technology, and as the witness that the app booted. */}
       <h1 className="sr-only">Cross-Stitch Pattern Generator</h1>
+      <AccountBadge account={account} />
       <ToolRail
         activeTool={activeTool}
         disabled={!pattern || startingNew}
