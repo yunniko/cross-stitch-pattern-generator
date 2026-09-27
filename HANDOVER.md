@@ -366,8 +366,9 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-075 is active (accounts): M4 of 5 done, in a worktree not yet merged.** Next: M5, deploy and verify —
-  the last milestone. G-074 (the four photo sliders) was signed
+- **G-075 is BLOCKED (accounts): M4 of 5 done, in a worktree not yet merged.** M5 (deploy) is
+  escalation-tier (OPERATIONS.md §4) and waits on Owner approval before it starts — see GOALS.md's progress
+  log. G-074 (the four photo sliders) was signed
   off on 2026-09-27 and is archived, as is G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner:
   **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and **G-030** (public
   launch, far future).

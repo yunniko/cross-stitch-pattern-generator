@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-075 · Accounts: login, a personal cabinet, and admin tools — ACTIVE (2026-09-27)
+### G-075 · Accounts: login, a personal cabinet, and admin tools — BLOCKED (2026-09-27)
 - **What:** optional user accounts bolted onto the app as it is today — generation and export keep working with no
   account, exactly as now. A visitor can register and log in with email + password; a logged-in reader gets a
   small personal cabinet (email/name, change password, delete account — nothing pattern-related yet, see
@@ -102,6 +102,15 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   unaffected), README + HANDOVER updated, other containers/sites on the host unaffected.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-27 — **BLOCKED: M5 needs Owner approval before proceeding.** M1–M4 are done, verified and committed
+  in the worktree (`goal/G-075`, at `dece247`); the only work left is M5, deploying to the production host.
+  That is an escalation-tier action under OPERATIONS.md §4 ("Anything leaving the workspace: publishing,
+  deploying, sending, uploading" -- "always stop and ask, regardless of milestone position") and
+  INFRASTRUCTURE.md (a new Postgres port to allocate and verify live, new secrets on the shared host, other
+  sites' containers not to disturb). "Go ahead through all milestones" was read as authorizing the build
+  work itself, not as pre-approving the escalation-tier step every deploy carries regardless of authorization
+  -- the charter's standing rule is not waived by a milestone-level instruction. Asking the Owner to confirm
+  before M5 starts.
 - 2026-09-27 — **M4 reached.** `recordUsage` (`lib/admin/usage.ts`) is called, never awaited, from
   `app/api/jobs/route.ts` and `app/api/exports/route.ts` right after the processor accepts the job (D247) —
   the constraint that a usage write may never be why a job fails or waits. `/admin/stats` shows
