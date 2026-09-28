@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-27 at HEAD (G-075 M4: admin usage stats, in a worktree)
+Last verified: 2026-09-28 at 4a28457 (G-075 M5: deployed and live-verified; pending Owner sign-off)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -9,20 +9,29 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs a6c6657 (2026-09-27, per the deploy log below — this line had drifted to 2026-09-25's commit in an earlier regen and is corrected here): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
+**Production** runs 4a28457 (2026-09-28, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-075, accounts — in progress, M4 of 5 done (this session's worktree, not yet merged or deployed).** Optional
-registration, login and logout on NextAuth v5 + Prisma + Postgres + bcryptjs (D244); register/login are server
-actions rate-limited by a second `kind` on the existing job limiter (D245, `lib/server/request-guard.ts`).
-`/account` (M2) is a personal cabinet: rename, change password, delete the account (typed-email confirmation,
-no native `confirm()`), and its own logout button; the canvas app shows a corner badge (`AccountBadge`) naming
-the signed-in reader and linking to it. `/admin/users` (M3): search, pagination, promote/demote-admin and
-disable-login, gated by `app/admin/layout.tsx` (signed out → `/login`, signed in but not admin → `/`); every
-row action re-checks admin on the server and refuses to act on the caller's own account. `/admin/stats` (M4):
-today/7d/30d/all-time counts of generation and export jobs, across all traffic logged in or not, recorded
-at job acceptance rather than completion (D247). Only M5 (deploy) remains; the schema also carries empty
-`Tier`/`Subscription` scaffolding for the billing goal after that. Verified: `tests/e2e/accounts.spec.ts`
+**G-075, accounts — all 5 milestones built and deployed live; PENDING Owner sign-off (OPERATIONS.md §5).**
+Optional registration, login and logout on NextAuth v5 + Prisma + Postgres + bcryptjs (D244); register/login
+are server actions rate-limited by a second `kind` on the existing job limiter (D245,
+`lib/server/request-guard.ts`). `/account` (M2) is a personal cabinet: rename, change password, delete the
+account (typed-email confirmation, no native `confirm()`), and its own logout button; the canvas app shows a
+corner badge (`AccountBadge`) naming the signed-in reader and linking to it. `/admin/users` (M3): search,
+pagination, promote/demote-admin and disable-login, gated by `app/admin/layout.tsx` (signed out → `/login`,
+signed in but not admin → `/`); every row action re-checks admin on the server and refuses to act on the
+caller's own account. `/admin/stats` (M4): today/7d/30d/all-time counts of generation and export jobs, across
+all traffic logged in or not, recorded at job acceptance rather than completion (D247). **M5 (deploy):**
+Postgres added at `127.0.0.1:54324`, `AUTH_SECRET`/`ADMIN_EMAIL`/`ADMIN_BOOTSTRAP_ENABLED` set in the
+server's `.env` (permissions tightened to 600). Live-verified in a real browser with a disposable test
+account (registered, generated, exported, deleted afterward — 0 users remain): register/login/logout/delete
+all work, `/admin/users` correctly turns away a non-admin, a real generation and export both succeed logged
+in and anonymously, and Postgres shows exactly the expected `UsageEvent` rows split by kind and
+anonymous/logged-in. **The Owner still needs to register with `ADMIN_EMAIL` (their own address) to claim the
+real admin role**, confirm `/admin/users`/`/admin/stats` in their own browser, and set
+`ADMIN_BOOTSTRAP_ENABLED=false` afterward — none of that could be done by this session (no real admin
+credentials). The schema also carries empty `Tier`/`Subscription` scaffolding for the billing goal after
+this one. Verified: `tests/e2e/accounts.spec.ts`
 (7 cases), `tests/e2e/admin.spec.ts` (4 cases) and `tests/e2e/admin-stats.spec.ts` (2 cases, driving a real
 generate-and-export cycle and reading the exact count deltas back) against a real Postgres container through
 the production build/start path every e2e spec shares; 830 unit tests.
@@ -366,9 +375,9 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-075 is BLOCKED (accounts): M4 of 5 done, in a worktree not yet merged.** M5 (deploy) is
-  escalation-tier (OPERATIONS.md §4) and waits on Owner approval before it starts — see GOALS.md's progress
-  log. G-074 (the four photo sliders) was signed
+- **G-075 (accounts): all 5 milestones built, deployed and live-verified, PENDING Owner sign-off** — the Owner
+  needs to register with `ADMIN_EMAIL` to claim the admin role and confirm `/admin/users`/`/admin/stats`
+  themselves; see GOALS.md's progress log for the full deploy record. G-074 (the four photo sliders) was signed
   off on 2026-09-27 and is archived, as is G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner:
   **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and **G-030** (public
   launch, far future).
@@ -379,6 +388,10 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - G-070 is closed as answered: the V8 maths port costs nothing — replacing it is **13–25% slower** with
   identical output (D223). Its one actionable finding shipped as G-071: the build targets `x86-64-v3`,
   worth a mean 6.6% (D224). Both are written up in `docs/reviews/2026-09-24-parity-tax.md`.
+- Found live during G-075 M5 verification: `AccountBadge`'s fixed corner pill visually overlaps the
+  inspector's "Threads" tab label at a normal desktop width (1680×927, not the "rare, small viewports" D246's
+  neighbour decision expected) — both elements exist and work, but the badge draws over the tab's text. A
+  small UI fix (nudge the badge down, or move the inspector's own top padding), not yet scheduled.
 - Watch: `tests/e2e/shape-tools.spec.ts` ("the outline/filled choice belongs to the shapes that enclose
   something") went flaky once on 2026-09-27, passing on retry: a blank chart's Create did not settle in
   time. Second flaky e2e sighting in the suite, and of the same kind as the one below.
@@ -404,8 +417,8 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-28 | 4a28457 | **G-075 M1–M5: accounts, a personal cabinet, and admin tools — first deploy with a database.** NextAuth v5 + Prisma + Postgres + bcryptjs; `/account`, `/admin/users`, `/admin/stats`. A new `db` service on `127.0.0.1:54324`, secrets added to the server's `.env` | 830 unit, 13 new e2e cases against a real Postgres container, lint/tsc/prettier/docs-lint clean. Verified live with a disposable test account (deleted afterward): full register/login/logout/delete loop, admin access control, and a real generate+export both logged-in and anonymous confirmed directly in Postgres. Full record in `docs/deploy-log.md` and GOALS.md's progress log — the Owner still needs to claim the admin role. 23 containers before and after with an identical name set and only this project's app restarted (plus the new `db`); ten sites returned 200. |
 | 2026-09-27 | a6c6657 | **Fix (Owner): the photo view did not move while a slider was dragged.** The worker keeps the callback it was created with, and that callback closed over the effect's `cancelled` flag; the effect re-runs on every slider value, so the second value cleaned up the first closure and every frame after the first was dropped. One keystroke moved the picture, a drag never did. What is current now lives in refs, and the photo is handed to the worker once per photo rather than once per value | 814 unit, 447 e2e, lint/tsc/prettier/docs-lint clean. **The M6 test used `fill()` — one value — and passed against the bug**; the new case drives twenty values with the change event only at the end and reads the chart canvas as it goes (chroma 36 → 27 → 19 → 10 → 0). Mutation-checked: painting only the first frame fails it. Verified against the live site after deploy. 23 containers before and after with an identical name set and only this project's app restarted; ten sites returned 200. |
-| 2026-09-27 | 3e720a1 | **G-074 M6: the sliders move the photo view, and are given up if unused** (Owner). On the Photo tab with a photo view up, that view follows the sliders as they move, so they still mean something once a chart exists; leaving the tab or the view without generating puts the chart's own sliders back, because the chart on screen was not made with the new ones (D243). The decode-and-adjust path became one hook with the coarse-then-sharp cadence in one place, and `photoKey` went with it — keying the decoded photo by the sliders made it vanish mid-drag | 814 unit (5 new), 445 e2e (3 new, 1 unrelated flake green on retry), 74 golden tests, both Rust parity suites, tsc, eslint, prettier, docs-lint clean. Mutation-checked: 4 breaks of the two behaviours caught through the UI; the fifth — a chart with no photo, whose sliders belong to the next photo loaded — was not observable there, so that rule moved into `slidersToRestore` and is covered by unit tests (3 more breaks, 3 caught). Verified against the live site: all 7 generate specs pass, and each new behaviour passes alone on the first try (the retries are the site's own 6-jobs-a-minute limit). 23 containers before and after with an identical name set and only this project's app restarted; ten sites returned 200. |
 
 ## Decisions
 

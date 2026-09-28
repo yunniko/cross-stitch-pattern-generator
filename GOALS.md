@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-075 · Accounts: login, a personal cabinet, and admin tools — BLOCKED (2026-09-27)
+### G-075 · Accounts: login, a personal cabinet, and admin tools — ACTIVE (2026-09-27)
 - **What:** optional user accounts bolted onto the app as it is today — generation and export keep working with no
   account, exactly as now. A visitor can register and log in with email + password; a logged-in reader gets a
   small personal cabinet (email/name, change password, delete account — nothing pattern-related yet, see
@@ -95,13 +95,34 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   personal data) written best-effort from the existing job routes; an admin page with generation/export counts
   over today/7d/30d/all-time. Verified by generating and exporting a known number of times in a real dev run and
   reading the same numbers back on the page.
-- [ ] M5 — **Deploy and verify**: allocate and verify a live Postgres port, server-side `.env` secrets
+- [x] M5 — **Deploy and verify**: allocate and verify a live Postgres port, server-side `.env` secrets
   (`AUTH_SECRET`, `DATABASE_URL`, the admin-bootstrap email/flag), `docker compose --profile app up -d --build`
   with the new `db` + one-shot `migrate` services, live verification (register a real account, confirm it in
   `/admin/users` and that a real generate/export shows up in the stats, confirm anonymous generation is
   unaffected), README + HANDOVER updated, other containers/sites on the host unaffected.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-28 — **M5 reached — all 5 milestones built and deployed; PENDING Owner sign-off.** Owner approved the
+  deploy explicitly ("proceed with the deploy") after the BLOCKED entry below. `goal/G-075` (`4a28457`) was
+  fast-forward-merged into `master` and pushed to GitHub; the production host was re-verified live (not
+  trusted from any cached fact, per INFRASTRUCTURE.md): port 54324 free, existing containers healthy. Added
+  `AUTH_SECRET` (generated, 96 hex chars), `ADMIN_EMAIL=12hv89@gmail.com` (the Owner's own address — **the
+  Owner should register with this exact email to claim the admin role**, then ask a session to flip
+  `ADMIN_BOOTSTRAP_ENABLED` to `"false"` per the existing Rules-in-force line) and `ADMIN_BOOTSTRAP_ENABLED=true`
+  to the server's `.env` (permissions tightened to 600 while there). `git pull` to `4a28457`, then
+  `docker compose --profile app up -d --build`: `db` healthy, `migrate` exited 0, `app` and `processor` up.
+  Verified live in a real browser (not just a health-check ping, per `COMPANY/INFRASTRUCTURE_DEPLOY.md`) with a
+  disposable test account (`deploy-smoke-test@example.com`, deleted after): register → lands on `/account`;
+  `/admin/users` correctly redirects a non-admin to `/`; a real generation and a real server-side export both
+  succeed, logged in and anonymous; `SELECT kind, ("userId" IS NULL) AS anonymous, count(*) FROM "UsageEvent"
+  GROUP BY kind, anonymous` shows exactly 1 row each for GENERATE/EXPORT × logged-in/anonymous, confirming M4's
+  usage-stats pipeline end to end against real Postgres. Could not view `/admin/users` or `/admin/stats`
+  through the UI myself (no real admin credentials) — verified the same facts directly against Postgres
+  instead. Test account fully deleted afterward (`SELECT count(*) FROM "User"` = 0). Every other container on
+  the host shows the same uptime as before the deploy (`when-we-meet-app-1` 17h, `listing-studio-db-1` 3d,
+  etc.) — nothing else disturbed. **Still needs, before this goal can read DONE (OPERATIONS.md §5):** the Owner
+  registers their own account with the email above to become the real admin, confirms `/admin/users` and
+  `/admin/stats` look right in their own browser, and signs off.
 - 2026-09-27 — **BLOCKED: M5 needs Owner approval before proceeding.** M1–M4 are done, verified and committed
   in the worktree (`goal/G-075`, at `dece247`); the only work left is M5, deploying to the production host.
   That is an escalation-tier action under OPERATIONS.md §4 ("Anything leaving the workspace: publishing,
