@@ -133,11 +133,18 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
 - **Open** this app's own files or an `.oxs` chart from another program. Backstitch comes in and goes back
   out exactly; content the app still can't show, such as French knots and fractional stitches, is listed
   after opening rather than silently dropped.
+- **Accounts are optional**: generating and exporting work exactly the same signed in or not. A reader who
+  registers gets a personal cabinet (`/account`) to rename, change their password or delete their account. An
+  admin role (`/admin/users`, `/admin/stats`) manages accounts and sees site-wide generation/export counts.
 
 ## Run locally
 
+Accounts need Postgres and a few secrets; copy `.env.example` to `.env` first.
+
 ```
 npm install --legacy-peer-deps
+docker compose up -d db
+npx prisma migrate deploy
 npm run dev
 ```
 

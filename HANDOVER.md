@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-29 at a9faddb (G-075 deployed and live-verified; pending Owner sign-off)
+Last verified: 2026-09-30 at 062d67e (G-075 signed off and archived)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -12,29 +12,10 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 **Production** runs 4a28457 (2026-09-28, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-075, accounts — all 5 milestones built and deployed live; PENDING Owner sign-off (OPERATIONS.md §5).**
-Optional registration, login and logout on NextAuth v5 + Prisma + Postgres + bcryptjs (D244); register/login
-are server actions rate-limited by a second `kind` on the existing job limiter (D245,
-`lib/server/request-guard.ts`). `/account` (M2) is a personal cabinet: rename, change password, delete the
-account (typed-email confirmation, no native `confirm()`), and its own logout button; the canvas app shows a
-corner badge (`AccountBadge`) naming the signed-in reader and linking to it. `/admin/users` (M3): search,
-pagination, promote/demote-admin and disable-login, gated by `app/admin/layout.tsx` (signed out → `/login`,
-signed in but not admin → `/`); every row action re-checks admin on the server and refuses to act on the
-caller's own account. `/admin/stats` (M4): today/7d/30d/all-time counts of generation and export jobs, across
-all traffic logged in or not, recorded at job acceptance rather than completion (D247). **M5 (deploy):**
-Postgres added at `127.0.0.1:54324`, `AUTH_SECRET`/`ADMIN_EMAIL`/`ADMIN_BOOTSTRAP_ENABLED` set in the
-server's `.env` (permissions tightened to 600). Live-verified in a real browser with a disposable test
-account (registered, generated, exported, deleted afterward — 0 users remain): register/login/logout/delete
-all work, `/admin/users` correctly turns away a non-admin, a real generation and export both succeed logged
-in and anonymously, and Postgres shows exactly the expected `UsageEvent` rows split by kind and
-anonymous/logged-in. **The Owner still needs to register with `ADMIN_EMAIL` (their own address) to claim the
-real admin role**, confirm `/admin/users`/`/admin/stats` in their own browser, and set
-`ADMIN_BOOTSTRAP_ENABLED=false` afterward — none of that could be done by this session (no real admin
-credentials). The schema also carries empty `Tier`/`Subscription` scaffolding for the billing goal after
-this one. Verified: `tests/e2e/accounts.spec.ts`
-(7 cases), `tests/e2e/admin.spec.ts` (4 cases) and `tests/e2e/admin-stats.spec.ts` (2 cases, driving a real
-generate-and-export cycle and reading the exact count deltas back) against a real Postgres container through
-the production build/start path every e2e spec shares; 830 unit tests.
+**G-075, accounts — signed off 2026-09-30, archived.** Optional registration/login/personal cabinet
+(`/account`) and admin tools (`/admin/users`, `/admin/stats`) on NextAuth v5 + Prisma + Postgres + bcryptjs
+(D244–D247); generating and exporting are unaffected signed in or not. The Owner's own account is the real
+admin; bootstrap is closed (`ADMIN_BOOTSTRAP_ENABLED=false`). Full record in `docs/goals-archive/G-071-to-G-080.md`.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
 export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-comparison-report.md`). Since G-068 M2 it is the only engine: nothing falls back to TypeScript, and the recorded golden hashes are checked against the binary by `npm run test:goldens:rust` (D221).
@@ -375,9 +356,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-075 (accounts): all 5 milestones built, deployed and live-verified, PENDING Owner sign-off** — the Owner
-  needs to register with `ADMIN_EMAIL` to claim the admin role and confirm `/admin/users`/`/admin/stats`
-  themselves; see GOALS.md's progress log for the full deploy record. G-074 (the four photo sliders) was signed
+- G-075 (accounts) was signed off 2026-09-30 and is archived. G-074 (the four photo sliders) was signed
   off on 2026-09-27 and is archived, as is G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner:
   **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and **G-030** (public
   launch, far future).
