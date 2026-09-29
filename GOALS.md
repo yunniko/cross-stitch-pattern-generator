@@ -102,6 +102,13 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   unaffected), README + HANDOVER updated, other containers/sites on the host unaffected.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-30 — **The Owner registered as `12hv89@gmail.com` and is confirmed `ADMIN`** (verified directly
+  against Postgres: `role = ADMIN`, `disabled = f`). `ADMIN_BOOTSTRAP_ENABLED` set to `"false"` on the
+  server and the app restarted to pick it up (site re-verified 200 afterward) — no one else can self-promote
+  to admin now. One leftover `USER`-role account remains from the Owner's own earlier attempt
+  (`admin@craftale.eu`, at the wrong `ADMIN_EMAIL`) — harmless, but the Owner may want it deleted; not done
+  here without asking. **Still pending before this goal reads DONE:** the Owner looks at `/admin/users` and
+  `/admin/stats` themselves and signs off (OPERATIONS.md §5).
 - 2026-09-29 — **Post-M5 fix, deployed (`a9faddb`): `AccountBadge` moved from top-right to bottom-left**
   (Owner request). Top-right overlapped the inspector's Threads tab at normal desktop widths (found during
   M5 verification, logged in HANDOVER's open questions). Bottom-left avoids `ToolRail`'s own bottom section
