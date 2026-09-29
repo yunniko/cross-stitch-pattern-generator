@@ -102,6 +102,13 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
   unaffected), README + HANDOVER updated, other containers/sites on the host unaffected.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-09-29 — **Post-M5 fix, deployed (`a9faddb`): `AccountBadge` moved from top-right to bottom-left**
+  (Owner request). Top-right overlapped the inspector's Threads tab at normal desktop widths (found during
+  M5 verification, logged in HANDOVER's open questions). Bottom-left avoids `ToolRail`'s own bottom section
+  (Mirror buttons, D213 fills the 64px rail down to its left edge) by sitting at `left-20` rather than the
+  literal corner. Verified live in a real browser: the badge now sits clear of both the Threads tab and the
+  Mirror grid. Owner separately confirmed logging in as an admin (`admin@craftale.eu`) — not yet independently
+  verified by this session.
 - 2026-09-28 — **M5 reached — all 5 milestones built and deployed; PENDING Owner sign-off.** Owner approved the
   deploy explicitly ("proceed with the deploy") after the BLOCKED entry below. `goal/G-075` (`4a28457`) was
   fast-forward-merged into `master` and pushed to GitHub; the production host was re-verified live (not

@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-28 at 4a28457 (G-075 M5: deployed and live-verified; pending Owner sign-off)
+Last verified: 2026-09-29 at a9faddb (G-075 deployed and live-verified; pending Owner sign-off)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -200,8 +200,8 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   rather than trusting the JWT session (D246), and renders `NameForm`, `PasswordForm` and `DeleteAccount`
   (`app/components/account/`) plus its own logout button. All three call `lib/auth/account-actions.ts`, which
   reads the signed-in id from `auth()` and never trusts a form-carried id. `AccountBadge`
-  (`app/components/auth/account-badge.tsx`) is a `position: fixed` corner pill rendered from `app/page.tsx` /
-  `app/workspace.tsx`, chosen over the top bar to avoid D213's sideways-scroll hazard.
+  (`app/components/auth/account-badge.tsx`) is a `position: fixed` pill, bottom-left past `ToolRail`'s 64px
+  width (moved from top-right, Owner 2026-09-29 -- it overlapped the inspector's Threads tab there).
 - **Admin (G-075 M3–M4)**: `app/admin/layout.tsx` guards every `/admin/*` page (signed out → `/login`,
   non-admin → `/`); `/admin` redirects to `/admin/users`, which paginates via `lib/admin/pagination.ts`
   (unit-tested; page size overridable like the rate limiter's env vars). Its row actions
@@ -388,10 +388,6 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - G-070 is closed as answered: the V8 maths port costs nothing — replacing it is **13–25% slower** with
   identical output (D223). Its one actionable finding shipped as G-071: the build targets `x86-64-v3`,
   worth a mean 6.6% (D224). Both are written up in `docs/reviews/2026-09-24-parity-tax.md`.
-- Found live during G-075 M5 verification: `AccountBadge`'s fixed corner pill visually overlaps the
-  inspector's "Threads" tab label at a normal desktop width (1680×927, not the "rare, small viewports" D246's
-  neighbour decision expected) — both elements exist and work, but the badge draws over the tab's text. A
-  small UI fix (nudge the badge down, or move the inspector's own top padding), not yet scheduled.
 - Watch: `tests/e2e/shape-tools.spec.ts` ("the outline/filled choice belongs to the shapes that enclose
   something") went flaky once on 2026-09-27, passing on retry: a blank chart's Create did not settle in
   time. Second flaky e2e sighting in the suite, and of the same kind as the one below.
