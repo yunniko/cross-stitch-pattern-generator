@@ -32,10 +32,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M2 — the Owner's adjustments after looking, and the deploy
 
 **Progress log** (newest first):
+- 2026-09-30 — Deployed 799bf6f at the Owner's instruction; the live specs pass (10 of 10), other sites unaffected. M2 (the Owner's adjustments) is what remains.
 - 2026-09-30 — M1 built (D252). 859 unit (new `tests/unit/ruler.spec.ts`), new `tests/e2e/rulers.spec.ts` (4 cases: marks on
   their stitch lines through zoom and scroll, thinning when zoomed out, the pointer marker on all four rulers, the hidden
-  pointer) and 468 of 470 e2e (the 2 admin-stats cases pass alone). Looked at on screen zoomed in and out. Not deployed.
-  Waits for the Owner before M2.
+  pointer) and 468 of 470 e2e (the 2 admin-stats cases pass alone). Looked at on screen zoomed in and out. Waits for the Owner before M2.
 - 2026-09-30 — goal created at the Owner's request ("the ruler on the edges of viewpoint... mark every 10th stitch... all
   four sides of working area", then "the pointer of where the cursor is on every ruler" and "when brush is active cursor
   itself should be hidden over the pattern"). Interpreted: the viewer's edges, numbered like the exports.
