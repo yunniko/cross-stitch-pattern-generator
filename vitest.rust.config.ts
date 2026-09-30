@@ -11,6 +11,7 @@ export default defineConfig({
       "scripts/rust-backstitch-style.ts",
       "scripts/rust-photo-adjust.ts",
       "scripts/rust-stitch-texture.ts",
+      "scripts/rust-canvas.ts",
       "scripts/rust-photo-adjust-pipeline.ts",
       "tests/unit/processor-export-pool.spec.ts",
       "tests/unit/processor-pool-limits.spec.ts",

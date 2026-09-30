@@ -18,6 +18,7 @@ WORKDIR /src
 COPY .cargo ./.cargo
 COPY rust ./rust
 COPY public/stitch-texture.png public/stitch-texture-pixel.png ./public/
+COPY public/canvas-texture-aida.png public/canvas-texture-linen.png public/canvas-texture-natural.png ./public/
 COPY public/fonts/DejaVuSans.ttf ./public/fonts/DejaVuSans.ttf
 RUN cargo build --release --manifest-path rust/Cargo.toml -p cs-job
 

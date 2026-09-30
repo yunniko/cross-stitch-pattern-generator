@@ -156,6 +156,7 @@ export async function exportWithRust(
     authorName: payload.authorName,
     overlapCells: payload.overlapCells,
     stitchTexture: payload.stitchTexture,
+    canvas: payload.canvas,
   });
   const result = await run(["export", request], serializePattern(payload.pattern, symmetry), { exportProgress: onProgress });
   if (!result.stdout || !result.filename) failed(`export ${payload.kind}`, result.error ?? "no filename");

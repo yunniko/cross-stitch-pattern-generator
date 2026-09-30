@@ -13,6 +13,8 @@ import { hexToRgb, luminance, rgbToHex } from "../color/color";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import { formatSkeinEstimate } from "../threads/floss-estimate";
 import { buildStitchTiles, type StitchTiles } from "./stitch-texture";
+import { buildGround, type Ground } from "./canvas-ground";
+import type { ExportCanvas } from "./canvas-texture-catalog";
 import type { StitchTextureId } from "./stitch-texture-catalog";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern, type RGB } from "../types";
 
@@ -29,6 +31,8 @@ export interface RenderOptions {
   authorName?: string;
   /** The stitch texture the realistic preview is drawn with; the default one when absent. */
   stitchTexture?: StitchTextureId;
+  /** The canvas the realistic preview sits on; absent leaves its ground transparent. */
+  canvas?: ExportCanvas;
 }
 
 const DEFAULT_CELL_SIZE = 24;
@@ -983,11 +987,16 @@ export async function renderStitchPreviewPng(pattern: StitchPattern, options: Re
   const { width, height } = pattern;
   const cellSize = effectiveCellSize(width, height, options.cellSize ?? DEFAULT_CELL_SIZE);
   const tiles = await buildStitchTiles(pattern.palette, cellSize, options.stitchTexture);
-  return pixelSourceToPngBlob(stitchPreviewPixels(pattern, tiles), width * cellSize, height * cellSize);
+  const ground = options.canvas ? await buildGround(options.canvas, cellSize) : undefined;
+  return pixelSourceToPngBlob(stitchPreviewPixels(pattern, tiles, ground), width * cellSize, height * cellSize);
 }
 
-/** The preview's pixels, a strip of full-width rows at a time, from `tiles`; empty stitches stay transparent. */
-export function stitchPreviewPixels(pattern: StitchPattern, tiles: StitchTiles): PixelSource {
+/**
+ * The preview's pixels, a strip of full-width rows at a time, from `tiles`. Empty stitches stay transparent unless a
+ * `ground` (the canvas) is given: then every pixel starts as the canvas, the stitches are laid over it by their alpha,
+ * and the picture is opaque.
+ */
+export function stitchPreviewPixels(pattern: StitchPattern, tiles: StitchTiles, ground?: Ground): PixelSource {
   const { width: stitchesX, cellPalette } = pattern;
   const cellSize = tiles.cellSize;
   const imageWidth = stitchesX * cellSize;
@@ -1001,10 +1010,29 @@ export function stitchPreviewPixels(pattern: StitchPattern, tiles: StitchTiles):
         const tileOffset = ((y + r) % cellSize) * tileRowBytes;
         const rowStart = r * w * 4;
         const cells = stitchRow * stitchesX;
+        if (ground) {
+          const groundRow = ((y + r) % ground.size) * ground.size;
+          for (let x = 0; x < w; x++) {
+            const from = (groundRow + (x % ground.size)) * 4;
+            data.set(ground.pixels.subarray(from, from + 4), rowStart + x * 4);
+          }
+        }
         for (let sx = 0; sx < stitchesX; sx++) {
           const paletteIndex = cellPalette[cells + sx];
           if (paletteIndex === EMPTY_CELL) continue;
-          data.set(tiles.pixels[paletteIndex].subarray(tileOffset, tileOffset + tileRowBytes), rowStart + sx * tileRowBytes);
+          const stitch = tiles.pixels[paletteIndex];
+          const start = rowStart + sx * tileRowBytes;
+          if (!ground) {
+            data.set(stitch.subarray(tileOffset, tileOffset + tileRowBytes), start);
+            continue;
+          }
+          // The stitch's soft edges over the canvas, straight alpha.
+          for (let i = 0; i < tileRowBytes; i += 4) {
+            const a = stitch[tileOffset + i + 3];
+            for (let k = 0; k < 3; k++)
+              data[start + i + k] = Math.round((stitch[tileOffset + i + k] * a + data[start + i + k] * (255 - a)) / 255);
+            data[start + i + 3] = 255;
+          }
         }
       }
       return { data };

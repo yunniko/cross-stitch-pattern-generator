@@ -25,9 +25,13 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 **Milestones:**
 - [x] M1 — catalog, generated aida and linen tiles, cloth on the well, picker with previews, options (on screen)
-- [ ] M2 — the "include canvas in exported preview" checkbox and the export (Rust, and the TypeScript reference)
+- [x] M2 — the "Canvas in exported preview" checkbox and the export (Rust, and the TypeScript reference; D251)
 
 **Progress log** (newest first):
+- 2026-09-30 — M2 built (D251), with the Owner's linen added as "Natural linen" (1254 px, 66 cells per tile). The checkbox
+  and `canvas` travel client → processor → `cs-job`; Rust lays the stitches over a ground tile. 848 unit, 123 Rust-side
+  (goldens unchanged; new `scripts/rust-canvas.ts` incl. the bundle and a Rust/TypeScript catalog check), 463 of 465 e2e
+  (the 2 admin-stats cases pass alone). Not deployed. Pending: the Owner's look at the exports and sign-off.
 - 2026-09-30 — M1 built (D250). 844 unit tests; new e2e (well-wide cloth, Stitched only, zoom, alignment, colour, swatches,
   reload) passes, with 232 e2e cases across the render/viewport parity, navigation, editing and texture specs. Looked at
   on screen zoomed in and out. Waits for the Owner before M2.

@@ -239,6 +239,24 @@ pub struct Request {
     pub overlap_cells: usize,
     /// Which stitch texture the realistic preview is drawn with; an id of `lib/export/stitch-texture-catalog.ts`.
     pub stitch_texture: String,
+    /// The canvas the realistic preview is drawn on; absent means a transparent ground.
+    pub canvas: Option<Canvas>,
+}
+
+/// The canvas colour and cloth of the realistic preview (`canvas` in the request; `texture` is a catalog id or "off").
+#[derive(Clone, Debug)]
+pub struct Canvas {
+    pub color: [u8; 3],
+    pub texture: String,
+}
+
+fn parse_hex(text: &str) -> Option<[u8; 3]> {
+    let hex = text.strip_prefix('#')?;
+    if hex.len() != 6 {
+        return None;
+    }
+    let byte = |i: usize| u8::from_str_radix(&hex[i..i + 2], 16).ok();
+    Some([byte(0)?, byte(2)?, byte(4)?])
 }
 
 impl Request {
@@ -257,6 +275,16 @@ impl Request {
             author_name: str_field(o, "authorName").unwrap_or_default(),
             overlap_cells: o.get("overlapCells").and_then(Value::as_u64).unwrap_or(5) as usize,
             stitch_texture: str_field(o, "stitchTexture").unwrap_or_else(|| "classic".into()),
+            canvas: match o.get("canvas").and_then(Value::as_object) {
+                None => None,
+                Some(c) => Some(Canvas {
+                    color: str_field(c, "color")
+                        .as_deref()
+                        .and_then(parse_hex)
+                        .ok_or("canvas.color must be #rrggbb")?,
+                    texture: str_field(c, "texture").unwrap_or_else(|| "off".into()),
+                }),
+            },
         })
     }
 }

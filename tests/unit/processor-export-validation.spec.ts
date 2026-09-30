@@ -68,6 +68,19 @@ describe("processor export validation", () => {
     expect(toExportPayload(requestFrom()).stitchTexture).toBe("classic");
   });
 
+  it("accepts a canvas with a colour and a cloth (or off), refuses a malformed one, and reads none as a transparent ground", () => {
+    expect(exportRequestError(requestFrom({ canvas: { color: "#e8d9b5", texture: "natural" } }))).toBeNull();
+    expect(exportRequestError(requestFrom({ canvas: { color: "#ffffff", texture: "off" } }))).toBeNull();
+    expect(exportRequestError(requestFrom({ canvas: { color: "white", texture: "aida" } }))).toMatch(/canvas\.color/);
+    expect(exportRequestError(requestFrom({ canvas: { color: "#ffffff", texture: "burlap" } }))).toMatch(/canvas\.texture/);
+    expect(exportRequestError(requestFrom({ canvas: { texture: "aida" } }))).toMatch(/canvas\.color/);
+    expect(toExportPayload(requestFrom({ canvas: { color: "#ffffff", texture: "linen" } })).canvas).toEqual({
+      color: "#ffffff",
+      texture: "linen",
+    });
+    expect(toExportPayload(requestFrom()).canvas).toBeUndefined();
+  });
+
   it("refuses an unknown kind, a nameless file and a malformed chart", () => {
     expect(exportRequestError(requestFrom({ kind: "png-sepia" }))).toMatch(/kind/);
     expect(exportRequestError(requestFrom({ baseName: "" }))).toMatch(/baseName/);

@@ -38,6 +38,8 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
   const [exportError, setExportError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const { aidaCount, sizeUnit, authorName, overlapCells, stitchTexture } = options;
+  // The canvas goes into the realistic preview only when the reader asked for it (G-077).
+  const canvas = options.exportCanvas ? { color: options.canvasColor, texture: options.canvasTexture } : undefined;
 
   const a4LayoutPreview = useMemo(
     () => (pattern ? calculateA4Layout(pattern.width, pattern.height, { overlapCells }) : null),
@@ -63,7 +65,7 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
           : kind === "pixel-art"
             ? { blob: await pixelArtPngBlob(pattern), filename: `${baseName}_pixels.png` }
             : await runServerExport(
-                { kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, stitchTexture, symmetry },
+                { kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, stitchTexture, canvas, symmetry },
                 setProgress
               );
       downloadBlob(blob, filename);

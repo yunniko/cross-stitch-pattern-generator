@@ -1,5 +1,7 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { pixelAt, readPng } from "../unit/helpers/png-read";
 
 /**
  * G-077 M1: the canvas cloth behind the Stitched view. It covers the whole well (not only the chart), is drawn only in
@@ -33,11 +35,11 @@ test("the cloth covers the well in the Stitched view only, zooms with the cells,
   const picker = page.getByRole("radiogroup", { name: "Canvas texture" });
 
   // Off by default: nothing on the well, in any view.
-  await expect(picker.getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
+  await expect(picker.getByRole("radio", { name: "Off", exact: true })).toHaveAttribute("aria-checked", "true");
   await chip("Stitched").click();
   expect((await cloth(scroller)).blend).toBe("");
 
-  await picker.getByRole("radio", { name: "Aida" }).click();
+  await picker.getByRole("radio", { name: "Aida", exact: true }).click();
   await expect(frame).toHaveAttribute("data-scene-pending", "");
   const first = await cloth(scroller);
   const cellSize = Number(await frame.getAttribute("data-cell-size"));
@@ -87,7 +89,7 @@ test("the cloth covers the well in the Stitched view only, zooms with the cells,
   expect((await cloth(scroller)).blend).toBe("multiply");
 
   // Off puts the plain colour back: no cloth on the well, and the chart's ground filled (nothing clear).
-  await picker.getByRole("radio", { name: "Off" }).click();
+  await picker.getByRole("radio", { name: "Off", exact: true }).click();
   await expect(frame).toHaveAttribute("data-scene-pending", "");
   expect((await cloth(scroller)).blend).toBe("");
   await expect.poll(hasClearStitches).toBe(false);
@@ -107,15 +109,18 @@ test("the cloth takes the canvas colour, the swatches show it at one cell size, 
     });
   const aida = await swatch("aida");
   const linen = await swatch("linen");
+  const natural = await swatch("natural");
   const off = await swatch("off");
-  for (const s of [aida, linen, off]) expect([s.width, s.height]).toEqual(["48px", "64px"]);
+  for (const s of [aida, linen, natural, off]) expect([s.width, s.height]).toEqual(["48px", "64px"]);
   expect(aida.size).toBe("16px 16px");
   expect(linen.size).toBe("16px 16px");
+  // The Owner's linen spans 66 cells (about two threads to a cell), so its tile is 66 cells wide.
+  expect(natural.size).toBe(`${66 * 16}px ${66 * 16}px`);
   expect(off.image).toBe("none");
   expect(off.color).toBe("rgb(255, 255, 255)");
 
   await page.getByRole("button", { name: "Stitched", exact: true }).click();
-  await picker.getByRole("radio", { name: "Linen" }).click();
+  await picker.getByRole("radio", { name: "Linen", exact: true }).click();
   await page.getByLabel("Canvas color").first().fill("#e8d9b5");
   await expect.poll(async () => (await cloth(scroller)).color).toBe("rgb(232, 217, 181)");
   expect((await cloth(scroller)).image).toContain("canvas-texture-linen.png");
@@ -124,5 +129,52 @@ test("the cloth takes the canvas colour, the swatches show it at one cell size, 
   await page.reload();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
   await page.getByRole("tab", { name: "Chart" }).click();
-  await expect(picker.getByRole("radio", { name: "Linen" })).toHaveAttribute("aria-checked", "true");
+  await expect(picker.getByRole("radio", { name: "Linen", exact: true })).toHaveAttribute("aria-checked", "true");
+});
+
+test("the exported preview carries the canvas only when asked, and the plain colour when the texture is off", async ({ page }) => {
+  await openChart(page);
+  const picker = page.getByRole("radiogroup", { name: "Canvas texture" });
+  const include = page.getByLabel("Canvas in exported preview");
+
+  async function exportPreview() {
+    await page.getByRole("tab", { name: "Threads" }).click();
+    await page.getByLabel("Export", { exact: true }).selectOption("png-realistic");
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Export", exact: true }).click(),
+    ]);
+    await page.getByRole("tab", { name: "Chart" }).click();
+    return readPng(await readFile((await download.path())!));
+  }
+  // The heart's top-left stitch is empty, so a pixel just inside it is the ground.
+  const ground = (png: ReturnType<typeof readPng>) => pixelAt(png, 3, 3);
+
+  // As it always was: a transparent ground.
+  await expect(include).not.toBeChecked();
+  expect(ground(await exportPreview())[3]).toBe(0);
+
+  // Ticked with the cloth off: the canvas colour, opaque, everywhere.
+  await page.getByLabel("Canvas color").first().fill("#336699");
+  await include.check();
+  const flat = await exportPreview();
+  expect(ground(flat)).toEqual([51, 102, 153, 255]);
+  for (let i = 3; i < flat.rgba.length; i += 4) expect(flat.rgba[i]).toBe(255);
+
+  // Ticked with a cloth: the cloth multiplied with the colour, and still opaque.
+  await picker.getByRole("radio", { name: "Aida", exact: true }).click();
+  const cloth = await exportPreview();
+  expect(ground(cloth)[3]).toBe(255);
+  const seen = new Set<string>();
+  for (let y = 0; y < 10; y++) for (let x = 0; x < 10; x++) seen.add(pixelAt(cloth, x, y).join());
+  expect(seen.size).toBeGreaterThan(4);
+
+  // The choice is remembered, and unticking returns the transparent ground.
+  await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
+  await page.reload();
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("tab", { name: "Chart" }).click();
+  await expect(include).toBeChecked();
+  await include.uncheck();
+  expect(ground(await exportPreview())[3]).toBe(0);
 });

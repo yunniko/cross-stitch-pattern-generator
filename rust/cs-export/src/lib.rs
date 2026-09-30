@@ -83,6 +83,10 @@ pub fn export_reporting(
                 tiles: preview::stitch_tiles(&compacted, cell, &request.stitch_texture),
                 pattern: &compacted,
                 cell_size: cell,
+                ground: request
+                    .canvas
+                    .as_ref()
+                    .map(|canvas| preview::ground(canvas, cell)),
             };
             let (w, h) = (
                 compacted.width as u32 * cell,
@@ -190,6 +194,10 @@ fn export_all(p: &Pattern, request: &Request, progress: Progress) -> Result<Vec<
         tiles: preview::stitch_tiles(p, cell, &request.stitch_texture),
         pattern: p,
         cell_size: cell,
+        ground: request
+            .canvas
+            .as_ref()
+            .map(|canvas| preview::ground(canvas, cell)),
     };
     zip.file(
         &format!("{base}_preview.png"),

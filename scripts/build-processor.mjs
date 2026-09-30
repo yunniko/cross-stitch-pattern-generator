@@ -43,7 +43,13 @@ await build({
  * this to the image alone meant every local export failed with a missing font.
  */
 await cp(path.join(ROOT, "public", "fonts"), path.join(OUT, "assets", "fonts"), { recursive: true });
-for (const texture of ["stitch-texture.png", "stitch-texture-pixel.png"]) {
+for (const texture of [
+  "stitch-texture.png",
+  "stitch-texture-pixel.png",
+  "canvas-texture-aida.png",
+  "canvas-texture-linen.png",
+  "canvas-texture-natural.png",
+]) {
   await cp(path.join(ROOT, "public", texture), path.join(OUT, "assets", texture));
 }
 

@@ -7,6 +7,8 @@
 export const CANVAS_TEXTURES = [
   { id: "aida", label: "Aida", url: "/canvas-texture-aida.png", cells: 1 },
   { id: "linen", label: "Linen", url: "/canvas-texture-linen.png", cells: 1 },
+  // Supplied by the Owner (2026-09-30): 1254 px, about 132 threads across, read as two threads to a cell.
+  { id: "natural", label: "Natural linen", url: "/canvas-texture-natural.png", cells: 66 },
 ] as const;
 
 export type CanvasTextureId = (typeof CANVAS_TEXTURES)[number]["id"];
@@ -23,3 +25,11 @@ export function canvasTextureById(id: CanvasTextureId) {
   if (!texture) throw new Error(`Unknown canvas texture "${id}"`);
   return texture;
 }
+
+/** The canvas an exported realistic preview sits on: its colour (#rrggbb) and cloth. Absent means a transparent ground. */
+export interface ExportCanvas {
+  color: string;
+  texture: CanvasTextureChoice;
+}
+
+export const CANVAS_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;

@@ -2,7 +2,7 @@
 //! of `stitch-texture.ts`): each stitch is its colour's tinted texture, on a transparent background, streamed a strip
 //! of rows at a time from per-colour tiles, never assembled (D173).
 
-use crate::model::{Pattern, EMPTY_CELL};
+use crate::model::{Canvas, Pattern, EMPTY_CELL};
 use crate::png::PixelSource;
 use tiny_skia::{FilterQuality, IntSize, Pixmap, PixmapPaint, Transform};
 
@@ -20,13 +20,39 @@ const TEXTURES: [(&str, &[u8]); 2] = [
 ];
 const TEXTURE_SAMPLE_SIZE: u32 = 64;
 
-/// The texture, decoded to 8-bit premultiplied RGBA; 16-bit channels are rounded to 8 bits.
+/// The canvas cloths of `lib/export/canvas-texture-catalog.ts`: id, PNG and the number of cells one tile spans. The
+/// three must agree with that catalog (`scripts/rust-canvas.ts` checks it).
+const CANVAS_TEXTURES: [(&str, &[u8], u32); 3] = [
+    (
+        "aida",
+        include_bytes!("../../../public/canvas-texture-aida.png"),
+        1,
+    ),
+    (
+        "linen",
+        include_bytes!("../../../public/canvas-texture-linen.png"),
+        1,
+    ),
+    (
+        "natural",
+        include_bytes!("../../../public/canvas-texture-natural.png"),
+        66,
+    ),
+];
+
+/// The stitch texture `id` (the classic one for an id this table does not hold), decoded.
 fn texture(id: &str) -> Pixmap {
-    let bytes = TEXTURES
-        .iter()
-        .find(|(name, _)| *name == id)
-        .unwrap_or(&TEXTURES[0])
-        .1;
+    decode(
+        TEXTURES
+            .iter()
+            .find(|(name, _)| *name == id)
+            .unwrap_or(&TEXTURES[0])
+            .1,
+    )
+}
+
+/// A PNG decoded to 8-bit premultiplied RGBA; 16-bit channels are rounded to 8 bits.
+fn decode(bytes: &[u8]) -> Pixmap {
     let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
     let mut reader = decoder.read_info().expect("texture header");
     let mut buf = vec![0; reader.output_buffer_size().expect("texture size")];
@@ -133,11 +159,78 @@ pub fn stitch_tiles(p: &Pattern, cell_size: u32, texture_id: &str) -> Vec<Vec<u8
         .collect()
 }
 
+/// The canvas the preview sits on: an opaque `size` × `size` RGBA tile, repeated from the chart's corner.
+pub struct Ground {
+    size: usize,
+    rgba: Vec<u8>,
+}
+
+/// `src` (square, opaque for this purpose) at `size` × `size` by averaging the source pixels each one covers, for a
+/// tile that shrinks a great deal; a growing tile is left to the bilinear `scaled`.
+fn box_down(src: &Pixmap, size: u32) -> Pixmap {
+    let (sw, sh) = (src.width() as usize, src.height() as usize);
+    let size = size as usize;
+    let mut data = vec![255u8; size * size * 4];
+    for y in 0..size {
+        let (y0, y1) = (y * sh / size, ((y + 1) * sh / size).max(y * sh / size + 1));
+        for x in 0..size {
+            let (x0, x1) = (x * sw / size, ((x + 1) * sw / size).max(x * sw / size + 1));
+            let mut sum = [0u32; 3];
+            for sy in y0..y1 {
+                for sx in x0..x1 {
+                    let i = (sy * sw + sx) * 4;
+                    for (k, s) in sum.iter_mut().enumerate() {
+                        *s += src.data()[i + k] as u32;
+                    }
+                }
+            }
+            let n = ((y1 - y0) * (x1 - x0)) as u32;
+            for (k, s) in sum.iter().enumerate() {
+                data[(y * size + x) * 4 + k] = ((s + n / 2) / n) as u8;
+            }
+        }
+    }
+    Pixmap::from_vec(data, IntSize::from_wh(size as u32, size as u32).unwrap()).unwrap()
+}
+
+/// `canvas`'s cloth at `cell_size` per cell, multiplied with its colour -- the tile the viewer's CSS shows
+/// (`lib/editor/canvas-cloth.ts`). No cloth ("off", or an id this table does not hold) is the plain colour.
+pub fn ground(canvas: &Canvas, cell_size: u32) -> Ground {
+    let [r, g, b] = canvas.color;
+    let Some((_, bytes, cells)) = CANVAS_TEXTURES
+        .iter()
+        .find(|(id, _, _)| *id == canvas.texture)
+    else {
+        return Ground {
+            size: 1,
+            rgba: vec![r, g, b, 255],
+        };
+    };
+    let size = cells * cell_size;
+    let source = decode(bytes);
+    let tile = if size < source.width() {
+        box_down(&source, size)
+    } else {
+        scaled(&source, size)
+    };
+    let multiply = |c: u8, t: u8| ((c as u32 * t as u32 + 127) / 255) as u8;
+    let mut rgba = Vec::with_capacity(tile.data().len());
+    for p in tile.data().chunks_exact(4) {
+        rgba.extend_from_slice(&[multiply(r, p[0]), multiply(g, p[1]), multiply(b, p[2]), 255]);
+    }
+    Ground {
+        size: size as usize,
+        rgba,
+    }
+}
+
 /// `stitchPreviewPixels`.
 pub struct Preview<'a> {
     pub pattern: &'a Pattern,
     pub tiles: Vec<Vec<u8>>,
     pub cell_size: u32,
+    /// The canvas under the stitches; absent leaves empty stitches transparent.
+    pub ground: Option<Ground>,
 }
 
 impl PixelSource for Preview<'_> {
@@ -152,14 +245,36 @@ impl PixelSource for Preview<'_> {
             let y = y0 as usize + r;
             let stitch_row = y / cs;
             let tile_offset = (y % cs) * tile_row;
+            if let Some(g) = &self.ground {
+                let gy = (y % g.size) * g.size;
+                let row = &mut out[r * row_bytes..(r + 1) * row_bytes];
+                for (x, pixel) in row.chunks_exact_mut(4).enumerate() {
+                    let i = (gy + x % g.size) * 4;
+                    pixel.copy_from_slice(&g.rgba[i..i + 4]);
+                }
+            }
             for sx in 0..stitches_x {
                 let v = self.pattern.cells[stitch_row * stitches_x + sx];
                 if v == EMPTY_CELL {
                     continue;
                 }
                 let start = r * row_bytes + sx * tile_row;
-                out[start..start + tile_row]
-                    .copy_from_slice(&self.tiles[v as usize][tile_offset..tile_offset + tile_row]);
+                let stitch = &self.tiles[v as usize][tile_offset..tile_offset + tile_row];
+                if self.ground.is_some() {
+                    // The stitch's soft edges over the canvas, straight alpha; the result is opaque.
+                    for (d, s) in out[start..start + tile_row]
+                        .chunks_exact_mut(4)
+                        .zip(stitch.chunks_exact(4))
+                    {
+                        let a = s[3] as u32;
+                        for k in 0..3 {
+                            d[k] = ((s[k] as u32 * a + d[k] as u32 * (255 - a) + 127) / 255) as u8;
+                        }
+                        d[3] = 255;
+                    }
+                } else {
+                    out[start..start + tile_row].copy_from_slice(stitch);
+                }
             }
         }
     }

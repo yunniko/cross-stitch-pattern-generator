@@ -207,6 +207,18 @@ export function ChartPane({ pattern, options, onChange, name, onNameChange, onNa
           />
         </label>
         <label
+          className="flex items-center justify-between gap-3 text-[13px]"
+          title="On: the exported realistic preview (alone and inside Export all) sits on the canvas, with its colour and texture, instead of a transparent background. With the texture Off it carries the plain canvas colour."
+        >
+          Canvas in exported preview
+          <input
+            type="checkbox"
+            checked={options.exportCanvas}
+            onChange={(e) => onChange("exportCanvas", e.target.checked)}
+            className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
+          />
+        </label>
+        <label
           className="flex items-center justify-between text-[13px]"
           title="How many stitches of overlap the A4/PDF page exports repeat between adjacent pages, so they can be lined up when printed"
         >

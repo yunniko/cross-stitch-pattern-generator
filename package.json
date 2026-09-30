@@ -23,6 +23,7 @@
     "test:goldens:rust": "vitest run --config vitest.rust.config.ts scripts/rust-goldens.ts",
     "test:backstitch:rust": "vitest run --config vitest.rust.config.ts scripts/rust-backstitch-oxs.ts",
     "test:backstitch-style:rust": "vitest run --config vitest.rust.config.ts scripts/rust-backstitch-style.ts",
+    "test:canvas:rust": "vitest run --config vitest.rust.config.ts scripts/rust-canvas.ts",
     "test:stitch-texture:rust": "vitest run --config vitest.rust.config.ts scripts/rust-stitch-texture.ts",
     "test:photo-adjust:rust": "vitest run --config vitest.rust.config.ts scripts/rust-photo-adjust.ts",
     "test:photo-adjust-pipeline:rust": "vitest run --config vitest.rust.config.ts scripts/rust-photo-adjust-pipeline.ts",

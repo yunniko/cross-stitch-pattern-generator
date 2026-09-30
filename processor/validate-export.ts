@@ -2,6 +2,7 @@ import { deserializePatternData } from "@/lib/editor/pattern-serialize";
 import { VALID_OVERLAP_CELLS } from "@/lib/editor/workspace-storage";
 import type { OverlapCells } from "@/lib/export/a4-layout";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT } from "@/lib/export/finished-size";
+import { CANVAS_COLOR_PATTERN, isCanvasTextureChoice, type ExportCanvas } from "@/lib/export/canvas-texture-catalog";
 import { DEFAULT_STITCH_TEXTURE, isStitchTextureId } from "@/lib/export/stitch-texture-catalog";
 import type { ExportJobPayload } from "./job-protocol";
 
@@ -57,6 +58,14 @@ export function parseExportRequest(body: unknown): ParsedExportRequest {
   }
   // Only a texture the catalog holds: an unknown id has no image to draw from. Absent means the default (older clients).
   if (b.stitchTexture !== undefined && !isStitchTextureId(b.stitchTexture)) return { error: "stitchTexture is not a known texture." };
+  // The canvas is all or nothing: a #rrggbb colour and a catalog cloth (or "off"), or absent for a transparent ground.
+  if (b.canvas !== undefined && b.canvas !== null) {
+    const canvas = b.canvas as Record<string, unknown>;
+    if (typeof canvas !== "object" || typeof canvas.color !== "string" || !CANVAS_COLOR_PATTERN.test(canvas.color)) {
+      return { error: "canvas.color must be a #rrggbb colour." };
+    }
+    if (!isCanvasTextureChoice(canvas.texture)) return { error: "canvas.texture is not a known canvas texture." };
+  }
   let pattern: ExportJobPayload["pattern"];
   try {
     // The same validation a saved file gets: dimensions, palette size, and every cell indexing its own palette (D099).
@@ -75,6 +84,7 @@ export function parseExportRequest(body: unknown): ParsedExportRequest {
       sizeUnit: (b.sizeUnit as ExportJobPayload["sizeUnit"]) ?? DEFAULT_SIZE_UNIT,
       authorName: typeof b.authorName === "string" ? b.authorName : "",
       overlapCells: OVERLAP_CELLS.includes(b.overlapCells as OverlapCells) ? (b.overlapCells as OverlapCells) : 5,
+      canvas: (b.canvas ?? undefined) as ExportCanvas | undefined,
       stitchTexture: isStitchTextureId(b.stitchTexture) ? b.stitchTexture : DEFAULT_STITCH_TEXTURE,
       symmetry: (b.symmetry ?? undefined) as ExportJobPayload["symmetry"],
     },
