@@ -30,12 +30,13 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M1 — the dot, and the keyboard cell cursor with Enter as the pen, tests, looked at on screen (D254)
 
 **Progress log** (newest first):
+- 2026-10-01 — Deployed cd6fbdb at the Owner's instruction; the live specs pass (26 cases), other sites unaffected. Pending: sign-off.
 - 2026-10-01 — M1 built (D254). The dot (`drawPointerDot`, drawn with the outline) and the keyboard cursor
   (`app/hooks/use-keyboard-cursor.ts`: arrows, Shift for ten, Enter as the pen, edge-stopping, scrolls to keep the stitch
   in view; the rulers' marker and the status bar follow it). 873 unit; new `tests/e2e/keyboard-cursor.spec.ts` (4 cases); 478
   of 481 e2e (2 admin-stats cases pass alone). Also fixed the flaky shape-tools case the handover listed: it reloaded the
   page and expected a fresh start, but a reload restores the autosaved chart (it failed 10 of 10 against the live code when
-  run repeatedly); its second visit is now a new browser context (12 of 12). Looked at on screen. Not deployed.
+  run repeatedly); its second visit is now a new browser context (12 of 12). Looked at on screen.
 - 2026-10-01 — goal created after the Owner chose the dot and the keyboard over the alternatives offered (hysteresis,
   animation, a hidden-pointer "grid cursor" mode, edge ticks).
 
