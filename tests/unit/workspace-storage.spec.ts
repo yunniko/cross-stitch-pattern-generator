@@ -54,6 +54,7 @@ describe("workspace-storage", () => {
       stitchTexture: "classic",
       canvasTexture: "off",
       exportCanvas: false,
+      lockTransparency: false,
       sizePreset: "medium",
       customSize: 100,
       colorCount: 16,
@@ -84,6 +85,7 @@ describe("workspace-storage", () => {
         stitchTexture: "pixel" as const,
         canvasTexture: "natural" as const,
         exportCanvas: true,
+        lockTransparency: true,
         sizePreset: "xl" as const,
         customSize: 250,
         colorCount: 32,
@@ -226,6 +228,15 @@ describe("workspace-storage", () => {
         saveWorkspaceOptions({ ...DEFAULTS, canvasColor: bad });
         expect(loadWorkspaceOptions().canvasColor).toBe("#ffffff");
       }
+    });
+
+    it("keeps the transparency lock across a reload, and reads a missing or non-boolean one as off", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, lockTransparency: true });
+      expect(loadWorkspaceOptions().lockTransparency).toBe(true);
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
+      expect(loadWorkspaceOptions().lockTransparency).toBe(false);
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ lockTransparency: "yes" }));
+      expect(loadWorkspaceOptions().lockTransparency).toBe(false);
     });
 
     it("keeps a chosen canvas texture and the export-canvas switch across a reload", () => {

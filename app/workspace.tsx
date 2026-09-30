@@ -140,7 +140,7 @@ export default function Workspace({ account }: WorkspaceProps) {
   const cellSizeAt = useCallback((zoom: number) => computeCellSize(pattern, zoom), [pattern]);
   const panZoom = usePanZoom(scrollerRef, frameRef, pattern !== null, cellSizeAt);
   const cellSize = computeCellSize(pattern, panZoom.zoomLevel);
-  const toolInputs = { frameRef, rendererRef, pattern, cellSize, commit: history.set };
+  const toolInputs = { frameRef, rendererRef, pattern, cellSize, commit: history.set, lockTransparency: options.lockTransparency };
   const select = useSelectTool(toolInputs, activeTool === "lasso" ? "lasso" : "select");
   const colorForPointer = colours.colorForPointer;
   // One press's footprint, rebuilt only when the brush changes rather than on every render (G-064).
@@ -702,8 +702,8 @@ export default function Workspace({ account }: WorkspaceProps) {
             onRedo={history.redo}
             viewMode={viewMode}
             onViewModeChange={chooseViewMode}
-            canvasColor={options.canvasColor}
-            onCanvasColorChange={(hex) => updateOption("canvasColor", hex)}
+            lockTransparency={options.lockTransparency}
+            onLockTransparencyChange={(on) => updateOption("lockTransparency", on)}
             sourceFileName={source.fileName}
             isLoadingImage={source.isLoading}
             hasSourcePhoto={source.hasPhoto}
@@ -732,8 +732,11 @@ export default function Workspace({ account }: WorkspaceProps) {
           onDownloadRestoreReport={() => restore.failure && downloadPatternLoadReport({ content: restore.failure.payload })}
           onDismissRestoreFailure={restore.dismissFailure}
           openError={openError}
+          onDismissOpenError={() => setOpenError(null)}
           openNotice={openNotice}
+          onDismissOpenNotice={() => setOpenNotice(null)}
           exportError={exports.exportError}
+          onDismissExportError={exports.dismissExportError}
           a4Layout={paginatesAsA4(exports.exportKind) ? exports.a4LayoutPreview : null}
         />
         {pendingStart !== null && pattern && (
@@ -772,6 +775,7 @@ export default function Workspace({ account }: WorkspaceProps) {
           isLoadingImage={source.isLoading}
           previewError={renderer.previewError}
           onRetryPreview={renderer.retryPreview}
+          onDismissPreviewError={renderer.dismissPreviewError}
           adjustActive={adjustPreview.active}
           adjustReady={adjustPreview.ready}
           adjustSize={adjustPreview.size}
@@ -819,6 +823,7 @@ export default function Workspace({ account }: WorkspaceProps) {
               progress={generation.progress}
               queueMessage={generation.queueMessage}
               hasPattern={pattern !== null && !startingNew}
+              onDismissError={() => generation.setError(null)}
               hasPhoto={!startingNew && source.hasPhoto}
               sourceSize={source.meta ? { width: source.meta.naturalWidth, height: source.meta.naturalHeight } : null}
               isLoadingImage={!startingNew && source.isLoading}

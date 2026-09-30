@@ -21,7 +21,7 @@ import { longerSideFor } from "../hooks/use-generation";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
 import { DitherPreview } from "./dither-preview";
 import { TextureEditor } from "./texture-editor";
-import { PillButton, SegmentedControl, Slider, type SegmentOption } from "./ui";
+import { PillButton, SegmentedControl, Slider, type SegmentOption, InlineError } from "./ui";
 
 /**
  * The Photo pane (G-045 M3, direction 1b): everything the next Generate reads, in the order someone decides it --
@@ -157,6 +157,7 @@ export interface PhotoPaneProps {
   /** A slider has been let go, so the preview can stop drawing coarse and draw the photo properly. */
   onAdjustSettled: () => void;
   error: string | null;
+  onDismissError: () => void;
 }
 
 /** What 1b shows on this tab while a job runs: where it has got to, and the way out. */
@@ -211,6 +212,7 @@ export function PhotoPane({
   onCancel,
   onAdjustSettled,
   error,
+  onDismissError,
 }: PhotoPaneProps) {
   if (isProcessing) return <GeneratingCard progress={progress} queueMessage={queueMessage} hasPattern={hasPattern} onCancel={onCancel} />;
   // First run: nothing to size or colour yet, so 1b shows what the three steps will be instead of dead controls.
@@ -473,7 +475,7 @@ export function PhotoPane({
         </section>
       )}
 
-      {error && <p className="text-[13px] text-red-300">{error}</p>}
+      {error && <InlineError key={error} message={error} onDismiss={onDismissError} className="text-[13px] text-red-300" />}
     </div>
   );
 }

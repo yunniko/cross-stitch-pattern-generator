@@ -1,4 +1,7 @@
+"use client";
+
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useAutoDismiss } from "../hooks/use-auto-dismiss";
 
 // Shared control styling, so a fix lands on every instance at once instead of on 20 copies of the same class string
 // (D81). Restyled to Atelier in G-045 M1: the shapes come from direction 1b, which uses small radii rather than pills,
@@ -159,10 +162,45 @@ export function Slider({ label, hint, value, min, max, neutral, onChange, onSett
   );
 }
 
-/** Full-width message strip. */
-export function NoticeBar({ tone, children }: { tone: "error" | "info"; children: ReactNode }) {
+/** The small cross that dismisses a message (G-079). */
+export function DismissButton({ onClick, label = "Dismiss message" }: { onClick: () => void; label?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="-my-0.5 shrink-0 rounded px-1.5 text-sm leading-5 opacity-70 hover:bg-white/10 hover:opacity-100 focus-visible:opacity-100"
+    >
+      <span aria-hidden="true">✕</span>
+    </button>
+  );
+}
+
+/**
+ * Full-width message strip. With `onDismiss` it has a cross to close it, and an error also goes away by itself after a
+ * while (G-079); a strip shown for a new message should be given that message as its `key`, so the wait starts again.
+ */
+export function NoticeBar({ tone, children, onDismiss }: { tone: "error" | "info"; children: ReactNode; onDismiss?: () => void }) {
+  useAutoDismiss(tone === "error" && onDismiss !== undefined, () => onDismiss?.());
   const toneClass = tone === "error" ? "border-red-900 bg-red-950/60 text-red-300" : "border-line bg-surface text-muted";
-  return <p className={`border-b px-4 py-1 text-xs ${toneClass}`}>{children}</p>;
+  return (
+    <p className={`flex items-start gap-3 border-b px-4 py-1 text-xs ${toneClass}`}>
+      <span className="min-w-0 flex-1">{children}</span>
+      {onDismiss && <DismissButton onClick={onDismiss} />}
+    </p>
+  );
+}
+
+/** An error inside a pane: the message, a cross, and the same going-away after a while (G-079). */
+export function InlineError({ message, onDismiss, className = "" }: { message: string; onDismiss: () => void; className?: string }) {
+  useAutoDismiss(true, onDismiss);
+  return (
+    <p className={`flex items-start gap-2 ${className}`}>
+      <span className="min-w-0 flex-1">{message}</span>
+      <DismissButton onClick={onDismiss} />
+    </p>
+  );
 }
 
 /** The chrome strip used for the options, selection and resize panels. */

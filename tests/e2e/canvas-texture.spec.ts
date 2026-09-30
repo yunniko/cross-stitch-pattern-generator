@@ -15,6 +15,13 @@ async function openChart(page: Page) {
   await page.getByRole("tab", { name: "Chart" }).click();
 }
 
+/** The canvas colour is a swatch that opens the shared colour picker; the hex field in it takes a typed colour. */
+async function setCanvasColor(page: Page, hex: string) {
+  await page.getByRole("button", { name: "Canvas color", exact: true }).click();
+  await page.getByLabel("Canvas color hex").fill(hex);
+  await page.keyboard.press("Escape");
+}
+
 const cloth = (scroller: Locator) =>
   scroller.evaluate((el: HTMLElement) => ({
     blend: el.style.backgroundBlendMode,
@@ -119,7 +126,7 @@ test("the cloth takes the canvas colour, the swatches show it at one cell size, 
 
   await page.getByRole("button", { name: "Stitched", exact: true }).click();
   await picker.getByRole("radio", { name: "Counted canvas", exact: true }).click();
-  await page.getByLabel("Canvas color").first().fill("#e8d9b5");
+  await setCanvasColor(page, "#e8d9b5");
   await expect.poll(async () => (await cloth(scroller)).color).toBe("rgb(232, 217, 181)");
   expect((await cloth(scroller)).image).toContain("canvas-texture-counted.png");
 
@@ -153,7 +160,7 @@ test("the exported preview carries the canvas only when asked, and the plain col
   expect(ground(await exportPreview())[3]).toBe(0);
 
   // Ticked with the cloth off: the canvas colour, opaque, everywhere.
-  await page.getByLabel("Canvas color").first().fill("#336699");
+  await setCanvasColor(page, "#336699");
   await include.check();
   const flat = await exportPreview();
   expect(ground(flat)).toEqual([51, 102, 153, 255]);

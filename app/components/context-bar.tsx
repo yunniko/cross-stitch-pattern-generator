@@ -52,8 +52,9 @@ export interface ContextBarProps {
   onRedo: () => void;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
-  canvasColor: string;
-  onCanvasColorChange: (hex: string) => void;
+  /** The transparency lock (G-079): drawing and filling cannot turn empty stitches into colour or the reverse. */
+  lockTransparency: boolean;
+  onLockTransparencyChange: (on: boolean) => void;
   /** The loaded photo, shown before a chart exists and as the source of the photo views. */
   sourceFileName: string | null;
   isLoadingImage: boolean;
@@ -103,8 +104,8 @@ export function ContextBar({
   onRedo,
   viewMode,
   onViewModeChange,
-  canvasColor,
-  onCanvasColorChange,
+  lockTransparency,
+  onLockTransparencyChange,
   sourceFileName,
   isLoadingImage,
   hasSourcePhoto,
@@ -297,19 +298,34 @@ export function ContextBar({
               </svg>
               <span className={`font-mono text-[11px] ${isolate ? "text-accent" : "text-muted"}`}>{litCount}</span>
             </button>
-            <label
-              className="flex items-center gap-1.5 text-xs text-muted"
-              title="Shown behind empty stitches in Color/B&W view and behind the realistic preview -- display only, never affects any export"
+            <button
+              type="button"
+              onClick={() => onLockTransparencyChange(!lockTransparency)}
+              aria-pressed={lockTransparency}
+              aria-label="Lock transparency"
+              title={
+                lockTransparency
+                  ? "Transparency locked: drawing and filling cannot turn empty stitches into colour, or colour into empty. Fill selected paints only stitches that are not empty. Click to unlock."
+                  : "Lock transparency: stop drawing and filling from turning empty stitches into colour, or colour into empty."
+              }
+              className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-colors ${
+                lockTransparency ? "border-accent bg-accent/15 text-ink" : "border-line text-muted hover:bg-raised hover:text-ink"
+              }`}
             >
-              Canvas
-              <input
-                type="color"
-                value={canvasColor}
-                onChange={(e) => onCanvasColorChange(e.target.value)}
-                aria-label="Canvas color"
-                className="h-6 w-8 cursor-pointer rounded-md border border-line bg-transparent p-0"
-              />
-            </label>
+              <svg
+                viewBox="0 0 24 24"
+                className="h-[15px] w-[15px]"
+                fill="none"
+                stroke={lockTransparency ? "var(--at-accent)" : "currentColor"}
+                strokeWidth={1.7}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="5" y="11" width="14" height="10" rx="2" />
+                {lockTransparency ? <path d="M8 11V8a4 4 0 0 1 8 0v3" /> : <path d="M8 11V8a4 4 0 0 1 7.5-2" />}
+              </svg>
+            </button>
             <SegmentedControl
               tone="chip"
               options={CHART_VIEWS}

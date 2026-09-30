@@ -484,15 +484,38 @@ export function moveSelection(selection: FloatingSelection, dx: number, dy: numb
 }
 
 /**
+ * The transparency lock (G-079): a change that would turn an empty stitch into a colour, or a colour into an empty stitch,
+ * is one the lock refuses. Changing one colour to another is not.
+ */
+export function flipsTransparency(before: number, after: number): boolean {
+  return (before === EMPTY_CELL) !== (after === EMPTY_CELL);
+}
+
+/** `next` (changed in place) with every change `flipsTransparency` refuses put back to what `base` held. */
+export function lockTransparency(base: ArrayLike<number>, next: Uint8Array): Uint8Array {
+  for (let i = 0; i < next.length; i++) if (flipsTransparency(base[i], next[i])) next[i] = base[i];
+  return next;
+}
+
+/** Whether two chart buffers hold the same stitches. */
+export function sameCells(a: ArrayLike<number>, b: ArrayLike<number>): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/**
  * Paints every cell of a floating selection in one colour (G-063). The piece stays floating, so it can still be
  * moved, applied or cancelled, and a cell that was empty becomes a stitch like any other -- the Owner asked for the
- * selected *area*, not the stitches inside it.
+ * selected *area*, not the stitches inside it. With the transparency lock on (`onlyFilled`), only the stitches that
+ * are not empty are painted (G-079).
  */
-export function fillSelection(selection: FloatingSelection, paletteIndex: number): FloatingSelection {
-  if (!selection.mask) return { ...selection, cells: new Uint8Array(selection.cells.length).fill(paletteIndex) };
+export function fillSelection(selection: FloatingSelection, paletteIndex: number, onlyFilled = false): FloatingSelection {
+  const paintable = (i: number) => !onlyFilled || selection.cells[i] !== EMPTY_CELL;
+  if (!selection.mask && !onlyFilled) return { ...selection, cells: new Uint8Array(selection.cells.length).fill(paletteIndex) };
   // A shaped piece fills its shape; the cells outside it keep what they held, since nothing ever stamps them.
   const cells = selection.cells.slice();
-  for (let i = 0; i < cells.length; i++) if (selection.mask[i]) cells[i] = paletteIndex;
+  for (let i = 0; i < cells.length; i++) if ((!selection.mask || selection.mask[i]) && paintable(i)) cells[i] = paletteIndex;
   return { ...selection, cells };
 }
 

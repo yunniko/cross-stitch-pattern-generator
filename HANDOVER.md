@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-30 at b7ec358 (G-078, deployed)
+Last verified: 2026-09-30 at the G-079 commit
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -13,6 +13,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-077, canvas textures — signed off and deployed 2026-09-30 (2e86c69), archived.** The Chart pane's Canvas texture buttons (`app/components/canvas-picker.tsx`; Off, Natural linen, Counted canvas from `lib/export/canvas-texture-catalog.ts`, each with columns, rows and an offset in cells) put a cloth behind the Stitched view over the whole viewer (`app/hooks/use-canvas-cloth.ts`, D250); "Canvas in exported preview" sends `canvas` with the export request and `rust/cs-export/src/preview.rs` lays the stitches over the ground (D251, TypeScript reference `lib/export/canvas-ground.ts`). The stitch textures (Classic, Pixel, Cell outline, Cell outline shaded, Cross 2) are in `lib/export/stitch-texture-catalog.ts` (D248, D249). Record in `docs/goals-archive/G-071-to-G-080.md`.
+
+**G-079, small fixes — built 2026-09-30, awaiting the Owner; not deployed.** Errors have a cross and clear after 12 s (`app/components/ui.tsx` `NoticeBar`/`InlineError`, `app/hooks/use-auto-dismiss.ts`); the canvas colour is a `react-colorful` swatch on the Chart tab (`app/components/canvas-color-field.tsx`) and is gone from the top panel; the transparency lock (`lockTransparency` option, padlock in `app/components/context-bar.tsx`) is one rule in `lib/editor/pattern-edit.ts` applied in `app/hooks/use-canvas-tools.ts` (D253). Verified: 868 unit, 474 of 476 e2e (the two admin-stats cases pass alone), tsc, eslint, prettier.
 
 **G-078, rulers — signed off and deployed 2026-09-30 (b7ec358), archived.** `app/components/rulers.tsx` draws four canvases in grid cells around the scrolling well (`app/components/image-window.tsx`), numbered at every 10th stitch line from `lib/editor/ruler.ts`, with a marker at the pointer; the OS pointer is hidden wherever `hoverOutline` is drawn (D252). The status bar's "Stitch x, y" (`app/components/pointer-readout.tsx`, 1-based) is written straight into its element rather than through React state. Record in `docs/goals-archive/G-071-to-G-080.md`.
 

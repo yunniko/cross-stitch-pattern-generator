@@ -6,7 +6,8 @@ import type { SourceImageMeta } from "../hooks/use-source-image";
 import { useCanvasCloth } from "../hooks/use-canvas-cloth";
 import { FirstRun } from "./first-run";
 import { RULER_THICKNESS, Rulers } from "./rulers";
-import { PillButton } from "./ui";
+import { useAutoDismiss } from "../hooks/use-auto-dismiss";
+import { DismissButton, PillButton } from "./ui";
 
 const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   color: "Color",
@@ -44,6 +45,7 @@ export interface ImageWindowProps {
   cursorHidden: boolean;
   previewError: string | null;
   onRetryPreview: () => void;
+  onDismissPreviewError: () => void;
   /** The four sliders (G-074): the photo they make is drawn here, in the browser, not fetched. */
   adjustActive: boolean;
   /** A frame for this photo has been painted; until then the photo itself is what is up. */
@@ -57,6 +59,20 @@ export interface ImageWindowProps {
   onPointerLeave: (e: PointerEvent<HTMLDivElement>) => void;
   onDoubleClick: (e: MouseEvent<HTMLDivElement>) => void;
   onDrop: (e: DragEvent<HTMLDivElement>) => void;
+}
+
+/** The Stitched view's failure to draw: what went wrong, a way to try again, and a way to close it (G-079). */
+function PreviewError({ message, onRetry, onDismiss }: { message: string; onRetry: () => void; onDismiss: () => void }) {
+  useAutoDismiss(true, onDismiss);
+  return (
+    <div className="flex items-center gap-3 rounded border border-red-900 p-3 text-sm text-red-300">
+      <span>{message}</span>
+      <button type="button" onClick={onRetry} className="rounded-full border border-red-900 px-3 py-1 text-xs font-medium hover:bg-red-950">
+        Retry
+      </button>
+      <DismissButton onClick={onDismiss} />
+    </div>
+  );
 }
 
 function cursorFor(activeTool: Tool, activeColorIndex: number | null, viewMode: ViewMode, cursorHidden: boolean): string {
@@ -96,6 +112,7 @@ export function ImageWindow({
   startScreen,
   previewError,
   onRetryPreview,
+  onDismissPreviewError,
   adjustActive,
   adjustReady,
   adjustSize,
@@ -224,16 +241,7 @@ export function ImageWindow({
           </div>
         )}
         {pattern && viewMode === "realistic" && previewError && (
-          <div className="flex items-center gap-3 rounded border border-red-900 p-3 text-sm text-red-300">
-            <span>{previewError}</span>
-            <button
-              type="button"
-              onClick={onRetryPreview}
-              className="rounded-full border border-red-900 px-3 py-1 text-xs font-medium hover:bg-red-950"
-            >
-              Retry
-            </button>
-          </div>
+          <PreviewError key={previewError} message={previewError} onRetry={onRetryPreview} onDismiss={onDismissPreviewError} />
         )}
       </div>
     </div>

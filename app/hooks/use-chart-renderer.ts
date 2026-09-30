@@ -655,5 +655,6 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     endGesture,
     previewError,
     retryPreview: () => setPreviewRetryToken((t) => t + 1),
+    dismissPreviewError: () => setPreviewError(null),
   };
 }

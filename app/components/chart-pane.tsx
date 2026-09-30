@@ -9,7 +9,8 @@ import type { StitchPattern } from "@/lib/types";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
 import { CanvasPicker } from "./canvas-picker";
 import { TexturePicker } from "./texture-picker";
-import { PillButton, SegmentedControl, DISABLED_TEXT } from "./ui";
+import { CanvasColorField } from "./canvas-color-field";
+import { InlineError, PillButton, SegmentedControl, DISABLED_TEXT } from "./ui";
 
 /**
  * The Chart pane (G-045 M3, direction 1b): the document itself -- its name, its canvas, and the settings that decide
@@ -114,7 +115,9 @@ export function ChartPane({ pattern, options, onChange, name, onNameChange, onNa
             </PillButton>
           </div>
         )}
-        {resizeError && <p className="text-xs text-red-300">{resizeError}</p>}
+        {resizeError && (
+          <InlineError key={resizeError} message={resizeError} onDismiss={() => setResizeError(null)} className="text-xs text-red-300" />
+        )}
       </section>
 
       <section className="flex flex-col gap-2.5 border-t border-line pt-3.5">
@@ -145,18 +148,13 @@ export function ChartPane({ pattern, options, onChange, name, onNameChange, onNa
           />
         </div>
 
-        <label
+        <div
           className="flex items-center justify-between text-[13px]"
-          title="Shown behind empty stitches in Color/B&W view and behind the realistic preview -- display only, never affects any export"
+          title="Shown behind empty stitches in Color/B&W view and behind the realistic preview. It goes into an exported preview only with Canvas in exported preview ticked."
         >
           Canvas color
-          <input
-            type="color"
-            value={options.canvasColor}
-            onChange={(e) => onChange("canvasColor", e.target.value)}
-            className="h-6 w-9 cursor-pointer rounded-md border border-line bg-transparent p-0"
-          />
-        </label>
+          <CanvasColorField value={options.canvasColor} onChange={(hex) => onChange("canvasColor", hex)} />
+        </div>
 
         <div
           className="flex flex-col gap-1.5"

@@ -25,6 +25,9 @@ import {
   duplicateSelection,
   DUPLICATE_OFFSET,
   fillSelection,
+  flipsTransparency,
+  lockTransparency as keepTransparency,
+  sameCells,
   rotateSelectionClockwise,
   rotateSelectionAnticlockwise,
   cropToSelection,
@@ -69,6 +72,19 @@ export interface CanvasToolInputs {
   cellSize: number;
   /** Pushes an undoable history step. */
   commit: (next: StitchPattern) => void;
+  /**
+   * The transparency lock (G-079): while on, the drawing and filling tools cannot turn an empty stitch into a colour or a
+   * colour into an empty stitch, and fill selected paints only the stitches that are not empty. Everything else about
+   * selecting, moving and dragging is as it is without it.
+   */
+  lockTransparency?: boolean;
+}
+
+/** The fill's result under the lock: its flips undone, or null when nothing is left to change. */
+function lockedResult(base: StitchPattern, next: StitchPattern, locked: boolean): StitchPattern | null {
+  if (!locked) return next;
+  keepTransparency(base.cellPalette, next.cellPalette);
+  return sameCells(base.cellPalette, next.cellPalette) ? null : next;
 }
 
 /** How close in time two brush clicks on one cell must be to count as the start of a double-click. */
@@ -92,6 +108,7 @@ export function useBrushTool({
   pattern,
   cellSize,
   commit,
+  lockTransparency: locked = false,
   colorForPointer,
   stamp,
   symmetry,
@@ -145,11 +162,13 @@ export function useBrushTool({
         orbit.push(cell);
       }
     }
-    for (const cell of orbit) cells[cell] = color;
+    // Under the lock a stitch that would turn from empty to colour, or back, is left as it was.
+    const painted = locked ? orbit.filter((cell) => !flipsTransparency(base.cellPalette[cell], color)) : orbit;
+    for (const cell of painted) cells[cell] = color;
     rendererRef.current?.paintBrushCells(
       base,
       cells,
-      orbit.map((cell) => ({ cellIndex: cell, paletteIndex: color }))
+      painted.map((cell) => ({ cellIndex: cell, paletteIndex: color }))
     );
   }
 
@@ -158,7 +177,9 @@ export function useBrushTool({
     const color = colorForPointer(e.button ?? 0);
     if (!pattern || color === null) return;
     const cellIndex = cellAt(e, frame);
-    if (cellIndex !== null) commit(fillSymmetric(pattern, cellIndex, symmetry, color, 8));
+    if (cellIndex === null) return;
+    const filled = lockedResult(pattern, fillSymmetric(pattern, cellIndex, symmetry, color, 8), locked);
+    if (filled) commit(filled);
   }
 
   function onPointerDown(e: PointerLike, frame: HTMLElement) {
@@ -208,10 +229,12 @@ export function useBrushTool({
     strokeRef.current = null;
     // The commit re-renders and repaints from the new pattern.
     rendererRef.current?.endGesture(false);
+    releaseCapture(frameRef.current, e.pointerId);
+    // A stroke the lock left with nothing to change costs no undo step.
+    if (locked && sameCells(stroke.base.cellPalette, stroke.cells)) return true;
     const next = withCellPalette(stroke.base, stroke.cells);
     stroke.click.commits.push(next);
     commit(next);
-    releaseCapture(frameRef.current, e.pointerId);
     return true;
   }
 
@@ -228,9 +251,11 @@ export function useBrushTool({
     const click = lastClickRef.current;
     lastClickRef.current = null;
     if (click && click.cellIndex === cellIndex && click.color === color && click.commits.length > 0) {
-      replaceSince(click.anchor, click.commits, fillSymmetric(click.anchor, cellIndex, click.axes, click.color, 8));
+      const filled = lockedResult(click.anchor, fillSymmetric(click.anchor, cellIndex, click.axes, click.color, 8), locked);
+      if (filled) replaceSince(click.anchor, click.commits, filled);
     } else {
-      commit(fillSymmetric(pattern, cellIndex, symmetry, color, 8));
+      const filled = lockedResult(pattern, fillSymmetric(pattern, cellIndex, symmetry, color, 8), locked);
+      if (filled) commit(filled);
     }
   }
 
@@ -263,6 +288,7 @@ export function useShapeTool({
   pattern,
   cellSize,
   commit,
+  lockTransparency: locked = false,
   colorForPointer,
   stamp,
   symmetry,
@@ -306,6 +332,7 @@ export function useShapeTool({
         for (const cell of symmetryOrbit(stamped, base.width, base.height, axes)) {
           if (seen.has(cell)) continue;
           seen.add(cell);
+          if (locked && flipsTransparency(base.cellPalette[cell], color)) continue;
           cells[cell] = color;
           shape.painted.push(cell);
           ops.push({ cellIndex: cell, paletteIndex: color });
@@ -355,8 +382,10 @@ export function useShapeTool({
     shapeRef.current = null;
     // The commit re-renders and repaints from the new pattern.
     rendererRef.current?.endGesture(false);
-    commit(withCellPalette(shape.base, shape.cells));
     releaseCapture(frameRef.current, e.pointerId);
+    // A shape the lock left with nothing to change costs no undo step.
+    if (locked && sameCells(shape.base.cellPalette, shape.cells)) return true;
+    commit(withCellPalette(shape.base, shape.cells));
     return true;
   }
 
@@ -392,6 +421,7 @@ export function useLassoFillTool({
   pattern,
   cellSize,
   commit,
+  lockTransparency: locked = false,
   colorForPointer,
   symmetry,
 }: CanvasToolInputs & {
@@ -454,7 +484,12 @@ export function useLassoFillTool({
       return true;
     }
     rendererRef.current?.endGesture(false);
-    commit(withCellPalette(draw.base, filledCells(draw.base, region, draw.color, draw.axes)));
+    const cells = filledCells(draw.base, region, draw.color, draw.axes);
+    if (locked) {
+      keepTransparency(draw.base.cellPalette, cells);
+      if (sameCells(draw.base.cellPalette, cells)) return true;
+    }
+    commit(withCellPalette(draw.base, cells));
     return true;
   }
 
@@ -929,7 +964,10 @@ function pointInSelection(x: number, y: number, selection: FloatingSelection): b
  * The Rectangle Select tool (G-018): a floating piece that can be moved, flipped, copied and pasted, merged into the
  * pattern as one undo step when deselected, when another rectangle is started, or when leaving the tool.
  */
-export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit }: CanvasToolInputs, tool: "select" | "lasso") {
+export function useSelectTool(
+  { frameRef, rendererRef, pattern, cellSize, commit, lockTransparency: locked = false }: CanvasToolInputs,
+  tool: "select" | "lasso"
+) {
   const [selection, setSelection] = useState<FloatingSelection | null>(null);
   const [clipboard, setClipboard] = useState<FloatingSelection | null>(null);
   const dragRef = useRef<SelectDrag | null>(null);
@@ -1059,8 +1097,11 @@ export function useSelectTool({ frameRef, rendererRef, pattern, cellSize, commit
       // Offset from the copy's origin so the paste is visibly a new piece.
       setSelection(duplicateSelection(clipboard));
     },
-    /** Paints the selected area in one colour, leaving it floating so it can still be moved or cancelled (G-063). */
-    fill: (paletteIndex: number) => selection && setSelection(fillSelection(selection, paletteIndex)),
+    /**
+     * Paints the selected area in one colour, leaving it floating so it can still be moved or cancelled (G-063). With the
+     * transparency lock on it paints only the stitches that are not empty (G-079).
+     */
+    fill: (paletteIndex: number) => selection && setSelection(fillSelection(selection, paletteIndex, locked)),
     /**
      * Copy and Paste in one press (G-063). Not `copy(); paste();`: paste reads the clipboard from state, which
      * React has not updated yet inside one handler, so it would duplicate whatever was copied *before* this.

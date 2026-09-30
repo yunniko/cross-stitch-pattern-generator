@@ -287,3 +287,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D250 — The canvas cloth is the well's CSS background, one tile per cell — active
 - D251 — The exported preview carries the canvas as one optional `canvas` (colour and cloth) — active
 - D252 — The rulers are canvases beside the scrolling well, and the pointer hides where an outline is drawn — active
+- D253 — The transparency lock is one rule, applied where each tool writes its cells — active

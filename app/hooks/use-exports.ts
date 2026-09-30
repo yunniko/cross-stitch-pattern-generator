@@ -97,6 +97,7 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
     isExporting,
     isExportingAll,
     exportError,
+    dismissExportError: () => setExportError(null),
     exportProgressText: progress?.label ?? null,
     exportSelected,
     exportEditableNow,

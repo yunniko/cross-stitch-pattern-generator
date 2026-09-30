@@ -136,6 +136,10 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   follows scroll and zoom; numbers thin to every 20th, 50th or 100th when zoomed far out. Each ruler marks where the
   pointer is and the stitch it is over, and the status bar reads it as "Stitch 24, 18" (counted from 1). With a tool that draws its own outline (the brush and the shape tools) the
   pointer itself is hidden over the pattern (D252).
+- **Lock transparency**: a padlock in the top panel. While it is on, the brush, the shape tools, Fill, double-click fill and
+  Lasso fill cannot turn an empty stitch into a colour or a colour into an empty stitch, and Fill selection paints only
+  the stitches that are not empty; selecting, moving and dragging work as they do without it (D253). Error messages have a
+  cross and go away by themselves after a while.
 - **Export** editable JSON, a realistic stitched preview, full-chart PNGs,
   paginated A4 ZIPs, a Pattern Keeper–compatible PDF, an OXS chart for other
   cross-stitch programs, a pixel-art PNG at 1 px per stitch (which imports back

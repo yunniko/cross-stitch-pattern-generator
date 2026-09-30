@@ -59,6 +59,8 @@ export interface WorkspaceOptions {
   brushShape: BrushShape;
   /** Whether Rectangle and Oval draw their outline or a solid block of stitches (G-064). */
   shapeFill: ShapeFill;
+  /** The transparency lock (G-079): drawing and filling cannot turn empty stitches into colour or the reverse. */
+  lockTransparency: boolean;
   /** Whether a Brush double-click floods the region under it as one undo step (D138); off leaves the two clicks as themselves. */
   doubleClickFill: boolean;
 }
@@ -86,6 +88,7 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   brushShape: DEFAULT_BRUSH_SHAPE,
   shapeFill: "outline",
   doubleClickFill: true,
+  lockTransparency: false,
 };
 
 /** The overlaps the A4 layout can actually paginate with; shared so the processor validates against the same list. */
@@ -161,6 +164,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       shapeFill: parsed.shapeFill === "filled" || parsed.shapeFill === "outline" ? parsed.shapeFill : DEFAULT_OPTIONS.shapeFill,
       // Absent in options stored before G-041, so anything that is not a boolean falls back to the default.
       doubleClickFill: typeof parsed.doubleClickFill === "boolean" ? parsed.doubleClickFill : DEFAULT_OPTIONS.doubleClickFill,
+      lockTransparency: typeof parsed.lockTransparency === "boolean" ? parsed.lockTransparency : DEFAULT_OPTIONS.lockTransparency,
     };
   } catch {
     return DEFAULT_OPTIONS;

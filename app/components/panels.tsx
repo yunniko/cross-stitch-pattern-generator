@@ -7,9 +7,12 @@ export interface WorkspaceNoticesProps {
   onDownloadRestoreReport: () => void;
   onDismissRestoreFailure: () => void;
   openError: string | null;
+  onDismissOpenError: () => void;
   /** What an OXS import changed or left out (G-028). */
   openNotice: string | null;
+  onDismissOpenNotice: () => void;
   exportError: string | null;
+  onDismissExportError: () => void;
   /** Shown only while an A4 or PDF export kind is selected. */
   a4Layout: ReturnType<typeof calculateA4Layout> | null;
 }
@@ -20,8 +23,11 @@ export function WorkspaceNotices({
   onDownloadRestoreReport,
   onDismissRestoreFailure,
   openError,
+  onDismissOpenError,
   openNotice,
+  onDismissOpenNotice,
   exportError,
+  onDismissExportError,
   a4Layout,
 }: WorkspaceNoticesProps) {
   return (
@@ -47,13 +53,21 @@ export function WorkspaceNotices({
           </button>
         </div>
       )}
-      {openError && <NoticeBar tone="error">{openError}</NoticeBar>}
+      {openError && (
+        <NoticeBar key={openError} tone="error" onDismiss={onDismissOpenError}>
+          {openError}
+        </NoticeBar>
+      )}
       {openNotice && (
-        <NoticeBar tone="info">
+        <NoticeBar tone="info" onDismiss={onDismissOpenNotice}>
           <span data-testid="open-notice">{openNotice}</span>
         </NoticeBar>
       )}
-      {exportError && <NoticeBar tone="error">{exportError}</NoticeBar>}
+      {exportError && (
+        <NoticeBar key={exportError} tone="error" onDismiss={onDismissExportError}>
+          {exportError}
+        </NoticeBar>
+      )}
       {a4Layout && (
         <NoticeBar tone="info">
           {a4Layout.columns} × {a4Layout.rows} pages — {a4Layout.pages.length + 2}+ total (incl. simple + extended legend). Overlap in
