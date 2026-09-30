@@ -5,6 +5,7 @@ import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import type { SourceImageMeta } from "../hooks/use-source-image";
 import { useCanvasCloth } from "../hooks/use-canvas-cloth";
 import { FirstRun } from "./first-run";
+import { RULER_THICKNESS, Rulers } from "./rulers";
 import { PillButton } from "./ui";
 
 const VIEW_MODE_LABELS: Record<ViewMode, string> = {
@@ -39,6 +40,8 @@ export interface ImageWindowProps {
   viewMode: ViewMode;
   activeTool: Tool;
   activeColorIndex: number | null;
+  /** The tool in hand draws its own outline over the chart, so the pointer itself is hidden there (G-078). */
+  cursorHidden: boolean;
   previewError: string | null;
   onRetryPreview: () => void;
   /** The four sliders (G-074): the photo they make is drawn here, in the browser, not fetched. */
@@ -56,7 +59,8 @@ export interface ImageWindowProps {
   onDrop: (e: DragEvent<HTMLDivElement>) => void;
 }
 
-function cursorFor(activeTool: Tool, activeColorIndex: number | null, viewMode: ViewMode): string {
+function cursorFor(activeTool: Tool, activeColorIndex: number | null, viewMode: ViewMode, cursorHidden: boolean): string {
+  if (cursorHidden) return "cursor-none";
   if (activeTool === "pan") return "cursor-grab active:cursor-grabbing";
   if (activeTool === "zoom") return "cursor-zoom-in";
   if (isViewOnlyMode(viewMode)) return "";
@@ -80,6 +84,7 @@ export function ImageWindow({
   viewMode,
   activeTool,
   activeColorIndex,
+  cursorHidden,
   onChoosePhoto,
   onCreateBlank,
   onImportPixelArt,
@@ -111,106 +116,126 @@ export function ImageWindow({
   const clothShown = pattern !== null && !startingNew && viewMode === "realistic" && options.canvasTexture !== "off";
   useCanvasCloth(scrollerRef, frameRef, { active: clothShown, texture: options.canvasTexture, color: options.canvasColor, cellSize });
 
+  // Rulers take room only while a chart is up (G-078).
+  const rulersShown = pattern !== null && !startingNew;
+  const ruler = rulersShown ? RULER_THICKNESS : 0;
+
   return (
     <div
-      ref={scrollerRef}
-      // Grid centering, not flex: flex's unsafe centering makes overflow past the top/left edge unreachable by scrolling
-      // once zoomed content outgrows the container.
-      className="at-well grid flex-1 place-items-center overflow-auto p-6"
+      data-testid="viewer"
+      // The well in the middle, a ruler on each side: the rulers are beside the scroller, never over it (D135).
+      className="grid min-h-0 min-w-0 flex-1 bg-surface"
+      style={{ gridTemplateColumns: `${ruler}px minmax(0, 1fr) ${ruler}px`, gridTemplateRows: `${ruler}px minmax(0, 1fr) ${ruler}px` }}
     >
-      {!startingNew && !pattern && sourceMeta && (
-        <figure className="flex max-h-full max-w-full flex-col items-center gap-2">
-          {showAdjusted ? (
-            <canvas
-              ref={adjustCanvasRef}
-              data-testid="adjusted-photo"
-              width={adjustSize!.width}
-              height={adjustSize!.height}
-              role="img"
-              aria-label="Adjusted photo"
-              className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
-            />
-          ) : (
-            /* eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize */
-            <img
-              src={sourceMeta.dataUrl}
-              alt="Uploaded photo"
-              className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
-            />
-          )}
-          {comparable && (
-            <figcaption className="flex items-center gap-2 text-xs text-muted">
-              <PillButton size="xs" aria-pressed={showOriginal} onClick={() => setShowOriginal((shown) => !shown)}>
-                Compare with original
-              </PillButton>
-            </figcaption>
-          )}
-        </figure>
-      )}
-      {startScreen && (
-        <FirstRun
-          onChoosePhoto={onChoosePhoto}
-          onOpenPattern={onOpenPatternFile}
-          onCreateBlank={onCreateBlank}
-          onImportPixelArt={onImportPixelArt}
-          options={options}
-          onAidaCountChange={onAidaCountChange}
-          busy={isLoadingImage}
-        />
-      )}
-      {/*
+      <Rulers
+        scrollerRef={scrollerRef}
+        frameRef={frameRef}
+        columns={pattern?.width ?? 0}
+        rows={pattern?.height ?? 0}
+        cellSize={cellSize}
+        active={rulersShown}
+      />
+      <div
+        ref={scrollerRef}
+        style={{ gridColumn: 2, gridRow: 2 }}
+        // Grid centering, not flex: flex's unsafe centering makes overflow past the top/left edge unreachable by scrolling
+        // once zoomed content outgrows the container.
+        className="at-well grid min-h-0 min-w-0 place-items-center overflow-auto p-6"
+      >
+        {!startingNew && !pattern && sourceMeta && (
+          <figure className="flex max-h-full max-w-full flex-col items-center gap-2">
+            {showAdjusted ? (
+              <canvas
+                ref={adjustCanvasRef}
+                data-testid="adjusted-photo"
+                width={adjustSize!.width}
+                height={adjustSize!.height}
+                role="img"
+                aria-label="Adjusted photo"
+                className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
+              />
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize */
+              <img
+                src={sourceMeta.dataUrl}
+                alt="Uploaded photo"
+                className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
+              />
+            )}
+            {comparable && (
+              <figcaption className="flex items-center gap-2 text-xs text-muted">
+                <PillButton size="xs" aria-pressed={showOriginal} onClick={() => setShowOriginal((shown) => !shown)}>
+                  Compare with original
+                </PillButton>
+              </figcaption>
+            )}
+          </figure>
+        )}
+        {startScreen && (
+          <FirstRun
+            onChoosePhoto={onChoosePhoto}
+            onOpenPattern={onOpenPatternFile}
+            onCreateBlank={onCreateBlank}
+            onImportPixelArt={onImportPixelArt}
+            options={options}
+            onAidaCountChange={onAidaCountChange}
+            busy={isLoadingImage}
+          />
+        )}
+        {/*
         Hidden, never unmounted. The redraw is a layout effect keyed on the pattern and the scene; neither changes
         while the start screen is up, so an unmounted frame would come back with a fresh, unpainted canvas -- and
         without `data-painted-rect`, which six specs read. `hidden` keeps the pixels, the refs and the observers.
       */}
-      {pattern && (
-        <div
-          ref={frameRef}
-          hidden={startingNew}
-          role="img"
-          aria-label={`Pattern, ${VIEW_MODE_LABELS[viewMode]} view`}
-          data-testid="chart-frame"
-          data-view-mode={viewMode}
-          data-cell-size={cellSize}
-          onPointerDown={onPointerDown}
-          // A right press paints with the background colour (G-064), so the browser's menu would sit on top
-          // of the stitch the reader is aiming at. Only the chart claims it; the rest of the page does not.
-          onContextMenu={(e) => e.preventDefault()}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          onPointerLeave={onPointerLeave}
-          onDoubleClick={onDoubleClick}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={onDrop}
-          // Content-box sizing: the chart is exactly width × cellSize inside the 1 px border, as the old canvas was.
-          style={{ width: pattern.width * cellSize, height: pattern.height * cellSize }}
-          className={`relative box-content touch-none overflow-hidden border ${
-            clothShown ? "border-transparent" : "border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
-          } ${cursorFor(activeTool, activeColorIndex, viewMode)}`}
-        >
-          <canvas ref={canvasRef} data-testid="chart-canvas" aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
-          {/* The cursor draws here and nowhere else, so moving it never repaints the chart (G-065). */}
-          <canvas
-            ref={hoverCanvasRef}
-            data-testid="brush-outline"
-            aria-hidden="true"
-            className="pointer-events-none absolute top-0 left-0"
-          />
-        </div>
-      )}
-      {pattern && viewMode === "realistic" && previewError && (
-        <div className="flex items-center gap-3 rounded border border-red-900 p-3 text-sm text-red-300">
-          <span>{previewError}</span>
-          <button
-            type="button"
-            onClick={onRetryPreview}
-            className="rounded-full border border-red-900 px-3 py-1 text-xs font-medium hover:bg-red-950"
+        {pattern && (
+          <div
+            ref={frameRef}
+            hidden={startingNew}
+            role="img"
+            aria-label={`Pattern, ${VIEW_MODE_LABELS[viewMode]} view`}
+            data-testid="chart-frame"
+            data-view-mode={viewMode}
+            data-cell-size={cellSize}
+            onPointerDown={onPointerDown}
+            // A right press paints with the background colour (G-064), so the browser's menu would sit on top
+            // of the stitch the reader is aiming at. Only the chart claims it; the rest of the page does not.
+            onContextMenu={(e) => e.preventDefault()}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+            onPointerLeave={onPointerLeave}
+            onDoubleClick={onDoubleClick}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={onDrop}
+            // Content-box sizing: the chart is exactly width × cellSize inside the 1 px border, as the old canvas was.
+            style={{ width: pattern.width * cellSize, height: pattern.height * cellSize }}
+            className={`relative box-content touch-none overflow-hidden border ${
+              clothShown ? "border-transparent" : "border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
+            } ${cursorFor(activeTool, activeColorIndex, viewMode, cursorHidden)}`}
           >
-            Retry
-          </button>
-        </div>
-      )}
+            <canvas ref={canvasRef} data-testid="chart-canvas" aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
+            {/* The cursor draws here and nowhere else, so moving it never repaints the chart (G-065). */}
+            <canvas
+              ref={hoverCanvasRef}
+              data-testid="brush-outline"
+              aria-hidden="true"
+              className="pointer-events-none absolute top-0 left-0"
+            />
+          </div>
+        )}
+        {pattern && viewMode === "realistic" && previewError && (
+          <div className="flex items-center gap-3 rounded border border-red-900 p-3 text-sm text-red-300">
+            <span>{previewError}</span>
+            <button
+              type="button"
+              onClick={onRetryPreview}
+              className="rounded-full border border-red-900 px-3 py-1 text-xs font-medium hover:bg-red-950"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

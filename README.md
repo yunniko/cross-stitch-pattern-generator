@@ -132,6 +132,10 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   chart, with an offset for a picture whose blocks start part-way in. Both cloths were supplied by the Owner. "Canvas in
   exported preview" puts the canvas (colour and cloth, or the plain colour with the cloth Off) under the exported realistic
   preview instead of a transparent background (D250, D251).
+- **Rulers**: a ruler along each edge of the viewer numbers every 10th stitch line (10, 20, 30, as the exports do) and
+  follows scroll and zoom; numbers thin to every 20th, 50th or 100th when zoomed far out. Each ruler marks where the
+  pointer is and the stitch it is over. With a tool that draws its own outline (the brush and the shape tools) the
+  pointer itself is hidden over the pattern (D252).
 - **Export** editable JSON, a realistic stitched preview, full-chart PNGs,
   paginated A4 ZIPs, a Pattern Keeper–compatible PDF, an OXS chart for other
   cross-stitch programs, a pixel-art PNG at 1 px per stitch (which imports back

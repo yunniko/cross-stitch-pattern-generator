@@ -761,6 +761,7 @@ export default function Workspace({ account }: WorkspaceProps) {
           viewMode={viewMode}
           activeTool={activeTool}
           activeColorIndex={activeColorIndex}
+          cursorHidden={hoverOutline !== null}
           startingNew={startingNew}
           onChoosePhoto={() => startNewChart(() => imageInputRef.current?.click())}
           onCreateBlank={(width, height) => startNewChart(() => void createBlankChart(width, height))}
