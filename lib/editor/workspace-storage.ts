@@ -1,6 +1,7 @@
 import type { OverlapCells } from "../export/a4-layout";
 import type { LegacyProjectSlot } from "./project-store";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "../export/finished-size";
+import { DEFAULT_STITCH_TEXTURE, isStitchTextureId, type StitchTextureId } from "../export/stitch-texture-catalog";
 import { DITHER_MODES, isDithered, type DitherMode } from "../pipeline/dither";
 import { BRUSH_SIZES, DEFAULT_BRUSH_SHAPE, DEFAULT_BRUSH_SIZE, type BrushShape, type BrushSize } from "./brush-stamp";
 import type { ShapeFill } from "./shape-raster";
@@ -30,6 +31,8 @@ export interface WorkspaceOptions {
   overlapCells: OverlapCells;
   /** On-screen canvas background behind empty cells and the realistic preview. Display only, never threaded into any export. */
   canvasColor: string;
+  /** Which stitch texture the realistic view draws with. Display only, never threaded into any export. */
+  stitchTexture: StitchTextureId;
   /** Generate settings remembered across reloads (Owner request, 2026-09-12); nothing on a `StitchPattern` records these. */
   sizePreset: SizePresetId;
   /** Kept even when a named preset is selected, so switching back to Custom restores the last custom value. */
@@ -62,6 +65,7 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   edgeMode: "standard",
   overlapCells: 5,
   canvasColor: "#ffffff",
+  stitchTexture: DEFAULT_STITCH_TEXTURE,
   sizePreset: "medium",
   customSize: 100,
   colorCount: 16,
@@ -107,6 +111,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
         typeof parsed.canvasColor === "string" && HEX_COLOR_PATTERN.test(parsed.canvasColor)
           ? parsed.canvasColor
           : DEFAULT_OPTIONS.canvasColor,
+      stitchTexture: isStitchTextureId(parsed.stitchTexture) ? parsed.stitchTexture : DEFAULT_OPTIONS.stitchTexture,
       sizePreset: VALID_SIZE_PRESETS.includes(parsed.sizePreset as SizePresetId)
         ? (parsed.sizePreset as SizePresetId)
         : DEFAULT_OPTIONS.sizePreset,

@@ -225,6 +225,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     litColorIndices,
     litBackstitchIndices,
     canvasColor: options.canvasColor,
+    stitchTexture: options.stitchTexture,
     symmetryAxes: liveSymmetry,
     photoAdjust: shownPhotoAdjust,
     // The renderer applies a zoom's anchor itself, between sizing the frame and measuring the view (D124, D135).

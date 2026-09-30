@@ -66,4 +66,21 @@ describe("buildTintedTextureSet", () => {
     await buildTintedTextureSet(PALETTE);
     expect(FakeImage.instanceCount).toBe(countAfterFirst);
   });
+
+  it("loads and caches each catalog texture from its own url", async () => {
+    const urls: string[] = [];
+    class UrlImage extends FakeImage {
+      set src(value: string) {
+        urls.push(value);
+        super.src = value;
+      }
+    }
+    vi.stubGlobal("Image", UrlImage);
+    const { buildTintedTextureSet } = await import("@/lib/export/stitch-texture");
+
+    await buildTintedTextureSet(PALETTE, "classic");
+    await buildTintedTextureSet(PALETTE, "pixel");
+    await buildTintedTextureSet(PALETTE, "pixel");
+    expect(urls).toEqual(["/stitch-texture.png", "/stitch-texture-pixel.png"]);
+  });
 });

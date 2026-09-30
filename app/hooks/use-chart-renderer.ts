@@ -29,6 +29,7 @@ import {
 import type { Tool, ViewMode } from "../editor-types";
 import { cellIndexFromEvent, chartOrigin, drawStampOutline } from "../editor-geometry";
 import { buildStitchTiles, type StitchTiles } from "@/lib/export/stitch-texture";
+import type { StitchTextureId } from "@/lib/export/stitch-texture-catalog";
 import { tileSizeFor } from "../realistic-tiles";
 import { useLatest } from "./use-latest";
 
@@ -55,6 +56,8 @@ export interface ChartRendererInputs {
   /** The threads whose backstitch Isolate keeps bright; its own set (see `ChartScene`). */
   litBackstitchIndices: ReadonlySet<number>;
   canvasColor: string;
+  /** Which texture the Realistic view draws its stitches with; display only, like `canvasColor`. */
+  stitchTexture: StitchTextureId;
   /** The symmetry axes in effect, drawn as red guide lines in every view (G-037). */
   symmetryAxes: SymmetryAxes;
   /**
@@ -117,6 +120,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     litColorIndices,
     litBackstitchIndices,
     canvasColor,
+    stitchTexture,
     applyZoomAnchor,
     symmetryAxes,
     photoAdjust,
@@ -163,7 +167,11 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     ]
   );
   // What the last commit asked to show; scroll, resize and gesture handlers paint from it.
-  const shownRef = useRef<{ pattern: StitchPattern | null; scene: Omit<ChartScene, "selectDragging"> }>({ pattern: null, scene });
+  const shownRef = useRef<{
+    pattern: StitchPattern | null;
+    scene: Omit<ChartScene, "selectDragging">;
+    stitchTexture: StitchTextureId;
+  }>({ pattern: null, scene, stitchTexture });
   const gestureRef = useRef<GesturePreview | null>(null);
   /**
    * What the cursor is carrying, if anything: where it is on the screen, and the outline of the press it would
@@ -229,11 +237,14 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     frame.dataset.renderRevision = String(revisionRef.current);
     frame.dataset.paintedRect = `${r.x0},${r.y0},${r.x1},${r.y1}`;
     // Tests and the benchmark wait for this to clear: the Realistic view is final once its tiles match zoom and palette.
-    const { scene: shown, pattern: shownPattern } = shownRef.current;
+    const { scene: shown, pattern: shownPattern, stitchTexture: shownTexture } = shownRef.current;
     const tiles = shown.realisticTiles;
     const realisticPending =
       shown.viewMode === "realistic" &&
-      (!tiles || tiles.cellSize !== tileSizeFor(shown.cellSize) || tiles.palette !== shownPattern?.palette);
+      (!tiles ||
+        tiles.cellSize !== tileSizeFor(shown.cellSize) ||
+        tiles.palette !== shownPattern?.palette ||
+        tiles.texture !== shownTexture);
     frame.dataset.scenePending = realisticPending ? "realistic" : "";
     // Which photo the photo views are showing: the file as uploaded, or that file adjusted by the four
     // sliders (G-074 M5). The adjusted one is prepared in a worker and arrives a moment later, and this
@@ -305,13 +316,13 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   // One layout effect per change of what is shown: the frame already has its new size, so the zoom anchor is applied,
   // then the view is measured and painted, all before the browser paints (D124, D135).
   useLayoutEffect(() => {
-    shownRef.current = { pattern, scene };
+    shownRef.current = { pattern, scene, stitchTexture };
     if (!pattern) return;
     applyZoomAnchor();
     paint();
     // paint reads everything through refs; the effect runs exactly when the shown scene changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pattern, scene, applyZoomAnchor]);
+  }, [pattern, scene, stitchTexture, applyZoomAnchor]);
 
   // Layout changes that move the frame without a scroll or resize (a notice appearing beside it) are caught here.
   useLayoutEffect(() => {
@@ -354,7 +365,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   useEffect(() => {
     if (viewMode !== "realistic" || !palette) return;
     let cancelled = false;
-    buildStitchTiles(palette, tileSize)
+    buildStitchTiles(palette, tileSize, stitchTexture)
       .then((tiles) => {
         if (cancelled) return;
         setPreviewError(null);
@@ -368,7 +379,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     return () => {
       cancelled = true;
     };
-  }, [palette, viewMode, tileSize, previewRetryToken]);
+  }, [palette, viewMode, tileSize, stitchTexture, previewRetryToken]);
 
   /** The canvas context with chart coordinates for the painted rectangle, or null before the first paint. */
   function chartContext(): CanvasRenderingContext2D | null {

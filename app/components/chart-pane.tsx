@@ -7,6 +7,7 @@ import type { OverlapCells } from "@/lib/export/a4-layout";
 import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
 import type { StitchPattern } from "@/lib/types";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
+import { TexturePicker } from "./texture-picker";
 import { PillButton, SegmentedControl, DISABLED_TEXT } from "./ui";
 
 /**
@@ -155,6 +156,16 @@ export function ChartPane({ pattern, options, onChange, name, onNameChange, onNa
             className="h-6 w-9 cursor-pointer rounded-md border border-line bg-transparent p-0"
           />
         </label>
+
+        <div className="flex flex-col gap-1.5" title="The stitch texture of the Stitched view -- display only, never affects any export">
+          <span className="text-[13px]">Stitch texture</span>
+          <TexturePicker
+            pattern={pattern}
+            value={options.stitchTexture}
+            onChange={(texture) => onChange("stitchTexture", texture)}
+            canvasColor={options.canvasColor}
+          />
+        </div>
 
         <label
           className="flex items-center justify-between gap-3 text-[13px]"

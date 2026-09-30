@@ -2,11 +2,10 @@ import { colorAt } from "../color/palette";
 import { luminance } from "../color/color";
 import type { PaletteColor, RGB } from "../types";
 import { createCanvas, loadExportImage, onExportBackendChange, type AnyCanvas } from "./canvas-backend";
+import { DEFAULT_STITCH_TEXTURE, stitchTextureById, type StitchTextureId } from "./stitch-texture-catalog";
 
-// Single swappable texture asset -- a photographed/rendered cross-stitch
-// with real shading (highlights/shadows) and soft alpha edges. Swap the file
-// at this path to change the look; nothing else needs to change.
-export const TEXTURE_URL = "/stitch-texture.png";
+// The texture assets live in `stitch-texture-catalog.ts`: each a picture of one stitch with its own shading
+// (highlights/shadows) and, for the classic one, soft alpha edges. Adding a texture is a catalog entry and a file.
 
 // The source image can be much higher-res than any cell will ever be drawn
 // at (canvas scales it down via drawImage regardless) -- sampling it down to
@@ -14,24 +13,26 @@ export const TEXTURE_URL = "/stitch-texture.png";
 // without any visible quality loss at on-screen/print cell sizes.
 const TEXTURE_SAMPLE_SIZE = 64;
 
-let cachedImage: Promise<CanvasImageSource> | null = null;
+const cachedImages = new Map<StitchTextureId, Promise<CanvasImageSource>>();
 
 // A decoded image belongs to the environment that decoded it, so switching backends must not reuse it (G-034 M4).
 onExportBackendChange(() => {
-  cachedImage = null;
+  cachedImages.clear();
 });
 
-/** The texture as a drawable image; how it is loaded is the backend's business (`canvas-backend.ts`). */
-function loadTextureImage(): Promise<CanvasImageSource> {
-  if (!cachedImage) {
-    cachedImage = loadExportImage(TEXTURE_URL).catch((err: unknown) => {
+/** A texture as a drawable image; how it is loaded is the backend's business (`canvas-backend.ts`). */
+function loadTextureImage(id: StitchTextureId): Promise<CanvasImageSource> {
+  let image = cachedImages.get(id);
+  if (!image) {
+    image = loadExportImage(stitchTextureById(id).url).catch((err: unknown) => {
       // Clear the cache on failure so a later call retries fresh, instead of returning the same rejection until a page
       // reload (code-review 2026-09-09, finding 6).
-      cachedImage = null;
+      cachedImages.delete(id);
       throw err;
     });
+    cachedImages.set(id, image);
   }
-  return cachedImage;
+  return image;
 }
 
 /**
@@ -66,8 +67,11 @@ export interface TintedTextureSet {
 }
 
 /** Loads the shared texture (once, cached) and lazily tints it per palette color as requested. */
-export async function buildTintedTextureSet(palette: readonly PaletteColor[]): Promise<TintedTextureSet> {
-  const image = await loadTextureImage();
+export async function buildTintedTextureSet(
+  palette: readonly PaletteColor[],
+  texture: StitchTextureId = DEFAULT_STITCH_TEXTURE
+): Promise<TintedTextureSet> {
+  const image = await loadTextureImage(texture);
   const cache = new Map<number, AnyCanvas>();
   return {
     get(paletteIndex: number) {
@@ -84,6 +88,7 @@ export async function buildTintedTextureSet(palette: readonly PaletteColor[]): P
 /** Every palette colour's tinted stitch texture drawn at `cellSize` × `cellSize`, as RGBA pixels (D136). */
 export interface StitchTiles {
   palette: readonly PaletteColor[];
+  texture: StitchTextureId;
   cellSize: number;
   /** RGBA, `cellSize` × `cellSize`, per palette index. */
   pixels: Uint8ClampedArray[];
@@ -94,13 +99,17 @@ export interface StitchTiles {
  * back. The Image window assembles its Realistic view from these (G-036 M4) and the preview PNG streams from them
  * (G-047 M2).
  */
-export async function buildStitchTiles(palette: readonly PaletteColor[], cellSize: number): Promise<StitchTiles> {
-  const textures = await buildTintedTextureSet(palette);
+export async function buildStitchTiles(
+  palette: readonly PaletteColor[],
+  cellSize: number,
+  texture: StitchTextureId = DEFAULT_STITCH_TEXTURE
+): Promise<StitchTiles> {
+  const textures = await buildTintedTextureSet(palette, texture);
   const { ctx } = createCanvas(cellSize, cellSize);
   const pixels = palette.map((_, index) => {
     ctx.clearRect(0, 0, cellSize, cellSize);
     ctx.drawImage(textures.get(index) as CanvasImageSource, 0, 0, cellSize, cellSize);
     return ctx.getImageData(0, 0, cellSize, cellSize).data;
   });
-  return { palette, cellSize, pixels };
+  return { palette, texture, cellSize, pixels };
 }

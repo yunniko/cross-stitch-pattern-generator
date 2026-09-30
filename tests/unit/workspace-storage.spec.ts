@@ -51,6 +51,7 @@ describe("workspace-storage", () => {
       edgeMode: "standard",
       overlapCells: 5,
       canvasColor: "#ffffff",
+      stitchTexture: "classic",
       sizePreset: "medium",
       customSize: 100,
       colorCount: 16,
@@ -78,6 +79,7 @@ describe("workspace-storage", () => {
         edgeMode: "crisp" as const,
         overlapCells: 10 as const,
         canvasColor: "#336699",
+        stitchTexture: "pixel" as const,
         sizePreset: "xl" as const,
         customSize: 250,
         colorCount: 32,
@@ -220,6 +222,18 @@ describe("workspace-storage", () => {
         saveWorkspaceOptions({ ...DEFAULTS, canvasColor: bad });
         expect(loadWorkspaceOptions().canvasColor).toBe("#ffffff");
       }
+    });
+
+    it("keeps a chosen stitch texture across a reload", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, stitchTexture: "pixel" });
+      expect(loadWorkspaceOptions().stitchTexture).toBe("pixel");
+    });
+
+    it("reads a missing or unknown stitch texture as the classic one", () => {
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
+      expect(loadWorkspaceOptions().stitchTexture).toBe("classic");
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ stitchTexture: "lace" }));
+      expect(loadWorkspaceOptions().stitchTexture).toBe("classic");
     });
 
     it("defaults sizePreset/customSize/colorCount/generationMode/paletteMode to Medium/100/16/Latest/Full range for a workspace saved before G-028 (all absent entirely)", () => {
