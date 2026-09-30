@@ -45,6 +45,7 @@ import {
   rectFromCorners,
   releaseCapture,
   type PointerPosition,
+  capturePointer,
 } from "../editor-geometry";
 import type { ChartRenderer } from "./use-chart-renderer";
 
@@ -208,7 +209,7 @@ export function useBrushTool({
     const cells = pattern.cellPalette.slice();
     strokeRef.current = { base: pattern, cells, lastCell: cellIndex, axes: symmetry, color: activeColorIndex, click, stamp };
     paintOrbit(pattern, cells, cellIndex, symmetry, activeColorIndex, stamp);
-    frame.setPointerCapture(e.pointerId);
+    capturePointer(frame, e.pointerId);
   }
 
   function onPointerMove(e: PointerLike): boolean {
@@ -360,7 +361,7 @@ export function useShapeTool({
       fill,
     };
     drawFrame();
-    frame.setPointerCapture(e.pointerId);
+    capturePointer(frame, e.pointerId);
   }
 
   function onPointerMove(e: PointerLike): boolean {
@@ -454,7 +455,7 @@ export function useLassoFillTool({
     if (!pattern || color === null) return;
     const at = clampedCellFromEvent(e, frame, cellSize, pattern.width, pattern.height);
     drawRef.current = { pointerId: e.pointerId, base: pattern, path: [at], color, axes: symmetry };
-    frame.setPointerCapture(e.pointerId);
+    capturePointer(frame, e.pointerId);
     drawFrame();
   }
 
@@ -783,7 +784,7 @@ export function useBackstitchEditTool({
       from: at,
       current: moving,
     };
-    frame.setPointerCapture(e.pointerId);
+    capturePointer(frame, e.pointerId);
   }
 
   function onPointerMove(e: PointerLike): boolean {
@@ -896,7 +897,7 @@ export function useMoveTool({ frameRef, rendererRef, pattern, cellSize, commit }
   function onPointerDown(e: PointerLike, frame: HTMLElement) {
     if (!pattern) return;
     moveRef.current = { pointerId: e.pointerId, basePattern: pattern, startX: e.clientX, startY: e.clientY, lastDx: 0, lastDy: 0 };
-    frame.setPointerCapture(e.pointerId);
+    capturePointer(frame, e.pointerId);
   }
 
   function onPointerMove(e: PointerLike): boolean {

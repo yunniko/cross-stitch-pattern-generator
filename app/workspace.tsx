@@ -26,7 +26,7 @@ import { ContextBar } from "./components/context-bar";
 import { ExportControls } from "./components/export-controls";
 import { ImageWindow } from "./components/image-window";
 import { Inspector, type InspectorTab } from "./components/inspector";
-import { hasFillChoice, isBackstitchEditTool, isSelectTool, isShapeTool, isViewOnlyMode } from "./editor-types";
+import { hasFillChoice, isBackstitchEditTool, isKeyboardCursorTool, isSelectTool, isShapeTool, isViewOnlyMode } from "./editor-types";
 import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
 import { BackstitchBar, SelectionBar, WorkspaceNotices } from "./components/panels";
 import { PhotoPane } from "./components/photo-pane";
@@ -47,6 +47,7 @@ import {
 import { useChartRenderer, type ChartRenderer } from "./hooks/use-chart-renderer";
 import { paginatesAsA4, useExports } from "./hooks/use-exports";
 import { useGeneration } from "./hooks/use-generation";
+import { useKeyboardCursor } from "./hooks/use-keyboard-cursor";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { usePanZoom, ZOOM_STEP } from "./hooks/use-pan-zoom";
 import { slidersToRestore } from "@/lib/editor/photo-adjust-session";
@@ -376,6 +377,16 @@ export default function Workspace({ account }: WorkspaceProps) {
     backstitchEdit.cancel();
     setActiveTool(tool);
   }
+
+  // The arrow keys move the highlighted stitch and Enter is the pen, for the tools that paint or draw (G-080).
+  useKeyboardCursor({
+    frameRef,
+    scrollerRef,
+    enabled: pattern !== null && !startingNew && !isViewOnlyMode(viewMode) && select.selection === null && isKeyboardCursorTool(activeTool),
+    width: pattern?.width ?? 0,
+    height: pattern?.height ?? 0,
+    cellSize,
+  });
 
   useKeyboardShortcuts(
     {

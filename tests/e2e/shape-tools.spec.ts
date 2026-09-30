@@ -270,7 +270,7 @@ test("a filled shape is exactly the shape, whatever the brush size", async ({ pa
   expect(rowsOf(painted((await exportChart(page)).cellPalette))).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 });
 
-test("the outline/filled choice belongs to the shapes that enclose something, and is remembered", async ({ page }) => {
+test("the outline/filled choice belongs to the shapes that enclose something, and is remembered", async ({ page, browser }) => {
   await blankChartWithColors(page, 1);
   await page.getByRole("button", { name: "Oval" }).click();
   await page.getByRole("button", { name: "Filled" }).click();
@@ -282,8 +282,17 @@ test("the outline/filled choice belongs to the shapes that enclose something, an
 
   await page.getByRole("button", { name: "Rectangle" }).click();
   await expect(page.getByRole("group", { name: "Shape" })).toBeVisible();
-  // A fresh page load: the chart is a new one, but the setting comes back from storage with it.
-  await blankChartWithColors(page, 1);
-  await page.getByRole("button", { name: "Rectangle" }).click();
-  await expect(page.getByRole("button", { name: "Filled" })).toHaveAttribute("aria-pressed", "true");
+  // A new visit: the chart is a new one, but the setting comes back from storage with it. A reload in this page would
+  // bring the autosaved chart back instead of the start screen (or not, depending on whether the autosave had finished),
+  // so the second visit is a new browser context that carries the saved settings and nothing else.
+  const settings = await page.context().storageState();
+  const visit = await browser.newContext({ ...test.info().project.use, storageState: settings });
+  try {
+    const again = await visit.newPage();
+    await blankChartWithColors(again, 1);
+    await again.getByRole("button", { name: "Rectangle" }).click();
+    await expect(again.getByRole("button", { name: "Filled" })).toHaveAttribute("aria-pressed", "true");
+  } finally {
+    await visit.close();
+  }
 });

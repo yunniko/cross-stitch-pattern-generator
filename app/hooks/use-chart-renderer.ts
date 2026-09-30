@@ -27,7 +27,7 @@ import {
   type GesturePreview,
 } from "../chart-scene";
 import type { Tool, ViewMode } from "../editor-types";
-import { cellIndexFromEvent, chartOrigin, drawStampOutline } from "../editor-geometry";
+import { cellIndexFromEvent, chartOrigin, drawPointerDot, drawStampOutline } from "../editor-geometry";
 import { buildStitchTiles, type StitchTiles } from "@/lib/export/stitch-texture";
 import type { StitchTextureId } from "@/lib/export/stitch-texture-catalog";
 import { tileSizeFor } from "../realistic-tiles";
@@ -601,10 +601,21 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     ctx.clearRect(0, 0, hover.width, hover.height);
     const carried = hoverRef.current;
     const cell = carried && stitchUnder(carried.client);
-    if (!carried || !cell) return;
+    const frame = frameRef.current;
+    if (!carried || !cell || !frame) {
+      hover.dataset.dot = "";
+      hover.dataset.cell = "";
+      return;
+    }
     const rect = paintedRef.current;
     ctx.setTransform(1, 0, 0, 1, -rect.x0, -rect.y0);
     drawStampOutline(ctx, carried.edges, cell, shownRef.current.scene.cellSize);
+    // Where in the stitch the pointer is, in chart pixels (G-080).
+    const origin = chartOrigin(frame);
+    const dot = { x: carried.client.x - origin.left, y: carried.client.y - origin.top };
+    drawPointerDot(ctx, dot.x, dot.y);
+    hover.dataset.dot = `${dot.x.toFixed(1)},${dot.y.toFixed(1)}`;
+    hover.dataset.cell = `${cell.x},${cell.y}`;
   }
 
   /**

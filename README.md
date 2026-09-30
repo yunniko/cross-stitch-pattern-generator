@@ -140,6 +140,10 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   Lasso fill cannot turn an empty stitch into a colour or a colour into an empty stitch, and Fill selection paints only
   the stitches that are not empty; selecting, moving and dragging work as they do without it (D253). Error messages have a
   cross and go away by themselves after a while.
+- **A predictable cursor**: with the system pointer hidden over the chart, a small dot marks where in the outlined stitch the
+  pointer is. The arrow keys move the outlined stitch one stitch (Shift: ten), and Enter is the pen: press it to paint, hold
+  it while moving to draw a stroke or stretch a line, rectangle or oval, release to finish. It works with the brush, Fill
+  and the shape tools; a real pointer move hands the cursor back to the mouse (D254).
 - **Export** editable JSON, a realistic stitched preview, full-chart PNGs,
   paginated A4 ZIPs, a Pattern Keeper–compatible PDF, an OXS chart for other
   cross-stitch programs, a pixel-art PNG at 1 px per stitch (which imports back

@@ -60,3 +60,8 @@ export function isShapeTool(tool: Tool): tool is "line" | "rect" | "oval" {
 export function hasFillChoice(tool: Tool): boolean {
   return tool === "rect" || tool === "oval";
 }
+
+/** The tools the keyboard cell cursor can drive (G-080): the ones a press of the pen paints or draws with. */
+export function isKeyboardCursorTool(tool: Tool): boolean {
+  return tool === "brush" || tool === "fill" || isShapeTool(tool);
+}

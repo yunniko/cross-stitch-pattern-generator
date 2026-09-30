@@ -139,6 +139,24 @@ export function pointInRect(x: number, y: number, rect: CellRect): boolean {
 }
 
 /**
+ * A small dot at the pointer's exact place, over the outline (G-080). The outline says which stitch the pointer is over;
+ * the dot says where in it, so it is clear how near the next stitch is. A black ring under a white centre reads on a
+ * dark thread and a light one alike, as the outline does.
+ */
+export function drawPointerDot(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  ctx.save();
+  ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+  ctx.beginPath();
+  ctx.arc(x, y, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
  * The outline of the stitches one press would cover, under the cursor (G-065). Drawn as a dark stroke with a light
  * one over it, so it reads on a dark thread and a light one alike -- the selection's blue dashes and symmetry's red
  * guides already mean something else, and this must not be mistaken for either.
@@ -287,6 +305,18 @@ export function drawBackstitch(
     ctx.stroke();
   }
   ctx.restore();
+}
+
+/**
+ * Pointer capture for a gesture, where a pointer that is not live (the keyboard cell cursor's, G-080) is refused quietly
+ * instead of throwing, because the gesture needs no capture to work -- it only keeps the drag going off the chart.
+ */
+export function capturePointer(element: HTMLElement, pointerId: number) {
+  try {
+    element.setPointerCapture(pointerId);
+  } catch {
+    // No such pointer: nothing to capture.
+  }
 }
 
 export function releaseCapture(element: HTMLElement | null, pointerId: number) {

@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-01 at ee8fa28 (G-079, deployed)
+Last verified: 2026-10-01 at the G-080 commit
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -13,6 +13,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-077, canvas textures — signed off and deployed 2026-09-30 (2e86c69), archived.** The Chart pane's Canvas texture buttons (`app/components/canvas-picker.tsx`; Off, Natural linen, Counted canvas from `lib/export/canvas-texture-catalog.ts`, each with columns, rows and an offset in cells) put a cloth behind the Stitched view over the whole viewer (`app/hooks/use-canvas-cloth.ts`, D250); "Canvas in exported preview" sends `canvas` with the export request and `rust/cs-export/src/preview.rs` lays the stitches over the ground (D251, TypeScript reference `lib/export/canvas-ground.ts`). The stitch textures (Classic, Pixel, Cell outline, Cell outline shaded, Cross 2) are in `lib/export/stitch-texture-catalog.ts` (D248, D249). Record in `docs/goals-archive/G-071-to-G-080.md`.
+
+**G-080, a predictable cell cursor — built 2026-10-01, awaiting the Owner; not deployed.** A dot at the pointer (`drawPointerDot` in `app/editor-geometry.ts`, drawn by `app/hooks/use-chart-renderer.ts` with the outline) and a keyboard cursor (`app/hooks/use-keyboard-cursor.ts`, stepping in `lib/editor/keyboard-cursor.ts`): arrows move the stitch, Enter is the pen, for the brush, Fill and the shape tools; it dispatches the pointer events the mouse would (D254). Verified: 873 unit, 478 of 481 e2e (the two admin-stats cases pass alone), tsc, eslint, prettier.
 
 **G-079, small fixes — signed off and deployed 2026-09-30/10-01 (ee8fa28), archived.** Errors have a cross and clear after 12 s (`app/components/ui.tsx` `NoticeBar`/`InlineError`, `app/hooks/use-auto-dismiss.ts`); the canvas colour is a `react-colorful` swatch on the Chart tab (`app/components/canvas-color-field.tsx`), not in the top panel, which no longer shows "Loaded: name" either (specs wait for Generate through `expectPhotoLoaded`); the transparency lock (`lockTransparency` option, padlock in `app/components/context-bar.tsx`) is one rule in `lib/editor/pattern-edit.ts` applied in `app/hooks/use-canvas-tools.ts` (D253). Record in `docs/goals-archive/G-071-to-G-080.md`.
 
@@ -376,9 +378,9 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - G-070 is closed as answered: the V8 maths port costs nothing — replacing it is **13–25% slower** with
   identical output (D223). Its one actionable finding shipped as G-071: the build targets `x86-64-v3`,
   worth a mean 6.6% (D224). Both are written up in `docs/reviews/2026-09-24-parity-tax.md`.
-- Watch: `tests/e2e/shape-tools.spec.ts` ("the outline/filled choice belongs to the shapes that enclose
-  something") went flaky once on 2026-09-27, passing on retry: a blank chart's Create did not settle in
-  time. Second flaky e2e sighting in the suite, and of the same kind as the one below.
+- `tests/e2e/shape-tools.spec.ts` ("the outline/filled choice belongs to the shapes that enclose something") was flaky
+  until 2026-10-01: it reloaded the page and expected the start screen, but a reload restores the autosaved chart. Its second
+  visit is now a new browser context carrying only the saved settings (12 of 12 repeated runs).
 - Watch: `tests/e2e/brush-outline.spec.ts` ("the outline sits on the stitch under the pointer") went flaky
   once on 2026-09-24, passing on retry. First sighting; if it recurs it is a real pointer-timing race, of
   the kind D220 fixed elsewhere.
