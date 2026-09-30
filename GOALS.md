@@ -28,6 +28,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M2 — the "Canvas in exported preview" checkbox and the export (Rust, and the TypeScript reference; D251)
 
 **Progress log** (newest first):
+- 2026-09-30 — Deployed 4886ba3 at the Owner's instruction; the live specs pass (5 of 5), other sites unaffected. Pending: sign-off.
 - 2026-09-30 — M2 built (D251), with two Owner textures: "Natural linen" (1254 px, 66 × 66 cells per tile) and "Counted canvas"
   (163 × 209 px, 8 × 10 cells, one block to a cell, so a tile is columns × rows, not square). The checkbox
   and `canvas` travel client → processor → `cs-job`; Rust lays the stitches over a ground tile. 849 unit, 125 Rust-side
