@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 /**
@@ -70,4 +71,30 @@ test("texture buttons show 3 × 4 stitches at one size, and choosing one redraws
   await page.getByRole("tab", { name: "Chart" }).click();
   await expect(picker.getByRole("radio", { name: "Pixel" })).toHaveAttribute("aria-checked", "true");
   expect(errors).toEqual([]);
+});
+
+test("the exported realistic preview is drawn with the chosen texture", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Open pattern file").setInputFiles(path.join(__dirname, "fixtures", "sample.oxs"));
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("tab", { name: "Chart" }).click();
+
+  async function exportPreview(): Promise<Buffer> {
+    // The export controls sit under the Threads tab.
+    await page.getByRole("tab", { name: "Threads" }).click();
+    await page.getByLabel("Export", { exact: true }).selectOption("png-realistic");
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Export", exact: true }).click(),
+    ]);
+    expect(download.suggestedFilename()).toMatch(/_preview.png$/);
+    return readFile((await download.path())!);
+  }
+
+  const classic = await exportPreview();
+  await page.getByRole("tab", { name: "Chart" }).click();
+  await page.getByRole("radio", { name: "Pixel" }).click();
+  const pixel = await exportPreview();
+  expect(classic.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+  expect(pixel.equals(classic)).toBe(false);
 });

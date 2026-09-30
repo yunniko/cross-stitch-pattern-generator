@@ -6,12 +6,28 @@ use crate::model::{Pattern, EMPTY_CELL};
 use crate::png::PixelSource;
 use tiny_skia::{FilterQuality, IntSize, Pixmap, PixmapPaint, Transform};
 
-const TEXTURE_PNG: &[u8] = include_bytes!("../../../public/stitch-texture.png");
+/// The catalog of `lib/export/stitch-texture-catalog.ts`: an id and its PNG. The first is the default, and the fallback
+/// for an id this table does not hold (the processor validates ids, so that is only a stale client).
+const TEXTURES: [(&str, &[u8]); 2] = [
+    (
+        "classic",
+        include_bytes!("../../../public/stitch-texture.png"),
+    ),
+    (
+        "pixel",
+        include_bytes!("../../../public/stitch-texture-pixel.png"),
+    ),
+];
 const TEXTURE_SAMPLE_SIZE: u32 = 64;
 
 /// The texture, decoded to 8-bit premultiplied RGBA; 16-bit channels are rounded to 8 bits.
-fn texture() -> Pixmap {
-    let decoder = png::Decoder::new(std::io::Cursor::new(TEXTURE_PNG));
+fn texture(id: &str) -> Pixmap {
+    let bytes = TEXTURES
+        .iter()
+        .find(|(name, _)| *name == id)
+        .unwrap_or(&TEXTURES[0])
+        .1;
+    let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
     let mut reader = decoder.read_info().expect("texture header");
     let mut buf = vec![0; reader.output_buffer_size().expect("texture size")];
     let info = reader.next_frame(&mut buf).expect("texture pixels");
@@ -103,8 +119,8 @@ fn tint(sample: &Pixmap, rgb: [u8; 3]) -> Pixmap {
 }
 
 /// `buildStitchTiles`: every colour's tinted texture at `cell_size`, as unpremultiplied RGBA.
-pub fn stitch_tiles(p: &Pattern, cell_size: u32) -> Vec<Vec<u8>> {
-    let sample = scaled(&texture(), TEXTURE_SAMPLE_SIZE);
+pub fn stitch_tiles(p: &Pattern, cell_size: u32, texture_id: &str) -> Vec<Vec<u8>> {
+    let sample = scaled(&texture(texture_id), TEXTURE_SAMPLE_SIZE);
     p.palette
         .iter()
         .map(|color| {

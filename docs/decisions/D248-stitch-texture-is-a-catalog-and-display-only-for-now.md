@@ -1,5 +1,5 @@
 # D248 · The stitch texture is a catalog choice, display only until exports follow
-Date: 2026-09-30 · Goal: G-076 M1 · Status: active (superseded by: —)
+Date: 2026-09-30 · Goal: G-076 M1 · Status: superseded by D249 (its display-only part; the catalog stands)
 Context: the Stitched view had one hard-wired texture; the Owner supplied a second (9 × 9 px) and asked for buttons to switch.
 Decision: textures are entries in `lib/export/stitch-texture-catalog.ts`, the choice is a persisted workspace option like `canvasColor`, and every texture is scaled to the cell size, so any pixel size fits.
 Force: judgment — nothing compels the split; the Rust preview embeds the classic texture, so following the choice into exports is its own milestone (M2).

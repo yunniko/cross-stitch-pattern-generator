@@ -10,6 +10,7 @@ export default defineConfig({
       "scripts/rust-backstitch-oxs.ts",
       "scripts/rust-backstitch-style.ts",
       "scripts/rust-photo-adjust.ts",
+      "scripts/rust-stitch-texture.ts",
       "scripts/rust-photo-adjust-pipeline.ts",
       "tests/unit/processor-export-pool.spec.ts",
       "tests/unit/processor-pool-limits.spec.ts",

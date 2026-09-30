@@ -37,7 +37,7 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
   const [isExportingAll, setIsExportingAll] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
-  const { aidaCount, sizeUnit, authorName, overlapCells } = options;
+  const { aidaCount, sizeUnit, authorName, overlapCells, stitchTexture } = options;
 
   const a4LayoutPreview = useMemo(
     () => (pattern ? calculateA4Layout(pattern.width, pattern.height, { overlapCells }) : null),
@@ -62,7 +62,10 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
           ? { blob: new Blob([serializePattern(pattern, symmetry)], { type: "application/json" }), filename: `${baseName}_editable.json` }
           : kind === "pixel-art"
             ? { blob: await pixelArtPngBlob(pattern), filename: `${baseName}_pixels.png` }
-            : await runServerExport({ kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, symmetry }, setProgress);
+            : await runServerExport(
+                { kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, stitchTexture, symmetry },
+                setProgress
+              );
       downloadBlob(blob, filename);
     } catch (err) {
       setExportError(messageForExport(err, fallbackMessage));

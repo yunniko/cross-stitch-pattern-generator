@@ -43,6 +43,8 @@ await build({
  * this to the image alone meant every local export failed with a missing font.
  */
 await cp(path.join(ROOT, "public", "fonts"), path.join(OUT, "assets", "fonts"), { recursive: true });
-await cp(path.join(ROOT, "public", "stitch-texture.png"), path.join(OUT, "assets", "stitch-texture.png"));
+for (const texture of ["stitch-texture.png", "stitch-texture-pixel.png"]) {
+  await cp(path.join(ROOT, "public", texture), path.join(OUT, "assets", texture));
+}
 
 console.log(`processor bundled to ${path.relative(ROOT, OUT)}, with its export assets`);

@@ -157,7 +157,7 @@ export function ChartPane({ pattern, options, onChange, name, onNameChange, onNa
           />
         </label>
 
-        <div className="flex flex-col gap-1.5" title="The stitch texture of the Stitched view -- display only, never affects any export">
+        <div className="flex flex-col gap-1.5" title="The stitch texture of the Stitched view and of the exported realistic preview">
           <span className="text-[13px]">Stitch texture</span>
           <TexturePicker
             pattern={pattern}

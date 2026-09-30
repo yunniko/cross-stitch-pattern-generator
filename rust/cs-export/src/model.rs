@@ -237,6 +237,8 @@ pub struct Request {
     pub size_unit: SizeUnit,
     pub author_name: String,
     pub overlap_cells: usize,
+    /// Which stitch texture the realistic preview is drawn with; an id of `lib/export/stitch-texture-catalog.ts`.
+    pub stitch_texture: String,
 }
 
 impl Request {
@@ -254,6 +256,7 @@ impl Request {
             },
             author_name: str_field(o, "authorName").unwrap_or_default(),
             overlap_cells: o.get("overlapCells").and_then(Value::as_u64).unwrap_or(5) as usize,
+            stitch_texture: str_field(o, "stitchTexture").unwrap_or_else(|| "classic".into()),
         })
     }
 }

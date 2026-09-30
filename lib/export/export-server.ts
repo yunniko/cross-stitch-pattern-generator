@@ -96,6 +96,7 @@ export async function runServerExport(request: ExportJobRequest, onProgress?: Ex
       sizeUnit: request.sizeUnit,
       authorName: request.authorName,
       overlapCells: request.overlapCells,
+      stitchTexture: request.stitchTexture,
     });
     // The same document the editor would save, so the server reads it with `deserializePatternData`. It is spliced in as
     // text: parsing it back only to serialise it again cost two passes over every stitch (G-047 M1). `kind` is always

@@ -56,7 +56,7 @@ export interface ChartRendererInputs {
   /** The threads whose backstitch Isolate keeps bright; its own set (see `ChartScene`). */
   litBackstitchIndices: ReadonlySet<number>;
   canvasColor: string;
-  /** Which texture the Realistic view draws its stitches with; display only, like `canvasColor`. */
+  /** Which texture the Realistic view draws its stitches with (D249). */
   stitchTexture: StitchTextureId;
   /** The symmetry axes in effect, drawn as red guide lines in every view (G-037). */
   symmetryAxes: SymmetryAxes;

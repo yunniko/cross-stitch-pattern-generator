@@ -80,7 +80,7 @@ pub fn export_reporting(
         "png-realistic" => {
             let cell = render::effective_cell_size(compacted.width, compacted.height) as u32;
             let preview = preview::Preview {
-                tiles: preview::stitch_tiles(&compacted, cell),
+                tiles: preview::stitch_tiles(&compacted, cell, &request.stitch_texture),
                 pattern: &compacted,
                 cell_size: cell,
             };
@@ -187,7 +187,7 @@ fn export_all(p: &Pattern, request: &Request, progress: Progress) -> Result<Vec<
     }
     let cell = render::effective_cell_size(p.width, p.height) as u32;
     let preview = preview::Preview {
-        tiles: preview::stitch_tiles(p, cell),
+        tiles: preview::stitch_tiles(p, cell, &request.stitch_texture),
         pattern: p,
         cell_size: cell,
     };

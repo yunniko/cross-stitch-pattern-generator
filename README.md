@@ -123,9 +123,10 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   skein count per colour. The extended one is for stitching from: symbol, name, stitch count and, when
   there is backstitch, how much of each thread it needs and the total.
 - **Choose the stitch texture**: the Chart pane holds a button per texture, each showing three by four stitches of it,
-  and the Stitched view is drawn with the one chosen (remembered in the browser). Every texture is scaled to the same
-  stitch size, so any image works; the exported preview still uses the classic one for now. New textures are an entry in
-  `lib/export/stitch-texture-catalog.ts` and a file in `public/`. The Pixel texture was supplied by the Owner.
+  and the Stitched view and the exported realistic preview are drawn with the one chosen (remembered in the browser).
+  Every texture is scaled to the same stitch size, so any image works. New textures are an entry in
+  `lib/export/stitch-texture-catalog.ts`, a file in `public/` and a row in `rust/cs-export/src/preview.rs` (D249).
+  The Pixel texture was supplied by the Owner.
 - **Export** editable JSON, a realistic stitched preview, full-chart PNGs,
   paginated A4 ZIPs, a Pattern Keeper–compatible PDF, an OXS chart for other
   cross-stitch programs, a pixel-art PNG at 1 px per stitch (which imports back

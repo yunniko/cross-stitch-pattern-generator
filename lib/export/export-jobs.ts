@@ -3,6 +3,7 @@ import { compactUnusedColors } from "../editor/pattern-edit";
 import { serializePattern } from "../editor/pattern-serialize";
 import type { SymmetryAxes } from "../editor/symmetry-axes";
 import type { StitchPattern } from "../types";
+import type { StitchTextureId } from "./stitch-texture-catalog";
 import { generateA4Export } from "./a4-export";
 import type { OverlapCells } from "./a4-layout";
 import { canvasToPngBlobAndRelease, loadExportFontBytes } from "./canvas-backend";
@@ -33,6 +34,8 @@ export interface ExportJobRequest {
   sizeUnit: SizeUnit;
   authorName: string;
   overlapCells: OverlapCells;
+  /** The texture the realistic preview, alone and inside Export all, is drawn with; other exports ignore it. */
+  stitchTexture?: StitchTextureId;
   /** Written into the editable JSON, alone and inside Export all (G-037); rendered exports ignore it. */
   symmetry?: SymmetryAxes;
 }
@@ -58,7 +61,7 @@ function modeOf(kind: "png-color" | "png-bw" | "a4-color" | "a4-bw" | "pdf-color
  * colors are compacted away for every export except the editable JSON, which keeps the palette as edited.
  */
 export async function runExportJob(request: ExportJobRequest, onProgress?: ExportProgressCallback): Promise<ExportJobResult> {
-  const { kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, symmetry } = request;
+  const { kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, stitchTexture, symmetry } = request;
   if (kind === "editable") {
     return { blob: new Blob([serializePattern(pattern, symmetry)], { type: "application/json" }), filename: `${baseName}_editable.json` };
   }
@@ -77,7 +80,7 @@ export async function runExportJob(request: ExportJobRequest, onProgress?: Expor
       return { blob, filename: `${baseName}_${mode}.png` };
     }
     case "png-realistic":
-      return { blob: await renderStitchPreviewPng(compacted), filename: `${baseName}_preview.png` };
+      return { blob: await renderStitchPreviewPng(compacted, { stitchTexture }), filename: `${baseName}_preview.png` };
     case "a4-color":
     case "a4-bw": {
       const result = await generateA4Export(compacted, modeOf(kind), {
@@ -108,6 +111,7 @@ export async function runExportJob(request: ExportJobRequest, onProgress?: Expor
         sizeUnit,
         authorName,
         overlapCells,
+        stitchTexture,
         symmetry,
         fontBytes: await fetchPdfFontBytes(),
         onProgress,

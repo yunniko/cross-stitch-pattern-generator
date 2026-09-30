@@ -8,7 +8,7 @@ import type { PaletteColor, StitchPattern } from "@/lib/types";
 /**
  * The buttons that choose the realistic view's stitch texture. Each shows its texture as a block of 3 × 4 stitches,
  * drawn by the same tile builder as the chart, at one tile size, so a texture of any pixel size looks as large here as
- * it does on the chart. Purely display: which texture is chosen never reaches an export.
+ * it does on the chart. The choice also decides the texture of the exported realistic preview.
  */
 
 const PREVIEW_COLUMNS = 3;

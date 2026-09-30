@@ -13,6 +13,7 @@ import { hexToRgb, luminance, rgbToHex } from "../color/color";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import { formatSkeinEstimate } from "../threads/floss-estimate";
 import { buildStitchTiles, type StitchTiles } from "./stitch-texture";
+import type { StitchTextureId } from "./stitch-texture-catalog";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern, type RGB } from "../types";
 
 export type RenderMode = "color" | "bw";
@@ -26,6 +27,8 @@ export interface RenderOptions {
   sizeUnit?: SizeUnit;
   /** Shown in the header as "Designed by <name>" when non-blank (G-015). */
   authorName?: string;
+  /** The stitch texture the realistic preview is drawn with; the default one when absent. */
+  stitchTexture?: StitchTextureId;
 }
 
 const DEFAULT_CELL_SIZE = 24;
@@ -979,7 +982,7 @@ export function renderPatternToCanvas(pattern: StitchPattern, mode: RenderMode, 
 export async function renderStitchPreviewPng(pattern: StitchPattern, options: RenderOptions = {}): Promise<Blob> {
   const { width, height } = pattern;
   const cellSize = effectiveCellSize(width, height, options.cellSize ?? DEFAULT_CELL_SIZE);
-  const tiles = await buildStitchTiles(pattern.palette, cellSize);
+  const tiles = await buildStitchTiles(pattern.palette, cellSize, options.stitchTexture);
   return pixelSourceToPngBlob(stitchPreviewPixels(pattern, tiles), width * cellSize, height * cellSize);
 }
 

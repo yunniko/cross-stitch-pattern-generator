@@ -31,7 +31,7 @@ export interface WorkspaceOptions {
   overlapCells: OverlapCells;
   /** On-screen canvas background behind empty cells and the realistic preview. Display only, never threaded into any export. */
   canvasColor: string;
-  /** Which stitch texture the realistic view draws with. Display only, never threaded into any export. */
+  /** Which stitch texture the realistic view and the exported realistic preview draw with (D249). */
   stitchTexture: StitchTextureId;
   /** Generate settings remembered across reloads (Owner request, 2026-09-12); nothing on a `StitchPattern` records these. */
   sizePreset: SizePresetId;

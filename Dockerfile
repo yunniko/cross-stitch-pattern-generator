@@ -17,7 +17,7 @@ WORKDIR /src
 # here at /src beside the build command - not inside rust/, where it would be ignored.
 COPY .cargo ./.cargo
 COPY rust ./rust
-COPY public/stitch-texture.png ./public/stitch-texture.png
+COPY public/stitch-texture.png public/stitch-texture-pixel.png ./public/
 COPY public/fonts/DejaVuSans.ttf ./public/fonts/DejaVuSans.ttf
 RUN cargo build --release --manifest-path rust/Cargo.toml -p cs-job
 

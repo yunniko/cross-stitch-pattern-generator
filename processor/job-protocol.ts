@@ -7,6 +7,7 @@ import type { DitherMode } from "@/lib/pipeline/dither";
 import type { DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
 import type { PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import type { EdgeMode, GenerationMode, PaletteMode } from "@/lib/pipeline/generation-modes";
+import type { StitchTextureId } from "@/lib/export/stitch-texture-catalog";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
 
 /**
@@ -43,6 +44,7 @@ export interface ExportJobPayload {
   sizeUnit: SizeUnit;
   authorName: string;
   overlapCells: OverlapCells;
+  stitchTexture?: StitchTextureId;
   symmetry?: SerializedSymmetry;
 }
 

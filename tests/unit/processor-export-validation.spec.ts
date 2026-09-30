@@ -61,6 +61,13 @@ describe("processor export validation", () => {
     expect(exportRequestError(requestFrom({ overlapCells: 20 }))).toMatch(/overlapCells/);
   });
 
+  it("accepts a catalog stitch texture, refuses another, and reads an absent one as the default", () => {
+    expect(exportRequestError(requestFrom({ stitchTexture: "pixel" }))).toBeNull();
+    expect(exportRequestError(requestFrom({ stitchTexture: "lace" }))).toMatch(/stitchTexture/);
+    expect(toExportPayload(requestFrom({ stitchTexture: "pixel" })).stitchTexture).toBe("pixel");
+    expect(toExportPayload(requestFrom()).stitchTexture).toBe("classic");
+  });
+
   it("refuses an unknown kind, a nameless file and a malformed chart", () => {
     expect(exportRequestError(requestFrom({ kind: "png-sepia" }))).toMatch(/kind/);
     expect(exportRequestError(requestFrom({ baseName: "" }))).toMatch(/baseName/);

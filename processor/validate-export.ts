@@ -2,6 +2,7 @@ import { deserializePatternData } from "@/lib/editor/pattern-serialize";
 import { VALID_OVERLAP_CELLS } from "@/lib/editor/workspace-storage";
 import type { OverlapCells } from "@/lib/export/a4-layout";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT } from "@/lib/export/finished-size";
+import { DEFAULT_STITCH_TEXTURE, isStitchTextureId } from "@/lib/export/stitch-texture-catalog";
 import type { ExportJobPayload } from "./job-protocol";
 
 /**
@@ -54,6 +55,8 @@ export function parseExportRequest(body: unknown): ParsedExportRequest {
   if (b.overlapCells !== undefined && !(OVERLAP_CELLS as readonly number[]).includes(b.overlapCells as number)) {
     return { error: `overlapCells must be one of: ${OVERLAP_CELLS.join(", ")}.` };
   }
+  // Only a texture the catalog holds: an unknown id has no image to draw from. Absent means the default (older clients).
+  if (b.stitchTexture !== undefined && !isStitchTextureId(b.stitchTexture)) return { error: "stitchTexture is not a known texture." };
   let pattern: ExportJobPayload["pattern"];
   try {
     // The same validation a saved file gets: dimensions, palette size, and every cell indexing its own palette (D099).
@@ -72,6 +75,7 @@ export function parseExportRequest(body: unknown): ParsedExportRequest {
       sizeUnit: (b.sizeUnit as ExportJobPayload["sizeUnit"]) ?? DEFAULT_SIZE_UNIT,
       authorName: typeof b.authorName === "string" ? b.authorName : "",
       overlapCells: OVERLAP_CELLS.includes(b.overlapCells as OverlapCells) ? (b.overlapCells as OverlapCells) : 5,
+      stitchTexture: isStitchTextureId(b.stitchTexture) ? b.stitchTexture : DEFAULT_STITCH_TEXTURE,
       symmetry: (b.symmetry ?? undefined) as ExportJobPayload["symmetry"],
     },
   };

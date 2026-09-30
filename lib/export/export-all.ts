@@ -11,6 +11,7 @@ import { buildPatternKeeperPdf } from "./pattern-keeper-pdf";
 import { renderPatternToCanvas, renderStitchPreviewPng } from "./render";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import type { StitchPattern } from "../types";
+import type { StitchTextureId } from "./stitch-texture-catalog";
 import { yieldToMain } from "./yield";
 
 /**
@@ -24,6 +25,8 @@ export interface ExportAllOptions {
   sizeUnit?: SizeUnit;
   authorName?: string;
   overlapCells?: OverlapCells;
+  /** The texture the bundled realistic preview is drawn with. */
+  stitchTexture?: StitchTextureId;
   /** Saved into the bundled editable JSON only (G-037). */
   symmetry?: SymmetryAxes;
   /** The embedded font's raw bytes for the bundled Pattern Keeper PDF, passed in so this works in a page, a worker and tests. */
@@ -55,6 +58,7 @@ export async function generateExportAllZip(pattern: StitchPattern, options: Expo
     sizeUnit = DEFAULT_SIZE_UNIT,
     authorName = "",
     overlapCells = 5,
+    stitchTexture,
     symmetry,
     fontBytes,
     onProgress,
@@ -83,7 +87,7 @@ export async function generateExportAllZip(pattern: StitchPattern, options: Expo
   zip.file(`${baseName}_bw.png`, await canvasToPngBlobAndRelease(renderPatternToCanvas(pattern, "bw", info)));
   await step("Black-and-white chart");
 
-  zip.file(`${baseName}_preview.png`, await renderStitchPreviewPng(pattern));
+  zip.file(`${baseName}_preview.png`, await renderStitchPreviewPng(pattern, { stitchTexture }));
   await step("Realistic preview");
 
   let base = completed;
