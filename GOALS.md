@@ -29,7 +29,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 **Progress log** (newest first):
 - 2026-09-30 — Owner: the last three stitch textures (Beveled, Outline, Outline shaded) removed and three new ones added: Cell outline,
-  Cell outline shaded, Cross 2. Not deployed.
+  Cell outline shaded, Cross 2. Deployed as 2e86c69; the live specs pass (6 of 6), other sites unaffected. Pending: sign-off.
 - 2026-09-30 — Deployed 2021cb8 (the offsets, the removal of Aida and Linen, three Owner stitch textures) at the Owner's instruction; the live specs pass (6 of 6), other sites unaffected. Pending: sign-off.
 - 2026-09-30 — Owner: the Counted canvas sat half a cell off, so a texture now has `offsetX`/`offsetY` (cells; Counted canvas is
   0.5, 0.5); Aida and Linen (generated) removed, keeping the two Owner textures; and three Owner cell pictures added as
