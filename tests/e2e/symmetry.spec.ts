@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { generateSmallPattern, expectPhotoLoaded } from "./helpers/app";
 import JSZip from "jszip";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -256,7 +256,7 @@ test("the toggles are saved with the document: restored after a reload and on re
   await expect(toggle(page, "Vertical symmetry")).toHaveAttribute("aria-pressed", "false");
 
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText(/Loaded: sample\.png/)).toBeVisible();
+  await expectPhotoLoaded(page);
   // Symmetry lives in the top panel now, and 1b shows none of it until a chart exists -- its first-run and
   // before-generate screens draw no Sym group at all. A new photo drops the chart, so the toggles go with it
   // rather than staying behind switched off, which is the stronger form of "the old chart's symmetry is gone".

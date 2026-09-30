@@ -704,7 +704,6 @@ export default function Workspace({ account }: WorkspaceProps) {
             onViewModeChange={chooseViewMode}
             lockTransparency={options.lockTransparency}
             onLockTransparencyChange={(on) => updateOption("lockTransparency", on)}
-            sourceFileName={source.fileName}
             isLoadingImage={source.isLoading}
             hasSourcePhoto={source.hasPhoto}
             isolate={isolate}

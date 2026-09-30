@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { expectPhotoLoaded } from "./helpers/app";
 
 // G-028: OXS charts in both directions. Opening one from another program summarises what couldn't
 // be carried over (M2); exporting one and opening it again brings the pattern back (M3). Fixtures are self-authored.
@@ -38,7 +39,7 @@ test("exports a generated pattern as OXS, and that file opens again with nothing
   const errors = collectErrors(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(PHOTO_FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });

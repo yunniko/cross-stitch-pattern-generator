@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { expectPhotoLoaded } from "./helpers/app";
 
 /**
  * G-052 M4: the Dither control, end to end through the real UI and the processor.
@@ -62,7 +63,7 @@ test("a chosen dither pattern reaches the chart, is recorded in the file, and co
   const errors = collectErrors(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
 
   const plain = await generateAndExport(page);
@@ -82,7 +83,7 @@ test("the hand-drawn marks reach the chart and cluster their stitches (G-054)", 
   const errors = collectErrors(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByLabel("Dither").selectOption("hand-drawn");
 
@@ -98,7 +99,7 @@ test("the texture editor changes the chart, and the chart remembers what drew it
   const errors = collectErrors(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByLabel("Dither").selectOption("hand-drawn");
 
@@ -122,7 +123,7 @@ test("a painted mark reaches the chart, and is saved with it (G-056)", async ({ 
   const errors = collectErrors(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByLabel("Dither").selectOption("hand-drawn");
   await page.getByRole("tab", { name: "Photo" }).click();
@@ -151,7 +152,7 @@ test("a switch lets a knob reach every mark, and is saved with the chart (G-058)
   const errors = collectErrors(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByLabel("Dither").selectOption("hand-drawn");
   await page.getByRole("tab", { name: "Photo" }).click();
@@ -177,7 +178,7 @@ test("a switch lets a knob reach every mark, and is saved with the chart (G-058)
 test("a stamp wider than the spacing says its outside will be clipped", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByLabel("Dither").selectOption("hand-drawn");
   await page.getByRole("button", { name: /^Texture/ }).click();
 
@@ -192,7 +193,7 @@ test("the preview shows whatever pattern is chosen, without opening anything (G-
   const errors = collectErrors(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
 
   // Off: no preview at all.
   await expect(page.getByTestId("dither-preview")).toHaveCount(0);
@@ -216,7 +217,7 @@ test("clicking the preview reshuffles the marks, and the chart follows (G-059)",
   const errors = collectErrors(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByLabel("Dither").selectOption("hand-drawn");
 
@@ -239,7 +240,7 @@ test("clicking the preview reshuffles the marks, and the chart follows (G-059)",
 test("the line screens are one option with a direction (G-059)", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
 
   // One "Lines" row in the list, and a direction beneath it once chosen.
@@ -259,7 +260,7 @@ test("the line screens are one option with a direction (G-059)", async ({ page }
 test("choosing a dither pattern and choosing Crisp each clear the other, and the choice survives a reload", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
 
   // Crisp first, then a pattern: the pipeline refuses the pair, so the pane never holds it (D199).
   await page.getByRole("button", { name: "Crisp", exact: true }).click();
@@ -277,6 +278,6 @@ test("choosing a dither pattern and choosing Crisp each clear the other, and the
   await page.getByLabel("Dither").selectOption("blue-noise-16");
   await page.reload();
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await expect(page.getByLabel("Dither")).toHaveValue("blue-noise-16");
 });

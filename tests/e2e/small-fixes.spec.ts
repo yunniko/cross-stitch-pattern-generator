@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { pickTool } from "./helpers/app";
+import { expectPhotoLoaded, pickTool } from "./helpers/app";
 
 /**
  * G-079: errors that can be dismissed and go away by themselves, the canvas colour on the shared colour picker (and gone
@@ -213,4 +213,15 @@ test("the transparency lock is remembered across a reload", async ({ page }) => 
   await page.reload();
   await expect(page.getByTestId("chart-frame")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button", { name: "Lock transparency" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("the top panel does not announce the loaded file's name", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Image").setInputFiles(SUBJECT);
+  await expectPhotoLoaded(page);
+  await expect(page.getByText(/Loaded:/)).toHaveCount(0);
+  await page.getByRole("radio", { name: /Small/ }).check();
+  await page.getByRole("button", { name: "Generate pattern" }).click();
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/Loaded:/)).toHaveCount(0);
 });

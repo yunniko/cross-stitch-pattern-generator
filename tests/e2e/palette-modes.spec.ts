@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "node:path";
+import { expectPhotoLoaded } from "./helpers/app";
 
 // Generation in every thread-brand palette and in Crisp edges mode, through the real UI and worker.
 // DMC names are "CODE - Name"; Cosmo and Anchor publish no names, so the legend shows the bare code (D093, D094).
@@ -17,7 +18,7 @@ function collectErrors(page: Page): string[] {
 async function generateWith(page: Page, buttons: string[]): Promise<string[]> {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   for (const name of buttons) {
     const button = page.getByRole("button", { name, exact: true });
@@ -60,7 +61,7 @@ test("the Anchor palette button discloses that its colors are derived from DMC",
   await page.goto("/");
   // 1b's Photo tab holds the three steps until a photo is in, so the palette buttons need one to exist at all.
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await expect(page.getByRole("button", { name: "Anchor", exact: true })).toHaveAttribute("title", /not independently measured/);
 });
 

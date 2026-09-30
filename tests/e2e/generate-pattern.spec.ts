@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { MAX_STITCHES } from "../../lib/types";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
+import { expectPhotoLoaded } from "./helpers/app";
 
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
 
@@ -14,7 +15,7 @@ test("upload an image, generate a pattern, preview it, and download both variant
   await page.goto("/");
 
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
 
   await page.getByRole("radio", { name: /Small/ }).check();
 

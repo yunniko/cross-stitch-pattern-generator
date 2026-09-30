@@ -56,7 +56,6 @@ export interface ContextBarProps {
   lockTransparency: boolean;
   onLockTransparencyChange: (on: boolean) => void;
   /** The loaded photo, shown before a chart exists and as the source of the photo views. */
-  sourceFileName: string | null;
   isLoadingImage: boolean;
   hasSourcePhoto: boolean;
   /** Isolate: dim every thread except the ones lit in the Threads list. Not a tool -- it stays on while you paint. */
@@ -106,7 +105,6 @@ export function ContextBar({
   onViewModeChange,
   lockTransparency,
   onLockTransparencyChange,
-  sourceFileName,
   isLoadingImage,
   hasSourcePhoto,
   isolate,
@@ -188,7 +186,6 @@ export function ContextBar({
         <>
           <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Photo</span>
           {isLoadingImage && <span className="text-xs text-muted">Reading image…</span>}
-          {sourceFileName && !isLoadingImage && <span className="max-w-[16rem] truncate text-xs text-muted">Loaded: {sourceFileName}</span>}
           <span className="ml-auto text-xs text-muted">No chart yet — settings are on the right</span>
         </>
       )}
@@ -234,12 +231,6 @@ export function ContextBar({
                   <SegmentedControl tone="chip" options={SHAPE_FILL_OPTIONS} value={shapeFill} onChange={onShapeFillChange} />
                 </div>
               </>
-            )}
-
-            <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
-
-            {sourceFileName && !isLoadingImage && (
-              <span className="max-w-[12rem] truncate text-xs text-muted">Loaded: {sourceFileName}</span>
             )}
 
             <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />

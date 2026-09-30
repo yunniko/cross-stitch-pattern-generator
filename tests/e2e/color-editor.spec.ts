@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "node:path";
+import { expectPhotoLoaded } from "./helpers/app";
 
 // G-033: the swatch-aware color editor. Opens on the color's own swatch, compares swatches on hover and focus, applies
 // picks while staying open, and closes with Done, Cancel, Escape or a click outside.
@@ -17,7 +18,7 @@ function collectErrors(page: Page): string[] {
 async function generate(page: Page, palette: "Full range" | "DMC") {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: palette, exact: true }).click();
   await page.getByRole("button", { name: "Generate pattern" }).click();

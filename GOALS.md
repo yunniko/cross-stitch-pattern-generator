@@ -33,6 +33,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M2 — the lock transparency button and its rule in every drawing and filling tool (D253)
 
 **Progress log** (newest first):
+- 2026-09-30 — Owner: "remove also Loaded: name from top panel". Removed from both places in the top panel (the no-chart
+  state and the chart state); the 12 specs that waited for that text now wait for the Generate button (`expectPhotoLoaded` in
+  `tests/e2e/helpers/app.ts`), and a new case checks it stays gone. 868 unit, 475 of 477 e2e (the 2 admin-stats cases pass
+  alone). Not deployed.
 - 2026-09-30 — Deployed 635e60c at the Owner's instruction; the live specs pass (16 of 16, two of them alone after the site's job limit), other sites unaffected. Pending: sign-off.
 - 2026-09-30 — M1 and M2 built (D253). Errors: every strip or line has a cross (`DismissButton`) and an error clears after 12 s
   (`app/hooks/use-auto-dismiss.ts`); the canvas colour left the top panel and is a swatch on the Chart tab opening

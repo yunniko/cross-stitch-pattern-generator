@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { expectPhotoLoaded } from "./helpers/app";
 
 /**
  * G-061: the Color detail switch, end to end through the real UI and the processor.
@@ -48,7 +49,7 @@ test("Vivid reaches the chart, changes it, and is recorded in the file", async (
   const errors = collectErrors(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   // `sample.png` is 160x100, so a stitch covers 24 pixels or more only at about 32 stitches and under; the Small
   // preset's 50 would put Vivid below its floor and it would stand down (the case the second test covers).
   await page.getByLabel("Custom size in stitches").fill("30");
@@ -70,7 +71,7 @@ test("Vivid reaches the chart, changes it, and is recorded in the file", async (
 test("the choice is remembered, and stands down on a photo with too few pixels a stitch", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
 
   await expect(colorDetail(page).filter({ hasText: "Averaged" })).toHaveAttribute("aria-pressed", "true");
   await colorDetail(page).filter({ hasText: "Vivid" }).click();
@@ -79,7 +80,7 @@ test("the choice is remembered, and stands down on a photo with too few pixels a
   // that the choice came back from storage, not that the photo did.
   await page.reload();
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await expect(colorDetail(page).filter({ hasText: "Vivid" })).toHaveAttribute("aria-pressed", "true");
 
   // At 50 stitches this 160x100 photo gives a stitch about 10 pixels, below Vivid's floor: the chart records

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "node:path";
+import { expectPhotoLoaded } from "./helpers/app";
 
 /**
  * G-074 M2: the four sliders, applied to the photo in the browser.
@@ -22,7 +23,7 @@ function collectErrors(page: Page): string[] {
 async function uploadPhoto(page: Page) {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
 }
 
 const slider = (page: Page, name: string) => page.getByRole("slider", { name });

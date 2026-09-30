@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { expectPhotoLoaded } from "./helpers/app";
 
 /**
  * G-074 M3: the sliders reach generation, and the chart says what it was made with.
@@ -100,7 +101,7 @@ test("a chart generated with the sliders is made from the adjusted photo, and re
   const errors = collectErrors(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
 
   const plain = await generateAndExport(page);
@@ -127,7 +128,7 @@ test("a chart saved with the sliders reopens with them, and a file from before t
   const errors = collectErrors(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
 
   await setSlider(page, "Warm / cool", 70);
@@ -159,7 +160,7 @@ test("the photo views show the photo the chart was made from, and reopening rest
   const errors = collectErrors(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
 
   await setSlider(page, "Saturation", -100);
@@ -185,7 +186,7 @@ test("the photo views show the photo the chart was made from, and reopening rest
 test("a chart saved with the sliders opens with them set, so Regenerate reproduces it", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
 
   await setSlider(page, "Brightness", -45);
@@ -197,7 +198,7 @@ test("a chart saved with the sliders opens with them set, so Regenerate reproduc
   // A fresh page, with the sliders left somewhere else entirely.
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await setSlider(page, "Brightness", 100);
 
   await page.getByLabel("Open pattern file").setInputFiles(file);
@@ -216,7 +217,7 @@ test("with a photo view up, the Photo tab's sliders move the photo without regen
   const errors = collectErrors(page);
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   await generateAndExport(page);
 
@@ -236,7 +237,7 @@ test("the photo keeps up with a slider being dragged, not just with one value", 
   // first was dropped. One keystroke moved the picture; a drag never did (Owner, 2026-09-27).
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   await generateAndExport(page);
 
@@ -280,7 +281,7 @@ test("the photo keeps up with a slider being dragged, not just with one value", 
 test("sliders moved but never generated are given up on the way out", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   await setSlider(page, "Brightness", -40);
   await generateAndExport(page);
@@ -306,7 +307,7 @@ test("sliders moved but never generated are given up on the way out", async ({ p
 test("a slider that was generated with is kept, not given up", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: sample.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   // The photo view belongs to a chart, so there has to be one before it can be shown.
   await generateAndExport(page);

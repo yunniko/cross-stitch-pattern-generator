@@ -2,6 +2,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { test, expect } from "@playwright/test";
+import { expectPhotoLoaded } from "./helpers/app";
 
 /**
  * G-050 M4: a photo with a transparent background generates a chart whose background is empty stitches, and every
@@ -13,7 +14,7 @@ const FIXTURE = path.join(__dirname, "fixtures", "transparent-subject.png");
 test("a transparent background generates as empty stitches, and the exports keep them", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await expect(page.getByText("Loaded: transparent-subject.png")).toBeVisible();
+  await expectPhotoLoaded(page);
 
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();

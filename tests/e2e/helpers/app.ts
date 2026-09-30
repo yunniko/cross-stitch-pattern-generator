@@ -35,3 +35,11 @@ export async function generateSmallPattern(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
 }
+
+/**
+ * A chosen photo has been read and decoded: the Photo tab offers Generate only from then. Specs waited for the file's name
+ * in the top panel before, which the panel no longer shows (G-079).
+ */
+export async function expectPhotoLoaded(page: Page): Promise<void> {
+  await expect(page.getByRole("button", { name: /^(Generate pattern|Regenerate)$/ })).toBeVisible({ timeout: 15_000 });
+}

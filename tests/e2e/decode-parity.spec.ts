@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 import { rolldown } from "rolldown";
+import { expectPhotoLoaded } from "./helpers/app";
 
 /**
  * G-035 M3: the photo decode moved into a worker (`createImageBitmap` + `OffscreenCanvas`). This checks, in the real
@@ -251,6 +252,6 @@ test("the app decodes an upload in the worker, without falling back", async ({ p
     if (message.type() === "warning") warnings.push(message.text());
   });
   await page.getByLabel("Image").setInputFiles(path.join(__dirname, "fixtures", "sample.png"));
-  await expect(page.getByText(/Loaded: sample\.png/)).toBeVisible();
+  await expectPhotoLoaded(page);
   expect(warnings.filter((w) => w.includes("fell back"))).toEqual([]);
 });

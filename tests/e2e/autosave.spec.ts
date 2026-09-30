@@ -3,6 +3,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { CURRENT_PROJECT_KEY, PROJECT_DB_NAME, PROJECT_DB_VERSION, PROJECT_OBJECT_STORE } from "../../lib/editor/project-store";
 import { LEGACY_PROJECT_KEY } from "../../lib/editor/workspace-storage";
+import { expectPhotoLoaded } from "./helpers/app";
 
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
 
@@ -93,7 +94,7 @@ test("a pattern from a >4 MB photo survives a reload (the case the localStorage 
   expect(bytes.length).toBeGreaterThan(4 * 1024 * 1024);
 
   await page.getByLabel("Image").setInputFiles({ name: "noise.png", mimeType: "image/png", buffer: bytes });
-  await expect(page.getByText("Loaded: noise.png")).toBeVisible();
+  await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
   // A 2 MP source is generated at full source resolution for the edge/
