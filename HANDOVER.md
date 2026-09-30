@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-30 at the G-076 M2 commit
+Last verified: 2026-09-30 at 8fc5bf2 (G-076, deployed)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -12,7 +12,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 **Production** runs 4a28457 (2026-09-28, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-076, stitch textures — M1 and M2 built 2026-09-30, awaiting the Owner's sign-off.** The Chart pane has a radio group of texture buttons (`app/components/texture-picker.tsx`); the choice is the persisted `stitchTexture` option. It decides the on-screen Stitched view and the exported realistic preview (alone and inside Export all), which travels as `stitchTexture` in the export request to `cs-job` (D248, D249). Textures live in `lib/export/stitch-texture-catalog.ts` and, for Rust, `TEXTURES` in `rust/cs-export/src/preview.rs`. Verified with a Rust binary: 837 unit tests, 118 Rust-side tests (goldens unchanged), 461 of 463 e2e cases, the other two passing alone. Not run: a Docker image build (the Dockerfile's texture COPY line changed).
+**G-076, stitch textures — M1 and M2 built and deployed 2026-09-30 (8fc5bf2), awaiting the Owner's sign-off.** The Chart pane has a radio group of texture buttons (`app/components/texture-picker.tsx`); the choice is the persisted `stitchTexture` option. It decides the on-screen Stitched view and the exported realistic preview (alone and inside Export all), which travels as `stitchTexture` in the export request to `cs-job` (D248, D249). Textures live in `lib/export/stitch-texture-catalog.ts` and, for Rust, `TEXTURES` in `rust/cs-export/src/preview.rs`. Verified with a Rust binary: 837 unit tests, 118 Rust-side tests (goldens unchanged), 461 of 463 e2e cases, the other two passing alone. The server image built and the live spec passed.
 
 **G-075, accounts — signed off 2026-09-30, archived.** Optional registration/login/personal cabinet
 (`/account`) and admin tools (`/admin/users`, `/admin/stats`) on NextAuth v5 + Prisma + Postgres + bcryptjs
@@ -358,7 +358,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-076 awaits the Owner's sign-off**; before a deploy, build the image once to check the Dockerfile's texture COPY line.
+- **G-076 awaits the Owner's sign-off.**
 - G-075 (accounts) was signed off 2026-09-30 and is archived. G-074 (the four photo sliders) was signed
   off on 2026-09-27 and is archived, as is G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner:
   **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and **G-030** (public
@@ -395,6 +395,7 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-09-30 | 8fc5bf2 | **G-076: choose the stitch texture.** Texture buttons on the Chart pane (Classic, and the Owner's Pixel) redraw the Stitched view, and the choice reaches the exported realistic preview through the Rust processor (D248, D249). Dockerfile copies both texture files | 837 unit, 118 Rust-side tests (goldens unchanged), 461 of 463 e2e with a real binary (the 2 admin-stats cases pass alone). **Verified live:** `tests/e2e/stitch-texture.spec.ts` passes against `https://cross-stitch.craftodejnice.cz` via `scripts/playwright.live.config.ts` — swatches, Stitched redraw, and two preview exports that differ. Server build EXIT=0; only this project's app and processor restarted (db and the other containers kept their uptimes); eight sites returned 200 before and after. |
 | 2026-09-28 | 4a28457 | **G-075 M1–M5: accounts, a personal cabinet, and admin tools — first deploy with a database.** NextAuth v5 + Prisma + Postgres + bcryptjs; `/account`, `/admin/users`, `/admin/stats`. A new `db` service on `127.0.0.1:54324`, secrets added to the server's `.env` | 830 unit, 13 new e2e cases against a real Postgres container, lint/tsc/prettier/docs-lint clean. Verified live with a disposable test account (deleted afterward): full register/login/logout/delete loop, admin access control, and a real generate+export both logged-in and anonymous confirmed directly in Postgres. Full record in `docs/deploy-log.md` and GOALS.md's progress log — the Owner still needs to claim the admin role. 23 containers before and after with an identical name set and only this project's app restarted (plus the new `db`); ten sites returned 200. |
 | 2026-09-27 | a6c6657 | **Fix (Owner): the photo view did not move while a slider was dragged.** The worker keeps the callback it was created with, and that callback closed over the effect's `cancelled` flag; the effect re-runs on every slider value, so the second value cleaned up the first closure and every frame after the first was dropped. One keystroke moved the picture, a drag never did. What is current now lives in refs, and the photo is handed to the worker once per photo rather than once per value | 814 unit, 447 e2e, lint/tsc/prettier/docs-lint clean. **The M6 test used `fill()` — one value — and passed against the bug**; the new case drives twenty values with the change event only at the end and reads the chart canvas as it goes (chroma 36 → 27 → 19 → 10 → 0). Mutation-checked: painting only the first frame fails it. Verified against the live site after deploy. 23 containers before and after with an identical name set and only this project's app restarted; ten sites returned 200. |
 

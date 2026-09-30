@@ -26,6 +26,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M2 — the exported realistic preview (PNG and inside `.cspzip`) draws with the chosen texture (D249); not byte-identical to the screen, by Owner decision
 
 **Progress log** (newest first):
+- 2026-09-30 — Deployed 8fc5bf2 at the Owner's instruction; live spec passes, other sites unaffected. Pending: sign-off.
 - 2026-09-30 — M2 built (D249). Rust preview embeds each catalog texture; `stitchTexture` travels client → processor → `cs-job`.
   837 unit, 118 Rust-side (goldens unchanged), 461 of 463 e2e with a real binary; the 2 admin-stats cases count usage
   events exactly and failed only under parallel load, passing alone. New: `scripts/rust-stitch-texture.ts`, an export e2e.
