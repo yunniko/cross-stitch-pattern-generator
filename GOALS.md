@@ -32,6 +32,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M2 — the Owner's adjustments after looking, and the deploy
 
 **Progress log** (newest first):
+- 2026-09-30 — Owner: "add coordinates of cursor on status bar". The status bar now reads the stitch under the pointer
+  ("Stitch 24, 18", counted from 1 at the top left, so it matches the ruler's marker; a dash off the chart). Built
+  (`app/components/pointer-readout.tsx`), not deployed. 859 unit; 469 of 471 e2e (the 2 admin-stats cases pass alone); new
+  case in `tests/e2e/rulers.spec.ts`.
 - 2026-09-30 — Deployed 799bf6f at the Owner's instruction; the live specs pass (10 of 10), other sites unaffected. M2 (the Owner's adjustments) is what remains.
 - 2026-09-30 — M1 built (D252). 859 unit (new `tests/unit/ruler.spec.ts`), new `tests/e2e/rulers.spec.ts` (4 cases: marks on
   their stitch lines through zoom and scroll, thinning when zoomed out, the pointer marker on all four rulers, the hidden

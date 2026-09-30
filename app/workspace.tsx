@@ -791,6 +791,9 @@ export default function Workspace({ account }: WorkspaceProps) {
           sizeUnit={options.sizeUnit}
           autosaveStatus={autosaveStatus}
           hasPattern={pattern !== null && !startingNew}
+          scrollerRef={scrollerRef}
+          frameRef={frameRef}
+          cellSize={cellSize}
           zoomLevel={panZoom.zoomLevel}
           onZoomIn={() => panZoom.zoomBy(ZOOM_STEP)}
           onZoomOut={() => panZoom.zoomBy(1 / ZOOM_STEP)}

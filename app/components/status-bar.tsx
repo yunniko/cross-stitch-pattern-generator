@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type RefObject } from "react";
 import type { AutosaveStatus } from "@/app/hooks/use-project-autosave";
 import { formatFinishedSize, type SizeUnit } from "@/lib/export/finished-size";
 import { filledStitchCount, formatColorCount, formatStitchCount, type StitchPattern } from "@/lib/types";
+import { PointerReadout } from "./pointer-readout";
 import { DISABLED_TEXT } from "./ui";
 
 /**
@@ -29,6 +30,10 @@ export interface StatusBarProps {
   sizeUnit: SizeUnit;
   autosaveStatus: AutosaveStatus;
   hasPattern: boolean;
+  /** The well and the chart frame the pointer readout measures against (G-078). */
+  scrollerRef: RefObject<HTMLDivElement | null>;
+  frameRef: RefObject<HTMLDivElement | null>;
+  cellSize: number;
   zoomLevel: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -41,6 +46,9 @@ export function StatusBar({
   sizeUnit,
   autosaveStatus,
   hasPattern,
+  scrollerRef,
+  frameRef,
+  cellSize,
   zoomLevel,
   onZoomIn,
   onZoomOut,
@@ -61,6 +69,10 @@ export function StatusBar({
             {formatFinishedSize(pattern.width, pattern.height, aidaCount, sizeUnit)} · {aidaCount}-ct
           </span>
         </>
+      )}
+
+      {pattern && hasPattern && (
+        <PointerReadout scrollerRef={scrollerRef} frameRef={frameRef} width={pattern.width} height={pattern.height} cellSize={cellSize} />
       )}
 
       <span

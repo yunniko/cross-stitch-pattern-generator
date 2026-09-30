@@ -168,3 +168,55 @@ test("the rulers take no room before there is a chart", async ({ page }) => {
   const columns = await viewer.evaluate((el) => getComputedStyle(el).gridTemplateColumns);
   expect(columns.split(" ")[0]).toBe("0px");
 });
+
+test("the status bar reads the stitch under the pointer, counted from 1, and agrees with the rulers", async ({ page }) => {
+  await createBlankChart(page, 80, 60);
+  const frame = page.getByTestId("chart-frame");
+  await expect(frame).toHaveAttribute("data-scene-pending", "");
+  const cell = await cellSizeOf(page);
+  const box = (await frame.boundingBox())!;
+  const at = (x: number, y: number) => ({ x: box.x + 1 + (x + 0.5) * cell, y: box.y + 1 + (y + 0.5) * cell });
+  const readout = page.getByTestId("pointer-stitch");
+
+  // Nothing yet: a dash.
+  await expect(readout).toHaveText("–");
+
+  // 0-based stitch (7, 3) is the 8th across and the 4th down; the rulers say 7 and 3 from the same pointer.
+  const p = at(7, 3);
+  await page.mouse.move(p.x, p.y);
+  await expect(readout).toHaveText("8, 4");
+  await expect(readout).toHaveAttribute("data-x", "8");
+  await expect(readout).toHaveAttribute("data-y", "4");
+  expect(await ruler(page, "top").getAttribute("data-pointer")).toBe("7");
+  expect(await ruler(page, "left").getAttribute("data-pointer")).toBe("3");
+
+  // The first and the last stitch.
+  const first = at(0, 0);
+  await page.mouse.move(first.x, first.y);
+  await expect(readout).toHaveText("1, 1");
+  const last = at(79, 59);
+  await page.mouse.move(last.x, last.y);
+  await expect(readout).toHaveText("80, 60");
+
+  // Over the well but off the chart, and off the well: a dash.
+  const well = (await page.locator("div.overflow-auto").first().boundingBox())!;
+  await page.mouse.move(well.x + 4, well.y + 4);
+  await expect(readout).toHaveText("–");
+  await page.mouse.move(p.x, p.y);
+  await expect(readout).toHaveText("8, 4");
+  await page.mouse.move(5, 5);
+  await expect(readout).toHaveText("–");
+
+  // A zoom under a pointer that has not moved reads the stitch that is now there.
+  await page.mouse.move(p.x, p.y);
+  await expect(readout).toHaveText("8, 4");
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  await expect(frame).toHaveAttribute("data-scene-pending", "");
+  await page.mouse.move(p.x + 1, p.y + 1);
+  const zoomed = await readout.getAttribute("data-x");
+  expect(zoomed).not.toBeNull();
+  expect(Number(zoomed)).toBeGreaterThanOrEqual(1);
+  // The rulers and the readout name the same stitch after the zoom.
+  expect(Number(await ruler(page, "top").getAttribute("data-pointer")) + 1).toBe(Number(zoomed));
+});

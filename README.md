@@ -134,7 +134,7 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   preview instead of a transparent background (D250, D251).
 - **Rulers**: a ruler along each edge of the viewer numbers every 10th stitch line (10, 20, 30, as the exports do) and
   follows scroll and zoom; numbers thin to every 20th, 50th or 100th when zoomed far out. Each ruler marks where the
-  pointer is and the stitch it is over. With a tool that draws its own outline (the brush and the shape tools) the
+  pointer is and the stitch it is over, and the status bar reads it as "Stitch 24, 18" (counted from 1). With a tool that draws its own outline (the brush and the shape tools) the
   pointer itself is hidden over the pattern (D252).
 - **Export** editable JSON, a realistic stitched preview, full-chart PNGs,
   paginated A4 ZIPs, a Pattern Keeper–compatible PDF, an OXS chart for other
