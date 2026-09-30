@@ -37,6 +37,11 @@ describe("clothStyle", () => {
     expect(style.backgroundRepeat).toBe("repeat");
   });
 
+  it("gives a tile of several cells its columns and rows, so a counted canvas keeps its proportions", () => {
+    expect(clothStyle("counted", "#fff", 10, { x: 0, y: 0 })!.backgroundSize).toBe("80px 100px");
+    expect(clothStyle("counted", "#fff", 30, { x: 0, y: 0 })!.backgroundSize).toBe("240px 300px");
+  });
+
   it("scales with the cell size: zooming in makes the weave larger", () => {
     expect(clothStyle("linen", "#fff", 10, { x: 0, y: 0 })!.backgroundSize).toBe("10px 10px");
     expect(clothStyle("linen", "#fff", 40, { x: 0, y: 0 })!.backgroundSize).toBe("40px 40px");

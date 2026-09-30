@@ -1,14 +1,16 @@
 /**
  * The canvas (the cloth) the realistic view can be drawn on. A texture is a tile of cloth, tiled edge to edge and
- * multiplied with the canvas colour. Its scale is tied to the stitch: one tile spans `cells` cells, so the weave grows
+ * multiplied with the canvas colour. Its scale is tied to the stitch: one tile spans `columns` × `rows` cells, so the weave grows
  * and shrinks with the zoom, and a counted canvas (a tile of several threads per cell) is a catalog entry, not a new
  * mechanism. `"off"` is the plain canvas colour, as before.
  */
 export const CANVAS_TEXTURES = [
-  { id: "aida", label: "Aida", url: "/canvas-texture-aida.png", cells: 1 },
-  { id: "linen", label: "Linen", url: "/canvas-texture-linen.png", cells: 1 },
+  { id: "aida", label: "Aida", url: "/canvas-texture-aida.png", columns: 1, rows: 1 },
+  { id: "linen", label: "Linen", url: "/canvas-texture-linen.png", columns: 1, rows: 1 },
   // Supplied by the Owner (2026-09-30): 1254 px, about 132 threads across, read as two threads to a cell.
-  { id: "natural", label: "Natural linen", url: "/canvas-texture-natural.png", cells: 66 },
+  { id: "natural", label: "Natural linen", url: "/canvas-texture-natural.png", columns: 66, rows: 66 },
+  // Supplied by the Owner (2026-09-30): 163 × 209 px, 8 blocks across and 10 down, one block to a cell.
+  { id: "counted", label: "Counted canvas", url: "/canvas-texture-counted.png", columns: 8, rows: 10 },
 ] as const;
 
 export type CanvasTextureId = (typeof CANVAS_TEXTURES)[number]["id"];

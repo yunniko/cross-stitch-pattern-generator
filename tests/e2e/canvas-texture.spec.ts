@@ -110,12 +110,14 @@ test("the cloth takes the canvas colour, the swatches show it at one cell size, 
   const aida = await swatch("aida");
   const linen = await swatch("linen");
   const natural = await swatch("natural");
+  const counted = await swatch("counted");
   const off = await swatch("off");
-  for (const s of [aida, linen, natural, off]) expect([s.width, s.height]).toEqual(["48px", "64px"]);
+  for (const s of [aida, linen, natural, counted, off]) expect([s.width, s.height]).toEqual(["48px", "64px"]);
   expect(aida.size).toBe("16px 16px");
   expect(linen.size).toBe("16px 16px");
-  // The Owner's linen spans 66 cells (about two threads to a cell), so its tile is 66 cells wide.
+  // The Owner's linen spans 66 cells (about two threads to a cell); the counted canvas is 8 blocks wide and 10 tall.
   expect(natural.size).toBe(`${66 * 16}px ${66 * 16}px`);
+  expect(counted.size).toBe(`${8 * 16}px ${10 * 16}px`);
   expect(off.image).toBe("none");
   expect(off.color).toBe("rgb(255, 255, 255)");
 

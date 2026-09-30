@@ -20,23 +20,32 @@ const TEXTURES: [(&str, &[u8]); 2] = [
 ];
 const TEXTURE_SAMPLE_SIZE: u32 = 64;
 
-/// The canvas cloths of `lib/export/canvas-texture-catalog.ts`: id, PNG and the number of cells one tile spans. The
-/// three must agree with that catalog (`scripts/rust-canvas.ts` checks it).
-const CANVAS_TEXTURES: [(&str, &[u8], u32); 3] = [
+/// The canvas cloths of `lib/export/canvas-texture-catalog.ts`: id, PNG and the columns and rows of cells one tile
+/// spans. They must agree with that catalog (`scripts/rust-canvas.ts` checks it).
+const CANVAS_TEXTURES: [(&str, &[u8], u32, u32); 4] = [
     (
         "aida",
         include_bytes!("../../../public/canvas-texture-aida.png"),
+        1,
         1,
     ),
     (
         "linen",
         include_bytes!("../../../public/canvas-texture-linen.png"),
         1,
+        1,
     ),
     (
         "natural",
         include_bytes!("../../../public/canvas-texture-natural.png"),
         66,
+        66,
+    ),
+    (
+        "counted",
+        include_bytes!("../../../public/canvas-texture-counted.png"),
+        8,
+        10,
     ),
 ];
 
@@ -87,9 +96,14 @@ fn decode(bytes: &[u8]) -> Pixmap {
 
 /// `drawImage(image, 0, 0, size, size)` onto a clear canvas, with the canvas's default linear sampling.
 fn scaled(src: &Pixmap, size: u32) -> Pixmap {
-    let mut out = Pixmap::new(size, size).expect("tile");
-    let sx = size as f32 / src.width() as f32;
-    let sy = size as f32 / src.height() as f32;
+    scaled_to(src, size, size)
+}
+
+/// `scaled` to a `width` × `height` that need not be square.
+fn scaled_to(src: &Pixmap, width: u32, height: u32) -> Pixmap {
+    let mut out = Pixmap::new(width, height).expect("tile");
+    let sx = width as f32 / src.width() as f32;
+    let sy = height as f32 / src.height() as f32;
     let paint = PixmapPaint {
         quality: FilterQuality::Bilinear,
         ..PixmapPaint::default()
@@ -159,22 +173,23 @@ pub fn stitch_tiles(p: &Pattern, cell_size: u32, texture_id: &str) -> Vec<Vec<u8
         .collect()
 }
 
-/// The canvas the preview sits on: an opaque `size` × `size` RGBA tile, repeated from the chart's corner.
+/// The canvas the preview sits on: an opaque `width` × `height` RGBA tile, repeated from the chart's corner.
 pub struct Ground {
-    size: usize,
+    width: usize,
+    height: usize,
     rgba: Vec<u8>,
 }
 
-/// `src` (square, opaque for this purpose) at `size` × `size` by averaging the source pixels each one covers, for a
-/// tile that shrinks a great deal; a growing tile is left to the bilinear `scaled`.
-fn box_down(src: &Pixmap, size: u32) -> Pixmap {
+/// `src` (opaque for this purpose) at `width` × `height` by averaging the source pixels each one covers, for a tile
+/// that shrinks; a growing side is left to the bilinear `scaled_to`.
+fn box_down(src: &Pixmap, width: u32, height: u32) -> Pixmap {
     let (sw, sh) = (src.width() as usize, src.height() as usize);
-    let size = size as usize;
-    let mut data = vec![255u8; size * size * 4];
-    for y in 0..size {
-        let (y0, y1) = (y * sh / size, ((y + 1) * sh / size).max(y * sh / size + 1));
-        for x in 0..size {
-            let (x0, x1) = (x * sw / size, ((x + 1) * sw / size).max(x * sw / size + 1));
+    let (w, h) = (width as usize, height as usize);
+    let mut data = vec![255u8; w * h * 4];
+    for y in 0..h {
+        let (y0, y1) = (y * sh / h, ((y + 1) * sh / h).max(y * sh / h + 1));
+        for x in 0..w {
+            let (x0, x1) = (x * sw / w, ((x + 1) * sw / w).max(x * sw / w + 1));
             let mut sum = [0u32; 3];
             for sy in y0..y1 {
                 for sx in x0..x1 {
@@ -186,32 +201,33 @@ fn box_down(src: &Pixmap, size: u32) -> Pixmap {
             }
             let n = ((y1 - y0) * (x1 - x0)) as u32;
             for (k, s) in sum.iter().enumerate() {
-                data[(y * size + x) * 4 + k] = ((s + n / 2) / n) as u8;
+                data[(y * w + x) * 4 + k] = ((s + n / 2) / n) as u8;
             }
         }
     }
-    Pixmap::from_vec(data, IntSize::from_wh(size as u32, size as u32).unwrap()).unwrap()
+    Pixmap::from_vec(data, IntSize::from_wh(width, height).unwrap()).unwrap()
 }
 
 /// `canvas`'s cloth at `cell_size` per cell, multiplied with its colour -- the tile the viewer's CSS shows
 /// (`lib/editor/canvas-cloth.ts`). No cloth ("off", or an id this table does not hold) is the plain colour.
 pub fn ground(canvas: &Canvas, cell_size: u32) -> Ground {
     let [r, g, b] = canvas.color;
-    let Some((_, bytes, cells)) = CANVAS_TEXTURES
+    let Some((_, bytes, columns, rows)) = CANVAS_TEXTURES
         .iter()
-        .find(|(id, _, _)| *id == canvas.texture)
+        .find(|(id, _, _, _)| *id == canvas.texture)
     else {
         return Ground {
-            size: 1,
+            width: 1,
+            height: 1,
             rgba: vec![r, g, b, 255],
         };
     };
-    let size = cells * cell_size;
+    let (width, height) = (columns * cell_size, rows * cell_size);
     let source = decode(bytes);
-    let tile = if size < source.width() {
-        box_down(&source, size)
+    let tile = if width <= source.width() && height <= source.height() {
+        box_down(&source, width, height)
     } else {
-        scaled(&source, size)
+        scaled_to(&source, width, height)
     };
     let multiply = |c: u8, t: u8| ((c as u32 * t as u32 + 127) / 255) as u8;
     let mut rgba = Vec::with_capacity(tile.data().len());
@@ -219,7 +235,8 @@ pub fn ground(canvas: &Canvas, cell_size: u32) -> Ground {
         rgba.extend_from_slice(&[multiply(r, p[0]), multiply(g, p[1]), multiply(b, p[2]), 255]);
     }
     Ground {
-        size: size as usize,
+        width: width as usize,
+        height: height as usize,
         rgba,
     }
 }
@@ -246,10 +263,10 @@ impl PixelSource for Preview<'_> {
             let stitch_row = y / cs;
             let tile_offset = (y % cs) * tile_row;
             if let Some(g) = &self.ground {
-                let gy = (y % g.size) * g.size;
+                let gy = (y % g.height) * g.width;
                 let row = &mut out[r * row_bytes..(r + 1) * row_bytes];
                 for (x, pixel) in row.chunks_exact_mut(4).enumerate() {
-                    let i = (gy + x % g.size) * 4;
+                    let i = (gy + x % g.width) * 4;
                     pixel.copy_from_slice(&g.rgba[i..i + 4]);
                 }
             }

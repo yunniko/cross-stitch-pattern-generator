@@ -2,7 +2,7 @@ import { canvasTextureById, type CanvasTextureChoice } from "../export/canvas-te
 
 /**
  * The cloth behind the Stitched view, as the CSS of the scrolling well: the tile repeated across all of it, multiplied
- * with the canvas colour, one tile per `cells` cells so it zooms with the chart. `originX`/`originY` are where the
+ * with the canvas colour, one tile per `columns` × `rows` cells so it zooms with the chart. `originX`/`originY` are where the
  * chart's first cell starts inside the scrolled content, so a tile edge falls on a cell edge; the background is
  * `local`, which scrolls with the content, so scrolling needs no further work.
  *
@@ -25,13 +25,12 @@ export function clothStyle(
   origin: { x: number; y: number }
 ): ClothStyle | null {
   if (texture === "off") return null;
-  const { url, cells } = canvasTextureById(texture);
-  const tile = cells * cellSize;
+  const { url, columns, rows } = canvasTextureById(texture);
   return {
     backgroundColor: color,
     backgroundImage: `url(${url})`,
     backgroundBlendMode: "multiply",
-    backgroundSize: `${tile}px ${tile}px`,
+    backgroundSize: `${columns * cellSize}px ${rows * cellSize}px`,
     backgroundPosition: `${origin.x}px ${origin.y}px`,
     backgroundAttachment: "local",
     backgroundRepeat: "repeat",

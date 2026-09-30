@@ -34,7 +34,7 @@ describe("the preview's ground", () => {
 
   it("is the canvas colour when the cloth is off, and lies under the stitches by their alpha", async () => {
     const ground = await buildGround({ color: "#336699", texture: "off" }, CELL);
-    expect(ground.size).toBe(1);
+    expect([ground.width, ground.height]).toEqual([1, 1]);
     const { data } = stitchPreviewPixels(PATTERN, TILES, ground).getImageData(0, 0, 4, 2);
     // Empty stitch: the plain colour, opaque.
     expect(pixel(data, 2, 0)).toEqual([51, 102, 153, 255]);

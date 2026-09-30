@@ -1011,9 +1011,9 @@ export function stitchPreviewPixels(pattern: StitchPattern, tiles: StitchTiles, 
         const rowStart = r * w * 4;
         const cells = stitchRow * stitchesX;
         if (ground) {
-          const groundRow = ((y + r) % ground.size) * ground.size;
+          const groundRow = ((y + r) % ground.height) * ground.width;
           for (let x = 0; x < w; x++) {
-            const from = (groundRow + (x % ground.size)) * 4;
+            const from = (groundRow + (x % ground.width)) * 4;
             data.set(ground.pixels.subarray(from, from + 4), rowStart + x * 4);
           }
         }

@@ -65,7 +65,7 @@ describe("the realistic preview export and the canvas", () => {
   });
 
   it("multiplies each cloth with the colour: white keeps the cloth's own light greys, a colour tints them", async () => {
-    for (const { id } of CANVAS_TEXTURES.filter((t) => t.cells === 1)) {
+    for (const { id } of CANVAS_TEXTURES.filter((t) => t.columns === 1 && t.rows === 1)) {
       const white = (await preview({ color: "#ffffff", texture: id })).png;
       const tinted = (await preview({ color: "#336699", texture: id })).png;
       const cell = white.width / 12;
@@ -113,14 +113,42 @@ describe("the realistic preview export and the canvas", () => {
     expect(pixelAt(png, cell * 9, cell * 5)).toEqual([51, 102, 153, 255]);
   });
 
-  it("holds the same cloths, with the same cells per tile, as the catalog the page uses", () => {
+  it("repeats the counted canvas every 8 cells across and 10 down, not every cell or every square of cells", async () => {
+    const blank = createBlankPattern(20, 22);
+    const payload = {
+      kind: "png-realistic",
+      pattern: { ...blank, palette: [{ index: 0, rgb: [180, 60, 90], symbol: "A", name: "Salmon", count: 1 }] },
+      baseName: "t",
+      aidaCount: 14,
+      sizeUnit: "cm",
+      authorName: "",
+      overlapCells: 5,
+      canvas: { color: "#ffffff", texture: "counted" },
+    } as unknown as ExportJobPayload;
+    const { png } = { png: readPng((await exportWithRust(payload, NO_SYMMETRY, () => {})).bytes) };
+    const cell = png.width / 20;
+    const at = (x: number, y: number) => pixelAt(png, x, y);
+    for (const [x, y] of [
+      [5, 7],
+      [cell * 2 + 9, cell + 4],
+    ]) {
+      expect(at(x + 8 * cell, y)).toEqual(at(x, y));
+      expect(at(x, y + 10 * cell)).toEqual(at(x, y));
+      expect(at(x + 3 * cell, y)).not.toEqual(at(x, y));
+    }
+  });
+
+  it("holds the same cloths, with the same columns and rows per tile, as the catalog the page uses", () => {
     const source = readFileSync(path.resolve(__dirname, "..", "rust", "cs-export", "src", "preview.rs"), "utf8");
     const block = source.slice(source.indexOf("const CANVAS_TEXTURES"), source.indexOf("];", source.indexOf("const CANVAS_TEXTURES")));
-    const rows = [...block.matchAll(/"([a-z-]+)",\s*include_bytes!\("[^"]*canvas-texture-([a-z-]+)\.png"\),\s*(\d+),/g)].map((m) => ({
-      id: m[1],
-      file: m[2],
-      cells: Number(m[3]),
-    }));
-    expect(rows).toEqual(CANVAS_TEXTURES.map(({ id, cells }) => ({ id, file: id, cells })));
+    const rows = [...block.matchAll(/"([a-z-]+)",\s*include_bytes!\("[^"]*canvas-texture-([a-z-]+)\.png"\),\s*(\d+),\s*(\d+),/g)].map(
+      (m) => ({
+        id: m[1],
+        file: m[2],
+        columns: Number(m[3]),
+        rows: Number(m[4]),
+      })
+    );
+    expect(rows).toEqual(CANVAS_TEXTURES.map(({ id, columns, rows }) => ({ id, file: id, columns, rows })));
   });
 });

@@ -49,6 +49,7 @@ for (const texture of [
   "canvas-texture-aida.png",
   "canvas-texture-linen.png",
   "canvas-texture-natural.png",
+  "canvas-texture-counted.png",
 ]) {
   await cp(path.join(ROOT, "public", texture), path.join(OUT, "assets", texture));
 }
