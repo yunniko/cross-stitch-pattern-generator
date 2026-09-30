@@ -82,7 +82,7 @@ describe("workspace-storage", () => {
         overlapCells: 10 as const,
         canvasColor: "#336699",
         stitchTexture: "pixel" as const,
-        canvasTexture: "linen" as const,
+        canvasTexture: "natural" as const,
         exportCanvas: true,
         sizePreset: "xl" as const,
         customSize: 250,
@@ -229,9 +229,9 @@ describe("workspace-storage", () => {
     });
 
     it("keeps a chosen canvas texture and the export-canvas switch across a reload", () => {
-      saveWorkspaceOptions({ ...DEFAULTS, canvasTexture: "aida", exportCanvas: true });
+      saveWorkspaceOptions({ ...DEFAULTS, canvasTexture: "counted", exportCanvas: true });
       const loaded = loadWorkspaceOptions();
-      expect(loaded.canvasTexture).toBe("aida");
+      expect(loaded.canvasTexture).toBe("counted");
       expect(loaded.exportCanvas).toBe(true);
     });
 

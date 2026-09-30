@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-30 at 4886ba3 (G-077, deployed)
+Last verified: 2026-09-30 at the G-077 offsets commit
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -12,7 +12,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 **Production** runs 4a28457 (2026-09-28, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-077, canvas textures — M1 and M2 built and deployed 2026-09-30 (4886ba3), awaiting the Owner's sign-off.** The Chart pane's Canvas texture buttons (`app/components/canvas-picker.tsx`; Off, Aida, Linen, Natural linen, Counted canvas from `lib/export/canvas-texture-catalog.ts`) set `canvasTexture`; in the Stitched view `app/hooks/use-canvas-cloth.ts` paints the tile on the whole scrolling well (D250). "Canvas in exported preview" (`exportCanvas`) sends `canvas` with the export request, and `rust/cs-export/src/preview.rs` lays the stitches over the ground (D251; the TypeScript reference is `lib/export/canvas-ground.ts`). Verified: 849 unit, 125 Rust-side, tsc, eslint, prettier; e2e 463 of 465 before Counted canvas was added (the two admin-stats cases pass alone) and 145 of 145 in the texture, navigation and viewport specs after.
+**G-077, canvas textures — deployed 2026-09-30 (4886ba3); a later change is built, not deployed; awaiting the Owner's sign-off.** The Chart pane's Canvas texture buttons (`app/components/canvas-picker.tsx`; Off, Natural linen, Counted canvas from `lib/export/canvas-texture-catalog.ts`, each with columns, rows and an offset in cells) set `canvasTexture`; in the Stitched view `app/hooks/use-canvas-cloth.ts` paints the tile on the whole scrolling well (D250). "Canvas in exported preview" (`exportCanvas`) sends `canvas` with the export request, and `rust/cs-export/src/preview.rs` lays the stitches over the ground (D251; the TypeScript reference is `lib/export/canvas-ground.ts`). Undeployed since 4886ba3: the offsets, the removal of the generated Aida and Linen, and three Owner stitch textures (Beveled, Outline, Outline shaded; `lib/export/stitch-texture-catalog.ts`). Verified: 851 unit, 127 Rust-side, 464 of 466 e2e (the two admin-stats cases pass alone), tsc, eslint, prettier.
 
 **G-076, stitch textures — signed off and deployed 2026-09-30 (8fc5bf2), archived.** The Chart pane's texture buttons (`app/components/texture-picker.tsx`) set the persisted `stitchTexture` option, which draws the on-screen Stitched view and the exported realistic preview (D248, D249). Textures live in `lib/export/stitch-texture-catalog.ts` and `TEXTURES` in `rust/cs-export/src/preview.rs`. Record in `docs/goals-archive/G-071-to-G-080.md`.
 

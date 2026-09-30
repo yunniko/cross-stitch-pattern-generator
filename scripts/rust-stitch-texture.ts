@@ -1,7 +1,8 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { createBlankPattern } from "@/lib/editor/blank-pattern";
-import type { StitchTextureId } from "@/lib/export/stitch-texture-catalog";
+import { STITCH_TEXTURES, type StitchTextureId } from "@/lib/export/stitch-texture-catalog";
 import { exportWithRust } from "@/processor/rust-jobs";
 import type { ExportJobPayload } from "@/processor/job-protocol";
 import { EMPTY_CELL, type StitchPattern } from "@/lib/types";
@@ -61,5 +62,22 @@ describe("the realistic preview export and the stitch texture", () => {
     expect(Buffer.compare(Buffer.from(classic), Buffer.from(pixel))).not.toBe(0);
     expect(Buffer.compare(Buffer.from(await preview(undefined)), Buffer.from(classic))).toBe(0);
     expect(Buffer.compare(Buffer.from(await preview("lace" as StitchTextureId)), Buffer.from(classic))).toBe(0);
+  });
+
+  it("draws every catalog texture differently from every other", async () => {
+    const drawn = new Set<string>();
+    for (const { id } of STITCH_TEXTURES) drawn.add(Buffer.from(await preview(id)).toString("base64"));
+    expect(drawn.size).toBe(STITCH_TEXTURES.length);
+  });
+
+  it("holds the same stitch textures, in the same ids, as the catalog the page uses", () => {
+    const source = readFileSync(path.resolve(__dirname, "..", "rust", "cs-export", "src", "preview.rs"), "utf8");
+    const start = source.indexOf("const TEXTURES");
+    const block = source.slice(start, source.indexOf("];", start));
+    const rows = [...block.matchAll(/"([a-z-]+)",\s*include_bytes!\("[^"]*stitch-texture(?:-([a-z-]+))?\.png"\)/g)].map((m) => ({
+      id: m[1],
+      file: m[2] ?? "classic",
+    }));
+    expect(rows).toEqual(STITCH_TEXTURES.map(({ id }) => ({ id, file: id })));
   });
 });

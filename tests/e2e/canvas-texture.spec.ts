@@ -39,14 +39,14 @@ test("the cloth covers the well in the Stitched view only, zooms with the cells,
   await chip("Stitched").click();
   expect((await cloth(scroller)).blend).toBe("");
 
-  await picker.getByRole("radio", { name: "Aida", exact: true }).click();
+  await picker.getByRole("radio", { name: "Natural linen", exact: true }).click();
   await expect(frame).toHaveAttribute("data-scene-pending", "");
   const first = await cloth(scroller);
   const cellSize = Number(await frame.getAttribute("data-cell-size"));
   expect(first.blend).toBe("multiply");
   expect(first.attachment).toBe("local");
-  expect(first.image).toContain("canvas-texture-aida.png");
-  expect(first.size).toBe(`${cellSize}px ${cellSize}px`);
+  expect(first.image).toContain("canvas-texture-natural.png");
+  expect(first.size).toBe(`${66 * cellSize}px ${66 * cellSize}px`);
 
   // The tile's origin is the chart's first cell, so a tile edge falls on a cell edge.
   const alignment = await page.evaluate(() => {
@@ -79,7 +79,7 @@ test("the cloth covers the well in the Stitched view only, zooms with the cells,
   await expect(frame).toHaveAttribute("data-scene-pending", "");
   const zoomedCell = Number(await frame.getAttribute("data-cell-size"));
   expect(zoomedCell).toBeGreaterThan(cellSize);
-  await expect.poll(async () => (await cloth(scroller)).size).toBe(`${zoomedCell}px ${zoomedCell}px`);
+  await expect.poll(async () => (await cloth(scroller)).size).toBe(`${66 * zoomedCell}px ${66 * zoomedCell}px`);
 
   // Only the Stitched view: Color has no cloth, and the chart fills its own ground again.
   await chip("Color").click();
@@ -107,14 +107,10 @@ test("the cloth takes the canvas colour, the swatches show it at one cell size, 
       const s = getComputedStyle(el);
       return { width: s.width, height: s.height, size: s.backgroundSize, image: s.backgroundImage, color: s.backgroundColor };
     });
-  const aida = await swatch("aida");
-  const linen = await swatch("linen");
   const natural = await swatch("natural");
   const counted = await swatch("counted");
   const off = await swatch("off");
-  for (const s of [aida, linen, natural, counted, off]) expect([s.width, s.height]).toEqual(["48px", "64px"]);
-  expect(aida.size).toBe("16px 16px");
-  expect(linen.size).toBe("16px 16px");
+  for (const s of [natural, counted, off]) expect([s.width, s.height]).toEqual(["48px", "64px"]);
   // The Owner's linen spans 66 cells (about two threads to a cell); the counted canvas is 8 blocks wide and 10 tall.
   expect(natural.size).toBe(`${66 * 16}px ${66 * 16}px`);
   expect(counted.size).toBe(`${8 * 16}px ${10 * 16}px`);
@@ -122,16 +118,16 @@ test("the cloth takes the canvas colour, the swatches show it at one cell size, 
   expect(off.color).toBe("rgb(255, 255, 255)");
 
   await page.getByRole("button", { name: "Stitched", exact: true }).click();
-  await picker.getByRole("radio", { name: "Linen", exact: true }).click();
+  await picker.getByRole("radio", { name: "Counted canvas", exact: true }).click();
   await page.getByLabel("Canvas color").first().fill("#e8d9b5");
   await expect.poll(async () => (await cloth(scroller)).color).toBe("rgb(232, 217, 181)");
-  expect((await cloth(scroller)).image).toContain("canvas-texture-linen.png");
+  expect((await cloth(scroller)).image).toContain("canvas-texture-counted.png");
 
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
   await page.getByRole("tab", { name: "Chart" }).click();
-  await expect(picker.getByRole("radio", { name: "Linen", exact: true })).toHaveAttribute("aria-checked", "true");
+  await expect(picker.getByRole("radio", { name: "Counted canvas", exact: true })).toHaveAttribute("aria-checked", "true");
 });
 
 test("the exported preview carries the canvas only when asked, and the plain colour when the texture is off", async ({ page }) => {
@@ -164,7 +160,7 @@ test("the exported preview carries the canvas only when asked, and the plain col
   for (let i = 3; i < flat.rgba.length; i += 4) expect(flat.rgba[i]).toBe(255);
 
   // Ticked with a cloth: the cloth multiplied with the colour, and still opaque.
-  await picker.getByRole("radio", { name: "Aida", exact: true }).click();
+  await picker.getByRole("radio", { name: "Counted canvas", exact: true }).click();
   const cloth = await exportPreview();
   expect(ground(cloth)[3]).toBe(255);
   const seen = new Set<string>();

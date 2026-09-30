@@ -1,4 +1,4 @@
-import { cp, rm } from "node:fs/promises";
+import { cp, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "rolldown";
@@ -43,14 +43,8 @@ await build({
  * this to the image alone meant every local export failed with a missing font.
  */
 await cp(path.join(ROOT, "public", "fonts"), path.join(OUT, "assets", "fonts"), { recursive: true });
-for (const texture of [
-  "stitch-texture.png",
-  "stitch-texture-pixel.png",
-  "canvas-texture-aida.png",
-  "canvas-texture-linen.png",
-  "canvas-texture-natural.png",
-  "canvas-texture-counted.png",
-]) {
+// Every stitch and canvas texture the page can name (`lib/export/*-texture-catalog.ts`), so a new one needs no edit here.
+for (const texture of (await readdir(path.join(ROOT, "public"))).filter((name) => /^(stitch|canvas)-texture.*\.png$/.test(name))) {
   await cp(path.join(ROOT, "public", texture), path.join(OUT, "assets", texture));
 }
 

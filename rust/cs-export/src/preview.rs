@@ -8,7 +8,7 @@ use tiny_skia::{FilterQuality, IntSize, Pixmap, PixmapPaint, Transform};
 
 /// The catalog of `lib/export/stitch-texture-catalog.ts`: an id and its PNG. The first is the default, and the fallback
 /// for an id this table does not hold (the processor validates ids, so that is only a stale client).
-const TEXTURES: [(&str, &[u8]); 2] = [
+const TEXTURES: [(&str, &[u8]); 5] = [
     (
         "classic",
         include_bytes!("../../../public/stitch-texture.png"),
@@ -17,29 +17,25 @@ const TEXTURES: [(&str, &[u8]); 2] = [
         "pixel",
         include_bytes!("../../../public/stitch-texture-pixel.png"),
     ),
+    (
+        "beveled",
+        include_bytes!("../../../public/stitch-texture-beveled.png"),
+    ),
+    (
+        "outline",
+        include_bytes!("../../../public/stitch-texture-outline.png"),
+    ),
+    (
+        "outline-shaded",
+        include_bytes!("../../../public/stitch-texture-outline-shaded.png"),
+    ),
 ];
 const TEXTURE_SAMPLE_SIZE: u32 = 64;
 
 /// The canvas cloths of `lib/export/canvas-texture-catalog.ts`: id, PNG, the columns and rows of cells one tile spans,
 /// and how far in cells (right, down) its blocks start from the tile's corner. They must agree with that catalog
 /// (`scripts/rust-canvas.ts` checks it).
-const CANVAS_TEXTURES: [(&str, &[u8], u32, u32, f64, f64); 4] = [
-    (
-        "aida",
-        include_bytes!("../../../public/canvas-texture-aida.png"),
-        1,
-        1,
-        0.0,
-        0.0,
-    ),
-    (
-        "linen",
-        include_bytes!("../../../public/canvas-texture-linen.png"),
-        1,
-        1,
-        0.0,
-        0.0,
-    ),
+const CANVAS_TEXTURES: [(&str, &[u8], u32, u32, f64, f64); 2] = [
     (
         "natural",
         include_bytes!("../../../public/canvas-texture-natural.png"),

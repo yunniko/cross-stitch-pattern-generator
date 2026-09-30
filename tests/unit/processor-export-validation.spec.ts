@@ -71,12 +71,12 @@ describe("processor export validation", () => {
   it("accepts a canvas with a colour and a cloth (or off), refuses a malformed one, and reads none as a transparent ground", () => {
     expect(exportRequestError(requestFrom({ canvas: { color: "#e8d9b5", texture: "natural" } }))).toBeNull();
     expect(exportRequestError(requestFrom({ canvas: { color: "#ffffff", texture: "off" } }))).toBeNull();
-    expect(exportRequestError(requestFrom({ canvas: { color: "white", texture: "aida" } }))).toMatch(/canvas\.color/);
+    expect(exportRequestError(requestFrom({ canvas: { color: "white", texture: "counted" } }))).toMatch(/canvas\.color/);
     expect(exportRequestError(requestFrom({ canvas: { color: "#ffffff", texture: "burlap" } }))).toMatch(/canvas\.texture/);
-    expect(exportRequestError(requestFrom({ canvas: { texture: "aida" } }))).toMatch(/canvas\.color/);
-    expect(toExportPayload(requestFrom({ canvas: { color: "#ffffff", texture: "linen" } })).canvas).toEqual({
+    expect(exportRequestError(requestFrom({ canvas: { texture: "counted" } }))).toMatch(/canvas\.color/);
+    expect(toExportPayload(requestFrom({ canvas: { color: "#ffffff", texture: "natural" } })).canvas).toEqual({
       color: "#ffffff",
-      texture: "linen",
+      texture: "natural",
     });
     expect(toExportPayload(requestFrom()).canvas).toBeUndefined();
   });

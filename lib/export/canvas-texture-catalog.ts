@@ -9,8 +9,6 @@
  * cells; 0 means the picture starts on a block edge.
  */
 export const CANVAS_TEXTURES = [
-  { id: "aida", label: "Aida", url: "/canvas-texture-aida.png", columns: 1, rows: 1, offsetX: 0, offsetY: 0 },
-  { id: "linen", label: "Linen", url: "/canvas-texture-linen.png", columns: 1, rows: 1, offsetX: 0, offsetY: 0 },
   // Supplied by the Owner (2026-09-30): 1254 px, about 132 threads across, read as two threads to a cell.
   { id: "natural", label: "Natural linen", url: "/canvas-texture-natural.png", columns: 66, rows: 66, offsetX: 0, offsetY: 0 },
   // Supplied by the Owner (2026-09-30): 163 × 209 px, 8 blocks across and 10 down, one block to a cell.

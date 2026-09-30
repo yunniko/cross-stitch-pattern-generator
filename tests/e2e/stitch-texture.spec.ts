@@ -28,16 +28,16 @@ test("texture buttons show 3 × 4 stitches at one size, and choosing one redraws
 
   const picker = page.getByRole("radiogroup", { name: "Stitch texture" });
   const buttons = picker.getByRole("radio");
-  await expect(buttons).toHaveCount(2);
+  await expect(buttons).toHaveCount(5);
   await expect(picker.getByRole("radio", { name: "Classic" })).toHaveAttribute("aria-checked", "true");
 
   // Every swatch is the same size -- 3 × 4 tiles -- and is drawn, not blank.
   const swatches = picker.locator("canvas");
   const sizes = await swatches.evaluateAll((els) => els.map((el) => [(el as HTMLCanvasElement).width, (el as HTMLCanvasElement).height]));
-  expect(sizes).toEqual([sizes[0], sizes[0]]);
+  expect(sizes).toEqual(Array(5).fill(sizes[0]));
   expect(sizes[0][1] / sizes[0][0]).toBeCloseTo(4 / 3);
   const fingerprints: string[] = [];
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 5; i++) {
     await expect
       .poll(() =>
         swatches.nth(i).evaluate((el: HTMLCanvasElement) =>
@@ -50,7 +50,7 @@ test("texture buttons show 3 × 4 stitches at one size, and choosing one redraws
       .toBe(true);
     fingerprints.push(await canvasFingerprint(swatches.nth(i)));
   }
-  expect(fingerprints[0]).not.toBe(fingerprints[1]);
+  expect(new Set(fingerprints).size).toBe(5);
 
   // Stitched view with the classic texture, then with the pixel one.
   await page.getByRole("button", { name: "Stitched", exact: true }).click();

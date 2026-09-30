@@ -65,7 +65,7 @@ describe("the realistic preview export and the canvas", () => {
   });
 
   it("multiplies each cloth with the colour: white keeps the cloth's own light greys, a colour tints them", async () => {
-    for (const { id } of CANVAS_TEXTURES.filter((t) => t.columns === 1 && t.rows === 1)) {
+    for (const { id } of CANVAS_TEXTURES) {
       const white = (await preview({ color: "#ffffff", texture: id })).png;
       const tinted = (await preview({ color: "#336699", texture: id })).png;
       const cell = white.width / 12;
@@ -78,8 +78,6 @@ describe("the realistic preview export and the canvas", () => {
       expect(Math.abs(tr - Math.round((51 * r) / 255))).toBeLessThanOrEqual(1);
       expect(Math.abs(tg - Math.round((102 * g) / 255))).toBeLessThanOrEqual(1);
       expect(Math.abs(tb - Math.round((153 * b) / 255))).toBeLessThanOrEqual(1);
-      // One tile per cell: the same pixel of the next empty cell is the same.
-      expect(pixelAt(white, cell * 8 + 3, cell * 4 + 3)).toEqual(pixelAt(white, cell * 9 + 3, cell * 5 + 3));
     }
   });
 

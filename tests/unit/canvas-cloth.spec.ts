@@ -14,7 +14,8 @@ describe("canvas texture catalog", () => {
 
   it("recognises its ids and 'off', and refuses anything else by name", () => {
     expect(isCanvasTextureChoice("off")).toBe(true);
-    expect(isCanvasTextureChoice("aida")).toBe(true);
+    expect(isCanvasTextureChoice("natural")).toBe(true);
+    expect(isCanvasTextureChoice("aida")).toBe(false); // removed 2026-09-30; a stored "aida" reads as off
     expect(isCanvasTextureChoice("burlap")).toBe(false);
     expect(isCanvasTextureChoice(undefined)).toBe(false);
     expect(() => canvasTextureById("burlap" as never)).toThrow('Unknown canvas texture "burlap"');
@@ -26,12 +27,12 @@ describe("clothStyle", () => {
     expect(clothStyle("off", "#ffffff", 20, { x: 0, y: 0 })).toBeNull();
   });
 
-  it("tiles one cell per tile, multiplied with the colour, scrolling with the well", () => {
-    const style = clothStyle("aida", "#f0e6d2", 24, { x: 30, y: 25 })!;
+  it("tiles a whole number of cells per tile, multiplied with the colour, scrolling with the well", () => {
+    const style = clothStyle("natural", "#f0e6d2", 24, { x: 30, y: 25 })!;
     expect(style.backgroundColor).toBe("#f0e6d2");
-    expect(style.backgroundImage).toBe("url(/canvas-texture-aida.png)");
+    expect(style.backgroundImage).toBe("url(/canvas-texture-natural.png)");
     expect(style.backgroundBlendMode).toBe("multiply");
-    expect(style.backgroundSize).toBe("24px 24px");
+    expect(style.backgroundSize).toBe("1584px 1584px"); // 66 cells of 24 px
     expect(style.backgroundPosition).toBe("30px 25px");
     expect(style.backgroundAttachment).toBe("local");
     expect(style.backgroundRepeat).toBe("repeat");
@@ -47,11 +48,11 @@ describe("clothStyle", () => {
     // starts half a cell (5 px) up and to the left of that.
     expect(clothStyle("counted", "#fff", 10, { x: 30, y: 25 })!.backgroundPosition).toBe("25px 20px");
     // A tile with no offset starts on the chart's first cell.
-    expect(clothStyle("aida", "#fff", 10, { x: 30, y: 25 })!.backgroundPosition).toBe("30px 25px");
+    expect(clothStyle("natural", "#fff", 10, { x: 30, y: 25 })!.backgroundPosition).toBe("30px 25px");
   });
 
   it("scales with the cell size: zooming in makes the weave larger", () => {
-    expect(clothStyle("linen", "#fff", 10, { x: 0, y: 0 })!.backgroundSize).toBe("10px 10px");
-    expect(clothStyle("linen", "#fff", 40, { x: 0, y: 0 })!.backgroundSize).toBe("40px 40px");
+    expect(clothStyle("natural", "#fff", 10, { x: 0, y: 0 })!.backgroundSize).toBe("660px 660px");
+    expect(clothStyle("natural", "#fff", 40, { x: 0, y: 0 })!.backgroundSize).toBe("2640px 2640px");
   });
 });

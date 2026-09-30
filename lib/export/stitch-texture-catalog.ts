@@ -7,6 +7,10 @@ export const STITCH_TEXTURES = [
   { id: "classic", label: "Classic", url: "/stitch-texture.png" },
   // Supplied by the Owner (2026-09-30), a 9 × 9 px image.
   { id: "pixel", label: "Pixel", url: "/stitch-texture-pixel.png" },
+  // Supplied by the Owner (2026-09-30): about 116 px cell images, a light middle and a darker soft edge, tinted to the thread.
+  { id: "beveled", label: "Beveled", url: "/stitch-texture-beveled.png" },
+  { id: "outline", label: "Outline", url: "/stitch-texture-outline.png" },
+  { id: "outline-shaded", label: "Outline shaded", url: "/stitch-texture-outline-shaded.png" },
 ] as const;
 
 export type StitchTextureId = (typeof STITCH_TEXTURES)[number]["id"];
