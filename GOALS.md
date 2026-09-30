@@ -12,30 +12,6 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-076 · Choose the stitch texture of the Stitched view — ACTIVE (2026-09-30)
-- **What:** a set of buttons on the Chart tab, each showing its texture as 3 × 4 stitches; choosing one redraws the
-  Stitched (realistic) view with it. All textures are drawn at the same size, scaled as needed. First new texture:
-  the Owner's `texture1.png` (9 × 9 px).
-- **Why:** the Owner wants to change how the realistic preview looks without a code change per look.
-- **Acceptance criteria:** buttons on the Chart pane with a 3 × 4 swatch each, all the same size; the choice changes the
-  Stitched view and is remembered; the exported realistic preview follows the choice (M2).
-- **Constraints:** the Rust preview exporter embeds the textures; byte-identity with the screen is not required (Owner, 2026-09-30).
-
-**Milestones:**
-- [x] M1 — catalog, setting, tile building per texture, buttons on the Chart pane (on-screen only)
-- [x] M2 — the exported realistic preview (PNG and inside `.cspzip`) draws with the chosen texture (D249); not byte-identical to the screen, by Owner decision
-
-**Progress log** (newest first):
-- 2026-09-30 — Deployed 8fc5bf2 at the Owner's instruction; live spec passes, other sites unaffected. Pending: sign-off.
-- 2026-09-30 — M2 built (D249). Rust preview embeds each catalog texture; `stitchTexture` travels client → processor → `cs-job`.
-  837 unit, 118 Rust-side (goldens unchanged), 461 of 463 e2e with a real binary; the 2 admin-stats cases count usage
-  events exactly and failed only under parallel load, passing alone. New: `scripts/rust-stitch-texture.ts`, an export e2e.
-  Not run: a Docker image build. Pending: the Owner's sign-off.
-- 2026-09-30 — M1 built (13c48d2, D248). 836 unit tests pass; the new e2e (3 × 4 swatches at one size, Stitched view
-  redraws, choice survives a reload) passes, as do 213 e2e cases across the viewport/render-parity, OXS and blank-chart
-  specs. 8 e2e cases that Generate or export through the processor did not run here (no Rust binary in this
-  environment; the unmodified navigation spec failed the same way) — the full suite is still owed before a deploy.
-
 ### G-069 · The workspace stops being the only thing that knows how everything connects — DRAFT (2026-09-24)
 - **What:** the changes `docs/reviews/2026-09-24-workspace-shape.md` recommends: a `useEditorDocument` hook owning
   what it means to replace the open chart, then grouped props for the panes that take 31 and 30 of them.

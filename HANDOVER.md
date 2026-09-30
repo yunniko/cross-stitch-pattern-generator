@@ -12,7 +12,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 **Production** runs 4a28457 (2026-09-28, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-076, stitch textures — M1 and M2 built and deployed 2026-09-30 (8fc5bf2), awaiting the Owner's sign-off.** The Chart pane has a radio group of texture buttons (`app/components/texture-picker.tsx`); the choice is the persisted `stitchTexture` option. It decides the on-screen Stitched view and the exported realistic preview (alone and inside Export all), which travels as `stitchTexture` in the export request to `cs-job` (D248, D249). Textures live in `lib/export/stitch-texture-catalog.ts` and, for Rust, `TEXTURES` in `rust/cs-export/src/preview.rs`. Verified with a Rust binary: 837 unit tests, 118 Rust-side tests (goldens unchanged), 461 of 463 e2e cases, the other two passing alone. The server image built and the live spec passed.
+**G-076, stitch textures — signed off and deployed 2026-09-30 (8fc5bf2), archived.** The Chart pane's texture buttons (`app/components/texture-picker.tsx`) set the persisted `stitchTexture` option, which draws the on-screen Stitched view and the exported realistic preview (D248, D249). Textures live in `lib/export/stitch-texture-catalog.ts` and `TEXTURES` in `rust/cs-export/src/preview.rs`. Record in `docs/goals-archive/G-071-to-G-080.md`.
 
 **G-075, accounts — signed off 2026-09-30, archived.** Optional registration/login/personal cabinet
 (`/account`) and admin tools (`/admin/users`, `/admin/stats`) on NextAuth v5 + Prisma + Postgres + bcryptjs
@@ -358,7 +358,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-076 awaits the Owner's sign-off.**
+- G-076 (stitch textures) was signed off 2026-09-30 and is archived.
 - G-075 (accounts) was signed off 2026-09-30 and is archived. G-074 (the four photo sliders) was signed
   off on 2026-09-27 and is archived, as is G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner:
   **G-069** (the workspace's shape, from `docs/reviews/2026-09-24-workspace-shape.md`) and **G-030** (public
