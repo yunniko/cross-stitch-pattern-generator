@@ -9,6 +9,7 @@ their last state in `GOALS.md`; decision references (Dnn) now resolve to
 (STANDARDS.md → Documentation). This page is the index: every completed goal, newest first, and the file
 holding it.
 
+- **G-079** · Small fixes: dismissable errors, one canvas colour, a transparency lock — DONE (2026-09-30, deployed 2026-09-30 and 2026-10-01, Owner sign-off 2026-10-01) — [`G-071-to-G-080.md`](goals-archive/G-071-to-G-080.md)
 - **G-078** · Rulers on the four edges of the viewer — DONE (2026-09-30, deployed 2026-09-30, Owner sign-off 2026-09-30) — [`G-071-to-G-080.md`](goals-archive/G-071-to-G-080.md)
 - **G-077** · Canvas textures for the Stitched view — DONE (2026-09-30, deployed 2026-09-30, Owner sign-off 2026-09-30) — [`G-071-to-G-080.md`](goals-archive/G-071-to-G-080.md)
 - **G-076** · Choose the stitch texture of the Stitched view — DONE (2026-09-30, deployed 2026-09-30, Owner sign-off 2026-09-30) — [`G-071-to-G-080.md`](goals-archive/G-071-to-G-080.md)

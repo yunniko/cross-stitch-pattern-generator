@@ -12,40 +12,6 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-079 · Small fixes: dismissable errors, one canvas colour, a transparency lock — ACTIVE (2026-09-30)
-- **What:** (1) every error message goes away by itself or can be dismissed; (2) the canvas colour leaves the top panel
-  (the Chart tab has it) and the Chart tab's colour control uses the colour picker library the thread colour editor uses
-  (`react-colorful`, the Owner's "rgb library"); (3) a "lock transparency" icon button with on and off states: while on,
-  no drawing or filling tool can turn an empty stitch into a colour or a colour into an empty stitch; selection, moving
-  and dragging are unchanged, except that fill selected fills only the stitches that are not empty.
-- **Why:** small irritations the Owner hit while working: messages that stay, the same setting in two places, and
-  no way to paint a cut-out chart without spilling into its transparent background.
-- **Acceptance criteria:** an error strip or line has a dismiss control and clears itself after a while; the top panel has
-  no canvas colour; the Chart tab's canvas colour opens the same kind of picker as a thread; with the lock on, the brush,
-  the shape tools, Fill, double-click fill and Lasso fill leave every stitch's empty/filled state as it was, and Fill
-  selected fills only non-empty stitches; with it off, everything works as before.
-- **Constraints:** the lock guards the drawing and filling tools only (Owner): selection, move, paste, duplicate, flip,
-  rotate, crop and the quick mirror are unchanged. Assumption, Owner to confirm: the lock is remembered in the browser
-  with the other options, not saved in a chart file; "fill selected" is restricted only while the lock is on.
-
-**Milestones:**
-- [x] M1 — dismissable errors; canvas colour out of the top panel and on the shared picker
-- [x] M2 — the lock transparency button and its rule in every drawing and filling tool (D253)
-
-**Progress log** (newest first):
-- 2026-09-30 — Owner: "remove also Loaded: name from top panel". Removed from both places in the top panel (the no-chart
-  state and the chart state); the 12 specs that waited for that text now wait for the Generate button (`expectPhotoLoaded` in
-  `tests/e2e/helpers/app.ts`), and a new case checks it stays gone. 868 unit, 475 of 477 e2e (the 2 admin-stats cases pass
-  alone). Not deployed.
-- 2026-09-30 — Deployed 635e60c at the Owner's instruction; the live specs pass (16 of 16, two of them alone after the site's job limit), other sites unaffected. Pending: sign-off.
-- 2026-09-30 — M1 and M2 built (D253). Errors: every strip or line has a cross (`DismissButton`) and an error clears after 12 s
-  (`app/hooks/use-auto-dismiss.ts`); the canvas colour left the top panel and is a swatch on the Chart tab opening
-  `react-colorful` with a hex field; the lock is the padlock icon in the top panel (`aria-pressed`, remembered). 868 unit
-  (new `tests/unit/transparency-lock.spec.ts`), new `tests/e2e/small-fixes.spec.ts` (5 cases) and 474 of 476 e2e (the 2
-  admin-stats cases pass alone). Looked at on screen.
-- 2026-09-30 — goal created at the Owner's request ("small fixes of current issues"; "rgn is mistype, I meant rgb
-  library"). The Owner's request names both milestones, so both are worked before the check-in.
-
 ### G-069 · The workspace stops being the only thing that knows how everything connects — DRAFT (2026-09-24)
 - **What:** the changes `docs/reviews/2026-09-24-workspace-shape.md` recommends: a `useEditorDocument` hook owning
   what it means to replace the open chart, then grouped props for the panes that take 31 and 30 of them.
