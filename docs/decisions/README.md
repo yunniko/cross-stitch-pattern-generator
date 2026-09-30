@@ -284,3 +284,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D247 — Usage counts are recorded at job acceptance, windowed by UTC calendar days — active
 - D248 — The stitch texture is a catalog choice, display only until exports follow — active
 - D249 — The exported realistic preview follows the chosen stitch texture — active
+- D250 — The canvas cloth is the well's CSS background, one tile per cell — active

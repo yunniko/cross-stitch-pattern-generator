@@ -3,6 +3,7 @@ import type { StitchPattern } from "@/lib/types";
 import { isSelectTool, isViewOnlyMode, type Tool, type ViewMode } from "../editor-types";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import type { SourceImageMeta } from "../hooks/use-source-image";
+import { useCanvasCloth } from "../hooks/use-canvas-cloth";
 import { FirstRun } from "./first-run";
 import { PillButton } from "./ui";
 
@@ -106,6 +107,9 @@ export function ImageWindow({
   // never goes blank while a preview is being prepared.
   const showAdjusted = adjustActive && adjustReady && adjustSize !== null && !showOriginal;
   const comparable = adjustActive && (adjustReady || showOriginal);
+  // The cloth is the Stitched view's alone, and covers the whole well rather than only the chart (G-077).
+  const clothShown = pattern !== null && !startingNew && viewMode === "realistic" && options.canvasTexture !== "off";
+  useCanvasCloth(scrollerRef, frameRef, { active: clothShown, texture: options.canvasTexture, color: options.canvasColor, cellSize });
 
   return (
     <div
@@ -181,7 +185,9 @@ export function ImageWindow({
           onDrop={onDrop}
           // Content-box sizing: the chart is exactly width × cellSize inside the 1 px border, as the old canvas was.
           style={{ width: pattern.width * cellSize, height: pattern.height * cellSize }}
-          className={`relative box-content touch-none overflow-hidden border border-line shadow-[0_20px_50px_rgba(0,0,0,.5)] ${cursorFor(activeTool, activeColorIndex, viewMode)}`}
+          className={`relative box-content touch-none overflow-hidden border ${
+            clothShown ? "border-transparent" : "border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
+          } ${cursorFor(activeTool, activeColorIndex, viewMode)}`}
         >
           <canvas ref={canvasRef} data-testid="chart-canvas" aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
           {/* The cursor draws here and nowhere else, so moving it never repaints the chart (G-065). */}

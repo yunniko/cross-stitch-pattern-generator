@@ -58,6 +58,8 @@ export interface ChartRendererInputs {
   canvasColor: string;
   /** Which texture the Realistic view draws its stitches with (D249). */
   stitchTexture: StitchTextureId;
+  /** The Stitched view sits on the well-wide cloth, so the chart leaves its own ground clear (G-077). */
+  clothBehind: boolean;
   /** The symmetry axes in effect, drawn as red guide lines in every view (G-037). */
   symmetryAxes: SymmetryAxes;
   /**
@@ -121,6 +123,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     litBackstitchIndices,
     canvasColor,
     stitchTexture,
+    clothBehind,
     applyZoomAnchor,
     symmetryAxes,
     photoAdjust,
@@ -149,6 +152,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       selection,
       highlightBackstitch,
       canvasColor,
+      clothBehind,
       symmetryAxes,
     }),
     [
@@ -163,6 +167,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       selection,
       highlightBackstitch,
       canvasColor,
+      clothBehind,
       symmetryAxes,
     ]
   );

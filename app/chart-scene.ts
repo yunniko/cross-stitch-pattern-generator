@@ -47,6 +47,8 @@ export interface ChartScene {
    */
   highlightBackstitch?: (line: BackstitchLine) => boolean;
   canvasColor: string;
+  /** The Stitched view sits on a textured cloth painted behind the whole well: the chart leaves its ground clear (G-077). */
+  clothBehind?: boolean;
   /** While a select drag runs, the floating selection is neither composited nor outlined: the drag frame draws it. */
   selectDragging: boolean;
   /** The symmetry axes in effect, drawn as red guide lines over everything (G-037); never part of any export. */
@@ -179,14 +181,21 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
     litBackstitchIndices,
     selection,
     canvasColor,
+    clothBehind,
     selectDragging,
   } = scene;
   ctx.save();
   clipTo(ctx, rect);
 
   if (viewMode === "realistic" || viewMode === "photo-only") {
-    ctx.fillStyle = canvasColor;
-    ctx.fillRect(0, 0, p.width * cellSize, p.height * cellSize);
+    if (viewMode === "realistic" && clothBehind) {
+      // Cleared, not filled: the cloth is the well's own background and shows through, and a clear keeps a repaint of
+      // part of the chart from stacking translucent stitch edges on the previous frame.
+      ctx.clearRect(0, 0, p.width * cellSize, p.height * cellSize);
+    } else {
+      ctx.fillStyle = canvasColor;
+      ctx.fillRect(0, 0, p.width * cellSize, p.height * cellSize);
+    }
     if (viewMode === "realistic") {
       // Only the stitches under `rect`: a stitch's texture never reaches past its own cell. Scaled tiles sample their
       // neighbours, so one more stitch on each side keeps the edges of `rect` as a whole-chart stretch drew them (D136).

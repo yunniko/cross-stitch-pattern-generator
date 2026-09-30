@@ -7,6 +7,7 @@ import type { OverlapCells } from "@/lib/export/a4-layout";
 import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
 import type { StitchPattern } from "@/lib/types";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
+import { CanvasPicker } from "./canvas-picker";
 import { TexturePicker } from "./texture-picker";
 import { PillButton, SegmentedControl, DISABLED_TEXT } from "./ui";
 
@@ -156,6 +157,18 @@ export function ChartPane({ pattern, options, onChange, name, onNameChange, onNa
             className="h-6 w-9 cursor-pointer rounded-md border border-line bg-transparent p-0"
           />
         </label>
+
+        <div
+          className="flex flex-col gap-1.5"
+          title="The cloth under the Stitched view, over the whole viewer, tinted by the canvas colour. Off shows the colour alone."
+        >
+          <span className="text-[13px]">Canvas texture</span>
+          <CanvasPicker
+            value={options.canvasTexture}
+            onChange={(texture) => onChange("canvasTexture", texture)}
+            canvasColor={options.canvasColor}
+          />
+        </div>
 
         <div className="flex flex-col gap-1.5" title="The stitch texture of the Stitched view and of the exported realistic preview">
           <span className="text-[13px]">Stitch texture</span>

@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-09-30 at 8fc5bf2 (G-076, deployed)
+Last verified: 2026-09-30 at the G-077 M1 commit
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -11,6 +11,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 **Production** runs 4a28457 (2026-09-28, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
+
+**G-077, canvas textures — M1 built 2026-09-30, awaiting the Owner (M2 next).** The Chart pane's Canvas texture buttons (`app/components/canvas-picker.tsx`) set `canvasTexture` (Off, Aida, Linen; `lib/export/canvas-texture-catalog.ts`); in the Stitched view `app/hooks/use-canvas-cloth.ts` paints the tile on the whole scrolling well (D250) and the chart clears its ground. `exportCanvas` is stored but does nothing yet: M2 adds the checkbox and the export. Verified: 844 unit, 232 e2e cases (parity, viewport, navigation, editing, both texture specs), tsc, eslint, prettier. Not yet deployed.
 
 **G-076, stitch textures — signed off and deployed 2026-09-30 (8fc5bf2), archived.** The Chart pane's texture buttons (`app/components/texture-picker.tsx`) set the persisted `stitchTexture` option, which draws the on-screen Stitched view and the exported realistic preview (D248, D249). Textures live in `lib/export/stitch-texture-catalog.ts` and `TEXTURES` in `rust/cs-export/src/preview.rs`. Record in `docs/goals-archive/G-071-to-G-080.md`.
 

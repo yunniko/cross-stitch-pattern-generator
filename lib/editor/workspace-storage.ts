@@ -1,6 +1,7 @@
 import type { OverlapCells } from "../export/a4-layout";
 import type { LegacyProjectSlot } from "./project-store";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "../export/finished-size";
+import { CANVAS_TEXTURE_OFF, isCanvasTextureChoice, type CanvasTextureChoice } from "../export/canvas-texture-catalog";
 import { DEFAULT_STITCH_TEXTURE, isStitchTextureId, type StitchTextureId } from "../export/stitch-texture-catalog";
 import { DITHER_MODES, isDithered, type DitherMode } from "../pipeline/dither";
 import { BRUSH_SIZES, DEFAULT_BRUSH_SHAPE, DEFAULT_BRUSH_SIZE, type BrushShape, type BrushSize } from "./brush-stamp";
@@ -33,6 +34,10 @@ export interface WorkspaceOptions {
   canvasColor: string;
   /** Which stitch texture the realistic view and the exported realistic preview draw with (D249). */
   stitchTexture: StitchTextureId;
+  /** The cloth the realistic view sits on, or "off" for the plain canvas colour (G-077). */
+  canvasTexture: CanvasTextureChoice;
+  /** Whether the exported realistic preview carries the canvas (colour and texture) instead of a transparent ground. */
+  exportCanvas: boolean;
   /** Generate settings remembered across reloads (Owner request, 2026-09-12); nothing on a `StitchPattern` records these. */
   sizePreset: SizePresetId;
   /** Kept even when a named preset is selected, so switching back to Custom restores the last custom value. */
@@ -66,6 +71,8 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   overlapCells: 5,
   canvasColor: "#ffffff",
   stitchTexture: DEFAULT_STITCH_TEXTURE,
+  canvasTexture: CANVAS_TEXTURE_OFF,
+  exportCanvas: false,
   sizePreset: "medium",
   customSize: 100,
   colorCount: 16,
@@ -112,6 +119,8 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
           ? parsed.canvasColor
           : DEFAULT_OPTIONS.canvasColor,
       stitchTexture: isStitchTextureId(parsed.stitchTexture) ? parsed.stitchTexture : DEFAULT_OPTIONS.stitchTexture,
+      canvasTexture: isCanvasTextureChoice(parsed.canvasTexture) ? parsed.canvasTexture : DEFAULT_OPTIONS.canvasTexture,
+      exportCanvas: typeof parsed.exportCanvas === "boolean" ? parsed.exportCanvas : DEFAULT_OPTIONS.exportCanvas,
       sizePreset: VALID_SIZE_PRESETS.includes(parsed.sizePreset as SizePresetId)
         ? (parsed.sizePreset as SizePresetId)
         : DEFAULT_OPTIONS.sizePreset,

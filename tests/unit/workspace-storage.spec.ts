@@ -52,6 +52,8 @@ describe("workspace-storage", () => {
       overlapCells: 5,
       canvasColor: "#ffffff",
       stitchTexture: "classic",
+      canvasTexture: "off",
+      exportCanvas: false,
       sizePreset: "medium",
       customSize: 100,
       colorCount: 16,
@@ -80,6 +82,8 @@ describe("workspace-storage", () => {
         overlapCells: 10 as const,
         canvasColor: "#336699",
         stitchTexture: "pixel" as const,
+        canvasTexture: "linen" as const,
+        exportCanvas: true,
         sizePreset: "xl" as const,
         customSize: 250,
         colorCount: 32,
@@ -222,6 +226,22 @@ describe("workspace-storage", () => {
         saveWorkspaceOptions({ ...DEFAULTS, canvasColor: bad });
         expect(loadWorkspaceOptions().canvasColor).toBe("#ffffff");
       }
+    });
+
+    it("keeps a chosen canvas texture and the export-canvas switch across a reload", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, canvasTexture: "aida", exportCanvas: true });
+      const loaded = loadWorkspaceOptions();
+      expect(loaded.canvasTexture).toBe("aida");
+      expect(loaded.exportCanvas).toBe(true);
+    });
+
+    it("reads a missing or unknown canvas texture as off, and a non-boolean export switch as false", () => {
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
+      expect(loadWorkspaceOptions().canvasTexture).toBe("off");
+      expect(loadWorkspaceOptions().exportCanvas).toBe(false);
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ canvasTexture: "burlap", exportCanvas: "yes" }));
+      expect(loadWorkspaceOptions().canvasTexture).toBe("off");
+      expect(loadWorkspaceOptions().exportCanvas).toBe(false);
     });
 
     it("keeps a chosen stitch texture across a reload", () => {
