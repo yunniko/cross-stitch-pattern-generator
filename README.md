@@ -126,7 +126,7 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   and the Stitched view and the exported realistic preview are drawn with the one chosen (remembered in the browser).
   Every texture is scaled to the same stitch size, so any image works. New textures are an entry in
   `lib/export/stitch-texture-catalog.ts`, a file in `public/` and a row in `rust/cs-export/src/preview.rs` (D249).
-  Pixel, Beveled, Outline and Outline shaded were supplied by the Owner.
+  Pixel, Cell outline, Cell outline shaded and Cross 2 were supplied by the Owner.
 - **Choose the canvas**: the Chart pane's Canvas texture buttons (Off, Natural linen, Counted canvas) put a cloth behind the
   Stitched view -- over the whole viewer, tinted by the canvas colour, a whole number of cells per tile so it zooms with the
   chart, with an offset for a picture whose blocks start part-way in. Both cloths were supplied by the Owner. "Canvas in

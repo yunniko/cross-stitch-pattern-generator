@@ -141,7 +141,7 @@ describe("the realistic preview export and the canvas", () => {
     const block = source.slice(source.indexOf("const CANVAS_TEXTURES"), source.indexOf("];", source.indexOf("const CANVAS_TEXTURES")));
     const rows = [
       ...block.matchAll(
-        /"([a-z-]+)",\s*include_bytes!\("[^"]*canvas-texture-([a-z-]+)\.png"\),\s*(\d+),\s*(\d+),\s*([\d.]+),\s*([\d.]+),/g
+        /"([a-z0-9-]+)",\s*include_bytes!\("[^"]*canvas-texture-([a-z0-9-]+)\.png"\),\s*(\d+),\s*(\d+),\s*([\d.]+),\s*([\d.]+),/g
       ),
     ].map((m) => ({
       id: m[1],

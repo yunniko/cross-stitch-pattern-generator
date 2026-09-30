@@ -18,16 +18,16 @@ const TEXTURES: [(&str, &[u8]); 5] = [
         include_bytes!("../../../public/stitch-texture-pixel.png"),
     ),
     (
-        "beveled",
-        include_bytes!("../../../public/stitch-texture-beveled.png"),
+        "cell-outline",
+        include_bytes!("../../../public/stitch-texture-cell-outline.png"),
     ),
     (
-        "outline",
-        include_bytes!("../../../public/stitch-texture-outline.png"),
+        "cell-outline-shaded",
+        include_bytes!("../../../public/stitch-texture-cell-outline-shaded.png"),
     ),
     (
-        "outline-shaded",
-        include_bytes!("../../../public/stitch-texture-outline-shaded.png"),
+        "cross-2",
+        include_bytes!("../../../public/stitch-texture-cross-2.png"),
     ),
 ];
 const TEXTURE_SAMPLE_SIZE: u32 = 64;

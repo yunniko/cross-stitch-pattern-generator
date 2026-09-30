@@ -28,6 +28,8 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M2 — the "Canvas in exported preview" checkbox and the export (Rust, and the TypeScript reference; D251)
 
 **Progress log** (newest first):
+- 2026-09-30 — Owner: the last three stitch textures (Beveled, Outline, Outline shaded) removed and three new ones added: Cell outline,
+  Cell outline shaded, Cross 2. Not deployed.
 - 2026-09-30 — Deployed 2021cb8 (the offsets, the removal of Aida and Linen, three Owner stitch textures) at the Owner's instruction; the live specs pass (6 of 6), other sites unaffected. Pending: sign-off.
 - 2026-09-30 — Owner: the Counted canvas sat half a cell off, so a texture now has `offsetX`/`offsetY` (cells; Counted canvas is
   0.5, 0.5); Aida and Linen (generated) removed, keeping the two Owner textures; and three Owner cell pictures added as

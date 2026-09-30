@@ -74,7 +74,7 @@ describe("the realistic preview export and the stitch texture", () => {
     const source = readFileSync(path.resolve(__dirname, "..", "rust", "cs-export", "src", "preview.rs"), "utf8");
     const start = source.indexOf("const TEXTURES");
     const block = source.slice(start, source.indexOf("];", start));
-    const rows = [...block.matchAll(/"([a-z-]+)",\s*include_bytes!\("[^"]*stitch-texture(?:-([a-z-]+))?\.png"\)/g)].map((m) => ({
+    const rows = [...block.matchAll(/"([a-z0-9-]+)",\s*include_bytes!\("[^"]*stitch-texture(?:-([a-z0-9-]+))?\.png"\)/g)].map((m) => ({
       id: m[1],
       file: m[2] ?? "classic",
     }));
