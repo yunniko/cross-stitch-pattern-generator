@@ -141,14 +141,20 @@ describe("the realistic preview export and the canvas", () => {
   it("holds the same cloths, with the same columns and rows per tile, as the catalog the page uses", () => {
     const source = readFileSync(path.resolve(__dirname, "..", "rust", "cs-export", "src", "preview.rs"), "utf8");
     const block = source.slice(source.indexOf("const CANVAS_TEXTURES"), source.indexOf("];", source.indexOf("const CANVAS_TEXTURES")));
-    const rows = [...block.matchAll(/"([a-z-]+)",\s*include_bytes!\("[^"]*canvas-texture-([a-z-]+)\.png"\),\s*(\d+),\s*(\d+),/g)].map(
-      (m) => ({
-        id: m[1],
-        file: m[2],
-        columns: Number(m[3]),
-        rows: Number(m[4]),
-      })
+    const rows = [
+      ...block.matchAll(
+        /"([a-z-]+)",\s*include_bytes!\("[^"]*canvas-texture-([a-z-]+)\.png"\),\s*(\d+),\s*(\d+),\s*([\d.]+),\s*([\d.]+),/g
+      ),
+    ].map((m) => ({
+      id: m[1],
+      file: m[2],
+      columns: Number(m[3]),
+      rows: Number(m[4]),
+      offsetX: Number(m[5]),
+      offsetY: Number(m[6]),
+    }));
+    expect(rows).toEqual(
+      CANVAS_TEXTURES.map(({ id, columns, rows, offsetX, offsetY }) => ({ id, file: id, columns, rows, offsetX, offsetY }))
     );
-    expect(rows).toEqual(CANVAS_TEXTURES.map(({ id, columns, rows }) => ({ id, file: id, columns, rows })));
   });
 });

@@ -180,3 +180,26 @@ test("the exported preview carries the canvas only when asked, and the plain col
   await include.uncheck();
   expect(ground(await exportPreview())[3]).toBe(0);
 });
+
+test("the counted canvas is shifted back by half a cell so its blocks start at the chart's cells", async ({ page }) => {
+  await openChart(page);
+  const scroller = page.locator("div.overflow-auto").first();
+  const frame = page.getByTestId("chart-frame");
+  await page.getByRole("button", { name: "Stitched", exact: true }).click();
+  await page.getByRole("radiogroup", { name: "Canvas texture" }).getByRole("radio", { name: "Counted canvas" }).click();
+  await expect(frame).toHaveAttribute("data-scene-pending", "");
+  const cell = Number(await frame.getAttribute("data-cell-size"));
+  const origin = await page.evaluate(() => {
+    const s = document.querySelector<HTMLElement>("div.overflow-auto")!;
+    const f = document.querySelector<HTMLElement>('[data-testid="chart-frame"]')!;
+    const sr = s.getBoundingClientRect();
+    const fr = f.getBoundingClientRect();
+    return {
+      x: fr.left + f.clientLeft - (sr.left + s.clientLeft) + s.scrollLeft,
+      y: fr.top + f.clientTop - (sr.top + s.clientTop) + s.scrollTop,
+    };
+  });
+  const [px, py] = (await cloth(scroller)).position.split(" ").map(parseFloat);
+  expect(px).toBeCloseTo(origin.x - cell / 2, 1);
+  expect(py).toBeCloseTo(origin.y - cell / 2, 1);
+});

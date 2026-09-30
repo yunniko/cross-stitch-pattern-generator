@@ -30,16 +30,34 @@ function loadCloth(url: string): Promise<CanvasImageSource> {
   return image;
 }
 
+/**
+ * `pixels` (RGBA, `width` × `height`) with its content moved up and left by `shiftX`/`shiftY` pixels, wrapping: the pixel
+ * that was at (shiftX, shiftY) is now at the corner. It is how a tile whose blocks start part-way in (`offsetX`,
+ * `offsetY` in the catalog) is made to start on a block edge.
+ */
+export function rollTile(pixels: Uint8ClampedArray, width: number, height: number, shiftX: number, shiftY: number): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(pixels.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const from = (((y + shiftY) % height) * width + ((x + shiftX) % width)) * 4;
+      out.set(pixels.subarray(from, from + 4), (y * width + x) * 4);
+    }
+  }
+  return out;
+}
+
 export async function buildGround(canvas: ExportCanvas, cellSize: number): Promise<Ground> {
   const [r, g, b] = hexToRgb(canvas.color);
   if (canvas.texture === "off") return { width: 1, height: 1, pixels: Uint8ClampedArray.of(r, g, b, 255) };
-  const { url, columns, rows } = canvasTextureById(canvas.texture);
+  const { url, columns, rows, offsetX, offsetY } = canvasTextureById(canvas.texture);
   const width = columns * cellSize;
   const height = rows * cellSize;
   const { ctx } = createCanvas(width, height);
   (ctx as unknown as { imageSmoothingQuality: string }).imageSmoothingQuality = "high";
   ctx.drawImage(await loadCloth(url), 0, 0, width, height);
-  const pixels = ctx.getImageData(0, 0, width, height).data;
+  const drawn = ctx.getImageData(0, 0, width, height).data;
+  const pixels =
+    offsetX === 0 && offsetY === 0 ? drawn : rollTile(drawn, width, height, Math.round(offsetX * cellSize), Math.round(offsetY * cellSize));
   for (let i = 0; i < pixels.length; i += 4) {
     pixels[i] = Math.round((r * pixels[i]) / 255);
     pixels[i + 1] = Math.round((g * pixels[i + 1]) / 255);

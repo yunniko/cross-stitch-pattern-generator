@@ -42,6 +42,14 @@ describe("clothStyle", () => {
     expect(clothStyle("counted", "#fff", 30, { x: 0, y: 0 })!.backgroundSize).toBe("240px 300px");
   });
 
+  it("shifts a tile back by its offset, so the cloth's own blocks start at the cells", () => {
+    // The counted canvas's blocks start half a cell in; with the chart's first cell at (30, 25) and 10 px cells the tile
+    // starts half a cell (5 px) up and to the left of that.
+    expect(clothStyle("counted", "#fff", 10, { x: 30, y: 25 })!.backgroundPosition).toBe("25px 20px");
+    // A tile with no offset starts on the chart's first cell.
+    expect(clothStyle("aida", "#fff", 10, { x: 30, y: 25 })!.backgroundPosition).toBe("30px 25px");
+  });
+
   it("scales with the cell size: zooming in makes the weave larger", () => {
     expect(clothStyle("linen", "#fff", 10, { x: 0, y: 0 })!.backgroundSize).toBe("10px 10px");
     expect(clothStyle("linen", "#fff", 40, { x: 0, y: 0 })!.backgroundSize).toBe("40px 40px");

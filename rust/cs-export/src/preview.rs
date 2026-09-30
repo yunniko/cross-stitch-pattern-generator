@@ -20,32 +20,41 @@ const TEXTURES: [(&str, &[u8]); 2] = [
 ];
 const TEXTURE_SAMPLE_SIZE: u32 = 64;
 
-/// The canvas cloths of `lib/export/canvas-texture-catalog.ts`: id, PNG and the columns and rows of cells one tile
-/// spans. They must agree with that catalog (`scripts/rust-canvas.ts` checks it).
-const CANVAS_TEXTURES: [(&str, &[u8], u32, u32); 4] = [
+/// The canvas cloths of `lib/export/canvas-texture-catalog.ts`: id, PNG, the columns and rows of cells one tile spans,
+/// and how far in cells (right, down) its blocks start from the tile's corner. They must agree with that catalog
+/// (`scripts/rust-canvas.ts` checks it).
+const CANVAS_TEXTURES: [(&str, &[u8], u32, u32, f64, f64); 4] = [
     (
         "aida",
         include_bytes!("../../../public/canvas-texture-aida.png"),
         1,
         1,
+        0.0,
+        0.0,
     ),
     (
         "linen",
         include_bytes!("../../../public/canvas-texture-linen.png"),
         1,
         1,
+        0.0,
+        0.0,
     ),
     (
         "natural",
         include_bytes!("../../../public/canvas-texture-natural.png"),
         66,
         66,
+        0.0,
+        0.0,
     ),
     (
         "counted",
         include_bytes!("../../../public/canvas-texture-counted.png"),
         8,
         10,
+        0.5,
+        0.5,
     ),
 ];
 
@@ -208,13 +217,30 @@ fn box_down(src: &Pixmap, width: u32, height: u32) -> Pixmap {
     Pixmap::from_vec(data, IntSize::from_wh(width, height).unwrap()).unwrap()
 }
 
+/// `rgba` (`width` × `height`) with its content moved up and left by `shift_x`, `shift_y` pixels, wrapping: what was at
+/// (shift_x, shift_y) is now at the corner. It starts a tile whose blocks begin part-way in on a block edge.
+fn roll(rgba: &[u8], width: usize, height: usize, shift_x: usize, shift_y: usize) -> Vec<u8> {
+    if shift_x % width.max(1) == 0 && shift_y % height.max(1) == 0 {
+        return rgba.to_vec();
+    }
+    let mut out = vec![0u8; rgba.len()];
+    for y in 0..height {
+        for x in 0..width {
+            let from = (((y + shift_y) % height) * width + (x + shift_x) % width) * 4;
+            out[(y * width + x) * 4..(y * width + x) * 4 + 4]
+                .copy_from_slice(&rgba[from..from + 4]);
+        }
+    }
+    out
+}
+
 /// `canvas`'s cloth at `cell_size` per cell, multiplied with its colour -- the tile the viewer's CSS shows
 /// (`lib/editor/canvas-cloth.ts`). No cloth ("off", or an id this table does not hold) is the plain colour.
 pub fn ground(canvas: &Canvas, cell_size: u32) -> Ground {
     let [r, g, b] = canvas.color;
-    let Some((_, bytes, columns, rows)) = CANVAS_TEXTURES
+    let Some((_, bytes, columns, rows, offset_x, offset_y)) = CANVAS_TEXTURES
         .iter()
-        .find(|(id, _, _, _)| *id == canvas.texture)
+        .find(|(id, _, _, _, _, _)| *id == canvas.texture)
     else {
         return Ground {
             width: 1,
@@ -234,6 +260,14 @@ pub fn ground(canvas: &Canvas, cell_size: u32) -> Ground {
     for p in tile.data().chunks_exact(4) {
         rgba.extend_from_slice(&[multiply(r, p[0]), multiply(g, p[1]), multiply(b, p[2]), 255]);
     }
+    let shift = |offset: f64| (offset * cell_size as f64).round() as usize;
+    let rgba = roll(
+        &rgba,
+        width as usize,
+        height as usize,
+        shift(*offset_x),
+        shift(*offset_y),
+    );
     Ground {
         width: width as usize,
         height: height as usize,
@@ -294,5 +328,25 @@ impl PixelSource for Preview<'_> {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::roll;
+
+    #[test]
+    fn roll_moves_the_content_up_and_left_and_wraps() {
+        // 3 × 2 tile, one byte of identity per pixel: pixel i = [i, i, i, i].
+        let tile: Vec<u8> = (0..6u8).flat_map(|i| [i; 4]).collect();
+        let pixel = |t: &[u8], i: usize| t[i * 4];
+        let rolled = roll(&tile, 3, 2, 1, 1);
+        // The pixel that was at (1, 1) -- index 4 -- is now at the corner; the rest wrap round it.
+        assert_eq!(
+            (0..6).map(|i| pixel(&rolled, i)).collect::<Vec<_>>(),
+            vec![4, 5, 3, 1, 2, 0]
+        );
+        assert_eq!(roll(&tile, 3, 2, 0, 0), tile);
+        assert_eq!(roll(&tile, 3, 2, 3, 2), tile);
     }
 }

@@ -25,13 +25,14 @@ export function clothStyle(
   origin: { x: number; y: number }
 ): ClothStyle | null {
   if (texture === "off") return null;
-  const { url, columns, rows } = canvasTextureById(texture);
+  const { url, columns, rows, offsetX, offsetY } = canvasTextureById(texture);
   return {
     backgroundColor: color,
     backgroundImage: `url(${url})`,
     backgroundBlendMode: "multiply",
     backgroundSize: `${columns * cellSize}px ${rows * cellSize}px`,
-    backgroundPosition: `${origin.x}px ${origin.y}px`,
+    // Shifted back by the offset, so the cloth's own blocks (not the picture's corner) start at the chart's cells.
+    backgroundPosition: `${origin.x - offsetX * cellSize}px ${origin.y - offsetY * cellSize}px`,
     backgroundAttachment: "local",
     backgroundRepeat: "repeat",
   };

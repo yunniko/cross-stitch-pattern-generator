@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGround } from "@/lib/export/canvas-ground";
+import { buildGround, rollTile } from "@/lib/export/canvas-ground";
 import { stitchPreviewPixels } from "@/lib/export/render";
 import type { StitchTiles } from "@/lib/export/stitch-texture";
 import { EMPTY_CELL, type StitchPattern } from "@/lib/types";
@@ -50,5 +50,14 @@ describe("the preview's ground", () => {
     const ground = await buildGround({ color: "#ffffff", texture: "off" }, CELL);
     const { data } = stitchPreviewPixels(PATTERN, TILES, ground).getImageData(0, 0, 4, 2);
     for (let i = 3; i < data.length; i += 4) expect(data[i]).toBe(255);
+  });
+});
+
+describe("rollTile", () => {
+  it("moves the content up and left by the shift and wraps, so a tile can start on a block edge", () => {
+    const tile = Uint8ClampedArray.from({ length: 6 * 4 }, (_, i) => Math.floor(i / 4)); // pixel i = [i, i, i, i]
+    const rolled = rollTile(tile, 3, 2, 1, 1);
+    expect(Array.from({ length: 6 }, (_, i) => rolled[i * 4])).toEqual([4, 5, 3, 1, 2, 0]);
+    expect(Array.from(rollTile(tile, 3, 2, 3, 2))).toEqual(Array.from(tile));
   });
 });

@@ -3,14 +3,19 @@
  * multiplied with the canvas colour. Its scale is tied to the stitch: one tile spans `columns` × `rows` cells, so the weave grows
  * and shrinks with the zoom, and a counted canvas (a tile of several threads per cell) is a catalog entry, not a new
  * mechanism. `"off"` is the plain canvas colour, as before.
+ *
+ * `offsetX`/`offsetY` say how far, in cells, the cloth's own cell grid lies right of and below the tile's corner, for a
+ * picture that does not start on a block edge. The tile is shifted back by that much, so its blocks fall on the chart's
+ * cells; 0 means the picture starts on a block edge.
  */
 export const CANVAS_TEXTURES = [
-  { id: "aida", label: "Aida", url: "/canvas-texture-aida.png", columns: 1, rows: 1 },
-  { id: "linen", label: "Linen", url: "/canvas-texture-linen.png", columns: 1, rows: 1 },
+  { id: "aida", label: "Aida", url: "/canvas-texture-aida.png", columns: 1, rows: 1, offsetX: 0, offsetY: 0 },
+  { id: "linen", label: "Linen", url: "/canvas-texture-linen.png", columns: 1, rows: 1, offsetX: 0, offsetY: 0 },
   // Supplied by the Owner (2026-09-30): 1254 px, about 132 threads across, read as two threads to a cell.
-  { id: "natural", label: "Natural linen", url: "/canvas-texture-natural.png", columns: 66, rows: 66 },
+  { id: "natural", label: "Natural linen", url: "/canvas-texture-natural.png", columns: 66, rows: 66, offsetX: 0, offsetY: 0 },
   // Supplied by the Owner (2026-09-30): 163 × 209 px, 8 blocks across and 10 down, one block to a cell.
-  { id: "counted", label: "Counted canvas", url: "/canvas-texture-counted.png", columns: 8, rows: 10 },
+  // Its blocks start half a cell in from the top and the left (Owner, 2026-09-30).
+  { id: "counted", label: "Counted canvas", url: "/canvas-texture-counted.png", columns: 8, rows: 10, offsetX: 0.5, offsetY: 0.5 },
 ] as const;
 
 export type CanvasTextureId = (typeof CANVAS_TEXTURES)[number]["id"];
