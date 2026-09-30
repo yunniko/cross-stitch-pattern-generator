@@ -33,11 +33,12 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [x] M2 — the lock transparency button and its rule in every drawing and filling tool (D253)
 
 **Progress log** (newest first):
+- 2026-09-30 — Deployed 635e60c at the Owner's instruction; the live specs pass (16 of 16, two of them alone after the site's job limit), other sites unaffected. Pending: sign-off.
 - 2026-09-30 — M1 and M2 built (D253). Errors: every strip or line has a cross (`DismissButton`) and an error clears after 12 s
   (`app/hooks/use-auto-dismiss.ts`); the canvas colour left the top panel and is a swatch on the Chart tab opening
   `react-colorful` with a hex field; the lock is the padlock icon in the top panel (`aria-pressed`, remembered). 868 unit
   (new `tests/unit/transparency-lock.spec.ts`), new `tests/e2e/small-fixes.spec.ts` (5 cases) and 474 of 476 e2e (the 2
-  admin-stats cases pass alone). Looked at on screen. Not deployed. Pending: the Owner's look and sign-off.
+  admin-stats cases pass alone). Looked at on screen.
 - 2026-09-30 — goal created at the Owner's request ("small fixes of current issues"; "rgn is mistype, I meant rgb
   library"). The Owner's request names both milestones, so both are worked before the check-in.
 
