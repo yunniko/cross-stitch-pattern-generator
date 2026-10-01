@@ -1092,6 +1092,15 @@ export function useSelectTool(
     /** Forgets copied cells after the palette is renumbered (a merge), since their indices now name other colors. */
     invalidateClipboard: () => setClipboard(null),
     copy: () => selection && setClipboard(selection),
+    /**
+     * Puts a ready-made piece in hand, as Paste does (G-081): whatever is floating is applied first, never discarded.
+     * Lettering from the Text tab arrives this way.
+     */
+    insert: (piece: FloatingSelection) => {
+      if (!pattern) return;
+      merge();
+      setSelection(piece);
+    },
     paste: () => {
       if (!clipboard || !pattern) return;
       merge(); // never silently discard what's floating

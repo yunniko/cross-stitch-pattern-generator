@@ -39,6 +39,14 @@ export interface TextPaneProps {
   onChange: UpdateWorkspaceOption;
   /** The thread in the brush's hand, which the lettering starts in. */
   activeColorIndex: number | null;
+  /**
+   * The text and the thread picked for it are kept by the workspace: the tab is gone from the page while another is open, and
+   * what was typed must not go with it.
+   */
+  text: string;
+  onTextChange: (text: string) => void;
+  pickedColor: number | null;
+  onPickColor: (index: number) => void;
   /** Puts the lettering on the chart as a piece in hand; absent, Add is not offered yet. */
   onAdd?: (lettering: LetteringBitmap, paletteIndex: number) => void;
 }
@@ -48,11 +56,19 @@ export function previewScale(width: number, height: number): number {
   return Math.max(1, Math.min(MAX_CELL_PX, Math.floor(PREVIEW_WIDTH / width), Math.floor(PREVIEW_HEIGHT / height)));
 }
 
-export function TextPane({ pattern, options, onChange, activeColorIndex, onAdd }: TextPaneProps) {
+export function TextPane({
+  pattern,
+  options,
+  onChange,
+  activeColorIndex,
+  text,
+  onTextChange,
+  pickedColor: picked,
+  onPickColor,
+  onAdd,
+}: TextPaneProps) {
   const [listing, setListing] = useState<FontListing | null>(null);
   const [asking, setAsking] = useState(false);
-  const [text, setText] = useState("");
-  const [picked, setPicked] = useState<number | null>(null);
   const [loaded, setLoaded] = useState<{ key: string; face: TextFace } | null>(null);
   const [sizeDraft, setSizeDraft] = useState<string | null>(null);
   const previewRef = useRef<HTMLCanvasElement>(null);
@@ -267,7 +283,7 @@ export function TextPane({ pattern, options, onChange, activeColorIndex, onAdd }
                 aria-checked={index === colourIndex}
                 aria-label={`Thread ${color.symbol} ${color.name}`}
                 title={`${color.symbol} ${color.name}`}
-                onClick={() => setPicked(index)}
+                onClick={() => onPickColor(index)}
                 style={{ backgroundColor: rgbToHex(color.rgb) }}
                 className={`h-6 w-6 rounded-md border ${index === colourIndex ? "border-accent outline outline-2 outline-offset-1 outline-[var(--at-accent)]" : "border-line"}`}
               />
@@ -284,7 +300,7 @@ export function TextPane({ pattern, options, onChange, activeColorIndex, onAdd }
             aria-label="Text"
             value={text}
             maxLength={MAX_TEXT_LENGTH}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => onTextChange(e.target.value)}
             placeholder="One line of text"
             className={FIELD}
           />

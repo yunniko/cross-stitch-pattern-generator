@@ -74,7 +74,7 @@ any piece.
   colour on the canvas colour, with its size in stitches), and an Add button that stays disabled until there is text, a chart
   and a thread, with the reason shown. Settings remembered in the browser. Deliverable: the tab and its end-to-end tests, Add
   not yet doing anything.
-- [ ] M4 -- **Add makes a selection, as Paste does.** Add applies any piece in hand, builds the `FloatingSelection` (cells = the
+- [x] M4 -- **Add makes a selection, as Paste does.** Add applies any piece in hand, builds the `FloatingSelection` (cells = the
   thread's index, mask = the glyph cells, no `originRect`), starts it where the default above says and keeps it inside the
   chart, and refuses a piece larger than the chart with a message. End-to-end: Add, move, flip, rotate, duplicate, apply,
   cancel and undo behave as for any selection; with the transparency lock on, Fill selection still fills only the lettering;
@@ -91,6 +91,15 @@ instead of failing. Right-to-left and complex scripts depend on the browser's te
 they are not specially tested in the first version.
 
 **Progress log** (newest first):
+- 2026-10-01 -- M4 built (D255): Add applies any piece in hand and puts the lettering in hand as a masked `FloatingSelection`
+  (`lib/editor/text-selection.ts`, `select.insert`), starting three stitches in from the corner of the view or down and right of
+  the piece that was in hand, kept inside the chart; the Select tool is put in hand. A piece larger than the chart, no text and a
+  chart with no threads each refuse Add with the reason. Found and fixed on the way: the tab's text and thread were lost when
+  another tab was opened (the pane leaves the page), so the workspace now holds them. 911 unit; `tests/e2e/text-tab.spec.ts` (7) and
+  `text-add.spec.ts` (6, including a recording of all network traffic across listing, choosing, typing, adding and applying: no
+  request but GET, none naming the font or the text, no websocket) pass 52 of 52 over four repeats; 490 of 493 e2e in the full run
+  (the 2 admin-stats cases pass alone; the fonts-listing case timed out under load and now waits for the computer's list).
+  Looked at on screen. Not deployed. M5 (the Owner's look, then the deploy) waits for the Owner.
 - 2026-10-01 -- M3 built: a fourth Inspector tab (`app/components/text-pane.tsx`): font (451 of this computer's own fonts listed in a real
   Chromium with the permission granted), font type (the family's faces), size, weight slider, colour (the chart's threads), one line
   of text, the preview one square a stitch with its size, the legibility warnings (`lib/editor/lettering-warnings.ts`), and Add

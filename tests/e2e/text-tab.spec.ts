@@ -45,7 +45,8 @@ test("the tab lists the computer's fonts and each family's faces, and draws a pr
   if (hasApi && granted) {
     // The computer's own list: more than the six generic families, and no apology.
     await expect(page.getByTestId("fonts-fallback")).toHaveCount(0);
-    await expect.poll(() => fonts.locator("option").count()).toBeGreaterThan(6);
+    // The computer hands its fonts over in its own time, which a busy machine stretches.
+    await expect.poll(() => fonts.locator("option").count(), { timeout: 30_000 }).toBeGreaterThan(6);
   }
   expect(await faces.locator("option").count()).toBeGreaterThan(0);
 
@@ -154,4 +155,16 @@ test("the settings are remembered across a reload, the text is not", async ({ pa
   await expect(page.getByLabel("Font size in stitches")).toHaveValue("20");
   await expect(page.getByRole("slider", { name: "Weight" })).toHaveValue("70");
   await expect(textBox(page)).toHaveValue("");
+});
+
+test("the text and the thread picked survive a visit to another tab", async ({ page }) => {
+  await openChart(page);
+  await textBox(page).fill("Kept");
+  const swatches = page.getByRole("radiogroup", { name: "Text colour" }).getByRole("radio");
+  await swatches.nth(1).click();
+  await page.getByRole("tab", { name: "Threads" }).click();
+  await page.getByRole("tab", { name: "Text" }).click();
+  await expect(textBox(page)).toHaveValue("Kept");
+  await expect(page.getByRole("radiogroup", { name: "Text colour" }).getByRole("radio").nth(1)).toHaveAttribute("aria-checked", "true");
+  await expect(preview(page)).toBeVisible();
 });

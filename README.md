@@ -144,6 +144,12 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   pointer is. The arrow keys move the outlined stitch one stitch (Shift: ten), and Enter is the pen: press it to paint, hold
   it while moving to draw a stroke or stretch a line, rectangle or oval, release to finish. It works with the brush, Fill
   and the shape tools; a real pointer move hands the cursor back to the mouse (D254).
+- **Text**: a fourth tab, Text, turns one line of text into stitches. Pick a font (the fonts on your own computer, listed by
+  your browser after it asks; Chrome and Edge, a typed font name elsewhere), its face (regular, bold, italic, condensed...), a
+  size in stitches, a weight, a thread of the chart and the text; the preview shows every stitch as a square, with warnings for
+  sizes that read badly. Add puts the lettering on the chart as a piece in hand, as Paste does, so it moves, flips, turns,
+  fills and applies like any selection. The fonts and the text never leave the browser, and the chart keeps stitches only
+  (D255).
 - **Export** editable JSON, a realistic stitched preview, full-chart PNGs,
   paginated A4 ZIPs, a Pattern Keeper–compatible PDF, an OXS chart for other
   cross-stitch programs, a pixel-art PNG at 1 px per stitch (which imports back

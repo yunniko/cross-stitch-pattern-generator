@@ -31,11 +31,13 @@ import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
 import { BackstitchBar, SelectionBar, WorkspaceNotices } from "./components/panels";
 import { PhotoPane } from "./components/photo-pane";
 import { TextPane } from "./components/text-pane";
+import { letteringSelection, letteringStart } from "@/lib/editor/text-selection";
+import type { LetteringBitmap } from "@/lib/editor/text-raster";
 import { StatusBar } from "./components/status-bar";
 import { ToolRail } from "./components/tool-rail";
 import { PillButton } from "./components/ui";
 import type { Tool, ViewMode } from "./editor-types";
-import { cellIndexFromEvent, computeCellSize } from "./editor-geometry";
+import { cellIndexFromEvent, chartOrigin, computeCellSize } from "./editor-geometry";
 import {
   useBackstitchEditTool,
   useBackstitchTool,
@@ -100,6 +102,9 @@ export default function Workspace({ account }: WorkspaceProps) {
   // the thread's fill up with it (Owner, 2026-09-25).
   const [litBackstitchIndices, setLitBackstitchIndices] = useState<ReadonlySet<number>>(new Set());
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("photo");
+  // The Text tab's text and thread live here, not in the tab: it leaves the page while another tab is open (G-081).
+  const [letteringText, setLetteringText] = useState("");
+  const [letteringColor, setLetteringColor] = useState<number | null>(null);
   const symmetryState = useSymmetryAxes(pattern);
   const liveSymmetry = symmetryState.live;
   // The empty-grid panel (G-040): a new key on every request remounts it with fresh fields.
@@ -377,6 +382,27 @@ export default function Workspace({ account }: WorkspaceProps) {
     // A line stays selected only while a tool that can act on it is in hand.
     backstitchEdit.cancel();
     setActiveTool(tool);
+  }
+
+  /**
+   * The Text tab's Add (G-081): the lettering arrives as a piece in hand, as a Paste does. The Select tool is put in hand so
+   * the piece can be moved, turned, filled, applied or cancelled; a piece already in hand is applied first.
+   */
+  function addLettering(bitmap: LetteringBitmap, paletteIndex: number) {
+    const frame = frameRef.current;
+    const scroller = scrollerRef.current;
+    if (!pattern || !frame || !scroller) return;
+    // The stitch at the top left of the part of the chart in view.
+    const origin = chartOrigin(frame);
+    const view = scroller.getBoundingClientRect();
+    const corner = {
+      x: Math.max(0, Math.floor((view.left - origin.left) / cellSize)),
+      y: Math.max(0, Math.floor((view.top - origin.top) / cellSize)),
+    };
+    const held = select.selection;
+    const at = letteringStart(held ? { x: held.x, y: held.y } : null, corner, bitmap, pattern);
+    if (!isSelectTool(activeTool)) switchTool("select");
+    select.insert(letteringSelection(bitmap, paletteIndex, at.x, at.y));
   }
 
   // The arrow keys move the highlighted stitch and Enter is the pen, for the tools that paint or draw (G-080).
@@ -859,7 +885,19 @@ export default function Workspace({ account }: WorkspaceProps) {
             onResize={applyResize}
           />
         }
-        text={<TextPane pattern={pattern} options={options} onChange={updateOption} activeColorIndex={activeColorIndex} />}
+        text={
+          <TextPane
+            pattern={pattern}
+            options={options}
+            onChange={updateOption}
+            activeColorIndex={activeColorIndex}
+            text={letteringText}
+            onTextChange={setLetteringText}
+            pickedColor={letteringColor}
+            onPickColor={setLetteringColor}
+            onAdd={addLettering}
+          />
+        }
         threads={
           <ColorsDock
             pattern={pattern}
