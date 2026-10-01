@@ -12,25 +12,25 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-084 · Generation can place half stitches on diagonal edges (and, later, backstitch on lines) — DRAFT (2026-10-02)
-- **What:** an optional generation setting, off by default, that turns a cell which is part colour and part background, split along a diagonal, into a half stitch of that colour ("/" or "\"). A second setting, backstitch from lines, is planned after it and gets its own milestones once the first is signed off.
-- **Why:** diagonal edges against a background come out as a staircase of whole stitches; a half stitch at each step is how designers smooth them, and G-082 already stores, draws and exports half stitches. A cell that is half colour A and half colour B cannot be represented (one kind per cell, G-082 answer 1) and is out of scope.
-- **Acceptance criteria:** (1) with the setting off, every generated pattern is byte-identical to today's (the existing generation goldens do not move); (2) with it on, a test image of a coloured diagonal shape on a transparent background gets half stitches along its diagonal edges and whole stitches inside, and a photo with no transparency gets none; (3) the half stitches carry through the existing legend, editor, A4, PDF (as whole stitches) and OXS paths unchanged; (4) the setting is remembered like the other generation options; (5) the Rust and TypeScript generators agree where both exist.
-- **Constraints:** background means the cells the generator already treats as empty (transparent pixels, G-050 and D196), because that is the only background it knows; a "fabric colour" picker for opaque images is a possible later extension, not part of this goal. Generation lives in `rust/cs-core/src/pattern.rs` with a TypeScript mirror in `lib/pipeline/`, so both change together. Backstitch detection is excluded until its own milestones are planned.
+### G-084 · Generation can trace lines in the picture as backstitch — DRAFT (2026-10-02)
+- **What:** an optional generation setting, off by default, that finds thin dark lines in the source picture (outlines, whiskers, lettering, stems) and adds them to the chart as backstitch lines in a thread of the line's colour, instead of leaving them as a ragged row of whole stitches.
+- **Why:** designers backstitch exactly these details; G-073 already stores, edits, draws, counts and exports backstitch (corner to corner, any two grid corners, one palette shared with the crosses). Generation never produces any, so the user redraws every line by hand.
+- **Acceptance criteria:** (1) with the setting off, generated patterns are byte-identical to today's (generation goldens do not move); (2) on a line-art test image (dark outline, whiskers, a signature) the traced lines follow the source lines to within a cell, join at their ends, and the cross stitches under them are the surrounding colour rather than the line's colour; (3) on a photo the default sensitivity adds few or no lines rather than noise, and a sensitivity control moves that in both directions; (4) the lines appear in the thread list, legend (length per thread), editor and exports exactly as hand-drawn ones do; (5) every traced line is one the editor can select, move and delete, and generating twice from the same input gives the same lines.
+- **Constraints:** off by default and never applied to an existing chart. Line ends are grid corners (the data model, D232 and G-073). Thread colours come from the existing palette plus at most the backstitch-only entries the palette already allows, and the total number of colours must respect the colour limit the user chose. Generation lives in `rust/cs-core/src/pattern.rs` with a TypeScript mirror in `lib/pipeline/`, so both change together.
 
 **Milestones** (proposed; waits for the Owner's answers and go-ahead):
-- [ ] M1 -- **Measure.** Per cell, from the cell's coverage and the source pixels inside it, decide "diagonal split into colour and nothing" with a threshold; run on sample images (a silhouette, pixel-art, a photo cut-out) and record the proportion of edge cells that qualify and what they look like, in `docs/reviews/`. Decide the threshold from that, as a decision file.
-- [ ] M2 -- **Generate.** Implement it in Rust and TypeScript, behind the setting, producing `cellKind`; parity test between the two; goldens unchanged with the setting off.
-- [ ] M3 -- **Setting and UI.** The checkbox (and its threshold if the measurements say one is needed) in the generation options, persisted; e2e of generating with it on and seeing half stitches on the chart.
+- [ ] M1 -- **Measure.** On sample images (line art, pixel art with outlines, a logo, two photos) detect thin dark lines by a ridge/skeleton method, snap them to corners and record what each setting finds, shown as pictures in `docs/reviews/`. Decide the method, the sensitivity range and how the cross stitches under a line are chosen, as decision files. If nothing separates lines from noise on photos, say so and restrict the setting to line-art-like images.
+- [ ] M2 -- **Generate.** Implement in Rust and TypeScript behind the setting, producing `backstitch` lines and the matching palette entries; parity test between the two; goldens unchanged with the setting off.
+- [ ] M3 -- **Setting and UI.** The checkbox and sensitivity in the generation options, persisted; e2e that generating with it on yields lines in the thread list and on the chart, and that they can be edited.
 - [ ] M4 -- **Docs, full suite, deploy.** README, HANDOVER, decision files, docs-lint, deploy and check live.
 
 **Questions for the Owner:**
-1. Is "transparent = background" enough for the first version, or do you also want a fabric-colour picker for opaque images?
-2. When a cell is about half a colour and half background but the diagonal is unclear, should it stay a whole stitch (my default) or be dropped?
-3. Should the half stitch pick its direction ("/" or "\") only from the cell's own pixels, or also from the neighbouring edge so a staircase line stays straight?
+1. Which images do you mostly generate from: line art or pixel art, or photos? This decides whether the setting is worth it or should be limited to line-art-like pictures.
+2. Should the line take the colour of the picture's line (adding a thread), or only reuse a thread already in the palette?
+3. Where a line is traced, should the cells under it keep the line's colour as whole stitches too, or take the surrounding colour so the backstitch is not drawn over a matching cross (my default)?
 
 **Progress log** (newest first):
-- 2026-10-02 -- goal drafted at the Owner's request ("draft it as G-084, half stitches first"), after the discussion that a half stitch is one colour on one diagonal with bare fabric in the other half, so only colour-against-background cells qualify. Nothing built.
+- 2026-10-02 -- the half-stitch generation draft that held this number was **cancelled by the Owner** ("cancel halfstitches generation") before any work started; this goal replaces it. Drafted at the Owner's request after discussing that detecting lines from a photo is hard, so the plan starts with measuring. Nothing built.
 
 ### G-069 · The workspace stops being the only thing that knows how everything connects — DRAFT (2026-09-24)
 - **What:** the changes `docs/reviews/2026-09-24-workspace-shape.md` recommends: a `useEditorDocument` hook owning
