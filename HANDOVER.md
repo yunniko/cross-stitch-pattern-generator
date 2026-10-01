@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-01 at ff36e18 (G-083 export fixes, deployed and signed off)
+Last verified: 2026-10-02 at the G-084 build (see the deploy log)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -13,6 +13,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-077, canvas textures — signed off and deployed 2026-09-30 (2e86c69), archived.** The Chart pane's Canvas texture buttons (`app/components/canvas-picker.tsx`; Off, Natural linen, Counted canvas from `lib/export/canvas-texture-catalog.ts`, each with columns, rows and an offset in cells) put a cloth behind the Stitched view over the whole viewer (`app/hooks/use-canvas-cloth.ts`, D250); "Canvas in exported preview" sends `canvas` with the export request and `rust/cs-export/src/preview.rs` lays the stitches over the ground (D251, TypeScript reference `lib/export/canvas-ground.ts`). The stitch textures (Classic, Pixel, Cell outline, Cell outline shaded, Cross 2) are in `lib/export/stitch-texture-catalog.ts` (D248, D249). Record in `docs/goals-archive/G-071-to-G-080.md`.
+
+**G-084, backstitch from lines — built 2026-10-02, see the deploy log for whether it is live.** An optional generation setting (Photo tab, Lines; `backstitchLines`, `backstitchSensitivity`; off by default) that traces thin dark lines of a drawing as backstitch. `rust/cs-core/src/lines.rs` finds them and paints them out of the picture before generation reads it; `attach_backstitch` in `pattern.rs` puts them on the chart in one thread (an existing one or one added at the end of the palette). Only a mostly flat picture is traced (D267); the numbers are read from `docs/reviews/2026-10-02-backstitch-from-lines.md`. The option travels app to processor to `cs-job` like Vivid (`validate-settings.ts`, `rust-jobs.ts`).
 
 **G-083, export fixes — built, deployed and signed off 2026-10-01 (live at ff36e18).** The A4 export has its own cell size (the Chart pane's "A4 cell size, mm", option `exportCellMm`, default 5.5, `lib/export/export-cell-size.ts`), carried to the Rust exporter as `cellMm`; its layout (`calculate_a4_layout`, margin 8 mm, gutter 12 mm) is separate from the Pattern Keeper PDF's (`calculate_layout`, unchanged). The A4 pages carry a map of the pages first, a letter on every page, "overlap X" labels outside the pattern, the centre marked, and a skein table (`rust/cs-export/src/a4.rs`, `centre.rs`); the full-size chart gains the centre marks in Rust and TypeScript and keeps its 24 px stitch. The TypeScript A4 path was not changed (D264).
 

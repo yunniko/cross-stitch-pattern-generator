@@ -301,3 +301,6 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D263 — Stitch type is three radio icons, and the outline and dot take the stitch's shape — active
 - D264 — The A4 pages take a cell size in mm and carry the page marks, in Rust only; the Pattern Keeper PDF is pinned — active
 - D265 — The Color # column is printed whenever a thread has a code, not only for a one-brand chart — active
+- D266 — Lines are traced first, painted out of the picture, and stitched in one thread — active
+- D267 — Only a mostly flat picture is traced — active
+- D268 — Traced lines are corner-to-corner stitches of three cells at most — active
