@@ -49,7 +49,11 @@ export function coverageThreshold(weight: number): number {
   return Math.max(0.05, Math.min(0.95, 1 - w / 100));
 }
 
+/** The generic families, which name the browser's own choice and so must not be quoted. */
+const GENERIC = new Set(["sans-serif", "serif", "monospace", "cursive", "fantasy", "system-ui"]);
+
 function quote(family: string): string {
+  if (GENERIC.has(family)) return family;
   return `"${family.replace(/["\\]/g, "")}"`;
 }
 

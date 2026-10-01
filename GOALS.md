@@ -64,7 +64,7 @@ any piece.
   cells asked for, a known word is stable, bold differs from regular, a heavier weight never has fewer stitches than a lighter
   one. A short review of how small lettering stays readable in cross-stitch (the smallest sensible height, how legible 6 to 12
   cells are), using the `domain-expert` agent per STANDARDS. Deliverable: the module, its tests and that note.
-- [ ] M2 -- **The Owner's fonts.** `lib/editor/local-fonts.ts`: ask for permission, group faces into families, load a face as a
+- [x] M2 -- **The Owner's fonts.** `lib/editor/local-fonts.ts`: ask for permission, group faces into families, load a face as a
   `FontFace` in memory, and the fallback when the API is missing or declined. Tests: in Chromium with the permission granted
   there is at least one family and a family's faces are listed; with the API removed the fallback appears; **the network
   check: no request made during a full list-and-load carries a font name or font bytes.** Deliverable: a working data source
@@ -91,6 +91,11 @@ instead of failing. Right-to-left and complex scripts depend on the browser's te
 they are not specially tested in the first version.
 
 **Progress log** (newest first):
+- 2026-10-01 -- M2 built: `lib/editor/local-fonts.ts` (the browser's listing, grouped into families and faces with weight, slant
+  and width read from the style name; a fallback of the generic families and a typed name, marked unsupported, declined or
+  error; a face loaded as a `FontFace` in memory under a private name) with 14 unit tests including a guard that the file has
+  no network call and no storage. The Chromium check with the permission granted waits for the tab (M3), where a page
+  exists to ask from; the no-upload check over a whole add is in M4.
 - 2026-10-01 -- M1 built: `lib/editor/text-raster.ts` (a line of text, a face, a size in stitches and a weight -> whole stitches,
   trimmed to the ink; lines kept as a list) with 11 unit tests against the bundled DejaVu in a Node canvas, all passing. The
   legibility review (`docs/reviews/2026-10-01-text-legibility.md`, from the `domain-expert` agent) set the smallest size at 7

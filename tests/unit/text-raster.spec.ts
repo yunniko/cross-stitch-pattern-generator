@@ -49,6 +49,8 @@ describe("fontShorthand", () => {
     expect(fontShorthand({ family: "Arial Narrow", weight: 700, style: "italic", stretch: "condensed" }, 9)).toBe(
       'italic 700 condensed 9px "Arial Narrow", sans-serif'
     );
+    // A generic family is not a name: it is not quoted.
+    expect(fontShorthand({ ...REGULAR, family: "monospace" }, 10)).toBe("normal 400 10px monospace, sans-serif");
     // A quote in a family name cannot break out of the string.
     expect(fontShorthand({ ...REGULAR, family: 'Bad"; font-size: 99px' }, 10)).toContain('"Bad; font-size: 99px"');
   });
