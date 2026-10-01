@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-082 · Half stitches: a cell can hold half a cross, "/" or "\" — DRAFT (2026-10-01)
+### G-082 · Half stitches: a cell can hold half a cross, "/" or "\" — ACTIVE (2026-10-01)
 - **What:** a cell may hold a **whole stitch** (as today) or a **half stitch** of one of two kinds: **"/"** (a thread from the
   bottom-left corner to the top-right) or **"\"** (top-left to bottom-right). A half stitch is drawn as the cell in its
   colour with the **two opposite corners cut away, transparent** (for "/" the top-left and bottom-right corners go; for "\" the
@@ -51,7 +51,7 @@ without widening every buffer and every Rust path), and a sparse list like backs
 selection, symmetry and fills like any cell).
 
 **Milestones:**
-- [ ] M1 -- **The model and the editing core (pure, tested).** `cellKind` on `StitchPattern`; `pattern-edit` writes colour and
+- [x] M1 -- **The model and the editing core (pure, tested).** `cellKind` on `StitchPattern`; `pattern-edit` writes colour and
   kind together; flip, rotate and symmetry swap "/" and "\" correctly; selection, copy, paste, move, undo and the project store
   carry it; the editable JSON gains an optional `cellKind` (absent when none). Unit tests incl. old-file round trip. Decision
   record for the model.
@@ -67,22 +67,11 @@ selection, symmetry and fills like any cell).
 - [ ] M5 -- **Import, polish, live.** OXS import reads half stitches natively instead of approximating them; README, HANDOVER;
   full e2e; deploy at the Owner's word and verify live.
 
-**Open questions for the Owner (with my recommended default; none blocks M1):**
-1. **One half or two per cell?** Real cross stitch can put both a "/" and a "\" in one cell (a full cross in two colours).
-   *Recommended: one kind per cell for now*, as described; the byte can later hold both as flags without a rewrite.
-2. **Which diagonal is which:** is "/" the thread bottom-left to top-right, with the top-left and bottom-right corners cut away,
-   as written above? (Easy to flip if you meant the opposite.)
-3. **Legend:** *recommended:* each colour keeps one row with its symbol and total; where a colour has half stitches the row adds
-   "whole 120 · half / 14 · half \ 6", and a small key under the legend shows the two cut shapes ("½ /", "½ \") when any are used.
-   Pattern Keeper's legend shows one merged count per colour. Is that what you meant by "appear on the legend if used"?
-4. **Counts and thread:** the chart's stitch total counts cells (so today's numbers do not change), and a half stitch is one
-   of them. The A4 thread estimate counts a half stitch as half a stitch of thread. OK?
-5. **Lettering (the Text tab)** stays whole stitches, not following the dropdown. OK?
-6. **Where the dropdown lives:** *recommended:* in the top tool-options bar beside the thread in hand, shown for the tools that
-   use it, remembered between visits.
-7. **The cut's size** (how much of each corner goes): I will propose a shape on screen in M3 and you pick; a cut that goes
-   corner to corner would leave a hairline, one that cuts too little looks like a whole stitch. Starting point: each cut corner
-   is a right triangle whose legs are 40 % of the cell side.
+**Owner's answers, 2026-10-01** (to the seven questions of the plan): (1) one kind per cell; (2) yes: "/" is bottom-left to top-right,
+the top-left and bottom-right corners are cut away; (3) **the legend lists every combination of stitch type and colour**, so a reader
+knows how to read the chart; the stitch total as a number need not tell the kinds apart (it may if easier); (4) cell count total,
+half a stitch of thread in the estimate: OK; (5) the Text tab stays whole stitches: OK; (6) the dropdown in the top tool-options
+bar, remembered: yes; (7) the cut corners are right triangles with legs **30 %** of the cell side.
 
 **Risks:** (a) the Rust export path is large (about 4 000 lines read the cells) and must change in step with TypeScript: M4 is
 the biggest milestone and may split; (b) 22 modules read `cellPalette`, so the safe route is to keep it unchanged and add
@@ -91,6 +80,12 @@ the biggest milestone and may split; (b) 22 modules read `cellPalette`, so the s
 the PDF's real text symbols, so its export must not draw cut shapes it cannot read as stitches.
 
 **Progress log** (newest first):
+- 2026-10-01 -- M1 built (D258): `cellKind` on the pattern and `kinds` on a floating selection (`lib/editor/stitch-kind.ts`); paint, fill,
+  merge colours, shift, resize, lift, merge, flip, turn, fill selection, symmetry orbit, quick mirror and fill symmetric carry or swap the kinds;
+  the saved file and the project store keep them (absent for a chart with none). 944 unit (19 new). The Owner asked for all milestones
+  in one run and a deploy if nothing needs a decision.
+- 2026-10-01 -- the Owner answered all seven questions (above) and the work starts with M1. Acceptance (6) tightens: the legend
+  has a row for every stitch-type and colour combination used.
 - 2026-10-01 -- goal planned at the Owner's request ("make plan of introducing halfstitches"); nothing built. Grounded in the code
   (see above). Waits for the Owner's answers to the questions and the go-ahead to start M1.
 

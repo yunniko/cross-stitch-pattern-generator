@@ -130,6 +130,12 @@ export interface StitchPattern {
   height: number;
   /** Length width*height, row-major; each value indexes `palette` or is `EMPTY_CELL`. */
   cellPalette: Uint8Array;
+  /**
+   * Half stitches (G-082): for each cell, 0 a whole stitch, 1 a half stitch "/", 2 a half stitch "\\" (`lib/editor/stitch-kind.ts`).
+   * Same length and indexing as `cellPalette`. **Absent means every stitch is whole**, which is every chart made before G-082
+   * and every chart that has no half stitch; an empty cell is always 0.
+   */
+  cellKind?: Uint8Array;
   palette: PaletteColor[];
   /** True when the source image is wider than it is tall. */
   isLandscape: boolean;
@@ -176,6 +182,8 @@ export interface FloatingSelection {
   width: number;
   height: number;
   cells: Uint8Array;
+  /** The stitch kind of each cell, like `StitchPattern.cellKind` (G-082); absent means all whole. Travels with `cells`: a flip or a turn swaps "/" and "\\" where it should. */
+  kinds?: Uint8Array;
   /**
    * Which cells of the `width` x `height` box are actually in the piece, 1 for in (G-072). **Absent means all of
    * them**, which is what every rectangle selection is and why nothing about them had to change.

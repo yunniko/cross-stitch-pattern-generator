@@ -1,6 +1,7 @@
 import { labelRegions } from "../pipeline/regions";
 import { EMPTY_CELL, type FloatingSelection, type StitchPattern } from "../types";
 import { mergeSelection, withCellPalette } from "./pattern-edit";
+import { kindUnderMatrix, STITCH_WHOLE } from "./stitch-kind";
 import { effectiveSymmetryAxes, symmetryGroup, type SymmetryAxes } from "./symmetry-axes";
 
 export {
@@ -46,16 +47,32 @@ function assertPattern(pattern: StitchPattern) {
  * non-square canvas. A cell on an axis, or at the centre, has fewer distinct copies than the group has elements.
  */
 export function symmetryOrbit(cellIndex: number, width: number, height: number, axes: SymmetryAxes): number[] {
+  return symmetryOrbitKinds(cellIndex, width, height, axes, STITCH_WHOLE).map((cell) => cell.index);
+}
+
+/**
+ * `symmetryOrbit` with the kind of stitch each copy holds when the cell at `cellIndex` holds `kind` (G-082): a mirror across the
+ * vertical or horizontal axis, and a quarter turn, lay a "/" across as a "\" and back; a half turn and a mirror across a
+ * diagonal do not. A whole stitch is a whole stitch everywhere.
+ */
+export function symmetryOrbitKinds(
+  cellIndex: number,
+  width: number,
+  height: number,
+  axes: SymmetryAxes,
+  kind: number
+): Array<{ index: number; kind: number }> {
   assertDimensions(width, height);
   assertCell(cellIndex, width, height);
   const u = 2 * (cellIndex % width) - (width - 1);
   const v = 2 * Math.floor(cellIndex / width) - (height - 1);
-  const orbit: number[] = [];
-  for (const [a, b, c, d] of symmetryGroup(effectiveSymmetryAxes(axes, width, height))) {
+  const orbit: Array<{ index: number; kind: number }> = [];
+  for (const matrix of symmetryGroup(effectiveSymmetryAxes(axes, width, height))) {
+    const [a, b, c, d] = matrix;
     const x = (a * u + b * v + (width - 1)) / 2;
     const y = (c * u + d * v + (height - 1)) / 2;
     const index = y * width + x;
-    if (!orbit.includes(index)) orbit.push(index);
+    if (!orbit.some((cell) => cell.index === index)) orbit.push({ index, kind: kindUnderMatrix(kind, matrix) });
   }
   return orbit;
 }
@@ -75,17 +92,25 @@ export function applyQuickMirror(pattern: StitchPattern, kind: QuickMirror): Sti
     throw new Error("The upper-left half corner mirror needs a square canvas.");
   }
   const cells = new Uint8Array(cellPalette.length);
+  const kinds = pattern.cellKind ? new Uint8Array(cellPalette.length) : undefined;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       let sx = x;
       let sy = y;
       if (kind === "left-half" || kind === "upper-left-corner" || kind === "upper-left-half-corner") sx = Math.min(x, width - 1 - x);
       if (kind === "upper-half" || kind === "upper-left-corner" || kind === "upper-left-half-corner") sy = Math.min(y, height - 1 - y);
+      // A copy reflected across exactly one of the two centre lines lies the other way; across both, or across the
+      // diagonal, it does not (G-082).
+      const swapped = (sx !== x) !== (sy !== y);
       if (kind === "upper-left-half-corner" && sx > sy) [sx, sy] = [sy, sx];
       cells[y * width + x] = cellPalette[sy * width + sx];
+      if (kinds) {
+        const source = pattern.cellKind![sy * width + sx];
+        kinds[y * width + x] = swapped ? (source === 1 ? 2 : source === 2 ? 1 : source) : source;
+      }
     }
   }
-  return withCellPalette(pattern, cells);
+  return withCellPalette(pattern, cells, kinds);
 }
 
 /**
@@ -111,7 +136,8 @@ export function fillSymmetric(
   cellIndex: number,
   axes: SymmetryAxes,
   paletteIndex: number,
-  connectivity: 4 | 8
+  connectivity: 4 | 8,
+  kind: number = STITCH_WHOLE
 ): StitchPattern {
   assertPattern(pattern);
   const { width, height, cellPalette, palette } = pattern;
@@ -121,13 +147,23 @@ export function fillSymmetric(
   }
   if (connectivity !== 4 && connectivity !== 8) throw new Error(`Connectivity must be 4 or 8 (got ${connectivity}).`);
 
-  const seeds = symmetryOrbit(cellIndex, width, height, axes);
+  const orbit = symmetryOrbitKinds(cellIndex, width, height, axes, kind);
+  const seeds = orbit.map((cell) => cell.index);
+  const seedKind = new Map(orbit.map((cell) => [cell.index, cell.kind]));
   const cells = cellPalette.slice();
+  const kinds = new Uint8Array(cells.length);
+  if (pattern.cellKind) kinds.set(pattern.cellKind);
   if (connectivity === 4) {
-    // One labelling pass, then every cell whose region holds a seed.
+    // One labelling pass, then every cell whose region holds a seed; a region takes the kind of the first seed in it.
     const { labels } = labelRegions(cellPalette, width, height);
-    const chosen = new Set(seeds.map((seed) => labels[seed]));
-    for (let i = 0; i < cells.length; i++) if (chosen.has(labels[i])) cells[i] = paletteIndex;
+    const chosen = new Map<number, number>();
+    for (const seed of seeds) if (!chosen.has(labels[seed])) chosen.set(labels[seed], seedKind.get(seed)!);
+    for (let i = 0; i < cells.length; i++) {
+      const regionKind = chosen.get(labels[i]);
+      if (regionKind === undefined) continue;
+      cells[i] = paletteIndex;
+      kinds[i] = regionKind;
+    }
   } else {
     // 8-connected floods over the original buffer sharing one visited mask: two seeds in one region traverse it once,
     // and a cell reached from one seed can't belong to another seed's differently coloured region.
@@ -141,6 +177,7 @@ export function fillSymmetric(
       while (stack.length > 0) {
         const cell = stack.pop()!;
         cells[cell] = paletteIndex;
+        kinds[cell] = seedKind.get(seed)!;
         const x = cell % width;
         const y = (cell - x) / width;
         for (let dy = -1; dy <= 1; dy++) {
@@ -158,5 +195,5 @@ export function fillSymmetric(
       }
     }
   }
-  return withCellPalette(pattern, cells);
+  return withCellPalette(pattern, cells, kinds);
 }

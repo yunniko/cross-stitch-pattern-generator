@@ -10,6 +10,7 @@ import {
 } from "./backstitch";
 import { floodFillDiagonal, labelRegions } from "../pipeline/regions";
 import { SYMBOL_SET } from "../color/symbols";
+import { kindBuffer, kindsAfterWholePainting, STITCH_WHOLE, swapKind, tidyKinds } from "./stitch-kind";
 import { formatThreadName, THREAD_BRANDS, type ThreadBrand } from "../threads/thread-brands";
 import {
   EMPTY_CELL,
@@ -37,11 +38,22 @@ function recomputeCounts(cellPalette: Uint8Array, paletteLength: number): number
   return counts;
 }
 
-function withCounts(pattern: StitchPattern, cellPalette: Uint8Array, palette: PaletteColor[]): StitchPattern {
+/**
+ * `cellKind`, when a caller knows it, is the new kinds buffer; left out, the call is a whole-stitch repaint, so a cell whose
+ * value changed becomes a whole stitch and the rest keep their kind (G-082). An empty cell is always whole, and a chart with
+ * no half stitch left carries no kinds at all.
+ */
+function withCounts(
+  pattern: StitchPattern,
+  cellPalette: Uint8Array,
+  palette: PaletteColor[],
+  cellKind: Uint8Array | undefined = kindsAfterWholePainting(pattern, cellPalette)
+): StitchPattern {
   const counts = recomputeCounts(cellPalette, palette.length);
   return {
     ...pattern,
     cellPalette,
+    cellKind: tidyKinds(cellPalette, cellKind),
     palette: palette.map((color, i) => ({ ...color, index: i, count: counts[i] })),
   };
 }
@@ -77,7 +89,8 @@ export function mergeColors(pattern: StitchPattern, sourceIndex: number, targetI
 
   const backstitch = withColorRemovedFromLines(pattern.backstitch ?? [], sourceIndex, targetIndex === EMPTY_CELL ? null : targetIndex);
   return {
-    ...withCounts(pattern, remappedCellPalette, survivingPalette),
+    // Merging recolours stitches; it does not change what kind they are.
+    ...withCounts(pattern, remappedCellPalette, survivingPalette, pattern.cellKind),
     backstitch: backstitch.length ? backstitch : undefined,
   };
 }
@@ -88,16 +101,19 @@ export function mergeColors(pattern: StitchPattern, sourceIndex: number, targetI
  * `lib/regions.ts` already uses internally (Owner's spec: "diagonal
  * touching alone doesn't count"), not just the single clicked cell.
  */
-export function fillCluster(pattern: StitchPattern, cellIndex: number, paletteIndex: number): StitchPattern {
+export function fillCluster(pattern: StitchPattern, cellIndex: number, paletteIndex: number, kind: number = STITCH_WHOLE): StitchPattern {
   const regions = labelRegions(pattern.cellPalette, pattern.width, pattern.height);
   const targetLabel = regions.labels[cellIndex];
 
   const cellPalette = pattern.cellPalette.slice();
+  const kinds = kindBuffer(pattern);
   for (let i = 0; i < cellPalette.length; i++) {
-    if (regions.labels[i] === targetLabel) cellPalette[i] = paletteIndex;
+    if (regions.labels[i] !== targetLabel) continue;
+    cellPalette[i] = paletteIndex;
+    kinds[i] = kind;
   }
 
-  return withCounts(pattern, cellPalette, pattern.palette);
+  return withCounts(pattern, cellPalette, pattern.palette, kinds);
 }
 
 /**
@@ -109,29 +125,41 @@ export function fillCluster(pattern: StitchPattern, cellIndex: number, paletteIn
  * own connectivity rule (Owner request, 2026-09-10), not a change to that
  * one.
  */
-export function fillClusterDiagonal(pattern: StitchPattern, cellIndex: number, paletteIndex: number): StitchPattern {
+export function fillClusterDiagonal(
+  pattern: StitchPattern,
+  cellIndex: number,
+  paletteIndex: number,
+  kind: number = STITCH_WHOLE
+): StitchPattern {
   const matches = floodFillDiagonal(pattern.cellPalette, pattern.width, pattern.height, cellIndex);
   const cellPalette = pattern.cellPalette.slice();
-  for (const cell of matches) cellPalette[cell] = paletteIndex;
-  return withCounts(pattern, cellPalette, pattern.palette);
+  const kinds = kindBuffer(pattern);
+  for (const cell of matches) {
+    cellPalette[cell] = paletteIndex;
+    kinds[cell] = kind;
+  }
+  return withCounts(pattern, cellPalette, pattern.palette, kinds);
 }
 
 /** Repaints exactly one stitch — no region/cluster involved. */
-export function paintStitch(pattern: StitchPattern, cellIndex: number, paletteIndex: number): StitchPattern {
+export function paintStitch(pattern: StitchPattern, cellIndex: number, paletteIndex: number, kind: number = STITCH_WHOLE): StitchPattern {
   const cellPalette = pattern.cellPalette.slice();
   cellPalette[cellIndex] = paletteIndex;
-  return withCounts(pattern, cellPalette, pattern.palette);
+  const kinds = kindBuffer(pattern);
+  kinds[cellIndex] = kind;
+  return withCounts(pattern, cellPalette, pattern.palette, kinds);
 }
 
 /**
  * Commits a gesture's working cell buffer (a brush stroke painted cell by
  * cell into one `Uint8Array`) as a new pattern, recounting once at the end
  * rather than per pointer event (D104). `cellPalette` must be the same
- * length as the pattern's and is used as-is, not copied.
+ * length as the pattern's and is used as-is, not copied. `cellKind` is the matching working buffer of stitch kinds (G-082);
+ * a caller that paints whole stitches only leaves it out, and the cells it changed become whole.
  */
-export function withCellPalette(pattern: StitchPattern, cellPalette: Uint8Array): StitchPattern {
+export function withCellPalette(pattern: StitchPattern, cellPalette: Uint8Array, cellKind?: Uint8Array): StitchPattern {
   if (cellPalette.length !== pattern.cellPalette.length) throw new Error("Working buffer doesn't match the pattern's size.");
-  return withCounts(pattern, cellPalette, pattern.palette);
+  return cellKind ? withCounts(pattern, cellPalette, pattern.palette, cellKind) : withCounts(pattern, cellPalette, pattern.palette);
 }
 
 /**
@@ -143,25 +171,33 @@ export function shiftPattern(pattern: StitchPattern, dx: number, dy: number): St
   const { width, height, cellPalette, sourceImage } = pattern;
   if (dx === 0 && dy === 0) return pattern;
 
-  const shifted = new Uint8Array(cellPalette.length);
-  // Two whole-row copies per row rather than a modulo per cell: the tail of the source row wraps to the front
-  // (G-039 M2, same bytes as the per-cell form).
-  const offsetX = ((dx % width) + width) % width;
-  for (let y = 0; y < height; y++) {
-    const srcY = ((((y - dy) % height) + height) % height) * width;
-    const destY = y * width;
-    shifted.set(cellPalette.subarray(srcY + width - offsetX, srcY + width), destY);
-    shifted.set(cellPalette.subarray(srcY, srcY + width - offsetX), destY + offsetX);
-  }
+  const shifted = wrapShift(cellPalette, width, height, dx, dy);
 
   return {
     ...pattern,
     cellPalette: shifted,
+    cellKind: pattern.cellKind ? wrapShift(pattern.cellKind, width, height, dx, dy) : undefined,
     // Stitches wrap around the edges; a backstitch cannot, because half a straight line on each side of the
     // chart is not the line anyone drew. Lines move with the design and a line pushed off it goes (G-073).
     backstitch: movedLines(pattern, dx, dy, pattern.width, pattern.height),
     sourceImage: sourceImage ? { ...sourceImage, offsetX: sourceImage.offsetX + dx, offsetY: sourceImage.offsetY + dy } : undefined,
   };
+}
+
+/**
+ * A buffer shifted by whole cells with wrap-around. Two whole-row copies per row rather than a modulo per cell: the tail of
+ * the source row wraps to the front (G-039 M2, same bytes as the per-cell form).
+ */
+function wrapShift(source: Uint8Array, width: number, height: number, dx: number, dy: number): Uint8Array {
+  const shifted = new Uint8Array(source.length);
+  const offsetX = ((dx % width) + width) % width;
+  for (let y = 0; y < height; y++) {
+    const srcY = ((((y - dy) % height) + height) % height) * width;
+    const destY = y * width;
+    shifted.set(source.subarray(srcY + width - offsetX, srcY + width), destY);
+    shifted.set(source.subarray(srcY, srcY + width - offsetX), destY + offsetX);
+  }
+  return shifted;
 }
 
 /** Lines shifted by whole cells and clipped to a chart of the given size; `undefined` when none survive. */
@@ -198,17 +234,19 @@ export function resizeCanvas(pattern: StitchPattern, delta: CanvasResizeDelta): 
   }
 
   const cellPalette = new Uint8Array(newWidth * newHeight);
+  const cellKind = pattern.cellKind ? new Uint8Array(newWidth * newHeight) : undefined;
   for (let ny = 0; ny < newHeight; ny++) {
     const oy = ny - top;
     const inRowBounds = oy >= 0 && oy < pattern.height;
     for (let nx = 0; nx < newWidth; nx++) {
       const ox = nx - left;
-      cellPalette[ny * newWidth + nx] =
-        inRowBounds && ox >= 0 && ox < pattern.width ? pattern.cellPalette[oy * pattern.width + ox] : EMPTY_CELL;
+      const inside = inRowBounds && ox >= 0 && ox < pattern.width;
+      cellPalette[ny * newWidth + nx] = inside ? pattern.cellPalette[oy * pattern.width + ox] : EMPTY_CELL;
+      if (cellKind && inside) cellKind[ny * newWidth + nx] = pattern.cellKind![oy * pattern.width + ox];
     }
   }
 
-  const resized = withCounts(pattern, cellPalette, pattern.palette);
+  const resized = withCounts(pattern, cellPalette, pattern.palette, cellKind);
   return {
     ...resized,
     width: newWidth,
@@ -440,10 +478,13 @@ function clampRectToBounds(rect: CellRect, width: number, height: number): CellR
 export function liftSelection(pattern: StitchPattern, rect: CellRect, mask?: Uint8Array): FloatingSelection {
   const clamped = clampRectToBounds(rect, pattern.width, pattern.height);
   const cells = new Uint8Array(clamped.width * clamped.height);
+  const kinds = pattern.cellKind ? new Uint8Array(cells.length) : undefined;
   for (let ly = 0; ly < clamped.height; ly++) {
     const srcRowStart = (clamped.y + ly) * pattern.width + clamped.x;
     cells.set(pattern.cellPalette.subarray(srcRowStart, srcRowStart + clamped.width), ly * clamped.width);
+    kinds?.set(pattern.cellKind!.subarray(srcRowStart, srcRowStart + clamped.width), ly * clamped.width);
   }
+  const pieceKinds = tidyKinds(cells, kinds);
   const clampedMask = mask && cropMask(mask, rect, clamped);
   // The lines the piece takes, in its own coordinates. Copied, not cut: the chart keeps them until the
   // merge vacates `originRect`, exactly as it keeps the cells underneath (G-073 M3).
@@ -454,6 +495,7 @@ export function liftSelection(pattern: StitchPattern, rect: CellRect, mask?: Uin
     width: clamped.width,
     height: clamped.height,
     cells,
+    ...(pieceKinds ? { kinds: pieceKinds } : {}),
     ...(clampedMask ? { mask: clampedMask, originMask: clampedMask } : {}),
     ...(taken.length ? { backstitch: shiftLines(taken, -clamped.x, -clamped.y) } : {}),
     originRect: clamped,
@@ -510,13 +552,25 @@ export function sameCells(a: ArrayLike<number>, b: ArrayLike<number>): boolean {
  * selected *area*, not the stitches inside it. With the transparency lock on (`onlyFilled`), only the stitches that
  * are not empty are painted (G-079).
  */
-export function fillSelection(selection: FloatingSelection, paletteIndex: number, onlyFilled = false): FloatingSelection {
+export function fillSelection(
+  selection: FloatingSelection,
+  paletteIndex: number,
+  onlyFilled = false,
+  kind: number = STITCH_WHOLE
+): FloatingSelection {
   const paintable = (i: number) => !onlyFilled || selection.cells[i] !== EMPTY_CELL;
-  if (!selection.mask && !onlyFilled) return { ...selection, cells: new Uint8Array(selection.cells.length).fill(paletteIndex) };
   // A shaped piece fills its shape; the cells outside it keep what they held, since nothing ever stamps them.
   const cells = selection.cells.slice();
-  for (let i = 0; i < cells.length; i++) if ((!selection.mask || selection.mask[i]) && paintable(i)) cells[i] = paletteIndex;
-  return { ...selection, cells };
+  const kinds = selection.kinds ? selection.kinds.slice() : new Uint8Array(cells.length);
+  for (let i = 0; i < cells.length; i++) {
+    if ((selection.mask && !selection.mask[i]) || !paintable(i)) continue;
+    cells[i] = paletteIndex;
+    kinds[i] = kind;
+  }
+  const tidy = tidyKinds(cells, kinds);
+  const { kinds: _before, ...rest } = selection;
+  void _before;
+  return { ...rest, cells, ...(tidy ? { kinds: tidy } : {}) };
 }
 
 /**
@@ -580,6 +634,8 @@ function withShape(
   return {
     ...selection,
     cells: rearrange(selection.cells),
+    // Every flip and quarter turn lays a half stitch across the other diagonal (G-082, D258).
+    ...(selection.kinds ? { kinds: rearrange(selection.kinds).map(swapKind) } : {}),
     ...(selection.mask ? { mask: rearrange(selection.mask) } : {}),
     ...(selection.backstitch ? { backstitch: rearrangeLines(selection.backstitch) } : {}),
   };
@@ -648,7 +704,13 @@ export function cropToSelection(pattern: StitchPattern, selection: FloatingSelec
   });
 }
 
-function stampSelection(cellPalette: Uint8Array, width: number, height: number, selection: FloatingSelection): void {
+function stampSelection(
+  cellPalette: Uint8Array,
+  cellKind: Uint8Array | undefined,
+  width: number,
+  height: number,
+  selection: FloatingSelection
+): void {
   for (let ly = 0; ly < selection.height; ly++) {
     const py = selection.y + ly;
     if (py < 0 || py >= height) continue;
@@ -659,6 +721,7 @@ function stampSelection(cellPalette: Uint8Array, width: number, height: number, 
       // A cell the mask excludes is not part of the piece, so whatever is under it stays (G-072).
       if (selection.mask && !selection.mask[local]) continue;
       cellPalette[py * width + px] = selection.cells[local];
+      if (cellKind) cellKind[py * width + px] = selection.kinds?.[local] ?? STITCH_WHOLE;
     }
   }
 }
@@ -671,13 +734,14 @@ function stampSelection(cellPalette: Uint8Array, width: number, height: number, 
  */
 export function compositeSelectionPreview(pattern: StitchPattern, selection: FloatingSelection): StitchPattern {
   const cellPalette = pattern.cellPalette.slice();
-  stampSelection(cellPalette, pattern.width, pattern.height, selection);
+  const cellKind = pattern.cellKind || selection.kinds ? kindBuffer(pattern) : undefined;
+  stampSelection(cellPalette, cellKind, pattern.width, pattern.height, selection);
   // The lines the piece carries are shown where the piece is. The originals stay visible where they were
   // drawn until the merge, which is what the cells under the piece do too.
   const backstitch = selection.backstitch?.length
     ? [...(pattern.backstitch ?? []), ...shiftLines(selection.backstitch, selection.x, selection.y)]
     : pattern.backstitch;
-  return { ...pattern, cellPalette, backstitch };
+  return { ...pattern, cellPalette, cellKind: tidyKinds(cellPalette, cellKind), backstitch };
 }
 
 /**
@@ -692,6 +756,7 @@ export function compositeSelectionPreview(pattern: StitchPattern, selection: Flo
  */
 export function mergeSelection(pattern: StitchPattern, selection: FloatingSelection): StitchPattern {
   const cellPalette = pattern.cellPalette.slice();
+  const cellKind = pattern.cellKind || selection.kinds ? kindBuffer(pattern) : undefined;
   if (selection.originRect) {
     const { x, y, width, height } = selection.originRect;
     for (let ly = 0; ly < height; ly++) {
@@ -700,17 +765,20 @@ export function mergeSelection(pattern: StitchPattern, selection: FloatingSelect
       const rowStart = py * pattern.width + x;
       if (!selection.originMask) {
         cellPalette.fill(EMPTY_CELL, rowStart, rowStart + Math.min(width, pattern.width - x));
+        cellKind?.fill(STITCH_WHOLE, rowStart, rowStart + Math.min(width, pattern.width - x));
         continue;
       }
       // A shaped piece leaves a hole its own shape, not a rectangular one (G-072).
       for (let lx = 0; lx < width; lx++) {
         if (x + lx >= pattern.width) break;
-        if (selection.originMask[ly * width + lx]) cellPalette[rowStart + lx] = EMPTY_CELL;
+        if (!selection.originMask[ly * width + lx]) continue;
+        cellPalette[rowStart + lx] = EMPTY_CELL;
+        if (cellKind) cellKind[rowStart + lx] = STITCH_WHOLE;
       }
     }
   }
-  stampSelection(cellPalette, pattern.width, pattern.height, selection);
-  return { ...withCounts(pattern, cellPalette, pattern.palette), backstitch: mergedLines(pattern, selection) };
+  stampSelection(cellPalette, cellKind, pattern.width, pattern.height, selection);
+  return { ...withCounts(pattern, cellPalette, pattern.palette, cellKind), backstitch: mergedLines(pattern, selection) };
 }
 
 /**

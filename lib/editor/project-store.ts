@@ -1,3 +1,4 @@
+import { tidyKinds } from "./stitch-kind";
 import {
   deserializePattern,
   deserializePatternData,
@@ -55,6 +56,8 @@ export interface StoredProjectRecord {
   height: number;
   isLandscape: boolean;
   cellPalette: Uint8Array;
+  /** The stitch kind of each cell (G-082), stored as the typed array itself; absent while every stitch is whole. */
+  cellKind?: Uint8Array;
   palette: Array<{ rgb: RGB; symbol: string; name: string; source?: ThreadSwatchRef }>;
   name?: string;
   threadBrand?: StitchPattern["threadBrand"];
@@ -157,6 +160,9 @@ async function encodeRecord(
   // Every field of this record is named by hand, so anything new on a pattern is dropped until someone adds
   // it here. Backstitch was: a reload silently lost every line (found on the live build, 2026-09-25).
   if (pattern.backstitch?.length) record.backstitch = [...pattern.backstitch];
+  // Half stitches (G-082) are named here for the same reason; absent while every stitch is whole.
+  const kinds = tidyKinds(pattern.cellPalette, pattern.cellKind);
+  if (kinds) record.cellKind = kinds;
   const storedSymmetry = serializeSymmetry(symmetry);
   if (storedSymmetry) record.symmetry = storedSymmetry;
   if (!pattern.sourceImage) return { record };

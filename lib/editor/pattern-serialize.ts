@@ -1,3 +1,4 @@
+import { isStitchKind, tidyKinds } from "./stitch-kind";
 import { dedupeLines } from "./backstitch";
 import { DITHER_MODES, type DitherMode } from "../pipeline/dither";
 import { isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
@@ -89,6 +90,12 @@ export interface SerializedPattern {
    * version stays where it is and a build that predates backstitch opens the file as the crosses alone.
    */
   backstitch?: BackstitchLine[];
+  /**
+   * The stitch kind of each cell (G-082): 0 whole, 1 half "/", 2 half "\\". Absent for a chart with no half stitch and on
+   * files saved before it. Additive like `backstitch`, so the format version stays where it is and a build that predates
+   * half stitches opens the file with every stitch whole.
+   */
+  cellKind?: number[];
 }
 
 /** Only the axes that are on, each `true`. */
@@ -117,6 +124,7 @@ export function readSymmetry(value: unknown, width: number, height: number): Sym
  * written only when an axis is on, so a file saved with symmetry off is byte-identical to one saved before G-037.
  */
 export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes = NO_SYMMETRY): string {
+  const kinds = tidyKinds(pattern.cellPalette, pattern.cellKind);
   const data: SerializedPattern = {
     formatVersion: FORMAT_VERSION,
     width: pattern.width,
@@ -139,6 +147,7 @@ export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes 
     vivid: pattern.vivid,
     symmetry: serializeSymmetry(effectiveSymmetryAxes(symmetry, pattern.width, pattern.height)),
     backstitch: pattern.backstitch?.length ? pattern.backstitch : undefined,
+    cellKind: kinds ? Array.from(kinds) : undefined,
   };
   return JSON.stringify(data);
 }
@@ -302,7 +311,23 @@ export function deserializePatternData(data: unknown): StitchPattern {
     // Anything but a literal true, including its absence in a file saved before G-061, reads as off.
     vivid: d.vivid === true ? true : undefined,
     backstitch,
+    cellKind: readCellKind(d.cellKind, cellPalette),
   };
+}
+
+/**
+ * The stitch kinds of a saved chart, or `undefined` (every stitch whole) when the field is absent, malformed or all whole. A
+ * value outside 0 to 2 or a list of the wrong length is not trusted: the stitches still open, as whole ones.
+ */
+function readCellKind(value: unknown, cellPalette: ArrayLike<number>): Uint8Array | undefined {
+  if (!isIndexList(value) || value.length !== cellPalette.length) return undefined;
+  const kinds = new Uint8Array(value.length);
+  for (let i = 0; i < value.length; i++) {
+    const kind = value[i];
+    if (!isStitchKind(kind)) return undefined;
+    kinds[i] = kind;
+  }
+  return tidyKinds(cellPalette, kinds);
 }
 
 function isDitherModeId(value: unknown): value is DitherMode {
