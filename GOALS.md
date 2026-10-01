@@ -94,6 +94,9 @@ instead of failing. Right-to-left and complex scripts depend on the browser's te
 they are not specially tested in the first version.
 
 **Progress log** (newest first):
+- 2026-10-01 -- Deployed b17745c (M5, M6) at the Owner's "deploy when ready". 15 of 15 Text-tab cases pass against the live site; the
+  other sites are unaffected. Waiting on the Owner: M7 (their look), and whether to bundle the five held-back fonts (Homespun,
+  Jupiter Crash, BitPap, Chava, EXE Pixel Perfect).
 - 2026-10-01 -- Third download, `PixelFonts` (78 folders, many authors): every licence text and embedded notice read, every candidate
   drawn and its clean sizes measured; 10 more families bundled (41 in all). Five held back for the Owner to confirm: Brian Kent's two
   (free only while the site is not for profit) and three 1001fonts-FFC fonts (web embedding allowed, no download offered). The rest
