@@ -170,3 +170,17 @@ test("undo takes a half stitch back, and the Stitched view shows the chart with 
   await page.getByRole("button", { name: "Color", exact: true }).click();
   expect(errors).toEqual([]);
 });
+
+test("half stitches survive a reload through the autosave", async ({ page }) => {
+  await blankChart(page);
+  await pickTool(page, "Brush");
+  await stitchType(page).selectOption({ label: "Half stitch /" });
+  await click(page, 6, 6);
+  await stitchType(page).selectOption({ label: "Half stitch \\" });
+  await click(page, 8, 6);
+  await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
+  await page.reload();
+  await expect(page.getByTestId("chart-frame")).toBeVisible({ timeout: 15_000 });
+  const out = await saved(page);
+  expect([out.kinds[at(6, 6)], out.kinds[at(8, 6)]]).toEqual([SLASH, BACKSLASH]);
+});

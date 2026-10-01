@@ -64,7 +64,7 @@ selection, symmetry and fills like any cell).
   format's half-cross direction is verified against the spec; else documented approximation), editable JSON, Pattern Keeper PDF
   (halves as whole, counts merged). Rust model, render, preview, pdf, a4, oxs, editable and json brought to parity; the
   equivalence harness extended; a chart without halves still byte-identical.
-- [ ] M5 -- **Import, polish, live.** OXS import reads half stitches natively instead of approximating them; README, HANDOVER;
+- [x] M5 -- **Import, polish, live.** OXS import reads half stitches natively instead of approximating them; README, HANDOVER;
   full e2e; deploy at the Owner's word and verify live.
 
 **Owner's answers, 2026-10-01** (to the seven questions of the plan): (1) one kind per cell; (2) yes: "/" is bottom-left to top-right,
@@ -80,6 +80,9 @@ the biggest milestone and may split; (b) 22 modules read `cellPalette`, so the s
 the PDF's real text symbols, so its export must not draw cut shapes it cannot read as stitches.
 
 **Progress log** (newest first):
+- 2026-10-01 -- M5: README and HANDOVER written; a reload keeps half stitches (autosave e2e). Full suite against the Rust processor: 503 of 505
+  e2e (the 2 admin-stats cases pass alone: 2 of 2), 958 unit, 8 Rust integration tests. OXS import still opens part stitches as whole ones:
+  the spec (direction 1 "/", 2 "\\") does not say which triangle a single colour fills, so a native reading would be a guess (D260).
 - 2026-10-01 -- M4 built (D260). Rust: `halfstitch.rs` (the cut, its mask), `Pattern.kinds`, chart cells, the full-chart legend, the A4 colour key
   (a Type column, a row per stitch type and thread, a Half stitches line), the preview picture and the editable file carry half stitches;
   the Pattern Keeper PDF and the OXS file take every half stitch as whole. TypeScript twin of each. Found on the way: the Rust editable
