@@ -376,8 +376,12 @@ export function buildDetailRows(pattern: StitchPattern, aidaCount: number, sizeU
   ];
   if (pattern.threadBrand) rows.push(["Thread", THREAD_BRANDS[pattern.threadBrand].label]);
   rows.push(["Color count", formatColorCount(pattern.palette.length)]);
-  // How many of those stitches are half stitches (G-082); the Color key lists each type and thread.
-  if (hasHalfStitches(pattern)) rows.push(["Half stitches", String(pattern.cellKind!.reduce((n, kind) => n + (kind !== 0 ? 1 : 0), 0))]);
+  // The stitch count above counts both kinds together; these two say how it divides (G-082), and the Color key lists each type and thread.
+  if (hasHalfStitches(pattern)) {
+    const halves = pattern.cellKind!.reduce((n, kind) => n + (kind !== 0 ? 1 : 0), 0);
+    rows.push(["Full stitches", String(filledStitchCount(pattern) - halves)]);
+    rows.push(["Half stitches", String(halves)]);
+  }
   return rows;
 }
 

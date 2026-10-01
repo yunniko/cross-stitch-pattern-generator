@@ -77,8 +77,12 @@ describe("the A4 colour key", () => {
     expect(planInfoPages(plain, layout, options).totalColors).toBe(2);
     expect(planInfoPages(halves, layout, options).cols.typeW).toBeGreaterThan(0);
     expect(planInfoPages(plain, layout, options).cols.typeW).toBe(0);
-    expect(buildDetailRows(halves, 14, "cm").find(([k]) => k === "Half stitches")?.[1]).toBe("2");
-    expect(buildDetailRows(plain, 14, "cm").some(([k]) => k === "Half stitches")).toBe(false);
+    // The count counts both kinds together; two lines say how it divides.
+    const rows = buildDetailRows(halves, 14, "cm");
+    expect(rows.find(([k]) => k === "Stitch count")?.[1]).toContain("3 stitches");
+    expect(rows.find(([k]) => k === "Full stitches")?.[1]).toBe("1");
+    expect(rows.find(([k]) => k === "Half stitches")?.[1]).toBe("2");
+    expect(buildDetailRows(plain, 14, "cm").some(([k]) => k === "Half stitches" || k === "Full stitches")).toBe(false);
   });
 });
 

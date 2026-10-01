@@ -382,9 +382,14 @@ fn detail_rows(p: &Pattern, aida: f64, unit: SizeUnit) -> Vec<(String, String)> 
         rows.push(("Thread".into(), brand_label(brand).to_string()));
     }
     rows.push(("Color count".into(), color_count(p.palette.len())));
-    // How many of those stitches are half stitches (G-082); the Color key lists each type and thread.
+    // The stitch count above counts both kinds together; these two say how it divides (G-082), and the Color key lists each
+    // type and thread.
     if p.has_halves() {
         let halves = p.kinds.iter().filter(|&&k| k != 0).count();
+        rows.push((
+            "Full stitches".into(),
+            (p.filled_stitch_count() - halves).to_string(),
+        ));
         rows.push(("Half stitches".into(), halves.to_string()));
     }
     // The chart's own backstitch total, next to its stitch count — what a stitcher needs before starting,
