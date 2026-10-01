@@ -82,7 +82,7 @@ the PDF's real text symbols, so its export must not draw cut shapes it cannot re
 **Progress log** (newest first):
 - 2026-10-01 -- The Owner: radio icons instead of the dropdown, and a mark of the stitch in hand (D263). Three icons (the cell as drawn); the hover
   outline is the cut cell's six edges for a half stitch and the pointer dot a diagonal ellipse. 21 e2e (half-stitches, keyboard-cursor, brush-outline); looked at.
-  Deployed with the next push.
+  Deployed as b3f6ebc; the half-stitch specs pass 9 of 9 against the live site.
 - 2026-10-01 -- The Owner: the cut at 50 % (D262, replacing 40 %). TypeScript and Rust, mask sums recomputed; 958 unit, 8 Rust integration tests;
   looked at on screen. Deployed as 3d0ee8a; the half-stitch specs pass 8 of 8 against the live site.
 - 2026-10-01 -- The Owner, after looking: the cut at 40 % (D261, replacing 30 %). Constant changed in TypeScript and Rust, the mask sums
