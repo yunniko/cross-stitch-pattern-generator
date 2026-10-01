@@ -94,6 +94,8 @@ instead of failing. Right-to-left and complex scripts depend on the browser's te
 they are not specially tested in the first version.
 
 **Progress log** (newest first):
+- 2026-10-01 -- Deployed bbc4c4b at the Owner's request: plus and minus buttons for size and weight, the weight's value shown, a weight reset (50)
+  and a size reset (the font's best: a bundled pixel font's smallest clean size from 8 up, else 12). 925 unit; Text-tab e2e 34 of 34 locally and 16 of 16 live.
 - 2026-10-01 -- Deployed b17745c (M5, M6) at the Owner's "deploy when ready". 15 of 15 Text-tab cases pass against the live site; the
   other sites are unaffected. Waiting on the Owner: M7 (their look), and whether to bundle the five held-back fonts (Homespun,
   Jupiter Crash, BitPap, Chava, EXE Pixel Perfect).
