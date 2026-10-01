@@ -30,6 +30,7 @@ import { hasFillChoice, isBackstitchEditTool, isKeyboardCursorTool, isSelectTool
 import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
 import { BackstitchBar, SelectionBar, WorkspaceNotices } from "./components/panels";
 import { PhotoPane } from "./components/photo-pane";
+import { TextPane } from "./components/text-pane";
 import { StatusBar } from "./components/status-bar";
 import { ToolRail } from "./components/tool-rail";
 import { PillButton } from "./components/ui";
@@ -821,7 +822,11 @@ export default function Workspace({ account }: WorkspaceProps) {
         // other two -- two tabs reading dead beside one reading live is the inconsistency, not the disabling.
         tab={startingNew ? "photo" : inspectorTab}
         onTabChange={chooseInspectorTab}
-        disabled={{ chart: pattern === null || startingNew, threads: pattern === null || startingNew }}
+        disabled={{
+          chart: pattern === null || startingNew,
+          threads: pattern === null || startingNew,
+          text: pattern === null || startingNew,
+        }}
         photo={
           photoFree && !startingNew ? (
             <p className="p-4 text-[13px] text-muted">This chart was started from an empty canvas, so it has no photo settings.</p>
@@ -854,6 +859,7 @@ export default function Workspace({ account }: WorkspaceProps) {
             onResize={applyResize}
           />
         }
+        text={<TextPane pattern={pattern} options={options} onChange={updateOption} activeColorIndex={activeColorIndex} />}
         threads={
           <ColorsDock
             pattern={pattern}

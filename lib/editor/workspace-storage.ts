@@ -61,6 +61,11 @@ export interface WorkspaceOptions {
   shapeFill: ShapeFill;
   /** The transparency lock (G-079): drawing and filling cannot turn empty stitches into colour or the reverse. */
   lockTransparency: boolean;
+  /** The Text tab's last settings (G-081): the font family and face by name, the size in stitches and the weight. Not the text. */
+  textFamily: string;
+  textStyle: string;
+  textSize: number;
+  textWeight: number;
   /** Whether a Brush double-click floods the region under it as one undo step (D138); off leaves the two clicks as themselves. */
   doubleClickFill: boolean;
 }
@@ -89,12 +94,21 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   shapeFill: "outline",
   doubleClickFill: true,
   lockTransparency: false,
+  textFamily: "sans-serif",
+  textStyle: "Regular",
+  textSize: 12,
+  textWeight: 50,
 };
 
 /** The overlaps the A4 layout can actually paginate with; shared so the processor validates against the same list. */
 export const VALID_OVERLAP_CELLS: readonly OverlapCells[] = [0, 5, 10];
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const VALID_SIZE_PRESETS: readonly SizePresetId[] = ["small", "medium", "large", "xl", "xxl", "custom"];
+
+/** A stored name (a font family or face): a short non-empty string, else the default. */
+function shortName(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim() !== "" && value.length <= 100 ? value : fallback;
+}
 
 /** Reads persisted options, falling back to defaults on first visit or any corrupt/missing data, field by field. */
 export function loadWorkspaceOptions(): WorkspaceOptions {
@@ -165,6 +179,16 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       // Absent in options stored before G-041, so anything that is not a boolean falls back to the default.
       doubleClickFill: typeof parsed.doubleClickFill === "boolean" ? parsed.doubleClickFill : DEFAULT_OPTIONS.doubleClickFill,
       lockTransparency: typeof parsed.lockTransparency === "boolean" ? parsed.lockTransparency : DEFAULT_OPTIONS.lockTransparency,
+      textFamily: shortName(parsed.textFamily, DEFAULT_OPTIONS.textFamily),
+      textStyle: shortName(parsed.textStyle, DEFAULT_OPTIONS.textStyle),
+      textSize:
+        typeof parsed.textSize === "number" && Number.isInteger(parsed.textSize) && parsed.textSize >= 7 && parsed.textSize <= 200
+          ? parsed.textSize
+          : DEFAULT_OPTIONS.textSize,
+      textWeight:
+        typeof parsed.textWeight === "number" && parsed.textWeight >= 0 && parsed.textWeight <= 100
+          ? parsed.textWeight
+          : DEFAULT_OPTIONS.textWeight,
     };
   } catch {
     return DEFAULT_OPTIONS;

@@ -10,7 +10,7 @@ import { DISABLED_TEXT } from "./ui";
  * M2 builds the frame and hangs the existing panels inside it; M3 rebuilds each pane to 1b.
  */
 
-export type InspectorTab = "photo" | "chart" | "threads";
+export type InspectorTab = "photo" | "chart" | "threads" | "text";
 
 export interface InspectorProps {
   tab: InspectorTab;
@@ -20,6 +20,8 @@ export interface InspectorProps {
   photo: ReactNode;
   chart: ReactNode;
   threads: ReactNode;
+  /** The lettering tab (G-081). */
+  text: ReactNode;
   /** Pinned under the pane: Generate on Photo, the exports on Threads. */
   footer?: ReactNode;
 }
@@ -28,10 +30,11 @@ const TABS: Array<{ id: InspectorTab; label: string }> = [
   { id: "photo", label: "Photo" },
   { id: "chart", label: "Chart" },
   { id: "threads", label: "Threads" },
+  { id: "text", label: "Text" },
 ];
 
-export function Inspector({ tab, onTabChange, disabled = {}, photo, chart, threads, footer }: InspectorProps) {
-  const pane = tab === "photo" ? photo : tab === "chart" ? chart : threads;
+export function Inspector({ tab, onTabChange, disabled = {}, photo, chart, threads, text, footer }: InspectorProps) {
+  const pane = tab === "photo" ? photo : tab === "chart" ? chart : tab === "threads" ? threads : text;
   return (
     <aside className="flex w-[360px] shrink-0 flex-col overflow-hidden border-l border-line bg-surface">
       <div role="tablist" aria-label="Inspector" className="flex h-11 shrink-0 items-stretch border-b border-line">

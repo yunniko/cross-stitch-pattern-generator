@@ -69,7 +69,7 @@ any piece.
   there is at least one family and a family's faces are listed; with the API removed the fallback appears; **the network
   check: no request made during a full list-and-load carries a font name or font bytes.** Deliverable: a working data source
   and those tests, not yet in the interface.
-- [ ] M3 -- **The Text tab.** Fourth Inspector tab: font, type, size, colour (the chart's threads, defaulting to the one in
+- [x] M3 -- **The Text tab.** Fourth Inspector tab: font, type, size, colour (the chart's threads, defaulting to the one in
   hand), one line of text, the weight slider, the live preview (one pixel one cell, the stitches as squares in the thread
   colour on the canvas colour, with its size in stitches), and an Add button that stays disabled until there is text, a chart
   and a thread, with the reason shown. Settings remembered in the browser. Deliverable: the tab and its end-to-end tests, Add
@@ -91,6 +91,11 @@ instead of failing. Right-to-left and complex scripts depend on the browser's te
 they are not specially tested in the first version.
 
 **Progress log** (newest first):
+- 2026-10-01 -- M3 built: a fourth Inspector tab (`app/components/text-pane.tsx`): font (451 of this computer's own fonts listed in a real
+  Chromium with the permission granted), font type (the family's faces), size, weight slider, colour (the chart's threads), one line
+  of text, the preview one square a stitch with its size, the legibility warnings (`lib/editor/lettering-warnings.ts`), and Add
+  (disabled until M4 wires it). Settings remembered in the browser; the text is not. 904 unit; `tests/e2e/text-tab.spec.ts` 6 cases
+  passing, including the fallback with the listing API removed and a typed font name. Looked at on screen.
 - 2026-10-01 -- M2 built: `lib/editor/local-fonts.ts` (the browser's listing, grouped into families and faces with weight, slant
   and width read from the style name; a fallback of the generic families and a typed name, marked unsupported, declined or
   error; a face loaded as a `FontFace` in memory under a private name) with 14 unit tests including a guard that the file has

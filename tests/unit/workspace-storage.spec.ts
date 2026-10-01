@@ -55,6 +55,10 @@ describe("workspace-storage", () => {
       canvasTexture: "off",
       exportCanvas: false,
       lockTransparency: false,
+      textFamily: "sans-serif",
+      textStyle: "Regular",
+      textSize: 12,
+      textWeight: 50,
       sizePreset: "medium",
       customSize: 100,
       colorCount: 16,
@@ -86,6 +90,10 @@ describe("workspace-storage", () => {
         canvasTexture: "natural" as const,
         exportCanvas: true,
         lockTransparency: true,
+        textFamily: "Verdana",
+        textStyle: "Bold Italic",
+        textSize: 30,
+        textWeight: 65,
         sizePreset: "xl" as const,
         customSize: 250,
         colorCount: 32,
@@ -228,6 +236,15 @@ describe("workspace-storage", () => {
         saveWorkspaceOptions({ ...DEFAULTS, canvasColor: bad });
         expect(loadWorkspaceOptions().canvasColor).toBe("#ffffff");
       }
+    });
+
+    it("keeps the Text tab's settings across a reload, and reads a bad one as its default", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, textFamily: "Georgia", textStyle: "Italic", textSize: 40, textWeight: 80 });
+      expect(loadWorkspaceOptions()).toMatchObject({ textFamily: "Georgia", textStyle: "Italic", textSize: 40, textWeight: 80 });
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ textFamily: "", textStyle: 7, textSize: 3, textWeight: 140 }));
+      expect(loadWorkspaceOptions()).toMatchObject({ textFamily: "sans-serif", textStyle: "Regular", textSize: 12, textWeight: 50 });
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ textSize: 12.5, textFamily: "x".repeat(101) }));
+      expect(loadWorkspaceOptions()).toMatchObject({ textFamily: "sans-serif", textSize: 12 });
     });
 
     it("keeps the transparency lock across a reload, and reads a missing or non-boolean one as off", () => {
