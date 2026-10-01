@@ -24,12 +24,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M3 -- **Setting and UI.** The checkbox and sensitivity in the generation options, persisted; e2e that generating with it on yields lines in the thread list and on the chart, and that they can be edited.
 - [ ] M4 -- **Docs, full suite, deploy.** README, HANDOVER, decision files, docs-lint, deploy and check live.
 
-**Questions for the Owner:**
-1. Which images do you mostly generate from: line art or pixel art, or photos? This decides whether the setting is worth it or should be limited to line-art-like pictures.
-2. Should the line take the colour of the picture's line (adding a thread), or only reuse a thread already in the palette?
-3. Where a line is traced, should the cells under it keep the line's colour as whole stitches too, or take the surrounding colour so the backstitch is not drawn over a matching cross (my default)?
+**Owner's answers (2026-10-02):** (1) the images are mostly drawings with lines, but the app is for wide use, so photos must not get worse and the default must be safe on them; (2) a traced line may add a thread; (3) the cross stitches under a line take the surrounding colour.
 
 **Progress log** (newest first):
+- 2026-10-02 -- the Owner answered the three questions (above). Acceptance (3) stands as the guard for wide use. Waits for the go-ahead to start M1.
 - 2026-10-02 -- the half-stitch generation draft that held this number was **cancelled by the Owner** ("cancel halfstitches generation") before any work started; this goal replaces it. Drafted at the Owner's request after discussing that detecting lines from a photo is hard, so the plan starts with measuring. Nothing built.
 
 ### G-069 · The workspace stops being the only thing that knows how everything connects — DRAFT (2026-09-24)
