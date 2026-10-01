@@ -122,9 +122,9 @@ fn layout_for(
 }
 
 /// The space outside the pattern on an A4 page of the A4 export (G-083), in millimetres.
-pub const A4_PAGE_GUTTER_MM: f64 = 14.0;
-/// The margin of those pages, wide enough for the overlap labels on the right (G-083).
-pub const A4_PAGE_MARGIN_MM: f64 = 14.0;
+pub const A4_PAGE_GUTTER_MM: f64 = 12.0;
+/// The margin of those pages: narrow, as a printer allows (G-083, the Owner asked for smaller borders).
+pub const A4_PAGE_MARGIN_MM: f64 = 8.0;
 
 /// `calculateA4Layout` with the default cell size and margin; the orientation needing fewer pages, portrait on a tie.
 /// This is the layout the Pattern Keeper PDF has always had, and it is not to change (G-083).
@@ -296,10 +296,16 @@ pub fn draw_grid_page(
         ctx.set_font(&font(mm_to_px(3.2, l.dpi)));
         ctx.set_align(Align::Center);
         ctx.set_baseline(Baseline::Bottom);
+        // With the centre triangles against the grid (G-083) the numbers stand outside them.
+        let gap = if marks.centre {
+            mm_to_px(4.0, l.dpi)
+        } else {
+            4.0
+        };
         let mut x = page.start_x.div_ceil(10) * 10;
         while x < page.end_x {
             if x != 0 {
-                ctx.fill_text(&x.to_string(), (x - page.start_x) as f64 * l.cell, -4.0);
+                ctx.fill_text(&x.to_string(), (x - page.start_x) as f64 * l.cell, -gap);
             }
             x += 10;
         }
@@ -308,7 +314,7 @@ pub fn draw_grid_page(
         let mut y = page.start_y.div_ceil(10) * 10;
         while y < page.end_y {
             if y != 0 {
-                ctx.fill_text(&y.to_string(), -4.0, (y - page.start_y) as f64 * l.cell);
+                ctx.fill_text(&y.to_string(), -gap, (y - page.start_y) as f64 * l.cell);
             }
             y += 10;
         }
@@ -391,7 +397,8 @@ fn triangle(ctx: &mut dyn Ctx, a: (f64, f64), b: (f64, f64), c: (f64, f64)) {
 }
 
 /// The centre marks and the overlap labels, in the grid's own coordinates (G-083): outside the pattern, so nothing is drawn
-/// over a stitch but the frame round the centre.
+/// over a stitch but the frame round the centre. The triangles stand against the grid's border; the overlap label of the
+/// bottom band is right under it, and those of the sides are turned a quarter turn counter-clockwise beside it.
 fn draw_page_marks(
     ctx: &mut dyn Ctx,
     p: &Pattern,
@@ -403,6 +410,15 @@ fn draw_page_marks(
     let cell = l.cell;
     let gw = (page.end_x - page.start_x) as f64 * cell;
     let gh = (page.end_y - page.start_y) as f64 * cell;
+    let tri = mm(3.5);
+    let half_base = mm(2.0);
+    // Where the centre triangles sit on this page, along each ruler, if they do.
+    let mid_x = p.width as f64 / 2.0;
+    let tri_x = (mid_x >= page.start_x as f64 && mid_x <= page.end_x as f64)
+        .then(|| (mid_x - page.start_x as f64) * cell);
+    let mid_y = p.height as f64 / 2.0;
+    let tri_y = (mid_y >= page.start_y as f64 && mid_y <= page.end_y as f64)
+        .then(|| (mid_y - page.start_y as f64) * cell);
     if marks.centre {
         let (bx0, by0, bx1, by1) = crate::centre::centre_block(p.width, p.height);
         let (x0, y0) = (bx0.max(page.start_x), by0.max(page.start_y));
@@ -418,63 +434,59 @@ fn draw_page_marks(
             );
         }
         ctx.set_fill("#000000");
-        let half_base = mm(2.0);
-        let mid_x = p.width as f64 / 2.0;
-        if mid_x >= page.start_x as f64 && mid_x <= page.end_x as f64 {
-            let x = (mid_x - page.start_x as f64) * cell;
+        if let Some(x) = tri_x {
+            triangle(ctx, (x - half_base, -tri), (x + half_base, -tri), (x, 0.0));
             triangle(
                 ctx,
-                (x - half_base, -mm(12.5)),
-                (x + half_base, -mm(12.5)),
-                (x, -mm(9.0)),
-            );
-            triangle(
-                ctx,
-                (x - half_base, gh + mm(4.5)),
-                (x + half_base, gh + mm(4.5)),
-                (x, gh + mm(1.0)),
+                (x - half_base, gh + tri),
+                (x + half_base, gh + tri),
+                (x, gh),
             );
         }
-        let mid_y = p.height as f64 / 2.0;
-        if mid_y >= page.start_y as f64 && mid_y <= page.end_y as f64 {
-            let y = (mid_y - page.start_y as f64) * cell;
+        if let Some(y) = tri_y {
+            triangle(ctx, (-tri, y - half_base), (-tri, y + half_base), (0.0, y));
             triangle(
                 ctx,
-                (-mm(12.5), y - half_base),
-                (-mm(12.5), y + half_base),
-                (-mm(9.0), y),
-            );
-            triangle(
-                ctx,
-                (gw + mm(4.5), y - half_base),
-                (gw + mm(4.5), y + half_base),
-                (gw + mm(1.0), y),
+                (gw + tri, y - half_base),
+                (gw + tri, y + half_base),
+                (gw, y),
             );
         }
     }
-    if marks.overlap.iter().any(Option::is_some) {
-        ctx.set_fill("#7a5200");
-        ctx.set_font(&font(mm(2.6)));
-        ctx.set_baseline(Baseline::Middle);
-        if let Some(letter) = &marks.overlap[0] {
-            ctx.set_align(Align::Left);
-            ctx.fill_text(&format!("overlap {letter}"), 0.0, -mm(14.5));
+    if !marks.overlap.iter().any(Option::is_some) {
+        return;
+    }
+    ctx.set_fill("#7a5200");
+    ctx.set_font(&font(mm(2.6)));
+    ctx.set_baseline(Baseline::Middle);
+    ctx.set_align(Align::Left);
+    // About as long as "overlap B" set in that font, to keep the label clear of a triangle.
+    let label_len = mm(13.0);
+    if let Some(letter) = &marks.overlap[0] {
+        // Above the numbers on the top.
+        ctx.fill_text(&format!("overlap {letter}"), 0.0, -mm(9.5));
+    }
+    if let Some(letter) = &marks.overlap[2] {
+        // Right under the bottom border, after the triangle when the two would meet.
+        let start = match tri_x {
+            Some(x) if x - half_base < label_len => x + half_base + mm(1.0),
+            _ => 0.0,
+        };
+        ctx.fill_text(&format!("overlap {letter}"), start, gh + mm(2.0));
+    }
+    if let Some(letter) = &marks.overlap[1] {
+        // Beside the right border, reading upward, above the triangle when the two would meet.
+        let mut start = gh - mm(1.0);
+        if let Some(y) = tri_y {
+            if start - label_len < y + half_base && start > y - half_base {
+                start = (y - half_base - mm(1.0)).max(label_len);
+            }
         }
-        if let Some(letter) = &marks.overlap[2] {
-            ctx.set_align(Align::Left);
-            ctx.fill_text(&format!("overlap {letter}"), 0.0, gh + mm(9.0));
-        }
-        // The sides are narrow, so the word and the letter stand one over the other.
-        if let Some(letter) = &marks.overlap[3] {
-            ctx.set_align(Align::Right);
-            ctx.fill_text("overlap", -mm(14.5), gh / 2.0 - mm(1.5));
-            ctx.fill_text(letter, -mm(14.5), gh / 2.0 + mm(1.5));
-        }
-        if let Some(letter) = &marks.overlap[1] {
-            ctx.set_align(Align::Left);
-            ctx.fill_text("overlap", gw + mm(4.8), gh / 2.0 - mm(1.5));
-            ctx.fill_text(letter, gw + mm(4.8), gh / 2.0 + mm(1.5));
-        }
+        ctx.fill_text_ccw(&format!("overlap {letter}"), gw + mm(2.0), start);
+    }
+    if let Some(letter) = &marks.overlap[3] {
+        // Outside the row numbers on the left, reading upward; well clear of the triangle, which is against the border.
+        ctx.fill_text_ccw(&format!("overlap {letter}"), -mm(13.0), gh - mm(1.0));
     }
 }
 

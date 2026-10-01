@@ -139,6 +139,11 @@ pub trait Ctx {
     fn translate(&mut self, x: f64, y: f64);
     /// Raster only: a symbol stamp at whole pixels.
     fn stamp(&mut self, _tile: &Pixmap, _x: f64, _y: f64) {}
+    /// Text turned a quarter turn counter-clockwise about `(x, y)`, reading upward (G-083). Only the A4 pages' raster canvas
+    /// draws it; anywhere else it is drawn upright.
+    fn fill_text_ccw(&mut self, text: &str, x: f64, y: f64) {
+        self.fill_text(text, x, y)
+    }
     /// A filled polygon in the fill colour (a half stitch's cut cell, G-082). The default fills the polygon's bounding
     /// box, which only a context that is never asked for a half stitch (the Pattern Keeper PDF) relies on.
     fn fill_polygon(&mut self, points: &[(f64, f64)]) {
@@ -205,6 +210,9 @@ impl Ctx for Canvas {
     }
     fn stamp(&mut self, tile: &Pixmap, x: f64, y: f64) {
         self.draw_stamp(tile, x, y)
+    }
+    fn fill_text_ccw(&mut self, text: &str, x: f64, y: f64) {
+        Canvas::fill_text_ccw(self, text, x, y)
     }
     fn fill_polygon(&mut self, points: &[(f64, f64)]) {
         self.begin_path();

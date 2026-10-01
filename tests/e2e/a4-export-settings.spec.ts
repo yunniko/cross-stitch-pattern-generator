@@ -43,7 +43,7 @@ test("the A4 cell size is a setting: remembered, within limits, and the page cou
   await cellSize(page).blur();
   await expect(cellSize(page)).toHaveValue("3");
   await page.getByRole("tab", { name: "Threads" }).click();
-  await expect(notice).toContainText("3 × 1 pages — 6+ total");
+  await expect(notice).toContainText("2 × 1 pages — 5+ total");
 
   await page.getByRole("tab", { name: "Chart" }).click();
   await cellSize(page).fill("40");

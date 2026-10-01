@@ -320,6 +320,34 @@ impl Canvas {
         }
     }
 
+    /// `fillText` turned a quarter turn counter-clockwise about `(x, y)` (G-083): the text reads from the bottom to the top, its
+    /// alignment and baseline taken in its own direction, so `Align::Left` starts at `(x, y)` and runs upward.
+    pub fn fill_text_ccw(&mut self, text: &str, x: f64, y: f64) {
+        if text.is_empty() {
+            return;
+        }
+        let FontSpec { size, .. } = self.state.font;
+        let shaped = text::shape(text, size);
+        let width = text::measure(text, size);
+        let start = match self.state.align {
+            Align::Left => 0.0,
+            Align::Center => -width / 2.0,
+            Align::Right => -width,
+        };
+        let baseline = text::baseline_offset(self.state.baseline, size);
+        let fill = paint(self.state.fill);
+        let turn = Transform::from_translate(x as f32 + self.state.dx, y as f32 + self.state.dy)
+            .pre_concat(Transform::from_rotate(-90.0));
+        for g in &shaped.glyphs {
+            let Some(path) = text::glyph_path(g.id) else {
+                continue;
+            };
+            let t = turn.pre_concat(text::glyph_transform(size, start + g.x, baseline + g.y));
+            self.pixmap
+                .fill_path(&path, &fill, FillRule::Winding, t, None);
+        }
+    }
+
     /// `drawImage(stamp, x, y)`: premultiplied source-over, `src + dst * (1 - src alpha)`, computed directly at
     /// whole-pixel positions and through the general pipeline otherwise.
     pub fn draw_stamp(&mut self, stamp: &Pixmap, x: f64, y: f64) {
