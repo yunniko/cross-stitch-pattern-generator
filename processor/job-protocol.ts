@@ -149,8 +149,13 @@ export function exportDeadlineFor(kind: ExportJobKind, gridPages: number): numbe
  */
 export function gridPagesFor(width: number, height: number, overlapCells: OverlapCells, cellMm?: number): number {
   if (cellMm === undefined) return calculateA4Layout(width, height, { overlapCells }).pages.length;
-  return calculateA4Layout(width, height, { overlapCells, cellSizeMm: cellMm, gutterMm: A4_PAGE_GUTTER_MM, marginMm: A4_PAGE_MARGIN_MM })
-    .pages.length;
+  return calculateA4Layout(width, height, {
+    overlapCells,
+    cellSizeMm: cellMm,
+    gutterMm: A4_PAGE_GUTTER_MM,
+    fillPage: true,
+    marginMm: A4_PAGE_MARGIN_MM,
+  }).pages.length;
 }
 
 /** The measured rate a queue wait is estimated from: ~14 s a job across three workers (D149). */

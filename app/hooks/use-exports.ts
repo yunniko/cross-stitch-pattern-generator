@@ -53,6 +53,7 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
               overlapCells,
               cellSizeMm: exportCellMm,
               gutterMm: A4_PAGE_GUTTER_MM,
+              fillPage: true,
               marginMm: A4_PAGE_MARGIN_MM,
             }),
     [pattern, overlapCells, exportCellMm, exportKind]

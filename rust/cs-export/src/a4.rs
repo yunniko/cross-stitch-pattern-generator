@@ -64,9 +64,11 @@ fn axis_pages(total: usize, per_page: usize, overlap: usize) -> Vec<(usize, usiz
     pages
 }
 
-fn cells_per_page(printable: f64, cell: f64) -> usize {
+/// Whole cells that fit; the Pattern Keeper layout rounds that down to a multiple of ten, the A4 export (`fill`) does not,
+/// so its pattern fills the page (G-083).
+fn cells_per_page(printable: f64, cell: f64, fill: bool) -> usize {
     let n = (printable / cell).floor() as usize;
-    if n < 10 {
+    if fill || n < 10 {
         n
     } else {
         n / 10 * 10
@@ -82,14 +84,15 @@ fn layout_for(
     overlap: usize,
     dpi: f64,
     gutter: f64,
+    fill: bool,
 ) -> Layout {
     let (pw, ph) = (mm_to_px(210.0, dpi), mm_to_px(297.0, dpi));
     let (page_w, page_h) = if landscape { (ph, pw) } else { (pw, ph) };
     let caption = mm_to_px(8.0, dpi);
     let origin_x = margin + gutter;
     let origin_y = margin + caption + gutter;
-    let per_x = cells_per_page(page_w - margin - origin_x, cell);
-    let per_y = cells_per_page(page_h - margin - origin_y, cell);
+    let per_x = cells_per_page(page_w - margin - origin_x, cell, fill);
+    let per_y = cells_per_page(page_h - margin - origin_y, cell, fill);
     let xs = axis_pages(w, per_x, overlap);
     let ys = axis_pages(h, per_y, overlap);
     let mut pages = Vec::new();
@@ -132,8 +135,8 @@ pub fn calculate_layout(w: usize, h: usize, overlap: usize, dpi: f64) -> Layout 
     let cell = mm_to_px(2.75, dpi);
     let margin = mm_to_px(12.0, dpi);
     let gutter = mm_to_px(6.0, dpi);
-    let portrait = layout_for(w, h, false, cell, margin, overlap, dpi, gutter);
-    let landscape = layout_for(w, h, true, cell, margin, overlap, dpi, gutter);
+    let portrait = layout_for(w, h, false, cell, margin, overlap, dpi, gutter, false);
+    let landscape = layout_for(w, h, true, cell, margin, overlap, dpi, gutter, false);
     if landscape.rows * landscape.columns < portrait.rows * portrait.columns {
         landscape
     } else {
@@ -147,8 +150,8 @@ pub fn calculate_a4_layout(w: usize, h: usize, overlap: usize, dpi: f64, cell_mm
     let cell = mm_to_px(cell_mm, dpi);
     let margin = mm_to_px(A4_PAGE_MARGIN_MM, dpi);
     let gutter = mm_to_px(A4_PAGE_GUTTER_MM, dpi);
-    let portrait = layout_for(w, h, false, cell, margin, overlap, dpi, gutter);
-    let landscape = layout_for(w, h, true, cell, margin, overlap, dpi, gutter);
+    let portrait = layout_for(w, h, false, cell, margin, overlap, dpi, gutter, true);
+    let landscape = layout_for(w, h, true, cell, margin, overlap, dpi, gutter, true);
     if landscape.rows * landscape.columns < portrait.rows * portrait.columns {
         landscape
     } else {
@@ -539,10 +542,10 @@ fn draw_page_marks(
     if marks.centre {
         let wide = half_base + pad;
         let mark = |ctx: &mut dyn Ctx,
-                        a: (f64, f64),
-                        b: (f64, f64),
-                        c: (f64, f64),
-                        halo: [(f64, f64); 4]| {
+                    a: (f64, f64),
+                    b: (f64, f64),
+                    c: (f64, f64),
+                    halo: [(f64, f64); 4]| {
             ctx.set_fill("#ffffff");
             ctx.fill_polygon(&halo);
             ctx.set_fill("#000000");

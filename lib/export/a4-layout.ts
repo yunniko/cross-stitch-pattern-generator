@@ -98,6 +98,8 @@ export interface A4LayoutOptions {
   dpi?: number;
   /** The space for the page's numbers and labels outside the grid; the A4 pages of the Rust exporter use more than the default (G-083). */
   gutterMm?: number;
+  /** Use every whole cell that fits a page instead of rounding down to a multiple of ten (the A4 export, G-083). */
+  fillPage?: boolean;
   /** Forces a specific orientation instead of auto-selecting whichever needs fewer total pages. */
   orientation?: PageOrientation;
 }
@@ -125,8 +127,9 @@ function computeAxisPages(totalStitches: number, cellsPerPage: number, overlapCe
   return pages;
 }
 
-function cellsPerPageFor(printableAreaPx: number, cellSizePx: number): number {
-  return roundDownToTen(Math.floor(printableAreaPx / cellSizePx));
+function cellsPerPageFor(printableAreaPx: number, cellSizePx: number, fillPage: boolean): number {
+  const whole = Math.floor(printableAreaPx / cellSizePx);
+  return fillPage ? whole : roundDownToTen(whole);
 }
 
 function layoutForOrientation(
@@ -137,7 +140,8 @@ function layoutForOrientation(
   marginPx: number,
   overlapCells: OverlapCells,
   dpi: number,
-  gutterMm: number = NUMBER_GUTTER_MM
+  gutterMm: number = NUMBER_GUTTER_MM,
+  fillPage = false
 ): A4Layout {
   const { width: pageWidthPx, height: pageHeightPx } = a4PageSizePx(orientation, dpi);
   const captionHeightPx = mmToPx(CAPTION_HEIGHT_MM, dpi);
@@ -148,8 +152,8 @@ function layoutForOrientation(
   const printableWidthPx = pageWidthPx - marginPx - gridOriginXPx;
   const printableHeightPx = pageHeightPx - marginPx - gridOriginYPx;
 
-  const cellsPerPageX = cellsPerPageFor(printableWidthPx, cellSizePx);
-  const cellsPerPageY = cellsPerPageFor(printableHeightPx, cellSizePx);
+  const cellsPerPageX = cellsPerPageFor(printableWidthPx, cellSizePx, fillPage);
+  const cellsPerPageY = cellsPerPageFor(printableHeightPx, cellSizePx, fillPage);
 
   const xPages = computeAxisPages(patternWidth, cellsPerPageX, overlapCells);
   const yPages = computeAxisPages(patternHeight, cellsPerPageY, overlapCells);
@@ -198,13 +202,44 @@ export function calculateA4Layout(patternWidth: number, patternHeight: number, o
   const marginPx = mmToPx(options.marginMm ?? DEFAULT_MARGIN_MM, dpi);
   const overlapCells = options.overlapCells ?? 5;
   const gutterMm = options.gutterMm ?? NUMBER_GUTTER_MM;
+  const fillPage = options.fillPage ?? false;
 
   if (options.orientation) {
-    return layoutForOrientation(patternWidth, patternHeight, options.orientation, cellSizePx, marginPx, overlapCells, dpi, gutterMm);
+    return layoutForOrientation(
+      patternWidth,
+      patternHeight,
+      options.orientation,
+      cellSizePx,
+      marginPx,
+      overlapCells,
+      dpi,
+      gutterMm,
+      fillPage
+    );
   }
 
-  const portrait = layoutForOrientation(patternWidth, patternHeight, "portrait", cellSizePx, marginPx, overlapCells, dpi, gutterMm);
-  const landscape = layoutForOrientation(patternWidth, patternHeight, "landscape", cellSizePx, marginPx, overlapCells, dpi, gutterMm);
+  const portrait = layoutForOrientation(
+    patternWidth,
+    patternHeight,
+    "portrait",
+    cellSizePx,
+    marginPx,
+    overlapCells,
+    dpi,
+    gutterMm,
+    fillPage
+  );
+  const landscape = layoutForOrientation(
+    patternWidth,
+    patternHeight,
+    "landscape",
+    cellSizePx,
+    marginPx,
+    overlapCells,
+    dpi,
+    gutterMm,
+    fillPage
+  );
 
   const portraitPages = portrait.rows * portrait.columns;
   const landscapePages = landscape.rows * landscape.columns;
