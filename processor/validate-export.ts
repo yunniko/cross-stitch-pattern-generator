@@ -30,7 +30,7 @@ const EXPORT_KINDS = [
 ] as const;
 
 /**
- * `OverlapCells` is a union of three values, so membership is the check — a bare range would admit unusable ones. The
+ * `OverlapCells` is a union of a few values, so membership is the check — a bare range would admit unusable ones. The
  * list is the editor's own (`workspace-storage.ts`), not a second copy that could drift from it.
  */
 const OVERLAP_CELLS: readonly OverlapCells[] = VALID_OVERLAP_CELLS;

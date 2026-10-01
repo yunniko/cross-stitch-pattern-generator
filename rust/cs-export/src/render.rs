@@ -144,6 +144,10 @@ pub trait Ctx {
     fn fill_text_ccw(&mut self, text: &str, x: f64, y: f64) {
         self.fill_text(text, x, y)
     }
+    /// Text turned a quarter turn clockwise about `(x, y)`, reading downward (G-083); upright where it is not supported.
+    fn fill_text_cw(&mut self, text: &str, x: f64, y: f64) {
+        self.fill_text(text, x, y)
+    }
     /// A filled polygon in the fill colour (a half stitch's cut cell, G-082). The default fills the polygon's bounding
     /// box, which only a context that is never asked for a half stitch (the Pattern Keeper PDF) relies on.
     fn fill_polygon(&mut self, points: &[(f64, f64)]) {
@@ -213,6 +217,9 @@ impl Ctx for Canvas {
     }
     fn fill_text_ccw(&mut self, text: &str, x: f64, y: f64) {
         Canvas::fill_text_ccw(self, text, x, y)
+    }
+    fn fill_text_cw(&mut self, text: &str, x: f64, y: f64) {
+        Canvas::fill_text_cw(self, text, x, y)
     }
     fn fill_polygon(&mut self, points: &[(f64, f64)]) {
         self.begin_path();

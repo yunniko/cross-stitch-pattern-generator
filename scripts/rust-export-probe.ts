@@ -26,7 +26,7 @@ const request = JSON.parse(readFileSync(requestFile, "utf8")) as {
   aidaCount: number;
   sizeUnit: "cm" | "in";
   authorName: string;
-  overlapCells: 0 | 5 | 10;
+  overlapCells: 0 | 3 | 5 | 10;
 };
 const label = `${request.baseName}/${request.kind}`;
 

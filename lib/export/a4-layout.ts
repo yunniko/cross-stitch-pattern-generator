@@ -28,7 +28,7 @@ export const CAPTION_HEIGHT_MM = 8;
 export const NUMBER_GUTTER_MM = 6;
 
 export type PageOrientation = "portrait" | "landscape";
-export type OverlapCells = 0 | 5 | 10;
+export type OverlapCells = 0 | 3 | 5 | 10;
 
 export function mmToPx(mm: number, dpi: number = PRINT_DPI): number {
   return Math.round((mm * dpi) / MM_PER_INCH);

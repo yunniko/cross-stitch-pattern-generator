@@ -323,6 +323,15 @@ impl Canvas {
     /// `fillText` turned a quarter turn counter-clockwise about `(x, y)` (G-083): the text reads from the bottom to the top, its
     /// alignment and baseline taken in its own direction, so `Align::Left` starts at `(x, y)` and runs upward.
     pub fn fill_text_ccw(&mut self, text: &str, x: f64, y: f64) {
+        self.fill_text_turned(text, x, y, -90.0)
+    }
+
+    /// `fillText` turned a quarter turn clockwise about `(x, y)`: the text reads from the top to the bottom.
+    pub fn fill_text_cw(&mut self, text: &str, x: f64, y: f64) {
+        self.fill_text_turned(text, x, y, 90.0)
+    }
+
+    fn fill_text_turned(&mut self, text: &str, x: f64, y: f64, degrees: f32) {
         if text.is_empty() {
             return;
         }
@@ -337,7 +346,7 @@ impl Canvas {
         let baseline = text::baseline_offset(self.state.baseline, size);
         let fill = paint(self.state.fill);
         let turn = Transform::from_translate(x as f32 + self.state.dx, y as f32 + self.state.dy)
-            .pre_concat(Transform::from_rotate(-90.0));
+            .pre_concat(Transform::from_rotate(degrees));
         for g in &shaped.glyphs {
             let Some(path) = text::glyph_path(g.id) else {
                 continue;

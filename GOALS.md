@@ -43,6 +43,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 **Risks:** the A4 and Pattern Keeper outputs share drawing code, so a change that forgets its opt-in changes the Pattern Keeper PDF, which M1's pinning test catches; a bigger default cell makes A4 pages hold fewer stitches and a chart needs more pages (a 100 × 100 chart: about 12 pages instead of 4, by my count of the layout rule), which is the point but is worth knowing; the picture size limits cap the full-size cell for very large charts.
 
 **Progress log** (newest first):
+- 2026-10-01 -- Owner's A4 mark refinements: "overlap X" now repeats along every overlapped border (left turned clockwise, top right above the border), the row/column numbers sit closer to the chart, and the centre triangles and numbers stand over the text on a small white halo; the A4/PDF overlap dropdown gains 3 cells. Looked at a rendered page; Pattern Keeper pin passes; 960 unit tests pass.
 - 2026-10-01 -- The Owner: smaller A4 borders, the triangles against the grid's border, the overlap label right under the border at the bottom and
   turned a quarter turn counter-clockwise on the right. Margin 14 to 8 mm, gutter 14 to 12 mm; the numbers stand outside the triangles; the left label is
   turned the same way (the Owner named the bottom and the right; the left follows the right). Looked at. Deployed as 69c9273; the A4 specs pass 3 of 3 against the live site.

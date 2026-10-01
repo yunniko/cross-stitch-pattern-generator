@@ -259,6 +259,7 @@ export function ChartPane({ pattern, options, onChange, name, onNameChange, onNa
             className="rounded-md border border-line bg-sunken px-2 py-1 text-xs text-ink"
           >
             <option value={0}>0</option>
+            <option value={3}>3</option>
             <option value={5}>5</option>
             <option value={10}>10</option>
           </select>
