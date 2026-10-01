@@ -127,3 +127,43 @@ describe("letteringCells", () => {
     expect(inkCount(missing!)).toBeGreaterThan(5);
   });
 });
+
+/** How many places the block `part` appears in `whole`, cell for cell. */
+function occurrences(whole: LetteringBitmap, part: LetteringBitmap): number {
+  let found = 0;
+  for (let y = 0; y + part.height <= whole.height; y++) {
+    for (let x = 0; x + part.width <= whole.width; x++) {
+      let same = true;
+      for (let j = 0; same && j < part.height; j++)
+        for (let i = 0; i < part.width; i++)
+          if (whole.ink[(y + j) * whole.width + x + i] !== part.ink[j * part.width + i]) {
+            same = false;
+            break;
+          }
+      if (same) found++;
+    }
+  }
+  return found;
+}
+
+describe("the same letter is the same stitches (D256)", () => {
+  it.each([
+    ["nnnn", 12],
+    ["nnnn", 15],
+    ["Anna", 14],
+    ["eeee", 11],
+  ])("every %s at %i stitches is the one picture", (text, size) => {
+    const letter = text[1];
+    const whole = draw(text, size)!;
+    const one = draw(letter, size)!;
+    expect(occurrences(whole, one)).toBeGreaterThanOrEqual([...text].filter((c) => c === letter).length);
+  });
+
+  it("keeps a space as a gap and a second line below the first", () => {
+    const spaced = draw("n n", 12)!;
+    const tight = draw("nn", 12)!;
+    expect(spaced.width).toBeGreaterThan(tight.width);
+    const two = letteringCells(["nn", "nn"], { face: REGULAR, size: 12, weight: 50 }, context)!;
+    expect(two.height).toBeGreaterThan(tight.height * 1.5);
+  });
+});

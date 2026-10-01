@@ -46,7 +46,7 @@ test("the tab lists the computer's fonts and each family's faces, and draws a pr
     // The computer's own list: more than the six generic families, and no apology.
     await expect(page.getByTestId("fonts-fallback")).toHaveCount(0);
     // The computer hands its fonts over in its own time, which a busy machine stretches.
-    await expect.poll(() => fonts.locator("option").count(), { timeout: 30_000 }).toBeGreaterThan(6);
+    await expect.poll(() => fonts.locator("optgroup").last().locator("option").count(), { timeout: 30_000 }).toBeGreaterThan(6);
   }
   expect(await faces.locator("option").count()).toBeGreaterThan(0);
 
@@ -167,4 +167,36 @@ test("the text and the thread picked survive a visit to another tab", async ({ p
   await expect(textBox(page)).toHaveValue("Kept");
   await expect(page.getByRole("radiogroup", { name: "Text colour" }).getByRole("radio").nth(1)).toHaveAttribute("aria-checked", "true");
   await expect(preview(page)).toBeVisible();
+});
+
+test("a bundled font is read from this site, draws, and a pixel font says where it is cleanest", async ({ page }) => {
+  const fontRequests: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/fonts/bundled/")) fontRequests.push(`${r.method()} ${new URL(r.url()).origin}`);
+  });
+  await openChart(page);
+  const fonts = page.getByRole("combobox", { name: "Font", exact: true });
+  await textBox(page).fill("Hello");
+
+  await fonts.selectOption({ label: "Silkscreen" });
+  await page.getByLabel("Font size in stitches").fill("10");
+  await expect(page.getByTestId("pixel-hint")).toContainText("8 or 16");
+  await page.getByLabel("Font size in stitches").fill("16");
+  await expect(page.getByTestId("pixel-hint")).toHaveCount(0);
+  await expect(preview(page)).toBeVisible();
+  expect(await number(page, "data-ink")).toBeGreaterThan(30);
+
+  // A variable font's Bold face is really heavier, not the browser's imitation of it.
+  await fonts.selectOption({ label: "Lora" });
+  await page.getByLabel("Font size in stitches").fill("20");
+  await expect(page.getByTestId("pixel-hint")).toHaveCount(0);
+  await expect.poll(() => number(page, "data-ink")).toBeGreaterThan(20);
+  const regular = await number(page, "data-ink");
+  await page.getByRole("combobox", { name: "Font type" }).selectOption("Bold");
+  await expect.poll(() => number(page, "data-ink")).toBeGreaterThan(regular);
+
+  // Only this site was asked, and only with GET.
+  expect(fontRequests.length).toBeGreaterThan(0);
+  const base = new URL(page.url()).origin;
+  expect(new Set(fontRequests)).toEqual(new Set([`GET ${base}`]));
 });

@@ -31,10 +31,14 @@ export interface LocalFace {
   stretch: string;
   /** Reads the font file; absent for a face that is only a name (the fallback). */
   blob?: () => Promise<Blob>;
+  /** A variable font's weight range ("400 700"), when the file holds more than this one weight. */
+  variableWeight?: string;
 }
 
 export interface FontFamily {
   family: string;
+  /** What the list shows when it is not the family's own name. */
+  label?: string;
   faces: LocalFace[];
 }
 
@@ -172,13 +176,13 @@ export async function listFonts(
 
 /** The browser's own font loading, as far as this file uses it (a stand-in in tests). */
 export interface FontLoader {
-  create(family: string, data: ArrayBuffer): { load(): Promise<unknown> };
+  create(family: string, data: ArrayBuffer, descriptors?: { weight: string }): { load(): Promise<unknown> };
   add(face: unknown): void;
 }
 
 function browserLoader(): FontLoader {
   return {
-    create: (family, data) => new FontFace(family, data),
+    create: (family, data, descriptors) => new FontFace(family, data, descriptors),
     add: (face) => document.fonts.add(face as FontFace),
   };
 }
@@ -197,10 +201,11 @@ export async function loadFace(face: LocalFace, loader: FontLoader = browserLoad
   let name = loaded.get(key);
   if (!name) {
     name = `localface-${nextPrivateName++}`;
-    const font = loader.create(name, await (await face.blob()).arrayBuffer());
+    const data = await (await face.blob()).arrayBuffer();
+    const font = face.variableWeight ? loader.create(name, data, { weight: face.variableWeight }) : loader.create(name, data);
     await font.load();
     loader.add(font);
     loaded.set(key, name);
   }
-  return { family: name, weight: 400, style: "normal", stretch: "normal" };
+  return { family: name, weight: face.variableWeight ? face.weight : 400, style: "normal", stretch: "normal" };
 }

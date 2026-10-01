@@ -79,8 +79,11 @@ any piece.
   chart, and refuses a piece larger than the chart with a message. End-to-end: Add, move, flip, rotate, duplicate, apply,
   cancel and undo behave as for any selection; with the transparency lock on, Fill selection still fills only the lettering;
   the network check again over the whole flow. Docs: README, HANDOVER.
-- [ ] M5 -- **The Owner's look.** Adjustments after using it on a real chart (whether the weight slider earns its place, the
-  starting spot), then the deploy.
+- [x] M5 -- **Owner's first adjustments.** Add blocked in the view-only Stitched and Photo-only views; identical letters now
+  come out as identical stitches (D256).
+- [x] M6 -- **Bundled fonts.** Eleven OFL fonts (six pixel, five outline) in the Font list beside the computer's own, with a
+  hint for the sizes a pixel font is cleanest at (D257).
+- [ ] M7 -- **The Owner's look**, then the deploy.
 
 **Risks and how the plan meets them:** fonts differ between computers, so a chart made on one cannot be remade from the same
 text on another -- why the text is not stored. Small lettering is only as legible as the font's design at that size -- M1's
@@ -91,6 +94,12 @@ instead of failing. Right-to-left and complex scripts depend on the browser's te
 they are not specially tested in the first version.
 
 **Progress log** (newest first):
+- 2026-10-01 -- M5 and M6 built at the Owner's go-ahead ("Curated bundle, fix the letters too"). Add refuses Stitched and Photo-only
+  (bbf14c2). Letters: each distinct character drawn once at a whole pixel (D256; the old single-call draw gave "nnnn" three
+  shapes). Fonts: eleven OFL fonts from the Google Fonts repository, taken 2026-10-01, in `public/fonts/bundled/` with licences
+  (D257); pixel fonts Silkscreen, Press Start 2P and Tiny5 put straight strokes on whole stitches at multiples of 8. 926 unit;
+  `text-tab.spec.ts` and `text-add.spec.ts` 45 of 45 over three repeats, including a bundled variable font's Bold being really
+  heavier and the font requests going to this site only. Looked at on screen. Not deployed.
 - 2026-10-01 -- Deployed 4337881 (M1 to M4) at the Owner's instruction; all 13 Text-tab cases pass against the live site and the other
   sites are unaffected. The Owner is checking it live: M5 (their adjustments, such as whether the weight slider stays and the
   starting spot) is what remains.

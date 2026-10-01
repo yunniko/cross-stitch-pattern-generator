@@ -78,37 +78,84 @@ export function letteringCells(lines: readonly string[], options: LetteringOptio
   const font = fontShorthand(face, size);
   const probe = createContext(1, 1);
   probe.font = font;
-  let left = 0;
-  let right = 0;
+
+  // Each distinct character is drawn once, at a whole pixel, so the same letter is the same stitches wherever it stands:
+  // drawing the line in one call puts every letter at a fractional x and the cut then rounds each one differently (D256).
+  const glyphs = new Map<string, Glyph>();
   let ascent = 0;
   let descent = 0;
   for (const line of text) {
-    const m = probe.measureText(line);
-    left = Math.max(left, m.actualBoundingBoxLeft);
-    right = Math.max(right, m.actualBoundingBoxRight, m.width);
-    ascent = Math.max(ascent, m.actualBoundingBoxAscent);
-    descent = Math.max(descent, m.actualBoundingBoxDescent);
+    for (const ch of new Set(line)) {
+      const m = probe.measureText(ch);
+      glyphs.set(ch, {
+        advance: m.width,
+        left: Math.max(0, Math.ceil(m.actualBoundingBoxLeft)),
+        right: Math.ceil(m.actualBoundingBoxRight),
+        ink: null,
+      });
+      ascent = Math.max(ascent, m.actualBoundingBoxAscent);
+      descent = Math.max(descent, m.actualBoundingBoxDescent);
+    }
   }
-  const pad = 2;
-  const lineHeight = Math.ceil(size * 1.2);
-  const width = Math.ceil(left + right) + pad * 2;
-  const height = pad * 2 + Math.ceil(ascent) + Math.ceil(descent) + (text.length - 1) * lineHeight;
-  const ctx = createContext(width, height);
-  ctx.font = font;
-  ctx.fillStyle = "#000000";
-  ctx.textBaseline = "alphabetic";
-  ctx.textAlign = "left";
-  text.forEach((line, i) => ctx.fillText(line, pad + left, pad + Math.ceil(ascent) + i * lineHeight));
-
-  const { data } = ctx.getImageData(0, 0, width, height);
+  ascent = Math.ceil(ascent);
+  descent = Math.ceil(descent);
   const cut = Math.max(1, Math.round(coverageThreshold(weight) * 255));
+  const rowHeight = ascent + descent;
+  for (const [ch, glyph] of glyphs) {
+    const w = glyph.left + glyph.right + 2;
+    if (rowHeight === 0 || w <= 0) continue;
+    const ctx = createContext(w, rowHeight);
+    ctx.font = font;
+    ctx.fillStyle = "#000000";
+    ctx.textBaseline = "alphabetic";
+    ctx.textAlign = "left";
+    ctx.fillText(ch, glyph.left + 1, ascent);
+    const { data } = ctx.getImageData(0, 0, w, rowHeight);
+    const ink = new Uint8Array(w * rowHeight);
+    for (let i = 0; i < ink.length; i++) ink[i] = data[i * 4 + 3] >= cut ? 1 : 0;
+    glyph.ink = { width: w, ink };
+  }
+
+  const lineHeight = Math.ceil(size * 1.2);
+  const pad = 2;
+  const widthOf = (line: string) => {
+    let pen = 0;
+    let end = 0;
+    for (const ch of line) {
+      const g = glyphs.get(ch)!;
+      end = Math.max(end, Math.round(pen) - g.left - 1 + (g.ink?.width ?? 0));
+      pen += g.advance;
+    }
+    return Math.max(end, Math.round(pen));
+  };
+  const shift = Math.max(0, ...text.map((line) => (line.length ? glyphs.get([...line][0])!.left + 1 : 0)));
+  const width = Math.max(...text.map(widthOf)) + shift + pad * 2;
+  const height = pad * 2 + rowHeight + (text.length - 1) * lineHeight;
+  const grid = new Uint8Array(width * height);
+  text.forEach((line, row) => {
+    let pen = 0;
+    for (const ch of line) {
+      const g = glyphs.get(ch)!;
+      if (g.ink) {
+        const ox = pad + shift + Math.round(pen) - g.left - 1;
+        const oy = pad + row * lineHeight;
+        for (let y = 0; y < rowHeight; y++) {
+          for (let x = 0; x < g.ink.width; x++) {
+            if (g.ink.ink[y * g.ink.width + x] && ox + x >= 0 && ox + x < width) grid[(oy + y) * width + ox + x] = 1;
+          }
+        }
+      }
+      pen += g.advance;
+    }
+  });
+
   let x0 = width;
   let y0 = height;
   let x1 = -1;
   let y1 = -1;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      if (data[(y * width + x) * 4 + 3] < cut) continue;
+      if (!grid[y * width + x]) continue;
       if (x < x0) x0 = x;
       if (x > x1) x1 = x;
       if (y < y0) y0 = y;
@@ -121,10 +168,18 @@ export function letteringCells(lines: readonly string[], options: LetteringOptio
   const ink = new Uint8Array(outWidth * outHeight);
   for (let y = 0; y < outHeight; y++) {
     for (let x = 0; x < outWidth; x++) {
-      if (data[((y + y0) * width + x + x0) * 4 + 3] >= cut) ink[y * outWidth + x] = 1;
+      ink[y * outWidth + x] = grid[(y + y0) * width + x + x0];
     }
   }
   return { width: outWidth, height: outHeight, ink };
+}
+
+interface Glyph {
+  advance: number;
+  /** Whole pixels of ink left and right of the pen, so the glyph's own picture is `left + right + 2` wide. */
+  left: number;
+  right: number;
+  ink: { width: number; ink: Uint8Array } | null;
 }
 
 /** How many stitches the lettering has. */

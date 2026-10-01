@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { rgbToHex } from "@/lib/color/color";
 import { createCanvas } from "@/lib/export/canvas-backend";
 import { letteringWarnings } from "@/lib/editor/lettering-warnings";
+import { bundledFamilies, bundledFont, isBundledId, pixelSizeHint } from "@/lib/editor/bundled-fonts";
 import { familyByName, fallbackFamilies, listFonts, loadFace, type FontListing } from "@/lib/editor/local-fonts";
 import {
   inkCount,
@@ -58,6 +59,8 @@ export function previewScale(width: number, height: number): number {
   return Math.max(1, Math.min(MAX_CELL_PX, Math.floor(PREVIEW_WIDTH / width), Math.floor(PREVIEW_HEIGHT / height)));
 }
 
+const bundled = (f: { family: string }) => isBundledId(f.family);
+
 export function TextPane({
   pattern,
   options,
@@ -77,7 +80,7 @@ export function TextPane({
   const previewRef = useRef<HTMLCanvasElement>(null);
 
   const families = useMemo(() => {
-    const base = listing?.families ?? fallbackFamilies();
+    const base = [...bundledFamilies(), ...(listing?.families ?? fallbackFamilies())];
     return base.some((f) => f.family === options.textFamily) ? base : [...base, familyByName(options.textFamily)];
   }, [listing, options.textFamily]);
   const family = families.find((f) => f.family === options.textFamily) ?? families[0];
@@ -178,6 +181,7 @@ export function TextPane({
   }
 
   const fallback = listing === null || listing.kind === "fallback";
+  const pixelHint = pixelSizeHint(bundledFont(options.textFamily), options.textSize);
 
   return (
     <div className="flex flex-col gap-5 p-4">
@@ -207,12 +211,28 @@ export function TextPane({
           }}
           className={FIELD}
         >
-          {families.map((f) => (
-            <option key={f.family} value={f.family}>
-              {f.family}
-            </option>
-          ))}
+          <optgroup label="Bundled with the app">
+            {families.filter(bundled).map((f) => (
+              <option key={f.family} value={f.family}>
+                {f.label ?? f.family}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label={listing?.kind === "local" ? "On this computer" : "Generic families"}>
+            {families
+              .filter((f) => !bundled(f))
+              .map((f) => (
+                <option key={f.family} value={f.family}>
+                  {f.label ?? f.family}
+                </option>
+              ))}
+          </optgroup>
         </select>
+        {pixelHint && (
+          <p data-testid="pixel-hint" className="text-xs leading-4 text-muted">
+            A pixel font: its letters come out cleanest at {pixelHint.clean.join(" or ")} stitches (multiples of its own grid).
+          </p>
+        )}
         {fallback && (
           <input
             type="text"
