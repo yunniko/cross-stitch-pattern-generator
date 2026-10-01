@@ -81,7 +81,7 @@ the PDF's real text symbols, so its export must not draw cut shapes it cannot re
 
 **Progress log** (newest first):
 - 2026-10-01 -- The Owner: the legend's details table gets a row for full stitches and one for half stitches, the Stitch count above them
-  still counting both together. Rust and TypeScript; looked at on the A4 info page. Deployed with the next push.
+  still counting both together. Rust and TypeScript; looked at on the A4 info page. Deployed as 4312267; the half-stitch specs pass 9 of 9 against the live site.
 - 2026-10-01 -- The Owner: radio icons instead of the dropdown, and a mark of the stitch in hand (D263). Three icons (the cell as drawn); the hover
   outline is the cut cell's six edges for a half stitch and the pointer dot a diagonal ellipse. 21 e2e (half-stitches, keyboard-cursor, brush-outline); looked at.
   Deployed as b3f6ebc; the half-stitch specs pass 9 of 9 against the live site.
