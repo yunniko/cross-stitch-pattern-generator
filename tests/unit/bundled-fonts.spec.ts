@@ -6,6 +6,7 @@ import {
   BUNDLED_FONTS,
   BUNDLED_PREFIX,
   bundledFamilies,
+  bestSize,
   bundledFont,
   bundledId,
   bundledUrl,
@@ -112,5 +113,17 @@ describe("a pixel font at the sizes it claims", () => {
         expect(partial(family, size), `${font.family} at ${size}`).toBeLessThan(0.004);
       }
     }
+  });
+});
+
+describe("bestSize", () => {
+  it("is a pixel font's smallest clean size from 8 up, else the universal default", () => {
+    expect(bestSize(bundledFont(bundledId("Silkscreen")))).toBe(8);
+    expect(bestSize(bundledFont(bundledId("Quinque Five")))).toBe(10);
+    expect(bestSize(bundledFont(bundledId("Atari Games")))).toBe(16);
+    expect(bestSize(bundledFont(bundledId("Tiny")))).toBe(12);
+    expect(bestSize(bundledFont(bundledId("Lora")))).toBe(12);
+    expect(bestSize(bundledFont(bundledId("VT323")))).toBe(12);
+    expect(bestSize(undefined)).toBe(12);
   });
 });

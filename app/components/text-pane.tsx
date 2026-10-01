@@ -4,12 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { rgbToHex } from "@/lib/color/color";
 import { createCanvas } from "@/lib/export/canvas-backend";
 import { letteringWarnings } from "@/lib/editor/lettering-warnings";
-import { bundledFamilies, bundledFont, pixelSizeHint } from "@/lib/editor/bundled-fonts";
+import { bestSize, bundledFamilies, bundledFont, pixelSizeHint } from "@/lib/editor/bundled-fonts";
 import { familyByName, fallbackFamilies, listFonts, loadFace, type FontListing } from "@/lib/editor/local-fonts";
 import {
   inkCount,
   letteringCells,
   MAX_SIZE,
+  DEFAULT_WEIGHT,
   MAX_TEXT_LENGTH,
   MIN_SIZE,
   type LetteringBitmap,
@@ -30,6 +31,8 @@ import { PillButton } from "./ui";
 
 const GROUP_LABEL = "text-[11px] font-medium uppercase tracking-[0.08em] text-muted";
 const FIELD = "w-full rounded-lg border border-line bg-sunken px-2.5 py-1.5 text-[13px] text-ink";
+const STEP = "h-7 w-7 rounded-md border border-line text-sm text-ink hover:bg-sunken disabled:opacity-40";
+const WEIGHT_STEP = 5;
 const PREVIEW_WIDTH = 316;
 const PREVIEW_HEIGHT = 168;
 const MAX_CELL_PX = 14;
@@ -104,7 +107,7 @@ export function TextPane({
   }, [chosen, chosenKey]);
   const face = loaded && loaded.key === chosenKey ? loaded.face : null;
 
-  const palette = pattern?.palette ?? [];
+  const palette = useMemo(() => pattern?.palette ?? [], [pattern]);
   const colourIndex =
     picked !== null && picked < palette.length
       ? picked
@@ -180,6 +183,7 @@ export function TextPane({
 
   const fallback = listing === null || listing.kind === "fallback";
   const pixelHint = pixelSizeHint(bundledFont(options.textFamily), options.textSize);
+  const best = bestSize(bundledFont(options.textFamily));
 
   return (
     <div className="flex flex-col gap-5 p-4">
@@ -262,38 +266,103 @@ export function TextPane({
       </section>
 
       <section className="flex flex-col gap-2">
-        <label className="flex items-center justify-between gap-3 text-[13px]">
-          Size, in stitches
-          <input
-            type="number"
-            aria-label="Font size in stitches"
-            min={MIN_SIZE}
-            max={MAX_SIZE}
-            value={sizeDraft ?? options.textSize}
-            onChange={(e) => {
-              setSizeDraft(e.target.value);
-              const n = Number(e.target.value);
-              if (Number.isInteger(n) && n >= MIN_SIZE && n <= MAX_SIZE) onChange("textSize", n);
-            }}
-            onBlur={(e) => commitSize(e.target.value)}
-            className="w-20 rounded-md border border-line bg-sunken px-2 py-1 font-mono text-xs text-ink"
-          />
-        </label>
-        <label
-          className="flex items-center justify-between gap-3 text-[13px]"
-          title="Lighter letters cut at a higher coverage, heavier ones at a lower."
-        >
-          Weight
-          <input
-            type="range"
-            aria-label="Weight"
-            min={0}
-            max={100}
-            value={options.textWeight}
-            onChange={(e) => onChange("textWeight", Number(e.target.value))}
-            className="w-44 accent-[var(--at-accent)]"
-          />
-        </label>
+        <div className="flex items-center justify-between gap-3 text-[13px]">
+          <span className="flex items-center gap-2">
+            <span>Size, in stitches</span>
+            <button
+              type="button"
+              aria-label="Reset size"
+              title={`Reset to ${best}, the size this font reads best at`}
+              disabled={options.textSize === best}
+              onClick={() => onChange("textSize", best)}
+              className="rounded-md border border-line px-2 py-0.5 text-xs text-ink hover:bg-sunken disabled:opacity-40"
+            >
+              Reset
+            </button>
+          </span>
+          <span className="flex items-center gap-1">
+            <button
+              type="button"
+              aria-label="Smaller size"
+              disabled={options.textSize <= MIN_SIZE}
+              onClick={() => onChange("textSize", Math.max(MIN_SIZE, options.textSize - 1))}
+              className={STEP}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              aria-label="Font size in stitches"
+              min={MIN_SIZE}
+              max={MAX_SIZE}
+              value={sizeDraft ?? options.textSize}
+              onChange={(e) => {
+                setSizeDraft(e.target.value);
+                const n = Number(e.target.value);
+                if (Number.isInteger(n) && n >= MIN_SIZE && n <= MAX_SIZE) onChange("textSize", n);
+              }}
+              onBlur={(e) => commitSize(e.target.value)}
+              className="w-16 rounded-md border border-line bg-sunken px-2 py-1 text-center font-mono text-xs text-ink"
+            />
+            <button
+              type="button"
+              aria-label="Larger size"
+              disabled={options.textSize >= MAX_SIZE}
+              onClick={() => onChange("textSize", Math.min(MAX_SIZE, options.textSize + 1))}
+              className={STEP}
+            >
+              +
+            </button>
+          </span>
+        </div>
+        <div className="flex flex-col gap-1.5" title="Lighter letters cut at a higher coverage, heavier ones at a lower.">
+          <div className="flex items-center justify-between gap-3 text-[13px]">
+            <span>
+              Weight{" "}
+              <output data-testid="weight-value" className="ml-1 font-mono text-xs text-muted">
+                {options.textWeight}
+              </output>
+            </span>
+            <button
+              type="button"
+              aria-label="Reset weight"
+              disabled={options.textWeight === DEFAULT_WEIGHT}
+              onClick={() => onChange("textWeight", DEFAULT_WEIGHT)}
+              className="rounded-md border border-line px-2 py-0.5 text-xs text-ink hover:bg-sunken disabled:opacity-40"
+            >
+              Reset
+            </button>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              aria-label="Lighter"
+              disabled={options.textWeight <= 0}
+              onClick={() => onChange("textWeight", Math.max(0, options.textWeight - WEIGHT_STEP))}
+              className={STEP}
+            >
+              −
+            </button>
+            <input
+              type="range"
+              aria-label="Weight"
+              min={0}
+              max={100}
+              value={options.textWeight}
+              onChange={(e) => onChange("textWeight", Number(e.target.value))}
+              className="min-w-0 flex-1 accent-[var(--at-accent)]"
+            />
+            <button
+              type="button"
+              aria-label="Heavier"
+              disabled={options.textWeight >= 100}
+              onClick={() => onChange("textWeight", Math.min(100, options.textWeight + WEIGHT_STEP))}
+              className={STEP}
+            >
+              +
+            </button>
+          </div>
+        </div>
       </section>
 
       <section className="flex flex-col gap-2">

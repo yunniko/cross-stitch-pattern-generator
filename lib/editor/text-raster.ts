@@ -39,6 +39,8 @@ export const MIN_SIZE = 7;
 export const MAX_SIZE = 200;
 export const MAX_TEXT_LENGTH = 100;
 export const DEFAULT_WEIGHT = 50;
+/** The size for a font with no size of its own to prefer: capitals of about 8 stitches, where the review says letters read. */
+export const DEFAULT_SIZE = 12;
 
 /** A canvas context of `width` × `height` pixels, with nothing drawn on it. */
 export type ContextFactory = (width: number, height: number) => Canvas2D;

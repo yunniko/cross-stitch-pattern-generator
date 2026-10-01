@@ -206,3 +206,48 @@ test("a bundled font is read from this site, draws, and a pixel font says where 
   const base = new URL(page.url()).origin;
   expect(new Set(fontRequests)).toEqual(new Set([`GET ${base}`]));
 });
+
+test("size and weight have plus and minus buttons, weight shows its value and can be reset", async ({ page }) => {
+  await openChart(page);
+  await textBox(page).fill("Hi");
+  const size = page.getByLabel("Font size in stitches");
+  await size.fill("12");
+  await page.getByRole("button", { name: "Larger size" }).click();
+  await expect(size).toHaveValue("13");
+  await page.getByRole("button", { name: "Smaller size" }).click();
+  await page.getByRole("button", { name: "Smaller size" }).click();
+  await expect(size).toHaveValue("11");
+  await size.fill("7");
+  await expect(page.getByRole("button", { name: "Smaller size" })).toBeDisabled();
+
+  const resetSize = page.getByRole("button", { name: "Reset size" });
+  await expect(resetSize).toBeEnabled(); // 7 is not the default 12
+  await resetSize.click();
+  await expect(size).toHaveValue("12");
+  await expect(resetSize).toBeDisabled();
+  await page.getByRole("combobox", { name: "Font", exact: true }).selectOption({ label: "Silkscreen" });
+  await expect(resetSize).toBeEnabled();
+  await resetSize.click();
+  await expect(size).toHaveValue("8");
+  await page.getByRole("combobox", { name: "Font", exact: true }).selectOption("sans-serif");
+  await resetSize.click();
+  await expect(size).toHaveValue("12");
+
+  const value = page.getByTestId("weight-value");
+  const reset = page.getByRole("button", { name: "Reset weight" });
+  await expect(value).toHaveText("50");
+  await expect(reset).toBeDisabled();
+  await page.getByRole("button", { name: "Heavier" }).click();
+  await expect(value).toHaveText("55");
+  await page.getByRole("button", { name: "Lighter" }).click();
+  await page.getByRole("button", { name: "Lighter" }).click();
+  await expect(value).toHaveText("45");
+  await expect(page.getByRole("slider", { name: "Weight" })).toHaveValue("45");
+  await expect(reset).toBeEnabled();
+  await reset.click();
+  await expect(value).toHaveText("50");
+  await expect(page.getByRole("slider", { name: "Weight" })).toHaveValue("50");
+  await expect(reset).toBeDisabled();
+  await page.getByRole("slider", { name: "Weight" }).fill("100");
+  await expect(page.getByRole("button", { name: "Heavier" })).toBeDisabled();
+});

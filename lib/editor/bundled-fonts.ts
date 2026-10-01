@@ -1,4 +1,5 @@
 import type { FontFamily, LocalFace } from "./local-fonts";
+import { DEFAULT_SIZE } from "./text-raster";
 
 /**
  * The fonts that ship with the app (G-081 M6): a list chosen for stitching, served from this site's own `public/fonts/bundled/`
@@ -345,6 +346,14 @@ async function fetchBlob(url: string): Promise<Blob> {
 /** The bundled font a stored family id names, if it is one. */
 export function bundledFont(id: string): BundledFont | undefined {
   return BUNDLED_FONTS.find((font) => bundledId(font.family) === id);
+}
+
+/**
+ * The size to reset to: a pixel font's smallest clean size from 8 up (below that its capitals are under 5 stitches), else the
+ * universal default.
+ */
+export function bestSize(font: BundledFont | undefined): number {
+  return font?.crispSizes?.find((s) => s >= 8) ?? DEFAULT_SIZE;
 }
 
 /**
