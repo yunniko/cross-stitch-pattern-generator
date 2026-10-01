@@ -8,8 +8,8 @@ pub const SLASH: u8 = 1;
 /// "\": top-left to bottom-right; the top-right and bottom-left corners are cut away.
 pub const BACKSLASH: u8 = 2;
 
-/// Each cut is a right triangle whose legs are this share of the cell's side (Owner, 2026-10-01).
-pub const HALF_STITCH_CUT: f64 = 0.3;
+/// Each cut is a right triangle whose legs are this share of the cell's side (Owner, 2026-10-01: 30 %, then 40 %).
+pub const HALF_STITCH_CUT: f64 = 0.4;
 
 /// The six corners of what is left of a `size` × `size` cell, clockwise; empty for a whole stitch.
 pub fn polygon(kind: u8, size: f64) -> Vec<(f64, f64)> {
@@ -91,23 +91,23 @@ mod tests {
         assert_eq!(
             polygon(SLASH, 100.0),
             vec![
-                (30.0, 0.0),
+                (40.0, 0.0),
                 (100.0, 0.0),
-                (100.0, 70.0),
-                (70.0, 100.0),
+                (100.0, 60.0),
+                (60.0, 100.0),
                 (0.0, 100.0),
-                (0.0, 30.0)
+                (0.0, 40.0)
             ]
         );
         assert_eq!(
             polygon(BACKSLASH, 100.0),
             vec![
                 (0.0, 0.0),
-                (70.0, 0.0),
-                (100.0, 30.0),
+                (60.0, 0.0),
+                (100.0, 40.0),
                 (100.0, 100.0),
-                (30.0, 100.0),
-                (0.0, 70.0)
+                (40.0, 100.0),
+                (0.0, 60.0)
             ]
         );
         assert!(polygon(WHOLE, 100.0).is_empty());
@@ -135,7 +135,7 @@ mod tests {
     /// implementations of the cut must give the same coverage (D259).
     #[test]
     fn the_mask_sums_match_the_typescript() {
-        for (size, sum) in [(4usize, 3762u32), (10, 23394), (24, 133944)] {
+        for (size, sum) in [(4usize, 3410u32), (10, 21672), (24, 123258)] {
             for kind in [SLASH, BACKSLASH] {
                 let total: u32 = mask(kind, size).iter().map(|&v| v as u32).sum();
                 assert_eq!(total, sum, "size {size} kind {kind}");

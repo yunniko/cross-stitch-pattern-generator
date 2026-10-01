@@ -7,30 +7,30 @@ import { HALF_STITCH_CUT, halfStitchMask, halfStitchPolygon, insideHalfStitch } 
 import { drawCell, drawChart, stitchPreviewPixels } from "@/lib/export/render";
 import { EMPTY_CELL, type StitchPattern } from "@/lib/types";
 
-/** G-082 M3: a half stitch is its cell with two opposite corners cut away, 30 % of the side each way. */
+/** G-082 M3: a half stitch is its cell with two opposite corners cut away, 40 % of the side each way. */
 
 describe("the cut shape", () => {
   it("leaves a hexagon whose cuts are the top-left and bottom-right for '/', the other two for '\'", () => {
     const slash = halfStitchPolygon(S, 100);
     expect(slash).toEqual([
-      [30, 0],
+      [40, 0],
       [100, 0],
-      [100, 70],
-      [70, 100],
+      [100, 60],
+      [60, 100],
       [0, 100],
-      [0, 30],
+      [0, 40],
     ]);
     const back = halfStitchPolygon(B, 100);
     expect(back).toEqual([
       [0, 0],
-      [70, 0],
-      [100, 30],
+      [60, 0],
+      [100, 40],
       [100, 100],
-      [30, 100],
-      [0, 70],
+      [40, 100],
+      [0, 60],
     ]);
     expect(halfStitchPolygon(W, 100)).toEqual([]);
-    expect(HALF_STITCH_CUT).toBe(0.3);
+    expect(HALF_STITCH_CUT).toBe(0.4);
   });
 
   it("agrees with the polygon about which pixels of a 20-pixel cell are left", () => {
@@ -44,10 +44,10 @@ describe("the cut shape", () => {
     expect(insideHalfStitch(B, 20, 0, 0)).toBe(true);
     expect(insideHalfStitch(B, 20, 19, 19)).toBe(true);
     expect(insideHalfStitch(W, 20, 0, 0)).toBe(true);
-    // The area left is the cell less two triangles of 0.3 × 0.3 each.
+    // The area left is the cell less two triangles of 0.4 × 0.4 each.
     let inside = 0;
     for (let y = 0; y < 100; y++) for (let x = 0; x < 100; x++) if (insideHalfStitch(S, 100, x, y)) inside++;
-    expect(inside / 10000).toBeCloseTo(1 - 0.3 * 0.3, 1);
+    expect(inside / 10000).toBeCloseTo(1 - 0.4 * 0.4, 1);
   });
 });
 
