@@ -12,34 +12,6 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-080 · A predictable cell cursor: a dot at the pointer, and the keyboard — ACTIVE (2026-10-01)
-- **What:** with the system pointer hidden over the chart (G-078), the highlighted stitch does not say where in it the
-  pointer is, so it cannot be told when the highlight will move. (1) A small dot at the pointer's exact place over the
-  outline. (2) A keyboard cell cursor: the arrow keys move the highlighted stitch one stitch at a time (Shift: ten) and
-  Enter is the pen -- press to paint, hold while moving to draw a stroke or stretch a shape, release to finish.
-- **Why:** the Owner "can not predict where and when my cell cursor will move next", especially at large zoom, and does not
-  want the system pointer back (Owner, 2026-10-01: "Reading B and the dot").
-- **Acceptance criteria:** a dot is drawn at the pointer wherever the outline is, and moves inside one stitch; the arrow
-  keys move the outlined stitch and stop at the chart's edge; Enter paints it with the tool in hand (brush, Fill, Line,
-  Rectangle, Oval), and holding it while moving draws; the lock, the rulers' marker and the status bar follow the keyboard
-  as they follow the mouse; a real pointer move hands the cursor back; arrows in a text field or with Select are untouched.
-- **Constraints:** Space is the temporary pan, so the pen is Enter. Lasso fill, backstitch and the selection tools are not
-  driven from the keyboard in this goal (assumption, Owner to confirm).
-
-**Milestones:**
-- [x] M1 — the dot, and the keyboard cell cursor with Enter as the pen, tests, looked at on screen (D254)
-
-**Progress log** (newest first):
-- 2026-10-01 — Deployed cd6fbdb at the Owner's instruction; the live specs pass (26 cases), other sites unaffected. Pending: sign-off.
-- 2026-10-01 — M1 built (D254). The dot (`drawPointerDot`, drawn with the outline) and the keyboard cursor
-  (`app/hooks/use-keyboard-cursor.ts`: arrows, Shift for ten, Enter as the pen, edge-stopping, scrolls to keep the stitch
-  in view; the rulers' marker and the status bar follow it). 873 unit; new `tests/e2e/keyboard-cursor.spec.ts` (4 cases); 478
-  of 481 e2e (2 admin-stats cases pass alone). Also fixed the flaky shape-tools case the handover listed: it reloaded the
-  page and expected a fresh start, but a reload restores the autosaved chart (it failed 10 of 10 against the live code when
-  run repeatedly); its second visit is now a new browser context (12 of 12). Looked at on screen.
-- 2026-10-01 — goal created after the Owner chose the dot and the keyboard over the alternatives offered (hysteresis,
-  animation, a hidden-pointer "grid cursor" mode, edge ticks).
-
 ### G-069 · The workspace stops being the only thing that knows how everything connects — DRAFT (2026-09-24)
 - **What:** the changes `docs/reviews/2026-09-24-workspace-shape.md` recommends: a `useEditorDocument` hook owning
   what it means to replace the open chart, then grouped props for the panes that take 31 and 30 of them.

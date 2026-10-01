@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-01 at cd6fbdb (G-080, deployed)
+Last verified: 2026-10-01 at cd6fbdb (G-080, deployed and signed off)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -14,7 +14,7 @@ Every signed-off goal, with what it produced and how it was verified, is in `doc
 
 **G-077, canvas textures — signed off and deployed 2026-09-30 (2e86c69), archived.** The Chart pane's Canvas texture buttons (`app/components/canvas-picker.tsx`; Off, Natural linen, Counted canvas from `lib/export/canvas-texture-catalog.ts`, each with columns, rows and an offset in cells) put a cloth behind the Stitched view over the whole viewer (`app/hooks/use-canvas-cloth.ts`, D250); "Canvas in exported preview" sends `canvas` with the export request and `rust/cs-export/src/preview.rs` lays the stitches over the ground (D251, TypeScript reference `lib/export/canvas-ground.ts`). The stitch textures (Classic, Pixel, Cell outline, Cell outline shaded, Cross 2) are in `lib/export/stitch-texture-catalog.ts` (D248, D249). Record in `docs/goals-archive/G-071-to-G-080.md`.
 
-**G-080, a predictable cell cursor — built and deployed 2026-10-01 (cd6fbdb), awaiting the Owner.** A dot at the pointer (`drawPointerDot` in `app/editor-geometry.ts`, drawn by `app/hooks/use-chart-renderer.ts` with the outline) and a keyboard cursor (`app/hooks/use-keyboard-cursor.ts`, stepping in `lib/editor/keyboard-cursor.ts`): arrows move the stitch, Enter is the pen, for the brush, Fill and the shape tools; it dispatches the pointer events the mouse would (D254). Verified: 873 unit, 478 of 481 e2e (the two admin-stats cases pass alone), tsc, eslint, prettier.
+**G-080, a predictable cell cursor — signed off and deployed 2026-10-01 (cd6fbdb), archived.** A dot at the pointer (`drawPointerDot` in `app/editor-geometry.ts`, drawn by `app/hooks/use-chart-renderer.ts` with the outline) and a keyboard cursor (`app/hooks/use-keyboard-cursor.ts`, stepping in `lib/editor/keyboard-cursor.ts`): arrows move the stitch (Shift: ten), Enter is the pen, for the brush, Fill and the shape tools; it dispatches the pointer events the mouse would (D254). Record in `docs/goals-archive/G-071-to-G-080.md`.
 
 **G-079, small fixes — signed off and deployed 2026-09-30/10-01 (ee8fa28), archived.** Errors have a cross and clear after 12 s (`app/components/ui.tsx` `NoticeBar`/`InlineError`, `app/hooks/use-auto-dismiss.ts`); the canvas colour is a `react-colorful` swatch on the Chart tab (`app/components/canvas-color-field.tsx`), not in the top panel, which no longer shows "Loaded: name" either (specs wait for Generate through `expectPhotoLoaded`); the transparency lock (`lockTransparency` option, padlock in `app/components/context-bar.tsx`) is one rule in `lib/editor/pattern-edit.ts` applied in `app/hooks/use-canvas-tools.ts` (D253). Record in `docs/goals-archive/G-071-to-G-080.md`.
 
