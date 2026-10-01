@@ -80,6 +80,8 @@ the biggest milestone and may split; (b) 22 modules read `cellPalette`, so the s
 the PDF's real text symbols, so its export must not draw cut shapes it cannot read as stitches.
 
 **Progress log** (newest first):
+- 2026-10-01 -- The Owner: the cut at 50 % (D262, replacing 40 %). TypeScript and Rust, mask sums recomputed; 958 unit, 8 Rust integration tests;
+  looked at on screen. Deployed with the next push.
 - 2026-10-01 -- The Owner, after looking: the cut at 40 % (D261, replacing 30 %). Constant changed in TypeScript and Rust, the mask sums
   recomputed; 958 unit, 8 Rust integration tests; looked at in Color and Stitched. Deployed as 8ed29e9; the half-stitch specs pass 8 of 8 against the live site.
 - 2026-10-01 -- Deployed 43bdb97 (M1 to M5) at the Owner's "deploy if no complications": none needed a decision. App and Rust processor rebuilt;

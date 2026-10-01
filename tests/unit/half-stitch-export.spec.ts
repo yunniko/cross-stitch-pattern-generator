@@ -97,15 +97,15 @@ describe("the TypeScript and the Rust exporter agree on the cut", () => {
   const rust = (file: string) => readFileSync(path.join(process.cwd(), "rust", "cs-export", "src", file), "utf8");
 
   it("has the same cut and legend column width", () => {
-    expect(HALF_STITCH_CUT).toBe(0.4);
-    expect(rust("halfstitch.rs")).toContain("pub const HALF_STITCH_CUT: f64 = 0.4;");
+    expect(HALF_STITCH_CUT).toBe(0.5);
+    expect(rust("halfstitch.rs")).toContain("pub const HALF_STITCH_CUT: f64 = 0.5;");
     expect(rust("render.rs")).toContain(`const LEGEND_COLUMN_WIDTH_WITH_HALVES: f64 = ${LEGEND_COLUMN_WIDTH_WITH_HALVES}.0;`);
   });
 
   it("has the mask sums the Rust test asserts", () => {
     const sum = (kind: number, size: number) => halfStitchMask(kind, size).reduce((a, b) => a + b, 0);
-    expect([4, 10, 24].map((size) => sum(S, size))).toEqual([3410, 21672, 123258]);
-    expect([4, 10, 24].map((size) => sum(B, size))).toEqual([3410, 21672, 123258]);
-    expect(rust("halfstitch.rs")).toContain("(4usize, 3410u32), (10, 21672), (24, 123258)");
+    expect([4, 10, 24].map((size) => sum(S, size))).toEqual([3186, 19440, 110916]);
+    expect([4, 10, 24].map((size) => sum(B, size))).toEqual([3186, 19440, 110916]);
+    expect(rust("halfstitch.rs")).toContain("(4usize, 3186u32), (10, 19440), (24, 110916)");
   });
 });

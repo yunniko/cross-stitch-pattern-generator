@@ -297,3 +297,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D259 — A half stitch is its cell with two opposite corners cut away, 30 % of the side — active
 - D260 — The Pattern Keeper PDF and the OXS file carry half stitches as whole stitches — active
 - D261 — The half stitch's cut corners are 40 % of the side — active (replaces D259's 30 %)
+- D262 — The half stitch's cut corners are 50 % of the side — active (replaces D261's 40 %)
