@@ -7,7 +7,7 @@ use crate::backstitch::{
 use crate::canvas::Canvas;
 use crate::format::{finished_size, hex, luminance, skein_estimate, stitch_count};
 use crate::jsfmt::number;
-use crate::model::{Backstitch, Color, Pattern, SizeUnit, EMPTY_CELL};
+use crate::model::{Backstitch, Color, LegendEntry, Pattern, SizeUnit, EMPTY_CELL};
 use crate::text::{self, Align, Baseline};
 use tiny_skia::Pixmap;
 
@@ -29,6 +29,8 @@ const LEGEND_ITEM_HEIGHT: f64 = 40.0;
 const LEGEND_SWATCH_SIZE: f64 = 20.0;
 const LEGEND_PADDING: f64 = 16.0;
 const LEGEND_COLUMN_WIDTH: f64 = 170.0;
+/// Wider when the chart has half stitches, whose rows also say the stitch type (TypeScript: `LEGEND_COLUMN_WIDTH_WITH_HALVES`).
+const LEGEND_COLUMN_WIDTH_WITH_HALVES: f64 = 190.0;
 const BW_MIN_GRAY: f64 = 150.0;
 const BW_MAX_GRAY: f64 = 245.0;
 const MARKER_MARGIN: f64 = 16.0;
@@ -137,6 +139,15 @@ pub trait Ctx {
     fn translate(&mut self, x: f64, y: f64);
     /// Raster only: a symbol stamp at whole pixels.
     fn stamp(&mut self, _tile: &Pixmap, _x: f64, _y: f64) {}
+    /// A filled polygon in the fill colour (a half stitch's cut cell, G-082). The default fills the polygon's bounding
+    /// box, which only a context that is never asked for a half stitch (the Pattern Keeper PDF) relies on.
+    fn fill_polygon(&mut self, points: &[(f64, f64)]) {
+        let min_x = points.iter().map(|p| p.0).fold(f64::INFINITY, f64::min);
+        let min_y = points.iter().map(|p| p.1).fold(f64::INFINITY, f64::min);
+        let max_x = points.iter().map(|p| p.0).fold(f64::NEG_INFINITY, f64::max);
+        let max_y = points.iter().map(|p| p.1).fold(f64::NEG_INFINITY, f64::max);
+        self.fill_rect(min_x, min_y, max_x - min_x, max_y - min_y);
+    }
     /// Raster only: a backstitch bead (G-073 M5). The one PDF this project writes is the Pattern
     /// Keeper export, which deliberately carries no backstitch on its grid, so nothing calls this
     /// through the PDF adapter (`docs/reviews/2026-09-25-backstitch-research.md`).
@@ -195,6 +206,36 @@ impl Ctx for Canvas {
     fn stamp(&mut self, tile: &Pixmap, x: f64, y: f64) {
         self.draw_stamp(tile, x, y)
     }
+    fn fill_polygon(&mut self, points: &[(f64, f64)]) {
+        self.begin_path();
+        for (i, &(x, y)) in points.iter().enumerate() {
+            if i == 0 {
+                self.move_to(x, y);
+            } else {
+                self.line_to(x, y);
+            }
+        }
+        self.close_path();
+        self.fill();
+    }
+}
+
+/// One stitch cell at `(x, y)`: a whole stitch is the square in `fill`; a half stitch is the empty-stitch colour first and
+/// then what is left of the square once two opposite corners are cut away (`fillStitchCell` in TypeScript).
+pub fn fill_stitch_cell(ctx: &mut dyn Ctx, x: f64, y: f64, size: f64, fill: &str, kind: u8) {
+    if kind == crate::halfstitch::WHOLE {
+        ctx.set_fill(fill);
+        ctx.fill_rect(x, y, size, size);
+        return;
+    }
+    ctx.set_fill("#ffffff");
+    ctx.fill_rect(x, y, size, size);
+    ctx.set_fill(fill);
+    let points: Vec<(f64, f64)> = crate::halfstitch::polygon(kind, size)
+        .into_iter()
+        .map(|(px, py)| (x + px, y + py))
+        .collect();
+    ctx.fill_polygon(&points);
 }
 
 /// `drawChart` with the default empty colour (white) and stroked grid lines.
@@ -237,8 +278,14 @@ pub fn draw_chart(
                 ctx.fill_rect(lx, ly, cs, cs);
                 continue;
             }
-            ctx.set_fill(&fills[v as usize]);
-            ctx.fill_rect(lx, ly, cs, cs);
+            fill_stitch_cell(
+                ctx,
+                lx,
+                ly,
+                cs,
+                &fills[v as usize],
+                p.kind_at(y * p.width + x),
+            );
             match (draw_symbols, stamps) {
                 (true, Some(s)) => {
                     ctx.stamp(&s.tiles[v as usize], lx - s.pad as f64, ly - s.pad as f64)
@@ -494,10 +541,20 @@ struct Layout {
     canvas_h: f64,
 }
 
+/// A legend column is wider when the chart has half stitches, whose rows also say the stitch type.
+fn legend_column_width(p: &Pattern) -> f64 {
+    if p.has_halves() {
+        LEGEND_COLUMN_WIDTH_WITH_HALVES
+    } else {
+        LEGEND_COLUMN_WIDTH
+    }
+}
+
 fn legend_extent(p: &Pattern, chart_w: f64, chart_h: f64) -> (f64, f64, bool) {
-    let n = p.palette.len() as f64;
+    let n = p.legend_entries().len() as f64;
+    let column_w = legend_column_width(p);
     if p.is_landscape {
-        let columns = (chart_w / LEGEND_COLUMN_WIDTH).floor().max(1.0);
+        let columns = (chart_w / column_w).floor().max(1.0);
         let rows = (n / columns).ceil();
         return (
             0.0,
@@ -508,7 +565,7 @@ fn legend_extent(p: &Pattern, chart_w: f64, chart_h: f64) -> (f64, f64, bool) {
     let rows_per_column = (chart_h / LEGEND_ITEM_HEIGHT).floor().max(1.0);
     let columns = (n / rows_per_column).ceil();
     (
-        MARKER_MARGIN + LEGEND_PADDING + columns * LEGEND_COLUMN_WIDTH,
+        MARKER_MARGIN + LEGEND_PADDING + columns * column_w,
         0.0,
         false,
     )
@@ -550,12 +607,17 @@ fn find_layout(p: &Pattern, requested: i64, header_w: f64) -> Option<Layout> {
     None
 }
 
-fn draw_legend_item(ctx: &mut dyn Ctx, color: &Color, x: f64, y: f64, aida: f64) {
-    ctx.set_fill(&format!(
-        "rgb({}, {}, {})",
-        color.rgb[0], color.rgb[1], color.rgb[2]
-    ));
-    ctx.fill_rect(x, y, LEGEND_SWATCH_SIZE, LEGEND_SWATCH_SIZE);
+fn draw_legend_item(ctx: &mut dyn Ctx, p: &Pattern, entry: LegendEntry, x: f64, y: f64, aida: f64) {
+    let color = &p.palette[entry.color];
+    // The swatch is the stitch as the chart draws it, so a half stitch's cut corners say which row this is.
+    fill_stitch_cell(
+        ctx,
+        x,
+        y,
+        LEGEND_SWATCH_SIZE,
+        &format!("rgb({}, {}, {})", color.rgb[0], color.rgb[1], color.rgb[2]),
+        entry.kind,
+    );
     ctx.set_stroke(GRID_LINE_COLOR);
     ctx.set_line_width(1.0);
     ctx.stroke_rect(x, y, LEGEND_SWATCH_SIZE, LEGEND_SWATCH_SIZE);
@@ -578,7 +640,7 @@ fn draw_legend_item(ctx: &mut dyn Ctx, color: &Color, x: f64, y: f64, aida: f64)
     );
 
     let text_x = x + LEGEND_SWATCH_SIZE + 8.0;
-    let max_w = LEGEND_COLUMN_WIDTH - LEGEND_SWATCH_SIZE - 12.0;
+    let max_w = legend_column_width(p) - LEGEND_SWATCH_SIZE - 12.0;
     ctx.set_align(Align::Left);
     ctx.set_baseline(Baseline::Middle);
     ctx.set_fill("#111111");
@@ -587,37 +649,56 @@ fn draw_legend_item(ctx: &mut dyn Ctx, color: &Color, x: f64, y: f64, aida: f64)
     ctx.fill_text(&name, text_x, y + LEGEND_SWATCH_SIZE / 2.0 + 1.0);
     ctx.set_fill("#666666");
     ctx.set_font(&format!("11px {FONT_STACK}"));
-    let meta = format!(
-        "{} · {} sts · {}",
-        hex(color.rgb),
-        color.count,
-        skein_estimate(color.count, aida)
-    );
+    let meta = if p.has_halves() {
+        // A half stitch is half a stitch of thread, rounded up.
+        let thread = if entry.kind == 0 {
+            entry.count
+        } else {
+            entry.count.div_ceil(2)
+        };
+        format!(
+            "{} · {} sts · {}",
+            crate::halfstitch::label(entry.kind),
+            entry.count,
+            skein_estimate(thread, aida)
+        )
+    } else {
+        format!(
+            "{} · {} sts · {}",
+            hex(color.rgb),
+            color.count,
+            skein_estimate(color.count, aida)
+        )
+    };
     let meta = truncate_to_width(ctx, &meta, max_w);
     ctx.fill_text(&meta, text_x, y + LEGEND_SWATCH_SIZE + 10.0);
 }
 
 fn draw_legend(ctx: &mut dyn Ctx, p: &Pattern, l: &Layout, aida: f64) {
+    let column_w = legend_column_width(p);
+    let entries = p.legend_entries();
     if l.below {
-        let columns = (l.chart_w / LEGEND_COLUMN_WIDTH).floor().max(1.0) as usize;
-        for (i, color) in p.palette.iter().enumerate() {
+        let columns = (l.chart_w / column_w).floor().max(1.0) as usize;
+        for (i, &entry) in entries.iter().enumerate() {
             let (col, row) = (i % columns, i / columns);
             draw_legend_item(
                 ctx,
-                color,
-                LEGEND_PADDING + col as f64 * LEGEND_COLUMN_WIDTH,
+                p,
+                entry,
+                LEGEND_PADDING + col as f64 * column_w,
                 l.chart_h + MARKER_MARGIN + LEGEND_PADDING + row as f64 * LEGEND_ITEM_HEIGHT,
                 aida,
             );
         }
     } else {
         let rows_per_column = (l.chart_h / LEGEND_ITEM_HEIGHT).floor().max(1.0) as usize;
-        for (i, color) in p.palette.iter().enumerate() {
+        for (i, &entry) in entries.iter().enumerate() {
             let (col, row) = (i / rows_per_column, i % rows_per_column);
             draw_legend_item(
                 ctx,
-                color,
-                l.chart_w + MARKER_MARGIN + LEGEND_PADDING + col as f64 * LEGEND_COLUMN_WIDTH,
+                p,
+                entry,
+                l.chart_w + MARKER_MARGIN + LEGEND_PADDING + col as f64 * column_w,
                 row as f64 * LEGEND_ITEM_HEIGHT,
                 aida,
             );

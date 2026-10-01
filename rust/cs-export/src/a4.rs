@@ -4,10 +4,10 @@
 use crate::format::{
     color_count, finished_size, luminance, skein_estimate, split_thread_code_name, stitch_count,
 };
-use crate::model::{Color, Pattern, SizeUnit};
+use crate::model::{Color, LegendEntry, Pattern, SizeUnit};
 use crate::render::{
-    draw_backstitch, draw_chart, truncate_to_width, Ctx, Mode, Region, SymbolStamps, FONT_STACK,
-    GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX,
+    draw_backstitch, draw_chart, fill_stitch_cell, truncate_to_width, Ctx, Mode, Region,
+    SymbolStamps, FONT_STACK, GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX,
 };
 use crate::text::{Align, Baseline};
 use crate::threads::brand_label;
@@ -232,12 +232,16 @@ pub fn draw_grid_page(
     ctx.restore();
 }
 
-fn swatch(ctx: &mut dyn Ctx, color: &Color, x: f64, y: f64, size: f64) {
-    ctx.set_fill(&format!(
-        "rgb({}, {}, {})",
-        color.rgb[0], color.rgb[1], color.rgb[2]
-    ));
-    ctx.fill_rect(x, y, size, size);
+fn swatch(ctx: &mut dyn Ctx, color: &Color, kind: u8, x: f64, y: f64, size: f64) {
+    // The stitch as the chart draws it: a half stitch's cut corners are part of the swatch (G-082).
+    fill_stitch_cell(
+        ctx,
+        x,
+        y,
+        size,
+        &format!("rgb({}, {}, {})", color.rgb[0], color.rgb[1], color.rgb[2]),
+        kind,
+    );
     ctx.set_stroke(GRID_LINE_COLOR);
     ctx.set_line_width(1.0);
     ctx.stroke_rect(x, y, size, size);
@@ -296,7 +300,7 @@ pub fn draw_legend_page(ctx: &mut dyn Ctx, p: &Pattern, l: &Layout, aida: f64, a
         let (col, row) = (i % columns, i / columns);
         let x = l.margin + col as f64 * col_w;
         let y = grid_top + row as f64 * row_h;
-        swatch(ctx, color, x, y, swatch_px);
+        swatch(ctx, color, 0, x, y, swatch_px);
         ctx.set_fill(if luminance(color.rgb) > 140.0 {
             "#000000"
         } else {
@@ -326,7 +330,8 @@ pub fn draw_legend_page(ctx: &mut dyn Ctx, p: &Pattern, l: &Layout, aida: f64, a
         let need = if color.count == 0 && bs_length.get(i).copied().unwrap_or(0.0) > 0.0 {
             "backstitch only".to_string()
         } else {
-            skein_estimate(color.count, aida)
+            // A half stitch is half a stitch of thread, rounded up (G-082).
+            skein_estimate(p.thread_stitches(color.index), aida)
         };
         ctx.fill_text(&need, text_x, y + swatch_px / 2.0 + name_px * 0.6);
     }
@@ -377,6 +382,11 @@ fn detail_rows(p: &Pattern, aida: f64, unit: SizeUnit) -> Vec<(String, String)> 
         rows.push(("Thread".into(), brand_label(brand).to_string()));
     }
     rows.push(("Color count".into(), color_count(p.palette.len())));
+    // How many of those stitches are half stitches (G-082); the Color key lists each type and thread.
+    if p.has_halves() {
+        let halves = p.kinds.iter().filter(|&&k| k != 0).count();
+        rows.push(("Half stitches".into(), halves.to_string()));
+    }
     // The chart's own backstitch total, next to its stitch count — what a stitcher needs before starting,
     // where the per-thread lengths in the colour key are what they need while stitching (G-073 M5).
     if !p.backstitch.is_empty() {
@@ -400,6 +410,9 @@ struct KeyColumns {
     code_w: f64,
     name_x: f64,
     name_w: f64,
+    /// The stitch type ("whole", "half /", "half \\"), only when the chart has half stitches (G-082).
+    type_x: f64,
+    type_w: f64,
     stitch_x: f64,
     stitch_w: f64,
     /// Backstitch length, replacing the skein count: skeins are on the simple legend now, which is the
@@ -409,8 +422,15 @@ struct KeyColumns {
     total: f64,
 }
 
-fn key_columns(printable_w: f64, has_code: bool, has_backstitch: bool, dpi: f64) -> KeyColumns {
+fn key_columns(
+    printable_w: f64,
+    has_code: bool,
+    has_backstitch: bool,
+    has_type: bool,
+    dpi: f64,
+) -> KeyColumns {
     let symbol_w = mm_to_px(12.0, dpi);
+    let type_w = if has_type { mm_to_px(20.0, dpi) } else { 0.0 };
     let code_w = if has_code { mm_to_px(18.0, dpi) } else { 0.0 };
     let stitch_w = mm_to_px(28.0, dpi);
     let backstitch_w = if has_backstitch {
@@ -418,11 +438,13 @@ fn key_columns(printable_w: f64, has_code: bool, has_backstitch: bool, dpi: f64)
     } else {
         0.0
     };
-    let name_w = mm_to_px(30.0, dpi).max(printable_w - symbol_w - code_w - stitch_w - backstitch_w);
+    let name_w =
+        mm_to_px(30.0, dpi).max(printable_w - symbol_w - code_w - type_w - stitch_w - backstitch_w);
     let symbol_x = 0.0;
     let code_x = symbol_x + symbol_w;
     let name_x = code_x + code_w;
-    let stitch_x = name_x + name_w;
+    let type_x = name_x + name_w;
+    let stitch_x = type_x + type_w;
     let backstitch_x = stitch_x + stitch_w;
     KeyColumns {
         symbol_x,
@@ -431,6 +453,8 @@ fn key_columns(printable_w: f64, has_code: bool, has_backstitch: bool, dpi: f64)
         code_w,
         name_x,
         name_w,
+        type_x,
+        type_w,
         stitch_x,
         stitch_w,
         backstitch_x,
@@ -476,7 +500,8 @@ pub fn plan_info_pages(
     let cont_fixed = mm_to_px(4.5, l.dpi) * 1.8 + key_header;
     let rows_on_page1 = ((printable_h - page1_fixed) / key_row).floor().max(1.0) as usize;
     let rows_per_continuation = ((printable_h - cont_fixed) / key_row).floor().max(1.0) as usize;
-    let total_colors = p.palette.len();
+    // One key row for each stitch type and thread in use: a thread per row unless the chart has half stitches (G-082).
+    let total_colors = p.legend_entries().len();
     let remaining = total_colors.saturating_sub(rows_on_page1);
     let continuation = if remaining == 0 {
         0
@@ -487,7 +512,13 @@ pub fn plan_info_pages(
         bs_length,
         title: info_title(p.name.as_deref(), author),
         details,
-        cols: key_columns(printable_w, has_code, !p.backstitch.is_empty(), l.dpi),
+        cols: key_columns(
+            printable_w,
+            has_code,
+            !p.backstitch.is_empty(),
+            p.has_halves(),
+            l.dpi,
+        ),
         has_code,
         printable_w,
         rows_on_page1,
@@ -548,7 +579,8 @@ fn draw_key_block(
     y0: f64,
     c: &KeyColumns,
     has_code: bool,
-    colors: &[Color],
+    p: &Pattern,
+    entries: &[LegendEntry],
     aida: f64,
     dpi: f64,
     // Backstitch length per palette index, for the column that replaced the skein count.
@@ -557,7 +589,7 @@ fn draw_key_block(
     let header_h = mm_to_px(6.5, dpi);
     let row_h = mm_to_px(8.0, dpi);
     let header_px = mm_to_px(3.0, dpi);
-    let total = header_h + colors.len() as f64 * row_h;
+    let total = header_h + entries.len() as f64 * row_h;
 
     ctx.set_fill("#f0f0f0");
     ctx.fill_rect(x, y0, c.total, header_h);
@@ -573,6 +605,9 @@ fn draw_key_block(
     ctx.set_align(Align::Left);
     ctx.fill_text("Color name", x + c.name_x + mm_to_px(1.5, dpi), header_mid);
     ctx.set_align(Align::Center);
+    if c.type_w > 0.0 {
+        ctx.fill_text("Type", x + c.type_x + c.type_w / 2.0, header_mid);
+    }
     ctx.fill_text(
         "Stitch count",
         x + c.stitch_x + c.stitch_w / 2.0,
@@ -586,13 +621,14 @@ fn draw_key_block(
         );
     }
 
-    for (i, color) in colors.iter().enumerate() {
+    for (i, entry) in entries.iter().enumerate() {
+        let color = &p.palette[entry.color];
         let top = y0 + header_h + i as f64 * row_h;
         let mid = top + row_h / 2.0;
         let size = (c.symbol_w - mm_to_px(2.0, dpi)).min(row_h - mm_to_px(2.0, dpi));
         let sx = x + c.symbol_x + (c.symbol_w - size) / 2.0;
         let sy = top + (row_h - size) / 2.0;
-        swatch(ctx, color, sx, sy, size);
+        swatch(ctx, color, entry.kind, sx, sy, size);
         ctx.set_fill(if luminance(color.rgb) > 140.0 {
             "#000000"
         } else {
@@ -620,13 +656,26 @@ fn draw_key_block(
         ctx.fill_text(&shown, x + c.name_x + mm_to_px(1.5, dpi), mid);
         ctx.set_font(&font(header_px));
         ctx.set_align(Align::Center);
+        if c.type_w > 0.0 {
+            ctx.fill_text(
+                crate::halfstitch::label(entry.kind),
+                x + c.type_x + c.type_w / 2.0,
+                mid,
+            );
+        }
         ctx.fill_text(
-            &color.count.to_string(),
+            &entry.count.to_string(),
             x + c.stitch_x + c.stitch_w / 2.0,
             mid,
         );
         if c.backstitch_w > 0.0 {
-            let cells = bs_length.get(color.index).copied().unwrap_or(0.0);
+            // A thread's backstitch is shown on its first row only; the others get the dash.
+            let first_row = i == 0 || entries[i - 1].color != entry.color;
+            let cells = if first_row {
+                bs_length.get(color.index).copied().unwrap_or(0.0)
+            } else {
+                0.0
+            };
             // A dash rather than “0 cm”: this thread has no backstitch at all, which is a different
             // thing from having a very short run of it.
             let text = if cells > 0.0 {
@@ -641,7 +690,7 @@ fn draw_key_block(
     ctx.set_stroke(GRID_LINE_COLOR);
     ctx.set_line_width(1.0);
     ctx.stroke_rect(x, y0, c.total, total);
-    for i in 0..=colors.len() {
+    for i in 0..=entries.len() {
         let ly = y0 + header_h + i as f64 * row_h;
         ctx.line(x, ly, x + c.total, ly);
     }
@@ -649,7 +698,11 @@ fn draw_key_block(
     if has_code {
         xs.push(c.code_x);
     }
-    xs.extend([c.name_x, c.stitch_x]);
+    xs.push(c.name_x);
+    if c.type_w > 0.0 {
+        xs.push(c.type_x);
+    }
+    xs.push(c.stitch_x);
     if c.backstitch_w > 0.0 {
         xs.push(c.backstitch_x);
     }
@@ -706,7 +759,8 @@ pub fn draw_info_page1(ctx: &mut dyn Ctx, p: &Pattern, plan: &InfoPlan, l: &Layo
         y,
         &plan.cols,
         plan.has_code,
-        &p.palette[..n],
+        p,
+        &p.legend_entries()[..n],
         aida,
         l.dpi,
         &plan.bs_length,
@@ -717,8 +771,9 @@ pub fn draw_info_page1(ctx: &mut dyn Ctx, p: &Pattern, plan: &InfoPlan, l: &Layo
 /// `drawInfoContinuationPage`.
 pub fn draw_info_continuation(
     ctx: &mut dyn Ctx,
+    p: &Pattern,
     plan: &InfoPlan,
-    colors: &[Color],
+    entries: &[LegendEntry],
     page_number: usize,
     l: &Layout,
     aida: f64,
@@ -737,7 +792,8 @@ pub fn draw_info_continuation(
         l.margin + caption_px * 1.8,
         &plan.cols,
         plan.has_code,
-        colors,
+        p,
+        entries,
         aida,
         l.dpi,
         &plan.bs_length,

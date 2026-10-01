@@ -1,5 +1,6 @@
 // Frozen copy of buildPatternKeeperPdf as of G-047 M2 (commit 1d414e0), drawing through the frozen adapter beside it.
 // The page drawing (a4-render.ts) and the flush are the live ones, so a comparison isolates the adapter.
+import { legendEntries } from "@/lib/editor/stitch-kind";
 import { PDFDocument, type PDFPage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { calculateA4Layout } from "@/lib/export/a4-layout";
@@ -89,8 +90,9 @@ export async function buildPatternKeeperPdfPreG047(
     const page = doc.addPage(pageSize);
     drawInfoContinuationPage(
       new PdfCanvasAdapter(page, font, metrics),
+      pattern,
       plan,
-      pattern.palette.slice(consumed, consumed + rowsHere),
+      legendEntries(pattern).slice(consumed, consumed + rowsHere),
       p + 2,
       layout,
       aidaCount

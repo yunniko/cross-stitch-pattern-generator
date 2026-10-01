@@ -7,6 +7,7 @@ pub mod bundle;
 pub mod canvas;
 pub mod editable;
 pub mod format;
+pub mod halfstitch;
 pub mod jsfmt;
 pub mod model;
 pub mod oxs;
@@ -51,7 +52,11 @@ pub fn export_reporting(
     match request.kind.as_str() {
         "oxs" => Ok(ExportFile {
             filename: format!("{base}.oxs"),
-            bytes: oxs::serialize(&compacted, &request.author_name, request.aida_count),
+            bytes: oxs::serialize(
+                &compacted.whole_stitches(),
+                &request.author_name,
+                request.aida_count,
+            ),
         }),
         "png-color" | "png-bw" => {
             let mode = if request.kind == "png-bw" {
@@ -128,9 +133,12 @@ pub fn export_reporting(
             } else {
                 render::Mode::Color
             };
-            let bytes = pdf::build_reporting(&compacted, mode, request, &|done, total| {
-                progress(done, total, &format!("Page {done} of {total}"))
-            });
+            let bytes = pdf::build_reporting(
+                &compacted.whole_stitches(),
+                mode,
+                request,
+                &|done, total| progress(done, total, &format!("Page {done} of {total}")),
+            );
             let pages = bundle::a4_page_count(&compacted, request, 72.0);
             progress(pages, pages, "Saving PDF…");
             Ok(ExportFile {
@@ -168,7 +176,11 @@ fn export_all(p: &Pattern, request: &Request, progress: Progress) -> Result<Vec<
     );
     zip.file(
         &format!("{base}.oxs"),
-        &oxs::serialize(p, &request.author_name, request.aida_count),
+        &oxs::serialize(
+            &p.whole_stitches(),
+            &request.author_name,
+            request.aida_count,
+        ),
     );
     step(2, "Editable file and OXS");
     for (mode, label, note) in [
@@ -204,13 +216,18 @@ fn export_all(p: &Pattern, request: &Request, progress: Progress) -> Result<Vec<
         &png::encode(&preview, p.width as u32 * cell, p.height as u32 * cell),
     );
     let base_done = step(1, "Realistic preview");
-    let pdf = pdf::build_reporting(p, render::Mode::Color, request, &|done, pages| {
-        progress(
-            base_done + done.min(pdf_pages),
-            total,
-            &format!("PDF page {} of {pages}", done.min(pages)),
-        )
-    });
+    let pdf = pdf::build_reporting(
+        &p.whole_stitches(),
+        render::Mode::Color,
+        request,
+        &|done, pages| {
+            progress(
+                base_done + done.min(pdf_pages),
+                total,
+                &format!("PDF page {} of {pages}", done.min(pages)),
+            )
+        },
+    );
     zip.file(&format!("{base}_patternkeeper.pdf"), &pdf);
     let mut completed = base_done + pdf_pages;
     for (mode, folder, label) in [

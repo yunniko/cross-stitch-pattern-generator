@@ -14,6 +14,7 @@ import { PdfCanvasAdapter, type FontMetricsSource } from "./pdf-canvas-adapter";
 import { flushFinishedPage } from "./pdf-page-flush";
 import type { RenderMode } from "./render";
 import type { StitchPattern } from "../types";
+import { legendEntries, wholeStitches } from "../editor/stitch-kind";
 import type { ExportProgressCallback } from "./export-progress";
 import { yieldToMain } from "./yield";
 
@@ -159,11 +160,13 @@ function fontMetricsFor(fontBytes: Uint8Array): FontMetricsSource {
  * tests (`fs.readFileSync`), matching M1's `buildSpikePdf`'s own contract.
  */
 export async function buildPatternKeeperPdf(
-  pattern: StitchPattern,
+  chart: StitchPattern,
   mode: RenderMode,
   fontBytes: Uint8Array,
   options: PatternKeeperPdfOptions = {}
 ): Promise<Uint8Array> {
+  // Pattern Keeper reads whole stitches: every half stitch is a whole one here, in the grid and in the legend's counts (G-082).
+  const pattern = wholeStitches(chart);
   const {
     aidaCount = DEFAULT_AIDA_COUNT,
     sizeUnit = DEFAULT_SIZE_UNIT,
@@ -218,7 +221,7 @@ export async function buildPatternKeeperPdf(
     const rowsHere = Math.min(plan.rowsPerContinuationPage, plan.totalColors - consumed);
     const page = doc.addPage(pageSize);
     const adapter = new PdfCanvasAdapter(page, font, metrics);
-    drawInfoContinuationPage(adapter, plan, pattern.palette.slice(consumed, consumed + rowsHere), p + 2, layout, aidaCount);
+    drawInfoContinuationPage(adapter, pattern, plan, legendEntries(pattern).slice(consumed, consumed + rowsHere), p + 2, layout, aidaCount);
     consumed += rowsHere;
     await pageDone(adapter, page);
   }

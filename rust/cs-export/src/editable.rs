@@ -58,7 +58,8 @@ pub fn serialize(p: &Pattern) -> String {
         }
         out.push_str(&c.to_string());
     }
-    out.push_str("],\"palette\":[");
+    out.push(']');
+    out.push_str(",\"palette\":[");
     for (i, c) in p.palette.iter().enumerate() {
         if i > 0 {
             out.push(',');
@@ -97,6 +98,30 @@ pub fn serialize(p: &Pattern) -> String {
             out.push_str(&format!("\"{axis}\":true"));
         }
         out.push('}');
+    }
+    // `backstitch`, then `cellKind` (G-082), in the order `serializePattern` writes them; absent when there is none.
+    if !p.backstitch.is_empty() {
+        out.push_str(",\"backstitch\":[");
+        for (i, l) in p.backstitch.iter().enumerate() {
+            if i > 0 {
+                out.push(',');
+            }
+            out.push_str(&format!(
+                "{{\"x1\":{},\"y1\":{},\"x2\":{},\"y2\":{},\"paletteIndex\":{}}}",
+                l.x1, l.y1, l.x2, l.y2, l.palette_index
+            ));
+        }
+        out.push(']');
+    }
+    if p.has_halves() {
+        out.push_str(",\"cellKind\":[");
+        for (i, k) in p.kinds.iter().enumerate() {
+            if i > 0 {
+                out.push(',');
+            }
+            out.push_str(&k.to_string());
+        }
+        out.push(']');
     }
     out.push('}');
     out

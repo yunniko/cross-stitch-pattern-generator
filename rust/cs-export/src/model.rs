@@ -29,6 +29,9 @@ pub struct Pattern {
     pub height: usize,
     pub is_landscape: bool,
     pub cells: Vec<u8>,
+    /// Half stitches (G-082): per cell 0 whole, 1 "/", 2 "\\", the length of `cells`; **empty while every stitch is
+    /// whole**, which is every chart that has no half stitch. An empty cell is always 0.
+    pub kinds: Vec<u8>,
     pub palette: Vec<Color>,
     pub name: Option<String>,
     /// Kept as parsed, in its own key order, and written back verbatim.
@@ -101,6 +104,14 @@ impl Pattern {
                 palette[c as usize].count += 1;
             }
         }
+        let kinds = tidy_kinds(
+            &cells,
+            o.get("cellKind").and_then(Value::as_array).map(|a| {
+                a.iter()
+                    .map(|k| k.as_u64().unwrap_or(0).min(2) as u8)
+                    .collect::<Vec<u8>>()
+            }),
+        );
         let symmetry_value = o.get("symmetry").and_then(Value::as_object);
         let mut symmetry: Vec<&'static str> = SYMMETRY_AXES
             .iter()
@@ -118,6 +129,7 @@ impl Pattern {
                 .and_then(Value::as_bool)
                 .unwrap_or(false),
             cells,
+            kinds,
             palette,
             name: str_field(o, "name"),
             source_image: o.get("sourceImage").and_then(Value::as_object).cloned(),
@@ -207,9 +219,114 @@ impl Pattern {
         }
     }
 
+    /// The kind of cell `index`: 0 whole where the chart has no half stitch.
+    pub fn kind_at(&self, index: usize) -> u8 {
+        self.kinds.get(index).copied().unwrap_or(0)
+    }
+
+    pub fn has_halves(&self) -> bool {
+        !self.kinds.is_empty()
+    }
+
+    /// The chart as the Pattern Keeper PDF and the OXS file carry it: every half stitch a whole one (Owner, 2026-10-01).
+    pub fn whole_stitches(&self) -> Pattern {
+        Pattern {
+            kinds: Vec::new(),
+            ..self.clone()
+        }
+    }
+
+    /// Cells of thread `color` in each kind: `[whole, "/", "\\"]`.
+    pub fn kind_counts(&self, color: usize) -> [usize; 3] {
+        let mut counts = [0usize; 3];
+        for (i, &c) in self.cells.iter().enumerate() {
+            if c as usize == color && c != EMPTY_CELL {
+                counts[self.kind_at(i) as usize] += 1;
+            }
+        }
+        counts
+    }
+
+    /// What a thread's stitches amount to for buying: a half stitch is half a stitch of thread, rounded up.
+    pub fn thread_stitches(&self, color: usize) -> usize {
+        if !self.has_halves() {
+            return self.palette[color].count;
+        }
+        let [whole, slash, back] = self.kind_counts(color);
+        whole + (slash + back).div_ceil(2)
+    }
+
+    /// One legend row for each stitch type and thread the chart uses (the Owner's rule, 2026-10-01: every combination
+    /// is in the legend). A chart without half stitches has one row per thread, exactly as before.
+    pub fn legend_entries(&self) -> Vec<LegendEntry> {
+        if !self.has_halves() {
+            return self
+                .palette
+                .iter()
+                .map(|c| LegendEntry {
+                    color: c.index,
+                    kind: 0,
+                    count: c.count,
+                })
+                .collect();
+        }
+        let mut entries = Vec::new();
+        for c in &self.palette {
+            let counts = self.kind_counts(c.index);
+            let before = entries.len();
+            for kind in 0..3u8 {
+                if counts[kind as usize] > 0 {
+                    entries.push(LegendEntry {
+                        color: c.index,
+                        kind,
+                        count: counts[kind as usize],
+                    });
+                }
+            }
+            if entries.len() == before {
+                entries.push(LegendEntry {
+                    color: c.index,
+                    kind: 0,
+                    count: 0,
+                });
+            }
+        }
+        entries
+    }
+
     /// `filledStitchCount`.
     pub fn filled_stitch_count(&self) -> usize {
         self.cells.iter().filter(|&&c| c != EMPTY_CELL).count()
+    }
+}
+
+/// One row of a legend: a thread in one stitch type, with how many cells it has.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LegendEntry {
+    pub color: usize,
+    pub kind: u8,
+    pub count: usize,
+}
+
+/// `tidyKinds`: an empty cell is whole, and a chart with no half stitch has no kinds at all.
+fn tidy_kinds(cells: &[u8], kinds: Option<Vec<u8>>) -> Vec<u8> {
+    let Some(mut kinds) = kinds else {
+        return Vec::new();
+    };
+    if kinds.len() != cells.len() {
+        return Vec::new();
+    }
+    let mut any = false;
+    for (kind, &cell) in kinds.iter_mut().zip(cells) {
+        if cell == EMPTY_CELL {
+            *kind = 0;
+        }
+        any |= *kind != 0;
+    }
+    if any {
+        kinds
+    } else {
+        Vec::new()
     }
 }
 

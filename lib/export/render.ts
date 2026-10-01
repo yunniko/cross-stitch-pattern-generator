@@ -1,4 +1,4 @@
-import { STITCH_WHOLE } from "../editor/stitch-kind";
+import { hasHalfStitches, kindWord, legendEntries, STITCH_WHOLE, type LegendEntry } from "../editor/stitch-kind";
 import { halfStitchMask, halfStitchPolygon } from "./half-stitch-shape";
 import { colorAt } from "../color/palette";
 import {
@@ -105,6 +105,12 @@ const LEGEND_ITEM_HEIGHT = 40;
 const LEGEND_SWATCH_SIZE = 20;
 const LEGEND_PADDING = 16;
 const LEGEND_COLUMN_WIDTH = 170;
+/** Wider when the chart has half stitches, whose rows also say the stitch type (the Rust exporter's constant of the same name must agree). */
+export const LEGEND_COLUMN_WIDTH_WITH_HALVES = 190;
+
+function legendColumnWidth(pattern: StitchPattern): number {
+  return hasHalfStitches(pattern) ? LEGEND_COLUMN_WIDTH_WITH_HALVES : LEGEND_COLUMN_WIDTH;
+}
 
 // B&W cells are compressed into this lightness band rather than the full
 // 0-255 luminance range, so every cell stays light enough to print cleanly,
@@ -133,7 +139,7 @@ function effectiveCellSize(width: number, height: number, requested: number): nu
  * One stitch cell at `(px, py)`: a whole stitch is the square in `fill`; a half stitch is the empty-stitch colour first and
  * then what is left of the square once two opposite corners are cut away (G-082, D259).
  */
-function fillStitchCell(
+export function fillStitchCell(
   ctx: ChartDrawingContext,
   px: number,
   py: number,
@@ -806,12 +812,21 @@ function drawHeader(ctx: Canvas2D, pattern: StitchPattern, aidaCount: number, si
   ctx.fillText(headerText(pattern, aidaCount, sizeUnit, authorName), LEGEND_PADDING, HEADER_HEIGHT / 2);
 }
 
-function drawLegendItem(ctx: Canvas2D, color: PaletteColor, mode: RenderMode, x: number, y: number, aidaCount: number) {
+function drawLegendItem(
+  ctx: Canvas2D,
+  pattern: StitchPattern,
+  entry: LegendEntry,
+  mode: RenderMode,
+  x: number,
+  y: number,
+  aidaCount: number
+) {
+  const color = pattern.palette[entry.colorIndex];
   // The legend swatch always shows the true color, even in B&W mode —
   // otherwise a B&W download carries no color information at all
-  // (domain-expert review, HANDOVER.md D7).
-  ctx.fillStyle = `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`;
-  ctx.fillRect(x, y, LEGEND_SWATCH_SIZE, LEGEND_SWATCH_SIZE);
+  // (domain-expert review, HANDOVER.md D7). It is the stitch as the chart draws it, so a half stitch's cut corners say
+  // which row this is (G-082).
+  fillStitchCell(ctx, x, y, LEGEND_SWATCH_SIZE, `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`, entry.kind, "#ffffff");
   ctx.strokeStyle = GRID_LINE_COLOR;
   ctx.lineWidth = 1;
   ctx.strokeRect(x, y, LEGEND_SWATCH_SIZE, LEGEND_SWATCH_SIZE);
@@ -823,7 +838,7 @@ function drawLegendItem(ctx: Canvas2D, color: PaletteColor, mode: RenderMode, x:
   ctx.fillText(color.symbol, x + LEGEND_SWATCH_SIZE / 2, y + LEGEND_SWATCH_SIZE / 2 + 1);
 
   const textX = x + LEGEND_SWATCH_SIZE + 8;
-  const maxTextWidth = LEGEND_COLUMN_WIDTH - LEGEND_SWATCH_SIZE - 12;
+  const maxTextWidth = legendColumnWidth(pattern) - LEGEND_SWATCH_SIZE - 12;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
 
@@ -833,7 +848,9 @@ function drawLegendItem(ctx: Canvas2D, color: PaletteColor, mode: RenderMode, x:
 
   ctx.fillStyle = "#666666";
   ctx.font = `11px ${FONT_STACK}`;
-  const metaText = `${rgbToHex(color.rgb)} · ${color.count} sts · ${formatSkeinEstimate(color.count, aidaCount)}`;
+  const metaText = hasHalfStitches(pattern)
+    ? `${kindWord(entry.kind)} · ${entry.count} sts · ${formatSkeinEstimate(entry.kind === STITCH_WHOLE ? entry.count : Math.ceil(entry.count / 2), aidaCount)}`
+    : `${rgbToHex(color.rgb)} · ${color.count} sts · ${formatSkeinEstimate(color.count, aidaCount)}`;
   ctx.fillText(truncateToWidth(ctx, metaText, maxTextWidth), textX, y + LEGEND_SWATCH_SIZE + 10);
 
   void mode;
@@ -849,32 +866,35 @@ function drawLegend(
   belowChart: boolean,
   aidaCount: number
 ) {
-  const { palette } = pattern;
+  const entries = legendEntries(pattern);
+  const columnWidth = legendColumnWidth(pattern);
 
   if (belowChart) {
-    const columns = Math.max(1, Math.floor(chartWidthPx / LEGEND_COLUMN_WIDTH));
-    palette.forEach((color, i) => {
+    const columns = Math.max(1, Math.floor(chartWidthPx / columnWidth));
+    entries.forEach((entry, i) => {
       const col = i % columns;
       const row = Math.floor(i / columns);
       drawLegendItem(
         ctx,
-        color,
+        pattern,
+        entry,
         mode,
-        LEGEND_PADDING + col * LEGEND_COLUMN_WIDTH,
+        LEGEND_PADDING + col * columnWidth,
         chartHeightPx + MARKER_MARGIN + LEGEND_PADDING + row * LEGEND_ITEM_HEIGHT,
         aidaCount
       );
     });
   } else {
     const rowsPerColumn = Math.max(1, Math.floor(chartHeightPx / LEGEND_ITEM_HEIGHT));
-    palette.forEach((color, i) => {
+    entries.forEach((entry, i) => {
       const col = Math.floor(i / rowsPerColumn);
       const row = i % rowsPerColumn;
       drawLegendItem(
         ctx,
-        color,
+        pattern,
+        entry,
         mode,
-        chartWidthPx + MARKER_MARGIN + LEGEND_PADDING + col * LEGEND_COLUMN_WIDTH,
+        chartWidthPx + MARKER_MARGIN + LEGEND_PADDING + col * columnWidth,
         row * LEGEND_ITEM_HEIGHT,
         aidaCount
       );
@@ -884,15 +904,16 @@ function drawLegend(
 
 export function legendCanvasExtent(pattern: StitchPattern, chartWidthPx: number, chartHeightPx: number) {
   const belowChart = pattern.isLandscape;
-  const count = pattern.palette.length;
+  const count = legendEntries(pattern).length;
+  const columnWidth = legendColumnWidth(pattern);
   if (belowChart) {
-    const columns = Math.max(1, Math.floor(chartWidthPx / LEGEND_COLUMN_WIDTH));
+    const columns = Math.max(1, Math.floor(chartWidthPx / columnWidth));
     const rows = Math.ceil(count / columns);
     return { extraWidth: 0, extraHeight: MARKER_MARGIN + LEGEND_PADDING + rows * LEGEND_ITEM_HEIGHT, belowChart };
   }
   const rowsPerColumn = Math.max(1, Math.floor(chartHeightPx / LEGEND_ITEM_HEIGHT));
   const columns = Math.ceil(count / rowsPerColumn);
-  return { extraWidth: MARKER_MARGIN + LEGEND_PADDING + columns * LEGEND_COLUMN_WIDTH, extraHeight: 0, belowChart };
+  return { extraWidth: MARKER_MARGIN + LEGEND_PADDING + columns * columnWidth, extraHeight: 0, belowChart };
 }
 
 export interface ChartLayout {

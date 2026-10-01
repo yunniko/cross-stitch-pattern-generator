@@ -288,6 +288,12 @@ impl PixelSource for Preview<'_> {
         let tile_row = cs * 4;
         out.clear();
         out.resize(row_bytes * rows as usize, 0);
+        // A half stitch keeps the stitch's pixels and cuts their alpha by the corners' coverage (G-082, D259).
+        let masks: Vec<Vec<u8>> = if self.pattern.has_halves() {
+            (0..3u8).map(|k| crate::halfstitch::mask(k, cs)).collect()
+        } else {
+            Vec::new()
+        };
         for r in 0..rows as usize {
             let y = y0 as usize + r;
             let stitch_row = y / cs;
@@ -307,13 +313,28 @@ impl PixelSource for Preview<'_> {
                 }
                 let start = r * row_bytes + sx * tile_row;
                 let stitch = &self.tiles[v as usize][tile_offset..tile_offset + tile_row];
+                let kind = self.pattern.kind_at(stitch_row * stitches_x + sx);
+                let mask_row = (y % cs) * cs;
+                let mask = if kind == 0 || masks.is_empty() {
+                    None
+                } else {
+                    Some(&masks[kind as usize][mask_row..mask_row + cs])
+                };
+                // The stitch's alpha at pixel `i` of this row, cut by the half stitch's corners where there is one.
+                let alpha = |i: usize, s: &[u8]| -> u32 {
+                    match mask {
+                        Some(m) => (s[3] as f64 * m[i] as f64 / 255.0).round() as u32,
+                        None => s[3] as u32,
+                    }
+                };
                 if self.ground.is_some() {
                     // The stitch's soft edges over the canvas, straight alpha; the result is opaque.
-                    for (d, s) in out[start..start + tile_row]
+                    for (i, (d, s)) in out[start..start + tile_row]
                         .chunks_exact_mut(4)
                         .zip(stitch.chunks_exact(4))
+                        .enumerate()
                     {
-                        let a = s[3] as u32;
+                        let a = alpha(i, s);
                         for k in 0..3 {
                             d[k] = ((s[k] as u32 * a + d[k] as u32 * (255 - a) + 127) / 255) as u8;
                         }
@@ -321,6 +342,11 @@ impl PixelSource for Preview<'_> {
                     }
                 } else {
                     out[start..start + tile_row].copy_from_slice(stitch);
+                    if let Some(m) = mask {
+                        for (i, d) in out[start..start + tile_row].chunks_exact_mut(4).enumerate() {
+                            d[3] = (d[3] as f64 * m[i] as f64 / 255.0).round() as u8;
+                        }
+                    }
                 }
             }
         }

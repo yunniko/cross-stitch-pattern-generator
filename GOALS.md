@@ -60,7 +60,7 @@ selection, symmetry and fills like any cell).
 - [x] M3 -- **On screen.** Color and B&W cut-corner cells (the cut's size is a calibrated constant, a `judgment` decision looked
   at on screen), the symbol placed in what remains; Stitched view with the texture clipped to the cut shape; pointer dot,
   outline and rulers unchanged. Looked at on screen at several zoom levels.
-- [ ] M4 -- **Exports, TypeScript and Rust together.** PNG chart and preview, A4 PDF, legend, OXS (real part stitches if the
+- [x] M4 -- **Exports, TypeScript and Rust together.** PNG chart and preview, A4 PDF, legend, OXS (real part stitches if the
   format's half-cross direction is verified against the spec; else documented approximation), editable JSON, Pattern Keeper PDF
   (halves as whole, counts merged). Rust model, render, preview, pdf, a4, oxs, editable and json brought to parity; the
   equivalence harness extended; a chart without halves still byte-identical.
@@ -80,6 +80,11 @@ the biggest milestone and may split; (b) 22 modules read `cellPalette`, so the s
 the PDF's real text symbols, so its export must not draw cut shapes it cannot read as stitches.
 
 **Progress log** (newest first):
+- 2026-10-01 -- M4 built (D260). Rust: `halfstitch.rs` (the cut, its mask), `Pattern.kinds`, chart cells, the full-chart legend, the A4 colour key
+  (a Type column, a row per stitch type and thread, a Half stitches line), the preview picture and the editable file carry half stitches;
+  the Pattern Keeper PDF and the OXS file take every half stitch as whole. TypeScript twin of each. Found on the way: the Rust editable
+  file did not write `backstitch` at all; it does now. 8 Rust integration tests, 957 unit; `half-stitch-export.spec.ts` runs every
+  export through the Rust processor and the pictures were looked at. A chart with no half stitch exports the same bytes as before.
 - 2026-10-01 -- M2 and M3 built (D259). The Stitch type dropdown (top bar, shown for the brush, Fill, shapes and Lasso fill, remembered) and
   every tool lay the kind chosen, symmetry mirroring "/" as "\\"; the lock puts a refused cell back with its kind. Colour and B&W draw the cell
   with the two corners cut (30 %), the Stitched view cuts the stitch texture with a supersampled mask; undo, redo, autosave keep them.

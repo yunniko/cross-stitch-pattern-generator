@@ -1,3 +1,4 @@
+import { hasHalfStitches, kindWord, legendEntries, STITCH_WHOLE, type LegendEntry } from "../editor/stitch-kind";
 import { createCanvas, type AnyCanvas } from "./canvas-backend";
 import type { ChartDrawingContext } from "./chart-drawing-context";
 import { luminance, rgbToHex } from "../color/color";
@@ -14,6 +15,7 @@ import {
   truncateToWidth,
   type RenderMode,
   type SymbolStamps,
+  fillStitchCell,
 } from "./render";
 import { THREAD_BRANDS } from "../threads/thread-brands";
 import { filledStitchCount, formatColorCount, formatStitchCount, type PaletteColor, type StitchPattern } from "../types";
@@ -245,14 +247,15 @@ export function drawA4LegendPage(ctx: ChartDrawingContext, pattern: StitchPatter
   const printableWidthPx = layout.pageWidthPx - 2 * layout.marginPx;
   const columns = Math.max(1, Math.floor(printableWidthPx / columnWidthPx));
 
-  pattern.palette.forEach((color, i) => {
+  legendEntries(pattern).forEach((entry, i) => {
+    const color = pattern.palette[entry.colorIndex];
     const col = i % columns;
     const row = Math.floor(i / columns);
     const x = layout.marginPx + col * columnWidthPx;
     const y = gridTop + row * rowHeightPx;
 
-    ctx.fillStyle = `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`;
-    ctx.fillRect(x, y, swatchPx, swatchPx);
+    // The stitch as the chart draws it: a half stitch's cut corners are part of the swatch (G-082).
+    fillStitchCell(ctx, x, y, swatchPx, `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`, entry.kind, "#ffffff");
     ctx.strokeStyle = GRID_LINE_COLOR;
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, swatchPx, swatchPx);
@@ -274,7 +277,10 @@ export function drawA4LegendPage(ctx: ChartDrawingContext, pattern: StitchPatter
 
     ctx.fillStyle = "#666666";
     ctx.font = `${detailFontPx}px ${FONT_STACK}`;
-    ctx.fillText(`${rgbToHex(color.rgb)} · ${color.count} sts`, textX, y + swatchPx / 2 + nameFontPx * 0.6);
+    const detail = hasHalfStitches(pattern)
+      ? `${kindWord(entry.kind)} · ${entry.count} sts`
+      : `${rgbToHex(color.rgb)} · ${color.count} sts`;
+    ctx.fillText(detail, textX, y + swatchPx / 2 + nameFontPx * 0.6);
   });
 }
 
@@ -370,6 +376,8 @@ export function buildDetailRows(pattern: StitchPattern, aidaCount: number, sizeU
   ];
   if (pattern.threadBrand) rows.push(["Thread", THREAD_BRANDS[pattern.threadBrand].label]);
   rows.push(["Color count", formatColorCount(pattern.palette.length)]);
+  // How many of those stitches are half stitches (G-082); the Color key lists each type and thread.
+  if (hasHalfStitches(pattern)) rows.push(["Half stitches", String(pattern.cellKind!.reduce((n, kind) => n + (kind !== 0 ? 1 : 0), 0))]);
   return rows;
 }
 
@@ -429,15 +437,19 @@ export interface KeyColumns {
   stitchW: number;
   skeinX: number;
   skeinW: number;
+  /** The stitch type ("whole", "half /", "half \\"), only when the chart has half stitches (G-082). */
+  typeX: number;
+  typeW: number;
   totalWidth: number;
 }
 
-export function computeKeyColumns(printableWidthPx: number, hasThreadCode: boolean, dpi: number = PRINT_DPI): KeyColumns {
+export function computeKeyColumns(printableWidthPx: number, hasThreadCode: boolean, dpi: number = PRINT_DPI, hasType = false): KeyColumns {
   const symbolW = mmToPx(12, dpi);
   const codeW = hasThreadCode ? mmToPx(18, dpi) : 0;
+  const typeW = hasType ? mmToPx(20, dpi) : 0;
   const stitchW = mmToPx(28, dpi);
   const skeinW = mmToPx(28, dpi);
-  const nameW = Math.max(mmToPx(30, dpi), printableWidthPx - symbolW - codeW - stitchW - skeinW);
+  const nameW = Math.max(mmToPx(30, dpi), printableWidthPx - symbolW - codeW - typeW - stitchW - skeinW);
 
   let x = 0;
   const symbolX = x;
@@ -446,12 +458,14 @@ export function computeKeyColumns(printableWidthPx: number, hasThreadCode: boole
   x += codeW;
   const nameX = x;
   x += nameW;
+  const typeX = x;
+  x += typeW;
   const stitchX = x;
   x += stitchW;
   const skeinX = x;
   x += skeinW;
 
-  return { symbolX, symbolW, codeX, codeW, nameX, nameW, stitchX, stitchW, skeinX, skeinW, totalWidth: x };
+  return { symbolX, symbolW, codeX, codeW, nameX, nameW, typeX, typeW, stitchX, stitchW, skeinX, skeinW, totalWidth: x };
 }
 
 /** Draws the "Color key" table's header row plus as many `colors` rows as given, with a full grid, starting at `(x, yStart)`. Returns the y just past the drawn block. */
@@ -461,14 +475,15 @@ function drawKeyTableBlock(
   yStart: number,
   cols: KeyColumns,
   hasThreadCode: boolean,
-  colors: readonly PaletteColor[],
+  pattern: StitchPattern,
+  entries: readonly LegendEntry[],
   aidaCount: number,
   dpi: number
 ): number {
   const headerHeightPx = mmToPx(KEY_HEADER_ROW_HEIGHT_MM, dpi);
   const rowHeightPx = mmToPx(KEY_ROW_HEIGHT_MM, dpi);
   const headerFontPx = mmToPx(KEY_HEADER_FONT_MM, dpi);
-  const totalHeight = headerHeightPx + colors.length * rowHeightPx;
+  const totalHeight = headerHeightPx + entries.length * rowHeightPx;
 
   // Header row background + text.
   ctx.fillStyle = "#f0f0f0";
@@ -483,19 +498,20 @@ function drawKeyTableBlock(
   ctx.textAlign = "left";
   ctx.fillText("Color name", x + cols.nameX + mmToPx(1.5, dpi), headerMidY);
   ctx.textAlign = "center";
+  if (cols.typeW > 0) ctx.fillText("Type", x + cols.typeX + cols.typeW / 2, headerMidY);
   ctx.fillText("Stitch count", x + cols.stitchX + cols.stitchW / 2, headerMidY);
   ctx.fillText("Skein count", x + cols.skeinX + cols.skeinW / 2, headerMidY);
 
   // Data rows.
-  colors.forEach((color, i) => {
+  entries.forEach((entry, i) => {
+    const color = pattern.palette[entry.colorIndex];
     const rowTop = yStart + headerHeightPx + i * rowHeightPx;
     const midY = rowTop + rowHeightPx / 2;
 
     const swatchSize = Math.min(cols.symbolW - mmToPx(2, dpi), rowHeightPx - mmToPx(2, dpi));
     const swatchX = x + cols.symbolX + (cols.symbolW - swatchSize) / 2;
     const swatchY = rowTop + (rowHeightPx - swatchSize) / 2;
-    ctx.fillStyle = `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`;
-    ctx.fillRect(swatchX, swatchY, swatchSize, swatchSize);
+    fillStitchCell(ctx, swatchX, swatchY, swatchSize, `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`, entry.kind, "#ffffff");
     ctx.strokeStyle = GRID_LINE_COLOR;
     ctx.lineWidth = 1;
     ctx.strokeRect(swatchX, swatchY, swatchSize, swatchSize);
@@ -520,8 +536,11 @@ function drawKeyTableBlock(
 
     ctx.font = `${headerFontPx}px ${FONT_STACK}`;
     ctx.textAlign = "center";
-    ctx.fillText(String(color.count), x + cols.stitchX + cols.stitchW / 2, midY);
-    ctx.fillText(String(estimateSkeins(color.count, aidaCount)), x + cols.skeinX + cols.skeinW / 2, midY);
+    if (cols.typeW > 0) ctx.fillText(kindWord(entry.kind), x + cols.typeX + cols.typeW / 2, midY);
+    ctx.fillText(String(entry.count), x + cols.stitchX + cols.stitchW / 2, midY);
+    // A half stitch is half a stitch of thread, rounded up (G-082).
+    const thread = entry.kind === STITCH_WHOLE ? entry.count : Math.ceil(entry.count / 2);
+    ctx.fillText(String(estimateSkeins(thread, aidaCount)), x + cols.skeinX + cols.skeinW / 2, midY);
   });
 
   // Grid lines: outer rect, header/body divider (part of the row lines
@@ -529,14 +548,21 @@ function drawKeyTableBlock(
   ctx.strokeStyle = GRID_LINE_COLOR;
   ctx.lineWidth = 1;
   ctx.strokeRect(x, yStart, cols.totalWidth, totalHeight);
-  for (let i = 0; i <= colors.length; i++) {
+  for (let i = 0; i <= entries.length; i++) {
     const ly = yStart + headerHeightPx + i * rowHeightPx;
     ctx.beginPath();
     ctx.moveTo(x, ly);
     ctx.lineTo(x + cols.totalWidth, ly);
     ctx.stroke();
   }
-  const columnXs = [cols.symbolX, ...(hasThreadCode ? [cols.codeX] : []), cols.nameX, cols.stitchX, cols.skeinX];
+  const columnXs = [
+    cols.symbolX,
+    ...(hasThreadCode ? [cols.codeX] : []),
+    cols.nameX,
+    ...(cols.typeW > 0 ? [cols.typeX] : []),
+    cols.stitchX,
+    cols.skeinX,
+  ];
   for (const colX of columnXs) {
     if (colX === 0) continue; // left edge already drawn by the outer rect
     ctx.beginPath();
@@ -593,7 +619,7 @@ export function planInfoPages(pattern: StitchPattern, layout: A4Layout, options:
 
   const title = infoPageTitle(pattern.name, options.authorName);
   const detailRows = buildDetailRows(pattern, options.aidaCount, options.sizeUnit);
-  const cols = computeKeyColumns(printableWidthPx, hasThreadCode, layout.dpi);
+  const cols = computeKeyColumns(printableWidthPx, hasThreadCode, layout.dpi, hasHalfStitches(pattern));
 
   const titleFontPx = mmToPx(INFO_TITLE_FONT_MM, layout.dpi);
   const gapPx = mmToPx(INFO_SECTION_GAP_MM, layout.dpi);
@@ -608,7 +634,8 @@ export function planInfoPages(pattern: StitchPattern, layout: A4Layout, options:
   const rowsOnPage1 = Math.max(1, Math.floor((printableHeightPx - page1FixedHeightPx) / keyRowHeightPx));
   const rowsPerContinuationPage = Math.max(1, Math.floor((printableHeightPx - continuationFixedHeightPx) / keyRowHeightPx));
 
-  const totalColors = pattern.palette.length;
+  // One key row for each stitch type and thread in use: a thread per row unless the chart has half stitches (G-082).
+  const totalColors = legendEntries(pattern).length;
   const remainingAfterPage1 = Math.max(0, totalColors - rowsOnPage1);
   const continuationPageCount = remainingAfterPage1 === 0 ? 0 : Math.ceil(remainingAfterPage1 / rowsPerContinuationPage);
   const totalPages = 1 + continuationPageCount;
@@ -656,7 +683,8 @@ export function drawInfoPage1(
     y,
     plan.cols,
     plan.hasThreadCode,
-    pattern.palette.slice(0, rowsOnPage1Actual),
+    pattern,
+    legendEntries(pattern).slice(0, rowsOnPage1Actual),
     aidaCount,
     layout.dpi
   );
@@ -666,8 +694,9 @@ export function drawInfoPage1(
 /** Draws one "Color key (continued)" page's content -- see `planInfoPages`. `pageNumber` is this page's 1-based position in the whole info-pages document (page 1 is `drawInfoPage1`, so the first continuation page is 2). */
 export function drawInfoContinuationPage(
   ctx: ChartDrawingContext,
+  pattern: StitchPattern,
   plan: InfoPagesPlan,
-  colors: readonly PaletteColor[],
+  entries: readonly LegendEntry[],
   pageNumber: number,
   layout: A4Layout,
   aidaCount: number
@@ -684,7 +713,7 @@ export function drawInfoContinuationPage(
   ctx.fillText("Color key (continued)", layout.marginPx, cy);
   cy += captionFontPx * 1.8;
 
-  drawKeyTableBlock(ctx, layout.marginPx, cy, plan.cols, plan.hasThreadCode, colors, aidaCount, layout.dpi);
+  drawKeyTableBlock(ctx, layout.marginPx, cy, plan.cols, plan.hasThreadCode, pattern, entries, aidaCount, layout.dpi);
   drawPageFooter(ctx, layout, pageNumber, plan.totalPages);
 }
 
@@ -713,7 +742,15 @@ export function renderA4InfoPages(pattern: StitchPattern, layout: A4Layout, opti
   for (let p = 0; p < plan.totalPages - 1; p++) {
     const { canvas, ctx } = newCanvas();
     const rowsHere = Math.min(plan.rowsPerContinuationPage, plan.totalColors - consumed);
-    drawInfoContinuationPage(ctx, plan, pattern.palette.slice(consumed, consumed + rowsHere), p + 2, layout, options.aidaCount);
+    drawInfoContinuationPage(
+      ctx,
+      pattern,
+      plan,
+      legendEntries(pattern).slice(consumed, consumed + rowsHere),
+      p + 2,
+      layout,
+      options.aidaCount
+    );
     consumed += rowsHere;
     pages.push(canvas);
   }

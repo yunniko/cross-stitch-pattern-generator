@@ -106,3 +106,47 @@ export function kindCounts(pattern: Pick<StitchPattern, "cellPalette" | "cellKin
   }
   return counts;
 }
+
+/** One row of a legend: a thread in one stitch type, with how many cells it has (G-082). */
+export interface LegendEntry {
+  colorIndex: number;
+  kind: StitchKind;
+  count: number;
+}
+
+/**
+ * One legend row for each stitch type and thread the chart uses, so a reader can tell every combination apart (Owner,
+ * 2026-10-01). A chart without half stitches has one row per thread, exactly as before. A thread with no stitch at all keeps
+ * its one (empty) whole row.
+ */
+export function legendEntries(pattern: Pick<StitchPattern, "palette" | "cellPalette" | "cellKind">): LegendEntry[] {
+  if (!hasHalfStitches(pattern))
+    return pattern.palette.map((color) => ({ colorIndex: color.index, kind: STITCH_WHOLE, count: color.count }));
+  const entries: LegendEntry[] = [];
+  for (const color of pattern.palette) {
+    const counts = kindCounts(pattern, color.index);
+    const before = entries.length;
+    for (const kind of [STITCH_WHOLE, STITCH_SLASH, STITCH_BACKSLASH] as const) {
+      if (counts[kind] > 0) entries.push({ colorIndex: color.index, kind, count: counts[kind] });
+    }
+    if (entries.length === before) entries.push({ colorIndex: color.index, kind: STITCH_WHOLE, count: 0 });
+  }
+  return entries;
+}
+
+/** The legend's word for a kind. */
+export function kindWord(kind: number): string {
+  return kind === STITCH_SLASH ? "half /" : kind === STITCH_BACKSLASH ? "half \\" : "whole";
+}
+
+/** What a thread's stitches amount to for buying: a half stitch is half a stitch of thread, rounded up. */
+export function threadStitches(pattern: Pick<StitchPattern, "palette" | "cellPalette" | "cellKind">, paletteIndex: number): number {
+  if (!hasHalfStitches(pattern)) return pattern.palette[paletteIndex].count;
+  const [whole, slash, backslash] = kindCounts(pattern, paletteIndex);
+  return whole + Math.ceil((slash + backslash) / 2);
+}
+
+/** The chart as the Pattern Keeper PDF and the OXS file carry it: every half stitch a whole one (Owner, 2026-10-01). */
+export function wholeStitches<T extends Pick<StitchPattern, "cellKind">>(pattern: T): T {
+  return pattern.cellKind ? { ...pattern, cellKind: undefined } : pattern;
+}

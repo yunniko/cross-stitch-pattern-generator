@@ -396,8 +396,9 @@ pub fn build_reporting(
         draw(&mut fonts, &mut |pg| {
             a4::draw_info_continuation(
                 pg,
+                p,
                 &plan,
-                &p.palette[from..to],
+                &p.legend_entries()[from..to],
                 k + 2,
                 &l,
                 request.aida_count,

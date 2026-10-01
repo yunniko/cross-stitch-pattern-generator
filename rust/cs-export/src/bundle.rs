@@ -151,8 +151,9 @@ pub fn add_a4_pages_reporting(
         info.push(page_png(l.page_w, l.page_h, |c| {
             a4::draw_info_continuation(
                 c,
+                p,
                 &plan,
-                &p.palette[from..to],
+                &p.legend_entries()[from..to],
                 k + 2,
                 &l,
                 request.aida_count,
