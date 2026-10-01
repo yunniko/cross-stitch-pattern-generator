@@ -10,7 +10,7 @@ export const DEFAULT_EXPORT_CELL_MM = 5.5;
  * The space outside the pattern on each A4 page the Rust exporter gives the page's numbers, its overlap labels and its letter
  * (G-083). The Pattern Keeper PDF keeps the narrower gutter it has always had (`NUMBER_GUTTER_MM`), so it is not touched.
  */
-export const A4_PAGE_GUTTER_MM = 12;
+export const A4_PAGE_GUTTER_MM = 8;
 /** The margin of those pages: narrow, as a printer allows (the Owner asked for smaller borders). */
 export const A4_PAGE_MARGIN_MM = 8;
 

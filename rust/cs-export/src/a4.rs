@@ -125,7 +125,7 @@ fn layout_for(
 }
 
 /// The space outside the pattern on an A4 page of the A4 export (G-083), in millimetres.
-pub const A4_PAGE_GUTTER_MM: f64 = 12.0;
+pub const A4_PAGE_GUTTER_MM: f64 = 8.0;
 /// The margin of those pages: narrow, as a printer allows (G-083, the Owner asked for smaller borders).
 pub const A4_PAGE_MARGIN_MM: f64 = 8.0;
 
