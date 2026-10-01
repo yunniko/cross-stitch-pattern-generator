@@ -80,6 +80,10 @@ the biggest milestone and may split; (b) 22 modules read `cellPalette`, so the s
 the PDF's real text symbols, so its export must not draw cut shapes it cannot read as stitches.
 
 **Progress log** (newest first):
+- 2026-10-01 -- Deployed 43bdb97 (M1 to M5) at the Owner's "deploy if no complications": none needed a decision. App and Rust processor rebuilt;
+  the half-stitch, half-stitch-export and text-tab specs pass 17 of 17 against the live site; the other sites are unaffected. Waiting on the
+  Owner's look and sign-off. Known and logged, not done: the photo-overlay view shows a half stitch as its symbol only; OXS import keeps
+  part stitches as whole (D260).
 - 2026-10-01 -- M5: README and HANDOVER written; a reload keeps half stitches (autosave e2e). Full suite against the Rust processor: 503 of 505
   e2e (the 2 admin-stats cases pass alone: 2 of 2), 958 unit, 8 Rust integration tests. OXS import still opens part stitches as whole ones:
   the spec (direction 1 "/", 2 "\\") does not say which triangle a single colour fills, so a native reading would be a guess (D260).
