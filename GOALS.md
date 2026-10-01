@@ -81,7 +81,7 @@ the PDF's real text symbols, so its export must not draw cut shapes it cannot re
 
 **Progress log** (newest first):
 - 2026-10-01 -- The Owner, after looking: the cut at 40 % (D261, replacing 30 %). Constant changed in TypeScript and Rust, the mask sums
-  recomputed; 958 unit, 8 Rust integration tests; looked at in Color and Stitched. Deployed with the next push.
+  recomputed; 958 unit, 8 Rust integration tests; looked at in Color and Stitched. Deployed as 8ed29e9; the half-stitch specs pass 8 of 8 against the live site.
 - 2026-10-01 -- Deployed 43bdb97 (M1 to M5) at the Owner's "deploy if no complications": none needed a decision. App and Rust processor rebuilt;
   the half-stitch, half-stitch-export and text-tab specs pass 17 of 17 against the live site; the other sites are unaffected. Waiting on the
   Owner's look and sign-off. Known and logged, not done: the photo-overlay view shows a half stitch as its symbol only; OXS import keeps
