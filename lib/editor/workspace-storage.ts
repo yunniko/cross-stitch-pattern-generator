@@ -57,6 +57,10 @@ export interface WorkspaceOptions {
   ditherTexture: DitherTexture;
   /** Vivid for the *next* Generate (G-061): a stitch keeps the chroma of its most colourful part instead of averaging it away. */
   vivid: boolean;
+  /** Backstitch traced from the lines of the picture on the *next* Generate (G-084); off unless asked for. */
+  backstitchLines: boolean;
+  /** How readily it takes a faint line for one, 0 to 1 in steps of 0.1 (G-084). */
+  backstitchSensitivity: number;
   /** How many stitches across one press of the brush covers (G-064); odd only, so every stamp has a centre. */
   brushSize: BrushSize;
   /** The shape of that press: a block, or the disc that fits it. */
@@ -96,6 +100,8 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   ditherMode: "off",
   ditherTexture: DEFAULT_DITHER_TEXTURE,
   vivid: false,
+  backstitchLines: false,
+  backstitchSensitivity: 0.5,
   brushSize: DEFAULT_BRUSH_SIZE,
   brushShape: DEFAULT_BRUSH_SHAPE,
   shapeFill: "outline",
@@ -178,6 +184,12 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       ditherTexture: isValidDitherTexture(parsed.ditherTexture) ? parsed.ditherTexture : DEFAULT_DITHER_TEXTURE,
       // Absent in options stored before G-061, so anything that is not a boolean falls back to off.
       vivid: typeof parsed.vivid === "boolean" ? parsed.vivid : DEFAULT_OPTIONS.vivid,
+      // Absent in options stored before G-084; a value outside 0 to 1 reads as the default.
+      backstitchLines: typeof parsed.backstitchLines === "boolean" ? parsed.backstitchLines : DEFAULT_OPTIONS.backstitchLines,
+      backstitchSensitivity:
+        typeof parsed.backstitchSensitivity === "number" && parsed.backstitchSensitivity >= 0 && parsed.backstitchSensitivity <= 1
+          ? Math.round(parsed.backstitchSensitivity * 10) / 10
+          : DEFAULT_OPTIONS.backstitchSensitivity,
       // A size the pane no longer offers, or one stored before G-064, reads as the default rather than as a
       // stamp nothing can draw.
       brushSize: (BRUSH_SIZES as readonly number[]).includes(parsed.brushSize as number)

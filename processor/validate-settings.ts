@@ -51,6 +51,16 @@ export function settingsError(body: unknown): string | null {
   if (b.vivid !== undefined && typeof b.vivid !== "boolean") {
     return "vivid must be true or false.";
   }
+  // The line tracing (G-084): a flag, and a sensitivity between 0 and 1.
+  if (b.backstitchLines !== undefined && typeof b.backstitchLines !== "boolean") {
+    return "backstitchLines must be true or false.";
+  }
+  if (
+    b.backstitchSensitivity !== undefined &&
+    (typeof b.backstitchSensitivity !== "number" || !(b.backstitchSensitivity >= 0 && b.backstitchSensitivity <= 1))
+  ) {
+    return "backstitchSensitivity must be a number between 0 and 1.";
+  }
   // Whole numbers in range, or nothing: a slider cannot produce anything else, and the pipeline should not
   // be asked to make sense of one that did (G-074).
   if (!isValidPhotoAdjust(b.photoAdjust)) {

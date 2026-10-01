@@ -383,6 +383,46 @@ export function PhotoPane({
       </section>
 
       <section className="flex flex-col gap-2">
+        <span className={GROUP_LABEL}>Lines</span>
+        <label
+          className="flex items-center justify-between gap-3 text-[13px]"
+          title="Finds thin dark lines in a drawing (outlines, whiskers, lettering) and stitches them as backstitch instead of a ragged row of stitches"
+        >
+          Backstitch from lines
+          <input
+            type="checkbox"
+            checked={options.backstitchLines}
+            onChange={(e) => onChange("backstitchLines", e.target.checked)}
+            className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
+          />
+        </label>
+        {options.backstitchLines ? (
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-baseline justify-between">
+              <label className="text-[11px] text-muted" htmlFor="backstitch-sensitivity">
+                Line sensitivity
+              </label>
+              <span className="font-mono text-[11px] text-ink">{Math.round(options.backstitchSensitivity * 10)}</span>
+            </div>
+            <input
+              id="backstitch-sensitivity"
+              type="range"
+              min={0}
+              max={10}
+              value={Math.round(options.backstitchSensitivity * 10)}
+              aria-label="Line sensitivity"
+              onChange={(e) => onChange("backstitchSensitivity", Number(e.target.value) / 10)}
+              className="min-w-0 accent-[var(--at-accent)]"
+            />
+          </div>
+        ) : null}
+        <p className="text-[11px] leading-4 text-muted">
+          For drawings: thin dark lines become backstitch in their own thread, and the stitches under them take the colour beside them. A
+          photograph with texture everywhere gets no lines.
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-2">
         <span className={GROUP_LABEL}>Algorithm</span>
         <SegmentedControl
           fill

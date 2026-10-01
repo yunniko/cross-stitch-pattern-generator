@@ -68,6 +68,8 @@ describe("workspace-storage", () => {
       ditherMode: "off",
       ditherTexture: DEFAULT_DITHER_TEXTURE,
       vivid: false,
+      backstitchLines: false,
+      backstitchSensitivity: 0.5,
       brushSize: 1,
       brushShape: "round",
       shapeFill: "outline",
@@ -106,6 +108,8 @@ describe("workspace-storage", () => {
         ditherMode: "off" as const,
         ditherTexture: DEFAULT_DITHER_TEXTURE,
         vivid: true,
+        backstitchLines: true,
+        backstitchSensitivity: 0.8,
         brushSize: 7 as const,
         brushShape: "square" as const,
         shapeFill: "filled" as const,
@@ -165,6 +169,15 @@ describe("workspace-storage", () => {
     it("falls back to the default when doubleClickFill is not a boolean", () => {
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, doubleClickFill: "no" }));
       expect(loadWorkspaceOptions().doubleClickFill).toBe(true);
+    });
+
+    it("keeps the line tracing across a reload, and reads a bad value as its default (G-084)", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, backstitchLines: true, backstitchSensitivity: 0.3 });
+      expect(loadWorkspaceOptions()).toMatchObject({ backstitchLines: true, backstitchSensitivity: 0.3 });
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, backstitchLines: "yes", backstitchSensitivity: 7 }));
+      expect(loadWorkspaceOptions()).toMatchObject({ backstitchLines: false, backstitchSensitivity: 0.5 });
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
+      expect(loadWorkspaceOptions()).toMatchObject({ backstitchLines: false, backstitchSensitivity: 0.5 });
     });
 
     it("keeps Vivid across a reload, and reads anything but a boolean as off (G-061)", () => {

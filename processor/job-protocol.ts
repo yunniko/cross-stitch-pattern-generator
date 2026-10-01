@@ -32,6 +32,8 @@ export interface JobSettings {
   ditherMode?: DitherMode;
   ditherTexture?: DitherTexture;
   vivid?: boolean;
+  backstitchLines?: boolean;
+  backstitchSensitivity?: number;
 }
 
 /**

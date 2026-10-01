@@ -28,6 +28,8 @@ function requestFrom(overrides: Record<string, unknown> = {}) {
     photoAdjust: options.photoAdjust,
     ditherMode: options.ditherMode,
     vivid: options.vivid,
+    backstitchLines: options.backstitchLines,
+    backstitchSensitivity: options.backstitchSensitivity,
     ...overrides,
   };
 }
@@ -97,6 +99,17 @@ describe("processor settings validation", () => {
     expect(settingsError(requestFrom({ vivid: true }))).toBeNull();
     expect(settingsError(requestFrom({ vivid: false }))).toBeNull();
     expect(settingsError(requestFrom({ vivid: undefined }))).toBeNull();
+  });
+
+  it("accepts the line tracing and a sensitivity in range, and nothing else (G-084)", () => {
+    expect(settingsError(requestFrom({ backstitchLines: true, backstitchSensitivity: 0 }))).toBeNull();
+    expect(settingsError(requestFrom({ backstitchLines: true, backstitchSensitivity: 1 }))).toBeNull();
+    expect(settingsError(requestFrom({ backstitchLines: undefined, backstitchSensitivity: undefined }))).toBeNull();
+    expect(settingsError(requestFrom({ backstitchLines: "yes" }))).toMatch(/backstitchLines/);
+    expect(settingsError(requestFrom({ backstitchSensitivity: 1.5 }))).toMatch(/backstitchSensitivity/);
+    expect(settingsError(requestFrom({ backstitchSensitivity: -0.1 }))).toMatch(/backstitchSensitivity/);
+    expect(settingsError(requestFrom({ backstitchSensitivity: "high" }))).toMatch(/backstitchSensitivity/);
+    expect(settingsError(requestFrom({ backstitchSensitivity: Number.NaN }))).toMatch(/backstitchSensitivity/);
   });
 
   it("still refuses what it should", () => {

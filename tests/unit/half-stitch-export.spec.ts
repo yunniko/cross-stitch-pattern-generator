@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createBlankPattern } from "@/lib/editor/blank-pattern";
 import { addColor, withCellPalette } from "@/lib/editor/pattern-edit";
 import {
@@ -87,6 +87,16 @@ describe("the A4 colour key", () => {
 });
 
 describe("Pattern Keeper", () => {
+  // pdf-lib stamps CreationDate and ModDate from the clock, so two files built a second apart differ in two bytes; the
+  // comparison below failed now and then in a full run until the clock was frozen.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-01T12:00:00Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("is given every half stitch as a whole one: the PDF of a chart with half stitches is that of the same chart whole", async () => {
     const font = readFileSync(path.join(process.cwd(), "public", "fonts", "DejaVuSans.ttf"));
     const halves = chart([0, 0, 1, 1], [S, B, S, W]);
