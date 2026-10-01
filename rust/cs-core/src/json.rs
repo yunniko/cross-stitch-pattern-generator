@@ -32,6 +32,10 @@ struct Options {
     #[serde(default)]
     photo_adjust: Option<AdjustOptions>,
     #[serde(default)]
+    backstitch_lines: Option<bool>,
+    #[serde(default)]
+    backstitch_sensitivity: Option<f64>,
+    #[serde(default)]
     threads: Option<usize>,
 }
 
@@ -187,11 +191,30 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
             .as_ref()
             .map(AdjustOptions::resolve)
             .unwrap_or(NEUTRAL_ADJUST),
+        backstitch_lines: o.backstitch_lines.unwrap_or(false).then(|| {
+            o.backstitch_sensitivity
+                .filter(|v| v.is_finite())
+                .map_or(crate::lines::DEFAULT_SENSITIVITY, |v| v.clamp(0.0, 1.0))
+        }),
     };
     Ok((options, o.threads.unwrap_or(1).max(1)))
 }
 
 pub fn pattern_json(p: &StitchPattern) -> Value {
+    let mut out = pattern_json_base(p);
+    // Written only when there is some, so a chart made without it is the object it was.
+    if !p.backstitch.is_empty() {
+        out["backstitch"] = Value::Array(
+            p.backstitch
+                .iter()
+                .map(|l| json!({ "x1": l.x1, "y1": l.y1, "x2": l.x2, "y2": l.y2, "paletteIndex": l.palette_index }))
+                .collect(),
+        );
+    }
+    out
+}
+
+fn pattern_json_base(p: &StitchPattern) -> Value {
     let palette: Vec<Value> = p
         .palette
         .iter()

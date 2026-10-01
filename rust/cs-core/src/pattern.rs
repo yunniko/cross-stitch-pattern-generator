@@ -8,21 +8,24 @@ use crate::crisp::{finalize, plus, repair, stage};
 use crate::denoise::denoise_for_quantization_masked;
 use crate::dither::{dither_to_palette, DitherMode};
 use crate::dither_hand_drawn::{default_dither_texture, DitherTexture};
-use crate::downsample::{downsample_to_grid_vivid, empty_cell_mask, grid_dimensions_for, vivid_applies, VIVID_TOP_SHARE};
+use crate::downsample::{
+    downsample_to_grid_vivid, empty_cell_mask, grid_dimensions_for, vivid_applies, VIVID_TOP_SHARE,
+};
 use crate::edge_map::{
     compute_cell_importance_masked, compute_edge_magnitude_masked, opaque_pixel_mask,
     source_luminance,
 };
-use crate::photo_adjust::{adjust_image, PhotoAdjust};
+use crate::hue_reserve::reserve_hue_threads;
+use crate::lines::{trace_lines, LineTrace};
 use crate::names::{name_colors, symbol_set};
 use crate::optimize::{
     fix_diagonal_connections, recolor_small_components, run_multi_scale_optimizer, Ctx,
 };
 use crate::pair_evidence::compute_pair_edge_evidence_masked;
 use crate::palette_merge::{merge_similar_colors_with_empties, DEFAULT_MERGE_DISTANCE_SQUARED};
-use crate::hue_reserve::reserve_hue_threads;
+use crate::photo_adjust::{adjust_image, PhotoAdjust};
 use crate::quantize::{mean_oklab_as_rgb, quantize, vivid_oklab_as_rgb, Quantizer};
-use crate::threads::{apply_brand_palette, Brand};
+use crate::threads::{apply_brand_palette, thread_for, thread_name, Brand};
 use crate::{color, Image};
 use rayon::prelude::*;
 
@@ -60,6 +63,8 @@ pub struct BuildOptions {
     pub vivid: bool,
     /// The four photo sliders (G-074). Neutral leaves the photo exactly as it was decoded.
     pub photo_adjust: PhotoAdjust,
+    /// Backstitch from the lines of the picture (G-084): the sensitivity, 0 to 1, or `None` for none.
+    pub backstitch_lines: Option<f64>,
 }
 
 #[derive(Clone, Debug)]
@@ -98,6 +103,18 @@ pub struct StitchPattern {
     pub vivid: Option<bool>,
     /// The sliders the chart was generated with (G-074); `None` when they were all centred.
     pub photo_adjust: Option<PhotoAdjust>,
+    /// Backstitch traced from the picture (G-084); empty for every chart made without it.
+    pub backstitch: Vec<BackstitchLine>,
+}
+
+/// `BackstitchLine`: a straight line between two grid corners in the thread `palette_index`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BackstitchLine {
+    pub x1: i32,
+    pub y1: i32,
+    pub x2: i32,
+    pub y2: i32,
+    pub palette_index: usize,
 }
 
 /// Wall time per stage, in milliseconds, in pipeline order.
@@ -173,6 +190,15 @@ pub fn build_pattern_reporting(
     lap("adjust", times);
 
     let (gw, gh) = grid_dimensions_for(image.width, image.height, options.longer_side_stitches);
+    // The lines of a drawing are found first and painted out of the picture, so the stitches under a line take the colour
+    // beside it and the line becomes backstitch (G-084, D266). `None` leaves the picture and everything after it as it was.
+    let traced: Option<LineTrace> = options
+        .backstitch_lines
+        .and_then(|sensitivity| trace_lines(image, gw, gh, sensitivity));
+    let image = traced.as_ref().map_or(image, |t| &t.inpainted);
+    if traced.is_some() {
+        lap("lines", times);
+    }
     on_progress(0.1);
     // Transparency becomes absence: a cell the photo barely covers is an empty stitch, and the stages below read
     // neither colour nor structure from pixels that are not there (G-050, D196). Both masks are `None` for an opaque
@@ -508,17 +534,18 @@ pub fn build_pattern_reporting(
         // Recorded only when it is not the default, so a chart drawn with the shipped texture stays the file it was.
         dither_texture: (options.dither == DitherMode::HandDrawn
             && options.dither_texture != default_dither_texture())
-            .then(|| options.dither_texture.clone()),
+        .then(|| options.dither_texture.clone()),
         // Recorded when it acted, not when it was asked for: below the pixels-a-stitch floor there is no
         // sub-stitch colour to rescue and the cells are plain area means (D211).
         vivid: (options.vivid && vivid_applies(image.width, image.height, gw, gh)).then_some(true),
         // Centred sliders are recorded as nothing at all, so a chart made without them is the file it
         // was before they existed.
         photo_adjust: (!options.photo_adjust.is_neutral()).then_some(options.photo_adjust),
+        backstitch: Vec::new(),
     };
     let Some(brand) = options.brand else {
         on_progress(1.0);
-        return pattern;
+        return attach_backstitch(pattern, traced.as_ref(), None);
     };
     let result = apply_brand_palette(
         pattern,
@@ -530,5 +557,105 @@ pub fn build_pattern_reporting(
     );
     lap("brand", times);
     on_progress(1.0);
-    result
+    attach_backstitch(result, traced.as_ref(), Some(brand))
+}
+
+/// How near, in squared Oklab distance, an existing thread must be to the colour of the lines to serve as their thread.
+const SAME_THREAD_DISTANCE_SQUARED: f64 = 0.07 * 0.07;
+
+/// Puts the traced lines on the finished chart in one thread: an existing one when it is close enough to the lines'
+/// colour (or, in a brand's palette, the very thread the lines snap to), else a new one at the end of the palette, used
+/// by backstitch only (G-084, D266).
+fn attach_backstitch(
+    mut pattern: StitchPattern,
+    traced: Option<&LineTrace>,
+    brand: Option<Brand>,
+) -> StitchPattern {
+    let Some(trace) = traced else {
+        return pattern;
+    };
+    let symbols = symbol_set();
+    let existing = match brand {
+        Some(brand) => {
+            let (code, _, _) = thread_for(brand, trace.color);
+            pattern
+                .palette
+                .iter()
+                .position(|c| c.source.as_ref().is_some_and(|s| s.code == code))
+        }
+        None => {
+            let target = rgb_to_oklab(trace.color);
+            pattern
+                .palette
+                .iter()
+                .map(|c| {
+                    (
+                        c.index,
+                        crate::color::oklab_distance_sq(&target, &rgb_to_oklab(c.rgb)),
+                    )
+                })
+                .filter(|&(_, d)| d <= SAME_THREAD_DISTANCE_SQUARED)
+                .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+                .map(|(i, _)| i)
+        }
+    };
+    let index = match existing {
+        Some(i) => i,
+        // No symbol or index left for another thread: the lines take the nearest one there is.
+        None if pattern.palette.len() >= symbols.len().min(crate::EMPTY_CELL as usize) => {
+            let target = rgb_to_oklab(trace.color);
+            pattern
+                .palette
+                .iter()
+                .min_by(|a, b| {
+                    let da = crate::color::oklab_distance_sq(&target, &rgb_to_oklab(a.rgb));
+                    let db = crate::color::oklab_distance_sq(&target, &rgb_to_oklab(b.rgb));
+                    da.partial_cmp(&db).unwrap()
+                })
+                .map_or(0, |c| c.index)
+        }
+        None => {
+            let index = pattern.palette.len();
+            let (rgb, name, source) = match brand {
+                Some(brand) => {
+                    let (code, name, rgb) = thread_for(brand, trace.color);
+                    let source = crate::pattern::ThreadSource {
+                        brand: brand.id(),
+                        code: code.clone(),
+                    };
+                    (rgb, thread_name(&code, &name), Some(source))
+                }
+                None => {
+                    let mut all: Vec<Rgb> = pattern.palette.iter().map(|c| c.rgb).collect();
+                    all.push(trace.color);
+                    let mut name = name_colors(&all).pop().unwrap_or_default();
+                    if pattern.palette.iter().any(|c| c.name == name) {
+                        name = format!("{name} (lines)");
+                    }
+                    (trace.color, name, None)
+                }
+            };
+            pattern.palette.push(PaletteColor {
+                index,
+                rgb,
+                symbol: symbols[index].clone(),
+                name,
+                count: 0,
+                source,
+            });
+            index
+        }
+    };
+    pattern.backstitch = trace
+        .segments
+        .iter()
+        .map(|s| BackstitchLine {
+            x1: s.x1,
+            y1: s.y1,
+            x2: s.x2,
+            y2: s.y2,
+            palette_index: index,
+        })
+        .collect();
+    pattern
 }

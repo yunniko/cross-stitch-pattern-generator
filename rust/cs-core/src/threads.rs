@@ -91,11 +91,28 @@ fn nearest(rgb: Rgb, threads: &'static [Thread]) -> &'static Thread {
 }
 
 /// `formatThreadName`.
-fn thread_name(code: &str, name: &str) -> String {
+pub(crate) fn thread_name(code: &str, name: &str) -> String {
     if name.is_empty() {
         code.to_string()
     } else {
         format!("{code} - {name}")
+    }
+}
+
+/// The thread of `brand` nearest to `rgb`: its code, its name (empty when the brand has none) and its colour.
+pub fn thread_for(brand: Brand, rgb: Rgb) -> (String, String, Rgb) {
+    match brand {
+        Brand::Dmc | Brand::Cosmo => {
+            let t = nearest(rgb, if brand == Brand::Dmc { dmc() } else { cosmo() });
+            (t.code.clone(), t.name.clone(), t.rgb)
+        }
+        Brand::Anchor => {
+            let d = nearest(rgb, dmc());
+            let code = dmc_to_anchor()
+                .get(d.code.as_str())
+                .expect("every DMC code has an Anchor equivalent");
+            (code.to_string(), String::new(), d.rgb)
+        }
     }
 }
 
@@ -113,19 +130,7 @@ pub fn apply_brand_palette(
     let threads: Vec<(String, String, Rgb)> = pattern
         .palette
         .iter()
-        .map(|c| match brand {
-            Brand::Dmc | Brand::Cosmo => {
-                let t = nearest(c.rgb, if brand == Brand::Dmc { dmc() } else { cosmo() });
-                (t.code.clone(), t.name.clone(), t.rgb)
-            }
-            Brand::Anchor => {
-                let d = nearest(c.rgb, dmc());
-                let code = dmc_to_anchor()
-                    .get(d.code.as_str())
-                    .expect("every DMC code has an Anchor equivalent");
-                (code.to_string(), String::new(), d.rgb)
-            }
-        })
+        .map(|c| thread_for(brand, c.rgb))
         .collect();
 
     let mut index_by_code: HashMap<String, usize> = HashMap::new();

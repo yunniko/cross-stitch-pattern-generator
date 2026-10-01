@@ -21,10 +21,11 @@ pub mod dither_hand_drawn;
 pub mod downsample;
 pub mod edge_map;
 mod fdlibm;
-pub mod jsmath;
 #[cfg(feature = "json")]
 pub mod hue_reserve;
+pub mod jsmath;
 pub mod json;
+pub mod lines;
 pub mod names;
 pub mod optimize;
 pub mod pair_evidence;
