@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-081 · A Text tab: type a line, see it cell by cell, add it as a selection — DRAFT (2026-10-01; plan settled, awaiting the go-ahead)
+### G-081 · A Text tab: type a line, see it cell by cell, add it as a selection — ACTIVE (2026-10-01)
 - **What:** a fourth tab beside Photo, Chart and Threads with the settings for one line of lettering: **font** (a dropdown
   of the fonts installed on the Owner's own computer), **font type** (the faces that family has: regular, bold, italic,
   condensed and so on), **font size**, **font colour** (one of the chart's threads), the **text**, a **weight** slider to try
@@ -58,7 +58,7 @@ any piece.
 - *The tab itself* is additive: `InspectorTab` is a three-value union in `app/components/inspector.tsx`.
 
 **Milestones:**
-- [ ] M1 -- **Lettering to cells.** A pure module (`lib/editor/text-raster.ts`): a line of text, a face, a size in cells and a
+- [x] M1 -- **Lettering to cells.** A pure module (`lib/editor/text-raster.ts`): a line of text, a face, a size in cells and a
   weight -> a bitmap -> whole cells (a coverage threshold the weight moves, trimmed to the ink, with the glyph cells as the
   mask). Lines are kept as a list although one is used. Tests against the bundled DejaVu in a Node canvas: the size equals the
   cells asked for, a known word is stable, bold differs from regular, a heavier weight never has fewer stitches than a lighter
@@ -91,6 +91,15 @@ instead of failing. Right-to-left and complex scripts depend on the browser's te
 they are not specially tested in the first version.
 
 **Progress log** (newest first):
+- 2026-10-01 -- M1 built: `lib/editor/text-raster.ts` (a line of text, a face, a size in stitches and a weight -> whole stitches,
+  trimmed to the ink; lines kept as a list) with 11 unit tests against the bundled DejaVu in a Node canvas, all passing. The
+  legibility review (`docs/reviews/2026-10-01-text-legibility.md`, from the `domain-expert` agent) set the smallest size at 7
+  stitches and the warnings M3 shows under the preview (below 10: outline fonts lose curves; lowercase below 12; no letter spacing
+  control, so letters may touch below 12). Its numbers for letter height and the failure modes are inference, to be judged on
+  real fonts in the preview.
+- 2026-10-01 -- go-ahead: "yes, go ahead through all milestones if no decisions needed". M1 to M4 are built in turn; M5 holds the
+  deploy and the Owner's look, so the work stops before it for the Owner's word on the deploy. The one default left (the
+  starting spot) stands unless the Owner says otherwise. The legibility review for M1 is with the `domain-expert` agent.
 - 2026-10-01 -- the Owner answered the seven questions (see above); the plan is revised: one line, colours from the chart only
   (so Add changes no palette), a weight slider to try, Add as Paste. One default (the starting spot) left to confirm. Nothing
   built; waits for the go-ahead to start M1.
