@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-01 at bbc4c4b (G-081, deployed)
+Last verified: 2026-10-01 at bbc4c4b (G-081, deployed and signed off)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -14,7 +14,7 @@ Every signed-off goal, with what it produced and how it was verified, is in `doc
 
 **G-077, canvas textures — signed off and deployed 2026-09-30 (2e86c69), archived.** The Chart pane's Canvas texture buttons (`app/components/canvas-picker.tsx`; Off, Natural linen, Counted canvas from `lib/export/canvas-texture-catalog.ts`, each with columns, rows and an offset in cells) put a cloth behind the Stitched view over the whole viewer (`app/hooks/use-canvas-cloth.ts`, D250); "Canvas in exported preview" sends `canvas` with the export request and `rust/cs-export/src/preview.rs` lays the stitches over the ground (D251, TypeScript reference `lib/export/canvas-ground.ts`). The stitch textures (Classic, Pixel, Cell outline, Cell outline shaded, Cross 2) are in `lib/export/stitch-texture-catalog.ts` (D248, D249). Record in `docs/goals-archive/G-071-to-G-080.md`.
 
-**G-081, the Text tab — M1 to M6 deployed 2026-10-01 (4337881, then b17745c: Add blocked in view-only modes, same letter = same stitches D256, 41 bundled fonts in `lib/editor/bundled-fonts.ts` and `public/fonts/bundled/`, D257) built, not deployed.** `app/components/text-pane.tsx` (the fourth Inspector tab), `lib/editor/text-raster.ts` (text -> whole stitches, weight as a coverage threshold, minimum size 7), `lib/editor/local-fonts.ts` (the browser's font listing, a face loaded in memory, the typed-name fallback), `lib/editor/lettering-warnings.ts`, and `lib/editor/text-selection.ts` with `select.insert` (Add as Paste). The tab's text and thread live in `app/workspace.tsx`. The legibility review is `docs/reviews/2026-10-01-text-legibility.md`. Fonts and text never reach a request or a saved chart (D255). Verified at M6: 926 unit, Text-tab e2e 45 of 45 over three repeats. Verified at M4: 911 unit, 490 of 493 e2e (the two admin-stats cases pass alone; one fonts-listing timing case fixed), tsc, eslint, prettier.
+**G-081, the Text tab — signed off 2026-10-01 and archived; M1 to M6 deployed 2026-10-01 (4337881, then b17745c: Add blocked in view-only modes, same letter = same stitches D256, 41 bundled fonts in `lib/editor/bundled-fonts.ts` and `public/fonts/bundled/`, D257) built, not deployed.** `app/components/text-pane.tsx` (the fourth Inspector tab), `lib/editor/text-raster.ts` (text -> whole stitches, weight as a coverage threshold, minimum size 7), `lib/editor/local-fonts.ts` (the browser's font listing, a face loaded in memory, the typed-name fallback), `lib/editor/lettering-warnings.ts`, and `lib/editor/text-selection.ts` with `select.insert` (Add as Paste). The tab's text and thread live in `app/workspace.tsx`. The legibility review is `docs/reviews/2026-10-01-text-legibility.md`. Fonts and text never reach a request or a saved chart (D255). Verified at M6: 926 unit, Text-tab e2e 45 of 45 over three repeats. Verified at M4: 911 unit, 490 of 493 e2e (the two admin-stats cases pass alone; one fonts-listing timing case fixed), tsc, eslint, prettier.
 
 **G-080, a predictable cell cursor — signed off and deployed 2026-10-01 (cd6fbdb), archived.** A dot at the pointer (`drawPointerDot` in `app/editor-geometry.ts`, drawn by `app/hooks/use-chart-renderer.ts` with the outline) and a keyboard cursor (`app/hooks/use-keyboard-cursor.ts`, stepping in `lib/editor/keyboard-cursor.ts`): arrows move the stitch (Shift: ten), Enter is the pen, for the brush, Fill and the shape tools; it dispatches the pointer events the mouse would (D254). Record in `docs/goals-archive/G-071-to-G-080.md`.
 
@@ -368,6 +368,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
+- **Awaiting the Owner (from G-081):** whether to bundle the five fonts held back for greyer licences (Homespun, Jupiter Crash, BitPap, Chava, EXE Pixel Perfect; `docs/reviews/2026-10-01-bundled-font-licences.md`), and any BY-SA / BY-ND fonts from the earlier folders.
 - G-076 (stitch textures) was signed off 2026-09-30 and is archived.
 - G-075 (accounts) was signed off 2026-09-30 and is archived. G-074 (the four photo sliders) was signed
   off on 2026-09-27 and is archived, as is G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner:
