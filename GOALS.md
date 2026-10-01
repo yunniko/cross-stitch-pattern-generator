@@ -45,7 +45,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 **Progress log** (newest first):
 - 2026-10-01 -- The Owner: smaller A4 borders, the triangles against the grid's border, the overlap label right under the border at the bottom and
   turned a quarter turn counter-clockwise on the right. Margin 14 to 8 mm, gutter 14 to 12 mm; the numbers stand outside the triangles; the left label is
-  turned the same way (the Owner named the bottom and the right; the left follows the right). Looked at. Deployed with the next push.
+  turned the same way (the Owner named the bottom and the right; the left follows the right). Looked at. Deployed as 69c9273; the A4 specs pass 3 of 3 against the live site.
 - 2026-10-01 -- Deployed bf7d8b1 (M1 to M5). Full suite against the Rust processor: 505 of 508 e2e (3 pass alone); the A4 settings, A4 export and
   half-stitch export specs pass against the live site; the other sites are unaffected. Waiting on the Owner's look and sign-off.
 - 2026-10-01 -- built (D264). **Owner's answers:** (1) a heavy block frame; (2) the cell size applies to the A4 export only and the full-size
