@@ -23,9 +23,9 @@ const context: ContextFactory = (w, h) => createCanvas(w, h).getContext("2d") as
 
 describe("the bundled catalog", () => {
   it("names a file and a licence in the repository for every font", () => {
-    expect(BUNDLED_FONTS.length).toBeGreaterThanOrEqual(10);
+    expect(BUNDLED_FONTS.length).toBeGreaterThanOrEqual(30);
     for (const font of BUNDLED_FONTS) {
-      expect(existsSync(path.join(DIR, font.dir, "OFL.txt")), `${font.family} licence`).toBe(true);
+      expect(existsSync(path.join(DIR, font.dir, font.licenceFile)), `${font.family} licence`).toBe(true);
       for (const face of font.faces) expect(existsSync(path.join(DIR, font.dir, face.file)), `${font.family} ${face.style}`).toBe(true);
     }
   });
@@ -33,7 +33,7 @@ describe("the bundled catalog", () => {
   it("has unique names, at least one pixel font, and a regular face for each", () => {
     const names = BUNDLED_FONTS.map((f) => f.family);
     expect(new Set(names).size).toBe(names.length);
-    expect(BUNDLED_FONTS.filter((f) => f.kind === "pixel").length).toBeGreaterThanOrEqual(4);
+    expect(BUNDLED_FONTS.filter((f) => f.kind === "pixel").length).toBeGreaterThanOrEqual(20);
     for (const font of BUNDLED_FONTS) expect(font.faces.some((f) => f.style === "Regular")).toBe(true);
   });
 
@@ -41,6 +41,7 @@ describe("the bundled catalog", () => {
     const licences = readFileSync(path.join(DIR, "LICENSES.md"), "utf8");
     for (const font of BUNDLED_FONTS) expect(licences, font.family).toContain(font.family);
     expect(licences).toContain("SIL Open Font License");
+    for (const font of BUNDLED_FONTS) expect(licences, `${font.family} licence`).toContain(font.licence);
   });
 
   it("is told apart from a computer's own family of the same name by its id", () => {
@@ -77,22 +78,39 @@ describe("pixelSizeHint", () => {
     expect(pixelSizeHint(silk, 16)).toBeNull();
     expect(pixelSizeHint(silk, 10)).toEqual({ clean: [8, 16] });
     expect(pixelSizeHint(silk, 7)).toEqual({ clean: [8] });
+    expect(pixelSizeHint(silk, 70)).toEqual({ clean: [64] });
+    expect(pixelSizeHint(bundledFont(bundledId("Quinque Five")), 12)).toEqual({ clean: [10, 15] });
+    expect(pixelSizeHint(bundledFont(bundledId("VT323")), 12)).toBeNull();
     expect(pixelSizeHint(bundledFont(bundledId("Lora")), 10)).toBeNull();
     expect(pixelSizeHint(undefined, 10)).toBeNull();
   });
 });
 
-describe("a pixel font at its grid", () => {
-  it.each(["Silkscreen", "Press Start 2P", "Tiny5"])(
-    "%s at 16 stitches puts straight strokes on whole stitches, so the weight changes nothing in them",
-    (name) => {
-      const font = BUNDLED_FONTS.find((f) => f.family === name)!;
-      GlobalFonts.registerFromPath(path.join(DIR, font.dir, font.faces[0].file), name);
-      const face = { family: name, weight: 400, style: "normal" as const, stretch: "normal" };
-      const light = letteringCells(["TILE"], { face, size: 16, weight: 5 }, context)!;
-      const heavy = letteringCells(["TILE"], { face, size: 16, weight: 95 }, context)!;
-      expect(inkCount(light)).toBeGreaterThan(30);
-      expect(Array.from(heavy.ink)).toEqual(Array.from(light.ink));
+describe("a pixel font at the sizes it claims", () => {
+  /** The share of drawn pixels that are only partly covered, for letters made of straight strokes. */
+  function partial(family: string, size: number): number {
+    const canvas = createCanvas(size * 12, size * 2);
+    const ctx = canvas.getContext("2d");
+    ctx.font = `${size}px "${family}"`;
+    ctx.fillStyle = "#000";
+    ctx.fillText("HILTEFNZ", 2, size * 1.4);
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let any = 0;
+    let part = 0;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] > 0) any++;
+      if (data[i] > 0 && data[i] < 255) part++;
     }
-  );
+    return any === 0 ? 1 : part / any;
+  }
+
+  it("has straight strokes on whole stitches at the smallest and largest size each pixel font lists", () => {
+    for (const font of BUNDLED_FONTS.filter((f) => f.crispSizes)) {
+      const family = `check-${font.dir}-${font.family}`;
+      GlobalFonts.registerFromPath(path.join(DIR, font.dir, font.faces[0].file), family);
+      for (const size of [font.crispSizes![0], font.crispSizes!.at(-1)!]) {
+        expect(partial(family, size), `${font.family} at ${size}`).toBeLessThan(0.004);
+      }
+    }
+  });
 });

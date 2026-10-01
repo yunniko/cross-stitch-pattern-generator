@@ -81,7 +81,7 @@ any piece.
   the network check again over the whole flow. Docs: README, HANDOVER.
 - [x] M5 -- **Owner's first adjustments.** Add blocked in the view-only Stitched and Photo-only views; identical letters now
   come out as identical stitches (D256).
-- [x] M6 -- **Bundled fonts.** Eleven OFL fonts (six pixel, five outline) in the Font list beside the computer's own, with a
+- [x] M6 -- **Bundled fonts.** 31 openly licensed families (26 pixel, 5 outline) in the Font list beside the computer's own, with a
   hint for the sizes a pixel font is cleanest at (D257).
 - [ ] M7 -- **The Owner's look**, then the deploy.
 
@@ -94,6 +94,11 @@ instead of failing. Right-to-left and complex scripts depend on the browser's te
 they are not specially tested in the first version.
 
 **Progress log** (newest first):
+- 2026-10-01 -- M6 extended with the Owner's two pixel-font downloads: 63 + 20 fonts checked, 20 more families bundled (31 in all).
+  The collection's page labels proved unreliable (Beef'd, Creeper Pixel and Gothic Pixel are labelled OFL but their files say BY-ND
+  or BY-SA), so only fonts whose own file states OFL or CC0, plus 14 of the Nb bundle's (public domain by its publisher's statement,
+  not in the files), were used; Freeware, BY-SA and BY-ND fonts were left out pending the Owner (`docs/reviews/2026-10-01-bundled-font-licences.md`).
+  Clean sizes measured per pixel font and shown as a hint. 924 unit; Text-tab e2e 45 of 45 over three repeats. Not deployed.
 - 2026-10-01 -- M5 and M6 built at the Owner's go-ahead ("Curated bundle, fix the letters too"). Add refuses Stitched and Photo-only
   (bbf14c2). Letters: each distinct character drawn once at a whole pixel (D256; the old single-call draw gave "nnnn" three
   shapes). Fonts: eleven OFL fonts from the Google Fonts repository, taken 2026-10-01, in `public/fonts/bundled/` with licences

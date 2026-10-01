@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { rgbToHex } from "@/lib/color/color";
 import { createCanvas } from "@/lib/export/canvas-backend";
 import { letteringWarnings } from "@/lib/editor/lettering-warnings";
-import { bundledFamilies, bundledFont, isBundledId, pixelSizeHint } from "@/lib/editor/bundled-fonts";
+import { bundledFamilies, bundledFont, pixelSizeHint } from "@/lib/editor/bundled-fonts";
 import { familyByName, fallbackFamilies, listFonts, loadFace, type FontListing } from "@/lib/editor/local-fonts";
 import {
   inkCount,
@@ -58,8 +58,6 @@ export interface TextPaneProps {
 export function previewScale(width: number, height: number): number {
   return Math.max(1, Math.min(MAX_CELL_PX, Math.floor(PREVIEW_WIDTH / width), Math.floor(PREVIEW_HEIGHT / height)));
 }
-
-const bundled = (f: { family: string }) => isBundledId(f.family);
 
 export function TextPane({
   pattern,
@@ -211,16 +209,20 @@ export function TextPane({
           }}
           className={FIELD}
         >
-          <optgroup label="Bundled with the app">
-            {families.filter(bundled).map((f) => (
-              <option key={f.family} value={f.family}>
-                {f.label ?? f.family}
-              </option>
-            ))}
-          </optgroup>
+          {(["pixel", "outline"] as const).map((group) => (
+            <optgroup key={group} label={group === "pixel" ? "Pixel fonts, bundled" : "Other fonts, bundled"}>
+              {families
+                .filter((f) => f.group === group)
+                .map((f) => (
+                  <option key={f.family} value={f.family}>
+                    {f.label ?? f.family}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
           <optgroup label={listing?.kind === "local" ? "On this computer" : "Generic families"}>
             {families
-              .filter((f) => !bundled(f))
+              .filter((f) => !f.group)
               .map((f) => (
                 <option key={f.family} value={f.family}>
                   {f.label ?? f.family}
@@ -230,7 +232,7 @@ export function TextPane({
         </select>
         {pixelHint && (
           <p data-testid="pixel-hint" className="text-xs leading-4 text-muted">
-            A pixel font: its letters come out cleanest at {pixelHint.clean.join(" or ")} stitches (multiples of its own grid).
+            A pixel font: its letters come out cleanest at {pixelHint.clean.join(" or ")} stitches.
           </p>
         )}
         {fallback && (

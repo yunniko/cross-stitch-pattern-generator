@@ -186,6 +186,12 @@ test("a bundled font is read from this site, draws, and a pixel font says where 
   await expect(preview(page)).toBeVisible();
   expect(await number(page, "data-ink")).toBeGreaterThan(30);
 
+  // A font from the Owner's own downloads, public domain, drawn at its own size.
+  await fonts.selectOption({ label: "Kubasta" });
+  await page.getByLabel("Font size in stitches").fill("16");
+  await expect(page.getByTestId("pixel-hint")).toHaveCount(0);
+  await expect.poll(() => number(page, "data-ink")).toBeGreaterThan(30);
+
   // A variable font's Bold face is really heavier, not the browser's imitation of it.
   await fonts.selectOption({ label: "Lora" });
   await page.getByLabel("Font size in stitches").fill("20");

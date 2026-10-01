@@ -39,6 +39,8 @@ export interface FontFamily {
   family: string;
   /** What the list shows when it is not the family's own name. */
   label?: string;
+  /** For a bundled family, which list it belongs to. */
+  group?: "pixel" | "outline";
   faces: LocalFace[];
 }
 

@@ -1,0 +1,4 @@
+Creative Commons Zero v1.0 Universal (public-domain dedication)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Stated in the font file's own licence field. The font: 3x3 Mono, taken 2026-10-01 from the Fontspace "pixel fonts free commercial use" collection.

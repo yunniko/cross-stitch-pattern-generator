@@ -291,4 +291,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D254 — The keyboard cell cursor dispatches the pointer events it stands for — active
 - D255 — Lettering is a masked piece in hand, inserted like Paste; fonts stay in the browser — active
 - D256 — Each distinct letter is drawn once and placed at a whole stitch — active
-- D257 — A curated bundle of OFL fonts, served from this site, beside the computer's own — active
+- D257 — A curated bundle of openly licensed fonts, served from this site, beside the computer's own — active
