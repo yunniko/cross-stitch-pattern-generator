@@ -292,3 +292,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D255 — Lettering is a masked piece in hand, inserted like Paste; fonts stay in the browser — active
 - D256 — Each distinct letter is drawn once and placed at a whole stitch — active
 - D257 — A curated bundle of openly licensed fonts, served from this site, beside the computer's own — active
+- D258 — Error diffusion skips empty stitches — active

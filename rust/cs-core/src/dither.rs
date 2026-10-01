@@ -221,12 +221,15 @@ const ATKINSON: [(i64, i64, f64); 6] = [
     (0, 2, 1.0 / 8.0),
 ];
 
+/// Cells in `skip` (empty stitches) are neither decided nor given error: their stand-in colour is white, no thread
+/// matches it, and the error would pile up across the background and pour into the subject's edge (D258).
 fn error_diffusion(
     cell_oklab: &[f64],
     width: usize,
     height: usize,
     palette: &[Rgb],
     mode: DitherMode,
+    skip: Option<&[u8]>,
 ) -> Vec<u8> {
     let kernel: &[(i64, i64, f64)] = match mode {
         DitherMode::Atkinson => &ATKINSON,
@@ -245,6 +248,9 @@ fn error_diffusion(
                 width - 1 - step
             };
             let i = y * width + x;
+            if skip.is_some_and(|m| m[i] != 0) {
+                continue;
+            }
             let o = i * 3;
             let (best, _) = two_nearest(
                 &palette_oklab,
@@ -262,6 +268,9 @@ fn error_diffusion(
             let ahead: i64 = if left_to_right { 1 } else { -1 };
             let mut spread = |nx: i64, ny: i64, weight: f64| {
                 if nx < 0 || nx >= width as i64 || ny < 0 || ny >= height as i64 {
+                    return;
+                }
+                if skip.is_some_and(|m| m[ny as usize * width + nx as usize] != 0) {
                     return;
                 }
                 let no = (ny as usize * width + nx as usize) * 3;
@@ -286,6 +295,7 @@ pub fn dither_to_palette(
     palette: &[Rgb],
     mode: DitherMode,
     texture: &DitherTexture,
+    skip: Option<&[u8]>,
 ) -> Vec<u8> {
     if palette.is_empty() {
         return vec![0u8; width * height];
@@ -293,7 +303,7 @@ pub fn dither_to_palette(
     match mode {
         DitherMode::Off => panic!("dither_to_palette called with Off"),
         DitherMode::FloydSteinberg | DitherMode::Atkinson => {
-            error_diffusion(cell_oklab, width, height, palette, mode)
+            error_diffusion(cell_oklab, width, height, palette, mode, skip)
         }
         DitherMode::HandDrawn => drawn(cell_oklab, width, height, palette, texture),
         _ => ordered(cell_oklab, width, height, palette, mode),

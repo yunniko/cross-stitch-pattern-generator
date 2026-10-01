@@ -304,6 +304,7 @@ pub fn build_pattern_reporting(
             &raw_palette,
             options.dither,
             &options.dither_texture,
+            empty_ref,
         );
         if let Some(mask) = empty_ref {
             for (label, &empty) in labels.iter_mut().zip(mask.iter()) {

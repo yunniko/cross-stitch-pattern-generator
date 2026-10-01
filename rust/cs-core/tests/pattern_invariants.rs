@@ -368,3 +368,43 @@ fn a_brand_chart_uses_only_that_brands_threads() {
         }
     }
 }
+
+/// D258: error diffusion must not run through the empty stitches. They stand in as white, which no thread matches, so
+/// the error they left used to pile up over the background and pour into the subject's first rows, flattening them.
+/// A subject must dither the same whether or not a transparent margin lies above it.
+#[test]
+fn error_diffusion_ignores_a_transparent_margin() {
+    let (width, subject_rows, margin_rows) = (60usize, 40usize, 40usize);
+    let subject = noisy(
+        width,
+        subject_rows,
+        7,
+        &[[200, 190, 180], [170, 160, 190], [230, 200, 120]],
+    );
+    let mut padded = flat(width, margin_rows, [255, 255, 255], 0);
+    padded.height += subject_rows;
+    padded.data.extend_from_slice(&subject.data);
+
+    for mode in ["floyd-steinberg", "atkinson"] {
+        let options = |long: usize| {
+            format!(
+                r#"{{"longerSideStitches":{long},"colorCount":6,"paletteMode":"dmc","ditherMode":"{mode}","threads":1}}"#
+            )
+        };
+        let alone = build(&subject, &options(width));
+        let with_margin = build(&padded, &options(width + 20));
+        assert_eq!(
+            with_margin.width, width,
+            "{mode}: grid is not 1 pixel per stitch"
+        );
+        let colour = |p: &StitchPattern, i: usize| p.palette[p.cell_palette[i] as usize].rgb;
+        for i in 0..width * subject_rows {
+            let j = width * margin_rows + i;
+            assert_eq!(
+                colour(&alone, i),
+                colour(&with_margin, j),
+                "{mode}: the margin changed stitch {i} of the subject"
+            );
+        }
+    }
+}
