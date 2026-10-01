@@ -895,6 +895,7 @@ export default function Workspace({ account }: WorkspaceProps) {
             onTextChange={setLetteringText}
             pickedColor={letteringColor}
             onPickColor={setLetteringColor}
+            viewOnly={isViewOnlyMode(viewMode)}
             onAdd={addLettering}
           />
         }

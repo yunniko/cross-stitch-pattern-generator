@@ -187,3 +187,14 @@ test("nothing about the font or the text leaves the browser", async ({ page, con
   });
   expect(named.map((r) => r.url())).toEqual([]);
 });
+
+test("Add is blocked in the Stitched view, which is for looking, and comes back in Color", async ({ page }) => {
+  await blankChart(page, 1);
+  await type(page, "Hi", 12);
+  await expect(add(page)).toBeEnabled();
+  await page.getByRole("button", { name: "Stitched", exact: true }).click();
+  await expect(add(page)).toBeDisabled();
+  await expect(page.getByText("Switch to the Color or B&W view to add text.")).toBeVisible();
+  await page.getByRole("button", { name: "Color", exact: true }).click();
+  await expect(add(page)).toBeEnabled();
+});

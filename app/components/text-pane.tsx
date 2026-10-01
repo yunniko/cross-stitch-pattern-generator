@@ -48,6 +48,8 @@ export interface TextPaneProps {
   pickedColor: number | null;
   onPickColor: (index: number) => void;
   /** Puts the lettering on the chart as a piece in hand; absent, Add is not offered yet. */
+  /** Stitched and Photo-only are for looking: nothing is added to the chart there. */
+  viewOnly?: boolean;
   onAdd?: (lettering: LetteringBitmap, paletteIndex: number) => void;
 }
 
@@ -65,6 +67,7 @@ export function TextPane({
   onTextChange,
   pickedColor: picked,
   onPickColor,
+  viewOnly = false,
   onAdd,
 }: TextPaneProps) {
   const [listing, setListing] = useState<FontListing | null>(null);
@@ -148,17 +151,19 @@ export function TextPane({
   const tooLarge = !!bitmap && !!pattern && (bitmap.width > pattern.width || bitmap.height > pattern.height);
   const problem = !pattern
     ? "Open a chart first."
-    : palette.length === 0
-      ? "This chart has no threads yet. Add one in the Threads tab."
-      : text.trim().length === 0
-        ? "Type some text."
-        : lettering.error
-          ? lettering.error
-          : !bitmap
-            ? "That text has nothing to draw."
-            : tooLarge
-              ? `The text is ${bitmap.width} × ${bitmap.height} stitches; this chart is ${pattern.width} × ${pattern.height}.`
-              : null;
+    : viewOnly
+      ? "Switch to the Color or B&W view to add text."
+      : palette.length === 0
+        ? "This chart has no threads yet. Add one in the Threads tab."
+        : text.trim().length === 0
+          ? "Type some text."
+          : lettering.error
+            ? lettering.error
+            : !bitmap
+              ? "That text has nothing to draw."
+              : tooLarge
+                ? `The text is ${bitmap.width} × ${bitmap.height} stitches; this chart is ${pattern.width} × ${pattern.height}.`
+                : null;
 
   async function useMyFonts() {
     setAsking(true);
