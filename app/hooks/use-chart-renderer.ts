@@ -400,10 +400,10 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
    * symmetry), each with its colour. They are recorded so a repaint replays them. Color and B&W redraw just those
    * stitches in one batch and draw the guide lines again over them; Grid + photo draws a clean frame (D104, D135, G-037).
    */
-  function paintBrushCells(base: StitchPattern, cells: Uint8Array, ops: readonly BrushOp[]) {
+  function paintBrushCells(base: StitchPattern, cells: Uint8Array, kinds: Uint8Array, ops: readonly BrushOp[]) {
     let gesture = gestureRef.current;
     if (!gesture || gesture.kind !== "brush" || gesture.base !== base || gesture.cells !== cells) {
-      gesture = { kind: "brush", base, cells, ops: [] };
+      gesture = { kind: "brush", base, cells, kinds, ops: [] };
       gestureRef.current = gesture;
     }
     gesture.ops.push(...ops);
@@ -551,8 +551,8 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
    * gesture started. A brush stroke adds to what it has already painted; a shape replaces it, so every frame is drawn
    * over a restored snapshot of the base scene rather than over the frame before it.
    */
-  function previewShape(base: StitchPattern, cells: Uint8Array, ops: readonly BrushOp[]) {
-    const gesture: GesturePreview = { kind: "brush", base, cells, ops: [...ops] };
+  function previewShape(base: StitchPattern, cells: Uint8Array, kinds: Uint8Array, ops: readonly BrushOp[]) {
+    const gesture: GesturePreview = { kind: "brush", base, cells, kinds, ops: [...ops] };
     gestureRef.current = gesture;
     const scene = currentScene();
     const canvas = canvasRef.current;

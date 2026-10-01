@@ -71,6 +71,7 @@ describe("workspace-storage", () => {
       brushSize: 1,
       brushShape: "round",
       shapeFill: "outline",
+      stitchKind: 0,
       doubleClickFill: true,
     } as const;
 
@@ -107,6 +108,7 @@ describe("workspace-storage", () => {
         brushSize: 7 as const,
         brushShape: "square" as const,
         shapeFill: "filled" as const,
+        stitchKind: 2 as const,
         doubleClickFill: false,
       };
       saveWorkspaceOptions(saved);
@@ -193,6 +195,15 @@ describe("workspace-storage", () => {
       // Stored before G-064 M4, so the key is simply absent.
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
       expect(loadWorkspaceOptions().shapeFill).toBe("outline");
+    });
+
+    it("keeps the stitch type across a reload, and refuses anything but 0, 1 and 2 (G-082)", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, stitchKind: 1 });
+      expect(loadWorkspaceOptions().stitchKind).toBe(1);
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, stitchKind: 3 }));
+      expect(loadWorkspaceOptions().stitchKind).toBe(0);
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
+      expect(loadWorkspaceOptions().stitchKind).toBe(0);
     });
 
     it("keeps a chosen dither pattern across a reload (G-052)", () => {

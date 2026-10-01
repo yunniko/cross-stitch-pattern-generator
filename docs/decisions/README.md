@@ -294,3 +294,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D257 — A curated bundle of openly licensed fonts, served from this site, beside the computer's own — active
 - D258 — Error diffusion skips empty stitches — active
 - D258 — Half stitches are a parallel `cellKind` array, absent while every stitch is whole — active
+- D259 — A half stitch is its cell with two opposite corners cut away, 30 % of the side — active

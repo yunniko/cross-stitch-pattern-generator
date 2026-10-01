@@ -413,6 +413,26 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
     this.pathPoints.push(applyMat(this.ctm, x, y));
   }
 
+  /** A path is closed by `fill()` itself, so this needs to record nothing. */
+  closePath(): void {}
+
+  /** Fills the polygon built since `beginPath()` in the fill colour (a half stitch's cut cell, G-082); opaque colours only. */
+  fill(): void {
+    if (this.pathPoints.length < 3) throw new Error("PdfCanvasAdapter: fill() needs a path of at least three points");
+    const entry = cachedColor(this.requireSolidColor(this.fillStyle));
+    if (entry.alpha < 1)
+      throw new Error("PdfCanvasAdapter: a translucent filled path is not supported (only opaque half stitches are drawn)");
+    const pageHeight = this.pageHeight;
+    const [[x0, y0], ...rest] = this.pathPoints;
+    this.pending.push(
+      entry.fill,
+      `${num(x0)} ${num(pageHeight - y0)} m`,
+      ...rest.map(([x, y]) => `${num(x)} ${num(pageHeight - y)} l`),
+      "h",
+      "f"
+    );
+  }
+
   stroke(): void {
     if (this.pathPoints.length !== 2) {
       throw new Error(

@@ -1,3 +1,4 @@
+import { tidyKinds } from "@/lib/editor/stitch-kind";
 import { intersectRects, isEmptyRect, moveTileOffsets, type PixelRect } from "@/lib/editor/chart-viewport";
 import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
 import type { CellPoint } from "@/lib/editor/shape-raster";
@@ -102,7 +103,7 @@ export function drawSymmetryGuides(ctx: CanvasRenderingContext2D, width: number,
 
 /** The preview an in-progress gesture adds on top of the scene; every repaint replays it, so scrolling keeps it. */
 export type GesturePreview =
-  | { kind: "brush"; base: StitchPattern; cells: Uint8Array; ops: BrushOp[] }
+  | { kind: "brush"; base: StitchPattern; cells: Uint8Array; kinds: Uint8Array; ops: BrushOp[] }
   | { kind: "move"; base: StitchPattern; dx: number; dy: number }
   | { kind: "select-rect"; base: StitchPattern; rect: CellRect }
   | { kind: "select-piece"; base: StitchPattern; piece: FloatingSelection }
@@ -114,6 +115,8 @@ export type GesturePreview =
 export interface BrushOp {
   cellIndex: number;
   paletteIndex: number;
+  /** The stitch kind laid (G-082). */
+  kind: number;
 }
 
 /** Color and B&W redraw single stitches in place; the other views have no per-stitch fill to restore. */
@@ -267,23 +270,23 @@ export function drawCellsInto(
   mode: RenderMode,
   scene: ChartScene,
   rect: PixelRect,
-  eachCell: (region: ChartRegion, draw: (x: number, y: number, paletteIndex: number) => void) => void
+  eachCell: (region: ChartRegion, draw: (x: number, y: number, paletteIndex: number, kind: number) => void) => void
 ) {
   const cs = scene.cellSize;
   const region = regionFor(ctx, base, scene, rect);
   ctx.save();
   clipTo(ctx, rect);
-  eachCell(region, (x, y, paletteIndex) => drawCell(ctx, base, mode, cs, x, y, paletteIndex, scene.canvasColor, "rects"));
+  eachCell(region, (x, y, paletteIndex, kind) => drawCell(ctx, base, mode, cs, x, y, paletteIndex, scene.canvasColor, "rects", kind));
   ctx.restore();
 }
 
 /** Brush ops inside `region`, in stroke order, each in the colour it was painted with. */
 export function brushOpsIn(ops: readonly BrushOp[], width: number) {
-  return (region: ChartRegion, draw: (x: number, y: number, paletteIndex: number) => void) => {
-    for (const { cellIndex, paletteIndex } of ops) {
+  return (region: ChartRegion, draw: (x: number, y: number, paletteIndex: number, kind: number) => void) => {
+    for (const { cellIndex, paletteIndex, kind } of ops) {
       const x = cellIndex % width;
       const y = Math.floor(cellIndex / width);
-      if (x >= region.x0 && x < region.x1 && y >= region.y0 && y < region.y1) draw(x, y, paletteIndex);
+      if (x >= region.x0 && x < region.x1 && y >= region.y0 && y < region.y1) draw(x, y, paletteIndex, kind);
     }
   };
 }
@@ -298,7 +301,7 @@ export function brushOpsIn(ops: readonly BrushOp[], width: number) {
  * the ride and then dropped them on release (Owner, 2026-09-25).
  */
 export function pieceCellsIn(base: StitchPattern, piece: FloatingSelection) {
-  return (region: ChartRegion, draw: (x: number, y: number, paletteIndex: number) => void) => {
+  return (region: ChartRegion, draw: (x: number, y: number, paletteIndex: number, kind: number) => void) => {
     const ly0 = Math.max(0, region.y0 - piece.y);
     const ly1 = Math.min(piece.height, region.y1 - piece.y, base.height - piece.y);
     const lx0 = Math.max(0, region.x0 - piece.x);
@@ -308,7 +311,7 @@ export function pieceCellsIn(base: StitchPattern, piece: FloatingSelection) {
         const local = ly * piece.width + lx;
         // A cell the mask excludes is not part of the piece; the base scene underneath it stays visible.
         if (piece.mask && !piece.mask[local]) continue;
-        draw(piece.x + lx, piece.y + ly, piece.cells[local]);
+        draw(piece.x + lx, piece.y + ly, piece.cells[local], piece.kinds?.[local] ?? 0);
       }
     }
   };
@@ -348,7 +351,7 @@ function drawGestureContent(
   switch (gesture.kind) {
     case "brush":
       if (!mode) {
-        drawScene(ctx, { ...gesture.base, cellPalette: gesture.cells }, scene, rect);
+        drawScene(ctx, { ...gesture.base, cellPalette: gesture.cells, cellKind: tidyKinds(gesture.cells, gesture.kinds) }, scene, rect);
         return;
       }
       if (!baseDrawn) drawScene(ctx, gesture.base, scene, rect);

@@ -17,6 +17,8 @@ export interface ChartDrawingContext {
   beginPath(): void;
   moveTo(x: number, y: number): void;
   lineTo(x: number, y: number): void;
+  closePath(): void;
+  fill(): void;
   stroke(): void;
   save(): void;
   restore(): void;

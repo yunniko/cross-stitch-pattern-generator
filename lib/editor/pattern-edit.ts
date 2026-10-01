@@ -533,9 +533,22 @@ export function flipsTransparency(before: number, after: number): boolean {
   return (before === EMPTY_CELL) !== (after === EMPTY_CELL);
 }
 
-/** `next` (changed in place) with every change `flipsTransparency` refuses put back to what `base` held. */
-export function lockTransparency(base: ArrayLike<number>, next: Uint8Array): Uint8Array {
-  for (let i = 0; i < next.length; i++) if (flipsTransparency(base[i], next[i])) next[i] = base[i];
+/**
+ * `next` (changed in place) with every change `flipsTransparency` refuses put back to what `base` held. A half stitch is
+ * still a stitch, so changing its kind is not a flip; but a cell put back takes its kind back too (G-082), which is what
+ * `baseKinds` and `nextKinds` are for.
+ */
+export function lockTransparency(
+  base: ArrayLike<number>,
+  next: Uint8Array,
+  baseKinds?: ArrayLike<number>,
+  nextKinds?: Uint8Array
+): Uint8Array {
+  for (let i = 0; i < next.length; i++) {
+    if (!flipsTransparency(base[i], next[i])) continue;
+    next[i] = base[i];
+    if (nextKinds) nextKinds[i] = baseKinds?.[i] ?? STITCH_WHOLE;
+  }
   return next;
 }
 

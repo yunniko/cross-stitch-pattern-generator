@@ -55,9 +55,9 @@ selection, symmetry and fills like any cell).
   kind together; flip, rotate and symmetry swap "/" and "\" correctly; selection, copy, paste, move, undo and the project store
   carry it; the editable JSON gains an optional `cellKind` (absent when none). Unit tests incl. old-file round trip. Decision
   record for the model.
-- [ ] M2 -- **The dropdown and the tools.** The Stitch type dropdown (persisted workspace option) and every tool of acceptance
+- [x] M2 -- **The dropdown and the tools.** The Stitch type dropdown (persisted workspace option) and every tool of acceptance
   (1) laying the chosen kind; Fill selection and the keyboard pen follow it; lock rule kept. e2e for each tool.
-- [ ] M3 -- **On screen.** Color and B&W cut-corner cells (the cut's size is a calibrated constant, a `judgment` decision looked
+- [x] M3 -- **On screen.** Color and B&W cut-corner cells (the cut's size is a calibrated constant, a `judgment` decision looked
   at on screen), the symbol placed in what remains; Stitched view with the texture clipped to the cut shape; pointer dot,
   outline and rulers unchanged. Looked at on screen at several zoom levels.
 - [ ] M4 -- **Exports, TypeScript and Rust together.** PNG chart and preview, A4 PDF, legend, OXS (real part stitches if the
@@ -80,6 +80,10 @@ the biggest milestone and may split; (b) 22 modules read `cellPalette`, so the s
 the PDF's real text symbols, so its export must not draw cut shapes it cannot read as stitches.
 
 **Progress log** (newest first):
+- 2026-10-01 -- M2 and M3 built (D259). The Stitch type dropdown (top bar, shown for the brush, Fill, shapes and Lasso fill, remembered) and
+  every tool lay the kind chosen, symmetry mirroring "/" as "\\"; the lock puts a refused cell back with its kind. Colour and B&W draw the cell
+  with the two corners cut (30 %), the Stitched view cuts the stitch texture with a supersampled mask; undo, redo, autosave keep them.
+  951 unit; `tests/e2e/half-stitches.spec.ts` 6 of 6; looked at on screen in Color and Stitched. Exports (M4) still draw halves as whole.
 - 2026-10-01 -- M1 built (D258): `cellKind` on the pattern and `kinds` on a floating selection (`lib/editor/stitch-kind.ts`); paint, fill,
   merge colours, shift, resize, lift, merge, flip, turn, fill selection, symmetry orbit, quick mirror and fill symmetric carry or swap the kinds;
   the saved file and the project store keep them (absent for a chart with none). 944 unit (19 new). The Owner asked for all milestones

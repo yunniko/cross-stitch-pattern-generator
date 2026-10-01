@@ -34,7 +34,9 @@ import {
   shiftPattern,
   withCellPalette,
 } from "@/lib/editor/pattern-edit";
-import { fillSymmetric, symmetryOrbit, type SymmetryAxes } from "@/lib/editor/symmetry";
+import { fillSymmetric, symmetryOrbitKinds, type SymmetryAxes } from "@/lib/editor/symmetry";
+import { kindBuffer, STITCH_WHOLE } from "@/lib/editor/stitch-kind";
+import { EMPTY_CELL } from "@/lib/types";
 import type { BackstitchLine, CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
 import {
   cellIndexFromEvent,
@@ -79,13 +81,23 @@ export interface CanvasToolInputs {
    * selecting, moving and dragging is as it is without it.
    */
   lockTransparency?: boolean;
+  /** What the painting and filling tools lay down (G-082): 0 a whole stitch, 1 a half stitch "/", 2 "\\". Whole when absent. */
+  stitchKind?: number;
 }
 
 /** The fill's result under the lock: its flips undone, or null when nothing is left to change. */
 function lockedResult(base: StitchPattern, next: StitchPattern, locked: boolean): StitchPattern | null {
   if (!locked) return next;
-  keepTransparency(base.cellPalette, next.cellPalette);
-  return sameCells(base.cellPalette, next.cellPalette) ? null : next;
+  const cells = next.cellPalette;
+  const kinds = kindBuffer(next);
+  keepTransparency(base.cellPalette, cells, base.cellKind, kinds);
+  if (sameCells(base.cellPalette, cells) && sameCells(kindBuffer(base), kinds)) return null;
+  return withCellPalette(base, cells, kinds);
+}
+
+/** Whether a working copy of a chart's cells and kinds is the chart as it stands (the lock's "nothing changed"). */
+function unchanged(base: StitchPattern, cells: Uint8Array, kinds: Uint8Array): boolean {
+  return sameCells(base.cellPalette, cells) && sameCells(kindBuffer(base), kinds);
 }
 
 /** How close in time two brush clicks on one cell must be to count as the start of a double-click. */
@@ -99,6 +111,8 @@ interface ClickRecord {
   anchor: StitchPattern;
   axes: SymmetryAxes;
   color: number;
+  /** The stitch kind the clicks laid (G-082). */
+  kind: number;
   /** The patterns the clicks committed, in order: the steps the fill replaces. */
   commits: StitchPattern[];
 }
@@ -110,6 +124,7 @@ export function useBrushTool({
   cellSize,
   commit,
   lockTransparency: locked = false,
+  stitchKind = STITCH_WHOLE,
   colorForPointer,
   stamp,
   symmetry,
@@ -129,6 +144,9 @@ export function useBrushTool({
   const strokeRef = useRef<{
     base: StitchPattern;
     cells: Uint8Array;
+    /** The working copy of the chart's stitch kinds, painted beside `cells` (G-082). */
+    kinds: Uint8Array;
+    kind: number;
     lastCell: number | null;
     axes: SymmetryAxes;
     color: number;
@@ -149,27 +167,34 @@ export function useBrushTool({
   function paintOrbit(
     base: StitchPattern,
     cells: Uint8Array,
+    kinds: Uint8Array,
     cellIndex: number,
     axes: SymmetryAxes,
     color: number,
+    kind: number,
     pressStamp: readonly StampOffset[]
   ) {
-    const orbit: number[] = [];
+    const orbit: Array<{ index: number; kind: number }> = [];
     const seen = new Set<number>();
     for (const stamped of stampCells(cellIndex, base.width, base.height, pressStamp)) {
-      for (const cell of symmetryOrbit(stamped, base.width, base.height, axes)) {
-        if (seen.has(cell)) continue;
-        seen.add(cell);
-        orbit.push(cell);
+      // Each mirror copy lies the way the mirror lays it: "/" across a vertical axis is "\" (G-082).
+      for (const copy of symmetryOrbitKinds(stamped, base.width, base.height, axes, kind)) {
+        if (seen.has(copy.index)) continue;
+        seen.add(copy.index);
+        orbit.push(copy);
       }
     }
     // Under the lock a stitch that would turn from empty to colour, or back, is left as it was.
-    const painted = locked ? orbit.filter((cell) => !flipsTransparency(base.cellPalette[cell], color)) : orbit;
-    for (const cell of painted) cells[cell] = color;
+    const painted = locked ? orbit.filter((cell) => !flipsTransparency(base.cellPalette[cell.index], color)) : orbit;
+    for (const cell of painted) {
+      cells[cell.index] = color;
+      kinds[cell.index] = color === EMPTY_CELL ? STITCH_WHOLE : cell.kind;
+    }
     rendererRef.current?.paintBrushCells(
       base,
       cells,
-      painted.map((cell) => ({ cellIndex: cell, paletteIndex: color }))
+      kinds,
+      painted.map((cell) => ({ cellIndex: cell.index, paletteIndex: color, kind: color === EMPTY_CELL ? STITCH_WHOLE : cell.kind }))
     );
   }
 
@@ -179,7 +204,7 @@ export function useBrushTool({
     if (!pattern || color === null) return;
     const cellIndex = cellAt(e, frame);
     if (cellIndex === null) return;
-    const filled = lockedResult(pattern, fillSymmetric(pattern, cellIndex, symmetry, color, 8), locked);
+    const filled = lockedResult(pattern, fillSymmetric(pattern, cellIndex, symmetry, color, 8, stitchKind), locked);
     if (filled) commit(filled);
   }
 
@@ -198,17 +223,29 @@ export function useBrushTool({
       now - last.time < DOUBLE_CLICK_WINDOW_MS &&
       last.cellIndex === cellIndex &&
       last.color === activeColorIndex &&
+      last.kind === stitchKind &&
       last.axes === symmetry &&
       last.commits.length > 0 &&
       last.commits[last.commits.length - 1] === pattern;
     const click: ClickRecord = isSecondClick
       ? last
-      : { time: now, cellIndex, anchor: pattern, axes: symmetry, color: activeColorIndex, commits: [] };
+      : { time: now, cellIndex, anchor: pattern, axes: symmetry, color: activeColorIndex, kind: stitchKind, commits: [] };
     click.time = now;
     lastClickRef.current = click;
     const cells = pattern.cellPalette.slice();
-    strokeRef.current = { base: pattern, cells, lastCell: cellIndex, axes: symmetry, color: activeColorIndex, click, stamp };
-    paintOrbit(pattern, cells, cellIndex, symmetry, activeColorIndex, stamp);
+    const kinds = kindBuffer(pattern);
+    strokeRef.current = {
+      base: pattern,
+      cells,
+      kinds,
+      kind: stitchKind,
+      lastCell: cellIndex,
+      axes: symmetry,
+      color: activeColorIndex,
+      click,
+      stamp,
+    };
+    paintOrbit(pattern, cells, kinds, cellIndex, symmetry, activeColorIndex, stitchKind, stamp);
     capturePointer(frame, e.pointerId);
   }
 
@@ -220,7 +257,7 @@ export function useBrushTool({
     const cellIndex = cellIndexFromEvent(e, frame, cellSize, stroke.base.width, stroke.base.height);
     if (cellIndex === null || cellIndex === stroke.lastCell) return true;
     stroke.lastCell = cellIndex;
-    paintOrbit(stroke.base, stroke.cells, cellIndex, stroke.axes, stroke.color, stroke.stamp);
+    paintOrbit(stroke.base, stroke.cells, stroke.kinds, cellIndex, stroke.axes, stroke.color, stroke.kind, stroke.stamp);
     return true;
   }
 
@@ -232,8 +269,8 @@ export function useBrushTool({
     rendererRef.current?.endGesture(false);
     releaseCapture(frameRef.current, e.pointerId);
     // A stroke the lock left with nothing to change costs no undo step.
-    if (locked && sameCells(stroke.base.cellPalette, stroke.cells)) return true;
-    const next = withCellPalette(stroke.base, stroke.cells);
+    if (locked && unchanged(stroke.base, stroke.cells, stroke.kinds)) return true;
+    const next = withCellPalette(stroke.base, stroke.cells, stroke.kinds);
     stroke.click.commits.push(next);
     commit(next);
     return true;
@@ -252,10 +289,10 @@ export function useBrushTool({
     const click = lastClickRef.current;
     lastClickRef.current = null;
     if (click && click.cellIndex === cellIndex && click.color === color && click.commits.length > 0) {
-      const filled = lockedResult(click.anchor, fillSymmetric(click.anchor, cellIndex, click.axes, click.color, 8), locked);
+      const filled = lockedResult(click.anchor, fillSymmetric(click.anchor, cellIndex, click.axes, click.color, 8, click.kind), locked);
       if (filled) replaceSince(click.anchor, click.commits, filled);
     } else {
-      const filled = lockedResult(pattern, fillSymmetric(pattern, cellIndex, symmetry, color, 8), locked);
+      const filled = lockedResult(pattern, fillSymmetric(pattern, cellIndex, symmetry, color, 8, stitchKind), locked);
       if (filled) commit(filled);
     }
   }
@@ -290,6 +327,7 @@ export function useShapeTool({
   cellSize,
   commit,
   lockTransparency: locked = false,
+  stitchKind = STITCH_WHOLE,
   colorForPointer,
   stamp,
   symmetry,
@@ -308,6 +346,10 @@ export function useShapeTool({
     base: StitchPattern;
     /** The working buffer, kept across frames: only what the last frame painted is put back, never the whole chart. */
     cells: Uint8Array;
+    /** The working stitch kinds beside `cells` (G-082). */
+    kinds: Uint8Array;
+    /** The stitch kind laid, fixed when the press began. */
+    stitchKind: number;
     /** The cells the last frame painted, so they can be restored before the next one is drawn. */
     painted: number[];
     from: CellPoint;
@@ -322,25 +364,31 @@ export function useShapeTool({
   function drawFrame() {
     const shape = shapeRef.current;
     if (!shape) return;
-    const { base, cells, axes, color } = shape;
-    for (const cell of shape.painted) cells[cell] = base.cellPalette[cell];
+    const { base, cells, kinds, axes, color } = shape;
+    for (const cell of shape.painted) {
+      cells[cell] = base.cellPalette[cell];
+      kinds[cell] = base.cellKind?.[cell] ?? STITCH_WHOLE;
+    }
     shape.painted = [];
-    const ops: { cellIndex: number; paletteIndex: number }[] = [];
+    const ops: { cellIndex: number; paletteIndex: number; kind: number }[] = [];
     const seen = new Set<number>();
     for (const point of shapeSpine(kind, shape.fill, shape.from, shape.to)) {
       const centre = point.y * base.width + point.x;
       for (const stamped of stampCells(centre, base.width, base.height, shape.stamp)) {
-        for (const cell of symmetryOrbit(stamped, base.width, base.height, axes)) {
+        for (const copy of symmetryOrbitKinds(stamped, base.width, base.height, axes, shape.stitchKind)) {
+          const cell = copy.index;
           if (seen.has(cell)) continue;
           seen.add(cell);
           if (locked && flipsTransparency(base.cellPalette[cell], color)) continue;
+          const laid = color === EMPTY_CELL ? STITCH_WHOLE : copy.kind;
           cells[cell] = color;
+          kinds[cell] = laid;
           shape.painted.push(cell);
-          ops.push({ cellIndex: cell, paletteIndex: color });
+          ops.push({ cellIndex: cell, paletteIndex: color, kind: laid });
         }
       }
     }
-    rendererRef.current?.previewShape(base, cells, ops);
+    rendererRef.current?.previewShape(base, cells, kinds, ops);
   }
 
   function onPointerDown(e: PointerLike, frame: HTMLElement) {
@@ -352,6 +400,8 @@ export function useShapeTool({
     shapeRef.current = {
       base: pattern,
       cells: pattern.cellPalette.slice(),
+      kinds: kindBuffer(pattern),
+      stitchKind,
       painted: [],
       from: at,
       to: at,
@@ -385,8 +435,8 @@ export function useShapeTool({
     rendererRef.current?.endGesture(false);
     releaseCapture(frameRef.current, e.pointerId);
     // A shape the lock left with nothing to change costs no undo step.
-    if (locked && sameCells(shape.base.cellPalette, shape.cells)) return true;
-    commit(withCellPalette(shape.base, shape.cells));
+    if (locked && unchanged(shape.base, shape.cells, shape.kinds)) return true;
+    commit(withCellPalette(shape.base, shape.cells, shape.kinds));
     return true;
   }
 
@@ -423,6 +473,7 @@ export function useLassoFillTool({
   cellSize,
   commit,
   lockTransparency: locked = false,
+  stitchKind = STITCH_WHOLE,
   colorForPointer,
   symmetry,
 }: CanvasToolInputs & {
@@ -485,12 +536,12 @@ export function useLassoFillTool({
       return true;
     }
     rendererRef.current?.endGesture(false);
-    const cells = filledCells(draw.base, region, draw.color, draw.axes);
+    const { cells, kinds } = filledCells(draw.base, region, draw.color, draw.axes, stitchKind);
     if (locked) {
-      keepTransparency(draw.base.cellPalette, cells);
-      if (sameCells(draw.base.cellPalette, cells)) return true;
+      keepTransparency(draw.base.cellPalette, cells, draw.base.cellKind, kinds);
+      if (unchanged(draw.base, cells, kinds)) return true;
     }
-    commit(withCellPalette(draw.base, cells));
+    commit(withCellPalette(draw.base, cells, kinds));
     return true;
   }
 
@@ -514,17 +565,27 @@ export function useLassoFillTool({
 }
 
 /** Every cell the region covers, and its mirrors, in the given colour. */
-function filledCells(base: StitchPattern, region: LassoRegion, color: number, axes: SymmetryAxes): Uint8Array {
+function filledCells(
+  base: StitchPattern,
+  region: LassoRegion,
+  color: number,
+  axes: SymmetryAxes,
+  kind: number
+): { cells: Uint8Array; kinds: Uint8Array } {
   const cells = base.cellPalette.slice();
+  const kinds = kindBuffer(base);
   const { rect, mask } = region;
   for (let ly = 0; ly < rect.height; ly++) {
     for (let lx = 0; lx < rect.width; lx++) {
       if (!mask[ly * rect.width + lx]) continue;
       const cell = (rect.y + ly) * base.width + rect.x + lx;
-      for (const mirrored of symmetryOrbit(cell, base.width, base.height, axes)) cells[mirrored] = color;
+      for (const copy of symmetryOrbitKinds(cell, base.width, base.height, axes, kind)) {
+        cells[copy.index] = color;
+        kinds[copy.index] = color === EMPTY_CELL ? STITCH_WHOLE : copy.kind;
+      }
     }
   }
-  return cells;
+  return { cells, kinds };
 }
 
 /**
@@ -966,7 +1027,7 @@ function pointInSelection(x: number, y: number, selection: FloatingSelection): b
  * pattern as one undo step when deselected, when another rectangle is started, or when leaving the tool.
  */
 export function useSelectTool(
-  { frameRef, rendererRef, pattern, cellSize, commit, lockTransparency: locked = false }: CanvasToolInputs,
+  { frameRef, rendererRef, pattern, cellSize, commit, lockTransparency: locked = false, stitchKind = STITCH_WHOLE }: CanvasToolInputs,
   tool: "select" | "lasso"
 ) {
   const [selection, setSelection] = useState<FloatingSelection | null>(null);
@@ -1111,7 +1172,7 @@ export function useSelectTool(
      * Paints the selected area in one colour, leaving it floating so it can still be moved or cancelled (G-063). With the
      * transparency lock on it paints only the stitches that are not empty (G-079).
      */
-    fill: (paletteIndex: number) => selection && setSelection(fillSelection(selection, paletteIndex, locked)),
+    fill: (paletteIndex: number) => selection && setSelection(fillSelection(selection, paletteIndex, locked, stitchKind)),
     /**
      * Copy and Paste in one press (G-063). Not `copy(); paste();`: paste reads the clipboard from state, which
      * React has not updated yet inside one handler, so it would duplicate whatever was copied *before* this.

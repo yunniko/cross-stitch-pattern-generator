@@ -1,3 +1,4 @@
+import { halfStitchMask } from "@/lib/export/half-stitch-shape";
 import { createCanvas } from "@/lib/export/canvas-backend";
 import type { ChartRegion } from "@/lib/export/render";
 import type { StitchTiles } from "@/lib/export/stitch-texture";
@@ -50,9 +51,16 @@ export function drawRealisticRegion(
       if (paletteIndex === EMPTY_CELL) continue;
       const tile = tiles.pixels[paletteIndex];
       if (!tile) continue;
+      // A half stitch is the same texture with its two corners cut away: the tile's alpha times the cut's coverage (G-082).
+      const mask =
+        (pattern.cellKind?.[y * pattern.width + x] ?? 0) !== 0 ? halfStitchMask(pattern.cellKind![y * pattern.width + x], tileSize) : null;
       for (let ty = 0; ty < tileSize; ty++) {
         const source = ty * rowBytes;
-        out.set(tile.subarray(source, source + rowBytes), (((y - region.y0) * tileSize + ty) * w + (x - region.x0) * tileSize) * 4);
+        const dest = (((y - region.y0) * tileSize + ty) * w + (x - region.x0) * tileSize) * 4;
+        out.set(tile.subarray(source, source + rowBytes), dest);
+        if (mask)
+          for (let tx = 0; tx < tileSize; tx++)
+            out[dest + tx * 4 + 3] = Math.round((out[dest + tx * 4 + 3] * mask[ty * tileSize + tx]) / 255);
       }
     }
   }

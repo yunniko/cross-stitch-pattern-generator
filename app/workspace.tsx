@@ -147,7 +147,15 @@ export default function Workspace({ account }: WorkspaceProps) {
   const cellSizeAt = useCallback((zoom: number) => computeCellSize(pattern, zoom), [pattern]);
   const panZoom = usePanZoom(scrollerRef, frameRef, pattern !== null, cellSizeAt);
   const cellSize = computeCellSize(pattern, panZoom.zoomLevel);
-  const toolInputs = { frameRef, rendererRef, pattern, cellSize, commit: history.set, lockTransparency: options.lockTransparency };
+  const toolInputs = {
+    frameRef,
+    rendererRef,
+    pattern,
+    cellSize,
+    commit: history.set,
+    lockTransparency: options.lockTransparency,
+    stitchKind: options.stitchKind,
+  };
   const select = useSelectTool(toolInputs, activeTool === "lasso" ? "lasso" : "select");
   const colorForPointer = colours.colorForPointer;
   // One press's footprint, rebuilt only when the brush changes rather than on every render (G-064).
@@ -760,6 +768,8 @@ export default function Workspace({ account }: WorkspaceProps) {
             activeTool={activeTool}
             shapeFill={options.shapeFill}
             onShapeFillChange={(fill) => updateOption("shapeFill", fill)}
+            stitchKind={options.stitchKind}
+            onStitchKindChange={(kind) => updateOption("stitchKind", kind)}
             startingNew={startingNew}
             onBackToChart={() => setStartingNew(false)}
           />

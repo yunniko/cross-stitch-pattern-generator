@@ -382,6 +382,13 @@ export class PdfCanvasAdapter implements ChartDrawingContext {
     this.pathPoints.push(applyMat(this.ctm, x, y));
   }
 
+  // The reference predates half stitches (G-082): the charts it draws are whole stitches, which never fill a path.
+  closePath(): void {}
+
+  fill(): void {
+    throw new Error("The pre-G-047 reference adapter cannot fill a path");
+  }
+
   stroke(): void {
     if (this.pathPoints.length !== 2) {
       throw new Error(

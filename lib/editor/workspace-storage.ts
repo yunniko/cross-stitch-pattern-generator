@@ -1,3 +1,4 @@
+import { isStitchKind } from "./stitch-kind";
 import type { OverlapCells } from "../export/a4-layout";
 import type { LegacyProjectSlot } from "./project-store";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "../export/finished-size";
@@ -59,6 +60,8 @@ export interface WorkspaceOptions {
   brushShape: BrushShape;
   /** Whether Rectangle and Oval draw their outline or a solid block of stitches (G-064). */
   shapeFill: ShapeFill;
+  /** What the painting and filling tools lay down (G-082): 0 a whole stitch, 1 a half stitch "/", 2 a half stitch "\\". */
+  stitchKind: 0 | 1 | 2;
   /** The transparency lock (G-079): drawing and filling cannot turn empty stitches into colour or the reverse. */
   lockTransparency: boolean;
   /** The Text tab's last settings (G-081): the font family and face by name, the size in stitches and the weight. Not the text. */
@@ -92,6 +95,7 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   brushSize: DEFAULT_BRUSH_SIZE,
   brushShape: DEFAULT_BRUSH_SHAPE,
   shapeFill: "outline",
+  stitchKind: 0,
   doubleClickFill: true,
   lockTransparency: false,
   textFamily: "sans-serif",
@@ -176,6 +180,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
         : DEFAULT_OPTIONS.brushSize,
       brushShape: parsed.brushShape === "square" || parsed.brushShape === "round" ? parsed.brushShape : DEFAULT_OPTIONS.brushShape,
       shapeFill: parsed.shapeFill === "filled" || parsed.shapeFill === "outline" ? parsed.shapeFill : DEFAULT_OPTIONS.shapeFill,
+      stitchKind: isStitchKind(parsed.stitchKind) ? parsed.stitchKind : DEFAULT_OPTIONS.stitchKind,
       // Absent in options stored before G-041, so anything that is not a boolean falls back to the default.
       doubleClickFill: typeof parsed.doubleClickFill === "boolean" ? parsed.doubleClickFill : DEFAULT_OPTIONS.doubleClickFill,
       lockTransparency: typeof parsed.lockTransparency === "boolean" ? parsed.lockTransparency : DEFAULT_OPTIONS.lockTransparency,

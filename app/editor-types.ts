@@ -61,6 +61,11 @@ export function hasFillChoice(tool: Tool): boolean {
   return tool === "rect" || tool === "oval";
 }
 
+/** The tools that lay stitches down and so follow the Stitch type choice (G-082): the brush, Fill, the shapes and Lasso fill. */
+export function usesStitchKind(tool: Tool): boolean {
+  return tool === "brush" || tool === "fill" || tool === "lasso-fill" || isShapeTool(tool);
+}
+
 /** The tools the keyboard cell cursor can drive (G-080): the ones a press of the pen paints or draws with. */
 export function isKeyboardCursorTool(tool: Tool): boolean {
   return tool === "brush" || tool === "fill" || isShapeTool(tool);

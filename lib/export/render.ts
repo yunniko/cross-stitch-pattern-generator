@@ -1,3 +1,5 @@
+import { STITCH_WHOLE } from "../editor/stitch-kind";
+import { halfStitchMask, halfStitchPolygon } from "./half-stitch-shape";
 import { colorAt } from "../color/palette";
 import {
   createCanvas,
@@ -125,6 +127,33 @@ function effectiveCellSize(width: number, height: number, requested: number): nu
   const longerSide = Math.max(width, height);
   const maxByCanvas = Math.floor(MAX_CANVAS_DIMENSION / longerSide);
   return Math.max(4, Math.min(requested, maxByCanvas));
+}
+
+/**
+ * One stitch cell at `(px, py)`: a whole stitch is the square in `fill`; a half stitch is the empty-stitch colour first and
+ * then what is left of the square once two opposite corners are cut away (G-082, D259).
+ */
+function fillStitchCell(
+  ctx: ChartDrawingContext,
+  px: number,
+  py: number,
+  cellSize: number,
+  fill: string,
+  kind: number,
+  emptyCellColor: string
+) {
+  if (kind === STITCH_WHOLE) {
+    ctx.fillStyle = fill;
+    ctx.fillRect(px, py, cellSize, cellSize);
+    return;
+  }
+  ctx.fillStyle = emptyCellColor;
+  ctx.fillRect(px, py, cellSize, cellSize);
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  halfStitchPolygon(kind, cellSize).forEach(([x, y], i) => (i === 0 ? ctx.moveTo(px + x, py + y) : ctx.lineTo(px + x, py + y)));
+  ctx.closePath();
+  ctx.fill();
 }
 
 function bwGray(rgb: RGB): number {
@@ -281,7 +310,7 @@ export function drawChart(
   /** Raster exports only: `ctx` must then be a real canvas context (D172). Without it, symbols are drawn as text. */
   symbolStamps: SymbolStamps | null = null
 ) {
-  const { width, height, cellPalette, palette } = pattern;
+  const { width, height, cellPalette, palette, cellKind } = pattern;
   const { x0, y0, x1, y1 } = region ?? { x0: 0, y0: 0, x1: width, y1: height };
   const drawSymbols = cellSize >= LEGIBILITY_FLOOR_PX;
 
@@ -312,8 +341,7 @@ export function drawChart(
         continue;
       }
 
-      ctx.fillStyle = fills[paletteIndex];
-      ctx.fillRect(localX, localY, cellSize, cellSize);
+      fillStitchCell(ctx, localX, localY, cellSize, fills[paletteIndex], cellKind?.[y * width + x] ?? STITCH_WHOLE, emptyCellColor);
 
       if (stamp) {
         stamp.drawImage(symbolStamps!.tiles[paletteIndex] as CanvasImageSource, localX - symbolStamps!.pad, localY - symbolStamps!.pad);
@@ -405,7 +433,8 @@ export function drawChartOnScreen(
   region?: ChartRegion,
   emptyCellColor: string = "#ffffff"
 ) {
-  const emptyRgb = cellSize < LEGIBILITY_FLOOR_PX ? opaqueCanvasRgb(emptyCellColor) : null;
+  // The one-pixel-per-stitch fast path cannot draw a cut corner, so a chart with half stitches takes the exact path.
+  const emptyRgb = cellSize < LEGIBILITY_FLOOR_PX && !pattern.cellKind ? opaqueCanvasRgb(emptyCellColor) : null;
   const { width, height, cellPalette, palette } = pattern;
   const r = region ?? { x0: 0, y0: 0, x1: width, y1: height };
   if (!emptyRgb) {
@@ -456,7 +485,9 @@ export function drawCell(
   y: number,
   paletteIndex: number,
   emptyCellColor: string = "#ffffff",
-  gridStyle: GridStyle = "stroke"
+  gridStyle: GridStyle = "stroke",
+  /** The stitch kind to draw (G-082), given rather than read from `pattern` for the same reason `paletteIndex` is. */
+  kind: number = STITCH_WHOLE
 ) {
   const px = x * cellSize;
   const py = y * cellSize;
@@ -465,8 +496,7 @@ export function drawCell(
     ctx.fillRect(px, py, cellSize, cellSize);
   } else {
     const color = colorAt(pattern.palette, paletteIndex);
-    ctx.fillStyle = fillForCell(mode, color.rgb);
-    ctx.fillRect(px, py, cellSize, cellSize);
+    fillStitchCell(ctx, px, py, cellSize, fillForCell(mode, color.rgb), kind, emptyCellColor);
     if (cellSize >= LEGIBILITY_FLOOR_PX) {
       ctx.font = `${Math.round(cellSize * 0.6)}px ${FONT_STACK}`;
       ctx.textAlign = "center";
@@ -997,7 +1027,7 @@ export async function renderStitchPreviewPng(pattern: StitchPattern, options: Re
  * and the picture is opaque.
  */
 export function stitchPreviewPixels(pattern: StitchPattern, tiles: StitchTiles, ground?: Ground): PixelSource {
-  const { width: stitchesX, cellPalette } = pattern;
+  const { width: stitchesX, cellPalette, cellKind } = pattern;
   const cellSize = tiles.cellSize;
   const imageWidth = stitchesX * cellSize;
   const tileRowBytes = cellSize * 4;
@@ -1022,13 +1052,23 @@ export function stitchPreviewPixels(pattern: StitchPattern, tiles: StitchTiles, 
           if (paletteIndex === EMPTY_CELL) continue;
           const stitch = tiles.pixels[paletteIndex];
           const start = rowStart + sx * tileRowBytes;
+          // A half stitch keeps the stitch's pixels and cuts its alpha by the corners' coverage (G-082, D259).
+          const kind = cellKind?.[cells + sx] ?? STITCH_WHOLE;
+          const mask = kind === STITCH_WHOLE ? null : halfStitchMask(kind, cellSize);
+          const maskRow = ((y + r) % cellSize) * cellSize;
+          if (!ground && !mask) {
+            data.set(stitch.subarray(tileOffset, tileOffset + tileRowBytes), start);
+            continue;
+          }
           if (!ground) {
             data.set(stitch.subarray(tileOffset, tileOffset + tileRowBytes), start);
+            for (let tx = 0; tx < cellSize; tx++)
+              data[start + tx * 4 + 3] = Math.round((data[start + tx * 4 + 3] * mask![maskRow + tx]) / 255);
             continue;
           }
           // The stitch's soft edges over the canvas, straight alpha.
           for (let i = 0; i < tileRowBytes; i += 4) {
-            const a = stitch[tileOffset + i + 3];
+            const a = mask ? Math.round((stitch[tileOffset + i + 3] * mask[maskRow + i / 4]) / 255) : stitch[tileOffset + i + 3];
             for (let k = 0; k < 3; k++)
               data[start + i + k] = Math.round((stitch[tileOffset + i + k] * a + data[start + i + k] * (255 - a)) / 255);
             data[start + i + 3] = 255;

@@ -5,7 +5,8 @@ import { type StitchPattern } from "@/lib/types";
 import type { ViewMode } from "../editor-types";
 import { BRUSH_SIZES, type BrushShape, type BrushSize } from "@/lib/editor/brush-stamp";
 import type { ShapeFill } from "@/lib/editor/shape-raster";
-import { hasFillChoice, type Tool } from "../editor-types";
+import { hasFillChoice, usesStitchKind, type Tool } from "../editor-types";
+import { STITCH_KIND_LABELS, type StitchKind } from "@/lib/editor/stitch-kind";
 import { ColorPair } from "./color-pair";
 import { PillButton, SegmentedControl, DISABLED_ICON, type SegmentOption } from "./ui";
 
@@ -80,6 +81,9 @@ export interface ContextBarProps {
   activeTool: Tool;
   shapeFill: ShapeFill;
   onShapeFillChange: (fill: ShapeFill) => void;
+  /** What the painting and filling tools lay down: a whole stitch or a half stitch of either kind (G-082). */
+  stitchKind: StitchKind;
+  onStitchKindChange: (kind: StitchKind) => void;
   /** The start screen is up over an open chart: the bar says so and offers the way back (Atelier). */
   startingNew: boolean;
   onBackToChart: () => void;
@@ -123,6 +127,8 @@ export function ContextBar({
   activeTool,
   shapeFill,
   onShapeFillChange,
+  stitchKind,
+  onStitchKindChange,
   startingNew,
   onBackToChart,
 }: ContextBarProps) {
@@ -221,6 +227,26 @@ export function ContextBar({
               </select>
               <SegmentedControl tone="chip" options={BRUSH_SHAPE_OPTIONS} value={brushShape} onChange={onBrushShapeChange} />
             </div>
+
+            {/* What a press lays down: shown for the tools that lay stitches, remembered between visits (G-082). */}
+            {usesStitchKind(activeTool) && (
+              <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Stitch type">
+                <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Stitch</span>
+                <select
+                  aria-label="Stitch type"
+                  value={stitchKind}
+                  onChange={(e) => onStitchKindChange(Number(e.target.value) as StitchKind)}
+                  title="Whole stitches, or half stitches laid along one diagonal of the cell"
+                  className="rounded-md border border-line bg-sunken px-1.5 py-1 text-xs text-ink"
+                >
+                  {([0, 1, 2] as const).map((kind) => (
+                    <option key={kind} value={kind}>
+                      {STITCH_KIND_LABELS[kind]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Only Rectangle and Oval enclose anything, so the choice appears with them rather than sitting inert. */}
             {hasFillChoice(activeTool) && (
