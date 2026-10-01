@@ -81,7 +81,7 @@ any piece.
   the network check again over the whole flow. Docs: README, HANDOVER.
 - [x] M5 -- **Owner's first adjustments.** Add blocked in the view-only Stitched and Photo-only views; identical letters now
   come out as identical stitches (D256).
-- [x] M6 -- **Bundled fonts.** 31 openly licensed families (26 pixel, 5 outline) in the Font list beside the computer's own, with a
+- [x] M6 -- **Bundled fonts.** 41 openly licensed families (36 pixel, 5 outline) in the Font list beside the computer's own, with a
   hint for the sizes a pixel font is cleanest at (D257).
 - [ ] M7 -- **The Owner's look**, then the deploy.
 
@@ -94,6 +94,10 @@ instead of failing. Right-to-left and complex scripts depend on the browser's te
 they are not specially tested in the first version.
 
 **Progress log** (newest first):
+- 2026-10-01 -- Third download, `PixelFonts` (78 folders, many authors): every licence text and embedded notice read, every candidate
+  drawn and its clean sizes measured; 10 more families bundled (41 in all). Five held back for the Owner to confirm: Brian Kent's two
+  (free only while the site is not for profit) and three 1001fonts-FFC fonts (web embedding allowed, no download offered). The rest
+  left out for copyleft, no redistribution right, no licence text, or no clean size (`docs/reviews/2026-10-01-bundled-font-licences.md`).
 - 2026-10-01 -- M6 extended with the Owner's two pixel-font downloads: 63 + 20 fonts checked, 20 more families bundled (31 in all).
   The collection's page labels proved unreliable (Beef'd, Creeper Pixel and Gothic Pixel are labelled OFL but their files say BY-ND
   or BY-SA), so only fonts whose own file states OFL or CC0, plus 14 of the Nb bundle's (public domain by its publisher's statement,

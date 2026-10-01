@@ -20,7 +20,7 @@ export interface BundledFont {
   /** "pixel": drawn on a grid of its own, so it reads at the small sizes where outline fonts fall apart. */
   kind: "pixel" | "outline";
   /** The licence, as the font's own notice or its publisher states it. */
-  licence: "OFL-1.1" | "CC0-1.0" | "Public domain (publisher's statement)";
+  licence: Licence;
   /** The licence text or note kept beside the font, in `dir`. */
   licenceFile: string;
   faces: Array<{ style: string; weight: number; file: string; variableWeight?: string }>;
@@ -32,6 +32,9 @@ export interface BundledFont {
   crispSizes?: number[];
 }
 
+/** The licences the bundled fonts are under; the last is an author's own terms, kept beside each font. */
+export type Licence = "OFL-1.1" | "CC0-1.0" | "MIT" | "Public domain (publisher's statement)" | "Author's permission to bundle (codeman38)";
+
 /** The multiples of `step` from 7 to 64. */
 const multiples = (step: number): number[] => Array.from({ length: Math.floor(64 / step) }, (_, i) => (i + 1) * step).filter((s) => s >= 7);
 
@@ -39,6 +42,7 @@ const one = (style: string, weight: number, file: string) => ({ style, weight, f
 const variable = (style: string, weight: number, file: string, range: string) => ({ style, weight, file, variableWeight: range });
 const OFL = "OFL-1.1" as const;
 const PUBLIC = "Public domain (publisher's statement)" as const;
+const CODEMAN = "Author's permission to bundle (codeman38)" as const;
 const NB = "nb-pixel-font-bundle";
 const nb = (family: string, file: string): BundledFont => ({
   family,
@@ -50,8 +54,7 @@ const nb = (family: string, file: string): BundledFont => ({
   faces: [one("Regular", 400, file)],
 });
 
-export const BUNDLED_FONTS: readonly BundledFont[] = [
-  // Pixel fonts, A to Z.
+const CATALOG: BundledFont[] = [
   nb("Atari Games", "atarigames.ttf"),
   nb("Awex", "awexbmp.ttf"),
   nb("Beanstalk", "beanstalk.ttf"),
@@ -164,7 +167,96 @@ export const BUNDLED_FONTS: readonly BundledFont[] = [
     faces: [one("Regular", 400, "Tiny5-Regular.ttf")],
   },
   { family: "VT323", dir: "vt323", kind: "pixel", licence: OFL, licenceFile: "OFL.txt", faces: [one("Regular", 400, "VT323-Regular.ttf")] },
-  // Outline fonts, A to Z.
+  {
+    family: "Coolville",
+    dir: "coolville",
+    kind: "pixel",
+    licence: OFL,
+    licenceFile: "OFL.txt",
+    crispSizes: [10, 20, 30, 40, 50, 60],
+    faces: [one("Regular", 400, "coolville.ttf")],
+  },
+  {
+    family: "Jacquard 12",
+    dir: "jacquard-12",
+    kind: "pixel",
+    licence: OFL,
+    licenceFile: "OFL.txt",
+    crispSizes: [21, 42, 63],
+    faces: [one("Regular", 400, "jacquard-12.ttf")],
+  },
+  {
+    family: "Jacquarda Bastarda 9",
+    dir: "jacquarda-bastarda-9",
+    kind: "pixel",
+    licence: OFL,
+    licenceFile: "OFL.txt",
+    crispSizes: [13, 26, 39, 52],
+    faces: [one("Regular", 400, "jacquarda-bastarda-9.ttf")],
+  },
+  {
+    family: "Manaspace",
+    dir: "manaspace",
+    kind: "pixel",
+    licence: CODEMAN,
+    licenceFile: "LICENSE.txt",
+    crispSizes: [12, 24, 36],
+    faces: [one("Regular", 400, "manaspace.ttf")],
+  },
+  {
+    family: "Micro 5",
+    dir: "micro-5",
+    kind: "pixel",
+    licence: OFL,
+    licenceFile: "OFL.txt",
+    crispSizes: [11, 22, 33, 44, 55],
+    faces: [one("Regular", 400, "micro-5.ttf")],
+  },
+  {
+    family: "PC Senior",
+    dir: "pc-senior",
+    kind: "pixel",
+    licence: CODEMAN,
+    licenceFile: "LICENSE.txt",
+    crispSizes: multiples(8),
+    faces: [one("Regular", 400, "pc-senior.ttf")],
+  },
+  {
+    family: "PixelArmy",
+    dir: "pixelarmy",
+    kind: "pixel",
+    licence: OFL,
+    licenceFile: "OFL.txt",
+    crispSizes: multiples(16),
+    faces: [one("Regular", 400, "pixelarmy.ttf")],
+  },
+  {
+    family: "PXFX Tall",
+    dir: "pxfxtall",
+    kind: "pixel",
+    licence: OFL,
+    licenceFile: "OFL.txt",
+    crispSizes: multiples(16),
+    faces: [one("Regular", 400, "pxfxtall.ttf")],
+  },
+  {
+    family: "Tiny",
+    dir: "tiny",
+    kind: "pixel",
+    licence: "MIT",
+    licenceFile: "LICENSE.txt",
+    crispSizes: [12, 18, 24, 30, 36, 42, 48, 54, 60],
+    faces: [one("Regular", 400, "tiny.ttf")],
+  },
+  {
+    family: "Zenimini Pixel",
+    dir: "zenimini-pixel",
+    kind: "pixel",
+    licence: OFL,
+    licenceFile: "OFL.txt",
+    crispSizes: [20, 50],
+    faces: [one("Regular", 400, "zenimini-pixel.otf")],
+  },
   {
     family: "Caveat",
     dir: "caveat",
@@ -210,6 +302,11 @@ export const BUNDLED_FONTS: readonly BundledFont[] = [
     faces: [variable("Regular", 400, "PlayfairDisplay.ttf", "400 900"), variable("Bold", 700, "PlayfairDisplay.ttf", "400 900")],
   },
 ];
+
+/** Pixel fonts first, then the others, each A to Z. */
+export const BUNDLED_FONTS: readonly BundledFont[] = [...CATALOG].sort(
+  (a, b) => Number(a.kind === "outline") - Number(b.kind === "outline") || a.family.localeCompare(b.family, "en", { sensitivity: "base" })
+);
 
 export const bundledId = (family: string): string => `${BUNDLED_PREFIX}${family}`;
 export const isBundledId = (id: string): boolean => id.startsWith(BUNDLED_PREFIX);

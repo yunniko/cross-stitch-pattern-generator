@@ -45,3 +45,36 @@ letters ("HILTEFNZ"); a size is listed when it is under 0.4%. Results: the Nb fo
 2P, Tiny5 and Public Pixel at multiples of 8; 3x3 Mono at multiples of 4; Pixeloid at multiples of 9; Quinque Five at 10 to 35 in
 fives; Old English Gothic Pixel at 20 only; Pixelify Sans, Jersey 10 and VT323 at none. `tests/unit/bundled-fonts.spec.ts`
 re-measures the smallest and largest listed size of each.
+
+## The "PixelFonts" download (78 folders, many authors)
+
+Checked the same way: the included licence or readme text of every folder and each font file's embedded notice, then every
+candidate was drawn and its clean sizes measured. 15 families passed; 10 are bundled and the 5 greyer ones are held back for the Owner (below); the rest were left out.
+
+**Bundled:** OFL with its text (Coolville, Jacquard 12, Jacquarda Bastarda 9, Micro 5, PixelArmy, PXFX Tall, Zenimini Pixel); MIT
+(Tiny); codeman38's permission to bundle (Manaspace, PC Senior). **Held back, not bundled:** Brian Kent's freeware terms
+(Homespun, Jupiter Crash) and the 1001fonts "Free For Commercial Use" licence with its web-embedding clause (BitPap, Chava,
+EXE Pixel Perfect). They passed the checks but rest on the readings below, and the Owner has not yet confirmed them.
+
+**The two greyer groups (held back; to be bundled only if the Owner confirms; the files are in the Owner's download):**
+- *Brian Kent* allows offering the fonts "go right ahead" with his text file kept intact, but forbids selling or distributing them
+  "for profit". The project is not monetised; if that ever changes these two (and any like them) must go.
+- *1001fonts FFC* allows embedding in a web app that does not offer the font as a download. A web font is a file the browser
+  fetches, so it can be fetched by address; the app offers no download. This reading is mine, not the licensor's.
+
+**Left out, by licence:**
+- *Copyleft or share-alike*: Progenisis (GPL 2), Graph 35+ pix, Thirteen Pixel Fonts, Scream When You're Ready To Die, Minercraftory
+  (CC BY-SA), VTF Mister Pixel (Velvetyne Black Licence: share-alike, no direct trade).
+- *Redistribution refused or not granted*: Game Over (non-commercial, "may not sell or distribute"), Hydrophilia (may not be
+  redistributed), Jazzy HuitBits (may not be republished), Habesha Pixels and Steve (not without permission), Millennia (workstation
+  EULA), Unicode 00xx Square (FontStruct commercial EULA), Charybdis, Origami Mommy, Ponderosa (Tepid Monkey: "the terms on the
+  website override", unchecked), Cayetano, So, Templo (use "as is", no redistribution stated), Megapixel and Pix PixelFJVerdana
+  12pt (1001fonts FFC without the embedding clause), Bitmgothic (no redistribution stated), Quantasm (public domain by
+  1001fonts' text but "all rights reserved" in the file).
+- *No licence text, or only "free" with no statement on redistribution*: BitGameFont, BitPotion, Digital Drip, Geet, Racquetball,
+  Retro Bound, Skeleboom, Wendy Neue, XC Robot, PIXY, Groutpix Flow and Pix Pixls (a website licence), PXFX Disco and Shadow.
+- *Not letters*: Yarndings (symbols); the Charted variants of Jacquard and Micro (coloured chart-grid glyphs, up to 2.2 MB).
+**Left out, no clean size** (drawn blurred at every size, so useless for stitches): 8-bit Limit, Unlearned, Boo City, Bulky Pixels,
+Fat Pixels, Crumbled Pixels, Hardpixel, Librium, Libritabs, Wellbutrin, Lilliput Steps, Medodica, Pixel (utopiafonts), UA Squared,
+Binary (symbols). Only a 40-stitch size was clean for Acknowledge, AE Systematic, Alpha Beta, Setback, Simpletown and Jacquard 24,
+and 27 or 32 for Retron2000 and Script Screen: too large to be useful, so not bundled.

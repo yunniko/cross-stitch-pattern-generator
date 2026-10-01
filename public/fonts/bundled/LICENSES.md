@@ -44,3 +44,21 @@ licence field of their own, so this rests on that statement alone; it is kept as
 bundle lists them: Atari Games (Kieran), Awex (Awex SPLBank), Beanstalk (MistressEllipsis), Bitfantasy (Mitch), Celtic Time
 (LunarRay), Karen Fat (PaulSpades), Kubasta (KaiKubasta), LCD Block (vacuumfan7072), Rockbox Condensed (frizznickrz), Sandy Forest
 (JayWright), Square Sounds (iLKke), Tallpix (TommyV), Tiny Unicode (DuffsDevice), Triple N (NyoNeoNao).
+
+## From the Owner's "PixelFonts" download (78 folders; fonts from many authors, each with its own terms)
+
+Only fonts whose included text or embedded notice grants what bundling needs were used. Each folder keeps that text.
+
+| Font | Folder | Licence | Terms, in short |
+|---|---|---|---|
+| Coolville (Tyler Finck, 2014) | `coolville` | OFL-1.1 | `OFL.txt` |
+| Jacquard 12 (The Soft Type Project Authors, 2023) | `jacquard-12` | OFL-1.1 | `OFL.txt` |
+| Jacquarda Bastarda 9 (The Soft Type Project Authors, 2023) | `jacquarda-bastarda-9` | OFL-1.1 | `OFL.txt` |
+| Micro 5 (The Soft Type Project Authors, 2023) | `micro-5` | OFL-1.1 | `OFL.txt` |
+| PixelArmy (Joshua Segall, 2023) | `pixelarmy` | OFL-1.1 | `OFL.txt` |
+| PXFX Tall (Brett Freeland, 2020) | `pxfxtall` | OFL-1.1 | `OFL.txt` (the file named LICENSE.txt in the download) |
+| Zenimini Pixel (Speak the Sky, 2022) | `zenimini-pixel` | OFL-1.1 | `OFL.txt`; the licence file in the download carries no copyright line, the font's own notice names Speak the Sky |
+| Tiny (Matthew Welch, 2004) | `tiny` | MIT | `LICENSE.txt`: use, copy, modify, distribute, with the notice kept |
+| Manaspace, PC Senior (codeman38, 2001) | `manaspace`, `pc-senior` | author's permission to bundle | `LICENSE.txt`: free to bundle in free or commercial software; not to be resold in a font collection; credit codeman38 / zone38.net |
+
+Credit lines: Tiny, Matthew Welch (squaregear.net); Manaspace and PC Senior, codeman38 (http://www.zone38.net).

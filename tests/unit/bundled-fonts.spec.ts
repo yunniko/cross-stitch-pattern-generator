@@ -23,7 +23,7 @@ const context: ContextFactory = (w, h) => createCanvas(w, h).getContext("2d") as
 
 describe("the bundled catalog", () => {
   it("names a file and a licence in the repository for every font", () => {
-    expect(BUNDLED_FONTS.length).toBeGreaterThanOrEqual(30);
+    expect(BUNDLED_FONTS.length).toBeGreaterThanOrEqual(40);
     for (const font of BUNDLED_FONTS) {
       expect(existsSync(path.join(DIR, font.dir, font.licenceFile)), `${font.family} licence`).toBe(true);
       for (const face of font.faces) expect(existsSync(path.join(DIR, font.dir, face.file)), `${font.family} ${face.style}`).toBe(true);
@@ -41,7 +41,7 @@ describe("the bundled catalog", () => {
     const licences = readFileSync(path.join(DIR, "LICENSES.md"), "utf8");
     for (const font of BUNDLED_FONTS) expect(licences, font.family).toContain(font.family);
     expect(licences).toContain("SIL Open Font License");
-    for (const font of BUNDLED_FONTS) expect(licences, `${font.family} licence`).toContain(font.licence);
+    for (const font of BUNDLED_FONTS) expect(licences, `${font.family} folder`).toContain(`\`${font.dir}\``);
   });
 
   it("is told apart from a computer's own family of the same name by its id", () => {
