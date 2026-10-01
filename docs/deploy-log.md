@@ -160,3 +160,4 @@ One row per deploy: date, commit, what changed, and how it was verified. Split o
 | 2026-10-01 | 6a89bd0 | A4 page marks: repeated overlap labels, closer numbers, haloed marks; 3-cell overlap (G-083) | Rendered page viewed; PK pin + 960 unit tests pass; containers up, site 200 |
 | 2026-10-01 | 1cb9020 | A4 pages fill the page: every whole cell that fits, not rounded to tens (G-083) | Rendered page viewed; PK pin passes; containers up, site 200 |
 | 2026-10-01 | ff36e18 | A4 pages: narrower number gutter, pattern closer to the left margin (G-083) | Rendered page viewed; PK pin + 960 unit tests pass; containers up, site 200 |
+| 2026-10-01 | 88834e4 | Legends print the Color # column whenever a thread has a code, incl. mixed-brand charts (D265) | Real PDF of a mixed chart read back with pdftotext; PK pin passes; containers up, site 200 |
