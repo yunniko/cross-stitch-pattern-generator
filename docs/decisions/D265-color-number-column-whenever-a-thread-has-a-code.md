@@ -5,4 +5,4 @@ Decision: the legends print Color # when `thread_brand` is set or any colour has
 Force: requirement — the Owner's Pattern Keeper import fails without the column.
 Rejected: printing the brand inside the code cell (too wide for 18 mm); changing the editor to keep `threadBrand`.
 Consequence: `Pattern::has_thread_codes` decides; a chart with no sources and no brand prints exactly what it did, which `pattern_keeper_pinned` still pins. The TypeScript A4 legend keeps the old rule (not the production path).
-Evidence: rust/cs-export/src/a4.rs (`code_column_tests`); rust/cs-export/tests/pattern_keeper_pinned.rs
+Evidence: Owner confirmed the import works (2026-10-01); rust/cs-export/src/a4.rs (`code_column_tests`); rust/cs-export/tests/pattern_keeper_pinned.rs
