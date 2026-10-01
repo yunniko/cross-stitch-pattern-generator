@@ -12,6 +12,88 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
+### G-082 · Half stitches: a cell can hold half a cross, "/" or "\" — DRAFT (2026-10-01)
+- **What:** a cell may hold a **whole stitch** (as today) or a **half stitch** of one of two kinds: **"/"** (a thread from the
+  bottom-left corner to the top-right) or **"\"** (top-left to bottom-right). A half stitch is drawn as the cell in its
+  colour with the **two opposite corners cut away, transparent** (for "/" the top-left and bottom-right corners go; for "\" the
+  top-right and bottom-left). A **Stitch type** dropdown (Whole stitch, Half "/", Half "\") sets what every painting and
+  filling tool lays down. The Stitched view draws a half stitch with the existing stitch texture, clipped to the same cut
+  shape (its own textures come later). Exports show half stitches and list them in the legend when the chart uses any; the
+  Pattern Keeper PDF writes them as whole stitches.
+- **Why:** Owner request, 2026-10-01. Real charts use half stitches for fine detail and soft edges; today the only way to
+  draw one is to approximate it with a whole stitch.
+- **Acceptance criteria:** (1) the dropdown is offered for the brush, shape tools, Fill, double-click fill, Lasso fill,
+  Fill selection and the keyboard pen, and each lays the chosen kind in the chosen thread; the eraser clears a cell whatever it
+  holds; (2) Color and B&W draw a half stitch with its two corners cut away, so the background or the canvas shows through, and
+  the symbol sits in the middle of what is left; (3) Stitched view draws it with the stitch texture clipped to the same shape;
+  (4) a flip or a turn of a selection, and every symmetry axis, turns "/" into "\" where the geometry requires it, so a mirrored
+  drawing stays a mirror image; (5) copy, paste, move, duplicate, undo, redo, autosave and "Open" keep the kind; the
+  transparency lock's rule is unchanged (a cell is empty or it is not); (6) the editable JSON, A4 PDF, PNG chart and realistic
+  preview, OXS and every other export written by the server or the browser show half stitches, and the legend lists them (see
+  question 3); (7) the **Pattern Keeper PDF** shows each half stitch as a whole stitch, in the chart and in the legend's
+  counts; (8) a chart with no half stitch produces byte-for-byte the same files as today; an old saved chart opens unchanged;
+  (9) the TypeScript and the Rust export paths agree (the equivalence harness stays a merge gate).
+- **Constraints:** photo generation makes whole stitches only (no half stitch can come from a photo); the stored format must
+  stay readable by the previous version for a chart without halves (Owner expectation: nothing breaks for existing charts);
+  both export implementations ship together, since production runs the Rust path (STANDARDS: verified means the path production runs).
+
+**What I found in the code (so the plan is grounded):** a chart is `cellPalette` (one byte per cell: a palette index or
+`EMPTY_CELL`) plus palette and an optional list of backstitch lines (G-073), and 22 modules read `cellPalette`, plus the Rust
+exporter (`model.rs`, `render.rs`, `pdf.rs`, `a4.rs`, `preview.rs`, `oxs.rs`, `editable.rs`, `json.rs`). The OXS importer today
+already meets half stitches (`halfcross`, `verticalhalf`...) and shows them as whole stitches, counting them
+(`approximatedPartStitches`); this goal gives them a real home. Flip, rotate and symmetry are in `lib/editor/symmetry.ts`
+and `pattern-edit.ts`.
+
+**Plan (recommended design):** a second, parallel array on the pattern, **`cellKind`** (0 whole, 1 "/", 2 "\"), one byte per
+cell and absent when the chart has no half stitch. Same indexing as `cellPalette`, so a chart without halves is untouched
+everywhere and costs nothing. Rejected: packing the kind into `cellPalette` (a palette can be 100 colours, so no room in a byte
+without widening every buffer and every Rust path), and a sparse list like backstitch (halves are per-cell and need undo,
+selection, symmetry and fills like any cell).
+
+**Milestones:**
+- [ ] M1 -- **The model and the editing core (pure, tested).** `cellKind` on `StitchPattern`; `pattern-edit` writes colour and
+  kind together; flip, rotate and symmetry swap "/" and "\" correctly; selection, copy, paste, move, undo and the project store
+  carry it; the editable JSON gains an optional `cellKind` (absent when none). Unit tests incl. old-file round trip. Decision
+  record for the model.
+- [ ] M2 -- **The dropdown and the tools.** The Stitch type dropdown (persisted workspace option) and every tool of acceptance
+  (1) laying the chosen kind; Fill selection and the keyboard pen follow it; lock rule kept. e2e for each tool.
+- [ ] M3 -- **On screen.** Color and B&W cut-corner cells (the cut's size is a calibrated constant, a `judgment` decision looked
+  at on screen), the symbol placed in what remains; Stitched view with the texture clipped to the cut shape; pointer dot,
+  outline and rulers unchanged. Looked at on screen at several zoom levels.
+- [ ] M4 -- **Exports, TypeScript and Rust together.** PNG chart and preview, A4 PDF, legend, OXS (real part stitches if the
+  format's half-cross direction is verified against the spec; else documented approximation), editable JSON, Pattern Keeper PDF
+  (halves as whole, counts merged). Rust model, render, preview, pdf, a4, oxs, editable and json brought to parity; the
+  equivalence harness extended; a chart without halves still byte-identical.
+- [ ] M5 -- **Import, polish, live.** OXS import reads half stitches natively instead of approximating them; README, HANDOVER;
+  full e2e; deploy at the Owner's word and verify live.
+
+**Open questions for the Owner (with my recommended default; none blocks M1):**
+1. **One half or two per cell?** Real cross stitch can put both a "/" and a "\" in one cell (a full cross in two colours).
+   *Recommended: one kind per cell for now*, as described; the byte can later hold both as flags without a rewrite.
+2. **Which diagonal is which:** is "/" the thread bottom-left to top-right, with the top-left and bottom-right corners cut away,
+   as written above? (Easy to flip if you meant the opposite.)
+3. **Legend:** *recommended:* each colour keeps one row with its symbol and total; where a colour has half stitches the row adds
+   "whole 120 · half / 14 · half \ 6", and a small key under the legend shows the two cut shapes ("½ /", "½ \") when any are used.
+   Pattern Keeper's legend shows one merged count per colour. Is that what you meant by "appear on the legend if used"?
+4. **Counts and thread:** the chart's stitch total counts cells (so today's numbers do not change), and a half stitch is one
+   of them. The A4 thread estimate counts a half stitch as half a stitch of thread. OK?
+5. **Lettering (the Text tab)** stays whole stitches, not following the dropdown. OK?
+6. **Where the dropdown lives:** *recommended:* in the top tool-options bar beside the thread in hand, shown for the tools that
+   use it, remembered between visits.
+7. **The cut's size** (how much of each corner goes): I will propose a shape on screen in M3 and you pick; a cut that goes
+   corner to corner would leave a hairline, one that cuts too little looks like a whole stitch. Starting point: each cut corner
+   is a right triangle whose legs are 40 % of the cell side.
+
+**Risks:** (a) the Rust export path is large (about 4 000 lines read the cells) and must change in step with TypeScript: M4 is
+the biggest milestone and may split; (b) 22 modules read `cellPalette`, so the safe route is to keep it unchanged and add
+`cellKind` beside it, touching only code that draws, counts or writes; (c) symmetry and rotation are easy to get subtly wrong
+(a half stitch must change kind under a mirror): M1 pins them with tests before any UI exists; (d) Pattern Keeper imports from
+the PDF's real text symbols, so its export must not draw cut shapes it cannot read as stitches.
+
+**Progress log** (newest first):
+- 2026-10-01 -- goal planned at the Owner's request ("make plan of introducing halfstitches"); nothing built. Grounded in the code
+  (see above). Waits for the Owner's answers to the questions and the go-ahead to start M1.
+
 ### G-069 · The workspace stops being the only thing that knows how everything connects — DRAFT (2026-09-24)
 - **What:** the changes `docs/reviews/2026-09-24-workspace-shape.md` recommends: a `useEditorDocument` hook owning
   what it means to replace the open chart, then grouped props for the panes that take 31 and 30 of them.
