@@ -91,6 +91,9 @@ instead of failing. Right-to-left and complex scripts depend on the browser's te
 they are not specially tested in the first version.
 
 **Progress log** (newest first):
+- 2026-10-01 -- Deployed 4337881 (M1 to M4) at the Owner's instruction; all 13 Text-tab cases pass against the live site and the other
+  sites are unaffected. The Owner is checking it live: M5 (their adjustments, such as whether the weight slider stays and the
+  starting spot) is what remains.
 - 2026-10-01 -- M4 built (D255): Add applies any piece in hand and puts the lettering in hand as a masked `FloatingSelection`
   (`lib/editor/text-selection.ts`, `select.insert`), starting three stitches in from the corner of the view or down and right of
   the piece that was in hand, kept inside the chart; the Select tool is put in hand. A piece larger than the chart, no text and a
@@ -99,7 +102,7 @@ they are not specially tested in the first version.
   `text-add.spec.ts` (6, including a recording of all network traffic across listing, choosing, typing, adding and applying: no
   request but GET, none naming the font or the text, no websocket) pass 52 of 52 over four repeats; 490 of 493 e2e in the full run
   (the 2 admin-stats cases pass alone; the fonts-listing case timed out under load and now waits for the computer's list).
-  Looked at on screen. Not deployed. M5 (the Owner's look, then the deploy) waits for the Owner.
+  Looked at on screen.
 - 2026-10-01 -- M3 built: a fourth Inspector tab (`app/components/text-pane.tsx`): font (451 of this computer's own fonts listed in a real
   Chromium with the permission granted), font type (the family's faces), size, weight slider, colour (the chart's threads), one line
   of text, the preview one square a stitch with its size, the legibility warnings (`lib/editor/lettering-warnings.ts`), and Add
