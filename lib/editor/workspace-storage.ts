@@ -1,3 +1,4 @@
+import { DEFAULT_EXPORT_CELL_MM, normalCellMm } from "../export/export-cell-size";
 import { isStitchKind } from "./stitch-kind";
 import type { OverlapCells } from "../export/a4-layout";
 import type { LegacyProjectSlot } from "./project-store";
@@ -31,6 +32,8 @@ export interface WorkspaceOptions {
   edgeMode: EdgeMode;
   /** A4/PDF export overlap; defaults to 5 like `calculateA4Layout` itself. */
   overlapCells: OverlapCells;
+  /** How big one stitch is printed on the A4 pages, in millimetres (G-083); the full-size picture does not use it. */
+  exportCellMm: number;
   /** On-screen canvas background behind empty cells and the realistic preview. Display only, never threaded into any export. */
   canvasColor: string;
   /** Which stitch texture the realistic view and the exported realistic preview draw with (D249). */
@@ -79,6 +82,7 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   authorName: "",
   edgeMode: "standard",
   overlapCells: 5,
+  exportCellMm: DEFAULT_EXPORT_CELL_MM,
   canvasColor: "#ffffff",
   stitchTexture: DEFAULT_STITCH_TEXTURE,
   canvasTexture: CANVAS_TEXTURE_OFF,
@@ -132,6 +136,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       sizeUnit: parsed.sizeUnit === "in" || parsed.sizeUnit === "cm" ? parsed.sizeUnit : DEFAULT_OPTIONS.sizeUnit,
       authorName: typeof parsed.authorName === "string" ? parsed.authorName : DEFAULT_OPTIONS.authorName,
       edgeMode,
+      exportCellMm: normalCellMm(parsed.exportCellMm) ?? DEFAULT_OPTIONS.exportCellMm,
       overlapCells: VALID_OVERLAP_CELLS.includes(parsed.overlapCells as OverlapCells)
         ? (parsed.overlapCells as OverlapCells)
         : DEFAULT_OPTIONS.overlapCells,

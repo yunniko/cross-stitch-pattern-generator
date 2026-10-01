@@ -12,7 +12,7 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-083 · Export fixes: centre marks, cell size in mm, page letters and a page map, a legend table — DRAFT (2026-10-01)
+### G-083 · Export fixes: centre marks, cell size in mm, page letters and a page map, a legend table — ACTIVE (2026-10-01)
 - **What:** five changes to the picture and paper exports (the full-size chart PNG and the A4 pages), none of them to the Pattern Keeper export:
   1. **The centre marked** on both: a black triangle on each ruler at the middle of the chart, and the central stitch (or block) marked on the pattern.
   2. **A new setting, "Cell size, mm"**: both the A4 pages and the full-size picture are drawn with it, and the symbol font and the line widths (between stitches, and at every tenth) follow from it. Its default is twice the A4's present cell.
@@ -26,11 +26,11 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 **What I found in the code:** the Rust exporter (`rust/cs-export/src/render.rs`, `a4.rs`, `bundle.rs`, `pdf.rs`) is the production path. The **full-size chart** is drawn at 24 pixels a stitch (`DEFAULT_CELL_SIZE`), reduced to fit, with small grey (#333) triangles at the four edges' middles already (`draw_center_markers`) and the numbers at every tenth stitch. The **A4 pages** use a 2.75 mm stitch at 300 dpi (`calculate_layout`), 12 mm margins, a whole number of tens of stitches a page, a caption "Page 1 / 6 — Row 1, Column 1", tinted overlap bands with no label (a note on the legend page explains them) and no ruler or centre mark. The A4 "Threads needed" page is a swatch grid with skeins; the "Color key" page is a table (symbol, code, name, type, stitch count). The Pattern Keeper PDF calls the same page drawing (`draw_grid_page`, `draw_legend_page`, `plan_info_pages`), which is why the plan makes every change opt-in. Line weights and the symbol font are already proportions of the cell on the full chart; the A4 pages' captions and notes are fixed millimetres.
 
 **Plan:**
-- [ ] M1 -- **Cell size in mm.** The setting, its default (see question 2), the A4 layout and the full-size picture drawn from it, line weights and fonts as proportions of the cell, the request carrying it; tests for both outputs at several sizes and for the shrink-to-fit rule; a before/after test pinning the Pattern Keeper PDF.
-- [ ] M2 -- **The centre.** Black triangles on the rulers and the marked central stitch, full chart and A4, opt-in for Pattern Keeper.
-- [ ] M3 -- **Page letters, the map page and the overlap labels** (A4 only).
-- [ ] M4 -- **The skein legend table.**
-- [ ] M5 -- **Half stitch figures on the full-size pictures; docs, full suite, deploy.**
+- [x] M1 -- **Cell size in mm.** The setting, its default (see question 2), the A4 layout and the full-size picture drawn from it, line weights and fonts as proportions of the cell, the request carrying it; tests for both outputs at several sizes and for the shrink-to-fit rule; a before/after test pinning the Pattern Keeper PDF.
+- [x] M2 -- **The centre.** Black triangles on the rulers and the marked central stitch, full chart and A4, opt-in for Pattern Keeper.
+- [x] M3 -- **Page letters, the map page and the overlap labels** (A4 only).
+- [x] M4 -- **The skein legend table.**
+- [x] M5 -- **Docs, full suite, deploy** (the half stitch figures on the full-size pictures were dropped by the Owner: the legend rows already list every type).
 
 **Open questions for the Owner (with my recommended answer; none blocks M1 except 2):**
 1. **The centre on the pattern.** *Recommended:* the central stitch outlined with a heavy black frame (an even-sided chart: the central 2 × 2 block as one frame), on the full chart and on the A4 page that holds it. Or a crosshair of two thin black lines through the centre? Or a shaded stitch?
@@ -43,6 +43,15 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 **Risks:** the A4 and Pattern Keeper outputs share drawing code, so a change that forgets its opt-in changes the Pattern Keeper PDF, which M1's pinning test catches; a bigger default cell makes A4 pages hold fewer stitches and a chart needs more pages (a 100 × 100 chart: about 12 pages instead of 4, by my count of the layout rule), which is the point but is worth knowing; the picture size limits cap the full-size cell for very large charts.
 
 **Progress log** (newest first):
+- 2026-10-01 -- built (D264). **Owner's answers:** (1) a heavy block frame; (2) the cell size applies to the A4 export only and the full-size
+  picture keeps its size; (3) the map first, the page description kept and a large dark-grey letter in the top right corner; (4) the skein
+  table as proposed; (5) item 5 is out (the legend rows already list every stitch type); (6) Rust only. Built: `Request.cell_mm` (default 5.5,
+  limits 2 to 12, quarter steps) from the Chart pane's "A4 cell size, mm" through the request to `calculate_a4_layout`; the page map first
+  (`..._00_page_map.png`), letters A, B... AA on every page, "overlap X" labels beside each band outside the pattern, the black centre triangles
+  on every ruler and the heavy frame round the central stitch (full chart in Rust and TypeScript, A4 pages in Rust); the skein table over
+  as many pages as it needs. **The Pattern Keeper PDF is pinned byte for byte** and unchanged. Measured: a 1000 × 1000 chart takes 196 s at
+  5.5 mm (760 pages) against 36 s at 2.75 mm (152 pages), the same 0.25 s a page, so the processor's page-based deadline stands.
+  Looked at: the map, a grid page with its letter, labels, triangles and frame, the skein table, the full chart.
 - 2026-10-01 -- goal planned at the Owner's request ("next we need to make fixes in the export"), after signing off G-082; nothing built. Grounded in the Rust exporter's code (above). Waits for the Owner's answers, above all to question 2, and the go-ahead.
 
 ### G-069 · The workspace stops being the only thing that knows how everything connects — DRAFT (2026-09-24)

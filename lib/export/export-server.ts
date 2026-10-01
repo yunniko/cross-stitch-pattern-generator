@@ -96,6 +96,7 @@ export async function runServerExport(request: ExportJobRequest, onProgress?: Ex
       sizeUnit: request.sizeUnit,
       authorName: request.authorName,
       overlapCells: request.overlapCells,
+      cellMm: request.cellMm,
       stitchTexture: request.stitchTexture,
       canvas: request.canvas,
     });

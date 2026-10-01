@@ -51,7 +51,7 @@ function chart(): StitchPattern {
 type Kind = ExportJobKind;
 
 function payloadFor(kind: Kind): ExportJobPayload {
-  return { kind, pattern: chart(), baseName: "sample", aidaCount: 14, sizeUnit: "cm", authorName: "", overlapCells: 5 };
+  return { kind, pattern: chart(), baseName: "sample", aidaCount: 14, sizeUnit: "cm", authorName: "", overlapCells: 5, cellMm: 5.5 };
 }
 
 const pool = new GenerationPool(WORKER, 1);

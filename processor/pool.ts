@@ -106,7 +106,9 @@ export class GenerationPool {
    * export's grows with the chart's A4 page count, counted here before the job starts (D168).
    */
   submitExport(payload: ExportJobPayload): string {
-    const pages = gridPagesFor(payload.pattern.width, payload.pattern.height, payload.overlapCells);
+    // The A4 pages follow the Owner's cell size; the Pattern Keeper PDF keeps its own layout (G-083).
+    const a4Pages = payload.kind.startsWith("a4-") || payload.kind === "all";
+    const pages = gridPagesFor(payload.pattern.width, payload.pattern.height, payload.overlapCells, a4Pages ? payload.cellMm : undefined);
     return this.enqueue((jobId) => ({ kind: "export", jobId, payload }), exportDeadlineFor(payload.kind, pages));
   }
 

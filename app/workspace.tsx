@@ -800,6 +800,7 @@ export default function Workspace({ account }: WorkspaceProps) {
           exportError={exports.exportError}
           onDismissExportError={exports.dismissExportError}
           a4Layout={paginatesAsA4(exports.exportKind) ? exports.a4LayoutPreview : null}
+          a4HasPageMap={!exports.exportKind.startsWith("pdf-")}
         />
         {pendingStart !== null && pattern && (
           <ConfirmNewChart

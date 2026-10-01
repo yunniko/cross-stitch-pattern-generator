@@ -96,6 +96,8 @@ export interface A4LayoutOptions {
   marginMm?: number;
   overlapCells?: OverlapCells;
   dpi?: number;
+  /** The space for the page's numbers and labels outside the grid; the A4 pages of the Rust exporter use more than the default (G-083). */
+  gutterMm?: number;
   /** Forces a specific orientation instead of auto-selecting whichever needs fewer total pages. */
   orientation?: PageOrientation;
 }
@@ -134,11 +136,12 @@ function layoutForOrientation(
   cellSizePx: number,
   marginPx: number,
   overlapCells: OverlapCells,
-  dpi: number
+  dpi: number,
+  gutterMm: number = NUMBER_GUTTER_MM
 ): A4Layout {
   const { width: pageWidthPx, height: pageHeightPx } = a4PageSizePx(orientation, dpi);
   const captionHeightPx = mmToPx(CAPTION_HEIGHT_MM, dpi);
-  const numberGutterPx = mmToPx(NUMBER_GUTTER_MM, dpi);
+  const numberGutterPx = mmToPx(gutterMm, dpi);
   const gridOriginXPx = marginPx + numberGutterPx;
   const gridOriginYPx = marginPx + captionHeightPx + numberGutterPx;
 
@@ -194,13 +197,14 @@ export function calculateA4Layout(patternWidth: number, patternHeight: number, o
   const cellSizePx = mmToPx(options.cellSizeMm ?? DEFAULT_CELL_SIZE_MM, dpi);
   const marginPx = mmToPx(options.marginMm ?? DEFAULT_MARGIN_MM, dpi);
   const overlapCells = options.overlapCells ?? 5;
+  const gutterMm = options.gutterMm ?? NUMBER_GUTTER_MM;
 
   if (options.orientation) {
-    return layoutForOrientation(patternWidth, patternHeight, options.orientation, cellSizePx, marginPx, overlapCells, dpi);
+    return layoutForOrientation(patternWidth, patternHeight, options.orientation, cellSizePx, marginPx, overlapCells, dpi, gutterMm);
   }
 
-  const portrait = layoutForOrientation(patternWidth, patternHeight, "portrait", cellSizePx, marginPx, overlapCells, dpi);
-  const landscape = layoutForOrientation(patternWidth, patternHeight, "landscape", cellSizePx, marginPx, overlapCells, dpi);
+  const portrait = layoutForOrientation(patternWidth, patternHeight, "portrait", cellSizePx, marginPx, overlapCells, dpi, gutterMm);
+  const landscape = layoutForOrientation(patternWidth, patternHeight, "landscape", cellSizePx, marginPx, overlapCells, dpi, gutterMm);
 
   const portraitPages = portrait.rows * portrait.columns;
   const landscapePages = landscape.rows * landscape.columns;

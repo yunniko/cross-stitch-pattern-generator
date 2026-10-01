@@ -5,6 +5,7 @@ pub mod a4;
 pub mod backstitch;
 pub mod bundle;
 pub mod canvas;
+pub mod centre;
 pub mod editable;
 pub mod format;
 pub mod halfstitch;
@@ -161,7 +162,7 @@ fn export_all(p: &Pattern, request: &Request, progress: Progress) -> Result<Vec<
     // `generateExportAllZip`'s own counting: two units for the save and OXS, one per chart, one per preview, then
     // every PDF page and both A4 page sets.
     let pdf_pages = bundle::a4_page_count(p, request, 72.0);
-    let a4_pages = bundle::a4_page_count(p, request, a4::PRINT_DPI);
+    let a4_pages = bundle::a4_png_page_count(p, request);
     let total = 5 + pdf_pages + 2 * a4_pages;
     let mut completed = 0;
     let mut step = |units: usize, label: &str| {

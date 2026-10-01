@@ -15,6 +15,8 @@ export interface WorkspaceNoticesProps {
   onDismissExportError: () => void;
   /** Shown only while an A4 or PDF export kind is selected. */
   a4Layout: ReturnType<typeof calculateA4Layout> | null;
+  /** The A4 pages come with a page map, a skein table and a colour key; the Pattern Keeper PDF keeps its simple and extended legend (G-083). */
+  a4HasPageMap?: boolean;
 }
 
 /** The strips under the top bar: a failed auto-restore (D101), open and export errors, and the A4 page count. */
@@ -29,6 +31,7 @@ export function WorkspaceNotices({
   exportError,
   onDismissExportError,
   a4Layout,
+  a4HasPageMap = false,
 }: WorkspaceNoticesProps) {
   return (
     <>
@@ -70,8 +73,10 @@ export function WorkspaceNotices({
       )}
       {a4Layout && (
         <NoticeBar tone="info">
-          {a4Layout.columns} × {a4Layout.rows} pages — {a4Layout.pages.length + 2}+ total (incl. simple + extended legend). Overlap in
-          Options.
+          {a4Layout.columns} × {a4Layout.rows} pages —{" "}
+          {a4HasPageMap
+            ? `${a4Layout.pages.length + 3}+ total (incl. page map, skein table + colour key). Overlap and cell size in Options.`
+            : `${a4Layout.pages.length + 2}+ total (incl. simple + extended legend). Overlap in Options.`}
         </NoticeBar>
       )}
     </>

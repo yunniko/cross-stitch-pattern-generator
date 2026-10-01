@@ -707,9 +707,10 @@ fn draw_legend(ctx: &mut dyn Ctx, p: &Pattern, l: &Layout, aida: f64) {
 }
 
 fn draw_center_markers(c: &mut Canvas, w: f64, h: f64) {
-    let size = MARKER_MARGIN * 0.6;
+    // Black and larger than they were: they say where the middle is (G-083).
+    let size = MARKER_MARGIN * 0.8;
     let (mx, my) = (w / 2.0, h / 2.0);
-    c.set_fill(GRID_LINE_COLOR);
+    c.set_fill("#000000");
     let mut triangle = |points: [(f64, f64); 3]| {
         c.begin_path();
         c.move_to(points[0].0, points[0].1);
@@ -738,6 +739,20 @@ fn draw_center_markers(c: &mut Canvas, w: f64, h: f64) {
         (w + MARKER_MARGIN, my + size / 2.0),
         (w + MARKER_MARGIN - size, my),
     ]);
+}
+
+/// The heavy black frame round the central stitch, or the central block (G-083).
+fn draw_centre_frame(c: &mut Canvas, width: usize, height: usize, cell: f64) {
+    let (x0, y0, x1, y1) = crate::centre::centre_block(width, height);
+    let line = crate::centre::frame_width(cell);
+    c.set_stroke("#000000");
+    c.set_line_width(line);
+    c.stroke_rect(
+        x0 as f64 * cell,
+        y0 as f64 * cell,
+        (x1 - x0) as f64 * cell,
+        (y1 - y0) as f64 * cell,
+    );
 }
 
 fn draw_row_column_numbers(c: &mut Canvas, width: usize, height: usize, cell_size: i64) {
@@ -796,6 +811,7 @@ pub fn render_pattern(
     draw_backstitch(&mut c, p, mode, l.cell_size, None);
     draw_legend(&mut c, p, &l, aida);
     draw_center_markers(&mut c, l.chart_w, l.chart_h);
+    draw_centre_frame(&mut c, p.width, p.height, l.cell_size as f64);
     draw_row_column_numbers(&mut c, p.width, p.height, l.cell_size);
     Canvas::restore(&mut c);
     Ok(c)

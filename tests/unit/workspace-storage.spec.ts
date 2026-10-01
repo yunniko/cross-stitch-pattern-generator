@@ -72,6 +72,7 @@ describe("workspace-storage", () => {
       brushShape: "round",
       shapeFill: "outline",
       stitchKind: 0,
+      exportCellMm: 5.5,
       doubleClickFill: true,
     } as const;
 
@@ -109,6 +110,7 @@ describe("workspace-storage", () => {
         brushShape: "square" as const,
         shapeFill: "filled" as const,
         stitchKind: 2 as const,
+        exportCellMm: 4.25,
         doubleClickFill: false,
       };
       saveWorkspaceOptions(saved);
@@ -195,6 +197,23 @@ describe("workspace-storage", () => {
       // Stored before G-064 M4, so the key is simply absent.
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
       expect(loadWorkspaceOptions().shapeFill).toBe("outline");
+    });
+
+    it("keeps the A4 cell size across a reload in quarter millimetres within the limits, and reads anything else as the default (G-083)", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, exportCellMm: 7.25 });
+      expect(loadWorkspaceOptions().exportCellMm).toBe(7.25);
+      for (const [stored, read] of [
+        [7.1, 7],
+        [1, 2],
+        [40, 12],
+      ] as const) {
+        window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, exportCellMm: stored }));
+        expect(loadWorkspaceOptions().exportCellMm).toBe(read);
+      }
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, exportCellMm: "big" }));
+      expect(loadWorkspaceOptions().exportCellMm).toBe(5.5);
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
+      expect(loadWorkspaceOptions().exportCellMm).toBe(5.5);
     });
 
     it("keeps the stitch type across a reload, and refuses anything but 0, 1 and 2 (G-082)", () => {

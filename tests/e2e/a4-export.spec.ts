@@ -17,7 +17,7 @@ test("export as A4 pages downloads a ZIP with grid page(s) plus a legend page", 
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
 
   await page.getByLabel("Export").selectOption("a4-color");
-  await expect(page.getByText(/total \(incl\. simple \+ extended legend\)/)).toBeVisible();
+  await expect(page.getByText(/total \(incl\. page map, skein table \+ colour key\)/)).toBeVisible();
 
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   expect(download.suggestedFilename()).toBe("sample_A4_color.zip");
@@ -26,6 +26,7 @@ test("export as A4 pages downloads a ZIP with grid page(s) plus a legend page", 
   expect(downloadPath).not.toBeNull();
   const entries = await readZipEntryNames(downloadPath!);
   expect(entries).toContain("sample_legend.png");
+  expect(entries).toContain("sample_00_page_map.png"); // the map of the pages (G-083)
   expect(entries.some((name) => /^sample_r\d{2}_c\d{2}\.png$/.test(name))).toBe(true);
 });
 

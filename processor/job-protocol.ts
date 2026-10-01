@@ -1,3 +1,4 @@
+import { A4_PAGE_GUTTER_MM, A4_PAGE_MARGIN_MM } from "@/lib/export/export-cell-size";
 import type { SerializedSymmetry } from "@/lib/editor/pattern-serialize";
 import { calculateA4Layout, type OverlapCells } from "@/lib/export/a4-layout";
 import type { ExportJobKind } from "@/lib/export/export-jobs";
@@ -45,6 +46,8 @@ export interface ExportJobPayload {
   sizeUnit: SizeUnit;
   authorName: string;
   overlapCells: OverlapCells;
+  /** The A4 pages' cell size in millimetres (G-083). */
+  cellMm: number;
   stitchTexture?: StitchTextureId;
   canvas?: ExportCanvas;
   symmetry?: SerializedSymmetry;
@@ -139,9 +142,15 @@ export function exportDeadlineFor(kind: ExportJobKind, gridPages: number): numbe
   return LIMITS.exportDeadlineMs;
 }
 
-/** The A4 grid pages a chart prints on at this overlap: the unit a paginated export's cost follows. */
-export function gridPagesFor(width: number, height: number, overlapCells: OverlapCells): number {
-  return calculateA4Layout(width, height, { overlapCells }).pages.length;
+/**
+ * The A4 grid pages a chart prints on at this overlap: the unit a paginated export's cost follows. With `cellMm` it is the
+ * A4 export's own layout (the Owner's cell size, G-083); without it, the layout the Pattern Keeper PDF has always had and the
+ * deadline calibration was measured on.
+ */
+export function gridPagesFor(width: number, height: number, overlapCells: OverlapCells, cellMm?: number): number {
+  if (cellMm === undefined) return calculateA4Layout(width, height, { overlapCells }).pages.length;
+  return calculateA4Layout(width, height, { overlapCells, cellSizeMm: cellMm, gutterMm: A4_PAGE_GUTTER_MM, marginMm: A4_PAGE_MARGIN_MM })
+    .pages.length;
 }
 
 /** The measured rate a queue wait is estimated from: ~14 s a job across three workers (D149). */

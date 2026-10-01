@@ -70,7 +70,8 @@ pub fn add_a4_pages(
     add_a4_pages_reporting(zip, prefix, p, mode, request, &|_, _| {})
 }
 
-/// The page count `addA4PagesToZip` reports against: grid pages, the simple legend and the extended legend pages.
+/// The page count the Pattern Keeper PDF reports against: grid pages, the simple legend and the extended legend pages,
+/// on the layout that PDF has always had.
 pub fn a4_page_count(p: &Pattern, request: &Request, dpi: f64) -> usize {
     let l = a4::calculate_layout(p.width, p.height, request.overlap_cells, dpi);
     let plan = a4::plan_info_pages(
@@ -83,6 +84,26 @@ pub fn a4_page_count(p: &Pattern, request: &Request, dpi: f64) -> usize {
     l.pages.len() + 1 + 1 + a4::continuation_slices(&plan).len()
 }
 
+/// The page count the A4 PNG pages report against, on the Owner's cell size (G-083).
+pub fn a4_png_page_count(p: &Pattern, request: &Request) -> usize {
+    let l = a4::calculate_a4_layout(
+        p.width,
+        p.height,
+        request.overlap_cells,
+        a4::PRINT_DPI,
+        request.cell_mm,
+    );
+    let plan = a4::plan_info_pages(
+        p,
+        &l,
+        request.aida_count,
+        request.size_unit,
+        &request.author_name,
+    );
+    // The map of the pages, the grid pages, the skein table and the extended legend pages.
+    1 + l.pages.len() + a4::skein_table_pages(p, &l) + a4::continuation_slices(&plan).len() + 1
+}
+
 /// `add_a4_pages` reporting `(finished, total)` as each page is done, for the sidecar's progress (G-048 M6).
 pub fn add_a4_pages_reporting(
     zip: &mut Zip,
@@ -92,27 +113,56 @@ pub fn add_a4_pages_reporting(
     request: &Request,
     report: &(dyn Fn(usize, usize) + Sync),
 ) -> usize {
-    let l = a4::calculate_layout(p.width, p.height, request.overlap_cells, a4::PRINT_DPI);
+    let l = a4::calculate_a4_layout(
+        p.width,
+        p.height,
+        request.overlap_cells,
+        a4::PRINT_DPI,
+        request.cell_mm,
+    );
     let base = &request.base_name;
     let total = l.pages.len();
     let stamps = symbol_stamps(&p.palette, mode, l.cell as i64);
     // Pages render and encode in parallel on the caller's rayon pool and enter the ZIP in order, so the output is
     // the same at any thread count.
-    let all_pages = a4_page_count(p, request, a4::PRINT_DPI);
-    let finished = AtomicUsize::new(0);
+    let all_pages = a4_png_page_count(p, request);
+    // The map of the pages comes first (G-083); the name sorts before every grid page's.
+    let map = page_png(l.page_w, l.page_h, |c| {
+        a4::draw_map_page(c, p, &l, &request.author_name)
+    });
+    report(1, all_pages);
+    zip.file(
+        &format!(
+            "{prefix}{}",
+            zip_entry_name(&format!("{base}_00_page_map.png"))
+        ),
+        &map,
+    );
+    let finished = AtomicUsize::new(1);
     let pages: Vec<Vec<u8>> = l
         .pages
         .par_iter()
         .enumerate()
         .map(|(i, page)| {
             let bytes = page_png(l.page_w, l.page_h, |c| {
-                a4::draw_grid_page(c, p, mode, &l, page, i, total, stamps.as_ref(), true)
+                a4::draw_grid_page(
+                    c,
+                    p,
+                    mode,
+                    &l,
+                    page,
+                    i,
+                    total,
+                    stamps.as_ref(),
+                    true,
+                    &a4::marks_for(&l, i),
+                )
             });
             report(finished.fetch_add(1, Ordering::Relaxed) + 1, all_pages);
             bytes
         })
         .collect();
-    let mut written = 0;
+    let mut written = 1;
     for (page, bytes) in l.pages.iter().zip(pages) {
         zip.file(
             &format!(
@@ -127,15 +177,27 @@ pub fn add_a4_pages_reporting(
         );
         written += 1;
     }
-    let bytes = page_png(l.page_w, l.page_h, |c| {
-        a4::draw_legend_page(c, p, &l, request.aida_count, &request.author_name)
-    });
-    report(total + 1, all_pages);
-    zip.file(
-        &format!("{prefix}{}", zip_entry_name(&format!("{base}_legend.png"))),
-        &bytes,
-    );
-    written += 1;
+    // The skein table (G-083), replacing the swatch grid; one or more pages.
+    let table_pages = a4::skein_table_pages(p, &l);
+    for index in 0..table_pages {
+        let bytes = page_png(l.page_w, l.page_h, |c| {
+            a4::draw_skein_table_page(c, p, &l, request.aida_count, &request.author_name, index)
+        });
+        report(total + 2 + index, all_pages);
+        let suffix = if table_pages > 1 {
+            format!("_{}", pad2(index + 1))
+        } else {
+            String::new()
+        };
+        zip.file(
+            &format!(
+                "{prefix}{}",
+                zip_entry_name(&format!("{base}_legend{suffix}.png"))
+            ),
+            &bytes,
+        );
+        written += 1;
+    }
 
     let plan = a4::plan_info_pages(
         p,
@@ -162,7 +224,7 @@ pub fn add_a4_pages_reporting(
     }
     let count = info.len();
     for (i, bytes) in info.into_iter().enumerate() {
-        report(total + 2 + i, all_pages);
+        report(total + 2 + table_pages + i, all_pages);
         let suffix = if count > 1 {
             format!("_{}", pad2(i + 1))
         } else {

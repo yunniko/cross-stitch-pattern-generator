@@ -6,8 +6,9 @@ use crate::format::{
 };
 use crate::model::{Color, LegendEntry, Pattern, SizeUnit};
 use crate::render::{
-    draw_backstitch, draw_chart, fill_stitch_cell, truncate_to_width, Ctx, Mode, Region,
-    SymbolStamps, FONT_STACK, GRID_LINE_COLOR, LEGIBILITY_FLOOR_PX,
+    draw_backstitch, draw_chart, fill_for_cell, fill_stitch_cell, symbol_text_color,
+    truncate_to_width, Ctx, Mode, Region, SymbolStamps, FONT_STACK, GRID_LINE_COLOR,
+    LEGIBILITY_FLOOR_PX,
 };
 use crate::text::{Align, Baseline};
 use crate::threads::brand_label;
@@ -41,6 +42,8 @@ pub struct Layout {
     pub overlap: usize,
     pub origin_x: f64,
     pub origin_y: f64,
+    /// The space outside the grid for numbers and labels, in pixels.
+    pub gutter: f64,
 }
 
 fn axis_pages(total: usize, per_page: usize, overlap: usize) -> Vec<(usize, usize)> {
@@ -78,11 +81,11 @@ fn layout_for(
     margin: f64,
     overlap: usize,
     dpi: f64,
+    gutter: f64,
 ) -> Layout {
     let (pw, ph) = (mm_to_px(210.0, dpi), mm_to_px(297.0, dpi));
     let (page_w, page_h) = if landscape { (ph, pw) } else { (pw, ph) };
     let caption = mm_to_px(8.0, dpi);
-    let gutter = mm_to_px(6.0, dpi);
     let origin_x = margin + gutter;
     let origin_y = margin + caption + gutter;
     let per_x = cells_per_page(page_w - margin - origin_x, cell);
@@ -114,15 +117,38 @@ fn layout_for(
         overlap,
         origin_x,
         origin_y,
+        gutter,
     }
 }
 
+/// The space outside the pattern on an A4 page of the A4 export (G-083), in millimetres.
+pub const A4_PAGE_GUTTER_MM: f64 = 14.0;
+/// The margin of those pages, wide enough for the overlap labels on the right (G-083).
+pub const A4_PAGE_MARGIN_MM: f64 = 14.0;
+
 /// `calculateA4Layout` with the default cell size and margin; the orientation needing fewer pages, portrait on a tie.
+/// This is the layout the Pattern Keeper PDF has always had, and it is not to change (G-083).
 pub fn calculate_layout(w: usize, h: usize, overlap: usize, dpi: f64) -> Layout {
     let cell = mm_to_px(2.75, dpi);
     let margin = mm_to_px(12.0, dpi);
-    let portrait = layout_for(w, h, false, cell, margin, overlap, dpi);
-    let landscape = layout_for(w, h, true, cell, margin, overlap, dpi);
+    let gutter = mm_to_px(6.0, dpi);
+    let portrait = layout_for(w, h, false, cell, margin, overlap, dpi, gutter);
+    let landscape = layout_for(w, h, true, cell, margin, overlap, dpi, gutter);
+    if landscape.rows * landscape.columns < portrait.rows * portrait.columns {
+        landscape
+    } else {
+        portrait
+    }
+}
+
+/// The layout of the A4 pages with the Owner's cell size, and the wider gutter their overlap labels and letters need
+/// (G-083). Same rule for the orientation as `calculate_layout`.
+pub fn calculate_a4_layout(w: usize, h: usize, overlap: usize, dpi: f64, cell_mm: f64) -> Layout {
+    let cell = mm_to_px(cell_mm, dpi);
+    let margin = mm_to_px(A4_PAGE_MARGIN_MM, dpi);
+    let gutter = mm_to_px(A4_PAGE_GUTTER_MM, dpi);
+    let portrait = layout_for(w, h, false, cell, margin, overlap, dpi, gutter);
+    let landscape = layout_for(w, h, true, cell, margin, overlap, dpi, gutter);
     if landscape.rows * landscape.columns < portrait.rows * portrait.columns {
         landscape
     } else {
@@ -131,6 +157,55 @@ pub fn calculate_layout(w: usize, h: usize, overlap: usize, dpi: f64) -> Layout 
 }
 
 const OVERLAP_TINT: &str = "rgba(255, 200, 0, 0.35)";
+
+/// What the A4 pages of the A4 export add to a grid page (G-083). The Pattern Keeper PDF passes `PageMarks::none()`, so
+/// its pages are not touched.
+#[derive(Clone, Debug, Default)]
+pub struct PageMarks {
+    /// The black triangles on the rulers and the heavy frame round the centre.
+    pub centre: bool,
+    /// This page's letter, large and dark grey in the top right corner.
+    pub letter: Option<String>,
+    /// The letter of the page each overlap band repeats, for the top, right, bottom and left bands.
+    pub overlap: [Option<String>; 4],
+}
+
+impl PageMarks {
+    pub fn none() -> PageMarks {
+        PageMarks::default()
+    }
+}
+
+/// A page's letter: A to Z in the order the pages are numbered, then AA, AB and on, as a spreadsheet names its columns.
+pub fn page_letter(index: usize) -> String {
+    let mut n = index;
+    let mut out = String::new();
+    loop {
+        out.insert(0, (b'A' + (n % 26) as u8) as char);
+        if n < 26 {
+            break;
+        }
+        n = n / 26 - 1;
+    }
+    out
+}
+
+/// The marks of page `index` of the A4 export: the centre, its letter, and the letter of the page each overlap band repeats.
+pub fn marks_for(l: &Layout, index: usize) -> PageMarks {
+    let page = &l.pages[index];
+    let neighbour =
+        |present: bool, other: usize| (l.overlap > 0 && present).then(|| page_letter(other));
+    PageMarks {
+        centre: true,
+        letter: Some(page_letter(index)),
+        overlap: [
+            neighbour(page.row > 0, index.wrapping_sub(l.columns)),
+            neighbour(page.column + 1 < l.columns, index + 1),
+            neighbour(page.row + 1 < l.rows, index + l.columns),
+            neighbour(page.column > 0, index.wrapping_sub(1)),
+        ],
+    }
+}
 
 fn font(px: f64) -> String {
     format!("{}px {FONT_STACK}", crate::jsfmt::number(px))
@@ -157,6 +232,7 @@ pub fn draw_grid_page(
     total: usize,
     stamps: Option<&SymbolStamps>,
     backstitch: bool,
+    marks: &PageMarks,
 ) {
     ctx.set_fill("#ffffff");
     ctx.fill_rect(0.0, 0.0, l.page_w, l.page_h);
@@ -173,6 +249,14 @@ pub fn draw_grid_page(
         page.column + 1
     );
     ctx.fill_text(&caption, l.origin_x, l.margin);
+    if let Some(letter) = &marks.letter {
+        // The page's own letter, large and dark grey, in the top right corner (G-083).
+        ctx.set_fill("#555555");
+        ctx.set_font(&bold(mm_to_px(16.0, l.dpi)));
+        ctx.set_align(Align::Right);
+        ctx.set_baseline(Baseline::Top);
+        ctx.fill_text(letter, l.page_w - l.margin, l.margin);
+    }
 
     ctx.save();
     ctx.translate(l.origin_x, l.origin_y);
@@ -229,7 +313,169 @@ pub fn draw_grid_page(
             y += 10;
         }
     }
+    draw_page_marks(ctx, p, l, page, marks);
     ctx.restore();
+}
+
+/// The map of the pages (G-083): one small blank page for each page of the set, laid out as the pages lie, each with its letter,
+/// so the printed pages can be put together. The first page of the A4 set.
+pub fn draw_map_page(ctx: &mut dyn Ctx, p: &Pattern, l: &Layout, author: &str) {
+    ctx.set_fill("#ffffff");
+    ctx.fill_rect(0.0, 0.0, l.page_w, l.page_h);
+    let title_px = mm_to_px(6.0, l.dpi);
+    ctx.set_fill("#111111");
+    ctx.set_font(&bold(title_px));
+    ctx.set_align(Align::Left);
+    ctx.set_baseline(Baseline::Top);
+    ctx.fill_text(&info_title(p.name.as_deref(), author), l.margin, l.margin);
+    let sub_px = mm_to_px(3.4, l.dpi);
+    ctx.set_fill("#666666");
+    ctx.set_font(&font(sub_px));
+    let sub = format!(
+        "Map of the pages: {} across, {} down. Each page carries its letter in the top right corner.",
+        l.columns, l.rows
+    );
+    ctx.fill_text(&sub, l.margin, l.margin + title_px * 1.25);
+
+    let top = l.margin + title_px * 1.25 + sub_px * 2.5;
+    let avail_w = l.page_w - 2.0 * l.margin;
+    let avail_h = l.page_h - l.margin - top;
+    let gap = mm_to_px(2.0, l.dpi);
+    let (cols, rows) = (l.columns as f64, l.rows as f64);
+    // Each small page keeps the proportions of a real one.
+    let aspect = l.page_w / l.page_h;
+    let tile_w = ((avail_w - (cols - 1.0) * gap) / cols)
+        .min(((avail_h - (rows - 1.0) * gap) / rows) * aspect);
+    let tile_h = tile_w / aspect;
+    let used_w = cols * tile_w + (cols - 1.0) * gap;
+    let left = l.margin + (avail_w - used_w) / 2.0;
+    for (i, page) in l.pages.iter().enumerate() {
+        let x = left + page.column as f64 * (tile_w + gap);
+        let y = top + page.row as f64 * (tile_h + gap);
+        ctx.set_fill("#fafafa");
+        ctx.fill_rect(x, y, tile_w, tile_h);
+        ctx.set_stroke("#555555");
+        ctx.set_line_width(2.0);
+        ctx.stroke_rect(x, y, tile_w, tile_h);
+        ctx.set_fill("#555555");
+        let letter = page_letter(i);
+        // The letter as large as the little page allows, never smaller than a legible few pixels.
+        let size = (tile_h * 0.45)
+            .min(tile_w * 0.8 / (letter.len() as f64 * 0.75))
+            .max(8.0);
+        ctx.set_font(&bold(size.round()));
+        ctx.set_align(Align::Center);
+        ctx.set_baseline(Baseline::Middle);
+        ctx.fill_text(&letter, x + tile_w / 2.0, y + tile_h * 0.45);
+        // Which stitches the page holds, when there is room to say.
+        if tile_w > mm_to_px(22.0, l.dpi) {
+            ctx.set_fill("#777777");
+            ctx.set_font(&font(mm_to_px(2.6, l.dpi)));
+            ctx.fill_text(
+                &format!(
+                    "{}–{} × {}–{}",
+                    page.start_x + 1,
+                    page.end_x,
+                    page.start_y + 1,
+                    page.end_y
+                ),
+                x + tile_w / 2.0,
+                y + tile_h * 0.82,
+            );
+        }
+    }
+}
+
+fn triangle(ctx: &mut dyn Ctx, a: (f64, f64), b: (f64, f64), c: (f64, f64)) {
+    ctx.fill_polygon(&[a, b, c]);
+}
+
+/// The centre marks and the overlap labels, in the grid's own coordinates (G-083): outside the pattern, so nothing is drawn
+/// over a stitch but the frame round the centre.
+fn draw_page_marks(
+    ctx: &mut dyn Ctx,
+    p: &Pattern,
+    l: &Layout,
+    page: &PageRange,
+    marks: &PageMarks,
+) {
+    let mm = |v: f64| mm_to_px(v, l.dpi);
+    let cell = l.cell;
+    let gw = (page.end_x - page.start_x) as f64 * cell;
+    let gh = (page.end_y - page.start_y) as f64 * cell;
+    if marks.centre {
+        let (bx0, by0, bx1, by1) = crate::centre::centre_block(p.width, p.height);
+        let (x0, y0) = (bx0.max(page.start_x), by0.max(page.start_y));
+        let (x1, y1) = (bx1.min(page.end_x), by1.min(page.end_y));
+        if x0 < x1 && y0 < y1 {
+            ctx.set_stroke("#000000");
+            ctx.set_line_width(crate::centre::frame_width(cell));
+            ctx.stroke_rect(
+                (x0 - page.start_x) as f64 * cell,
+                (y0 - page.start_y) as f64 * cell,
+                (x1 - x0) as f64 * cell,
+                (y1 - y0) as f64 * cell,
+            );
+        }
+        ctx.set_fill("#000000");
+        let half_base = mm(2.0);
+        let mid_x = p.width as f64 / 2.0;
+        if mid_x >= page.start_x as f64 && mid_x <= page.end_x as f64 {
+            let x = (mid_x - page.start_x as f64) * cell;
+            triangle(
+                ctx,
+                (x - half_base, -mm(12.5)),
+                (x + half_base, -mm(12.5)),
+                (x, -mm(9.0)),
+            );
+            triangle(
+                ctx,
+                (x - half_base, gh + mm(4.5)),
+                (x + half_base, gh + mm(4.5)),
+                (x, gh + mm(1.0)),
+            );
+        }
+        let mid_y = p.height as f64 / 2.0;
+        if mid_y >= page.start_y as f64 && mid_y <= page.end_y as f64 {
+            let y = (mid_y - page.start_y as f64) * cell;
+            triangle(
+                ctx,
+                (-mm(12.5), y - half_base),
+                (-mm(12.5), y + half_base),
+                (-mm(9.0), y),
+            );
+            triangle(
+                ctx,
+                (gw + mm(4.5), y - half_base),
+                (gw + mm(4.5), y + half_base),
+                (gw + mm(1.0), y),
+            );
+        }
+    }
+    if marks.overlap.iter().any(Option::is_some) {
+        ctx.set_fill("#7a5200");
+        ctx.set_font(&font(mm(2.6)));
+        ctx.set_baseline(Baseline::Middle);
+        if let Some(letter) = &marks.overlap[0] {
+            ctx.set_align(Align::Left);
+            ctx.fill_text(&format!("overlap {letter}"), 0.0, -mm(14.5));
+        }
+        if let Some(letter) = &marks.overlap[2] {
+            ctx.set_align(Align::Left);
+            ctx.fill_text(&format!("overlap {letter}"), 0.0, gh + mm(9.0));
+        }
+        // The sides are narrow, so the word and the letter stand one over the other.
+        if let Some(letter) = &marks.overlap[3] {
+            ctx.set_align(Align::Right);
+            ctx.fill_text("overlap", -mm(14.5), gh / 2.0 - mm(1.5));
+            ctx.fill_text(letter, -mm(14.5), gh / 2.0 + mm(1.5));
+        }
+        if let Some(letter) = &marks.overlap[1] {
+            ctx.set_align(Align::Left);
+            ctx.fill_text("overlap", gw + mm(4.8), gh / 2.0 - mm(1.5));
+            ctx.fill_text(letter, gw + mm(4.8), gh / 2.0 + mm(1.5));
+        }
+    }
 }
 
 fn swatch(ctx: &mut dyn Ctx, color: &Color, kind: u8, x: f64, y: f64, size: f64) {
@@ -245,6 +491,242 @@ fn swatch(ctx: &mut dyn Ctx, color: &Color, kind: u8, x: f64, y: f64, size: f64)
     ctx.set_stroke(GRID_LINE_COLOR);
     ctx.set_line_width(1.0);
     ctx.stroke_rect(x, y, size, size);
+}
+
+// The skein table of the A4 export (G-083): one row for each thread, with what the thread looks like on the colour chart, on the
+// black-and-white chart, its number when the chart has a thread brand, its name and how many skeins it needs.
+const TABLE_ROW_MM: f64 = 9.0;
+const TABLE_HEADER_MM: f64 = 7.0;
+
+struct TableColumns {
+    colour_x: f64,
+    colour_w: f64,
+    bw_x: f64,
+    bw_w: f64,
+    number_x: f64,
+    number_w: f64,
+    name_x: f64,
+    name_w: f64,
+    skein_x: f64,
+    skein_w: f64,
+    total: f64,
+}
+
+fn table_columns(printable_w: f64, has_code: bool, dpi: f64) -> TableColumns {
+    let mm = |v: f64| mm_to_px(v, dpi);
+    let colour_w = mm(16.0);
+    let bw_w = mm(16.0);
+    let number_w = if has_code { mm(26.0) } else { 0.0 };
+    let skein_w = mm(26.0);
+    let name_w = (printable_w - colour_w - bw_w - number_w - skein_w).max(mm(30.0));
+    let colour_x = 0.0;
+    let bw_x = colour_x + colour_w;
+    let number_x = bw_x + bw_w;
+    let name_x = number_x + number_w;
+    let skein_x = name_x + name_w;
+    TableColumns {
+        colour_x,
+        colour_w,
+        bw_x,
+        bw_w,
+        number_x,
+        number_w,
+        name_x,
+        name_w,
+        skein_x,
+        skein_w,
+        total: skein_x + skein_w,
+    }
+}
+
+/// How the table is split over pages: the rows on the first page (which carries the title and the overlap note) and on each
+/// page after it.
+fn skein_table_plan(p: &Pattern, l: &Layout) -> (usize, usize) {
+    let mm = |v: f64| mm_to_px(v, l.dpi);
+    let title_px = mm(6.0);
+    let sub_px = mm(3.4);
+    let mut first_top = l.margin + title_px * 1.8 + sub_px;
+    if l.overlap > 0 {
+        first_top += mm(4.0) + mm(3.0);
+    }
+    let rows_for = |top: f64| {
+        ((l.page_h - l.margin - top - mm(TABLE_HEADER_MM)) / mm(TABLE_ROW_MM))
+            .floor()
+            .max(1.0) as usize
+    };
+    let first = rows_for(first_top);
+    let later = rows_for(l.margin + mm(4.5) * 1.8);
+    let _ = p;
+    (first, later)
+}
+
+/// How many pages the skein table takes.
+pub fn skein_table_pages(p: &Pattern, l: &Layout) -> usize {
+    let (first, later) = skein_table_plan(p, l);
+    let rows = p.palette.len();
+    if rows <= first {
+        1
+    } else {
+        1 + (rows - first).div_ceil(later)
+    }
+}
+
+/// One page of the skein table (G-083), `index` counting from 0.
+pub fn draw_skein_table_page(
+    ctx: &mut dyn Ctx,
+    p: &Pattern,
+    l: &Layout,
+    aida: f64,
+    author: &str,
+    index: usize,
+) {
+    let mm = |v: f64| mm_to_px(v, l.dpi);
+    ctx.set_fill("#ffffff");
+    ctx.fill_rect(0.0, 0.0, l.page_w, l.page_h);
+    let (first, later) = skein_table_plan(p, l);
+    let (from, to) = if index == 0 {
+        (0, first.min(p.palette.len()))
+    } else {
+        let from = first + (index - 1) * later;
+        (
+            from.min(p.palette.len()),
+            (from + later).min(p.palette.len()),
+        )
+    };
+    let mut top;
+    let title_px = mm(6.0);
+    if index == 0 {
+        ctx.set_fill("#111111");
+        ctx.set_font(&bold(title_px));
+        ctx.set_align(Align::Left);
+        ctx.set_baseline(Baseline::Top);
+        ctx.fill_text(&info_title(p.name.as_deref(), author), l.margin, l.margin);
+        let sub_px = mm(3.4);
+        ctx.set_fill("#666666");
+        ctx.set_font(&font(sub_px));
+        ctx.fill_text("Threads needed", l.margin, l.margin + title_px * 1.25);
+        top = l.margin + title_px * 1.8 + sub_px;
+        if l.overlap > 0 {
+            let note = mm(4.0);
+            let detail_px = mm(2.6);
+            ctx.set_fill(OVERLAP_TINT);
+            ctx.fill_rect(l.margin, top, note, note);
+            ctx.set_stroke(GRID_LINE_COLOR);
+            ctx.set_line_width(1.0);
+            ctx.stroke_rect(l.margin, top, note, note);
+            ctx.set_fill("#7a5200");
+            ctx.set_font(&font(detail_px));
+            ctx.set_align(Align::Left);
+            ctx.set_baseline(Baseline::Middle);
+            ctx.fill_text(
+                "Tinted bands on grid pages repeat on the adjacent page (named beside each band) — don't stitch them twice.",
+                l.margin + note + mm(2.0),
+                top + note / 2.0,
+            );
+            top += note + mm(3.0);
+        }
+    } else {
+        let caption_px = mm(4.5);
+        ctx.set_fill("#111111");
+        ctx.set_font(&bold(caption_px));
+        ctx.set_align(Align::Left);
+        ctx.set_baseline(Baseline::Top);
+        ctx.fill_text("Threads needed (continued)", l.margin, l.margin);
+        top = l.margin + caption_px * 1.8;
+    }
+
+    let printable_w = l.page_w - 2.0 * l.margin;
+    let has_code = p.thread_brand.is_some();
+    let c = table_columns(printable_w, has_code, l.dpi);
+    let x = l.margin;
+    let header_h = mm(TABLE_HEADER_MM);
+    let row_h = mm(TABLE_ROW_MM);
+    let header_px = mm(3.0);
+    let rows = to - from;
+    let total_h = header_h + rows as f64 * row_h;
+
+    ctx.set_fill("#f0f0f0");
+    ctx.fill_rect(x, top, c.total, header_h);
+    ctx.set_fill("#111111");
+    ctx.set_font(&bold(header_px));
+    ctx.set_baseline(Baseline::Middle);
+    let mid = top + header_h / 2.0;
+    ctx.set_align(Align::Center);
+    ctx.fill_text("Color", x + c.colour_x + c.colour_w / 2.0, mid);
+    ctx.fill_text("B&W", x + c.bw_x + c.bw_w / 2.0, mid);
+    if has_code {
+        ctx.fill_text("Number", x + c.number_x + c.number_w / 2.0, mid);
+    }
+    ctx.set_align(Align::Left);
+    ctx.fill_text("Color name", x + c.name_x + mm(1.5), mid);
+    ctx.set_align(Align::Center);
+    ctx.fill_text("Skeins", x + c.skein_x + c.skein_w / 2.0, mid);
+
+    let bs_length = crate::backstitch::length_by_color(&p.backstitch, p.palette.len());
+    let size = mm(6.5);
+    for (r, color) in p.palette[from..to].iter().enumerate() {
+        let row_top = top + header_h + r as f64 * row_h;
+        let row_mid = row_top + row_h / 2.0;
+        let sy = row_top + (row_h - size) / 2.0;
+        for (cell_x, cell_w, mode) in [
+            (c.colour_x, c.colour_w, Mode::Color),
+            (c.bw_x, c.bw_w, Mode::Bw),
+        ] {
+            let sx = x + cell_x + (cell_w - size) / 2.0;
+            ctx.set_fill(&fill_for_cell(mode, color.rgb));
+            ctx.fill_rect(sx, sy, size, size);
+            ctx.set_stroke(GRID_LINE_COLOR);
+            ctx.set_line_width(1.0);
+            ctx.stroke_rect(sx, sy, size, size);
+            ctx.set_fill(symbol_text_color(mode, color.rgb));
+            ctx.set_font(&font((size * 0.6).round()));
+            ctx.set_align(Align::Center);
+            ctx.set_baseline(Baseline::Middle);
+            ctx.fill_text(&color.symbol, sx + size / 2.0, sy + size / 2.0 + 1.0);
+        }
+        let (code, name) = if has_code {
+            printed_code_name(color)
+        } else {
+            (String::new(), color.name.clone())
+        };
+        ctx.set_fill("#111111");
+        ctx.set_baseline(Baseline::Middle);
+        if has_code {
+            ctx.set_font(&font(header_px));
+            ctx.set_align(Align::Center);
+            ctx.fill_text(&code, x + c.number_x + c.number_w / 2.0, row_mid);
+        }
+        ctx.set_font(&font(mm(3.2)));
+        ctx.set_align(Align::Left);
+        let shown = truncate_to_width(ctx, &name, c.name_w - mm(3.0));
+        ctx.fill_text(&shown, x + c.name_x + mm(1.5), row_mid);
+        // A thread that carries only backstitch has no stitches to estimate skeins from, and “0 skeins” would read as “do
+        // not buy this”; a half stitch is half a stitch of thread (G-082).
+        let need = if color.count == 0 && bs_length.get(color.index).copied().unwrap_or(0.0) > 0.0 {
+            "backstitch only".to_string()
+        } else {
+            skein_estimate(p.thread_stitches(color.index), aida)
+        };
+        ctx.set_font(&font(header_px));
+        ctx.set_align(Align::Center);
+        ctx.fill_text(&need, x + c.skein_x + c.skein_w / 2.0, row_mid);
+    }
+
+    ctx.set_stroke(GRID_LINE_COLOR);
+    ctx.set_line_width(1.0);
+    ctx.stroke_rect(x, top, c.total, total_h);
+    for i in 0..=rows {
+        let ly = top + header_h + i as f64 * row_h;
+        ctx.line(x, ly, x + c.total, ly);
+    }
+    let mut xs = vec![c.bw_x, c.number_x];
+    if !has_code {
+        xs.pop();
+    }
+    xs.extend([c.name_x, c.skein_x]);
+    for cx in xs {
+        ctx.line(x + cx, top, x + cx, top + total_h);
+    }
 }
 
 /// The simple legend page: **what to buy** (G-073 M5, criterion 6).

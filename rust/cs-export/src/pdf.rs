@@ -380,7 +380,18 @@ pub fn build_reporting(
     for (i, range) in l.pages.iter().enumerate() {
         draw(&mut fonts, &mut |pg| {
             // No backstitch: Pattern Keeper reads these pages, and cannot use it (see `draw_grid_page`).
-            a4::draw_grid_page(pg, p, mode, &l, range, i, total, None, false)
+            a4::draw_grid_page(
+                pg,
+                p,
+                mode,
+                &l,
+                range,
+                i,
+                total,
+                None,
+                false,
+                &a4::PageMarks::none(),
+            )
         });
         page_done(report, &mut drawn);
     }

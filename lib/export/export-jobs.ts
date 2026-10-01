@@ -35,6 +35,8 @@ export interface ExportJobRequest {
   sizeUnit: SizeUnit;
   authorName: string;
   overlapCells: OverlapCells;
+  /** The A4 pages' cell size in millimetres (G-083); read by the Rust exporter only. */
+  cellMm?: number;
   /** The texture the realistic preview, alone and inside Export all, is drawn with; other exports ignore it. */
   stitchTexture?: StitchTextureId;
   /** The canvas the realistic preview, alone and inside Export all, sits on; absent leaves its ground transparent. */

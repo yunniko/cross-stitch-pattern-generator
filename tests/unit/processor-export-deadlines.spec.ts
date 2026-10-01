@@ -66,4 +66,12 @@ describe("export deadlines", () => {
     expect(gridPagesFor(1500, 1000, 5)).toBe(336);
     expect(gridPagesFor(2000, 1333, 5)).toBe(592);
   });
+
+  it("counts the A4 export's pages on the Owner's cell size and the Pattern Keeper PDF's on its own layout (G-083)", () => {
+    // 100 × 70 stitches at 5.5 mm: four pages across and two down, as the Rust exporter's own test finds.
+    expect(gridPagesFor(100, 70, 5, 5.5)).toBe(8);
+    // A bigger cell is more pages; leaving the size out keeps the layout the calibration above was measured on.
+    expect(gridPagesFor(100, 70, 5, 8)).toBeGreaterThan(gridPagesFor(100, 70, 5, 5.5));
+    expect(gridPagesFor(100, 70, 5)).toBe(gridPagesFor(100, 70, 5, undefined));
+  });
 });

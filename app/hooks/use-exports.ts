@@ -1,3 +1,4 @@
+import { A4_PAGE_GUTTER_MM, A4_PAGE_MARGIN_MM } from "@/lib/export/export-cell-size";
 import { useMemo, useState } from "react";
 import { NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
@@ -37,13 +38,24 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
   const [isExportingAll, setIsExportingAll] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
-  const { aidaCount, sizeUnit, authorName, overlapCells, stitchTexture } = options;
+  const { aidaCount, sizeUnit, authorName, overlapCells, stitchTexture, exportCellMm } = options;
   // The canvas goes into the realistic preview only when the reader asked for it (G-077).
   const canvas = options.exportCanvas ? { color: options.canvasColor, texture: options.canvasTexture } : undefined;
 
   const a4LayoutPreview = useMemo(
-    () => (pattern ? calculateA4Layout(pattern.width, pattern.height, { overlapCells }) : null),
-    [pattern, overlapCells]
+    () =>
+      !pattern
+        ? null
+        : exportKind.startsWith("pdf-")
+          ? // The Pattern Keeper PDF keeps the layout it has always had (G-083).
+            calculateA4Layout(pattern.width, pattern.height, { overlapCells })
+          : calculateA4Layout(pattern.width, pattern.height, {
+              overlapCells,
+              cellSizeMm: exportCellMm,
+              gutterMm: A4_PAGE_GUTTER_MM,
+              marginMm: A4_PAGE_MARGIN_MM,
+            }),
+    [pattern, overlapCells, exportCellMm, exportKind]
   );
   const baseName = pattern?.name ?? "cross-stitch-pattern";
 
@@ -65,7 +77,19 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
           : kind === "pixel-art"
             ? { blob: await pixelArtPngBlob(pattern), filename: `${baseName}_pixels.png` }
             : await runServerExport(
-                { kind, pattern, baseName, aidaCount, sizeUnit, authorName, overlapCells, stitchTexture, canvas, symmetry },
+                {
+                  kind,
+                  pattern,
+                  baseName,
+                  aidaCount,
+                  sizeUnit,
+                  authorName,
+                  overlapCells,
+                  cellMm: exportCellMm,
+                  stitchTexture,
+                  canvas,
+                  symmetry,
+                },
                 setProgress
               );
       downloadBlob(blob, filename);

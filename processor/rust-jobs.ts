@@ -155,6 +155,7 @@ export async function exportWithRust(
     sizeUnit: payload.sizeUnit,
     authorName: payload.authorName,
     overlapCells: payload.overlapCells,
+    cellMm: payload.cellMm,
     stitchTexture: payload.stitchTexture,
     canvas: payload.canvas,
   });

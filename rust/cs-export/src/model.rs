@@ -5,6 +5,10 @@
 use serde_json::{Map, Value};
 
 pub const EMPTY_CELL: u8 = 255;
+/// The A4 export's cell size limits and default, in millimetres (`lib/export/export-cell-size.ts`).
+pub const MIN_CELL_MM: f64 = 2.0;
+pub const MAX_CELL_MM: f64 = 12.0;
+pub const DEFAULT_CELL_MM: f64 = 5.5;
 pub const SYMMETRY_AXES: [&str; 4] = ["vertical", "horizontal", "diagonal", "antidiagonal"];
 
 #[derive(Clone, Debug)]
@@ -354,6 +358,8 @@ pub struct Request {
     pub size_unit: SizeUnit,
     pub author_name: String,
     pub overlap_cells: usize,
+    /// The A4 pages' cell size in millimetres (G-083); the Pattern Keeper PDF and the full-size picture do not read it.
+    pub cell_mm: f64,
     /// Which stitch texture the realistic preview is drawn with; an id of `lib/export/stitch-texture-catalog.ts`.
     pub stitch_texture: String,
     /// The canvas the realistic preview is drawn on; absent means a transparent ground.
@@ -391,6 +397,12 @@ impl Request {
             },
             author_name: str_field(o, "authorName").unwrap_or_default(),
             overlap_cells: o.get("overlapCells").and_then(Value::as_u64).unwrap_or(5) as usize,
+            cell_mm: o
+                .get("cellMm")
+                .and_then(Value::as_f64)
+                .filter(|v| v.is_finite())
+                .map(|v| (v.clamp(MIN_CELL_MM, MAX_CELL_MM) * 4.0).round() / 4.0)
+                .unwrap_or(DEFAULT_CELL_MM),
             stitch_texture: str_field(o, "stitchTexture").unwrap_or_else(|| "classic".into()),
             canvas: match o.get("canvas").and_then(Value::as_object) {
                 None => None,

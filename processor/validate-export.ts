@@ -1,3 +1,4 @@
+import { DEFAULT_EXPORT_CELL_MM, MAX_EXPORT_CELL_MM, MIN_EXPORT_CELL_MM, normalCellMm } from "@/lib/export/export-cell-size";
 import { deserializePatternData } from "@/lib/editor/pattern-serialize";
 import { VALID_OVERLAP_CELLS } from "@/lib/editor/workspace-storage";
 import type { OverlapCells } from "@/lib/export/a4-layout";
@@ -56,6 +57,10 @@ export function parseExportRequest(body: unknown): ParsedExportRequest {
   if (b.overlapCells !== undefined && !(OVERLAP_CELLS as readonly number[]).includes(b.overlapCells as number)) {
     return { error: `overlapCells must be one of: ${OVERLAP_CELLS.join(", ")}.` };
   }
+  // The A4 cell size: a number the layout can use, or absent for the default (older clients).
+  if (b.cellMm !== undefined && normalCellMm(b.cellMm) === null) {
+    return { error: `cellMm must be a number of millimetres from ${MIN_EXPORT_CELL_MM} to ${MAX_EXPORT_CELL_MM}.` };
+  }
   // Only a texture the catalog holds: an unknown id has no image to draw from. Absent means the default (older clients).
   if (b.stitchTexture !== undefined && !isStitchTextureId(b.stitchTexture)) return { error: "stitchTexture is not a known texture." };
   // The canvas is all or nothing: a #rrggbb colour and a catalog cloth (or "off"), or absent for a transparent ground.
@@ -84,6 +89,7 @@ export function parseExportRequest(body: unknown): ParsedExportRequest {
       sizeUnit: (b.sizeUnit as ExportJobPayload["sizeUnit"]) ?? DEFAULT_SIZE_UNIT,
       authorName: typeof b.authorName === "string" ? b.authorName : "",
       overlapCells: OVERLAP_CELLS.includes(b.overlapCells as OverlapCells) ? (b.overlapCells as OverlapCells) : 5,
+      cellMm: normalCellMm(b.cellMm) ?? DEFAULT_EXPORT_CELL_MM,
       canvas: (b.canvas ?? undefined) as ExportCanvas | undefined,
       stitchTexture: isStitchTextureId(b.stitchTexture) ? b.stitchTexture : DEFAULT_STITCH_TEXTURE,
       symmetry: (b.symmetry ?? undefined) as ExportJobPayload["symmetry"],

@@ -743,10 +743,11 @@ export function drawHighlightOverlay(
 
 /** Small inward-pointing triangles at the midpoint of each chart edge, marking the design's horizontal/vertical center — the conventional stitching start point on a real chart. */
 function drawCenterMarkers(ctx: Canvas2D, chartWidthPx: number, chartHeightPx: number) {
-  const size = MARKER_MARGIN * 0.6;
+  // Black and larger than they were: they say where the middle is (G-083).
+  const size = MARKER_MARGIN * 0.8;
   const midX = chartWidthPx / 2;
   const midY = chartHeightPx / 2;
-  ctx.fillStyle = GRID_LINE_COLOR;
+  ctx.fillStyle = "#000000";
 
   function triangle(points: Array<[number, number]>) {
     ctx.beginPath();
@@ -780,6 +781,22 @@ function drawCenterMarkers(ctx: Canvas2D, chartWidthPx: number, chartHeightPx: n
     [chartWidthPx + MARKER_MARGIN, midY + size / 2],
     [chartWidthPx + MARKER_MARGIN - size, midY],
   ]);
+}
+
+/**
+ * The stitches the centre frame goes round, as `[x0, y0, x1, y1]` with the end exclusive: one stitch on an odd side, two on an
+ * even one (G-083; `rust/cs-export/src/centre.rs` is the same rule).
+ */
+export function centreBlock(width: number, height: number): [number, number, number, number] {
+  return [Math.floor((width - 1) / 2), Math.floor((height - 1) / 2), Math.floor(width / 2) + 1, Math.floor(height / 2) + 1];
+}
+
+/** The heavy black frame round the central stitch, or the central block (G-083). */
+function drawCentreFrame(ctx: Canvas2D, width: number, height: number, cellSize: number) {
+  const [x0, y0, x1, y1] = centreBlock(width, height);
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = Math.max(3, Math.round(cellSize * 0.16));
+  ctx.strokeRect(x0 * cellSize, y0 * cellSize, (x1 - x0) * cellSize, (y1 - y0) * cellSize);
 }
 
 /** Column numbers along the top, row numbers along the left, at every major (10-stitch) gridline — standard chart-software output for counting. */
@@ -1018,6 +1035,7 @@ export function renderPatternToCanvas(pattern: StitchPattern, mode: RenderMode, 
   drawChart(ctx, pattern, mode, cellSize, undefined, "#ffffff", "stroke", symbolStampsFor(pattern.palette, mode, cellSize));
   drawLegend(ctx, pattern, mode, chartWidthPx, chartHeightPx, belowChart, aidaCount);
   drawCenterMarkers(ctx, chartWidthPx, chartHeightPx);
+  drawCentreFrame(ctx, pattern.width, pattern.height, cellSize);
   drawRowColumnNumbers(ctx, pattern.width, pattern.height, cellSize);
   ctx.restore();
 
