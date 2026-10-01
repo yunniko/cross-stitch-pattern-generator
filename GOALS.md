@@ -43,6 +43,8 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 **Risks:** the A4 and Pattern Keeper outputs share drawing code, so a change that forgets its opt-in changes the Pattern Keeper PDF, which M1's pinning test catches; a bigger default cell makes A4 pages hold fewer stitches and a chart needs more pages (a 100 × 100 chart: about 12 pages instead of 4, by my count of the layout rule), which is the point but is worth knowing; the picture size limits cap the full-size cell for very large charts.
 
 **Progress log** (newest first):
+- 2026-10-01 -- Deployed bf7d8b1 (M1 to M5). Full suite against the Rust processor: 505 of 508 e2e (3 pass alone); the A4 settings, A4 export and
+  half-stitch export specs pass against the live site; the other sites are unaffected. Waiting on the Owner's look and sign-off.
 - 2026-10-01 -- built (D264). **Owner's answers:** (1) a heavy block frame; (2) the cell size applies to the A4 export only and the full-size
   picture keeps its size; (3) the map first, the page description kept and a large dark-grey letter in the top right corner; (4) the skein
   table as proposed; (5) item 5 is out (the legend rows already list every stitch type); (6) Rust only. Built: `Request.cell_mm` (default 5.5,
