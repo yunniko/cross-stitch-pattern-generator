@@ -9,6 +9,7 @@ their last state in `GOALS.md`; decision references (Dnn) now resolve to
 (STANDARDS.md → Documentation). This page is the index: every completed goal, newest first, and the file
 holding it.
 
+- **G-082** · Half stitches: a cell can hold half a cross, "/" or "\" — DONE (2026-10-01, deployed 2026-10-01, Owner sign-off 2026-10-01) — [`G-081-to-G-090.md`](goals-archive/G-081-to-G-090.md)
 - **G-081** · A Text tab: type a line, see it as stitches, add it as a selection — DONE (2026-10-01, deployed 2026-10-01, Owner sign-off 2026-10-01) — [`G-081-to-G-090.md`](goals-archive/G-081-to-G-090.md)
 - **G-080** · A predictable cell cursor: a dot at the pointer, and the keyboard — DONE (2026-10-01, deployed 2026-10-01, Owner sign-off 2026-10-01) — [`G-071-to-G-080.md`](goals-archive/G-071-to-G-080.md)
 - **G-079** · Small fixes: dismissable errors, one canvas colour, a transparency lock — DONE (2026-09-30, deployed 2026-09-30 and 2026-10-01, Owner sign-off 2026-10-01) — [`G-071-to-G-080.md`](goals-archive/G-071-to-G-080.md)

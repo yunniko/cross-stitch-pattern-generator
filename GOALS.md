@@ -12,107 +12,38 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
-### G-082 · Half stitches: a cell can hold half a cross, "/" or "\" — ACTIVE (2026-10-01)
-- **What:** a cell may hold a **whole stitch** (as today) or a **half stitch** of one of two kinds: **"/"** (a thread from the
-  bottom-left corner to the top-right) or **"\"** (top-left to bottom-right). A half stitch is drawn as the cell in its
-  colour with the **two opposite corners cut away, transparent** (for "/" the top-left and bottom-right corners go; for "\" the
-  top-right and bottom-left). A **Stitch type** dropdown (Whole stitch, Half "/", Half "\") sets what every painting and
-  filling tool lays down. The Stitched view draws a half stitch with the existing stitch texture, clipped to the same cut
-  shape (its own textures come later). Exports show half stitches and list them in the legend when the chart uses any; the
-  Pattern Keeper PDF writes them as whole stitches.
-- **Why:** Owner request, 2026-10-01. Real charts use half stitches for fine detail and soft edges; today the only way to
-  draw one is to approximate it with a whole stitch.
-- **Acceptance criteria:** (1) the dropdown is offered for the brush, shape tools, Fill, double-click fill, Lasso fill,
-  Fill selection and the keyboard pen, and each lays the chosen kind in the chosen thread; the eraser clears a cell whatever it
-  holds; (2) Color and B&W draw a half stitch with its two corners cut away, so the background or the canvas shows through, and
-  the symbol sits in the middle of what is left; (3) Stitched view draws it with the stitch texture clipped to the same shape;
-  (4) a flip or a turn of a selection, and every symmetry axis, turns "/" into "\" where the geometry requires it, so a mirrored
-  drawing stays a mirror image; (5) copy, paste, move, duplicate, undo, redo, autosave and "Open" keep the kind; the
-  transparency lock's rule is unchanged (a cell is empty or it is not); (6) the editable JSON, A4 PDF, PNG chart and realistic
-  preview, OXS and every other export written by the server or the browser show half stitches, and the legend lists them (see
-  question 3); (7) the **Pattern Keeper PDF** shows each half stitch as a whole stitch, in the chart and in the legend's
-  counts; (8) a chart with no half stitch produces byte-for-byte the same files as today; an old saved chart opens unchanged;
-  (9) the TypeScript and the Rust export paths agree (the equivalence harness stays a merge gate).
-- **Constraints:** photo generation makes whole stitches only (no half stitch can come from a photo); the stored format must
-  stay readable by the previous version for a chart without halves (Owner expectation: nothing breaks for existing charts);
-  both export implementations ship together, since production runs the Rust path (STANDARDS: verified means the path production runs).
+### G-083 · Export fixes: centre marks, cell size in mm, page letters and a page map, a legend table — DRAFT (2026-10-01)
+- **What:** five changes to the picture and paper exports (the full-size chart PNG and the A4 pages), none of them to the Pattern Keeper export:
+  1. **The centre marked** on both: a black triangle on each ruler at the middle of the chart, and the central stitch (or block) marked on the pattern.
+  2. **A new setting, "Cell size, mm"**: both the A4 pages and the full-size picture are drawn with it, and the symbol font and the line widths (between stitches, and at every tenth) follow from it. Its default is twice the A4's present cell.
+  3. **A4 pages lettered, and a map of the pages**: each page gets a letter; one more page shows the pages as small blank rectangles with their letters; on an overlap the word "overlap" and the letter of the page it repeats go in the margin, outside the pattern.
+  4. **The skein legend as a table**: a coloured cell with its symbol, a black-and-white cell with its symbol, the thread number (when the chart has one), the colour's name, the skein count.
+  5. **Half stitch figures on the full-size pictures too**, as the A4 info page has them since G-082.
+- **Why:** Owner request, 2026-10-01: the printed chart is hard to find your way around (no centre, no page names) and too small to stitch from.
+- **Acceptance criteria:** (1) a black triangle sits on every ruler edge where the centre line meets it, on the full chart and, on an A4 page, on the pages that hold the centre row or column; the central stitch (an even side: the central 2 × 2 block) is marked on the pattern; (2) "Cell size, mm" is in the export settings, remembered, sent with every export, and the A4 pages, the full-size PNG, the realistic preview's scale and the bundle all follow it; a symbol is always 0.6 of a cell and the lines keep their present proportions of a cell, so a bigger cell is a bigger everything; (3) every A4 page has a letter in its caption and the letter order is documented on the map; the map page is generated once per export, small pages in the chart's own row and column order; the overlap bands carry the word "overlap" and the letter of the page they repeat, outside the pattern; (4) the skein legend is the table above, with half stitches counted as half a stitch of thread; (5) the full-size picture's header says how many of its stitches are full and how many half, when there are half stitches; (6) **the Pattern Keeper PDF is byte for byte what it was**, proved by a test that builds it before and after; (7) a chart exported with the old cell size's setting still prints; the Rust exporter and the TypeScript twin agree where a twin exists, and the existing equivalence harness stays green.
+- **Constraints:** nothing about the Pattern Keeper export changes (Owner): it shares the grid, the legend and the info page drawing with the A4 pages, so every new mark is opt-in and off for it; charts still render within the picture size limits (`MAX_CHART_DIMENSION_PX`, `MAX_CHART_AREA_PX`), so a very large chart at a large cell size is shrunk to fit and the picture says what it used.
 
-**What I found in the code (so the plan is grounded):** a chart is `cellPalette` (one byte per cell: a palette index or
-`EMPTY_CELL`) plus palette and an optional list of backstitch lines (G-073), and 22 modules read `cellPalette`, plus the Rust
-exporter (`model.rs`, `render.rs`, `pdf.rs`, `a4.rs`, `preview.rs`, `oxs.rs`, `editable.rs`, `json.rs`). The OXS importer today
-already meets half stitches (`halfcross`, `verticalhalf`...) and shows them as whole stitches, counting them
-(`approximatedPartStitches`); this goal gives them a real home. Flip, rotate and symmetry are in `lib/editor/symmetry.ts`
-and `pattern-edit.ts`.
+**What I found in the code:** the Rust exporter (`rust/cs-export/src/render.rs`, `a4.rs`, `bundle.rs`, `pdf.rs`) is the production path. The **full-size chart** is drawn at 24 pixels a stitch (`DEFAULT_CELL_SIZE`), reduced to fit, with small grey (#333) triangles at the four edges' middles already (`draw_center_markers`) and the numbers at every tenth stitch. The **A4 pages** use a 2.75 mm stitch at 300 dpi (`calculate_layout`), 12 mm margins, a whole number of tens of stitches a page, a caption "Page 1 / 6 — Row 1, Column 1", tinted overlap bands with no label (a note on the legend page explains them) and no ruler or centre mark. The A4 "Threads needed" page is a swatch grid with skeins; the "Color key" page is a table (symbol, code, name, type, stitch count). The Pattern Keeper PDF calls the same page drawing (`draw_grid_page`, `draw_legend_page`, `plan_info_pages`), which is why the plan makes every change opt-in. Line weights and the symbol font are already proportions of the cell on the full chart; the A4 pages' captions and notes are fixed millimetres.
 
-**Plan (recommended design):** a second, parallel array on the pattern, **`cellKind`** (0 whole, 1 "/", 2 "\"), one byte per
-cell and absent when the chart has no half stitch. Same indexing as `cellPalette`, so a chart without halves is untouched
-everywhere and costs nothing. Rejected: packing the kind into `cellPalette` (a palette can be 100 colours, so no room in a byte
-without widening every buffer and every Rust path), and a sparse list like backstitch (halves are per-cell and need undo,
-selection, symmetry and fills like any cell).
+**Plan:**
+- [ ] M1 -- **Cell size in mm.** The setting, its default (see question 2), the A4 layout and the full-size picture drawn from it, line weights and fonts as proportions of the cell, the request carrying it; tests for both outputs at several sizes and for the shrink-to-fit rule; a before/after test pinning the Pattern Keeper PDF.
+- [ ] M2 -- **The centre.** Black triangles on the rulers and the marked central stitch, full chart and A4, opt-in for Pattern Keeper.
+- [ ] M3 -- **Page letters, the map page and the overlap labels** (A4 only).
+- [ ] M4 -- **The skein legend table.**
+- [ ] M5 -- **Half stitch figures on the full-size pictures; docs, full suite, deploy.**
 
-**Milestones:**
-- [x] M1 -- **The model and the editing core (pure, tested).** `cellKind` on `StitchPattern`; `pattern-edit` writes colour and
-  kind together; flip, rotate and symmetry swap "/" and "\" correctly; selection, copy, paste, move, undo and the project store
-  carry it; the editable JSON gains an optional `cellKind` (absent when none). Unit tests incl. old-file round trip. Decision
-  record for the model.
-- [x] M2 -- **The dropdown and the tools.** The Stitch type dropdown (persisted workspace option) and every tool of acceptance
-  (1) laying the chosen kind; Fill selection and the keyboard pen follow it; lock rule kept. e2e for each tool.
-- [x] M3 -- **On screen.** Color and B&W cut-corner cells (the cut's size is a calibrated constant, a `judgment` decision looked
-  at on screen), the symbol placed in what remains; Stitched view with the texture clipped to the cut shape; pointer dot,
-  outline and rulers unchanged. Looked at on screen at several zoom levels.
-- [x] M4 -- **Exports, TypeScript and Rust together.** PNG chart and preview, A4 PDF, legend, OXS (real part stitches if the
-  format's half-cross direction is verified against the spec; else documented approximation), editable JSON, Pattern Keeper PDF
-  (halves as whole, counts merged). Rust model, render, preview, pdf, a4, oxs, editable and json brought to parity; the
-  equivalence harness extended; a chart without halves still byte-identical.
-- [x] M5 -- **Import, polish, live.** OXS import reads half stitches natively instead of approximating them; README, HANDOVER;
-  full e2e; deploy at the Owner's word and verify live.
+**Open questions for the Owner (with my recommended answer; none blocks M1 except 2):**
+1. **The centre on the pattern.** *Recommended:* the central stitch outlined with a heavy black frame (an even-sided chart: the central 2 × 2 block as one frame), on the full chart and on the A4 page that holds it. Or a crosshair of two thin black lines through the centre? Or a shaded stitch?
+2. **One cell size for both outputs.** The A4 pages are in millimetres, the full-size picture in pixels (24 px, about 2 mm at the 300 dpi I would use to convert). *Recommended:* one setting in mm; default **5.5 mm** (twice the A4's 2.75); the full-size picture drawn at 300 dpi, so 5.5 mm is 65 px a stitch, shrunk to fit when a chart is large (a 100-stitch side fits at 65 px, a 150-stitch side is drawn at about 50 px, a 1000-stitch side at about 8 px, as it is now). The old full-size default (24 px, about 2 mm) would be 2.03 mm: do you want the full-size picture's default twice *its* present size instead (48 px, about 4 mm)?
+3. **Letters.** *Recommended:* A, B, C… in the order the pages are numbered now (row by row, left to right), then AA, AB… past 26; "Page B (2 / 6)" in the caption; on the map page each small rectangle carries its letter, laid out like the chart, with the page set's row and column printed along its sides. The map is the **last** page of the A4 set (so page 1 stays the first grid page). Or first?
+4. **The skein table.** *Recommended:* it replaces the "Threads needed" swatch grid; the number column shows the thread code and is left out when the chart has no thread brand; the black-and-white cell is the grey the B&W chart uses; a thread used only for backstitch says "backstitch only" as today. The "Color key" table (type and stitch count) stays.
+5. **Half stitch figures on the full-size picture.** *Recommended:* the header line gains "(6 full, 12 half)" after the stitch count when the chart has half stitches. The legend rows there already list every type and thread.
+6. **The TypeScript twin of the A4 exporter** has already drifted from the Rust one (it still has a skein column the Rust key dropped). *Recommended:* Rust only for the A4 pages and the legend table, with the TypeScript A4 path left as it is and noted in a decision; the full-size picture and the cell-size setting are kept in step in both. Or keep every output in both?
 
-**Owner's answers, 2026-10-01** (to the seven questions of the plan): (1) one kind per cell; (2) yes: "/" is bottom-left to top-right,
-the top-left and bottom-right corners are cut away; (3) **the legend lists every combination of stitch type and colour**, so a reader
-knows how to read the chart; the stitch total as a number need not tell the kinds apart (it may if easier); (4) cell count total,
-half a stitch of thread in the estimate: OK; (5) the Text tab stays whole stitches: OK; (6) the dropdown in the top tool-options
-bar, remembered: yes; (7) the cut corners are right triangles with legs **30 %** of the cell side.
-
-**Risks:** (a) the Rust export path is large (about 4 000 lines read the cells) and must change in step with TypeScript: M4 is
-the biggest milestone and may split; (b) 22 modules read `cellPalette`, so the safe route is to keep it unchanged and add
-`cellKind` beside it, touching only code that draws, counts or writes; (c) symmetry and rotation are easy to get subtly wrong
-(a half stitch must change kind under a mirror): M1 pins them with tests before any UI exists; (d) Pattern Keeper imports from
-the PDF's real text symbols, so its export must not draw cut shapes it cannot read as stitches.
+**Risks:** the A4 and Pattern Keeper outputs share drawing code, so a change that forgets its opt-in changes the Pattern Keeper PDF, which M1's pinning test catches; a bigger default cell makes A4 pages hold fewer stitches and a chart needs more pages (a 100 × 100 chart: about 12 pages instead of 4, by my count of the layout rule), which is the point but is worth knowing; the picture size limits cap the full-size cell for very large charts.
 
 **Progress log** (newest first):
-- 2026-10-01 -- The Owner: the legend's details table gets a row for full stitches and one for half stitches, the Stitch count above them
-  still counting both together. Rust and TypeScript; looked at on the A4 info page. Deployed as 4312267; the half-stitch specs pass 9 of 9 against the live site.
-- 2026-10-01 -- The Owner: radio icons instead of the dropdown, and a mark of the stitch in hand (D263). Three icons (the cell as drawn); the hover
-  outline is the cut cell's six edges for a half stitch and the pointer dot a diagonal ellipse. 21 e2e (half-stitches, keyboard-cursor, brush-outline); looked at.
-  Deployed as b3f6ebc; the half-stitch specs pass 9 of 9 against the live site.
-- 2026-10-01 -- The Owner: the cut at 50 % (D262, replacing 40 %). TypeScript and Rust, mask sums recomputed; 958 unit, 8 Rust integration tests;
-  looked at on screen. Deployed as 3d0ee8a; the half-stitch specs pass 8 of 8 against the live site.
-- 2026-10-01 -- The Owner, after looking: the cut at 40 % (D261, replacing 30 %). Constant changed in TypeScript and Rust, the mask sums
-  recomputed; 958 unit, 8 Rust integration tests; looked at in Color and Stitched. Deployed as 8ed29e9; the half-stitch specs pass 8 of 8 against the live site.
-- 2026-10-01 -- Deployed 43bdb97 (M1 to M5) at the Owner's "deploy if no complications": none needed a decision. App and Rust processor rebuilt;
-  the half-stitch, half-stitch-export and text-tab specs pass 17 of 17 against the live site; the other sites are unaffected. Waiting on the
-  Owner's look and sign-off. Known and logged, not done: the photo-overlay view shows a half stitch as its symbol only; OXS import keeps
-  part stitches as whole (D260).
-- 2026-10-01 -- M5: README and HANDOVER written; a reload keeps half stitches (autosave e2e). Full suite against the Rust processor: 503 of 505
-  e2e (the 2 admin-stats cases pass alone: 2 of 2), 958 unit, 8 Rust integration tests. OXS import still opens part stitches as whole ones:
-  the spec (direction 1 "/", 2 "\\") does not say which triangle a single colour fills, so a native reading would be a guess (D260).
-- 2026-10-01 -- M4 built (D260). Rust: `halfstitch.rs` (the cut, its mask), `Pattern.kinds`, chart cells, the full-chart legend, the A4 colour key
-  (a Type column, a row per stitch type and thread, a Half stitches line), the preview picture and the editable file carry half stitches;
-  the Pattern Keeper PDF and the OXS file take every half stitch as whole. TypeScript twin of each. Found on the way: the Rust editable
-  file did not write `backstitch` at all; it does now. 8 Rust integration tests, 957 unit; `half-stitch-export.spec.ts` runs every
-  export through the Rust processor and the pictures were looked at. A chart with no half stitch exports the same bytes as before.
-- 2026-10-01 -- M2 and M3 built (D259). The Stitch type dropdown (top bar, shown for the brush, Fill, shapes and Lasso fill, remembered) and
-  every tool lay the kind chosen, symmetry mirroring "/" as "\\"; the lock puts a refused cell back with its kind. Colour and B&W draw the cell
-  with the two corners cut (30 %), the Stitched view cuts the stitch texture with a supersampled mask; undo, redo, autosave keep them.
-  951 unit; `tests/e2e/half-stitches.spec.ts` 6 of 6; looked at on screen in Color and Stitched. Exports (M4) still draw halves as whole.
-- 2026-10-01 -- M1 built (D258): `cellKind` on the pattern and `kinds` on a floating selection (`lib/editor/stitch-kind.ts`); paint, fill,
-  merge colours, shift, resize, lift, merge, flip, turn, fill selection, symmetry orbit, quick mirror and fill symmetric carry or swap the kinds;
-  the saved file and the project store keep them (absent for a chart with none). 944 unit (19 new). The Owner asked for all milestones
-  in one run and a deploy if nothing needs a decision.
-- 2026-10-01 -- the Owner answered all seven questions (above) and the work starts with M1. Acceptance (6) tightens: the legend
-  has a row for every stitch-type and colour combination used.
-- 2026-10-01 -- goal planned at the Owner's request ("make plan of introducing halfstitches"); nothing built. Grounded in the code
-  (see above). Waits for the Owner's answers to the questions and the go-ahead to start M1.
+- 2026-10-01 -- goal planned at the Owner's request ("next we need to make fixes in the export"), after signing off G-082; nothing built. Grounded in the Rust exporter's code (above). Waits for the Owner's answers, above all to question 2, and the go-ahead.
 
 ### G-069 · The workspace stops being the only thing that knows how everything connects — DRAFT (2026-09-24)
 - **What:** the changes `docs/reviews/2026-09-24-workspace-shape.md` recommends: a `useEditorDocument` hook owning
