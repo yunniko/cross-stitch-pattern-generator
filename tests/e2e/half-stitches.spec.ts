@@ -52,12 +52,18 @@ async function saved(page: Page): Promise<{ cells: number[]; kinds: number[] }> 
 }
 
 const at = (x: number, y: number) => y * WIDTH + x;
-const stitchType = (page: Page) => page.getByRole("combobox", { name: "Stitch type" });
+const stitchType = (page: Page) => page.getByRole("radiogroup", { name: "Stitch type" });
+const chooseKind = (page: Page, label: string) => page.getByRole("radio", { name: label, exact: true }).click();
 
-test("the Stitch type dropdown is offered for the tools that lay stitches and remembered across a reload", async ({ page }) => {
+test("the Stitch type choice is a set of radio icons, offered for the tools that lay stitches and remembered across a reload", async ({
+  page,
+}) => {
   await blankChart(page);
   await expect(stitchType(page)).toBeVisible(); // the brush is in hand
-  await expect(stitchType(page).locator("option")).toHaveText(["Whole stitch", "Half stitch /", "Half stitch \\"]);
+  await expect(stitchType(page).getByRole("radio")).toHaveCount(3);
+  for (const label of ["Whole stitch", "Half stitch /", "Half stitch \\"])
+    await expect(page.getByRole("radio", { name: label, exact: true })).toBeVisible();
+  await expect(page.getByRole("radio", { name: "Whole stitch", exact: true })).toHaveAttribute("aria-checked", "true");
   for (const tool of ["Fill", "Line", "Rectangle", "Oval", "Lasso fill"]) {
     await pickTool(page, tool);
     await expect(stitchType(page), tool).toBeVisible();
@@ -65,34 +71,63 @@ test("the Stitch type dropdown is offered for the tools that lay stitches and re
   await pickTool(page, "Pan");
   await expect(stitchType(page)).toHaveCount(0);
   await pickTool(page, "Brush");
-  await stitchType(page).selectOption({ label: "Half stitch /" });
+  await chooseKind(page, "Half stitch /");
+  await expect(page.getByRole("radio", { name: "Half stitch /", exact: true })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("radio", { name: "Whole stitch", exact: true })).toHaveAttribute("aria-checked", "false");
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();
   await expect(page.getByTestId("chart-frame")).toBeVisible({ timeout: 15_000 });
-  await expect(stitchType(page)).toHaveValue("1");
+  await expect(page.getByRole("radio", { name: "Half stitch /", exact: true })).toHaveAttribute("aria-checked", "true");
+});
+
+test("the outline and the dot under the pointer show the stitch type in hand", async ({ page }) => {
+  await blankChart(page);
+  await pickTool(page, "Brush");
+  const hover = page.getByTestId("brush-outline");
+  const over = async () => {
+    const at = await cellCentre(page, 10, 10);
+    await page.mouse.move(at.x - 1, at.y - 1);
+    await page.mouse.move(at.x, at.y);
+  };
+  await over();
+  // A whole stitch: the square's four edges and a round dot.
+  await expect(hover).toHaveAttribute("data-kind", "0");
+  await expect(hover).toHaveAttribute("data-edges", "4");
+  // A half stitch: the cell's cut shape, six edges, and a dot that leans along the diagonal.
+  await chooseKind(page, "Half stitch /");
+  await over();
+  await expect(hover).toHaveAttribute("data-kind", "1");
+  await expect(hover).toHaveAttribute("data-edges", "6");
+  await chooseKind(page, "Half stitch \\");
+  await over();
+  await expect(hover).toHaveAttribute("data-kind", "2");
+  await expect(hover).toHaveAttribute("data-edges", "6");
+  // A tool that lays no stitch has no outline to shape.
+  await pickTool(page, "Pan");
+  await expect(hover).toHaveAttribute("data-cell", "");
 });
 
 test("the brush lays whole stitches and either half stitch, and a whole one over a half makes it whole", async ({ page }) => {
   await blankChart(page);
   await pickTool(page, "Brush");
   await click(page, 5, 5);
-  await stitchType(page).selectOption({ label: "Half stitch /" });
+  await chooseKind(page, "Half stitch /");
   await click(page, 7, 5);
-  await stitchType(page).selectOption({ label: "Half stitch \\" });
+  await chooseKind(page, "Half stitch \\");
   await click(page, 9, 5);
   const first = await saved(page);
   expect([first.cells[at(5, 5)], first.cells[at(7, 5)], first.cells[at(9, 5)]]).toEqual([0, 0, 0]);
   expect([first.kinds[at(5, 5)], first.kinds[at(7, 5)], first.kinds[at(9, 5)]]).toEqual([WHOLE, SLASH, BACKSLASH]);
   expect(first.kinds.filter((k) => k !== WHOLE)).toHaveLength(2);
 
-  await stitchType(page).selectOption({ label: "Whole stitch" });
+  await chooseKind(page, "Whole stitch");
   await click(page, 7, 5);
   expect((await saved(page)).kinds[at(7, 5)]).toBe(WHOLE);
 });
 
 test("a stroke, a line, a fill and a lasso lay the chosen kind, and symmetry mirrors it as the other diagonal", async ({ page }) => {
   await blankChart(page);
-  await stitchType(page).selectOption({ label: "Half stitch /" });
+  await chooseKind(page, "Half stitch /");
 
   // A stroke of three stitches.
   await pickTool(page, "Brush");
@@ -104,7 +139,7 @@ test("a stroke, a line, a fill and a lasso lay the chosen kind, and symmetry mir
   await page.mouse.up();
 
   // A line, in the other kind.
-  await stitchType(page).selectOption({ label: "Half stitch \\" });
+  await chooseKind(page, "Half stitch \\");
   await pickTool(page, "Line");
   const l1 = await cellCentre(page, 10, 10);
   const l2 = await cellCentre(page, 14, 10);
@@ -118,7 +153,7 @@ test("a stroke, a line, a fill and a lasso lay the chosen kind, and symmetry mir
   expect([10, 11, 12, 13, 14].map((x) => drawn.kinds[at(x, 10)])).toEqual([BACKSLASH, BACKSLASH, BACKSLASH, BACKSLASH, BACKSLASH]);
 
   // Fill the empty rest of the chart with "/" stitches.
-  await stitchType(page).selectOption({ label: "Half stitch /" });
+  await chooseKind(page, "Half stitch /");
   await pickTool(page, "Fill");
   await click(page, 40, 30);
   const filled = await saved(page);
@@ -131,7 +166,7 @@ test("with a vertical mirror a '/' laid on the left is a '\\' on the right", asy
   await blankChart(page);
   await page.getByRole("button", { name: "Vertical symmetry" }).click();
   await pickTool(page, "Brush");
-  await stitchType(page).selectOption({ label: "Half stitch /" });
+  await chooseKind(page, "Half stitch /");
   await click(page, 10, 10);
   const out = await saved(page);
   expect(out.kinds[at(10, 10)]).toBe(SLASH);
@@ -143,7 +178,7 @@ test("the transparency lock keeps an empty stitch empty whatever kind the brush 
   await blankChart(page);
   await page.getByRole("button", { name: "Lock transparency" }).click();
   await pickTool(page, "Brush");
-  await stitchType(page).selectOption({ label: "Half stitch /" });
+  await chooseKind(page, "Half stitch /");
   await click(page, 12, 12);
   const out = await saved(page);
   expect(out.cells[at(12, 12)]).toBe(EMPTY);
@@ -153,7 +188,7 @@ test("the transparency lock keeps an empty stitch empty whatever kind the brush 
 test("undo takes a half stitch back, and the Stitched view shows the chart with the cut corners", async ({ page }) => {
   await blankChart(page);
   await pickTool(page, "Brush");
-  await stitchType(page).selectOption({ label: "Half stitch \\" });
+  await chooseKind(page, "Half stitch \\");
   await click(page, 20, 20);
   expect((await saved(page)).kinds[at(20, 20)]).toBe(BACKSLASH);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
@@ -174,9 +209,9 @@ test("undo takes a half stitch back, and the Stitched view shows the chart with 
 test("half stitches survive a reload through the autosave", async ({ page }) => {
   await blankChart(page);
   await pickTool(page, "Brush");
-  await stitchType(page).selectOption({ label: "Half stitch /" });
+  await chooseKind(page, "Half stitch /");
   await click(page, 6, 6);
-  await stitchType(page).selectOption({ label: "Half stitch \\" });
+  await chooseKind(page, "Half stitch \\");
   await click(page, 8, 6);
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();

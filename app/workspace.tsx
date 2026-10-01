@@ -26,7 +26,15 @@ import { ContextBar } from "./components/context-bar";
 import { ExportControls } from "./components/export-controls";
 import { ImageWindow } from "./components/image-window";
 import { Inspector, type InspectorTab } from "./components/inspector";
-import { hasFillChoice, isBackstitchEditTool, isKeyboardCursorTool, isSelectTool, isShapeTool, isViewOnlyMode } from "./editor-types";
+import {
+  hasFillChoice,
+  usesStitchKind,
+  isBackstitchEditTool,
+  isKeyboardCursorTool,
+  isSelectTool,
+  isShapeTool,
+  isViewOnlyMode,
+} from "./editor-types";
 import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
 import { BackstitchBar, SelectionBar, WorkspaceNotices } from "./components/panels";
 import { PhotoPane } from "./components/photo-pane";
@@ -184,11 +192,13 @@ export default function Workspace({ account }: WorkspaceProps) {
     // Lasso fill draws a path a stitch wide, so the cursor shows one stitch however big the brush is.
     // Backstitch lands on corners, not cells, so a stitch-shaped outline would point at the wrong thing.
     if (activeTool === "backstitch") return null;
-    if (activeTool === "fill" || activeTool === "lasso-fill") return stampOutline(ONE_STITCH_STAMP);
-    if (activeTool === "brush" || activeTool === "line") return stampOutline(stamp);
-    if (hasFillChoice(activeTool)) return stampOutline(stampForPress(options.shapeFill, stamp));
+    // The outline is the shape of the stitch in hand: a half stitch is outlined as its cell with the corners cut (G-082).
+    const kind = usesStitchKind(activeTool) ? options.stitchKind : 0;
+    if (activeTool === "fill" || activeTool === "lasso-fill") return stampOutline(ONE_STITCH_STAMP, kind);
+    if (activeTool === "brush" || activeTool === "line") return stampOutline(stamp, kind);
+    if (hasFillChoice(activeTool)) return stampOutline(stampForPress(options.shapeFill, stamp), kind);
     return null;
-  }, [activeTool, viewMode, stamp, options.shapeFill]);
+  }, [activeTool, viewMode, stamp, options.shapeFill, options.stitchKind]);
   const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
   /**
    * The sliders are provisional until a Generate acts on them (D243).
@@ -255,6 +265,11 @@ export default function Workspace({ account }: WorkspaceProps) {
   useEffect(() => {
     rendererRef.current?.setHoverOutline(hoverOutline);
   }, [hoverOutline]);
+  // The dot leans along the diagonal of the half stitch in hand.
+  const dotKind = usesStitchKind(activeTool) ? options.stitchKind : 0;
+  useEffect(() => {
+    rendererRef.current?.setHoverKind(dotKind);
+  }, [dotKind]);
 
   // The breadcrumb a crash report is built from (G-066): an error boundary renders instead of this tree, so what it
   // can say about the session is only what was written down outside the tree beforehand.

@@ -184,6 +184,8 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
    * that has not moved -- the outline belongs under the pointer, on whatever stitch is there now.
    */
   const hoverRef = useRef<{ client: { x: number; y: number }; edges: readonly StampEdge[] } | null>(null);
+  /** The stitch kind the tool in hand lays (G-082): it shapes the dot, as the outline is shaped by the edges. */
+  const hoverKindRef = useRef(0);
   /** The animation frame a Move preview has already scheduled, so pointer events coalesce into one paint. */
   const moveFrameRef = useRef<number | null>(null);
   /** What the canvas currently shows for a Move preview, so the next frame can shift those pixels instead of redrawing (D145). */
@@ -613,9 +615,12 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     // Where in the stitch the pointer is, in chart pixels (G-080).
     const origin = chartOrigin(frame);
     const dot = { x: carried.client.x - origin.left, y: carried.client.y - origin.top };
-    drawPointerDot(ctx, dot.x, dot.y);
+    drawPointerDot(ctx, dot.x, dot.y, hoverKindRef.current);
     hover.dataset.dot = `${dot.x.toFixed(1)},${dot.y.toFixed(1)}`;
     hover.dataset.cell = `${cell.x},${cell.y}`;
+    // What the outline and the dot are shaped by, for the specs (G-082): the stitch kind and how many edges the outline has.
+    hover.dataset.kind = String(hoverKindRef.current);
+    hover.dataset.edges = String(carried.edges.length);
   }
 
   /**
@@ -635,6 +640,12 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       if (!carried || carried.edges === edges) return;
       hoverRef.current = { client: carried.client, edges };
     }
+    drawHover();
+  }
+
+  function setHoverKind(kind: number) {
+    if (hoverKindRef.current === kind) return;
+    hoverKindRef.current = kind;
     drawHover();
   }
 
@@ -663,6 +674,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     previewShape,
     previewHover,
     setHoverOutline,
+    setHoverKind,
     endGesture,
     previewError,
     retryPreview: () => setPreviewRetryToken((t) => t + 1),

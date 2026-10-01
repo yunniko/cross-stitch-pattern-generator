@@ -7,6 +7,7 @@ import { BRUSH_SIZES, type BrushShape, type BrushSize } from "@/lib/editor/brush
 import type { ShapeFill } from "@/lib/editor/shape-raster";
 import { hasFillChoice, usesStitchKind, type Tool } from "../editor-types";
 import { STITCH_KIND_LABELS, type StitchKind } from "@/lib/editor/stitch-kind";
+import { halfStitchPolygon } from "@/lib/export/half-stitch-shape";
 import { ColorPair } from "./color-pair";
 import { PillButton, SegmentedControl, DISABLED_ICON, type SegmentOption } from "./ui";
 
@@ -26,6 +27,20 @@ const CHART_VIEWS: Array<{ value: ChartView; label: string; title: string }> = [
   { value: "bw", label: "B&W", title: "The chart in black and white, as it prints" },
   { value: "realistic", label: "Stitched", title: "A realistic preview of the finished stitching" },
 ];
+
+/** The stitch as the chart draws it, small: a whole cell, or the cell with its two corners cut away (G-082). */
+function StitchKindIcon({ kind }: { kind: StitchKind }) {
+  const points = kind === 0 ? [] : halfStitchPolygon(kind, 14);
+  return (
+    <svg viewBox="0 0 14 14" className="h-3.5 w-3.5" aria-hidden="true">
+      {kind === 0 ? (
+        <rect x="0" y="0" width="14" height="14" rx="1" fill="currentColor" />
+      ) : (
+        <polygon points={points.map(([x, y]) => `${x},${y}`).join(" ")} fill="currentColor" />
+      )}
+    </svg>
+  );
+}
 
 /** 1b draws the axes as the chart's own outline with the guide line that symmetry paints along it. */
 function AxisIcon({ axis }: { axis: SymmetryAxis }) {
@@ -230,21 +245,26 @@ export function ContextBar({
 
             {/* What a press lays down: shown for the tools that lay stitches, remembered between visits (G-082). */}
             {usesStitchKind(activeTool) && (
-              <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Stitch type">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Stitch</span>
-                <select
-                  aria-label="Stitch type"
-                  value={stitchKind}
-                  onChange={(e) => onStitchKindChange(Number(e.target.value) as StitchKind)}
-                  title="Whole stitches, or half stitches laid along one diagonal of the cell"
-                  className="rounded-md border border-line bg-sunken px-1.5 py-1 text-xs text-ink"
-                >
+                <div role="radiogroup" aria-label="Stitch type" className="flex items-center gap-0.5 rounded-lg border border-line p-0.5">
                   {([0, 1, 2] as const).map((kind) => (
-                    <option key={kind} value={kind}>
-                      {STITCH_KIND_LABELS[kind]}
-                    </option>
+                    <button
+                      key={kind}
+                      type="button"
+                      role="radio"
+                      aria-checked={stitchKind === kind}
+                      aria-label={STITCH_KIND_LABELS[kind]}
+                      title={STITCH_KIND_LABELS[kind]}
+                      onClick={() => onStitchKindChange(kind)}
+                      className={`flex h-6 w-7 items-center justify-center rounded-md transition-colors ${
+                        stitchKind === kind ? "bg-accent text-on-accent" : "text-muted hover:text-ink"
+                      }`}
+                    >
+                      <StitchKindIcon kind={kind} />
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
             )}
 

@@ -143,15 +143,18 @@ export function pointInRect(x: number, y: number, rect: CellRect): boolean {
  * the dot says where in it, so it is clear how near the next stitch is. A black ring under a white centre reads on a
  * dark thread and a light one alike, as the outline does.
  */
-export function drawPointerDot(ctx: CanvasRenderingContext2D, x: number, y: number) {
+export function drawPointerDot(ctx: CanvasRenderingContext2D, x: number, y: number, kind: number = 0) {
   ctx.save();
+  // A half stitch's dot is a small ellipse lying along the diagonal the thread will take: "/" rises to the right, "\" falls (G-082).
+  const tilt = kind === 1 ? -Math.PI / 4 : kind === 2 ? Math.PI / 4 : 0;
+  const stretch = kind === 0 ? 1 : 1.9;
   ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
   ctx.beginPath();
-  ctx.arc(x, y, 4, 0, Math.PI * 2);
+  ctx.ellipse(x, y, 4 * stretch, 4, tilt, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
-  ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+  ctx.ellipse(x, y, 2.4 * stretch, 2.4, tilt, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }

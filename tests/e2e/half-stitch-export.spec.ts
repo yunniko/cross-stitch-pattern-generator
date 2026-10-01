@@ -29,7 +29,7 @@ async function chartWithHalves(page: Page) {
   await pickTool(page, "Brush");
   const kinds = ["Whole stitch", "Half stitch /", "Half stitch \\"];
   for (let k = 0; k < 3; k++) {
-    await page.getByRole("combobox", { name: "Stitch type" }).selectOption({ label: kinds[k] });
+    await page.getByRole("radio", { name: kinds[k], exact: true }).click();
     for (let x = 2; x < 8; x++) await page.mouse.click(box.x + (x + 0.5) * cell, box.y + (2 + k * 3 + 0.5) * cell);
   }
 }

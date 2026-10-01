@@ -1,3 +1,5 @@
+import { STITCH_WHOLE } from "./stitch-kind";
+import { halfStitchPolygon } from "../export/half-stitch-shape";
 /**
  * What one press of the brush covers (G-064): a set of cell offsets around the stitch under the pointer.
  *
@@ -71,7 +73,18 @@ export interface StampEdge {
  *
  * Deterministic order: cell by cell as `brushStamp` gives them, then top, right, bottom, left.
  */
-export function stampOutline(stamp: readonly StampOffset[]): StampEdge[] {
+export function stampOutline(stamp: readonly StampOffset[], kind: number = STITCH_WHOLE): StampEdge[] {
+  // A half stitch is outlined as the cell it will be, with its two corners cut away, one shape for each cell of the press
+  // (G-082): the outline says which stitch type is in hand as well as where it will go.
+  if (kind !== STITCH_WHOLE) {
+    const shape = halfStitchPolygon(kind, 1);
+    return stamp.flatMap(({ dx, dy }) =>
+      shape.map(([x, y], i) => {
+        const [nx, ny] = shape[(i + 1) % shape.length];
+        return { x1: dx + x, y1: dy + y, x2: dx + nx, y2: dy + ny };
+      })
+    );
+  }
   const inside = new Set(stamp.map(({ dx, dy }) => `${dx},${dy}`));
   const edges: StampEdge[] = [];
   for (const { dx, dy } of stamp) {
