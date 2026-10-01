@@ -300,3 +300,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D262 — The half stitch's cut corners are 50 % of the side — active (replaces D261's 40 %)
 - D263 — Stitch type is three radio icons, and the outline and dot take the stitch's shape — active
 - D264 — The A4 pages take a cell size in mm and carry the page marks, in Rust only; the Pattern Keeper PDF is pinned — active
+- D265 — The Color # column is printed whenever a thread has a code, not only for a one-brand chart — active

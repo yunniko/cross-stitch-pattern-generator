@@ -64,6 +64,12 @@ fn str_field(o: &Map<String, Value>, key: &str) -> Option<String> {
 }
 
 impl Pattern {
+    /// Whether the legends print a Color # column: a chart matched to one brand has it, and so does a chart whose threads come
+    /// from several brands or are mixed with custom colours (it has no `thread_brand`, but its colours still have codes).
+    pub fn has_thread_codes(&self) -> bool {
+        self.thread_brand.is_some() || self.palette.iter().any(|c| c.source.is_some())
+    }
+
     /// Parses an editable save. Validation is the TypeScript's job; this trusts its input.
     pub fn from_editable_json(text: &str) -> Result<Pattern, String> {
         let v: Value = serde_json::from_str(text).map_err(|e| e.to_string())?;

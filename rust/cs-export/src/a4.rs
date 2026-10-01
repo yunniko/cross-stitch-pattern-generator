@@ -764,7 +764,7 @@ pub fn draw_skein_table_page(
     }
 
     let printable_w = l.page_w - 2.0 * l.margin;
-    let has_code = p.thread_brand.is_some();
+    let has_code = p.has_thread_codes();
     let c = table_columns(printable_w, has_code, l.dpi);
     let x = l.margin;
     let header_h = mm(TABLE_HEADER_MM);
@@ -813,7 +813,7 @@ pub fn draw_skein_table_page(
             ctx.fill_text(&color.symbol, sx + size / 2.0, sy + size / 2.0 + 1.0);
         }
         let (code, name) = if has_code {
-            printed_code_name(color)
+            printed_code_name(color, p.thread_brand.is_some())
         } else {
             (String::new(), color.name.clone())
         };
@@ -1100,7 +1100,7 @@ pub fn plan_info_pages(
     unit: SizeUnit,
     author: &str,
 ) -> InfoPlan {
-    let has_code = p.thread_brand.is_some();
+    let has_code = p.has_thread_codes();
     let bs_length = crate::backstitch::length_by_color(&p.backstitch, p.palette.len());
     let printable_w = l.page_w - 2.0 * l.margin;
     let printable_h = l.page_h - 2.0 * l.margin;
@@ -1178,8 +1178,30 @@ fn draw_details_table(
 }
 
 /// `printedThreadCodeName`.
-fn printed_code_name(color: &Color) -> (String, String) {
+///
+/// In a chart of mixed brands (`brand_matched` false) a thread's code stands in the Color # column and its name carries the
+/// brand, since the same number means different threads in different brands; a custom colour has no code and keeps its name.
+fn printed_code_name(color: &Color, brand_matched: bool) -> (String, String) {
     let (code, name) = split_thread_code_name(&color.name);
+    if !brand_matched {
+        return match &color.source {
+            None => (String::new(), color.name.clone()),
+            Some(s) => {
+                let label = crate::threads::brand_label(&s.brand);
+                let name = if code == s.code {
+                    name
+                } else {
+                    color.name.clone()
+                };
+                let named = if name.is_empty() {
+                    label.to_string()
+                } else {
+                    format!("{label} {name}")
+                };
+                (s.code.clone(), named.trim().to_string())
+            }
+        };
+    }
     match &color.source {
         None => (code, name),
         Some(s) if code == s.code => (s.code.clone(), name),
@@ -1254,7 +1276,7 @@ fn draw_key_block(
         ctx.fill_text(&color.symbol, sx + size / 2.0, mid + 1.0);
 
         let (code, name) = if has_code {
-            printed_code_name(color)
+            printed_code_name(color, p.thread_brand.is_some())
         } else {
             (String::new(), color.name.clone())
         };
@@ -1443,4 +1465,48 @@ pub fn zip_entry_name(name: &str) -> String {
         }
     }
     out.join("/")
+}
+
+#[cfg(test)]
+mod code_column_tests {
+    use super::*;
+
+    fn color(name: &str, source: Option<(&str, &str)>) -> Color {
+        Color {
+            index: 0,
+            rgb: [0, 0, 0],
+            symbol: "A".into(),
+            name: name.into(),
+            count: 1,
+            source: source.map(|(brand, code)| crate::model::ThreadRef {
+                brand: brand.into(),
+                code: code.into(),
+            }),
+        }
+    }
+
+    #[test]
+    fn a_brand_matched_chart_prints_code_and_name_apart() {
+        let c = color("321 - Red", Some(("dmc", "321")));
+        assert_eq!(printed_code_name(&c, true), ("321".into(), "Red".into()));
+    }
+
+    #[test]
+    fn a_mixed_chart_still_has_its_code_column_and_the_name_carries_the_brand() {
+        let dmc = color("321 - Red", Some(("dmc", "321")));
+        let anchor = color("403 - Black", Some(("anchor", "403")));
+        let custom = color("Custom 1", None);
+        assert_eq!(
+            printed_code_name(&dmc, false),
+            ("321".into(), "DMC Red".into())
+        );
+        assert_eq!(
+            printed_code_name(&anchor, false),
+            ("403".into(), "Anchor Black".into())
+        );
+        assert_eq!(
+            printed_code_name(&custom, false),
+            (String::new(), "Custom 1".into())
+        );
+    }
 }
