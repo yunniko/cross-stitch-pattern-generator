@@ -30,15 +30,18 @@ export const DASH_PATTERNS: readonly (readonly number[])[] = [
 ];
 
 /**
- * Which threads carry backstitch, by palette index, in ascending order.
+ * Which threads carry backstitch, the one with the most line first, ties by palette index.
  *
  * The dash a thread gets is its **place in this list**, not its palette index: with five patterns and an index
  * taken modulo five, two backstitch threads five apart would share a pattern while three went unused, which is
- * the one thing this feature exists to prevent. The cost is that adding backstitch to a lower-numbered thread
- * shifts the patterns of the ones above it — visible only between exports, and never within one chart.
+ * the one thing this feature exists to prevent. The thread with the most line is solid, so giving a single line
+ * another thread leaves the thread of all the others as it was (D271); the order by palette index this replaces
+ * turned every other line dashed when one line took a lower-numbered thread.
  */
 export function backstitchThreads(lines: readonly BackstitchLine[]): number[] {
-  return [...new Set(lines.map((l) => l.paletteIndex))].sort((a, b) => a - b);
+  const length = new Map<number, number>();
+  for (const l of lines) length.set(l.paletteIndex, (length.get(l.paletteIndex) ?? 0) + lineLengthCells(l));
+  return [...length.keys()].sort((a, b) => length.get(b)! - length.get(a)! || a - b);
 }
 
 /** The dash pattern for a palette index, given the threads that carry backstitch. Solid when it carries none. */

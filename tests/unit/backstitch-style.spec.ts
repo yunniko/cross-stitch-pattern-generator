@@ -23,13 +23,24 @@ describe("which dash a thread gets", () => {
   it("gives a different pattern to each thread that carries backstitch", () => {
     // Threads 0, 7 and 9 are far apart in the palette; taking the index modulo five would have given 0 and 9
     // different patterns but is only luck. Their *rank* is what decides, so the first five always differ.
-    const lines = [line(0, 0, 1, 0, 0), line(0, 1, 1, 1, 7), line(0, 2, 1, 2, 9)];
+    const lines = [line(0, 0, 3, 0, 0), line(0, 1, 2, 1, 7), line(0, 2, 1, 2, 9)];
     const threads = backstitchThreads(lines);
     expect(threads).toEqual([0, 7, 9]);
     const patterns = threads.map((t) => dashPatternFor(t, threads));
     expect(new Set(patterns.map((p) => p.join(","))).size).toBe(3);
     expect(patterns[0]).toEqual(DASH_PATTERNS[0]);
     expect(patterns[2]).toEqual(DASH_PATTERNS[2]);
+  });
+
+  it("keeps the thread with most line solid when one line takes another thread (D271)", () => {
+    // Forty cells of line in thread 12, then one line recoloured to the lower-numbered thread 3.
+    const traced = Array.from({ length: 40 }, (_, i) => line(i, 0, i + 1, 0, 12));
+    const before = backstitchThreads(traced);
+    expect(dashPatternFor(12, before)).toEqual(DASH_PATTERNS[0]);
+    const after = backstitchThreads([...traced.slice(1), line(0, 0, 1, 0, 3)]);
+    expect(after).toEqual([12, 3]);
+    expect(dashPatternFor(12, after)).toEqual(DASH_PATTERNS[0]); // still solid
+    expect(dashPatternFor(3, after)).toEqual(DASH_PATTERNS[1]);
   });
 
   it("wraps back to the first pattern past the fifth thread", () => {

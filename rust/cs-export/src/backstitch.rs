@@ -31,14 +31,24 @@ pub fn line_length_cells(line: &Backstitch) -> f64 {
     dx.hypot(dy)
 }
 
-/// Which threads carry backstitch, by palette index, ascending.
+/// Which threads carry backstitch, the one with the most line first, ties by palette index.
 ///
 /// A thread's dash is its **place in this list**, not its palette index: with five patterns and an index taken
-/// modulo five, two threads five apart would share a pattern while three went unused.
+/// modulo five, two threads five apart would share a pattern while three went unused. The thread with the most line
+/// is solid, so giving one line another thread leaves the others' dash as it was (D271).
 pub fn backstitch_threads(lines: &[Backstitch]) -> Vec<usize> {
-    let mut threads: Vec<usize> = lines.iter().map(|l| l.palette_index).collect();
-    threads.sort_unstable();
-    threads.dedup();
+    let mut length: std::collections::BTreeMap<usize, f64> = std::collections::BTreeMap::new();
+    for l in lines {
+        *length.entry(l.palette_index).or_insert(0.0) += line_length_cells(l);
+    }
+    let mut threads: Vec<usize> = length.keys().copied().collect();
+    // The same comparison as the TypeScript: longer first, then the lower palette index.
+    threads.sort_by(|a, b| {
+        length[b]
+            .partial_cmp(&length[a])
+            .unwrap()
+            .then_with(|| a.cmp(b))
+    });
     threads
 }
 

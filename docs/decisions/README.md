@@ -306,3 +306,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D268 — Traced lines are corner-to-corner stitches of three cells at most — active
 - D269 — Lines of any colour, dark, light or coloured, in up to three threads — active
 - D270 — Photographs are traced only when asked and only for their strongest long lines — active
+- D271 — The backstitch thread with the most line is the solid one — active
