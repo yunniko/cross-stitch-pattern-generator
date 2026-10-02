@@ -24,13 +24,10 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 - [ ] M3 -- **Setting and UI.** The checkbox and density in the generation options, persisted; e2e that generating with it on yields strokes in the thread list and on the chart, and that they can be edited.
 - [ ] M4 -- **Editor and exports at volume; docs; deploy.** The editor and every export with several thousand strokes, measured; README, HANDOVER, decision files, docs-lint, deploy and check live.
 
-**Questions for the Owner:**
-1. Which pictures matter most: animal fur, bird feathers and hair, or also rough surfaces such as bark, grass, water and sky? This sets where the strokes may go.
-2. Thread colours: should a stroke be a lighter or darker shade of the stitches under it using threads already in the palette (my default), or may it add up to four new threads?
-3. How much: a few accent strokes, as on the owl's face, or a full coat of texture? The density control covers both; which is the default?
-4. The strokes lie over the cross stitches and leave them as they are (my default). Should the stitches under dense strokes be simplified, since the strokes carry the detail?
+**Owner's answers (2026-10-02):** (1) all of it, fur, feathers, hair, bark, grass, water and sky, so smooth areas are kept free by the texture measure and not by a list of subjects; (2) strokes may add new threads where needed, up to four; (3) accent strokes are the default; (4) the stitches under strokes stay as they are, because that needs the fewest changes (a tie-break, not a requirement).
 
 **Progress log** (newest first):
+- 2026-10-02 -- the Owner answered the four questions (above). Waits for the go-ahead to start M1.
 - 2026-10-02 -- goal drafted at the Owner's request, after the owl picture: its backstitch is of two kinds, the lines in the picture (G-084) and texture strokes made from the shading, which this goal is. Nothing built. I am not sure the result will look hand-stitched, so M1 ends with the Owner's look before anything is built into the app.
 
 ### G-069 · The workspace stops being the only thing that knows how everything connects — DRAFT (2026-09-24)
