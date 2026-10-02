@@ -1,12 +1,14 @@
 //! G-084: backstitch traced from the lines of a picture.
 //!
 //! A drawing's outline is thinner than a stitch, so downsampled it becomes a row of grey stitches that are neither the
-//! line nor the colour beside it. This stage finds those thin dark lines in the source picture, turns them into
+//! line nor the colour beside it. This stage finds those thin lines in the source picture, turns them into
 //! backstitch segments between grid corners, and hands back the picture with the lines painted over by their
 //! surroundings, so the cross stitches under a line take the surrounding colour (Owner, 2026-10-02).
 //!
-//! A line is a dark feature narrower than about one stitch: the black top-hat of the luminance (its closing minus
-//! itself) with a window of one stitch. Wider dark areas are left to the stitches. The mask is thinned to a skeleton on
+//! A line is a feature narrower than about one stitch, of any colour: in each of the red, green and blue channels the
+//! top-hat with a window of one stitch (the channel's closing minus itself for a dark line, itself minus its opening for
+//! a light one), the strongest of the six taken. A line of the same brightness as its ground still differs in a channel,
+//! and a dark, a light and a coloured line are found alike. Wider areas are left to the stitches. The mask is thinned to a skeleton on
 //! a grid four times finer than the stitches, walked into paths, simplified, snapped to the corner grid by king moves
 //! and merged into short straight stitches.
 
@@ -23,9 +25,9 @@ const MIN_PIXELS_PER_STITCH: f64 = 3.0;
 /// The analysis picture is reduced until a stitch is no more than this many pixels across.
 const MAX_ANALYSIS_STITCH_PX: f64 = 10.0;
 /// A path simplifies to within this many cells of itself.
-const SIMPLIFY_CELLS: f64 = 0.8;
+const SIMPLIFY_CELLS: f64 = 0.5;
 /// A path is averaged over this many points either side before it is simplified, to take the pixel stair out of it.
-const SMOOTH_POINTS: usize = 3;
+const SMOOTH_POINTS: usize = 2;
 
 /// The picture the flatness is measured on is reduced to at most this many pixels on its longer side.
 const FLATNESS_SCALE_PX: usize = 512;
@@ -36,6 +38,11 @@ const MIN_FLAT_SHARE: f64 = 0.55;
 /// More line than this per row of stitches is not a drawing's lines, whatever the picture is.
 const MAX_LINE_CELLS_PER_ROW: f64 = 25.0;
 
+/// The most threads the lines of one picture are stitched in (D269).
+const MAX_LINE_THREADS: usize = 3;
+/// Two lines whose colours are nearer than this (Oklab distance) are one thread.
+const SAME_LINE_COLOR_DISTANCE: f64 = 0.12;
+
 /// The default sensitivity, 0 to 1.
 pub const DEFAULT_SENSITIVITY: f64 = 0.5;
 
@@ -45,12 +52,14 @@ pub struct Segment {
     pub y1: i32,
     pub x2: i32,
     pub y2: i32,
+    /// Which of `LineTrace::colors` the stitch is in.
+    pub thread: usize,
 }
 
 pub struct LineTrace {
     pub segments: Vec<Segment>,
-    /// The colour of the lines, the mean of the darker half of their pixels.
-    pub color: Rgb,
+    /// The colour of each thread the lines are stitched in, at most `MAX_LINE_THREADS`.
+    pub colors: Vec<Rgb>,
     /// The picture with every traced line painted over by its surroundings.
     pub inpainted: Image,
 }
@@ -61,6 +70,36 @@ fn gray_of(px: &[u8]) -> f32 {
         return 255.0;
     }
     0.299 * px[0] as f32 + 0.587 * px[1] as f32 + 0.114 * px[2] as f32
+}
+
+/// One colour channel of the picture, box-averaged by an integer factor; a transparent pixel reads as white.
+fn channel_reduced(
+    data: &[u8],
+    w: usize,
+    h: usize,
+    channel: usize,
+    f: usize,
+) -> (Vec<f32>, usize, usize) {
+    let (wa, ha) = (w.div_ceil(f), h.div_ceil(f));
+    let mut out = vec![0f32; wa * ha];
+    for y in 0..ha {
+        for x in 0..wa {
+            let (mut sum, mut n) = (0f32, 0f32);
+            for yy in (y * f)..((y + 1) * f).min(h) {
+                for xx in (x * f)..((x + 1) * f).min(w) {
+                    let i = (yy * w + xx) * 4;
+                    sum += if data[i + 3] < 128 {
+                        255.0
+                    } else {
+                        data[i + channel] as f32
+                    };
+                    n += 1.0;
+                }
+            }
+            out[y * wa + x] = sum / n;
+        }
+    }
+    (out, wa, ha)
 }
 
 /// The share of 8 x 8 blocks of the picture, reduced to at most 512 pixels on its longer side, that are flat: a standard
@@ -383,7 +422,7 @@ fn simplify(points: &[(f64, f64)], eps: f64) -> Vec<(f64, f64)> {
 }
 
 /// The corner steps between two corners, kept within half a cell of the straight line between them.
-fn king_walk(a: (i32, i32), b: (i32, i32), steps: &mut BTreeSet<Segment>) {
+fn king_walk(a: (i32, i32), b: (i32, i32), thread: usize, steps: &mut BTreeSet<Segment>) {
     let n = (b.0 - a.0).abs().max((b.1 - a.1).abs());
     let mut prev = a;
     for i in 1..=n {
@@ -402,6 +441,7 @@ fn king_walk(a: (i32, i32), b: (i32, i32), steps: &mut BTreeSet<Segment>) {
                 y1: p.1,
                 x2: q.0,
                 y2: q.1,
+                thread,
             });
         }
         prev = cur;
@@ -411,15 +451,16 @@ fn king_walk(a: (i32, i32), b: (i32, i32), steps: &mut BTreeSet<Segment>) {
 /// Unit steps merged into straight stitches of at most `MAX_RUN` cells.
 fn merge_runs(steps: &BTreeSet<Segment>) -> Vec<Segment> {
     // Direction class, the line a step lies on, and its position along that line.
-    let mut lines: BTreeMap<(u8, i32), Vec<Segment>> = BTreeMap::new();
+    let mut lines: BTreeMap<(usize, u8, i32), Vec<Segment>> = BTreeMap::new();
     for s in steps {
         let (dx, dy) = (s.x2 - s.x1, s.y2 - s.y1);
-        let key = match (dx, dy) {
+        let (class, line) = match (dx, dy) {
             (1, 0) => (0, s.y1),
             (0, 1) => (1, s.x1),
             (1, 1) => (2, s.x1 - s.y1),
             _ => (3, s.x1 + s.y1),
         };
+        let key = (s.thread, class, line);
         lines.entry(key).or_default().push(*s);
     }
     let mut out = Vec::new();
@@ -464,17 +505,22 @@ pub fn trace_lines(image: &Image, gw: usize, gh: usize, sensitivity: f64) -> Opt
     if flat < MIN_FLAT_SHARE {
         return None;
     }
-    let f = (stitch_px / MAX_ANALYSIS_STITCH_PX).ceil().max(1.0) as usize;
-    let (small, wa, ha) = reduce(&gray, w, h, f);
     drop(gray);
+    let f = (stitch_px / MAX_ANALYSIS_STITCH_PX).ceil().max(1.0) as usize;
     let r = ((stitch_px / f as f64) * 0.5).round().clamp(1.0, 6.0) as usize;
-    let closed = window_extreme(&window_extreme(&small, wa, ha, r, true), wa, ha, r, false);
+    let (wa, ha) = (w.div_ceil(f), h.div_ceil(f));
+    // How much thinner-than-a-stitch a pixel stands out from its surroundings, in the channel where it does most, dark or light.
+    let mut strength = vec![0f32; wa * ha];
+    for channel in 0..3 {
+        let (c, _, _) = channel_reduced(&image.data, w, h, channel, f);
+        let closed = window_extreme(&window_extreme(&c, wa, ha, r, true), wa, ha, r, false);
+        let opened = window_extreme(&window_extreme(&c, wa, ha, r, false), wa, ha, r, true);
+        for i in 0..c.len() {
+            strength[i] = strength[i].max((closed[i] - c[i]).max(c[i] - opened[i]));
+        }
+    }
     let threshold = (100.0 - 80.0 * s) as f32;
-    let on: Vec<bool> = closed
-        .iter()
-        .zip(&small)
-        .map(|(c, g)| c - g > threshold)
-        .collect();
+    let on: Vec<bool> = strength.iter().map(|&v| v > threshold).collect();
     if !on.iter().any(|&v| v) {
         return None;
     }
@@ -516,6 +562,76 @@ pub fn trace_lines(image: &Image, gw: usize, gh: usize, sensitivity: f64) -> Opt
         if skeleton[i] && !kept[label[i] as usize] {
             skeleton[i] = false;
         }
+    }
+
+    // The colour of each line, from its strongest pixels at full size, and the few threads those colours group into.
+    let sub_of =
+        |ax: usize, ay: usize| ((ay * sh / ha).min(sh - 1)) * sw + (ax * sw / wa).min(sw - 1);
+    let mut peak = vec![0f32; sizes.len()];
+    for ay in 0..ha {
+        for ax in 0..wa {
+            if on[ay * wa + ax] {
+                let id = label[sub_of(ax, ay)] as usize;
+                peak[id] = peak[id].max(strength[ay * wa + ax]);
+            }
+        }
+    }
+    let mut sums = vec![[0f64; 3]; sizes.len()];
+    let mut counts = vec![0f64; sizes.len()];
+    for y in 0..h {
+        for x in 0..w {
+            let (ax, ay) = ((x / f).min(wa - 1), (y / f).min(ha - 1));
+            if on[ay * wa + ax] {
+                let id = label[sub_of(ax, ay)] as usize;
+                if kept[id] && strength[ay * wa + ax] >= 0.6 * peak[id] {
+                    for k in 0..3 {
+                        sums[id][k] += image.data[(y * w + x) * 4 + k] as f64;
+                    }
+                    counts[id] += 1.0;
+                }
+            }
+        }
+    }
+    let mut by_length: Vec<usize> = (0..sizes.len())
+        .filter(|&id| kept[id] && counts[id] > 0.0)
+        .collect();
+    by_length.sort_by_key(|&id| std::cmp::Reverse(skeleton_len[id]));
+    // (colour sum weighted by length, weight, mean colour) per thread.
+    let mut clusters: Vec<([f64; 3], f64, Rgb)> = Vec::new();
+    let mut thread_of = vec![0usize; sizes.len()];
+    for id in by_length {
+        let mean = [0, 1, 2].map(|k| sums[id][k] / counts[id]);
+        let rgb = mean.map(|v| v.round() as u8);
+        let lab = crate::color::rgb_to_oklab(rgb);
+        let nearest = clusters
+            .iter()
+            .enumerate()
+            .map(|(i, c)| {
+                (
+                    i,
+                    crate::color::oklab_distance_sq(&lab, &crate::color::rgb_to_oklab(c.2)),
+                )
+            })
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        let weight = skeleton_len[id] as f64;
+        let into = match nearest {
+            Some((i, d))
+                if d <= SAME_LINE_COLOR_DISTANCE.powi(2) || clusters.len() >= MAX_LINE_THREADS =>
+            {
+                i
+            }
+            _ => {
+                clusters.push(([0.0; 3], 0.0, rgb));
+                clusters.len() - 1
+            }
+        };
+        let c = &mut clusters[into];
+        for k in 0..3 {
+            c.0[k] += mean[k] * weight;
+        }
+        c.1 += weight;
+        c.2 = [0, 1, 2].map(|k| (c.0[k] / c.1).round() as u8);
+        thread_of[id] = into;
     }
 
     let mut steps: BTreeSet<Segment> = BTreeSet::new();
@@ -566,11 +682,20 @@ pub fn trace_lines(image: &Image, gw: usize, gh: usize, sensitivity: f64) -> Opt
                 )
             })
             .collect();
+        let thread = thread_of[component_of(path)];
         for pair in corners.windows(2) {
-            king_walk(pair[0], pair[1], &mut steps);
+            king_walk(pair[0], pair[1], thread, &mut steps);
         }
     }
-    let segments = merge_runs(&steps);
+    let mut segments = merge_runs(&steps);
+    // Only the threads that ended up with a stitch, numbered from zero.
+    let mut used: Vec<usize> = segments.iter().map(|s| s.thread).collect();
+    used.sort_unstable();
+    used.dedup();
+    for s in &mut segments {
+        s.thread = used.iter().position(|&t| t == s.thread).unwrap();
+    }
+    let colors: Vec<Rgb> = used.iter().map(|&t| clusters[t].2).collect();
     let total_cells: f64 = segments
         .iter()
         .map(|s| (((s.x2 - s.x1).pow(2) + (s.y2 - s.y1).pow(2)) as f64).sqrt())
@@ -579,7 +704,7 @@ pub fn trace_lines(image: &Image, gw: usize, gh: usize, sensitivity: f64) -> Opt
         return None;
     }
 
-    // The painted-over picture and the line colour, from the full-resolution pixels of the kept lines.
+    // The painted-over picture, from the full-resolution pixels of the kept lines.
     let mut line_pixel = vec![false; w * h];
     for y in 0..h {
         for x in 0..w {
@@ -603,23 +728,6 @@ pub fn trace_lines(image: &Image, gw: usize, gh: usize, sensitivity: f64) -> Opt
             }
         }
     }
-    let mut darkest: Vec<(f32, [u8; 3])> = (0..w * h)
-        .filter(|&i| line_pixel[i])
-        .map(|i| {
-            let px = &image.data[i * 4..i * 4 + 4];
-            (gray_of(px), [px[0], px[1], px[2]])
-        })
-        .collect();
-    darkest.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-    let half = &darkest[..darkest.len().div_ceil(2).max(1)];
-    let mut sum = [0u64; 3];
-    for (_, c) in half {
-        for k in 0..3 {
-            sum[k] += c[k] as u64;
-        }
-    }
-    let color = [0, 1, 2].map(|k| (sum[k] / half.len() as u64) as u8);
-
     let mut data = image.data.clone();
     let mut pending: Vec<usize> = (0..w * h).filter(|&i| painted[i]).collect();
     let mut known: Vec<bool> = painted.iter().map(|&p| !p).collect();
@@ -658,7 +766,7 @@ pub fn trace_lines(image: &Image, gw: usize, gh: usize, sensitivity: f64) -> Opt
     }
     Some(LineTrace {
         segments,
-        color,
+        colors,
         inpainted: Image {
             width: w,
             height: h,
@@ -703,7 +811,7 @@ mod tests {
         }
         let length: i32 = trace.segments.iter().map(|s| s.x2 - s.x1).sum();
         assert!((18..=21).contains(&length), "length {length}");
-        assert!(trace.color.iter().all(|&c| c < 40));
+        assert!(trace.colors[0].iter().all(|&c| c < 40));
         // Nothing dark is left in the picture.
         assert!(trace.inpainted.data.chunks_exact(4).all(|p| p[0] > 200));
     }
@@ -745,6 +853,109 @@ mod tests {
             .sum();
         // The line is 30 stitches across and 17 down, 34.6 long; a staircase of unit and diagonal steps is a little longer.
         assert!((33.0..42.0).contains(&length), "length {length}");
+    }
+
+    /// A picture of `gw` x `gh` stitches at `px` pixels each on `ground`, with `ink` giving the colour of a line pixel.
+    fn inked(
+        gw: usize,
+        gh: usize,
+        px: usize,
+        ground: [u8; 3],
+        ink: impl Fn(usize, usize) -> Option<[u8; 3]>,
+    ) -> Image {
+        let (w, h) = (gw * px, gh * px);
+        let mut data = vec![255u8; w * h * 4];
+        for y in 0..h {
+            for x in 0..w {
+                let c = ink(x, y).unwrap_or(ground);
+                data[(y * w + x) * 4..(y * w + x) * 4 + 3].copy_from_slice(&c);
+            }
+        }
+        Image {
+            width: w,
+            height: h,
+            data,
+        }
+    }
+
+    fn row_line(y: usize, x: std::ops::Range<usize>) -> impl Fn(usize, usize) -> bool {
+        move |px, py| (y - 1..y + 1).contains(&py) && x.contains(&px)
+    }
+
+    #[test]
+    fn a_light_line_on_a_dark_ground_is_traced_and_painted_out() {
+        let line = row_line(150, 50..250);
+        let img = inked(30, 30, 10, [20, 30, 90], |x, y| {
+            line(x, y).then_some([245, 245, 235])
+        });
+        let trace = trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY).expect("a light line");
+        assert_eq!(trace.colors.len(), 1);
+        assert!(
+            trace.colors[0].iter().all(|&c| c > 200),
+            "{:?}",
+            trace.colors
+        );
+        assert!(trace.segments.iter().all(|s| s.y1 == 15 && s.y2 == 15));
+        assert!(trace.inpainted.data.chunks_exact(4).all(|p| p[0] < 60));
+    }
+
+    #[test]
+    fn a_coloured_line_as_bright_as_its_ground_is_traced() {
+        // Red on green of the same luminance: brightness alone cannot tell them apart.
+        let line = row_line(150, 50..250);
+        let img = inked(30, 30, 10, [0, 150, 0], |x, y| {
+            line(x, y).then_some([255, 0, 0])
+        });
+        let luma = |c: [u8; 3]| 0.299 * c[0] as f64 + 0.587 * c[1] as f64 + 0.114 * c[2] as f64;
+        assert!((luma([0, 150, 0]) - luma([255, 0, 0])).abs() < 15.0);
+        let trace = trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY).expect("a red line");
+        assert!(
+            trace.colors[0][0] > 200 && trace.colors[0][1] < 60,
+            "{:?}",
+            trace.colors
+        );
+        assert!(trace.segments.iter().all(|s| s.y1 == 15 && s.y2 == 15));
+    }
+
+    #[test]
+    fn lines_of_two_colours_are_two_threads_and_of_one_colour_one() {
+        let black = row_line(100, 40..260);
+        let white = row_line(200, 40..260);
+        let img = inked(30, 30, 10, [230, 140, 50], |x, y| {
+            if black(x, y) {
+                Some([10, 10, 10])
+            } else if white(x, y) {
+                Some([250, 250, 250])
+            } else {
+                None
+            }
+        });
+        let trace = trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY).expect("two lines");
+        assert_eq!(trace.colors.len(), 2, "{:?}", trace.colors);
+        let on_row = |row: i32| {
+            trace
+                .segments
+                .iter()
+                .filter(|s| s.y1 == row)
+                .map(|s| s.thread)
+                .collect::<std::collections::BTreeSet<_>>()
+        };
+        assert_eq!(on_row(10).len(), 1);
+        assert_eq!(on_row(20).len(), 1);
+        assert_ne!(on_row(10), on_row(20));
+
+        let two_blacks = row_line(100, 40..260);
+        let also_black = row_line(200, 40..260);
+        let img = inked(30, 30, 10, [230, 140, 50], |x, y| {
+            (two_blacks(x, y) || also_black(x, y)).then_some([10, 10, 10])
+        });
+        assert_eq!(
+            trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY)
+                .unwrap()
+                .colors
+                .len(),
+            1
+        );
     }
 
     #[test]

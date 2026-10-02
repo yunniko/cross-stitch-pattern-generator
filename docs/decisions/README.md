@@ -304,3 +304,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D266 — Lines are traced first, painted out of the picture, and stitched in one thread — active
 - D267 — Only a mostly flat picture is traced — active
 - D268 — Traced lines are corner-to-corner stitches of three cells at most — active
+- D269 — Lines of any colour, dark, light or coloured, in up to three threads — active

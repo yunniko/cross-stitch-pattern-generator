@@ -563,9 +563,71 @@ pub fn build_pattern_reporting(
 /// How near, in squared Oklab distance, an existing thread must be to the colour of the lines to serve as their thread.
 const SAME_THREAD_DISTANCE_SQUARED: f64 = 0.07 * 0.07;
 
-/// Puts the traced lines on the finished chart in one thread: an existing one when it is close enough to the lines'
-/// colour (or, in a brand's palette, the very thread the lines snap to), else a new one at the end of the palette, used
-/// by backstitch only (G-084, D266).
+/// The palette index of the thread a line colour is stitched in: an existing thread close enough to it (in a brand's
+/// palette, the very thread the colour snaps to), else a new one at the end of the palette, used by backstitch only.
+/// When the palette has no room left the nearest existing thread serves.
+fn line_thread(pattern: &mut StitchPattern, rgb: Rgb, brand: Option<Brand>) -> usize {
+    let symbols = symbol_set();
+    let target = rgb_to_oklab(rgb);
+    let nearest = |pattern: &StitchPattern| {
+        pattern
+            .palette
+            .iter()
+            .map(|c| (c.index, crate::color::oklab_distance_sq(&target, &rgb_to_oklab(c.rgb))))
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+    };
+    let existing = match brand {
+        Some(brand) => {
+            let (code, _, _) = thread_for(brand, rgb);
+            pattern
+                .palette
+                .iter()
+                .position(|c| c.source.as_ref().is_some_and(|s| s.code == code))
+        }
+        None => nearest(pattern)
+            .filter(|&(_, d)| d <= SAME_THREAD_DISTANCE_SQUARED)
+            .map(|(i, _)| i),
+    };
+    if let Some(i) = existing {
+        return i;
+    }
+    // No symbol or index left for another thread: the lines take the nearest one there is.
+    if pattern.palette.len() >= symbols.len().min(crate::EMPTY_CELL as usize) {
+        return nearest(pattern).map_or(0, |(i, _)| i);
+    }
+    let index = pattern.palette.len();
+    let (rgb, name, source) = match brand {
+        Some(brand) => {
+            let (code, name, rgb) = thread_for(brand, rgb);
+            let source = crate::pattern::ThreadSource {
+                brand: brand.id(),
+                code: code.clone(),
+            };
+            (rgb, thread_name(&code, &name), Some(source))
+        }
+        None => {
+            let mut all: Vec<Rgb> = pattern.palette.iter().map(|c| c.rgb).collect();
+            all.push(rgb);
+            let mut name = name_colors(&all).pop().unwrap_or_default();
+            if pattern.palette.iter().any(|c| c.name == name) {
+                name = format!("{name} (lines)");
+            }
+            (rgb, name, None)
+        }
+    };
+    pattern.palette.push(PaletteColor {
+        index,
+        rgb,
+        symbol: symbols[index].clone(),
+        name,
+        count: 0,
+        source,
+    });
+    index
+}
+
+/// Puts the traced lines on the finished chart, each thread of the trace in an existing palette thread or a new one at
+/// the end of the palette (G-084, D266, D269).
 fn attach_backstitch(
     mut pattern: StitchPattern,
     traced: Option<&LineTrace>,
@@ -574,78 +636,11 @@ fn attach_backstitch(
     let Some(trace) = traced else {
         return pattern;
     };
-    let symbols = symbol_set();
-    let existing = match brand {
-        Some(brand) => {
-            let (code, _, _) = thread_for(brand, trace.color);
-            pattern
-                .palette
-                .iter()
-                .position(|c| c.source.as_ref().is_some_and(|s| s.code == code))
-        }
-        None => {
-            let target = rgb_to_oklab(trace.color);
-            pattern
-                .palette
-                .iter()
-                .map(|c| {
-                    (
-                        c.index,
-                        crate::color::oklab_distance_sq(&target, &rgb_to_oklab(c.rgb)),
-                    )
-                })
-                .filter(|&(_, d)| d <= SAME_THREAD_DISTANCE_SQUARED)
-                .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-                .map(|(i, _)| i)
-        }
-    };
-    let index = match existing {
-        Some(i) => i,
-        // No symbol or index left for another thread: the lines take the nearest one there is.
-        None if pattern.palette.len() >= symbols.len().min(crate::EMPTY_CELL as usize) => {
-            let target = rgb_to_oklab(trace.color);
-            pattern
-                .palette
-                .iter()
-                .min_by(|a, b| {
-                    let da = crate::color::oklab_distance_sq(&target, &rgb_to_oklab(a.rgb));
-                    let db = crate::color::oklab_distance_sq(&target, &rgb_to_oklab(b.rgb));
-                    da.partial_cmp(&db).unwrap()
-                })
-                .map_or(0, |c| c.index)
-        }
-        None => {
-            let index = pattern.palette.len();
-            let (rgb, name, source) = match brand {
-                Some(brand) => {
-                    let (code, name, rgb) = thread_for(brand, trace.color);
-                    let source = crate::pattern::ThreadSource {
-                        brand: brand.id(),
-                        code: code.clone(),
-                    };
-                    (rgb, thread_name(&code, &name), Some(source))
-                }
-                None => {
-                    let mut all: Vec<Rgb> = pattern.palette.iter().map(|c| c.rgb).collect();
-                    all.push(trace.color);
-                    let mut name = name_colors(&all).pop().unwrap_or_default();
-                    if pattern.palette.iter().any(|c| c.name == name) {
-                        name = format!("{name} (lines)");
-                    }
-                    (trace.color, name, None)
-                }
-            };
-            pattern.palette.push(PaletteColor {
-                index,
-                rgb,
-                symbol: symbols[index].clone(),
-                name,
-                count: 0,
-                source,
-            });
-            index
-        }
-    };
+    let threads: Vec<usize> = trace
+        .colors
+        .iter()
+        .map(|&rgb| line_thread(&mut pattern, rgb, brand))
+        .collect();
     pattern.backstitch = trace
         .segments
         .iter()
@@ -654,7 +649,7 @@ fn attach_backstitch(
             y1: s.y1,
             x2: s.x2,
             y2: s.y2,
-            palette_index: index,
+            palette_index: threads[s.thread],
         })
         .collect();
     pattern

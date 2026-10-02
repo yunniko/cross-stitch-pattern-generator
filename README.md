@@ -95,7 +95,7 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   to it end to end in the same thread, which then moves, mirrors, turns, recolours or deletes as one.
   **Delete** removes what is in hand. Symmetry mirrors a line as it does a stitch, and a rectangle or lasso
   selection takes a line only when **both** its ends are inside it.
-- **Backstitch from lines** (Photo tab, Lines): for a drawing, thin dark lines become backstitch in their own thread and the stitches under them take the colour beside them. Off by default; a photograph with texture everywhere gets none (D267). Sensitivity 0 to 10.
+- **Backstitch from lines** (Photo tab, Lines): for a drawing, thin lines, dark, light or coloured, become backstitch in up to three threads and the stitches under them take the colour beside them. Off by default; a photograph with texture everywhere gets none (D267). Sensitivity 0 to 10.
 - **Backstitch threads**: the thread list grows a second section under the crosses for the threads carrying
   lines, counted by length rather than by stitches — one thread used for both is one entry listed twice, so
   renaming, recolouring or merging it shows in both at once. Each section has its own light: lighting a

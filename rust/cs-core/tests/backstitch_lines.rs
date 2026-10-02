@@ -171,3 +171,59 @@ fn the_json_carries_the_lines_for_the_editor() {
         assert!(first.get(key).is_some(), "{key}");
     }
 }
+
+/// 40 x 40 stitches: an orange block with a black line and a white line across it.
+fn two_pens() -> Image {
+    let (w, h) = (400usize, 400usize);
+    let mut data = vec![0u8; w * h * 4];
+    for y in 0..h {
+        for x in 0..w {
+            let black = (119..121).contains(&y) && (40..360).contains(&x);
+            let white = (239..241).contains(&y) && (40..360).contains(&x);
+            let rgb = if black {
+                [10, 10, 10]
+            } else if white {
+                [250, 250, 250]
+            } else if (60..340).contains(&x) && (60..340).contains(&y) {
+                [230, 140, 50]
+            } else {
+                [30, 50, 120]
+            };
+            data[(y * w + x) * 4..(y * w + x) * 4 + 3].copy_from_slice(&rgb);
+            data[(y * w + x) * 4 + 3] = 255;
+        }
+    }
+    Image {
+        width: w,
+        height: h,
+        data,
+    }
+}
+
+#[test]
+fn a_black_line_and_a_white_line_are_two_threads_and_neither_is_left_in_the_stitches() {
+    let pattern = build(&two_pens(), ON);
+    let threads: std::collections::BTreeSet<usize> =
+        pattern.backstitch.iter().map(|l| l.palette_index).collect();
+    assert_eq!(threads.len(), 2, "{threads:?}");
+    let lumas: Vec<f64> = threads
+        .iter()
+        .map(|&t| luminance(pattern.palette[t].rgb))
+        .collect();
+    assert!(
+        lumas.iter().any(|&l| l < 60.0) && lumas.iter().any(|&l| l > 200.0),
+        "{lumas:?}"
+    );
+    // Each line runs along its own row, left to right.
+    for &t in &threads {
+        let rows: std::collections::BTreeSet<i32> = pattern
+            .backstitch
+            .iter()
+            .filter(|l| l.palette_index == t)
+            .map(|l| l.y1)
+            .collect();
+        assert_eq!(rows.len(), 1, "thread {t} on rows {rows:?}");
+    }
+    // One thread or two more than the six asked for, at most.
+    assert!(pattern.palette.len() <= 6 + 2);
+}

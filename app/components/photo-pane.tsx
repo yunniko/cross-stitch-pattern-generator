@@ -386,7 +386,7 @@ export function PhotoPane({
         <span className={GROUP_LABEL}>Lines</span>
         <label
           className="flex items-center justify-between gap-3 text-[13px]"
-          title="Finds thin dark lines in a drawing (outlines, whiskers, lettering) and stitches them as backstitch instead of a ragged row of stitches"
+          title="Finds thin lines in a drawing (outlines, whiskers, lettering; dark, light or coloured) and stitches them as backstitch instead of a ragged row of stitches"
         >
           Backstitch from lines
           <input
@@ -417,8 +417,8 @@ export function PhotoPane({
           </div>
         ) : null}
         <p className="text-[11px] leading-4 text-muted">
-          For drawings: thin dark lines become backstitch in their own thread, and the stitches under them take the colour beside them. A
-          photograph with texture everywhere gets no lines.
+          For drawings: thin lines, dark, light or coloured, become backstitch in up to three threads, and the stitches under them take the
+          colour beside them. A photograph with texture everywhere gets no lines.
         </p>
       </section>
 

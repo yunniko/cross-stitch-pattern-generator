@@ -12,6 +12,7 @@ import { expectPhotoLoaded } from "./helpers/app";
  */
 
 const DRAWING = path.join(__dirname, "fixtures", "line-drawing.png");
+const LIGHT_DRAWING = path.join(__dirname, "fixtures", "line-drawing-light.png");
 const PHOTO = path.join(__dirname, "fixtures", "sample.png");
 
 interface ExportedChart {
@@ -56,6 +57,17 @@ test("a drawing's lines come back as backstitch in a thread of their own, and of
   expect(0.299 * r + 0.587 * g + 0.114 * b).toBeLessThan(80); // the drawing's lines are black
   // The line is backstitch, not stitches: no cross stitch is in its thread unless the palette already had it.
   expect(traced.cellPalette.filter((c) => c === thread).length).toBeLessThan(traced.cellPalette.length * 0.05);
+});
+
+test("light lines on a dark ground are traced too, in a light thread", async ({ page }) => {
+  await openPicture(page, LIGHT_DRAWING, "60");
+  await page.getByRole("tab", { name: "Photo" }).click();
+  await checkbox(page).check();
+  const traced = await generateAndExport(page);
+  const lines = traced.backstitch ?? [];
+  expect(lines.length).toBeGreaterThan(20);
+  const [r, g, b] = traced.palette[lines[0].paletteIndex].rgb;
+  expect(0.299 * r + 0.587 * g + 0.114 * b).toBeGreaterThan(180); // the chalk lines are near white
 });
 
 test("a photograph gets no lines, with the setting on", async ({ page }) => {

@@ -40,10 +40,36 @@ are mixed: a drawing on a textured ground would be refused, which is the safe er
 
 A second guard refuses more than 25 cells of line per row of stitches whatever the picture is.
 
+## Lines of any colour (the extension, same day)
+
+Owner, 2026-10-02: "can we trace all types of lines?" The first version took the top-hat of the luminance, so only dark lines. It now takes the top-hat
+of each of the red, green and blue channels, both ways (the closing minus the channel for a dark line, the channel minus its opening for a light one),
+and the strongest of the six. A line of the same brightness as its ground still differs in a channel. The colour of each line is the mean of its
+strongest pixels, and the lines' colours group into at most three threads (Oklab distance 0.12 or less is one thread).
+
+| Picture (synthetic) | Stitches | Off | 0.5 | Threads for the lines |
+|---|---|---|---|---|
+| Chalk: white lines and lettering on a dark board | 80 | 0 | 84 lines, 188 cells | 1, near white |
+| Stained glass: red, blue and green outlines, each on a pastel fill | 80 | 0 | 326 lines, 831 cells | 3, in the pen colours |
+| Black outline and a cream highlight line on orange | 80 | 0 | 128 lines, 238 cells | 2 |
+| Cat drawing and logo, as before | 100, 80 | 0 | 249 and 291 lines | 1 |
+
+Textured photographs still get none (flat share 4 % to 26 %), and the 74 golden hashes did not move.
+
+![chalk](2026-10-02-backstitch-lines-chalk.png)
+![coloured](2026-10-02-backstitch-lines-coloured.png)
+![two pens](2026-10-02-backstitch-lines-two-pens.png)
+
+Seen in them: a line is placed within about a cell of where it was, as snapping to corners and simplification allow, so a filled box and its outline can
+disagree by a stitch at an edge; a long line is a polygon with facets, not a curve; a short stretch of line can be missed where two lines meet.
+
+Straight slanted lines were first traced as a ladder (a walk along a thick skeleton left crumbs beside the main path, each snapped a little differently).
+Crumbs under two stitches are now dropped unless they are all a component has, and the path is simplified to 0.5 cell after averaging over five points.
+
 ## Not measured
 
-Light lines on a dark ground (only dark lines are found), curved lines at very small sizes, and scanned drawings with paper noise (the flat-share
-threshold is untested on them).
+Scanned drawings with paper noise (the flat-share threshold is untested on them); a light line and a dark line less than a stitch apart (they would be
+one line of mixed colour); curved lines at very small sizes.
 
-The test picture `tests/e2e/fixtures/line-drawing.png` is drawn for this goal with node-canvas: an orange cat head, outline and whiskers; no third-party
-material.
+The test pictures `tests/e2e/fixtures/line-drawing.png` and `line-drawing-light.png` are drawn for this goal with node-canvas: an orange cat head with its
+outline and whiskers, and white chalk lines on a green board; no third-party material.

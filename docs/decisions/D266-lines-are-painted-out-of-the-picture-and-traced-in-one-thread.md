@@ -1,5 +1,5 @@
 # D266 · Lines are traced first, painted out of the picture, and stitched in one thread
-Date: 2026-10-02 · Goal: G-084 · Status: active (superseded by: —)
+Date: 2026-10-02 · Goal: G-084 · Status: active (the one-thread rule superseded by: D269)
 Context: a line thinner than a stitch averages into grey stitches that are neither the line nor the colour beside it.
 Decision: the picture's thin dark lines are traced before generation reads it and painted over with their surroundings; all of them become backstitch in one thread, an existing palette thread within 0.07 Oklab of their colour or else a new one at the end of the palette, snapped to the brand's thread in a brand palette.
 Force: requirement — Owner, 2026-10-02: the stitches under a line take the surrounding colour; a traced line may add a thread.
