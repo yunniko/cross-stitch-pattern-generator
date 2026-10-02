@@ -1114,9 +1114,48 @@ export function stitchPreviewPixels(pattern: StitchPattern, tiles: StitchTiles, 
           }
         }
       }
+      if (pattern.backstitch?.length) overlayBackstitch(data, w, y, h, cellSize, pattern);
       return { data };
     },
   };
+}
+
+/**
+ * The backstitch over the strip of rows `y..y + h` already in `data`: each line a fifth of a cell wide (a pixel at least), round at
+ * its ends, in its thread's colour, antialiased by its distance from the pixel's centre and laid over by straight alpha (G-086). The
+ * same arithmetic as the Rust exporter's `overlay_backstitch`.
+ */
+function overlayBackstitch(data: Uint8ClampedArray, width: number, y: number, h: number, cellSize: number, pattern: StitchPattern) {
+  const half = Math.max(1, cellSize / 5) / 2;
+  const reach = half + 1;
+  for (const line of pattern.backstitch ?? []) {
+    const color = pattern.palette[line.paletteIndex];
+    if (!color) continue;
+    const [ax, ay, bx, by] = [line.x1 * cellSize, line.y1 * cellSize, line.x2 * cellSize, line.y2 * cellSize];
+    if (Math.max(ay, by) + reach < y || Math.min(ay, by) - reach >= y + h) continue;
+    const xFrom = Math.max(0, Math.floor(Math.min(ax, bx) - reach));
+    const xTo = Math.min(width, Math.ceil(Math.max(ax, bx) + reach));
+    const yFrom = Math.max(y, Math.floor(Math.min(ay, by) - reach));
+    const yTo = Math.min(y + h, Math.ceil(Math.max(ay, by) + reach));
+    const dx = bx - ax;
+    const dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    for (let py = yFrom; py < yTo; py++) {
+      for (let px = xFrom; px < xTo; px++) {
+        const cx = px + 0.5;
+        const cy = py + 0.5;
+        const t = len2 === 0 ? 0 : Math.min(1, Math.max(0, ((cx - ax) * dx + (cy - ay) * dy) / len2));
+        const distance = Math.hypot(cx - ax - t * dx, cy - ay - t * dy);
+        const cover = Math.min(1, Math.max(0, half + 0.5 - distance));
+        if (cover <= 0) continue;
+        const i = ((py - y) * width + px) * 4;
+        const under = data[i + 3] / 255;
+        const alpha = cover + under * (1 - cover);
+        for (let k = 0; k < 3; k++) data[i + k] = Math.floor((color.rgb[k] * cover + data[i + k] * under * (1 - cover)) / alpha + 0.5);
+        data[i + 3] = Math.floor(alpha * 255 + 0.5);
+      }
+    }
+  }
 }
 
 // The chart's words live beside it rather than inside it (D219); callers still find them here.

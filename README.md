@@ -95,6 +95,7 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   to it end to end in the same thread, which then moves, mirrors, turns, recolours or deletes as one.
   **Delete** removes what is in hand. Symmetry mirrors a line as it does a stitch, and a rectangle or lasso
   selection takes a line only when **both** its ends are inside it.
+- **Backstitch in the Stitched view**: the Stitched view and the realistic preview export draw the backstitch over the stitches as plain solid coloured lines, a fifth of a cell wide (D275).
 - **Texture strokes** (Photo tab, Texture): short backstitch strokes over the stitches along fur, feathers, hair and grass, in up to four threads, the stitches under them left as they are. Off by default; density 0 to 10, default 3. A smooth area gets none (D274).
 - **Backstitch from lines** (Photo tab, Lines): for a drawing, thin lines, dark, light or coloured, become backstitch in up to three threads and the stitches under them take the colour beside them. Off by default; a photograph with texture everywhere gets none (D267) unless "Also in photographs" is on, and then only a few strong long lines (D270). Sensitivity 0 to 10.
 - **Backstitch threads**: the thread list grows a second section under the crosses for the threads carrying

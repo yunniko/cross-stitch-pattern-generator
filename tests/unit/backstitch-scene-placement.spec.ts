@@ -78,3 +78,35 @@ describe("a backstitch line is drawn on its own corners", () => {
     ]);
   });
 });
+
+describe("backstitch in the Stitched view (G-086)", () => {
+  const stitched = (): ChartScene => ({ ...scene(), viewMode: "realistic", activeTool: "brush" });
+  const solidPair: BackstitchLine[] = [
+    // The longer thread (index 0) is solid in the Color view; the shorter one is dashed there.
+    { x1: 4, y1: 4, x2: 14, y2: 4, paletteIndex: 0 },
+    { x1: 4, y1: 8, x2: 7, y2: 8, paletteIndex: 1 },
+  ];
+
+  it("draws every line over the stitches, whole, in its thread's colour and a fifth of a cell wide", () => {
+    const ctx = makeRecordingContext();
+    drawScene(ctx as unknown as CanvasRenderingContext2D, chart(solidPair), stitched(), { x0: 0, y0: 0, x1: 800, y1: 800 });
+    const strokes = backstitchStroke(ctx);
+    expect(strokes.length).toBeGreaterThan(0);
+    // Both lines, each as one piece from end to end: the dashed thread is not cut up.
+    const pieces = strokes.map((l) => [l.from, l.to]);
+    expect(pieces).toContainEqual([
+      [4 * CELL, 8 * CELL],
+      [7 * CELL, 8 * CELL],
+    ]);
+    expect(pieces).toContainEqual([
+      [4 * CELL, 4 * CELL],
+      [14 * CELL, 4 * CELL],
+    ]);
+  });
+
+  it("draws nothing of the kind for a chart with no backstitch", () => {
+    const ctx = makeRecordingContext();
+    drawScene(ctx as unknown as CanvasRenderingContext2D, chart([]), stitched(), { x0: 0, y0: 0, x1: 800, y1: 800 });
+    expect(backstitchStroke(ctx)).toHaveLength(0);
+  });
+});

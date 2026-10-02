@@ -282,7 +282,12 @@ export function drawBackstitch(
   cellSize: number,
   highlight?: (line: BackstitchLine) => boolean,
   /** Isolate: a line whose thread is not lit is drawn faint, as its stitches are (G-073 M4). */
-  dim?: (line: BackstitchLine) => boolean
+  dim?: (line: BackstitchLine) => boolean,
+  /**
+   * A plain line, whatever its thread's dash. The dashes tell threads apart on a printed chart; the Stitched view shows the
+   * finished piece, where a thread is a line (G-086).
+   */
+  solid = false
 ) {
   if (lines.length === 0) return;
   ctx.save();
@@ -301,7 +306,10 @@ export function drawBackstitch(
     ctx.globalAlpha = dim?.(line) ? 1 - HIGHLIGHT_MASK_ALPHA : 1;
     ctx.strokeStyle = `rgb(${color.rgb[0]} ${color.rgb[1]} ${color.rgb[2]})`;
     ctx.beginPath();
-    for (const s of dashSegments(line, dashPatternFor(line.paletteIndex, threads))) {
+    const pieces = solid
+      ? [{ x1: line.x1, y1: line.y1, x2: line.x2, y2: line.y2 }]
+      : dashSegments(line, dashPatternFor(line.paletteIndex, threads));
+    for (const s of pieces) {
       ctx.moveTo(s.x1 * cellSize, s.y1 * cellSize);
       ctx.lineTo(s.x2 * cellSize, s.y2 * cellSize);
     }

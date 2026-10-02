@@ -280,6 +280,63 @@ pub struct Preview<'a> {
     pub ground: Option<Ground>,
 }
 
+impl Preview<'_> {
+    /// The backstitch over the rows `y0..y0 + rows` already in `out`: each line a fifth of a cell wide (a pixel at least),
+    /// round at its ends, in its thread's colour, antialiased by its distance from the pixel's centre and laid over by
+    /// straight alpha (G-086). The same arithmetic as `stitchPreviewPixels`.
+    fn overlay_backstitch(&self, y0: u32, rows: u32, out: &mut [u8]) {
+        if self.pattern.backstitch.is_empty() {
+            return;
+        }
+        let cs = self.cell_size as f64;
+        let width = self.pattern.width * self.cell_size as usize;
+        let half = (cs / 5.0).max(1.0) / 2.0;
+        let (top, bottom) = (y0 as f64, (y0 + rows) as f64);
+        for line in &self.pattern.backstitch {
+            let Some(color) = self.pattern.palette.get(line.palette_index) else {
+                continue;
+            };
+            let (ax, ay) = (line.x1 as f64 * cs, line.y1 as f64 * cs);
+            let (bx, by) = (line.x2 as f64 * cs, line.y2 as f64 * cs);
+            let reach = half + 1.0;
+            if ay.max(by) + reach < top || ay.min(by) - reach >= bottom {
+                continue;
+            }
+            let x_from = (ax.min(bx) - reach).floor().max(0.0) as usize;
+            let x_to = ((ax.max(bx) + reach).ceil() as usize).min(width);
+            let y_from = (ay.min(by) - reach).floor().max(top) as usize;
+            let y_to = ((ay.max(by) + reach).ceil().min(bottom)) as usize;
+            let (dx, dy) = (bx - ax, by - ay);
+            let len2 = dx * dx + dy * dy;
+            for y in y_from..y_to {
+                for x in x_from..x_to {
+                    let (px, py) = (x as f64 + 0.5, y as f64 + 0.5);
+                    let t = if len2 == 0.0 {
+                        0.0
+                    } else {
+                        (((px - ax) * dx + (py - ay) * dy) / len2).clamp(0.0, 1.0)
+                    };
+                    let distance = ((px - ax - t * dx).powi(2) + (py - ay - t * dy).powi(2)).sqrt();
+                    let cover = (half + 0.5 - distance).clamp(0.0, 1.0);
+                    if cover <= 0.0 {
+                        continue;
+                    }
+                    let i = ((y - y0 as usize) * width + x) * 4;
+                    let under = out[i + 3] as f64 / 255.0;
+                    let alpha = cover + under * (1.0 - cover);
+                    for k in 0..3 {
+                        let mixed = (color.rgb[k] as f64 * cover
+                            + out[i + k] as f64 * under * (1.0 - cover))
+                            / alpha;
+                        out[i + k] = (mixed + 0.5).floor() as u8;
+                    }
+                    out[i + 3] = (alpha * 255.0 + 0.5).floor() as u8;
+                }
+            }
+        }
+    }
+}
+
 impl PixelSource for Preview<'_> {
     fn rgba_rows(&self, y0: u32, rows: u32, out: &mut Vec<u8>) {
         let cs = self.cell_size as usize;
@@ -350,6 +407,7 @@ impl PixelSource for Preview<'_> {
                 }
             }
         }
+        self.overlay_backstitch(y0, rows, out);
     }
 }
 

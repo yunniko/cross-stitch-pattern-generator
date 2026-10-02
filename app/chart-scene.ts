@@ -212,6 +212,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
         };
         drawRealisticRegion(ctx, p, realisticTiles, cellSize, region);
       }
+      // Backstitch over the stitches, a plain coloured line for now (G-086); `clipTo` above keeps it inside the rectangle.
+      if (p.backstitch?.length) drawBackstitch(ctx, p.backstitch, p.palette, cellSize, undefined, undefined, true);
     } else if (p.sourceImage && photo && photo.dataUrl === p.sourceImage.dataUrl) {
       drawSourcePhoto(ctx, photo.img, p.sourceImage, cellSize, 1);
     }
