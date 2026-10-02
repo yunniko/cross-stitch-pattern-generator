@@ -8,6 +8,7 @@ import {
   threadColor,
   withColor,
   withoutColor,
+  movedColor,
   type PaletteSet,
 } from "@/lib/editor/palette-set";
 import {
@@ -44,6 +45,7 @@ export interface PaletteSetupProps {
 export function PaletteSetup({ set, onChange, prediction, loading }: PaletteSetupProps) {
   const [custom, setCustom] = useState("#808080");
   const [query, setQuery] = useState("");
+  const [dragging, setDragging] = useState<number | null>(null);
   const [saved, setSaved] = useState<SavedPalette[]>([]);
   const [chosen, setChosen] = useState("");
   const [name, setName] = useState("");
@@ -103,16 +105,51 @@ export function PaletteSetup({ set, onChange, prediction, loading }: PaletteSetu
       {set.colors.length === 0 ? (
         <p className="text-[11px] leading-4 text-muted">Nothing chosen yet. Add colours below, or fill from the picture.</p>
       ) : (
-        <ul className="flex flex-wrap gap-1.5" aria-label="Chosen colours">
+        <ul className="flex flex-wrap" aria-label="Chosen colours">
           {set.colors.map((c, i) => (
-            <li key={`${c.code ?? hex(c.rgb)}-${i}`} className="flex items-center gap-1 rounded-md border border-line py-0.5 pl-1 pr-0.5">
-              <span className="h-3.5 w-3.5 rounded-sm border border-line" style={{ background: hex(c.rgb) }} />
-              <span className="max-w-[9rem] truncate text-[11px] text-ink">{colorLabel(c)}</span>
+            // A cell per colour, side by side; the name is the tooltip. Drag a cell to move it, or Alt + arrow keys on a focused one.
+            <li
+              key={`${c.code ?? hex(c.rgb)}-${i}`}
+              title={colorLabel(c)}
+              draggable
+              onDragStart={(e) => {
+                setDragging(i);
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(e) => {
+                if (dragging !== null) e.preventDefault();
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragging !== null) onChange(movedColor(set, dragging, i));
+                setDragging(null);
+              }}
+              onDragEnd={() => setDragging(null)}
+              onKeyDown={(e) => {
+                if (!e.altKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+                e.preventDefault();
+                const to = i + (e.key === "ArrowLeft" ? -1 : 1);
+                onChange(movedColor(set, i, to));
+                // The moved cell is a new element at its new place; keep the keyboard on it.
+                requestAnimationFrame(() =>
+                  document.querySelector<HTMLElement>(`[data-set-cell="${Math.max(0, Math.min(set.colors.length - 1, to))}"]`)?.focus()
+                );
+              }}
+              className={`group relative ${dragging === i ? "opacity-40" : ""}`}
+            >
+              <div
+                tabIndex={0}
+                role="img"
+                aria-label={`${colorLabel(c)}, position ${i + 1} of ${set.colors.length}; Alt and arrow keys move it`}
+                data-set-cell={i}
+                className="h-9 w-9 cursor-grab border border-line outline-offset-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                style={{ background: hex(c.rgb) }}
+              />
               <button
                 type="button"
                 aria-label={`Remove ${colorLabel(c)}`}
                 onClick={() => onChange(withoutColor(set, i))}
-                className="px-1 text-xs leading-none text-muted hover:text-ink"
+                className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[11px] leading-none text-white opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
               >
                 ×
               </button>

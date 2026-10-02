@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   colorLabel,
+  movedColor,
   generationPaletteData,
   paletteFileText,
   parseGenerationPalette,
@@ -133,5 +134,28 @@ describe("the set a chart carries", () => {
   it("keeps whether the chart was made from it", () => {
     const set = { ...dmc("310"), active: false };
     expect(parseGenerationPalette(generationPaletteData(set))).toEqual(set);
+  });
+});
+
+describe("movedColor", () => {
+  const set = {
+    mode: "full" as const,
+    colors: [
+      { rgb: [1, 1, 1] as [number, number, number] },
+      { rgb: [2, 2, 2] as [number, number, number] },
+      { rgb: [3, 3, 3] as [number, number, number] },
+    ],
+  };
+  const firsts = (s: PaletteSet) => s.colors.map((c) => c.rgb[0]);
+
+  it("moves a colour to a place, keeping the others in order", () => {
+    expect(firsts(movedColor(set, 0, 2))).toEqual([2, 3, 1]);
+    expect(firsts(movedColor(set, 2, 0))).toEqual([3, 1, 2]);
+  });
+
+  it("clamps the place, and returns the same set when nothing moves", () => {
+    expect(firsts(movedColor(set, 0, 9))).toEqual([2, 3, 1]);
+    expect(movedColor(set, 1, 1)).toBe(set);
+    expect(movedColor(set, 7, 0)).toBe(set);
   });
 });

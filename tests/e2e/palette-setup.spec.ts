@@ -91,7 +91,11 @@ test("in a thread brand the colours are threads, found by code", async ({ page }
   await page.getByLabel(/Search DMC threads/).fill("310");
   await page.getByRole("button", { name: /^DMC 310/ }).click();
   await expect(page.getByRole("button", { name: /^DMC 310/ })).toHaveAttribute("data-current", "true");
-  await expect(page.getByRole("list", { name: "Chosen colours" })).toContainText("310");
+  // The chosen colours are bare cells; the name is the tooltip.
+  const cells = page.getByRole("list", { name: "Chosen colours" }).getByRole("listitem");
+  await expect(cells).toHaveCount(1);
+  await expect(cells.first()).toHaveAttribute("title", /310/);
+  await expect(cells.first()).not.toContainText("310");
 
   // Changing the palette mode empties the set: its threads mean nothing in another brand.
   await page.getByRole("button", { name: "Anchor", exact: true }).click();
@@ -188,4 +192,30 @@ test("the editable file carries the set and restores it; a file without one rese
   await expect(page.getByLabel("Brightness")).toHaveAttribute("aria-valuetext", "neutral");
   await expect(page.getByTestId("palette-setup")).toHaveCount(0);
   await expect(setupSwitch(page)).toHaveAttribute("aria-pressed", "false");
+});
+
+test("chosen colours can be rearranged by keyboard and by dragging", async ({ page }) => {
+  await loadPhoto(page);
+  await setupSwitch(page).click();
+  for (const hex of ["#ff0000", "#00ff00", "#0000ff"]) {
+    await page.getByLabel("Colour to add").fill(hex);
+    await page.getByRole("button", { name: "Add colour" }).click();
+  }
+  const cells = page.locator("[data-set-cell]");
+  const order = async () => cells.evaluateAll((els) => els.map((e) => (e as HTMLElement).style.background));
+  const red = "rgb(255, 0, 0)";
+  const green = "rgb(0, 255, 0)";
+  const blue = "rgb(0, 0, 255)";
+  expect(await order()).toEqual([red, green, blue]);
+
+  await cells.nth(0).focus();
+  await page.keyboard.press("Alt+ArrowRight");
+  expect(await order()).toEqual([green, red, blue]);
+
+  await page
+    .getByRole("list", { name: "Chosen colours" })
+    .getByRole("listitem")
+    .nth(2)
+    .dragTo(page.getByRole("list", { name: "Chosen colours" }).getByRole("listitem").nth(0));
+  expect(await order()).toEqual([blue, green, red]);
 });

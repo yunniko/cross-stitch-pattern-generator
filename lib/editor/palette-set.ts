@@ -28,6 +28,18 @@ export function withColor(set: PaletteSet, color: PaletteSetColor): PaletteSet {
   return { ...set, colors: [...set.colors, color] };
 }
 
+/** The set with the colour at `from` moved to `to` (both clamped to the set), or the set itself when nothing moves. */
+export function movedColor(set: PaletteSet, from: number, to: number): PaletteSet {
+  const last = set.colors.length - 1;
+  if (from < 0 || from > last) return set;
+  const target = Math.max(0, Math.min(last, to));
+  if (target === from) return set;
+  const colors = [...set.colors];
+  const [moved] = colors.splice(from, 1);
+  colors.splice(target, 0, moved);
+  return { ...set, colors };
+}
+
 export function withoutColor(set: PaletteSet, index: number): PaletteSet {
   return { ...set, colors: set.colors.filter((_, i) => i !== index) };
 }
