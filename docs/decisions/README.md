@@ -311,3 +311,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D273 — The five greyer fonts and the BY-SA and BY-ND fonts are not bundled — active
 - D274 — Texture strokes are the short ridges of textured areas, chosen by flow and spread — active
 - D275 — Backstitch in the Stitched view and the realistic preview is a plain solid coloured line — active
+- D276 — The colour count is read off a Ward-merge error curve, with an optimistic ceiling — active
+- D277 — Set-up palette assigns each cell its nearest chosen colour, and the set is a record apart from the chart's palette — active

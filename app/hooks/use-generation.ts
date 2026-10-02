@@ -1,4 +1,5 @@
 import { useState, type RefObject } from "react";
+import { setRequest } from "@/lib/editor/palette-set";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { cancelServerPatternJob, PatternJobCancelledError, runServerPatternJob } from "@/lib/pipeline/pattern-server";
 import { PhotoExpiredError, ProcessorUnreachableError, ServerBusyError } from "@/lib/pipeline/server-errors";
@@ -16,6 +17,8 @@ export interface GenerationInputs {
   sourceFileName: string | null;
   revisionRef: RefObject<number>;
   currentPattern: StitchPattern | null;
+  /** The most colours the prediction allows for this picture, or null before there is one (G-087); the count is held to it. */
+  colorCeiling: number | null;
   /** Receives the generated pattern; `isFirst` when there was no pattern before, so it becomes the undo baseline. */
   onGenerated: (pattern: StitchPattern, isFirst: boolean) => void;
 }
@@ -49,7 +52,13 @@ export function useGeneration(inputs: GenerationInputs) {
   const [queueMessage, setQueueMessage] = useState<string | null>(null);
 
   async function generate() {
-    const { options, pixelBuffer, sourceMeta, sourceFileName, revisionRef, currentPattern, onGenerated } = inputs;
+    const { options, pixelBuffer, sourceMeta, sourceFileName, revisionRef, currentPattern, colorCeiling, onGenerated } = inputs;
+    // "Set up palette" with nothing in the set asks for nothing; an empty set is not a request to make the chart from no colours.
+    const settingUp = options.paletteSetup && options.paletteSet.colors.length >= 1;
+    if (options.paletteSetup && !settingUp) {
+      setError("Add at least one colour to the palette, or switch back to Automatic.");
+      return;
+    }
     const longerSideStitches = longerSideFor(options);
     if (!pixelBuffer) {
       setError("Upload an image first.");
@@ -77,7 +86,8 @@ export function useGeneration(inputs: GenerationInputs) {
     try {
       const settings = {
         longerSideStitches,
-        colorCount: options.colorCount,
+        // The count never goes above the ceiling the prediction allows (G-087); a set has its own count, its size.
+        colorCount: Math.min(options.colorCount, colorCeiling ?? MAX_COLORS),
         generationMode: options.generationMode,
         paletteMode: options.paletteMode,
         edgeMode: options.edgeMode,
@@ -91,6 +101,11 @@ export function useGeneration(inputs: GenerationInputs) {
         backstitchPhotos: options.backstitchPhotos,
         textureStrokes: options.textureStrokes,
         textureDensity: options.textureDensity,
+        // Set up palette (G-087): the chart is made from the chosen threads and the count is their number. Crisp edges are not
+        // used with a set (D277), so a set always asks for standard ones.
+        ...(settingUp
+          ? { paletteSet: setRequest(options.paletteSet), paletteMode: options.paletteSet.mode, edgeMode: "standard" as const }
+          : {}),
         onProgress: (fraction: number) => {
           setQueueMessage(null); // it has a worker now
           setProgress(fraction);
@@ -107,6 +122,8 @@ export function useGeneration(inputs: GenerationInputs) {
         {
           ...result,
           name: currentPattern?.name ?? sourceFileName?.replace(/\.[^.]+$/, "") ?? "cross-stitch-pattern",
+          // The set the user chose is kept with the chart whether or not this chart was made from it (G-087, D277).
+          generationPalette: options.paletteSet.colors.length ? { ...options.paletteSet, active: settingUp } : undefined,
           sourceImage:
             sourceMeta && naturalLonger
               ? {

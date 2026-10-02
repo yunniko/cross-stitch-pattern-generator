@@ -5,6 +5,36 @@ import { THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES } from "@/lib/types";
 
 /**
+ * Checking a prediction request (G-087): a photo, a size, the palette mode, the photo sliders, and optionally the colours of a set.
+ */
+export function predictionError(body: unknown): string | null {
+  if (typeof body !== "object" || body === null) return "Expected a JSON object.";
+  const b = body as Record<string, unknown>;
+  if (typeof b.photoHash !== "string" || !/^[0-9a-f]{64}$/.test(b.photoHash)) return "photoHash must be a SHA-256 hex digest.";
+  const stitches = b.longerSideStitches;
+  if (!Number.isInteger(stitches) || (stitches as number) < MIN_STITCHES || (stitches as number) > MAX_STITCHES) {
+    return `longerSideStitches must be a whole number between ${MIN_STITCHES} and ${MAX_STITCHES}.`;
+  }
+  const modes = ["full", ...THREAD_BRAND_IDS];
+  if (b.paletteMode !== undefined && (typeof b.paletteMode !== "string" || !modes.includes(b.paletteMode))) {
+    return `paletteMode must be one of: ${modes.join(", ")}.`;
+  }
+  if (!isValidPhotoAdjust(b.photoAdjust)) {
+    return "photoAdjust must be an object whose brightness, contrast, saturation and temperature are whole numbers between -100 and 100.";
+  }
+  if (b.paletteSet !== undefined) {
+    const set = b.paletteSet;
+    const ok =
+      Array.isArray(set) &&
+      set.length >= 1 &&
+      set.length <= MAX_COLORS &&
+      set.every((c) => Array.isArray(c) && c.length === 3 && c.every((v) => Number.isInteger(v) && v >= 0 && v <= 255));
+    if (!ok) return `paletteSet must be between 1 and ${MAX_COLORS} colours of [red, green, blue] whole numbers from 0 to 255.`;
+  }
+  return null;
+}
+
+/**
  * Checking a generation request before any worker is given it (G-034 M2, M3).
  *
  * Kept apart from `server.ts` because that module starts listening and spawns workers when it loads, which a test of
@@ -57,6 +87,28 @@ export function settingsError(body: unknown): string | null {
   }
   if (b.backstitchPhotos !== undefined && typeof b.backstitchPhotos !== "boolean") {
     return "backstitchPhotos must be true or false.";
+  }
+  // A set of colours to make the chart from (G-087): its mode, and a code each in a brand or an RGB each otherwise.
+  if (b.paletteSet !== undefined) {
+    const set = b.paletteSet;
+    const modes = ["full", ...THREAD_BRAND_IDS];
+    if (typeof set !== "object" || set === null) return "paletteSet must be an object.";
+    const s = set as Record<string, unknown>;
+    if (typeof s.mode !== "string" || !modes.includes(s.mode)) return `paletteSet.mode must be one of: ${modes.join(", ")}.`;
+    if (b.paletteMode !== undefined && b.paletteMode !== s.mode) return "paletteSet.mode must be the paletteMode.";
+    const colors = s.colors;
+    if (!Array.isArray(colors) || colors.length < 1 || colors.length > MAX_COLORS) {
+      return `paletteSet.colors must hold between 1 and ${MAX_COLORS} colours.`;
+    }
+    const valid = colors.every((c) => {
+      if (typeof c !== "object" || c === null) return false;
+      const e = c as Record<string, unknown>;
+      if (s.mode === "full")
+        return Array.isArray(e.rgb) && e.rgb.length === 3 && e.rgb.every((v) => Number.isInteger(v) && v >= 0 && v <= 255);
+      return typeof e.code === "string" && e.code.length >= 1 && e.code.length <= 16;
+    });
+    if (!valid)
+      return "paletteSet.colors must each be a thread code in a brand or an RGB of whole numbers from 0 to 255 in the full colour mode.";
   }
   // The texture strokes (G-085): a flag, and a density between 0 and 1.
   if (b.textureStrokes !== undefined && typeof b.textureStrokes !== "boolean") {

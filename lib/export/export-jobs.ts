@@ -25,7 +25,7 @@ export type ExportJobKind = ExportKind | "all";
  * Deliberately not an `ExportJobKind`: the processor has no such export, and this type is what stops one being asked
  * for it.
  */
-export type ExportChoice = ExportJobKind | "pixel-art";
+export type ExportChoice = ExportJobKind | "pixel-art" | "palette";
 
 export interface ExportJobRequest {
   kind: ExportJobKind;

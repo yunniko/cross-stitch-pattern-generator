@@ -199,3 +199,18 @@ describe("guardMutation", () => {
     expect(guardMutation(request({ origin: SITE, ip: "203.0.113.11" }))).toBeNull();
   });
 });
+
+describe("prediction rate limit (G-087)", () => {
+  it("is a bucket of its own: predictions do not spend a reader's generations, and are not refused at six", () => {
+    const req = () => request({ origin: SITE, ip: "203.0.113.40" });
+    const predictions = Array.from({ length: 20 }, () => rateLimited(req(), "prediction"));
+    expect(predictions.every((r) => r === null)).toBe(true);
+    expect(rateLimited(req(), "job")).toBeNull();
+  });
+
+  it("refuses a script that asks without end", () => {
+    const refusals = Array.from({ length: 100 }, () => rateLimited(request({ ip: "203.0.113.41" }), "prediction")).filter(Boolean);
+    expect(refusals.length).toBeGreaterThan(0);
+    expect(refusals[0]?.status).toBe(429);
+  });
+});

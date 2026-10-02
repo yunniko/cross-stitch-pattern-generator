@@ -1,4 +1,5 @@
 import { isStitchKind, tidyKinds } from "./stitch-kind";
+import { generationPaletteData, parseGenerationPalette } from "./palette-set";
 import { dedupeLines } from "./backstitch";
 import { DITHER_MODES, type DitherMode } from "../pipeline/dither";
 import { isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
@@ -81,6 +82,12 @@ export interface SerializedPattern {
    */
   vivid?: true;
   /**
+   * The set of colours the Owner chose for this chart's generation, kept with it (G-087, D277): the palette mode it belongs to, its
+   * colours (a thread by code in a brand, an RGB otherwise) and whether the chart was made from it. Additive and optional like
+   * `photoAdjust`, so the format version stays where it is, an older build ignores it and an older file opens without one.
+   */
+  generationPalette?: unknown;
+  /**
    * The symmetry axes that were on when the file was saved (G-037); absent when none were. An optional field that
    * older builds ignore, so the format version stays the same (D138).
    */
@@ -145,6 +152,7 @@ export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes 
     ditherMode: pattern.ditherMode,
     ditherTexture: pattern.ditherTexture,
     vivid: pattern.vivid,
+    generationPalette: pattern.generationPalette ? generationPaletteData(pattern.generationPalette) : undefined,
     symmetry: serializeSymmetry(effectiveSymmetryAxes(symmetry, pattern.width, pattern.height)),
     backstitch: pattern.backstitch?.length ? pattern.backstitch : undefined,
     cellKind: kinds ? Array.from(kinds) : undefined,
@@ -310,6 +318,8 @@ export function deserializePatternData(data: unknown): StitchPattern {
     ditherTexture: isValidDitherTexture(d.ditherTexture) ? d.ditherTexture : undefined,
     // Anything but a literal true, including its absence in a file saved before G-061, reads as off.
     vivid: d.vivid === true ? true : undefined,
+    // A set that is not one (a newer build's, or damaged) is dropped, and the chart opens without it.
+    generationPalette: parseGenerationPalette(d.generationPalette),
     backstitch,
     cellKind: readCellKind(d.cellKind, cellPalette),
   };

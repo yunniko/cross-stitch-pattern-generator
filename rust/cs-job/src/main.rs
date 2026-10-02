@@ -2,6 +2,7 @@
 //!
 //!   cs-job generate <width> <height> '<options json>'   # RGBA pixels on stdin, pattern JSON on stdout
 //!   cs-job export '<request json>'                      # an editable save on stdin, the file's bytes on stdout
+//!   cs-job predict <width> <height> '<options json>'    # RGBA pixels on stdin, the predicted colours (and the coverage of a set) on stdout
 //!
 //! stderr carries one JSON object per line, never the payload: `{"progress":0.4}` as `buildPattern`'s `onProgress`
 //! reports it, `{"exportProgress":{"completed":12,"total":180,"label":"Page 12 of 180"}}` as `runExportJob` does,
@@ -93,6 +94,38 @@ fn generate(args: &[String]) {
     );
 }
 
+/// The predicted colour count and colours of a picture, and how well a set covers it (G-087).
+fn predict(args: &[String]) {
+    let width: usize = args[2]
+        .parse()
+        .unwrap_or_else(|_| fail("width must be a number"));
+    let height: usize = args[3]
+        .parse()
+        .unwrap_or_else(|_| fail("height must be a number"));
+    let (options, set) =
+        cs_core::json::parse_predict_options(&args[4]).unwrap_or_else(|e| fail(&e));
+    let data = read_stdin();
+    if data.len() != width * height * 4 {
+        fail(&format!(
+            "expected {} bytes of RGBA, got {}",
+            width * height * 4,
+            data.len()
+        ));
+    }
+    let image = Image {
+        width,
+        height,
+        data,
+    };
+    let prediction = cs_core::predict::predict(&image, &options);
+    let mut out = cs_core::json::prediction_json(&prediction);
+    if let Some(set) = set {
+        out["coverage"] =
+            cs_core::json::coverage_json(&cs_core::predict::coverage(&image, &options, &set));
+    }
+    write_stdout(out.to_string().as_bytes());
+}
+
 fn export(args: &[String]) {
     let request = cs_export::model::Request::from_json(&args[2]).unwrap_or_else(|e| fail(&e));
     let text = String::from_utf8(read_stdin())
@@ -117,6 +150,7 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
         Some("generate") if args.len() == 5 => generate(&args),
+        Some("predict") if args.len() == 5 => predict(&args),
         Some("export") if args.len() == 3 => export(&args),
         _ => {
             eprintln!("usage: cs-job generate <width> <height> '<options json>' | cs-job export '<request json>'");

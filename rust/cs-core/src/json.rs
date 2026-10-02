@@ -3,7 +3,7 @@
 
 use crate::dither::DitherMode;
 use crate::dither_hand_drawn::{default_dither_texture, DitherStamp, DitherTexture};
-use crate::pattern::{BuildOptions, EdgeMode, StageTimes, StitchPattern};
+use crate::pattern::{BuildOptions, EdgeMode, PaletteSet, SetColor, StageTimes, StitchPattern};
 use crate::photo_adjust::{PhotoAdjust, NEUTRAL_ADJUST};
 use crate::quantize::Quantizer;
 use crate::threads::Brand;
@@ -42,7 +42,62 @@ struct Options {
     #[serde(default)]
     texture_density: Option<f64>,
     #[serde(default)]
+    palette_set: Option<PaletteSetOptions>,
+    #[serde(default)]
     threads: Option<usize>,
+}
+
+/// A set of colours the chart is made from (G-087): the palette mode, and a colour each, by thread code in a brand or by RGB.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PaletteSetOptions {
+    mode: String,
+    colors: Vec<SetColorOptions>,
+}
+
+#[derive(Deserialize)]
+struct SetColorOptions {
+    #[serde(default)]
+    code: Option<String>,
+    #[serde(default)]
+    rgb: Option<[u8; 3]>,
+}
+
+impl PaletteSetOptions {
+    fn resolve(&self) -> Result<PaletteSet, String> {
+        let brand = match self.mode.as_str() {
+            "full" => None,
+            "dmc" => Some(Brand::Dmc),
+            "cosmo" => Some(Brand::Cosmo),
+            "anchor" => Some(Brand::Anchor),
+            other => return Err(format!("unknown paletteSet mode {other}")),
+        };
+        if self.colors.is_empty() || self.colors.len() > crate::names::symbol_set().len() {
+            return Err("a palette set holds between 1 and the number of symbols colours".into());
+        }
+        let mut colors = Vec::new();
+        for c in &self.colors {
+            colors.push(match (brand, &c.code, c.rgb) {
+                (Some(brand), Some(code), _) => {
+                    let (name, rgb) = crate::threads::thread_by_code(brand, code)
+                        .ok_or_else(|| format!("unknown {} thread {code}", self.mode))?;
+                    SetColor {
+                        rgb,
+                        code: Some(code.clone()),
+                        label: crate::threads::thread_name(code, &name),
+                    }
+                }
+                (Some(_), None, _) => return Err("a thread of a brand needs its code".into()),
+                (None, _, Some(rgb)) => SetColor {
+                    rgb,
+                    code: None,
+                    label: String::new(),
+                },
+                (None, _, None) => return Err("a custom colour needs its rgb".into()),
+            });
+        }
+        Ok(PaletteSet { brand, colors })
+    }
 }
 
 /// The four photo sliders (G-074). Absent, or absent field by field, means neutral.
@@ -198,6 +253,11 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
             .map(AdjustOptions::resolve)
             .unwrap_or(NEUTRAL_ADJUST),
         backstitch_photos: o.backstitch_photos.unwrap_or(false),
+        palette_set: o
+            .palette_set
+            .as_ref()
+            .map(PaletteSetOptions::resolve)
+            .transpose()?,
         texture_strokes: o.texture_strokes.unwrap_or(false).then(|| {
             o.texture_density
                 .filter(|v| v.is_finite())
@@ -296,4 +356,69 @@ pub fn run_json(total_ms: f64, times: &StageTimes) -> Value {
         .map(|(k, v)| (k.to_string(), json!(v)))
         .collect();
     json!({ "totalMs": total_ms, "stages": stages })
+}
+
+/// Options of a prediction (G-087): the size, the palette mode and the photo sliders; the rest of generation does not matter to it.
+pub fn parse_predict_options(
+    text: &str,
+) -> Result<(crate::predict::PredictOptions, Option<Vec<[u8; 3]>>), String> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct PredictRequest {
+        longer_side_stitches: f64,
+        #[serde(default)]
+        palette_mode: Option<String>,
+        #[serde(default)]
+        photo_adjust: Option<AdjustOptions>,
+        /// The colours of a set to say how well it covers the picture (G-087): `[r, g, b]` each.
+        #[serde(default)]
+        palette_set: Option<Vec<[u8; 3]>>,
+    }
+    let o: PredictRequest = serde_json::from_str(text).map_err(|e| e.to_string())?;
+    let brand = match o.palette_mode.as_deref() {
+        None | Some("full") => None,
+        Some("dmc") => Some(Brand::Dmc),
+        Some("cosmo") => Some(Brand::Cosmo),
+        Some("anchor") => Some(Brand::Anchor),
+        Some(other) => return Err(format!("unknown paletteMode {other}")),
+    };
+    Ok((
+        crate::predict::PredictOptions {
+            longer_side_stitches: o.longer_side_stitches,
+            brand,
+            photo_adjust: o
+                .photo_adjust
+                .as_ref()
+                .map(AdjustOptions::resolve)
+                .unwrap_or(NEUTRAL_ADJUST),
+        },
+        o.palette_set,
+    ))
+}
+
+/// How well a set covers the picture, as JSON for the app.
+pub fn coverage_json(c: &crate::predict::Coverage) -> Value {
+    json!({
+        "covered": c.covered,
+        "missing": c.missing.iter().map(|m| json!({ "rgb": m.rgb, "name": m.name, "share": m.share })).collect::<Vec<_>>(),
+    })
+}
+
+/// A prediction as JSON for the app.
+pub fn prediction_json(p: &crate::predict::Prediction) -> Value {
+    json!({
+        "suggested": p.suggested,
+        "low": p.low,
+        "high": p.high,
+        "ceiling": p.ceiling,
+        "cells": p.cells,
+        "colors": p.colors.iter().map(|c| {
+            let mut entry = json!({ "rgb": c.rgb, "cells": c.cells });
+            if let Some((code, name)) = &c.thread {
+                entry["thread"] = json!({ "code": code, "name": name });
+            }
+            entry
+        }).collect::<Vec<_>>(),
+        "curve": p.curve.iter().map(|(k, e)| json!([k, e])).collect::<Vec<_>>(),
+    })
 }

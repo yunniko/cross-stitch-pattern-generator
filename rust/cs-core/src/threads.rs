@@ -99,6 +99,30 @@ pub(crate) fn thread_name(code: &str, name: &str) -> String {
     }
 }
 
+/// The thread of `brand` with this code: its name (empty when the brand has none) and its colour. An Anchor code is looked up
+/// through the DMC colour it stands for, as the brand palette does (D94).
+pub fn thread_by_code(brand: Brand, code: &str) -> Option<(String, Rgb)> {
+    match brand {
+        Brand::Dmc | Brand::Cosmo => {
+            let table = if brand == Brand::Dmc { dmc() } else { cosmo() };
+            table
+                .iter()
+                .find(|t| t.code == code)
+                .map(|t| (t.name.clone(), t.rgb))
+        }
+        Brand::Anchor => {
+            let dmc_code = dmc_to_anchor()
+                .iter()
+                .find(|(_, anchor)| **anchor == code)
+                .map(|(dmc, _)| *dmc)?;
+            dmc()
+                .iter()
+                .find(|t| t.code == dmc_code)
+                .map(|t| (String::new(), t.rgb))
+        }
+    }
+}
+
 /// The thread of `brand` nearest to `rgb`: its code, its name (empty when the brand has none) and its colour.
 pub fn thread_for(brand: Brand, rgb: Rgb) -> (String, String, Rgb) {
     match brand {

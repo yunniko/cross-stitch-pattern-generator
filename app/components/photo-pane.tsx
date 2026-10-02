@@ -14,12 +14,14 @@ import {
   type LineDitherMode,
 } from "@/lib/pipeline/dither";
 import { isNeutralAdjust, NEUTRAL_ADJUST, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
+import type { ColorPrediction } from "@/lib/pipeline/prediction";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
 import { gridDimensionsFor } from "@/lib/pipeline/downsample";
 import { longerSideFor } from "../hooks/use-generation";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
 import { DitherPreview } from "./dither-preview";
+import { PaletteSetup } from "./palette-setup";
 import { TextureEditor } from "./texture-editor";
 import { PillButton, SegmentedControl, Slider, type SegmentOption, InlineError } from "./ui";
 
@@ -158,7 +160,15 @@ export interface PhotoPaneProps {
   onAdjustSettled: () => void;
   error: string | null;
   onDismissError: () => void;
+  /** What the processor predicts the picture needs (G-087); null before it has answered or when it cannot. */
+  prediction: ColorPrediction | null;
+  predictionLoading: boolean;
 }
+
+const SETUP_OPTIONS: SegmentOption<"auto" | "setup">[] = [
+  { value: "auto", label: "Automatic", title: "The colors are chosen from the picture, as many as the Colors slider says" },
+  { value: "setup", label: "Set up palette", title: "You choose the colors; the chart is made from those and no others" },
+];
 
 /** What 1b shows on this tab while a job runs: where it has got to, and the way out. */
 function GeneratingCard({
@@ -213,6 +223,8 @@ export function PhotoPane({
   onAdjustSettled,
   error,
   onDismissError,
+  prediction,
+  predictionLoading,
 }: PhotoPaneProps) {
   if (isProcessing) return <GeneratingCard progress={progress} queueMessage={queueMessage} hasPattern={hasPattern} onCancel={onCancel} />;
   // First run: nothing to size or colour yet, so 1b shows what the three steps will be instead of dead controls.
@@ -248,6 +260,24 @@ export function PhotoPane({
   function chooseEdgeMode(mode: WorkspaceOptions["edgeMode"]) {
     onChange("edgeMode", mode);
     if (mode !== "standard") onChange("ditherMode", "off");
+  }
+
+  // The colour count may not go above what the picture reasonably needs, when the prediction knows it (G-087).
+  const countMax = prediction ? Math.max(MIN_COLORS, Math.min(MAX_COLORS, prediction.ceiling)) : MAX_COLORS;
+  const shownCount = Math.min(options.colorCount, countMax);
+  const settingUp = options.paletteSetup;
+
+  function chooseSetup(choice: "auto" | "setup") {
+    onChange("paletteSetup", choice === "setup");
+    // A set belongs to one palette mode; entering with nothing chosen it takes the mode in force.
+    if (choice === "setup" && options.paletteSet.colors.length === 0) onChange("paletteSet", { mode: options.paletteMode, colors: [] });
+    if (choice === "setup" && options.paletteSet.colors.length > 0) onChange("paletteMode", options.paletteSet.mode);
+  }
+
+  function choosePaletteMode(mode: WorkspaceOptions["paletteMode"]) {
+    onChange("paletteMode", mode);
+    // Colours of one mode mean nothing in another, so changing the mode while setting up empties the set.
+    if (settingUp && options.paletteSet.mode !== mode) onChange("paletteSet", { mode, colors: [] });
   }
 
   function setCustom(value: number) {
@@ -334,38 +364,60 @@ export function PhotoPane({
           <label className={GROUP_LABEL} htmlFor="color-count">
             Colors
           </label>
-          <span className="font-mono text-[13px] text-ink">{options.colorCount}</span>
+          <span className="font-mono text-[13px] text-ink">{settingUp ? options.paletteSet.colors.length : shownCount}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            aria-label="One color fewer"
-            title="One color fewer"
-            onClick={() => onChange("colorCount", Math.max(MIN_COLORS, options.colorCount - 1))}
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-line text-sm leading-none text-ink hover:bg-raised"
-          >
-            −
-          </button>
-          <input
-            id="color-count"
-            type="range"
-            min={MIN_COLORS}
-            max={MAX_COLORS}
-            value={options.colorCount}
-            aria-label="Number of colors"
-            onChange={(e) => onChange("colorCount", Number(e.target.value))}
-            className="min-w-0 flex-1 accent-[var(--at-accent)]"
-          />
-          <button
-            type="button"
-            aria-label="One color more"
-            title="One color more"
-            onClick={() => onChange("colorCount", Math.min(MAX_COLORS, options.colorCount + 1))}
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-line text-sm leading-none text-ink hover:bg-raised"
-          >
-            +
-          </button>
-        </div>
+        {settingUp ? (
+          <p className="text-[11px] leading-4 text-muted">The chart uses the colors in your palette, so there is no count to set.</p>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-label="One color fewer"
+                title="One color fewer"
+                onClick={() => onChange("colorCount", Math.max(MIN_COLORS, shownCount - 1))}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-line text-sm leading-none text-ink hover:bg-raised"
+              >
+                −
+              </button>
+              <input
+                id="color-count"
+                type="range"
+                min={MIN_COLORS}
+                max={countMax}
+                value={shownCount}
+                aria-label="Number of colors"
+                onChange={(e) => onChange("colorCount", Number(e.target.value))}
+                className="min-w-0 flex-1 accent-[var(--at-accent)]"
+              />
+              <button
+                type="button"
+                aria-label="One color more"
+                title="One color more"
+                onClick={() => onChange("colorCount", Math.min(countMax, shownCount + 1))}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-line text-sm leading-none text-ink hover:bg-raised"
+              >
+                +
+              </button>
+            </div>
+            {prediction && (
+              <p className="text-[11px] leading-4 text-muted" data-testid="color-count-hint">
+                Suggested {prediction.suggested}:{" "}
+                {prediction.low === prediction.high ? prediction.low : `${prediction.low}–${prediction.high}`} colors give the best results;
+                more mostly add shades nobody will see (up to {countMax}).{" "}
+                {options.colorCount !== prediction.suggested && (
+                  <button
+                    type="button"
+                    onClick={() => onChange("colorCount", prediction.suggested)}
+                    className="text-accent hover:underline"
+                  >
+                    Use {prediction.suggested}
+                  </button>
+                )}
+              </p>
+            )}
+          </>
+        )}
       </section>
 
       <section className="flex flex-col gap-2">
@@ -489,7 +541,16 @@ export function PhotoPane({
 
       <section className="flex flex-col gap-2">
         <span className={GROUP_LABEL}>Palette</span>
-        <SegmentedControl fill options={PALETTE_OPTIONS} value={options.paletteMode} onChange={(mode) => onChange("paletteMode", mode)} />
+        <SegmentedControl fill options={SETUP_OPTIONS} value={settingUp ? "setup" : "auto"} onChange={chooseSetup} />
+        <SegmentedControl fill options={PALETTE_OPTIONS} value={options.paletteMode} onChange={choosePaletteMode} />
+        {settingUp && (
+          <PaletteSetup
+            set={options.paletteSet}
+            onChange={(set) => onChange("paletteSet", set)}
+            prediction={prediction}
+            loading={predictionLoading}
+          />
+        )}
       </section>
 
       <section className="flex flex-col gap-2">

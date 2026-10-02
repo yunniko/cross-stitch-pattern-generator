@@ -5,7 +5,8 @@ import { deserializePatternData, serializePattern } from "@/lib/editor/pattern-s
 import type { SymmetryAxes } from "@/lib/editor/symmetry-axes";
 import type { ExportJobKind } from "@/lib/export/export-jobs";
 import type { ExportProgress } from "@/lib/export/export-progress";
-import type { StitchPattern } from "@/lib/types";
+import type { ColorPrediction, PredictionRequest } from "@/lib/pipeline/prediction";
+import type { PixelBuffer, StitchPattern } from "@/lib/types";
 import type { ExportJobPayload, WorkerJob } from "./job-protocol";
 
 /**
@@ -114,6 +115,7 @@ export async function generateWithRust(
     backstitchPhotos: settings.backstitchPhotos ?? undefined,
     textureStrokes: settings.textureStrokes ?? undefined,
     textureDensity: settings.textureDensity ?? undefined,
+    paletteSet: settings.paletteSet ?? undefined,
   });
   const pixels = Buffer.from(imageData.data.buffer, imageData.data.byteOffset, imageData.data.byteLength);
   const result = await run(["generate", String(imageData.width), String(imageData.height), options], pixels, { progress: onProgress });
@@ -123,6 +125,25 @@ export async function generateWithRust(
     return deserializePatternData({ ...(JSON.parse(result.stdout.toString("utf8")) as object), formatVersion: 7 });
   } catch (err) {
     failed("generation", err instanceof Error ? err.message : "unreadable pattern");
+  }
+}
+
+/** The predicted colour count and colours of a picture, and the coverage of a set, by `cs-job predict` (G-087). */
+export async function predictWithRust(pixels: PixelBuffer, request: Omit<PredictionRequest, "photoHash">): Promise<ColorPrediction> {
+  requireRustJobs();
+  const options = JSON.stringify({
+    longerSideStitches: request.longerSideStitches,
+    paletteMode: request.paletteMode ?? undefined,
+    photoAdjust: request.photoAdjust ?? undefined,
+    paletteSet: request.paletteSet ?? undefined,
+  });
+  const data = Buffer.from(pixels.data.buffer, pixels.data.byteOffset, pixels.data.byteLength);
+  const result = await run(["predict", String(pixels.width), String(pixels.height), options], data);
+  if (!result.stdout) failed("prediction", result.error);
+  try {
+    return JSON.parse(result.stdout.toString("utf8")) as ColorPrediction;
+  } catch (err) {
+    failed("prediction", err instanceof Error ? err.message : "unreadable prediction");
   }
 }
 

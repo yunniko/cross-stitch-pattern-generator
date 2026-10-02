@@ -6,6 +6,7 @@ import { downloadBlob } from "@/lib/export/a4-export";
 import { calculateA4Layout } from "@/lib/export/a4-layout";
 import { serializePattern } from "@/lib/editor/pattern-serialize";
 import type { ExportChoice, ExportKind } from "@/lib/export/export-jobs";
+import { paletteFileText, setFromPattern } from "@/lib/editor/palette-set";
 import { pixelArtPngBlob } from "@/lib/export/pixel-art-png";
 import type { ExportProgress } from "@/lib/export/export-progress";
 import { runServerExport } from "@/lib/export/export-server";
@@ -75,24 +76,29 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
       const { blob, filename } =
         kind === "editable"
           ? { blob: new Blob([serializePattern(pattern, symmetry)], { type: "application/json" }), filename: `${baseName}_editable.json` }
-          : kind === "pixel-art"
-            ? { blob: await pixelArtPngBlob(pattern), filename: `${baseName}_pixels.png` }
-            : await runServerExport(
-                {
-                  kind,
-                  pattern,
-                  baseName,
-                  aidaCount,
-                  sizeUnit,
-                  authorName,
-                  overlapCells,
-                  cellMm: exportCellMm,
-                  stitchTexture,
-                  canvas,
-                  symmetry,
-                },
-                setProgress
-              );
+          : kind === "palette"
+            ? {
+                blob: new Blob([paletteFileText(setFromPattern(pattern), baseName)], { type: "application/json" }),
+                filename: `${baseName}_palette.json`,
+              }
+            : kind === "pixel-art"
+              ? { blob: await pixelArtPngBlob(pattern), filename: `${baseName}_pixels.png` }
+              : await runServerExport(
+                  {
+                    kind,
+                    pattern,
+                    baseName,
+                    aidaCount,
+                    sizeUnit,
+                    authorName,
+                    overlapCells,
+                    cellMm: exportCellMm,
+                    stitchTexture,
+                    canvas,
+                    symmetry,
+                  },
+                  setProgress
+                );
       downloadBlob(blob, filename);
     } catch (err) {
       setExportError(messageForExport(err, fallbackMessage));

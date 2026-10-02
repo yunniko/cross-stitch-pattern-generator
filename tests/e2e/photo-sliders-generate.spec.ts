@@ -44,10 +44,18 @@ async function generateAndExport(page: Page): Promise<ExportedChart> {
   return exportEditable(page);
 }
 
+/**
+ * The colour count is held to what the picture is predicted to need (G-087), and the prediction follows the sliders a moment
+ * after they move, so a chart made before it lands is made under the last picture's ceiling. Waiting for it keeps these
+ * comparisons between charts made under the same one.
+ */
 async function setSlider(page: Page, name: string, value: number) {
   await page.getByRole("tab", { name: "Photo" }).click();
+  const predicted = page.waitForResponse((r) => r.url().includes("/api/predictions"), { timeout: 15_000 });
   await page.getByRole("slider", { name }).fill(String(value));
   await page.getByRole("slider", { name }).dispatchEvent("change");
+  await predicted;
+  await expect(page.getByTestId("color-count-hint")).toBeVisible();
 }
 
 /** How far the chart's threads are from grey: the one thing "saturation all the way down" must change. */
@@ -103,6 +111,7 @@ test("a chart generated with the sliders is made from the adjusted photo, and re
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
+  await expect(page.getByTestId("color-count-hint")).toBeVisible({ timeout: 15_000 });
 
   const plain = await generateAndExport(page);
   expect(plain.photoAdjust).toBeUndefined();
@@ -201,11 +210,13 @@ test("a chart saved with the sliders opens with them set, so Regenerate reproduc
   await expectPhotoLoaded(page);
   await setSlider(page, "Brightness", 100);
 
+  const predicted = page.waitForResponse((r) => r.url().includes("/api/predictions"), { timeout: 15_000 });
   await page.getByLabel("Open pattern file").setInputFiles(file);
   await page.getByRole("tab", { name: "Photo" }).click();
   await expect(page.getByRole("slider", { name: "Brightness" })).toHaveValue("-45");
   await expect(page.getByRole("slider", { name: "Saturation" })).toHaveValue("70");
 
+  await predicted; // the count is held to the prediction for these sliders (G-087)
   // The point of restoring them: pressing Regenerate gives back the chart that was opened, not another one.
   const again = await generateAndExport(page);
   expect(again.photoAdjust).toEqual(saved.photoAdjust);

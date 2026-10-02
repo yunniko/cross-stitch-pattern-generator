@@ -37,6 +37,7 @@ export interface JobSettings {
   backstitchPhotos?: boolean;
   textureStrokes?: boolean;
   textureDensity?: number;
+  paletteSet?: { mode: string; colors: Array<{ code?: string; rgb?: [number, number, number] }> };
 }
 
 /**

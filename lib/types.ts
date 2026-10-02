@@ -125,6 +125,25 @@ export interface BackstitchLine {
   paletteIndex: number;
 }
 
+/** A colour of a set the user chose for a generation (G-087): a thread by its code in a brand, a custom colour by its RGB otherwise. */
+export interface PaletteSetColor {
+  /** The thread's code in a brand; absent for a custom colour. */
+  code?: string;
+  rgb: RGB;
+  /** The thread's name, for showing; the code and the colour are what identify it. */
+  name?: string;
+}
+
+/**
+ * The set of colours a chart records of the generation that made it (G-087, D277): the set, in the palette mode it belongs to, and
+ * whether the chart was made from it. Separate from the chart's own palette, which editing changes and the set never follows.
+ */
+export interface GenerationPalette {
+  mode: "full" | ThreadBrand;
+  colors: PaletteSetColor[];
+  active: boolean;
+}
+
 export interface StitchPattern {
   width: number;
   height: number;
@@ -145,6 +164,8 @@ export interface StitchPattern {
   sourceImage?: SourceImageRef;
   /** Set when every palette color is a real thread of this brand; drives "+ Add" and the A4 thread section (D92). */
   threadBrand?: ThreadBrand;
+  /** The set of colours the Owner chose for the generation of this chart, kept with it (G-087); absent on a chart made without one. */
+  generationPalette?: GenerationPalette;
   /** Set when generated in Crisp or Crisp+ mode. Informational only; absent means Standard (G-024, G-038). */
   edgeMode?: Extract<EdgeMode, "crisp" | "crisp-plus">;
   /**

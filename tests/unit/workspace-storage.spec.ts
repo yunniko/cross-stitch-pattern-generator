@@ -8,7 +8,7 @@ import {
 } from "@/lib/editor/workspace-storage";
 import { DEFAULT_DITHER_TEXTURE } from "@/lib/pipeline/dither-hand-drawn";
 import { NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
-import { MAX_STITCHES } from "@/lib/types";
+import { MAX_STITCHES, type PaletteSetColor } from "@/lib/types";
 
 // This project's default Vitest environment is plain Node (no jsdom/window),
 // matching how the rest of the suite tests only the DOM-free parts of
@@ -73,6 +73,8 @@ describe("workspace-storage", () => {
       backstitchPhotos: false,
       textureStrokes: false,
       textureDensity: 0.3,
+      paletteSetup: false,
+      paletteSet: { mode: "full" as const, colors: [] as PaletteSetColor[] },
       brushSize: 1,
       brushShape: "round",
       shapeFill: "outline",
@@ -116,6 +118,8 @@ describe("workspace-storage", () => {
         backstitchPhotos: true,
         textureStrokes: true,
         textureDensity: 0.6,
+        paletteSetup: true,
+        paletteSet: { mode: "dmc" as const, colors: [{ code: "310", rgb: [0, 0, 0] as [number, number, number], name: "Black" }] },
         brushSize: 7 as const,
         brushShape: "square" as const,
         shapeFill: "filled" as const,
@@ -196,6 +200,26 @@ describe("workspace-storage", () => {
       expect(loadWorkspaceOptions()).toMatchObject({ textureStrokes: false, textureDensity: 0.3 });
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
       expect(loadWorkspaceOptions()).toMatchObject({ textureStrokes: false, textureDensity: 0.3 });
+    });
+
+    it("keeps the set up palette across a reload, and reads a bad one as empty (G-087)", () => {
+      const set = { mode: "dmc" as const, colors: [{ code: "310", rgb: [0, 0, 0] as [number, number, number], name: "Black" }] };
+      saveWorkspaceOptions({ ...DEFAULTS, paletteSetup: true, paletteSet: set });
+      const back = loadWorkspaceOptions();
+      expect(back.paletteSetup).toBe(true);
+      expect(back.paletteSet.mode).toBe("dmc");
+      expect(back.paletteSet.colors.map((c) => c.code)).toEqual(["310"]);
+      // A thread the tables do not hold, a mode that does not exist, a flag that is no boolean: empty, off.
+      window.localStorage.setItem(
+        OPTIONS_KEY,
+        JSON.stringify({ ...DEFAULTS, paletteSetup: "yes", paletteSet: { mode: "dmc", colors: [{ code: "nope" }] } })
+      );
+      expect(loadWorkspaceOptions()).toMatchObject({ paletteSetup: false, paletteSet: { mode: "full", colors: [] } });
+      // Nothing added yet is kept as such, in its mode.
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, paletteSet: { mode: "anchor", colors: [] } }));
+      expect(loadWorkspaceOptions().paletteSet).toEqual({ mode: "anchor", colors: [] });
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
+      expect(loadWorkspaceOptions()).toMatchObject({ paletteSetup: false, paletteSet: { mode: "full", colors: [] } });
     });
 
     it("keeps Vivid across a reload, and reads anything but a boolean as off (G-061)", () => {

@@ -15,6 +15,7 @@ const EXPORT_KIND_TOP_OPTIONS: Array<{ value: ExportChoice; label: string }> = [
   { value: "oxs", label: "OXS chart for other programs (.oxs)" },
   { value: "png-realistic", label: "Realistic preview PNG" },
   { value: "pixel-art", label: "Pixel art PNG (1 px per stitch)" },
+  { value: "palette", label: "Palette file (.json)" },
 ];
 
 const EXPORT_KIND_GROUPS: Array<{ heading: string; options: Array<{ value: ExportChoice; label: string }> }> = [

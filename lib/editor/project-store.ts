@@ -1,4 +1,5 @@
 import { tidyKinds } from "./stitch-kind";
+import { generationPaletteData } from "./palette-set";
 import {
   deserializePattern,
   deserializePatternData,
@@ -65,6 +66,8 @@ export interface StoredProjectRecord {
   ditherMode?: StitchPattern["ditherMode"];
   ditherTexture?: StitchPattern["ditherTexture"];
   vivid?: StitchPattern["vivid"];
+  /** The set of colours the chart was generated from (G-087); absent when there is none, and on records written before it. */
+  generationPalette?: unknown;
   enhancementMode?: StitchPattern["enhancementMode"];
   /** The four photo sliders (G-074); absent when they were all centred, and on records written before them. */
   photoAdjust?: StitchPattern["photoAdjust"];
@@ -156,6 +159,7 @@ async function encodeRecord(
     ditherMode: pattern.ditherMode,
     ditherTexture: pattern.ditherTexture,
     vivid: pattern.vivid,
+    generationPalette: pattern.generationPalette ? generationPaletteData(pattern.generationPalette) : undefined,
   };
   // Every field of this record is named by hand, so anything new on a pattern is dropped until someone adds
   // it here. Backstitch was: a reload silently lost every line (found on the live build, 2026-09-25).

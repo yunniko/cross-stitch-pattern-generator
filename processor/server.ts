@@ -2,7 +2,9 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { serializePattern } from "@/lib/editor/pattern-serialize";
-import { settingsError } from "./validate-settings";
+import { predictionError, settingsError } from "./validate-settings";
+import { predictWithRust } from "./rust-jobs";
+import type { PredictionRequest } from "@/lib/pipeline/prediction";
 import { parseExportRequest } from "./validate-export";
 import { GenerationPool, QueueFullError } from "./pool";
 import { PhotoStore, PhotoTooLargeError } from "./photo-store";
@@ -89,6 +91,44 @@ async function handleJobCreate(req: IncomingMessage, res: ServerResponse): Promi
     `job ${jobId.slice(0, 8)} queued: ${settings.longerSideStitches} st, ${settings.colorCount} col, ${settings.edgeMode ?? "standard"}`
   );
   send(res, 202, pool.status(jobId), { location: `/jobs/${jobId}` });
+}
+
+/** At most this many predictions run at once: each is a short process (a few milliseconds to a second), and the pool's workers are not borrowed for it. */
+const MAX_PREDICTIONS_AT_ONCE = 2;
+let predicting = 0;
+
+/** The colour count and colours a picture reasonably needs, and the coverage of a set (G-087). */
+async function handlePrediction(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  let body: unknown;
+  try {
+    body = JSON.parse((await readCapped(req, 64 * 1024)).toString("utf8"));
+  } catch {
+    send(res, 400, { error: "That request body is not valid JSON." });
+    return;
+  }
+  const invalid = predictionError(body);
+  if (invalid) {
+    send(res, 400, { error: invalid });
+    return;
+  }
+  const { photoHash, ...request } = body as PredictionRequest;
+  const photo = photos.get(photoHash);
+  if (!photo) {
+    send(res, 410, { error: "That photo is no longer held; upload it again." });
+    return;
+  }
+  if (predicting >= MAX_PREDICTIONS_AT_ONCE) {
+    send(res, 503, { error: "Busy; try again in a moment." }, { "retry-after": "1" });
+    return;
+  }
+  predicting++;
+  try {
+    const started = Date.now();
+    send(res, 200, await predictWithRust(photo.pixelBuffer, request));
+    console.log(`prediction ${photoHash.slice(0, 8)} ${request.longerSideStitches} st in ${Date.now() - started} ms`);
+  } finally {
+    predicting--;
+  }
 }
 
 /** Server-sent events: one message per state or progress change, ending when the job does. */
@@ -196,6 +236,8 @@ const server = createServer((req, res) => {
         res.writeHead(photos.has(url.pathname.slice("/photos/".length)) ? 200 : 404).end();
       } else if (req.method === "POST" && url.pathname === "/exports") {
         await handleExportCreate(req, res);
+      } else if (req.method === "POST" && url.pathname === "/predictions") {
+        await handlePrediction(req, res);
       } else if (req.method === "POST" && url.pathname === "/jobs") {
         await handleJobCreate(req, res);
       } else if (req.method === "GET" && jobMatch?.[2] === "/events") {

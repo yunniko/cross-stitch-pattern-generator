@@ -71,6 +71,57 @@ pub struct BuildOptions {
     pub backstitch_photos: bool,
     /// Texture strokes laid over the stitches (G-085): the density, 0 to 1, or `None` for none.
     pub texture_strokes: Option<f64>,
+    /// A set of colours the chart is made from instead of colours the quantiser finds (G-087, D277).
+    pub palette_set: Option<PaletteSet>,
+}
+
+/// A colour of a set the user chose: its colour, and in a thread brand its code and label.
+#[derive(Clone, Debug)]
+pub struct SetColor {
+    pub rgb: Rgb,
+    pub code: Option<String>,
+    /// The name the chart shows: "code - name" in a brand, empty for a custom colour (which is named from its colour).
+    pub label: String,
+}
+
+/// The colours a chart is made from when the user sets up the palette (G-087). The chart has these threads and no others;
+/// the colour count is their number. In a thread brand each has a code; in the full colour mode they are custom colours.
+#[derive(Clone, Debug)]
+pub struct PaletteSet {
+    pub brand: Option<Brand>,
+    pub colors: Vec<SetColor>,
+}
+
+/// Each stitched cell to the nearest colour of `set` (in Oklab), and the set's colours as the palette. A cell that is not
+/// stitched stays empty.
+fn assign_to_set(
+    cells_oklab: &[f64],
+    set: &PaletteSet,
+    empty: Option<&[u8]>,
+) -> (Vec<u8>, Vec<Rgb>) {
+    let palette: Vec<Rgb> = set.colors.iter().map(|c| c.rgb).collect();
+    let lab: Vec<Oklab> = palette.iter().map(|&c| rgb_to_oklab(c)).collect();
+    let labels = (0..cells_oklab.len() / 3)
+        .map(|i| {
+            if empty.is_some_and(|m| m[i] != 0) {
+                return crate::EMPTY_CELL;
+            }
+            let p = [
+                cells_oklab[i * 3],
+                cells_oklab[i * 3 + 1],
+                cells_oklab[i * 3 + 2],
+            ];
+            let mut best = (f64::INFINITY, 0usize);
+            for (k, l) in lab.iter().enumerate() {
+                let d = crate::color::oklab_distance_sq(&p, l);
+                if d < best.0 {
+                    best = (d, k);
+                }
+            }
+            best.1 as u8
+        })
+        .collect();
+    (labels, palette)
 }
 
 #[derive(Clone, Debug)]
@@ -181,7 +232,8 @@ pub fn build_pattern_reporting(
         times.push((name, t - clock));
         clock = t;
     };
-    let crisp = options.edge_mode != EdgeMode::Standard;
+    // A set of colours is matched with the standard edge handling: Crisp builds its own palette from the picture's edges (D277).
+    let crisp = options.edge_mode != EdgeMode::Standard && options.palette_set.is_none();
     let dithered = options.dither.is_dithered();
     assert!(
         !(dithered && crisp),
@@ -283,52 +335,56 @@ pub fn build_pattern_reporting(
     lap("denoise", times);
 
     let latest = options.quantizer == Quantizer::Latest;
-    let (quantized, raw_palette) = match (&layer, empty_ref) {
-        (Some(layer), _) => stage::run_masked(
-            &denoised,
-            options.color_count,
-            &importance,
-            layer,
-            latest,
-            empty_ref,
-        ),
-        // The quantizer sees only the stitched cells: a cluster built from cells that are not there would spend a
-        // colour on nothing.
-        (None, Some(mask)) => {
-            let kept: Vec<usize> = (0..gw * gh).filter(|&i| mask[i] == 0).collect();
-            let mut kept_oklab = vec![0f64; kept.len() * 3];
-            let mut kept_importance = vec![0f32; kept.len()];
-            for (k, &cell) in kept.iter().enumerate() {
-                kept_oklab[k * 3..k * 3 + 3].copy_from_slice(&denoised[cell * 3..cell * 3 + 3]);
-                kept_importance[k] = importance[cell];
+    let (quantized, raw_palette) = if let Some(set) = &options.palette_set {
+        assign_to_set(&denoised, set, empty_ref)
+    } else {
+        match (&layer, empty_ref) {
+            (Some(layer), _) => stage::run_masked(
+                &denoised,
+                options.color_count,
+                &importance,
+                layer,
+                latest,
+                empty_ref,
+            ),
+            // The quantizer sees only the stitched cells: a cluster built from cells that are not there would spend a
+            // colour on nothing.
+            (None, Some(mask)) => {
+                let kept: Vec<usize> = (0..gw * gh).filter(|&i| mask[i] == 0).collect();
+                let mut kept_oklab = vec![0f64; kept.len() * 3];
+                let mut kept_importance = vec![0f32; kept.len()];
+                for (k, &cell) in kept.iter().enumerate() {
+                    kept_oklab[k * 3..k * 3 + 3].copy_from_slice(&denoised[cell * 3..cell * 3 + 3]);
+                    kept_importance[k] = importance[cell];
+                }
+                let (labels, palette) = if kept.is_empty() {
+                    (Vec::new(), Vec::new())
+                } else {
+                    quantize(
+                        options.quantizer,
+                        &kept_oklab,
+                        options.color_count,
+                        &kept_importance,
+                    )
+                };
+                let mut scattered = vec![crate::EMPTY_CELL; gw * gh];
+                for (k, &cell) in kept.iter().enumerate() {
+                    scattered[cell] = labels[k];
+                }
+                (scattered, palette)
             }
-            let (labels, palette) = if kept.is_empty() {
-                (Vec::new(), Vec::new())
-            } else {
-                quantize(
-                    options.quantizer,
-                    &kept_oklab,
-                    options.color_count,
-                    &kept_importance,
-                )
-            };
-            let mut scattered = vec![crate::EMPTY_CELL; gw * gh];
-            for (k, &cell) in kept.iter().enumerate() {
-                scattered[cell] = labels[k];
-            }
-            (scattered, palette)
+            (None, None) => quantize(
+                options.quantizer,
+                &denoised,
+                options.color_count,
+                &importance,
+            ),
         }
-        (None, None) => quantize(
-            options.quantizer,
-            &denoised,
-            options.color_count,
-            &importance,
-        ),
     };
     // Vivid, part two: a hue the cells hold and the palette does not speak for takes a slot (G-062, D212). Before
     // dithering, which reads this palette, and before the smoothing. Crisp is left out: its palette comes from its
     // own evidence stage.
-    let (quantized, raw_palette) = if options.vivid && !crisp {
+    let (quantized, raw_palette) = if options.vivid && !crisp && options.palette_set.is_none() {
         let reserved = reserve_hue_threads(&denoised, &quantized, &raw_palette, empty_ref);
         (reserved.cell_palette_index, reserved.palette)
     } else {
@@ -373,7 +429,8 @@ pub fn build_pattern_reporting(
     }
 
     on_progress(0.8);
-    let (mut merged_index, mut merged_palette) = if smooth {
+    // A set's colours are never merged: the user chose them one by one.
+    let (mut merged_index, mut merged_palette) = if smooth && options.palette_set.is_none() {
         merge_similar_colors_with_empties(&optimized, &raw_palette, DEFAULT_MERGE_DISTANCE_SQUARED)
     } else {
         (optimized, raw_palette)
@@ -473,7 +530,7 @@ pub fn build_pattern_reporting(
                 .map(|(n, &old)| {
                     // A dithered thread keeps the colour the quantizer chose: its cells are deliberately the ones it
                     // does not match (D199).
-                    if dithered || cells_by_index[n].is_empty() {
+                    if dithered || cells_by_index[n].is_empty() || options.palette_set.is_some() {
                         merged_palette[old]
                     } else if options.vivid {
                         vivid_oklab_as_rgb(&cell_oklab, &cells_by_index[n])
@@ -513,8 +570,30 @@ pub fn build_pattern_reporting(
         .zip(names)
         .map(|((new_index, &original), name)| {
             remap[original] = new_index as u8;
+            // From a set the thread is the user's: its own code and label, and the colour of the thread.
+            let (name, source) = match &options.palette_set {
+                Some(set) => {
+                    let chosen = &set.colors[used[original]];
+                    let source =
+                        set.brand
+                            .zip(chosen.code.as_ref())
+                            .map(|(brand, code)| ThreadSource {
+                                brand: brand.id(),
+                                code: code.clone(),
+                            });
+                    (
+                        if chosen.label.is_empty() {
+                            name
+                        } else {
+                            chosen.label.clone()
+                        },
+                        source,
+                    )
+                }
+                None => (name, None),
+            };
             PaletteColor {
-                source: None,
+                source,
                 index: new_index,
                 rgb: compact_palette[original],
                 symbol: symbols[new_index].clone(),
@@ -542,7 +621,11 @@ pub fn build_pattern_reporting(
         cell_palette,
         palette,
         is_landscape: image.width > image.height,
-        thread_brand: None,
+        thread_brand: options
+            .palette_set
+            .as_ref()
+            .and_then(|s| s.brand)
+            .map(|b| b.id()),
         edge_mode: crisp.then(|| options.edge_mode.id()),
         dither_mode: dithered.then(|| options.dither.id()),
         // Recorded only when it is not the default, so a chart drawn with the shipped texture stays the file it was.
@@ -557,6 +640,11 @@ pub fn build_pattern_reporting(
         photo_adjust: (!options.photo_adjust.is_neutral()).then_some(options.photo_adjust),
         backstitch: Vec::new(),
     };
+    // A chart made from a set has its threads already.
+    if let Some(set) = &options.palette_set {
+        on_progress(1.0);
+        return attach_backstitch(pattern, traced.as_ref(), strokes.as_ref(), set.brand);
+    }
     let Some(brand) = options.brand else {
         on_progress(1.0);
         return attach_backstitch(pattern, traced.as_ref(), strokes.as_ref(), None);

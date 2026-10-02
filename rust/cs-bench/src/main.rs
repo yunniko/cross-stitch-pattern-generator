@@ -132,6 +132,18 @@ fn main() {
         export(&args);
         return;
     }
+    if args.len() >= 6 && args[1] == "predict" {
+        let data = std::fs::read(&args[2]).expect("read image");
+        let (width, height): (usize, usize) = (args[3].parse().unwrap(), args[4].parse().unwrap());
+        let (options, _) = cs_core::json::parse_predict_options(&args[5]).expect("options");
+        let image = Image { width, height, data };
+        let started = Instant::now();
+        let prediction = cs_core::predict::predict(&image, &options);
+        let mut out = cs_core::json::prediction_json(&prediction);
+        out["ms"] = json!(started.elapsed().as_secs_f64() * 1000.0);
+        println!("{out}");
+        return;
+    }
     if args.len() >= 7 && args[1] == "photo-adjust" {
         photo_adjust(&args);
         return;

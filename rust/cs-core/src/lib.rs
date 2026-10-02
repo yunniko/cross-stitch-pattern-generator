@@ -32,6 +32,7 @@ pub mod pair_evidence;
 pub mod palette_merge;
 pub mod pattern;
 pub mod photo_adjust;
+pub mod predict;
 pub mod prng;
 pub mod quantize;
 pub mod ridges;

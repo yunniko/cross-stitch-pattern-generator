@@ -1,8 +1,9 @@
 import { deserializePatternData } from "../editor/pattern-serialize";
-import type { StitchPattern } from "../types";
+import type { RGB, StitchPattern } from "../types";
 import type { DitherMode } from "./dither";
 import type { DitherTexture } from "./dither-hand-drawn";
 import type { PhotoAdjust } from "./photo-adjust";
+import type { ColorPrediction, PredictionRequest } from "./prediction";
 import type { EdgeMode, GenerationMode, PaletteMode } from "./generation-modes";
 import { ensurePhotoUploaded, forgetPhoto } from "./photo-upload";
 import { errorFromResponse, isNetworkFailure, PhotoExpiredError, ProcessorUnreachableError } from "./server-errors";
@@ -46,6 +47,8 @@ export interface RunServerPatternJobOptions {
   /** Texture strokes over the stitches (G-085), and how many, 0 to 1. */
   textureStrokes?: boolean;
   textureDensity?: number;
+  /** A set of colours the chart is made from (G-087): the palette mode, and a code each in a brand or an RGB each otherwise. */
+  paletteSet?: { mode: string; colors: Array<{ code: string } | { rgb: RGB }> };
   onProgress?: (fraction: number) => void;
   /** Called while the job is waiting for a worker, so the editor can say where in the queue it is rather than just "working". */
   onQueued?: (position: number, estimatedWaitMs: number) => void;
@@ -98,6 +101,7 @@ async function submit(options: RunServerPatternJobOptions, signal: AbortSignal):
         backstitchPhotos: options.backstitchPhotos,
         textureStrokes: options.textureStrokes,
         textureDensity: options.textureDensity,
+        paletteSet: options.paletteSet,
       }),
       signal
     );
@@ -185,4 +189,26 @@ export async function runServerPatternJob(options: RunServerPatternJobOptions): 
       activeJobId = null;
     }
   }
+}
+
+/**
+ * The colour count and colours a picture reasonably needs, and the coverage of a set of colours (G-087). Uses the photo the
+ * generation does, uploading it only if the server does not hold it, and answers in a fraction of a second.
+ */
+export async function requestPrediction(
+  photoDataUrl: string,
+  request: Omit<PredictionRequest, "photoHash">,
+  signal: AbortSignal
+): Promise<ColorPrediction> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const photoHash = await ensurePhotoUploaded(photoDataUrl, signal);
+    const res = await post("/api/predictions", JSON.stringify({ photoHash, ...request }), signal);
+    if (res.status === 410 && attempt === 0) {
+      forgetPhoto(photoDataUrl);
+      continue;
+    }
+    if (!res.ok) throw await errorFromResponse(res, "The colours could not be predicted.");
+    return (await res.json()) as ColorPrediction;
+  }
+  throw new PhotoExpiredError();
 }

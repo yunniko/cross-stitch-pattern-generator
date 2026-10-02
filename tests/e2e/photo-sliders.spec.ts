@@ -136,16 +136,15 @@ test("Compare with original shows the photo again, and centring the sliders puts
   await expect(page.getByRole("img", { name: "Uploaded photo" })).toBeVisible();
 });
 
-test("the sliders are remembered across a reload, like every other Generate setting", async ({ page }) => {
+test("the sliders are not carried to the next photo: a new picture starts them at neutral (G-087)", async ({ page }) => {
   await uploadPhoto(page);
   await set(page, "Saturation", 35);
   await expect(page.getByTestId("adjusted-photo")).toBeVisible();
   await page.reload();
-  // The photo is not what a reload restores -- the sliders are, and the next photo opens with them where
-  // they were left (D113 does the same for the enhancement mode).
+  // A new picture for a new chart starts from neutral sliders (Owner, 2026-10-02), reload or not.
   await uploadPhoto(page);
-  await expect(slider(page, "Saturation")).toHaveValue("35");
-  await expect(page.getByTestId("adjusted-photo")).toBeVisible();
+  await expect(slider(page, "Saturation")).toHaveValue("0");
+  await expect(page.getByTestId("adjusted-photo")).toHaveCount(0);
 });
 
 test("a slider being dragged does not block the page", async ({ page }) => {

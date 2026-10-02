@@ -57,14 +57,16 @@ import {
 } from "./hooks/use-canvas-tools";
 import { useChartRenderer, type ChartRenderer } from "./hooks/use-chart-renderer";
 import { paginatesAsA4, useExports } from "./hooks/use-exports";
-import { useGeneration } from "./hooks/use-generation";
+import { longerSideFor, useGeneration } from "./hooks/use-generation";
 import { useKeyboardCursor } from "./hooks/use-keyboard-cursor";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { usePanZoom, ZOOM_STEP } from "./hooks/use-pan-zoom";
 import { slidersToRestore } from "@/lib/editor/photo-adjust-session";
+import { EMPTY_SET } from "@/lib/editor/palette-set";
 import { NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
 import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useProjectRestore } from "./hooks/use-project-restore";
+import { useColorPrediction } from "./hooks/use-color-prediction";
 import { useSourceImage } from "./hooks/use-source-image";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
 
@@ -301,6 +303,15 @@ export default function Workspace({ account }: WorkspaceProps) {
     // one started from an empty canvas has no photo settings at all, and its sliders are not the reader's
     // to lose.
     if (withName.sourceImage) updateOption("photoAdjust", withName.photoAdjust ?? NEUTRAL_ADJUST);
+    // The set the chart was made with comes back with it, and is on if the chart was made from it; a file with none is a new
+    // chart, which starts without one (G-087, D277).
+    if (withName.generationPalette) {
+      const { active, ...set } = withName.generationPalette;
+      updateOption("paletteSet", set);
+      updateOption("paletteSetup", active);
+    } else {
+      resetPaletteSet();
+    }
     history.reset(withName);
     resetDocumentView();
     symmetryState.reset(savedSymmetry);
@@ -314,7 +325,16 @@ export default function Workspace({ account }: WorkspaceProps) {
   );
   const autosaveStatus = useProjectAutosave(pattern, restore.restored, getProjectStore(), liveSymmetry);
   const exports = useExports(pattern, options, liveSymmetry);
+  // How many colours the picture reasonably needs, which, and how well the set being set up covers it (G-087).
+  const colorPrediction = useColorPrediction({
+    photoDataUrl: source.meta?.dataUrl ?? null,
+    longerSideStitches: longerSideFor(options),
+    paletteMode: options.paletteSetup ? options.paletteSet.mode : options.paletteMode,
+    photoAdjust: options.photoAdjust,
+    setColors: options.paletteSetup && options.paletteSet.colors.length ? options.paletteSet.colors.map((c) => c.rgb) : null,
+  });
   const generation = useGeneration({
+    colorCeiling: options.paletteSetup ? null : (colorPrediction.prediction?.ceiling ?? null),
     options,
     pixelBuffer: source.pixelBuffer,
     sourceMeta: source.meta,
@@ -360,12 +380,21 @@ export default function Workspace({ account }: WorkspaceProps) {
     setOpenNotice(null);
   }
 
+  /** A new chart starts without the colours the last one was set up with, and in the automatic mode (G-087). */
+  function resetPaletteSet() {
+    updateOption("paletteSetup", false);
+    updateOption("paletteSet", EMPTY_SET);
+  }
+
   function handleImageFile(file: File) {
     generation.setError(null);
     setOpenNotice(null);
     void source.loadFile(file, {
       // A new photo is a new document: fresh history, shown as is until Generate.
       onLoaded: () => {
+        // A new picture for a new chart starts from neutral photo sliders and no chosen colours (G-087).
+        updateOption("photoAdjust", NEUTRAL_ADJUST);
+        resetPaletteSet();
         history.reset(null);
         resetDocumentView();
         setInspectorTab("photo");
@@ -600,6 +629,7 @@ export default function Workspace({ account }: WorkspaceProps) {
    */
   async function createBlankChart(width: number, height: number) {
     const blank = createBlankPattern(width, height);
+    resetPaletteSet();
     generation.setError(null);
     setOpenError(null);
     setOpenNotice(null);
@@ -622,6 +652,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       setStartingNew(true);
       return;
     }
+    resetPaletteSet();
     generation.setError(null);
     setOpenError(null);
     setOpenNotice(null);
@@ -897,6 +928,8 @@ export default function Workspace({ account }: WorkspaceProps) {
               onCancel={generation.cancel}
               onAdjustSettled={adjustPreview.settle}
               error={generation.error}
+              prediction={colorPrediction.prediction}
+              predictionLoading={colorPrediction.loading}
             />
           )
         }
