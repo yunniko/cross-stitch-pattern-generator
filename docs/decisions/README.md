@@ -307,3 +307,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D269 — Lines of any colour, dark, light or coloured, in up to three threads — active
 - D270 — Photographs are traced only when asked and only for their strongest long lines — active
 - D271 — The backstitch thread with the most line is the solid one — active
+- D272 — Lines are found as ridges and fitted to the corner grid by dynamic programming — active
