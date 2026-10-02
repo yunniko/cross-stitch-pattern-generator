@@ -61,6 +61,20 @@ Rules that apply to every server action:
 - Several changes made quickly ask for one recommendation, after the last change.
 - A recommendation that arrives for a picture or setting that has since changed is discarded.
 
+## How messages behave
+
+| Kind | Examples | Behaviour |
+|---|---|---|
+| **Error** (something failed or was refused) | Generation, export, open and resize failures; a refused palette file | Shown until dismissed, and dismissed by itself **12 seconds** after it appears (error messages only); can be dismissed by the person at any time; a new message replaces the old one |
+| **Information** | The result of opening an OXS file; the page-count line of a page-based export | Stays until dismissed or replaced; never dismisses itself |
+| **Alert needing a decision** | A failed restore of the autosaved chart, with the actions "Download error report" and "Dismiss" | Stays until acted on |
+| **Note beside a control** | Why Add is unavailable, a coverage note | Shown as long as the condition holds |
+| **Crash** | The editor failed unexpectedly | The whole editor is replaced by a message: "Something in the editor failed." "Your chart is autosaved, so reloading should bring it back as it was. Before you do, take the report — it is the only record of what went wrong, and without it this can't be chased.", the error's own text (or "Unknown error"), an action to download the report, and an action to reload |
+
+## Where the messages are
+
+Each message is listed with the control or flow that causes it: generation and its settings (`02`), views and chart measurements (`03`), editing and selection (`04`), colours (`05`), backstitch (`06`), text (`07`), files, exports and starting a chart (`08`), and the states of server actions (above). The ones that belong to no single control follow.
+
 ## Messages not tied to one control
 
 | Message | Cause |

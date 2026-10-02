@@ -22,7 +22,8 @@ for (const f of readdirSync(path.join(root, "docs/decisions")).filter((f) => /^D
 }
 
 const rows = new Map();
-for (const m of read("docs/design-brief/coverage.md").matchAll(/^\| ((?:G|D)-?\d{3}) \| ([^|]+?) \|/gm)) rows.set(m[1].replace(/^([GD])(\d)/, "$1$2"), m[2].trim());
+for (const m of read("docs/design-brief/coverage.md").matchAll(/^\| ((?:G|D)-?\d{3}) \| ([^|]+?) \|/gm))
+  rows.set(m[1].replace(/^([GD])(\d)/, "$1$2"), m[2].trim());
 
 const problems = [];
 const pending = [];
@@ -42,7 +43,9 @@ for (const id of ids.keys()) {
 }
 for (const id of rows.keys()) if (!ids.has(id)) problems.push(`${id}: row for a goal or decision that does not exist`);
 
-console.log(`design-brief coverage: ${ids.size} goals and decisions, ${rows.size} rows, ${superseded.size} superseded decisions (no row needed), ${pending.length} pointing at documents not written yet`);
+console.log(
+  `design-brief coverage: ${ids.size} goals and decisions, ${rows.size} rows, ${superseded.size} superseded decisions (no row needed), ${pending.length} pointing at documents not written yet`
+);
 for (const p of problems) console.log(`  PROBLEM ${p}`);
 if (strict) for (const p of pending) console.log(`  PENDING ${p}`);
 process.exit(problems.length || (strict && pending.length) ? 1 : 0);

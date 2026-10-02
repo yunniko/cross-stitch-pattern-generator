@@ -2,7 +2,7 @@
 
 For whoever redesigns the application. It states behaviour and data only: what a person can do, what each input accepts, when it is available, what it changes. It says nothing about how the present interface looks or is built, and it gives no advice. Scope: the chart maker and editor and its exports. The admin area and the account and profile pages are left out (Owner, 2026-10-02); where being signed in changes what the editor does, the document says so in one line.
 
-**Status: contents agreed (Owner, 2026-10-02); the documents below are written in M2 to M5.** Goal G-088.
+**Status: written and checked 2026-10-02 (G-088); see `docs/reviews/2026-10-02-design-brief-check.md` for what was checked and what is not covered.** Goal G-088.
 
 ## Contents
 
@@ -18,7 +18,7 @@ For whoever redesigns the application. It states behaviour and data only: what a
 | `08-exports-and-files.md` | Every export and import, the editable file, saving and restoring, new chart, fabric and size units, A4 settings |
 | `09-limits-and-messages.md` | Limits (sizes, counts, durations, rates, file types), every message with its cause, empty, loading and error states |
 | `coverage.md` | Every goal and decision of the development record traced to the file above that covers it, or marked as not user-facing (`node scripts/design-brief-coverage.mjs`) |
-| `banned-words.txt` | Words that name an interface element; no document may contain them (checked at M5) |
+| `banned-words.txt` | Words that name an interface element; no document may contain them outside quoted messages |
 
 ## How a control is described
 
@@ -36,3 +36,13 @@ Every input, choice and gesture gets one entry with these fields; a field that d
 ## Rules for the text
 
 Facts, in the present tense, with numbers from the code or measured. Where the code has more than one rule for a thing, say which wins. Words for interface elements are banned (see `banned-words.txt`); gestures are written as acts ("choose", "drag from a stitch to another", "press the key"), not as the element that receives them.
+
+## Keeping it true
+
+Three scripts fail when the brief drifts from the app:
+
+- `npx tsx scripts/design-brief-ranges.ts` — the ranges, defaults, lists and limits the brief states against the code's own constants (60 checks).
+- `node scripts/design-brief-words.mjs` — no interface-element words.
+- `node scripts/design-brief-coverage.mjs --strict` — every goal and decision of the development record has a row in `coverage.md` and every document it names exists.
+
+A goal that changes what a person can do or any range here updates the brief in the same change.
