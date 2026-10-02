@@ -12,6 +12,29 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
+### G-089 · A Crop tool whose frame and four edge numbers are one thing — DRAFT (2026-10-03)
+- **What:** a **Crop** tool in the tool list. With it in hand a frame is drawn on the chart; its four edges can be dragged, and the four numbers (top, right, bottom, left) that now sit in the Chart tab's "Canvas" group become the tool's parameters, always agreeing with the frame: typing a number moves the frame's edge, dragging an edge changes the number. The chart changes only on **Apply** (one undo step); **Cancel** (Escape) leaves it alone. The Canvas group leaves the Chart tab.
+- **Why:** the numbers alone make a person guess where the new edge will fall; the existing "Crop" action only crops to a rectangle selection and cannot be refined. One tool with the picture and the numbers together removes both.
+- **Acceptance criteria:** (1) choosing the tool shows a frame covering the whole chart and the four numbers at 0; (2) dragging an edge or a corner moves the frame in whole stitches, clamped so at least one stitch remains, and updates the numbers live; typing in a number moves that edge, and a number that is not a whole number or would leave nothing is refused with the existing messages ("Can't crop away the entire pattern.", the 1500 limit) and not applied; (3) the result of Apply is exactly what `resizeCanvas` produces today for the same four numbers (stitches, palette counts, half stitches, backstitch moved and lines outside removed whole, the photo underlay offset), so existing behaviour does not change and the new tool is tested against it; (4) Apply is one undo step, and the frame resets to the new chart; Cancel, Escape, changing tool and opening another chart drop the frame without changing the chart; (5) the area outside the new edges shows the stitches that would be cut away dimmed, and the controls show the resulting size and the finished size on the chosen fabric count; (6) zoom, pan, rulers and the keyboard work while the tool is in hand; (7) in looking-only views and with no chart the tool is unavailable; (8) the design brief (`04`, `03`) and the keyboard shortcuts are updated, with the ranges script covering the new limits.
+- **Constraints:** no change to `resizeCanvas`'s arithmetic or messages (one source of truth, D109). A selection piece in hand is applied before the tool opens, as for other tools. The frame and numbers share one state; neither is a copy of the other.
+
+**Milestones** (proposed; waits for the Owner's answers and go-ahead):
+- [ ] M1 -- **The frame as data.** A pure module (`lib/editor/crop-frame.ts`): the frame as four edge offsets, moving an edge or a corner by a stitch delta with clamping, the numbers to and from the frame, the resulting size; unit tests including every clamp and agreement with `resizeCanvas`.
+- [ ] M2 -- **The tool.** `crop` added to the tools; the frame, its edge and corner handles and the dimmed outside drawn on the overlay the selection already uses; drag, keyboard nudging and the cursor; Apply, Cancel and Enter and Escape; one undo step. E2e for drag, typing and undo.
+- [ ] M3 -- **The numbers move in.** The four fields, with the size readout, live in the tool's own set of controls; the Canvas group is removed from the Chart tab; the existing e2e specs for resizing are moved to the tool, not dropped.
+- [ ] M4 -- **Docs, full suite, deploy.** README, design brief, HANDOVER, a decision file for the sign convention and for the selection's Crop action, full suites, deploy and a live spec.
+
+**Questions for the Owner** (my proposals first; the draft stands on them if you do not mind):
+1. **Sign.** Today a positive number *adds* empty stitches and a negative *crops*. For a crop frame I propose the numbers are **how far each edge moves in**, so 3 means "cut three stitches off this edge" and a negative number *adds* three empty stitches. That reverses today's sign. Or keep today's sign (positive adds)?
+2. **Growing.** Should the frame be allowed outside the chart (adding empty stitches), as the fields allow today? Dragging outside needs room around the chart; I propose **yes, by typing a negative number and by dragging an edge past the chart's border**, with the same 1500 limit. Or crop-only, with growing left to the numbers?
+3. **Apply.** An explicit **Apply** (Enter) with Cancel (Escape), as the Canvas group has now; or apply when the tool is left? I propose explicit.
+4. **The selection's "Crop" action** (crop to the piece in hand): keep, or remove now that the tool exists? I propose keep: it is the quickest way to crop to a drawn region.
+5. **Key.** I propose **C** for the tool (unused today).
+6. **Photo.** The photo behind the chart keeps its alignment as today, with no separate crop of the photo. Correct?
+
+**Progress log** (newest first):
+- 2026-10-03 -- goal drafted at the Owner's request. Nothing built.
+
 ### G-088 · Design helper documentation: what the app does and what every control must allow — ACTIVE (2026-10-02)
 - **What:** a document set, `docs/design-brief/`, that a designer redesigning the application can work from without opening the app or reading code. It states what the app is for and what a person can do in it, then every feature in turn. It says nothing about how the present interface looks or is built: no layout, panel, widget, colour or component names, only the behaviour and the data the interface must carry.
 - **Why:** the Owner is going to redesign the application. A redesign built from screenshots keeps the present layout's accidents and loses rules nobody drew, such as a ceiling that depends on a prediction or a control that is unavailable in one mode.
