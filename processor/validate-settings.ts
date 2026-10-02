@@ -58,6 +58,13 @@ export function settingsError(body: unknown): string | null {
   if (b.backstitchPhotos !== undefined && typeof b.backstitchPhotos !== "boolean") {
     return "backstitchPhotos must be true or false.";
   }
+  // The texture strokes (G-085): a flag, and a density between 0 and 1.
+  if (b.textureStrokes !== undefined && typeof b.textureStrokes !== "boolean") {
+    return "textureStrokes must be true or false.";
+  }
+  if (b.textureDensity !== undefined && (typeof b.textureDensity !== "number" || !(b.textureDensity >= 0 && b.textureDensity <= 1))) {
+    return "textureDensity must be a number between 0 and 1.";
+  }
   if (
     b.backstitchSensitivity !== undefined &&
     (typeof b.backstitchSensitivity !== "number" || !(b.backstitchSensitivity >= 0 && b.backstitchSensitivity <= 1))

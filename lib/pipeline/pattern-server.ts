@@ -43,6 +43,9 @@ export interface RunServerPatternJobOptions {
   backstitchLines?: boolean;
   backstitchSensitivity?: number;
   backstitchPhotos?: boolean;
+  /** Texture strokes over the stitches (G-085), and how many, 0 to 1. */
+  textureStrokes?: boolean;
+  textureDensity?: number;
   onProgress?: (fraction: number) => void;
   /** Called while the job is waiting for a worker, so the editor can say where in the queue it is rather than just "working". */
   onQueued?: (position: number, estimatedWaitMs: number) => void;
@@ -93,6 +96,8 @@ async function submit(options: RunServerPatternJobOptions, signal: AbortSignal):
         backstitchLines: options.backstitchLines,
         backstitchSensitivity: options.backstitchSensitivity,
         backstitchPhotos: options.backstitchPhotos,
+        textureStrokes: options.textureStrokes,
+        textureDensity: options.textureDensity,
       }),
       signal
     );

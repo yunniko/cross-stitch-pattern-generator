@@ -25,6 +25,8 @@ use crate::pair_evidence::compute_pair_edge_evidence_masked;
 use crate::palette_merge::{merge_similar_colors_with_empties, DEFAULT_MERGE_DISTANCE_SQUARED};
 use crate::photo_adjust::{adjust_image, PhotoAdjust};
 use crate::quantize::{mean_oklab_as_rgb, quantize, vivid_oklab_as_rgb, Quantizer};
+use crate::stitch_fit::Segment;
+use crate::texture::{texture_strokes, TextureStrokes};
 use crate::threads::{apply_brand_palette, thread_for, thread_name, Brand};
 use crate::{color, Image};
 use rayon::prelude::*;
@@ -67,6 +69,8 @@ pub struct BuildOptions {
     pub backstitch_lines: Option<f64>,
     /// Also trace the strongest long lines of a photograph (G-084, D270); a drawing is traced either way.
     pub backstitch_photos: bool,
+    /// Texture strokes laid over the stitches (G-085): the density, 0 to 1, or `None` for none.
+    pub texture_strokes: Option<f64>,
 }
 
 #[derive(Clone, Debug)]
@@ -200,6 +204,14 @@ pub fn build_pattern_reporting(
     let image = traced.as_ref().map_or(image, |t| &t.inpainted);
     if traced.is_some() {
         lap("lines", times);
+    }
+    // Texture strokes are found in the picture that is left, so none lies on a traced line; the stitches under them are the
+    // stitches the picture gives (G-085, D274).
+    let strokes: Option<TextureStrokes> = options
+        .texture_strokes
+        .and_then(|density| texture_strokes(image, gw, gh, density));
+    if strokes.is_some() {
+        lap("texture", times);
     }
     on_progress(0.1);
     // Transparency becomes absence: a cell the photo barely covers is an empty stitch, and the stages below read
@@ -547,7 +559,7 @@ pub fn build_pattern_reporting(
     };
     let Some(brand) = options.brand else {
         on_progress(1.0);
-        return attach_backstitch(pattern, traced.as_ref(), None);
+        return attach_backstitch(pattern, traced.as_ref(), strokes.as_ref(), None);
     };
     let result = apply_brand_palette(
         pattern,
@@ -559,7 +571,7 @@ pub fn build_pattern_reporting(
     );
     lap("brand", times);
     on_progress(1.0);
-    attach_backstitch(result, traced.as_ref(), Some(brand))
+    attach_backstitch(result, traced.as_ref(), strokes.as_ref(), Some(brand))
 }
 
 /// How near, in squared Oklab distance, an existing thread must be to the colour of the lines to serve as their thread.
@@ -575,7 +587,12 @@ fn line_thread(pattern: &mut StitchPattern, rgb: Rgb, brand: Option<Brand>) -> u
         pattern
             .palette
             .iter()
-            .map(|c| (c.index, crate::color::oklab_distance_sq(&target, &rgb_to_oklab(c.rgb))))
+            .map(|c| {
+                (
+                    c.index,
+                    crate::color::oklab_distance_sq(&target, &rgb_to_oklab(c.rgb)),
+                )
+            })
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
     };
     let existing = match brand {
@@ -628,31 +645,41 @@ fn line_thread(pattern: &mut StitchPattern, rgb: Rgb, brand: Option<Brand>) -> u
     index
 }
 
-/// Puts the traced lines on the finished chart, each thread of the trace in an existing palette thread or a new one at
-/// the end of the palette (G-084, D266, D269).
-fn attach_backstitch(
-    mut pattern: StitchPattern,
-    traced: Option<&LineTrace>,
+/// Puts the stitches of one trace on the chart, each thread of it in an existing palette thread or a new one at the end of
+/// the palette (G-084, D266, D269, D274).
+fn attach_stitches(
+    pattern: &mut StitchPattern,
+    segments: &[Segment],
+    colors: &[Rgb],
     brand: Option<Brand>,
-) -> StitchPattern {
-    let Some(trace) = traced else {
-        return pattern;
-    };
-    let threads: Vec<usize> = trace
-        .colors
+) {
+    let threads: Vec<usize> = colors
         .iter()
-        .map(|&rgb| line_thread(&mut pattern, rgb, brand))
+        .map(|&rgb| line_thread(pattern, rgb, brand))
         .collect();
-    pattern.backstitch = trace
-        .segments
-        .iter()
-        .map(|s| BackstitchLine {
+    pattern
+        .backstitch
+        .extend(segments.iter().map(|s| BackstitchLine {
             x1: s.x1,
             y1: s.y1,
             x2: s.x2,
             y2: s.y2,
             palette_index: threads[s.thread],
-        })
-        .collect();
+        }));
+}
+
+/// Puts the traced lines, then the texture strokes, on the finished chart.
+fn attach_backstitch(
+    mut pattern: StitchPattern,
+    traced: Option<&LineTrace>,
+    strokes: Option<&TextureStrokes>,
+    brand: Option<Brand>,
+) -> StitchPattern {
+    if let Some(trace) = traced {
+        attach_stitches(&mut pattern, &trace.segments, &trace.colors, brand);
+    }
+    if let Some(strokes) = strokes {
+        attach_stitches(&mut pattern, &strokes.segments, &strokes.colors, brand);
+    }
     pattern
 }

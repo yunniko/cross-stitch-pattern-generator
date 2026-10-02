@@ -89,6 +89,8 @@ export function useGeneration(inputs: GenerationInputs) {
         backstitchLines: options.backstitchLines,
         backstitchSensitivity: options.backstitchSensitivity,
         backstitchPhotos: options.backstitchPhotos,
+        textureStrokes: options.textureStrokes,
+        textureDensity: options.textureDensity,
         onProgress: (fraction: number) => {
           setQueueMessage(null); // it has a worker now
           setProgress(fraction);

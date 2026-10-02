@@ -35,6 +35,8 @@ export interface JobSettings {
   backstitchLines?: boolean;
   backstitchSensitivity?: number;
   backstitchPhotos?: boolean;
+  textureStrokes?: boolean;
+  textureDensity?: number;
 }
 
 /**

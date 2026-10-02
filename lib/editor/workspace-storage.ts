@@ -63,6 +63,10 @@ export interface WorkspaceOptions {
   backstitchSensitivity: number;
   /** Also trace the strongest long lines of a photograph (G-084, D270); a drawing is traced either way. */
   backstitchPhotos: boolean;
+  /** Texture strokes over the stitches on the *next* Generate (G-085); off unless asked for. */
+  textureStrokes: boolean;
+  /** How many of them, 0 to 1 in steps of 0.1: a few accents at the default (G-085). */
+  textureDensity: number;
   /** How many stitches across one press of the brush covers (G-064); odd only, so every stamp has a centre. */
   brushSize: BrushSize;
   /** The shape of that press: a block, or the disc that fits it. */
@@ -105,6 +109,8 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   backstitchLines: false,
   backstitchSensitivity: 0.5,
   backstitchPhotos: false,
+  textureStrokes: false,
+  textureDensity: 0.3,
   brushSize: DEFAULT_BRUSH_SIZE,
   brushShape: DEFAULT_BRUSH_SHAPE,
   shapeFill: "outline",
@@ -189,6 +195,12 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       vivid: typeof parsed.vivid === "boolean" ? parsed.vivid : DEFAULT_OPTIONS.vivid,
       // Absent in options stored before G-084; a value outside 0 to 1 reads as the default.
       backstitchLines: typeof parsed.backstitchLines === "boolean" ? parsed.backstitchLines : DEFAULT_OPTIONS.backstitchLines,
+      // Absent in options stored before G-085; a value outside 0 to 1 reads as the default.
+      textureStrokes: typeof parsed.textureStrokes === "boolean" ? parsed.textureStrokes : DEFAULT_OPTIONS.textureStrokes,
+      textureDensity:
+        typeof parsed.textureDensity === "number" && parsed.textureDensity >= 0 && parsed.textureDensity <= 1
+          ? Math.round(parsed.textureDensity * 10) / 10
+          : DEFAULT_OPTIONS.textureDensity,
       backstitchPhotos: typeof parsed.backstitchPhotos === "boolean" ? parsed.backstitchPhotos : DEFAULT_OPTIONS.backstitchPhotos,
       backstitchSensitivity:
         typeof parsed.backstitchSensitivity === "number" && parsed.backstitchSensitivity >= 0 && parsed.backstitchSensitivity <= 1

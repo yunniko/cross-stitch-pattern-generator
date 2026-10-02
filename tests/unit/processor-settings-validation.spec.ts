@@ -31,6 +31,8 @@ function requestFrom(overrides: Record<string, unknown> = {}) {
     backstitchLines: options.backstitchLines,
     backstitchSensitivity: options.backstitchSensitivity,
     backstitchPhotos: options.backstitchPhotos,
+    textureStrokes: options.textureStrokes,
+    textureDensity: options.textureDensity,
     ...overrides,
   };
 }
@@ -113,6 +115,17 @@ describe("processor settings validation", () => {
     expect(settingsError(requestFrom({ backstitchSensitivity: -0.1 }))).toMatch(/backstitchSensitivity/);
     expect(settingsError(requestFrom({ backstitchSensitivity: "high" }))).toMatch(/backstitchSensitivity/);
     expect(settingsError(requestFrom({ backstitchSensitivity: Number.NaN }))).toMatch(/backstitchSensitivity/);
+  });
+
+  it("accepts the texture strokes and a density in range, and nothing else (G-085)", () => {
+    expect(settingsError(requestFrom({ textureStrokes: true, textureDensity: 0 }))).toBeNull();
+    expect(settingsError(requestFrom({ textureStrokes: true, textureDensity: 1 }))).toBeNull();
+    expect(settingsError(requestFrom({ textureStrokes: undefined, textureDensity: undefined }))).toBeNull();
+    expect(settingsError(requestFrom({ textureStrokes: "yes" }))).toMatch(/textureStrokes/);
+    expect(settingsError(requestFrom({ textureDensity: 1.5 }))).toMatch(/textureDensity/);
+    expect(settingsError(requestFrom({ textureDensity: -0.1 }))).toMatch(/textureDensity/);
+    expect(settingsError(requestFrom({ textureDensity: "a lot" }))).toMatch(/textureDensity/);
+    expect(settingsError(requestFrom({ textureDensity: Number.NaN }))).toMatch(/textureDensity/);
   });
 
   it("still refuses what it should", () => {

@@ -309,3 +309,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D271 — The backstitch thread with the most line is the solid one — active
 - D272 — Lines are found as ridges and fitted to the corner grid by dynamic programming — active
 - D273 — The five greyer fonts and the BY-SA and BY-ND fonts are not bundled — active
+- D274 — Texture strokes are the short ridges of textured areas, chosen by flow and spread — active

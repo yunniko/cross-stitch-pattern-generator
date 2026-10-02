@@ -38,6 +38,10 @@ struct Options {
     #[serde(default)]
     backstitch_photos: Option<bool>,
     #[serde(default)]
+    texture_strokes: Option<bool>,
+    #[serde(default)]
+    texture_density: Option<f64>,
+    #[serde(default)]
     threads: Option<usize>,
 }
 
@@ -194,6 +198,11 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
             .map(AdjustOptions::resolve)
             .unwrap_or(NEUTRAL_ADJUST),
         backstitch_photos: o.backstitch_photos.unwrap_or(false),
+        texture_strokes: o.texture_strokes.unwrap_or(false).then(|| {
+            o.texture_density
+                .filter(|v| v.is_finite())
+                .map_or(crate::texture::DEFAULT_DENSITY, |v| v.clamp(0.0, 1.0))
+        }),
         backstitch_lines: o.backstitch_lines.unwrap_or(false).then(|| {
             o.backstitch_sensitivity
                 .filter(|v| v.is_finite())

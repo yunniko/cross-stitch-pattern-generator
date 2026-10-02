@@ -21,9 +21,13 @@
 //! 4. **Colour and painting out.** The colour of a line is read from the original pixels along it, not from the
 //!    reduced picture the ridges were found in, so it is not paled; the pixels of the line are then painted over.
 
-use crate::color::{oklab_distance_sq, rgb_to_oklab, Rgb};
+use crate::color::Rgb;
+use crate::ridges::{cluster_colors, image_ridges, line_color, link_chains, reduce, Ridge};
+use crate::stitch_fit::{approximate, rounded_corners, smooth_resample, stitches_between};
 use crate::Image;
 use std::collections::{BTreeSet, HashMap};
+
+pub use crate::stitch_fit::Segment;
 
 /// The most threads the lines of one picture are stitched in (D269).
 const MAX_LINE_THREADS: usize = 3;
@@ -31,18 +35,6 @@ const MAX_LINE_THREADS: usize = 3;
 const SAME_LINE_COLOR_DISTANCE: f64 = 0.12;
 /// Below this many source pixels per stitch there is no sub-stitch line to find.
 const MIN_PIXELS_PER_STITCH: f64 = 3.0;
-/// The picture the ridges are found in is reduced until a stitch is no more than this many pixels across.
-const MAX_ANALYSIS_STITCH_PX: f64 = 20.0;
-/// ... and until it has no more pixels than this, so the derivative maps stay small.
-const MAX_ANALYSIS_PIXELS: f64 = 3.0e6;
-/// The largest Gaussian scale looked at, as a share of a stitch: a line wider than about a stitch is an area.
-const MAX_SCALE_OF_STITCH: f64 = 0.22;
-/// The flanks of a line are about equally steep; of two flanks the gentler is at least this share of the steeper.
-const EDGE_FLANK_SYMMETRY: f32 = 0.3;
-/// Ridge points this many pixels apart (times two for each halving of the picture) along a line are still one line.
-const LINK_GAP_PX: f32 = 3.2;
-/// A ridge point is a line and not a dot when its weaker curvature is at most this share of its stronger.
-const MAX_ANISOTROPY: f32 = 0.6;
 
 /// The picture the flatness is measured on is reduced to at most this many pixels on its longer side.
 const FLATNESS_SCALE_PX: usize = 512;
@@ -55,35 +47,8 @@ const MAX_LINE_CELLS_PER_ROW: f64 = 25.0;
 /// In a photograph (D270) only the strongest long lines are kept, at most this many cells of line per row of stitches.
 const PHOTO_LINE_CELLS_PER_ROW: f64 = 4.0;
 
-/// The corners within this many cells of a line are the places its stitches may end (D272).
-const NEAR_CORNER: f64 = 1.0;
-/// A stitch stays within this many cells of the line it follows.
-const MAX_DEVIATION: f64 = 0.7;
-/// The longest a stitch is, in cells along either axis.
-const MAX_STITCH_CELLS: i32 = 3;
-/// What a stitch costs, against the squared distance it strays and the angle it turns through from the stitch before.
-/// The turning is charged in proportion to the angle, so a long gentle curve costs what it must and a zigzag, which turns
-/// back and forth along a line that is straight, costs more than the straight stitches it replaces (D272).
-const STITCH_COST: f64 = 1.0;
-const DEVIATION_COST: f64 = 4.0;
-const BEND_COST_PER_RADIAN: f64 = 2.0;
-/// A chain is sampled and smoothed at this spacing, in cells.
-const SAMPLE_CELLS: f64 = 0.1;
-/// Smoothing along a chain, in samples either side (a Gaussian of this standard deviation).
-const SMOOTH_SAMPLES: f64 = 2.0;
-
 /// The default sensitivity, 0 to 1.
 pub const DEFAULT_SENSITIVITY: f64 = 0.5;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Segment {
-    pub x1: i32,
-    pub y1: i32,
-    pub x2: i32,
-    pub y2: i32,
-    /// Which of `LineTrace::colors` the stitch is in.
-    pub thread: usize,
-}
 
 pub struct LineTrace {
     pub segments: Vec<Segment>,
@@ -99,225 +64,6 @@ fn gray_of(px: &[u8]) -> f32 {
         return 255.0;
     }
     0.299 * px[0] as f32 + 0.587 * px[1] as f32 + 0.114 * px[2] as f32
-}
-
-/// A box-averaged reduction by an integer factor.
-fn reduce(gray: &[f32], w: usize, h: usize, f: usize) -> (Vec<f32>, usize, usize) {
-    if f == 1 {
-        return (gray.to_vec(), w, h);
-    }
-    let (wa, ha) = (w.div_ceil(f), h.div_ceil(f));
-    let mut out = vec![0f32; wa * ha];
-    for y in 0..ha {
-        for x in 0..wa {
-            let (mut sum, mut n) = (0f32, 0f32);
-            for yy in (y * f)..((y + 1) * f).min(h) {
-                for xx in (x * f)..((x + 1) * f).min(w) {
-                    sum += gray[yy * w + xx];
-                    n += 1.0;
-                }
-            }
-            out[y * wa + x] = sum / n;
-        }
-    }
-    (out, wa, ha)
-}
-
-/// One colour channel of the picture, box-averaged by an integer factor; a transparent pixel reads as white.
-fn channel_reduced(
-    data: &[u8],
-    w: usize,
-    h: usize,
-    channel: usize,
-    f: usize,
-) -> (Vec<f32>, usize, usize) {
-    let (wa, ha) = (w.div_ceil(f), h.div_ceil(f));
-    let mut out = vec![0f32; wa * ha];
-    for y in 0..ha {
-        for x in 0..wa {
-            let (mut sum, mut n) = (0f32, 0f32);
-            for yy in (y * f)..((y + 1) * f).min(h) {
-                for xx in (x * f)..((x + 1) * f).min(w) {
-                    let i = (yy * w + xx) * 4;
-                    sum += if data[i + 3] < 128 {
-                        255.0
-                    } else {
-                        data[i + channel] as f32
-                    };
-                    n += 1.0;
-                }
-            }
-            out[y * wa + x] = sum / n;
-        }
-    }
-    (out, wa, ha)
-}
-
-/// The share of 8 x 8 blocks of the picture, reduced to at most 512 pixels on its longer side, that are flat: a standard
-/// deviation of luminance under 6. A drawing is mostly flat paper and flat fills with lines on them; a photograph is
-/// textured nearly everywhere. Measured at a fixed scale, so it does not depend on how many stitches are asked for.
-fn flat_share(gray: &[f32], w: usize, h: usize) -> f64 {
-    let f = w.max(h).div_ceil(FLATNESS_SCALE_PX).max(1);
-    let (g, gw, gh) = reduce(gray, w, h, f);
-    let (bw, bh) = (gw / 8, gh / 8);
-    if bw == 0 || bh == 0 {
-        return 0.0;
-    }
-    let mut flat = 0usize;
-    for by in 0..bh {
-        for bx in 0..bw {
-            let (mut sum, mut sq) = (0f64, 0f64);
-            for y in by * 8..by * 8 + 8 {
-                for x in bx * 8..bx * 8 + 8 {
-                    let v = g[y * gw + x] as f64;
-                    sum += v;
-                    sq += v * v;
-                }
-            }
-            let sd = (sq / 64.0 - (sum / 64.0).powi(2)).max(0.0).sqrt();
-            flat += (sd < FLAT_SD) as usize;
-        }
-    }
-    flat as f64 / (bw * bh) as f64
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Ridges
-
-/// The Gaussian and its first and second derivatives, sampled out to three standard deviations.
-fn gaussian_kernels(sigma: f64) -> (Vec<f32>, Vec<f32>, Vec<f32>, usize) {
-    let r = (3.0 * sigma).ceil().max(1.0) as usize;
-    let mut g0 = Vec::with_capacity(2 * r + 1);
-    let mut g1 = Vec::with_capacity(2 * r + 1);
-    let mut g2 = Vec::with_capacity(2 * r + 1);
-    let mut sum = 0.0;
-    for i in -(r as i64)..=r as i64 {
-        let x = i as f64;
-        let g = (-x * x / (2.0 * sigma * sigma)).exp();
-        sum += g;
-        g0.push(g);
-        // Correlated with the picture, not convolved, so the sign is that of the derivative itself.
-        g1.push(x / (sigma * sigma) * g);
-        g2.push((x * x / sigma.powi(4) - 1.0 / (sigma * sigma)) * g);
-    }
-    let norm = |v: Vec<f64>| {
-        v.into_iter()
-            .map(|x| (x / sum) as f32)
-            .collect::<Vec<f32>>()
-    };
-    (norm(g0), norm(g1), norm(g2), r)
-}
-
-/// `src` convolved along rows with `kernel`, edges clamped.
-fn convolve_rows(src: &[f32], w: usize, h: usize, kernel: &[f32], r: usize) -> Vec<f32> {
-    let mut out = vec![0f32; w * h];
-    for y in 0..h {
-        let row = &src[y * w..(y + 1) * w];
-        let out_row = &mut out[y * w..(y + 1) * w];
-        for x in 0..w {
-            let mut acc = 0f32;
-            for (k, &c) in kernel.iter().enumerate() {
-                let xx = (x + k).saturating_sub(r).min(w - 1);
-                acc += c * row[xx];
-            }
-            out_row[x] = acc;
-        }
-    }
-    out
-}
-
-/// `src` convolved down columns with `kernel`, edges clamped.
-fn convolve_columns(src: &[f32], w: usize, h: usize, kernel: &[f32], r: usize) -> Vec<f32> {
-    let mut out = vec![0f32; w * h];
-    for y in 0..h {
-        let out_row = &mut out[y * w..(y + 1) * w];
-        for (k, &c) in kernel.iter().enumerate() {
-            let yy = (y + k).saturating_sub(r).min(h - 1);
-            let row = &src[yy * w..(yy + 1) * w];
-            for x in 0..w {
-                out_row[x] += c * row[x];
-            }
-        }
-    }
-    out
-}
-
-/// The five Gaussian derivatives of a channel at one scale: Ix, Iy, Ixx, Ixy, Iyy.
-fn derivatives(channel: &[f32], w: usize, h: usize, sigma: f64) -> [Vec<f32>; 5] {
-    let (g0, g1, g2, r) = gaussian_kernels(sigma);
-    let a0 = convolve_rows(channel, w, h, &g0, r);
-    let a1 = convolve_rows(channel, w, h, &g1, r);
-    let a2 = convolve_rows(channel, w, h, &g2, r);
-    [
-        convolve_columns(&a1, w, h, &g0, r),
-        convolve_columns(&a0, w, h, &g1, r),
-        convolve_columns(&a2, w, h, &g0, r),
-        convolve_columns(&a1, w, h, &g1, r),
-        convolve_columns(&a0, w, h, &g2, r),
-    ]
-}
-
-/// A point of a ridge, in the coordinates of the analysis picture (a pixel's centre is a whole number).
-#[derive(Clone, Copy, Debug)]
-struct Ridge {
-    x: f32,
-    y: f32,
-    /// The strength: the scale-normalised curvature across the line, in levels of 0 to 255.
-    strength: f32,
-    /// The unit direction across the line.
-    nx: f32,
-    ny: f32,
-    /// The Gaussian scale it was found at, in analysis pixels.
-    sigma: f32,
-    /// A dark line (a valley) as against a light one (a ridge).
-    dark: bool,
-    /// How many times the picture was halved for it.
-    level: u8,
-}
-
-/// Where inside its pixel the ridge passes, and how strongly, from the derivatives at a pixel; `None` when the pixel is
-/// not on a ridge. Returns the offset in x and y, the strength and the unit normal.
-fn ridge_at(
-    ix: f32,
-    iy: f32,
-    ixx: f32,
-    ixy: f32,
-    iyy: f32,
-    sigma: f32,
-) -> Option<(f32, f32, f32, f32, f32, bool)> {
-    // Eigenvalues of [[ixx, ixy], [ixy, iyy]] and the eigenvector of the one that is larger in magnitude.
-    let half = 0.5 * (ixx + iyy);
-    let diff = 0.5 * (ixx - iyy);
-    let root = (diff * diff + ixy * ixy).sqrt();
-    let (l1, l2) = (half + root, half - root);
-    let (big, small) = if l1.abs() >= l2.abs() {
-        (l1, l2)
-    } else {
-        (l2, l1)
-    };
-    if big.abs() < 1e-6 || small.abs() > MAX_ANISOTROPY * big.abs() {
-        return None;
-    }
-    // The eigenvector for `big`, from the angle of the principal axis, which is stable where the Hessian is nearly diagonal.
-    let theta = 0.5 * (2.0 * ixy).atan2(ixx - iyy);
-    let (c, sn) = (theta.cos(), theta.sin());
-    let (nx, ny) = if (big - l1).abs() <= (big - l2).abs() {
-        (c, sn)
-    } else {
-        (-sn, c)
-    };
-    // The first derivative along the normal vanishes at the ridge.
-    let curvature = nx * nx * ixx + 2.0 * nx * ny * ixy + ny * ny * iyy;
-    if curvature.abs() < 1e-9 {
-        return None;
-    }
-    let t = -(nx * ix + ny * iy) / curvature;
-    // Inside the pixel, a little over so that a line falling between two pixels is found in both; the pixel across the line
-    // that is the weaker of the two is then dropped (D272).
-    if (t * nx).abs() > 0.6 || (t * ny).abs() > 0.6 {
-        return None;
-    }
-    Some((t * nx, t * ny, big.abs() * sigma * sigma, nx, ny, big > 0.0))
 }
 
 /// How thresholds follow the sensitivity.
@@ -350,536 +96,32 @@ fn profile(drawing: bool, sensitivity: f64) -> Profile {
     }
 }
 
-/// The ridge points of the picture: for every level of reduction, the best of the three channels and the scales of that
-/// level at each pixel, kept where it is at least `low`.
-fn find_ridges(
-    channels: &[Vec<f32>; 3],
-    wa: usize,
-    ha: usize,
-    stitch_a: f64,
-    low: f32,
-) -> Vec<Ridge> {
-    let sigma_max = (MAX_SCALE_OF_STITCH * stitch_a).max(1.0);
-    let mut scales: Vec<f64> = Vec::new();
-    let mut sigma = 1.0;
-    while sigma <= sigma_max + 1e-9 {
-        scales.push(sigma);
-        sigma *= 1.5;
+/// The share of 8 x 8 blocks of the picture, reduced to at most 512 pixels on its longer side, that are flat: a standard
+/// deviation of luminance under 6. A drawing is mostly flat paper and flat fills with lines on them; a photograph is
+/// textured nearly everywhere. Measured at a fixed scale, so it does not depend on how many stitches are asked for.
+fn flat_share(gray: &[f32], w: usize, h: usize) -> f64 {
+    let f = w.max(h).div_ceil(FLATNESS_SCALE_PX).max(1);
+    let (g, gw, gh) = reduce(gray, w, h, f);
+    let (bw, bh) = (gw / 8, gh / 8);
+    if bw == 0 || bh == 0 {
+        return 0.0;
     }
-    // A scale above 2.2 pixels is looked at on a picture halved as often as it takes to bring it under 2.2.
-    let level_of = |sigma: f64| {
-        let mut m = 0u32;
-        while sigma / (1u32 << m) as f64 > 2.2 {
-            m += 1;
-        }
-        m as usize
-    };
-    let levels = scales.iter().map(|&s| level_of(s)).max().unwrap_or(0) + 1;
-    let mut pictures: Vec<[Vec<f32>; 3]> = Vec::new();
-    let mut sizes: Vec<(usize, usize)> = vec![(wa, ha)];
-    for m in 0..levels {
-        let (w, h) = sizes[m];
-        let chans: [Vec<f32>; 3] = if m == 0 {
-            [
-                channels[0].clone(),
-                channels[1].clone(),
-                channels[2].clone(),
-            ]
-        } else {
-            let (pw, ph) = sizes[m - 1];
-            [0, 1, 2].map(|c| reduce(&pictures[m - 1][c], pw, ph, 2).0)
-        };
-        pictures.push(chans);
-        sizes.push((w.div_ceil(2), h.div_ceil(2)));
-    }
-    let mut ridges: Vec<Ridge> = Vec::new();
-    for m in 0..levels {
-        let (w, h) = sizes[m];
-        let here: Vec<f64> = scales
-            .iter()
-            .copied()
-            .filter(|&s| level_of(s) == m)
-            .collect();
-        if here.is_empty() || w < 3 || h < 3 {
-            continue;
-        }
-        let factor = (1u32 << m) as f32;
-        let mut best = vec![0f32; w * h];
-        let mut found: Vec<Option<Ridge>> = vec![None; w * h];
-        for &sigma in &here {
-            let sigma_level = sigma / factor as f64;
-            for c in 0..3 {
-                let [ix, iy, ixx, ixy, iyy] = derivatives(&pictures[m][c], w, h, sigma_level);
-                for i in 0..w * h {
-                    if let Some((tx, ty, strength, nx, ny, curvature_sign)) =
-                        ridge_at(ix[i], iy[i], ixx[i], ixy[i], iyy[i], sigma_level as f32)
-                    {
-                        // The shoulder of a step edge looks like a faint line. A line has the slope of the picture across
-                        // it of opposite sign on its two flanks, and roughly as steep on both; an edge has the same sign
-                        // on both sides (D272).
-                        let flank = |side: f32| -> f32 {
-                            let d = (1.5 * sigma_level as f32).max(1.0) * side;
-                            let x = (i % w) as i64 + (d * nx).round() as i64;
-                            let y = (i / w) as i64 + (d * ny).round() as i64;
-                            if x >= 0 && y >= 0 && (x as usize) < w && (y as usize) < h {
-                                let q = y as usize * w + x as usize;
-                                nx * ix[q] + ny * iy[q]
-                            } else {
-                                0.0
-                            }
-                        };
-                        let (before, after) = (flank(-1.0), flank(1.0));
-                        let is_line = before * after < 0.0
-                            && before.abs().min(after.abs())
-                                >= EDGE_FLANK_SYMMETRY * before.abs().max(after.abs());
-                        if strength > best[i] && strength >= low && is_line {
-                            best[i] = strength;
-                            let (px, py) = ((i % w) as f32 + tx, (i / w) as f32 + ty);
-                            found[i] = Some(Ridge {
-                                // Back to the coordinates of the analysis picture.
-                                x: (px + 0.5) * factor - 0.5,
-                                y: (py + 0.5) * factor - 0.5,
-                                strength,
-                                nx,
-                                ny,
-                                sigma: sigma as f32,
-                                dark: curvature_sign,
-                                level: m as u8,
-                            });
-                        }
-                    }
+    let mut flat = 0usize;
+    for by in 0..bh {
+        for bx in 0..bw {
+            let (mut sum, mut sq) = (0f64, 0f64);
+            for y in by * 8..by * 8 + 8 {
+                for x in bx * 8..bx * 8 + 8 {
+                    let v = g[y * gw + x] as f64;
+                    sum += v;
+                    sq += v * v;
                 }
             }
-        }
-        // Of ridge points side by side across the line only the strongest stays.
-        for i in 0..w * h {
-            let Some(r) = found[i] else { continue };
-            let (dx, dy) = (r.nx.round() as i64, r.ny.round() as i64);
-            let (x, y) = ((i % w) as i64, (i / w) as i64);
-            let beaten = [-1i64, 1].iter().any(|&side| {
-                let (qx, qy) = (x + side * dx, y + side * dy);
-                if (dx == 0 && dy == 0) || qx < 0 || qy < 0 || qx >= w as i64 || qy >= h as i64 {
-                    return false;
-                }
-                let q = qy as usize * w + qx as usize;
-                best[q] > best[i] || (best[q] == best[i] && found[q].is_some() && q < i)
-            });
-            if beaten {
-                found[i] = None;
-            }
-        }
-        ridges.extend(found.into_iter().flatten());
-    }
-    ridges
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Chains
-
-/// Ridge points found near a position, by a grid of square cells.
-struct Neighbours {
-    cell: f32,
-    cells: HashMap<(i32, i32), Vec<u32>>,
-}
-
-impl Neighbours {
-    fn new(ridges: &[Ridge], cell: f32) -> Neighbours {
-        let mut cells: HashMap<(i32, i32), Vec<u32>> = HashMap::new();
-        for (i, r) in ridges.iter().enumerate() {
-            cells
-                .entry(((r.x / cell).floor() as i32, (r.y / cell).floor() as i32))
-                .or_default()
-                .push(i as u32);
-        }
-        Neighbours { cell, cells }
-    }
-
-    fn near(&self, x: f32, y: f32, radius: f32) -> Vec<u32> {
-        let (cx, cy) = (
-            (x / self.cell).floor() as i32,
-            (y / self.cell).floor() as i32,
-        );
-        let reach = (radius / self.cell).ceil() as i32;
-        let mut out = Vec::new();
-        for gx in cx - reach..=cx + reach {
-            for gy in cy - reach..=cy + reach {
-                if let Some(v) = self.cells.get(&(gx, gy)) {
-                    out.extend(v.iter().copied());
-                }
-            }
-        }
-        out
-    }
-}
-
-/// The ridge points linked into chains, strongest seed first, along the line's direction. A chain is the indices of its
-/// points in order.
-fn link_chains(ridges: &[Ridge], high: f32, low: f32) -> Vec<Vec<u32>> {
-    let grid = Neighbours::new(ridges, 8.0);
-    let mut used = vec![false; ridges.len()];
-    // A line is flanked by weak ridges of the opposite kind, the lobes of the filter; they are not lines.
-    for (i, a) in ridges.iter().enumerate() {
-        if a.strength < high {
-            continue;
-        }
-        for j in grid.near(a.x, a.y, 4.0 * a.sigma + 3.0) {
-            let b = &ridges[j as usize];
-            if b.dark != a.dark
-                && b.strength < 0.5 * a.strength
-                && (b.x - a.x).hypot(b.y - a.y) <= 4.0 * a.sigma + 2.0
-                && j as usize != i
-            {
-                used[j as usize] = true;
-            }
+            let sd = (sq / 64.0 - (sum / 64.0).powi(2)).max(0.0).sqrt();
+            flat += (sd < FLAT_SD) as usize;
         }
     }
-    let mut seeds: Vec<u32> = (0..ridges.len() as u32)
-        .filter(|&i| ridges[i as usize].strength >= high)
-        .collect();
-    seeds.sort_by(|&a, &b| {
-        ridges[b as usize]
-            .strength
-            .partial_cmp(&ridges[a as usize].strength)
-            .unwrap()
-            .then(a.cmp(&b))
-    });
-
-    // The next point from `from`, travelling along `dir`, if there is one.
-    let next = |from: usize, dir: (f32, f32), used: &[bool]| -> Option<usize> {
-        let a = &ridges[from];
-        let mut best: Option<(usize, f32)> = None;
-        let reach = LINK_GAP_PX * (1u32 << a.level) as f32 * 2.0;
-        for j in grid.near(a.x, a.y, reach) {
-            let j = j as usize;
-            if used[j] || ridges[j].strength < low {
-                continue;
-            }
-            let b = &ridges[j];
-            let (vx, vy) = (b.x - a.x, b.y - a.y);
-            let dist = (vx * vx + vy * vy).sqrt();
-            let limit = LINK_GAP_PX * (1u32 << a.level.max(b.level)) as f32;
-            if dist < 0.05 || dist > limit {
-                continue;
-            }
-            let cos = (vx * dir.0 + vy * dir.1) / dist;
-            if cos < 0.64 || (a.nx * b.nx + a.ny * b.ny).abs() < 0.7 {
-                continue;
-            }
-            let score = dist * (1.5 - cos);
-            if best.is_none_or(|(_, s)| score < s) {
-                best = Some((j, score));
-            }
-        }
-        best.map(|(j, _)| j)
-    };
-    // Marks the points beside `at`, across the line, as taken: they are the same line seen twice.
-    let suppress = |at: usize, used: &mut Vec<bool>| {
-        let a = &ridges[at];
-        let (tx, ty) = (-a.ny, a.nx);
-        let across = 1.2 * a.sigma + 0.7;
-        for j in grid.near(a.x, a.y, across + 2.0) {
-            let j = j as usize;
-            if used[j] {
-                continue;
-            }
-            let (wx, wy) = (ridges[j].x - a.x, ridges[j].y - a.y);
-            if (wx * a.nx + wy * a.ny).abs() <= across && (wx * tx + wy * ty).abs() <= 0.9 {
-                used[j] = true;
-            }
-        }
-    };
-
-    let mut chains: Vec<Vec<u32>> = Vec::new();
-    for seed in seeds {
-        let seed = seed as usize;
-        if used[seed] {
-            continue;
-        }
-        used[seed] = true;
-        suppress(seed, &mut used);
-        let a = &ridges[seed];
-        let tangent = (-a.ny, a.nx);
-        let mut forward: Vec<u32> = Vec::new();
-        let mut backward: Vec<u32> = Vec::new();
-        for (list, start_dir) in [
-            (&mut forward, tangent),
-            (&mut backward, (-tangent.0, -tangent.1)),
-        ] {
-            let (mut cur, mut dir) = (seed, start_dir);
-            while let Some(j) = next(cur, dir, &used) {
-                let (vx, vy) = (ridges[j].x - ridges[cur].x, ridges[j].y - ridges[cur].y);
-                let len = (vx * vx + vy * vy).sqrt().max(1e-6);
-                let (ux, uy) = (0.6 * dir.0 + 0.4 * vx / len, 0.6 * dir.1 + 0.4 * vy / len);
-                let n = (ux * ux + uy * uy).sqrt().max(1e-6);
-                dir = (ux / n, uy / n);
-                used[j] = true;
-                suppress(j, &mut used);
-                list.push(j as u32);
-                cur = j;
-            }
-        }
-        backward.reverse();
-        let mut chain = backward;
-        chain.push(seed as u32);
-        chain.extend(forward);
-        chains.push(chain);
-    }
-    chains
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Stitches
-
-/// A polyline resampled at `SAMPLE_CELLS` and smoothed along itself, its two ends kept where they are.
-fn smooth_resample(points: &[(f64, f64)]) -> Vec<(f64, f64)> {
-    let mut length = vec![0f64];
-    for pair in points.windows(2) {
-        let d = ((pair[1].0 - pair[0].0).powi(2) + (pair[1].1 - pair[0].1).powi(2)).sqrt();
-        length.push(length.last().unwrap() + d);
-    }
-    let total = *length.last().unwrap();
-    let n = (total / SAMPLE_CELLS).round().max(1.0) as usize;
-    let mut sampled: Vec<(f64, f64)> = Vec::with_capacity(n + 1);
-    let mut k = 0usize;
-    for i in 0..=n {
-        let at = total * i as f64 / n as f64;
-        while k + 2 < length.len() && length[k + 1] < at {
-            k += 1;
-        }
-        let span = (length[k + 1] - length[k]).max(1e-12);
-        let t = ((at - length[k]) / span).clamp(0.0, 1.0);
-        sampled.push((
-            points[k].0 + (points[k + 1].0 - points[k].0) * t,
-            points[k].1 + (points[k + 1].1 - points[k].1) * t,
-        ));
-    }
-    let reach = (3.0 * SMOOTH_SAMPLES).ceil() as i64;
-    let weights: Vec<f64> = (-reach..=reach)
-        .map(|i| (-(i * i) as f64 / (2.0 * SMOOTH_SAMPLES * SMOOTH_SAMPLES)).exp())
-        .collect();
-    let last = sampled.len() as i64 - 1;
-    (0..=last)
-        .map(|i| {
-            if i == 0 || i == last {
-                return sampled[i as usize];
-            }
-            // Only as far either side as the line goes, so the ends are not pulled in.
-            let r = reach.min(i).min(last - i);
-            let (mut sx, mut sy, mut sw) = (0.0, 0.0, 0.0);
-            for d in -r..=r {
-                let w = weights[(d + reach) as usize];
-                let p = sampled[(i + d) as usize];
-                sx += w * p.0;
-                sy += w * p.1;
-                sw += w;
-            }
-            (sx / sw, sy / sw)
-        })
-        .collect()
-}
-
-fn distance_to_segment(p: (f64, f64), a: (i32, i32), b: (i32, i32)) -> f64 {
-    let (ax, ay, bx, by) = (a.0 as f64, a.1 as f64, b.0 as f64, b.1 as f64);
-    let (dx, dy) = (bx - ax, by - ay);
-    let len2 = dx * dx + dy * dy;
-    let t = if len2 == 0.0 {
-        0.0
-    } else {
-        (((p.0 - ax) * dx + (p.1 - ay) * dy) / len2).clamp(0.0, 1.0)
-    };
-    ((p.0 - ax - t * dx).powi(2) + (p.1 - ay - t * dy).powi(2)).sqrt()
-}
-
-/// The stitches that follow `curve` best: the corners near it joined by straight stitches that keep within
-/// `MAX_DEVIATION` of it, found by dynamic programming over the corners and the stitches between them, so that the
-/// fewest, straightest stitches that stay close are the ones chosen. `start` and `end` fix the corners it begins and ends
-/// on, where other chains meet this one. Returns the corners in order, or `None` when no such sequence exists.
-fn approximate(
-    curve: &[(f64, f64)],
-    start: Option<(i32, i32)>,
-    end: Option<(i32, i32)>,
-    bounds: (i32, i32),
-) -> Option<Vec<(i32, i32)>> {
-    // The corners within reach of the line, each with where along it it is nearest.
-    let mut near: HashMap<(i32, i32), (usize, f64)> = HashMap::new();
-    for (j, p) in curve.iter().enumerate() {
-        for cx in p.0.floor() as i32..=p.0.floor() as i32 + 1 {
-            for cy in p.1.floor() as i32..=p.1.floor() as i32 + 1 {
-                if cx < 0 || cy < 0 || cx > bounds.0 || cy > bounds.1 {
-                    continue;
-                }
-                let d = ((p.0 - cx as f64).powi(2) + (p.1 - cy as f64).powi(2)).sqrt();
-                if d <= NEAR_CORNER {
-                    let e = near.entry((cx, cy)).or_insert((j, d));
-                    if d < e.1 {
-                        *e = (j, d);
-                    }
-                }
-            }
-        }
-    }
-    let last = curve.len() - 1;
-    // The corners at the ends of the line, where it may begin and end when they are not fixed.
-    let ends_window = (0.7 / SAMPLE_CELLS) as usize;
-    let mut corners: Vec<((i32, i32), usize)> = near.iter().map(|(&c, &(j, _))| (c, j)).collect();
-    for (fixed, j) in [(start, 0usize), (end, last)] {
-        if let Some(c) = fixed {
-            if !near.contains_key(&c) {
-                corners.push((c, j));
-            }
-        }
-    }
-    corners.sort_by_key(|&(c, j)| (j, c));
-    let position = |c: (i32, i32)| corners.iter().position(|&(k, _)| k == c);
-    let starts: Vec<usize> = match start {
-        Some(c) => position(c).into_iter().collect(),
-        None => (0..corners.len())
-            .filter(|&i| corners[i].1 <= ends_window)
-            .collect(),
-    };
-    let ends: Vec<usize> = match end {
-        Some(c) => position(c).into_iter().collect(),
-        None => (0..corners.len())
-            .filter(|&i| corners[i].1 + ends_window >= last)
-            .collect(),
-    };
-    if starts.is_empty() || ends.is_empty() {
-        return None;
-    }
-
-    // The stitches: from corner a to a later corner b, within three cells either way, staying close to the line.
-    struct Edge {
-        from: usize,
-        to: usize,
-        cost: f64,
-        dir: (f64, f64),
-    }
-    let max_span = (MAX_STITCH_CELLS as f64 * 1.5 / SAMPLE_CELLS) as usize + 2;
-    let mut edges: Vec<Edge> = Vec::new();
-    let mut out_of: Vec<Vec<usize>> = vec![Vec::new(); corners.len()];
-    let mut into: Vec<Vec<usize>> = vec![Vec::new(); corners.len()];
-    for a in 0..corners.len() {
-        let (ca, ja) = corners[a];
-        for b in a + 1..corners.len() {
-            let (cb, jb) = corners[b];
-            if jb > ja + max_span {
-                break;
-            }
-            let (dx, dy) = (cb.0 - ca.0, cb.1 - ca.1);
-            if (dx == 0 && dy == 0) || dx.abs() > MAX_STITCH_CELLS || dy.abs() > MAX_STITCH_CELLS {
-                continue;
-            }
-            let (mut worst, mut sum) = (0f64, 0f64);
-            for p in &curve[ja.min(jb)..=ja.max(jb)] {
-                let d = distance_to_segment(*p, ca, cb);
-                worst = worst.max(d);
-                sum += d * d;
-            }
-            if worst > MAX_DEVIATION {
-                continue;
-            }
-            let len = ((dx * dx + dy * dy) as f64).sqrt();
-            edges.push(Edge {
-                from: a,
-                to: b,
-                cost: STITCH_COST + DEVIATION_COST * sum * SAMPLE_CELLS,
-                dir: (dx as f64 / len, dy as f64 / len),
-            });
-            out_of[a].push(edges.len() - 1);
-            into[b].push(edges.len() - 1);
-        }
-    }
-
-    // The best way to arrive along each edge, and the edge before it.
-    let mut best = vec![f64::INFINITY; edges.len()];
-    let mut before: Vec<Option<usize>> = vec![None; edges.len()];
-    for a in 0..corners.len() {
-        let is_start = starts.contains(&a);
-        for &e in &out_of[a] {
-            let mut cost = if is_start {
-                edges[e].cost
-            } else {
-                f64::INFINITY
-            };
-            let mut from = None;
-            for &p in &into[a] {
-                if best[p].is_finite() {
-                    let dot = (edges[p].dir.0 * edges[e].dir.0 + edges[p].dir.1 * edges[e].dir.1)
-                        .clamp(-1.0, 1.0);
-                    let c = best[p] + edges[e].cost + BEND_COST_PER_RADIAN * dot.acos();
-                    if c < cost {
-                        cost = c;
-                        from = Some(p);
-                    }
-                }
-            }
-            best[e] = cost;
-            before[e] = from;
-        }
-    }
-    let finish = (0..edges.len())
-        .filter(|&e| ends.contains(&edges[e].to) && best[e].is_finite())
-        .min_by(|&x, &y| best[x].partial_cmp(&best[y]).unwrap())?;
-    let mut path = vec![corners[edges[finish].to].0];
-    let mut e = finish;
-    loop {
-        path.push(corners[edges[e].from].0);
-        match before[e] {
-            Some(p) => e = p,
-            None => break,
-        }
-    }
-    path.reverse();
-    Some(path)
-}
-
-/// The corners a line passes when no sequence of stitches stays close enough: the line itself, rounded, a corner each
-/// cell or so, joined by stitches of at most three cells.
-fn rounded_corners(curve: &[(f64, f64)]) -> Vec<(i32, i32)> {
-    let mut out: Vec<(i32, i32)> = Vec::new();
-    let step = (1.0 / SAMPLE_CELLS) as usize;
-    for (i, p) in curve.iter().enumerate() {
-        if i % step == 0 || i + 1 == curve.len() {
-            let c = (p.0.round() as i32, p.1.round() as i32);
-            if out.last() != Some(&c) {
-                out.push(c);
-            }
-        }
-    }
-    out
-}
-
-/// The stitches between consecutive corners, cut so none is longer than `MAX_STITCH_CELLS` either way.
-fn stitches_between(corners: &[(i32, i32)], thread: usize, out: &mut BTreeSet<Segment>) {
-    for pair in corners.windows(2) {
-        let (a, b) = (pair[0], pair[1]);
-        let parts =
-            ((b.0 - a.0).abs().max((b.1 - a.1).abs()) + MAX_STITCH_CELLS - 1) / MAX_STITCH_CELLS;
-        let parts = parts.max(1);
-        let mut prev = a;
-        for i in 1..=parts {
-            let t = i as f64 / parts as f64;
-            let cur = (
-                (a.0 as f64 + (b.0 - a.0) as f64 * t).round() as i32,
-                (a.1 as f64 + (b.1 - a.1) as f64 * t).round() as i32,
-            );
-            if cur != prev {
-                let (p, q) = if prev <= cur {
-                    (prev, cur)
-                } else {
-                    (cur, prev)
-                };
-                out.insert(Segment {
-                    x1: p.0,
-                    y1: p.1,
-                    x2: q.0,
-                    y2: q.1,
-                    thread,
-                });
-            }
-            prev = cur;
-        }
-    }
+    flat as f64 / (bw * bh) as f64
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -928,20 +170,7 @@ pub fn trace_lines(
     }
     let profile = profile(drawing, s);
 
-    // The picture the ridges are found in: reduced only as far as a stitch of this many pixels and this many pixels in
-    // all call for (D272).
-    let f = ((stitch_px / MAX_ANALYSIS_STITCH_PX).ceil())
-        .max(((w * h) as f64 / MAX_ANALYSIS_PIXELS).sqrt().ceil())
-        .max(1.0) as usize;
-    let (c0, wa, ha) = channel_reduced(&image.data, w, h, 0, f);
-    let channels = [
-        c0,
-        channel_reduced(&image.data, w, h, 1, f).0,
-        channel_reduced(&image.data, w, h, 2, f).0,
-    ];
-    let stitch_a = stitch_px / f as f64;
-    let ridges = find_ridges(&channels, wa, ha, stitch_a, profile.low);
-    drop(channels);
+    let (ridges, f) = image_ridges(image, stitch_px, profile.low, None);
     if ridges.iter().all(|r| r.strength < profile.high) {
         return None;
     }
@@ -1048,37 +277,13 @@ pub fn trace_lines(
             .partial_cmp(&lines[a].length_cells)
             .unwrap()
     });
-    // (colour sum weighted by length, weight, mean colour) per thread.
-    let mut clusters: Vec<([f64; 3], f64, Rgb)> = Vec::new();
-    let mut thread_of = vec![0usize; lines.len()];
-    for &i in &order {
-        let rgb = colors[i].map(|v| v.round().clamp(0.0, 255.0) as u8);
-        let lab = rgb_to_oklab(rgb);
-        let nearest = clusters
-            .iter()
-            .enumerate()
-            .map(|(k, c)| (k, oklab_distance_sq(&lab, &rgb_to_oklab(c.2))))
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-        let into = match nearest {
-            Some((k, d))
-                if d <= SAME_LINE_COLOR_DISTANCE.powi(2) || clusters.len() >= MAX_LINE_THREADS =>
-            {
-                k
-            }
-            _ => {
-                clusters.push(([0.0; 3], 0.0, rgb));
-                clusters.len() - 1
-            }
-        };
-        let weight = lines[i].length_cells;
-        let c = &mut clusters[into];
-        for k in 0..3 {
-            c.0[k] += colors[i][k] * weight;
-        }
-        c.1 += weight;
-        c.2 = [0, 1, 2].map(|k| (c.0[k] / c.1).round() as u8);
-        thread_of[i] = into;
-    }
+    let weights: Vec<f64> = lines.iter().map(|l| l.length_cells).collect();
+    let (thread_of, clusters) = cluster_colors(
+        &colors,
+        &weights,
+        MAX_LINE_THREADS,
+        SAME_LINE_COLOR_DISTANCE,
+    );
 
     // The stitches of each line, the longest first. An end that meets no other end but comes within a cell and a half of a
     // corner an earlier line has used (a stem against a bar) ends on that corner.
@@ -1132,7 +337,7 @@ pub fn trace_lines(
     for s in &mut segments {
         s.thread = used.iter().position(|&t| t == s.thread).unwrap();
     }
-    let thread_colors: Vec<Rgb> = used.iter().map(|&t| clusters[t].2).collect();
+    let thread_colors: Vec<Rgb> = used.iter().map(|&t| clusters[t]).collect();
     let total_cells: f64 = segments
         .iter()
         .map(|s| (((s.x2 - s.x1).pow(2) + (s.y2 - s.y1).pow(2)) as f64).sqrt())
@@ -1146,74 +351,6 @@ pub fn trace_lines(
         segments,
         colors: thread_colors,
         inpainted: paint_out(image, &ridges, &point_lists, f),
-    })
-}
-
-/// The colour of a line, read from the original pixels: along the line, the pixel at its centre or beside it that differs
-/// most from the surroundings a little farther out, and the middle value of those over the line. So a line of one pixel
-/// in a picture reduced for the search is not paled by the reduction.
-fn line_color(image: &Image, ridges: &[Ridge], points: &[u32], f: usize) -> [f64; 3] {
-    let (w, h) = (image.width as i64, image.height as i64);
-    let at = |x: i64, y: i64| -> Option<[f64; 3]> {
-        if x < 0 || y < 0 || x >= w || y >= h {
-            return None;
-        }
-        let i = (y as usize * image.width + x as usize) * 4;
-        (image.data[i + 3] >= 128).then(|| {
-            [
-                image.data[i] as f64,
-                image.data[i + 1] as f64,
-                image.data[i + 2] as f64,
-            ]
-        })
-    };
-    let mut samples: Vec<[f64; 3]> = Vec::new();
-    for &p in points.iter().step_by((f / 2).max(1)) {
-        let r = &ridges[p as usize];
-        let (cx, cy) = (
-            (r.x as f64 + 0.5) * f as f64 - 0.5,
-            (r.y as f64 + 0.5) * f as f64 - 0.5,
-        );
-        let out = (r.sigma as f64 * 2.0 * f as f64 * 0.8 + 2.0).max(3.0);
-        let around = [-1.0f64, 1.0].map(|side| {
-            at(
-                (cx + side * r.nx as f64 * out).round() as i64,
-                (cy + side * r.ny as f64 * out).round() as i64,
-            )
-        });
-        let background = match (around[0], around[1]) {
-            (Some(a), Some(b)) => [
-                (a[0] + b[0]) / 2.0,
-                (a[1] + b[1]) / 2.0,
-                (a[2] + b[2]) / 2.0,
-            ],
-            (Some(a), None) | (None, Some(a)) => a,
-            _ => continue,
-        };
-        let mut best: Option<([f64; 3], f64)> = None;
-        for step in [-1.0f64, 0.0, 1.0] {
-            let (x, y) = (
-                (cx + step * r.nx as f64).round() as i64,
-                (cy + step * r.ny as f64).round() as i64,
-            );
-            if let Some(c) = at(x, y) {
-                let d: f64 = (0..3).map(|k| (c[k] - background[k]).abs()).sum();
-                if best.is_none_or(|(_, bd)| d > bd) {
-                    best = Some((c, d));
-                }
-            }
-        }
-        if let Some((c, _)) = best {
-            samples.push(c);
-        }
-    }
-    if samples.is_empty() {
-        return [0.0; 3];
-    }
-    [0, 1, 2].map(|k| {
-        let mut v: Vec<f64> = samples.iter().map(|c| c[k]).collect();
-        v.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        v[v.len() / 2]
     })
 }
 
@@ -1312,6 +449,7 @@ fn paint_out(image: &Image, ridges: &[Ridge], lines: &[&[u32]], f: usize) -> Ima
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::stitch_fit::MAX_STITCH_CELLS;
 
     /// A white picture of `gw` x `gh` stitches at `px` pixels each, with `draw` marking black pixels.
     fn picture(gw: usize, gh: usize, px: usize, draw: impl Fn(usize, usize) -> bool) -> Image {

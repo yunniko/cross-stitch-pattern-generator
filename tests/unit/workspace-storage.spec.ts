@@ -71,6 +71,8 @@ describe("workspace-storage", () => {
       backstitchLines: false,
       backstitchSensitivity: 0.5,
       backstitchPhotos: false,
+      textureStrokes: false,
+      textureDensity: 0.3,
       brushSize: 1,
       brushShape: "round",
       shapeFill: "outline",
@@ -112,6 +114,8 @@ describe("workspace-storage", () => {
         backstitchLines: true,
         backstitchSensitivity: 0.8,
         backstitchPhotos: true,
+        textureStrokes: true,
+        textureDensity: 0.6,
         brushSize: 7 as const,
         brushShape: "square" as const,
         shapeFill: "filled" as const,
@@ -183,6 +187,15 @@ describe("workspace-storage", () => {
       expect(loadWorkspaceOptions()).toMatchObject({ backstitchLines: false, backstitchSensitivity: 0.5, backstitchPhotos: false });
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
       expect(loadWorkspaceOptions()).toMatchObject({ backstitchLines: false, backstitchSensitivity: 0.5, backstitchPhotos: false });
+    });
+
+    it("keeps the texture strokes across a reload, and reads a bad value as its default (G-085)", () => {
+      saveWorkspaceOptions({ ...DEFAULTS, textureStrokes: true, textureDensity: 0.8 });
+      expect(loadWorkspaceOptions()).toMatchObject({ textureStrokes: true, textureDensity: 0.8 });
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, textureStrokes: "yes", textureDensity: 7 }));
+      expect(loadWorkspaceOptions()).toMatchObject({ textureStrokes: false, textureDensity: 0.3 });
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
+      expect(loadWorkspaceOptions()).toMatchObject({ textureStrokes: false, textureDensity: 0.3 });
     });
 
     it("keeps Vivid across a reload, and reads anything but a boolean as off (G-061)", () => {

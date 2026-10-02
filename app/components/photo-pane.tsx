@@ -438,6 +438,46 @@ export function PhotoPane({
       </section>
 
       <section className="flex flex-col gap-2">
+        <span className={GROUP_LABEL}>Texture</span>
+        <label
+          className="flex items-center justify-between gap-3 text-[13px]"
+          title="Lays short backstitch strokes over the stitches where the picture has fine texture, such as fur, feathers, hair, bark or grass, along the way the texture runs"
+        >
+          Texture strokes
+          <input
+            type="checkbox"
+            checked={options.textureStrokes}
+            onChange={(e) => onChange("textureStrokes", e.target.checked)}
+            className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
+          />
+        </label>
+        {options.textureStrokes ? (
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-baseline justify-between">
+              <label className="text-[11px] text-muted" htmlFor="texture-density">
+                Stroke density
+              </label>
+              <span className="font-mono text-[11px] text-ink">{Math.round(options.textureDensity * 10)}</span>
+            </div>
+            <input
+              id="texture-density"
+              type="range"
+              min={0}
+              max={10}
+              value={Math.round(options.textureDensity * 10)}
+              aria-label="Stroke density"
+              onChange={(e) => onChange("textureDensity", Number(e.target.value) / 10)}
+              className="min-w-0 accent-[var(--at-accent)]"
+            />
+          </div>
+        ) : null}
+        <p className="text-[11px] leading-4 text-muted">
+          Strokes are not lines in the picture: they are what a stitcher draws along feathers and fur. They lie over the stitches, which
+          stay as they are, in up to four threads. A smooth area gets none.
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-2">
         <span className={GROUP_LABEL}>Algorithm</span>
         <SegmentedControl
           fill

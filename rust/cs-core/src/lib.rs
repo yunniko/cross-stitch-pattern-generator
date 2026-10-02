@@ -34,6 +34,9 @@ pub mod pattern;
 pub mod photo_adjust;
 pub mod prng;
 pub mod quantize;
+pub mod ridges;
+pub mod stitch_fit;
+pub mod texture;
 pub mod threads;
 
 /// An RGBA image, row-major, 4 bytes per pixel (the `PixelBuffer` shape).
