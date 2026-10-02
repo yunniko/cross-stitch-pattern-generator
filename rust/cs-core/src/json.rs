@@ -36,6 +36,8 @@ struct Options {
     #[serde(default)]
     backstitch_sensitivity: Option<f64>,
     #[serde(default)]
+    backstitch_photos: Option<bool>,
+    #[serde(default)]
     threads: Option<usize>,
 }
 
@@ -191,6 +193,7 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
             .as_ref()
             .map(AdjustOptions::resolve)
             .unwrap_or(NEUTRAL_ADJUST),
+        backstitch_photos: o.backstitch_photos.unwrap_or(false),
         backstitch_lines: o.backstitch_lines.unwrap_or(false).then(|| {
             o.backstitch_sensitivity
                 .filter(|v| v.is_finite())

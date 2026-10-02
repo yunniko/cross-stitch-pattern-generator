@@ -61,6 +61,8 @@ export interface WorkspaceOptions {
   backstitchLines: boolean;
   /** How readily it takes a faint line for one, 0 to 1 in steps of 0.1 (G-084). */
   backstitchSensitivity: number;
+  /** Also trace the strongest long lines of a photograph (G-084, D270); a drawing is traced either way. */
+  backstitchPhotos: boolean;
   /** How many stitches across one press of the brush covers (G-064); odd only, so every stamp has a centre. */
   brushSize: BrushSize;
   /** The shape of that press: a block, or the disc that fits it. */
@@ -102,6 +104,7 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   vivid: false,
   backstitchLines: false,
   backstitchSensitivity: 0.5,
+  backstitchPhotos: false,
   brushSize: DEFAULT_BRUSH_SIZE,
   brushShape: DEFAULT_BRUSH_SHAPE,
   shapeFill: "outline",
@@ -186,6 +189,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       vivid: typeof parsed.vivid === "boolean" ? parsed.vivid : DEFAULT_OPTIONS.vivid,
       // Absent in options stored before G-084; a value outside 0 to 1 reads as the default.
       backstitchLines: typeof parsed.backstitchLines === "boolean" ? parsed.backstitchLines : DEFAULT_OPTIONS.backstitchLines,
+      backstitchPhotos: typeof parsed.backstitchPhotos === "boolean" ? parsed.backstitchPhotos : DEFAULT_OPTIONS.backstitchPhotos,
       backstitchSensitivity:
         typeof parsed.backstitchSensitivity === "number" && parsed.backstitchSensitivity >= 0 && parsed.backstitchSensitivity <= 1
           ? Math.round(parsed.backstitchSensitivity * 10) / 10

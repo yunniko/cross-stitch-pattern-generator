@@ -88,6 +88,7 @@ export function useGeneration(inputs: GenerationInputs) {
         vivid: options.vivid,
         backstitchLines: options.backstitchLines,
         backstitchSensitivity: options.backstitchSensitivity,
+        backstitchPhotos: options.backstitchPhotos,
         onProgress: (fraction: number) => {
           setQueueMessage(null); // it has a worker now
           setProgress(fraction);

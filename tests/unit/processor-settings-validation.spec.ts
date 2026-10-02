@@ -30,6 +30,7 @@ function requestFrom(overrides: Record<string, unknown> = {}) {
     vivid: options.vivid,
     backstitchLines: options.backstitchLines,
     backstitchSensitivity: options.backstitchSensitivity,
+    backstitchPhotos: options.backstitchPhotos,
     ...overrides,
   };
 }
@@ -106,6 +107,8 @@ describe("processor settings validation", () => {
     expect(settingsError(requestFrom({ backstitchLines: true, backstitchSensitivity: 1 }))).toBeNull();
     expect(settingsError(requestFrom({ backstitchLines: undefined, backstitchSensitivity: undefined }))).toBeNull();
     expect(settingsError(requestFrom({ backstitchLines: "yes" }))).toMatch(/backstitchLines/);
+    expect(settingsError(requestFrom({ backstitchPhotos: true }))).toBeNull();
+    expect(settingsError(requestFrom({ backstitchPhotos: "yes" }))).toMatch(/backstitchPhotos/);
     expect(settingsError(requestFrom({ backstitchSensitivity: 1.5 }))).toMatch(/backstitchSensitivity/);
     expect(settingsError(requestFrom({ backstitchSensitivity: -0.1 }))).toMatch(/backstitchSensitivity/);
     expect(settingsError(requestFrom({ backstitchSensitivity: "high" }))).toMatch(/backstitchSensitivity/);

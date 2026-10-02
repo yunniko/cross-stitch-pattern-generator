@@ -55,6 +55,9 @@ export function settingsError(body: unknown): string | null {
   if (b.backstitchLines !== undefined && typeof b.backstitchLines !== "boolean") {
     return "backstitchLines must be true or false.";
   }
+  if (b.backstitchPhotos !== undefined && typeof b.backstitchPhotos !== "boolean") {
+    return "backstitchPhotos must be true or false.";
+  }
   if (
     b.backstitchSensitivity !== undefined &&
     (typeof b.backstitchSensitivity !== "number" || !(b.backstitchSensitivity >= 0 && b.backstitchSensitivity <= 1))

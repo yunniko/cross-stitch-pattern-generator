@@ -42,6 +42,7 @@ export interface RunServerPatternJobOptions {
   /** Trace the lines of a drawing as backstitch (G-084), and how sensitively, 0 to 1. */
   backstitchLines?: boolean;
   backstitchSensitivity?: number;
+  backstitchPhotos?: boolean;
   onProgress?: (fraction: number) => void;
   /** Called while the job is waiting for a worker, so the editor can say where in the queue it is rather than just "working". */
   onQueued?: (position: number, estimatedWaitMs: number) => void;
@@ -91,6 +92,7 @@ async function submit(options: RunServerPatternJobOptions, signal: AbortSignal):
         vivid: options.vivid,
         backstitchLines: options.backstitchLines,
         backstitchSensitivity: options.backstitchSensitivity,
+        backstitchPhotos: options.backstitchPhotos,
       }),
       signal
     );

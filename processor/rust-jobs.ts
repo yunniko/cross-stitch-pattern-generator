@@ -111,6 +111,7 @@ export async function generateWithRust(
     vivid: settings.vivid ?? undefined,
     backstitchLines: settings.backstitchLines ?? undefined,
     backstitchSensitivity: settings.backstitchSensitivity ?? undefined,
+    backstitchPhotos: settings.backstitchPhotos ?? undefined,
   });
   const pixels = Buffer.from(imageData.data.buffer, imageData.data.byteOffset, imageData.data.byteLength);
   const result = await run(["generate", String(imageData.width), String(imageData.height), options], pixels, { progress: onProgress });

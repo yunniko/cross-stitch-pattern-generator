@@ -66,6 +66,26 @@ disagree by a stitch at an edge; a long line is a polygon with facets, not a cur
 Straight slanted lines were first traced as a ladder (a walk along a thick skeleton left crumbs beside the main path, each snapped a little differently).
 Crumbs under two stitches are now dropped unless they are all a component has, and the path is simplified to 0.5 cell after averaging over five points.
 
+## Photographs, when asked (the second extension, same day)
+
+Owner, 2026-10-02: "add running on photo to G-084". Photographs stay refused by default (the gate above); a second checkbox, "Also in photographs",
+lets the tracing run on a picture that is not mostly flat, with a stricter profile: the strength threshold is higher (170 less 100 times the
+sensitivity, against 100 less 80 times it for a drawing), a line must be at least 8 stitches less 3 times the sensitivity long (against 2.5 less the
+sensitivity), and only the longest, strongest lines are kept up to four cells of line per row of stitches.
+
+Three of the Owner's own photographs (not kept in the repository), 100 stitches across, 12 colours, with "Also in photographs" on:
+
+| Photograph | Sensitivity 0 | 0.5 | 1 |
+|---|---|---|---|
+| A bronze statue in a park (fence, trees) | 0 lines | 110 lines, 160 cells | 116, 192 |
+| A generated pentagram-and-cat image | 0 | 187, 290 | 178, 288 |
+| A photograph of a lake shore | 43, 65 | 97, 161 | 95, 157 |
+
+The lines found are few and short, on rails, whiskers and ring edges; in the pentagram picture a handful of short stubs sit on the cat's face where fine
+engraved lines are. They are sparse enough to do no harm and to be deleted in the editor, and also sparse enough to add little: a fence rail one stitch
+thick at 100 stitches is thicker than the tracing's one-stitch window and is not found. The synthetic check is a textured picture with one strong dark wire
+across it: refused by default, traced as that wire alone when asked (`rust/cs-core/tests/backstitch_lines.rs`).
+
 ## Not measured
 
 Scanned drawings with paper noise (the flat-share threshold is untested on them); a light line and a dark line less than a stitch apart (they would be

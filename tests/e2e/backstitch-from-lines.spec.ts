@@ -83,10 +83,12 @@ test("the choice and its sensitivity are remembered across a reload", async ({ p
   await page.getByRole("tab", { name: "Photo" }).click();
   await checkbox(page).check();
   await page.getByLabel("Line sensitivity").fill("8");
+  await page.getByRole("checkbox", { name: "Also in photographs" }).check();
   await page.reload();
   await page.getByLabel("Image").setInputFiles(DRAWING);
   await expectPhotoLoaded(page);
   await page.getByRole("tab", { name: "Photo" }).click();
   await expect(checkbox(page)).toBeChecked();
   await expect(page.getByLabel("Line sensitivity")).toHaveValue("8");
+  await expect(page.getByRole("checkbox", { name: "Also in photographs" })).toBeChecked();
 });

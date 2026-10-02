@@ -165,9 +165,13 @@ test("nothing about the font or the text leaves the browser", async ({ page, con
   const fonts = page.getByRole("combobox", { name: "Font", exact: true });
   // Wait for the computer's list (or the fallback's message) rather than reading the six generic families while it loads.
   await expect
-    .poll(async () => (await fonts.locator("optgroup").last().locator("option").count()) > 6 || (await page.getByTestId("fonts-fallback").count()) > 0, {
-      timeout: 30_000,
-    })
+    .poll(
+      async () =>
+        (await fonts.locator("optgroup").last().locator("option").count()) > 6 || (await page.getByTestId("fonts-fallback").count()) > 0,
+      {
+        timeout: 30_000,
+      }
+    )
     .toBe(true);
   const options = await fonts.locator("option").allTextContents();
   const family = options.find((o) => /^(Arial|Verdana|Georgia|Times New Roman|Segoe UI)$/.test(o)) ?? options[options.length - 1];

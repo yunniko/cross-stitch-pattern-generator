@@ -34,6 +34,7 @@ export interface JobSettings {
   vivid?: boolean;
   backstitchLines?: boolean;
   backstitchSensitivity?: number;
+  backstitchPhotos?: boolean;
 }
 
 /**

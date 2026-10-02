@@ -65,6 +65,8 @@ pub struct BuildOptions {
     pub photo_adjust: PhotoAdjust,
     /// Backstitch from the lines of the picture (G-084): the sensitivity, 0 to 1, or `None` for none.
     pub backstitch_lines: Option<f64>,
+    /// Also trace the strongest long lines of a photograph (G-084, D270); a drawing is traced either way.
+    pub backstitch_photos: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -194,7 +196,7 @@ pub fn build_pattern_reporting(
     // beside it and the line becomes backstitch (G-084, D266). `None` leaves the picture and everything after it as it was.
     let traced: Option<LineTrace> = options
         .backstitch_lines
-        .and_then(|sensitivity| trace_lines(image, gw, gh, sensitivity));
+        .and_then(|sensitivity| trace_lines(image, gw, gh, sensitivity, options.backstitch_photos));
     let image = traced.as_ref().map_or(image, |t| &t.inpainted);
     if traced.is_some() {
         lap("lines", times);

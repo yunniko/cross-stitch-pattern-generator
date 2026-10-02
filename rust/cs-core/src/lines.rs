@@ -37,6 +37,8 @@ const FLAT_SD: f64 = 6.0;
 const MIN_FLAT_SHARE: f64 = 0.55;
 /// More line than this per row of stitches is not a drawing's lines, whatever the picture is.
 const MAX_LINE_CELLS_PER_ROW: f64 = 25.0;
+/// In a photograph (D270) only the strongest long lines are kept, at most this many cells of line per row of stitches.
+const PHOTO_LINE_CELLS_PER_ROW: f64 = 4.0;
 
 /// The most threads the lines of one picture are stitched in (D269).
 const MAX_LINE_THREADS: usize = 3;
@@ -492,8 +494,15 @@ fn merge_runs(steps: &BTreeSet<Segment>) -> Vec<Segment> {
 }
 
 /// Finds the lines of `image`, a picture to be a chart of `gw` by `gh` stitches. `sensitivity` runs 0 (only strong,
-/// clear lines) to 1 (faint ones too). `None` when it finds nothing worth tracing.
-pub fn trace_lines(image: &Image, gw: usize, gh: usize, sensitivity: f64) -> Option<LineTrace> {
+/// clear lines) to 1 (faint ones too). A picture that is not mostly flat is a photograph: it is traced only when `photos`
+/// is set, and then only for its strongest long lines (D270). `None` when it finds nothing worth tracing.
+pub fn trace_lines(
+    image: &Image,
+    gw: usize,
+    gh: usize,
+    sensitivity: f64,
+    photos: bool,
+) -> Option<LineTrace> {
     let (w, h) = (image.width, image.height);
     let stitch_px = (w as f64 / gw as f64).min(h as f64 / gh as f64);
     if stitch_px < MIN_PIXELS_PER_STITCH || w == 0 || h == 0 {
@@ -502,7 +511,8 @@ pub fn trace_lines(image: &Image, gw: usize, gh: usize, sensitivity: f64) -> Opt
     let s = sensitivity.clamp(0.0, 1.0);
     let gray: Vec<f32> = image.data.chunks_exact(4).map(gray_of).collect();
     let flat = flat_share(&gray, w, h);
-    if flat < MIN_FLAT_SHARE {
+    let drawing = flat >= MIN_FLAT_SHARE;
+    if !drawing && !photos {
         return None;
     }
     drop(gray);
@@ -519,7 +529,12 @@ pub fn trace_lines(image: &Image, gw: usize, gh: usize, sensitivity: f64) -> Opt
             strength[i] = strength[i].max((closed[i] - c[i]).max(c[i] - opened[i]));
         }
     }
-    let threshold = (100.0 - 80.0 * s) as f32;
+    // A photograph is full of faint thin structure; only the strong survives (D270).
+    let threshold = if drawing {
+        100.0 - 80.0 * s
+    } else {
+        170.0 - 100.0 * s
+    } as f32;
     let on: Vec<bool> = strength.iter().map(|&v| v > threshold).collect();
     if !on.iter().any(|&v| v) {
         return None;
@@ -547,14 +562,43 @@ pub fn trace_lines(image: &Image, gw: usize, gh: usize, sensitivity: f64) -> Opt
     }
     // A component is a line when its skeleton is long enough and it is thin all along: a short speck is noise and a
     // thick blob is a filled area, which the stitches already show.
-    let min_len = (2.5 - s) * SUBCELLS as f64;
-    let kept: Vec<bool> = (0..sizes.len())
+    let min_len = if drawing { 2.5 - s } else { 8.0 - 3.0 * s } * SUBCELLS as f64;
+    let mut kept: Vec<bool> = (0..sizes.len())
         .map(|id| {
             id != 0
                 && skeleton_len[id] as f64 >= min_len
                 && (sizes[id] as f64 / skeleton_len[id] as f64) <= SUBCELLS as f64 * 1.6
         })
         .collect();
+    if !drawing {
+        // Longest and strongest first, until the budget of line for this many rows is spent.
+        let mut peak = vec![0f32; sizes.len()];
+        for ay in 0..ha {
+            for ax in 0..wa {
+                if on[ay * wa + ax] {
+                    let id = label[((ay * sh / ha).min(sh - 1)) * sw + (ax * sw / wa).min(sw - 1)]
+                        as usize;
+                    peak[id] = peak[id].max(strength[ay * wa + ax]);
+                }
+            }
+        }
+        let mut ranked: Vec<usize> = (0..sizes.len()).filter(|&id| kept[id]).collect();
+        ranked.sort_by(|&a, &b| {
+            (skeleton_len[b] as f32 * peak[b])
+                .partial_cmp(&(skeleton_len[a] as f32 * peak[a]))
+                .unwrap()
+        });
+        let budget = PHOTO_LINE_CELLS_PER_ROW * gh as f64 * SUBCELLS as f64;
+        let mut spent = 0f64;
+        kept.iter_mut().for_each(|k| *k = false);
+        for id in ranked {
+            if spent + skeleton_len[id] as f64 > budget {
+                continue;
+            }
+            spent += skeleton_len[id] as f64;
+            kept[id] = true;
+        }
+    }
     if !kept.iter().any(|&k| k) {
         return None;
     }
@@ -803,7 +847,7 @@ mod tests {
         let img = picture(30, 30, 10, |x, y| {
             (149..151).contains(&y) && (50..250).contains(&x)
         });
-        let trace = trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY).expect("a line");
+        let trace = trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY, false).expect("a line");
         assert!(!trace.segments.is_empty());
         for s in &trace.segments {
             assert_eq!((s.y1, s.y2), (15, 15), "{s:?}");
@@ -821,7 +865,7 @@ mod tests {
         let img = picture(30, 30, 10, |x, y| {
             (x as i32 - y as i32).abs() <= 1 && x > 40 && x < 260
         });
-        let trace = trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY).expect("a line");
+        let trace = trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY, false).expect("a line");
         assert!(
             trace.segments.iter().all(|s| s.x2 - s.x1 == s.y2 - s.y1),
             "{:?}",
@@ -835,7 +879,7 @@ mod tests {
         let img = picture(40, 40, 10, |x, y| {
             ((y as f64 - 200.0) - (x as f64 - 50.0) * 0.5774).abs() < 1.2 && (50..350).contains(&x)
         });
-        let trace = trace_lines(&img, 40, 40, DEFAULT_SENSITIVITY).expect("a line");
+        let trace = trace_lines(&img, 40, 40, DEFAULT_SENSITIVITY, false).expect("a line");
         let mut degree = std::collections::HashMap::new();
         for s in &trace.segments {
             *degree.entry((s.x1, s.y1)).or_insert(0) += 1;
@@ -888,7 +932,7 @@ mod tests {
         let img = inked(30, 30, 10, [20, 30, 90], |x, y| {
             line(x, y).then_some([245, 245, 235])
         });
-        let trace = trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY).expect("a light line");
+        let trace = trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY, false).expect("a light line");
         assert_eq!(trace.colors.len(), 1);
         assert!(
             trace.colors[0].iter().all(|&c| c > 200),
@@ -908,7 +952,7 @@ mod tests {
         });
         let luma = |c: [u8; 3]| 0.299 * c[0] as f64 + 0.587 * c[1] as f64 + 0.114 * c[2] as f64;
         assert!((luma([0, 150, 0]) - luma([255, 0, 0])).abs() < 15.0);
-        let trace = trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY).expect("a red line");
+        let trace = trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY, false).expect("a red line");
         assert!(
             trace.colors[0][0] > 200 && trace.colors[0][1] < 60,
             "{:?}",
@@ -930,7 +974,7 @@ mod tests {
                 None
             }
         });
-        let trace = trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY).expect("two lines");
+        let trace = trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY, false).expect("two lines");
         assert_eq!(trace.colors.len(), 2, "{:?}", trace.colors);
         let on_row = |row: i32| {
             trace
@@ -950,7 +994,7 @@ mod tests {
             (two_blacks(x, y) || also_black(x, y)).then_some([10, 10, 10])
         });
         assert_eq!(
-            trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY)
+            trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY, false)
                 .unwrap()
                 .colors
                 .len(),
@@ -963,15 +1007,15 @@ mod tests {
         let img = picture(30, 30, 10, |x, y| {
             (60..200).contains(&x) && (60..200).contains(&y)
         });
-        assert!(trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY).is_none());
+        assert!(trace_lines(&img, 30, 30, DEFAULT_SENSITIVITY, false).is_none());
     }
 
     #[test]
     fn an_empty_or_tiny_picture_has_no_lines() {
         let blank = picture(30, 30, 10, |_, _| false);
-        assert!(trace_lines(&blank, 30, 30, 1.0).is_none());
+        assert!(trace_lines(&blank, 30, 30, 1.0, false).is_none());
         let one_px_per_stitch = picture(30, 30, 1, |x, _| x == 5);
-        assert!(trace_lines(&one_px_per_stitch, 30, 30, 1.0).is_none());
+        assert!(trace_lines(&one_px_per_stitch, 30, 30, 1.0, false).is_none());
     }
 
     #[test]
@@ -979,8 +1023,8 @@ mod tests {
         let img = picture(30, 30, 10, |x, y| {
             ((x as i32 - 150).pow(2) + (y as i32 - 150).pow(2) - 100 * 100).abs() < 400
         });
-        let a = trace_lines(&img, 30, 30, 0.6).expect("a circle");
-        let b = trace_lines(&img, 30, 30, 0.6).expect("a circle");
+        let a = trace_lines(&img, 30, 30, 0.6, false).expect("a circle");
+        let b = trace_lines(&img, 30, 30, 0.6, false).expect("a circle");
         assert_eq!(a.segments, b.segments);
         assert!(a.segments.len() > 20);
     }

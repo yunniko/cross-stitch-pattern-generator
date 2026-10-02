@@ -227,3 +227,65 @@ fn a_black_line_and_a_white_line_are_two_threads_and_neither_is_left_in_the_stit
     // One thread or two more than the six asked for, at most.
     assert!(pattern.palette.len() <= 6 + 2);
 }
+
+/// A textured photograph with one strong, thin, dark line right across it, like a wire in front of foliage.
+fn photo_with_a_wire() -> Image {
+    // Texture on a scale larger than a stitch (blocks of 12 pixels), as a photograph's is, so only the wire is thinner.
+    let (w, h) = (400usize, 400usize);
+    let mut data = Vec::with_capacity(w * h * 4);
+    for y in 0..h {
+        for x in 0..w {
+            let block = (x / 12 * 7919 + y / 12 * 104_729) as u32;
+            let jitter = ((x * 31 + y * 17 + x * y) % 31) as i32 - 15;
+            let v = (125 + (block.wrapping_mul(2_654_435_761) >> 24) as i32 / 2 + jitter)
+                .clamp(0, 255) as u8;
+            data.extend_from_slice(&[v, v / 2 + 40, 90, 255]);
+        }
+    }
+    let mut image = Image {
+        width: w,
+        height: h,
+        data,
+    };
+    for y in 0..h {
+        for x in 30..w - 30 {
+            if (y as i32 - 100 - (x as i32) / 5).abs() <= 1 {
+                image.data[(y * w + x) * 4..(y * w + x) * 4 + 3].fill(5);
+            }
+        }
+    }
+    image
+}
+
+#[test]
+fn a_photograph_is_traced_only_when_asked_and_then_only_for_its_strongest_long_lines() {
+    let image = photo_with_a_wire();
+    let off = build(&image, ON);
+    assert!(
+        off.backstitch.is_empty(),
+        "photographs are left alone by default"
+    );
+    let on = build(
+        &image,
+        r#"{"longerSideStitches":40,"colorCount":6,"backstitchLines":true,"backstitchPhotos":true}"#,
+    );
+    assert!(!on.backstitch.is_empty(), "the wire is a strong long line");
+    let length: f64 = on
+        .backstitch
+        .iter()
+        .map(|l| (((l.x2 - l.x1).pow(2) + (l.y2 - l.y1).pow(2)) as f64).sqrt())
+        .sum();
+    // The wire, and not the texture: no more than the photograph's budget of four cells a row.
+    assert!(
+        length <= 4.0 * on.height as f64 + 1.0,
+        "{length} cells of line"
+    );
+    assert!(length >= 20.0, "the wire is about 35 cells long: {length}");
+    // The thread is the darkest the chart has, an existing one or a new one.
+    let darkest = on
+        .palette
+        .iter()
+        .map(|c| luminance(c.rgb))
+        .fold(f64::MAX, f64::min);
+    assert!(luminance(on.palette[on.backstitch[0].palette_index].rgb) <= darkest + 1.0);
+}

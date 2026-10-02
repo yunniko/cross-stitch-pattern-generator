@@ -397,6 +397,20 @@ export function PhotoPane({
           />
         </label>
         {options.backstitchLines ? (
+          <label
+            className="flex items-center justify-between gap-3 text-[13px]"
+            title="A photograph is full of faint fine detail, so only its strongest long thin lines (a branch, a wire, a fence rail) are traced, and few of them. Drawings are traced either way."
+          >
+            Also in photographs
+            <input
+              type="checkbox"
+              checked={options.backstitchPhotos}
+              onChange={(e) => onChange("backstitchPhotos", e.target.checked)}
+              className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
+            />
+          </label>
+        ) : null}
+        {options.backstitchLines ? (
           <div className="flex flex-col gap-0.5">
             <div className="flex items-baseline justify-between">
               <label className="text-[11px] text-muted" htmlFor="backstitch-sensitivity">
@@ -418,7 +432,8 @@ export function PhotoPane({
         ) : null}
         <p className="text-[11px] leading-4 text-muted">
           For drawings: thin lines, dark, light or coloured, become backstitch in up to three threads, and the stitches under them take the
-          colour beside them. A photograph with texture everywhere gets no lines.
+          colour beside them. A photograph with texture everywhere gets none unless the checkbox below is on, and then only a few strong
+          lines.
         </p>
       </section>
 

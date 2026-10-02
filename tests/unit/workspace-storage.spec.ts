@@ -70,6 +70,7 @@ describe("workspace-storage", () => {
       vivid: false,
       backstitchLines: false,
       backstitchSensitivity: 0.5,
+      backstitchPhotos: false,
       brushSize: 1,
       brushShape: "round",
       shapeFill: "outline",
@@ -110,6 +111,7 @@ describe("workspace-storage", () => {
         vivid: true,
         backstitchLines: true,
         backstitchSensitivity: 0.8,
+        backstitchPhotos: true,
         brushSize: 7 as const,
         brushShape: "square" as const,
         shapeFill: "filled" as const,
@@ -172,12 +174,15 @@ describe("workspace-storage", () => {
     });
 
     it("keeps the line tracing across a reload, and reads a bad value as its default (G-084)", () => {
-      saveWorkspaceOptions({ ...DEFAULTS, backstitchLines: true, backstitchSensitivity: 0.3 });
-      expect(loadWorkspaceOptions()).toMatchObject({ backstitchLines: true, backstitchSensitivity: 0.3 });
-      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, backstitchLines: "yes", backstitchSensitivity: 7 }));
-      expect(loadWorkspaceOptions()).toMatchObject({ backstitchLines: false, backstitchSensitivity: 0.5 });
+      saveWorkspaceOptions({ ...DEFAULTS, backstitchLines: true, backstitchSensitivity: 0.3, backstitchPhotos: true });
+      expect(loadWorkspaceOptions()).toMatchObject({ backstitchLines: true, backstitchSensitivity: 0.3, backstitchPhotos: true });
+      window.localStorage.setItem(
+        OPTIONS_KEY,
+        JSON.stringify({ ...DEFAULTS, backstitchLines: "yes", backstitchSensitivity: 7, backstitchPhotos: "yes" })
+      );
+      expect(loadWorkspaceOptions()).toMatchObject({ backstitchLines: false, backstitchSensitivity: 0.5, backstitchPhotos: false });
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18 }));
-      expect(loadWorkspaceOptions()).toMatchObject({ backstitchLines: false, backstitchSensitivity: 0.5 });
+      expect(loadWorkspaceOptions()).toMatchObject({ backstitchLines: false, backstitchSensitivity: 0.5, backstitchPhotos: false });
     });
 
     it("keeps Vivid across a reload, and reads anything but a boolean as off (G-061)", () => {
