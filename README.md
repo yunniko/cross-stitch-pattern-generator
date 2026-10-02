@@ -22,7 +22,7 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   settings and Generate stay away for its whole life.
 - **Choose the palette**: whatever colors the photo needs, or real DMC,
   Cosmo or Anchor threads (Anchor is derived from DMC equivalents and says so).
-- **Set up palette** (Photo tab, Palette): instead of Automatic, choose the colours yourself, threads of the palette mode in force or custom colours in Full range, or fill them from the colours the picture is predicted to need, then edit. Save a palette by name, load it later, or load a palette file; the Export dropdown writes a palette file of the chart's threads. The colour count slider stops at the number of colours the picture reasonably needs, with a hint of the best range (D276, D277).
+- **Set up palette** (Photo tab, Palette): instead of Automatic, choose the colours yourself, threads of the palette mode in force or custom colours in Full range, or fill them from the colours the picture is predicted to need, then edit. Pick threads from a swatch grid of the whole brand, as in the colour editor. Save a palette by name (kept in this browser, and downloaded as a palette file to share or move), load it later, or load a palette file; the Export dropdown writes a palette file of the chart's threads. The colour count slider stops at the number of colours the picture reasonably needs, with a hint of the best range (D276, D277).
 - **Color detail — Averaged or Vivid**: one stitch covers many pixels, and normally it is their average, which
   turns a small bright thing inside a stitch into a grey. Vivid keeps the average lightness but the colour of the
   stitch's most colourful quarter, and then gives each colour the photo holds a thread of its own, paid for by

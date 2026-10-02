@@ -49,10 +49,12 @@ interface BrandColorPickerProps {
   currentCode?: string;
   /** The edited color's RGB as shown, compared with a hovered or focused swatch (G-033). */
   compareWith?: RGB;
+  /** Threads already chosen elsewhere (a palette being set up, G-087): marked like the current one, without moving the grid. */
+  chosenCodes?: ReadonlySet<string>;
 }
 
 /** Searchable swatch grid of one brand's threads, shared by the color editor and "+ Add" (G-016, G-017, G-033). */
-function BrandColorPicker({ brand, query, onQueryChange, onPick, currentCode, compareWith }: BrandColorPickerProps) {
+export function BrandColorPicker({ brand, query, onQueryChange, onPick, currentCode, compareWith, chosenCodes }: BrandColorPickerProps) {
   const colors = useMemo(() => filterBrandColors(query, brand), [query, brand]);
   const gridRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -83,7 +85,7 @@ function BrandColorPicker({ brand, query, onQueryChange, onPick, currentCode, co
       <div ref={gridRef} data-testid="swatch-grid" className="relative grid max-h-64 grid-cols-10 gap-1 overflow-y-auto p-1">
         {colors.map((thread) => {
           const threadLabel = `${label} ${formatThreadName(thread)}`;
-          const isCurrent = currentCode !== undefined && thread.code === currentCode;
+          const isCurrent = (currentCode !== undefined && thread.code === currentCode) || (chosenCodes?.has(thread.code) ?? false);
           return (
             <button
               key={thread.code}

@@ -18,8 +18,10 @@ import {
   type SavedPalette,
 } from "@/lib/editor/saved-palettes";
 import type { ColorPrediction } from "@/lib/pipeline/prediction";
-import { THREAD_BRANDS, type ThreadBrand } from "@/lib/threads/thread-brands";
 import type { RGB } from "@/lib/types";
+import { downloadBlob } from "@/lib/export/a4-export";
+import { paletteFileText } from "@/lib/editor/palette-set";
+import { BrandColorPicker } from "./colors-dock";
 import { PillButton } from "./ui";
 
 /**
@@ -28,8 +30,6 @@ import { PillButton } from "./ui";
  * saved by name for reuse, and loaded from a palette file. The set is state of the workspace's options, so it stays through
  * reloads; this component only edits it.
  */
-
-const SHOWN_RESULTS = 40;
 
 const hex = (rgb: RGB) => `#${rgb.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 const fromHex = (value: string): RGB => [parseInt(value.slice(1, 3), 16), parseInt(value.slice(3, 5), 16), parseInt(value.slice(5, 7), 16)];
@@ -41,50 +41,9 @@ export interface PaletteSetupProps {
   loading: boolean;
 }
 
-function BrandSearch({ brand, onPick }: { brand: ThreadBrand; onPick: (code: string) => void }) {
-  const [query, setQuery] = useState("");
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return THREAD_BRANDS[brand].colors.filter((c) => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
-  }, [query, brand]);
-  return (
-    <div className="flex flex-col gap-1.5">
-      <input
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={`Add a ${THREAD_BRANDS[brand].label} thread: code or name`}
-        aria-label={`Search ${THREAD_BRANDS[brand].label} threads to add`}
-        className="rounded-md border border-line bg-sunken px-2 py-1.5 text-xs text-ink"
-      />
-      {query.trim() && (
-        <div role="listbox" aria-label="Matching threads" className="flex max-h-40 flex-col overflow-y-auto rounded-md border border-line">
-          {results.length === 0 && <span className="px-2 py-1.5 text-xs text-muted">No thread matches.</span>}
-          {results.slice(0, SHOWN_RESULTS).map((c) => (
-            <button
-              key={c.code}
-              type="button"
-              role="option"
-              aria-selected={false}
-              onClick={() => onPick(c.code)}
-              className="flex items-center gap-2 px-2 py-1 text-left text-xs text-ink hover:bg-raised"
-            >
-              <span className="h-3.5 w-3.5 shrink-0 rounded-sm border border-line" style={{ background: hex(c.rgb) }} />
-              <span className="truncate">{c.name ? `${c.code} – ${c.name}` : c.code}</span>
-            </button>
-          ))}
-          {results.length > SHOWN_RESULTS && (
-            <span className="px-2 py-1 text-[11px] text-muted">Type more to narrow the {results.length} matches.</span>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function PaletteSetup({ set, onChange, prediction, loading }: PaletteSetupProps) {
   const [custom, setCustom] = useState("#808080");
+  const [query, setQuery] = useState("");
   const [saved, setSaved] = useState<SavedPalette[]>([]);
   const [chosen, setChosen] = useState("");
   const [name, setName] = useState("");
@@ -98,6 +57,7 @@ export function PaletteSetup({ set, onChange, prediction, loading }: PaletteSetu
 
   const brand = set.mode === "full" ? null : set.mode;
   const coverage = prediction?.coverage;
+  const chosenCodes = useMemo(() => new Set(set.colors.flatMap((c) => (c.code === undefined ? [] : [c.code]))), [set]);
 
   function keep(list: SavedPalette[]) {
     setSaved(list);
@@ -111,8 +71,14 @@ export function PaletteSetup({ set, onChange, prediction, loading }: PaletteSetu
       return;
     }
     keep(list);
-    setChosen(name.trim().slice(0, 60));
-    setNote(`Saved “${name.trim().slice(0, 60)}”.`);
+    const savedName = name.trim().slice(0, 60);
+    setChosen(savedName);
+    // Kept in this browser for the list below, and written out as a file, the way to take a palette to another browser or share it.
+    downloadBlob(
+      new Blob([paletteFileText(set, savedName)], { type: "application/json" }),
+      `${savedName.replace(/[^\w-]+/g, "_")}_palette.json`
+    );
+    setNote(`Saved “${savedName}” in this browser and downloaded it as a palette file.`);
   }
 
   async function importFile(file: File) {
@@ -156,13 +122,28 @@ export function PaletteSetup({ set, onChange, prediction, loading }: PaletteSetu
       )}
 
       {brand ? (
-        <BrandSearch
-          brand={brand}
-          onPick={(code) => {
-            const color = threadColor(brand, code);
-            if (color) onChange(withColor(set, color));
-          }}
-        />
+        // The same swatch grid the colour editor uses, all of the brand's threads at once; chosen ones are ticked.
+        <div className="flex flex-col gap-1.5">
+          <BrandColorPicker
+            brand={brand}
+            query={query}
+            onQueryChange={setQuery}
+            chosenCodes={chosenCodes}
+            onPick={(code) => {
+              const color = threadColor(brand, code);
+              if (color)
+                onChange(
+                  chosenCodes.has(code)
+                    ? withoutColor(
+                        set,
+                        set.colors.findIndex((c) => c.code === code)
+                      )
+                    : withColor(set, color)
+                );
+            }}
+          />
+          <p className="text-[11px] leading-4 text-muted">Click a thread to add it; click a ticked one to take it out.</p>
+        </div>
       ) : (
         <div className="flex items-center gap-2">
           <input

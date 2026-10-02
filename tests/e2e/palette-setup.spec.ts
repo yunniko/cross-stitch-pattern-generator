@@ -86,8 +86,11 @@ test("in a thread brand the colours are threads, found by code", async ({ page }
   await loadPhoto(page);
   await page.getByRole("button", { name: "DMC", exact: true }).click();
   await setupSwitch(page).click();
+  // Every thread of the brand is shown as a swatch, as in the colour editor.
+  expect(await page.getByTestId("swatch-grid").getByRole("button").count()).toBeGreaterThan(300);
   await page.getByLabel(/Search DMC threads/).fill("310");
-  await page.getByRole("option", { name: /310/ }).first().click();
+  await page.getByRole("button", { name: /^DMC 310/ }).click();
+  await expect(page.getByRole("button", { name: /^DMC 310/ })).toHaveAttribute("data-current", "true");
   await expect(page.getByRole("list", { name: "Chosen colours" })).toContainText("310");
 
   // Changing the palette mode empties the set: its threads mean nothing in another brand.
@@ -101,7 +104,8 @@ test("palettes are saved by name, loaded and deleted", async ({ page }) => {
   await page.getByLabel("Colour to add").fill("#aa2200");
   await page.getByRole("button", { name: "Add colour" }).click();
   await page.getByLabel("Palette name").fill("Rust");
-  await page.getByRole("button", { name: "Save palette" }).click();
+  const [file] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Save palette" }).click()]);
+  expect(file.suggestedFilename()).toBe("Rust_palette.json");
 
   await page.getByRole("button", { name: "Clear" }).click();
   await expect(page.getByTestId("palette-set-count")).toHaveText("0");
