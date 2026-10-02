@@ -378,7 +378,6 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 ## Next steps and open questions
 
 - **G-085** (texture strokes) is drafted, the Owner's four answers are in `GOALS.md`, and it waits for the go-ahead to start M1.
-- **Awaiting the Owner (from G-081):** whether to bundle the five fonts held back for greyer licences (Homespun, Jupiter Crash, BitPap, Chava, EXE Pixel Perfect; `docs/reviews/2026-10-01-bundled-font-licences.md`), and any BY-SA / BY-ND fonts from the earlier folders.
 - G-076 (stitch textures) was signed off 2026-09-30 and is archived.
 - G-075 (accounts) was signed off 2026-09-30 and is archived. G-074 (the four photo sliders) was signed
   off on 2026-09-27 and is archived, as is G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner:
