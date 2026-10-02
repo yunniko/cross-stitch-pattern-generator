@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-02 at 4ef4538 (G-087 signed off)
+Last verified: 2026-10-03 at 19692ed (G-089 Crop tool, deployed)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -13,6 +13,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-077, canvas textures — signed off and deployed 2026-09-30 (2e86c69), archived.** The Chart pane's Canvas texture buttons (`app/components/canvas-picker.tsx`; Off, Natural linen, Counted canvas from `lib/export/canvas-texture-catalog.ts`, each with columns, rows and an offset in cells) put a cloth behind the Stitched view over the whole viewer (`app/hooks/use-canvas-cloth.ts`, D250); "Canvas in exported preview" sends `canvas` with the export request and `rust/cs-export/src/preview.rs` lays the stitches over the ground (D251, TypeScript reference `lib/export/canvas-ground.ts`). The stitch textures (Classic, Pixel, Cell outline, Cell outline shaded, Cross 2) are in `lib/export/stitch-texture-catalog.ts` (D248, D249). Record in `docs/goals-archive/G-071-to-G-080.md`.
+
+**G-089, the Crop tool — built and deployed 2026-10-03 (19692ed), awaiting the Owner's look.** `C` chooses a frame over the chart whose four edges are the four numbers in the tool's bar (`app/components/crop-bar.tsx`); each number is how far that edge moves in, negative adds empty stitches (D278). `lib/editor/crop-frame.ts` holds the frame as data, `app/hooks/use-crop-tool.ts` its state, `crop-overlay.tsx` the frame, dimmed cut-away and handles, drawn beside the chart's frame (D279). Apply is `resizeCanvas`, one undo step. The Canvas group left the Chart tab; the selection's action is "Crop to selection". The design brief (`03`, `04`, `01`) and its coverage were updated.
 
 **G-088, design brief — written 2026-10-02, awaiting the Owner's sign-off.** `docs/design-brief/` (start at its `README.md`) describes what the app does and every control's range, values, states, defaults, what is kept and which actions run on the server, for a redesign; it names no interface element and leaves out accounts, the admin area and touch. `scripts/design-brief-ranges.ts`, `design-brief-words.mjs` and `design-brief-coverage.mjs --strict` keep it true; `docs/reviews/2026-10-02-design-brief-check.md` says what was checked and what was not. A goal that changes a behaviour or range updates the brief in the same change.
 
@@ -422,6 +424,7 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-10-03 | 19692ed | **G-089:** the Crop tool; the canvas numbers moved into it (D278, D279) | New e2e spec (10); full local e2e 531 pass, the two admin-stats cases pass alone; the spec passes live case by case (a whole-file live run trips the 6-a-minute job limit); only this project's app restarted; six sites 200 |
 | 2026-10-02 | 2acffc0 | **G-087:** Set up palette, colour prediction and the colour count ceiling (D276, D277); predictions have their own rate-limit bucket | New e2e spec (7) against the live site; full local e2e 519 pass of 524 before the two photo-slider specs were updated for the new reset and ceiling (then pass), admin-stats pass alone; 74 goldens unchanged; only this project's app and processor restarted; six other sites 200 |
 | 2026-10-02 | ac7a9cc | **G-086:** backstitch in the Stitched view and the realistic preview (D275) | New e2e spec against the live site; full local e2e 516 pass; site 200 |
 | 2026-10-02 | fdc3c26 | **G-085:** texture strokes (D274) | New e2e specs against the live site; full local e2e 513 pass; 74 goldens green; site 200 |
