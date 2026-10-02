@@ -10,7 +10,7 @@ Every change to a chart is **one undo step**, however many stitches it touches: 
 
 ## Tools
 
-Thirteen tools; exactly one is in hand, chosen by its control or its key. Brush is in hand when a chart opens; the choice is not kept between visits.
+Fourteen tools; exactly one is in hand, chosen by its control or its key. Brush is in hand when a chart opens; the choice is not kept between visits.
 
 | Tool | Key | What it does | Uses brush size/shape | Uses stitch type | Uses symmetry |
 |---|---|---|---|---|---|
@@ -22,6 +22,7 @@ Thirteen tools; exactly one is in hand, chosen by its control or its key. Brush 
 | **Lasso fill** | G | Draw freehand around an area; on release everything enclosed is filled with the colour in hand, one undo step | No | Yes | Yes: every filled stitch is mirrored |
 | **Backstitch** | K | See `06` | | | Yes |
 | **Backstitch edit** (labelled "BS edit") | J | See `06` | | | Yes |
+| **Crop** | C | Cuts the chart down, or grows it, with a frame whose four edges are the four numbers of the Crop section below; applied on request, one undo step | No | No | **Ignores** |
 | **Select** | | Drag a rectangle; the stitches inside are lifted as a piece in hand | No | No | **Ignores** |
 | **Lasso** | Q | Draw freehand around the stitches wanted; they are lifted as a piece in hand | No | No | **Ignores** |
 | **Move** | | Drag to shift the whole design within the canvas; stitches that pass an edge wrap round to the other side so none is lost; the photo behind the chart moves by the same amount; backstitch lines move with it and a line pushed off the chart is removed | No | No | **Ignores** |
@@ -45,6 +46,21 @@ Lasso and Lasso fill smooth the wobble of a hand-drawn line and close the loop; 
 | **Empty stitch as colour** | "Empty (no stitch)" is chosen like a thread and paints stitches away |
 | **Unavailable states** | With no colour in hand (shown as "No thread chosen"), tools that paint do nothing; a colour that has been merged away counts as no colour in hand |
 | **Kept** | Not kept |
+
+## Crop tool
+
+A frame is drawn over the chart, and the four numbers that say where its edges are, are the same thing: typing a number moves its edge, dragging an edge changes its number. The chart changes only when the frame is applied.
+
+| Control | Kind and values | Default | Available when | Effects and messages |
+|---|---|---|---|---|
+| **Top, Right, Bottom, Left** | Whole numbers, each the number of stitches that edge moves **in**: positive cuts that many stitches off the edge, negative adds that many empty stitches. Typed (a minus sign allowed) or set by the frame; a typed value that is not a whole number is marked and not used | 0 | The Crop tool is open (it is chosen, or Pan or Zoom is temporarily in hand) | The frame moves as the characters arrive. If the result would leave nothing the readout says "Can't crop away the entire pattern."; if a side would pass 1500 stitches it says "The resized pattern (*w*×*h*) would exceed the maximum supported size of 1500 stitches per side."; in both cases Apply is unavailable and nothing changes |
+| **Frame** | A rectangle over the chart with a grab point on each of its four edges and four corners; dragging one moves its edge or edges in whole stitches; with a grab point focused, the arrow keys move it by one stitch (Shift: ten) | The whole chart | A chart in an editable view | A drag never leaves less than one stitch and never more than 1500 on a side. The stitches that would be cut away are dimmed; stitches that would be added are shown hatched. Room is made around the chart so the frame can be dragged outward; to grow further, type a negative number or zoom out |
+| **Readout** | Text | | Always while open | "*w* × *h* → *w'* × *h'* · finished size" in the chosen unit and fabric count; or the message above |
+| **Apply** | Action; Enter | | The frame is not the whole chart and can be applied | Resizes the chart: stitches, palette counts, half stitches, backstitch (moved with the chart; a line the new chart does not contain is removed whole) and the photo's alignment behind the chart, exactly as the earlier canvas-size numbers did; added stitches are empty and add no colour; one undo step; the frame then starts again over the new chart |
+| **Cancel** | Action; Escape | | The frame is not the whole chart | Puts the frame back over the whole chart; the tool stays in hand; the chart is untouched |
+| Undo, Redo | Actions | | Always while open | As elsewhere |
+
+Choosing any tool other than Pan or Zoom, opening another chart, switching to a looking-only view, or an undo or redo that changes the chart's size, drops the frame without changing the chart. A piece in hand is applied when the tool is chosen. The tool is unavailable with no chart and in looking-only views. While it is open the usual editing options (colours, symmetry, brush) are not offered.
 
 ## Brush options
 
@@ -71,7 +87,7 @@ Choosing a region with Select or Lasso (or pasting, or placing lettering from `0
 | **Fill selection** | A piece, and a colour in hand | Paints the whole selected area in the colour in hand (with the transparency lock, only the stitches that are not empty) |
 | **Flip horizontal / Flip vertical** | A piece | Mirrors it; half stitches swap diagonal where a mirror needs it |
 | **Rotate right / left** | A piece | A quarter turn clockwise / anticlockwise; half stitches swap diagonal |
-| **Crop** | A piece | Cuts the chart down to the piece's rectangle, discarding everything outside it (the piece is applied first); the photo behind keeps its alignment |
+| **Crop to selection** | A piece | Cuts the chart down to the piece's rectangle, discarding everything outside it (the piece is applied first); the photo behind keeps its alignment |
 | **Apply here** (Enter) | A piece | Merges the piece into the chart where it sits |
 | **Cancel** (Escape) | A piece | Puts the chart back as it was when this selection started, discarding the piece and its changes |
 | Selection readout | A piece | "*w* × *h* at *x*, *y*"; with none, "Drag a rectangle on the chart to select it." (Select) or "Draw around the stitches you want." (Lasso) |
@@ -125,13 +141,13 @@ Keys act when no text entry has the focus and a chart is open.
 
 | Key | Does |
 |---|---|
-| B, F, L, R, O, Q, G, K, J | Brush, Fill, Line, Rectangle, Oval, Lasso, Lasso fill, Backstitch, Backstitch edit |
+| B, F, L, R, O, Q, G, C, K, J | Brush, Fill, Line, Rectangle, Oval, Lasso, Lasso fill, Crop, Backstitch, Backstitch edit |
 | X | Swap the two drawing colours |
 | 1, 2, 3 | Color, Black & white, Stitched view |
 | 4, 5 | Grid + photo, Original photo (only with a photo) |
 | Space (held) | Pan temporarily |
-| Escape | Cancels the piece or shape in hand |
-| Enter | Applies the piece in hand (Select and Lasso) |
+| Escape | Cancels the piece or shape in hand, or puts the crop frame back over the whole chart |
+| Enter | Applies the piece in hand (Select and Lasso), or the crop frame (Crop) |
 | Delete or Backspace | Deletes the backstitch in hand (Backstitch edit only) |
 | Ctrl/Cmd + Z; Ctrl/Cmd + Y or Shift + Z | Undo; redo |
 | Arrow keys, Enter | Keyboard cell cursor (above) |
@@ -140,5 +156,6 @@ Keys act when no text entry has the focus and a chart is open.
 
 | Change | Where described |
 |---|---|
-| Resize or crop the canvas, rename the chart | `03` |
+| Resize or crop the canvas | The Crop tool, above |
+| Rename the chart | `03` |
 | Merge, recolour, rename, change symbol, add a colour | `05` |

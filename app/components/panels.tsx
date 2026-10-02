@@ -416,7 +416,13 @@ export function SelectionBar({
               onRotateAnticlockwise,
               !hasSelection,
             ],
-            ["Crop", "Cut the chart down to this rectangle, discarding everything outside it", <CropIcon key="i" />, onCrop, !hasSelection],
+            [
+              "Crop to selection",
+              "Cut the chart down to this rectangle, discarding everything outside it",
+              <CropIcon key="i" />,
+              onCrop,
+              !hasSelection,
+            ],
             [
               "Apply here",
               "Merge the piece into the picture where it sits \u2014 Enter",

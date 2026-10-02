@@ -26,6 +26,7 @@ export type Tool =
   | "select"
   | "lasso"
   | "lasso-fill"
+  | "crop"
   | "backstitch"
   | "backstitch-edit"
   | "fill";

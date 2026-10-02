@@ -96,6 +96,7 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-086 | 03-chart-views 06-backstitch-and-stitch-types | |
 | G-087 | 02-photo-and-generation | |
 | G-088 | this goal | |
+| G-089 | 04-editing | |
 
 ## Decisions
 
@@ -376,3 +377,5 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D275 | 06-backstitch-and-stitch-types 03-chart-views | |
 | D276 | 02-photo-and-generation | |
 | D277 | 02-photo-and-generation | |
+| D278 | 04-editing | |
+| D279 | internal | |

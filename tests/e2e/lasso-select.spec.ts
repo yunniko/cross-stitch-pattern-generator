@@ -52,7 +52,7 @@ test("cropping to a lasso gives its bounding box, as one undo step", async ({ pa
   await expect(header(page)).toHaveText(/^50 × \d+, /);
 
   await drawLasso(page, DIAMOND);
-  await page.getByRole("button", { name: "Crop" }).click();
+  await page.getByRole("button", { name: "Crop to selection" }).click();
   await expect(header(page)).toHaveText(/^9 × 9, /);
 
   await page.keyboard.press("Control+z");
@@ -98,6 +98,6 @@ test("a rectangle selection is still a rectangle", async ({ page }) => {
   await page.mouse.move(box.x + cell * 7.5, box.y + cell * 5.5, { steps: 4 });
   await page.mouse.up();
 
-  await page.getByRole("button", { name: "Crop" }).click();
+  await page.getByRole("button", { name: "Crop to selection" }).click();
   await expect(header(page)).toHaveText(/^6 × 4, /);
 });

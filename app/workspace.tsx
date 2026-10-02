@@ -7,7 +7,7 @@ import { stampForPress } from "@/lib/editor/shape-raster";
 import { useDrawingColours } from "./hooks/use-drawing-colours";
 import { useSymmetryAxes } from "./hooks/use-symmetry-axes";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
-import { mergeColors, renamePattern, resizeCanvas, type CanvasResizeDelta } from "@/lib/editor/pattern-edit";
+import { mergeColors, renamePattern } from "@/lib/editor/pattern-edit";
 import { applyQuickMirrorWithSelection, fillSymmetric, NO_SYMMETRY, type QuickMirror, type SymmetryAxes } from "@/lib/editor/symmetry";
 import { oxsImportNotice } from "@/lib/editor/oxs";
 import { loadPatternFromFile } from "@/lib/editor/pattern-import";
@@ -67,6 +67,9 @@ import { NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
 import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useProjectRestore } from "./hooks/use-project-restore";
 import { useColorPrediction } from "./hooks/use-color-prediction";
+import { useCropTool } from "./hooks/use-crop-tool";
+import { CropBar } from "./components/crop-bar";
+import { CropOverlay } from "./components/crop-overlay";
 import type { ColorPrediction } from "@/lib/pipeline/prediction";
 import { useSourceImage } from "./hooks/use-source-image";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
@@ -168,6 +171,8 @@ export default function Workspace({ account }: WorkspaceProps) {
     stitchKind: options.stitchKind,
   };
   const select = useSelectTool(toolInputs, activeTool === "lasso" ? "lasso" : "select");
+  // The Crop tool (G-089): its frame is the four canvas numbers; Apply is the one canvas resize, one undo step.
+  const crop = useCropTool(pattern, history.set);
   const colorForPointer = colours.colorForPointer;
   // One press's footprint, rebuilt only when the brush changes rather than on every render (G-064).
   const stamp = useMemo(() => brushStamp(options.brushSize, options.brushShape), [options.brushSize, options.brushShape]);
@@ -230,6 +235,7 @@ export default function Workspace({ account }: WorkspaceProps) {
   }
 
   function chooseViewMode(mode: ViewMode) {
+    if (isViewOnlyMode(mode)) crop.close();
     if (mode !== "photo" && mode !== "photo-only") abandonUnusedSliders();
     setViewMode(mode);
   }
@@ -294,6 +300,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     panZoom.resetZoom();
     setLitColorIndices(new Set());
     select.clear();
+    crop.close();
   }
 
   /** Lands a restored or opened pattern in every piece of state that depends on it, including its embedded photo. */
@@ -447,6 +454,9 @@ export default function Workspace({ account }: WorkspaceProps) {
     backstitch.cancel();
     // A line stays selected only while a tool that can act on it is in hand.
     backstitchEdit.cancel();
+    // The frame belongs to the Crop tool; the temporary Pan and Zoom keep it, every other tool puts it away (G-089).
+    if (tool === "crop") crop.begin();
+    else if (tool !== "pan" && tool !== "zoom") crop.close();
     setActiveTool(tool);
   }
 
@@ -492,6 +502,9 @@ export default function Workspace({ account }: WorkspaceProps) {
       setActiveTool,
       setViewMode: chooseViewMode,
       mergeSelection: select.merge,
+      cropOpen: crop.open,
+      applyCrop: crop.apply,
+      resetCrop: crop.reset,
       swapColors: colours.swap,
       // Escape drops a shape being dragged before it reaches a selection, since only one of the two can be live.
       cancelSelection: () => {
@@ -677,11 +690,6 @@ export default function Workspace({ account }: WorkspaceProps) {
     await source.adoptPatternPhoto(imported, imported.name ?? DEFAULT_PIXEL_ART_NAME);
   }
 
-  function applyResize(delta: CanvasResizeDelta) {
-    if (!pattern) return;
-    history.set(resizeCanvas(pattern, delta)); // throws on an invalid size; the pane shows the message
-  }
-
   const photoFree = isPhotoFree(pattern);
 
   // The one definition of "the start screen is up": the Image window draws it on this, and New goes inert on it,
@@ -756,7 +764,25 @@ export default function Workspace({ account }: WorkspaceProps) {
           the tool rail is disabled over the start screen, so leaving it here stranded a reader with a selection in
           hand: the "Back to your chart" button lives in the bar it replaced.
         */}
-        {isBackstitchEditTool(activeTool) && pattern && !startingNew ? (
+        {crop.open && crop.size && pattern && !startingNew ? (
+          <CropBar
+            width={pattern.width}
+            height={pattern.height}
+            insets={crop.insets}
+            size={crop.size}
+            error={crop.error}
+            changed={crop.changed}
+            aidaCount={options.aidaCount}
+            sizeUnit={options.sizeUnit}
+            canUndo={history.canUndo}
+            canRedo={history.canRedo}
+            onUndo={history.undo}
+            onRedo={history.redo}
+            onEdgeChange={crop.setEdge}
+            onApply={crop.apply}
+            onCancel={crop.reset}
+          />
+        ) : isBackstitchEditTool(activeTool) && pattern && !startingNew ? (
           <BackstitchBar
             selectedCount={backstitchEdit.selected.length}
             hasClipboard={backstitchEdit.hasClipboard}
@@ -895,6 +921,18 @@ export default function Workspace({ account }: WorkspaceProps) {
           onPointerUp={handleCanvasPointerUp}
           onDoubleClick={handleCanvasDoubleClick}
           onDrop={handleCanvasDrop}
+          cropOverlay={
+            crop.open && pattern && !startingNew && !isViewOnlyMode(viewMode) ? (
+              <CropOverlay
+                width={pattern.width}
+                height={pattern.height}
+                cellSize={cellSize}
+                insets={crop.insets}
+                invalid={crop.error !== null}
+                onChange={crop.setInsets}
+              />
+            ) : null
+          }
         />
 
         <StatusBar
@@ -955,7 +993,6 @@ export default function Workspace({ account }: WorkspaceProps) {
             name={nameDraft}
             onNameChange={setNameDraft}
             onNameCommit={() => pattern && history.set(renamePattern(pattern, nameDraft))}
-            onResize={applyResize}
           />
         }
         text={

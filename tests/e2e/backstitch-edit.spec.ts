@@ -373,10 +373,15 @@ test("a line stays on its own corners when the chart is zoomed in and scrolled",
   // window is simply not on the bitmap to find.
   await page.evaluate(() => {
     const frameEl = document.querySelector('[data-testid="chart-frame"]') as HTMLElement;
-    const scroller = frameEl.parentElement!;
+    const scroller = frameEl.closest(".at-well") as HTMLElement;
     const cell = frameEl.getBoundingClientRect().width / 50;
-    scroller.scrollLeft = frameEl.offsetLeft + 27 * cell - scroller.clientWidth / 2;
-    scroller.scrollTop = frameEl.offsetTop + 24 * cell - scroller.clientHeight / 2;
+    // The frame's place inside the scrolled content (it sits in a wrapper, so its own offsets are the wrapper's).
+    const inside = {
+      left: frameEl.getBoundingClientRect().left - scroller.getBoundingClientRect().left + scroller.scrollLeft,
+      top: frameEl.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop,
+    };
+    scroller.scrollLeft = inside.left + 27 * cell - scroller.clientWidth / 2;
+    scroller.scrollTop = inside.top + 24 * cell - scroller.clientHeight / 2;
   });
   await page.waitForTimeout(700);
 

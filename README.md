@@ -69,7 +69,7 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   paste, move, flip, rotate, crop the chart to the selection, apply the piece where it sits, or discard it),
   move, pan and zoom tools. Isolate dims every thread but the ones you light, and
   stays on while you paint. Merge, recolor, rename and re-symbol colors,
-  mark stitches as empty, resize the canvas, undo and redo. The color editor
+  mark stitches as empty, crop or grow the canvas with the Crop tool, undo and redo. The color editor
   opens on a color's own thread swatch, shows how other swatches compare
   ("12% lighter, 5% less saturated"), and stays open while you try threads.
 - **Two colours and a brush with a size**: the bar holds a foreground and a background square, one over the
@@ -135,6 +135,7 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   Every texture is scaled to the same stitch size, so any image works. New textures are an entry in
   `lib/export/stitch-texture-catalog.ts`, a file in `public/` and a row in `rust/cs-export/src/preview.rs` (D249).
   Pixel, Cell outline, Cell outline shaded and Cross 2 were supplied by the Owner.
+- **Crop tool** (`C`): a frame over the chart whose four edges are the four numbers in the tool's bar (Top, Right, Bottom, Left). Each number is how many stitches that edge moves **in**: positive cuts, negative adds empty stitches. Typing moves the frame, dragging an edge or corner (or the arrow keys on a focused handle) changes the number, and the cut-away part is dimmed. Enter applies it, as one undo step; Escape puts the frame back. It is the one canvas resize (D109, D278); the selection's "Crop to selection" still crops to a drawn region.
 - **Choose the canvas**: the Chart pane's Canvas texture buttons (Off, Natural linen, Counted canvas) put a cloth behind the
   Stitched view -- over the whole viewer, tinted by the canvas colour, a whole number of cells per tile so it zooms with the
   chart, with an offset for a picture whose blocks start part-way in. Both cloths were supplied by the Owner. "Canvas in

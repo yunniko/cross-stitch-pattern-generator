@@ -93,6 +93,15 @@ function LassoIcon() {
   );
 }
 
+function CropIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <path d="M7 3v14a1 1 0 0 0 1 1h13" />
+      <path d="M3 7h14a1 1 0 0 1 1 1v13" />
+    </svg>
+  );
+}
+
 function MoveIcon() {
   return (
     <svg {...TOOL_ICON_PROPS}>
@@ -212,6 +221,13 @@ const TOOL_GROUPS = [
       label: "Lasso",
       title: "Draw around the stitches you want (Q). The piece then copies, moves and flips like any other. Ignores symmetry.",
       Icon: LassoIcon,
+    },
+    {
+      tool: "crop" as const,
+      label: "Crop",
+      title:
+        "Cut the chart down, or grow it, with a frame (C). Drag an edge or a corner, or type how many stitches each edge moves in; a negative number adds empty stitches. Apply with Enter.",
+      Icon: CropIcon,
     },
     {
       tool: "move" as const,

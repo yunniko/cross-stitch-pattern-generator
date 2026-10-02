@@ -47,7 +47,7 @@ Each area has its own file; every control is described there.
 |---|---|
 | `02-photo-and-generation` | How a photo becomes a chart: size, colour count (and the app's recommendation for it), palette mode, choosing the colours yourself, algorithm, colour detail, edge handling, dithering and drawn marks, photo adjustment, lines as backstitch, texture strokes |
 | `03-chart-views` | Seeing the chart: five views, zoom and position, rulers, measurements, canvas colour and cloth, stitch texture |
-| `04-editing` | Drawing and changing it: brush, fill, shapes, selection and lasso, move, copy, flip, turn, resize, symmetry, undo |
+| `04-editing` | Drawing and changing it: brush, fill, shapes, selection and lasso, crop and grow the canvas, move, copy, flip, turn, symmetry, undo |
 | `05-colours-and-threads` | The thread list: choose, isolate, merge, rename, re-symbol, edit a colour, thread brands |
 | `06-backstitch-and-stitch-types` | Lines over the stitches and the threads they use; half stitches |
 | `07-text` | Lettering added to the chart as a piece |

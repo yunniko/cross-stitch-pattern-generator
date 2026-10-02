@@ -1,4 +1,4 @@
-import { useState, type DragEvent, type MouseEvent, type PointerEvent, type RefObject } from "react";
+import { useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import type { StitchPattern } from "@/lib/types";
 import { isSelectTool, isViewOnlyMode, type Tool, type ViewMode } from "../editor-types";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
@@ -59,6 +59,8 @@ export interface ImageWindowProps {
   onPointerLeave: (e: PointerEvent<HTMLDivElement>) => void;
   onDoubleClick: (e: MouseEvent<HTMLDivElement>) => void;
   onDrop: (e: DragEvent<HTMLDivElement>) => void;
+  /** The Crop tool's frame, drawn over the chart (G-089); null when the tool is not open. It makes room around the chart for growing it. */
+  cropOverlay?: ReactNode;
 }
 
 /** The Stitched view's failure to draw: what went wrong, a way to try again, and a way to close it (G-079). */
@@ -123,6 +125,7 @@ export function ImageWindow({
   onPointerLeave,
   onDoubleClick,
   onDrop,
+  cropOverlay = null,
 }: ImageWindowProps) {
   const [showOriginal, setShowOriginal] = useState(false);
   // The sliders draw here; until the first frame is painted the photo itself is still what is up, so the well
@@ -154,7 +157,8 @@ export function ImageWindow({
       />
       <div
         ref={scrollerRef}
-        style={{ gridColumn: 2, gridRow: 2 }}
+        // While the Crop tool is open there is room around the chart to drag its frame out into (G-089).
+        style={{ gridColumn: 2, gridRow: 2, ...(cropOverlay ? { padding: 120 } : {}) }}
         // Grid centering, not flex: flex's unsafe centering makes overflow past the top/left edge unreachable by scrolling
         // once zoomed content outgrows the container.
         className="at-well grid min-h-0 min-w-0 place-items-center overflow-auto p-6"
@@ -205,39 +209,42 @@ export function ImageWindow({
         without `data-painted-rect`, which six specs read. `hidden` keeps the pixels, the refs and the observers.
       */}
         {pattern && (
-          <div
-            ref={frameRef}
-            hidden={startingNew}
-            role="img"
-            aria-label={`Pattern, ${VIEW_MODE_LABELS[viewMode]} view`}
-            data-testid="chart-frame"
-            data-view-mode={viewMode}
-            data-cell-size={cellSize}
-            onPointerDown={onPointerDown}
-            // A right press paints with the background colour (G-064), so the browser's menu would sit on top
-            // of the stitch the reader is aiming at. Only the chart claims it; the rest of the page does not.
-            onContextMenu={(e) => e.preventDefault()}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
-            onPointerLeave={onPointerLeave}
-            onDoubleClick={onDoubleClick}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={onDrop}
-            // Content-box sizing: the chart is exactly width × cellSize inside the 1 px border, as the old canvas was.
-            style={{ width: pattern.width * cellSize, height: pattern.height * cellSize }}
-            className={`relative box-content touch-none overflow-hidden border ${
-              clothShown ? "border-transparent" : "border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
-            } ${cursorFor(activeTool, activeColorIndex, viewMode, cursorHidden)}`}
-          >
-            <canvas ref={canvasRef} data-testid="chart-canvas" aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
-            {/* The cursor draws here and nowhere else, so moving it never repaints the chart (G-065). */}
-            <canvas
-              ref={hoverCanvasRef}
-              data-testid="brush-outline"
-              aria-hidden="true"
-              className="pointer-events-none absolute top-0 left-0"
-            />
+          <div className="relative">
+            <div
+              ref={frameRef}
+              hidden={startingNew}
+              role="img"
+              aria-label={`Pattern, ${VIEW_MODE_LABELS[viewMode]} view`}
+              data-testid="chart-frame"
+              data-view-mode={viewMode}
+              data-cell-size={cellSize}
+              onPointerDown={onPointerDown}
+              // A right press paints with the background colour (G-064), so the browser's menu would sit on top
+              // of the stitch the reader is aiming at. Only the chart claims it; the rest of the page does not.
+              onContextMenu={(e) => e.preventDefault()}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+              onPointerLeave={onPointerLeave}
+              onDoubleClick={onDoubleClick}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={onDrop}
+              // Content-box sizing: the chart is exactly width × cellSize inside the 1 px border, as the old canvas was.
+              style={{ width: pattern.width * cellSize, height: pattern.height * cellSize }}
+              className={`relative box-content touch-none overflow-hidden border ${
+                clothShown ? "border-transparent" : "border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
+              } ${cursorFor(activeTool, activeColorIndex, viewMode, cursorHidden)}`}
+            >
+              <canvas ref={canvasRef} data-testid="chart-canvas" aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
+              {/* The cursor draws here and nowhere else, so moving it never repaints the chart (G-065). */}
+              <canvas
+                ref={hoverCanvasRef}
+                data-testid="brush-outline"
+                aria-hidden="true"
+                className="pointer-events-none absolute top-0 left-0"
+              />
+            </div>
+            {cropOverlay}
           </div>
         )}
         {pattern && viewMode === "realistic" && previewError && (

@@ -300,10 +300,11 @@ test("resizing to a non-square canvas turns the diagonals off, and undoing back 
   await openPattern(page, await squarePatternFile(testInfo, 21, { diagonal: true }));
   await expect(toggle(page, "Diagonal symmetry ↘")).toHaveAttribute("aria-pressed", "true");
 
-  await page.getByRole("tab", { name: "Chart" }).click();
-  await page.getByLabel("Right").fill("1");
+  await page.getByRole("button", { name: "Crop", exact: true }).click();
+  await page.getByTestId("crop-bar").getByLabel("Right", { exact: true }).fill("-1");
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(page.getByText(/^22 × 21, /)).toBeVisible();
+  await page.getByRole("button", { name: "Brush", exact: true }).click(); // the symmetry switches are in the drawing tools' bar, not the Crop bar
   await expect(toggle(page, "Diagonal symmetry ↘")).toHaveAttribute("aria-pressed", "false");
   await expect(toggle(page, "Diagonal symmetry ↘")).toBeDisabled();
 

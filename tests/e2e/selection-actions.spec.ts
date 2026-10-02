@@ -35,7 +35,7 @@ test("Crop reduces the chart to the selection's rectangle, as one undo step", as
   await expect(header(page)).toHaveText(/^50 × \d+, /);
 
   await drawSelection(page, 2, 2, 7, 5); // 6 × 4 stitches
-  await page.getByRole("button", { name: "Crop" }).click();
+  await page.getByRole("button", { name: "Crop to selection" }).click();
 
   await expect(header(page)).toHaveText(/^6 × 4, /);
   await expect(page.getByRole("button", { name: "Apply here" })).toBeDisabled();
@@ -49,7 +49,7 @@ test("Rotate right turns the piece a quarter turn: cropping to it swaps the char
   await drawSelection(page, 2, 2, 7, 5); // 6 wide, 4 tall
 
   await page.getByRole("button", { name: "Rotate right" }).click();
-  await page.getByRole("button", { name: "Crop" }).click();
+  await page.getByRole("button", { name: "Crop to selection" }).click();
 
   await expect(header(page), "the piece stood on its side").toHaveText(/^4 × 6, /);
 });
@@ -62,7 +62,7 @@ test("Rotate left is the other way round, and four turns return the piece", asyn
   await page.getByRole("button", { name: "Rotate left" }).click();
   await page.getByRole("button", { name: "Rotate left" }).click();
   await page.getByRole("button", { name: "Rotate left" }).click();
-  await page.getByRole("button", { name: "Crop" }).click();
+  await page.getByRole("button", { name: "Crop to selection" }).click();
 
   await expect(header(page), "back where it started").toHaveText(/^6 × 4, /);
 });

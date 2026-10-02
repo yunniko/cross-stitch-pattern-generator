@@ -21,6 +21,10 @@ export interface KeyboardShortcutContext {
   cancelSelection(): void;
   /** Delete or Backspace: remove the backstitch in hand (Owner, 2026-09-25). Does nothing with none. */
   deleteBackstitch(): void;
+  /** The Crop tool is open (G-089): Enter applies its frame and Escape puts it back over the whole chart. */
+  cropOpen: boolean;
+  applyCrop(): void;
+  resetCrop(): void;
   /** A piece is in hand, so history is not the reader's to step through yet (G-063). */
   hasSelection: boolean;
 }
@@ -90,6 +94,7 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
           isBackstitchEditTool(ctx.activeTool)
         )
           ctx.cancelSelection();
+        else if (ctx.cropOpen) ctx.resetCrop();
         return;
       }
 
@@ -104,6 +109,7 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
 
       if (e.key === "Enter") {
         if (isSelectTool(ctx.activeTool)) ctx.mergeSelection();
+        else if (ctx.cropOpen) ctx.applyCrop();
         return;
       }
 
@@ -126,6 +132,7 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
       else if (key === "o") ctx.switchTool("oval");
       else if (key === "q") ctx.switchTool("lasso");
       else if (key === "g") ctx.switchTool("lasso-fill");
+      else if (key === "c") ctx.switchTool("crop");
       else if (key === "k") ctx.switchTool("backstitch");
       else if (key === "j") ctx.switchTool("backstitch-edit");
       else if (e.key === "1") ctx.setViewMode("color");

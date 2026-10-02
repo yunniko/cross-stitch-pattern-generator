@@ -65,7 +65,7 @@ All remembered in the browser.
 | Control | Kind and values | Default | Available when | Effects |
 |---|---|---|---|---|
 | **Name** | Text | The photo's file name without its extension, or "cross-stitch-pattern" | A chart | Committed on leaving the field or Enter; names every exported file; saved in the chart; one undo step |
-| **Canvas size** | Four whole numbers for the left, right, top and bottom edge: positive adds empty stitches, negative crops; shows the resulting size ("→ *w* × *h*"); Apply, Cancel | 0 each | A chart | Apply commits as one undo step. Refused with "Can't crop away the entire pattern." if nothing would remain, and "The resized pattern (*w*×*h*) would exceed the maximum supported size of 1500 stitches per side." Expanding adds empty stitches, never a colour |
+| **Canvas size** | Moved to the Crop tool (`04`) | | | |
 | **Fabric count** | Choice of **11, 14, 16, 18** stitches per inch ("count") | 14 | Always | Changes every finished-size figure and the exports' physical size |
 | **Unit** | Choice of **in**, **cm** | in | Always | The unit finished sizes are shown in |
 

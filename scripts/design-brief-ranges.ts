@@ -116,6 +116,9 @@ must(F4, `**${BRUSH_SIZES.join(", ")}**`, "brush sizes");
 must(F4, `| ${DEFAULT_BRUSH_SIZE} |`, "default brush size");
 must(F4, `${privateConstant("lib/editor/undo-history.ts", "MAX_HISTORY")} steps`, "undo depth");
 
+must(F4, `would exceed the maximum supported size of ${MAX_STITCHES} stitches per side`, "crop growth limit");
+must(F4, `Fourteen tools`, "tool count");
+
 // 05 · colours
 const F5 = "05-colours-and-threads";
 for (const [, brand] of Object.entries(THREAD_BRANDS))

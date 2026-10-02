@@ -313,3 +313,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D275 — Backstitch in the Stitched view and the realistic preview is a plain solid coloured line — active
 - D276 — The colour count is read off a Ward-merge error curve, with an optimistic ceiling — active
 - D277 — Set-up palette assigns each cell its nearest chosen colour, and the set is a record apart from the chart's palette — active
+- D278 — The Crop tool's numbers say how far each edge moves in, and the frame may grow the chart — active
+- D279 — The crop frame is drawn beside the chart's frame, and the well makes room while the tool is open — active
