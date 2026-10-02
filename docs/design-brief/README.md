@@ -2,7 +2,7 @@
 
 For whoever redesigns the application. It states behaviour and data only: what a person can do, what each input accepts, when it is available, what it changes. It says nothing about how the present interface looks or is built, and it gives no advice. Scope: the chart maker and editor and its exports. The admin area and the account and profile pages are left out (Owner, 2026-10-02); where being signed in changes what the editor does, the document says so in one line.
 
-**Status: contents agreed in M1; the documents below are written in M2 to M4.** Goal G-088.
+**Status: contents agreed (Owner, 2026-10-02); the documents below are written in M2 to M5.** Goal G-088.
 
 ## Contents
 
@@ -26,6 +26,7 @@ Every input, choice and gesture gets one entry with these fields; a field that d
 
 - **Name** and **purpose**: what it decides, in the user's terms.
 - **Kind of value**: choice (list the complete set), number (range, step, unit), switch (on/off), text (allowed length and characters), colour, file (types and sizes), gesture (what it does, with which modifiers).
+- **Runs on**: *this device* (instant, always available, cannot fail because of a service) or **server** (the work is done by the site's own service). Every server action is marked **[server]** in its entry, and carries the extra states in "Server-run actions" of `09-limits-and-messages.md`: waiting for a free place, running with progress, cancelled, refused as busy or rate-limited, service unreachable, photo no longer held, over its time limit. A server action is never silently retried except the one case that file names.
 - **Default**, and **kept**: not kept, this visit, this browser, or in the saved chart.
 - **Available when** and **otherwise**: the conditions under which it can be used, and whether it is then unavailable (shown, cannot be used) or absent, with the reason a person is told.
 - **Depends on / changes**: other controls whose values or availability it alters, and in which direction.
