@@ -1,0 +1,46 @@
+# One word or phrase per line, matched whole-word and case-insensitively against the documents (README excepted). Proposed in M1; the Owner approves.
+button
+buttons
+dropdown
+drop-down
+pane
+panes
+panel
+panels
+dock
+docked
+rail
+toolbar
+top bar
+status bar
+inspector
+sidebar
+tab
+tabs
+window
+windows
+chip
+chips
+pill
+pills
+icon
+icons
+tooltip
+tooltips
+modal
+dialog
+popover
+banner
+badge
+swatch grid
+checkbox
+radio button
+text field
+input box
+scrollbar
+hover
+click
+clicks
+pixel
+pixels
+px
