@@ -219,3 +219,19 @@ test("chosen colours can be rearranged by keyboard and by dragging", async ({ pa
     .dragTo(page.getByRole("list", { name: "Chosen colours" }).getByRole("listitem").nth(0));
   expect(await order()).toEqual([blue, green, red]);
 });
+
+test("a new picture starts at the recommended colour count, whatever the last one was set to", async ({ page }) => {
+  await loadPhoto(page);
+  const hint = page.getByTestId("color-count-hint");
+  await expect(hint).toContainText(/Suggested \d+/, { timeout: 15_000 });
+  const first = ((await hint.textContent()) ?? "").match(/Suggested (\d+)/)?.[1];
+  await page.getByLabel("Number of colors").fill("2");
+  await expect(page.getByLabel("Number of colors")).toHaveValue("2");
+
+  await page.getByLabel("Image").setInputFiles(path.join(__dirname, "fixtures", "texture-fur.png"));
+  await expect(page.getByRole("button", { name: /^(Generate pattern|Regenerate)$/ })).toBeVisible({ timeout: 15_000 });
+  // The old picture's hint stays up until the new one's arrives.
+  await expect(hint).not.toContainText(`Suggested ${first}:`, { timeout: 15_000 });
+  const suggested = ((await hint.textContent()) ?? "").match(/Suggested (\d+)/)?.[1];
+  await expect(page.getByLabel("Number of colors")).toHaveValue(suggested ?? "");
+});

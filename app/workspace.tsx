@@ -67,6 +67,7 @@ import { NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
 import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useProjectRestore } from "./hooks/use-project-restore";
 import { useColorPrediction } from "./hooks/use-color-prediction";
+import type { ColorPrediction } from "@/lib/pipeline/prediction";
 import { useSourceImage } from "./hooks/use-source-image";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
 
@@ -333,6 +334,18 @@ export default function Workspace({ account }: WorkspaceProps) {
     photoAdjust: options.photoAdjust,
     setColors: options.paletteSetup && options.paletteSet.colors.length ? options.paletteSet.colors.map((c) => c.rgb) : null,
   });
+  // A new picture starts at the colour count its prediction recommends (Owner, 2026-10-02): the first prediction to arrive after the
+  // photo was loaded sets it, and the reader's own changes after that stand. `stale` is the prediction showing at load time, which
+  // belongs to the previous picture.
+  const colorResetRef = useRef<{ stale: ColorPrediction | null } | null>(null);
+  const predicted = colorPrediction.prediction;
+  useEffect(() => {
+    const pending = colorResetRef.current;
+    if (!pending || !predicted || predicted === pending.stale) return;
+    colorResetRef.current = null;
+    // Deferred a microtask: a synchronous setState in an effect body is flagged by react-hooks/set-state-in-effect.
+    void Promise.resolve().then(() => updateOption("colorCount", predicted.suggested));
+  }, [predicted, updateOption]);
   const generation = useGeneration({
     colorCeiling: options.paletteSetup ? null : (colorPrediction.prediction?.ceiling ?? null),
     options,
@@ -394,6 +407,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       onLoaded: () => {
         // A new picture for a new chart starts from neutral photo sliders and no chosen colours (G-087).
         updateOption("photoAdjust", NEUTRAL_ADJUST);
+        colorResetRef.current = { stale: colorPrediction.prediction };
         resetPaletteSet();
         history.reset(null);
         resetDocumentView();

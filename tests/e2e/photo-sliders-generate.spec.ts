@@ -200,6 +200,8 @@ test("a chart saved with the sliders opens with them set, so Regenerate reproduc
 
   await setSlider(page, "Brightness", -45);
   await setSlider(page, "Saturation", 70);
+  // A new picture starts at its recommended count (G-087), so the count is part of what "the same chart" means here.
+  const count = await page.getByLabel("Number of colors").inputValue();
   const saved = await generateAndExport(page);
   const file = path.join(tmpdir(), `sliders-${process.pid}.json`);
   await writeFile(file, JSON.stringify({ ...saved, name: "slider-chart" }), "utf8");
@@ -216,6 +218,7 @@ test("a chart saved with the sliders opens with them set, so Regenerate reproduc
   await expect(page.getByRole("slider", { name: "Brightness" })).toHaveValue("-45");
   await expect(page.getByRole("slider", { name: "Saturation" })).toHaveValue("70");
 
+  await page.getByLabel("Number of colors").fill(count);
   await predicted; // the count is held to the prediction for these sliders (G-087)
   // The point of restoring them: pressing Regenerate gives back the chart that was opened, not another one.
   const again = await generateAndExport(page);
