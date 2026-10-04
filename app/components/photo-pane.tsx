@@ -167,6 +167,9 @@ export interface PhotoPaneProps {
   predictionLoading: boolean;
 }
 
+/** A palette mode as the reader knows it. */
+const modeLabel = (mode: WorkspaceOptions["paletteMode"]) => (mode === "full" ? "Full range" : THREAD_BRANDS[mode].label);
+
 const SETUP_OPTIONS: SegmentOption<"auto" | "setup">[] = [
   { value: "auto", label: "Automatic", title: "The colors are chosen from the picture, as many as the Colors slider says" },
   { value: "setup", label: "Set up palette", title: "You choose the colors; the chart is made from those and no others" },
@@ -230,6 +233,8 @@ export function PhotoPane({
 }: PhotoPaneProps) {
   // What is being typed into the custom size, until the field is left. Before the early returns: hooks keep their order.
   const [sizeDraft, setSizeDraft] = useState<string | null>(null);
+  // The palette mode asked for while colours are chosen in another, until the reader confirms that they go.
+  const [pendingMode, setPendingMode] = useState<WorkspaceOptions["paletteMode"] | null>(null);
   if (isProcessing) return <GeneratingCard progress={progress} queueMessage={queueMessage} hasPattern={hasPattern} onCancel={onCancel} />;
   // First run: nothing to size or colour yet, so 1b shows what the three steps will be instead of dead controls.
   if (!hasPhoto && !hasPattern && !isLoadingImage)
@@ -279,8 +284,18 @@ export function PhotoPane({
   }
 
   function choosePaletteMode(mode: WorkspaceOptions["paletteMode"]) {
+    // Colours of one mode mean nothing in another, so changing the mode while setting up empties the set. With colours
+    // chosen that is asked first (Owner, 2026-10-04): the set cannot be brought back.
+    if (settingUp && options.paletteSet.mode !== mode && options.paletteSet.colors.length > 0) {
+      setPendingMode(mode);
+      return;
+    }
+    applyPaletteMode(mode);
+  }
+
+  function applyPaletteMode(mode: WorkspaceOptions["paletteMode"]) {
+    setPendingMode(null);
     onChange("paletteMode", mode);
-    // Colours of one mode mean nothing in another, so changing the mode while setting up empties the set.
     if (settingUp && options.paletteSet.mode !== mode) onChange("paletteSet", { mode, colors: [] });
   }
 
@@ -560,6 +575,27 @@ export function PhotoPane({
         <span className={GROUP_LABEL}>Palette</span>
         <SegmentedControl fill options={SETUP_OPTIONS} value={settingUp ? "setup" : "auto"} onChange={chooseSetup} />
         <SegmentedControl fill options={PALETTE_OPTIONS} value={options.paletteMode} onChange={choosePaletteMode} />
+        {settingUp && pendingMode !== null && pendingMode !== options.paletteMode && (
+          <div
+            role="alert"
+            data-testid="palette-mode-warning"
+            className="flex flex-col gap-2 rounded-lg border border-amber-700 bg-amber-950/40 p-2.5"
+          >
+            <p className="text-[11px] leading-4 text-amber-200">
+              Switching to {modeLabel(pendingMode)} empties your {options.paletteSet.colors.length} chosen{" "}
+              {options.paletteSet.colors.length === 1 ? "colour" : "colours"}: they belong to {modeLabel(options.paletteSet.mode)}. Save the
+              palette first if you want it back.
+            </p>
+            <div className="flex gap-1.5">
+              <PillButton size="xs" onClick={() => applyPaletteMode(pendingMode)}>
+                Switch and empty
+              </PillButton>
+              <PillButton size="xs" onClick={() => setPendingMode(null)}>
+                Keep {modeLabel(options.paletteSet.mode)}
+              </PillButton>
+            </div>
+          </div>
+        )}
         {settingUp && (
           <PaletteSetup
             set={options.paletteSet}

@@ -201,3 +201,15 @@ test("Apply and Cancel stay in view in a narrow window", async ({ page }) => {
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(header(page)).toHaveText(/^48 × /);
 });
+
+test("Escape in a field puts that field back; a second Escape puts the whole frame back", async ({ page }) => {
+  await openTool(page);
+  await field(page, "Top").fill("2");
+  await field(page, "Left").click();
+  await field(page, "Left").fill("4");
+  await field(page, "Left").press("Escape");
+  await expect(field(page, "Left")).toHaveValue("0");
+  await expect(field(page, "Top")).toHaveValue("2"); // the other edge is not touched
+  await field(page, "Left").press("Escape");
+  await expect(field(page, "Top")).toHaveValue("0");
+});

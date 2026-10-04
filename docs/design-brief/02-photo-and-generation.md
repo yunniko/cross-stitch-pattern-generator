@@ -57,7 +57,7 @@ The photo is shown as it is until a chart exists; with adjustment values off neu
 | **Kind of value** | Choice of four: **Full range** (whatever colours the picture needs), **DMC**, **Cosmo**, **Anchor** |
 | **Default** | Full range |
 | **Meaning** | A brand mode snaps every colour to a real thread of that brand, so similar shades may merge into one; each colour is then named by thread code (and name where the brand publishes names: DMC does, Cosmo and Anchor do not). Anchor is derived from the nearest DMC equivalents, and says so. A chart records its brand |
-| **Changes** | While choosing colours by hand, choosing another mode empties the chosen set (threads of one brand mean nothing in another); the recommendation is asked again |
+| **Changes** | While choosing colours by hand, choosing another mode empties the chosen set (threads of one brand mean nothing in another). With colours chosen this is asked first: "Switching to *mode* empties your *n* chosen colours: they belong to *mode*. Save the palette first if you want it back.", with the choices "Switch and empty" and "Keep *mode*". The recommendation is asked again |
 
 ## Automatic or Set up palette
 

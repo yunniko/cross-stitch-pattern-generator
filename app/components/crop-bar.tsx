@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { formatFinishedSize, type SizeUnit } from "@/lib/export/finished-size";
 import { parseInset, type CropEdge, type CropInsets } from "@/lib/editor/crop-frame";
 import { PillButton } from "./ui";
@@ -36,6 +36,8 @@ function InsetField({
 }) {
   // What is being typed, until the field is left: it may not (yet) be a number, and must not be overwritten while it is not.
   const [draft, setDraft] = useState<string | null>(null);
+  // The number the field held when it was entered: what the first Escape puts back (Owner, 2026-10-04).
+  const entered = useRef(value);
   return (
     <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted">
       {label}
@@ -51,16 +53,28 @@ function InsetField({
           onValidity(parsed !== null);
           if (parsed !== null) onCommit(parsed);
         }}
+        onFocus={() => {
+          entered.current = value;
+        }}
         onBlur={() => {
           setDraft(null);
           onValidity(true);
         }}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === "Escape") {
-            // The number is already in the frame as it was typed; Escape is what it is everywhere in the tool: the frame goes back.
-            if (e.key === "Escape") onEscape();
+          if (e.key === "Escape") {
+            // First this field alone goes back to what it held when it was entered; with nothing of its own left to undo, Escape
+            // is what it is everywhere in the tool and the whole frame goes back.
+            if (draft !== null || value !== entered.current) {
+              setDraft(null);
+              onValidity(true);
+              if (value !== entered.current) onCommit(entered.current);
+            } else {
+              onEscape();
+              e.currentTarget.blur();
+            }
+          } else if (e.key === "Enter") {
             // Enter is Apply, here as it is anywhere in the tool; the number it was typed into is already in the frame.
-            else onEnter();
+            onEnter();
             setDraft(null);
             onValidity(true);
             e.currentTarget.blur();

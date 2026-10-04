@@ -54,8 +54,8 @@ Fixed, each with a test: 1 and 10 (the custom size is left as typed until the en
 saved palettes alike), 4 (Fill waits for the recommendation of the mode in force), 5 (Apply and Cancel stay in view), 6 (Apply
 waits for unusable text), 11 (refused with a message), 12 (file names keep any script), 13 (wording, a newer version refused,
 duplicates counted once). Also found while fixing: four pages asking for a recommendation at once were refused at a limit of
-two, which the browser logs as an error; the limit is now four. Still open: 7 and 8 (the behaviour is the Owner's to choose),
-14, 15, 16.
+two, which the browser logs as an error; the limit is now four. Fixed the same day once the Owner chose the behaviour: 7 (the switch is asked first) and 8 (Escape puts one field back, a second
+Escape the frame). Left: 14, 15, 16.
 
 ## Proposed triage (the Owner decides)
 

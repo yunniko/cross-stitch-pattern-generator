@@ -99,6 +99,14 @@ test("in a thread brand the colours are threads, found by code", async ({ page }
 
   // Changing the palette mode empties the set: its threads mean nothing in another brand.
   await page.getByRole("button", { name: "Anchor", exact: true }).click();
+  // With colours chosen the switch is asked first: keeping leaves everything, switching empties the set.
+  await expect(page.getByTestId("palette-mode-warning")).toContainText("empties your 1 chosen colour");
+  await page.getByRole("button", { name: "Keep DMC" }).click();
+  await expect(page.getByTestId("palette-set-count")).toHaveText("1");
+  await expect(page.getByRole("button", { name: "DMC", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Anchor", exact: true }).click();
+  await page.getByRole("button", { name: "Switch and empty" }).click();
+  await expect(page.getByRole("button", { name: "Anchor", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("palette-set-count")).toHaveText("0");
 });
 
