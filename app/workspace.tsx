@@ -302,8 +302,14 @@ export default function Workspace({ account }: WorkspaceProps) {
     pushHistory: history.set,
     bumpDocument: () => setDocumentId((id) => id + 1),
     clearSelection: () => select.clear(),
-    closeCrop: () => crop.close(),
-    clearLit: () => setLitColorIndices(new Set()),
+    // The frame goes; the tool stays in hand if it was, with a frame over the new chart (closing it left Crop in hand with nothing to show).
+    closeCrop: () => crop.clearFrame(),
+    clearLit: () => {
+      setLitColorIndices(new Set());
+      setLitBackstitchIndices(new Set());
+      setIsolate(false);
+    },
+    clearTextThread: () => setLetteringColor(null),
     clearColourInHand: () => setActiveColorIndex(null),
     resetZoom: () => panZoom.resetZoom(),
     setSymmetry: (axes) => symmetryState.reset(axes),
@@ -789,36 +795,34 @@ export default function Workspace({ account }: WorkspaceProps) {
         ) : (
           <ContextBar
             pattern={pattern}
-            canUndo={history.canUndo}
-            canRedo={history.canRedo}
-            onUndo={history.undo}
-            onRedo={history.redo}
-            viewMode={viewMode}
-            onViewModeChange={chooseViewMode}
-            lockTransparency={options.lockTransparency}
-            onLockTransparencyChange={(on) => updateOption("lockTransparency", on)}
-            isLoadingImage={source.isLoading}
-            hasSourcePhoto={source.hasPhoto}
-            isolate={isolate}
-            onIsolateChange={setIsolate}
-            litCount={litColorIndices.size + litBackstitchIndices.size}
-            symmetry={liveSymmetry}
-            squareCanvas={pattern !== null && pattern.width === pattern.height}
-            onToggleSymmetry={symmetryState.toggle}
-            colorSlots={colours.slots}
-            onActivateColorSlot={colours.setActiveSlot}
-            onSwapColors={colours.swap}
-            brushSize={options.brushSize}
-            brushShape={options.brushShape}
-            onBrushSizeChange={(size) => updateOption("brushSize", size)}
-            onBrushShapeChange={(shape) => updateOption("brushShape", shape)}
             activeTool={activeTool}
-            shapeFill={options.shapeFill}
-            onShapeFillChange={(fill) => updateOption("shapeFill", fill)}
-            stitchKind={options.stitchKind}
-            onStitchKindChange={(kind) => updateOption("stitchKind", kind)}
-            startingNew={startingNew}
-            onBackToChart={() => setStartingNew(false)}
+            history={history}
+            view={{
+              mode: viewMode,
+              onModeChange: chooseViewMode,
+              isolate,
+              onIsolateChange: setIsolate,
+              litCount: litColorIndices.size + litBackstitchIndices.size,
+            }}
+            photo={{ isLoading: source.isLoading, hasSource: source.hasPhoto }}
+            colours={{ slots: colours.slots, onActivate: colours.setActiveSlot, onSwap: colours.swap }}
+            brush={{
+              size: options.brushSize,
+              shape: options.brushShape,
+              onSizeChange: (size) => updateOption("brushSize", size),
+              onShapeChange: (shape) => updateOption("brushShape", shape),
+              shapeFill: options.shapeFill,
+              onShapeFillChange: (fill) => updateOption("shapeFill", fill),
+              stitchKind: options.stitchKind,
+              onStitchKindChange: (kind) => updateOption("stitchKind", kind),
+            }}
+            symmetry={{
+              axes: liveSymmetry,
+              squareCanvas: pattern !== null && pattern.width === pattern.height,
+              onToggle: symmetryState.toggle,
+            }}
+            lock={{ on: options.lockTransparency, onChange: (on) => updateOption("lockTransparency", on) }}
+            start={{ startingNew, onBackToChart: () => setStartingNew(false) }}
           />
         )}
         <WorkspaceNotices
@@ -849,39 +853,37 @@ export default function Workspace({ account }: WorkspaceProps) {
         )}
 
         <ImageWindow
-          scrollerRef={scrollerRef}
-          frameRef={frameRef}
-          canvasRef={canvasRef}
-          pattern={pattern}
-          cellSize={cellSize}
-          sourceMeta={source.meta}
-          startScreen={startScreenVisible}
-          viewMode={viewMode}
-          activeTool={activeTool}
-          activeColorIndex={activeColorIndex}
-          cursorHidden={hoverOutline !== null}
-          startingNew={startingNew}
-          onChoosePhoto={() => startNewChart(() => imageInputRef.current?.click())}
-          onCreateBlank={(width, height) => startNewChart(() => void createBlankChart(width, height))}
-          onImportPixelArt={() => startNewChart(() => pixelArtInputRef.current?.click())}
+          refs={{ scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef }}
+          chart={{
+            pattern,
+            cellSize,
+            sourceMeta: source.meta,
+            viewMode,
+            activeTool,
+            activeColorIndex,
+            cursorHidden: hoverOutline !== null,
+          }}
+          start={{
+            visible: startScreenVisible,
+            startingNew,
+            isLoadingImage: source.isLoading,
+            onChoosePhoto: () => startNewChart(() => imageInputRef.current?.click()),
+            onCreateBlank: (width, height) => startNewChart(() => void createBlankChart(width, height)),
+            onImportPixelArt: () => startNewChart(() => pixelArtInputRef.current?.click()),
+            onOpenPatternFile: () => startNewChart(() => openInputRef.current?.click()),
+            onAidaCountChange: (count) => updateOption("aidaCount", count),
+          }}
+          preview={renderer}
+          adjust={adjustPreview}
+          pointer={{
+            onDown: handleCanvasPointerDown,
+            onMove: handleCanvasPointerMove,
+            onUp: handleCanvasPointerUp,
+            onLeave: () => updateHoverOutline(null),
+            onDoubleClick: handleCanvasDoubleClick,
+            onDrop: handleCanvasDrop,
+          }}
           options={options}
-          onAidaCountChange={(count) => updateOption("aidaCount", count)}
-          onOpenPatternFile={() => startNewChart(() => openInputRef.current?.click())}
-          isLoadingImage={source.isLoading}
-          previewError={renderer.previewError}
-          onRetryPreview={renderer.retryPreview}
-          onDismissPreviewError={renderer.dismissPreviewError}
-          adjustActive={adjustPreview.active}
-          adjustReady={adjustPreview.ready}
-          adjustSize={adjustPreview.size}
-          adjustCanvasRef={adjustPreview.attach}
-          hoverCanvasRef={hoverCanvasRef}
-          onPointerLeave={() => updateHoverOutline(null)}
-          onPointerDown={handleCanvasPointerDown}
-          onPointerMove={handleCanvasPointerMove}
-          onPointerUp={handleCanvasPointerUp}
-          onDoubleClick={handleCanvasDoubleClick}
-          onDrop={handleCanvasDrop}
           cropOverlay={
             crop.open && pattern && !startingNew && !isViewOnlyMode(viewMode) ? (
               <CropOverlay

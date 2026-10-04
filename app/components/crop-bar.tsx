@@ -38,6 +38,10 @@ function InsetField({
   const [draft, setDraft] = useState<string | null>(null);
   // The number the field held when it was entered: what the first Escape puts back (Owner, 2026-10-04).
   const entered = useRef(value);
+  // The text stands only while it is what the frame holds or is not a number yet: when the frame changes from outside (a drag,
+  // another chart) the number wins over what was typed (QA 2026-10-04: a new chart showed the old chart's typed 5).
+  const typed = draft === null ? null : parseInset(draft);
+  const shown = draft !== null && (typed === null || typed === value) ? draft : null;
   return (
     <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted">
       {label}
@@ -45,8 +49,8 @@ function InsetField({
         type="text"
         inputMode="numeric"
         aria-label={label}
-        aria-invalid={draft !== null && parseInset(draft) === null}
-        value={draft ?? String(value)}
+        aria-invalid={shown !== null && parseInset(shown) === null}
+        value={shown ?? String(value)}
         onChange={(e) => {
           setDraft(e.target.value);
           const parsed = parseInset(e.target.value);
@@ -81,7 +85,7 @@ function InsetField({
           }
         }}
         className={`w-14 rounded-md border bg-sunken px-1.5 py-1 text-right font-mono text-xs text-ink ${
-          draft !== null && parseInset(draft) === null ? "border-red-400" : "border-line"
+          shown !== null && parseInset(shown) === null ? "border-red-400" : "border-line"
         }`}
       />
     </label>

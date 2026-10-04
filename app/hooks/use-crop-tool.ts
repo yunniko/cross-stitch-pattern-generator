@@ -33,18 +33,21 @@ export function useCropTool(pattern: StitchPattern | null, commit: (next: Stitch
   /** The tool is chosen. A frame already being set is kept: choosing Crop again, or coming back from Zoom, is not a cancel. */
   const begin = useCallback(() => setOpen(true), []);
 
-  /** Another tool is chosen or another chart arrives: the frame goes without changing anything. */
+  /** Another tool is chosen: the frame goes without changing anything. */
   const close = useCallback(() => {
     setOpen(false);
     setHeld({ width: 0, height: 0, insets: NO_CROP });
   }, []);
+
+  /** Another chart arrived: the frame starts again over it, and the tool stays as it was (in hand or not). */
+  const clearFrame = useCallback(() => setHeld({ width: 0, height: 0, insets: NO_CROP }), []);
 
   const apply = useCallback(() => {
     if (!pattern || !open || isNoCrop(insets) || cropError(pattern.width, pattern.height, insets)) return;
     commit(resizeCanvas(pattern, insetsToDelta(insets)));
   }, [commit, insets, open, pattern]);
 
-  return { open, insets, size, error, changed: !isNoCrop(insets), setInsets, setEdge, reset, begin, close, apply };
+  return { open, insets, size, error, changed: !isNoCrop(insets), setInsets, setEdge, reset, begin, close, clearFrame, apply };
 }
 
 export type CropTool = ReturnType<typeof useCropTool>;

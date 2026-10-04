@@ -60,7 +60,7 @@ A frame is drawn over the chart, and the four numbers that say where its edges a
 | **Cancel** | Action; Escape | | The frame is not the whole chart | Puts the frame back over the whole chart; the tool stays in hand; the chart is untouched. Inside a number entry, Escape first puts that number back to what it was when the entry was entered; a second Escape puts the whole frame back |
 | Undo, Redo | Actions | | Always while open | As elsewhere |
 
-Choosing any tool other than Pan or Zoom, opening another chart, or an undo or redo that changes the chart's size, drops the frame without changing the chart. In a looking-only view the frame and its numbers are put away and come back unchanged with an editable view; choosing Crop again keeps the frame. A piece in hand is applied when the tool is chosen. The tool is unavailable with no chart and in looking-only views. While it is open the usual editing options (colours, symmetry, brush) are not offered.
+Choosing any tool other than Pan or Zoom drops the frame without changing the chart; another chart arriving, or an undo or redo that changes the chart's size, gives the tool a fresh frame over the whole chart. In a looking-only view the frame and its numbers are put away and come back unchanged with an editable view; choosing Crop again keeps the frame. A piece in hand is applied when the tool is chosen. The tool is unavailable with no chart and in looking-only views. While it is open the usual editing options (colours, symmetry, brush) are not offered.
 
 ## Brush options
 

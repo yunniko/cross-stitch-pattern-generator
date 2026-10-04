@@ -60,48 +60,49 @@ const SYMMETRY_TOGGLES: Array<{ axis: SymmetryAxis; label: string; title: string
   { axis: "antidiagonal", label: "Diagonal symmetry ↙", title: "Paint mirrored across the diagonal from top right to bottom left" },
 ];
 
+/**
+ * The bar's inputs, in the groups it draws them in (G-091 M2; they were 36 flat props). Each group is one scope of
+ * `docs/interface-placement.md`: history, the view, and the drawing options (colours, brush, symmetry, lock).
+ */
 export interface ContextBarProps {
   pattern: StitchPattern | null;
-  canUndo: boolean;
-  canRedo: boolean;
-  onUndo: () => void;
-  onRedo: () => void;
-  viewMode: ViewMode;
-  onViewModeChange: (mode: ViewMode) => void;
-  /** The transparency lock (G-079): drawing and filling cannot turn empty stitches into colour or the reverse. */
-  lockTransparency: boolean;
-  onLockTransparencyChange: (on: boolean) => void;
-  /** The loaded photo, shown before a chart exists and as the source of the photo views. */
-  isLoadingImage: boolean;
-  hasSourcePhoto: boolean;
-  /** Isolate: dim every thread except the ones lit in the Threads list. Not a tool -- it stays on while you paint. */
-  isolate: boolean;
-  onIsolateChange: (on: boolean) => void;
-  litCount: number;
-  /** Symmetry lives here rather than on the rail, where 1b draws it (Owner, 2026-09-18). */
-  symmetry: SymmetryAxes;
-  squareCanvas: boolean;
-  onToggleSymmetry: (axis: SymmetryAxis) => void;
-  /** The thread the brush paints with; `EMPTY_CELL` for the empty stitch, null when none is chosen. */
-  /** The two drawing colours, and which of them is in front (G-064). */
-  colorSlots: { a: number | null; b: number | null; active: "a" | "b" };
-  onActivateColorSlot: (slot: "a" | "b") => void;
-  onSwapColors: () => void;
-  /** What one press of the brush covers (G-064). */
-  brushSize: BrushSize;
-  brushShape: BrushShape;
-  onBrushSizeChange: (size: BrushSize) => void;
-  onBrushShapeChange: (shape: BrushShape) => void;
   /** The tool in hand: only the shapes that enclose something offer the outline/filled choice (G-064). */
   activeTool: Tool;
-  shapeFill: ShapeFill;
-  onShapeFillChange: (fill: ShapeFill) => void;
-  /** What the painting and filling tools lay down: a whole stitch or a half stitch of either kind (G-082). */
-  stitchKind: StitchKind;
-  onStitchKindChange: (kind: StitchKind) => void;
+  history: { canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void };
+  view: {
+    mode: ViewMode;
+    onModeChange: (mode: ViewMode) => void;
+    /** Isolate: dim every thread except the ones lit in the Threads list. Not a tool -- it stays on while you paint. */
+    isolate: boolean;
+    onIsolateChange: (on: boolean) => void;
+    litCount: number;
+  };
+  /** The loaded photo, shown before a chart exists and as the source of the photo views. */
+  photo: { isLoading: boolean; hasSource: boolean };
+  /** The two drawing colours, and which of them is in front (G-064). */
+  colours: {
+    slots: { a: number | null; b: number | null; active: "a" | "b" };
+    onActivate: (slot: "a" | "b") => void;
+    onSwap: () => void;
+  };
+  /** What one press covers and lays down (G-064, G-082). */
+  brush: {
+    size: BrushSize;
+    shape: BrushShape;
+    onSizeChange: (size: BrushSize) => void;
+    onShapeChange: (shape: BrushShape) => void;
+    shapeFill: ShapeFill;
+    onShapeFillChange: (fill: ShapeFill) => void;
+    /** A whole stitch or a half stitch of either kind. */
+    stitchKind: StitchKind;
+    onStitchKindChange: (kind: StitchKind) => void;
+  };
+  /** Symmetry lives here rather than on the rail, where 1b draws it (Owner, 2026-09-18). */
+  symmetry: { axes: SymmetryAxes; squareCanvas: boolean; onToggle: (axis: SymmetryAxis) => void };
+  /** The transparency lock (G-079): drawing and filling cannot turn empty stitches into colour or the reverse. */
+  lock: { on: boolean; onChange: (on: boolean) => void };
   /** The start screen is up over an open chart: the bar says so and offers the way back (Atelier). */
-  startingNew: boolean;
-  onBackToChart: () => void;
+  start: { startingNew: boolean; onBackToChart: () => void };
 }
 
 const SHAPE_FILL_OPTIONS: SegmentOption<ShapeFill>[] = [
@@ -116,37 +117,33 @@ const BRUSH_SHAPE_OPTIONS: SegmentOption<BrushShape>[] = [
 
 export function ContextBar({
   pattern,
-  canUndo,
-  canRedo,
-  onUndo,
-  onRedo,
-  viewMode,
-  onViewModeChange,
-  lockTransparency,
-  onLockTransparencyChange,
-  isLoadingImage,
-  hasSourcePhoto,
-  isolate,
-  onIsolateChange,
-  litCount,
-  symmetry,
-  squareCanvas,
-  onToggleSymmetry,
-  colorSlots,
-  onActivateColorSlot,
-  onSwapColors,
-  brushSize,
-  brushShape,
-  onBrushSizeChange,
-  onBrushShapeChange,
   activeTool,
-  shapeFill,
-  onShapeFillChange,
-  stitchKind,
-  onStitchKindChange,
-  startingNew,
-  onBackToChart,
+  history,
+  view,
+  photo,
+  colours,
+  brush,
+  symmetry: symmetryGroup,
+  lock,
+  start,
 }: ContextBarProps) {
+  const { canUndo, canRedo, undo: onUndo, redo: onRedo } = history;
+  const { mode: viewMode, onModeChange: onViewModeChange, isolate, onIsolateChange, litCount } = view;
+  const { isLoading: isLoadingImage, hasSource: hasSourcePhoto } = photo;
+  const { slots: colorSlots, onActivate: onActivateColorSlot, onSwap: onSwapColors } = colours;
+  const {
+    size: brushSize,
+    shape: brushShape,
+    onSizeChange: onBrushSizeChange,
+    onShapeChange: onBrushShapeChange,
+    shapeFill,
+    onShapeFillChange,
+    stitchKind,
+    onStitchKindChange,
+  } = brush;
+  const { axes: symmetry, squareCanvas, onToggle: onToggleSymmetry } = symmetryGroup;
+  const { on: lockTransparency, onChange: onLockTransparencyChange } = lock;
+  const { startingNew, onBackToChart } = start;
   const photoActive = viewMode === "photo" || viewMode === "photo-only";
   const chartView: ChartView = viewMode === "bw" ? "bw" : viewMode === "realistic" ? "realistic" : "color";
 

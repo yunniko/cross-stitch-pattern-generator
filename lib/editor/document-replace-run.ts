@@ -14,7 +14,10 @@ export interface ReplaceEffects {
   bumpDocument(): void;
   clearSelection(): void;
   closeCrop(): void;
+  /** The lit threads of both sections, and Isolate with them. */
   clearLit(): void;
+  /** The thread the Text tab would letter in: it is an index into the old palette. */
+  clearTextThread(): void;
   clearColourInHand(): void;
   resetZoom(): void;
   /** The symmetry axes: all off when none are given. */
@@ -72,6 +75,7 @@ export async function replaceDocument(
     effects.clearColourInHand();
     effects.resetZoom();
     effects.clearLit();
+    effects.clearTextThread();
     effects.closeCrop();
   }
 

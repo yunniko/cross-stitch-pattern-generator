@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import path from "node:path";
 import { generateSmallPattern } from "./helpers/app";
 
 /**
@@ -212,4 +213,13 @@ test("Escape in a field puts that field back; a second Escape puts the whole fra
   await expect(field(page, "Top")).toHaveValue("2"); // the other edge is not touched
   await field(page, "Left").press("Escape");
   await expect(field(page, "Top")).toHaveValue("0");
+});
+
+test("a new chart arriving with Crop in hand gets a fresh frame over the whole of it", async ({ page }) => {
+  await openTool(page);
+  await field(page, "Left").fill("5");
+  await page.getByLabel("Open pattern file").setInputFiles(path.join(__dirname, "fixtures", "sample.oxs"));
+  await expect(header(page)).toHaveText(/^6 × 4, /);
+  await expect(page.getByTestId("crop-overlay")).toHaveAttribute("data-frame", "0,0,6,4");
+  await expect(field(page, "Left")).toHaveValue("0");
 });

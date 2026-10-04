@@ -17,48 +17,64 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   "photo-only": "Original photo",
 };
 
+/**
+ * The viewer's inputs, in the groups it uses them in (G-091 M2). They were 37 flat props; the groups are the seams: what is
+ * drawn, where it is drawn, what the pointer does, and the three states the well can be in besides a chart.
+ */
 export interface ImageWindowProps {
-  /** First run: the three ways into a chart, offered where the chart will be. */
-  onChoosePhoto: () => void;
-  onCreateBlank: (width: number, height: number) => void;
-  onImportPixelArt: () => void;
-  options: WorkspaceOptions;
-  onAidaCountChange: (count: number) => void;
-  onOpenPatternFile: () => void;
-  isLoadingImage: boolean;
-  /** New was pressed with a chart open: the start screen covers it until a card is chosen or Back is pressed. */
-  startingNew: boolean;
-  /** The first-run screen is showing -- `startingNew`, or simply nothing loaded yet. Decided in workspace.tsx. */
-  startScreen: boolean;
-  scrollerRef: RefObject<HTMLDivElement | null>;
-  frameRef: RefObject<HTMLDivElement | null>;
-  canvasRef: RefObject<HTMLCanvasElement | null>;
-  /** The cursor's own canvas, over the chart's (G-065). */
-  hoverCanvasRef: RefObject<HTMLCanvasElement | null>;
-  pattern: StitchPattern | null;
-  cellSize: number;
-  sourceMeta: SourceImageMeta | null;
-  viewMode: ViewMode;
-  activeTool: Tool;
-  activeColorIndex: number | null;
-  /** The tool in hand draws its own outline over the chart, so the pointer itself is hidden there (G-078). */
-  cursorHidden: boolean;
-  previewError: string | null;
-  onRetryPreview: () => void;
-  onDismissPreviewError: () => void;
+  /** The elements the renderer and the tools measure and draw on. */
+  refs: {
+    scroller: RefObject<HTMLDivElement | null>;
+    frame: RefObject<HTMLDivElement | null>;
+    canvas: RefObject<HTMLCanvasElement | null>;
+    /** The cursor's own canvas, over the chart's (G-065). */
+    hoverCanvas: RefObject<HTMLCanvasElement | null>;
+  };
+  /** What is shown and what is in hand. */
+  chart: {
+    pattern: StitchPattern | null;
+    cellSize: number;
+    sourceMeta: SourceImageMeta | null;
+    viewMode: ViewMode;
+    activeTool: Tool;
+    activeColorIndex: number | null;
+    /** The tool in hand draws its own outline over the chart, so the pointer itself is hidden there (G-078). */
+    cursorHidden: boolean;
+  };
+  /** The start screen: the ways into a chart, offered where the chart will be. */
+  start: {
+    /** It is showing: New was pressed, or nothing is loaded yet. Decided in workspace.tsx. */
+    visible: boolean;
+    /** New was pressed with a chart open: the start screen covers it until a card is chosen or Back is pressed. */
+    startingNew: boolean;
+    isLoadingImage: boolean;
+    onChoosePhoto: () => void;
+    onCreateBlank: (width: number, height: number) => void;
+    onImportPixelArt: () => void;
+    onOpenPatternFile: () => void;
+    onAidaCountChange: (count: number) => void;
+  };
+  /** The Stitched view's failure to draw, and the ways out of it. */
+  preview: { previewError: string | null; retryPreview: () => void; dismissPreviewError: () => void };
   /** The four sliders (G-074): the photo they make is drawn here, in the browser, not fetched. */
-  adjustActive: boolean;
-  /** A frame for this photo has been painted; until then the photo itself is what is up. */
-  adjustReady: boolean;
-  adjustSize: { width: number; height: number } | null;
-  adjustCanvasRef: (canvas: HTMLCanvasElement | null) => void;
-  onPointerDown: (e: PointerEvent<HTMLDivElement>) => void;
-  onPointerMove: (e: PointerEvent<HTMLDivElement>) => void;
-  onPointerUp: (e: PointerEvent<HTMLDivElement>) => void;
-  /** The cursor leaving the chart, which takes its outline with it. */
-  onPointerLeave: (e: PointerEvent<HTMLDivElement>) => void;
-  onDoubleClick: (e: MouseEvent<HTMLDivElement>) => void;
-  onDrop: (e: DragEvent<HTMLDivElement>) => void;
+  adjust: {
+    active: boolean;
+    /** A frame for this photo has been painted; until then the photo itself is what is up. */
+    ready: boolean;
+    size: { width: number; height: number } | null;
+    attach: (canvas: HTMLCanvasElement | null) => void;
+  };
+  /** What the pointer does on the chart. */
+  pointer: {
+    onDown: (e: PointerEvent<HTMLDivElement>) => void;
+    onMove: (e: PointerEvent<HTMLDivElement>) => void;
+    onUp: (e: PointerEvent<HTMLDivElement>) => void;
+    /** The cursor leaving the chart, which takes its outline with it. */
+    onLeave: (e: PointerEvent<HTMLDivElement>) => void;
+    onDoubleClick: (e: MouseEvent<HTMLDivElement>) => void;
+    onDrop: (e: DragEvent<HTMLDivElement>) => void;
+  };
+  options: WorkspaceOptions;
   /** The Crop tool's frame, drawn over the chart (G-089); null when the tool is not open. It makes room around the chart for growing it. */
   cropOverlay?: ReactNode;
 }
@@ -91,42 +107,22 @@ function cursorFor(activeTool: Tool, activeColorIndex: number | null, viewMode: 
  * renderer measures, and the frame is the chart-sized box it measures against (D135). The `overflow-auto` class is
  * part of that contract too: the suite selects the scroller by it.
  */
-export function ImageWindow({
-  scrollerRef,
-  frameRef,
-  canvasRef,
-  hoverCanvasRef,
-  pattern,
-  cellSize,
-  sourceMeta,
-  viewMode,
-  activeTool,
-  activeColorIndex,
-  cursorHidden,
-  onChoosePhoto,
-  onCreateBlank,
-  onImportPixelArt,
-  options,
-  onAidaCountChange,
-  onOpenPatternFile,
-  isLoadingImage,
-  startingNew,
-  startScreen,
-  previewError,
-  onRetryPreview,
-  onDismissPreviewError,
-  adjustActive,
-  adjustReady,
-  adjustSize,
-  adjustCanvasRef,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerLeave,
-  onDoubleClick,
-  onDrop,
-  cropOverlay = null,
-}: ImageWindowProps) {
+export function ImageWindow({ refs, chart, start, preview, adjust, pointer, options, cropOverlay = null }: ImageWindowProps) {
+  const { scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef } = refs;
+  const { pattern, cellSize, sourceMeta, viewMode, activeTool, activeColorIndex, cursorHidden } = chart;
+  const {
+    visible: startScreen,
+    startingNew,
+    isLoadingImage,
+    onChoosePhoto,
+    onCreateBlank,
+    onImportPixelArt,
+    onOpenPatternFile,
+    onAidaCountChange,
+  } = start;
+  const { previewError, retryPreview: onRetryPreview, dismissPreviewError: onDismissPreviewError } = preview;
+  const { active: adjustActive, ready: adjustReady, size: adjustSize, attach: adjustCanvasRef } = adjust;
+  const { onDown: onPointerDown, onMove: onPointerMove, onUp: onPointerUp, onLeave: onPointerLeave, onDoubleClick, onDrop } = pointer;
   const [showOriginal, setShowOriginal] = useState(false);
   // The sliders draw here; until the first frame is painted the photo itself is still what is up, so the well
   // never goes blank while a preview is being prepared.

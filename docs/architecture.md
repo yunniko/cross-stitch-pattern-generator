@@ -58,7 +58,7 @@ Until the target exists, the "today" column is the rule; it is the same guide wi
 
 Each step is its own goal, changes no behaviour, and is guarded by the existing suites. Later steps depend on earlier ones.
 
-1. **Editor shell and document lifecycle** (G-091, in progress: the replace table is done, D282): replacing the open chart is decided in one place; grouped
+1. **Editor shell and document lifecycle** (G-091, done 2026-10-04: the replace table D282, one rule for every new document D283, grouped props): replacing the open chart is decided in one place; grouped
    props. Removes the widest file's growth.
 2. **Tool registry**: the fourteen tools become modules behind one contract; the shell loses its if-chains; `use-canvas-tools.ts`
    is split by tool; tool options become data. From here a new tool is one file.

@@ -6,8 +6,8 @@
  * another not). This is the one table: a way in is a row, a thing to reset is a column, and the hook that carries it out
  * (`app/hooks/use-editor-document.ts`) has no opinion of its own.
  *
- * It records the behaviour as it was on 2026-10-04, differences included; a row is changed on purpose, with a decision, not
- * by editing one of eight functions.
+ * The rows first recorded the behaviour as it was on 2026-10-04, differences included; the Owner then had the differences
+ * removed (D283): every new document resets the same things. A row is changed on purpose, with a decision.
  */
 
 export type ReplaceReason =
@@ -30,8 +30,8 @@ export interface ReplacePlan {
   /** `reset`: the new chart is where undo starts. `push`: it is one more undoable step. */
   history: "reset" | "push";
   /**
-   * `full`: a new document: the piece in hand, the crop frame, the lit threads, the colour in hand and the zoom all go, and the
-   * colour editor closes. `selection`: the same document changed under the piece in hand: only the piece goes and the colour
+   * `full`: a new document: the piece in hand, the crop frame, the lit threads of both sections with Isolate, the colour in hand,
+   * the Text tab's thread and the zoom all go, and the colour editor closes. `selection`: the same document changed under the piece in hand: only the piece goes and the colour
    * editor closes.
    */
   view: "full" | "selection";
@@ -63,7 +63,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     paletteSet: "reset",
     photoAdjust: "neutral",
     tab: "photo",
-    clearMessages: false,
+    clearMessages: true,
     leaveStart: true,
     adoptPhoto: false,
     forgetAutosave: false,
@@ -76,7 +76,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     paletteSet: "from-file",
     photoAdjust: "from-file",
     tab: "threads",
-    clearMessages: false,
+    clearMessages: true,
     leaveStart: true,
     adoptPhoto: true,
     forgetAutosave: false,
@@ -87,7 +87,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     view: "full",
     symmetry: "off",
     paletteSet: "reset",
-    photoAdjust: "keep",
+    photoAdjust: "neutral",
     tab: "threads",
     clearMessages: true,
     leaveStart: true,
@@ -100,7 +100,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     view: "full",
     symmetry: "off",
     paletteSet: "reset",
-    photoAdjust: "keep",
+    photoAdjust: "neutral",
     tab: "threads",
     clearMessages: true,
     leaveStart: true,
@@ -110,12 +110,12 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
   },
   "first-generate": {
     history: "reset",
-    view: "selection",
+    view: "full",
     symmetry: "off",
     paletteSet: "keep",
     photoAdjust: "keep",
     tab: "threads",
-    clearMessages: false,
+    clearMessages: true,
     leaveStart: false,
     adoptPhoto: false,
     forgetAutosave: false,

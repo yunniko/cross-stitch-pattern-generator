@@ -318,3 +318,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D280 — A fast lane for small interface-only changes — active
 - D281 — Plugins are the Owner's own modules, not outside code — active
 - D282 — Replacing the open chart is one table of ways in and resets — active
+- D283 — Every new document resets the same things — active
