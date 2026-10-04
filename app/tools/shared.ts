@@ -1,3 +1,4 @@
+import type { CommandState } from "@/lib/editor/commands";
 import type { ChartRenderer } from "../hooks/use-chart-renderer";
 import { type RefObject } from "react";
 import { lockTransparency as keepTransparency, sameCells, withCellPalette } from "@/lib/editor/pattern-edit";
@@ -66,4 +67,9 @@ export function inputsFrom(api: EditorApi) {
     lockTransparency: api.options.lockTransparency,
     stitchKind: api.options.stitchKind,
   };
+}
+
+/** A command's state: whether it can run, and what it does. What the action returns is dropped, so it always takes the key. */
+export function act(available: boolean, action: () => unknown): CommandState {
+  return { available, run: () => void action() };
 }

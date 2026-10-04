@@ -2,6 +2,7 @@ import { CropBar } from "../components/crop-bar";
 import { CropOverlay } from "../components/crop-overlay";
 import { CropIcon } from "./icons";
 import { BRUSH_OPTIONS } from "./options";
+import { act } from "./shared";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useCallback, useState } from "react";
 import { cropError, cropSize, insetsToDelta, isNoCrop, NO_CROP, withInset, type CropEdge, type CropInsets } from "@/lib/editor/crop-frame";
@@ -74,19 +75,29 @@ export const cropModule = {
       options: BRUSH_OPTIONS,
     },
   ],
+  commands: [
+    {
+      id: "crop.apply",
+      name: "Apply the crop frame",
+      group: "Crop",
+      when: "A crop frame that differs from the chart and is valid",
+      keys: ["Enter"],
+    },
+    {
+      id: "crop.reset",
+      name: "Put the crop frame back over the whole chart",
+      group: "Crop",
+      when: "A crop frame that differs from the chart",
+      keys: ["Escape"],
+    },
+  ],
   useRuntime(api: EditorApi): ToolRuntime {
     const crop = useCropTool(api.pattern, api.commit);
     const shown = crop.open && api.pattern !== null && !api.startingNew && !api.viewOnly;
     return {
-      cancel: () => {
-        if (!shown) return false;
-        crop.reset();
-        return true;
-      },
-      apply: () => {
-        if (!shown) return false;
-        crop.apply();
-        return true;
+      commands: {
+        "crop.apply": act(shown && crop.changed && crop.error === null, crop.apply),
+        "crop.reset": act(shown && crop.changed, crop.reset),
       },
       onToolChange: (_previous, next) => {
         if (next.id === "crop") crop.begin();

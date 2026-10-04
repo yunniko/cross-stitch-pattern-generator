@@ -321,3 +321,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D283 — Every new document resets the same things — active
 - D284 — A tool is one module in a registry, and the shell routes to it — active
 - D285 — A tool declares its options, and one options area draws them — active
+- D286 — Every action is a command in one table, and the keys read it — active
+- D287 — The command list is opened from a control and has no key — active

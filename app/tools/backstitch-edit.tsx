@@ -1,6 +1,6 @@
 import { BackstitchBar } from "../components/panels";
 import { BackstitchSelectIcon } from "./icons";
-import { inputsFrom } from "./shared";
+import { act, inputsFrom } from "./shared";
 import { BRUSH_OPTIONS } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useCallback, useRef, useState } from "react";
@@ -218,20 +218,48 @@ export const backstitchEditModule = {
       options: BRUSH_OPTIONS,
     },
   ],
+  commands: [
+    { id: "backstitch.copy", name: "Copy the backstitch in hand", group: "Backstitch", when: "Lines in hand" },
+    { id: "backstitch.paste", name: "Paste backstitch", group: "Backstitch", when: "Backstitch edit in hand; lines were copied" },
+    { id: "backstitch.duplicate", name: "Duplicate the backstitch in hand", group: "Backstitch", when: "Lines in hand" },
+    { id: "backstitch.mirror-horizontal", name: "Mirror the backstitch left to right", group: "Backstitch", when: "Lines in hand" },
+    { id: "backstitch.mirror-vertical", name: "Mirror the backstitch top to bottom", group: "Backstitch", when: "Lines in hand" },
+    { id: "backstitch.turn-right", name: "Turn the backstitch right", group: "Backstitch", when: "Lines in hand" },
+    { id: "backstitch.turn-left", name: "Turn the backstitch left", group: "Backstitch", when: "Lines in hand" },
+    { id: "backstitch.recolour", name: "Recolour the backstitch in hand", group: "Backstitch", when: "Lines and a colour in hand" },
+    {
+      id: "backstitch.delete",
+      name: "Delete the backstitch in hand",
+      group: "Backstitch",
+      when: "Lines in hand",
+      keys: ["Delete", "Backspace"],
+    },
+    { id: "backstitch.deselect", name: "Put the backstitch in hand down", group: "Backstitch", when: "Lines in hand", keys: ["Escape"] },
+  ],
   useRuntime(api: EditorApi): ToolRuntime {
     const edit = useBackstitchEditTool({ ...inputsFrom(api), colorForPointer: api.colorForPointer });
     const inHand = api.activeTool === "backstitch-edit";
+    const some = inHand && edit.selected.length > 0;
     return {
       onPointerDown: edit.onPointerDown,
       onPointerMove: edit.onPointerMove,
       onPointerUp: edit.onPointerUp,
       // A double press takes the whole run the line belongs to (D230).
       onDoubleClick: edit.onDoubleClick,
-      cancel: edit.cancel,
-      remove: () => {
-        if (!inHand) return false;
-        edit.remove();
-        return true;
+      commands: {
+        "backstitch.copy": act(some, edit.copy),
+        "backstitch.paste": act(inHand && edit.hasClipboard, edit.paste),
+        "backstitch.duplicate": act(some, edit.duplicate),
+        "backstitch.mirror-horizontal": act(some, edit.mirrorHorizontal),
+        "backstitch.mirror-vertical": act(some, edit.mirrorVertical),
+        "backstitch.turn-right": act(some, edit.rotateClockwise),
+        "backstitch.turn-left": act(some, edit.rotateAnticlockwise),
+        "backstitch.recolour": act(some && api.activeColorIndex !== null, edit.recolour),
+        // Backspace is the key labelled *delete* on a Mac keyboard. With this tool in hand both keys are kept from the browser,
+        // so one that still treats Backspace as Back does not leave the page; under any other tool they are left alone.
+        "backstitch.delete": { ...act(some, edit.remove), claimsKey: inHand },
+        // Says whether there was anything to put down, so Escape goes on to the next command when there was not.
+        "backstitch.deselect": { available: edit.selected.length > 0, run: edit.cancel },
       },
       // A line stays selected only while a tool that can act on it is in hand.
       onToolChange: () => void edit.cancel(),

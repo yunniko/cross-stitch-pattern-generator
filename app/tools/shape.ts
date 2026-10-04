@@ -214,6 +214,16 @@ export const shapeModule = {
       outline: "press",
     },
   ],
+  commands: [
+    {
+      id: "edit.cancel-shape",
+      name: "Cancel the shape being drawn",
+      group: "Edit",
+      when: "A line, rectangle or oval is being dragged",
+      keys: ["Escape"],
+      keyOnly: "gesture",
+    },
+  ],
   useRuntime(api: EditorApi): ToolRuntime {
     const kind = SHAPES.find((shape) => shape === api.activeTool) ?? "line";
     const shape = useShapeTool({
@@ -229,7 +239,7 @@ export const shapeModule = {
       onPointerDown: shape.onPointerDown,
       onPointerMove: shape.onPointerMove,
       onPointerUp: shape.onPointerUp,
-      cancel: shape.cancel,
+      commands: { "edit.cancel-shape": { available: api.pattern !== null, run: shape.cancel } },
       // A half-drawn shape is not carried to the next tool: it is dropped, as Escape drops it.
       onToolChange: () => void shape.cancel(),
     };

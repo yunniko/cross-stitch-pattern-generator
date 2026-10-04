@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, type RefObject } from "react";
 import type { QuickMirror } from "@/lib/editor/symmetry";
 import type { Tool } from "../editor-types";
 import { TOOL_DEFINITIONS } from "../tools/registry";
@@ -60,9 +60,25 @@ export interface ToolRailProps {
   onNewChart: () => void;
   /** The start screen is what New opens, so New has nothing to do while it is already up. */
   newChartDisabled: boolean;
+  /** Opens the command list (G-093). It has no key of its own. */
+  onOpenCommands: () => void;
+  commandsDisabled: boolean;
+  /** The workspace puts the focus back here when the list is closed without running anything. */
+  commandsButtonRef: RefObject<HTMLButtonElement | null>;
 }
 
-export function ToolRail({ activeTool, disabled, onSelect, squareCanvas, onMirror, onNewChart, newChartDisabled }: ToolRailProps) {
+export function ToolRail({
+  activeTool,
+  disabled,
+  onSelect,
+  squareCanvas,
+  onMirror,
+  onNewChart,
+  newChartDisabled,
+  onOpenCommands,
+  commandsDisabled,
+  commandsButtonRef,
+}: ToolRailProps) {
   return (
     <aside className="flex w-16 shrink-0 flex-col items-stretch gap-0.5 border-r border-line bg-surface py-2.5">
       <div className="flex justify-center pb-2.5">
@@ -88,6 +104,34 @@ export function ToolRail({ activeTool, disabled, onSelect, squareCanvas, onMirro
             <path d="M12 8.5v7M8.5 12h7" />
           </svg>
           <span className="text-[10px] leading-[13px]">New</span>
+        </button>
+      </div>
+      {/* Beside New because both belong to the application, not to a tool: the list reaches every command there is. */}
+      <div className="flex justify-center pb-2.5">
+        <button
+          ref={commandsButtonRef}
+          type="button"
+          onClick={onOpenCommands}
+          disabled={commandsDisabled}
+          aria-label="Commands"
+          aria-haspopup="dialog"
+          title="Commands — search everything the editor can do, with its key"
+          className={`flex flex-col items-center gap-[3px] self-center rounded-[7px] border border-line px-1 py-1.5 text-muted transition-colors enabled:hover:bg-raised enabled:hover:text-ink ${DISABLED_ICON}`}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-[18px] w-[18px]"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.7}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="10.5" cy="10.5" r="6" />
+            <path d="M15 15l5 5" />
+          </svg>
+          <span className="text-[10px] leading-[13px]">Commands</span>
         </button>
       </div>
 

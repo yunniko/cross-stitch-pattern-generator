@@ -198,6 +198,16 @@ export const backstitchModule = {
       // No outline: it lands on corners, not cells, so a stitch-shaped outline would point at the wrong thing.
     },
   ],
+  commands: [
+    {
+      id: "backstitch.end-run",
+      name: "End the run being drawn, without its pending line",
+      group: "Backstitch",
+      when: "A backstitch run is being drawn",
+      keys: ["Escape"],
+      keyOnly: "gesture",
+    },
+  ],
   useRuntime(api: EditorApi): ToolRuntime {
     const backstitch = useBackstitchTool({ ...inputsFrom(api), colorForPointer: api.colorForPointer, symmetry: api.symmetry });
     return {
@@ -206,7 +216,7 @@ export const backstitchModule = {
       onPointerUp: backstitch.onPointerUp,
       // A double press ends a run without drawing the segment its second press would have made.
       onDoubleClick: () => backstitch.onDoubleClick(),
-      cancel: backstitch.cancel,
+      commands: { "backstitch.end-run": { available: api.pattern !== null, run: backstitch.cancel } },
       onToolChange: () => void backstitch.cancel(),
     };
   },

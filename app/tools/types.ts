@@ -1,5 +1,6 @@
 import type { ComponentType, DragEvent, MouseEvent, PointerEvent, ReactNode, RefObject } from "react";
 import type { StampOffset } from "@/lib/editor/brush-stamp";
+import type { CommandDefinition, CommandState } from "@/lib/editor/commands";
 import type { ShapeFill } from "@/lib/editor/shape-raster";
 import type { OptionValue, ToolOptionSpec } from "@/lib/editor/tool-options";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
@@ -108,12 +109,8 @@ export interface ToolRuntime {
   onPointerMove?(e: PointerEvent<HTMLDivElement>): boolean;
   onPointerUp?(e: PointerEvent<HTMLDivElement>): boolean;
   onDoubleClick?(e: MouseEvent<HTMLDivElement>, frame: HTMLDivElement): void;
-  /** Escape. True when there was something to drop. */
-  cancel?(): boolean;
-  /** Enter. True when there was something to apply. */
-  apply?(): boolean;
-  /** Delete or Backspace. True when it was this module's to handle. */
-  remove?(): boolean;
+  /** What each command the module declares does now, by the command's id (G-093). Escape, Enter and Delete reach a tool this way. */
+  commands?: Readonly<Record<string, CommandState>>;
   /** The tool in hand is changing; every module is told, whichever tool it owns. */
   onToolChange?(previous: ToolDefinition, next: ToolDefinition): void;
   /** Another chart has arrived. */
@@ -130,6 +127,8 @@ export interface ToolRuntime {
 
 export interface ToolModule {
   definitions: readonly ToolDefinition[];
+  /** The commands it adds for what it holds: their names, keys and conditions (G-093). What each does is in the runtime. */
+  commands?: readonly CommandDefinition[];
   /** A hook: called once per render, in the registry's fixed order. */
   useRuntime(api: EditorApi): ToolRuntime;
 }

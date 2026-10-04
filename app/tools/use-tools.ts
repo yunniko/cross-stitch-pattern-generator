@@ -1,10 +1,11 @@
 import { useMemo, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { ONE_STITCH_STAMP, stampOutline, type StampEdge } from "@/lib/editor/brush-stamp";
 import { stampForPress } from "@/lib/editor/shape-raster";
+import type { Command, CommandDefinition } from "@/lib/editor/commands";
 import type { BackstitchLine, FloatingSelection } from "@/lib/types";
 import { DEFAULT_TOOL, moduleIndexOf, TOOL_DEFINITIONS, TOOL_MODULES, toolDefinition, type Tool } from "./registry";
 import { SHAPE_FILL, type ToolOption } from "./options";
-import type { EditorApi, PieceService, ToolRuntime } from "./types";
+import type { EditorApi, PieceService, ToolModule, ToolRuntime } from "./types";
 
 /**
  * The editor shell's side of the tool registry (G-092, D284): which tool is in hand, and the routing of the pointer and the
@@ -34,10 +35,8 @@ export interface Tools {
   onPointerMove: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerUp: (e: PointerEvent<HTMLDivElement>) => void;
   onDoubleClick: (e: MouseEvent<HTMLDivElement>) => void;
-  /** Escape, Enter, Delete: offered to every module until one takes it. */
-  cancel: () => boolean;
-  apply: () => boolean;
-  remove: () => boolean;
+  /** The commands the tool modules declare, with what each does now (G-093). Escape, Enter and Delete reach the tools as these. */
+  commands: readonly Command[];
   /** Another chart has arrived. */
   documentReplaced: () => void;
   /** The tool's own controls, when it has any to show in place of the drawing options. */
@@ -53,6 +52,14 @@ export interface Tools {
   hoverOutline: readonly StampEdge[] | null;
 }
 
+/** One command a module declares, with what its runtime says it does now. */
+function commandOf(definition: CommandDefinition, runtime: ToolRuntime): Command {
+  const state = runtime.commands?.[definition.id];
+  // A declared command with nothing behind it is a mistake in the module; say which, rather than list a dead command.
+  if (!state) throw new Error(`The tool module that declares the command "${definition.id}" gives it nothing to run.`);
+  return { ...definition, ...state };
+}
+
 export function useTools(inputs: ToolsInputs): Tools {
   const [activeTool, setActiveTool] = useState<Tool>(DEFAULT_TOOL);
   const api: EditorApi = { ...inputs, activeTool };
@@ -60,7 +67,12 @@ export function useTools(inputs: ToolsInputs): Tools {
   // One hook per module, in the registry's order. The registry is a module constant, so the order never changes between
   // renders, which is all the rule against hooks in loops exists to guarantee.
   const runtimes: ToolRuntime[] = [];
-  for (const toolModule of TOOL_MODULES) runtimes.push(toolModule.useRuntime(api));
+  const commands: Command[] = [];
+  for (const toolModule of TOOL_MODULES as readonly ToolModule[]) {
+    const runtime = toolModule.useRuntime(api);
+    runtimes.push(runtime);
+    for (const definition of toolModule.commands ?? []) commands.push(commandOf(definition, runtime));
+  }
 
   const definition = toolDefinition(activeTool);
   const current = runtimes[moduleIndexOf(activeTool)];
@@ -105,9 +117,7 @@ export function useTools(inputs: ToolsInputs): Tools {
       const frame = inputs.frameRef.current;
       if (frame) current.onDoubleClick?.(e, frame);
     },
-    cancel: () => firstTaker((runtime) => runtime.cancel?.()),
-    apply: () => firstTaker((runtime) => runtime.apply?.()),
-    remove: () => firstTaker((runtime) => runtime.remove?.()),
+    commands,
     documentReplaced: () => runtimes.forEach((runtime) => runtime.onDocumentReplaced?.()),
     bar: runtimes.find((runtime) => runtime.bar)?.bar ?? null,
     overlay: runtimes.find((runtime) => runtime.overlay)?.overlay ?? null,

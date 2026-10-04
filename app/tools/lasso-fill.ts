@@ -157,13 +157,23 @@ export const lassoFillModule = {
       outline: "one",
     },
   ],
+  commands: [
+    {
+      id: "edit.cancel-lasso-fill",
+      name: "Cancel the lasso fill being drawn",
+      group: "Edit",
+      when: "A lasso fill is being drawn",
+      keys: ["Escape"],
+      keyOnly: "gesture",
+    },
+  ],
   useRuntime(api: EditorApi): ToolRuntime {
     const lassoFill = useLassoFillTool({ ...inputsFrom(api), colorForPointer: api.colorForPointer, symmetry: api.symmetry });
     return {
       onPointerDown: lassoFill.onPointerDown,
       onPointerMove: lassoFill.onPointerMove,
       onPointerUp: lassoFill.onPointerUp,
-      cancel: lassoFill.cancel,
+      commands: { "edit.cancel-lasso-fill": { available: api.pattern !== null, run: lassoFill.cancel } },
       onToolChange: () => void lassoFill.cancel(),
     };
   },

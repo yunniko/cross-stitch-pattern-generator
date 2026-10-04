@@ -45,18 +45,29 @@ import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { usePanZoom, ZOOM_STEP } from "./hooks/use-pan-zoom";
 import { slidersToRestore } from "@/lib/editor/photo-adjust-session";
 import { EMPTY_SET } from "@/lib/editor/palette-set";
-import { NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
+import { isNeutralAdjust, NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
 import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useProjectRestore } from "./hooks/use-project-restore";
 import { useColorPrediction } from "./hooks/use-color-prediction";
 import { readToolOption, writeToolOption } from "@/lib/editor/tool-options";
 import { useTools } from "./tools/use-tools";
+import { act } from "./tools/shared";
+import { TOOL_DEFINITIONS, type Tool } from "./tools/registry";
+import { useCommandTable } from "./commands/registry";
+import type { CommandState } from "@/lib/editor/commands";
+import { CommandList } from "./components/command-list";
 import { replaceDocument, type ReplaceEffects } from "@/lib/editor/document-replace-run";
 import type { ColorPrediction } from "@/lib/pipeline/prediction";
 import { useSourceImage } from "./hooks/use-source-image";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
 
 const DEFAULT_NAME = "cross-stitch-pattern";
+
+/** The tool Space borrows: the first that moves the view by dragging. */
+const PAN_TOOL = TOOL_DEFINITIONS.find((tool) => tool.cursor === "grab")!.id;
+
+/** The keyboard cell cursor's keys are listed in the command table and listened to by its own hook. */
+const LISTENED_ELSEWHERE: CommandState = { available: false, run: () => false };
 
 /** Nothing for the cursor to carry; the renderer reads the outline only when there is a stitch to put it on. */
 const NO_OUTLINE: readonly StampEdge[] = [];
@@ -137,6 +148,10 @@ export default function Workspace({ account }: WorkspaceProps) {
   // The tool hooks need the renderer and the renderer needs the selection they own; they read it through this ref,
   // only inside event handlers, after the effect below has assigned it.
   const rendererRef = useRef<ChartRenderer | null>(null);
+  const commandsButtonRef = useRef<HTMLButtonElement>(null);
+  const [commandListOpen, setCommandListOpen] = useState(false);
+  /** The tool put down while Space is held to pan. */
+  const heldToolRef = useRef<Tool | null>(null);
 
   // The hook skips zoom levels that would render the same cell size, so it needs to know what a level renders as.
   const cellSizeAt = useCallback((zoom: number) => computeCellSize(pattern, zoom), [pattern]);
@@ -408,30 +423,16 @@ export default function Workspace({ account }: WorkspaceProps) {
     frameRef,
     scrollerRef,
     enabled:
-      pattern !== null && !startingNew && !isViewOnlyMode(viewMode) && tools.piece.selection === null && isKeyboardCursorTool(activeTool),
+      pattern !== null &&
+      !startingNew &&
+      !commandListOpen &&
+      !isViewOnlyMode(viewMode) &&
+      tools.piece.selection === null &&
+      isKeyboardCursorTool(activeTool),
     width: pattern?.width ?? 0,
     height: pattern?.height ?? 0,
     cellSize,
   });
-
-  useKeyboardShortcuts(
-    {
-      hasPattern: pattern !== null,
-      hasSourceImage: pattern?.sourceImage !== undefined,
-      activeTool,
-      undo: history.undo,
-      redo: history.redo,
-      switchTool,
-      setActiveTool: tools.restoreTool,
-      setViewMode: chooseViewMode,
-      swapColors: colours.swap,
-      cancelTool: tools.cancel,
-      applyTool: tools.apply,
-      removeWithTool: tools.remove,
-      hasSelection: tools.piece.selection !== null,
-    },
-    scrollerRef
-  );
 
   /** Hands the cursor its outline, or takes it away when the tool in hand would paint nothing. */
   function updateHoverOutline(e: PointerEvent<HTMLDivElement> | null) {
@@ -538,6 +539,84 @@ export default function Workspace({ account }: WorkspaceProps) {
   // because New is what opens it. Computed here so the two cannot drift apart.
   const startScreenVisible = startingNew || (pattern === null && source.meta === null);
 
+  // The editor's own commands (G-093): what each does now. The names, keys and conditions are the table's, in
+  // `app/commands/registry.ts`; the tools add theirs. The keys below the chart, and the command list, read the result.
+  const hasChart = pattern !== null;
+  const chartShown = hasChart && !startingNew;
+  const squareChart = pattern !== null && pattern.width === pattern.height;
+  const noPiece = tools.piece.selection === null;
+  const exportFree = chartShown && !exports.isExporting && !exports.isExportingAll;
+  const photoShown = !startingNew && !photoFree && source.hasPhoto;
+  const hasPhotoViews = pattern?.sourceImage !== undefined;
+  const commands = useCommandTable(
+    {
+      "file.new": act(!startScreenVisible, () => setStartingNew(true)),
+      "file.choose-photo": {
+        available: !source.isLoading && !generation.isProcessing,
+        run: () => startNewChart(() => imageInputRef.current?.click()),
+      },
+      "file.open": { available: true, run: () => startNewChart(() => openInputRef.current?.click()) },
+      "file.import-pixel-art": { available: true, run: () => startNewChart(() => pixelArtInputRef.current?.click()) },
+      "file.export": act(exportFree, exports.exportSelected),
+      "file.export-all": act(exportFree, exports.exportAll),
+      "file.export-editable": act(exportFree, exports.exportEditableNow),
+      "generate.run": act(photoShown && !generation.isProcessing && !source.isLoading, generation.generate),
+      "generate.cancel": act(generation.isProcessing, generation.cancel),
+      "generate.reset-adjustment": act(photoShown && !isNeutralAdjust(options.photoAdjust), () =>
+        updateOption("photoAdjust", NEUTRAL_ADJUST)
+      ),
+      // With a piece in hand, history is not the reader's to step through yet (G-063); the key is still kept from the browser.
+      "edit.undo": { ...act(history.canUndo && noPiece, history.undo), claimsKey: true },
+      "edit.redo": { ...act(history.canRedo && noPiece, history.redo), claimsKey: true },
+      "colours.swap": act(hasChart, colours.swap),
+      "colours.isolate": act(chartShown, () => setIsolate((on) => !on)),
+      "chart.mirror-left-half": act(chartShown, () => applyMirror("left-half")),
+      "chart.mirror-upper-half": act(chartShown, () => applyMirror("upper-half")),
+      "chart.mirror-upper-left-corner": act(chartShown, () => applyMirror("upper-left-corner")),
+      "chart.mirror-upper-left-half-corner": act(chartShown && squareChart, () => applyMirror("upper-left-half-corner")),
+      "chart.symmetry-vertical": act(chartShown, () => symmetryState.toggle("vertical")),
+      "chart.symmetry-horizontal": act(chartShown, () => symmetryState.toggle("horizontal")),
+      "chart.symmetry-diagonal": act(chartShown && squareChart, () => symmetryState.toggle("diagonal")),
+      "chart.symmetry-antidiagonal": act(chartShown && squareChart, () => symmetryState.toggle("antidiagonal")),
+      "chart.lock-transparency": act(chartShown, () => updateOption("lockTransparency", !options.lockTransparency)),
+      "view.color": act(hasChart, () => chooseViewMode("color")),
+      "view.bw": act(hasChart, () => chooseViewMode("bw")),
+      "view.realistic": act(hasChart, () => chooseViewMode("realistic")),
+      "view.photo": act(hasPhotoViews, () => chooseViewMode("photo")),
+      "view.photo-only": act(hasPhotoViews, () => chooseViewMode("photo-only")),
+      "view.zoom-in": act(chartShown, () => panZoom.zoomBy(ZOOM_STEP)),
+      "view.zoom-out": act(chartShown, () => panZoom.zoomBy(1 / ZOOM_STEP)),
+      "view.zoom-reset": act(chartShown, panZoom.resetZoom),
+      // Space borrows the tool that drags the view, and gives back the one it took, with none of a tool change's side effects.
+      "view.pan-held": {
+        available: hasChart,
+        run: () => {
+          if (heldToolRef.current !== null) return;
+          heldToolRef.current = activeTool;
+          switchTool(PAN_TOOL);
+        },
+        release: () => {
+          const back = heldToolRef.current;
+          heldToolRef.current = null;
+          if (back !== null) tools.restoreTool(back);
+        },
+      },
+      "cursor.move": LISTENED_ELSEWHERE,
+      "cursor.move-ten": LISTENED_ELSEWHERE,
+      "cursor.pen": LISTENED_ELSEWHERE,
+    },
+    (tool) => act(hasChart, () => switchTool(tool)),
+    tools.commands
+  );
+  // While the list is up the keys are the list's: nothing typed there reaches a tool or a view.
+  useKeyboardShortcuts(commands, scrollerRef, commandListOpen);
+
+  /** Closing without running anything gives the focus back to the button; after a command it is left on the page, so the chart's keys act at once. */
+  function closeCommandList(ran: boolean) {
+    setCommandListOpen(false);
+    if (!ran) commandsButtonRef.current?.focus();
+  }
+
   return (
     <div className="flex h-screen bg-app font-sans text-ink">
       {/* 1b draws no visible title, but the document still needs one heading: for assistive technology, and as the witness that the app booted. */}
@@ -551,7 +630,11 @@ export default function Workspace({ account }: WorkspaceProps) {
         onMirror={applyMirror}
         onNewChart={() => setStartingNew(true)}
         newChartDisabled={startScreenVisible}
+        onOpenCommands={() => setCommandListOpen(true)}
+        commandsDisabled={startingNew}
+        commandsButtonRef={commandsButtonRef}
       />
+      {commandListOpen && <CommandList commands={commands} onClose={closeCommandList} />}
 
       {/*
         Both inputs stay mounted and keep their names. They used to live behind the rail's menu; with that gone they

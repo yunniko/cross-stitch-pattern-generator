@@ -1,6 +1,6 @@
 import { SelectionBar } from "../components/panels";
 import { LassoIcon, SelectIcon } from "./icons";
-import { inputsFrom } from "./shared";
+import { act, inputsFrom } from "./shared";
 import { BRUSH_OPTIONS } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useCallback, useRef, useState } from "react";
@@ -265,23 +265,41 @@ export const selectModule = {
       cursor: "cross",
     },
   ],
+  commands: [
+    { id: "selection.copy", name: "Copy the piece", group: "Selection", when: "A piece in hand" },
+    { id: "selection.paste", name: "Paste the copied piece", group: "Selection", when: "Select or Lasso in hand; a piece was copied" },
+    { id: "selection.duplicate", name: "Duplicate the piece", group: "Selection", when: "A piece in hand" },
+    { id: "selection.fill", name: "Fill the piece with the colour in hand", group: "Selection", when: "A piece and a colour in hand" },
+    { id: "selection.flip-horizontal", name: "Flip the piece left to right", group: "Selection", when: "A piece in hand" },
+    { id: "selection.flip-vertical", name: "Flip the piece top to bottom", group: "Selection", when: "A piece in hand" },
+    { id: "selection.rotate-right", name: "Turn the piece right", group: "Selection", when: "A piece in hand" },
+    { id: "selection.rotate-left", name: "Turn the piece left", group: "Selection", when: "A piece in hand" },
+    { id: "selection.crop", name: "Crop the chart to the piece", group: "Selection", when: "A piece in hand" },
+    { id: "selection.apply", name: "Apply the piece where it sits", group: "Selection", when: "A piece in hand", keys: ["Enter"] },
+    { id: "selection.cancel", name: "Cancel the piece", group: "Selection", when: "A piece in hand", keys: ["Escape"] },
+  ],
   useRuntime(api: EditorApi): ToolRuntime {
     const mode = api.activeTool === "lasso" ? "lasso" : "select";
     const select = useSelectTool(inputsFrom(api), mode);
     const inHand = api.activeTool === "select" || api.activeTool === "lasso";
+    const held = inHand && select.selection !== null;
+    const colour = api.activeColorIndex;
     return {
       onPointerDown: select.onPointerDown,
       onPointerMove: select.onPointerMove,
       onPointerUp: select.onPointerUp,
-      cancel: () => {
-        if (!inHand) return false;
-        select.cancel();
-        return true;
-      },
-      apply: () => {
-        if (!inHand) return false;
-        select.merge();
-        return true;
+      commands: {
+        "selection.copy": act(held, select.copy),
+        "selection.paste": act(inHand && select.clipboard !== null, select.paste),
+        "selection.duplicate": act(held, select.duplicate),
+        "selection.fill": act(held && colour !== null, () => colour !== null && select.fill(colour)),
+        "selection.flip-horizontal": act(held, select.flipHorizontal),
+        "selection.flip-vertical": act(held, select.flipVertical),
+        "selection.rotate-right": act(held, select.rotateClockwise),
+        "selection.rotate-left": act(held, select.rotateAnticlockwise),
+        "selection.crop": act(held, select.crop),
+        "selection.apply": act(held, select.merge),
+        "selection.cancel": act(held, select.cancel),
       },
       // Leaving both selection tools applies whatever is floating, as pressing outside it would; swapping between them keeps it.
       onToolChange: (previous, next) => {

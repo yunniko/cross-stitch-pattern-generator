@@ -1,6 +1,6 @@
 # 04 · Editing
 
-Drawing and changing a chart. Sources: `app/hooks/use-canvas-tools.ts`, `use-keyboard-shortcuts.ts`, `use-keyboard-cursor.ts`, `lib/editor/*`, `app/components/tool-rail.tsx`, `context-bar.tsx`, `panels.tsx`; as of 2026-10-02. All of it runs on the device and works with no connection. Backstitch tools are in `06`, lettering in `07`, the thread list in `05`.
+Drawing and changing a chart. Sources: `app/tools/*`, `app/commands/registry.ts`, `app/hooks/use-keyboard-shortcuts.ts`, `use-keyboard-cursor.ts`, `lib/editor/*`, `app/components/tool-rail.tsx`, `context-bar.tsx`, `panels.tsx`, `command-list.tsx`; as of 2026-10-05. All of it runs on the device and works with no connection. Backstitch tools are in `06`, lettering in `07`, the thread list in `05`.
 
 ## When editing is possible
 
@@ -137,7 +137,7 @@ Dragging a thread's entry onto a stitch fills the connected region (stitches not
 
 ## Keyboard shortcuts
 
-Keys act when no text entry has the focus and a chart is open.
+Keys act when no text entry has the focus, and not while the command list is open. Each key belongs to a command (below); a command that is not available does nothing when its key is pressed.
 
 | Key | Does |
 |---|---|
@@ -146,11 +146,25 @@ Keys act when no text entry has the focus and a chart is open.
 | 1, 2, 3 | Color, Black & white, Stitched view |
 | 4, 5 | Grid + photo, Original photo (only with a photo) |
 | Space (held) | Pan temporarily |
-| Escape | Cancels the piece or shape in hand, or puts the crop frame back over the whole chart |
-| Enter | Applies the piece in hand (Select and Lasso), or the crop frame (Crop) |
-| Delete or Backspace | Deletes the backstitch in hand (Backstitch edit only) |
-| Ctrl/Cmd + Z; Ctrl/Cmd + Y or Shift + Z | Undo; redo |
-| Arrow keys, Enter | Keyboard cell cursor (above) |
+| Escape | Cancels the piece, the shape, the lasso fill or the backstitch run in hand; puts down the backstitch in hand; or puts the crop frame back over the whole chart. Only one of these can be in hand at a time |
+| Enter | Applies the piece in hand (Select and Lasso), or the crop frame (Crop); otherwise the pen of the keyboard cell cursor (above) |
+| Delete, Backspace | Deletes the backstitch in hand (Backstitch edit only) |
+| Ctrl/Cmd + Z | Undo. Does nothing with a piece in hand |
+| Ctrl/Cmd + Y, Ctrl/Cmd + Shift + Z | Redo. Does nothing with a piece in hand |
+| Arrow keys, Shift + Arrow keys | Keyboard cell cursor (above): by one stitch, by ten |
+
+## Command list
+
+| | |
+|---|---|
+| **Purpose** | Find any command by name, see its key, and run it |
+| **Contents** | Every command of the editor: its group, its name, its key if it has one, and whether it can be used now. Groups, in order: File, Generate, Edit, Tools, Selection, Backstitch, Crop, Colours, Chart, View, Keyboard cursor. The commands are the ones `docs/interface-placement.md` lists |
+| **Search** | Free text, empty each time the list is opened. Shows the commands whose group, name or key contains every word typed, in the same order as the full list, with a count of shown against all; "No command matches." when there is none |
+| **States of a command** | *Usable*: can be run. *Not usable now*: shown with the condition it waits for (for example "A piece in hand"), and cannot be run. *Keyboard only*: a key that acts while held, or in the middle of a drag, or belongs to the keyboard cell cursor; shown with its key and "From the keyboard only", and cannot be run from the list |
+| **Running** | Choosing a usable command closes the list and runs it. From the keyboard: up and down move through the usable commands shown, wrapping round; Enter runs the marked one (the first, until moved); Escape closes without running anything |
+| **Opening** | From one control that is always present, next to New chart. It has no key. Unavailable while the start screen covers a chart |
+| **While open** | The chart's keys do not act; whatever is typed goes to the search |
+| **Not in it** | An action that needs a value (which thread, what size, which export kind, the text to add) is not a command; it is reached where the value is given |
 
 ## Chart-level changes made while editing
 

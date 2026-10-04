@@ -23,8 +23,8 @@ A registry is a typed list that modules add themselves to. The contract of each,
 
 | Registry | An entry declares | Replaces today |
 |---|---|---|
-| **Tool** (built, G-092, D284: `app/tools/registry.ts`) | id, name, key, group, cursor, outline, traits, handlers for press, move, release, double press, cancel, apply, remove, tool change, and an optional bar and overlay. Not yet: which layer kinds it works on, and its options as data | Done: the `Tool` union, the tool list, the shortcut table, the per-event if-chains and the per-tool bars all read the registry |
-| **Command** | id, name, key, when it is available, what it does to the document | Actions wired one by one through props (undo, flip, merge, mirror, export…) |
+| **Tool** (built, G-092, D284: `app/tools/registry.ts`) | id, name, key, group, cursor, outline, traits, handlers for press, move, release, double press and tool change, an optional bar and overlay, its options as data (G-093, D285) and the commands it adds for what it holds (D286). Not yet: which layer kinds it works on | Done: the `Tool` union, the tool list, the shortcut table, the per-event if-chains and the per-tool bars all read the registry |
+| **Command** (built, G-093, D286: `app/commands/registry.ts`, pure half in `lib/editor/commands.ts`) | id, name, group, keys, when it is available in words; at run time whether it is available now and what it does. No arguments | Done: the keyboard shortcuts name no key, and the command list (D287) draws the table. Not yet: the bars and the tool list still call their actions directly, and a command is not yet a recorded change to the document (step 4) |
 | **Layer kind** | id, how it draws, how it flattens to stitches, how it serialises, which tools apply | Nothing: there is one implicit kind |
 | **Importer / exporter** | file types, name pattern, where it runs (device or server), options | `lib/editor/pattern-import.ts` and the export choice list |
 | **Generator option** | id, value kind and range, default, how it is sent to the server | Hand-added fields in the options store, the request, the validator and Rust's parser |
@@ -39,6 +39,7 @@ Until the target exists, the "today" column is the rule; it is the same guide wi
 | The request is… | Target: one place | Today: these places |
 |---|---|---|
 | A new **drawing or editing tool** | One tool module registered in the tool registry; pure logic beside it in `lib/editor/` with unit tests | **The target is in force (G-092):** pure logic in `lib/editor/<name>.ts` with a unit test; one module `app/tools/<name>.ts` exporting its definition (id, label, title, key, group, icon, traits) and `useRuntime(api)`; one line in `app/tools/registry.ts`. Its icon goes in `app/tools/icons.tsx`, its bar or overlay, if any, in `app/components/`. Nothing else is edited. A tool touches the editor only through `EditorApi` (`app/tools/types.ts`); if it needs something that is not there, the API grows, the tool does not reach round it |
+| A new **command** (an action with a name, perhaps a key) | One entry in the command registry | **The target is in force (G-093):** an action of the editor itself is one line in `SHELL_COMMANDS` (`app/commands/registry.ts`) and its state in the workspace, which the compiler requires; an action on what a tool holds is declared in that tool's module (`commands`) with its state in the module's runtime. It then appears in the command list, and its key, if it has one, works. Run `npx tsx scripts/design-brief-commands.ts --write` and add the key to the brief. A new key needs the Owner's yes |
 | A new **operation on the chart** (flip, merge, resize) | A command in the engine | A pure function in `lib/editor/pattern-edit.ts` or its own module, called through `history.set`; one undo step |
 | New **data in the chart** | A layer kind, or a field of the document, with a migration and a flatten rule | `lib/types.ts`, `pattern-serialize.ts` (read, write, validate, optional so old files open), `project-store.ts`, and, if exports or generation need it, `rust/cs-core` and `rust/cs-export` |
 | A new **generation setting** | A generator option entry | `workspace-storage.ts` (type, default, validation), the request in `use-generation.ts` and `pattern-server.ts`, `processor/validate-settings.ts`, `job-protocol.ts`, `rust/cs-core/src/json.rs`, the setting's control in `photo-pane.tsx` |
@@ -61,9 +62,10 @@ Each step is its own goal, changes no behaviour, and is guarded by the existing 
 1. **Editor shell and document lifecycle** (G-091, done 2026-10-04: the replace table D282, one rule for every new document D283, grouped props): replacing the open chart is decided in one place; grouped
    props. Removes the widest file's growth.
 2. **Tool registry** (G-092, done 2026-10-04, D284): the fourteen tools are modules behind one contract; the shell has no
-   if-chains; the 1,205-line hooks file is split by tool. A new tool is one file and one line. Left for later: tool options
-   as data (they are still drawn by hand in the drawing options).
-3. **Command registry**: actions registered once; shortcuts and a command list read it.
+   if-chains; the 1,205-line hooks file is split by tool. A new tool is one file and one line. Tool options
+   became data in G-093 (D285).
+3. **Command registry** (G-093, D286, D287): actions registered once; the shortcuts and a command list read it. Left for
+   step 4: a command as a recorded change to the document.
 4. **Document module with commands and versioned file**: today's single grid becomes "a document with one stitch layer",
    byte-identical on save and export; undo records changes instead of copies. No visible change, and the point at which
    layers become an addition rather than a rewrite.
@@ -81,7 +83,8 @@ Proposed lint boundaries, added as each layer comes into being (the `lib/` rule 
 - `lib/**` imports nothing from `app/**` or React (exists).
 - Tool modules import only the editor API and `lib/`; never `app/workspace` or another tool. **In force (G-092):** a lint rule and `tests/unit/tool-registry.spec.ts`.
 - `app/components` do not import tool modules directly; they read registries.
-- A check that every registered tool, command and exporter appears in the design brief.
+- A check that every registered tool, command and exporter appears in the design brief. **In force for commands (G-093):**
+  `scripts/design-brief-commands.ts` (keys against the brief, the command table against `docs/interface-placement.md`).
 
 ## 6 · Plugins
 
