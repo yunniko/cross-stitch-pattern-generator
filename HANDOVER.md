@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-05 at 81e5db3 (G-093 deployed, awaiting sign-off)
+Last verified: 2026-10-05 at 4e5a685 (fast-lane batch 4 deployed; G-093 signed off)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 81e5db3 (2026-10-05, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
+**Production** runs 4e5a685 (2026-10-05, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-093, command registry — signed off 2026-10-05, archived.** Every action is a command in one table (`app/commands/registry.ts`, plus the `commands` each tool module declares; pure half `lib/editor/commands.ts`, D286): the keyboard shortcuts name no key and read it, and the command list (`app/components/command-list.tsx`, opened from "Commands" under New or with Ctrl+K, D287, D288) draws it. A tool declares its options as data (`app/tools/options.tsx`, drawn by `app/components/tool-options.tsx`, D285). `npx tsx scripts/design-brief-commands.ts` checks the table against the brief and writes the command table in `docs/interface-placement.md`. To add a command or a tool option, follow `docs/architecture.md` section 3.
@@ -425,6 +425,7 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-10-05 | 4e5a685 | **Fast-lane batch 4 (D288):** keys S, V, H, Z, Ctrl+C/V/D, Ctrl+K; brush size and shape only with Brush, Line, Rectangle and Oval | 1048 unit; full local e2e 558 pass, 0 fail; the 4 new cases pass against the live site (one on retry); only this project's app restarted; six sites 200 |
 | 2026-10-05 | 81e5db3 | **G-093:** tool options as data (D285), the command registry behind the keys (D286), the command list (D287); no key added or changed | 1047 unit; full local e2e 554 pass, 0 fail; live: the 7 command-list cases pass, 4 of them on retry; 24 containers before and after, only this project's app restarted; six sites 200 |
 | 2026-10-04 | 6e3d786 | **G-092:** tool registry (D284): tools as modules, the shell routes to them; no behaviour change | 1023 unit; full local e2e 547 pass, 0 fail; live: tool-key, shape, backstitch-edit and crop cases pass (see goal log for the one case re-run); only this project's app restarted; six sites 200 |
 | 2026-10-04 | 42c2aa6 | **Fast-lane batch 3:** a new chart opens in the Color view (D283); the new-chart confirmation gains the one-press "Export, then start new" | Full local e2e 547 pass, 0 fail; the new cases pass against the live site; only this project's app restarted |
@@ -436,7 +437,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 | 2026-10-02 | ac7a9cc | **G-086:** backstitch in the Stitched view and the realistic preview (D275) | New e2e spec against the live site; full local e2e 516 pass; site 200 |
 | 2026-10-02 | fdc3c26 | **G-085:** texture strokes (D274) | New e2e specs against the live site; full local e2e 513 pass; 74 goldens green; site 200 |
 | 2026-10-02 | bb9a210 | **G-084:** the line finder replaced (D272); backstitch dashes ranked by length (D271) | New e2e spec against the live site; full local e2e 510 pass; 74 goldens green; site 200 |
-| 2026-10-02 | 9b16cb7 | **G-084:** lines of any colour, dark, light or coloured, in up to three threads (D269) | New e2e spec against the live site (4 pass, one on retry); 74 golden hashes unchanged; site 200 |
 
 ## Decisions
 
