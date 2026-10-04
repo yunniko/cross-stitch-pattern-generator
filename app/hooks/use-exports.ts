@@ -61,8 +61,9 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
   );
   const baseName = pattern?.name ?? "cross-stitch-pattern";
 
-  async function run(kind: ExportChoice, setBusy: (busy: boolean) => void, fallbackMessage: string) {
-    if (!pattern) return;
+  /** Resolves true when the file was handed to the browser, false when it could not be made (the message is shown). */
+  async function run(kind: ExportChoice, setBusy: (busy: boolean) => void, fallbackMessage: string): Promise<boolean> {
+    if (!pattern) return false;
     setBusy(true);
     setExportError(null);
     setProgress(null);
@@ -102,8 +103,10 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
                   setProgress
                 );
       downloadBlob(blob, filename);
+      return true;
     } catch (err) {
       setExportError(messageForExport(err, fallbackMessage));
+      return false;
     } finally {
       setBusy(false);
       setProgress(null);
@@ -116,8 +119,8 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
 
   /** The editable save, without disturbing the kind chosen in the Threads footer: the confirm dialog offers it as a
    * way out before a new chart replaces this one. */
-  function exportEditableNow() {
-    void run("editable", setIsExporting, "Couldn't save the editable file.");
+  function exportEditableNow(): Promise<boolean> {
+    return run("editable", setIsExporting, "Couldn't save the editable file.");
   }
 
   function exportAll() {

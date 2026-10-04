@@ -104,6 +104,7 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-094 | internal | draft: architecture or tooling |
 | G-096 | internal | draft: architecture or tooling |
 | G-095 | not shipped (draft) | the redesign |
+| G-097 | not shipped (draft) | |
 
 ## Decisions
 

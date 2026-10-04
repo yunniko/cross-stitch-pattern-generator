@@ -48,7 +48,7 @@ test("Create from the empty-grid card asks first with a chart open, and Keep edi
   const dialog = page.getByRole("dialog", { name: "Start a new chart?" });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("replaces");
-  await expect(dialog.getByRole("button", { name: "Export the editable .json first" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Export, then start new" })).toBeVisible();
 
   await dialog.getByRole("button", { name: "Keep editing" }).click();
   await expect(dialog).toHaveCount(0);
@@ -197,4 +197,19 @@ test("the accent marks one chosen way in, and the 01 badge is gone (D167)", asyn
   await page.waitForTimeout(350);
   expect(await border(photo)).toBe(ACCENT);
   expect(await border(grid)).toBe(LINE);
+});
+
+test("Export, then start new saves the open chart's editable file and goes on in one press", async ({ page }) => {
+  await generateSmallPattern(page);
+  await page.getByRole("button", { name: "New chart" }).click();
+  await page.getByRole("button", { name: /Start an empty grid/ }).click();
+  await page.getByRole("button", { name: "Create" }).click();
+  const dialog = page.getByRole("dialog", { name: "Start a new chart?" });
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    dialog.getByRole("button", { name: "Export, then start new" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("sample_editable.json");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText(/^\d+ × \d+, 0 stitches, 0 colors$/)).toBeVisible();
 });

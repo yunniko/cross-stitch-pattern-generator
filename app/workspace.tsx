@@ -842,7 +842,16 @@ export default function Workspace({ account }: WorkspaceProps) {
         {pendingStart !== null && pattern && (
           <ConfirmNewChart
             pattern={pattern}
-            onExportEditable={exports.exportEditableNow}
+            onExportThenStart={() => {
+              const action = pendingStart;
+              // The chart is given up only once its file has been handed to the browser; a failed save leaves it open, with the message.
+              void exports.exportEditableNow().then((saved) => {
+                setPendingStart(null);
+                if (!saved) return;
+                discardForNewChart();
+                action();
+              });
+            }}
             onKeepEditing={() => setPendingStart(null)}
             onStartNew={() => {
               const action = pendingStart;
