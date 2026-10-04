@@ -15,7 +15,7 @@ import { DEFAULT_PIXEL_ART_NAME } from "@/lib/editor/pixel-art-import";
 import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
 import { getProjectStore } from "@/lib/editor/project-store";
 import { useProjectAutosave } from "./hooks/use-project-autosave";
-import { useUndoHistory } from "./hooks/use-undo-history";
+import { useDocumentHistory } from "./hooks/use-document-history";
 import { AccountBadge } from "./components/auth/account-badge";
 import type { StitchPattern } from "@/lib/types";
 import { ChartPane } from "./components/chart-pane";
@@ -86,7 +86,7 @@ export interface WorkspaceProps {
 }
 
 export default function Workspace({ account }: WorkspaceProps) {
-  const history = useUndoHistory<StitchPattern | null>(null);
+  const history = useDocumentHistory();
   const pattern = history.state;
   const { options, update: updateOption } = useWorkspaceOptions();
   const source = useSourceImage();

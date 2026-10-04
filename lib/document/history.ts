@@ -3,7 +3,7 @@ import type { ChartDocument } from "./types";
 
 /**
  * The undo history of a document (G-094, D289): the document as it is now, and the recorded changes that lead back from it
- * and forward again. It replaces the history of full copies (`lib/editor/undo-history.ts`), with the same meaning for every
+ * and forward again. It replaced the history of full copies the editor had until G-094, with the same meaning for every
  * operation and the same cap; what it keeps for each step is what the step changed.
  *
  * No framework in it. `app/hooks/use-document-history.ts` is the React wrapper.

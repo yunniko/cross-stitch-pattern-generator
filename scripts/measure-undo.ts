@@ -6,9 +6,24 @@
 //   npx tsx --expose-gc scripts/measure-undo.ts document    the history of recorded changes (lib/document)
 //   add "kinds" to give the chart half stitches (a second plane), "fill" to make every edit repaint a third of the chart
 import { performance } from "node:perf_hooks";
-import { pushHistory, type HistoryState } from "../lib/editor/undo-history";
 import { withCellPalette } from "../lib/editor/pattern-edit";
 import type { StitchPattern } from "../lib/types";
+
+/** The history of full copies, as `lib/editor/undo-history.ts` kept it until G-094 replaced it: here so "before" can be measured again. */
+interface HistoryState<T> {
+  entries: T[];
+  index: number;
+}
+function pushHistory<T>(prev: HistoryState<T>, next: T): HistoryState<T> {
+  let entries = [...prev.entries.slice(0, prev.index + 1), next];
+  let index = prev.index + 1;
+  if (entries.length > 50) {
+    const overflow = entries.length - 50;
+    entries = entries.slice(overflow);
+    index -= overflow;
+  }
+  return { entries, index };
+}
 
 const SIZE = 1500;
 const STEPS = 50;

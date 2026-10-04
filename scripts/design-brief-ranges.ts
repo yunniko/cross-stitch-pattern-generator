@@ -114,7 +114,7 @@ for (const t of STITCH_TEXTURES) must(F3, `**${t.label}**`, `stitch texture ${t.
 const F4 = "04-editing";
 must(F4, `**${BRUSH_SIZES.join(", ")}**`, "brush sizes");
 must(F4, `| ${DEFAULT_BRUSH_SIZE} |`, "default brush size");
-must(F4, `${privateConstant("lib/editor/undo-history.ts", "MAX_HISTORY")} steps`, "undo depth");
+must(F4, `${privateConstant("lib/document/history.ts", "MAX_HISTORY")} steps`, "undo depth");
 
 must(F4, `would exceed the maximum supported size of ${MAX_STITCHES} stitches per side`, "crop growth limit");
 must(F4, `Fourteen tools`, "tool count");

@@ -18,6 +18,13 @@ export function newRevision(): number {
 }
 
 const flattened = new WeakMap<ChartDocument, StitchPattern>();
+/** The document each flat chart is the view of: the same chart, asked again, is the same document. */
+const documents = new WeakMap<StitchPattern, ChartDocument>();
+
+/** The document a flat chart is the view of: the one it was flattened from or made into before, or a new one. */
+export function documentOf(pattern: StitchPattern): ChartDocument {
+  return documents.get(pattern) ?? documentFromPattern(pattern);
+}
 
 /** A flat chart as a document of one layer. `flatten` of the result is the chart handed in, the very object. */
 export function documentFromPattern(pattern: StitchPattern): ChartDocument {
@@ -33,6 +40,7 @@ export function documentFromPattern(pattern: StitchPattern): ChartDocument {
     properties,
   };
   flattened.set(document, pattern);
+  documents.set(pattern, document);
   return document;
 }
 
@@ -84,5 +92,6 @@ export function flatten(document: ChartDocument): StitchPattern {
     ...(document.backstitch ? { backstitch: document.backstitch } : {}),
   };
   flattened.set(document, pattern);
+  documents.set(pattern, document);
   return pattern;
 }

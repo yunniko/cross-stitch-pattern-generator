@@ -452,7 +452,7 @@ test(`large-chart operations at ${SIZE} stitches`, async ({ page }, testInfo) =>
 });
 
 /**
- * G-046: the undo budget. Every discrete edit pushes a full pattern snapshot, capped at 50 (use-undo-history.ts). Paints
+ * G-046: the undo budget. Every discrete edit pushes a full pattern snapshot, capped at 50 (until G-094; the history now keeps changes, `lib/document/history.ts`). Paints
  * with the empty brush, so each click on a filled cell changes exactly one cell and pushes exactly one entry, and reads
  * memory after a forced collection every ten edits: it must plateau at 50, and ten edits past that prove trimming
  * releases. A Uint8Array's bytes live in an ArrayBuffer backing store *outside* the V8 heap, so `usedSize` alone
