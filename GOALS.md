@@ -20,18 +20,21 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 **Milestones:**
 - [x] M1 -- **The analysis.** Measurements and answers to the four questions.
-- [ ] M2 -- **Architecture and placement guide.** `docs/architecture.md`: the four layers, the registries, where each kind of request goes, the migration order from today's code; proposed lint boundaries. No code moved.
+- [x] M2 -- **Architecture and placement guide.** `docs/architecture.md`: the four layers, the registries, where each kind of request goes, the migration order from today's code; proposed lint boundaries. No code moved.
 - [ ] M3 -- **Interface placement.** The four placement rules worked through the design brief: each control's scope, the misplaced ones listed, the command list.
 - [ ] M4 -- **Development loop and QA.** The fast lane written as a rule for the Owner to approve; the lint, flaky-test and rate-limit fixes scoped; a first exploratory QA pass on the last three goals' features, with its findings triaged.
 - [ ] M5 -- **Follow-up goals drafted** for the Owner to order: tool registry and editor shell (absorbs G-069), document model with layers and recorded undo, interface redesign, development-loop fixes.
 
-**Questions for the Owner:**
+**Owner's answers (2026-10-04):** (1) prepare the architecture for change and do not implement the new features now; add guidelines for adding features and tools where the code is not enough; (2) the fast lane: yes (D280); (3) wanted to know what own plugins and other people's plugins each need (answered in `docs/architecture.md` section 6; no decision yet); (4) QA pass at each goal's last milestone: yes.
+
+**Questions as asked:**
 1. **Order of ambition.** Which comes first: layers, the painting board, the vector editor, or more tools on the present grid? The document model is designed for whichever is first; I propose **tools and shell first, then layers**, because every later feature needs both.
 2. **Fast lane.** May small interface-only changes skip the full suite, the deploy and the per-goal paperwork, batched into one verified deploy a day? (This relaxes the charter for this project.)
 3. **Plugins.** Your own extensions only, or other people's code too? The second needs isolation and is a much larger decision; I propose designing the registries now and deciding isolation later.
 4. **QA.** An exploratory pass at each goal's last milestone, findings to a triage list: yes?
 
 **Progress log** (newest first):
+- 2026-10-04 -- the Owner answered (above). M2 done: `docs/architecture.md` (four layers, five registries, a placement guide with a "today" and a "target" column, the order of preparation in six behaviour-neutral steps, proposed lint boundaries, own and outside plugins compared) and D280 (the fast lane). Nothing in the app changed; the guide's "today" column was written from the files touched by the last goals, not verified by adding a feature with it. Next: M3, interface placement.
 - 2026-10-04 -- goal opened at the Owner's request and M1 done: `docs/reviews/2026-10-04-growth-readiness.md`. Measured: the workspace grew from 754 to 1,071 lines in ten days and is touched by 30 of 201 commits; 46 branch sites on the tool in hand; a new tool edits 7 existing files; type-check 21 s, unit 22 s, lint 70 s, build 35 s, full browser suite about 4.5 min. Verdicts: the architecture is not ready for layers, a vector editor or plugins (closed document model, closed tool set, wide workspace); interface placement has no rule; the tests are not the main cost of a change; QA is worth having as a periodic exploratory pass. Not measured: memory or speed with layers, real use of the interface, the estimated speed-up. Awaiting the Owner's answers before M2.
 
 ### G-088 · Design helper documentation: what the app does and what every control must allow — ACTIVE (2026-10-02)

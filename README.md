@@ -7,6 +7,10 @@ server, so your photo is uploaded to it. The editable
 `.json` save is still written in the browser, so work can be saved even when the
 server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
 
+## Architecture
+
+`docs/architecture.md` says how the code is layered, where a new tool, operation, setting or export goes, and what is being prepared for layers and plugins.
+
 ## Design brief
 
 `docs/design-brief/` is a behaviour-only description of the app for a redesign: every feature and control with its range, values, states and defaults, and the actions that run on the server. Start at its `README.md`.

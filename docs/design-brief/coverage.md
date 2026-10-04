@@ -380,3 +380,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D277 | 02-photo-and-generation | |
 | D278 | 04-editing | |
 | D279 | internal | |
+| D280 | internal | |

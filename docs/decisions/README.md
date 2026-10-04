@@ -315,3 +315,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D277 — Set-up palette assigns each cell its nearest chosen colour, and the set is a record apart from the chart's palette — active
 - D278 — The Crop tool's numbers say how far each edge moves in, and the frame may grow the chart — active
 - D279 — The crop frame is drawn beside the chart's frame, and the well makes room while the tool is open — active
+- D280 — A fast lane for small interface-only changes — active
