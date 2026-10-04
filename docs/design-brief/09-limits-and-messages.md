@@ -44,7 +44,7 @@ Done on the device, with none of the states below: the editable file, the palett
 | **Running** | A worker has it | Cancel | A progress value from 0 to 100 %; for page-based exports "page *n* of *m*" with a label |
 | **Done** | The result arrived | Use it | Generation replaces or creates the chart; an export is downloaded |
 | **Cancelled** | The person cancelled | Start again | Nothing is shown as an error |
-| **Refused: busy** | The queue is full, or too many recommendations at once (more than 2) | Try again later | "The pattern service is busy. Try again in about *s* seconds." (export: "The export service is busy…"); the number is what the service asked for, 30 s if it did not say |
+| **Refused: busy** | The queue is full, or too many recommendations at once (more than 4) | Try again later | "The pattern service is busy. Try again in about *s* seconds." (export: "The export service is busy…"); the number is what the service asked for, 30 s if it did not say |
 | **Refused: too many requests** | One address has used its allowance: 6 generation, upload or export requests a minute (continuously refilled); 90 recommendations a minute | Wait | "Too many requests from this address; wait a moment and try again." |
 | **Refused: too large** | Photo over 25 MB, chart over 32 MB, request over its size | Choose a smaller one | "That image is larger than 25 MB." / "That pattern is larger than 32 MB." / "That pattern is too large to export." |
 | **Photo no longer held** | The server dropped the photo | Nothing, once: the photo is sent again and the action retried automatically a single time; if that also fails, choose the photo again | "The server no longer has that photo. Choose it again, then generate." |

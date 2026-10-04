@@ -152,3 +152,52 @@ test("the Chart tab no longer holds the canvas numbers", async ({ page }) => {
   await expect(page.getByLabel("Pattern name")).toBeVisible();
   await expect(page.getByLabel("Left", { exact: true })).toHaveCount(0);
 });
+
+// QA 2026-10-04, findings 2, 5, 6 and 9.
+
+test("the frame waits through a looking-only view and comes back with its numbers", async ({ page }) => {
+  await openTool(page);
+  await field(page, "Left").fill("5");
+  await field(page, "Left").evaluate((input) => (input as HTMLInputElement).blur());
+  await page.getByTestId("chart-frame").hover();
+  await page.keyboard.press("3"); // Stitched: looking only
+  await expect(page.getByTestId("crop-overlay")).toHaveCount(0);
+  await expect(page.getByTestId("crop-bar")).toHaveCount(0);
+  await page.keyboard.press("1");
+  await expect(page.getByTestId("crop-overlay")).toBeVisible();
+  await expect(field(page, "Left")).toHaveValue("5");
+});
+
+test("choosing Crop again, or coming back from the Zoom tool, keeps the frame", async ({ page }) => {
+  await openTool(page);
+  await field(page, "Left").fill("7");
+  await page.getByRole("button", { name: "Crop", exact: true }).click();
+  await expect(field(page, "Left")).toHaveValue("7");
+  await page.getByRole("button", { name: "Zoom", exact: true }).click();
+  await page.getByRole("button", { name: "Crop", exact: true }).click();
+  await expect(field(page, "Left")).toHaveValue("7");
+});
+
+test("Apply waits while a field holds text that is not a number", async ({ page }) => {
+  await openTool(page);
+  await field(page, "Left").fill("3");
+  await expect(page.getByRole("button", { name: "Apply" })).toBeEnabled();
+  await field(page, "Left").fill("+2");
+  await expect(page.getByRole("button", { name: "Apply" })).toBeDisabled();
+  await field(page, "Top").click(); // leaving the field puts the last usable number back
+  await expect(field(page, "Left")).toHaveValue("3");
+  await expect(page.getByRole("button", { name: "Apply" })).toBeEnabled();
+});
+
+test("Apply and Cancel stay in view in a narrow window", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 700 });
+  await openTool(page);
+  await field(page, "Left").fill("2");
+  const bar = (await page.getByTestId("crop-bar").boundingBox())!;
+  for (const name of ["Apply", "Cancel"]) {
+    const box = (await page.getByRole("button", { name }).boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(bar.x + bar.width);
+  }
+  await page.getByRole("button", { name: "Apply" }).click();
+  await expect(header(page)).toHaveText(/^48 × /);
+});

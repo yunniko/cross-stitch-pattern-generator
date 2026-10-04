@@ -30,13 +30,10 @@ export function useCropTool(pattern: StitchPattern | null, commit: (next: Stitch
   /** Back to no crop, the tool still in hand: Escape and Cancel. The chart is not touched. */
   const reset = useCallback(() => setInsets(NO_CROP), [setInsets]);
 
-  /** The tool is chosen: a frame over the whole chart. */
-  const begin = useCallback(() => {
-    setOpen(true);
-    setHeld({ width: 0, height: 0, insets: NO_CROP });
-  }, []);
+  /** The tool is chosen. A frame already being set is kept: choosing Crop again, or coming back from Zoom, is not a cancel. */
+  const begin = useCallback(() => setOpen(true), []);
 
-  /** Another tool is chosen, another chart arrives, or a looking-only view is shown: the frame goes without changing anything. */
+  /** Another tool is chosen or another chart arrives: the frame goes without changing anything. */
   const close = useCallback(() => {
     setOpen(false);
     setHeld({ width: 0, height: 0, insets: NO_CROP });

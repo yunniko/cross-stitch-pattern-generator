@@ -235,3 +235,50 @@ test("a new picture starts at the recommended colour count, whatever the last on
   const suggested = ((await hint.textContent()) ?? "").match(/Suggested (\d+)/)?.[1];
   await expect(page.getByLabel("Number of colors")).toHaveValue(suggested ?? "");
 });
+
+// QA 2026-10-04, findings 1, 3, 10 and 11.
+
+test("a custom size is typed digit by digit and is the number typed", async ({ page }) => {
+  await loadPhoto(page);
+  await page.getByRole("radio", { name: "Custom" }).click();
+  const size = page.getByLabel("Custom size in stitches");
+  await size.click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type("50");
+  await expect(size).toHaveValue("50");
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type("7"); // below the minimum: left as typed until the field is left
+  await expect(size).toHaveValue("7");
+  await page.keyboard.press("Tab");
+  await expect(size).toHaveValue("10");
+  await size.fill("12.7"); // a decimal is rounded when the field is left
+  await page.keyboard.press("Tab");
+  await expect(size).toHaveValue("13");
+});
+
+test("a palette file of another brand brings its palette mode with it", async ({ page }) => {
+  await loadPhoto(page);
+  await page.getByRole("button", { name: "Cosmo", exact: true }).click();
+  await setupSwitch(page).click();
+  await page.getByLabel("Palette file").setInputFiles({
+    name: "dmc.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({ format: "cross-stitch-palette", version: 1, mode: "dmc", colors: [{ code: "310" }, { code: "321" }] })
+    ),
+  });
+  await expect(page.getByTestId("palette-set-count")).toHaveText("2");
+  await expect(page.getByRole("button", { name: "DMC", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Cosmo", exact: true })).toHaveAttribute("aria-pressed", "false");
+});
+
+test("a chart with no colours has no palette to export, and says so", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Start an empty grid/ }).click();
+  await page.getByRole("button", { name: "Create" }).click();
+  await expect(page.getByTestId("chart-canvas")).toBeVisible();
+  await page.getByRole("tab", { name: "Threads" }).click();
+  await page.getByLabel("Export").selectOption("palette");
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await expect(page.getByText("This chart has no colours yet, so there is no palette to export.")).toBeVisible();
+});

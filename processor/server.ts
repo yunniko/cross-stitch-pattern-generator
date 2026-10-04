@@ -93,8 +93,8 @@ async function handleJobCreate(req: IncomingMessage, res: ServerResponse): Promi
   send(res, 202, pool.status(jobId), { location: `/jobs/${jobId}` });
 }
 
-/** At most this many predictions run at once: each is a short process (a few milliseconds to a second), and the pool's workers are not borrowed for it. */
-const MAX_PREDICTIONS_AT_ONCE = 2;
+/** At most this many predictions run at once (4 since 2026-10-04: at 2, four pages asking together were refused, which the browser logs as an error): each is a short process (a few milliseconds to a second), and the pool's workers are not borrowed for it. */
+const MAX_PREDICTIONS_AT_ONCE = 4;
 let predicting = 0;
 
 /** The colour count and colours a picture reasonably needs, and the coverage of a set (G-087). */

@@ -80,7 +80,9 @@ test("a small chart's header is never clipped, even at the minimum custom size (
   expect(await pngWidth(savedPath)).toBeGreaterThan(320);
 });
 
-test("a custom size outside the supported range is clamped at the stepper, so generation never sees it", async ({ page }) => {
+test("a custom size outside the supported range is brought into it when the field is left, so generation never sees it", async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
 
@@ -90,14 +92,16 @@ test("a custom size outside the supported range is clamped at the stepper, so ge
   await page.getByRole("radio", { name: "Custom" }).check();
   await page.getByRole("spinbutton").fill("5000");
 
-  // G-045: 1b's stepper clamps to the supported range as the value is typed, so an out-of-range size can no longer
-  // reach generation at all. The guard in `use-generation.ts` stays, and the fractional case below still trips it --
-  // clamping does not round, so 10.5 survives inside the range and is rejected there.
+  // The field keeps what is typed while it is being typed (bringing each keystroke into range made "50" into 100, QA
+  // 2026-10-04) and is limited when it is left, which pressing Generate also does. The guard in `use-generation.ts` stays.
+  await page.keyboard.press("Tab");
   await expect(page.getByRole("spinbutton")).toHaveValue(String(MAX_STITCHES));
   expect(errors).toEqual([]);
 });
 
-test("rejects a fractional custom size instead of crashing inside generation (code-review 2026-09-09, finding 8)", async ({ page }) => {
+test("a fractional custom size is rounded when the field is left, and never reaches generation as a fraction (code-review 2026-09-09, finding 8)", async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
 
@@ -107,14 +111,10 @@ test("rejects a fractional custom size instead of crashing inside generation (co
   await page.getByRole("radio", { name: "Custom" }).check();
   await page.getByRole("spinbutton").fill("10.5");
 
+  // The old bug: 10.5 reached buildPattern and crashed with "RangeError: Invalid array length". Pressing Generate leaves the
+  // field, which rounds it, so the chart is made at a whole size; the size check in `use-generation.ts` remains behind it.
   await page.getByRole("button", { name: "Generate pattern" }).click();
-
-  // The old bug: this reached buildPattern and crashed with
-  // "RangeError: Invalid array length", surfaced as a misleading
-  // "Couldn't generate a pattern from that image" (blaming the image, not
-  // the size). It should instead be rejected up front with the same
-  // size-validation message a plainly out-of-range value gets.
-  await expect(page.getByText(/Pattern size must be a whole number/)).toBeVisible();
-  await expect(page.getByTestId("chart-canvas")).not.toBeVisible();
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/^11 × \d+, /)).toBeVisible();
   expect(errors).toEqual([]);
 });

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { formatFinishedDimension } from "@/lib/export/finished-size";
 import {
@@ -226,6 +228,8 @@ export function PhotoPane({
   prediction,
   predictionLoading,
 }: PhotoPaneProps) {
+  // What is being typed into the custom size, until the field is left. Before the early returns: hooks keep their order.
+  const [sizeDraft, setSizeDraft] = useState<string | null>(null);
   if (isProcessing) return <GeneratingCard progress={progress} queueMessage={queueMessage} hasPattern={hasPattern} onCancel={onCancel} />;
   // First run: nothing to size or colour yet, so 1b shows what the three steps will be instead of dead controls.
   if (!hasPhoto && !hasPattern && !isLoadingImage)
@@ -336,9 +340,22 @@ export function PhotoPane({
               type="number"
               min={MIN_STITCHES}
               max={MAX_STITCHES}
-              value={options.customSize}
+              // What is being typed is left alone until the field is left: "50" starts with a 5, which is below the minimum, and
+              // bringing each keystroke into range turned it into 100 (QA 2026-10-04). A whole number in range applies at once.
+              value={sizeDraft ?? options.customSize}
               aria-label="Custom size in stitches"
-              onChange={(e) => setCustom(Number(e.target.value))}
+              onChange={(e) => {
+                setSizeDraft(e.target.value);
+                const typed = Number(e.target.value);
+                if (e.target.value.trim() !== "" && Number.isInteger(typed) && typed >= MIN_STITCHES && typed <= MAX_STITCHES)
+                  setCustom(typed);
+              }}
+              onBlur={(e) => {
+                const typed = Number(e.target.value);
+                if (e.target.value.trim() !== "" && Number.isFinite(typed)) setCustom(Math.round(typed));
+                setSizeDraft(null);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
               className="w-14 min-w-0 border-none bg-transparent py-1.5 text-center font-mono text-xs text-ink"
             />
             <button
@@ -546,7 +563,11 @@ export function PhotoPane({
         {settingUp && (
           <PaletteSetup
             set={options.paletteSet}
-            onChange={(set) => onChange("paletteSet", set)}
+            onChange={(set) => {
+              onChange("paletteSet", set);
+              // A set belongs to one palette mode: a loaded file or saved palette of another mode brings its mode with it.
+              if (set.mode !== options.paletteMode) onChange("paletteMode", set.mode);
+            }}
             prediction={prediction}
             loading={predictionLoading}
           />

@@ -21,7 +21,7 @@ Severity: **wrong** (does the wrong thing, no error shown), **stuck** (a state t
 |---|---|---|---|---|---|
 | 1 | wrong (old) | **A custom size cannot be typed.** | Photo settings, Custom, select the number, type `50` | 50 | **100**: the first digit `5` is below the minimum and is replaced by 10 at once, then `0` is appended. Typing `7` then `5` gives 105. Only values typed as 1xx–1xxx, the arrows, or pasting work |
 | 2 | stuck | **Crop left in hand with no frame after a view round trip.** | Choose Crop, press `3` (Stitched), press `1` (Color) | The frame returns, or another tool is in hand | Crop is shown as the tool in hand, but there is no frame and no numbers, and a press on the chart does nothing. Choosing Crop while in the Stitched view shows the numbers with no frame (`shots/r1-back-in-color.png`) |
-| 3 | wrong | **A palette file of another brand leaves the mode control disagreeing with the set.** | Set up palette with Cosmo chosen; load a DMC palette file | The palette mode shows DMC, or the file is refused | The mode still shows **Cosmo**; the thread search says DMC; the chart is generated in DMC (`shots/r2-dmc-file-in-cosmo.png`). Loading a saved palette does switch the mode correctly |
+| 3 | wrong | **A palette file of another brand leaves the mode control disagreeing with the set.** | Set up palette with Cosmo chosen; load a DMC palette file | The palette mode shows DMC, or the file is refused | The mode still shows **Cosmo**; the thread search says DMC; the chart is generated in DMC (`shots/r2-dmc-file-in-cosmo.png`). (An earlier version of this row said a saved palette switched the mode correctly; that was not tested and, from the code, was not true) |
 | 4 | wrong | **"Fill with predicted colours" straight after choosing a brand fills nothing.** | Set up palette, choose DMC, press Fill at once | The predicted DMC threads (8 after a second's wait) | 0 colours and no message: the recommendation on screen is still the previous mode's, which carries no threads. Waiting about a second and pressing again gives 8 |
 | 5 | usability | **Crop's Apply and Cancel are off the screen in a narrow window.** | Window 1024 px wide, choose Crop | All of the tool's controls reachable | The bar ends after the Left field; the readout, Cancel and Apply are clipped (`shots/c3-small-window.png`). Enter and Escape still work |
 | 6 | usability | **Apply stays available while a field shows text it will not use.** | Crop, type `3`, then change it to `+2` | Apply unavailable, or `+2` accepted | The field is marked invalid, the frame stays at 3, Apply is enabled and applies 3 |
@@ -46,6 +46,16 @@ that leaves nothing or passes 1500 with the right message; grows to exactly 1500
 in hand is applied when Crop is chosen; dragging outward at the lowest zoom works. Backstitch shows in the Stitched view, with
 a canvas cloth, with Isolate, and in the exported preview, in the same place. No page error or console error occurred in any
 case.
+
+## Outcome (2026-10-04, after the Owner's "yes to all")
+
+Fixed, each with a test: 1 and 10 (the custom size is left as typed until the entry is left, then limited and rounded), 2 and 9
+(the frame waits through a looking-only view and survives choosing Crop again), 3 (a loaded palette brings its mode, files and
+saved palettes alike), 4 (Fill waits for the recommendation of the mode in force), 5 (Apply and Cancel stay in view), 6 (Apply
+waits for unusable text), 11 (refused with a message), 12 (file names keep any script), 13 (wording, a newer version refused,
+duplicates counted once). Also found while fixing: four pages asking for a recommendation at once were refused at a limit of
+two, which the browser logs as an error; the limit is now four. Still open: 7 and 8 (the behaviour is the Owner's to choose),
+14, 15, 16.
 
 ## Proposed triage (the Owner decides)
 

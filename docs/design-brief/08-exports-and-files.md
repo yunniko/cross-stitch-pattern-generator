@@ -60,7 +60,7 @@ The choice, in this order, defaulting to the editable file:
 | **OXS chart for other programs (.oxs)** | Open Cross Stitch chart: colours, stitches, backstitch, the fabric count and author; a half stitch is written as a whole stitch | `<name>.oxs` | **[server]** |
 | **Realistic preview PNG** | A picture of the finished stitching in the chosen stitch texture, backstitch as solid lines, on a transparent ground, or on the canvas colour and cloth when "Canvas in exported preview" is on | `<name>_preview.png` | **[server]** |
 | **"Pixel art PNG (1 px per stitch)"** | One pixel per stitch, true colours, empty stitches transparent; backstitch not included | `<name>_pixels.png` | Device |
-| **Palette file (.json)** | The chart's colours as a palette (`02`: format, mode, and each colour with its thread code and RGB) | `<name>_palette.json` | Device |
+| **Palette file (.json)** | The chart's colours as a palette (`02`: format, mode, and each colour with its thread code and RGB); a chart with no colours is refused: "This chart has no colours yet, so there is no palette to export." | `<name>_palette.json` | Device |
 | *Color* · **Full chart PNG** | The whole chart as one picture with symbols in colour, centre markers, row and column numbers, a size header and a legend | `<name>_color.png` | **[server]** |
 | *Color* · **A4 pages (ZIP)** | The chart cut into printable A4 pages (below) in colour | `<name>_A4_color.zip` | **[server]** |
 | *Color* · **PDF for Pattern Keeper** | A PDF whose symbols are real text, laid out for the Pattern Keeper app; half stitches as whole; the A4 cell size does not apply to it | `<name>_patternkeeper.pdf` | **[server]** |

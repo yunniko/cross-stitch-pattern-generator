@@ -119,6 +119,18 @@ export function paletteFileText(set: PaletteSet, name?: string): string {
   );
 }
 
+/**
+ * The name a palette is downloaded under. Only what a file name cannot hold is replaced, so a name in any script stays readable
+ * (`[^\\w-]` turned "нитки" into "__", QA 2026-10-04); a name with nothing left is "palette".
+ */
+export function paletteFileName(name: string): string {
+  const safe = name
+    .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "_")
+    .replace(/\s+/g, " ")
+    .replace(/^[ ._]+|[ ._]+$/g, "");
+  return `${safe || "palette"}_palette.json`;
+}
+
 const MODES: readonly string[] = ["full", ...THREAD_BRAND_IDS];
 
 function isRgb(value: unknown): value is RGB {
@@ -140,12 +152,13 @@ export function parseSet(data: unknown): { set: PaletteSet } | { error: string }
     const e = entry as Record<string, unknown>;
     if (mode === "full") {
       if (!isRgb(e.rgb)) return { error: "A custom colour needs its RGB, three whole numbers from 0 to 255." };
-      colors.push({ rgb: e.rgb });
+      // A colour named twice is one colour, as it is when added by hand.
+      if (!colors.some((c) => sameColor(c, { rgb: e.rgb as RGB }))) colors.push({ rgb: e.rgb });
     } else {
       if (typeof e.code !== "string") return { error: "A thread needs its code." };
       const thread = threadColor(mode, e.code);
       if (!thread) return { error: `${e.code} is not a ${mode.toUpperCase()} thread.` };
-      colors.push(thread);
+      if (!colors.some((c) => sameColor(c, thread))) colors.push(thread);
     }
   }
   return { set: { mode, colors } };
@@ -172,6 +185,8 @@ export function parsePaletteFile(text: string): { set: PaletteSet; name?: string
   if (typeof data !== "object" || data === null || (data as Record<string, unknown>).format !== PALETTE_FILE_FORMAT) {
     return { error: "That file is not a palette file of this app." };
   }
+  const version = (data as Record<string, unknown>).version;
+  if (typeof version === "number" && version > 1) return { error: "That palette file was written by a newer version of this app." };
   const parsed = parseSet(data);
   if ("error" in parsed) return parsed;
   const name = (data as Record<string, unknown>).name;

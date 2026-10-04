@@ -24,12 +24,15 @@ function InsetField({
   onCommit,
   onEscape,
   onEnter,
+  onValidity,
 }: {
   label: string;
   value: number;
   onCommit: (value: number) => void;
   onEscape: () => void;
   onEnter: () => void;
+  /** Told whenever the text in the field stops or starts being a number the frame can use. */
+  onValidity: (valid: boolean) => void;
 }) {
   // What is being typed, until the field is left: it may not (yet) be a number, and must not be overwritten while it is not.
   const [draft, setDraft] = useState<string | null>(null);
@@ -45,9 +48,13 @@ function InsetField({
         onChange={(e) => {
           setDraft(e.target.value);
           const parsed = parseInset(e.target.value);
+          onValidity(parsed !== null);
           if (parsed !== null) onCommit(parsed);
         }}
-        onBlur={() => setDraft(null)}
+        onBlur={() => {
+          setDraft(null);
+          onValidity(true);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === "Escape") {
             // The number is already in the frame as it was typed; Escape is what it is everywhere in the tool: the frame goes back.
@@ -55,6 +62,7 @@ function InsetField({
             // Enter is Apply, here as it is anywhere in the tool; the number it was typed into is already in the frame.
             else onEnter();
             setDraft(null);
+            onValidity(true);
             e.currentTarget.blur();
           }
         }}
@@ -102,6 +110,16 @@ export function CropBar({
   onApply,
   onCancel,
 }: CropBarProps) {
+  // Fields whose text is not a usable number: Apply waits for them, since it would apply the last number that was (QA 2026-10-04).
+  const [unusable, setUnusable] = useState<ReadonlySet<CropEdge>>(new Set());
+  const markValidity = (edge: CropEdge, valid: boolean) =>
+    setUnusable((prev) => {
+      if (valid === !prev.has(edge)) return prev;
+      const next = new Set(prev);
+      if (valid) next.delete(edge);
+      else next.add(edge);
+      return next;
+    });
   return (
     <div className="flex h-11 shrink-0 items-center gap-3 border-b border-line bg-surface px-4" data-testid="crop-bar">
       <div className="flex items-center gap-1.5">
@@ -114,30 +132,34 @@ export function CropBar({
       </div>
       <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
       <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Crop</span>
-      <div className="flex items-center gap-2.5" role="group" aria-label="Crop, stitches cut from each edge">
-        {FIELDS.map(({ edge, label }) => (
-          <InsetField
-            key={edge}
-            label={label}
-            value={insets[edge]}
-            onCommit={(value) => onEdgeChange(edge, value)}
-            onEscape={onCancel}
-            onEnter={onApply}
-          />
-        ))}
+      {/* The numbers and the readout scroll inside their own track in a narrow window; Apply and Cancel stay in view (as D213). */}
+      <div className="at-tool-track flex min-w-0 flex-1 items-center gap-3 overflow-x-auto">
+        <div className="flex shrink-0 items-center gap-2.5" role="group" aria-label="Crop, stitches cut from each edge">
+          {FIELDS.map(({ edge, label }) => (
+            <InsetField
+              key={edge}
+              label={label}
+              value={insets[edge]}
+              onCommit={(value) => onEdgeChange(edge, value)}
+              onEscape={onCancel}
+              onEnter={() => unusable.size === 0 && onApply()}
+              onValidity={(valid) => markValidity(edge, valid)}
+            />
+          ))}
+        </div>
+        <span
+          className={`shrink-0 font-mono text-xs whitespace-nowrap ${error ? "text-red-300" : "text-muted"}`}
+          data-testid="crop-readout"
+          title="Positive cuts stitches off that edge; negative adds empty stitches"
+        >
+          {error ?? (
+            <>
+              {width} × {height} → {size.width} × {size.height} · {formatFinishedSize(size.width, size.height, aidaCount, sizeUnit)}
+            </>
+          )}
+        </span>
       </div>
-      <span
-        className={`font-mono text-xs ${error ? "text-red-300" : "text-muted"}`}
-        data-testid="crop-readout"
-        title="Positive cuts stitches off that edge; negative adds empty stitches"
-      >
-        {error ?? (
-          <>
-            {width} × {height} → {size.width} × {size.height} · {formatFinishedSize(size.width, size.height, aidaCount, sizeUnit)}
-          </>
-        )}
-      </span>
-      <div className="ml-auto flex items-center gap-1.5">
+      <div className="flex shrink-0 items-center gap-1.5">
         <PillButton size="xs" onClick={onCancel} disabled={!changed} title="Put the frame back over the whole chart (Escape)">
           Cancel
         </PillButton>
@@ -145,7 +167,7 @@ export function CropBar({
           size="xs"
           variant="primary"
           onClick={onApply}
-          disabled={!changed || error !== null}
+          disabled={!changed || error !== null || unusable.size > 0}
           title="Crop the chart to the frame (Enter)"
         >
           Apply

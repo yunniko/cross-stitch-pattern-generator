@@ -98,6 +98,12 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-088 | this goal | |
 | G-089 | 04-editing | |
 | G-090 | internal | analysis and guides |
+| G-091 | internal | draft: architecture or tooling |
+| G-092 | internal | draft: architecture or tooling |
+| G-093 | internal | draft: architecture or tooling |
+| G-094 | internal | draft: architecture or tooling |
+| G-096 | internal | draft: architecture or tooling |
+| G-095 | not shipped (draft) | the redesign |
 
 ## Decisions
 

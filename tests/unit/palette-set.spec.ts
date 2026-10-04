@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   colorLabel,
+  paletteFileName,
   movedColor,
   generationPaletteData,
   paletteFileText,
@@ -157,5 +158,34 @@ describe("movedColor", () => {
     expect(firsts(movedColor(set, 0, 9))).toEqual([2, 3, 1]);
     expect(movedColor(set, 1, 1)).toBe(set);
     expect(movedColor(set, 7, 0)).toBe(set);
+  });
+});
+
+describe("QA 2026-10-04 fixes", () => {
+  it("a palette file name keeps any script and replaces only what a file name cannot hold", () => {
+    expect(paletteFileName("Rust")).toBe("Rust_palette.json");
+    expect(paletteFileName("🧵 нитки")).toBe("🧵 нитки_palette.json");
+    expect(paletteFileName('con/..\\up:*?"<>|')).toBe("con_.._up_palette.json");
+    expect(paletteFileName("  ..  ")).toBe("palette_palette.json");
+  });
+
+  it("a colour named twice in a file is one colour", () => {
+    const file = JSON.stringify({
+      format: "cross-stitch-palette",
+      version: 1,
+      mode: "full",
+      colors: [{ rgb: [1, 2, 3] }, { rgb: [1, 2, 3] }, { rgb: [4, 5, 6] }],
+    });
+    const parsed = parsePaletteFile(file);
+    expect("set" in parsed && parsed.set.colors).toHaveLength(2);
+    const threads = parsePaletteFile(
+      JSON.stringify({ format: "cross-stitch-palette", version: 1, mode: "dmc", colors: [{ code: "310" }, { code: "310" }] })
+    );
+    expect("set" in threads && threads.set.colors).toHaveLength(1);
+  });
+
+  it("a file from a newer version is refused, not half read", () => {
+    const file = JSON.stringify({ format: "cross-stitch-palette", version: 2, mode: "full", colors: [{ rgb: [1, 2, 3] }] });
+    expect(parsePaletteFile(file)).toEqual({ error: "That palette file was written by a newer version of this app." });
   });
 });

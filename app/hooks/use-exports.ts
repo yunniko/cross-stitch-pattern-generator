@@ -73,6 +73,8 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
       // the server is busy or down, so work can always be saved (Owner, 2026-09-14). It is a pure serialisation with
       // no canvas involved, and keeping it local also keeps the export pipeline out of the page's JavaScript.
       // Pixel art is written here for the same reason (G-049): one pass over the cells, no server needed.
+      if (kind === "palette" && pattern.palette.length === 0)
+        throw new Error("This chart has no colours yet, so there is no palette to export.");
       const { blob, filename } =
         kind === "editable"
           ? { blob: new Blob([serializePattern(pattern, symmetry)], { type: "application/json" }), filename: `${baseName}_editable.json` }

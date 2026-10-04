@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   colorLabel,
+  paletteFileName,
   parsePaletteFile,
   setFromPrediction,
   threadColor,
@@ -42,6 +43,10 @@ export interface PaletteSetupProps {
   loading: boolean;
 }
 
+function countOf(n: number): string {
+  return n === 1 ? "1 colour" : `${n} colours`;
+}
+
 export function PaletteSetup({ set, onChange, prediction, loading }: PaletteSetupProps) {
   const [custom, setCustom] = useState("#808080");
   const [query, setQuery] = useState("");
@@ -76,10 +81,7 @@ export function PaletteSetup({ set, onChange, prediction, loading }: PaletteSetu
     const savedName = name.trim().slice(0, 60);
     setChosen(savedName);
     // Kept in this browser for the list below, and written out as a file, the way to take a palette to another browser or share it.
-    downloadBlob(
-      new Blob([paletteFileText(set, savedName)], { type: "application/json" }),
-      `${savedName.replace(/[^\w-]+/g, "_")}_palette.json`
-    );
+    downloadBlob(new Blob([paletteFileText(set, savedName)], { type: "application/json" }), paletteFileName(savedName));
     setNote(`Saved “${savedName}” in this browser and downloaded it as a palette file.`);
   }
 
@@ -90,7 +92,7 @@ export function PaletteSetup({ set, onChange, prediction, loading }: PaletteSetu
       return;
     }
     onChange(parsed.set);
-    setNote(`Loaded ${parsed.set.colors.length} colours from ${file.name}.`);
+    setNote(`Loaded ${countOf(parsed.set.colors.length)} from ${file.name}.`);
   }
 
   return (
@@ -199,12 +201,14 @@ export function PaletteSetup({ set, onChange, prediction, loading }: PaletteSetu
       <div className="flex flex-wrap gap-1.5">
         <PillButton
           size="xs"
-          disabled={!prediction}
+          // While a new recommendation is on its way the one on screen belongs to the last mode or picture: in a brand it would
+          // carry no threads of this brand and fill nothing (QA 2026-10-04).
+          disabled={!prediction || loading}
           title={
-            prediction
-              ? `The ${prediction.suggested} colours the picture reasonably needs`
-              : loading
-                ? "Working out the colours…"
+            loading
+              ? "Working out the colours…"
+              : prediction
+                ? `The ${prediction.suggested} colours the picture reasonably needs`
                 : "No prediction yet"
           }
           onClick={() => prediction && onChange(setFromPrediction(prediction, set.mode))}

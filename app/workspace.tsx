@@ -235,7 +235,6 @@ export default function Workspace({ account }: WorkspaceProps) {
   }
 
   function chooseViewMode(mode: ViewMode) {
-    if (isViewOnlyMode(mode)) crop.close();
     if (mode !== "photo" && mode !== "photo-only") abandonUnusedSliders();
     setViewMode(mode);
   }
@@ -502,7 +501,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       setActiveTool,
       setViewMode: chooseViewMode,
       mergeSelection: select.merge,
-      cropOpen: crop.open,
+      cropOpen: crop.open && !isViewOnlyMode(viewMode),
       applyCrop: crop.apply,
       resetCrop: crop.reset,
       swapColors: colours.swap,
@@ -764,7 +763,8 @@ export default function Workspace({ account }: WorkspaceProps) {
           the tool rail is disabled over the start screen, so leaving it here stranded a reader with a selection in
           hand: the "Back to your chart" button lives in the bar it replaced.
         */}
-        {crop.open && crop.size && pattern && !startingNew ? (
+        {/* In a looking-only view the Crop tool waits, frame kept, as every editing tool does there (QA 2026-10-04). */}
+        {crop.open && crop.size && pattern && !startingNew && !isViewOnlyMode(viewMode) ? (
           <CropBar
             width={pattern.width}
             height={pattern.height}

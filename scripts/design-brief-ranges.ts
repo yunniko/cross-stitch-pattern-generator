@@ -174,6 +174,7 @@ must(
 if (!/job: \{ capacity: 6,/.test(read("lib/server/request-guard.ts"))) throw new Error("job rate limit changed: update 09");
 if (!/prediction: \{ capacity: 90,/.test(read("lib/server/request-guard.ts"))) throw new Error("prediction rate limit changed: update 09");
 must(F9, `90 recommendations a minute`, "prediction rate limit");
+must(F9, `(more than ${privateConstant("processor/server.ts", "MAX_PREDICTIONS_AT_ONCE")})`, "recommendations at once");
 must(F9, `| Saved palettes | 50, names up to 60 characters |`, "saved palettes");
 if (privateConstant("lib/editor/saved-palettes.ts", "MAX_SAVED") !== 50) throw new Error("saved palette limit changed: update 09");
 
