@@ -387,7 +387,6 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **For the Owner, when at the machine:** remove the old worktree's test database, which holds port 54324 and stops Playwright starting the suite's own: `docker rm -f cross-stitch-pattern-generator--g-075-db-1`, then `docker volume rm cross-stitch-pattern-generator--g-075_db-data`, then `npx prisma migrate deploy`. Until then `npm run e2e:servers` reuses it. (Asked 2026-10-04; the Owner was on remote control.)
 
 - G-076 (stitch textures) was signed off 2026-09-30 and is archived.
 - G-075 (accounts) was signed off 2026-09-30 and is archived. G-074 (the four photo sliders) was signed

@@ -47,11 +47,14 @@ batch.
   tree.
 - **`npm run check:fast`**.
 
+## Done since
+
+- 2026-10-05: the old worktree's test-database container was removed by the Owner and the project's own database started on port 54324 with its migrations applied. `npx playwright test` now starts its own servers (checked: the two site-counter cases passed with nothing running beforehand). One catch: `docker compose up -d db` needs `AUTH_SECRET` in the environment even though the database does not use it, because the compose file requires it for the app service; Playwright's configuration supplies it.
+
 ## Still open (scoped, not done)
 
 | Item | What it needs | Size |
 |---|---|---|
-| The suite's database cannot be started by Playwright on this machine: an old worktree's container (`cross-stitch-pattern-generator--g-075-db-1`) holds port 54324, so the configured start fails and the servers must be started first | The Owner's go-ahead to remove that container and let the project's own one take the port (it holds only test data) | Minutes |
 | Live checks trip the site's limit of 6 generations a minute | Specs that do not test generation open a saved chart instead of generating (46 of 63 spec files generate today); no back door on the live site | A day; also speeds the local suite |
 | Browser tests need a production build | Try the suite against the development server for the fast lane only (D102 chose the build for stability); measure before adopting | Half a day |
 | Tool behaviour is tested only through the browser | Comes with the tool registry (architecture step 2): tools as modules are unit-testable | Part of that goal |
