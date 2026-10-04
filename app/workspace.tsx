@@ -312,6 +312,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     clearTextThread: () => setLetteringColor(null),
     clearColourInHand: () => setActiveColorIndex(null),
     resetZoom: () => panZoom.resetZoom(),
+    showColorView: () => setViewMode("color"),
     setSymmetry: (axes) => symmetryState.reset(axes),
     resetPaletteSet: () => {
       updateOption("paletteSetup", false);

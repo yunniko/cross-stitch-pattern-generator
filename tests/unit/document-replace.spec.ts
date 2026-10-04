@@ -30,6 +30,7 @@ function recorder() {
     clearTextThread: note("clearTextThread"),
     clearColourInHand: note("clearColourInHand"),
     resetZoom: note("resetZoom"),
+    showColorView: note("showColorView"),
     setSymmetry: (axes) => calls.push(axes ? "setSymmetry:file" : "setSymmetry:off"),
     resetPaletteSet: note("resetPaletteSet"),
     restorePaletteSet: note("restorePaletteSet"),
@@ -44,7 +45,16 @@ function recorder() {
   return { calls, effects };
 }
 
-const FULL_VIEW = ["clearSelection", "bumpDocument", "clearColourInHand", "resetZoom", "clearLit", "clearTextThread", "closeCrop"];
+const FULL_VIEW = [
+  "clearSelection",
+  "bumpDocument",
+  "clearColourInHand",
+  "resetZoom",
+  "showColorView",
+  "clearLit",
+  "clearTextThread",
+  "closeCrop",
+];
 const AXES = { vertical: true, horizontal: false, diagonal: false, antidiagonal: false };
 
 describe("what each way of replacing the chart resets", () => {

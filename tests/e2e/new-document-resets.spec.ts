@@ -63,3 +63,12 @@ test("opening a file clears a generation error left by the photo before it", asy
   await page.getByRole("tab", { name: "Photo" }).click();
   await expect(message).toHaveCount(0);
 });
+
+test("a new chart opens in the Color view, whatever view the last one was left in", async ({ page }) => {
+  await generateSmallPattern(page);
+  await page.getByRole("button", { name: "Stitched", exact: true }).click();
+  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-mode", "realistic");
+  await page.getByLabel("Open pattern file").setInputFiles(path.join(__dirname, "fixtures", "sample.oxs"));
+  await expect(page.getByText(/^6 × 4, /)).toBeVisible();
+  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-mode", "color");
+});

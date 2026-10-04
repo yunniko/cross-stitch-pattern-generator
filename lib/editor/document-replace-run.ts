@@ -20,6 +20,8 @@ export interface ReplaceEffects {
   clearTextThread(): void;
   clearColourInHand(): void;
   resetZoom(): void;
+  /** The Color view: a new chart opens where it can be edited (Owner, 2026-10-04). */
+  showColorView(): void;
   /** The symmetry axes: all off when none are given. */
   setSymmetry(axes?: SymmetryAxes): void;
   resetPaletteSet(): void;
@@ -74,6 +76,7 @@ export async function replaceDocument(
   if (plan.view === "full") {
     effects.clearColourInHand();
     effects.resetZoom();
+    effects.showColorView();
     effects.clearLit();
     effects.clearTextThread();
     effects.closeCrop();

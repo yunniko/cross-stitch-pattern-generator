@@ -12,7 +12,7 @@ Seeing the chart, moving around it, and the chart's own measurements. Sources: `
 | **Grid + photo** | The symbol grid laid over the photo the chart was made from | 4 | A chart with a photo | Yes |
 | **Original photo** | The photo alone, for comparing | 5 | A chart with a photo | **No** (looking only) |
 
-Choosing one is remembered only for this visit. The first three are one group of three choices; the two photo views are reached by one control that steps through three states: first press shows the grid over the photo, second the photo alone, third returns to the chart (the one the chart was in before is not remembered: it returns to Color). That control is unavailable, with the reason "No source photo is associated with this pattern", for a chart without a photo. Leaving the photo views for any other view gives up photo-adjustment values that were moved but never generated with (`02`).
+Choosing one is remembered only for this visit, and a new chart always opens in Color. The first three are one group of three choices; the two photo views are reached by one control that steps through three states: first press shows the grid over the photo, second the photo alone, third returns to the chart (the one the chart was in before is not remembered: it returns to Color). That control is unavailable, with the reason "No source photo is associated with this pattern", for a chart without a photo. Leaving the photo views for any other view gives up photo-adjustment values that were moved but never generated with (`02`).
 
 In a looking-only view every operation that would change the chart is blocked; panning, zooming, switching views and exporting work.
 

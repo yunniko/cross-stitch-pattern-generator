@@ -31,7 +31,7 @@ export interface ReplacePlan {
   history: "reset" | "push";
   /**
    * `full`: a new document: the piece in hand, the crop frame, the lit threads of both sections with Isolate, the colour in hand,
-   * the Text tab's thread and the zoom all go, and the colour editor closes. `selection`: the same document changed under the piece in hand: only the piece goes and the colour
+   * the Text tab's thread and the zoom all go, the view returns to Color, and the colour editor closes. `selection`: the same document changed under the piece in hand: only the piece goes and the colour
    * editor closes.
    */
   view: "full" | "selection";
