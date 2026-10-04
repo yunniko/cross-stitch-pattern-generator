@@ -9,6 +9,13 @@ their last state in `GOALS.md`; decision references (Dnn) now resolve to
 (STANDARDS.md → Documentation). This page is the index: every completed goal, newest first, and the file
 holding it.
 
+- **G-091** · Editor shell: replacing the open chart is decided in one place — DONE (2026-10-04, deployed 2026-10-04, Owner sign-off 2026-10-04) — [`G-091-to-G-100.md`](goals-archive/G-091-to-G-100.md)
+- **G-090** · Readiness to grow: architecture, interface placement, development speed and QA — DONE (2026-10-04, Owner sign-off 2026-10-04) — [`G-081-to-G-090.md`](goals-archive/G-081-to-G-090.md)
+- **G-089** · A Crop tool whose frame and four edge numbers are one thing — DONE (2026-10-03, deployed 2026-10-03, Owner sign-off 2026-10-04) — [`G-081-to-G-090.md`](goals-archive/G-081-to-G-090.md)
+- **G-087** · Generate from a palette the user sets up, and a predicted colour count and colours — DONE (2026-10-02) — [`G-081-to-G-090.md`](goals-archive/G-081-to-G-090.md)
+- **G-085** · Generation can lay texture strokes (fur, feathers) as backstitch — DONE (2026-10-02) — [`G-081-to-G-090.md`](goals-archive/G-081-to-G-090.md)
+- **G-084** · Generation can trace lines in the picture as backstitch — DONE (2026-10-02) — [`G-081-to-G-090.md`](goals-archive/G-081-to-G-090.md)
+- **G-083** · Export fixes: centre marks, cell size in mm, page letters and a page map, a legend table — DONE (2026-10-01) — [`G-081-to-G-090.md`](goals-archive/G-081-to-G-090.md)
 - **G-082** · Half stitches: a cell can hold half a cross, "/" or "\" — DONE (2026-10-01, deployed 2026-10-01, Owner sign-off 2026-10-01) — [`G-081-to-G-090.md`](goals-archive/G-081-to-G-090.md)
 - **G-081** · A Text tab: type a line, see it as stitches, add it as a selection — DONE (2026-10-01, deployed 2026-10-01, Owner sign-off 2026-10-01) — [`G-081-to-G-090.md`](goals-archive/G-081-to-G-090.md)
 - **G-080** · A predictable cell cursor: a dot at the pointer, and the keyboard — DONE (2026-10-01, deployed 2026-10-01, Owner sign-off 2026-10-01) — [`G-071-to-G-080.md`](goals-archive/G-071-to-G-080.md)

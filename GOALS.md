@@ -21,22 +21,6 @@ One line per change; deployed in batches, each batch after one full-suite run.
 
 ## Active goals
 
-### G-091 · Editor shell: replacing the open chart is decided in one place — ACTIVE (2026-10-04)
-- **What:** architecture step 1 (`docs/architecture.md`): a `useEditorDocument` hook owning what it means to replace the open chart (new, open, import, generate, restore), and grouped props for the widest components. Absorbs the draft G-069.
-- **Why:** `app/workspace.tsx` is 1,071 lines and grew 42 % in ten days; eight functions each restate the list of things to reset.
-- **Acceptance criteria:** replacing the chart resets state in one function; `ImageWindow` and `ContextBar` take named groups instead of 36–37 flat props; no behaviour change (full suite green, goldens unchanged); the workspace is smaller and no new file is over 500 lines.
-- **Constraints:** no behaviour change; not a line-count exercise (G-067's lesson).
-
-**Milestones** (started at the Owner's "move to the next one", 2026-10-04):
-- [x] M1 -- **One table for replacing the chart.** The seven ways in and what each resets as data, a runner that carries a row out, the workspace's eight functions reduced to calls; unit tests pinning each row; full suite unchanged.
-- [x] M2 -- **Grouped props.** `ImageWindow` (37 props) and `ContextBar` (36) take named groups (chart, pointer, photo; history, colours, drawing, view); no behaviour change.
-- [x] M3 -- **Docs, full suite, deploy**, and an exploratory QA pass on opening, starting and generating charts.
-
-**Progress log** (newest first):
-- 2026-10-04 -- M2 and M3 done ("go ahead through all milestones", then "and fix differences"). **M2:** `ImageWindow` takes 8 named groups instead of 37 props and `ContextBar` 10 instead of 36; no behaviour change. **Differences fixed (D283):** every new document resets the view in full, including the lit backstitch threads, Isolate and the Text tab's thread; a first Generate is a new document like the rest; every new document clears the last one's messages; an empty grid and pixel art start with neutral sliders. Unit tests assert the rule over every row. **QA pass** (`docs/qa-review/qa-review-2026-10-04-g091.md`): two defects found and fixed (Crop in hand across a new chart: stale typed number, and no frame), two notes left for the Owner (a new chart keeps the Stitched view; "Keep editing" lands on the start screen). `app/workspace.tsx` 1,071 to 1,028 lines; no new file over 500. Verified: 1,015 unit tests, full browser suite 545 passed with 0 failed, type-check, lint, prettier, docs-lint and the three design-brief scripts clean; deployed fec38f9, 4 new cases pass against the live site, other containers untouched, six sites 200. Awaiting the Owner's sign-off.
-- 2026-10-04 -- M1 done (D282). `lib/editor/document-replace.ts` (the table), `lib/editor/document-replace-run.ts` (the runner), `app/workspace.tsx` 1,071 to 1,032 lines with the reset lists gone from it. Verified: 11 new unit tests pin every row as it behaved before; type-check and lint clean; full browser suite 541 passed, 0 failed, no spec changed. Not deployed (no behaviour change; goes with M3). **Differences between the ways in, found while tabulating and left exactly as they were, for the Owner to decide:** (a) the lit backstitch threads, the Isolate switch and the Text tab's chosen thread are not reset by any way in, though the lit cross threads are; (b) a first Generate keeps the zoom, the lit threads and the colour in hand, while every other new document resets them; (c) opening a file does not clear an earlier generation error, while a blank chart and pixel art do; (d) a blank chart and pixel art leave the photo sliders where they were (harmless: such charts have no photo).
-- 2026-10-04 -- started.
-
 ### G-092 · Tool registry: a tool is one module — DRAFT (2026-10-04)
 - **What:** architecture step 2: the fourteen tools become modules behind one contract (id, name, key, cursor, options as data, handlers, overlay), registered in one list; the shell routes events to the tool in hand; `use-canvas-tools.ts` (1,205 lines) is split by tool; the tool list, the shortcut table and the tool-options area read the registry; a narrow editor API is the only thing a tool touches (D281).
 - **Why:** 46 places in 8 files branch on the tool in hand; adding Crop edited 7 existing files. This is also the first plugin seam.
