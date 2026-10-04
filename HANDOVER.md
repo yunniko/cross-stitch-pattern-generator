@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-04 at 6e3d786 (G-092 deployed, awaiting sign-off)
+Last verified: 2026-10-05 at 81e5db3 (G-093 deployed, awaiting sign-off)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -9,10 +9,10 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 7f6d0a5 (2026-10-01, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
+**Production** runs 81e5db3 (2026-10-05, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-093, command registry — built 2026-10-05, awaiting the Owner's sign-off.** Every action is a command in one table (`app/commands/registry.ts`, plus the `commands` each tool module declares; pure half `lib/editor/commands.ts`, D286): the keyboard shortcuts name no key and read it, and the command list (`app/components/command-list.tsx`, opened from "Commands" under New, no key of its own, D287) draws it. A tool declares its options as data (`app/tools/options.tsx`, drawn by `app/components/tool-options.tsx`, D285). `npx tsx scripts/design-brief-commands.ts` checks the table against the brief and writes the command table in `docs/interface-placement.md`. To add a command or a tool option, follow `docs/architecture.md` section 3.
+**G-093, command registry — built and deployed 2026-10-05 (81e5db3), awaiting the Owner's sign-off.** Every action is a command in one table (`app/commands/registry.ts`, plus the `commands` each tool module declares; pure half `lib/editor/commands.ts`, D286): the keyboard shortcuts name no key and read it, and the command list (`app/components/command-list.tsx`, opened from "Commands" under New, no key of its own, D287) draws it. A tool declares its options as data (`app/tools/options.tsx`, drawn by `app/components/tool-options.tsx`, D285). `npx tsx scripts/design-brief-commands.ts` checks the table against the brief and writes the command table in `docs/interface-placement.md`. To add a command or a tool option, follow `docs/architecture.md` section 3.
 
 **G-092, tool registry — signed off 2026-10-05, archived.** A tool is one module under `app/tools/` (its definition and a `useRuntime(api)` hook) and one line in `app/tools/registry.ts`; `app/tools/use-tools.ts` routes the pointer and the keys to the tool in hand and has no per-tool code (D284). The tool list, shortcut keys, cursor and options read the registry. A tool touches the editor only through `EditorApi` in `app/tools/types.ts`. To add a tool, follow `docs/architecture.md` section 3.
 
@@ -425,6 +425,7 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-10-05 | 81e5db3 | **G-093:** tool options as data (D285), the command registry behind the keys (D286), the command list (D287); no key added or changed | 1047 unit; full local e2e 554 pass, 0 fail; live: the 7 command-list cases pass, 4 of them on retry; 24 containers before and after, only this project's app restarted; six sites 200 |
 | 2026-10-04 | 6e3d786 | **G-092:** tool registry (D284): tools as modules, the shell routes to them; no behaviour change | 1023 unit; full local e2e 547 pass, 0 fail; live: tool-key, shape, backstitch-edit and crop cases pass (see goal log for the one case re-run); only this project's app restarted; six sites 200 |
 | 2026-10-04 | 42c2aa6 | **Fast-lane batch 3:** a new chart opens in the Color view (D283); the new-chart confirmation gains the one-press "Export, then start new" | Full local e2e 547 pass, 0 fail; the new cases pass against the live site; only this project's app restarted |
 | 2026-10-04 | fec38f9 | **G-091:** replacing the open chart is one table (D282), every new document resets the same things (D283), grouped props, Crop keeps a fresh frame across charts | 1015 unit; full local e2e 545 pass, 0 fail; 4 new cases against the live site; only this project's app restarted; six sites 200 |
@@ -436,7 +437,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 | 2026-10-02 | fdc3c26 | **G-085:** texture strokes (D274) | New e2e specs against the live site; full local e2e 513 pass; 74 goldens green; site 200 |
 | 2026-10-02 | bb9a210 | **G-084:** the line finder replaced (D272); backstitch dashes ranked by length (D271) | New e2e spec against the live site; full local e2e 510 pass; 74 goldens green; site 200 |
 | 2026-10-02 | 9b16cb7 | **G-084:** lines of any colour, dark, light or coloured, in up to three threads (D269) | New e2e spec against the live site (4 pass, one on retry); 74 golden hashes unchanged; site 200 |
-| 2026-10-02 | 7f8a462 | **G-084:** Backstitch from lines (Photo tab, Lines), traced in Rust and painted out of the picture, off by default (D266 to D268) | New e2e spec run against the live site (3 pass); 74 golden hashes unchanged; other containers not restarted; site 200 |
 
 ## Decisions
 
