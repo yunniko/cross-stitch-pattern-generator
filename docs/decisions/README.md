@@ -323,3 +323,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D285 — A tool declares its options, and one options area draws them — active
 - D286 — Every action is a command in one table, and the keys read it — active
 - D287 — The command list is opened from a control and has no key — active
+- D288 — Keys for every tool, for copy, paste and duplicate, and for the command list; brush options only with the brush — active

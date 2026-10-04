@@ -117,15 +117,15 @@ not edited by hand.
 |  | Lasso fill tool | G | A chart |
 |  | Backstitch tool | K | A chart |
 |  | BS edit tool | J | A chart |
-|  | Select tool | — | A chart |
+|  | Select tool | S | A chart |
 |  | Lasso tool | Q | A chart |
 |  | Crop tool | C | A chart |
-|  | Move tool | — | A chart |
-|  | Pan tool | — | A chart |
-|  | Zoom tool | — | A chart |
-| Selection | Copy the piece | — | A piece in hand |
-|  | Paste the copied piece | — | Select or Lasso in hand; a piece was copied |
-|  | Duplicate the piece | — | A piece in hand |
+|  | Move tool | V | A chart |
+|  | Pan tool | H | A chart |
+|  | Zoom tool | Z | A chart |
+| Selection | Copy the piece | Ctrl+C | A piece in hand |
+|  | Paste the copied piece | Ctrl+V | Select or Lasso in hand; a piece was copied |
+|  | Duplicate the piece | Ctrl+D | A piece in hand |
 |  | Fill the piece with the colour in hand | — | A piece and a colour in hand |
 |  | Flip the piece left to right | — | A piece in hand |
 |  | Flip the piece top to bottom | — | A piece in hand |
@@ -135,9 +135,9 @@ not edited by hand.
 |  | Apply the piece where it sits | Enter | A piece in hand |
 |  | Cancel the piece | Escape | A piece in hand |
 | Backstitch | End the run being drawn, without its pending line | Escape | A backstitch run is being drawn |
-|  | Copy the backstitch in hand | — | Lines in hand |
-|  | Paste backstitch | — | Backstitch edit in hand; lines were copied |
-|  | Duplicate the backstitch in hand | — | Lines in hand |
+|  | Copy the backstitch in hand | Ctrl+C | Lines in hand |
+|  | Paste backstitch | Ctrl+V | Backstitch edit in hand; lines were copied |
+|  | Duplicate the backstitch in hand | Ctrl+D | Lines in hand |
 |  | Mirror the backstitch left to right | — | Lines in hand |
 |  | Mirror the backstitch top to bottom | — | Lines in hand |
 |  | Turn the backstitch right | — | Lines in hand |
@@ -166,6 +166,7 @@ not edited by hand.
 |  | Zoom in | — | A chart |
 |  | Zoom out | — | A chart |
 |  | Reset zoom to 100% | — | A chart |
+|  | Open the command list | Ctrl+K | The start screen does not cover a chart |
 |  | Pan while the key is held | Space (held) | A chart |
 | Keyboard cursor | Move the outlined stitch by one | Arrow keys | A painting tool, an editable view, no piece in hand |
 |  | Move the outlined stitch by ten | Shift+Arrow keys | A painting tool, an editable view, no piece in hand |
@@ -177,10 +178,10 @@ count"; the palette set-up actions (fill with predicted colours, clear, save, lo
 (add, edit, change symbol, rename, merge into, light or unlight); rename the chart; compare with the original; the Text
 actions. They are reached where their value is given, and the brief describes each.
 
-**What the table shows:** about a fifth of the commands have a key. Escape and Enter are shared on purpose: each means
-"whatever is in hand", only one thing can be in hand at a time, and the first command that takes the press ends it. Select,
-Move, Pan and Zoom have no key of their own, and neither do copy, paste and duplicate; a new key is a change of behaviour and is
-the Owner's to approve, one by one.
+**What the table shows:** about a third of the commands have a key. Escape and Enter are shared on purpose: each means
+"whatever is in hand", only one thing can be in hand at a time, and the first command that takes the press ends it. Copy,
+paste and duplicate share Ctrl+C, Ctrl+V and Ctrl+D between the piece and the backstitch in hand for the same reason. Every
+tool has a key since D288. A new key is a change of behaviour and is the Owner's to approve, one by one.
 
 ## How to place something new
 

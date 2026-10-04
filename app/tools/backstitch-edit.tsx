@@ -1,7 +1,6 @@
 import { BackstitchBar } from "../components/panels";
 import { BackstitchSelectIcon } from "./icons";
 import { act, inputsFrom } from "./shared";
-import { BRUSH_OPTIONS } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -215,13 +214,33 @@ export const backstitchEditModule = {
       key: "j",
       group: 0,
       Icon: BackstitchSelectIcon,
-      options: BRUSH_OPTIONS,
     },
   ],
   commands: [
-    { id: "backstitch.copy", name: "Copy the backstitch in hand", group: "Backstitch", when: "Lines in hand" },
-    { id: "backstitch.paste", name: "Paste backstitch", group: "Backstitch", when: "Backstitch edit in hand; lines were copied" },
-    { id: "backstitch.duplicate", name: "Duplicate the backstitch in hand", group: "Backstitch", when: "Lines in hand" },
+    {
+      id: "backstitch.copy",
+      name: "Copy the backstitch in hand",
+      group: "Backstitch",
+      when: "Lines in hand",
+      keys: ["Mod+C"],
+      onHeld: true,
+    },
+    {
+      id: "backstitch.paste",
+      name: "Paste backstitch",
+      group: "Backstitch",
+      when: "Backstitch edit in hand; lines were copied",
+      keys: ["Mod+V"],
+      onHeld: true,
+    },
+    {
+      id: "backstitch.duplicate",
+      name: "Duplicate the backstitch in hand",
+      group: "Backstitch",
+      when: "Lines in hand",
+      keys: ["Mod+D"],
+      onHeld: true,
+    },
     { id: "backstitch.mirror-horizontal", name: "Mirror the backstitch left to right", group: "Backstitch", when: "Lines in hand" },
     { id: "backstitch.mirror-vertical", name: "Mirror the backstitch top to bottom", group: "Backstitch", when: "Lines in hand" },
     { id: "backstitch.turn-right", name: "Turn the backstitch right", group: "Backstitch", when: "Lines in hand" },
@@ -249,7 +268,7 @@ export const backstitchEditModule = {
       commands: {
         "backstitch.copy": act(some, edit.copy),
         "backstitch.paste": act(inHand && edit.hasClipboard, edit.paste),
-        "backstitch.duplicate": act(some, edit.duplicate),
+        "backstitch.duplicate": { ...act(some, edit.duplicate), claimsKey: inHand },
         "backstitch.mirror-horizontal": act(some, edit.mirrorHorizontal),
         "backstitch.mirror-vertical": act(some, edit.mirrorVertical),
         "backstitch.turn-right": act(some, edit.rotateClockwise),

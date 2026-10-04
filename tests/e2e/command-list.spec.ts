@@ -3,7 +3,7 @@ import { generateSmallPattern, pickTool } from "./helpers/app";
 
 /**
  * G-093: the command list. It draws the command table: every command with its key and whether it can be used now, searched
- * by typing, run from the list. It has no key of its own; it is opened from the button under New.
+ * by typing, run from the list. It is opened from the button under New, or with Ctrl+K (D288).
  */
 
 const opener = (page: Page) => page.getByRole("button", { name: "Commands", exact: true });
@@ -116,4 +116,60 @@ test("the list is not offered while the start screen covers a chart", async ({ p
   await expect(opener(page)).toBeDisabled();
   await page.getByRole("button", { name: /Back to/ }).click();
   await expect(opener(page)).toBeEnabled();
+});
+
+test("Ctrl+K opens the list and closes it again", async ({ page }) => {
+  await generateSmallPattern(page);
+  await page.locator("body").press("Control+k");
+  await expect(search(page)).toBeFocused();
+  await page.keyboard.press("Control+k");
+  await expect(list(page)).toHaveCount(0);
+});
+
+test("S, V, H and Z choose Select, Move, Pan and Zoom, and Ctrl+Z is still undo, not Zoom", async ({ page }) => {
+  await generateSmallPattern(page);
+  for (const [key, label] of [
+    ["s", "Select"],
+    ["v", "Move"],
+    ["h", "Pan"],
+    ["z", "Zoom"],
+  ] as const) {
+    await page.locator("body").press(key);
+    await expect(tool(page, label)).toHaveAttribute("aria-pressed", "true");
+  }
+  await page.locator("body").press("b");
+  await page.locator("body").press("Control+z");
+  await expect(tool(page, "Brush")).toHaveAttribute("aria-pressed", "true");
+});
+
+test("Ctrl+C, Ctrl+V and Ctrl+D copy, paste and duplicate the piece in hand", async ({ page }) => {
+  await generateSmallPattern(page);
+  await page.locator("body").press("s");
+  const box = (await page.getByTestId("chart-frame").boundingBox())!;
+  await page.mouse.move(box.x + 30, box.y + 30);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 120, box.y + 90, { steps: 4 });
+  await page.mouse.up();
+  const undo = page.getByRole("button", { name: "Undo" });
+  await expect(undo).toBeDisabled();
+  // Duplicate leaves the original where it is, which is a step in the history; so is the paste of a copy.
+  await page.keyboard.press("Control+d");
+  await page.keyboard.press("Escape");
+  await expect(undo).toBeEnabled();
+  await openList(page);
+  await expect(row(page, "selection.paste")).toHaveAttribute("aria-disabled", "false");
+  await expect(row(page, "selection.paste")).toContainText("Ctrl+V");
+});
+
+test("the brush's size and shape are offered only with the tools that draw with the brush", async ({ page }) => {
+  await generateSmallPattern(page);
+  const size = page.getByLabel("Brush size");
+  for (const label of ["Brush", "Line", "Rectangle", "Oval"]) {
+    await pickTool(page, label);
+    await expect(size, label).toBeVisible();
+  }
+  for (const label of ["Fill", "Lasso fill", "Backstitch", "Select", "Crop", "Move", "Pan", "Zoom"]) {
+    await pickTool(page, label);
+    await expect(size, label).toHaveCount(0);
+  }
 });

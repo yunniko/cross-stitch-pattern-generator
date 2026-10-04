@@ -54,15 +54,15 @@ describe("the command table", () => {
       "tool.lasso-fill [G]",
       "tool.backstitch [K]",
       "tool.backstitch-edit [J]",
-      "tool.select",
+      "tool.select [S]",
       "tool.lasso [Q]",
       "tool.crop [C]",
-      "tool.move",
-      "tool.pan",
-      "tool.zoom",
-      "selection.copy",
-      "selection.paste",
-      "selection.duplicate",
+      "tool.move [V]",
+      "tool.pan [H]",
+      "tool.zoom [Z]",
+      "selection.copy [Ctrl+C]",
+      "selection.paste [Ctrl+V]",
+      "selection.duplicate [Ctrl+D]",
       "selection.fill",
       "selection.flip-horizontal",
       "selection.flip-vertical",
@@ -72,9 +72,9 @@ describe("the command table", () => {
       "selection.apply [Enter]",
       "selection.cancel [Escape]",
       "backstitch.end-run [Escape]",
-      "backstitch.copy",
-      "backstitch.paste",
-      "backstitch.duplicate",
+      "backstitch.copy [Ctrl+C]",
+      "backstitch.paste [Ctrl+V]",
+      "backstitch.duplicate [Ctrl+D]",
       "backstitch.mirror-horizontal",
       "backstitch.mirror-vertical",
       "backstitch.turn-right",
@@ -103,6 +103,7 @@ describe("the command table", () => {
       "view.zoom-in",
       "view.zoom-out",
       "view.zoom-reset",
+      "view.command-list [Ctrl+K]",
       "view.pan-held [Space (held)]",
       "cursor.move [Arrow keys]",
       "cursor.move-ten [Shift+Arrow keys]",
@@ -163,7 +164,9 @@ describe("a key press", () => {
     expect(idsFor("b", { ctrlKey: true })).toEqual([]);
     expect(idsFor("b", { altKey: true })).toEqual([]);
     expect(idsFor("1", { metaKey: true })).toEqual([]);
-    expect(idsFor("z")).toEqual([]);
+    expect(idsFor("a")).toEqual([]);
+    // Z alone is Zoom; with Ctrl it is undo and never the tool.
+    expect(idsFor("z")).toEqual(["tool.zoom"]);
     expect(idsFor("!", { shiftKey: true })).toEqual([]);
     expect(idsFor("ArrowLeft")).toEqual([]);
   });
@@ -193,6 +196,16 @@ describe("what the table check catches", () => {
     expect(commandTableProblems([{ ...base, id: "One" }])).toEqual(['"One" is not a command id (group.action, lower case).']);
     expect(commandTableProblems([{ ...base, keys: ["Ctrl+B"] }])).toEqual(['edit.one: "Ctrl+B" is not a key a command can have.']);
     expect(commandTableProblems([{ ...base, keyOnly: "gesture" }])).toEqual(['"edit.one" is reached only by a key and names none.']);
+  });
+
+  it("lets a Ctrl key be shared only by commands that all act on what is in hand", () => {
+    const copy = { ...base, keys: ["Mod+C"], onHeld: true };
+    expect(commandTableProblems([copy, { ...copy, id: "edit.two" }])).toEqual([]);
+    expect(commandTableProblems([copy, { ...base, id: "edit.two", keys: ["Mod+C"] }])).toEqual([
+      '"Mod+C" runs both "edit.one" and "edit.two".',
+    ]);
+    expect(idsFor("c", { ctrlKey: true })).toEqual(["selection.copy", "backstitch.copy"]);
+    expect(idsFor("k", { metaKey: true })).toEqual(["view.command-list"]);
   });
 
   it("lets Escape and Enter be shared", () => {

@@ -1,6 +1,5 @@
 import { MoveIcon } from "./icons";
 import { inputsFrom } from "./shared";
-import { BRUSH_OPTIONS } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useRef } from "react";
 import { shiftPattern } from "@/lib/editor/pattern-edit";
@@ -55,10 +54,10 @@ export const moveModule = {
     {
       id: "move",
       label: "Move",
-      title: "Drag to reposition the whole design within the canvas. Ignores symmetry.",
+      title: "Drag to reposition the whole design within the canvas (V). Ignores symmetry.",
+      key: "v",
       group: 1,
       Icon: MoveIcon,
-      options: BRUSH_OPTIONS,
     },
   ],
   useRuntime(api: EditorApi): ToolRuntime {

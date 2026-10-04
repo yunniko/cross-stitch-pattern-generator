@@ -55,6 +55,13 @@ const SHELL_COMMANDS = [
   { id: "view.zoom-in", name: "Zoom in", group: "View", when: "A chart" },
   { id: "view.zoom-out", name: "Zoom out", group: "View", when: "A chart" },
   { id: "view.zoom-reset", name: "Reset zoom to 100%", group: "View", when: "A chart" },
+  {
+    id: "view.command-list",
+    name: "Open the command list",
+    group: "View",
+    when: "The start screen does not cover a chart",
+    keys: ["Mod+K"],
+  },
   { id: "view.pan-held", name: "Pan while the key is held", group: "View", when: "A chart", keys: ["Space"], keyOnly: "held" },
 
   // The keyboard cell cursor listens for its own keys (`use-keyboard-cursor.ts`); they are listed so the table is whole.

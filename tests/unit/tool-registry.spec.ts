@@ -55,13 +55,17 @@ describe("the registry", () => {
       g: "lasso-fill",
       k: "backstitch",
       j: "backstitch-edit",
+      s: "select",
       q: "lasso",
       c: "crop",
+      v: "move",
+      h: "pan",
+      z: "zoom",
     });
     for (const tool of keyed) {
       expect(tool.key, tool.id).toMatch(/^[a-z]$/);
-      // x swaps the colours, z and y are undo and redo.
-      expect(["x", "z", "y"], tool.id).not.toContain(tool.key);
+      // x swaps the colours. Z is Zoom alone and undo with Ctrl: a plain letter never matches a press with Ctrl down.
+      expect(tool.key, tool.id).not.toBe("x");
       expect(tool.title, tool.id).toContain(`(${tool.key!.toUpperCase()})`);
     }
   });
@@ -135,23 +139,23 @@ describe("the boundary a tool module keeps (D284)", () => {
 describe("the options each tool declares (G-093)", () => {
   const optionIds = (id: string) => (toolDefinition(id).options ?? []).map((option) => option.id);
 
-  it("are the ones the drawing options showed for it when they were written by hand", () => {
+  it("are its own: the brush's size and shape only where the tool draws with the brush (D288)", () => {
     const shown = Object.fromEntries(TOOL_DEFINITIONS.map((tool) => [tool.id, optionIds(tool.id).join(" ")]));
     expect(shown).toEqual({
       brush: "brushSize brushShape stitchKind",
-      fill: "brushSize brushShape stitchKind",
+      fill: "stitchKind",
       line: "brushSize brushShape stitchKind",
       rect: "brushSize brushShape stitchKind shapeFill",
       oval: "brushSize brushShape stitchKind shapeFill",
-      "lasso-fill": "brushSize brushShape stitchKind",
-      backstitch: "brushSize brushShape",
-      "backstitch-edit": "brushSize brushShape",
-      select: "brushSize brushShape",
-      lasso: "brushSize brushShape",
-      crop: "brushSize brushShape",
-      move: "brushSize brushShape",
-      pan: "brushSize brushShape",
-      zoom: "brushSize brushShape",
+      "lasso-fill": "stitchKind",
+      backstitch: "",
+      "backstitch-edit": "",
+      select: "",
+      lasso: "",
+      crop: "",
+      move: "",
+      pan: "",
+      zoom: "",
     });
   });
 

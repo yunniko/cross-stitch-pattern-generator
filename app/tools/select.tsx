@@ -1,7 +1,6 @@
 import { SelectionBar } from "../components/panels";
 import { LassoIcon, SelectIcon } from "./icons";
 import { act, inputsFrom } from "./shared";
-import { BRUSH_OPTIONS } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useCallback, useRef, useState } from "react";
 import { lassoRegion, maskedCell } from "@/lib/editor/lasso";
@@ -246,10 +245,10 @@ export const selectModule = {
     {
       id: "select",
       label: "Select",
-      title: "Drag a rectangle to select it, then copy, paste, move or flip it before it merges back. Ignores symmetry.",
+      title: "Drag a rectangle to select it (S), then copy, paste, move or flip it before it merges back. Ignores symmetry.",
+      key: "s",
       group: 1,
       Icon: SelectIcon,
-      options: BRUSH_OPTIONS,
       piece: true,
       cursor: "cross",
     },
@@ -260,15 +259,21 @@ export const selectModule = {
       key: "q",
       group: 1,
       Icon: LassoIcon,
-      options: BRUSH_OPTIONS,
       piece: true,
       cursor: "cross",
     },
   ],
   commands: [
-    { id: "selection.copy", name: "Copy the piece", group: "Selection", when: "A piece in hand" },
-    { id: "selection.paste", name: "Paste the copied piece", group: "Selection", when: "Select or Lasso in hand; a piece was copied" },
-    { id: "selection.duplicate", name: "Duplicate the piece", group: "Selection", when: "A piece in hand" },
+    { id: "selection.copy", name: "Copy the piece", group: "Selection", when: "A piece in hand", keys: ["Mod+C"], onHeld: true },
+    {
+      id: "selection.paste",
+      name: "Paste the copied piece",
+      group: "Selection",
+      when: "Select or Lasso in hand; a piece was copied",
+      keys: ["Mod+V"],
+      onHeld: true,
+    },
+    { id: "selection.duplicate", name: "Duplicate the piece", group: "Selection", when: "A piece in hand", keys: ["Mod+D"], onHeld: true },
     { id: "selection.fill", name: "Fill the piece with the colour in hand", group: "Selection", when: "A piece and a colour in hand" },
     { id: "selection.flip-horizontal", name: "Flip the piece left to right", group: "Selection", when: "A piece in hand" },
     { id: "selection.flip-vertical", name: "Flip the piece top to bottom", group: "Selection", when: "A piece in hand" },
@@ -291,7 +296,8 @@ export const selectModule = {
       commands: {
         "selection.copy": act(held, select.copy),
         "selection.paste": act(inHand && select.clipboard !== null, select.paste),
-        "selection.duplicate": act(held, select.duplicate),
+        // Ctrl+D is the browser's bookmark key: with a selection tool in hand it is kept from the browser even with no piece.
+        "selection.duplicate": { ...act(held, select.duplicate), claimsKey: inHand },
         "selection.fill": act(held && colour !== null, () => colour !== null && select.fill(colour)),
         "selection.flip-horizontal": act(held, select.flipHorizontal),
         "selection.flip-vertical": act(held, select.flipVertical),

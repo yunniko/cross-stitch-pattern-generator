@@ -87,13 +87,11 @@ export const SHAPE_FILL: ToolOption<ShapeFill> = {
   ],
 };
 
-/**
- * The brush's size and shape, which the drawing options have always shown with every tool, including the ones that do not
- * use a brush. Kept so in G-093, which changes how options are declared and not which are shown; a tool that should not
- * offer them drops this from its definition.
- */
+/** The brush's size and shape: offered by the tools that draw with the brush, and by no other (Owner, 2026-10-05, D288). */
 export const BRUSH_OPTIONS = [BRUSH_SIZE, BRUSH_SHAPE] as const;
-/** For the tools that lay stitches. */
+/** For the tools that lay stitches without a brush: Fill and Lasso fill. */
+export const STITCH_OPTIONS = [STITCH_KIND] as const;
+/** For the tools that lay stitches with the brush: Brush and Line. */
 export const LAYING_OPTIONS = [...BRUSH_OPTIONS, STITCH_KIND] as const;
-/** For the shapes that enclose something. */
+/** For the shapes that enclose something, whose outline is as thick as the brush. */
 export const ENCLOSING_OPTIONS = [...LAYING_OPTIONS, SHAPE_FILL] as const;

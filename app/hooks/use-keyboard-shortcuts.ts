@@ -50,7 +50,11 @@ export function useKeyboardShortcuts(commands: readonly Command[], scrollerRef: 
           return;
         }
         // False means the press was not this command's after all: nothing was in hand for it. The next one is tried.
-        if (command.run() !== false) return;
+        if (command.run() !== false) {
+          // A key with Ctrl or Cmd has a meaning of the browser's own (copy, bookmark, the address bar); the command took it.
+          if (e.ctrlKey || e.metaKey) e.preventDefault();
+          return;
+        }
       }
     }
 

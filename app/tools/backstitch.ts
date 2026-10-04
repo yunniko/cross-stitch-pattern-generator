@@ -1,6 +1,5 @@
 import { BackstitchIcon } from "./icons";
 import { inputsFrom } from "./shared";
-import { BRUSH_OPTIONS } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useRef } from "react";
 import { dedupeLines, isDegenerate, symmetryLineOrbit } from "@/lib/editor/backstitch";
@@ -194,7 +193,6 @@ export const backstitchModule = {
       key: "k",
       group: 0,
       Icon: BackstitchIcon,
-      options: BRUSH_OPTIONS,
       // No outline: it lands on corners, not cells, so a stitch-shaped outline would point at the wrong thing.
     },
   ],

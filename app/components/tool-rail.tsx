@@ -60,7 +60,7 @@ export interface ToolRailProps {
   onNewChart: () => void;
   /** The start screen is what New opens, so New has nothing to do while it is already up. */
   newChartDisabled: boolean;
-  /** Opens the command list (G-093). It has no key of its own. */
+  /** Opens the command list (G-093); Ctrl+K does the same (D288). */
   onOpenCommands: () => void;
   commandsDisabled: boolean;
   /** The workspace puts the focus back here when the list is closed without running anything. */
@@ -115,7 +115,7 @@ export function ToolRail({
           disabled={commandsDisabled}
           aria-label="Commands"
           aria-haspopup="dialog"
-          title="Commands — search everything the editor can do, with its key"
+          title="Commands (Ctrl+K) — search everything the editor can do, with its key"
           className={`flex flex-col items-center gap-[3px] self-center rounded-[7px] border border-line px-1 py-1.5 text-muted transition-colors enabled:hover:bg-raised enabled:hover:text-ink ${DISABLED_ICON}`}
         >
           <svg

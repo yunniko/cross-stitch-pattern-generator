@@ -1,7 +1,6 @@
 import { CropBar } from "../components/crop-bar";
 import { CropOverlay } from "../components/crop-overlay";
 import { CropIcon } from "./icons";
-import { BRUSH_OPTIONS } from "./options";
 import { act } from "./shared";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useCallback, useState } from "react";
@@ -72,7 +71,6 @@ export const cropModule = {
       key: "c",
       group: 1,
       Icon: CropIcon,
-      options: BRUSH_OPTIONS,
     },
   ],
   commands: [

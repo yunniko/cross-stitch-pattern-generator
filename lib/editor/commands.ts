@@ -35,6 +35,11 @@ export interface CommandDefinition {
    */
   keys?: readonly string[];
   /**
+   * It acts on what is in hand (a piece, lines of backstitch), so its key may be another such command's as well: only one
+   * thing is in hand at a time, and the first command that is available takes the press.
+   */
+  onHeld?: boolean;
+  /**
    * It only makes sense as a key press, so the list shows it and does not run it: `held` acts for as long as the key is down,
    * `gesture` ends something the pointer is in the middle of, `elsewhere` is listened to by another part of the editor.
    */
@@ -147,13 +152,14 @@ export function searchCommands<C extends CommandDefinition>(commands: readonly C
 
 /**
  * What is wrong with a table, in words; empty when nothing is. One id is one command, every key parses, and a letter, digit
- * or `Mod` key belongs to one command. Escape, Enter, Delete and Backspace are shared on purpose: each means "whatever is in
+ * or `Mod` key belongs to one command, unless every command on it acts on what is in hand (`onHeld`: copy, paste and
+ * duplicate, for a piece and for backstitch). Escape, Enter, Delete and Backspace are shared on purpose: each means "whatever is in
  * hand", only one thing can be in hand at a time, and the first command that takes the press ends it.
  */
 export function commandTableProblems(commands: readonly CommandDefinition[]): string[] {
   const problems: string[] = [];
   const ids = new Set<string>();
-  const owners = new Map<string, string>();
+  const owners = new Map<string, CommandDefinition>();
   for (const command of commands) {
     if (ids.has(command.id)) problems.push(`Two commands have the id "${command.id}".`);
     ids.add(command.id);
@@ -172,8 +178,8 @@ export function commandTableProblems(commands: readonly CommandDefinition[]): st
       if (chord.named && !chord.mod) continue;
       const canonical = `${chord.mod ? "mod+" : ""}${chord.shift ? "shift+" : ""}${chord.key}`;
       const owner = owners.get(canonical);
-      if (owner) problems.push(`"${key}" runs both "${owner}" and "${command.id}".`);
-      owners.set(canonical, command.id);
+      if (owner && !(owner.onHeld && command.onHeld)) problems.push(`"${key}" runs both "${owner.id}" and "${command.id}".`);
+      owners.set(canonical, command);
     }
   }
   return problems;

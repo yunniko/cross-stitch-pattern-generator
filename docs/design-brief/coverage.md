@@ -395,3 +395,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D285 | internal | |
 | D286 | 04-editing | |
 | D287 | 04-editing | |
+| D288 | 04-editing | |

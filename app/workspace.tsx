@@ -588,6 +588,8 @@ export default function Workspace({ account }: WorkspaceProps) {
       "view.zoom-out": act(chartShown, () => panZoom.zoomBy(1 / ZOOM_STEP)),
       "view.zoom-reset": act(chartShown, panZoom.resetZoom),
       // Space borrows the tool that drags the view, and gives back the one it took, with none of a tool change's side effects.
+      // Ctrl+K is the browser's own too, so the key is kept from it whenever it is pressed outside a text entry.
+      "view.command-list": { ...act(!startingNew, () => setCommandListOpen(true)), claimsKey: true },
       "view.pan-held": {
         available: hasChart,
         run: () => {

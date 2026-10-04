@@ -23,11 +23,11 @@ Fourteen tools; exactly one is in hand, chosen by its control or its key. Brush 
 | **Backstitch** | K | See `06` | | | Yes |
 | **Backstitch edit** (labelled "BS edit") | J | See `06` | | | Yes |
 | **Crop** | C | Cuts the chart down, or grows it, with a frame whose four edges are the four numbers of the Crop section below; applied on request, one undo step | No | No | **Ignores** |
-| **Select** | | Drag a rectangle; the stitches inside are lifted as a piece in hand | No | No | **Ignores** |
+| **Select** | S | Drag a rectangle; the stitches inside are lifted as a piece in hand | No | No | **Ignores** |
 | **Lasso** | Q | Draw freehand around the stitches wanted; they are lifted as a piece in hand | No | No | **Ignores** |
-| **Move** | | Drag to shift the whole design within the canvas; stitches that pass an edge wrap round to the other side so none is lost; the photo behind the chart moves by the same amount; backstitch lines move with it and a line pushed off the chart is removed | No | No | **Ignores** |
-| **Pan** | (Space held) | Drag to scroll the chart | | | |
-| **Zoom** | | Press to zoom in, with Shift to zoom out | | | |
+| **Move** | V | Drag to shift the whole design within the canvas; stitches that pass an edge wrap round to the other side so none is lost; the photo behind the chart moves by the same amount; backstitch lines move with it and a line pushed off the chart is removed | No | No | **Ignores** |
+| **Pan** | H (or Space held) | Drag to scroll the chart | | | |
+| **Zoom** | Z | Press to zoom in, with Shift to zoom out | | | |
 
 Changing tool puts down what the old one held: leaving Select or Lasso for any other tool than the other selection tool applies the piece in hand; a half-drawn shape, Lasso fill path, backstitch run or lines in hand are dropped.
 
@@ -66,7 +66,7 @@ Choosing any tool other than Pan or Zoom drops the frame without changing the ch
 
 | Control | Values | Default | Kept | Shown when |
 |---|---|---|---|---|
-| **Brush size** | **1, 3, 5, 7, 9, 11, 13, 15** stitches across (odd only, so every press has a centre) | 1 | Browser | Whenever a chart is edited with a drawing tool |
+| **Brush size** | **1, 3, 5, 7, 9, 11, 13, 15** stitches across (odd only, so every press has a centre) | 1 | Browser | Only with the tools that draw with the brush: Brush, Line, Rectangle and Oval |
 | **Brush shape** | **Round** (the disc that fits the size) or **Square** (the whole block) | Round | Browser | With brush size |
 | **Shape fill** | **Outline** or **Filled** | Outline | Browser | Only with Rectangle and Oval |
 | **Stitch type** | **Whole stitch**, **Half stitch "/"**, **Half stitch "\\"** (three exclusive choices, each shown as the shape of the stitch) | Whole | Browser | Only with Brush, Fill, Line, Rectangle, Oval and Lasso fill. Each cell holds one kind. See `06` |
@@ -141,7 +141,7 @@ Keys act when no text entry has the focus, and not while the command list is ope
 
 | Key | Does |
 |---|---|
-| B, F, L, R, O, Q, G, C, K, J | Brush, Fill, Line, Rectangle, Oval, Lasso, Lasso fill, Crop, Backstitch, Backstitch edit |
+| B, F, L, R, O, Q, G, C, K, J, S, V, H, Z | Brush, Fill, Line, Rectangle, Oval, Lasso, Lasso fill, Crop, Backstitch, Backstitch edit, Select, Move, Pan, Zoom |
 | X | Swap the two drawing colours |
 | 1, 2, 3 | Color, Black & white, Stitched view |
 | 4, 5 | Grid + photo, Original photo (only with a photo) |
@@ -149,6 +149,10 @@ Keys act when no text entry has the focus, and not while the command list is ope
 | Escape | Cancels the piece, the shape, the lasso fill or the backstitch run in hand; puts down the backstitch in hand; or puts the crop frame back over the whole chart. Only one of these can be in hand at a time |
 | Enter | Applies the piece in hand (Select and Lasso), or the crop frame (Crop); otherwise the pen of the keyboard cell cursor (above) |
 | Delete, Backspace | Deletes the backstitch in hand (Backstitch edit only) |
+| Ctrl/Cmd + C | Copies the piece in hand, or the backstitch in hand |
+| Ctrl/Cmd + V | Pastes the copied piece (Select or Lasso in hand), or the copied backstitch (Backstitch edit in hand) |
+| Ctrl/Cmd + D | Duplicates the piece in hand, or the backstitch in hand |
+| Ctrl/Cmd + K | Opens the command list, and closes it |
 | Ctrl/Cmd + Z | Undo. Does nothing with a piece in hand |
 | Ctrl/Cmd + Y, Ctrl/Cmd + Shift + Z | Redo. Does nothing with a piece in hand |
 | Arrow keys, Shift + Arrow keys | Keyboard cell cursor (above): by one stitch, by ten |
@@ -162,7 +166,7 @@ Keys act when no text entry has the focus, and not while the command list is ope
 | **Search** | Free text, empty each time the list is opened. Shows the commands whose group, name or key contains every word typed, in the same order as the full list, with a count of shown against all; "No command matches." when there is none |
 | **States of a command** | *Usable*: can be run. *Not usable now*: shown with the condition it waits for (for example "A piece in hand"), and cannot be run. *Keyboard only*: a key that acts while held, or in the middle of a drag, or belongs to the keyboard cell cursor; shown with its key and "From the keyboard only", and cannot be run from the list |
 | **Running** | Choosing a usable command closes the list and runs it. From the keyboard: up and down move through the usable commands shown, wrapping round; Enter runs the marked one (the first, until moved); Escape closes without running anything |
-| **Opening** | From one control that is always present, next to New chart. It has no key. Unavailable while the start screen covers a chart |
+| **Opening** | From one control that is always present, next to New chart, or with Ctrl/Cmd + K, which also closes it. Unavailable while the start screen covers a chart |
 | **While open** | The chart's keys do not act; whatever is typed goes to the search |
 | **Not in it** | An action that needs a value (which thread, what size, which export kind, the text to add) is not a command; it is reached where the value is given |
 

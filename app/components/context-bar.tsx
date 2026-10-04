@@ -164,10 +164,13 @@ export function ContextBar({ pattern, history, view, photo, colours, options, sy
             {/* 1b opened the bar with the thread the brush holds; since G-064 that is a pair, and the list sets either. */}
             <ColorPair pattern={pattern} slots={colorSlots} onActivate={onActivateColorSlot} onSwap={onSwapColors} />
 
-            <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
-
-            {/* What the tool in hand offers, drawn from what the tool declares (G-093). */}
-            <ToolOptions options={options.shown} valueOf={options.valueOf} onChange={options.onChange} />
+            {/* What the tool in hand offers, drawn from what the tool declares (G-093); nothing, for a tool with no options. */}
+            {options.shown.length > 0 && (
+              <>
+                <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+                <ToolOptions options={options.shown} valueOf={options.valueOf} onChange={options.onChange} />
+              </>
+            )}
 
             <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
             <div role="group" aria-label="Symmetry — mirrored drawing" className="flex shrink-0 items-center gap-1.5">

@@ -5,7 +5,7 @@ import { COMMAND_GROUPS, keysLabel, searchCommands, type Command } from "@/lib/e
 
 /**
  * The command list (G-093, D287): every command the editor has, searchable, each with its key and whether it can be used
- * now. It draws the command table and nothing else; a command appears here by being registered.
+ * now, opened from its control or with Ctrl+K (D288). It draws the command table and nothing else; a command appears here by being registered.
  *
  * Focus stays in the search field for as long as the list is open, so the arrow keys, Enter and Escape belong to the list and
  * typing never reaches the chart's shortcuts. A command that cannot be used now is shown with the reason in words; one that
@@ -45,7 +45,8 @@ export function CommandList({ commands, onClose }: CommandListProps) {
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Escape") {
+    if (e.key === "Escape" || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) {
+      // The key that opens the list closes it too, and is kept from the browser while the list has the focus.
       e.preventDefault();
       onClose(false);
     } else if (e.key === "Tab") {
