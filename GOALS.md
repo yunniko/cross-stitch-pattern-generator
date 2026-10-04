@@ -12,6 +12,28 @@ svc-lab). Completed goals live in `docs/goals-archive.md`.
 
 ## Active goals
 
+### G-090 · Readiness to grow: architecture, interface placement, development speed and QA — ACTIVE (2026-10-04)
+- **What:** an analysis answering the Owner's four questions before the app is extended (vector editor, painting board, more pixel-art features, layers, new tools, perhaps plugins): (1) is the architecture ready, and what architecture and placement guide would give each new request its own place; (2) the same for the interface; (3) how to make development faster without losing the tests; (4) whether to set up QA. Then the guides themselves, and the follow-up goals the Owner chooses.
+- **Why:** the Owner feels new requests are squeezed into the app rather than placed. Extending on the present shape would multiply that.
+- **Acceptance criteria:** (1) a written analysis with measurements, a verdict per question and a recommendation per planned direction (`docs/reviews/2026-10-04-growth-readiness.md`); (2) an architecture document with a placement guide ("a new X goes here") that a newcomer can follow, and the lint boundaries that enforce it; (3) interface placement rules, and the design brief extended with each control's scope; (4) a development-loop proposal with measured before and after; (5) a QA proposal with a first pass run; (6) each structural change that follows is its own goal, approved by the Owner, not part of this one.
+- **Constraints:** analysis and guides only: no change to the app's behaviour in this goal. Anything that relaxes the Company charter for this project (a fast lane for small changes) is the Owner's decision, recorded as such.
+
+**Milestones:**
+- [x] M1 -- **The analysis.** Measurements and answers to the four questions.
+- [ ] M2 -- **Architecture and placement guide.** `docs/architecture.md`: the four layers, the registries, where each kind of request goes, the migration order from today's code; proposed lint boundaries. No code moved.
+- [ ] M3 -- **Interface placement.** The four placement rules worked through the design brief: each control's scope, the misplaced ones listed, the command list.
+- [ ] M4 -- **Development loop and QA.** The fast lane written as a rule for the Owner to approve; the lint, flaky-test and rate-limit fixes scoped; a first exploratory QA pass on the last three goals' features, with its findings triaged.
+- [ ] M5 -- **Follow-up goals drafted** for the Owner to order: tool registry and editor shell (absorbs G-069), document model with layers and recorded undo, interface redesign, development-loop fixes.
+
+**Questions for the Owner:**
+1. **Order of ambition.** Which comes first: layers, the painting board, the vector editor, or more tools on the present grid? The document model is designed for whichever is first; I propose **tools and shell first, then layers**, because every later feature needs both.
+2. **Fast lane.** May small interface-only changes skip the full suite, the deploy and the per-goal paperwork, batched into one verified deploy a day? (This relaxes the charter for this project.)
+3. **Plugins.** Your own extensions only, or other people's code too? The second needs isolation and is a much larger decision; I propose designing the registries now and deciding isolation later.
+4. **QA.** An exploratory pass at each goal's last milestone, findings to a triage list: yes?
+
+**Progress log** (newest first):
+- 2026-10-04 -- goal opened at the Owner's request and M1 done: `docs/reviews/2026-10-04-growth-readiness.md`. Measured: the workspace grew from 754 to 1,071 lines in ten days and is touched by 30 of 201 commits; 46 branch sites on the tool in hand; a new tool edits 7 existing files; type-check 21 s, unit 22 s, lint 70 s, build 35 s, full browser suite about 4.5 min. Verdicts: the architecture is not ready for layers, a vector editor or plugins (closed document model, closed tool set, wide workspace); interface placement has no rule; the tests are not the main cost of a change; QA is worth having as a periodic exploratory pass. Not measured: memory or speed with layers, real use of the interface, the estimated speed-up. Awaiting the Owner's answers before M2.
+
 ### G-088 · Design helper documentation: what the app does and what every control must allow — ACTIVE (2026-10-02)
 - **What:** a document set, `docs/design-brief/`, that a designer redesigning the application can work from without opening the app or reading code. It states what the app is for and what a person can do in it, then every feature in turn. It says nothing about how the present interface looks or is built: no layout, panel, widget, colour or component names, only the behaviour and the data the interface must carry.
 - **Why:** the Owner is going to redesign the application. A redesign built from screenshots keeps the present layout's accidents and loses rules nobody drew, such as a ceiling that depends on a prediction or a control that is unavailable in one mode.

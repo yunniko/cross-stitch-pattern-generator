@@ -97,6 +97,7 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-087 | 02-photo-and-generation | |
 | G-088 | this goal | |
 | G-089 | 04-editing | |
+| G-090 | internal | analysis and guides |
 
 ## Decisions
 
