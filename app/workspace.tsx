@@ -68,6 +68,7 @@ import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useProjectRestore } from "./hooks/use-project-restore";
 import { useColorPrediction } from "./hooks/use-color-prediction";
 import { useCropTool } from "./hooks/use-crop-tool";
+import { replaceDocument, type ReplaceEffects } from "@/lib/editor/document-replace-run";
 import { CropBar } from "./components/crop-bar";
 import { CropOverlay } from "./components/crop-overlay";
 import type { ColorPrediction } from "@/lib/pipeline/prediction";
@@ -292,39 +293,49 @@ export default function Workspace({ account }: WorkspaceProps) {
     });
   });
 
-  function resetDocumentView() {
-    setDocumentId((id) => id + 1);
-    symmetryState.reset();
-    setActiveColorIndex(null);
-    panZoom.resetZoom();
-    setLitColorIndices(new Set());
-    select.clear();
-    crop.close();
-  }
-
-  /** Lands a restored or opened pattern in every piece of state that depends on it, including its embedded photo. */
-  async function loadPatternIntoWorkspace(loaded: StitchPattern, fallbackName: string, savedSymmetry: SymmetryAxes = NO_SYMMETRY) {
-    const withName = { ...loaded, name: loaded.name ?? fallbackName };
-    // The sliders come back with the chart (G-074 M5): a chart made with them, reopened and regenerated,
-    // must be the chart it was rather than quietly a different one. Only for a chart that has a photo --
-    // one started from an empty canvas has no photo settings at all, and its sliders are not the reader's
-    // to lose.
-    if (withName.sourceImage) updateOption("photoAdjust", withName.photoAdjust ?? NEUTRAL_ADJUST);
-    // The set the chart was made with comes back with it, and is on if the chart was made from it; a file with none is a new
-    // chart, which starts without one (G-087, D277).
-    if (withName.generationPalette) {
-      const { active, ...set } = withName.generationPalette;
+  /**
+   * The one place the open chart is replaced (G-091): which things are reset for which way in is the table in
+   * `lib/editor/document-replace.ts`; these are the state setters it is carried out with.
+   */
+  const replaceEffects: ReplaceEffects = {
+    resetHistory: history.reset,
+    pushHistory: history.set,
+    bumpDocument: () => setDocumentId((id) => id + 1),
+    clearSelection: () => select.clear(),
+    closeCrop: () => crop.close(),
+    clearLit: () => setLitColorIndices(new Set()),
+    clearColourInHand: () => setActiveColorIndex(null),
+    resetZoom: () => panZoom.resetZoom(),
+    setSymmetry: (axes) => symmetryState.reset(axes),
+    resetPaletteSet: () => {
+      updateOption("paletteSetup", false);
+      updateOption("paletteSet", EMPTY_SET);
+    },
+    restorePaletteSet: ({ active, ...set }) => {
       updateOption("paletteSet", set);
       updateOption("paletteSetup", active);
-    } else {
-      resetPaletteSet();
-    }
-    history.reset(withName);
-    resetDocumentView();
-    symmetryState.reset(savedSymmetry);
-    setInspectorTab("threads");
-    setStartingNew(false);
-    await source.adoptPatternPhoto(withName, fallbackName);
+    },
+    setPhotoAdjust: (adjust) => updateOption("photoAdjust", adjust),
+    showTab: setInspectorTab,
+    clearMessages: () => {
+      generation.setError(null);
+      setOpenError(null);
+      setOpenNotice(null);
+    },
+    leaveStart: () => setStartingNew(false),
+    adoptPhoto: (chart, fallbackName) => source.adoptPatternPhoto(chart, fallbackName),
+    forgetAutosave: () => void getProjectStore().save(null),
+    awaitRecommendedCount: () => {
+      colorResetRef.current = { stale: colorPrediction.prediction };
+    },
+  };
+
+  /** Lands a restored or opened pattern in every piece of state that depends on it, including its embedded photo. */
+  function loadPatternIntoWorkspace(loaded: StitchPattern, fallbackName: string, savedSymmetry: SymmetryAxes = NO_SYMMETRY) {
+    return replaceDocument("open", { ...loaded, name: loaded.name ?? fallbackName }, replaceEffects, {
+      symmetry: savedSymmetry,
+      fallbackName,
+    });
   }
 
   const restore = useProjectRestore(
@@ -360,19 +371,9 @@ export default function Workspace({ account }: WorkspaceProps) {
     sourceFileName: source.fileName,
     revisionRef: source.revisionRef,
     currentPattern: pattern,
-    onGenerated: (next, isFirst) => {
-      // A floating selection belongs to the replaced pattern and may be out of bounds: drop it, don't merge it.
-      select.clear();
-      setDocumentId((id) => id + 1);
-      // A finished chart is about its threads, so the inspector follows the work rather than staying on the settings.
-      setInspectorTab("threads");
-      // The first generate is the undo baseline; a regenerate is an ordinary undoable step (G-012).
-      if (isFirst) {
-        // A first Generate starts a new document with every symmetry toggle off (G-037).
-        symmetryState.reset();
-        history.reset(next);
-      } else history.set(next);
-    },
+    // The first generate is the undo baseline with every symmetry toggle off; a regenerate is an ordinary undoable step
+    // (G-012, G-037). Either way the piece in hand goes and the inspector follows the work to its threads.
+    onGenerated: (next, isFirst) => void replaceDocument(isFirst ? "first-generate" : "regenerate", next, replaceEffects),
   });
 
   /**
@@ -388,38 +389,15 @@ export default function Workspace({ account }: WorkspaceProps) {
   }
 
   function discardForNewChart() {
-    void getProjectStore().save(null);
-    history.reset(null);
-    resetDocumentView();
-    select.clear();
-    setLitColorIndices(new Set());
-    setActiveColorIndex(null);
-    generation.setError(null);
-    setOpenError(null);
-    setOpenNotice(null);
-  }
-
-  /** A new chart starts without the colours the last one was set up with, and in the automatic mode (G-087). */
-  function resetPaletteSet() {
-    updateOption("paletteSetup", false);
-    updateOption("paletteSet", EMPTY_SET);
+    void replaceDocument("discard", null, replaceEffects);
   }
 
   function handleImageFile(file: File) {
     generation.setError(null);
     setOpenNotice(null);
     void source.loadFile(file, {
-      // A new photo is a new document: fresh history, shown as is until Generate.
-      onLoaded: () => {
-        // A new picture for a new chart starts from neutral photo sliders and no chosen colours (G-087).
-        updateOption("photoAdjust", NEUTRAL_ADJUST);
-        colorResetRef.current = { stale: colorPrediction.prediction };
-        resetPaletteSet();
-        history.reset(null);
-        resetDocumentView();
-        setInspectorTab("photo");
-        setStartingNew(false);
-      },
+      // A new photo is a new document: fresh history, neutral photo sliders, no chosen colours, shown as is until Generate.
+      onLoaded: () => void replaceDocument("photo", null, replaceEffects),
       onFailed: () => generation.setError("Couldn't read that image. Try a different file (JPEG, PNG, or WebP)."),
     });
   }
@@ -653,17 +631,8 @@ export default function Workspace({ account }: WorkspaceProps) {
    * Starts a chart from an empty canvas (G-040). `adoptPatternPhoto` clears the loaded photo, because the new chart has
    * none, which also cancels any generation or preview still running for the previous photo.
    */
-  async function createBlankChart(width: number, height: number) {
-    const blank = createBlankPattern(width, height);
-    resetPaletteSet();
-    generation.setError(null);
-    setOpenError(null);
-    setOpenNotice(null);
-    history.reset(blank);
-    resetDocumentView();
-    setStartingNew(false);
-    setInspectorTab("threads");
-    await source.adoptPatternPhoto(blank, blank.name ?? "cross-stitch-pattern");
+  function createBlankChart(width: number, height: number) {
+    return replaceDocument("blank", createBlankPattern(width, height), replaceEffects);
   }
 
   /**
@@ -678,15 +647,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       setStartingNew(true);
       return;
     }
-    resetPaletteSet();
-    generation.setError(null);
-    setOpenError(null);
-    setOpenNotice(null);
-    history.reset(imported);
-    resetDocumentView();
-    setStartingNew(false);
-    setInspectorTab("threads");
-    await source.adoptPatternPhoto(imported, imported.name ?? DEFAULT_PIXEL_ART_NAME);
+    await replaceDocument("pixel-art", imported, replaceEffects, { fallbackName: imported.name ?? DEFAULT_PIXEL_ART_NAME });
   }
 
   const photoFree = isPhotoFree(pattern);
