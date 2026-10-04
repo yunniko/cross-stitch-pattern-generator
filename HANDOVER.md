@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-05 at f0ea2d6 plus the uncommitted G-094 M3 (production runs 4e5a685)
+Last verified: 2026-10-05 at 4433856 (G-094 deployed, awaiting sign-off)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -9,10 +9,10 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 4e5a685 (2026-10-05, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
+**Production** runs 4433856 (2026-10-05, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-094, document module — in progress (M3 of 5 done 2026-10-05, not deployed).** The chart is a document of layers (`lib/document/`: `types.ts`, `convert.ts` with `flatten`, `change.ts`, `history.ts`); today it has one layer and the tools read and write its flat view. Undo keeps what changed between two documents, not a copy (D289; measured in `docs/reviews/2026-10-05-undo-and-flatten.md`, repeatable with `scripts/measure-undo.ts`). The editor's history is `app/hooks/use-document-history.ts`.
+**G-094, document module — built and deployed 2026-10-05 (4433856), awaiting the Owner's sign-off.** The chart is a document of layers (`lib/document/`: `types.ts`, `convert.ts` with `flatten`, `change.ts`, `history.ts`, `migrate.ts`); today it has one layer, the tools read and write its flat view (`StitchPattern`), and the file on disk is still one grid. Undo keeps what changed between two documents, not a copy (D289; measured in `docs/reviews/2026-10-05-undo-and-flatten.md`, repeatable with `scripts/measure-undo.ts`); the editor's history is `app/hooks/use-document-history.ts`. The file's version and the one step that brings an older file up to date are in `lib/document/migrate.ts`; a later version is refused. Fabric count and unit are the chart's own, saved in its file (D290). The server's writer of the editable file (`rust/cs-export/src/editable.rs`) is held to the editor's, byte for byte, by `tests/unit/file-migration.spec.ts`: a new field of the chart goes into both.
 
 **G-093, command registry — signed off 2026-10-05, archived.** Every action is a command in one table (`app/commands/registry.ts`, plus the `commands` each tool module declares; pure half `lib/editor/commands.ts`, D286): the keyboard shortcuts name no key and read it, and the command list (`app/components/command-list.tsx`, opened from "Commands" under New or with Ctrl+K, D287, D288) draws it. A tool declares its options as data (`app/tools/options.tsx`, drawn by `app/components/tool-options.tsx`, D285). `npx tsx scripts/design-brief-commands.ts` checks the table against the brief and writes the command table in `docs/interface-placement.md`. To add a command or a tool option, follow `docs/architecture.md` section 3.
 
@@ -425,6 +425,7 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-10-05 | 4433856 | **G-094:** the chart as a document; undo as recorded changes (D289); one migration step for the file, fabric in the chart (D290); the editable file in Export all no longer drops five fields | 1075 unit; Rust export tests; full local e2e 564 pass, 0 fail; live: 3 fabric and file cases pass (one on retry); app and processor restarted, other containers untouched; six sites 200 |
 | 2026-10-05 | 4e5a685 | **Fast-lane batch 4 (D288):** keys S, V, H, Z, Ctrl+C/V/D, Ctrl+K; brush size and shape only with Brush, Line, Rectangle and Oval | 1048 unit; full local e2e 558 pass, 0 fail; the 4 new cases pass against the live site (one on retry); only this project's app restarted; six sites 200 |
 | 2026-10-05 | 81e5db3 | **G-093:** tool options as data (D285), the command registry behind the keys (D286), the command list (D287); no key added or changed | 1047 unit; full local e2e 554 pass, 0 fail; live: the 7 command-list cases pass, 4 of them on retry; 24 containers before and after, only this project's app restarted; six sites 200 |
 | 2026-10-04 | 6e3d786 | **G-092:** tool registry (D284): tools as modules, the shell routes to them; no behaviour change | 1023 unit; full local e2e 547 pass, 0 fail; live: tool-key, shape, backstitch-edit and crop cases pass (see goal log for the one case re-run); only this project's app restarted; six sites 200 |
@@ -436,7 +437,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 | 2026-10-02 | 2acffc0 | **G-087:** Set up palette, colour prediction and the colour count ceiling (D276, D277); predictions have their own rate-limit bucket | New e2e spec (7) against the live site; full local e2e 519 pass of 524 before the two photo-slider specs were updated for the new reset and ceiling (then pass), admin-stats pass alone; 74 goldens unchanged; only this project's app and processor restarted; six other sites 200 |
 | 2026-10-02 | ac7a9cc | **G-086:** backstitch in the Stitched view and the realistic preview (D275) | New e2e spec against the live site; full local e2e 516 pass; site 200 |
 | 2026-10-02 | fdc3c26 | **G-085:** texture strokes (D274) | New e2e specs against the live site; full local e2e 513 pass; 74 goldens green; site 200 |
-| 2026-10-02 | bb9a210 | **G-084:** the line finder replaced (D272); backstitch dashes ranked by length (D271) | New e2e spec against the live site; full local e2e 510 pass; 74 goldens green; site 200 |
 
 ## Decisions
 
