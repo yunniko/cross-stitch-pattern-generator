@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-04 at 10e205f deployed (G-091 M1 committed, not deployed)
+Last verified: 2026-10-04 at fec38f9 (G-091 deployed, awaiting sign-off)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -424,6 +424,7 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-10-04 | fec38f9 | **G-091:** replacing the open chart is one table (D282), every new document resets the same things (D283), grouped props, Crop keeps a fresh frame across charts | 1015 unit; full local e2e 545 pass, 0 fail; 4 new cases against the live site; only this project's app restarted; six sites 200 |
 | 2026-10-04 | 10e205f | **Fast-lane batch 2:** QA findings 7 and 8 (the palette-mode switch is asked first; Escape per field in Crop) | Full local e2e 541 pass, 0 fail; 2 cases against the live site; only this project's app restarted |
 | 2026-10-04 | 48f9ad8 | **Fast-lane batch 1 (D280):** 11 QA fixes (custom size typing, Crop frame and bar, palette mode on load, stale-prediction fill, empty-palette export, file names); recommendations at once 2 to 4 | Full local e2e 540 pass, 0 fail; 1003 unit; 6 of the new cases pass against the live site; app and processor restarted, other containers untouched; six sites 200 |
 | 2026-10-03 | 19692ed | **G-089:** the Crop tool; the canvas numbers moved into it (D278, D279) | New e2e spec (10); full local e2e 531 pass, the two admin-stats cases pass alone; the spec passes live case by case (a whole-file live run trips the 6-a-minute job limit); only this project's app restarted; six sites 200 |
@@ -435,7 +436,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 | 2026-10-02 | 7f8a462 | **G-084:** Backstitch from lines (Photo tab, Lines), traced in Rust and painted out of the picture, off by default (D266 to D268) | New e2e spec run against the live site (3 pass); 74 golden hashes unchanged; other containers not restarted; site 200 |
 | 2026-10-01 | 69c9273 | **G-083 (Owner): smaller A4 borders, the triangles against the grid's border, the overlap label right under the border at the bottom and turned a quarter turn counter-clockwise on the sides.** Margin 14 to 8 mm, gutter 14 to 12 mm, the row and column numbers outside the triangles. Rust exporter, the page's constants and the processor image | 960 unit, the Rust A4 and Pattern Keeper pin tests; the A4 settings and A4 export specs 5 of 5 locally; looked at on screen. **Verified live:** the A4 settings and half-stitch export specs pass against `https://cross-stitch.craftodejnice.cz` (3 of 3). Server build EXIT=0; only this project's containers restarted; the eight sites returned 200 and the other containers' uptimes were unchanged. |
 | 2026-10-01 | bf7d8b1 | **G-083: export fixes (Owner).** The A4 export has its own cell size (Chart tab, "A4 cell size, mm", default 5.5, twice the old); the A4 pages start with a map of the pages, carry a letter each, name the page an overlap band repeats, mark the centre (black triangles on the rulers, a heavy frame), and the skein legend is a table; the full-size chart gains the centre marks. The Rust exporter, the processor's validation and deadline and the page's settings changed; the Pattern Keeper PDF is pinned byte for byte and unchanged (D264). Item 5 (figures on the full-size pictures) was dropped by the Owner | 960 unit, 8 + 5 + 1 Rust integration tests (the pin passes), 505 of 508 e2e against the Rust processor (the 3 others, admin-stats and two font-list timings, pass alone); looked at: the map, a grid page, the skein table, the full chart. **Verified live:** the A4 settings, A4 export and half-stitch export specs pass against `https://cross-stitch.craftodejnice.cz`. Server build EXIT=0 for the app and the processor; only this project's containers restarted; the eight sites returned 200 and the other containers' uptimes were unchanged. |
-| 2026-10-01 | 4312267 | **G-082 (Owner): the legend's details table has a Full stitches row and a Half stitches row**, shown when the chart has half stitches, with the Stitch count above them counting both together. Rust and TypeScript; the processor image was rebuilt | 958 unit, 8 Rust integration tests; looked at on the A4 info page. **Verified live:** the half-stitch and half-stitch-export specs pass against `https://cross-stitch.craftodejnice.cz` (9 of 9). Server build EXIT=0; only this project's containers restarted; the eight sites returned 200 and the other containers' uptimes were unchanged. |
 
 ## Decisions
 
