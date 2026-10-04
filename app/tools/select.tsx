@@ -1,6 +1,7 @@
 import { SelectionBar } from "../components/panels";
 import { LassoIcon, SelectIcon } from "./icons";
 import { inputsFrom } from "./shared";
+import { BRUSH_OPTIONS } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useCallback, useRef, useState } from "react";
 import { lassoRegion, maskedCell } from "@/lib/editor/lasso";
@@ -248,6 +249,7 @@ export const selectModule = {
       title: "Drag a rectangle to select it, then copy, paste, move or flip it before it merges back. Ignores symmetry.",
       group: 1,
       Icon: SelectIcon,
+      options: BRUSH_OPTIONS,
       piece: true,
       cursor: "cross",
     },
@@ -258,6 +260,7 @@ export const selectModule = {
       key: "q",
       group: 1,
       Icon: LassoIcon,
+      options: BRUSH_OPTIONS,
       piece: true,
       cursor: "cross",
     },

@@ -1,6 +1,7 @@
 import { CropBar } from "../components/crop-bar";
 import { CropOverlay } from "../components/crop-overlay";
 import { CropIcon } from "./icons";
+import { BRUSH_OPTIONS } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useCallback, useState } from "react";
 import { cropError, cropSize, insetsToDelta, isNoCrop, NO_CROP, withInset, type CropEdge, type CropInsets } from "@/lib/editor/crop-frame";
@@ -70,6 +71,7 @@ export const cropModule = {
       key: "c",
       group: 1,
       Icon: CropIcon,
+      options: BRUSH_OPTIONS,
     },
   ],
   useRuntime(api: EditorApi): ToolRuntime {

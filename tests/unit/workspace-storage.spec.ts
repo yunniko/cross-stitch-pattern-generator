@@ -80,6 +80,7 @@ describe("workspace-storage", () => {
       shapeFill: "outline",
       stitchKind: 0,
       exportCellMm: 5.5,
+      toolOptions: {},
       doubleClickFill: true,
     } as const;
 
@@ -125,6 +126,7 @@ describe("workspace-storage", () => {
         shapeFill: "filled" as const,
         stitchKind: 2 as const,
         exportCellMm: 4.25,
+        toolOptions: { "sample.option": "three" },
         doubleClickFill: false,
       };
       saveWorkspaceOptions(saved);

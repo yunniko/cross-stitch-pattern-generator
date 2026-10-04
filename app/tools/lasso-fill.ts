@@ -1,5 +1,6 @@
 import { LassoFillIcon } from "./icons";
 import { inputsFrom } from "./shared";
+import { LAYING_OPTIONS } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useRef } from "react";
 import { lassoRegion, type LassoRegion } from "@/lib/editor/lasso";
@@ -150,6 +151,7 @@ export const lassoFillModule = {
       key: "g",
       group: 0,
       Icon: LassoFillIcon,
+      options: LAYING_OPTIONS,
       laysStitches: true,
       // It draws a path a stitch wide, so the cursor shows one stitch however big the brush is.
       outline: "one",

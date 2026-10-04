@@ -3,6 +3,7 @@ import { ONE_STITCH_STAMP, stampOutline, type StampEdge } from "@/lib/editor/bru
 import { stampForPress } from "@/lib/editor/shape-raster";
 import type { BackstitchLine, FloatingSelection } from "@/lib/types";
 import { DEFAULT_TOOL, moduleIndexOf, TOOL_DEFINITIONS, TOOL_MODULES, toolDefinition, type Tool } from "./registry";
+import { SHAPE_FILL, type ToolOption } from "./options";
 import type { EditorApi, PieceService, ToolRuntime } from "./types";
 
 /**
@@ -46,6 +47,8 @@ export interface Tools {
   /** Takes a ready-made piece in hand, with a tool that can act on it. */
   takePiece: (piece: FloatingSelection) => void;
   highlightBackstitch: ((line: BackstitchLine) => boolean) | undefined;
+  /** The options the tool in hand declares, in the order they are drawn (G-093). */
+  options: readonly ToolOption[];
   /** The outline the cursor carries for the tool in hand, or null when it paints nothing or nothing can be painted. */
   hoverOutline: readonly StampEdge[] | null;
 }
@@ -70,7 +73,8 @@ export function useTools(inputs: ToolsInputs): Tools {
   }
 
   const { viewOnly, stamp } = inputs;
-  const { shapeFill, stitchKind } = inputs.options;
+  const { stitchKind } = inputs.options;
+  const shapeFill = inputs.option(SHAPE_FILL);
   const outlineKind = definition.outline;
   const laysStitches = definition.laysStitches === true;
   const hoverOutline = useMemo(() => {
@@ -116,6 +120,7 @@ export function useTools(inputs: ToolsInputs): Tools {
       piece.insert(taken);
     },
     highlightBackstitch: runtimes.find((runtime) => runtime.highlightBackstitch)?.highlightBackstitch,
+    options: definition.options ?? [],
     hoverOutline,
   };
 }

@@ -1,5 +1,6 @@
 import { BrushIcon, FillIcon } from "./icons";
 import { inputsFrom } from "./shared";
+import { LAYING_OPTIONS } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useRef } from "react";
 import { stampCells, type StampOffset } from "@/lib/editor/brush-stamp";
@@ -221,6 +222,7 @@ export const brushModule = {
       key: "b",
       group: 0,
       Icon: BrushIcon,
+      options: LAYING_OPTIONS,
       laysStitches: true,
       keyboardCursor: true,
       outline: "brush",
@@ -232,6 +234,7 @@ export const brushModule = {
       key: "f",
       group: 0,
       Icon: FillIcon,
+      options: LAYING_OPTIONS,
       laysStitches: true,
       keyboardCursor: true,
       outline: "one",

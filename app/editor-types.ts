@@ -25,11 +25,6 @@ export function isSelectTool(tool: Tool): boolean {
   return toolDefinition(tool).piece === true;
 }
 
-/** Only the shapes that enclose something choose between an outline and a solid block. */
-export function hasFillChoice(tool: Tool): boolean {
-  return toolDefinition(tool).fillChoice === true;
-}
-
 /** The tools that lay stitches down and so follow the Stitch type choice (G-082). */
 export function usesStitchKind(tool: Tool): boolean {
   return toolDefinition(tool).laysStitches === true;

@@ -1,5 +1,6 @@
 import { ZOOM_STEP } from "../hooks/use-pan-zoom";
 import { PanIcon, ZoomIcon } from "./icons";
+import { BRUSH_OPTIONS } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 
 /** Pan and Zoom: the two tools that move the view and never the chart, so they work in every view. */
@@ -11,6 +12,7 @@ export const panModule = {
       title: "Drag to scroll the chart (or hold Space with any tool active)",
       group: 2,
       Icon: PanIcon,
+      options: BRUSH_OPTIONS,
       navigation: true,
       cursor: "grab",
     },
@@ -32,6 +34,7 @@ export const zoomModule = {
       title: "Click to zoom in, Shift-click to zoom out (the wheel always zooms too)",
       group: 2,
       Icon: ZoomIcon,
+      options: BRUSH_OPTIONS,
       navigation: true,
       cursor: "zoom",
     },

@@ -1,5 +1,6 @@
 import { LineIcon, OvalIcon, RectIcon } from "./icons";
 import { inputsFrom } from "./shared";
+import { ENCLOSING_OPTIONS, LAYING_OPTIONS, SHAPE_FILL } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useRef } from "react";
 import { stampCells, type StampOffset } from "@/lib/editor/brush-stamp";
@@ -183,6 +184,7 @@ export const shapeModule = {
       key: "l",
       group: 0,
       Icon: LineIcon,
+      options: LAYING_OPTIONS,
       laysStitches: true,
       keyboardCursor: true,
       outline: "brush",
@@ -194,8 +196,8 @@ export const shapeModule = {
       key: "r",
       group: 0,
       Icon: RectIcon,
+      options: ENCLOSING_OPTIONS,
       laysStitches: true,
-      fillChoice: true,
       keyboardCursor: true,
       outline: "press",
     },
@@ -206,8 +208,8 @@ export const shapeModule = {
       key: "o",
       group: 0,
       Icon: OvalIcon,
+      options: ENCLOSING_OPTIONS,
       laysStitches: true,
-      fillChoice: true,
       keyboardCursor: true,
       outline: "press",
     },
@@ -221,7 +223,7 @@ export const shapeModule = {
       symmetry: api.symmetry,
       kind,
       // A line has no inside, so only the shapes that enclose one take the outline or filled choice.
-      fill: kind === "line" ? "outline" : api.options.shapeFill,
+      fill: kind === "line" ? "outline" : api.option(SHAPE_FILL),
     });
     return {
       onPointerDown: shape.onPointerDown,

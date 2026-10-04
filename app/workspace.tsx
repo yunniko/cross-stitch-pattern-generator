@@ -49,6 +49,7 @@ import { NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
 import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useProjectRestore } from "./hooks/use-project-restore";
 import { useColorPrediction } from "./hooks/use-color-prediction";
+import { readToolOption, writeToolOption } from "@/lib/editor/tool-options";
 import { useTools } from "./tools/use-tools";
 import { replaceDocument, type ReplaceEffects } from "@/lib/editor/document-replace-run";
 import type { ColorPrediction } from "@/lib/pipeline/prediction";
@@ -160,6 +161,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     stamp,
     symmetry: liveSymmetry,
     options,
+    option: (spec) => readToolOption(options, spec),
     view: panZoom,
   });
   const { activeTool, switchTool, hoverOutline } = tools;
@@ -609,7 +611,6 @@ export default function Workspace({ account }: WorkspaceProps) {
         {tools.bar ?? (
           <ContextBar
             pattern={pattern}
-            activeTool={activeTool}
             history={history}
             view={{
               mode: viewMode,
@@ -620,15 +621,13 @@ export default function Workspace({ account }: WorkspaceProps) {
             }}
             photo={{ isLoading: source.isLoading, hasSource: source.hasPhoto }}
             colours={{ slots: colours.slots, onActivate: colours.setActiveSlot, onSwap: colours.swap }}
-            brush={{
-              size: options.brushSize,
-              shape: options.brushShape,
-              onSizeChange: (size) => updateOption("brushSize", size),
-              onShapeChange: (shape) => updateOption("brushShape", shape),
-              shapeFill: options.shapeFill,
-              onShapeFillChange: (fill) => updateOption("shapeFill", fill),
-              stitchKind: options.stitchKind,
-              onStitchKindChange: (kind) => updateOption("stitchKind", kind),
+            options={{
+              shown: tools.options,
+              valueOf: (option) => readToolOption(options, option),
+              onChange: (option, value) => {
+                const written = writeToolOption(options, option, value);
+                updateOption(written.key, written.value as never);
+              },
             }}
             symmetry={{
               axes: liveSymmetry,

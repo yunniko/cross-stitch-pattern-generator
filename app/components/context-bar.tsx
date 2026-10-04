@@ -1,15 +1,13 @@
 "use client";
 
+import type { OptionValue } from "@/lib/editor/tool-options";
+import type { ToolOption } from "../tools/options";
+import { ToolOptions } from "./tool-options";
 import type { SymmetryAxes, SymmetryAxis } from "@/lib/editor/symmetry";
 import { type StitchPattern } from "@/lib/types";
 import type { ViewMode } from "../editor-types";
-import { BRUSH_SIZES, type BrushShape, type BrushSize } from "@/lib/editor/brush-stamp";
-import type { ShapeFill } from "@/lib/editor/shape-raster";
-import { hasFillChoice, usesStitchKind, type Tool } from "../editor-types";
-import { STITCH_KIND_LABELS, type StitchKind } from "@/lib/editor/stitch-kind";
-import { halfStitchPolygon } from "@/lib/export/half-stitch-shape";
 import { ColorPair } from "./color-pair";
-import { PillButton, SegmentedControl, DISABLED_ICON, type SegmentOption } from "./ui";
+import { PillButton, SegmentedControl, DISABLED_ICON } from "./ui";
 
 /**
  * The strip above the chart (G-045 M2, direction 1b): what acts on the chart right now. It replaces the stacked top
@@ -27,20 +25,6 @@ const CHART_VIEWS: Array<{ value: ChartView; label: string; title: string }> = [
   { value: "bw", label: "B&W", title: "The chart in black and white, as it prints" },
   { value: "realistic", label: "Stitched", title: "A realistic preview of the finished stitching" },
 ];
-
-/** The stitch as the chart draws it, small: a whole cell, or the cell with its two corners cut away (G-082). */
-function StitchKindIcon({ kind }: { kind: StitchKind }) {
-  const points = kind === 0 ? [] : halfStitchPolygon(kind, 14);
-  return (
-    <svg viewBox="0 0 14 14" className="h-3.5 w-3.5" aria-hidden="true">
-      {kind === 0 ? (
-        <rect x="0" y="0" width="14" height="14" rx="1" fill="currentColor" />
-      ) : (
-        <polygon points={points.map(([x, y]) => `${x},${y}`).join(" ")} fill="currentColor" />
-      )}
-    </svg>
-  );
-}
 
 /** 1b draws the axes as the chart's own outline with the guide line that symmetry paints along it. */
 function AxisIcon({ axis }: { axis: SymmetryAxis }) {
@@ -66,8 +50,6 @@ const SYMMETRY_TOGGLES: Array<{ axis: SymmetryAxis; label: string; title: string
  */
 export interface ContextBarProps {
   pattern: StitchPattern | null;
-  /** The tool in hand: only the shapes that enclose something offer the outline/filled choice (G-064). */
-  activeTool: Tool;
   history: { canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void };
   view: {
     mode: ViewMode;
@@ -85,17 +67,11 @@ export interface ContextBarProps {
     onActivate: (slot: "a" | "b") => void;
     onSwap: () => void;
   };
-  /** What one press covers and lays down (G-064, G-082). */
-  brush: {
-    size: BrushSize;
-    shape: BrushShape;
-    onSizeChange: (size: BrushSize) => void;
-    onShapeChange: (shape: BrushShape) => void;
-    shapeFill: ShapeFill;
-    onShapeFillChange: (fill: ShapeFill) => void;
-    /** A whole stitch or a half stitch of either kind. */
-    stitchKind: StitchKind;
-    onStitchKindChange: (kind: StitchKind) => void;
+  /** The options of the tool in hand (G-093): what it declares, their values, and how one is changed. */
+  options: {
+    shown: readonly ToolOption[];
+    valueOf: (option: ToolOption) => OptionValue;
+    onChange: (option: ToolOption, value: OptionValue) => void;
   };
   /** Symmetry lives here rather than on the rail, where 1b draws it (Owner, 2026-09-18). */
   symmetry: { axes: SymmetryAxes; squareCanvas: boolean; onToggle: (axis: SymmetryAxis) => void };
@@ -105,42 +81,11 @@ export interface ContextBarProps {
   start: { startingNew: boolean; onBackToChart: () => void };
 }
 
-const SHAPE_FILL_OPTIONS: SegmentOption<ShapeFill>[] = [
-  { value: "outline", label: "Outline", title: "Draw the shape as its outline, as thick as the brush" },
-  { value: "filled", label: "Filled", title: "Draw the shape solid. A filled shape is exactly the shape, whatever the brush size" },
-];
-
-const BRUSH_SHAPE_OPTIONS: SegmentOption<BrushShape>[] = [
-  { value: "round", label: "●", title: "Round: the disc that fits the size" },
-  { value: "square", label: "■", title: "Square: the whole block" },
-];
-
-export function ContextBar({
-  pattern,
-  activeTool,
-  history,
-  view,
-  photo,
-  colours,
-  brush,
-  symmetry: symmetryGroup,
-  lock,
-  start,
-}: ContextBarProps) {
+export function ContextBar({ pattern, history, view, photo, colours, options, symmetry: symmetryGroup, lock, start }: ContextBarProps) {
   const { canUndo, canRedo, undo: onUndo, redo: onRedo } = history;
   const { mode: viewMode, onModeChange: onViewModeChange, isolate, onIsolateChange, litCount } = view;
   const { isLoading: isLoadingImage, hasSource: hasSourcePhoto } = photo;
   const { slots: colorSlots, onActivate: onActivateColorSlot, onSwap: onSwapColors } = colours;
-  const {
-    size: brushSize,
-    shape: brushShape,
-    onSizeChange: onBrushSizeChange,
-    onShapeChange: onBrushShapeChange,
-    shapeFill,
-    onShapeFillChange,
-    stitchKind,
-    onStitchKindChange,
-  } = brush;
   const { axes: symmetry, squareCanvas, onToggle: onToggleSymmetry } = symmetryGroup;
   const { on: lockTransparency, onChange: onLockTransparencyChange } = lock;
   const { startingNew, onBackToChart } = start;
@@ -221,60 +166,8 @@ export function ContextBar({
 
             <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
 
-            {/* What one press covers. Shown beside the colours because the two together are what a press does. */}
-            <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Brush">
-              <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Brush</span>
-              <select
-                aria-label="Brush size in stitches"
-                value={brushSize}
-                onChange={(e) => onBrushSizeChange(Number(e.target.value) as BrushSize)}
-                title="How many stitches across one press covers"
-                className="rounded-md border border-line bg-sunken px-1.5 py-1 text-xs text-ink"
-              >
-                {BRUSH_SIZES.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-              <SegmentedControl tone="chip" options={BRUSH_SHAPE_OPTIONS} value={brushShape} onChange={onBrushShapeChange} />
-            </div>
-
-            {/* What a press lays down: shown for the tools that lay stitches, remembered between visits (G-082). */}
-            {usesStitchKind(activeTool) && (
-              <div className="flex shrink-0 items-center gap-1.5">
-                <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Stitch</span>
-                <div role="radiogroup" aria-label="Stitch type" className="flex items-center gap-0.5 rounded-lg border border-line p-0.5">
-                  {([0, 1, 2] as const).map((kind) => (
-                    <button
-                      key={kind}
-                      type="button"
-                      role="radio"
-                      aria-checked={stitchKind === kind}
-                      aria-label={STITCH_KIND_LABELS[kind]}
-                      title={STITCH_KIND_LABELS[kind]}
-                      onClick={() => onStitchKindChange(kind)}
-                      className={`flex h-6 w-7 items-center justify-center rounded-md transition-colors ${
-                        stitchKind === kind ? "bg-accent text-on-accent" : "text-muted hover:text-ink"
-                      }`}
-                    >
-                      <StitchKindIcon kind={kind} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Only Rectangle and Oval enclose anything, so the choice appears with them rather than sitting inert. */}
-            {hasFillChoice(activeTool) && (
-              <>
-                <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
-                <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Shape">
-                  <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Shape</span>
-                  <SegmentedControl tone="chip" options={SHAPE_FILL_OPTIONS} value={shapeFill} onChange={onShapeFillChange} />
-                </div>
-              </>
-            )}
+            {/* What the tool in hand offers, drawn from what the tool declares (G-093). */}
+            <ToolOptions options={options.shown} valueOf={options.valueOf} onChange={options.onChange} />
 
             <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
             <div role="group" aria-label="Symmetry — mirrored drawing" className="flex shrink-0 items-center gap-1.5">

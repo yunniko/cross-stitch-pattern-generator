@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { hasFillChoice, isKeyboardCursorTool, isSelectTool, usesStitchKind } from "../../app/editor-types";
+import { isKeyboardCursorTool, isSelectTool, usesStitchKind } from "../../app/editor-types";
 import { DEFAULT_TOOL, moduleIndexOf, TOOL_DEFINITIONS, TOOL_KEYS, TOOL_MODULES, toolDefinition } from "../../app/tools/registry";
 
 /**
@@ -88,7 +88,6 @@ describe("what the editor reads from a tool's definition", () => {
 
   it("is what it was when each was a list of names", () => {
     expect(ids(usesStitchKind)).toEqual(["brush", "fill", "line", "rect", "oval", "lasso-fill"]);
-    expect(ids(hasFillChoice)).toEqual(["rect", "oval"]);
     expect(ids(isKeyboardCursorTool)).toEqual(["brush", "fill", "line", "rect", "oval"]);
     expect(ids(isSelectTool)).toEqual(["select", "lasso"]);
     expect(TOOL_DEFINITIONS.filter((tool) => tool.navigation).map((tool) => tool.id)).toEqual(["pan", "zoom"]);
@@ -112,7 +111,7 @@ describe("what the editor reads from a tool's definition", () => {
 
 describe("the boundary a tool module keeps (D284)", () => {
   const dir = path.join(__dirname, "..", "..", "app", "tools");
-  const shell = new Set(["registry.ts", "use-tools.ts", "types.ts", "shared.ts", "icons.tsx"]);
+  const shell = new Set(["registry.ts", "use-tools.ts", "types.ts", "shared.ts", "icons.tsx", "options.tsx"]);
   const modules = readdirSync(dir).filter((file) => !shell.has(file));
 
   it("imports no other tool, not the registry, and not the workspace", () => {
@@ -130,5 +129,47 @@ describe("the boundary a tool module keeps (D284)", () => {
   it("every module file is registered", () => {
     const registry = readFileSync(path.join(dir, "registry.ts"), "utf8");
     for (const file of modules) expect(registry, file).toContain(`from "./${file.replace(/\.tsx?$/, "")}"`);
+  });
+});
+
+describe("the options each tool declares (G-093)", () => {
+  const optionIds = (id: string) => (toolDefinition(id).options ?? []).map((option) => option.id);
+
+  it("are the ones the drawing options showed for it when they were written by hand", () => {
+    const shown = Object.fromEntries(TOOL_DEFINITIONS.map((tool) => [tool.id, optionIds(tool.id).join(" ")]));
+    expect(shown).toEqual({
+      brush: "brushSize brushShape stitchKind",
+      fill: "brushSize brushShape stitchKind",
+      line: "brushSize brushShape stitchKind",
+      rect: "brushSize brushShape stitchKind shapeFill",
+      oval: "brushSize brushShape stitchKind shapeFill",
+      "lasso-fill": "brushSize brushShape stitchKind",
+      backstitch: "brushSize brushShape",
+      "backstitch-edit": "brushSize brushShape",
+      select: "brushSize brushShape",
+      lasso: "brushSize brushShape",
+      crop: "brushSize brushShape",
+      move: "brushSize brushShape",
+      pan: "brushSize brushShape",
+      zoom: "brushSize brushShape",
+    });
+  });
+
+  it("offer the stitch type exactly where the tool lays stitches", () => {
+    for (const tool of TOOL_DEFINITIONS) expect(optionIds(tool.id).includes("stitchKind"), tool.id).toBe(tool.laysStitches === true);
+  });
+
+  it("are well formed: a default among the values, a way to show every value, one id one option", () => {
+    const byId = new Map<string, unknown>();
+    for (const tool of TOOL_DEFINITIONS) {
+      for (const option of tool.options ?? []) {
+        expect(option.values, option.id).toContain(option.defaultValue);
+        expect(option.values.length, option.id).toBeGreaterThan(1);
+        for (const choice of option.choices ?? []) expect(option.values, option.id).toContain(choice.value);
+        if (option.control !== "select") expect(option.choices?.length, option.id).toBe(option.values.length);
+        if (byId.has(option.id)) expect(byId.get(option.id), option.id).toBe(option);
+        byId.set(option.id, option);
+      }
+    }
   });
 });

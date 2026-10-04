@@ -1,6 +1,7 @@
 import { BackstitchBar } from "../components/panels";
 import { BackstitchSelectIcon } from "./icons";
 import { inputsFrom } from "./shared";
+import { BRUSH_OPTIONS } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -214,6 +215,7 @@ export const backstitchEditModule = {
       key: "j",
       group: 0,
       Icon: BackstitchSelectIcon,
+      options: BRUSH_OPTIONS,
     },
   ],
   useRuntime(api: EditorApi): ToolRuntime {

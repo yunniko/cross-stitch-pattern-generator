@@ -1,10 +1,12 @@
 import type { ComponentType, DragEvent, MouseEvent, PointerEvent, ReactNode, RefObject } from "react";
 import type { StampOffset } from "@/lib/editor/brush-stamp";
 import type { ShapeFill } from "@/lib/editor/shape-raster";
+import type { OptionValue, ToolOptionSpec } from "@/lib/editor/tool-options";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
 import type { SizeUnit } from "@/lib/export/finished-size";
 import type { BackstitchLine, FloatingSelection, StitchPattern } from "@/lib/types";
 import type { ChartRenderer } from "../hooks/use-chart-renderer";
+import type { ToolOption } from "./options";
 
 /**
  * The tool registry's contract (G-092, D284). A tool is a module: what it is called and how it is offered
@@ -28,8 +30,6 @@ export interface ToolDefinition {
   Icon: ComponentType;
   /** It lays stitches, so it follows the stitch type choice (G-082). */
   laysStitches?: boolean;
-  /** It encloses something, so it offers outline or filled (G-064). */
-  fillChoice?: boolean;
   /** The keyboard cell cursor can drive it (G-080). */
   keyboardCursor?: boolean;
   /** It hands over a piece in hand (G-072). */
@@ -38,6 +38,8 @@ export interface ToolDefinition {
   navigation?: boolean;
   /** The outline the cursor carries: the brush's stamp, one stitch, or the stamp a press of this shape would make. */
   outline?: "brush" | "one" | "press";
+  /** The options it offers, in the order they are drawn (G-093). Declared with the tool, drawn by the options area. */
+  options?: readonly ToolOption[];
   /** The pointer over the chart: a hand, a magnifier, always a cross; without it, a cross once a colour is in hand. */
   cursor?: "grab" | "zoom" | "cross";
 }
@@ -73,6 +75,8 @@ export interface EditorApi {
     aidaCount: number;
     sizeUnit: SizeUnit;
   };
+  /** The value of an option, the tool's own or a shared one (G-093). */
+  option: <V extends OptionValue>(option: ToolOptionSpec<V>) => V;
   view: {
     beginPan: (e: PointerEvent<HTMLDivElement>, frame: HTMLDivElement) => void;
     movePan: (e: PointerEvent<HTMLDivElement>) => boolean;
