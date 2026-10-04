@@ -38,6 +38,25 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // The document is the bottom layer (G-094, D289; docs/architecture.md section 5): it knows the chart's data and nothing of
+  // the editor, the exports or the interface built on it.
+  {
+    files: ["lib/document/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [{ name: "react", message: "lib/ stays framework-free." }],
+          patterns: [
+            {
+              group: ["**/editor/**", "**/export/**", "**/pipeline/**", "@/app/**", "**/app/**"],
+              message: "lib/document imports nothing from the editor, the exports, the pipeline or the app: they are built on it.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // A tool is one module (G-092, D284): it touches the editor only through the API it is handed, so it may not reach for
   // the workspace, the registry or the shell. That it imports no other tool is checked by tests/unit/tool-registry.spec.ts,
   // which knows the modules' names.

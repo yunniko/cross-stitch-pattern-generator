@@ -183,6 +183,17 @@ export interface StitchPattern {
   photoAdjust?: PhotoAdjust;
   /** Backstitch lines drawn over the crosses (G-073); absent for a chart with none. */
   backstitch?: BackstitchLine[];
+  /**
+   * The fabric the chart is for (G-094, D290): absent on a chart saved before it and never given one, which then takes the
+   * browser's own count and unit.
+   */
+  fabric?: ChartFabric;
+}
+
+/** A chart's fabric: its count in stitches per inch, and the unit its finished size is shown in. */
+export interface ChartFabric {
+  count: number;
+  unit: "in" | "cm";
 }
 
 /** An axis-aligned, end-exclusive rectangle in stitch-cell coordinates. */

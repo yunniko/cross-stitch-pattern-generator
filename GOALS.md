@@ -22,11 +22,23 @@ One line per change; deployed in batches, each batch after one full-suite run.
 
 ## Active goals
 
-### G-094 · Document module: layers-ready data, recorded undo, a versioned file — DRAFT (2026-10-04)
+### G-094 · Document module: layers-ready data, recorded undo, a versioned file — ACTIVE (2026-10-05)
 - **What:** architecture step 4: today's chart becomes "a document with one stitch layer" behind `lib/document/`, with changes as commands (undo records changes, not copies), `flatten()` feeding generation and every export unchanged, and a file format version with a migration step. Fabric count and unit move into the chart file (the data-scope defect in `docs/interface-placement.md`).
 - **Why:** layers, a painting board and an object layer cannot be added to one flat grid; undo by full copy does not scale past it.
 - **Acceptance criteria:** every existing file opens and saves byte-identically apart from the new version field; every export is byte-identical (goldens); memory and speed of undo and flatten measured at 1500 × 1500 before and after; no visible change except fabric count travelling with the chart.
 - **Constraints:** the expensive step: measurement first, and its own decision on the undo design. Depends on G-092.
+- **Criteria restated at planning (2026-10-05), from the code:** the file already carries `formatVersion` 7, and this project adds optional fields without raising it (D138), so the number stays and an existing file re-saves byte-identically with nothing excepted; the Rust writer of the editable file is taught the one new optional field. What is new is the migration step: one place that brings a file of any earlier version up to date, and refuses a file from a later one by name. The file on disk stays one grid; it becomes layers, with a raised version and a migration, in the goal that adds a second layer. The editor's tools keep reading and writing a flat chart, which is the view of the layer in hand.
+
+**Milestones** (plan accepted in advance by the Owner, 2026-10-05: "start next all milestones"; the deploy in M5 is this project to its existing site):
+- [x] M1 -- **Measure, then decide.** Memory and time of today's undo at 1500 × 1500 (with and without half stitches), written up in `docs/reviews/`; the decision on the undo design.
+- [x] M2 -- **The document module.** `lib/document/`: a document of layers, a palette, backstitch and properties; `flatten()`; a recorded change between two documents and its inverse; the history built on changes. Pure, unit-tested (including random edits undone and redone exactly), not yet used by the editor.
+- [ ] M3 -- **The editor on the document.** The workspace's history is the document history; the tools edit the layer in hand through a flat view. The same measurements again, after. No visible change; full suite.
+- [ ] M4 -- **The file: migration step, and fabric in the chart.** One migration step for every earlier version, a later version refused by name; fabric count and unit saved in the chart (TypeScript and the Rust writer), read back, and used in place of the browser's when a chart has them. Existing files re-save byte-identically; goldens unchanged.
+- [ ] M5 -- **Docs, QA pass, full suite, deploy** (cross-stitch-pattern-generator to `cross-stitch.craftodejnice.cz`).
+
+**Progress log** (newest first):
+- 2026-10-05 -- M1 and M2 done (D289). **Measured** at 1500 × 1500, fifty edits (`docs/reviews/2026-10-05-undo-and-flatten.md`, `scripts/measure-undo.ts`): the history of full copies holds 105 MB (213 MB with half stitches); recorded changes hold 0.7 MB (2.9 MB) for strokes and 35.5 MB for fifty edits of a third of the chart each; a commit costs about 1 ms (17 ms at worst), an undo under 4 ms; flatten of one layer copies nothing, of two layers takes 12 to 18 ms. **Built**, not yet used by the editor: `lib/document/` (types, `convert.ts` with `flatten`, `change.ts`, `history.ts`), with a lint rule keeping it apart from `lib/editor`, `lib/export` and `app`. Verified: 19 new unit tests, among them 400 random edits, undos, redos, renames, resizes and new charts compared step by step with a history of full copies, and the brush double-press cases of the old history carried over. Milestone note: nothing was removed from HANDOVER. The order was measure-before, build, measure-after, then the decision, because the decision needed the cost of the comparison. Next: M3.
+- 2026-10-05 -- started; plan above accepted by the Owner in advance.
 
 ### G-095 · Interface redesign against the placement rules — DRAFT (2026-10-04)
 - **What:** the Owner's redesign, built on `docs/design-brief/` and `docs/interface-placement.md`: every control placed by scope, view and application controls independent of the tool in hand, tool options with the tool, exports and their settings together.
