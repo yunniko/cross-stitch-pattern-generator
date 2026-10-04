@@ -38,6 +38,27 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // A tool is one module (G-092, D284): it touches the editor only through the API it is handed, so it may not reach for
+  // the workspace, the registry or the shell. That it imports no other tool is checked by tests/unit/tool-registry.spec.ts,
+  // which knows the modules' names.
+  {
+    files: ["app/tools/*.ts", "app/tools/*.tsx"],
+    ignores: ["app/tools/registry.ts", "app/tools/use-tools.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/workspace", "./registry", "./use-tools"],
+              message:
+                "A tool module uses only the EditorApi it is given (app/tools/types.ts): not the workspace, the registry or the shell.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

@@ -1,9 +1,8 @@
 "use client";
 
-import { type DragEvent, type MouseEvent, type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ONE_STITCH_STAMP, brushStamp, stampOutline, type StampEdge } from "@/lib/editor/brush-stamp";
+import { type DragEvent, type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { brushStamp, type StampEdge } from "@/lib/editor/brush-stamp";
 import { setCrashContext } from "@/lib/editor/crash-report";
-import { stampForPress } from "@/lib/editor/shape-raster";
 import { useDrawingColours } from "./hooks/use-drawing-colours";
 import { useSymmetryAxes } from "./hooks/use-symmetry-axes";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
@@ -26,17 +25,9 @@ import { ContextBar } from "./components/context-bar";
 import { ExportControls } from "./components/export-controls";
 import { ImageWindow } from "./components/image-window";
 import { Inspector, type InspectorTab } from "./components/inspector";
-import {
-  hasFillChoice,
-  usesStitchKind,
-  isBackstitchEditTool,
-  isKeyboardCursorTool,
-  isSelectTool,
-  isShapeTool,
-  isViewOnlyMode,
-} from "./editor-types";
+import { isKeyboardCursorTool, isViewOnlyMode, usesStitchKind } from "./editor-types";
 import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
-import { BackstitchBar, SelectionBar, WorkspaceNotices } from "./components/panels";
+import { WorkspaceNotices } from "./components/panels";
 import { PhotoPane } from "./components/photo-pane";
 import { TextPane } from "./components/text-pane";
 import { letteringSelection, letteringStart } from "@/lib/editor/text-selection";
@@ -44,17 +35,8 @@ import type { LetteringBitmap } from "@/lib/editor/text-raster";
 import { StatusBar } from "./components/status-bar";
 import { ToolRail } from "./components/tool-rail";
 import { PillButton } from "./components/ui";
-import type { Tool, ViewMode } from "./editor-types";
+import type { ViewMode } from "./editor-types";
 import { cellIndexFromEvent, chartOrigin, computeCellSize } from "./editor-geometry";
-import {
-  useBackstitchEditTool,
-  useBackstitchTool,
-  useBrushTool,
-  useLassoFillTool,
-  useMoveTool,
-  useSelectTool,
-  useShapeTool,
-} from "./hooks/use-canvas-tools";
 import { useChartRenderer, type ChartRenderer } from "./hooks/use-chart-renderer";
 import { paginatesAsA4, useExports } from "./hooks/use-exports";
 import { longerSideFor, useGeneration } from "./hooks/use-generation";
@@ -67,10 +49,8 @@ import { NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
 import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useProjectRestore } from "./hooks/use-project-restore";
 import { useColorPrediction } from "./hooks/use-color-prediction";
-import { useCropTool } from "./hooks/use-crop-tool";
+import { useTools } from "./tools/use-tools";
 import { replaceDocument, type ReplaceEffects } from "@/lib/editor/document-replace-run";
-import { CropBar } from "./components/crop-bar";
-import { CropOverlay } from "./components/crop-overlay";
 import type { ColorPrediction } from "@/lib/pipeline/prediction";
 import { useSourceImage } from "./hooks/use-source-image";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
@@ -102,7 +82,6 @@ export default function Workspace({ account }: WorkspaceProps) {
   const adjustPreview = usePhotoAdjustPreview(source.pixelBuffer, options.photoAdjust, pattern === null);
 
   const [viewMode, setViewMode] = useState<ViewMode>("color");
-  const [activeTool, setActiveTool] = useState<Tool>("brush");
   // Two colours since G-064: the squares never move, so the pair is two slots and a flag saying which is in
   // front. `activeColorIndex` stays the name for the foreground, which is what a left press paints with.
   const colours = useDrawingColours(pattern?.palette.length ?? 0);
@@ -162,52 +141,28 @@ export default function Workspace({ account }: WorkspaceProps) {
   const cellSizeAt = useCallback((zoom: number) => computeCellSize(pattern, zoom), [pattern]);
   const panZoom = usePanZoom(scrollerRef, frameRef, pattern !== null, cellSizeAt);
   const cellSize = computeCellSize(pattern, panZoom.zoomLevel);
-  const toolInputs = {
+  // One press's footprint, rebuilt only when the brush changes rather than on every render (G-064).
+  const stamp = useMemo(() => brushStamp(options.brushSize, options.brushShape), [options.brushSize, options.brushShape]);
+  // The tools (G-092): which is in hand, and the routing of the pointer and the keys to it. What each does is in its own
+  // module under `app/tools/`; this is everything a tool is allowed to touch.
+  const tools = useTools({
     frameRef,
     rendererRef,
     pattern,
     cellSize,
+    viewOnly: isViewOnlyMode(viewMode),
+    startingNew,
     commit: history.set,
-    lockTransparency: options.lockTransparency,
-    stitchKind: options.stitchKind,
-  };
-  const select = useSelectTool(toolInputs, activeTool === "lasso" ? "lasso" : "select");
-  // The Crop tool (G-089): its frame is the four canvas numbers; Apply is the one canvas resize, one undo step.
-  const crop = useCropTool(pattern, history.set);
-  const colorForPointer = colours.colorForPointer;
-  // One press's footprint, rebuilt only when the brush changes rather than on every render (G-064).
-  const stamp = useMemo(() => brushStamp(options.brushSize, options.brushShape), [options.brushSize, options.brushShape]);
-  const brush = useBrushTool({ ...toolInputs, colorForPointer, stamp, symmetry: liveSymmetry, replaceSince: history.replaceSince });
-  // One hook for every shape tool: which shape it draws is the only difference between them (G-064).
-  const shape = useShapeTool({
-    ...toolInputs,
-    colorForPointer,
+    replaceSince: history.replaceSince,
+    history,
+    colorForPointer: colours.colorForPointer,
+    activeColorIndex,
     stamp,
     symmetry: liveSymmetry,
-    kind: isShapeTool(activeTool) ? activeTool : "line",
-    fill: hasFillChoice(activeTool) ? options.shapeFill : "outline",
+    options,
+    view: panZoom,
   });
-  const lassoFill = useLassoFillTool({ ...toolInputs, colorForPointer, symmetry: liveSymmetry });
-  const backstitch = useBackstitchTool({ ...toolInputs, colorForPointer, symmetry: liveSymmetry });
-  const backstitchEdit = useBackstitchEditTool({ ...toolInputs, colorForPointer });
-  const move = useMoveTool(toolInputs);
-  /**
-   * The outline the cursor carries (G-065): the press the tool in hand would make, or null for a tool that
-   * paints nothing and for the views that cannot be edited. Rebuilt only when that changes, since the renderer
-   * takes an unchanged outline as nothing to redraw.
-   */
-  const hoverOutline = useMemo(() => {
-    if (isViewOnlyMode(viewMode)) return null;
-    // Lasso fill draws a path a stitch wide, so the cursor shows one stitch however big the brush is.
-    // Backstitch lands on corners, not cells, so a stitch-shaped outline would point at the wrong thing.
-    if (activeTool === "backstitch") return null;
-    // The outline is the shape of the stitch in hand: a half stitch is outlined as its cell with the corners cut (G-082).
-    const kind = usesStitchKind(activeTool) ? options.stitchKind : 0;
-    if (activeTool === "fill" || activeTool === "lasso-fill") return stampOutline(ONE_STITCH_STAMP, kind);
-    if (activeTool === "brush" || activeTool === "line") return stampOutline(stamp, kind);
-    if (hasFillChoice(activeTool)) return stampOutline(stampForPress(options.shapeFill, stamp), kind);
-    return null;
-  }, [activeTool, viewMode, stamp, options.shapeFill, options.stitchKind]);
+  const { activeTool, switchTool, hoverOutline } = tools;
   const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
   /**
    * The sliders are provisional until a Generate acts on them (D243).
@@ -250,11 +205,9 @@ export default function Workspace({ account }: WorkspaceProps) {
     viewMode,
     cellSize,
     activeTool,
-    selection: select.selection,
-    isSelectDragging: select.isDragging,
-    // Only while an editing tool is in hand: a thicker line claims 'this is selected', which would be a lie
-    // once the tool that could act on it has been put down.
-    highlightBackstitch: isBackstitchEditTool(activeTool) ? backstitchEdit.isSelected : undefined,
+    selection: tools.piece.selection,
+    isSelectDragging: tools.piece.isDragging,
+    highlightBackstitch: tools.highlightBackstitch,
     isolate,
     litColorIndices,
     litBackstitchIndices,
@@ -301,9 +254,9 @@ export default function Workspace({ account }: WorkspaceProps) {
     resetHistory: history.reset,
     pushHistory: history.set,
     bumpDocument: () => setDocumentId((id) => id + 1),
-    clearSelection: () => select.clear(),
-    // The frame goes; the tool stays in hand if it was, with a frame over the new chart (closing it left Crop in hand with nothing to show).
-    closeCrop: () => crop.clearFrame(),
+    clearSelection: () => tools.piece.clear(),
+    // Each tool puts down what belonged to the old chart; the Crop tool, if in hand, starts a fresh frame over the new one.
+    closeCrop: () => tools.documentReplaced(),
     clearLit: () => {
       setLitColorIndices(new Set());
       setLitBackstitchIndices(new Set());
@@ -428,22 +381,6 @@ export default function Workspace({ account }: WorkspaceProps) {
       });
   }
 
-  function switchTool(tool: Tool) {
-    // Leaving Select merges whatever is floating, as pressing outside it would.
-    // Leaving *both* selection tools merges; swapping between them keeps the piece in hand.
-    if (isSelectTool(activeTool) && !isSelectTool(tool)) select.merge();
-    // A half-drawn shape is not carried to the next tool: it is dropped, as Escape drops it.
-    shape.cancel();
-    lassoFill.cancel();
-    backstitch.cancel();
-    // A line stays selected only while a tool that can act on it is in hand.
-    backstitchEdit.cancel();
-    // The frame belongs to the Crop tool; the temporary Pan and Zoom keep it, every other tool puts it away (G-089).
-    if (tool === "crop") crop.begin();
-    else if (tool !== "pan" && tool !== "zoom") crop.close();
-    setActiveTool(tool);
-  }
-
   /**
    * The Text tab's Add (G-081): the lettering arrives as a piece in hand, as a Paste does. The Select tool is put in hand so
    * the piece can be moved, turned, filled, applied or cancelled; a piece already in hand is applied first.
@@ -459,17 +396,17 @@ export default function Workspace({ account }: WorkspaceProps) {
       x: Math.max(0, Math.floor((view.left - origin.left) / cellSize)),
       y: Math.max(0, Math.floor((view.top - origin.top) / cellSize)),
     };
-    const held = select.selection;
+    const held = tools.piece.selection;
     const at = letteringStart(held ? { x: held.x, y: held.y } : null, corner, bitmap, pattern);
-    if (!isSelectTool(activeTool)) switchTool("select");
-    select.insert(letteringSelection(bitmap, paletteIndex, at.x, at.y));
+    tools.takePiece(letteringSelection(bitmap, paletteIndex, at.x, at.y));
   }
 
   // The arrow keys move the highlighted stitch and Enter is the pen, for the tools that paint or draw (G-080).
   useKeyboardCursor({
     frameRef,
     scrollerRef,
-    enabled: pattern !== null && !startingNew && !isViewOnlyMode(viewMode) && select.selection === null && isKeyboardCursorTool(activeTool),
+    enabled:
+      pattern !== null && !startingNew && !isViewOnlyMode(viewMode) && tools.piece.selection === null && isKeyboardCursorTool(activeTool),
     width: pattern?.width ?? 0,
     height: pattern?.height ?? 0,
     cellSize,
@@ -483,40 +420,16 @@ export default function Workspace({ account }: WorkspaceProps) {
       undo: history.undo,
       redo: history.redo,
       switchTool,
-      setActiveTool,
+      setActiveTool: tools.restoreTool,
       setViewMode: chooseViewMode,
-      mergeSelection: select.merge,
-      cropOpen: crop.open && !isViewOnlyMode(viewMode),
-      applyCrop: crop.apply,
-      resetCrop: crop.reset,
       swapColors: colours.swap,
-      // Escape drops a shape being dragged before it reaches a selection, since only one of the two can be live.
-      cancelSelection: () => {
-        if (!shape.cancel() && !lassoFill.cancel() && !backstitch.cancel() && !backstitchEdit.cancel()) select.cancel();
-      },
-      deleteBackstitch: backstitchEdit.remove,
-      hasSelection: select.selection !== null,
+      cancelTool: tools.cancel,
+      applyTool: tools.apply,
+      removeWithTool: tools.remove,
+      hasSelection: tools.piece.selection !== null,
     },
     scrollerRef
   );
-
-  function handleCanvasPointerDown(e: PointerEvent<HTMLDivElement>) {
-    const frame = frameRef.current;
-    if (!frame || !pattern) return;
-    // The realistic preview and the original photo only show the pattern: there, the chart pans and zooms but never edits (D121).
-    if (isViewOnlyMode(viewMode) && activeTool !== "pan" && activeTool !== "zoom") return;
-    if (activeTool === "pan") panZoom.beginPan(e, frame);
-    else if (activeTool === "zoom")
-      panZoom.zoomBy(e.shiftKey || e.altKey ? 1 / ZOOM_STEP : ZOOM_STEP, { clientX: e.clientX, clientY: e.clientY });
-    else if (activeTool === "move") move.onPointerDown(e, frame);
-    else if (isSelectTool(activeTool)) select.onPointerDown(e, frame);
-    else if (activeTool === "fill") brush.fillAt(e, frame);
-    else if (activeTool === "brush") brush.onPointerDown(e, frame);
-    else if (isShapeTool(activeTool)) shape.onPointerDown(e, frame);
-    else if (activeTool === "lasso-fill") lassoFill.onPointerDown(e, frame);
-    else if (activeTool === "backstitch") backstitch.onPointerDown(e, frame);
-    else if (isBackstitchEditTool(activeTool)) backstitchEdit.onPointerDown(e, frame);
-  }
 
   /** Hands the cursor its outline, or takes it away when the tool in hand would paint nothing. */
   function updateHoverOutline(e: PointerEvent<HTMLDivElement> | null) {
@@ -528,47 +441,7 @@ export default function Workspace({ account }: WorkspaceProps) {
   function handleCanvasPointerMove(e: PointerEvent<HTMLDivElement>) {
     // Before the tools, and whatever they make of the event: the cursor carries its outline through a gesture too.
     updateHoverOutline(e);
-    if (
-      panZoom.movePan(e) ||
-      move.onPointerMove(e) ||
-      select.onPointerMove(e) ||
-      shape.onPointerMove(e) ||
-      lassoFill.onPointerMove(e) ||
-      backstitch.onPointerMove(e) ||
-      backstitchEdit.onPointerMove(e)
-    )
-      return;
-    brush.onPointerMove(e);
-  }
-
-  function handleCanvasPointerUp(e: PointerEvent<HTMLDivElement>) {
-    if (
-      panZoom.endPan(e, frameRef.current) ||
-      move.onPointerUp(e) ||
-      select.onPointerUp(e) ||
-      shape.onPointerUp(e) ||
-      lassoFill.onPointerUp(e) ||
-      backstitch.onPointerUp(e) ||
-      backstitchEdit.onPointerUp(e)
-    )
-      return;
-    brush.onPointerUp(e);
-  }
-
-  function handleCanvasDoubleClick(e: MouseEvent<HTMLDivElement>) {
-    const frame = frameRef.current;
-    // Switched off in Options, a double-click stays two ordinary clicks (G-041).
-    // A double-click ends a backstitch run without drawing the segment its second press would have made.
-    if (activeTool === "backstitch") {
-      backstitch.onDoubleClick();
-      return;
-    }
-    // With the editing tool, a double-click takes the whole run the line belongs to (D230).
-    if (frame && isBackstitchEditTool(activeTool)) {
-      backstitchEdit.onDoubleClick(e, frame);
-      return;
-    }
-    if (frame && activeTool === "brush" && !isViewOnlyMode(viewMode) && options.doubleClickFill) brush.onDoubleClick(e, frame);
+    tools.onPointerMove(e);
   }
 
   /** Dropping a legend color onto the picture fills that cell's 4-connected region with it. */
@@ -585,7 +458,7 @@ export default function Workspace({ account }: WorkspaceProps) {
   function handleMergeColors(sourceIndex: number, targetIndex: number) {
     if (!pattern || sourceIndex === targetIndex) return;
     history.set(mergeColors(pattern, sourceIndex, targetIndex));
-    select.invalidateClipboard();
+    tools.piece.invalidateClipboard();
     // A merge renumbers the palette, so a square holding an index above the merged one would otherwise be
     // pointing at a different thread than the reader picked.
     colours.forgetColor(sourceIndex);
@@ -597,8 +470,8 @@ export default function Workspace({ account }: WorkspaceProps) {
   /** A quick mirror (G-037): any floating selection is merged and the mirror applied, committed as one undo step. */
   function applyMirror(kind: QuickMirror) {
     if (!pattern || (kind === "upper-left-half-corner" && pattern.width !== pattern.height)) return;
-    history.set(applyQuickMirrorWithSelection(pattern, select.selection, kind));
-    select.release();
+    history.set(applyQuickMirrorWithSelection(pattern, tools.piece.selection, kind));
+    tools.piece.release();
   }
 
   /**
@@ -731,69 +604,9 @@ export default function Workspace({ account }: WorkspaceProps) {
           the tool rail is disabled over the start screen, so leaving it here stranded a reader with a selection in
           hand: the "Back to your chart" button lives in the bar it replaced.
         */}
-        {/* In a looking-only view the Crop tool waits, frame kept, as every editing tool does there (QA 2026-10-04). */}
-        {crop.open && crop.size && pattern && !startingNew && !isViewOnlyMode(viewMode) ? (
-          <CropBar
-            width={pattern.width}
-            height={pattern.height}
-            insets={crop.insets}
-            size={crop.size}
-            error={crop.error}
-            changed={crop.changed}
-            aidaCount={options.aidaCount}
-            sizeUnit={options.sizeUnit}
-            canUndo={history.canUndo}
-            canRedo={history.canRedo}
-            onUndo={history.undo}
-            onRedo={history.redo}
-            onEdgeChange={crop.setEdge}
-            onApply={crop.apply}
-            onCancel={crop.reset}
-          />
-        ) : isBackstitchEditTool(activeTool) && pattern && !startingNew ? (
-          <BackstitchBar
-            selectedCount={backstitchEdit.selected.length}
-            hasClipboard={backstitchEdit.hasClipboard}
-            canUndo={history.canUndo}
-            canRedo={history.canRedo}
-            onUndo={history.undo}
-            onRedo={history.redo}
-            onCopy={backstitchEdit.copy}
-            onPaste={backstitchEdit.paste}
-            onDuplicate={backstitchEdit.duplicate}
-            onMirrorHorizontal={backstitchEdit.mirrorHorizontal}
-            onMirrorVertical={backstitchEdit.mirrorVertical}
-            onRotateClockwise={backstitchEdit.rotateClockwise}
-            onRotateAnticlockwise={backstitchEdit.rotateAnticlockwise}
-            onRecolour={backstitchEdit.recolour}
-            canRecolour={activeColorIndex !== null}
-            onDelete={backstitchEdit.remove}
-            onDeselect={backstitchEdit.clear}
-          />
-        ) : isSelectTool(activeTool) && pattern && !startingNew ? (
-          <SelectionBar
-            tool={activeTool === "lasso" ? "lasso" : "select"}
-            hasSelection={select.selection !== null}
-            hasClipboard={select.clipboard !== null}
-            selection={select.selection}
-            canUndo={history.canUndo}
-            canRedo={history.canRedo}
-            onUndo={history.undo}
-            onRedo={history.redo}
-            onCopy={select.copy}
-            onPaste={select.paste}
-            onDuplicate={select.duplicate}
-            onFill={() => activeColorIndex !== null && select.fill(activeColorIndex)}
-            canFill={activeColorIndex !== null}
-            onFlipHorizontal={select.flipHorizontal}
-            onFlipVertical={select.flipVertical}
-            onRotateClockwise={select.rotateClockwise}
-            onRotateAnticlockwise={select.rotateAnticlockwise}
-            onCrop={select.crop}
-            onCancel={select.cancel}
-            onDeselect={select.merge}
-          />
-        ) : (
+        {/* A tool with something of its own to act on shows its controls in place of the drawing options (the piece in hand,
+            the backstitch in hand, the crop frame); which tool, and when, is the tool's own business. */}
+        {tools.bar ?? (
           <ContextBar
             pattern={pattern}
             activeTool={activeTool}
@@ -886,26 +699,15 @@ export default function Workspace({ account }: WorkspaceProps) {
           preview={renderer}
           adjust={adjustPreview}
           pointer={{
-            onDown: handleCanvasPointerDown,
+            onDown: tools.onPointerDown,
             onMove: handleCanvasPointerMove,
-            onUp: handleCanvasPointerUp,
+            onUp: tools.onPointerUp,
             onLeave: () => updateHoverOutline(null),
-            onDoubleClick: handleCanvasDoubleClick,
+            onDoubleClick: tools.onDoubleClick,
             onDrop: handleCanvasDrop,
           }}
           options={options}
-          cropOverlay={
-            crop.open && pattern && !startingNew && !isViewOnlyMode(viewMode) ? (
-              <CropOverlay
-                width={pattern.width}
-                height={pattern.height}
-                cellSize={cellSize}
-                insets={crop.insets}
-                invalid={crop.error !== null}
-                onChange={crop.setInsets}
-              />
-            ) : null
-          }
+          cropOverlay={startingNew ? null : tools.overlay}
         />
 
         <StatusBar
@@ -985,7 +787,7 @@ export default function Workspace({ account }: WorkspaceProps) {
         threads={
           <ColorsDock
             pattern={pattern}
-            dimmed={select.selection !== null}
+            dimmed={tools.piece.selection !== null}
             activeColorIndex={activeColorIndex}
             onActiveColorChange={setActiveColorIndex}
             onBackgroundColorChange={setBackgroundColorIndex}

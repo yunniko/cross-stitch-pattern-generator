@@ -1,7 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
-import { isBackstitchEditTool, isSelectTool, isShapeTool, type Tool, type ViewMode } from "../editor-types";
+import type { Tool, ViewMode } from "../editor-types";
+import { TOOL_DEFINITIONS, TOOL_KEYS } from "../tools/registry";
 
 /** Everything the shortcut handlers read or call. Rebuilt every render and read through a ref, so a handler never sees stale state (D103). */
+/** The tool Space borrows: the first that moves the view by dragging. */
+const PAN_TOOL = TOOL_DEFINITIONS.find((tool) => tool.cursor === "grab")!.id;
+
 export interface KeyboardShortcutContext {
   hasPattern: boolean;
   hasSourceImage: boolean;
@@ -13,18 +17,12 @@ export interface KeyboardShortcutContext {
   /** Plain tool restore after a Space-pan, without those side effects. */
   setActiveTool(tool: Tool): void;
   setViewMode(mode: ViewMode): void;
-  /** Enter: apply the floating piece where it sits. */
-  mergeSelection(): void;
   /** X: swap the foreground and background colours, as image editors do (G-064). */
   swapColors(): void;
-  /** Escape: put the chart back as it was when the selection started. */
-  cancelSelection(): void;
-  /** Delete or Backspace: remove the backstitch in hand (Owner, 2026-09-25). Does nothing with none. */
-  deleteBackstitch(): void;
-  /** The Crop tool is open (G-089): Enter applies its frame and Escape puts it back over the whole chart. */
-  cropOpen: boolean;
-  applyCrop(): void;
-  resetCrop(): void;
+  /** Escape, Enter and Delete or Backspace go to the tools; each says whether it took the key (G-092). */
+  cancelTool(): boolean;
+  applyTool(): boolean;
+  removeWithTool(): boolean;
   /** A piece is in hand, so history is not the reader's to step through yet (G-063). */
   hasSelection: boolean;
 }
@@ -84,32 +82,20 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
       if (!ctx.hasPattern) return; // every tool button is disabled too
 
       if (e.key === "Escape") {
-        // Select drops its piece; a shape tool drops the shape being dragged. Both go through one call, which
-        // cancels whichever of the two is live (G-064).
-        if (
-          isSelectTool(ctx.activeTool) ||
-          isShapeTool(ctx.activeTool) ||
-          ctx.activeTool === "lasso-fill" ||
-          ctx.activeTool === "backstitch" ||
-          isBackstitchEditTool(ctx.activeTool)
-        )
-          ctx.cancelSelection();
-        else if (ctx.cropOpen) ctx.resetCrop();
+        // Whatever is in hand is dropped: a shape being dragged, a run of backstitch, a piece, the crop frame.
+        ctx.cancelTool();
         return;
       }
 
       if (e.key === "Delete" || e.key === "Backspace") {
         // Backspace as well as Delete: it is the key labelled *delete* on a Mac keyboard, and preventing
         // its default keeps a browser that still treats it as Back from leaving the page.
-        if (!isBackstitchEditTool(ctx.activeTool)) return;
-        e.preventDefault();
-        ctx.deleteBackstitch();
+        if (ctx.removeWithTool()) e.preventDefault();
         return;
       }
 
       if (e.key === "Enter") {
-        if (isSelectTool(ctx.activeTool)) ctx.mergeSelection();
-        else if (ctx.cropOpen) ctx.applyCrop();
+        ctx.applyTool();
         return;
       }
 
@@ -118,23 +104,16 @@ export function useKeyboardShortcuts(context: KeyboardShortcutContext, scrollerR
         e.preventDefault(); // stop the page itself from scrolling on every repeat while held
         if (spacePanPreviousTool === null) {
           spacePanPreviousTool = ctx.activeTool;
-          ctx.switchTool("pan");
+          ctx.switchTool(PAN_TOOL);
         }
         return;
       }
 
       if (modifier || e.altKey) return;
+      // The tools' keys are the registry's: a tool has a key by declaring one.
+      const tool = TOOL_KEYS.get(key);
       if (key === "x") ctx.swapColors();
-      else if (key === "b") ctx.switchTool("brush");
-      else if (key === "f") ctx.switchTool("fill");
-      else if (key === "l") ctx.switchTool("line");
-      else if (key === "r") ctx.switchTool("rect");
-      else if (key === "o") ctx.switchTool("oval");
-      else if (key === "q") ctx.switchTool("lasso");
-      else if (key === "g") ctx.switchTool("lasso-fill");
-      else if (key === "c") ctx.switchTool("crop");
-      else if (key === "k") ctx.switchTool("backstitch");
-      else if (key === "j") ctx.switchTool("backstitch-edit");
+      else if (tool) ctx.switchTool(tool);
       else if (e.key === "1") ctx.setViewMode("color");
       else if (e.key === "2") ctx.setViewMode("bw");
       else if (e.key === "3") ctx.setViewMode("realistic");

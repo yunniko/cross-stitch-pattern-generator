@@ -1,3 +1,7 @@
+import { CropBar } from "../components/crop-bar";
+import { CropOverlay } from "../components/crop-overlay";
+import { CropIcon } from "./icons";
+import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useCallback, useState } from "react";
 import { cropError, cropSize, insetsToDelta, isNoCrop, NO_CROP, withInset, type CropEdge, type CropInsets } from "@/lib/editor/crop-frame";
 import { resizeCanvas } from "@/lib/editor/pattern-edit";
@@ -51,3 +55,74 @@ export function useCropTool(pattern: StitchPattern | null, commit: (next: Stitch
 }
 
 export type CropTool = ReturnType<typeof useCropTool>;
+
+/**
+ * Crop (G-089): the frame over the chart and the four numbers in its bar are one value. It stays open, frame kept, behind the
+ * tools that only move the view, and waits out a looking-only view.
+ */
+export const cropModule = {
+  definitions: [
+    {
+      id: "crop",
+      label: "Crop",
+      title:
+        "Cut the chart down, or grow it, with a frame (C). Drag an edge or a corner, or type how many stitches each edge moves in; a negative number adds empty stitches. Apply with Enter.",
+      key: "c",
+      group: 1,
+      Icon: CropIcon,
+    },
+  ],
+  useRuntime(api: EditorApi): ToolRuntime {
+    const crop = useCropTool(api.pattern, api.commit);
+    const shown = crop.open && api.pattern !== null && !api.startingNew && !api.viewOnly;
+    return {
+      cancel: () => {
+        if (!shown) return false;
+        crop.reset();
+        return true;
+      },
+      apply: () => {
+        if (!shown) return false;
+        crop.apply();
+        return true;
+      },
+      onToolChange: (_previous, next) => {
+        if (next.id === "crop") crop.begin();
+        else if (!next.navigation) crop.close();
+      },
+      // The frame starts again over the new chart; the tool stays in hand if it was.
+      onDocumentReplaced: crop.clearFrame,
+      bar:
+        shown && crop.size && api.pattern ? (
+          <CropBar
+            width={api.pattern.width}
+            height={api.pattern.height}
+            insets={crop.insets}
+            size={crop.size}
+            error={crop.error}
+            changed={crop.changed}
+            aidaCount={api.options.aidaCount}
+            sizeUnit={api.options.sizeUnit}
+            canUndo={api.history.canUndo}
+            canRedo={api.history.canRedo}
+            onUndo={api.history.undo}
+            onRedo={api.history.redo}
+            onEdgeChange={crop.setEdge}
+            onApply={crop.apply}
+            onCancel={crop.reset}
+          />
+        ) : undefined,
+      overlay:
+        shown && api.pattern ? (
+          <CropOverlay
+            width={api.pattern.width}
+            height={api.pattern.height}
+            cellSize={api.cellSize}
+            insets={crop.insets}
+            invalid={crop.error !== null}
+            onChange={crop.setInsets}
+          />
+        ) : undefined,
+    };
+  },
+} as const satisfies ToolModule;

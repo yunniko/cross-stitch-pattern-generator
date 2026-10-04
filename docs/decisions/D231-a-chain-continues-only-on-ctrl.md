@@ -5,4 +5,4 @@ Decision: two presses make one line and the run is over. A press holding **Ctrl*
 Force: requirement — the Owner's rework (2026-09-25), replacing what they asked for in criterion 1.
 Rejected: chaining by default with a modifier to stop (the common case pays for the rare one); a toggle in Options (a mode nobody can see from the chart).
 Consequence: Cmd counts too, since Ctrl with the primary button is a Mac right-click. Double-click and Escape still end a run held open by Ctrl. `drawChain` in the e2e helpers holds Ctrl for every press but the last, so every spec that draws a chain still draws one.
-Evidence: tests/e2e/backstitch-draw.spec.ts; app/hooks/use-canvas-tools.ts
+Evidence: tests/e2e/backstitch-draw.spec.ts; app/tools/backstitch.ts

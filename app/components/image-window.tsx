@@ -1,6 +1,7 @@
 import { useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import type { StitchPattern } from "@/lib/types";
-import { isSelectTool, isViewOnlyMode, type Tool, type ViewMode } from "../editor-types";
+import { isViewOnlyMode, type Tool, type ViewMode } from "../editor-types";
+import { toolDefinition } from "../tools/registry";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import type { SourceImageMeta } from "../hooks/use-source-image";
 import { useCanvasCloth } from "../hooks/use-canvas-cloth";
@@ -95,10 +96,11 @@ function PreviewError({ message, onRetry, onDismiss }: { message: string; onRetr
 
 function cursorFor(activeTool: Tool, activeColorIndex: number | null, viewMode: ViewMode, cursorHidden: boolean): string {
   if (cursorHidden) return "cursor-none";
-  if (activeTool === "pan") return "cursor-grab active:cursor-grabbing";
-  if (activeTool === "zoom") return "cursor-zoom-in";
+  const { cursor } = toolDefinition(activeTool);
+  if (cursor === "grab") return "cursor-grab active:cursor-grabbing";
+  if (cursor === "zoom") return "cursor-zoom-in";
   if (isViewOnlyMode(viewMode)) return "";
-  return isSelectTool(activeTool) || activeTool === "fill" || activeColorIndex !== null ? "cursor-crosshair" : "";
+  return cursor === "cross" || activeColorIndex !== null ? "cursor-crosshair" : "";
 }
 
 /**

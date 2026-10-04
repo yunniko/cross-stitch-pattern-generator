@@ -21,11 +21,21 @@ One line per change; deployed in batches, each batch after one full-suite run.
 
 ## Active goals
 
-### G-092 · Tool registry: a tool is one module — DRAFT (2026-10-04)
+### G-092 · Tool registry: a tool is one module — ACTIVE (2026-10-04)
 - **What:** architecture step 2: the fourteen tools become modules behind one contract (id, name, key, cursor, options as data, handlers, overlay), registered in one list; the shell routes events to the tool in hand; `use-canvas-tools.ts` (1,205 lines) is split by tool; the tool list, the shortcut table and the tool-options area read the registry; a narrow editor API is the only thing a tool touches (D281).
 - **Why:** 46 places in 8 files branch on the tool in hand; adding Crop edited 7 existing files. This is also the first plugin seam.
 - **Acceptance criteria:** adding a tool is one new module and one registration line (shown by moving one existing tool last, as the proof); no `activeTool ===` outside the shell; tool logic has unit tests that need no browser; lint forbids a tool importing the workspace or another tool; no behaviour change.
 - **Constraints:** depends on G-091. No new tools in this goal.
+
+**Milestones** (started at the Owner's "start G-092, all milestones", 2026-10-04):
+- [x] M1 -- **Definitions as a registry.** Each tool's id, label, title, key, group, icon and traits declared with the tool; the tool list, the shortcut keys, the cursor, the stitch-type and outline-or-filled options and the keyboard cursor read the registry; the `Tool` type is derived from it.
+- [x] M2 -- **Runtimes and the shell.** The 1,205-line hooks file split into one module per tool under `app/tools/`; one contract (`ToolRuntime`) built from a narrow `EditorApi`; `use-tools.ts` routes pointer, keys, bars and overlays with no per-tool code; the workspace loses its if-chains.
+- [x] M3 -- **Boundaries and proof.** Lint and a unit test forbid a tool reaching for the workspace, the registry or another tool; unit tests pin the registry; a temporary tool added as one module and one line, exercised, then removed.
+- [x] M4 -- **Docs, QA pass, full suite, deploy.**
+
+**Progress log** (newest first):
+- 2026-10-04 -- all four milestones done (D284). `app/tools/`: ten modules for the fourteen tools (brush with fill; line, rectangle and oval; lasso fill; backstitch; backstitch edit; select with lasso; crop; move; pan; zoom), `registry.ts`, `use-tools.ts`, `types.ts`, `shared.ts`, `icons.tsx`. `app/hooks/use-canvas-tools.ts` (1,205 lines) and `use-crop-tool.ts` are gone; `app/workspace.tsx` went from 1,028 to 846 lines; the largest tool module is 323 lines. `activeTool ===` now appears only inside tool modules (each comparing with its own ids) and where the tool list marks the one in hand. **Proof:** an eraser tool was added as one module file and one registry line, appeared in the list, took its key and outline, erased a stitch and was undone, then was removed. **QA** (`docs/qa-review/qa-review-2026-10-04-g092.md`): no behaviour difference found; one spec handed the renderer a tool that stopped existing at D158 and the registry refused it by name (spec fixed); one old usability note (Enter after Add in the Text settings adds again). **Not done:** tool options as data (still drawn by hand), and tool logic is unit-tested only where it already was in `lib/`; the gesture hooks themselves are still tested through the browser. Verified: numbers in the check-in.
+- 2026-10-04 -- started.
 
 ### G-093 · Command registry, shortcuts and a command list — DRAFT (2026-10-04)
 - **What:** architecture step 3: every action registered once (name, key, when available); shortcuts and the interface read it; the gaps `docs/interface-placement.md` lists are decided (keys for Select, Move, Zoom; copy, paste, duplicate).

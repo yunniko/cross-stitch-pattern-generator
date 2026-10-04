@@ -12,7 +12,7 @@ Each layer may import only from the layers above it in this table.
 |---|---|---|---|
 | **Document** | What a chart *is*: its data, how it changes, how it is saved | `lib/types.ts` (one grid, one palette, backstitch list), `lib/editor/pattern-serialize.ts`, full-copy undo in `lib/editor/undo-history.ts` | `lib/document/`: a document of **layers**, a palette, metadata; every change is a **command** (apply, invert, label); `flatten()` returns today's `StitchPattern` so generation and every export keep working unchanged; the file has a format version and a migration step |
 | **Engine** | Pure operations and the **registries** | `lib/editor/*` (pure, framework-free, lint-enforced), `lib/export/*`, `lib/pipeline/*` | The same modules, plus `lib/registry/`: tools, layer kinds, importers, exporters, generators, commands |
-| **Editor shell** | What is open, the tool in hand, selection, view; routes pointer and key events | `app/workspace.tsx` (1,071 lines), `app/hooks/use-canvas-tools.ts` (seven tools in one file), an if-chain per event | `app/editor/`: a shell with **no per-tool code**; it asks the registry for the tool in hand and forwards events to it |
+| **Editor shell** | What is open, the tool in hand, selection, view; routes pointer and key events | `app/workspace.tsx` (846 lines) and, since G-092, `app/tools/use-tools.ts`, which routes events to the registered tool and has no per-tool code | `app/editor/`: a shell with **no per-tool code**; it asks the registry for the tool in hand and forwards events to it |
 | **Interface** | Everything drawn around the chart | `app/components/*`, wired by hand with 36–37 props | Components that read the registries: the tool list, the options of the tool in hand, the shortcut table and the command list are generated, not hand-kept |
 
 The server side (`processor/`, `rust/`) stays as it is: it receives a flattened chart and knows nothing of layers or tools.
@@ -23,7 +23,7 @@ A registry is a typed list that modules add themselves to. The contract of each,
 
 | Registry | An entry declares | Replaces today |
 |---|---|---|
-| **Tool** | id, name, key, cursor, which layer kinds it works on, its options (as data: kind, range, default), handlers for press, move, release, key, cancel, and an optional overlay | The `Tool` union, the tool list, the shortcut table, the per-event if-chains, the per-tool bars: seven files per tool |
+| **Tool** (built, G-092, D284: `app/tools/registry.ts`) | id, name, key, group, cursor, outline, traits, handlers for press, move, release, double press, cancel, apply, remove, tool change, and an optional bar and overlay. Not yet: which layer kinds it works on, and its options as data | Done: the `Tool` union, the tool list, the shortcut table, the per-event if-chains and the per-tool bars all read the registry |
 | **Command** | id, name, key, when it is available, what it does to the document | Actions wired one by one through props (undo, flip, merge, mirror, export…) |
 | **Layer kind** | id, how it draws, how it flattens to stitches, how it serialises, which tools apply | Nothing: there is one implicit kind |
 | **Importer / exporter** | file types, name pattern, where it runs (device or server), options | `lib/editor/pattern-import.ts` and the export choice list |
@@ -38,7 +38,7 @@ Until the target exists, the "today" column is the rule; it is the same guide wi
 
 | The request is… | Target: one place | Today: these places |
 |---|---|---|
-| A new **drawing or editing tool** | One tool module registered in the tool registry; pure logic beside it in `lib/editor/` with unit tests | Pure logic in `lib/editor/<name>.ts` + unit test; a hook in `app/hooks/`; then `app/editor-types.ts` (the union), `tool-rail.tsx`, `use-keyboard-shortcuts.ts`, the event chains and the bar in `app/workspace.tsx`. Never add tool logic to `workspace.tsx` or to `use-canvas-tools.ts` |
+| A new **drawing or editing tool** | One tool module registered in the tool registry; pure logic beside it in `lib/editor/` with unit tests | **The target is in force (G-092):** pure logic in `lib/editor/<name>.ts` with a unit test; one module `app/tools/<name>.ts` exporting its definition (id, label, title, key, group, icon, traits) and `useRuntime(api)`; one line in `app/tools/registry.ts`. Its icon goes in `app/tools/icons.tsx`, its bar or overlay, if any, in `app/components/`. Nothing else is edited. A tool touches the editor only through `EditorApi` (`app/tools/types.ts`); if it needs something that is not there, the API grows, the tool does not reach round it |
 | A new **operation on the chart** (flip, merge, resize) | A command in the engine | A pure function in `lib/editor/pattern-edit.ts` or its own module, called through `history.set`; one undo step |
 | New **data in the chart** | A layer kind, or a field of the document, with a migration and a flatten rule | `lib/types.ts`, `pattern-serialize.ts` (read, write, validate, optional so old files open), `project-store.ts`, and, if exports or generation need it, `rust/cs-core` and `rust/cs-export` |
 | A new **generation setting** | A generator option entry | `workspace-storage.ts` (type, default, validation), the request in `use-generation.ts` and `pattern-server.ts`, `processor/validate-settings.ts`, `job-protocol.ts`, `rust/cs-core/src/json.rs`, the setting's control in `photo-pane.tsx` |
@@ -60,8 +60,9 @@ Each step is its own goal, changes no behaviour, and is guarded by the existing 
 
 1. **Editor shell and document lifecycle** (G-091, done 2026-10-04: the replace table D282, one rule for every new document D283, grouped props): replacing the open chart is decided in one place; grouped
    props. Removes the widest file's growth.
-2. **Tool registry**: the fourteen tools become modules behind one contract; the shell loses its if-chains; `use-canvas-tools.ts`
-   is split by tool; tool options become data. From here a new tool is one file.
+2. **Tool registry** (G-092, done 2026-10-04, D284): the fourteen tools are modules behind one contract; the shell has no
+   if-chains; the 1,205-line hooks file is split by tool. A new tool is one file and one line. Left for later: tool options
+   as data (they are still drawn by hand in the drawing options).
 3. **Command registry**: actions registered once; shortcuts and a command list read it.
 4. **Document module with commands and versioned file**: today's single grid becomes "a document with one stitch layer",
    byte-identical on save and export; undo records changes instead of copies. No visible change, and the point at which
@@ -78,7 +79,7 @@ Proposed lint boundaries, added as each layer comes into being (the `lib/` rule 
 
 - `lib/document` imports nothing from `lib/editor`, `lib/export`, `app`.
 - `lib/**` imports nothing from `app/**` or React (exists).
-- Tool modules import only the editor API and `lib/`; never `app/workspace` or another tool.
+- Tool modules import only the editor API and `lib/`; never `app/workspace` or another tool. **In force (G-092):** a lint rule and `tests/unit/tool-registry.spec.ts`.
 - `app/components` do not import tool modules directly; they read registries.
 - A check that every registered tool, command and exporter appears in the design brief.
 

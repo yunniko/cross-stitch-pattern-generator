@@ -178,6 +178,9 @@ async function compare(page: Page, c: Case): Promise<Result> {
     // highlight tool. Same pixels, different vocabulary -- so each scene is told in its own words (D158).
     const liveScene = {
       ...common,
+      // The oracle's "highlight" is not a tool the live editor has (D158), and the registry refuses a tool it does not hold
+      // (G-092): the live scene is drawn with the brush in hand, as it is when Isolate is on.
+      activeTool: (activeTool === "highlight" ? "brush" : activeTool) as "brush",
       realisticTiles: tiles,
       selectDragging: dragging,
       isolate: highlighted.size > 0,

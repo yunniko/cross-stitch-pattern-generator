@@ -319,3 +319,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D281 — Plugins are the Owner's own modules, not outside code — active
 - D282 — Replacing the open chart is one table of ways in and resets — active
 - D283 — Every new document resets the same things — active
+- D284 — A tool is one module in a registry, and the shell routes to it — active

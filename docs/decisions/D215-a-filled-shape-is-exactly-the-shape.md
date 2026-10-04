@@ -5,4 +5,4 @@ Decision: a filled shape is rasterised and painted one stitch per cell, ignoring
 Force: requirement — the Owner asked for the brush size to be the outline's thickness, and a filled shape has no outline to thicken.
 Rejected: stamping the filled spine too (the shape stops matching the box that was dragged); eroding the spine by the brush radius first (the same shape by a longer road).
 Consequence: the fill choice decides whether the gesture stamps at all. A shape tool added later must say which it is.
-Evidence: tests/e2e/shape-tools.spec.ts; tests/unit/shape-raster.spec.ts; app/hooks/use-canvas-tools.ts
+Evidence: tests/e2e/shape-tools.spec.ts; tests/unit/shape-raster.spec.ts; app/tools/shape.ts

@@ -1,4 +1,5 @@
 import type { RenderMode } from "@/lib/export/render";
+import { toolDefinition, type Tool } from "./tools/registry";
 
 /**
  * "photo" = the symbol grid overlaid on the source photo; "photo-only" = just
@@ -12,62 +13,29 @@ export function isViewOnlyMode(mode: ViewMode): boolean {
 }
 
 /**
- * Isolate is not here on purpose (G-045 M4): dimming the threads you are not working on is a way of *looking* at the
+ * The tools are the registry's (`app/tools/registry.ts`, G-092): this type is every registered tool's id.
+ *
+ * Isolate is not a tool on purpose (G-045 M4): dimming the threads you are not working on is a way of *looking* at the
  * chart, not a thing you do to it, so it stays on while you paint with any of these.
  */
-export type Tool =
-  | "brush"
-  | "line"
-  | "rect"
-  | "oval"
-  | "pan"
-  | "zoom"
-  | "move"
-  | "select"
-  | "lasso"
-  | "lasso-fill"
-  | "crop"
-  | "backstitch"
-  | "backstitch-edit"
-  | "fill";
+export type { Tool } from "./tools/registry";
 
-/**
- * The tools that produce a floating piece (G-072). Rectangle Select drags a box and Lasso Select draws a shape,
- * but what they hand over is the same selection with the same bar, so everything downstream treats them alike.
- */
-export function isSelectTool(tool: Tool): tool is "select" | "lasso" {
-  return tool === "select" || tool === "lasso";
+/** The tools that hand over a piece in hand (G-072): what they hand over is the same selection with the same bar. */
+export function isSelectTool(tool: Tool): boolean {
+  return toolDefinition(tool).piece === true;
 }
 
-/**
- * The tool that edits backstitch rather than drawing it (G-073). One tool, not two: a press takes the line
- * it lands on, and only a line already in hand has live ends (D229).
- */
-export function isBackstitchEditTool(tool: Tool): tool is "backstitch-edit" {
-  return tool === "backstitch-edit";
-}
-
-/** Every tool that works on backstitch, including the one that draws it. */
-export function isBackstitchTool(tool: Tool): boolean {
-  return tool === "backstitch" || isBackstitchEditTool(tool);
-}
-
-/** The tools that draw a shape by dragging from one stitch to another (G-064); they share one gesture (D214). */
-export function isShapeTool(tool: Tool): tool is "line" | "rect" | "oval" {
-  return tool === "line" || tool === "rect" || tool === "oval";
-}
-
-/** A line has no inside, so only the shapes that enclose one choose between an outline and a solid block. */
+/** Only the shapes that enclose something choose between an outline and a solid block. */
 export function hasFillChoice(tool: Tool): boolean {
-  return tool === "rect" || tool === "oval";
+  return toolDefinition(tool).fillChoice === true;
 }
 
-/** The tools that lay stitches down and so follow the Stitch type choice (G-082): the brush, Fill, the shapes and Lasso fill. */
+/** The tools that lay stitches down and so follow the Stitch type choice (G-082). */
 export function usesStitchKind(tool: Tool): boolean {
-  return tool === "brush" || tool === "fill" || tool === "lasso-fill" || isShapeTool(tool);
+  return toolDefinition(tool).laysStitches === true;
 }
 
 /** The tools the keyboard cell cursor can drive (G-080): the ones a press of the pen paints or draws with. */
 export function isKeyboardCursorTool(tool: Tool): boolean {
-  return tool === "brush" || tool === "fill" || isShapeTool(tool);
+  return toolDefinition(tool).keyboardCursor === true;
 }
