@@ -18,6 +18,7 @@ For whoever redesigns the application. It states behaviour and data only: what a
 | `08-exports-and-files.md` | Every export and import, the editable file, saving and restoring, new chart, fabric and size units, A4 settings |
 | `09-limits-and-messages.md` | Limits (sizes, counts, durations, rates, file types), every message with its cause, empty, loading and error states |
 | `coverage.md` | Every goal and decision of the development record traced to the file above that covers it, or marked as not user-facing (`node scripts/design-brief-coverage.mjs`) |
+| `../interface-placement.md` | Outside the brief on purpose: each control's scope, where it sits today and whether that agrees, and the command list (it names present interface elements, which the brief does not) |
 | `banned-words.txt` | Words that name an interface element; no document may contain them outside quoted messages |
 
 ## How a control is described

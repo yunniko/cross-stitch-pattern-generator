@@ -316,3 +316,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D278 — The Crop tool's numbers say how far each edge moves in, and the frame may grow the chart — active
 - D279 — The crop frame is drawn beside the chart's frame, and the well makes room while the tool is open — active
 - D280 — A fast lane for small interface-only changes — active
+- D281 — Plugins are the Owner's own modules, not outside code — active

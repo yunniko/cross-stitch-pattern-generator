@@ -96,6 +96,38 @@ The registries are the plugin surface: a plugin is a module that adds entries. W
 | **Cost** | Small once the registries exist: mostly discipline | Large and permanent: the API freeze and the security surface are the real price |
 | **Reversible?** | Yes | Hard: once others depend on the API, changing it breaks them |
 
-**Recommendation (judgment):** build for the left column. Design the editor API as if a stranger would use it (narrow, data
-in and out, no reaching into internals), because that costs little now and is what makes the right column possible later
-without rework. Decide on outside plugins only when there are users asking for them.
+**Decided (Owner, 2026-10-04, D281): own plugins only.** The editor API is still designed as if a stranger would use it
+(narrow, data in and out, no reaching into internals), because that costs little now and keeps the right column possible later
+without rework. No isolation, permissions, install flow or API freeze is built.
+
+## 7 · Platform: can it stay a browser app?
+
+The Owner's question (2026-10-04): can a large, complex editor stay in the browser, or should it move to, for example, Java?
+
+**Assessment (judgment, from general knowledge of the platform and this codebase; no prototype or benchmark was made):** stay
+in the browser. The limits that the growth-readiness review found are in this app's structure, not in the platform.
+
+| Concern for a large editor | In the browser | What this app already has |
+|---|---|---|
+| Heavy computation | WebAssembly and workers run compiled code off the main thread | The generator and exporter are Rust; a `cs-wasm` crate exists in the workspace; photo decoding and the adjustment preview already run in workers |
+| Drawing many objects and layers fast | Canvas 2D for moderate scenes, WebGL or WebGPU when it is not enough | A viewport renderer that paints only what is visible (D135) and stays smooth at 1500 × 1500 |
+| Large documents in memory | A tab has a few gigabytes at most, less on phones | The largest chart is about 2 MB of cells; undo by full copy is the first thing that would hit a limit, and it is already scheduled to change |
+| Files on disk | Open and download everywhere; direct save-in-place only in Chromium browsers | Download-based saving plus autosave in the browser |
+| Working offline | Possible as an installable web app | Not done: generation and most exports need the server today |
+| Installation and updates | None: a link, always current | The present way of delivery |
+
+Large editors of this kind are delivered in the browser today (design, image and whiteboard editors with layers, vectors and
+plugins), which is evidence that the platform is not the ceiling.
+
+**What a move to Java (or any native toolkit) would cost:** about 13,000 lines of interface code, 16,000 lines of editor
+logic and 27,000 lines of tests are TypeScript and would be rewritten; the browser test suite would have no equivalent; every
+user would need an installer and updates; the web address stops being the product. It would gain direct file access, more
+memory and no server dependence, none of which is a present limit.
+
+**If a desktop app is wanted later**, the cheap path is to wrap this same app in a desktop shell that runs web interfaces
+with a native core (the Rust core would run locally, so generation and exports need no server). That reuses everything and
+can be decided when there is a reason; nothing in the target architecture blocks it.
+
+**What would change this assessment:** a need the browser cannot meet (very large images held fully in memory, direct access
+to devices or to a folder of files in every browser), or a measured rendering limit after layers exist. The document module's
+step includes that measurement.
