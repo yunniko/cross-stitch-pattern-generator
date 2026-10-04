@@ -8,7 +8,7 @@ import { DEFAULT_OPTIONS, VALID_OVERLAP_CELLS } from "../lib/editor/workspace-st
 import { BRUSH_SIZES, DEFAULT_BRUSH_SIZE } from "../lib/editor/brush-stamp";
 import { DEFAULT_WEIGHT, MAX_SIZE, MAX_TEXT_LENGTH, MIN_SIZE } from "../lib/editor/text-raster";
 import { DEFAULT_EXPORT_CELL_MM, MAX_EXPORT_CELL_MM, MIN_EXPORT_CELL_MM } from "../lib/export/export-cell-size";
-import { STANDARD_AIDA_COUNTS, DEFAULT_AIDA_COUNT } from "../lib/export/finished-size";
+import { STANDARD_AIDA_COUNTS, DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT } from "../lib/export/finished-size";
 import { CANVAS_TEXTURES } from "../lib/export/canvas-texture-catalog";
 import { STITCH_TEXTURES } from "../lib/export/stitch-texture-catalog";
 import { DEFAULT_DITHER_TEXTURE, DITHER_TEXTURE_RANGES } from "../lib/pipeline/dither-hand-drawn";
@@ -106,6 +106,7 @@ must(F3, `from ${minZoom * 100} % to ${maxZoom * 100} %`, "zoom range");
 must(F3, `step factor ${ZOOM_STEP} per press`, "zoom step");
 must(F3, `**${STANDARD_AIDA_COUNTS.join(", ")}**`, "fabric counts");
 must(F3, `| 14 |`.replace("14", n(DEFAULT_AIDA_COUNT)), "default fabric count");
+must(F3, `| ${DEFAULT_SIZE_UNIT} | Always | A new chart starts on the unit`, "default unit");
 must(F3, `\`${DEFAULT_OPTIONS.canvasColor}\``, "default canvas colour");
 for (const t of CANVAS_TEXTURES) must(F3, t.label, `canvas texture ${t.id}`);
 for (const t of STITCH_TEXTURES) must(F3, `**${t.label}**`, `stitch texture ${t.id}`);

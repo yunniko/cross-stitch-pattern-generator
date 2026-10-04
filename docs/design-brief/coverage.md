@@ -100,8 +100,8 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-090 | internal | analysis and guides |
 | G-091 | internal | draft: architecture or tooling |
 | G-092 | internal | draft: architecture or tooling |
-| G-093 | internal | draft: architecture or tooling |
-| G-094 | internal | draft: architecture or tooling |
+| G-093 | 04-editing | command list, keys |
+| G-094 | 03-chart-views | fabric in the chart; the rest internal |
 | G-096 | internal | draft: architecture or tooling |
 | G-095 | not shipped (draft) | the redesign |
 | G-097 | not shipped (draft) | |
@@ -397,3 +397,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D287 | 04-editing | |
 | D288 | 04-editing | |
 | D289 | internal | |
+| D290 | 03-chart-views | |

@@ -41,7 +41,7 @@ backstitch-edit or crop bar while those tools are in hand), **P/C/Th/Tx** the Ph
 | Autosave state (`03`) | Application | S | Yes | |
 | Name (`03`) | Document | C | Yes | Document area |
 | Size (crop, grow) (`04`) | Tool (Crop) | Crop's own bar | Yes (since G-089) | |
-| Fabric count, Unit (`03`) | Document (they decide the finished size and every export) | C, and on St for an empty grid | Place yes; **saving no**: kept in the browser, not in the chart, so a chart opened elsewhere takes that browser's count | Document area, saved with the chart |
+| Fabric count, Unit (`03`) | Document (they decide the finished size and every export) | C, and on St for an empty grid | Yes. Saved in the chart since G-094 (D290); the browser keeps the last choice as the start for a new chart | |
 | Author name (`08`) | Action parameters (exports) | C | No | With exports; arguably document metadata |
 | A4 cell size, A4/PDF overlap, Canvas in exported preview (`08`) | Action parameters (exports) | C | **No**: the export control is in another tab | With the export they belong to, shown when that export is chosen |
 | Thread list: choose, rename, symbol, colour editor, merge, add (`05`) | Document (palette) | Th | Yes | Document area |
@@ -81,8 +81,8 @@ backstitch-edit or crop bar while those tools are in hand), **P/C/Th/Tx** the Ph
      depend on the tool.
   3. *Commands filed as something else:* quick mirror among tools, Text as a tab, exports behind the Threads tab, New among
      tools, four copies of Undo.
-- **Two scope mismatches in the data:** fabric count and unit are document facts saved in the browser; symmetry is a tool
-  modifier saved in the chart. The first is a real defect for anyone moving a chart between browsers.
+- **One scope mismatch in the data:** symmetry is a tool modifier saved in the chart. (Fabric count and unit were document
+  facts saved in the browser, a real defect for anyone moving a chart between browsers; G-094 moved them into the chart.)
 - What already follows the rules: the thread list, generation settings, Crop's options, stitch type and shape fill (shown
   only with the tools that use them).
 
@@ -195,5 +195,5 @@ tool has a key since D288. A new key is a change of behaviour and is the Owner's
 
 ## What this does not decide
 
-The look, the layout, and which region goes where on the screen: those are the redesign's. Whether fabric count moves into
-the chart file, and the missing shortcuts, are changes of behaviour and would be goals of their own.
+The look, the layout, and which region goes where on the screen: those are the redesign's. Both changes of behaviour this document
+once left open are made: fabric count is in the chart file (G-094) and every tool has a key (D288).

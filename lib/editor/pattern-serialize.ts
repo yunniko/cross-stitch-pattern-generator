@@ -5,12 +5,14 @@ import { DITHER_MODES, type DitherMode } from "../pipeline/dither";
 import { isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
 import { isEnhancementModeId, type EnhancementModeId } from "./legacy-enhancement";
 import { readSavedAdjust, type PhotoAdjust } from "../pipeline/photo-adjust";
-import { findThread, formatThreadName, THREAD_BRANDS, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
+import { findThread, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
+import { FORMAT_VERSION, migrateToCurrent } from "../document/migrate";
 import { effectiveSymmetryAxes, NO_SYMMETRY, SYMMETRY_AXES, type SymmetryAxes, type SymmetryAxis } from "./symmetry-axes";
 import {
   EMPTY_CELL,
   MAX_COLORS,
   type BackstitchLine,
+  type ChartFabric,
   MAX_STITCHES,
   type PaletteColor,
   type RGB,
@@ -19,19 +21,10 @@ import {
   type ThreadSwatchRef,
 } from "../types";
 
-// Plain JSON, not a PNG with embedded data (Owner decision, 2026-09-09,
-// HANDOVER.md D21) -- simplest reliable format, at the cost of not being
-// previewable as an image on its own. Bumped to 2 for G-012's embedded
-// sourceImage, to 3 for G-016's dmcMode flag (Owner decision,
-// 2026-09-10), to 4 for G-024's edgeMode flag, to 5 for G-029's
-// generalized threadBrand field (HANDOVER.md D92), to 6 for G-032's
-// enhancementMode, and to 7 for G-033's per-color thread `source` (D122) --
-// old files still open fine either way, they just parse with that field
-// absent/legacy-shaped (see deserializePattern).
-export const FORMAT_VERSION = 7;
-
-/** Files and autosave records from this version on store `source` explicitly, so an absent source means a custom color. */
-const FIRST_VERSION_WITH_SOURCES = 7;
+// Plain JSON, not a PNG with embedded data (Owner decision, 2026-09-09, HANDOVER.md D21): the simplest reliable format, at
+// the cost of not being previewable as an image on its own. The format's version, what each version changed and how an
+// older file is brought up to date are in `lib/document/migrate.ts` (G-094).
+export { FORMAT_VERSION };
 
 export interface SerializedPattern {
   formatVersion: number;
@@ -103,6 +96,11 @@ export interface SerializedPattern {
    * half stitches opens the file with every stitch whole.
    */
   cellKind?: number[];
+  /**
+   * The chart's fabric (G-094, D290): its count and the unit its size is shown in. Absent on a file saved before it, and on a
+   * chart that was never given one. Additive, so the format version stays where it is and an older build ignores it.
+   */
+  fabric?: ChartFabric;
 }
 
 /** Only the axes that are on, each `true`. */
@@ -156,6 +154,7 @@ export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes 
     symmetry: serializeSymmetry(effectiveSymmetryAxes(symmetry, pattern.width, pattern.height)),
     backstitch: pattern.backstitch?.length ? pattern.backstitch : undefined,
     cellKind: kinds ? Array.from(kinds) : undefined,
+    fabric: pattern.fabric ? { count: pattern.fabric.count, unit: pattern.fabric.unit } : undefined,
   };
   return JSON.stringify(data);
 }
@@ -231,7 +230,8 @@ function readBackstitch(raw: unknown, width: number, height: number, paletteLeng
 
 export function deserializePatternData(data: unknown): StitchPattern {
   if (typeof data !== "object" || data === null) throw new Error("That file doesn't look like an editable pattern.");
-  const d = data as Record<string, unknown>;
+  // Whatever version the file is, what is read below is the current one (`lib/document/migrate.ts`).
+  const d = migrateToCurrent(data as Record<string, unknown>);
 
   const width = d.width;
   const height = d.height;
@@ -277,17 +277,9 @@ export function deserializePatternData(data: unknown): StitchPattern {
     if (index !== EMPTY_CELL) counts[index]++;
   }
 
-  // Thread identity (D122). Version 7 on stores sources explicitly, so absence there means custom. Older data only ever
-  // had thread names, so a locked pattern's colors are matched to its own brand by exact name: best effort, never proof.
+  // Thread identity (D122): every colour names its thread, or is a custom one. A file from before that was given its
+  // sources by the migration step.
   let threadBrand = resolveThreadBrand(d);
-  const hasExplicitSources = typeof d.formatVersion === "number" && d.formatVersion >= FIRST_VERSION_WITH_SOURCES;
-  if (!hasExplicitSources && threadBrand) {
-    const byName = new Map(THREAD_BRANDS[threadBrand].colors.map((thread) => [formatThreadName(thread), thread]));
-    for (const entry of entries) {
-      const thread = byName.get(entry.name);
-      if (thread) entry.source = { brand: threadBrand, code: thread.code };
-    }
-  }
   // A lock means every color is that brand's thread; when that can't be established, the lock goes and the sources stay.
   if (threadBrand && entries.some((entry) => entry.source?.brand !== threadBrand)) threadBrand = undefined;
 
@@ -322,7 +314,22 @@ export function deserializePatternData(data: unknown): StitchPattern {
     generationPalette: parseGenerationPalette(d.generationPalette),
     backstitch,
     cellKind: readCellKind(d.cellKind, cellPalette),
+    ...fabricField(d.fabric),
   };
+}
+
+/** A chart's fabric from a file. One that is not a count above zero with a unit is dropped, and the chart opens without it. */
+export function readFabric(value: unknown): ChartFabric | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const { count, unit } = value as { count?: unknown; unit?: unknown };
+  if (typeof count !== "number" || !Number.isFinite(count) || count <= 0) return undefined;
+  return unit === "in" || unit === "cm" ? { count, unit } : undefined;
+}
+
+/** Present only when the file has one, so a chart without a fabric stays without the key. */
+function fabricField(value: unknown): { fabric?: ChartFabric } {
+  const fabric = readFabric(value);
+  return fabric ? { fabric } : {};
 }
 
 /**
@@ -396,10 +403,9 @@ function validatePaletteEntry(entry: unknown): { rgb: RGB; symbol: string; name:
  * as an invalid `ThreadBrand` that would crash a later registry lookup.
  */
 function resolveThreadBrand(d: Record<string, unknown>): ThreadBrand | undefined {
-  if (typeof d.threadBrand === "string" && (THREAD_BRAND_IDS as string[]).includes(d.threadBrand)) {
-    return d.threadBrand as ThreadBrand;
-  }
-  return d.dmcMode === true ? "dmc" : undefined;
+  return typeof d.threadBrand === "string" && (THREAD_BRAND_IDS as string[]).includes(d.threadBrand)
+    ? (d.threadBrand as ThreadBrand)
+    : undefined;
 }
 
 // Loose validation rather than throwing: an absent/malformed sourceImage

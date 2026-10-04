@@ -42,7 +42,7 @@ Facts, in the present tense, with numbers from the code or measured. Where the c
 
 Four scripts fail when the brief drifts from the app:
 
-- `npx tsx scripts/design-brief-ranges.ts` — the ranges, defaults, lists and limits the brief states against the code's own constants (60 checks).
+- `npx tsx scripts/design-brief-ranges.ts` — the ranges, defaults, lists and limits the brief states against the code's own constants (64 checks).
 - `npx tsx scripts/design-brief-commands.ts` — the keys in `04` against the command table in code (and the command table in `docs/interface-placement.md`, which `--write` regenerates).
 - `node scripts/design-brief-words.mjs` — no interface-element words.
 - `node scripts/design-brief-coverage.mjs --strict` — every goal and decision of the development record has a row in `coverage.md` and every document it names exists.

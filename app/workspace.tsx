@@ -6,7 +6,7 @@ import { setCrashContext } from "@/lib/editor/crash-report";
 import { useDrawingColours } from "./hooks/use-drawing-colours";
 import { useSymmetryAxes } from "./hooks/use-symmetry-axes";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
-import { mergeColors, renamePattern } from "@/lib/editor/pattern-edit";
+import { mergeColors, renamePattern, setFabric } from "@/lib/editor/pattern-edit";
 import { applyQuickMirrorWithSelection, fillSymmetric, NO_SYMMETRY, type QuickMirror, type SymmetryAxes } from "@/lib/editor/symmetry";
 import { oxsImportNotice } from "@/lib/editor/oxs";
 import { loadPatternFromFile } from "@/lib/editor/pattern-import";
@@ -88,7 +88,18 @@ export interface WorkspaceProps {
 export default function Workspace({ account }: WorkspaceProps) {
   const history = useDocumentHistory();
   const pattern = history.state;
-  const { options, update: updateOption } = useWorkspaceOptions();
+  /** The start screen, reached from New while a chart is open. Getting there costs nothing; the confirm comes when a
+   *  card is actually chosen, which is what replaces the one autosaved chart. */
+  const [startingNew, setStartingNew] = useState(false);
+  const { options: browserOptions, update: updateOption } = useWorkspaceOptions();
+  // A chart's fabric is the chart's own (G-094, D290): with one, its count and unit stand in for the browser's everywhere a
+  // size is shown or exported. The browser's are what a new chart starts with, and what a chart without a fabric uses.
+  // Not while the start screen is up: what is set there is for the chart about to be made, not the one behind it.
+  const chartFabric = startingNew ? undefined : pattern?.fabric;
+  const options = useMemo(
+    () => (chartFabric ? { ...browserOptions, aidaCount: chartFabric.count, sizeUnit: chartFabric.unit } : browserOptions),
+    [browserOptions, chartFabric]
+  );
   const source = useSourceImage();
   // The four sliders (G-074), drawn in the browser from the decoded photo -- no request to the server.
   const adjustPreview = usePhotoAdjustPreview(source.pixelBuffer, options.photoAdjust, pattern === null);
@@ -119,9 +130,6 @@ export default function Workspace({ account }: WorkspaceProps) {
   const openInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pixelArtInputRef = useRef<HTMLInputElement>(null);
-  /** The start screen, reached from New while a chart is open. Getting there costs nothing; the confirm comes when a
-   *  card is actually chosen, which is what replaces the one autosaved chart. */
-  const [startingNew, setStartingNew] = useState(false);
   const [pendingStart, setPendingStart] = useState<null | (() => void)>(null);
   const [openError, setOpenError] = useState<string | null>(null);
   const [openNotice, setOpenNotice] = useState<string | null>(null);
@@ -307,6 +315,22 @@ export default function Workspace({ account }: WorkspaceProps) {
     },
   };
 
+  /** The fabric in force now, which a chart made now is given: the open chart's, or the browser's. */
+  const fabricNow = { count: options.aidaCount, unit: options.sizeUnit };
+
+  /**
+   * Fabric count and unit, changed in the chart's settings: with a chart open they are the chart's, as one undo step, and
+   * the browser remembers them for the next new chart. Every other setting is the browser's alone.
+   */
+  const updateChartOption: typeof updateOption = (key, value) => {
+    if (pattern && (key === "aidaCount" || key === "sizeUnit")) {
+      const fabric = key === "aidaCount" ? { ...fabricNow, count: value as number } : { ...fabricNow, unit: value as "in" | "cm" };
+      const next = setFabric(pattern, fabric);
+      if (next !== pattern) history.set(next);
+    }
+    updateOption(key, value);
+  };
+
   /** Lands a restored or opened pattern in every piece of state that depends on it, including its embedded photo. */
   function loadPatternIntoWorkspace(loaded: StitchPattern, fallbackName: string, savedSymmetry: SymmetryAxes = NO_SYMMETRY) {
     return replaceDocument("open", { ...loaded, name: loaded.name ?? fallbackName }, replaceEffects, {
@@ -350,7 +374,8 @@ export default function Workspace({ account }: WorkspaceProps) {
     currentPattern: pattern,
     // The first generate is the undo baseline with every symmetry toggle off; a regenerate is an ordinary undoable step
     // (G-012, G-037). Either way the piece in hand goes and the inspector follows the work to its threads.
-    onGenerated: (next, isFirst) => void replaceDocument(isFirst ? "first-generate" : "regenerate", next, replaceEffects),
+    onGenerated: (next, isFirst) =>
+      void replaceDocument(isFirst ? "first-generate" : "regenerate", setFabric(next, fabricNow), replaceEffects),
   });
 
   /**
@@ -384,12 +409,12 @@ export default function Workspace({ account }: WorkspaceProps) {
     setOpenNotice(null);
     loadPatternFromFile(file)
       .then(async ({ pattern: loaded, oxsReport, symmetry: savedSymmetry }) => {
-        await loadPatternIntoWorkspace(loaded, file.name.replace(/\.[^.]+$/, "").replace(/[-_]editable$/, ""), savedSymmetry);
-        if (oxsReport) {
-          const notice = oxsImportNotice(oxsReport, options.aidaCount, STANDARD_AIDA_COUNTS);
-          if (notice.aidaCount !== undefined) updateOption("aidaCount", notice.aidaCount);
-          setOpenNotice(notice.text);
-        }
+        // An OXS file states its fabric count; the chart opened from it carries that count, in the browser's unit.
+        const notice = oxsReport ? oxsImportNotice(oxsReport, browserOptions.aidaCount, STANDARD_AIDA_COUNTS) : null;
+        const chart =
+          notice?.aidaCount !== undefined ? setFabric(loaded, { count: notice.aidaCount, unit: browserOptions.sizeUnit }) : loaded;
+        await loadPatternIntoWorkspace(chart, file.name.replace(/\.[^.]+$/, "").replace(/[-_]editable$/, ""), savedSymmetry);
+        if (notice) setOpenNotice(notice.text);
       })
       .catch((err) => {
         // Nothing was replaced, so the current pattern is still the "previous version" (Owner request, 2026-09-12).
@@ -515,7 +540,7 @@ export default function Workspace({ account }: WorkspaceProps) {
    * none, which also cancels any generation or preview still running for the previous photo.
    */
   function createBlankChart(width: number, height: number) {
-    return replaceDocument("blank", createBlankPattern(width, height), replaceEffects);
+    return replaceDocument("blank", setFabric(createBlankPattern(width, height), fabricNow), replaceEffects);
   }
 
   /**
@@ -530,7 +555,9 @@ export default function Workspace({ account }: WorkspaceProps) {
       setStartingNew(true);
       return;
     }
-    await replaceDocument("pixel-art", imported, replaceEffects, { fallbackName: imported.name ?? DEFAULT_PIXEL_ART_NAME });
+    await replaceDocument("pixel-art", setFabric(imported, fabricNow), replaceEffects, {
+      fallbackName: imported.name ?? DEFAULT_PIXEL_ART_NAME,
+    });
   }
 
   const photoFree = isPhotoFree(pattern);
@@ -848,7 +875,7 @@ export default function Workspace({ account }: WorkspaceProps) {
           <ChartPane
             pattern={pattern}
             options={options}
-            onChange={updateOption}
+            onChange={updateChartOption}
             name={nameDraft}
             onNameChange={setNameDraft}
             onNameCommit={() => pattern && history.set(renamePattern(pattern, nameDraft))}

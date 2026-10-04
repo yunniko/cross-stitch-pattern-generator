@@ -72,6 +72,8 @@ export interface StoredProjectRecord {
   /** The four photo sliders (G-074); absent when they were all centred, and on records written before them. */
   photoAdjust?: StitchPattern["photoAdjust"];
   sourceImage?: StoredSourceImage;
+  /** The chart's fabric (G-094); absent on a chart without one, and on records written before it. */
+  fabric?: StitchPattern["fabric"];
   /** The symmetry axes that were on (G-037); absent when none were, and on records written before G-037. */
   symmetry?: SerializedSymmetry;
   /** The backstitch on the chart (G-073); absent when there is none, and on records written before it. */
@@ -167,6 +169,7 @@ async function encodeRecord(
   // Half stitches (G-082) are named here for the same reason; absent while every stitch is whole.
   const kinds = tidyKinds(pattern.cellPalette, pattern.cellKind);
   if (kinds) record.cellKind = kinds;
+  if (pattern.fabric) record.fabric = { ...pattern.fabric };
   const storedSymmetry = serializeSymmetry(symmetry);
   if (storedSymmetry) record.symmetry = storedSymmetry;
   if (!pattern.sourceImage) return { record };
@@ -193,7 +196,9 @@ export function decodeRecord(record: unknown, photoDataUrl: unknown): StitchPatt
   if (typeof photoDataUrl === "string" && typeof r.sourceImage === "object" && r.sourceImage !== null) {
     const { photoKey: _photoKey, ...rest } = r.sourceImage as StoredSourceImage;
     void _photoKey;
-    sourceImage = { ...rest, dataUrl: photoDataUrl };
+    // The photo first, as a chart fresh from generation has it: the file saved after a reload is then the file saved before
+    // it, byte for byte (found in the G-094 QA pass; the two differed only in the order of these keys).
+    sourceImage = { dataUrl: photoDataUrl, ...rest };
   }
   return deserializePatternData({ ...r, sourceImage });
 }

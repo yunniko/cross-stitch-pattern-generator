@@ -47,7 +47,23 @@ pub struct Pattern {
     pub symmetry: Vec<&'static str>,
     /// Backstitch lines, corner to corner (G-073); empty for a chart with none.
     pub backstitch: Vec<Backstitch>,
+    /// How the chart was generated (`KEPT_FIELDS`): read by no export, kept as parsed and written back by the editable
+    /// save where `serializePattern` writes them (G-094). Until then they were dropped, and the editable file in "Export
+    /// all" opened as a chart that had forgotten its photo sliders, its dither and its chosen palette.
+    pub kept: Vec<(&'static str, Value)>,
+    /// The chart's fabric, count and unit (G-094); kept as parsed. The exports take both from the request, which the app
+    /// fills from this.
+    pub fabric: Option<Value>,
 }
+
+/// The fields `Pattern::kept` holds, in the order `serializePattern` writes them, between `enhancementMode` and `symmetry`.
+pub const KEPT_FIELDS: [&str; 5] = [
+    "photoAdjust",
+    "ditherMode",
+    "ditherTexture",
+    "vivid",
+    "generationPalette",
+];
 
 /// One backstitch line. Coordinates are grid corners, `0..=width` and `0..=height`.
 #[derive(Clone, Debug)]
@@ -167,6 +183,11 @@ impl Pattern {
                         .collect()
                 })
                 .unwrap_or_default(),
+            kept: KEPT_FIELDS
+                .iter()
+                .filter_map(|key| o.get(*key).map(|value| (*key, value.clone())))
+                .collect(),
+            fabric: o.get("fabric").cloned(),
         })
     }
 

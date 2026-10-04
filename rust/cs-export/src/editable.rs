@@ -89,6 +89,11 @@ pub fn serialize(p: &Pattern) -> String {
     optional_string(&mut out, "threadBrand", &p.thread_brand);
     optional_string(&mut out, "edgeMode", &p.edge_mode);
     optional_string(&mut out, "enhancementMode", &p.enhancement_mode);
+    // What no export reads, as it came in and where `serializePattern` puts it.
+    for (key, value) in &p.kept {
+        out.push_str(&format!(",\"{key}\":"));
+        write_value(value, &mut out);
+    }
     if !p.symmetry.is_empty() {
         out.push_str(",\"symmetry\":{");
         for (i, axis) in p.symmetry.iter().enumerate() {
@@ -122,6 +127,10 @@ pub fn serialize(p: &Pattern) -> String {
             out.push_str(&k.to_string());
         }
         out.push(']');
+    }
+    if let Some(fabric) = &p.fabric {
+        out.push_str(",\"fabric\":");
+        write_value(fabric, &mut out);
     }
     out.push('}');
     out

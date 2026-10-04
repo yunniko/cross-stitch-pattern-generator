@@ -13,6 +13,7 @@ import { SYMBOL_SET } from "../color/symbols";
 import { kindBuffer, kindsAfterWholePainting, STITCH_WHOLE, swapKind, tidyKinds } from "./stitch-kind";
 import { formatThreadName, THREAD_BRANDS, type ThreadBrand } from "../threads/thread-brands";
 import {
+  type ChartFabric,
   EMPTY_CELL,
   MAX_COLORS,
   MAX_STITCHES,
@@ -421,6 +422,15 @@ export function renameColor(pattern: StitchPattern, paletteIndex: number, name: 
 }
 
 /** Renames the pattern itself -- distinct from `renameColor`, which renames one palette entry. Drives every downloadable's filename. */
+/**
+ * The chart on another fabric (G-094, D290): its count, or the unit its size is shown in. The stitches do not change, only
+ * what size they come to. The same chart when nothing differs, so choosing the value already chosen is not an undo step.
+ */
+export function setFabric(pattern: StitchPattern, fabric: ChartFabric): StitchPattern {
+  if (pattern.fabric?.count === fabric.count && pattern.fabric?.unit === fabric.unit) return pattern;
+  return { ...pattern, fabric: { count: fabric.count, unit: fabric.unit } };
+}
+
 export function renamePattern(pattern: StitchPattern, name: string): StitchPattern {
   const trimmed = name.trim();
   if (trimmed === "") return pattern;
