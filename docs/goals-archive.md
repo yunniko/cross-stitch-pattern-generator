@@ -9,6 +9,7 @@ their last state in `GOALS.md`; decision references (Dnn) now resolve to
 (STANDARDS.md → Documentation). This page is the index: every completed goal, newest first, and the file
 holding it.
 
+- **G-092** · Tool registry: a tool is one module — DONE (2026-10-04, deployed 2026-10-04, Owner sign-off 2026-10-05) — [`G-091-to-G-100.md`](goals-archive/G-091-to-G-100.md)
 - **G-091** · Editor shell: replacing the open chart is decided in one place — DONE (2026-10-04, deployed 2026-10-04, Owner sign-off 2026-10-04) — [`G-091-to-G-100.md`](goals-archive/G-091-to-G-100.md)
 - **G-090** · Readiness to grow: architecture, interface placement, development speed and QA — DONE (2026-10-04, Owner sign-off 2026-10-04) — [`G-081-to-G-090.md`](goals-archive/G-081-to-G-090.md)
 - **G-089** · A Crop tool whose frame and four edge numbers are one thing — DONE (2026-10-03, deployed 2026-10-03, Owner sign-off 2026-10-04) — [`G-081-to-G-090.md`](goals-archive/G-081-to-G-090.md)
