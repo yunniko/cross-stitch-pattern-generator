@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-04 at 42c2aa6 (G-091 and fast-lane batch 3 deployed; G-091 awaiting sign-off)
+Last verified: 2026-10-04 at 6e3d786 (G-092 deployed, awaiting sign-off)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -426,6 +426,7 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-10-04 | 6e3d786 | **G-092:** tool registry (D284): tools as modules, the shell routes to them; no behaviour change | 1023 unit; full local e2e 547 pass, 0 fail; live: tool-key, shape, backstitch-edit and crop cases pass (see goal log for the one case re-run); only this project's app restarted; six sites 200 |
 | 2026-10-04 | 42c2aa6 | **Fast-lane batch 3:** a new chart opens in the Color view (D283); the new-chart confirmation gains the one-press "Export, then start new" | Full local e2e 547 pass, 0 fail; the new cases pass against the live site; only this project's app restarted |
 | 2026-10-04 | fec38f9 | **G-091:** replacing the open chart is one table (D282), every new document resets the same things (D283), grouped props, Crop keeps a fresh frame across charts | 1015 unit; full local e2e 545 pass, 0 fail; 4 new cases against the live site; only this project's app restarted; six sites 200 |
 | 2026-10-04 | 10e205f | **Fast-lane batch 2:** QA findings 7 and 8 (the palette-mode switch is asked first; Escape per field in Crop) | Full local e2e 541 pass, 0 fail; 2 cases against the live site; only this project's app restarted |
@@ -437,7 +438,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 | 2026-10-02 | bb9a210 | **G-084:** the line finder replaced (D272); backstitch dashes ranked by length (D271) | New e2e spec against the live site; full local e2e 510 pass; 74 goldens green; site 200 |
 | 2026-10-02 | 9b16cb7 | **G-084:** lines of any colour, dark, light or coloured, in up to three threads (D269) | New e2e spec against the live site (4 pass, one on retry); 74 golden hashes unchanged; site 200 |
 | 2026-10-02 | 7f8a462 | **G-084:** Backstitch from lines (Photo tab, Lines), traced in Rust and painted out of the picture, off by default (D266 to D268) | New e2e spec run against the live site (3 pass); 74 golden hashes unchanged; other containers not restarted; site 200 |
-| 2026-10-01 | 69c9273 | **G-083 (Owner): smaller A4 borders, the triangles against the grid's border, the overlap label right under the border at the bottom and turned a quarter turn counter-clockwise on the sides.** Margin 14 to 8 mm, gutter 14 to 12 mm, the row and column numbers outside the triangles. Rust exporter, the page's constants and the processor image | 960 unit, the Rust A4 and Pattern Keeper pin tests; the A4 settings and A4 export specs 5 of 5 locally; looked at on screen. **Verified live:** the A4 settings and half-stitch export specs pass against `https://cross-stitch.craftodejnice.cz` (3 of 3). Server build EXIT=0; only this project's containers restarted; the eight sites returned 200 and the other containers' uptimes were unchanged. |
 
 ## Decisions
 
