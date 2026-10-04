@@ -88,7 +88,7 @@ checklist. The visual redesign itself is the Owner's planned work; these rules a
 |---|---|
 | Type-check | 21 s |
 | Unit tests (1,000) | 22 s |
-| Lint | **70 s** (likely cause, not yet confirmed: it walks generated folders such as the Rust build output and test results, which the ignore list does not name) |
+| Lint | 22 s (corrected in M4: the 70 s first written here was measured while other work was running, and the guessed cause was wrong; see `docs/development-loop.md`) |
 | Production build | 35 s |
 | Browser tests, whole suite (533 cases, 4 at once) | about 4.5 min, after the build and two servers are started by hand |
 | Deploy and live check | several minutes; a live spec that generates more than 6 charts a minute is refused by the site's own rate limit |
@@ -112,7 +112,7 @@ checklist. The visual redesign itself is the Owner's planned work; these rules a
 2. **Run affected tests by default**; the full suite before a deploy and in CI, where it already runs.
 3. **Make the browser loop fast**: keep the servers running in watch mode for development specs, or split specs that need no
    server (most editing specs open a saved chart) from those that generate.
-4. **Fix the noise**: the two admin-stats cases, the 70 s lint, and a test-only way round the live rate limit.
+4. **Fix the noise**: the two admin-stats cases (done in M4), the lint time, and live checks that stay under the rate limit.
 5. **Move tests down**: with tools as modules, most tool behaviour is testable as unit tests in milliseconds; today it is
    reachable only through the browser because the logic lives in hooks.
 

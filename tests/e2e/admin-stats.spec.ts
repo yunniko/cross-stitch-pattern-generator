@@ -14,7 +14,9 @@ async function readCount(page: import("@playwright/test").Page, testId: string):
   return Number(await page.getByTestId(testId).textContent());
 }
 
-test("generating once and exporting twice moves the stats page's counts by exactly that much", async ({ page }) => {
+// @alone: these read site-wide counters, so any other spec generating at the same moment moves them. `npm run test:e2e`
+// runs them after the rest, one at a time (G-090 M4); before that they failed in every parallel run and passed alone.
+test("generating once and exporting twice moves the stats page's counts by exactly that much", { tag: "@alone" }, async ({ page }) => {
   test.setTimeout(120_000);
 
   await signInAsAdmin(page);
@@ -52,7 +54,7 @@ test("generating once and exporting twice moves the stats page's counts by exact
   expect(after.exportAllTime - before.exportAllTime).toBe(2);
 });
 
-test("an anonymous generation and export are still counted, with no userId", async ({ page, context }) => {
+test("an anonymous generation and export are still counted, with no userId", { tag: "@alone" }, async ({ page, context }) => {
   test.setTimeout(120_000);
 
   await signInAsAdmin(page);
