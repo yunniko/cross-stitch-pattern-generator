@@ -7,6 +7,7 @@ import type { SymmetryAxes } from "@/lib/editor/symmetry";
 import type { SizeUnit } from "@/lib/export/finished-size";
 import type { BackstitchLine, FloatingSelection, StitchPattern } from "@/lib/types";
 import type { ChartRenderer } from "../hooks/use-chart-renderer";
+import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import type { ToolOption } from "./options";
 
 /**
@@ -43,7 +44,16 @@ export interface ToolDefinition {
   options?: readonly ToolOption[];
   /** The pointer over the chart: a hand, a magnifier, always a cross; without it, a cross once a colour is in hand. */
   cursor?: "grab" | "zoom" | "cross";
+  /**
+   * It brings a tab of its own to the panel (G-095, D296): the first tab, there only while the tool is in hand, for what
+   * does not fit among the quick options. What the tab holds is the runtime's `panel`.
+   */
+  tab?: { label: string };
 }
+
+/** The settings the Text tool keeps, under the names they have had among the saved settings since G-081. */
+export type TextSettings = Pick<WorkspaceOptions, "textFamily" | "textStyle" | "textSize" | "textWeight">;
+export type ChangeTextSetting = <K extends keyof TextSettings>(key: K, value: WorkspaceOptions[K]) => void;
 
 /** What a tool may read and do. Narrow on purpose: this is all a tool, or later a plugin, can touch (D281). */
 export interface EditorApi {
@@ -83,7 +93,20 @@ export interface EditorApi {
     movePan: (e: PointerEvent<HTMLDivElement>) => boolean;
     endPan: (e: PointerEvent<HTMLDivElement>, frame: HTMLDivElement | null) => boolean;
     zoomBy: (factor: number, at?: { clientX: number; clientY: number }) => void;
+    /** The stitch at the top left of the part of the chart in view; null with no chart on screen. */
+    corner: () => { x: number; y: number } | null;
   };
+  /** The lettering's settings, and the canvas colour its preview is drawn on. */
+  text: TextSettings & { canvasColor: string; change: ChangeTextSetting };
+}
+
+/**
+ * What a tool may ask of the shell when something happens: it is handed over with the event, because it reaches the other
+ * tools, which do not exist yet while a tool's own runtime is being built.
+ */
+export interface ToolShell {
+  /** Puts a ready-made piece in hand, with a tool in hand that can act on it. */
+  takePiece: (piece: FloatingSelection) => void;
 }
 
 /** The piece in hand, which the Text tab, the quick mirrors and a colour merge also act on. */
@@ -104,7 +127,7 @@ export interface PieceService {
 
 export interface ToolRuntime {
   /** A press on the chart with one of this module's tools in hand. */
-  onPointerDown?(e: PointerEvent<HTMLDivElement>, frame: HTMLDivElement): void;
+  onPointerDown?(e: PointerEvent<HTMLDivElement>, frame: HTMLDivElement, shell: ToolShell): void;
   /** True when the event belonged to a gesture of this module. Every module is asked, so a gesture outlives a tool change. */
   onPointerMove?(e: PointerEvent<HTMLDivElement>): boolean;
   onPointerUp?(e: PointerEvent<HTMLDivElement>): boolean;
@@ -117,6 +140,8 @@ export interface ToolRuntime {
   onDocumentReplaced?(): void;
   /** Its own controls, shown in place of the drawing options while it has something to act on. */
   bar?: ReactNode;
+  /** What its tab holds, for a tool whose definition declares one. */
+  panel?: (shell: ToolShell) => ReactNode;
   /** Drawn over the chart. */
   overlay?: ReactNode;
   /** The piece in hand, for the module that owns it. */

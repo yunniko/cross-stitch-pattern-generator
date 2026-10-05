@@ -27,7 +27,6 @@ function recorder() {
     clearSelection: note("clearSelection"),
     closeCrop: note("closeCrop"),
     clearLit: note("clearLit"),
-    clearTextThread: note("clearTextThread"),
     clearColourInHand: note("clearColourInHand"),
     resetZoom: note("resetZoom"),
     showColorView: note("showColorView"),
@@ -45,16 +44,7 @@ function recorder() {
   return { calls, effects };
 }
 
-const FULL_VIEW = [
-  "clearSelection",
-  "bumpDocument",
-  "clearColourInHand",
-  "resetZoom",
-  "showColorView",
-  "clearLit",
-  "clearTextThread",
-  "closeCrop",
-];
+const FULL_VIEW = ["clearSelection", "bumpDocument", "clearColourInHand", "resetZoom", "showColorView", "clearLit", "closeCrop"];
 const AXES = { vertical: true, horizontal: false, diagonal: false, antidiagonal: false };
 
 describe("what each way of replacing the chart resets", () => {

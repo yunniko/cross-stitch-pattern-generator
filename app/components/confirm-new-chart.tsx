@@ -33,13 +33,13 @@ export function ConfirmNewChart({ pattern, onExportThenStart, onKeepEditing, onS
   }, [onKeepEditing]);
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-6">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-scrim/60 p-6">
       <div
         role="dialog"
         aria-modal="true"
         ref={panelRef}
         aria-labelledby="confirm-new-title"
-        className="flex w-[460px] max-w-full flex-col gap-3.5 rounded-xl border border-line bg-surface p-[22px] shadow-[0_30px_70px_rgba(0,0,0,.6)]"
+        className="flex w-[460px] max-w-full flex-col gap-3.5 rounded-xl border border-line bg-surface p-[22px] shadow-[0_30px_70px_color-mix(in_srgb,var(--at-shadow)_60%,transparent)]"
       >
         <h3 id="confirm-new-title" className="m-0 text-lg font-medium tracking-[-0.01em] text-ink">
           Start a new chart?

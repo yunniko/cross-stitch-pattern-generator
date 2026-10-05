@@ -7,6 +7,7 @@ import type { SymmetryAxes, SymmetryAxis } from "@/lib/editor/symmetry";
 import { type StitchPattern } from "@/lib/types";
 import type { ViewMode } from "../editor-types";
 import { ColorPair } from "./color-pair";
+import { SkinIcon } from "../skin/skin";
 import { PillButton, SegmentedControl, DISABLED_ICON } from "./ui";
 
 /**
@@ -25,17 +26,6 @@ const CHART_VIEWS: Array<{ value: ChartView; label: string; title: string }> = [
   { value: "bw", label: "B&W", title: "The chart in black and white, as it prints" },
   { value: "realistic", label: "Stitched", title: "A realistic preview of the finished stitching" },
 ];
-
-/** 1b draws the axes as the chart's own outline with the guide line that symmetry paints along it. */
-function AxisIcon({ axis }: { axis: SymmetryAxis }) {
-  const line = { vertical: [12, 3, 12, 21], horizontal: [3, 12, 21, 12], diagonal: [4, 4, 20, 20], antidiagonal: [20, 4, 4, 20] }[axis];
-  return (
-    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" strokeLinecap="round" aria-hidden="true">
-      <rect x="4" y="4" width="16" height="16" rx="1" stroke="currentColor" strokeWidth="1.4" opacity="0.5" />
-      <line x1={line[0]} y1={line[1]} x2={line[2]} y2={line[3]} stroke="var(--at-guide)" strokeWidth="2.2" />
-    </svg>
-  );
-}
 
 const SYMMETRY_TOGGLES: Array<{ axis: SymmetryAxis; label: string; title: string }> = [
   { axis: "vertical", label: "Vertical symmetry", title: "Paint mirrored across the vertical centre line" },
@@ -195,7 +185,7 @@ export function ContextBar({ pattern, history, view, photo, colours, options, sy
                       symmetry[axis] ? "border-accent bg-accent/15 text-ink" : "border-line text-muted enabled:hover:bg-raised"
                     }`}
                   >
-                    <AxisIcon axis={axis} />
+                    <SkinIcon name={`axis-${axis}`} />
                   </button>
                 );
               })}
@@ -213,19 +203,9 @@ export function ContextBar({ pattern, history, view, photo, colours, options, sy
                 isolate ? "border-accent bg-accent/15 text-ink" : "border-line text-muted hover:bg-raised hover:text-ink"
               }`}
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-[15px] w-[15px]"
-                fill="none"
-                stroke={isolate ? "var(--at-accent)" : "currentColor"}
-                strokeWidth={1.7}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" />
-                <circle cx="12" cy="12" r="2.5" />
-              </svg>
+              <span className={isolate ? "text-accent" : undefined}>
+                <SkinIcon name="eye" />
+              </span>
               <span className={`font-mono text-[11px] ${isolate ? "text-accent" : "text-muted"}`}>{litCount}</span>
             </button>
             <button
@@ -242,19 +222,9 @@ export function ContextBar({ pattern, history, view, photo, colours, options, sy
                 lockTransparency ? "border-accent bg-accent/15 text-ink" : "border-line text-muted hover:bg-raised hover:text-ink"
               }`}
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-[15px] w-[15px]"
-                fill="none"
-                stroke={lockTransparency ? "var(--at-accent)" : "currentColor"}
-                strokeWidth={1.7}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="5" y="11" width="14" height="10" rx="2" />
-                {lockTransparency ? <path d="M8 11V8a4 4 0 0 1 8 0v3" /> : <path d="M8 11V8a4 4 0 0 1 7.5-2" />}
-              </svg>
+              <span className={lockTransparency ? "text-accent" : undefined}>
+                <SkinIcon name={lockTransparency ? "lock" : "lock-open"} />
+              </span>
             </button>
             <SegmentedControl
               tone="chip"
@@ -280,20 +250,7 @@ export function ContextBar({ pattern, history, view, photo, colours, options, sy
                   : "border-line text-muted enabled:hover:bg-raised enabled:hover:text-ink"
               }`}
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-[15px] w-[15px]"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.7}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="3" y="5" width="18" height="14" rx="2" />
-                <circle cx="9" cy="10" r="1.8" />
-                <path d="M4 18l5-5 4 4 3-3 4 4" />
-              </svg>
+              <SkinIcon name="photo" />
               {viewMode === "photo-only" ? "Photo only" : "Photo"}
             </button>
           </div>

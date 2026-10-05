@@ -85,7 +85,7 @@ function InsetField({
           }
         }}
         className={`w-14 rounded-md border bg-sunken px-1.5 py-1 text-right font-mono text-xs text-ink ${
-          shown !== null && parseInset(shown) === null ? "border-red-400" : "border-line"
+          shown !== null && parseInset(shown) === null ? "border-danger-bright" : "border-line"
         }`}
       />
     </label>
@@ -166,7 +166,7 @@ export function CropBar({
           ))}
         </div>
         <span
-          className={`shrink-0 font-mono text-xs whitespace-nowrap ${error ? "text-red-300" : "text-muted"}`}
+          className={`shrink-0 font-mono text-xs whitespace-nowrap ${error ? "text-danger" : "text-muted"}`}
           data-testid="crop-readout"
           title="Positive cuts stitches off that edge; negative adds empty stitches"
         >

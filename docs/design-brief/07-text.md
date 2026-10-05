@@ -30,3 +30,14 @@ All settings except the text are remembered in the browser; the text is not.
 **Add is unavailable, with the reason shown beneath it, when:** no chart ("Open a chart first."); a looking-only view ("Switch to the Color or B&W view to add text."); the chart has no colours ("This chart has no threads yet. Add one in the Threads tab."); no text ("Type some text."); the text cannot be drawn (the browser's own message, or "That text could not be drawn."); nothing would be drawn ("That text has nothing to draw."); or the lettering is larger than the chart ("The text is *w* × *h* stitches; this chart is *w* × *h*.").
 
 Also: lettering is unavailable until there is a chart, and it keeps its text and chosen thread while the person looks at other settings.
+
+## Text is a tool
+
+Text is one of the tools (`04`), with no key. Its settings above are shown while it is in hand, and only then; the settings that were being looked at before come back when it is put down.
+
+The lettering reaches the chart in two ways, both as a piece in hand that the selection tool then holds:
+
+- **Add** places it three stitches in from the corner of the part of the chart in view.
+- **A press on the chart** places it with its top left corner at the stitch pressed, brought back inside the chart where it would overhang. A press does nothing when Add would be unavailable.
+
+Either way Text is put down, since the piece is the selection tool's to move, turn and apply. Taking Text up again applies a piece still in hand, as taking up any drawing tool does, and keeps what was typed.

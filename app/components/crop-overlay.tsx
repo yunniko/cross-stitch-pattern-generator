@@ -193,7 +193,7 @@ export function CropOverlay({ width, height, cellSize, insets, invalid, onChange
                   background: colour,
                   width: corner ? HANDLE - 4 : handle === "top" || handle === "bottom" ? 28 : 5,
                   height: corner ? HANDLE - 4 : handle === "top" || handle === "bottom" ? 5 : 28,
-                  boxShadow: "0 0 0 1px rgba(0,0,0,.5)",
+                  boxShadow: "0 0 0 1px color-mix(in_srgb,var(--at-shadow)_50%,transparent)",
                 }}
               />
             </div>

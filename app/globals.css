@@ -34,6 +34,29 @@
   /* The symmetry guide, matching the colour the chart itself draws it in (lib/export/render.ts). */
   --at-guide: #dc2626;
 
+  /* Something went wrong, or will: the text, a bright edge for a field that cannot be read, the edge and fill of a
+     message or a destructive button, and the deep ground a message sits on (used at 20 to 60%). */
+  --at-danger: #fca5a5;
+  --at-danger-bright: #f87171;
+  --at-danger-strong: #991b1b;
+  --at-danger-edge: #7f1d1d;
+  --at-danger-deep: #450a0a;
+  --at-on-danger: #fef2f2;
+  /* Something to know before going on: the same four parts, in amber. */
+  --at-warning: #fde68a;
+  --at-warning-edge: #b45309;
+  --at-warning-strong: #78350f;
+  --at-warning-deep: #451a03;
+
+  /* The tab a tool brings with it (G-095): marked by its colour alone, so it reads as belonging to the tool in hand. */
+  --at-tool: #e5b453;
+  --at-on-tool: #101214;
+
+  /* What dims the page behind a dialog, what is written on that, and what a raised thing casts. */
+  --at-scrim: #000000;
+  --at-on-scrim: #ffffff;
+  --at-shadow: #000000;
+
   /* Without this, the browser renders native form chrome -- most visibly a <select>'s own options popup, which almost
      no other CSS property can reach -- with light-mode defaults. That mismatch is what produced white-on-white
      (illegible) dropdown options on hover (Owner report, 2026-09-12): the page's own rules made the option text light
@@ -58,6 +81,23 @@
   --color-accent-hover: var(--at-accent-hover);
   --color-on-accent: var(--at-on-accent);
   --color-guide: var(--at-guide);
+  --color-danger: var(--at-danger);
+  --color-danger-bright: var(--at-danger-bright);
+  --color-danger-strong: var(--at-danger-strong);
+  --color-danger-edge: var(--at-danger-edge);
+  --color-danger-deep: var(--at-danger-deep);
+  --color-on-danger: var(--at-on-danger);
+  --color-warning: var(--at-warning);
+  --color-warning-edge: var(--at-warning-edge);
+  --color-warning-strong: var(--at-warning-strong);
+  --color-warning-deep: var(--at-warning-deep);
+  --color-tool: var(--at-tool);
+  --color-on-tool: var(--at-on-tool);
+  --color-scrim: var(--at-scrim);
+  --color-on-scrim: var(--at-on-scrim);
+  --color-shadow: var(--at-shadow);
+  --color-accent-wash: var(--at-accent-wash);
+  --color-accent-wash-strong: var(--at-accent-wash-strong);
 
   /* Kept as the app's own names so existing `bg-background` / `text-foreground` usages stay meaningful until M2 and
      M3 rewrite them in Atelier terms. */
@@ -89,8 +129,8 @@ body {
 .at-well {
   background-color: var(--at-well);
   background-image:
-    repeating-linear-gradient(0deg, rgba(232, 236, 239, 0.035) 0 1px, transparent 1px 6px),
-    repeating-linear-gradient(90deg, rgba(232, 236, 239, 0.035) 0 1px, transparent 1px 6px);
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--at-ink) 3.5%, transparent) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--at-ink) 3.5%, transparent) 0 1px, transparent 1px 6px);
 }
 
 /* Control labels are UI chrome, not content: dragging or double-clicking them shouldn't select text. Text fields stay selectable. See D110. */

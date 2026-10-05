@@ -586,9 +586,9 @@ export function PhotoPane({
           <div
             role="alert"
             data-testid="palette-mode-warning"
-            className="flex flex-col gap-2 rounded-lg border border-amber-700 bg-amber-950/40 p-2.5"
+            className="flex flex-col gap-2 rounded-lg border border-warning-edge bg-warning-deep/40 p-2.5"
           >
-            <p className="text-[11px] leading-4 text-amber-200">
+            <p className="text-[11px] leading-4 text-warning">
               Switching to {modeLabel(pendingMode)} empties your {options.paletteSet.colors.length} chosen{" "}
               {options.paletteSet.colors.length === 1 ? "colour" : "colours"}: they belong to {modeLabel(options.paletteSet.mode)}. Save the
               palette first if you want it back.
@@ -695,7 +695,7 @@ export function PhotoPane({
         </section>
       )}
 
-      {error && <InlineError key={error} message={error} onDismiss={onDismissError} className="text-[13px] text-red-300" />}
+      {error && <InlineError key={error} message={error} onDismiss={onDismissError} className="text-[13px] text-danger" />}
     </div>
   );
 }

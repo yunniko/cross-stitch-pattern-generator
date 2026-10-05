@@ -5,6 +5,7 @@ import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { STANDARD_AIDA_COUNTS, formatFinishedSize } from "@/lib/export/finished-size";
 import { MAX_STITCHES, MIN_STITCHES } from "@/lib/types";
 import { DISABLED_TEXT, PillButton } from "./ui";
+import { SkinIcon } from "../skin/skin";
 
 /**
  * The first-run screen (direction 1b): the three ways into a chart, offered where the chart will appear rather than
@@ -18,72 +19,6 @@ import { DISABLED_TEXT, PillButton } from "./ui";
 const CARD = "flex items-center gap-4 rounded-[10px] border px-[18px] py-4 text-left transition-colors";
 const STEP =
   "border-line px-[9px] py-1.5 text-[13px] leading-none text-muted transition-colors enabled:hover:bg-raised enabled:hover:text-ink";
-
-function PhotoIcon({ selected }: { selected: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={`h-[22px] w-[22px] shrink-0 ${selected ? "text-accent" : "text-muted"}`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="3" y="5" width="18" height="14" rx="2" />
-      <circle cx="9" cy="10" r="2" />
-      <path d="M4 18l5-5 4 4 3-3 4 4" />
-    </svg>
-  );
-}
-
-function GridIcon({ open }: { open: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={`h-[22px] w-[22px] shrink-0 ${open ? "text-accent" : "text-muted"}`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
-    </svg>
-  );
-}
-
-/** Four stitches of a sprite: the import that keeps every pixel. */
-function PixelArtIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" className="shrink-0 text-muted">
-      <rect x="3.5" y="3.5" width="7" height="7" rx="1" fill="currentColor" opacity="0.85" />
-      <rect x="13.5" y="3.5" width="7" height="7" rx="1" fill="currentColor" opacity="0.35" />
-      <rect x="3.5" y="13.5" width="7" height="7" rx="1" fill="currentColor" opacity="0.35" />
-      <rect x="13.5" y="13.5" width="7" height="7" rx="1" fill="currentColor" opacity="0.85" />
-    </svg>
-  );
-}
-
-function FolderIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-[22px] w-[22px] shrink-0 text-muted"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h5l2 3h6A1.5 1.5 0 0 1 20 8.5v10A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5Z" />
-    </svg>
-  );
-}
 
 /** One labelled size stepper: the buttons step by a stitch, and the field still takes a typed number. */
 function SizeField({
@@ -167,7 +102,9 @@ export function FirstRun({
             open ? "border-line bg-raised enabled:hover:bg-sunken" : "border-accent bg-accent/[.08] enabled:hover:bg-accent/[.14]"
           }`}
         >
-          <PhotoIcon selected={!open} />
+          <span className={`shrink-0 ${!open ? "text-accent" : "text-muted"}`}>
+            <SkinIcon name="photo" className="h-[22px] w-[22px]" />
+          </span>
           <span className="flex-1">
             <span className="block text-[15px] font-medium">Choose a photo</span>
             <span className="block text-xs leading-[17px] text-muted">
@@ -183,7 +120,9 @@ export function FirstRun({
             onClick={() => setOpen((wasOpen) => !wasOpen)}
             className={`${CARD} rounded-[10px] border-transparent bg-transparent text-ink ${open ? "" : "hover:bg-sunken"}`}
           >
-            <GridIcon open={open} />
+            <span className={`shrink-0 ${open ? "text-accent" : "text-muted"}`}>
+              <SkinIcon name="grid" />
+            </span>
             <span className="flex-1">
               <span className="block text-[15px] font-medium">Start an empty grid</span>
               <span className="block text-xs leading-[17px] text-muted">No photo behind it — draw stitch by stitch</span>
@@ -223,7 +162,7 @@ export function FirstRun({
                   ? `${width} × ${height} stitches · ≈ ${formatFinishedSize(width, height, options.aidaCount, options.sizeUnit)} finished`
                   : "Enter a size to see the finished fabric size"}
               </p>
-              {problem && <p className="m-0 w-full text-xs text-red-300">{problem}</p>}
+              {problem && <p className="m-0 w-full text-xs text-danger">{problem}</p>}
             </div>
           )}
         </div>
@@ -236,7 +175,9 @@ export function FirstRun({
           }}
           className={`${CARD} border-line bg-raised text-ink hover:bg-sunken`}
         >
-          <PixelArtIcon />
+          <span className="shrink-0 text-muted">
+            <SkinIcon name="pixel-art" />
+          </span>
           <span className="flex-1">
             <span className="block text-[15px] font-medium">Import pixel art</span>
             <span className="block text-xs leading-[17px] text-muted">
@@ -253,7 +194,9 @@ export function FirstRun({
           }}
           className={`${CARD} border-line bg-raised text-ink hover:bg-sunken`}
         >
-          <FolderIcon />
+          <span className="shrink-0 text-muted">
+            <SkinIcon name="folder" />
+          </span>
           <span className="flex-1">
             <span className="block text-[15px] font-medium">Open a saved pattern</span>
             <span className="block text-xs leading-[17px] text-muted">.json, .cspzip, or an .oxs chart from another program</span>

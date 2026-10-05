@@ -124,7 +124,7 @@ export function StampPainter({ stamp, onChange, spacing }: StampPainterProps) {
             </PillButton>
           )}
           {clipped && (
-            <span className="text-[11px] leading-4 text-amber-300" data-testid="stamp-clipped-notice">
+            <span className="text-[11px] leading-4 text-warning" data-testid="stamp-clipped-notice">
               Wider than the {spacing}-stitch spacing: the outside of the grid will be clipped.
             </span>
           )}

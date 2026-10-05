@@ -1,6 +1,7 @@
 import type { ProjectLoadFailure } from "@/lib/editor/project-store";
 import type { calculateA4Layout } from "@/lib/export/a4-layout";
 import { NoticeBar, PillButton } from "./ui";
+import { SkinIcon } from "../skin/skin";
 
 export interface WorkspaceNoticesProps {
   restoreFailure: ProjectLoadFailure | null;
@@ -39,7 +40,7 @@ export function WorkspaceNotices({
         <div
           role="alert"
           data-testid="restore-failure"
-          className="flex flex-wrap items-center gap-3 border-b border-amber-900 bg-amber-950/60 px-4 py-1 text-xs text-amber-200"
+          className="flex flex-wrap items-center gap-3 border-b border-warning-strong bg-warning-deep/60 px-4 py-1 text-xs text-warning"
         >
           <span>
             The autosaved project couldn&apos;t be restored, so this session started fresh. The failed data is available as an error report.
@@ -47,11 +48,11 @@ export function WorkspaceNotices({
           <button
             type="button"
             onClick={onDownloadRestoreReport}
-            className="rounded-full border border-amber-700 px-3 py-0.5 font-medium hover:bg-amber-900"
+            className="rounded-full border border-warning-edge px-3 py-0.5 font-medium hover:bg-warning-strong"
           >
             Download error report
           </button>
-          <button type="button" onClick={onDismissRestoreFailure} className="rounded-full px-3 py-0.5 font-medium hover:bg-amber-900">
+          <button type="button" onClick={onDismissRestoreFailure} className="rounded-full px-3 py-0.5 font-medium hover:bg-warning-strong">
             Dismiss
           </button>
         </div>
@@ -80,112 +81,6 @@ export function WorkspaceNotices({
         </NoticeBar>
       )}
     </>
-  );
-}
-
-/** Selection-bar icons, drawn like the tools dock's (G-042): a 24-box outline, sized to the pill. */
-const ACTION_ICON_PROPS = {
-  viewBox: "0 0 24 24",
-  className: "h-4 w-4",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.6,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
-
-function CopyIcon() {
-  return (
-    <svg {...ACTION_ICON_PROPS}>
-      <rect x="9" y="9" width="11" height="11" rx="1.5" />
-      <path d="M15 5.5A1.5 1.5 0 0 0 13.5 4H5.5A1.5 1.5 0 0 0 4 5.5v8A1.5 1.5 0 0 0 5.5 15" />
-    </svg>
-  );
-}
-
-function PasteIcon() {
-  return (
-    <svg {...ACTION_ICON_PROPS}>
-      <path d="M9 4h6v3H9z" />
-      <path d="M9 5.5H6.5A1.5 1.5 0 0 0 5 7v12.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V7a1.5 1.5 0 0 0-1.5-1.5H15" />
-    </svg>
-  );
-}
-
-function DuplicateIcon() {
-  return (
-    <svg {...ACTION_ICON_PROPS}>
-      <rect x="4" y="4" width="11" height="11" rx="1.5" />
-      <rect x="9" y="9" width="11" height="11" rx="1.5" />
-    </svg>
-  );
-}
-
-function FillSelectionIcon() {
-  return (
-    <svg {...ACTION_ICON_PROPS}>
-      <rect x="4" y="4" width="16" height="16" rx="1.5" />
-      <path d="M7 14.5 14.5 7M7 18.5 18.5 7M10.5 19 19 10.5" />
-    </svg>
-  );
-}
-
-function FlipIcon({ axis }: { axis: "horizontal" | "vertical" }) {
-  const vertical = axis === "vertical";
-  return (
-    <svg {...ACTION_ICON_PROPS}>
-      {vertical ? (
-        <line x1="3" y1="12" x2="21" y2="12" strokeDasharray="3 2" />
-      ) : (
-        <line x1="12" y1="3" x2="12" y2="21" strokeDasharray="3 2" />
-      )}
-      {vertical ? <path d="M7 9.5 12 5l5 4.5z" /> : <path d="M9.5 7 5 12l4.5 5z" />}
-      {vertical ? (
-        <path d="M7 14.5 12 19l5-4.5z" fill="currentColor" opacity="0.35" />
-      ) : (
-        <path d="M14.5 7 19 12l-4.5 5z" fill="currentColor" opacity="0.35" />
-      )}
-    </svg>
-  );
-}
-
-function RotateIcon({ clockwise }: { clockwise: boolean }) {
-  return (
-    <svg {...ACTION_ICON_PROPS}>
-      <g transform={clockwise ? undefined : "scale(-1 1) translate(-24 0)"}>
-        <path d="M5 12a7 7 0 1 1 2.5 5.4" />
-        <path d="M5 6.5V12h5.5" />
-      </g>
-    </svg>
-  );
-}
-
-function CropIcon() {
-  return (
-    <svg {...ACTION_ICON_PROPS}>
-      <path d="M7 2.5V17h14" />
-      <path d="M3 7h14v14.5" />
-    </svg>
-  );
-}
-
-function CancelIcon() {
-  return (
-    <svg {...ACTION_ICON_PROPS}>
-      <circle cx="12" cy="12" r="8.5" />
-      <line x1="8.5" y1="8.5" x2="15.5" y2="15.5" />
-      <line x1="15.5" y1="8.5" x2="8.5" y2="15.5" />
-    </svg>
-  );
-}
-
-function DeselectIcon() {
-  return (
-    <svg {...ACTION_ICON_PROPS}>
-      <rect x="4" y="4" width="16" height="16" rx="1" strokeDasharray="4 3" />
-      <path d="M8.5 12.5 11 15l4.5-5.5" />
-    </svg>
   );
 }
 
@@ -395,45 +290,57 @@ export function SelectionBar({
       <div className="ml-auto flex items-center gap-1">
         {(
           [
-            ["Copy", "Copy the selected piece", <CopyIcon key="i" />, onCopy, !hasSelection],
-            ["Paste", "Paste the copied piece as a new floating selection", <PasteIcon key="i" />, onPaste, !hasClipboard],
+            ["Copy", "Copy the selected piece", <SkinIcon key="i" name="copy" />, onCopy, !hasSelection],
+            ["Paste", "Paste the copied piece as a new floating selection", <SkinIcon key="i" name="paste" />, onPaste, !hasClipboard],
             [
               "Duplicate",
               "Leave this piece where it is and take a copy of it in hand",
-              <DuplicateIcon key="i" />,
+              <SkinIcon key="i" name="duplicate" />,
               onDuplicate,
               !hasSelection,
             ],
             // "Fill selection", not "Fill": the tool rail has a Fill of its own, and both are on screen at once.
-            ["Fill selection", fillTitle, <FillSelectionIcon key="i" />, onFill, !hasSelection || !canFill],
-            ["Flip horizontal", "Mirror the piece left to right", <FlipIcon key="i" axis="horizontal" />, onFlipHorizontal, !hasSelection],
-            ["Flip vertical", "Mirror the piece top to bottom", <FlipIcon key="i" axis="vertical" />, onFlipVertical, !hasSelection],
-            ["Rotate right", "Turn the piece a quarter turn clockwise", <RotateIcon key="i" clockwise />, onRotateClockwise, !hasSelection],
+            ["Fill selection", fillTitle, <SkinIcon key="i" name="fill-piece" />, onFill, !hasSelection || !canFill],
+            [
+              "Flip horizontal",
+              "Mirror the piece left to right",
+              <SkinIcon key="i" name="flip-horizontal" />,
+              onFlipHorizontal,
+              !hasSelection,
+            ],
+            ["Flip vertical", "Mirror the piece top to bottom", <SkinIcon key="i" name="flip-vertical" />, onFlipVertical, !hasSelection],
+            [
+              "Rotate right",
+              "Turn the piece a quarter turn clockwise",
+              <SkinIcon key="i" name="rotate-right" />,
+              onRotateClockwise,
+              !hasSelection,
+            ],
             [
               "Rotate left",
               "Turn the piece a quarter turn anticlockwise",
-              <RotateIcon key="i" clockwise={false} />,
+              <SkinIcon key="i" name="rotate-left" />,
               onRotateAnticlockwise,
               !hasSelection,
             ],
             [
               "Crop to selection",
               "Cut the chart down to this rectangle, discarding everything outside it",
-              <CropIcon key="i" />,
+              <SkinIcon key="i" name="crop-to-piece" />,
               onCrop,
               !hasSelection,
             ],
             [
               "Apply here",
               "Merge the piece into the picture where it sits \u2014 Enter",
-              <DeselectIcon key="i" />,
+              <SkinIcon key="i" name="apply" />,
               onDeselect,
               !hasSelection,
             ],
             [
               "Cancel",
               "Put the chart back as it was when this selection started, discarding its changes \u2014 Escape",
-              <CancelIcon key="i" />,
+              <SkinIcon key="i" name="cancel" />,
               onCancel,
               !hasSelection,
             ],

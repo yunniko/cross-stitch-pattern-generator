@@ -151,7 +151,7 @@ export function PaletteSetup({ set, onChange, prediction, loading }: PaletteSetu
                 type="button"
                 aria-label={`Remove ${colorLabel(c)}`}
                 onClick={() => onChange(withoutColor(set, i))}
-                className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[11px] leading-none text-white opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
+                className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-scrim/60 text-[11px] leading-none text-on-scrim opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
               >
                 ×
               </button>

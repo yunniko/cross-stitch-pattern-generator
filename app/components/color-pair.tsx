@@ -9,7 +9,8 @@ import { EMPTY_CELL, type PaletteColor } from "@/lib/types";
  * drawn on top. A left press on the chart paints with the front one, a right press with the one behind.
  */
 
-const EMPTY_SWATCH = "bg-[repeating-conic-gradient(rgba(232,236,239,.22)_0_25%,transparent_0_50%)] bg-[length:6px_6px]";
+const EMPTY_SWATCH =
+  "bg-[repeating-conic-gradient(color-mix(in_srgb,var(--at-ink)_22%,transparent)_0_25%,transparent_0_50%)] bg-[length:6px_6px]";
 
 export interface ColorPairProps {
   pattern: { palette: PaletteColor[] } | null;
@@ -45,7 +46,7 @@ export function ColorPair({ pattern, slots, onActivate, onSwap }: ColorPairProps
         // Fixed places: slot a is the upper-left square and slot b the lower-right one, whichever is active. Only
         // the z-index and the ring move, which is what "they do not change place" means.
         className={[
-          "absolute h-[17px] w-[17px] rounded-[3px] shadow-[inset_0_0_0_1px_rgba(232,236,239,.3)]",
+          "absolute h-[17px] w-[17px] rounded-[3px] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--at-ink)_30%,transparent)]",
           slot === "a" ? "left-0 top-0" : "left-[9px] top-[9px]",
           isFront ? "z-20 ring-1 ring-[var(--at-accent)]" : "z-10",
           shown.empty ? EMPTY_SWATCH : "",

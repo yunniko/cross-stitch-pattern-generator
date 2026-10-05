@@ -27,13 +27,13 @@ export function DeleteAccount({ email }: { email: string }) {
   }
 
   return (
-    <form action={formAction} noValidate className="flex flex-col gap-3 rounded-md border border-red-900/60 bg-red-950/20 p-3">
-      <p className="text-[13px] text-red-300">
+    <form action={formAction} noValidate className="flex flex-col gap-3 rounded-md border border-danger-edge/60 bg-danger-deep/20 p-3">
+      <p className="text-[13px] text-danger">
         This deletes your account and everything tied to it. It cannot be undone. Type <strong>{email}</strong> to confirm.
       </p>
       <AuthField id="confirmEmail" name="confirmEmail" label="Your email" error={state.fieldErrors?.confirmEmail} />
       <div className="flex gap-3">
-        <AuthSubmitButton className="border border-red-800 bg-red-900 px-4 py-1.5 text-sm text-red-50 hover:bg-red-800">
+        <AuthSubmitButton className="border border-danger-strong bg-danger-edge px-4 py-1.5 text-sm text-on-danger hover:bg-danger-strong">
           Delete my account
         </AuthSubmitButton>
         <PillButton type="button" variant="outline" size="md" onClick={() => setConfirming(false)}>

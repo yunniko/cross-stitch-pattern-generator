@@ -147,3 +147,14 @@ export function ZoomIcon() {
     </svg>
   );
 }
+
+/** A capital T, as the letter a font would set. */
+export function TextIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <path d="M5 7V5h14v2" />
+      <path d="M12 5v14" />
+      <path d="M9 19h6" />
+    </svg>
+  );
+}

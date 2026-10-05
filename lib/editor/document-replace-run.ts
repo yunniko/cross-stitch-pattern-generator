@@ -13,11 +13,10 @@ export interface ReplaceEffects {
   /** A new document identity: an open colour editor closes. */
   bumpDocument(): void;
   clearSelection(): void;
+  /** Every tool puts down what belonged to the old chart: the crop frame, the thread the Text tool would letter in. */
   closeCrop(): void;
   /** The lit threads of both sections, and Isolate with them. */
   clearLit(): void;
-  /** The thread the Text tab would letter in: it is an index into the old palette. */
-  clearTextThread(): void;
   clearColourInHand(): void;
   resetZoom(): void;
   /** The Color view: a new chart opens where it can be edited (Owner, 2026-10-04). */
@@ -78,7 +77,6 @@ export async function replaceDocument(
     effects.resetZoom();
     effects.showColorView();
     effects.clearLit();
-    effects.clearTextThread();
     effects.closeCrop();
   }
 

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { pickTool } from "./helpers/app";
 import path from "node:path";
 
 /**
@@ -12,19 +13,44 @@ async function openChart(page: Page) {
   await page.goto("/");
   await page.getByLabel("Open pattern file").setInputFiles(OXS);
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("tab", { name: "Text" }).click();
+  await pickTool(page, "Text");
 }
 
 const preview = (page: Page) => page.getByTestId("text-preview");
 const number = async (page: Page, attribute: string) => Number(await preview(page).getAttribute(attribute));
 const textBox = (page: Page) => page.getByRole("textbox", { name: "Text", exact: true });
 
-test("the Text tab waits for a chart", async ({ page }) => {
+test("the Text tool waits for a chart, and brings its tab only while it is in hand", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("tab", { name: "Text" })).toBeDisabled();
+  const textTool = page.getByRole("button", { name: "Text", exact: true });
+  const textTab = page.getByRole("tab", { name: "Text" });
+  await expect(textTool).toBeDisabled();
+  await expect(textTab).toHaveCount(0);
   await page.getByLabel("Open pattern file").setInputFiles(OXS);
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("tab", { name: "Text" })).toBeEnabled();
+  await expect(textTab).toHaveCount(0);
+
+  // Picking the tool opens its tab, as the first tab.
+  await page.getByRole("tab", { name: "Chart" }).click();
+  await textTool.click();
+  await expect(textTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab").first()).toHaveText("Text");
+
+  // Another tab can be chosen with the tool still in hand, and the tool's tab chosen again.
+  await page.getByRole("tab", { name: "Threads" }).click();
+  await expect(textTab).toHaveAttribute("aria-selected", "false");
+  await expect(textTool).toHaveAttribute("aria-pressed", "true");
+  await textTab.click();
+  await expect(textTab).toHaveAttribute("aria-selected", "true");
+
+  // Putting the tool down removes its tab, and the panel is back on the tab last chosen.
+  await pickTool(page, "Brush");
+  await expect(textTab).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Threads" })).toHaveAttribute("aria-selected", "true");
+
+  // Picked again, its tab opens again.
+  await textTool.click();
+  await expect(textTab).toHaveAttribute("aria-selected", "true");
 });
 
 test("the tab lists the computer's fonts and each family's faces, and draws a preview a stitch at a time", async ({ page, context }) => {
@@ -149,7 +175,7 @@ test("the settings are remembered across a reload, the text is not", async ({ pa
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("tab", { name: "Text" }).click();
+  await pickTool(page, "Text");
   await expect(page.getByRole("combobox", { name: "Font", exact: true })).toHaveValue("monospace");
   await expect(page.getByRole("combobox", { name: "Font type" })).toHaveValue("Bold");
   await expect(page.getByLabel("Font size in stitches")).toHaveValue("20");
@@ -163,7 +189,7 @@ test("the text and the thread picked survive a visit to another tab", async ({ p
   const swatches = page.getByRole("radiogroup", { name: "Text colour" }).getByRole("radio");
   await swatches.nth(1).click();
   await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByRole("tab", { name: "Text" }).click();
+  await pickTool(page, "Text");
   await expect(textBox(page)).toHaveValue("Kept");
   await expect(page.getByRole("radiogroup", { name: "Text colour" }).getByRole("radio").nth(1)).toHaveAttribute("aria-checked", "true");
   await expect(preview(page)).toBeVisible();

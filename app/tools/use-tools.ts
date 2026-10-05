@@ -5,7 +5,7 @@ import type { Command, CommandDefinition } from "@/lib/editor/commands";
 import type { BackstitchLine, FloatingSelection } from "@/lib/types";
 import { DEFAULT_TOOL, moduleIndexOf, TOOL_DEFINITIONS, TOOL_MODULES, toolDefinition, type Tool } from "./registry";
 import { SHAPE_FILL, type ToolOption } from "./options";
-import type { EditorApi, PieceService, ToolModule, ToolRuntime } from "./types";
+import type { EditorApi, PieceService, ToolModule, ToolRuntime, ToolShell } from "./types";
 
 /**
  * The editor shell's side of the tool registry (G-092, D284): which tool is in hand, and the routing of the pointer and the
@@ -48,6 +48,10 @@ export interface Tools {
   highlightBackstitch: ((line: BackstitchLine) => boolean) | undefined;
   /** The options the tool in hand declares, in the order they are drawn (G-093). */
   options: readonly ToolOption[];
+  /** The tab the tool in hand brings to the panel, or null for a tool without one (G-095). */
+  tab: { label: string; pane: ReactNode } | null;
+  /** Counts the times a tool was picked: what the panel reads to open a tool's tab afresh each time (G-095). */
+  activation: number;
   /** The outline the cursor carries for the tool in hand, or null when it paints nothing or nothing can be painted. */
   hoverOutline: readonly StampEdge[] | null;
 }
@@ -62,6 +66,7 @@ function commandOf(definition: CommandDefinition, runtime: ToolRuntime): Command
 
 export function useTools(inputs: ToolsInputs): Tools {
   const [activeTool, setActiveTool] = useState<Tool>(DEFAULT_TOOL);
+  const [activation, setActivation] = useState(0);
   const api: EditorApi = { ...inputs, activeTool };
 
   // One hook per module, in the registry's order. The registry is a module constant, so the order never changes between
@@ -80,9 +85,21 @@ export function useTools(inputs: ToolsInputs): Tools {
 
   function switchTool(tool: Tool) {
     const next = toolDefinition(tool);
-    for (const runtime of runtimes) runtime.onToolChange?.(definition, next);
+    // Looked up afresh, not taken from the render: this function is handed to the tools, which must not hold the definition.
+    const previous = toolDefinition(activeTool);
+    for (const runtime of runtimes) runtime.onToolChange?.(previous, next);
     setActiveTool(tool);
+    setActivation((count) => count + 1);
   }
+
+  function takePiece(taken: FloatingSelection) {
+    if (!toolDefinition(activeTool).piece) {
+      const pieceTool = TOOL_DEFINITIONS.find((tool) => tool.piece);
+      if (pieceTool) switchTool(pieceTool.id);
+    }
+    piece.insert(taken);
+  }
+  const shell: ToolShell = { takePiece };
 
   const { viewOnly, stamp } = inputs;
   const { stitchKind } = inputs.options;
@@ -109,7 +126,7 @@ export function useTools(inputs: ToolsInputs): Tools {
       if (!frame || !inputs.pattern) return;
       // The looking-only views only show the chart: there, it pans and zooms but never edits (D121).
       if (viewOnly && !definition.navigation) return;
-      current.onPointerDown?.(e, frame);
+      current.onPointerDown?.(e, frame, shell);
     },
     onPointerMove: (e) => void firstTaker((runtime) => runtime.onPointerMove?.(e)),
     onPointerUp: (e) => void firstTaker((runtime) => runtime.onPointerUp?.(e)),
@@ -122,15 +139,11 @@ export function useTools(inputs: ToolsInputs): Tools {
     bar: runtimes.find((runtime) => runtime.bar)?.bar ?? null,
     overlay: runtimes.find((runtime) => runtime.overlay)?.overlay ?? null,
     piece,
-    takePiece: (taken) => {
-      if (!definition.piece) {
-        const pieceTool = TOOL_DEFINITIONS.find((tool) => tool.piece);
-        if (pieceTool) switchTool(pieceTool.id);
-      }
-      piece.insert(taken);
-    },
+    takePiece,
     highlightBackstitch: runtimes.find((runtime) => runtime.highlightBackstitch)?.highlightBackstitch,
     options: definition.options ?? [],
+    tab: definition.tab && current.panel ? { label: definition.tab.label, pane: current.panel(shell) } : null,
+    activation,
     hoverOutline,
   };
 }

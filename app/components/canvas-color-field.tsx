@@ -49,7 +49,7 @@ export function CanvasColorField({ value, onChange }: CanvasColorFieldProps) {
           ref={panelRef}
           role="dialog"
           aria-label="Canvas color picker"
-          className="absolute right-0 z-30 mt-2 flex flex-col gap-2 rounded-lg border border-line bg-surface p-3 shadow-[0_12px_32px_rgba(0,0,0,.45)]"
+          className="absolute right-0 z-30 mt-2 flex flex-col gap-2 rounded-lg border border-line bg-surface p-3 shadow-[0_12px_32px_color-mix(in_srgb,var(--at-shadow)_45%,transparent)]"
         >
           <HexColorPicker color={value} onChange={(hex) => onChange(hex)} />
           <input

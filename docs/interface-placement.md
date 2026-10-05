@@ -115,6 +115,7 @@ not edited by hand.
 |  | Rectangle tool | R | A chart |
 |  | Oval tool | O | A chart |
 |  | Lasso fill tool | G | A chart |
+|  | Text tool | — | A chart |
 |  | Backstitch tool | K | A chart |
 |  | BS edit tool | J | A chart |
 |  | Select tool | S | A chart |

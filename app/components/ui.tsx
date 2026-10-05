@@ -170,7 +170,7 @@ export function DismissButton({ onClick, label = "Dismiss message" }: { onClick:
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="-my-0.5 shrink-0 rounded px-1.5 text-sm leading-5 opacity-70 hover:bg-white/10 hover:opacity-100 focus-visible:opacity-100"
+      className="-my-0.5 shrink-0 rounded px-1.5 text-sm leading-5 opacity-70 hover:bg-ink/10 hover:opacity-100 focus-visible:opacity-100"
     >
       <span aria-hidden="true">✕</span>
     </button>
@@ -183,7 +183,7 @@ export function DismissButton({ onClick, label = "Dismiss message" }: { onClick:
  */
 export function NoticeBar({ tone, children, onDismiss }: { tone: "error" | "info"; children: ReactNode; onDismiss?: () => void }) {
   useAutoDismiss(tone === "error" && onDismiss !== undefined, () => onDismiss?.());
-  const toneClass = tone === "error" ? "border-red-900 bg-red-950/60 text-red-300" : "border-line bg-surface text-muted";
+  const toneClass = tone === "error" ? "border-danger-edge bg-danger-deep/60 text-danger" : "border-line bg-surface text-muted";
   return (
     <p className={`flex items-start gap-3 border-b px-4 py-1 text-xs ${toneClass}`}>
       <span className="min-w-0 flex-1">{children}</span>

@@ -17,6 +17,7 @@ import { LIMITS } from "../processor/job-protocol";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS } from "../lib/types";
 import { ZOOM_STEP } from "../app/hooks/use-pan-zoom";
 import { ERROR_AUTO_DISMISS_MS } from "../app/hooks/use-auto-dismiss";
+import { TOOL_DEFINITIONS } from "../app/tools/registry";
 
 const root = path.join(__dirname, "..");
 const read = (p: string) => readFileSync(path.join(root, p), "utf8");
@@ -118,7 +119,10 @@ must(F4, `| ${DEFAULT_BRUSH_SIZE} |`, "default brush size");
 must(F4, `${privateConstant("lib/document/history.ts", "MAX_HISTORY")} steps`, "undo depth");
 
 must(F4, `would exceed the maximum supported size of ${MAX_STITCHES} stitches per side`, "crop growth limit");
-must(F4, `Fourteen tools`, "tool count");
+// The count is the registry's, so a tool added without its row in the brief fails here.
+const COUNT_WORDS = ["Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen", "Twenty"];
+must(F4, `${COUNT_WORDS[TOOL_DEFINITIONS.length - 12] ?? TOOL_DEFINITIONS.length} tools`, "tool count");
+for (const tool of TOOL_DEFINITIONS) if (tool.id !== "backstitch-edit") must(F4, `| **${tool.label}** |`, `the ${tool.id} tool's row`);
 
 // 05 · colours
 const F5 = "05-colours-and-threads";

@@ -52,6 +52,7 @@ describe("the command table", () => {
       "tool.rect [R]",
       "tool.oval [O]",
       "tool.lasso-fill [G]",
+      "tool.text",
       "tool.backstitch [K]",
       "tool.backstitch-edit [J]",
       "tool.select [S]",

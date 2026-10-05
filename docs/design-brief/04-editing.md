@@ -10,7 +10,7 @@ Every change to a chart is **one undo step**, however many stitches it touches: 
 
 ## Tools
 
-Fourteen tools; exactly one is in hand, chosen by its control or its key. Brush is in hand when a chart opens; the choice is not kept between visits.
+Fifteen tools; exactly one is in hand, chosen by its control or its key. Brush is in hand when a chart opens; the choice is not kept between visits.
 
 | Tool | Key | What it does | Uses brush size/shape | Uses stitch type | Uses symmetry |
 |---|---|---|---|---|---|
@@ -20,6 +20,7 @@ Fourteen tools; exactly one is in hand, chosen by its control or its key. Brush 
 | **Rectangle** | R | Drag from one corner stitch to the opposite; outlined (as thick as the brush) or filled (exactly the shape, whatever the brush size) | Outline only | Yes | Yes |
 | **Oval** | O | Drag a box; draws the oval that fits it, outlined or filled as above | Outline only | Yes | Yes |
 | **Lasso fill** | G | Draw freehand around an area; on release everything enclosed is filled with the colour in hand, one undo step | No | Yes | Yes: every filled stitch is mirrored |
+| **Text** | none | See `07`: a press puts the lettering that is set up on the chart as a piece in hand | No | No | **Ignores** |
 | **Backstitch** | K | See `06` | | | Yes |
 | **Backstitch edit** (labelled "BS edit") | J | See `06` | | | Yes |
 | **Crop** | C | Cuts the chart down, or grows it, with a frame whose four edges are the four numbers of the Crop section below; applied on request, one undo step | No | No | **Ignores** |

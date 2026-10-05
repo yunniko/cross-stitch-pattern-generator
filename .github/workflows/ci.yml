@@ -20,6 +20,8 @@ jobs:
       - run: npm ci --legacy-peer-deps
 
       - run: npm run lint
+      # G-095: colours by name and icons from the one set, which is what keeps the interface skinnable.
+      - run: npm run check:skin
       # STANDARDS.md -> Code style: the formatter is a check, not a habit.
       - run: npm run format:check
       # Route/layout types (e.g. LayoutProps) and next-env.d.ts are generated and git-ignored; a fresh checkout lacks them.

@@ -2,6 +2,7 @@
 
 import type { ExportChoice } from "../hooks/use-exports";
 import { PillButton } from "./ui";
+import { SkinIcon } from "../skin/skin";
 
 /**
  * Saving a file (G-045 M2, direction 1b): one chosen format beside a plain Export, and the whole bundle as the filled
@@ -103,20 +104,7 @@ export function ExportControls({
         title="One .cspzip with everything: editable JSON, an OXS chart, color/B&W/realistic PNGs, the Pattern Keeper PDF, and A4_color/A4_bw subfolders of A4 page PNGs"
       >
         {/* 1b draws the whole-bundle action with a download mark; the single Export beside the select carries none. */}
-        <svg
-          viewBox="0 0 24 24"
-          className="h-[15px] w-[15px]"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.7}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M12 4v10" />
-          <path d="M8 11l4 4 4-4" />
-          <path d="M4 17.5V19a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 19v-1.5" />
-        </svg>
+        <SkinIcon name="download" />
         {isExportingAll ? (exportProgressText ?? "Building…") : "Export all (.cspzip)"}
       </PillButton>
     </div>

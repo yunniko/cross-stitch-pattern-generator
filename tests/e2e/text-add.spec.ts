@@ -1,4 +1,5 @@
 import { test, expect, type Page, type Request } from "@playwright/test";
+import { pickTool } from "./helpers/app";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -12,7 +13,7 @@ const WIDTH = 80;
 const HEIGHT = 40;
 const OXS = path.join(__dirname, "fixtures", "sample.oxs");
 
-/** A blank chart with `threads` threads in its list, and the Text tab open. */
+/** A blank chart with `threads` threads in its list, and the Text tool in hand with its tab open. */
 async function blankChart(page: Page, threads: number) {
   await page.goto("/");
   await page.getByRole("button", { name: /^Start an empty grid/ }).click();
@@ -26,7 +27,7 @@ async function blankChart(page: Page, threads: number) {
     await page.getByRole("button", { name: "Add", exact: true }).click();
   }
   await expect(page.getByTestId("legend-color-row")).toHaveCount(threads);
-  await page.getByRole("tab", { name: "Text" }).click();
+  await pickTool(page, "Text");
 }
 
 const textBox = (page: Page) => page.getByRole("textbox", { name: "Text", exact: true });
@@ -45,7 +46,7 @@ async function savedCells(page: Page): Promise<number[]> {
   await page.getByLabel("Export", { exact: true }).selectOption("editable");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   const saved = JSON.parse(await readFile((await download.path())!, "utf8")) as { cellPalette: number[] };
-  await page.getByRole("tab", { name: "Text" }).click();
+  // The tool in hand is left as it was: picking Text again would apply a piece still in hand.
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   return saved.cellPalette;
 }
@@ -83,23 +84,55 @@ test("Add puts the lettering on the chart as a piece in hand, three stitches in 
   expect(new Set(stitched(cells).map((i) => cells[i])).size).toBe(1);
 });
 
-test("Add behaves as Paste: what is in hand is applied first, and the new piece lands three stitches down and right", async ({ page }) => {
+test("Add puts Text down: its tab goes, the panel is back on the tab last chosen, and picking Text again applies the piece", async ({
+  page,
+}) => {
   await blankChart(page, 1);
   await type(page, "Hi", 12);
   await add(page).click();
-  await textBox(page).fill("Yo");
-  await expect(preview(page)).toBeVisible();
-  const second = Number(await preview(page).getAttribute("data-ink"));
-  await add(page).click();
-  // The first piece was applied by the second Add: it is on the chart now, and the second is in hand.
-  const mid = await savedCells(page);
-  expect(stitched(mid).length).toBeGreaterThan(20);
+  // Select is in hand with the piece; Text's tab went with the tool, and Threads, chosen last, is shown.
+  await expect(page.getByRole("tab", { name: "Text" })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Threads" })).toHaveAttribute("aria-selected", "true");
+
+  // Picking Text again applies what is in hand, as leaving Select for any drawing tool does; what was typed is still there.
+  await pickTool(page, "Text");
+  await expect(textBox(page)).toHaveValue("Hi");
+  const first = await savedCells(page);
+  expect(stitched(first).length).toBeGreaterThan(20);
+  expect(box(first).x0).toBe(3);
+  expect(box(first).y0).toBe(3);
+});
+
+test("a press on the chart with Text in hand puts the lettering down with its corner at the stitch pressed", async ({ page }) => {
+  await blankChart(page, 1);
+  await type(page, "Hi", 12);
+  const width = Number(await preview(page).getAttribute("data-width"));
+  const height = Number(await preview(page).getAttribute("data-height"));
+
+  // The stitch at column 30, row 10, from the chart's own geometry.
+  const frame = (await page.getByTestId("chart-canvas").boundingBox())!;
+  const cell = frame.width / WIDTH;
+  await page.mouse.click(frame.x + 30.5 * cell, frame.y + 10.5 * cell);
+  await expect(page.getByRole("button", { name: "Select", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Apply here" }).click();
   const cells = await savedCells(page);
-  expect(box(cells).x0).toBe(3);
-  expect(box(cells).y0).toBe(3);
-  expect(stitched(cells).length).toBeGreaterThan(stitched(mid).length);
-  expect(stitched(cells).length).toBeLessThanOrEqual(stitched(mid).length + second);
+  expect(box(cells)).toEqual({ x0: 30, y0: 10, x1: 30 + width - 1, y1: 10 + height - 1 });
+
+  // Pressed where it would overhang, it is brought back inside the chart.
+  await pickTool(page, "Text");
+  await page.mouse.click(frame.x + (WIDTH - 0.5) * cell, frame.y + (HEIGHT - 0.5) * cell);
+  await page.getByRole("button", { name: "Apply here" }).click();
+  const both = await savedCells(page);
+  expect(box(both).x1).toBe(WIDTH - 1);
+  expect(box(both).y1).toBe(HEIGHT - 1);
+});
+
+test("a press on the chart with nothing typed puts nothing down", async ({ page }) => {
+  await blankChart(page, 1);
+  const frame = (await page.getByTestId("chart-canvas").boundingBox())!;
+  await page.mouse.click(frame.x + frame.width / 2, frame.y + frame.height / 2);
+  await expect(page.getByRole("button", { name: "Text", exact: true })).toHaveAttribute("aria-pressed", "true");
+  expect(stitched(await savedCells(page))).toEqual([]);
 });
 
 test("the piece behaves as any selection: cancel, undo, and Fill selection fill only the lettering", async ({ page }) => {
@@ -114,6 +147,7 @@ test("the piece behaves as any selection: cancel, undo, and Fill selection fill 
   expect(stitched(await savedCells(page))).toEqual([]);
 
   // Applied, then undone: gone again.
+  await pickTool(page, "Text");
   await add(page).click();
   await page.getByRole("button", { name: "Apply here" }).click();
   expect(stitched(await savedCells(page))).toHaveLength(ink);
@@ -121,6 +155,7 @@ test("the piece behaves as any selection: cancel, undo, and Fill selection fill 
   expect(stitched(await savedCells(page))).toEqual([]);
 
   // Fill selection paints the piece in the other thread, and only the letters: the box around them stays empty.
+  await pickTool(page, "Text");
   await add(page).click();
   await page.getByRole("tab", { name: "Threads" }).click();
   await page.locator('[data-testid="legend-color-row"]').nth(1).click();
@@ -135,7 +170,7 @@ test("a piece larger than the chart is refused with the reason", async ({ page }
   await page.goto("/");
   await page.getByLabel("Open pattern file").setInputFiles(OXS);
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("tab", { name: "Text" }).click();
+  await pickTool(page, "Text");
   await type(page, "Hello there", 20);
   await expect(add(page)).toBeDisabled();
   await expect(page.getByText(/this chart is 6 × 4/)).toBeVisible();

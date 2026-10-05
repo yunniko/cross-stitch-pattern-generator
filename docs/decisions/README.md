@@ -330,3 +330,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D292 — Specs open a saved chart; the development server is for one spec at a time — active
 - D293 — Generation settings are declared once, and the pipeline is stages — active
 - D294 — Overlays share one contract, and a new setting can be drawn from its declaration — active
+- D295 — The interface is drawn from named colours, one icon set and an arrangement of tools — active
+- D296 — A tool may bring a tab of its own, and Text is a tool — active

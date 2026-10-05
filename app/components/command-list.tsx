@@ -65,7 +65,7 @@ export function CommandList({ commands, onClose }: CommandListProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-6 pt-[12vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-scrim/60 p-6 pt-[12vh]"
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) onClose(false);
       }}
@@ -75,7 +75,7 @@ export function CommandList({ commands, onClose }: CommandListProps) {
         aria-modal="true"
         aria-label="Commands"
         onKeyDown={onKeyDown}
-        className="flex max-h-[70vh] w-[520px] max-w-full flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-[0_30px_70px_rgba(0,0,0,.6)]"
+        className="flex max-h-[70vh] w-[520px] max-w-full flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-[0_30px_70px_color-mix(in_srgb,var(--at-shadow)_60%,transparent)]"
       >
         <div className="flex items-center gap-2 border-b border-line p-3">
           <input

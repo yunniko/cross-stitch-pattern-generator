@@ -7,6 +7,7 @@ import { moveModule } from "./move";
 import { panModule, zoomModule } from "./navigate";
 import { selectModule } from "./select";
 import { shapeModule } from "./shape";
+import { textModule } from "./text";
 import type { ToolDefinition } from "./types";
 
 /**
@@ -20,6 +21,7 @@ export const TOOL_MODULES = [
   brushModule,
   shapeModule,
   lassoFillModule,
+  textModule,
   backstitchModule,
   backstitchEditModule,
   selectModule,

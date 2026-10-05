@@ -55,7 +55,7 @@ export function AuthField({
         className="rounded-md border border-control-line bg-control px-3 py-2 text-sm text-ink outline-none focus:border-accent"
       />
       {error && (
-        <p id={`${id}-error`} className="text-xs text-red-300">
+        <p id={`${id}-error`} className="text-xs text-danger">
           {error}
         </p>
       )}
@@ -70,7 +70,7 @@ export function AuthError({ message }: { message: string }) {
     <p
       role="alert"
       data-testid="auth-error"
-      className="mb-4 rounded-md border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-300"
+      className="mb-4 rounded-md border border-danger-edge/60 bg-danger-deep/40 px-3 py-2 text-sm text-danger"
     >
       {message}
     </p>

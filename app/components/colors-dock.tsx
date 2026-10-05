@@ -18,6 +18,7 @@ import { DISMISS_RETARGET_ATTRIBUTE, useDismissOnOutsidePointer } from "../hooks
 import { useLatest } from "../hooks/use-latest";
 import { ThreadRows, threadsSummary } from "./threads-pane";
 import { PillButton, SegmentedControl } from "./ui";
+import { SkinIcon } from "../skin/skin";
 
 const PANEL = "flex flex-col gap-2 rounded-lg border border-line p-3";
 const COMPARE_HINT = "Hover or focus a swatch to compare it with the current color on screen.";
@@ -553,19 +554,7 @@ function ThreadLight({ lit, label, title, onToggle }: { lit: boolean; label: str
       title={title}
       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded ${lit ? "bg-accent/20 text-accent" : "text-faint hover:bg-raised hover:text-muted"}`}
     >
-      <svg
-        viewBox="0 0 24 24"
-        className="h-3.5 w-3.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.7}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" />
-        <circle cx="12" cy="12" r="2.5" />
-      </svg>
+      <SkinIcon name="eye" className="h-3.5 w-3.5" />
     </button>
   );
 }

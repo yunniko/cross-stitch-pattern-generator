@@ -84,9 +84,13 @@ export interface ImageWindowProps {
 function PreviewError({ message, onRetry, onDismiss }: { message: string; onRetry: () => void; onDismiss: () => void }) {
   useAutoDismiss(true, onDismiss);
   return (
-    <div className="flex items-center gap-3 rounded border border-red-900 p-3 text-sm text-red-300">
+    <div className="flex items-center gap-3 rounded border border-danger-edge p-3 text-sm text-danger">
       <span>{message}</span>
-      <button type="button" onClick={onRetry} className="rounded-full border border-red-900 px-3 py-1 text-xs font-medium hover:bg-red-950">
+      <button
+        type="button"
+        onClick={onRetry}
+        className="rounded-full border border-danger-edge px-3 py-1 text-xs font-medium hover:bg-danger-deep"
+      >
         Retry
       </button>
       <DismissButton onClick={onDismiss} />
@@ -171,14 +175,14 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
                 height={adjustSize!.height}
                 role="img"
                 aria-label="Adjusted photo"
-                className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
+                className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_color-mix(in_srgb,var(--at-shadow)_50%,transparent)]"
               />
             ) : (
               /* eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize */
               <img
                 src={sourceMeta.dataUrl}
                 alt="Uploaded photo"
-                className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
+                className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_color-mix(in_srgb,var(--at-shadow)_50%,transparent)]"
               />
             )}
             {comparable && (
@@ -230,7 +234,7 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
               // Content-box sizing: the chart is exactly width × cellSize inside the 1 px border, as the old canvas was.
               style={{ width: pattern.width * cellSize, height: pattern.height * cellSize }}
               className={`relative box-content touch-none overflow-hidden border ${
-                clothShown ? "border-transparent" : "border-line shadow-[0_20px_50px_rgba(0,0,0,.5)]"
+                clothShown ? "border-transparent" : "border-line shadow-[0_20px_50px_color-mix(in_srgb,var(--at-shadow)_50%,transparent)]"
               } ${cursorFor(activeTool, activeColorIndex, viewMode, cursorHidden)}`}
             >
               <canvas ref={canvasRef} data-testid="chart-canvas" aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />

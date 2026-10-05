@@ -130,7 +130,7 @@ export function ThreadRows({
                   onEditColor(color.index);
                 }}
                 style={{ backgroundColor: rgbToHex(color.rgb) }}
-                className="h-5 w-5 shrink-0 rounded shadow-[inset_0_0_0_1px_rgba(232,236,239,.22)]"
+                className="h-5 w-5 shrink-0 rounded shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--at-ink)_22%,transparent)]"
                 aria-label={`Edit ${color.name}`}
                 aria-expanded={editingColorIndex === color.index}
               />
@@ -213,7 +213,7 @@ export function ThreadRows({
       >
         <span
           aria-hidden
-          className="h-5 w-5 shrink-0 rounded bg-[repeating-conic-gradient(rgba(232,236,239,.22)_0_25%,transparent_0_50%)] bg-[length:8px_8px] shadow-[inset_0_0_0_1px_rgba(232,236,239,.22)]"
+          className="h-5 w-5 shrink-0 rounded bg-[repeating-conic-gradient(color-mix(in_srgb,var(--at-ink)_22%,transparent)_0_25%,transparent_0_50%)] bg-[length:8px_8px] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--at-ink)_22%,transparent)]"
         />
         <span className="flex-1 text-[13px] text-muted">Empty (no stitch)</span>
       </div>

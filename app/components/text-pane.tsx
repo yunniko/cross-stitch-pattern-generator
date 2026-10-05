@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { rgbToHex } from "@/lib/color/color";
 import { createCanvas } from "@/lib/export/canvas-backend";
 import { letteringWarnings } from "@/lib/editor/lettering-warnings";
@@ -16,13 +16,13 @@ import {
   type LetteringBitmap,
   type TextFace,
 } from "@/lib/editor/text-raster";
-import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import type { StitchPattern } from "@/lib/types";
-import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
+import type { ReadyLettering } from "../tools/text";
+import type { ChangeTextSetting, TextSettings } from "../tools/types";
 import { PillButton } from "./ui";
 
 /**
- * The Text tab (G-081): one line of lettering from a font on the Owner's own computer, shown cell by cell before it goes on
+ * The Text tool's tab (G-081; the tool's own tab since G-095): one line of lettering from a font on the Owner's own computer, shown cell by cell before it goes on
  * the chart. The fonts are read, loaded and drawn in this browser and go nowhere else; what is added to the chart is stitches.
  *
  * The preview is the lettering at one pixel to one cell, each stitch a square in the chosen thread on the canvas colour, so
@@ -39,8 +39,9 @@ const MAX_CELL_PX = 14;
 
 export interface TextPaneProps {
   pattern: StitchPattern | null;
-  options: WorkspaceOptions;
-  onChange: UpdateWorkspaceOption;
+  /** The lettering's settings and the canvas colour the preview sits on. */
+  settings: TextSettings & { canvasColor: string };
+  onChange: ChangeTextSetting;
   /** The thread in the brush's hand, which the lettering starts in. */
   activeColorIndex: number | null;
   /**
@@ -51,10 +52,12 @@ export interface TextPaneProps {
   onTextChange: (text: string) => void;
   pickedColor: number | null;
   onPickColor: (index: number) => void;
-  /** Puts the lettering on the chart as a piece in hand; absent, Add is not offered yet. */
   /** Stitched and Photo-only are for looking: nothing is added to the chart there. */
   viewOnly?: boolean;
+  /** Puts the lettering on the chart as a piece in hand; absent, Add is not offered yet. */
   onAdd?: (lettering: LetteringBitmap, paletteIndex: number) => void;
+  /** Where the tab leaves the lettering it could add now, for a press on the chart to put down; null while it could add none. */
+  readyRef?: RefObject<ReadyLettering | null>;
 }
 
 /** How big one stitch is drawn in the preview: as large as fits, a whole number of pixels. */
@@ -64,7 +67,7 @@ export function previewScale(width: number, height: number): number {
 
 export function TextPane({
   pattern,
-  options,
+  settings: options,
   onChange,
   activeColorIndex,
   text,
@@ -73,6 +76,7 @@ export function TextPane({
   onPickColor,
   viewOnly = false,
   onAdd,
+  readyRef,
 }: TextPaneProps) {
   const [listing, setListing] = useState<FontListing | null>(null);
   const [asking, setAsking] = useState(false);
@@ -168,6 +172,12 @@ export function TextPane({
               : tooLarge
                 ? `The text is ${bitmap.width} × ${bitmap.height} stitches; this chart is ${pattern.width} × ${pattern.height}.`
                 : null;
+
+  // What a press on the chart would put down: the lettering exactly as Add would add it, or nothing.
+  useEffect(() => {
+    if (!readyRef) return;
+    readyRef.current = bitmap && colourIndex !== null && problem === null ? { bitmap, colour: colourIndex } : null;
+  }, [readyRef, bitmap, colourIndex, problem]);
 
   async function useMyFonts() {
     setAsking(true);
@@ -428,7 +438,7 @@ export function TextPane({
           </p>
         )}
         {warnings.length > 0 && (
-          <ul data-testid="text-warnings" className="flex flex-col gap-1 text-xs leading-4 text-amber-200">
+          <ul data-testid="text-warnings" className="flex flex-col gap-1 text-xs leading-4 text-warning">
             {warnings.map((w) => (
               <li key={w}>{w}</li>
             ))}

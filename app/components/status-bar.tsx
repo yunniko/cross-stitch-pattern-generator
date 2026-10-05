@@ -79,7 +79,7 @@ export function StatusBar({
         role="status"
         data-testid="autosave-status"
         data-status={autosaveStatus}
-        className={`ml-auto font-sans ${autosaveStatus === "unavailable" ? "font-medium text-red-300" : "text-muted"}`}
+        className={`ml-auto font-sans ${autosaveStatus === "unavailable" ? "font-medium text-danger" : "text-muted"}`}
       >
         {autosaveStatus === "saved" && !hasPattern ? "" : AUTOSAVE_LABELS[autosaveStatus]}
       </span>
