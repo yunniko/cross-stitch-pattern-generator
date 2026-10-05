@@ -446,6 +446,47 @@ fn paint_out(image: &Image, ridges: &[Ridge], lines: &[&[u32]], f: usize) -> Ima
     }
 }
 
+/// The traced lines as an overlay (G-099, `overlay.rs`). Its settings: `backstitchLines` asks for it,
+/// `backstitchSensitivity` is how faint a line it takes (0 to 1), `backstitchPhotos` lets it trace a photograph too.
+#[derive(Debug)]
+struct TracedLines {
+    sensitivity: f64,
+    photos: bool,
+}
+
+impl crate::overlay::Overlay for TracedLines {
+    fn name(&self) -> &'static str {
+        "lines"
+    }
+
+    fn lay(&self, image: &Image, gw: usize, gh: usize) -> Option<crate::overlay::Laid> {
+        trace_lines(image, gw, gh, self.sensitivity, self.photos).map(|trace| {
+            crate::overlay::Laid {
+                segments: trace.segments,
+                colors: trace.colors,
+                picture: Some(trace.inpainted),
+            }
+        })
+    }
+}
+
+pub fn configure(
+    settings: &mut crate::settings::Settings,
+) -> Result<Option<std::sync::Arc<dyn crate::overlay::Overlay>>, String> {
+    let asked = settings.flag("backstitchLines")?.unwrap_or(false);
+    let sensitivity = settings
+        .number("backstitchSensitivity")?
+        .filter(|v| v.is_finite())
+        .map_or(DEFAULT_SENSITIVITY, |v| v.clamp(0.0, 1.0));
+    let photos = settings.flag("backstitchPhotos")?.unwrap_or(false);
+    Ok(asked.then(|| {
+        std::sync::Arc::new(TracedLines {
+            sensitivity,
+            photos,
+        }) as std::sync::Arc<dyn crate::overlay::Overlay>
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -48,6 +48,34 @@ impl DitherMode {
     pub fn is_dithered(self) -> bool {
         self != DitherMode::Off
     }
+
+    /// Every pattern there is. A new one is a variant, its id above, its entry here and its arithmetic below.
+    pub const ALL: [DitherMode; 13] = [
+        DitherMode::Off,
+        DitherMode::Bayer4,
+        DitherMode::Bayer8,
+        DitherMode::Clustered8,
+        DitherMode::Ring8,
+        DitherMode::LinesHorizontal,
+        DitherMode::LinesVertical,
+        DitherMode::LinesDiagonal,
+        DitherMode::LinesAntiDiagonal,
+        DitherMode::BlueNoise16,
+        DitherMode::FloydSteinberg,
+        DitherMode::Atkinson,
+        DitherMode::HandDrawn,
+    ];
+
+    /// The pattern the settings ask for (`ditherMode`), by its id; none when they do not say.
+    pub fn from_settings(settings: &mut crate::settings::Settings) -> Result<Self, String> {
+        match settings.text("ditherMode")? {
+            None => Ok(DitherMode::Off),
+            Some(id) => Self::ALL
+                .into_iter()
+                .find(|mode| mode.id() == id)
+                .ok_or_else(|| format!("unknown ditherMode {id}")),
+        }
+    }
 }
 
 struct Matrix {

@@ -22,6 +22,17 @@ pub enum Quantizer {
     Latest,
 }
 
+impl Quantizer {
+    /// The quantizer the settings ask for (`quantizer`); the latest when they do not say.
+    pub fn from_settings(settings: &mut crate::settings::Settings) -> Result<Self, String> {
+        match settings.text("quantizer")?.as_deref() {
+            None | Some("latest") => Ok(Quantizer::Latest),
+            Some("original") => Ok(Quantizer::Original),
+            Some(other) => Err(format!("unknown quantizer {other}")),
+        }
+    }
+}
+
 #[inline]
 fn point_at(points: &[f64], i: usize) -> Oklab {
     [points[i * 3], points[i * 3 + 1], points[i * 3 + 2]]
@@ -45,7 +56,8 @@ pub fn vivid_oklab_as_rgb(cell_oklab: &[f64], indices: &[usize]) -> Rgb {
         })
         .collect();
     by_chroma.sort_by(|x, y| x.0.partial_cmp(&y.0).unwrap().then(x.1.cmp(&y.1)));
-    let from = ((by_chroma.len() as f64) * (1.0 - crate::downsample::VIVID_TOP_SHARE)).floor() as usize;
+    let from =
+        ((by_chroma.len() as f64) * (1.0 - crate::downsample::VIVID_TOP_SHARE)).floor() as usize;
     let mut sum_a = 0.0;
     let mut sum_b = 0.0;
     for &(_, i) in &by_chroma[from..] {

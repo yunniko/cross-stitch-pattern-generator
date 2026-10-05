@@ -242,3 +242,37 @@ pub fn texture_strokes(
         colors: used.iter().map(|&t| clusters[t]).collect(),
     })
 }
+
+/// The texture strokes as an overlay (G-099, `overlay.rs`). Its settings: `textureStrokes` asks for it, `textureDensity`
+/// is how many (0 to 1). It leaves the picture as it is: the stitches under a stroke are the stitches the picture gives.
+#[derive(Debug)]
+struct Strokes {
+    density: f64,
+}
+
+impl crate::overlay::Overlay for Strokes {
+    fn name(&self) -> &'static str {
+        "texture"
+    }
+
+    fn lay(&self, image: &Image, gw: usize, gh: usize) -> Option<crate::overlay::Laid> {
+        texture_strokes(image, gw, gh, self.density).map(|strokes| crate::overlay::Laid {
+            segments: strokes.segments,
+            colors: strokes.colors,
+            picture: None,
+        })
+    }
+}
+
+pub fn configure(
+    settings: &mut crate::settings::Settings,
+) -> Result<Option<std::sync::Arc<dyn crate::overlay::Overlay>>, String> {
+    let asked = settings.flag("textureStrokes")?.unwrap_or(false);
+    let density = settings
+        .number("textureDensity")?
+        .filter(|v| v.is_finite())
+        .map_or(DEFAULT_DENSITY, |v| v.clamp(0.0, 1.0));
+    Ok(asked.then(|| {
+        std::sync::Arc::new(Strokes { density }) as std::sync::Arc<dyn crate::overlay::Overlay>
+    }))
+}

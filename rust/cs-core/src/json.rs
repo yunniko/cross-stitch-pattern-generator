@@ -6,46 +6,10 @@ use crate::dither_hand_drawn::{default_dither_texture, DitherStamp, DitherTextur
 use crate::pattern::{BuildOptions, EdgeMode, PaletteSet, SetColor, StageTimes, StitchPattern};
 use crate::photo_adjust::{PhotoAdjust, NEUTRAL_ADJUST};
 use crate::quantize::Quantizer;
+use crate::settings::{Setting, Settings};
 use crate::threads::Brand;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Options {
-    longer_side_stitches: f64,
-    color_count: usize,
-    #[serde(default)]
-    quantizer: Option<String>,
-    #[serde(default)]
-    optimize: Option<bool>,
-    #[serde(default)]
-    edge_mode: Option<String>,
-    #[serde(default)]
-    palette_mode: Option<String>,
-    #[serde(default)]
-    dither_mode: Option<String>,
-    #[serde(default)]
-    dither_texture: Option<TextureOptions>,
-    #[serde(default)]
-    vivid: Option<bool>,
-    #[serde(default)]
-    photo_adjust: Option<AdjustOptions>,
-    #[serde(default)]
-    backstitch_lines: Option<bool>,
-    #[serde(default)]
-    backstitch_sensitivity: Option<f64>,
-    #[serde(default)]
-    backstitch_photos: Option<bool>,
-    #[serde(default)]
-    texture_strokes: Option<bool>,
-    #[serde(default)]
-    texture_density: Option<f64>,
-    #[serde(default)]
-    palette_set: Option<PaletteSetOptions>,
-    #[serde(default)]
-    threads: Option<usize>,
-}
 
 /// A set of colours the chart is made from (G-087): the palette mode, and a colour each, by thread code in a brand or by RGB.
 #[derive(Deserialize)]
@@ -65,13 +29,7 @@ struct SetColorOptions {
 
 impl PaletteSetOptions {
     fn resolve(&self) -> Result<PaletteSet, String> {
-        let brand = match self.mode.as_str() {
-            "full" => None,
-            "dmc" => Some(Brand::Dmc),
-            "cosmo" => Some(Brand::Cosmo),
-            "anchor" => Some(Brand::Anchor),
-            other => return Err(format!("unknown paletteSet mode {other}")),
-        };
+        let brand = Brand::from_mode(Some(self.mode.as_str()), "paletteSet mode")?;
         if self.colors.is_empty() || self.colors.len() > crate::names::symbol_set().len() {
             return Err("a palette set holds between 1 and the number of symbols colours".into());
         }
@@ -196,80 +154,75 @@ impl TextureOptions {
     }
 }
 
+/// The request as named values (`settings.rs`). A value that is null is a setting that was not given.
+fn settings_from(text: &str) -> Result<Settings, String> {
+    let request: Value = serde_json::from_str(text).map_err(|e| e.to_string())?;
+    let fields = request.as_object().ok_or("the options must be an object")?;
+    let mut settings = Settings::new();
+    for (name, value) in fields {
+        settings.insert(
+            name.clone(),
+            match value {
+                Value::Null => continue,
+                Value::Bool(flag) => Setting::Flag(*flag),
+                Value::Number(number) => Setting::Number(number.as_f64().unwrap_or(f64::NAN)),
+                Value::String(text) => Setting::Text(text.clone()),
+                other => Setting::Other(other.to_string()),
+            },
+        );
+    }
+    Ok(settings)
+}
+
+/// A list or an object of the request, read in the shape its family expects.
+fn shaped<T: serde::de::DeserializeOwned>(
+    settings: &mut Settings,
+    name: &str,
+) -> Result<Option<T>, String> {
+    settings
+        .other(name)?
+        .map(|text| serde_json::from_str(&text).map_err(|e| format!("{name}: {e}")))
+        .transpose()
+}
+
 /// Parsed options and the requested worker-thread count (default 1; any count gives the same pattern, D185).
+///
+/// Nothing here lists the settings of the algorithms: each family is asked for its own (G-099), and a setting none of
+/// them took is refused by name. What is read here is what belongs to the run as a whole.
 pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
-    let o: Options = serde_json::from_str(text).map_err(|e| e.to_string())?;
-    let quantizer = match o.quantizer.as_deref() {
-        None | Some("latest") => Quantizer::Latest,
-        Some("original") => Quantizer::Original,
-        Some(other) => return Err(format!("unknown quantizer {other}")),
-    };
-    let edge_mode = match o.edge_mode.as_deref() {
-        None | Some("standard") => EdgeMode::Standard,
-        Some("crisp") => EdgeMode::Crisp,
-        Some("crisp-plus") => EdgeMode::CrispPlus,
-        Some(other) => return Err(format!("unknown edgeMode {other}")),
-    };
-    let brand = match o.palette_mode.as_deref() {
-        None | Some("full") => None,
-        Some("dmc") => Some(Brand::Dmc),
-        Some("cosmo") => Some(Brand::Cosmo),
-        Some("anchor") => Some(Brand::Anchor),
-        Some(other) => return Err(format!("unknown paletteMode {other}")),
-    };
-    let dither = match o.dither_mode.as_deref() {
-        None | Some("off") => DitherMode::Off,
-        Some("bayer-4") => DitherMode::Bayer4,
-        Some("bayer-8") => DitherMode::Bayer8,
-        Some("clustered-8") => DitherMode::Clustered8,
-        Some("ring-8") => DitherMode::Ring8,
-        Some("lines-horizontal") => DitherMode::LinesHorizontal,
-        Some("lines-vertical") => DitherMode::LinesVertical,
-        Some("lines-diagonal") => DitherMode::LinesDiagonal,
-        Some("lines-anti-diagonal") => DitherMode::LinesAntiDiagonal,
-        Some("blue-noise-16") => DitherMode::BlueNoise16,
-        Some("floyd-steinberg") => DitherMode::FloydSteinberg,
-        Some("atkinson") => DitherMode::Atkinson,
-        Some("hand-drawn") => DitherMode::HandDrawn,
-        Some(other) => return Err(format!("unknown ditherMode {other}")),
-    };
+    let mut settings = settings_from(text)?;
+    let longer_side_stitches = settings
+        .number("longerSideStitches")?
+        .ok_or("longerSideStitches is missing")?;
+    let color_count = settings
+        .count("colorCount")?
+        .ok_or("colorCount is missing")?;
+    let threads = settings.count("threads")?.unwrap_or(1).max(1);
     let options = BuildOptions {
-        longer_side_stitches: o.longer_side_stitches,
-        color_count: o.color_count,
-        quantizer,
-        optimize: o.optimize.unwrap_or(true),
-        edge_mode,
-        brand,
-        dither,
-        dither_texture: o
-            .dither_texture
+        longer_side_stitches,
+        color_count,
+        quantizer: Quantizer::from_settings(&mut settings)?,
+        optimize: settings.flag("optimize")?.unwrap_or(true),
+        edge_mode: EdgeMode::from_settings(&mut settings)?,
+        brand: Brand::from_mode(settings.text("paletteMode")?.as_deref(), "paletteMode")?,
+        dither: DitherMode::from_settings(&mut settings)?,
+        dither_texture: shaped::<TextureOptions>(&mut settings, "ditherTexture")?
             .as_ref()
             .map(TextureOptions::resolve)
             .unwrap_or_else(default_dither_texture),
-        vivid: o.vivid.unwrap_or(false),
-        photo_adjust: o
-            .photo_adjust
+        vivid: settings.flag("vivid")?.unwrap_or(false),
+        photo_adjust: shaped::<AdjustOptions>(&mut settings, "photoAdjust")?
             .as_ref()
             .map(AdjustOptions::resolve)
             .unwrap_or(NEUTRAL_ADJUST),
-        backstitch_photos: o.backstitch_photos.unwrap_or(false),
-        palette_set: o
-            .palette_set
+        palette_set: shaped::<PaletteSetOptions>(&mut settings, "paletteSet")?
             .as_ref()
             .map(PaletteSetOptions::resolve)
             .transpose()?,
-        texture_strokes: o.texture_strokes.unwrap_or(false).then(|| {
-            o.texture_density
-                .filter(|v| v.is_finite())
-                .map_or(crate::texture::DEFAULT_DENSITY, |v| v.clamp(0.0, 1.0))
-        }),
-        backstitch_lines: o.backstitch_lines.unwrap_or(false).then(|| {
-            o.backstitch_sensitivity
-                .filter(|v| v.is_finite())
-                .map_or(crate::lines::DEFAULT_SENSITIVITY, |v| v.clamp(0.0, 1.0))
-        }),
+        overlays: crate::overlay::configure(&mut settings)?,
     };
-    Ok((options, o.threads.unwrap_or(1).max(1)))
+    settings.finish()?;
+    Ok((options, threads))
 }
 
 pub fn pattern_json(p: &StitchPattern) -> Value {
@@ -375,13 +328,7 @@ pub fn parse_predict_options(
         palette_set: Option<Vec<[u8; 3]>>,
     }
     let o: PredictRequest = serde_json::from_str(text).map_err(|e| e.to_string())?;
-    let brand = match o.palette_mode.as_deref() {
-        None | Some("full") => None,
-        Some("dmc") => Some(Brand::Dmc),
-        Some("cosmo") => Some(Brand::Cosmo),
-        Some("anchor") => Some(Brand::Anchor),
-        Some(other) => return Err(format!("unknown paletteMode {other}")),
-    };
+    let brand = Brand::from_mode(o.palette_mode.as_deref(), "paletteMode")?;
     Ok((
         crate::predict::PredictOptions {
             longer_side_stitches: o.longer_side_stitches,

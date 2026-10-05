@@ -25,6 +25,17 @@ impl Brand {
             Brand::Anchor => "anchor",
         }
     }
+
+    /// The brand a palette mode names: `None` for the full range of colours. `what` names the setting in a refusal.
+    pub fn from_mode(mode: Option<&str>, what: &str) -> Result<Option<Self>, String> {
+        match mode {
+            None | Some("full") => Ok(None),
+            Some("dmc") => Ok(Some(Brand::Dmc)),
+            Some("cosmo") => Ok(Some(Brand::Cosmo)),
+            Some("anchor") => Ok(Some(Brand::Anchor)),
+            Some(other) => Err(format!("unknown {what} {other}")),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

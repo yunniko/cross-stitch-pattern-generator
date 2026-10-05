@@ -8,6 +8,7 @@ import {
 } from "@/lib/pipeline/generation-settings";
 import type { RunServerPatternJobOptions } from "@/lib/pipeline/pattern-server";
 import type { JobSettings } from "@/processor/job-protocol";
+import { openCsBench } from "./helpers/cs-bench";
 
 /** G-099: the one declaration of the generation settings, and the three places that read it. */
 
@@ -95,5 +96,60 @@ describe("what is sent on", () => {
   it("reaches Rust under the pipeline's own names", () => {
     expect(rustGenerationOptions(options)).toEqual({ longerSideStitches: 100, colorCount: 20, vivid: true, quantizer: "original" });
     expect(rustGenerationOptions(VALID)).toEqual(VALID);
+  });
+});
+
+describe("the Rust pipeline", () => {
+  // A small picture with something in it; what is generated is not looked at here, only that the request is accepted.
+  const source = { width: 40, height: 30, data: new Uint8ClampedArray(40 * 30 * 4).map((_, i) => (i % 4 === 3 ? 255 : (i * 37) % 251)) };
+  /** One valid value of every declared setting, in one request. Dithering is left off, since it is refused with Crisp. */
+  const EVERY_SETTING: Record<GenerationSettingId, unknown> = {
+    longerSideStitches: 20,
+    colorCount: 6,
+    generationMode: "latest",
+    paletteMode: "dmc",
+    edgeMode: "crisp",
+    ditherMode: "off",
+    vivid: true,
+    backstitchLines: true,
+    backstitchPhotos: true,
+    paletteSet: undefined,
+    textureStrokes: true,
+    textureDensity: 0.5,
+    backstitchSensitivity: 0.5,
+    photoAdjust: { brightness: 10, contrast: 0, saturation: 0, temperature: 0 },
+    ditherTexture: undefined,
+  };
+
+  it("reads every declared setting: a request carrying all of them is accepted, and so is one with a set and a texture", () => {
+    const bench = openCsBench("settings");
+    try {
+      expect(generationSettingsRefusal(EVERY_SETTING)).toBeNull();
+      expect(bench.generate(source, rustGenerationOptions(EVERY_SETTING)).width).toBe(20);
+      const withTheRest = {
+        ...EVERY_SETTING,
+        edgeMode: "standard",
+        ditherMode: "hand-drawn",
+        ditherTexture: { spacing: 3 },
+        paletteMode: "full",
+        paletteSet: { mode: "full", colors: [{ rgb: [10, 20, 30] }, { rgb: [200, 180, 90] }] },
+      };
+      expect(bench.generate(source, rustGenerationOptions(withTheRest)).palette.length).toBeLessThanOrEqual(2);
+      // The two requests between them carry a value for every setting there is.
+      for (const { id } of GENERATION_SETTINGS) {
+        expect(EVERY_SETTING[id as GenerationSettingId] ?? (withTheRest as Record<string, unknown>)[id], id).toBeDefined();
+      }
+    } finally {
+      bench.dispose();
+    }
+  });
+
+  it("refuses by name a setting nothing in it reads", () => {
+    const bench = openCsBench("settings-unknown");
+    try {
+      expect(() => bench.generate(source, { ...rustGenerationOptions(EVERY_SETTING), sparkle: true })).toThrow();
+    } finally {
+      bench.dispose();
+    }
   });
 });
