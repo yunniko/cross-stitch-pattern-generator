@@ -213,3 +213,29 @@ test("the view settings are in reach in every workspace, and stay open while the
     await expect(settings, `${name}, after a press elsewhere`).toHaveCount(0);
   }
 });
+
+test("in a narrow window the bar above does not overlap itself and the view controls stay over the chart", async ({ page }) => {
+  // Found by the G-095 QA pass at 900 px: "Export" lay over Undo, and the view controls ran off both sides of the chart.
+  for (const width of [820, 1024, 1100]) {
+    await page.setViewportSize({ width, height: 800 });
+    await openSmallChart(page);
+    const problems = await page.evaluate((viewport) => {
+      const found: string[] = [];
+      const bar = document.querySelector('[data-testid="app-bar"]')!;
+      const items = [...bar.querySelectorAll('button, a, [role="tab"]')].map((el) => ({
+        name: el.getAttribute("aria-label") || el.textContent!.trim(),
+        box: el.getBoundingClientRect(),
+      }));
+      for (const item of items) if (item.box.left < 0 || item.box.right > viewport + 0.5) found.push(`${item.name} is off screen`);
+      for (let a = 0; a < items.length; a++)
+        for (let b = a + 1; b < items.length; b++)
+          if (items[a].box.left < items[b].box.right - 1 && items[b].box.left < items[a].box.right - 1)
+            found.push(`${items[a].name} overlaps ${items[b].name}`);
+      const view = document.querySelector('[data-testid="view-controls"]')!.getBoundingClientRect();
+      const stage = document.querySelector("main")!.getBoundingClientRect();
+      if (view.left < stage.left - 0.5 || view.right > stage.right + 0.5) found.push("the view controls leave the chart's area");
+      return found;
+    }, width);
+    expect(problems, `${width} px wide`).toEqual([]);
+  }
+});

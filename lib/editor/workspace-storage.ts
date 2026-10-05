@@ -102,23 +102,6 @@ export interface WorkspaceOptions {
   defaultPaletteMode: PaletteMode;
 }
 
-/**
- * The preferences (G-095, D299): what is set once and then left, as opposed to what is set for the chart or the photo in
- * hand. They are the settings a new chart starts from and the ones every export reads. A chart keeps its own fabric once
- * made, so changing a preference never changes a chart that exists.
- */
-export const PREFERENCE_KEYS = [
-  "blankWidth",
-  "blankHeight",
-  "aidaCount",
-  "sizeUnit",
-  "defaultPaletteMode",
-  "authorName",
-  "exportCellMm",
-  "overlapCells",
-  "doubleClickFill",
-] as const satisfies readonly (keyof WorkspaceOptions)[];
-
 export const DEFAULT_OPTIONS: WorkspaceOptions = {
   aidaCount: DEFAULT_AIDA_COUNT,
   sizeUnit: DEFAULT_SIZE_UNIT,

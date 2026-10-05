@@ -124,8 +124,15 @@ test("Double-click fills is a preference and nowhere else; Escape closes Prefere
   // "3" is the Stitched view's key and "s" the Select tool's: neither acts while the preferences are up.
   await page.keyboard.press("3");
   await page.keyboard.press("s");
+  // Tab goes round inside them and never reaches the page behind (found by the G-095 QA pass).
+  for (let press = 0; press < 30; press++) {
+    await page.keyboard.press("Tab");
+    expect(await page.evaluate(() => document.activeElement?.closest("[role=dialog]") !== null)).toBe(true);
+  }
   await page.keyboard.press("Escape");
   await expect(preferences).toHaveCount(0);
+  // The focus is back on what opened them.
+  await expect(page.getByRole("button", { name: "Preferences" })).toBeFocused();
   await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-mode", "color");
   await expect(page.getByRole("button", { name: "Brush", exact: true })).toHaveAttribute("aria-pressed", "true");
 });

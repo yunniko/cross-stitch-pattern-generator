@@ -46,7 +46,8 @@ function TryPicture({ pattern }: { pattern: StitchPattern }) {
   );
 }
 
-const SMALL_BUTTON = `flex h-5 w-5 items-center justify-center rounded transition-colors ${DISABLED_ICON}`;
+// 28 px a side: the strip has the room, and a finger needs it (G-095, the provision for a phone layout).
+const SMALL_BUTTON = `flex h-7 w-7 items-center justify-center rounded transition-colors ${DISABLED_ICON}`;
 
 export interface TriesStripProps {
   tries: readonly Try[];
@@ -102,7 +103,7 @@ export function TriesStrip({ tries, currentId, busy, refusal, onChoose, onPin, o
                   <span className="font-mono text-[11px] whitespace-nowrap text-muted">{summary}</span>
                 </span>
               </button>
-              <span className="flex flex-col justify-center gap-1 pr-1.5">
+              <span className="flex flex-col justify-center gap-0.5 pr-1">
                 <button
                   type="button"
                   onClick={() => (entry.pinned ? onUnpin(entry.id) : onPin(entry.id))}

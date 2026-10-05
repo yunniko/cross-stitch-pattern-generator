@@ -13,6 +13,8 @@ import { DISABLED_ICON, DISABLED_TEXT, PillButton } from "./ui";
  * There were four copies of Undo and Redo, one in each bar a tool could put up; this is the only one, and it never moves.
  */
 
+/** A button's word, given up under 1100 px so the bar never overlaps itself; its icon and its name for a screen reader stay. */
+const WORD = "max-[1099px]:hidden";
 const APP_BUTTON = `flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-xs text-muted transition-colors enabled:hover:bg-raised enabled:hover:text-ink ${DISABLED_ICON}`;
 
 export interface AppBarProps {
@@ -68,7 +70,7 @@ export function AppBar({
           className={APP_BUTTON}
         >
           <SkinIcon name="new" className="h-[15px] w-[15px]" />
-          New
+          <span className={WORD}>New</span>
         </button>
         {save && (
           <button
@@ -80,7 +82,7 @@ export function AppBar({
             className={APP_BUTTON}
           >
             <SkinIcon name="download" />
-            Save
+            <span className={WORD}>Save</span>
           </button>
         )}
         {chartName !== null && (
@@ -154,7 +156,7 @@ export function AppBar({
           className={APP_BUTTON}
         >
           <SkinIcon name="commands" className="h-[15px] w-[15px]" />
-          Commands
+          <span className={WORD}>Commands</span>
         </button>
         <button
           type="button"
@@ -165,7 +167,7 @@ export function AppBar({
           className={APP_BUTTON}
         >
           <SkinIcon name="settings" className="h-[15px] w-[15px]" />
-          Preferences
+          <span className={WORD}>Preferences</span>
         </button>
         <Link
           href={account ? "/account" : "/login"}

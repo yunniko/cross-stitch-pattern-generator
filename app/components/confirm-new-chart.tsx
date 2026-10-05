@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { filledStitchCount, formatStitchCount, type StitchPattern } from "@/lib/types";
+import { useModalFocus } from "../hooks/use-modal-focus";
 import { PillButton } from "./ui";
 
 /**
@@ -24,15 +25,7 @@ export function ConfirmNewChart({ pattern, onExportThenStart, onKeepEditing, onS
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Escape is the safe way out, and the safe action takes focus: nothing destructive is one stray Enter away.
-  useEffect(() => {
-    // PillButton is a plain function component and drops a ref, so reach for the button itself.
-    panelRef.current?.querySelector<HTMLButtonElement>("[data-keep-editing]")?.focus();
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onKeepEditing();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onKeepEditing]);
+  useModalFocus(panelRef, "[data-keep-editing]", onKeepEditing);
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-scrim/60 p-6">

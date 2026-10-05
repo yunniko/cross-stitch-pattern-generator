@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { VALID_OVERLAP_CELLS, type WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_STITCHES, MIN_STITCHES } from "@/lib/types";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
+import { useModalFocus } from "../hooks/use-modal-focus";
 import { CellSizeField } from "./cell-size-field";
 import { PillButton, SegmentedControl } from "./ui";
 
@@ -54,15 +55,8 @@ export interface PreferencesProps {
 export function Preferences({ options, onChange, onClose }: PreferencesProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Escape closes it, and the way out has the focus when it opens.
-  useEffect(() => {
-    panelRef.current?.querySelector<HTMLButtonElement>("[data-close]")?.focus();
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
+  // The way out has the focus when it opens; Tab stays inside; Escape closes it.
+  useModalFocus(panelRef, "[data-close]", onClose);
 
   return (
     <div

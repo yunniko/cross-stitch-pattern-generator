@@ -107,7 +107,7 @@ must(F3, `from ${minZoom * 100} % to ${maxZoom * 100} %`, "zoom range");
 must(F3, `step factor ${ZOOM_STEP} per press`, "zoom step");
 must(F3, `**${STANDARD_AIDA_COUNTS.join(", ")}**`, "fabric counts");
 must(F3, `| 14 |`.replace("14", n(DEFAULT_AIDA_COUNT)), "default fabric count");
-must(F3, `| ${DEFAULT_SIZE_UNIT} | Always | A new chart starts on the unit`, "default unit");
+must(F3, `| ${DEFAULT_SIZE_UNIT} | A chart | A new chart is given the unit`, "default unit");
 must(F3, `\`${DEFAULT_OPTIONS.canvasColor}\``, "default canvas colour");
 for (const t of CANVAS_TEXTURES) must(F3, t.label, `canvas texture ${t.id}`);
 for (const t of STITCH_TEXTURES) must(F3, `**${t.label}**`, `stitch texture ${t.id}`);

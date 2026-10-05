@@ -1,9 +1,10 @@
-# Interface placement: where every control belongs (G-090 M3)
+# Interface placement: where every control belongs
 
-Date: 2026-10-04 · at commit 67fcc2c. The behaviour of every control is in `docs/design-brief/`; this document adds the one
-thing the brief leaves out on purpose: **where each control is today, what its scope is, and whether the two agree.** It is the
-checklist for the redesign and the rule for placing anything new. Present places were read from the interface code; nobody was
-observed using the app, so "misplaced" means "breaks the rule", not "users were seen to struggle".
+Date: 2026-10-05 · at commit 581f8c7 (G-095 M6; first written for G-090 M3 at 67fcc2c). The behaviour of every control is in
+`docs/design-brief/`; this document adds the one thing the brief leaves out on purpose: **where each control is, what its scope
+is, and whether the two agree.** It is the rule for placing anything new. Places were read from the interface code and the
+pictures `node scripts/look.mjs` takes; nobody was observed using the app, so "agrees" means "follows the rule", not "users were
+seen to find it".
 
 ## The rules
 
@@ -11,80 +12,85 @@ observed using the app, so "misplaced" means "breaks the rule", not "users were 
 
    | Scope | Means | Lives |
    |---|---|---|
-   | **Application** | True whatever chart is open: new, open, account, preferences | One fixed application area, always present |
-   | **Document** | A property of the chart, saved with it: name, size, palette, fabric | The document's own area |
+   | **Application** | True whatever chart is open: new, open, account, preferences | The bar above, always present |
+   | **Document** | A property of the chart, saved with it: name, size, palette, fabric | The Edit workspace's tabs |
    | **Layer** *(future)* | A property of one layer | With the layer list |
-   | **Selection** | Acts on the piece or lines in hand | Appears with a selection, beside it |
-   | **Tool** | An option of the tool in hand | One tool-options region that shows the current tool's options and nothing else |
-   | **View** | Changes how the chart is shown, never the chart | One view area, **always available**, whatever tool is in hand |
-   | **Action parameters** | Settings read by one action (Generate, an export) | With that action, shown when the action is being prepared |
+   | **Selection** | Acts on the piece or lines in hand | The bar of tool options, added to it while something is in hand |
+   | **Tool** | An option of the tool in hand | The bar of tool options, and the tool's own tab when it brings one |
+   | **View** | Changes how the chart is shown, never the chart | Over the chart and at the end of the readout, **in every workspace and with every tool** |
+   | **Action parameters** | Settings read by one action (Generate, an export) | In that action's workspace, beside the action |
 
 2. **Tool options travel with the tool**; a tool's options never sit in a general settings list.
 3. **Absent, not disabled**, when a feature cannot apply; disabled only when it applies but is waiting on something the person can do.
 4. **One command list**: every action is registered once (name, key, when available). The interface, the shortcuts and a
-   searchable command list all read that list. **Built (G-093):** the keys and the command list read one table.
+   searchable command list all read that list (G-093).
 5. **Where it is saved follows the scope**: document scope is saved in the chart; application and view scope in the browser.
+6. **A workspace is a kind of work, not a scope** (D297): Photo makes the chart, Edit changes it, Export gets it out. An
+   action's parameters live in its workspace; application and view controls are the same in all three.
 
 ## Every control, by scope
 
-"Now" is the present place: **L** the tool list on the left, **T** the bar above the chart (replaced entirely by the selection,
-backstitch-edit or crop bar while those tools are in hand), **P/C/Th/Tx** the Photo, Chart, Threads and Text tabs on the right,
-**F** the foot of the right column, **S** the status line, **St** the start screen.
+Places: **A** the bar above (application); **W** the workspace tabs in it; **L** the tools on the left; **Q** the bar of tool
+options above the chart; **V** the view controls floating over the foot of the chart; **S** the readout under the chart;
+**Ph** the Photo workspace's panel; **C/Th** the Chart and Threads tabs of Edit; **Tt** the tool's own tab, first among Edit's
+tabs while its tool is in hand; **X** the Export workspace's panel; **Pr** Preferences; **St** the starting choices.
 
-| Control (brief file) | Scope | Now | Agrees? | By the rules |
-|---|---|---|---|---|
-| Command list (`04`) | Application | L, under New | Yes | |
-| New chart; Choose photo, Empty grid, Open, Import pixel art (`08`) | Application | L (New), St | Partly: "New" sits among tools | Application area |
-| Log in / account (out of scope of the brief) | Application | Above L | Yes | Application area |
-| Undo, Redo (`04`) | Application | T, and repeated in each of the three replacement bars | No: four copies, one per bar | One fixed place |
-| Export choice, Export, Export all (`08`) | Application (commands on the document) | F, only while the Threads tab is up | **No**: hidden behind an unrelated tab | Application area, always reachable |
-| Autosave state (`03`) | Application | S | Yes | |
-| Name (`03`) | Document | C | Yes | Document area |
-| Size (crop, grow) (`04`) | Tool (Crop) | Crop's own bar | Yes (since G-089) | |
-| Fabric count, Unit (`03`) | Document (they decide the finished size and every export) | C, and on St for an empty grid | Yes. Saved in the chart since G-094 (D290); the browser keeps the last choice as the start for a new chart | |
-| Author name (`08`) | Action parameters (exports) | C | No | With exports; arguably document metadata |
-| A4 cell size, A4/PDF overlap, Canvas in exported preview (`08`) | Action parameters (exports) | C | **No**: the export control is in another tab | With the export they belong to, shown when that export is chosen |
-| Thread list: choose, rename, symbol, colour editor, merge, add (`05`) | Document (palette) | Th | Yes | Document area |
-| Summary: threads, skeins (`05`) | Document | Th | Yes | |
-| Canvas colour, Canvas texture, Stitch texture (`03`) | View (the last also an export parameter) | C | No | View area |
-| The five views; photo behind the chart (`03`) | View | T | **No**: they vanish while Select, Lasso, Backstitch edit or Crop is in hand | View area, always available |
-| Isolate switch (`05`) | View | T (vanishes as above) | No | View area |
-| Isolate lights per thread (`05`) | View | Th, per thread | Acceptable: they are per thread | Stay with the thread, but the switch must be reachable from there |
-| Zoom, reset zoom (`03`) | View | S | Yes | View area |
-| Rulers, pointer readout, size and finished size (`03`) | View | Around the chart, S | Yes | |
-| Tool choice (`04`) | Application | L | Yes | |
-| The two drawing colours, swap (`04`) | Tool (all painting tools) | T (vanishes as above; right for Crop, wrong for Backstitch edit's Recolour, which needs to show it) | Mostly | Tool options |
-| Brush size, shape (`04`) | Tool (Brush, Line, outlines) | T, shown for every tool including Fill, Move, Pan, Zoom, which ignore it | No: shown when it cannot apply | Tool options of the tools that use it |
-| Shape fill (`04`) | Tool (Rectangle, Oval) | T, only with those tools | Yes | |
-| Stitch type (`06`) | Tool (painting tools) | T, only with those tools | Yes | |
-| Double-press fills a region (`04`) | Tool (Brush) | C | **No** | Brush options |
-| Lock transparency (`04`) | Tool (all painting tools) | T, among the view controls | No | Tool options |
-| Symmetry axes (`04`) | Tool modifier while drawing; saved in the chart | T, shown for tools that ignore it (Select, Move); absent in the replacement bars | Partly | Tool options of the tools that obey it |
-| Quick mirror, four actions (`04`) | Document commands | L, under the tools | No: they are commands, not tools | Command list / document area |
-| Selection actions: copy … crop to selection, apply, cancel (`04`) | Selection | Replacement bar | Scope yes; it displaces view and undo | Selection area that adds to, not replaces |
-| Backstitch-edit actions (`06`) | Selection (lines in hand) | Replacement bar | As above | As above |
-| Crop numbers, Apply, Cancel (`04`) | Tool | Replacement bar | Scope yes; displaces view controls | Tool options |
-| Text: font, size, weight, colour, text, preview, Add (`07`) | Tool (it makes a piece, like Paste) | Tx, a tab beside document settings | No: it is a tool shown as a settings page | A Text tool with these as its options |
-| Generation: size, colours and hint, palette mode, set-up palette, algorithm, colour detail, edges, dither and texture, lines, strokes (`02`) | Action parameters (Generate) | P | Yes | With Generate |
-| Photo adjustment (`02`) | Action parameters (Generate), previewed live | P | Yes | With Generate |
-| Generate / Regenerate (`02`) | Application command with parameters | F while P is up | Yes | |
-| Compare with original (`03`) | View | Under the photo | Yes | |
-| Messages (`09`) | By what caused them | A strip under T; generation errors inside P; resize errors in the crop readout | Mixed | One message area, plus notes beside the control that caused them |
+| Control (brief file) | Scope | Place | Agrees? |
+|---|---|---|---|
+| Command list (`04`) | Application | A | Yes |
+| New chart (`08`) | Application | A; the choices it leads to on St | Yes |
+| Save, the editable file (`08`) | Application (a command on the document) | A, in every workspace | Yes |
+| Log in / account (outside the brief) | Application | A | Yes |
+| Undo, Redo (`04`) | Application | A, once | Yes |
+| Workspace: Photo, Edit, Export (`01`) | Application | W | Yes |
+| Preferences (`01`): empty grid size, fabric and unit of a new chart, palette for a new photo | Application | Pr | Yes |
+| Autosave state (`03`) | Application | S | Yes |
+| Name (`03`) | Document | C; shown, not edited, in A | Yes |
+| Size (crop, grow) (`04`) | Tool (Crop) | Q and the chart, with Crop | Yes |
+| Fabric count, Unit of this chart (`03`) | Document | C; for an empty grid on St, starting from the preference | Yes |
+| Thread list: choose, rename, symbol, colour editor, merge, add (`05`) | Document (palette) | Th | Yes |
+| Summary: threads, skeins (`05`) | Document | Th | Yes |
+| Isolate lights per thread (`05`) | View, per thread | Th, with the thread; the switch is in V | Yes |
+| The views; photo behind the chart (`03`) | View | V | Yes |
+| Isolate switch (`05`) | View | V | Yes |
+| Zoom, reset zoom (`03`) | View | V | Yes |
+| Canvas colour, canvas cloth, stitch texture (`03`) | View | S, one popover at its end | Yes |
+| Rulers, pointer readout, size and finished size (`03`) | View | Around the chart, S | Yes |
+| Compare with original (`03`) | View | With the photo, before there is a chart | Yes |
+| Tool choice (`04`) | Application | L: two columns, three groups; each workspace offers its own tools | Yes |
+| The two drawing colours, swap (`04`) | Tool (those that paint) | Q, with the tools that declare them | Yes |
+| Brush size, shape (`04`) | Tool (Brush, Line, outlines) | Q, with those tools | Yes |
+| Shape fill (`04`) | Tool (Rectangle, Oval) | Q, with those tools | Yes |
+| Stitch type (`06`) | Tool (painting tools) | Q, with those tools | Yes |
+| Lock transparency (`04`) | Tool (those that paint) | Q, with the tools that declare it | Yes |
+| Symmetry axes (`04`) | Tool modifier; saved in the chart | Q, with the tools that declare it | Yes |
+| Selection actions: copy … crop to selection, apply, cancel (`04`) | Selection | Q, added while a piece is in hand; apply and cancel stay in view when it is narrow | Yes |
+| Backstitch-edit actions (`06`) | Selection (lines in hand) | Q, as above | Yes |
+| Crop numbers, Apply, Cancel (`04`) | Tool (Crop) | Q | Yes |
+| Text: font, size, weight, colour, text, preview, Add (`07`) | Tool (Text) | Tt | Yes |
+| Double-press fills a region (`04`) | Application: a set-once preference about the Brush (Owner, 2026-10-05) | Pr | Yes, by the Owner's decision; by rule 2 alone it would be a Brush option |
+| Quick mirror, four actions (`04`) | Document commands | L, beneath the tools, in Edit only; also in the command list | By the Owner's choice (2026-10-05: kept as they are); by rule 1 alone they are commands, not tools |
+| Generation: size, colours and hint, palette, set-up palette, algorithm, colour detail, edges, dither, lines, texture (`02`) | Action parameters (Generate) | Ph, three tabs | Yes |
+| Photo adjustment (`02`) | Action parameters (Generate), previewed live | Ph | Yes |
+| Generate / Regenerate, Continue in Edit (`02`) | Command with parameters | Ph, under all three tabs | Yes |
+| Tries: go back to one, pin, delete (`02`) | Action results (Generate) | Under the picture, in the Photo workspace | Yes |
+| What to export; Export, Export all (`08`) | Command with parameters | X | Yes |
+| Colour or black and white, A4 cell size, A4/PDF overlap, Canvas in exported preview (`08`) | Action parameters (exports) | X, each only with a kind that reads it; cell size and overlap also in Pr, the same value | Yes |
+| Author name (`08`) | Action parameters (exports); one value for the browser | X and Pr, the same value | Yes |
+| Where the pages fall (`08`) | View of an action's result | Over the chart, while a paged kind is chosen in Export | Yes |
+| Messages (`09`) | By what caused them | Beside the control that caused them (Generate, the crop readout, a try's pin); otherwise one strip under Q | Yes |
 
 ### What the table shows
 
-- **20 of 36 rows break a rule: 12 outright, 8 in part.** Three kinds:
-  1. *Settings parked in the Chart tab* that belong to a tool, the view or an export: double-press fill, canvas colour and
-     cloth, stitch texture, A4 cell size, overlap, canvas-in-preview, author.
-  2. *A bar that is replaced wholesale.* Selection, backstitch editing and Crop each swap the bar, which removes the views,
-     Isolate, the colours and (for two of them) symmetry while they are in hand. View and application controls must not
-     depend on the tool.
-  3. *Commands filed as something else:* quick mirror among tools, Text as a tab, exports behind the Threads tab, New among
-     tools, four copies of Undo.
-- **One scope mismatch in the data:** symmetry is a tool modifier saved in the chart. (Fabric count and unit were document
-  facts saved in the browser, a real defect for anyone moving a chart between browsers; G-094 moved them into the chart.)
-- What already follows the rules: the thread list, generation settings, Crop's options, stitch type and shape fill (shown
-  only with the tools that use them).
+- **No row breaks a rule; two are placed by the Owner's choice where a rule alone would place them elsewhere,** and say so:
+  the quick mirrors beneath the tools, and "Double-press fills" in Preferences. The table G-090 drew of the interface before
+  the redesign had 20 of 36 rows breaking a rule (that table is in git at 67fcc2c).
+- What moved, in kind: settings that sat in the Chart tab went to the tool, the view or the export they belong to; the three
+  bars that replaced the whole bar became additions to one bar, so views, Undo and the colours no longer depend on the tool
+  in hand; Text became a tool, the exports a workspace, and Undo is there once.
+- **One scope mismatch stays in the data:** symmetry is a tool modifier saved in the chart.
+- **One value is shown in two places three times** (author, cell size, overlap): a preference shown again beside the export
+  that reads it. They are one value, never copies (D299).
 
 ## The command list
 
@@ -200,5 +206,5 @@ tool has a key since D288. A new key is a change of behaviour and is the Owner's
 
 ## What this does not decide
 
-The look, the layout, and which region goes where on the screen: those are the redesign's. Both changes of behaviour this document
-once left open are made: fabric count is in the chart file (G-094) and every tool has a key (D288).
+The look: colours, icons and the order of tools are a skin's (D295). A layout for a phone is its own goal (G-101); the regions
+are separate components placed by `app/components/editor-layout.tsx` alone so that a second layout can place them differently.

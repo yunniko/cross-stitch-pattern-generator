@@ -15,6 +15,10 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
 
 `docs/design-brief/` is a behaviour-only description of the app for a redesign: every feature and control with its range, values, states and defaults, and the actions that run on the server. Start at its `README.md`.
 
+## How the editor is laid out
+
+Three **workspaces**, chosen in the bar above: **Photo** makes the chart from a photo (the generation settings, Generate, and the tries: every chart generated from the photo is kept, the last 5 and up to 5 pinned, to go back to without generating again); **Edit** changes it (the tools on the left, the options of the tool in hand above the chart, the Chart and Threads tabs on the right, and the tool's own tab when it brings one, as Text does); **Export** gets it out (what to make as buttons, with the settings that export reads beside them). Only Edit changes the chart. The bar above also holds New, Save, Undo and Redo, the command list and **Preferences** (what a new chart starts from: empty grid size, fabric and unit, palette for a new photo; the author name and A4 settings; whether a double-click fills). The views and the zoom float over the foot of the chart in every workspace. The rule for where a control goes is `docs/interface-placement.md`; colours, icons and the order of tools come from a skin (`lib/skin/skin.ts`, D295).
+
 ## What it does
 
 - **Generate** a chart from a photo at 10–1500 stitches and 2–100 colors.
@@ -23,14 +27,13 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
 - **Select, then act on the piece**: copy, paste, duplicate, flip, rotate, crop, or fill the whole selected
   area with the thread the brush is holding. **Enter** applies the piece where it sits and **Escape** cancels
   it, putting the chart back as it was. Undo and redo wait until the piece is let go.
-- **Start from nothing**: "New blank chart", in the menu behind the mark at the
-  top of the tool rail, asks for a width and height in stitches, shows the
-  finished fabric size, and opens an empty canvas with no colors yet. A chart
-  with no photo behind it is never generated from one, so the Photo tab's
+- **Start from nothing**: New, then "Start an empty grid", asks for a width and height in stitches and a
+  fabric count (starting from Preferences), shows the finished fabric size, and opens an empty canvas with
+  no colors yet. A chart with no photo behind it is never generated from one, so the Photo workspace's
   settings and Generate stay away for its whole life.
 - **Choose the palette**: whatever colors the photo needs, or real DMC,
   Cosmo or Anchor threads (Anchor is derived from DMC equivalents and says so).
-- **Set up palette** (Photo tab, Palette): instead of Automatic, choose the colours yourself, threads of the palette mode in force or custom colours in Full range, or fill them from the colours the picture is predicted to need, then edit. Pick threads from a swatch grid of the whole brand, as in the colour editor. Save a palette by name (kept in this browser, and downloaded as a palette file to share or move), load it later, or load a palette file; the Export dropdown writes a palette file of the chart's threads. The colour count slider stops at the number of colours the picture reasonably needs, with a hint of the best range (D276, D277).
+- **Set up palette** (Photo workspace, Chart settings): instead of Automatic, choose the colours yourself, threads of the palette mode in force or custom colours in Full range, or fill them from the colours the picture is predicted to need, then edit. Pick threads from a swatch grid of the whole brand, as in the colour editor. Save a palette by name (kept in this browser, and downloaded as a palette file to share or move), load it later, or load a palette file; the Export dropdown writes a palette file of the chart's threads. The colour count slider stops at the number of colours the picture reasonably needs, with a hint of the best range (D276, D277).
 - **Color detail — Averaged or Vivid**: one stitch covers many pixels, and normally it is their average, which
   turns a small bright thing inside a stitch into a grey. Vivid keeps the average lightness but the colour of the
   stitch's most colourful quarter, and then gives each colour the photo holds a thread of its own, paid for by
@@ -105,8 +108,8 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   **Delete** removes what is in hand. Symmetry mirrors a line as it does a stitch, and a rectangle or lasso
   selection takes a line only when **both** its ends are inside it.
 - **Backstitch in the Stitched view**: the Stitched view and the realistic preview export draw the backstitch over the stitches as plain solid coloured lines, a fifth of a cell wide (D275).
-- **Texture strokes** (Photo tab, Texture): short backstitch strokes over the stitches along fur, feathers, hair and grass, in up to four threads, the stitches under them left as they are. Off by default; density 0 to 10, default 3. A smooth area gets none (D274).
-- **Backstitch from lines** (Photo tab, Lines): for a drawing, thin lines, dark, light or coloured, become backstitch in up to three threads and the stitches under them take the colour beside them. Off by default; a photograph with texture everywhere gets none (D267) unless "Also in photographs" is on, and then only a few strong long lines (D270). Sensitivity 0 to 10.
+- **Texture strokes** (Photo workspace, Lines & texture): short backstitch strokes over the stitches along fur, feathers, hair and grass, in up to four threads, the stitches under them left as they are. Off by default; density 0 to 10, default 3. A smooth area gets none (D274).
+- **Backstitch from lines** (Photo workspace, Lines & texture): for a drawing, thin lines, dark, light or coloured, become backstitch in up to three threads and the stitches under them take the colour beside them. Off by default; a photograph with texture everywhere gets none (D267) unless "Also in photographs" is on, and then only a few strong long lines (D270). Sensitivity 0 to 10.
 - **Backstitch threads**: the thread list grows a second section under the crosses for the threads carrying
   lines, counted by length rather than by stitches — one thread used for both is one entry listed twice, so
   renaming, recolouring or merging it shows in both at once. Each section has its own light: lighting a
@@ -139,8 +142,8 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   Every texture is scaled to the same stitch size, so any image works. New textures are an entry in
   `lib/export/stitch-texture-catalog.ts`, a file in `public/` and a row in `rust/cs-export/src/preview.rs` (D249).
   Pixel, Cell outline, Cell outline shaded and Cross 2 were supplied by the Owner.
-- **Fabric count and unit belong to the chart** (Chart tab): they are saved in its file and come back with it in any browser; changing them is an undo step. A chart saved before 2026-10-05 has none and uses the browser's until one is changed.
-- **Commands** (the button under New): a searchable list of every command the editor has, each with its key and whether it can be used now; Enter or a click runs one. Ctrl+K opens and closes it. Every tool has a key (S Select, V Move, H Pan, Z Zoom were added 2026-10-05), and Ctrl+C, Ctrl+V and Ctrl+D copy, paste and duplicate the piece or backstitch in hand. The keys themselves are listed there and in `docs/design-brief/04-editing.md`.
+- **Fabric count and unit belong to the chart** (Edit, Chart tab): a new chart is given the ones set in Preferences; they are saved in its file and come back with it in any browser; changing them is an undo step and changes that chart alone. A chart saved before 2026-10-05 has none and uses the preferences until one is changed.
+- **Commands** (in the bar above): a searchable list of every command the editor has, each with its key and whether it can be used now; Enter or a click runs one. Ctrl+K opens and closes it. Every tool has a key (S Select, V Move, H Pan, Z Zoom were added 2026-10-05), and Ctrl+C, Ctrl+V and Ctrl+D copy, paste and duplicate the piece or backstitch in hand. The keys themselves are listed there and in `docs/design-brief/04-editing.md`.
 - **Crop tool** (`C`): a frame over the chart whose four edges are the four numbers in the tool's bar (Top, Right, Bottom, Left). Each number is how many stitches that edge moves **in**: positive cuts, negative adds empty stitches. Typing moves the frame, dragging an edge or corner (or the arrow keys on a focused handle) changes the number, and the cut-away part is dimmed. Enter applies it, as one undo step; Escape puts the frame back. It is the one canvas resize (D109, D278); the selection's "Crop to selection" still crops to a drawn region.
 - **Choose the canvas**: the Chart pane's Canvas texture buttons (Off, Natural linen, Counted canvas) put a cloth behind the
   Stitched view -- over the whole viewer, tinted by the canvas colour, a whole number of cells per tile so it zooms with the
@@ -149,9 +152,9 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   preview instead of a transparent background (D250, D251).
 - **Rulers**: a ruler along each edge of the viewer numbers every 10th stitch line (10, 20, 30, as the exports do) and
   follows scroll and zoom; numbers thin to every 20th, 50th or 100th when zoomed far out. Each ruler marks where the
-  pointer is and the stitch it is over, and the status bar reads it as "Stitch 24, 18" (counted from 1). With a tool that draws its own outline (the brush and the shape tools) the
+  pointer is and the stitch it is over, and the readout under the chart gives it as "Stitch 24, 18" (counted from 1). With a tool that draws its own outline (the brush and the shape tools) the
   pointer itself is hidden over the pattern (D252).
-- **Lock transparency**: a padlock in the top panel. While it is on, the brush, the shape tools, Fill, double-click fill and
+- **Lock transparency**: a padlock among the options of the tools that paint. While it is on, the brush, the shape tools, Fill, double-click fill and
   Lasso fill cannot turn an empty stitch into a colour or a colour into an empty stitch, and Fill selection paints only
   the stitches that are not empty; selecting, moving and dragging work as they do without it (D253). Error messages have a
   cross and go away by themselves after a while.
@@ -159,9 +162,9 @@ server is busy. Live at <https://cross-stitch.craftodejnice.cz>.
   pointer is. The arrow keys move the outlined stitch one stitch (Shift: ten), and Enter is the pen: press it to paint, hold
   it while moving to draw a stroke or stretch a line, rectangle or oval, release to finish. It works with the brush, Fill
   and the shape tools; a real pointer move hands the cursor back to the mouse (D254).
-- **A4 export**: set the printed stitch size in millimetres (Chart tab, "A4 cell size, mm", default 5.5); the pages start with a map of the pages, each page has a letter in its top right corner, the overlap bands say which page they repeat, the middle of the chart is marked with black triangles and a heavy frame, and the skein legend is a table (colour cell, black-and-white cell, number, name, skeins). The full-size chart picture is unchanged apart from the centre marks. The Pattern Keeper PDF is as it was (D264).
-- **Half stitches**: the Stitch type radio icons in the top bar (shown for the brush, Fill, the shapes and Lasso fill) lays whole stitches or half stitches "/" or "\", one kind per cell. A half stitch is drawn as its cell with two opposite corners cut away. Flips, turns and symmetry lay "/" as "\" where a mirror image needs it. The legend and the A4 colour key list every stitch type and thread; the Pattern Keeper PDF and the OXS file carry them as whole stitches (D258 to D260).
-- **Text**: a fourth tab, Text, turns one line of text into stitches. Pick a font (41 bundled open-licence fonts, 36 of them pixel fonts for small sizes, or the fonts on your own computer, listed by
+- **A4 export**: set the printed stitch size in millimetres (Export, with A4 pages chosen, or Preferences: "A4 cell size, mm", default 5.5); the chart shows where the pages will fall, each with its letter; the pages start with a map of the pages, each page has a letter in its top right corner, the overlap bands say which page they repeat, the middle of the chart is marked with black triangles and a heavy frame, and the skein legend is a table (colour cell, black-and-white cell, number, name, skeins). The full-size chart picture is unchanged apart from the centre marks. The Pattern Keeper PDF is as it was (D264).
+- **Half stitches**: the Stitch type icons among the tool options (shown for the brush, Fill, the shapes and Lasso fill) lays whole stitches or half stitches "/" or "\", one kind per cell. A half stitch is drawn as its cell with two opposite corners cut away. Flips, turns and symmetry lay "/" as "\" where a mirror image needs it. The legend and the A4 colour key list every stitch type and thread; the Pattern Keeper PDF and the OXS file carry them as whole stitches (D258 to D260).
+- **Text**: the Text tool, with a tab of its own while it is in hand, turns one line of text into stitches; a press on the chart places it there. Pick a font (41 bundled open-licence fonts, 36 of them pixel fonts for small sizes, or the fonts on your own computer, listed by
   your browser after it asks; Chrome and Edge, a typed font name elsewhere), its face (regular, bold, italic, condensed...), a
   size in stitches, a weight, a thread of the chart and the text; the preview shows every stitch as a square, with warnings for
   sizes that read badly. Add puts the lettering on the chart as a piece in hand, as Paste does, so it moves, flips, turns,
@@ -247,7 +250,7 @@ per file in `docs/decisions/`, research and reviews in `docs/reviews/` and
 `docs/domain-reference*.md`, and thread-data and font licensing in
 `docs/*-provenance.md`.
 
-The Photo tab carries four sliders -- brightness, contrast, saturation and
+The Photo workspace's Picture tab carries four sliders -- brightness, contrast, saturation and
 warm/cool -- that adjust the photo before generation. They are applied in the
 browser as they move, in a worker (`lib/editor/photo-adjust.worker.ts`), from one
 definition mirrored in Rust for generation (`lib/pipeline/photo-adjust.ts`,

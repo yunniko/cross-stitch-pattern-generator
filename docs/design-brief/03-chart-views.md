@@ -66,8 +66,8 @@ All remembered in the browser.
 |---|---|---|---|---|
 | **Name** | Text | The photo's file name without its extension, or "cross-stitch-pattern" | A chart | Committed on leaving the field or Enter; names every exported file; saved in the chart; one undo step |
 | **Canvas size** | Moved to the Crop tool (`04`) | | | |
-| **Fabric count** | Choice of **11, 14, 16, 18** stitches per inch ("count") | The preference (`01`), 14 | A chart | Changes every finished-size figure and the exports' physical size. **Belongs to the chart:** given to it when it is made, saved in it and restored with it; changing it is one undo step and changes this chart alone, never the preference |
-| **Unit** | Choice of **in**, **cm** | The preference (`01`), cm | A chart | The unit finished sizes are shown in. Belongs to the chart, exactly as the fabric count does |
+| **Fabric count** | Choice of **11, 14, 16, 18** stitches per inch ("count") | 14 | A chart | A new chart is given the count set in the preferences (`01`). Changes every finished-size figure and the exports' physical size. **Belongs to the chart:** given to it when it is made, saved in it and restored with it; changing it is one undo step and changes this chart alone, never the preference |
+| **Unit** | Choice of **in**, **cm** | cm | A chart | A new chart is given the unit set in the preferences (`01`). The unit finished sizes are shown in. Belongs to the chart, exactly as the fabric count does |
 
 A chart saved before fabric was kept in the file (or never given one) takes the count and unit set in the preferences, and is saved again without them until one of the two is changed. A chart opened from an OXS file that states a fabric count carries that count.
 
