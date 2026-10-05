@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-05 at c9e1683 (G-096 signed off; production runs 8b9b251)
+Last verified: 2026-10-05 at 3457895 (G-099 deployed, awaiting sign-off)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -9,10 +9,10 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**Production** runs 8b9b251 (2026-10-05, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
+**Production** runs 3457895 (2026-10-05, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-099, extensible generation — built 2026-10-05, awaiting the Owner's sign-off.** A generation setting is declared once in `lib/pipeline/generation-settings.ts`; the editor's request, the processor's check and the options handed to Rust read that list, and Rust reads each setting in the module that uses it and refuses one nobody reads (`rust/cs-core/src/settings.rs`, D293). The pipeline is fourteen stages run from a table (`rust/cs-core/src/pipeline/`); traced lines and texture strokes are overlays behind one contract (`overlay.rs`, D294). A setting declared with a `control` is drawn under "More" in the photo settings with nothing else edited; none is today. **The gate for any change to generation:** `npm run test:goldens:rust` and `npx tsx scripts/measure-generation.ts` must show every chart unchanged. How to add a setting or an algorithm: `docs/architecture.md` section 3.
+**G-099, extensible generation — built and deployed 2026-10-05 (3457895), awaiting the Owner's sign-off.** A generation setting is declared once in `lib/pipeline/generation-settings.ts`; the editor's request, the processor's check and the options handed to Rust read that list, and Rust reads each setting in the module that uses it and refuses one nobody reads (`rust/cs-core/src/settings.rs`, D293). The pipeline is fourteen stages run from a table (`rust/cs-core/src/pipeline/`); traced lines and texture strokes are overlays behind one contract (`overlay.rs`, D294). A setting declared with a `control` is drawn under "More" in the photo settings with nothing else edited; none is today. **The gate for any change to generation:** `npm run test:goldens:rust` and `npx tsx scripts/measure-generation.ts` must show every chart unchanged. How to add a setting or an algorithm: `docs/architecture.md` section 3.
 
 **G-096, development loop — signed off 2026-10-05, archived; nothing to deploy.** A spec that is not about generation opens the saved chart with `openSmallChart` (`tests/e2e/helpers/app.ts`; D292). `npx playwright test -c scripts/playwright.live-free.config.ts` is the broad check of the live site (199 cases, 3 min). `npm run e2e:dev` is the development server for working on one spec; a production build is what anything is verified on. `docs/development-loop.md` has the lanes, the commands and every measurement.
 
@@ -425,6 +425,7 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 
 | Date | Commit | What changed | How verified |
 |---|---|---|---|
+| 2026-10-05 | 3457895 | **G-099:** generation settings declared once, the pipeline as stages, overlays behind one contract (D293, D294); no chart changed | 74 golden hashes and 8 measured charts identical; 1110 unit; full local e2e 564 pass, 0 fail; live: 3 generating cases pass (one on retry); app and processor restarted, other containers untouched; six sites 200 |
 | 2026-10-05 | 8b9b251 | **G-098:** the editor shell split by what it does (D291); no behaviour change | 1096 unit; full local e2e 563 pass, 0 fail, 1 flaky spec (36 of 36 alone); live: 3 cases pass; only this project's app restarted; six sites 200 |
 | 2026-10-05 | 4433856 | **G-094:** the chart as a document; undo as recorded changes (D289); one migration step for the file, fabric in the chart (D290); the editable file in Export all no longer drops five fields | 1075 unit; Rust export tests; full local e2e 564 pass, 0 fail; live: 3 fabric and file cases pass (one on retry); app and processor restarted, other containers untouched; six sites 200 |
 | 2026-10-05 | 4e5a685 | **Fast-lane batch 4 (D288):** keys S, V, H, Z, Ctrl+C/V/D, Ctrl+K; brush size and shape only with Brush, Line, Rectangle and Oval | 1048 unit; full local e2e 558 pass, 0 fail; the 4 new cases pass against the live site (one on retry); only this project's app restarted; six sites 200 |
@@ -436,7 +437,6 @@ Every deploy, with what changed and how it was verified, is in `docs/deploy-log.
 | 2026-10-04 | 48f9ad8 | **Fast-lane batch 1 (D280):** 11 QA fixes (custom size typing, Crop frame and bar, palette mode on load, stale-prediction fill, empty-palette export, file names); recommendations at once 2 to 4 | Full local e2e 540 pass, 0 fail; 1003 unit; 6 of the new cases pass against the live site; app and processor restarted, other containers untouched; six sites 200 |
 | 2026-10-03 | 19692ed | **G-089:** the Crop tool; the canvas numbers moved into it (D278, D279) | New e2e spec (10); full local e2e 531 pass, the two admin-stats cases pass alone; the spec passes live case by case (a whole-file live run trips the 6-a-minute job limit); only this project's app restarted; six sites 200 |
 | 2026-10-02 | 2acffc0 | **G-087:** Set up palette, colour prediction and the colour count ceiling (D276, D277); predictions have their own rate-limit bucket | New e2e spec (7) against the live site; full local e2e 519 pass of 524 before the two photo-slider specs were updated for the new reset and ceiling (then pass), admin-stats pass alone; 74 goldens unchanged; only this project's app and processor restarted; six other sites 200 |
-| 2026-10-02 | ac7a9cc | **G-086:** backstitch in the Stitched view and the realistic preview (D275) | New e2e spec against the live site; full local e2e 516 pass; site 200 |
 
 ## Decisions
 
