@@ -722,6 +722,24 @@
         background: var(--ink);
         color: #fff;
       }
+      .mirror {
+        grid-column: 1/-1;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 26px;
+        padding: 0 6px;
+        border-radius: 7px;
+        font-size: 10.5px;
+        color: var(--ink2);
+        white-space: nowrap;
+        border: 1px solid var(--line);
+      }
+      .mirror b {
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--ink);
+      }
     </style>
   </head>
   <body>
@@ -888,12 +906,12 @@
             ).join("<hr>") +
             "<hr>" +
             [
-              ["◧", "Left half"],
-              ["⬒", "Upper half"],
-              ["◰", "Corner"],
-              ["◤", "Half corner"],
+              ["◧", "Mirror left"],
+              ["⬒", "Mirror upper"],
+              ["◰", "Mirror corner"],
+              ["◤", "Mirror diagonal"],
             ]
-              .map(([g, n]) => tool(g, n))
+              .map(([g, n]) => `<span class="mirror"><b>${g}</b>${n}</span>`)
               .join("")
           : EDIT_TOOLS.map(([g, n]) => tool(g, n, n === on ? "on" : "")).join("");
       const photoTools = () =>
