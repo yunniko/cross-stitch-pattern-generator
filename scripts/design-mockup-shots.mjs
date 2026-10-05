@@ -12,7 +12,7 @@ const browser = await chromium.launch();
 const tab = await browser.newPage({ viewport: { width: 1472, height: 1000 } });
 const problems = [];
 tab.on("pageerror", (error) => problems.push(String(error)));
-for (const proposal of ["A", "B", "C"]) {
+for (const proposal of ["A", "B", "C", "D"]) {
   for (const screen of ["photo", "brush", "text", "export", "prefs"]) {
     await tab.goto(`${page}#${proposal}-${screen}`);
     await tab.reload();
@@ -24,4 +24,4 @@ if (problems.length > 0) {
   console.error(problems.join("\n"));
   process.exit(1);
 }
-console.log(`15 screenshots in ${out}`);
+console.log(`20 screenshots in ${out}`);

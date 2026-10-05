@@ -481,6 +481,7 @@
         justify-content: space-between;
       }
       .float {
+        z-index: 2;
         position: absolute;
         display: flex;
         gap: 8px;
@@ -818,13 +819,13 @@
         ["⌕", "Zoom"],
       ];
       const PHOTO_TOOLS = [
-        ["⌗", "Crop photo"],
+        ["⌗", "Crop"],
         ["✋", "Pan"],
         ["⌕", "Zoom"],
       ];
       const PHOTO_LATER = [
         ["✎", "Paint over"],
-        ["◌", "Remove bg"],
+        ["◌", "Cut out"],
       ];
       const editTools = (on) => EDIT_TOOLS.map(([g, n]) => tool(g, n, n === on ? "on" : "")).join("");
       const photoTools = () =>
@@ -958,21 +959,26 @@
               "Preferences, opened from the top bar: author, default size, count and unit. Dashed tools in Photo are ideas for later, shown only to prove there is room.",
             ],
           ],
-          render(screen) {
+          render(screen, floating = false) {
+            const fl = floating
+              ? `<div class="float" style="bottom:12px;left:50%;transform:translateX(-50%)">${viewControls(true)}</div>`
+              : "";
             const ws = screen === "photo" ? 0 : screen === "export" ? 2 : 1;
             const top = `<div class="bar" style="height:44px">${fileBits}<span class="sp"></span><div class="wstabs">${["Photo <small>make the chart</small>", "Edit <small>change it</small>", "Export <small>print, save</small>"].map((t, i) => `<span class="${i === ws ? "on" : ""}">${t}</span>`).join("")}</div><span class="sp"></span>${appActions(false)}</div>`;
-            const viewbar = `<div class="bar" style="height:40px;border-top:1px solid var(--line);border-bottom:0">${viewControls()}<span class="sp"></span>${status}</div>`;
+            const viewbar = floating
+              ? `<div class="bar" style="height:28px;border-top:1px solid var(--line);border-bottom:0">${status}<span class="sp"></span><span class="lab">Canvas &amp; stitch texture ▾</span></div>`
+              : `<div class="bar" style="height:40px;border-top:1px solid var(--line);border-bottom:0">${viewControls()}<span class="sp"></span>${status}</div>`;
             let body;
             if (screen === "photo")
-              body = `<div class="bar" style="height:40px">${QUICK.Photo}</div><div style="display:grid;grid-template-columns:300px 104px 1fr;min-height:0"><div class="panel">${photoPanel(1)}</div><div class="rail">${photoTools()}</div><div style="display:grid;grid-template-rows:1fr auto;min-height:0"><div class="stage"><div><div class="cap"><span>Photo</span></div>${pic("photo", 54, 8)}</div><div><div class="cap"><span>Try 3 · 12 colours · 120 × 90</span><span>Compare ⇆</span></div>${pic("color", 54, 8)}</div></div>${triesStrip()}</div></div>`;
+              body = `<div class="bar" style="height:40px">${QUICK.Photo}</div><div style="display:grid;grid-template-columns:300px 104px 1fr;min-height:0"><div class="panel">${photoPanel(1)}</div><div class="rail">${photoTools()}</div><div style="display:grid;grid-template-rows:1fr auto;min-height:0"><div class="stage"><div><div class="cap"><span>Photo</span></div>${pic("photo", 54, 8)}</div><div><div class="cap"><span>Try 3 · 12 colours · 120 × 90</span><span>Compare ⇆</span></div>${pic("color", 54, 8)}</div>${fl}</div>${triesStrip()}</div></div>`;
             else if (screen === "export") {
               const e = exportBody();
               body = `<div class="bar" style="height:40px"><b>Export</b><span class="lab">Choose what to make. Its settings are on the right and nowhere else.</span></div><div style="display:grid;grid-template-columns:260px 1fr 300px;min-height:0"><div class="panel">${e.list}</div><div class="stage">${e.pages}</div><div class="panel right">${e.settings}</div></div>`;
             } else {
               const text = screen === "text";
-              body = `<div class="bar" style="height:40px">${QUICK[text ? "Text" : "Brush"]}</div><div style="display:grid;grid-template-columns:300px 104px 1fr;min-height:0"><div class="panel">${editPanel(["Threads", "Chart"], 0, text)}</div><div class="rail">${editTools(text ? "Text" : "Brush")}</div><div class="stage">${pic("color", 80, 9, text ? 'data-text="1"' : "")}</div></div>`;
+              body = `<div class="bar" style="height:40px">${QUICK[text ? "Text" : "Brush"]}</div><div style="display:grid;grid-template-columns:300px 104px 1fr;min-height:0"><div class="panel">${editPanel(["Threads", "Chart"], 0, text)}</div><div class="rail">${editTools(text ? "Text" : "Brush")}</div><div class="stage">${pic("color", 80, 9, text ? 'data-text="1"' : "")}${fl}</div></div>`;
             }
-            return `<div class="app" style="grid-template-rows:44px 40px 1fr ${screen === "export" ? "" : "40px"}">${top}${body.replace('</div><div style="display:grid', '</div><div style="display:grid')}${screen === "export" ? "" : viewbar}${screen === "prefs" ? prefsDialog() : ""}</div>`;
+            return `<div class="app" style="grid-template-rows:44px 40px 1fr ${screen === "export" ? "" : floating ? "28px" : "40px"}">${top}${body.replace('</div><div style="display:grid', '</div><div style="display:grid')}${screen === "export" ? "" : viewbar}${screen === "prefs" ? prefsDialog() : ""}</div>`;
           },
         },
         B: {
@@ -1074,6 +1080,28 @@
           },
         },
       };
+      P.D = {
+        name: "D · The mix: A's workspaces and tries, B's view controls",
+        sub: "Workspace tabs across the top, the strip of tries under the picture, and the view controls floating over the foot of the chart.",
+        notes: [
+          [
+            "From A",
+            "Photo, Edit and Export as tabs across the top; the panel with tabs on the left; tools in two columns beside it; quick tool options above the chart; a tool's own amber tab.",
+          ],
+          ["From A", "The strip of tries. Going back to an earlier try asks the server for nothing; only “New try” generates."],
+          ["From B", "The view controls float over the foot of the chart, in Photo and in Edit alike, and stay whatever tool is in hand."],
+          [
+            "Changed by the mix",
+            "With the view bar gone, the chart gains its height. A thin line at the bottom keeps the size and pointer readout, and the canvas and stitch texture choice moves there.",
+          ],
+          [
+            "To check when built",
+            "The cluster covers the chart's lowest rows when the chart fills the height; it would need to move aside or fade while drawing under it.",
+          ],
+          ["Unchanged", "Export and Preferences are as in A."],
+        ],
+        render: (screen) => P.A.render(screen, true),
+      };
       const SCREENS = [
         ["photo", "1 · Making the chart from a photo"],
         ["brush", "2 · Editing, Brush in hand"],
@@ -1083,8 +1111,8 @@
       ];
 
       function show() {
-        const [p = "A", s = "photo"] = location.hash.slice(1).split("-");
-        const prop = P[p] || P.A,
+        const [p = "D", s = "photo"] = location.hash.slice(1).split("-");
+        const prop = P[p] || P.D,
           scr = SCREENS.find((x) => x[0] === s) || SCREENS[0];
         document.getElementById("propBtns").innerHTML = Object.keys(P)
           .map(
