@@ -934,7 +934,7 @@
           )
           .join(
             ""
-          )}<div class="try" style="border-style:dashed;padding:6px 16px"><div><b>+ New try</b>Generate with the settings on the left</div></div><span class="sp"></span><div style="display:flex;flex-direction:column;justify-content:center;gap:4px;align-items:flex-end"><span class="btn pri" style="height:34px">Edit Try 3 →</span><span class="hint">Tries are kept until the chart is replaced</span></div></div>`;
+          )}<div class="try" style="border-style:dashed;padding:6px 16px"><div><b>+ New try</b>Generate with the current settings</div></div><span class="sp"></span><div style="display:flex;flex-direction:column;justify-content:center;gap:4px;align-items:flex-end"><span class="btn pri" style="height:34px">Edit Try 3 →</span><span class="hint">Tries are kept until the chart is replaced</span></div></div>`;
       }
 
       // ---------- the three proposals ----------
@@ -959,7 +959,11 @@
               "Preferences, opened from the top bar: author, default size, count and unit. Dashed tools in Photo are ideas for later, shown only to prove there is room.",
             ],
           ],
-          render(screen, floating = false) {
+          render(screen, floating = false, asNow = false) {
+            const cols = asNow ? "58px 1fr 300px" : "300px 104px 1fr";
+            const side = (panel, rail) =>
+              asNow ? `<div class="rail one">${rail}</div>` : `<div class="panel">${panel}</div><div class="rail">${rail}</div>`;
+            const right = (panel) => (asNow ? `<div class="panel right">${panel}</div>` : "");
             const fl = floating
               ? `<div class="float" style="bottom:12px;left:50%;transform:translateX(-50%)">${viewControls(true)}</div>`
               : "";
@@ -970,13 +974,13 @@
               : `<div class="bar" style="height:40px;border-top:1px solid var(--line);border-bottom:0">${viewControls()}<span class="sp"></span>${status}</div>`;
             let body;
             if (screen === "photo")
-              body = `<div class="bar" style="height:40px">${QUICK.Photo}</div><div style="display:grid;grid-template-columns:300px 104px 1fr;min-height:0"><div class="panel">${photoPanel(1)}</div><div class="rail">${photoTools()}</div><div style="display:grid;grid-template-rows:1fr auto;min-height:0"><div class="stage"><div><div class="cap"><span>Photo</span></div>${pic("photo", 54, 8)}</div><div><div class="cap"><span>Try 3 · 12 colours · 120 × 90</span><span>Compare ⇆</span></div>${pic("color", 54, 8)}</div>${fl}</div>${triesStrip()}</div></div>`;
+              body = `<div class="bar" style="height:40px">${QUICK.Photo}</div><div style="display:grid;grid-template-columns:${cols};min-height:0">${side(photoPanel(1), photoTools())}<div style="display:grid;grid-template-rows:1fr auto;min-height:0"><div class="stage"><div><div class="cap"><span>Photo</span></div>${pic("photo", 54, 8)}</div><div><div class="cap"><span>Try 3 · 12 colours · 120 × 90</span><span>Compare ⇆</span></div>${pic("color", 54, 8)}</div>${fl}</div>${triesStrip()}</div>${right(photoPanel(1))}</div>`;
             else if (screen === "export") {
               const e = exportBody();
               body = `<div class="bar" style="height:40px"><b>Export</b><span class="lab">Choose what to make. Its settings are on the right and nowhere else.</span></div><div style="display:grid;grid-template-columns:260px 1fr 300px;min-height:0"><div class="panel">${e.list}</div><div class="stage">${e.pages}</div><div class="panel right">${e.settings}</div></div>`;
             } else {
               const text = screen === "text";
-              body = `<div class="bar" style="height:40px">${QUICK[text ? "Text" : "Brush"]}</div><div style="display:grid;grid-template-columns:300px 104px 1fr;min-height:0"><div class="panel">${editPanel(["Threads", "Chart"], 0, text)}</div><div class="rail">${editTools(text ? "Text" : "Brush")}</div><div class="stage">${pic("color", 80, 9, text ? 'data-text="1"' : "")}${fl}</div></div>`;
+              body = `<div class="bar" style="height:40px">${QUICK[text ? "Text" : "Brush"]}</div><div style="display:grid;grid-template-columns:${cols};min-height:0">${side(editPanel(["Threads", "Chart"], 0, text), editTools(text ? "Text" : "Brush"))}<div class="stage">${pic("color", 80, 9, text ? 'data-text="1"' : "")}${fl}</div>${right(editPanel(["Threads", "Chart"], 0, text))}</div>`;
             }
             return `<div class="app" style="grid-template-rows:44px 40px 1fr ${screen === "export" ? "" : floating ? "28px" : "40px"}">${top}${body.replace('</div><div style="display:grid', '</div><div style="display:grid')}${screen === "export" ? "" : viewbar}${screen === "prefs" ? prefsDialog() : ""}</div>`;
           },
@@ -1081,13 +1085,10 @@
         },
       };
       P.D = {
-        name: "D · The mix: A's workspaces and tries, B's view controls",
-        sub: "Workspace tabs across the top, the strip of tries under the picture, and the view controls floating over the foot of the chart.",
+        name: "D · The mix: A's workspaces and tries, B's view controls, today's tools and panel",
+        sub: "Workspace tabs across the top, tools in one column at the left edge, the tabbed panel on the right, tries under the picture, view controls floating.",
         notes: [
-          [
-            "From A",
-            "Photo, Edit and Export as tabs across the top; the panel with tabs on the left; tools in two columns beside it; quick tool options above the chart; a tool's own amber tab.",
-          ],
+          ["From A", "Photo, Edit and Export as tabs across the top; quick tool options above the chart; a tool's own amber tab."],
           ["From A", "The strip of tries. Going back to an earlier try asks the server for nothing; only “New try” generates."],
           ["From B", "The view controls float over the foot of the chart, in Photo and in Edit alike, and stay whatever tool is in hand."],
           [
@@ -1098,9 +1099,13 @@
             "To check when built",
             "The cluster covers the chart's lowest rows when the chart fills the height; it would need to move aside or fade while drawing under it.",
           ],
+          [
+            "As now (C)",
+            "Tools in one narrow column at the left edge, and the panel with tabs on the right. A tool's amber tab joins the right-hand tabs. The Photo tab is gone from Edit: it became the Photo workspace.",
+          ],
           ["Unchanged", "Export and Preferences are as in A."],
         ],
-        render: (screen) => P.A.render(screen, true),
+        render: (screen) => P.A.render(screen, true, true),
       };
       const SCREENS = [
         ["photo", "1 · Making the chart from a photo"],
