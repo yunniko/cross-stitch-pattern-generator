@@ -387,7 +387,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-095 waits on the Owner accepting its plan** (2026-10-05): the layout is chosen, proposal D of `docs/design-mockups/g095-layouts.html`, and milestones M2 to M6 are in `GOALS.md`. G-100 (dithering) is drafted and waits for the go.
+- **G-095 (the redesign) is ACTIVE**, accepted 2026-10-05: proposal D of `docs/design-mockups/g095-layouts.html`, milestones M2 to M6 in `GOALS.md`. G-101 (phone layout) is drafted for later. G-100 (dithering) is drafted and waits for the go.
 - G-076 (stitch textures) was signed off 2026-09-30 and is archived.
 - G-075 (accounts) was signed off 2026-09-30 and is archived. G-074 (the four photo sliders) was signed
   off on 2026-09-27 and is archived, as is G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner:

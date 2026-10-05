@@ -405,3 +405,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D293 | internal | |
 | D294 | internal | |
 | G-100 | internal | draft: architecture or tooling |
+| G-101 | not shipped (draft) | a phone layout |
