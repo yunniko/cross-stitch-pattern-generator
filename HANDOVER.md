@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-05 at 2c30b26 plus the G-096 test tooling (production runs 8b9b251)
+Last verified: 2026-10-05 at c9e1683 (G-096 signed off; production runs 8b9b251)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -12,7 +12,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 **Production** runs 8b9b251 (2026-10-05, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-096, development loop — finished 2026-10-05, awaiting the Owner's sign-off; nothing deployed.** A spec that is not about generation opens the saved chart with `openSmallChart` (`tests/e2e/helpers/app.ts`; D292). `npx playwright test -c scripts/playwright.live-free.config.ts` is the broad check of the live site (199 cases, 3 min). `npm run e2e:dev` is the development server for working on one spec; a production build is what anything is verified on. `docs/development-loop.md` has the lanes, the commands and every measurement.
+**G-096, development loop — signed off 2026-10-05, archived; nothing to deploy.** A spec that is not about generation opens the saved chart with `openSmallChart` (`tests/e2e/helpers/app.ts`; D292). `npx playwright test -c scripts/playwright.live-free.config.ts` is the broad check of the live site (199 cases, 3 min). `npm run e2e:dev` is the development server for working on one spec; a production build is what anything is verified on. `docs/development-loop.md` has the lanes, the commands and every measurement.
 
 **G-098, the editor shell split — signed off 2026-10-05, archived.** `app/workspace.tsx` (665 lines, from 957) composes and lays out, and holds no logic of its own (D291). Every way a chart arrives or leaves, with its autosave, confirmation and messages, is `app/hooks/use-chart-lifecycle.ts`; what each of the editor's commands does and when it can run is `app/commands/shell-commands.ts`; each piece of state has a hook with its rule beside it (`use-lit-threads`, `use-chart-fabric`, `use-editor-view`, `use-name-draft`, `use-held-pan`, `use-recommended-count`). Where new state, a new command or a new way in goes is in `docs/architecture.md` section 3.
 
