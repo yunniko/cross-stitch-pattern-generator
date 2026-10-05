@@ -897,7 +897,7 @@
 
       // quick options, by tool
       const QUICK = {
-        Brush: `<b>Brush</b><span class="sw" style="background:#c2385c"></span><span class="sw" style="background:#f6efe4;margin-left:-6px"></span><span class="lab">⇄</span><span class="sep"></span><span class="lab">Size</span><span class="num">3</span>${seg(["●", "■"], 0)}<span class="sep"></span><span class="lab">Stitch</span>${seg(["✕ Full", "╱", "╲"], 0)}<span class="sep"></span><span class="lab">Symmetry</span>${seg(["Off", "↔", "↕", "✛"], 0)}<span class="sep"></span><span class="btn sm">Lock transparency</span><span class="btn sm">Double-press fills ✓</span>`,
+        Brush: `<b>Brush</b><span class="sw" style="background:#c2385c"></span><span class="sw" style="background:#f6efe4;margin-left:-6px"></span><span class="lab">⇄</span><span class="sep"></span><span class="lab">Size</span><span class="num">3</span>${seg(["●", "■"], 0)}<span class="sep"></span><span class="lab">Stitch</span>${seg(["✕ Full", "╱", "╲"], 0)}<span class="sep"></span><span class="lab">Symmetry</span>${seg(["Off", "↔", "↕", "✛"], 0)}<span class="sep"></span><span class="btn sm">Lock transparency</span>${""}`,
         TextMix: `<b>Text</b><span class="lab">Georgia</span>${seg(["Regular", "Bold", "Italic"], 1)}<span class="lab">Height</span><span class="num">7</span><span class="lab">stitches</span><span class="sep"></span>${["#7d1d3a", "#c2385c", "#2c5a33", "#f2c94c", "#f6efe4"].map((c, i) => `<span class="sw" style="background:${c};${i === 0 ? "outline:2px solid var(--ink);outline-offset:1px" : ""}"></span>`).join("")}<span class="sep"></span><span class="btn pri sm">Place on chart</span><span class="btn sm">Cancel</span>`,
         Text: `<b>Text</b><span class="sel" style="width:170px">Georgia</span><span class="sel" style="width:96px">Bold</span><span class="lab">Height</span><span class="num">7</span><span class="lab">stitches</span><span class="sw" style="background:#7d1d3a"></span><span class="sep"></span><span class="btn pri sm">Place on chart</span><span class="btn sm">Cancel</span><span class="sp"></span><span class="lab" style="color:var(--temp)">More in the Text tab ◂</span>`,
         Photo: `<b>Pan</b><span class="lab">Drag to move the photo. Wheel zooms.</span>`,
@@ -998,7 +998,7 @@
         };
       }
       function prefsDialog() {
-        return `<div class="dialogveil"><div class="dialog" style="width:720px;height:500px"><header>Preferences <span class="lab" style="font-weight:400">Set once. Kept in this browser, or in your account when signed in.</span></header>
+        return `<div class="dialogveil"><div class="dialog" style="width:720px;height:560px"><header>Preferences <span class="lab" style="font-weight:400">Set once. Kept in this browser, or in your account when signed in.</span></header>
   <div class="prefs"><nav><span class="on">New charts</span><span>Exports</span><span>Editing</span><span>Appearance</span></nav>
   <section>
     <h4 style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">A new empty chart starts with</h4>
@@ -1009,6 +1009,8 @@
     <h4 style="margin:6px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">Exports (shown under "Exports")</h4>
     <div class="row" style="justify-content:flex-start"><span class="lab">Author name</span><span class="input" style="width:240px">J. Example</span></div>
     <div class="row" style="justify-content:flex-start"><span class="lab">A4 cell size, overlap</span><span class="num">3 mm</span><span class="num">2</span><span class="hint">candidate</span></div>
+    <h4 style="margin:6px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">Editing (shown under "Editing")</h4>
+    <div class="row" style="justify-content:flex-start"><span class="lab">Double-press fills a region</span>${seg(["On", "Off"], 0)}</div>
     <div class="hint">A chart keeps its own count, unit and author once made. Changing a preference never changes an existing chart.</div>
   </section></div>
   <footer><span class="btn">Close</span></footer></div></div>`;
