@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "node:path";
-import { expectPhotoLoaded } from "./helpers/app";
+import { expectPhotoLoaded, showPhotoTab } from "./helpers/app";
 
 /**
  * G-074 M2: the four sliders, applied to the photo in the browser.
@@ -24,6 +24,8 @@ async function uploadPhoto(page: Page) {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expectPhotoLoaded(page);
+  // The four sliders are the Photo panel's Picture tab (G-095).
+  await showPhotoTab(page, "Picture");
 }
 
 const slider = (page: Page, name: string) => page.getByRole("slider", { name });

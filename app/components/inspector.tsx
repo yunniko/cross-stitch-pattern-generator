@@ -23,7 +23,7 @@ export interface InspectorProps {
   /** What the panel holds, said aloud; shown as its heading when there are no tabs. */
   title: string;
   /** The tabs to choose between, with the one chosen; null for a workspace with one pane. */
-  tabs: { chosen: InspectorTab; onChoose: (tab: InspectorTab) => void; disabled: boolean } | null;
+  tabs: { list: ReadonlyArray<{ id: string; label: string }>; chosen: string; onChoose: (tab: string) => void; disabled: boolean } | null;
   /** The tab of the tool in hand, when it brings one: its name, what it holds, and whether it is the tab shown. */
   toolTab?: { label: string; pane: ReactNode; shown: boolean; onChoose: () => void } | null;
   /** What is shown when the tool's tab is not: the chosen tab's pane, or the workspace's one pane. */
@@ -61,7 +61,7 @@ export function Inspector({ title, tabs, toolTab = null, pane, footer }: Inspect
             </button>
           )}
           {tabs &&
-            EDIT_TABS.map(({ id, label }) => {
+            tabs.list.map(({ id, label }) => {
               const selected = !toolShown && tabs.chosen === id;
               return (
                 <button

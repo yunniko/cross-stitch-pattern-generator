@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Workspace } from "@/lib/editor/workspaces";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import type { StitchPattern } from "@/lib/types";
@@ -15,8 +16,8 @@ import type { Tools } from "../tools/use-tools";
 import { ChartPane } from "./chart-pane";
 import { ColorsDock } from "./colors-dock";
 import { ExportPane } from "./export-pane";
-import { Inspector, type InspectorTab } from "./inspector";
-import { PhotoPane } from "./photo-pane";
+import { EDIT_TABS, Inspector, type InspectorTab } from "./inspector";
+import { PHOTO_SECTIONS, PhotoPane, type PhotoSection } from "./photo-pane";
 import { PillButton } from "./ui";
 
 /**
@@ -60,8 +61,6 @@ export interface WorkspacePanelProps {
   prediction: ReturnType<typeof useColorPrediction>;
   adjustPreview: PhotoAdjustPreview;
   exports: ReturnType<typeof useExports>;
-  /** Takes the chart on into the Edit workspace. */
-  onEdit: () => void;
 }
 
 export function WorkspacePanel({
@@ -82,13 +81,18 @@ export function WorkspacePanel({
   prediction,
   adjustPreview,
   exports,
-  onEdit,
 }: WorkspacePanelProps) {
+  // The tab of the Photo panel: the chart's settings first, since they are what is tried most.
+  const [photoSection, setPhotoSection] = useState<PhotoSection>("chart");
+  // The tabs are for the settings; while there are none to show (no photo yet, a chart with none, a job running) the
+  // panel holds one pane under its name.
+  const photoSettingsShown = !startingNew && !photoFree && source.hasPhoto && !generation.isProcessing;
+
   if (workspace === "edit") {
     return (
       <Inspector
         title="Chart settings"
-        tabs={{ chosen: edit.tab, onChoose: edit.onTabChange, disabled: !chartShown }}
+        tabs={{ list: EDIT_TABS, chosen: edit.tab, onChoose: (tab) => edit.onTabChange(tab as InspectorTab), disabled: !chartShown }}
         toolTab={edit.toolTab}
         pane={
           edit.tab === "chart" ? (
@@ -153,12 +157,17 @@ export function WorkspacePanel({
   return (
     <Inspector
       title="Photo settings"
-      tabs={null}
+      tabs={
+        photoSettingsShown
+          ? { list: PHOTO_SECTIONS, chosen: photoSection, onChoose: (tab) => setPhotoSection(tab as PhotoSection), disabled: false }
+          : null
+      }
       pane={
         photoFree && !startingNew ? (
           <p className="p-4 text-[13px] text-muted">This chart was started from an empty canvas, so it has no photo settings.</p>
         ) : (
           <PhotoPane
+            section={photoSection}
             options={options}
             onChange={onOptionChange}
             isProcessing={generation.isProcessing}
@@ -180,29 +189,15 @@ export function WorkspacePanel({
       footer={
         // 1b draws Generate only once a photo is loaded ("B . Before generate"); the first run has no footer.
         !startingNew && !photoFree && source.hasPhoto ? (
-          <div className="flex flex-col gap-2">
-            <PillButton
-              variant="primary"
-              size="lg"
-              className="w-full"
-              onClick={() => void generation.generate()}
-              disabled={!source.hasPhoto || generation.isProcessing || source.isLoading}
-            >
-              {pattern ? "Regenerate" : "Generate pattern"}
-            </PillButton>
-            {pattern && (
-              <PillButton
-                variant="raised"
-                size="md"
-                className="w-full"
-                onClick={onEdit}
-                disabled={generation.isProcessing}
-                title="Take this chart into the Edit workspace"
-              >
-                Continue in Edit →
-              </PillButton>
-            )}
-          </div>
+          <PillButton
+            variant="primary"
+            size="lg"
+            className="w-full"
+            onClick={() => void generation.generate()}
+            disabled={!source.hasPhoto || generation.isProcessing || source.isLoading}
+          >
+            {pattern ? "Regenerate" : "Generate pattern"}
+          </PillButton>
         ) : null
       }
     />

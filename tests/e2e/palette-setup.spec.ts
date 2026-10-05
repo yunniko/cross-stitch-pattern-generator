@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { FIXTURE, openSmallChart, saveButton, showWorkspace, exportChoice } from "./helpers/app";
+import { FIXTURE, openSmallChart, saveButton, showWorkspace, exportChoice, showPhotoTab } from "./helpers/app";
 
 /**
  * G-087: "Set up palette" -- the user chooses the colours a chart is made from, can fill them from the picture's predicted
@@ -193,10 +193,12 @@ test("the editable file carries the set and restores it; a file without one rese
   await setupSwitch(page).click();
   await page.getByLabel("Colour to add").fill("#445566");
   await page.getByRole("button", { name: "Add colour" }).click();
+  await showPhotoTab(page, "Picture");
   await page.getByLabel("Brightness").fill("40");
   await expect(page.getByLabel("Brightness")).toHaveAttribute("aria-valuetext", "40");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expect(page.getByLabel("Brightness")).toHaveAttribute("aria-valuetext", "neutral");
+  await showPhotoTab(page, "Chart settings");
   await expect(page.getByTestId("palette-setup")).toHaveCount(0);
   await expect(setupSwitch(page)).toHaveAttribute("aria-pressed", "false");
 });

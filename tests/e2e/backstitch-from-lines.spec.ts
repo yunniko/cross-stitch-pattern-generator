@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { expectPhotoLoaded, saveButton, generateAndWait } from "./helpers/app";
+import { expectPhotoLoaded, saveButton, generateAndWait, showPhotoTab } from "./helpers/app";
 
 /**
  * G-084: "Backstitch from lines", end to end through the real UI and the processor.
@@ -42,7 +42,7 @@ test("a drawing's lines come back as backstitch in a thread of their own, and of
   const plain = await generateAndExport(page);
   expect(plain.backstitch ?? []).toEqual([]);
 
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Lines & texture");
   await expect(checkbox(page)).not.toBeChecked();
   await checkbox(page).check();
   const traced = await generateAndExport(page);
@@ -59,7 +59,7 @@ test("a drawing's lines come back as backstitch in a thread of their own, and of
 
 test("light lines on a dark ground are traced too, in a light thread", async ({ page }) => {
   await openPicture(page, LIGHT_DRAWING, "60");
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Lines & texture");
   await checkbox(page).check();
   const traced = await generateAndExport(page);
   const lines = traced.backstitch ?? [];
@@ -70,7 +70,7 @@ test("light lines on a dark ground are traced too, in a light thread", async ({ 
 
 test("a photograph gets no lines, with the setting on", async ({ page }) => {
   await openPicture(page, PHOTO, "30");
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Lines & texture");
   await checkbox(page).check();
   const chart = await generateAndExport(page);
   expect(chart.backstitch ?? []).toEqual([]);
@@ -78,14 +78,14 @@ test("a photograph gets no lines, with the setting on", async ({ page }) => {
 
 test("the choice and its sensitivity are remembered across a reload", async ({ page }) => {
   await openPicture(page, DRAWING, "60");
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Lines & texture");
   await checkbox(page).check();
   await page.getByLabel("Line sensitivity").fill("8");
   await page.getByRole("checkbox", { name: "Also in photographs" }).check();
   await page.reload();
   await page.getByLabel("Image").setInputFiles(DRAWING);
   await expectPhotoLoaded(page);
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Lines & texture");
   await expect(checkbox(page)).toBeChecked();
   await expect(page.getByLabel("Line sensitivity")).toHaveValue("8");
   await expect(page.getByRole("checkbox", { name: "Also in photographs" })).toBeChecked();

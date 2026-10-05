@@ -27,6 +27,29 @@ const STATES = [
   ["edit-chart-tab", async (page) => page.getByRole("tab", { name: "Chart", exact: true }).click()],
   ["edit-view-settings", async (page) => page.getByRole("button", { name: "Canvas & stitch texture" }).click()],
   ["photo", async (page) => workspace(page, "Photo")],
+  [
+    "photo-tries",
+    async (page) => {
+      await workspace(page, "Photo");
+      for (const colours of [3, 0]) {
+        for (let press = 0; press < colours; press++) await page.getByRole("button", { name: "One color fewer" }).click();
+        await page.getByRole("button", { name: "Regenerate", exact: true }).click();
+        await page.getByRole("button", { name: "Regenerate", exact: true }).waitFor({ timeout: 60_000 });
+        await page.waitForFunction(() => !document.querySelector("button[disabled]")?.textContent?.includes("Regenerate"));
+      }
+      await page.getByRole("button", { name: "Pin Try 1" }).click();
+    },
+  ],
+  [
+    "photo-dither",
+    async (page) => {
+      await workspace(page, "Photo");
+      await page.getByRole("radiogroup", { name: "Dither" }).getByRole("radio", { name: "Hand-drawn" }).click();
+      await page.getByRole("radiogroup", { name: "Dither" }).scrollIntoViewIfNeeded();
+    },
+  ],
+  ["photo-picture", async (page) => (await workspace(page, "Photo"), page.getByRole("tab", { name: "Picture" }).click())],
+  ["photo-lines", async (page) => (await workspace(page, "Photo"), page.getByRole("tab", { name: "Lines & texture" }).click())],
   ["export", async (page) => workspace(page, "Export")],
 ];
 

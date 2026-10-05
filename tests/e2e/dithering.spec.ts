@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { expectPhotoLoaded, saveButton, generateAndWait } from "./helpers/app";
+import { expectPhotoLoaded, saveButton, generateAndWait, ditherChoice } from "./helpers/app";
 
 /**
  * G-052 M4: the Dither control, end to end through the real UI and the processor.
@@ -68,7 +68,7 @@ test("a chosen dither pattern reaches the chart, is recorded in the file, and co
   expect(plain.ditherMode).toBeUndefined();
 
   await page.getByRole("tab", { name: "Photo" }).click();
-  await page.getByLabel("Dither").selectOption("floyd-steinberg");
+  await ditherChoice(page, "floyd-steinberg").click();
   const dithered = await generateAndExport(page);
 
   expect(dithered.ditherMode).toBe("floyd-steinberg");
@@ -83,7 +83,7 @@ test("the hand-drawn marks reach the chart and cluster their stitches (G-054)", 
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByLabel("Dither").selectOption("hand-drawn");
+  await ditherChoice(page, "hand-drawn").click();
 
   const chart = await generateAndExport(page);
   expect(chart.ditherMode).toBe("hand-drawn");
@@ -99,7 +99,7 @@ test("the texture editor changes the chart, and the chart remembers what drew it
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByLabel("Dither").selectOption("hand-drawn");
+  await ditherChoice(page, "hand-drawn").click();
 
   const asShipped = await generateAndExport(page);
   expect(asShipped.ditherMode).toBe("hand-drawn");
@@ -123,7 +123,7 @@ test("a painted mark reaches the chart, and is saved with it (G-056)", async ({ 
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByLabel("Dither").selectOption("hand-drawn");
+  await ditherChoice(page, "hand-drawn").click();
   await page.getByRole("tab", { name: "Photo" }).click();
   await page.getByRole("button", { name: /^Texture/ }).click();
 
@@ -152,7 +152,7 @@ test("a switch lets a knob reach every mark, and is saved with the chart (G-058)
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByLabel("Dither").selectOption("hand-drawn");
+  await ditherChoice(page, "hand-drawn").click();
   await page.getByRole("tab", { name: "Photo" }).click();
   await page.getByRole("button", { name: /^Texture/ }).click();
 
@@ -177,7 +177,7 @@ test("a stamp wider than the spacing says its outside will be clipped", async ({
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expectPhotoLoaded(page);
-  await page.getByLabel("Dither").selectOption("hand-drawn");
+  await ditherChoice(page, "hand-drawn").click();
   await page.getByRole("button", { name: /^Texture/ }).click();
 
   // The default spacing is 6, so a 5x5 grid fits and a 9x9 does not.
@@ -197,15 +197,15 @@ test("the preview shows whatever pattern is chosen, without opening anything (G-
   await expect(page.getByTestId("dither-preview")).toHaveCount(0);
 
   // A matrix pattern — nothing to open, and no texture knobs, which belong to the drawn marks alone.
-  await page.getByLabel("Dither").selectOption("bayer-8");
+  await ditherChoice(page, "bayer-8").click();
   await expect(page.getByTestId("dither-preview")).toBeVisible();
   await expect(page.getByTestId("texture-editor")).toHaveCount(0);
 
   // A kernel, then the drawn marks: the preview stays, the knobs appear only for the last.
-  await page.getByLabel("Dither").selectOption("atkinson");
+  await ditherChoice(page, "atkinson").click();
   await expect(page.getByTestId("dither-preview")).toBeVisible();
   await expect(page.getByTestId("texture-editor")).toHaveCount(0);
-  await page.getByLabel("Dither").selectOption("hand-drawn");
+  await ditherChoice(page, "hand-drawn").click();
   await expect(page.getByTestId("dither-preview")).toBeVisible();
   await expect(page.getByTestId("texture-editor")).toBeVisible();
   expect(errors).toEqual([]);
@@ -217,7 +217,7 @@ test("clicking the preview reshuffles the marks, and the chart follows (G-059)",
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expectPhotoLoaded(page);
   await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByLabel("Dither").selectOption("hand-drawn");
+  await ditherChoice(page, "hand-drawn").click();
 
   // The button it replaced is gone.
   await expect(page.getByRole("button", { name: "Shuffle" })).toHaveCount(0);
@@ -242,13 +242,13 @@ test("the line screens are one option with a direction (G-059)", async ({ page }
   await page.getByRole("radio", { name: /Small/ }).check();
 
   // One "Lines" row in the list, and a direction beneath it once chosen.
-  await page.getByLabel("Dither").selectOption("lines");
+  await ditherChoice(page, "lines").click();
   // The direction buttons are labelled with the stroke they draw, so they are addressed by their title.
   const falling = page.getByTitle("Diagonal lines, falling");
   await expect(falling).toBeVisible();
   await falling.click();
   // The list still reads "Lines" — the direction lives under it, which is the point of the change.
-  await expect(page.getByLabel("Dither")).toHaveValue("lines");
+  await expect(ditherChoice(page, "lines")).toHaveAttribute("aria-checked", "true");
   await expect(falling).toHaveAttribute("aria-pressed", "true");
 
   const chart = await generateAndExport(page);
@@ -262,20 +262,20 @@ test("choosing a dither pattern and choosing Crisp each clear the other, and the
 
   // Crisp first, then a pattern: the pipeline refuses the pair, so the pane never holds it (D199).
   await page.getByRole("button", { name: "Crisp", exact: true }).click();
-  await page.getByLabel("Dither").selectOption("bayer-8");
+  await ditherChoice(page, "bayer-8").click();
   await expect(page.getByRole("button", { name: "Crisp", exact: true })).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByRole("button", { name: "Standard", exact: true })).toHaveAttribute("aria-pressed", "true");
 
   // And the other way round.
   await page.getByRole("button", { name: "Crisp+", exact: true }).click();
-  await expect(page.getByLabel("Dither")).toHaveValue("off");
+  await expect(ditherChoice(page, "off")).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("button", { name: "Crisp+", exact: true })).toHaveAttribute("aria-pressed", "true");
 
   // The pattern is remembered like every other Generate setting.
   await page.getByRole("button", { name: "Standard", exact: true }).click();
-  await page.getByLabel("Dither").selectOption("blue-noise-16");
+  await ditherChoice(page, "blue-noise-16").click();
   await page.reload();
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expectPhotoLoaded(page);
-  await expect(page.getByLabel("Dither")).toHaveValue("blue-noise-16");
+  await expect(ditherChoice(page, "blue-noise-16")).toHaveAttribute("aria-checked", "true");
 });

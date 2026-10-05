@@ -5,17 +5,7 @@ import { useState } from "react";
 
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { formatFinishedDimension } from "@/lib/export/finished-size";
-import {
-  DIFFUSION_DITHER_MODES,
-  DRAWN_DITHER_MODES,
-  isDithered,
-  isDrawnMode,
-  isLinesMode,
-  LINE_DITHER_MODES,
-  ORDERED_DITHER_MODES,
-  type DitherMode,
-  type LineDitherMode,
-} from "@/lib/pipeline/dither";
+import { isDithered, isDrawnMode, isLinesMode, type DitherMode, type LineDitherMode } from "@/lib/pipeline/dither";
 import { isNeutralAdjust, NEUTRAL_ADJUST, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import type { ColorPrediction } from "@/lib/pipeline/prediction";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
@@ -23,14 +13,16 @@ import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_
 import { gridDimensionsFor } from "@/lib/pipeline/downsample";
 import { longerSideFor } from "../hooks/use-generation";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
+import { DitherChooser } from "./dither-chooser";
 import { DitherPreview } from "./dither-preview";
 import { PaletteSetup } from "./palette-setup";
 import { TextureEditor } from "./texture-editor";
 import { PillButton, SegmentedControl, Slider, type SegmentOption, InlineError } from "./ui";
 
 /**
- * The Photo pane (G-045 M3, direction 1b): everything the next Generate reads, in the order someone decides it --
- * how big, how many colours, then how those colours are chosen. Generate itself is pinned in the inspector's footer.
+ * The Photo panel's settings (G-045 M3, direction 1b; in three tabs since G-095): everything the next Generate reads, in
+ * the order someone decides it -- how big, how many colours, then how those colours are chosen. Generate itself is pinned
+ * in the panel's footer, under whichever tab is shown.
  *
  * While a job runs this pane becomes its progress, as 1b draws it: there is nothing to change until it finishes, and
  * the settings would only invite edits that the running job would ignore.
@@ -99,52 +91,29 @@ const EDGE_OPTIONS: SegmentOption<WorkspaceOptions["edgeMode"]>[] = [
   },
 ];
 
-// Eight patterns is more than a segmented control holds, so dithering is the one generation setting that is a
-// dropdown. Grouped the way the research splits them: a matrix per stitch, or error pushed onto the stitches after it
-// (`docs/reviews/2026-09-21-dithering-research.md`).
-const DITHER_LABELS: Record<DitherMode, string> = {
-  off: "Off",
-  "bayer-4": "Bayer 4×4",
-  "bayer-8": "Bayer 8×8",
-  "clustered-8": "Clustered dots",
-  "ring-8": "Rings",
-  "lines-horizontal": "Lines",
-  "lines-vertical": "Lines",
-  "lines-diagonal": "Lines",
-  "lines-anti-diagonal": "Lines",
-  "blue-noise-16": "Blue noise",
-  "floyd-steinberg": "Floyd–Steinberg",
-  atkinson: "Atkinson",
-  "hand-drawn": "Hand-drawn",
-};
-
-// Three groups, as the measurement separates them (`docs/reviews/2026-09-21-dithering-comparison.md`): a screen
-// clusters its stitches and costs a stitcher least, a scattered matrix spreads them and fits the photo closer, and
-// the two kernels adapt to the photo instead of repeating a tile, which is why neither ever reads worse than an
-// undithered chart.
-// One entry for the line screens: the direction is a setting under the list, not four rows in it (G-059). The row
-// carries its own value rather than a direction's, because a `select` cannot show a value none of its options has.
-const LINES_OPTION = "lines";
-const SCREEN_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("clustered-") || mode.startsWith("ring-"));
-
 const LINE_DIRECTION_OPTIONS: SegmentOption<LineDitherMode>[] = [
   { value: "lines-horizontal", label: "—", title: "Horizontal lines" },
   { value: "lines-vertical", label: "|", title: "Vertical lines" },
   { value: "lines-diagonal", label: "/", title: "Diagonal lines, rising" },
   { value: "lines-anti-diagonal", label: "\\", title: "Diagonal lines, falling" },
 ];
-const SCATTERED_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("bayer-") || mode.startsWith("blue-noise-"));
-
-const DITHER_GROUPS: Array<{ label: string; modes: readonly DitherMode[]; withLines?: boolean }> = [
-  { label: "Screens — fewest single stitches", modes: SCREEN_MODES, withLines: true },
-  { label: "Scattered — closer to the photo", modes: SCATTERED_MODES },
-  { label: "Error diffusion — closest, never worse", modes: DIFFUSION_DITHER_MODES },
-  { label: "Drawn — marks, not a pattern", modes: DRAWN_DITHER_MODES },
-];
 
 const PRESETS = ["small", "medium", "large", "xl", "xxl"] as const;
 
+/**
+ * The three tabs of the Photo panel (G-095 M4, proposal D): the picture as it is read, the chart that is made of it, and
+ * what is laid over the stitches.
+ */
+export const PHOTO_SECTIONS = [
+  { id: "picture", label: "Picture" },
+  { id: "chart", label: "Chart settings" },
+  { id: "lines", label: "Lines & texture" },
+] as const;
+export type PhotoSection = (typeof PHOTO_SECTIONS)[number]["id"];
+
 export interface PhotoPaneProps {
+  /** Which of the three tabs is shown. */
+  section: PhotoSection;
   options: WorkspaceOptions;
   onChange: UpdateWorkspaceOption;
   isProcessing: boolean;
@@ -216,6 +185,7 @@ function GeneratingCard({
 }
 
 export function PhotoPane({
+  section,
   sourceSize,
   options,
   onChange,
@@ -307,362 +277,364 @@ export function PhotoPane({
 
   return (
     <div className="flex flex-col gap-5 p-4">
-      <section className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between">
-          <span className={GROUP_LABEL}>Size · longer side</span>
-          <span className="font-mono text-xs text-muted">{longerSide}</span>
-        </div>
-        <div className="flex gap-1.5">
-          {PRESETS.map((preset) => {
-            const chosen = options.sizePreset === preset;
-            return (
-              <button
-                key={preset}
-                type="button"
-                role="radio"
-                aria-checked={chosen}
-                aria-label={`${SIZE_PRESET_LABELS[preset]} (${SIZE_PRESETS[preset]})`}
-                onClick={() => onChange("sizePreset", preset)}
-                className={`flex-1 rounded-md border py-1.5 font-mono text-xs transition-colors ${
-                  chosen ? "border-accent bg-accent/15 text-ink" : "border-line text-muted hover:bg-raised"
-                }`}
-              >
-                {SIZE_PRESETS[preset]}
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={options.sizePreset === "custom"}
-            aria-label="Custom"
-            onClick={() => onChange("sizePreset", "custom")}
-            className={`text-xs transition-colors ${options.sizePreset === "custom" ? "text-ink" : "text-muted hover:text-ink"}`}
-          >
-            Custom
-          </button>
-          <div className="flex items-center overflow-hidden rounded-md border border-line">
-            <button
-              type="button"
-              aria-label="One stitch fewer"
-              onClick={() => setCustom(options.customSize - 1)}
-              className="px-2.5 py-1.5 text-sm leading-none text-muted hover:bg-raised hover:text-ink"
-            >
-              −
-            </button>
-            <input
-              type="number"
-              min={MIN_STITCHES}
-              max={MAX_STITCHES}
-              // What is being typed is left alone until the field is left: "50" starts with a 5, which is below the minimum, and
-              // bringing each keystroke into range turned it into 100 (QA 2026-10-04). A whole number in range applies at once.
-              value={sizeDraft ?? options.customSize}
-              aria-label="Custom size in stitches"
-              onChange={(e) => {
-                setSizeDraft(e.target.value);
-                const typed = Number(e.target.value);
-                if (e.target.value.trim() !== "" && Number.isInteger(typed) && typed >= MIN_STITCHES && typed <= MAX_STITCHES)
-                  setCustom(typed);
-              }}
-              onBlur={(e) => {
-                const typed = Number(e.target.value);
-                if (e.target.value.trim() !== "" && Number.isFinite(typed)) setCustom(Math.round(typed));
-                setSizeDraft(null);
-              }}
-              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-              className="w-14 min-w-0 border-none bg-transparent py-1.5 text-center font-mono text-xs text-ink"
-            />
-            <button
-              type="button"
-              aria-label="One stitch more"
-              onClick={() => setCustom(options.customSize + 1)}
-              className="px-2.5 py-1.5 text-sm leading-none text-muted hover:bg-raised hover:text-ink"
-            >
-              +
-            </button>
+      {section === "chart" && (
+        <section className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between">
+            <span className={GROUP_LABEL}>Size · longer side</span>
+            <span className="font-mono text-xs text-muted">{longerSide}</span>
           </div>
-          <span className="font-mono text-[11px] text-muted">
-            {MIN_STITCHES}–{MAX_STITCHES} sts
-          </span>
-        </div>
-        <p className="text-[11px] leading-4 text-muted">
-          ≈ {formatFinishedDimension(longerSide, options.aidaCount, options.sizeUnit)} on the longer side at {options.aidaCount}-count Aida
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between">
-          <label className={GROUP_LABEL} htmlFor="color-count">
-            Colors
-          </label>
-          <span className="font-mono text-[13px] text-ink">{settingUp ? options.paletteSet.colors.length : shownCount}</span>
-        </div>
-        {settingUp ? (
-          <p className="text-[11px] leading-4 text-muted">The chart uses the colors in your palette, so there is no count to set.</p>
-        ) : (
-          <>
-            <div className="flex items-center gap-2">
+          <div className="flex gap-1.5">
+            {PRESETS.map((preset) => {
+              const chosen = options.sizePreset === preset;
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  role="radio"
+                  aria-checked={chosen}
+                  aria-label={`${SIZE_PRESET_LABELS[preset]} (${SIZE_PRESETS[preset]})`}
+                  onClick={() => onChange("sizePreset", preset)}
+                  className={`flex-1 rounded-md border py-1.5 font-mono text-xs transition-colors ${
+                    chosen ? "border-accent bg-accent/15 text-ink" : "border-line text-muted hover:bg-raised"
+                  }`}
+                >
+                  {SIZE_PRESETS[preset]}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={options.sizePreset === "custom"}
+              aria-label="Custom"
+              onClick={() => onChange("sizePreset", "custom")}
+              className={`text-xs transition-colors ${options.sizePreset === "custom" ? "text-ink" : "text-muted hover:text-ink"}`}
+            >
+              Custom
+            </button>
+            <div className="flex items-center overflow-hidden rounded-md border border-line">
               <button
                 type="button"
-                aria-label="One color fewer"
-                title="One color fewer"
-                onClick={() => onChange("colorCount", Math.max(MIN_COLORS, shownCount - 1))}
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-line text-sm leading-none text-ink hover:bg-raised"
+                aria-label="One stitch fewer"
+                onClick={() => setCustom(options.customSize - 1)}
+                className="px-2.5 py-1.5 text-sm leading-none text-muted hover:bg-raised hover:text-ink"
               >
                 −
               </button>
               <input
-                id="color-count"
-                type="range"
-                min={MIN_COLORS}
-                max={countMax}
-                value={shownCount}
-                aria-label="Number of colors"
-                onChange={(e) => onChange("colorCount", Number(e.target.value))}
-                className="min-w-0 flex-1 accent-[var(--at-accent)]"
+                type="number"
+                min={MIN_STITCHES}
+                max={MAX_STITCHES}
+                // What is being typed is left alone until the field is left: "50" starts with a 5, which is below the minimum, and
+                // bringing each keystroke into range turned it into 100 (QA 2026-10-04). A whole number in range applies at once.
+                value={sizeDraft ?? options.customSize}
+                aria-label="Custom size in stitches"
+                onChange={(e) => {
+                  setSizeDraft(e.target.value);
+                  const typed = Number(e.target.value);
+                  if (e.target.value.trim() !== "" && Number.isInteger(typed) && typed >= MIN_STITCHES && typed <= MAX_STITCHES)
+                    setCustom(typed);
+                }}
+                onBlur={(e) => {
+                  const typed = Number(e.target.value);
+                  if (e.target.value.trim() !== "" && Number.isFinite(typed)) setCustom(Math.round(typed));
+                  setSizeDraft(null);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                className="w-14 min-w-0 border-none bg-transparent py-1.5 text-center font-mono text-xs text-ink"
               />
               <button
                 type="button"
-                aria-label="One color more"
-                title="One color more"
-                onClick={() => onChange("colorCount", Math.min(countMax, shownCount + 1))}
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-line text-sm leading-none text-ink hover:bg-raised"
+                aria-label="One stitch more"
+                onClick={() => setCustom(options.customSize + 1)}
+                className="px-2.5 py-1.5 text-sm leading-none text-muted hover:bg-raised hover:text-ink"
               >
                 +
               </button>
             </div>
-            {prediction && (
-              <p className="text-[11px] leading-4 text-muted" data-testid="color-count-hint">
-                Suggested {prediction.suggested}:{" "}
-                {prediction.low === prediction.high ? prediction.low : `${prediction.low}–${prediction.high}`} colors give the best results;
-                more mostly add shades nobody will see (up to {countMax}).{" "}
-                {options.colorCount !== prediction.suggested && (
-                  <button
-                    type="button"
-                    onClick={() => onChange("colorCount", prediction.suggested)}
-                    className="text-accent hover:underline"
-                  >
-                    Use {prediction.suggested}
-                  </button>
-                )}
-              </p>
-            )}
-          </>
-        )}
-      </section>
+            <span className="font-mono text-[11px] text-muted">
+              {MIN_STITCHES}–{MAX_STITCHES} sts
+            </span>
+          </div>
+          <p className="text-[11px] leading-4 text-muted">
+            ≈ {formatFinishedDimension(longerSide, options.aidaCount, options.sizeUnit)} on the longer side at {options.aidaCount}-count
+            Aida
+          </p>
+        </section>
+      )}
 
-      <section className="flex flex-col gap-2">
-        <span className={GROUP_LABEL}>Color detail</span>
-        <SegmentedControl
-          fill
-          options={VIVID_OPTIONS}
-          value={options.vivid ? "vivid" : "averaged"}
-          onChange={(choice) => onChange("vivid", choice === "vivid")}
-        />
-        <p className="text-[11px] leading-4 text-muted">
-          One stitch covers many pixels. Vivid keeps the colour of the strongest part instead of averaging it away, so small bright things
-          stay coloured. It needs a photo large enough for a stitch to cover about 25 pixels.
-        </p>
-      </section>
+      {section === "chart" && (
+        <section className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between">
+            <label className={GROUP_LABEL} htmlFor="color-count">
+              Colors
+            </label>
+            <span className="font-mono text-[13px] text-ink">{settingUp ? options.paletteSet.colors.length : shownCount}</span>
+          </div>
+          {settingUp ? (
+            <p className="text-[11px] leading-4 text-muted">The chart uses the colors in your palette, so there is no count to set.</p>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="One color fewer"
+                  title="One color fewer"
+                  onClick={() => onChange("colorCount", Math.max(MIN_COLORS, shownCount - 1))}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-line text-sm leading-none text-ink hover:bg-raised"
+                >
+                  −
+                </button>
+                <input
+                  id="color-count"
+                  type="range"
+                  min={MIN_COLORS}
+                  max={countMax}
+                  value={shownCount}
+                  aria-label="Number of colors"
+                  onChange={(e) => onChange("colorCount", Number(e.target.value))}
+                  className="min-w-0 flex-1 accent-[var(--at-accent)]"
+                />
+                <button
+                  type="button"
+                  aria-label="One color more"
+                  title="One color more"
+                  onClick={() => onChange("colorCount", Math.min(countMax, shownCount + 1))}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-line text-sm leading-none text-ink hover:bg-raised"
+                >
+                  +
+                </button>
+              </div>
+              {prediction && (
+                <p className="text-[11px] leading-4 text-muted" data-testid="color-count-hint">
+                  Suggested {prediction.suggested}:{" "}
+                  {prediction.low === prediction.high ? prediction.low : `${prediction.low}–${prediction.high}`} colors give the best
+                  results; more mostly add shades nobody will see (up to {countMax}).{" "}
+                  {options.colorCount !== prediction.suggested && (
+                    <button
+                      type="button"
+                      onClick={() => onChange("colorCount", prediction.suggested)}
+                      className="text-accent hover:underline"
+                    >
+                      Use {prediction.suggested}
+                    </button>
+                  )}
+                </p>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
-      <section className="flex flex-col gap-2">
-        <span className={GROUP_LABEL}>Lines</span>
-        <label
-          className="flex items-center justify-between gap-3 text-[13px]"
-          title="Finds thin lines in a drawing (outlines, whiskers, lettering; dark, light or coloured) and stitches them as backstitch instead of a ragged row of stitches"
-        >
-          Backstitch from lines
-          <input
-            type="checkbox"
-            checked={options.backstitchLines}
-            onChange={(e) => onChange("backstitchLines", e.target.checked)}
-            className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
+      {section === "chart" && (
+        <section className="flex flex-col gap-2">
+          <span className={GROUP_LABEL}>Color detail</span>
+          <SegmentedControl
+            fill
+            options={VIVID_OPTIONS}
+            value={options.vivid ? "vivid" : "averaged"}
+            onChange={(choice) => onChange("vivid", choice === "vivid")}
           />
-        </label>
-        {options.backstitchLines ? (
+          <p className="text-[11px] leading-4 text-muted">
+            One stitch covers many pixels. Vivid keeps the colour of the strongest part instead of averaging it away, so small bright things
+            stay coloured. It needs a photo large enough for a stitch to cover about 25 pixels.
+          </p>
+        </section>
+      )}
+
+      {section === "lines" && (
+        <section className="flex flex-col gap-2">
+          <span className={GROUP_LABEL}>Lines</span>
           <label
             className="flex items-center justify-between gap-3 text-[13px]"
-            title="A photograph is full of faint fine detail, so only its strongest long thin lines (a branch, a wire, a fence rail) are traced, and few of them. Drawings are traced either way."
+            title="Finds thin lines in a drawing (outlines, whiskers, lettering; dark, light or coloured) and stitches them as backstitch instead of a ragged row of stitches"
           >
-            Also in photographs
+            Backstitch from lines
             <input
               type="checkbox"
-              checked={options.backstitchPhotos}
-              onChange={(e) => onChange("backstitchPhotos", e.target.checked)}
+              checked={options.backstitchLines}
+              onChange={(e) => onChange("backstitchLines", e.target.checked)}
               className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
             />
           </label>
-        ) : null}
-        {options.backstitchLines ? (
-          <div className="flex flex-col gap-0.5">
-            <div className="flex items-baseline justify-between">
-              <label className="text-[11px] text-muted" htmlFor="backstitch-sensitivity">
-                Line sensitivity
-              </label>
-              <span className="font-mono text-[11px] text-ink">{Math.round(options.backstitchSensitivity * 10)}</span>
+          {options.backstitchLines ? (
+            <label
+              className="flex items-center justify-between gap-3 text-[13px]"
+              title="A photograph is full of faint fine detail, so only its strongest long thin lines (a branch, a wire, a fence rail) are traced, and few of them. Drawings are traced either way."
+            >
+              Also in photographs
+              <input
+                type="checkbox"
+                checked={options.backstitchPhotos}
+                onChange={(e) => onChange("backstitchPhotos", e.target.checked)}
+                className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
+              />
+            </label>
+          ) : null}
+          {options.backstitchLines ? (
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-baseline justify-between">
+                <label className="text-[11px] text-muted" htmlFor="backstitch-sensitivity">
+                  Line sensitivity
+                </label>
+                <span className="font-mono text-[11px] text-ink">{Math.round(options.backstitchSensitivity * 10)}</span>
+              </div>
+              <input
+                id="backstitch-sensitivity"
+                type="range"
+                min={0}
+                max={10}
+                value={Math.round(options.backstitchSensitivity * 10)}
+                aria-label="Line sensitivity"
+                onChange={(e) => onChange("backstitchSensitivity", Number(e.target.value) / 10)}
+                className="min-w-0 accent-[var(--at-accent)]"
+              />
             </div>
-            <input
-              id="backstitch-sensitivity"
-              type="range"
-              min={0}
-              max={10}
-              value={Math.round(options.backstitchSensitivity * 10)}
-              aria-label="Line sensitivity"
-              onChange={(e) => onChange("backstitchSensitivity", Number(e.target.value) / 10)}
-              className="min-w-0 accent-[var(--at-accent)]"
-            />
-          </div>
-        ) : null}
-        <p className="text-[11px] leading-4 text-muted">
-          For drawings: thin lines, dark, light or coloured, become backstitch in up to three threads, and the stitches under them take the
-          colour beside them. A photograph with texture everywhere gets none unless the checkbox below is on, and then only a few strong
-          lines.
-        </p>
-      </section>
+          ) : null}
+          <p className="text-[11px] leading-4 text-muted">
+            For drawings: thin lines, dark, light or coloured, become backstitch in up to three threads, and the stitches under them take
+            the colour beside them. A photograph with texture everywhere gets none unless the checkbox below is on, and then only a few
+            strong lines.
+          </p>
+        </section>
+      )}
 
-      <section className="flex flex-col gap-2">
-        <span className={GROUP_LABEL}>Texture</span>
-        <label
-          className="flex items-center justify-between gap-3 text-[13px]"
-          title="Lays short backstitch strokes over the stitches where the picture has fine texture, such as fur, feathers, hair, bark or grass, along the way the texture runs"
-        >
-          Texture strokes
-          <input
-            type="checkbox"
-            checked={options.textureStrokes}
-            onChange={(e) => onChange("textureStrokes", e.target.checked)}
-            className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
-          />
-        </label>
-        {options.textureStrokes ? (
-          <div className="flex flex-col gap-0.5">
-            <div className="flex items-baseline justify-between">
-              <label className="text-[11px] text-muted" htmlFor="texture-density">
-                Stroke density
-              </label>
-              <span className="font-mono text-[11px] text-ink">{Math.round(options.textureDensity * 10)}</span>
-            </div>
-            <input
-              id="texture-density"
-              type="range"
-              min={0}
-              max={10}
-              value={Math.round(options.textureDensity * 10)}
-              aria-label="Stroke density"
-              onChange={(e) => onChange("textureDensity", Number(e.target.value) / 10)}
-              className="min-w-0 accent-[var(--at-accent)]"
-            />
-          </div>
-        ) : null}
-        <p className="text-[11px] leading-4 text-muted">
-          Strokes are not lines in the picture: they are what a stitcher draws along feathers and fur. They lie over the stitches, which
-          stay as they are, in up to four threads. A smooth area gets none.
-        </p>
-      </section>
-
-      <DeclaredSettings
-        values={options.generationExtras}
-        onChange={(next) => onChange("generationExtras", next)}
-        headingClass={GROUP_LABEL}
-      />
-
-      <section className="flex flex-col gap-2">
-        <span className={GROUP_LABEL}>Algorithm</span>
-        <SegmentedControl
-          fill
-          options={ALGORITHM_OPTIONS}
-          value={options.generationMode}
-          onChange={(mode) => onChange("generationMode", mode)}
-        />
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <span className={GROUP_LABEL}>Palette</span>
-        <SegmentedControl fill options={SETUP_OPTIONS} value={settingUp ? "setup" : "auto"} onChange={chooseSetup} />
-        <SegmentedControl fill options={PALETTE_OPTIONS} value={options.paletteMode} onChange={choosePaletteMode} />
-        {settingUp && pendingMode !== null && pendingMode !== options.paletteMode && (
-          <div
-            role="alert"
-            data-testid="palette-mode-warning"
-            className="flex flex-col gap-2 rounded-lg border border-warning-edge bg-warning-deep/40 p-2.5"
+      {section === "lines" && (
+        <section className="flex flex-col gap-2">
+          <span className={GROUP_LABEL}>Texture</span>
+          <label
+            className="flex items-center justify-between gap-3 text-[13px]"
+            title="Lays short backstitch strokes over the stitches where the picture has fine texture, such as fur, feathers, hair, bark or grass, along the way the texture runs"
           >
-            <p className="text-[11px] leading-4 text-warning">
-              Switching to {modeLabel(pendingMode)} empties your {options.paletteSet.colors.length} chosen{" "}
-              {options.paletteSet.colors.length === 1 ? "colour" : "colours"}: they belong to {modeLabel(options.paletteSet.mode)}. Save the
-              palette first if you want it back.
-            </p>
-            <div className="flex gap-1.5">
-              <PillButton size="xs" onClick={() => applyPaletteMode(pendingMode)}>
-                Switch and empty
-              </PillButton>
-              <PillButton size="xs" onClick={() => setPendingMode(null)}>
-                Keep {modeLabel(options.paletteSet.mode)}
-              </PillButton>
+            Texture strokes
+            <input
+              type="checkbox"
+              checked={options.textureStrokes}
+              onChange={(e) => onChange("textureStrokes", e.target.checked)}
+              className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
+            />
+          </label>
+          {options.textureStrokes ? (
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-baseline justify-between">
+                <label className="text-[11px] text-muted" htmlFor="texture-density">
+                  Stroke density
+                </label>
+                <span className="font-mono text-[11px] text-ink">{Math.round(options.textureDensity * 10)}</span>
+              </div>
+              <input
+                id="texture-density"
+                type="range"
+                min={0}
+                max={10}
+                value={Math.round(options.textureDensity * 10)}
+                aria-label="Stroke density"
+                onChange={(e) => onChange("textureDensity", Number(e.target.value) / 10)}
+                className="min-w-0 accent-[var(--at-accent)]"
+              />
             </div>
-          </div>
-        )}
-        {settingUp && (
-          <PaletteSetup
-            set={options.paletteSet}
-            onChange={(set) => {
-              onChange("paletteSet", set);
-              // A set belongs to one palette mode: a loaded file or saved palette of another mode brings its mode with it.
-              if (set.mode !== options.paletteMode) onChange("paletteMode", set.mode);
-            }}
-            prediction={prediction}
-            loading={predictionLoading}
+          ) : null}
+          <p className="text-[11px] leading-4 text-muted">
+            Strokes are not lines in the picture: they are what a stitcher draws along feathers and fur. They lie over the stitches, which
+            stay as they are, in up to four threads. A smooth area gets none.
+          </p>
+        </section>
+      )}
+
+      {section === "lines" && (
+        <DeclaredSettings
+          values={options.generationExtras}
+          onChange={(next) => onChange("generationExtras", next)}
+          headingClass={GROUP_LABEL}
+        />
+      )}
+
+      {section === "chart" && (
+        <section className="flex flex-col gap-2">
+          <span className={GROUP_LABEL}>Algorithm</span>
+          <SegmentedControl
+            fill
+            options={ALGORITHM_OPTIONS}
+            value={options.generationMode}
+            onChange={(mode) => onChange("generationMode", mode)}
           />
-        )}
-      </section>
+        </section>
+      )}
 
-      <section className="flex flex-col gap-2">
-        <span className={GROUP_LABEL}>Edges</span>
-        <SegmentedControl fill options={EDGE_OPTIONS} value={options.edgeMode} onChange={chooseEdgeMode} />
-        <p className="text-[11px] leading-4 text-muted">Crisp keeps hard boundaries instead of blending them.</p>
-      </section>
+      {section === "chart" && (
+        <section className="flex flex-col gap-2">
+          <span className={GROUP_LABEL}>Palette</span>
+          <SegmentedControl fill options={SETUP_OPTIONS} value={settingUp ? "setup" : "auto"} onChange={chooseSetup} />
+          <SegmentedControl fill options={PALETTE_OPTIONS} value={options.paletteMode} onChange={choosePaletteMode} />
+          {settingUp && pendingMode !== null && pendingMode !== options.paletteMode && (
+            <div
+              role="alert"
+              data-testid="palette-mode-warning"
+              className="flex flex-col gap-2 rounded-lg border border-warning-edge bg-warning-deep/40 p-2.5"
+            >
+              <p className="text-[11px] leading-4 text-warning">
+                Switching to {modeLabel(pendingMode)} empties your {options.paletteSet.colors.length} chosen{" "}
+                {options.paletteSet.colors.length === 1 ? "colour" : "colours"}: they belong to {modeLabel(options.paletteSet.mode)}. Save
+                the palette first if you want it back.
+              </p>
+              <div className="flex gap-1.5">
+                <PillButton size="xs" onClick={() => applyPaletteMode(pendingMode)}>
+                  Switch and empty
+                </PillButton>
+                <PillButton size="xs" onClick={() => setPendingMode(null)}>
+                  Keep {modeLabel(options.paletteSet.mode)}
+                </PillButton>
+              </div>
+            </div>
+          )}
+          {settingUp && (
+            <PaletteSetup
+              set={options.paletteSet}
+              onChange={(set) => {
+                onChange("paletteSet", set);
+                // A set belongs to one palette mode: a loaded file or saved palette of another mode brings its mode with it.
+                if (set.mode !== options.paletteMode) onChange("paletteMode", set.mode);
+              }}
+              prediction={prediction}
+              loading={predictionLoading}
+            />
+          )}
+        </section>
+      )}
 
-      <section className="flex flex-col gap-2">
-        <label className={GROUP_LABEL} htmlFor="dither-mode">
-          Dither
-        </label>
-        <select
-          id="dither-mode"
-          value={isLinesMode(options.ditherMode) ? LINES_OPTION : options.ditherMode}
-          onChange={(e) => chooseDitherMode(e.target.value === LINES_OPTION ? LINE_DITHER_MODES[0] : (e.target.value as DitherMode))}
-          className="rounded-md border border-line bg-sunken px-2 py-1.5 text-xs text-ink"
-        >
-          <option value="off">{DITHER_LABELS.off}</option>
-          {DITHER_GROUPS.map(({ label, modes, withLines }) => (
-            <optgroup key={label} label={label}>
-              {modes.map((mode) => (
-                <option key={mode} value={mode}>
-                  {DITHER_LABELS[mode]}
-                </option>
-              ))}
-              {withLines && <option value={LINES_OPTION}>Lines</option>}
-            </optgroup>
-          ))}
-        </select>
-        {isLinesMode(options.ditherMode) && (
-          <SegmentedControl fill options={LINE_DIRECTION_OPTIONS} value={options.ditherMode} onChange={chooseDitherMode} />
-        )}
-        {dithering && isDithered(options.ditherMode) && (
-          <DitherPreview
-            mode={options.ditherMode}
-            texture={options.ditherTexture}
-            chartWidth={chartSize.width}
-            chartHeight={chartSize.height}
-            onShuffle={() => onChange("ditherTexture", { ...options.ditherTexture, seed: (Math.random() * 0xffffffff) >>> 0 })}
-          />
-        )}
-        {dithering && isDrawnMode(options.ditherMode) && (
-          <TextureEditor texture={options.ditherTexture} onChange={(texture) => onChange("ditherTexture", texture)} />
-        )}
-      </section>
+      {section === "chart" && (
+        <section className="flex flex-col gap-2">
+          <span className={GROUP_LABEL}>Edges</span>
+          <SegmentedControl fill options={EDGE_OPTIONS} value={options.edgeMode} onChange={chooseEdgeMode} />
+          <p className="text-[11px] leading-4 text-muted">Crisp keeps hard boundaries instead of blending them.</p>
+        </section>
+      )}
 
-      {hasPhoto && (
+      {section === "chart" && (
+        <section className="flex flex-col gap-2">
+          <span className={GROUP_LABEL}>Dither</span>
+          <DitherChooser value={options.ditherMode} onChange={chooseDitherMode} />
+          {isLinesMode(options.ditherMode) && (
+            <SegmentedControl fill options={LINE_DIRECTION_OPTIONS} value={options.ditherMode} onChange={chooseDitherMode} />
+          )}
+          {dithering && isDithered(options.ditherMode) && (
+            <DitherPreview
+              mode={options.ditherMode}
+              texture={options.ditherTexture}
+              chartWidth={chartSize.width}
+              chartHeight={chartSize.height}
+              onShuffle={() => onChange("ditherTexture", { ...options.ditherTexture, seed: (Math.random() * 0xffffffff) >>> 0 })}
+            />
+          )}
+          {dithering && isDrawnMode(options.ditherMode) && (
+            <TextureEditor texture={options.ditherTexture} onChange={(texture) => onChange("ditherTexture", texture)} />
+          )}
+        </section>
+      )}
+
+      {section === "picture" && hasPhoto && (
         <section className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between">
             <span className={GROUP_LABEL}>Photo</span>

@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import path from "node:path";
-import { expectPhotoLoaded, FIXTURE, openSmallChart } from "./helpers/app";
+import { expectPhotoLoaded, FIXTURE, openSmallChart, showPhotoTab } from "./helpers/app";
 
 /**
  * G-091 (D283): every new document resets the same things, whichever way it arrives. The table is pinned by unit tests
@@ -29,6 +29,7 @@ test("an empty grid starts with neutral photo sliders, so the next photo is not 
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expectPhotoLoaded(page);
+  await showPhotoTab(page, "Picture");
   await page.getByLabel("Brightness").fill("40");
   await expect(page.getByLabel("Brightness")).toHaveAttribute("aria-valuetext", "40");
 

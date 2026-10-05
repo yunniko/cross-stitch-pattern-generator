@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { expectPhotoLoaded, saveButton, generateAndWait } from "./helpers/app";
+import { expectPhotoLoaded, saveButton, generateAndWait, showPhotoTab } from "./helpers/app";
 
 /**
  * G-085: "Texture strokes", end to end through the real UI and the processor.
@@ -39,13 +39,13 @@ test("a furry picture gets strokes as backstitch, more with a higher density, an
   const plain = await generateAndExport(page);
   expect(plain.backstitch ?? []).toEqual([]);
 
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Lines & texture");
   await expect(checkbox(page)).not.toBeChecked();
   await checkbox(page).check();
   const accents = await generateAndExport(page);
   expect((accents.backstitch ?? []).length).toBeGreaterThan(8);
 
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Lines & texture");
   await page.getByLabel("Stroke density").fill("10");
   const coat = await generateAndExport(page);
   expect((coat.backstitch ?? []).length).toBeGreaterThan((accents.backstitch ?? []).length);
@@ -59,7 +59,7 @@ test("a furry picture gets strokes as backstitch, more with a higher density, an
 
 test("a smooth picture gets no strokes, with the setting on", async ({ page }) => {
   await openPicture(page, SMOOTH, "30");
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Lines & texture");
   await checkbox(page).check();
   const chart = await generateAndExport(page);
   expect(chart.backstitch ?? []).toEqual([]);
@@ -67,13 +67,13 @@ test("a smooth picture gets no strokes, with the setting on", async ({ page }) =
 
 test("the choice and its density are remembered across a reload", async ({ page }) => {
   await openPicture(page, FUR, "60");
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Lines & texture");
   await checkbox(page).check();
   await page.getByLabel("Stroke density").fill("7");
   await page.reload();
   await page.getByLabel("Image").setInputFiles(FUR);
   await expectPhotoLoaded(page);
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Lines & texture");
   await expect(checkbox(page)).toBeChecked();
   await expect(page.getByLabel("Stroke density")).toHaveValue("7");
 });

@@ -192,6 +192,24 @@ export const INTERFACE_ICONS = {
       <path d="M4 17.5V19a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 19v-1.5" />
     </>
   ),
+  /** Keeps a try while the others come and go. */
+  pin: outline(
+    "h-3.5 w-3.5",
+    1.7,
+    <>
+      <path d="M9 4h6l-1 6 3 3H7l3-3z" />
+      <path d="M12 13v7" />
+    </>
+  ),
+  delete: outline(
+    "h-3.5 w-3.5",
+    1.7,
+    <>
+      <path d="M5 7h14" />
+      <path d="M10 7V5h4v2" />
+      <path d="M7 7l1 12h8l1-12" />
+    </>
+  ),
   copy: outline(
     "h-4 w-4",
     1.6,

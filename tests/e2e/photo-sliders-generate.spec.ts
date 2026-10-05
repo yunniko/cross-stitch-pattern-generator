@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { expectPhotoLoaded, saveButton, showWorkspace, generateAndWait } from "./helpers/app";
+import { expectPhotoLoaded, saveButton, showWorkspace, generateAndWait, showPhotoTab } from "./helpers/app";
 
 /**
  * G-074 M3: the sliders reach generation, and the chart says what it was made with.
@@ -48,12 +48,11 @@ async function generateAndExport(page: Page): Promise<ExportedChart> {
  * comparisons between charts made under the same one.
  */
 async function setSlider(page: Page, name: string, value: number) {
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Picture");
   const predicted = page.waitForResponse((r) => r.url().includes("/api/predictions"), { timeout: 15_000 });
   await page.getByRole("slider", { name }).fill(String(value));
   await page.getByRole("slider", { name }).dispatchEvent("change");
   await predicted;
-  await expect(page.getByTestId("color-count-hint")).toBeVisible();
 }
 
 /** How far the chart's threads are from grey: the one thing "saturation all the way down" must change. */
@@ -181,7 +180,7 @@ test("the photo views show the photo the chart was made from, and reopening rest
   expect(await adjustedPhotoChroma(page)).toBeLessThan(6);
 
   // And with the sliders centred it is the photo as uploaded, which this one is not: it is vividly coloured.
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Picture");
   await setSlider(page, "Saturation", 0);
   await generateAndExport(page);
   await showPhotoOnly(page);
@@ -199,6 +198,7 @@ test("a chart saved with the sliders opens with them set, so Regenerate reproduc
   await setSlider(page, "Brightness", -45);
   await setSlider(page, "Saturation", 70);
   // A new picture starts at its recommended count (G-087), so the count is part of what "the same chart" means here.
+  await showPhotoTab(page, "Chart settings");
   const count = await page.getByLabel("Number of colors").inputValue();
   const saved = await generateAndExport(page);
   const file = path.join(tmpdir(), `sliders-${process.pid}.json`);
@@ -212,10 +212,13 @@ test("a chart saved with the sliders opens with them set, so Regenerate reproduc
 
   const predicted = page.waitForResponse((r) => r.url().includes("/api/predictions"), { timeout: 15_000 });
   await page.getByLabel("Open pattern file").setInputFiles(file);
-  await page.getByRole("tab", { name: "Photo" }).click();
+  // An opened chart arrives in Edit; until it has, the Photo workspace on screen is still the photo's that was chosen above.
+  await expect(page.getByRole("tab", { name: "Edit", exact: true })).toHaveAttribute("aria-selected", "true");
+  await showPhotoTab(page, "Picture");
   await expect(page.getByRole("slider", { name: "Brightness" })).toHaveValue("-45");
   await expect(page.getByRole("slider", { name: "Saturation" })).toHaveValue("70");
 
+  await showPhotoTab(page, "Chart settings");
   await page.getByLabel("Number of colors").fill(count);
   await predicted; // the count is held to the prediction for these sliders (G-087)
   // The point of restoring them: pressing Regenerate gives back the chart that was opened, not another one.
@@ -234,7 +237,7 @@ test("with a photo view up, the Photo tab's sliders move the photo without regen
   await generateAndExport(page);
 
   await showPhotoOnly(page);
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Picture");
   expect(await uploadedPhotoChroma(page)).toBeGreaterThan(30);
 
   // No Generate: the sliders alone must move what the photo view is showing.
@@ -254,7 +257,7 @@ test("the photo keeps up with a slider being dragged, not just with one value", 
   await generateAndExport(page);
 
   await showPhotoOnly(page);
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Picture");
   const before = await uploadedPhotoChroma(page);
   expect(before).toBeGreaterThan(30);
 
@@ -299,7 +302,7 @@ test("sliders moved but never generated are given up on the way out", async ({ p
   await generateAndExport(page);
 
   await showPhotoOnly(page);
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Picture");
   await page.getByRole("slider", { name: "Saturation" }).fill("-100");
   await expect(page.getByRole("slider", { name: "Saturation" })).toHaveValue("-100");
 
@@ -325,12 +328,12 @@ test("a slider that was generated with is kept, not given up", async ({ page }) 
   await generateAndExport(page);
 
   await showPhotoOnly(page);
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Picture");
   await page.getByRole("slider", { name: "Saturation" }).fill("-100");
   const chart = await generateAndExport(page);
   expect(chart.photoAdjust).toEqual({ brightness: 0, contrast: 0, saturation: -100, temperature: 0 });
 
   // Generate committed it, so leaving must leave it alone.
-  await page.getByRole("tab", { name: "Photo" }).click();
+  await showPhotoTab(page, "Picture");
   await expect(page.getByRole("slider", { name: "Saturation" })).toHaveValue("-100");
 });

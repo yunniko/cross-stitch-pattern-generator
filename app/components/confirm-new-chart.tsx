@@ -16,9 +16,11 @@ export interface ConfirmNewChartProps {
   onExportThenStart: () => void;
   onKeepEditing: () => void;
   onStartNew: () => void;
+  /** How many tries are pinned for the photo in hand (G-095): said here, since another photo drops them. */
+  pinnedTries?: number;
 }
 
-export function ConfirmNewChart({ pattern, onExportThenStart, onKeepEditing, onStartNew }: ConfirmNewChartProps) {
+export function ConfirmNewChart({ pattern, onExportThenStart, onKeepEditing, onStartNew, pinnedTries = 0 }: ConfirmNewChartProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Escape is the safe way out, and the safe action takes focus: nothing destructive is one stray Enter away.
@@ -49,6 +51,13 @@ export function ConfirmNewChart({ pattern, onExportThenStart, onKeepEditing, onS
           <span className="text-ink">{pattern.name ?? "this chart"}</span> — {pattern.width} × {pattern.height},{" "}
           {formatStitchCount(filledStitchCount(pattern))}. Its undo history goes too.
         </p>
+
+        {pinnedTries > 0 && (
+          <p className="m-0 text-[12px] leading-[17px] text-warning" data-testid="confirm-pinned-tries">
+            {pinnedTries === 1 ? "1 pinned try is" : `${pinnedTries} pinned tries are`} kept for this photo. Choosing another photo drops{" "}
+            {pinnedTries === 1 ? "it" : "them"} with the rest of its tries; an empty grid or a saved file does not.
+          </p>
+        )}
 
         <p className="m-0 text-[12px] leading-[17px] text-muted">
           Exporting first downloads the editable .json, which keeps this chart on your machine; you can open it again later.

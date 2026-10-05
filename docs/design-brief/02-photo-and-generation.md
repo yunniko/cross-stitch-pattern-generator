@@ -24,8 +24,23 @@ The photo is shown as it is until a chart exists; with adjustment values off neu
 | **Kind of value** | Action |
 | **Label** | "Generate pattern" when there is no chart, "Regenerate" when there is |
 | **Available when** | A photo is loaded and nothing is generating or being read. Absent for charts without a photo and before any photo exists |
-| **Effects** | Shows progress with a way to cancel (states in `09`). On completion the chart appears, selection and undo history restart with the new chart as their baseline, and the chart records the settings and the photo it was made from |
+| **Effects** | Shows progress with a way to cancel (states in `09`). On completion the chart appears and is kept as a try (below); the first chart from a photo is where undo starts, and each later one is one undoable step; the chart records the settings and the photo it was made from |
 | **Refusals before sending** | No photo; size outside 10–1500; colour count outside 2–100; set-up chosen with no colours ("Add at least one colour to the palette, or switch back to Automatic.") |
+
+## Tries
+
+Every chart a Generate makes is kept as a **try**, so an earlier result is gone back to without generating again.
+
+| | |
+|---|---|
+| **What a try is** | The chart as generated, the settings that made it, and its number ("Try 3": counted up for the photo, never reused). It is shown as a small picture of the chart with its size, its number of colours and, where one was used, the brand or "your palette" |
+| **How many are kept** | The **5 most recent**, and beside them up to **5 pinned**. Making a sixth drops the oldest that is not pinned |
+| **Going back to one** | Its chart becomes the chart, as one undoable step, and the generation settings that made it are put back. No chart is generated. The try the chart on screen is, untouched, is marked; an edited chart is none of them |
+| **Pin** | Takes a try out of the five that come and go. A sixth pin is refused: "5 tries are pinned already, which is the most that are kept. Unpin or delete one first." Unpinning makes it the most recent of the five |
+| **Delete** | Removes the try; the chart on screen stays as it is |
+| **Kept for** | This browser, across visits, for the photo in hand. Taking up another photo drops them; the question asked before a new chart replaces this one says how many are pinned. A chart with no photo has none |
+| **Available when** | A chart made from a photo is open, in the Photo workspace (`01`). Unavailable while a chart is being generated |
+| **Empty** | "Each Generate is kept here as a try, to go back to without generating again: the last 5, and up to 5 you pin." |
 
 ## Size
 
@@ -123,7 +138,7 @@ The chart is then made only from the colours chosen. Each cell takes the nearest
 | | |
 |---|---|
 | **Purpose** | Mix two neighbouring threads across stitches so a small palette holds a gradient |
-| **Kind of value** | Choice among 13 patterns in groups: **Off**; *Screens* (fewest single stitches): Clustered dots, Rings, **Lines** (with a direction: horizontal, vertical, diagonal rising, diagonal falling); *Scattered* (closer to the photo): Bayer 4×4, Bayer 8×8, Blue noise; *Error diffusion* (closest, never worse than none): Floyd–Steinberg, Atkinson; *Drawn* (marks, not a pattern): Hand-drawn |
+| **Kind of value** | Choice among 13 patterns, each offered as a small picture of the pattern itself over a ramp from dark to light, in groups: **Off**; *Screens* (fewest single stitches): Clustered dots, Rings, **Lines** (with a direction: horizontal, vertical, diagonal rising, diagonal falling); *Scattered* (closer to the photo): Bayer 4×4, Bayer 8×8, Blue noise; *Error diffusion* (closest, never worse than none): Floyd–Steinberg, Atkinson; *Drawn* (marks, not a pattern): Hand-drawn |
 | **Default** | Off |
 | **Preview** | For every pattern except Off: the top-left corner of the chart these settings would make, over a ramp from dark to light, at the chart's own size. For drawn patterns, choosing the preview draws the same marks again in different places (a new random seed, stored with the texture) |
 | **Effects** | A dithered chart skips the smoothing that removes stray stitches, and has more single stitches. The same settings and seed always give the same chart |

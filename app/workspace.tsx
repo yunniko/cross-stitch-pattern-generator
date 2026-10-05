@@ -40,6 +40,10 @@ import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useColorPrediction } from "./hooks/use-color-prediction";
 import { readToolOption, writeToolOption } from "@/lib/editor/tool-options";
 import { toolTabShown } from "@/lib/editor/tool-tab";
+import { isTry, trySettingsOf, type Try } from "@/lib/editor/tries";
+import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
+import { useTries } from "./hooks/use-tries";
+import { TriesStrip } from "./components/tries-strip";
 import { workspaceEdits, workspaceOpen, workspaceShown } from "@/lib/editor/workspaces";
 import { toolDefinition } from "./tools/registry";
 import { useTools } from "./tools/use-tools";
@@ -281,6 +285,10 @@ export default function Workspace({ account }: WorkspaceProps) {
     setColors: options.paletteSetup && options.paletteSet.colors.length ? options.paletteSet.colors.map((c) => c.rgb) : null,
   });
   const recommendedCount = useRecommendedCount(colorPrediction.prediction, (count) => updateOption("colorCount", count));
+  // Every chart a Generate makes is kept as a try of the photo in hand (G-095 M4, D298).
+  const tries = useTries(source.meta?.dataUrl ?? null);
+  // The most recent of them, where two tries are the same chart.
+  const currentTryId = useMemo(() => tries.tries.findLast((entry) => isTry(pattern, entry.pattern))?.id ?? null, [pattern, tries.tries]);
   const generation = useGeneration({
     colorCeiling: options.paletteSetup ? null : (colorPrediction.prediction?.ceiling ?? null),
     options,
@@ -289,8 +297,22 @@ export default function Workspace({ account }: WorkspaceProps) {
     sourceFileName: source.fileName,
     revisionRef: source.revisionRef,
     currentPattern: pattern,
-    onGenerated: lifecycle.generated,
+    onGenerated: (next, isFirst) => {
+      lifecycle.generated(next, isFirst);
+      // With the settings as they stood when Generate was pressed, which are the ones that made it.
+      tries.add(next, trySettingsOf(options));
+    },
   });
+
+  /**
+   * Going back to a try: its chart becomes the chart, as one undoable step like a Regenerate, and the settings that made
+   * it are put back, so what the Photo panel shows is what made the chart on screen. Nothing is asked of the server.
+   */
+  function showTry(entry: Try) {
+    if (entry.id === currentTryId) return;
+    lifecycle.generated(entry.pattern, false);
+    for (const [key, value] of Object.entries(entry.settings)) updateOption(key as keyof WorkspaceOptions, value as never);
+  }
 
   // The arrow keys move the highlighted stitch and Enter is the pen, for the tools that paint or draw (G-080).
   useKeyboardCursor({
@@ -448,6 +470,7 @@ export default function Workspace({ account }: WorkspaceProps) {
             onExportThenStart={lifecycle.confirm.exportThenStart}
             onKeepEditing={lifecycle.confirm.keepEditing}
             onStartNew={lifecycle.confirm.startNew}
+            pinnedTries={tries.pinnedCount}
           />
         )}
 
@@ -585,6 +608,21 @@ export default function Workspace({ account }: WorkspaceProps) {
               />
             ) : null
           }
+          strip={
+            workspace === "photo" && chartShown && !photoFree ? (
+              <TriesStrip
+                tries={tries.tries}
+                currentId={currentTryId}
+                busy={generation.isProcessing}
+                refusal={tries.refusal}
+                onChoose={showTry}
+                onPin={tries.pin}
+                onUnpin={tries.unpin}
+                onDelete={tries.remove}
+                onEdit={() => chooseWorkspace("edit")}
+              />
+            ) : null
+          }
           readout={
             <StatusBar
               pattern={startingNew ? null : pattern}
@@ -631,7 +669,6 @@ export default function Workspace({ account }: WorkspaceProps) {
               prediction={colorPrediction}
               adjustPreview={adjustPreview}
               exports={exports}
-              onEdit={() => chooseWorkspace("edit")}
             />
           }
         />

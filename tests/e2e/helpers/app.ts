@@ -64,6 +64,18 @@ export async function openViewSettings(page: Page): Promise<void> {
   await expect(settings).toBeVisible();
 }
 
+/**
+ * A dither pattern in the chooser, by its id (`floyd-steinberg`, `hand-drawn`, ...; `lines` for the four line screens,
+ * whose direction is set under the chooser). The patterns are pictures to press since G-095; they were a list.
+ */
+export const ditherChoice = (page: Page, mode: string) => page.getByRole("radiogroup", { name: "Dither" }).locator(`[data-mode="${mode}"]`);
+
+/** One of the three tabs of the Photo panel, with the Photo workspace shown first. */
+export async function showPhotoTab(page: Page, name: "Picture" | "Chart settings" | "Lines & texture"): Promise<void> {
+  await showWorkspace(page, "Photo");
+  await page.getByTestId("panel").getByRole("tab", { name, exact: true }).click();
+}
+
 /** The Save button in the bar above: it downloads the editable file from any workspace, leaving what is in hand alone. */
 export const saveButton = (page: Page) => page.getByRole("button", { name: "Save", exact: true });
 

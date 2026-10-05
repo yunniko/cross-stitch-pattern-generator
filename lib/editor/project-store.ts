@@ -138,7 +138,8 @@ async function prunePhotos(kv: KeyValueStore, keep: string | null): Promise<void
   }
 }
 
-async function encodeRecord(
+/** A chart as it is written to the store, with its photo apart; the tries are stored the same way (`tries-store.ts`). */
+export async function encodeRecord(
   pattern: StitchPattern,
   symmetry: SymmetryAxes
 ): Promise<{ record: StoredProjectRecord; photo?: { key: string; dataUrl: string } }> {
@@ -335,11 +336,18 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
+let keyValueStore: KeyValueStore | null = null;
 let projectStore: ProjectStore | null = null;
 
-/** The app's one IndexedDB-backed store, created lazily so importing this module is safe during SSR. */
+/** The app's one connection to IndexedDB, shared by everything kept there; created lazily so importing this module is safe during SSR. */
+export function getKeyValueStore(): KeyValueStore {
+  if (!keyValueStore) keyValueStore = openIndexedDbKeyValueStore();
+  return keyValueStore;
+}
+
+/** The app's one IndexedDB-backed store of the open chart. */
 export function getProjectStore(): ProjectStore {
-  if (!projectStore) projectStore = createProjectStore(openIndexedDbKeyValueStore());
+  if (!projectStore) projectStore = createProjectStore(getKeyValueStore());
   return projectStore;
 }
 
