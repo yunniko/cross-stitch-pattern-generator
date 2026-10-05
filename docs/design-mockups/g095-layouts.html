@@ -885,7 +885,16 @@
         MIX
           ? TOOL_GROUPS.map((group) =>
               group.map((n) => tool(EDIT_TOOLS.find((t) => t[1] === n)[0], n, n === on ? "on" : "")).join("")
-            ).join("<hr>")
+            ).join("<hr>") +
+            "<hr>" +
+            [
+              ["◧", "Left half"],
+              ["⬒", "Upper half"],
+              ["◰", "Corner"],
+              ["◤", "Half corner"],
+            ]
+              .map(([g, n]) => tool(g, n))
+              .join("")
           : EDIT_TOOLS.map(([g, n]) => tool(g, n, n === on ? "on" : "")).join("");
       const photoTools = () =>
         PHOTO_TOOLS.map(([g, n], i) => tool(g, n, i === 1 ? "on" : "")).join("") +
@@ -1196,6 +1205,10 @@
           [
             "Panel",
             "On the right, as now. A tool's own tab is the first tab, in yellow. It opens when the tool is picked; when the tool is put down the panel returns to the tab that was open before.",
+          ],
+          [
+            "Quick mirror",
+            "The four mirror actions stay where they are today, at the foot of the tool column, as a fourth group after a line. They act on the whole chart at one press and are not tools in hand.",
           ],
           [
             "Buttons before dropdowns",
