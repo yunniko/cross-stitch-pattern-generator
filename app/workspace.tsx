@@ -13,25 +13,23 @@ import { useLitThreads } from "./hooks/use-lit-threads";
 import { useNameDraft } from "./hooks/use-name-draft";
 import { applyQuickMirrorWithSelection, fillSymmetric, type QuickMirror } from "@/lib/editor/symmetry";
 import { useDocumentHistory } from "./hooks/use-document-history";
-import { AccountBadge } from "./components/auth/account-badge";
 import type { StitchPattern } from "@/lib/types";
-import { ChartPane } from "./components/chart-pane";
-import { ColorsDock } from "./components/colors-dock";
 import { ConfirmNewChart } from "./components/confirm-new-chart";
-import { ContextBar } from "./components/context-bar";
-import { ExportControls } from "./components/export-controls";
+import { AppBar } from "./components/app-bar";
+import { EditorLayout } from "./components/editor-layout";
+import { QuickBar } from "./components/quick-bar";
+import { WorkspacePanel } from "./components/workspace-panel";
+import { ViewControls } from "./components/view-controls";
+import { ViewSettings } from "./components/view-settings";
 import { ImageWindow } from "./components/image-window";
-import { Inspector } from "./components/inspector";
 import { isKeyboardCursorTool, isViewOnlyMode, usesStitchKind } from "./editor-types";
 import { isPhotoFree } from "@/lib/editor/blank-pattern";
 import { WorkspaceNotices } from "./components/panels";
-import { PhotoPane } from "./components/photo-pane";
 import { StatusBar } from "./components/status-bar";
 import { ToolRail } from "./components/tool-rail";
-import { PillButton } from "./components/ui";
 import { cellIndexFromEvent, chartOrigin, computeCellSize } from "./editor-geometry";
 import { useChartRenderer, type ChartRenderer } from "./hooks/use-chart-renderer";
-import { paginatesAsA4, useExports } from "./hooks/use-exports";
+import { useExports } from "./hooks/use-exports";
 import { longerSideFor, useGeneration } from "./hooks/use-generation";
 import { useKeyboardCursor } from "./hooks/use-keyboard-cursor";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
@@ -42,6 +40,8 @@ import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useColorPrediction } from "./hooks/use-color-prediction";
 import { readToolOption, writeToolOption } from "@/lib/editor/tool-options";
 import { toolTabShown } from "@/lib/editor/tool-tab";
+import { workspaceEdits, workspaceOpen, workspaceShown } from "@/lib/editor/workspaces";
+import { toolDefinition } from "./tools/registry";
 import { useTools } from "./tools/use-tools";
 import { useShellCommands } from "./commands/shell-commands";
 import { useHeldPan } from "./hooks/use-held-pan";
@@ -102,11 +102,16 @@ export default function Workspace({ account }: WorkspaceProps) {
     sliders: options.photoAdjust,
     restoreSliders: (adjust) => updateOption("photoAdjust", adjust),
   });
-  const { viewMode, inspectorTab, chooseViewMode, chooseInspectorTab } = view;
+  const { viewMode, inspectorTab, chooseViewMode, chooseInspectorTab, chooseWorkspace } = view;
+  // The workspace shown (G-095, D297): the one chosen, or Photo while there is no chart to edit or export. Only Edit
+  // changes the chart; in the other two it is looked at, whatever view is up.
+  const workspace = workspaceShown(view.workspace, { hasChart: pattern !== null, startingNew });
+  const editing = workspaceEdits(workspace);
+  const lookingOnly = isViewOnlyMode(viewMode) || !editing;
   // Two colours since G-064: the squares never move, so the pair is two slots and a flag saying which is in
   // front. `activeColorIndex` stays the name for the foreground, which is what a left press paints with.
   const colours = useDrawingColours(pattern?.palette.length ?? 0);
-  const { activeColorIndex, setActiveColorIndex, setBackgroundColorIndex } = colours;
+  const { activeColorIndex, setActiveColorIndex } = colours;
   // Isolate and the threads lit for it.
   const lit = useLitThreads();
   const symmetryState = useSymmetryAxes(pattern);
@@ -125,6 +130,7 @@ export default function Workspace({ account }: WorkspaceProps) {
   // only inside event handlers, after the effect below has assigned it.
   const rendererRef = useRef<ChartRenderer | null>(null);
   const commandsButtonRef = useRef<HTMLButtonElement>(null);
+  const viewControlsRef = useRef<HTMLDivElement>(null);
   const [commandListOpen, setCommandListOpen] = useState(false);
   // A tool's own tab opens each time the tool is picked, and gives way to the tab last chosen once another is chosen
   // or the tool is put down (G-095, D296): closed for this picking of the tool, and for no other.
@@ -155,7 +161,8 @@ export default function Workspace({ account }: WorkspaceProps) {
     rendererRef,
     pattern,
     cellSize,
-    viewOnly: isViewOnlyMode(viewMode),
+    workspace,
+    viewOnly: lookingOnly,
     startingNew,
     commit: history.set,
     replaceSince: history.replaceSince,
@@ -260,7 +267,7 @@ export default function Workspace({ account }: WorkspaceProps) {
         updateOption("paletteSetup", active);
       },
       setPhotoAdjust: (adjust) => updateOption("photoAdjust", adjust),
-      showTab: view.setInspectorTab,
+      showWorkspace: view.showWorkspace,
       awaitRecommendedCount: () => recommendedCount.awaitNext(),
     },
   });
@@ -293,7 +300,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       pattern !== null &&
       !startingNew &&
       !commandListOpen &&
-      !isViewOnlyMode(viewMode) &&
+      !lookingOnly &&
       tools.piece.selection === null &&
       isKeyboardCursorTool(activeTool),
     width: pattern?.width ?? 0,
@@ -308,6 +315,17 @@ export default function Workspace({ account }: WorkspaceProps) {
     renderer.previewHover(e && hoverOutline ? { x: e.clientX, y: e.clientY } : null, hoverOutline ?? NO_OUTLINE);
   }
 
+  /** While a press is held on the chart the view controls stand aside, so a stroke can pass beneath them. */
+  function handleCanvasPointerDown(e: PointerEvent<HTMLDivElement>) {
+    if (viewControlsRef.current) viewControlsRef.current.dataset.away = "true";
+    tools.onPointerDown(e);
+  }
+
+  function handleCanvasPointerUp(e: PointerEvent<HTMLDivElement>) {
+    if (viewControlsRef.current) delete viewControlsRef.current.dataset.away;
+    tools.onPointerUp(e);
+  }
+
   function handleCanvasPointerMove(e: PointerEvent<HTMLDivElement>) {
     // Before the tools, and whatever they make of the event: the cursor carries its outline through a gesture too.
     updateHoverOutline(e);
@@ -319,7 +337,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     e.preventDefault();
     const raw = e.dataTransfer.getData("text/plain");
     const frame = frameRef.current;
-    if (!pattern || raw === "" || !frame || isViewOnlyMode(viewMode)) return;
+    if (!pattern || raw === "" || !frame || lookingOnly) return;
     const cellIndex = cellIndexFromEvent(e, frame, cellSize, pattern.width, pattern.height);
     const paletteIndex = Number(raw);
     if (cellIndex !== null && Number.isInteger(paletteIndex)) history.set(fillSymmetric(pattern, cellIndex, liveSymmetry, paletteIndex, 4));
@@ -353,6 +371,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       hasChart: pattern !== null,
       startingNew,
       startScreenVisible,
+      workspace,
       squareChart: pattern !== null && pattern.width === pattern.height,
       hasPiece: tools.piece.selection !== null,
       hasPhotoViews: pattern?.sourceImage !== undefined,
@@ -390,6 +409,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       holdPan: heldPan.hold,
       releasePan: heldPan.release,
       chooseTool: switchTool,
+      showWorkspace: chooseWorkspace,
     },
     tools.commands
   );
@@ -404,27 +424,15 @@ export default function Workspace({ account }: WorkspaceProps) {
 
   // The skin in force (G-095, D295). One is shipped; choosing between skins is a later goal's.
   const skin = ATELIER;
+  const chartShown = pattern !== null && !startingNew;
+  const toolTabUp = tools.tab !== null && chartShown && toolTabShown(tools.activation, toolTabClosedAt);
 
   return (
     <SkinProvider skin={skin}>
-      <div className="flex h-screen bg-app font-sans text-ink" style={skinStyle(skin.colours)}>
+      <div className="flex h-screen flex-col bg-app font-sans text-ink" style={skinStyle(skin.colours)}>
         {/* 1b draws no visible title, but the document still needs one heading: for assistive technology, and as the witness that the app booted. */}
         <h1 className="sr-only">Cross-Stitch Pattern Generator</h1>
-        <AccountBadge account={account} />
-        <ToolRail
-          activeTool={activeTool}
-          disabled={!pattern || startingNew}
-          onSelect={switchTool}
-          squareCanvas={pattern !== null && pattern.width === pattern.height}
-          onMirror={applyMirror}
-          onNewChart={() => setStartingNew(true)}
-          newChartDisabled={startScreenVisible}
-          onOpenCommands={() => setCommandListOpen(true)}
-          commandsDisabled={startingNew}
-          commandsButtonRef={commandsButtonRef}
-        />
         {commandListOpen && <CommandList commands={commands} onClose={closeCommandList} />}
-
         <FileInputs
           photoRef={lifecycle.inputs.photo}
           openRef={lifecycle.inputs.open}
@@ -434,36 +442,71 @@ export default function Workspace({ account }: WorkspaceProps) {
           onPixelArt={(file) => void lifecycle.pixelArtChosen(file)}
           photoDisabled={source.isLoading || generation.isProcessing}
         />
+        {lifecycle.confirm && (
+          <ConfirmNewChart
+            pattern={lifecycle.confirm.pattern}
+            onExportThenStart={lifecycle.confirm.exportThenStart}
+            onKeepEditing={lifecycle.confirm.keepEditing}
+            onStartNew={lifecycle.confirm.startNew}
+          />
+        )}
 
-        <main className="flex flex-1 flex-col overflow-hidden">
-          {/*
-          The start screen owns the bar while it is up (Owner, 2026-09-23). Select's own bar has no way back, and
-          the tool rail is disabled over the start screen, so leaving it here stranded a reader with a selection in
-          hand: the "Back to your chart" button lives in the bar it replaced.
-        */}
-          {/* A tool with something of its own to act on shows its controls in place of the drawing options (the piece in hand,
-            the backstitch in hand, the crop frame); which tool, and when, is the tool's own business. */}
-          {tools.bar ?? (
-            <ContextBar
+        <EditorLayout
+          appBar={
+            <AppBar
+              account={account}
+              chartName={chartShown ? (pattern.name ?? "cross-stitch-pattern") : null}
+              workspace={workspace}
+              onWorkspaceChange={chooseWorkspace}
+              workspaceOpen={(candidate) => workspaceOpen(candidate, { hasChart: pattern !== null, startingNew })}
+              history={
+                chartShown
+                  ? {
+                      canUndo: history.canUndo,
+                      canRedo: history.canRedo,
+                      undo: history.undo,
+                      redo: history.redo,
+                      pieceInHand: tools.piece.selection !== null,
+                    }
+                  : null
+              }
+              onNewChart={() => setStartingNew(true)}
+              newChartDisabled={startScreenVisible}
+              save={
+                chartShown ? { run: () => void exports.exportEditableNow(), busy: exports.isExporting || exports.isExportingAll } : null
+              }
+              onOpenCommands={() => setCommandListOpen(true)}
+              commandsDisabled={startingNew}
+              commandsButtonRef={commandsButtonRef}
+            />
+          }
+          tools={
+            <ToolRail
+              workspace={workspace}
+              activeTool={activeTool}
+              disabled={!chartShown}
+              onSelect={switchTool}
+              squareCanvas={pattern !== null && pattern.width === pattern.height}
+              onMirror={applyMirror}
+            />
+          }
+          quickBar={
+            <QuickBar
               pattern={pattern}
-              history={history}
-              view={{
-                mode: viewMode,
-                onModeChange: chooseViewMode,
-                isolate: lit.isolate,
-                onIsolateChange: lit.setIsolate,
-                litCount: lit.count,
-              }}
-              photo={{ isLoading: source.isLoading, hasSource: source.hasPhoto }}
-              colours={{ slots: colours.slots, onActivate: colours.setActiveSlot, onSwap: colours.swap }}
-              options={{
-                shown: tools.options,
+              workspace={workspace}
+              tool={{
+                label: toolDefinition(activeTool).label,
+                shares: tools.shares,
+                options: tools.options,
                 valueOf: (option) => readToolOption(options, option),
                 onChange: (option, value) => {
                   const written = writeToolOption(options, option, value);
                   updateOption(written.key, written.value as never);
                 },
+                quick: tools.quick,
               }}
+              photo={{ isLoading: source.isLoading, hasSource: source.hasPhoto }}
+              colours={{ slots: colours.slots, onActivate: colours.setActiveSlot, onSwap: colours.swap }}
               symmetry={{
                 axes: liveSymmetry,
                 squareCanvas: pattern !== null && pattern.width === pattern.height,
@@ -472,176 +515,124 @@ export default function Workspace({ account }: WorkspaceProps) {
               lock={{ on: options.lockTransparency, onChange: (on) => updateOption("lockTransparency", on) }}
               start={{ startingNew, onBackToChart: () => setStartingNew(false) }}
             />
-          )}
-          <WorkspaceNotices
-            restoreFailure={lifecycle.restore.failure}
-            onDownloadRestoreReport={() =>
-              lifecycle.restore.failure && downloadPatternLoadReport({ content: lifecycle.restore.failure.payload })
-            }
-            onDismissRestoreFailure={lifecycle.restore.dismissFailure}
-            openError={lifecycle.messages.openError}
-            onDismissOpenError={lifecycle.messages.dismissOpenError}
-            openNotice={lifecycle.messages.openNotice}
-            onDismissOpenNotice={lifecycle.messages.dismissOpenNotice}
-            exportError={exports.exportError}
-            onDismissExportError={exports.dismissExportError}
-            a4Layout={paginatesAsA4(exports.exportKind) ? exports.a4LayoutPreview : null}
-            a4HasPageMap={!exports.exportKind.startsWith("pdf-")}
-          />
-          {lifecycle.confirm && (
-            <ConfirmNewChart
-              pattern={lifecycle.confirm.pattern}
-              onExportThenStart={lifecycle.confirm.exportThenStart}
-              onKeepEditing={lifecycle.confirm.keepEditing}
-              onStartNew={lifecycle.confirm.startNew}
+          }
+          notices={
+            <WorkspaceNotices
+              restoreFailure={lifecycle.restore.failure}
+              onDownloadRestoreReport={() =>
+                lifecycle.restore.failure && downloadPatternLoadReport({ content: lifecycle.restore.failure.payload })
+              }
+              onDismissRestoreFailure={lifecycle.restore.dismissFailure}
+              openError={lifecycle.messages.openError}
+              onDismissOpenError={lifecycle.messages.dismissOpenError}
+              openNotice={lifecycle.messages.openNotice}
+              onDismissOpenNotice={lifecycle.messages.dismissOpenNotice}
+              exportError={exports.exportError}
+              onDismissExportError={exports.dismissExportError}
             />
-          )}
-
-          <ImageWindow
-            refs={{ scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef }}
-            chart={{
-              pattern,
-              cellSize,
-              sourceMeta: source.meta,
-              viewMode,
-              activeTool,
-              activeColorIndex,
-              cursorHidden: hoverOutline !== null,
-            }}
-            start={{
-              visible: startScreenVisible,
-              startingNew,
-              isLoadingImage: source.isLoading,
-              onChoosePhoto: lifecycle.choosePhoto,
-              onCreateBlank: lifecycle.createBlank,
-              onImportPixelArt: lifecycle.choosePixelArt,
-              onOpenPatternFile: lifecycle.chooseFile,
-              onAidaCountChange: (count) => updateOption("aidaCount", count),
-            }}
-            preview={renderer}
-            adjust={adjustPreview}
-            pointer={{
-              onDown: tools.onPointerDown,
-              onMove: handleCanvasPointerMove,
-              onUp: tools.onPointerUp,
-              onLeave: () => updateHoverOutline(null),
-              onDoubleClick: tools.onDoubleClick,
-              onDrop: handleCanvasDrop,
-            }}
-            options={options}
-            cropOverlay={startingNew ? null : tools.overlay}
-          />
-
-          <StatusBar
-            pattern={startingNew ? null : pattern}
-            aidaCount={options.aidaCount}
-            sizeUnit={options.sizeUnit}
-            autosaveStatus={lifecycle.autosaveStatus}
-            hasPattern={pattern !== null && !startingNew}
-            scrollerRef={scrollerRef}
-            frameRef={frameRef}
-            cellSize={cellSize}
-            zoomLevel={panZoom.zoomLevel}
-            onZoomIn={() => panZoom.zoomBy(ZOOM_STEP)}
-            onZoomOut={() => panZoom.zoomBy(1 / ZOOM_STEP)}
-            onResetZoom={panZoom.resetZoom}
-          />
-        </main>
-
-        <Inspector
-          // 1b's first run shows the Photo pane and no exports. The start screen therefore forces that pane rather
-          // than leaving sixteen thread rows and the exports disabled behind it, and the Photo tab locks with the
-          // other two -- two tabs reading dead beside one reading live is the inconsistency, not the disabling.
-          tab={startingNew ? "photo" : inspectorTab}
-          onTabChange={(tab) => {
-            setToolTabClosedAt(tools.activation);
-            chooseInspectorTab(tab);
-          }}
-          toolTab={
-            tools.tab && pattern && !startingNew
-              ? { ...tools.tab, shown: toolTabShown(tools.activation, toolTabClosedAt), onChoose: () => setToolTabClosedAt(-1) }
-              : null
           }
-          disabled={{
-            chart: pattern === null || startingNew,
-            threads: pattern === null || startingNew,
-          }}
-          photo={
-            photoFree && !startingNew ? (
-              <p className="p-4 text-[13px] text-muted">This chart was started from an empty canvas, so it has no photo settings.</p>
-            ) : (
-              <PhotoPane
-                options={options}
-                onChange={updateOption}
-                isProcessing={generation.isProcessing}
-                progress={generation.progress}
-                queueMessage={generation.queueMessage}
-                hasPattern={pattern !== null && !startingNew}
-                onDismissError={() => generation.setError(null)}
-                hasPhoto={!startingNew && source.hasPhoto}
-                sourceSize={source.meta ? { width: source.meta.naturalWidth, height: source.meta.naturalHeight } : null}
-                isLoadingImage={!startingNew && source.isLoading}
-                onCancel={generation.cancel}
-                onAdjustSettled={adjustPreview.settle}
-                error={generation.error}
-                prediction={colorPrediction.prediction}
-                predictionLoading={colorPrediction.loading}
-              />
-            )
-          }
-          chart={
-            <ChartPane
-              pattern={pattern}
+          stage={
+            <ImageWindow
+              refs={{ scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef }}
+              chart={{
+                pattern,
+                cellSize,
+                sourceMeta: source.meta,
+                viewMode,
+                activeTool,
+                activeColorIndex,
+                cursorHidden: hoverOutline !== null,
+                lookingOnly: !editing,
+              }}
+              start={{
+                visible: startScreenVisible,
+                startingNew,
+                isLoadingImage: source.isLoading,
+                onChoosePhoto: lifecycle.choosePhoto,
+                onCreateBlank: lifecycle.createBlank,
+                onImportPixelArt: lifecycle.choosePixelArt,
+                onOpenPatternFile: lifecycle.chooseFile,
+                onAidaCountChange: (count) => updateOption("aidaCount", count),
+              }}
+              preview={renderer}
+              adjust={adjustPreview}
+              pointer={{
+                onDown: handleCanvasPointerDown,
+                onMove: handleCanvasPointerMove,
+                onUp: handleCanvasPointerUp,
+                onLeave: () => updateHoverOutline(null),
+                onDoubleClick: tools.onDoubleClick,
+                onDrop: handleCanvasDrop,
+              }}
               options={options}
-              onChange={updateChartOption}
-              name={nameDraft}
-              onNameChange={setNameDraft}
-              onNameCommit={() => pattern && history.set(renamePattern(pattern, nameDraft))}
+              cropOverlay={startingNew ? null : tools.overlay}
             />
           }
-          threads={
-            <ColorsDock
-              pattern={pattern}
-              dimmed={tools.piece.selection !== null}
-              activeColorIndex={activeColorIndex}
-              onActiveColorChange={setActiveColorIndex}
-              onBackgroundColorChange={setBackgroundColorIndex}
-              litColorIndices={lit.colors}
-              onToggleLit={lit.toggleColor}
-              litBackstitchIndices={lit.backstitch}
-              onToggleLitBackstitch={lit.toggleBackstitch}
-              aidaCount={options.aidaCount}
-              onChange={history.set}
-              onPreviewChange={setColorPreview}
-              documentId={lifecycle.documentId}
-              onMergeColors={handleMergeColors}
-            />
-          }
-          footer={
-            // Nothing to export or generate while the start screen is up, and 1b draws no footer there.
-            startingNew || (tools.tab !== null && toolTabShown(tools.activation, toolTabClosedAt)) ? null : inspectorTab === "threads" ? (
-              <ExportControls
-                hasPattern={pattern !== null && !startingNew}
-                exportKind={exports.exportKind}
-                onExportKindChange={exports.setExportKind}
-                onExport={exports.exportSelected}
-                onExportAll={exports.exportAll}
-                isExporting={exports.isExporting}
-                isExportingAll={exports.isExportingAll}
-                exportProgressText={exports.exportProgressText}
+          viewControls={
+            chartShown ? (
+              <ViewControls
+                awayRef={viewControlsRef}
+                mode={viewMode}
+                onModeChange={chooseViewMode}
+                hasPhoto={pattern.sourceImage !== undefined}
+                isolate={lit.isolate}
+                onIsolateChange={lit.setIsolate}
+                litCount={lit.count}
+                zoomLevel={panZoom.zoomLevel}
+                onZoomIn={() => panZoom.zoomBy(ZOOM_STEP)}
+                onZoomOut={() => panZoom.zoomBy(1 / ZOOM_STEP)}
+                onResetZoom={panZoom.resetZoom}
               />
-            ) : // 1b draws Generate only once a photo is loaded ("B . Before generate"); the first run has no footer.
-            inspectorTab === "photo" && !photoFree && source.hasPhoto ? (
-              <PillButton
-                variant="primary"
-                size="lg"
-                className="w-full"
-                onClick={() => void generation.generate()}
-                disabled={!source.hasPhoto || generation.isProcessing || source.isLoading}
-              >
-                {pattern ? "Regenerate" : "Generate pattern"}
-              </PillButton>
             ) : null
+          }
+          readout={
+            <StatusBar
+              pattern={startingNew ? null : pattern}
+              aidaCount={options.aidaCount}
+              sizeUnit={options.sizeUnit}
+              autosaveStatus={lifecycle.autosaveStatus}
+              hasPattern={chartShown}
+              scrollerRef={scrollerRef}
+              frameRef={frameRef}
+              cellSize={cellSize}
+              viewSettings={chartShown ? <ViewSettings pattern={pattern} options={options} onChange={updateOption} /> : null}
+            />
+          }
+          panel={
+            <WorkspacePanel
+              workspace={workspace}
+              pattern={pattern}
+              chartShown={chartShown}
+              startingNew={startingNew}
+              photoFree={photoFree}
+              options={options}
+              onOptionChange={updateOption}
+              onChartOptionChange={updateChartOption}
+              edit={{
+                tab: inspectorTab,
+                onTabChange: (tab) => {
+                  setToolTabClosedAt(tools.activation);
+                  chooseInspectorTab(tab);
+                },
+                toolTab: tools.tab && chartShown ? { ...tools.tab, shown: toolTabUp, onChoose: () => setToolTabClosedAt(-1) } : null,
+                name: nameDraft,
+                onNameChange: setNameDraft,
+                onNameCommit: () => pattern && history.set(renamePattern(pattern, nameDraft)),
+                commit: history.set,
+                onPreviewChange: setColorPreview,
+                onMergeColors: handleMergeColors,
+                documentId: lifecycle.documentId,
+              }}
+              colours={colours}
+              lit={lit}
+              piece={tools.piece}
+              source={source}
+              generation={generation}
+              prediction={colorPrediction}
+              adjustPreview={adjustPreview}
+              exports={exports}
+              onEdit={() => chooseWorkspace("edit")}
+            />
           }
         />
 

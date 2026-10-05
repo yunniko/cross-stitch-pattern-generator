@@ -39,6 +39,26 @@ People who stitch, or design for those who do: hobbyists making a chart of a pho
 | **Selection in hand** | A piece has been selected or lifted | Undo and redo wait until it is placed or cancelled; some operations act on the piece |
 | **Looking only** | A view meant only for looking is chosen (Stitched, Photo only) | Operations that change the chart are blocked |
 
+## The three workspaces
+
+The work is done in three places, and a person is in exactly one of them. They are kept apart because the work is: someone tries generations and mostly does not edit meanwhile, and once editing they mostly do not regenerate.
+
+| Workspace | What it is for | What it offers | Available when |
+|---|---|---|---|
+| **Photo** | Making the chart from a photo | The generation settings and Generate (`02`); the chart only to look at; the two tools that move the view | Always: it is where a chart starts, and where the starting choices are shown |
+| **Edit** | Changing the chart | Every tool (`04`, `06`, `07`), the thread list (`05`), the chart's name and fabric (`03`) | A chart is open and the starting choices are not shown over it |
+| **Export** | Getting the chart out | The choice of what to make and every setting an export reads (`08`); the chart only to look at; the two tools that move the view | As Edit |
+
+**Only Edit changes the chart.** In Photo and Export every operation that would change it is unavailable, whatever view is chosen: drawing, the quick mirrors, the symmetry axes, the transparency lock, and every tool but the two that move the view.
+
+**Each workspace keeps its own tool in hand.** Going to another workspace neither takes a tool up nor puts one down: a piece in hand in Edit is still in hand on return, nothing having been applied.
+
+**Where a chart arrives.** A photo, and every chart generated from it, is shown in Photo, where another generation is one action away; the person takes it on to Edit when they choose. A chart that arrives ready (opened, restored on coming back, started blank, imported as pixel art) is shown in Edit, with its threads.
+
+**What belongs to no workspace, and is there in all three:** starting a new chart; **Save**, which writes the editable file (`08`) from wherever the person is; the chart's name; undo and redo, once each; the list of commands; the account; the views, Isolate and the zoom (`03`); the canvas colour, cloth and stitch texture (`03`); the measurements and the saved state.
+
+**Tool options follow the tool.** An option is offered exactly when the tool in hand would use it: its own options, and of the three shared ones (the two drawing colours, symmetry, the transparency lock) those it reads (`04`). What a tool holds (a piece, backstitch lines, the crop frame) brings its own operations, added to those options and replacing nothing.
+
 ## What a person can do, by area
 
 Each area has its own file; every control is described there.

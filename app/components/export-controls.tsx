@@ -6,8 +6,8 @@ import { SkinIcon } from "../skin/skin";
 
 /**
  * Saving a file (G-045 M2, direction 1b): one chosen format beside a plain Export, and the whole bundle as the filled
- * action beneath it. Lifted out of the top bar when that dissolved; the select keeps its "Export" label and both
- * buttons their names, so nothing that finds them by name has to change.
+ * action beneath it. In the Export workspace's pane since G-095; the select keeps its "Export" label and both buttons
+ * their names, so nothing that finds them by name has to change.
  */
 
 /** Editable JSON first (the default, most complete format), then the realistic preview, then Color and Black & white groups (Owner spec, 2026-09-12). */

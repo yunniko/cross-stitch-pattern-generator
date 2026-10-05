@@ -3,7 +3,8 @@ import type { QuickMirror } from "@/lib/editor/symmetry";
 import type { SymmetryAxis } from "@/lib/editor/symmetry-axes";
 import type { ViewMode } from "../editor-types";
 import { act } from "../tools/shared";
-import type { Tool } from "../tools/registry";
+import { toolOffered, workspaceEdits, workspaceOpen, type Workspace } from "@/lib/editor/workspaces";
+import { toolDefinition, type Tool } from "../tools/registry";
 import { useCommandTable, type ShellCommandId } from "./registry";
 
 /**
@@ -21,6 +22,8 @@ export interface ShellState {
   startingNew: boolean;
   /** The start screen is up, for that reason or because there is nothing to show yet. */
   startScreenVisible: boolean;
+  /** The workspace shown (G-095, D297): only Edit changes the chart, and each offers its own tools. */
+  workspace: Workspace;
   squareChart: boolean;
   /** A piece is in hand: history is not the reader's to step through yet (G-063). */
   hasPiece: boolean;
@@ -64,6 +67,7 @@ export interface ShellActions {
   holdPan: () => void;
   releasePan: () => void;
   chooseTool: (tool: Tool) => void;
+  showWorkspace: (workspace: Workspace) => void;
 }
 
 /** The keyboard cell cursor's keys are listed in the command table and listened to by its own hook. */
@@ -72,6 +76,8 @@ const LISTENED_ELSEWHERE: CommandState = { available: false, run: () => false };
 export function shellCommandStates(s: ShellState, a: ShellActions): Record<ShellCommandId, CommandState> {
   const chartShown = s.hasChart && !s.startingNew;
   const exportFree = chartShown && !s.exporting;
+  const editing = chartShown && workspaceEdits(s.workspace);
+  const enter = (workspace: Workspace) => act(s.workspace !== workspace && workspaceOpen(workspace, s), () => a.showWorkspace(workspace));
   const noPiece = !s.hasPiece;
   return {
     "file.new": act(!s.startScreenVisible, a.newChart),
@@ -89,20 +95,23 @@ export function shellCommandStates(s: ShellState, a: ShellActions): Record<Shell
     "edit.redo": { ...act(s.canRedo && noPiece, a.redo), claimsKey: true },
     "colours.swap": act(s.hasChart, a.swapColours),
     "colours.isolate": act(chartShown, a.toggleIsolate),
-    "chart.mirror-left-half": act(chartShown, () => a.mirror("left-half")),
-    "chart.mirror-upper-half": act(chartShown, () => a.mirror("upper-half")),
-    "chart.mirror-upper-left-corner": act(chartShown, () => a.mirror("upper-left-corner")),
-    "chart.mirror-upper-left-half-corner": act(chartShown && s.squareChart, () => a.mirror("upper-left-half-corner")),
-    "chart.symmetry-vertical": act(chartShown, () => a.toggleSymmetry("vertical")),
-    "chart.symmetry-horizontal": act(chartShown, () => a.toggleSymmetry("horizontal")),
-    "chart.symmetry-diagonal": act(chartShown && s.squareChart, () => a.toggleSymmetry("diagonal")),
-    "chart.symmetry-antidiagonal": act(chartShown && s.squareChart, () => a.toggleSymmetry("antidiagonal")),
-    "chart.lock-transparency": act(chartShown, a.toggleLock),
+    "chart.mirror-left-half": act(editing, () => a.mirror("left-half")),
+    "chart.mirror-upper-half": act(editing, () => a.mirror("upper-half")),
+    "chart.mirror-upper-left-corner": act(editing, () => a.mirror("upper-left-corner")),
+    "chart.mirror-upper-left-half-corner": act(editing && s.squareChart, () => a.mirror("upper-left-half-corner")),
+    "chart.symmetry-vertical": act(editing, () => a.toggleSymmetry("vertical")),
+    "chart.symmetry-horizontal": act(editing, () => a.toggleSymmetry("horizontal")),
+    "chart.symmetry-diagonal": act(editing && s.squareChart, () => a.toggleSymmetry("diagonal")),
+    "chart.symmetry-antidiagonal": act(editing && s.squareChart, () => a.toggleSymmetry("antidiagonal")),
+    "chart.lock-transparency": act(editing, a.toggleLock),
     "view.color": act(s.hasChart, () => a.showView("color")),
     "view.bw": act(s.hasChart, () => a.showView("bw")),
     "view.realistic": act(s.hasChart, () => a.showView("realistic")),
     "view.photo": act(s.hasPhotoViews, () => a.showView("photo")),
     "view.photo-only": act(s.hasPhotoViews, () => a.showView("photo-only")),
+    "view.workspace-photo": enter("photo"),
+    "view.workspace-edit": enter("edit"),
+    "view.workspace-export": enter("export"),
     "view.zoom-in": act(chartShown, a.zoomIn),
     "view.zoom-out": act(chartShown, a.zoomOut),
     "view.zoom-reset": act(chartShown, a.zoomReset),
@@ -121,5 +130,10 @@ export function shellCommandStates(s: ShellState, a: ShellActions): Record<Shell
  * hook during render and not to a plain function.
  */
 export function useShellCommands(state: ShellState, actions: ShellActions, fromTools: readonly Command[]): Command[] {
-  return useCommandTable(shellCommandStates(state, actions), (tool) => act(state.hasChart, () => actions.chooseTool(tool)), fromTools);
+  return useCommandTable(
+    shellCommandStates(state, actions),
+    // A tool can be picked up where the workspace shown offers it.
+    (tool) => act(state.hasChart && toolOffered(toolDefinition(tool), state.workspace), () => actions.chooseTool(tool)),
+    fromTools
+  );
 }

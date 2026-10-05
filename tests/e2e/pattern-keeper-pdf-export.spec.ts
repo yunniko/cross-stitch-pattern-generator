@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { openSmallChart } from "./helpers/app";
+import { openSmallChart, showWorkspace, exportChoice } from "./helpers/app";
 
 async function extractAllText(pdfBytes: Buffer): Promise<string> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -27,7 +27,9 @@ test("export as PDF (Pattern Keeper) downloads a real PDF with every actually-us
   const symbols = await symbolButtons.allTextContents();
   expect(symbols.length).toBeGreaterThan(0);
 
-  await page.getByLabel("Export").selectOption("pdf-color");
+  await showWorkspace(page, "Export");
+
+  await exportChoice(page).selectOption("pdf-color");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   expect(download.suggestedFilename()).toBe("sample_patternkeeper.pdf");
 
@@ -50,7 +52,9 @@ test("export as PDF (Pattern Keeper) downloads a real PDF with every actually-us
 test("export as PDF (Pattern Keeper) works in B&W mode too", async ({ page }) => {
   await openSmallChart(page);
 
-  await page.getByLabel("Export").selectOption("pdf-bw");
+  await showWorkspace(page, "Export");
+
+  await exportChoice(page).selectOption("pdf-bw");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   expect(download.suggestedFilename()).toBe("sample_patternkeeper.pdf");
 

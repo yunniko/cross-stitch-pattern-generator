@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import JSZip from "jszip";
-import { generateSmallPattern, openSmallChart } from "./helpers/app";
+import { generateSmallPattern, openSmallChart, saveButton, showWorkspace } from "./helpers/app";
 
 /**
  * G-094 (D290): fabric count and unit belong to the chart. They are saved in its file and come back with it, in a browser
@@ -13,8 +13,7 @@ const count = (page: Page) => page.getByLabel("Fabric count");
 
 async function saveEditable(page: Page): Promise<{ path: string; chart: Record<string, unknown> }> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   const path = (await download.path())!;
   return { path, chart: JSON.parse(await readFile(path, "utf8")) };
 }
@@ -104,6 +103,7 @@ test("the editable file is the same file saved alone, inside Export all, and aft
   const alone = await readFile((await saveEditable(page)).path, "utf8");
 
   // Until G-094 the server's writer of this file dropped what no export reads; it now writes what the editor writes.
+  await showWorkspace(page, "Export");
   const [bundle] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export all" }).click()]);
   const zip = await JSZip.loadAsync(await readFile((await bundle.path())!));
   expect(await zip.files["sample_editable.json"].async("string")).toBe(alone);

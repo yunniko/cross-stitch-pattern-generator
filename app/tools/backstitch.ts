@@ -192,6 +192,7 @@ export const backstitchModule = {
         "Draw a line over the stitches, corner to corner (K). Click where it starts, then where it ends. Hold Ctrl as you place that end to carry straight on into the next line.",
       key: "k",
       group: 0,
+      shares: ["colours", "symmetry"],
       Icon: BackstitchIcon,
       // No outline: it lands on corners, not cells, so a stitch-shaped outline would point at the wrong thing.
     },

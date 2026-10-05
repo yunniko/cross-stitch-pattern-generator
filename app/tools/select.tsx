@@ -248,6 +248,7 @@ export const selectModule = {
       title: "Drag a rectangle to select it (S), then copy, paste, move or flip it before it merges back. Ignores symmetry.",
       key: "s",
       group: 1,
+      shares: ["colours", "lock"],
       Icon: SelectIcon,
       piece: true,
       cursor: "cross",
@@ -258,6 +259,7 @@ export const selectModule = {
       title: "Draw around the stitches you want (Q). The piece then copies, moves and flips like any other. Ignores symmetry.",
       key: "q",
       group: 1,
+      shares: ["colours", "lock"],
       Icon: LassoIcon,
       piece: true,
       cursor: "cross",
@@ -320,17 +322,13 @@ export const selectModule = {
         invalidateClipboard: select.invalidateClipboard,
         insert: select.insert,
       },
-      bar:
+      quick:
         inHand && api.pattern && !api.startingNew ? (
           <SelectionBar
             tool={mode}
             hasSelection={select.selection !== null}
             hasClipboard={select.clipboard !== null}
             selection={select.selection}
-            canUndo={api.history.canUndo}
-            canRedo={api.history.canRedo}
-            onUndo={api.history.undo}
-            onRedo={api.history.redo}
             onCopy={select.copy}
             onPaste={select.paste}
             onDuplicate={select.duplicate}

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile, writeFile } from "node:fs/promises";
 import JSZip from "jszip";
-import { pickTool } from "./helpers/app";
+import { pickTool, showWorkspace, exportChoice } from "./helpers/app";
 
 /**
  * G-083: the A4 export's cell size setting, and what the A4 pages carry (a page map first, letters, the skein table). The
@@ -31,40 +31,36 @@ const cellSize = (page: Page) => page.getByLabel("A4 cell size in millimetres");
 
 test("the A4 cell size is a setting: remembered, within limits, and the page count follows it", async ({ page }) => {
   await chartAndExportPane(page);
-  await page.getByRole("tab", { name: "Chart" }).click();
+  // The setting sits with the choice it belongs to, in the Export workspace (G-095): the page count is beside both.
+  await showWorkspace(page, "Export");
   await expect(cellSize(page)).toHaveValue("5.5"); // twice the old 2.75 mm
-  await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByLabel("Export", { exact: true }).selectOption("a4-color");
-  const notice = page.getByText(/pages —/);
+  await exportChoice(page).selectOption("a4-color");
+  const notice = page.getByTestId("a4-page-count");
   await expect(notice).toContainText("4 × 2 pages — 11+ total (incl. page map, skein table + colour key)");
 
-  await page.getByRole("tab", { name: "Chart" }).click();
   await cellSize(page).fill("3");
   await cellSize(page).blur();
   await expect(cellSize(page)).toHaveValue("3");
-  await page.getByRole("tab", { name: "Threads" }).click();
   await expect(notice).toContainText("2 × 1 pages — 5+ total");
 
-  await page.getByRole("tab", { name: "Chart" }).click();
   await cellSize(page).fill("40");
   await cellSize(page).blur();
   await expect(cellSize(page)).toHaveValue("12"); // clamped to the limit
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();
   await expect(page.getByTestId("chart-frame")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("tab", { name: "Chart" }).click();
+  await showWorkspace(page, "Export");
   await expect(cellSize(page)).toHaveValue("12");
 
   // The Pattern Keeper PDF's own preview does not read it.
-  await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByLabel("Export", { exact: true }).selectOption("pdf-color");
+  await exportChoice(page).selectOption("pdf-color");
   await expect(page.getByText(/pages —/)).toContainText("incl. simple + extended legend");
 });
 
 test("the exported A4 pages start with the map, follow the cell size, and the skein table is there", async ({ page }) => {
   await chartAndExportPane(page);
-  await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByLabel("Export", { exact: true }).selectOption("a4-color");
+  await showWorkspace(page, "Export");
+  await exportChoice(page).selectOption("a4-color");
   const [download] = await Promise.all([
     page.waitForEvent("download", { timeout: 300_000 }),
     page.getByRole("button", { name: "Export", exact: true }).click(),

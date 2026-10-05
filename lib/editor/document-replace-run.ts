@@ -26,7 +26,7 @@ export interface ReplaceEffects {
   resetPaletteSet(): void;
   restorePaletteSet(recorded: GenerationPalette): void;
   setPhotoAdjust(adjust: PhotoAdjust): void;
-  showTab(tab: "photo" | "threads"): void;
+  showWorkspace(workspace: "photo" | "edit"): void;
   clearMessages(): void;
   leaveStart(): void;
   adoptPhoto(pattern: StitchPattern, fallbackName: string): Promise<void>;
@@ -83,7 +83,7 @@ export async function replaceDocument(
   if (plan.symmetry === "off") effects.setSymmetry();
   else if (plan.symmetry === "from-file") effects.setSymmetry(extras.symmetry);
 
-  if (plan.tab !== "keep") effects.showTab(plan.tab);
+  if (plan.workspace !== "keep") effects.showWorkspace(plan.workspace);
   if (plan.leaveStart) effects.leaveStart();
   if (plan.adoptPhoto && next) await effects.adoptPhoto(next, extras.fallbackName ?? next.name ?? "cross-stitch-pattern");
 }

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { test, expect, type Page } from "@playwright/test";
-import { openSmallChart } from "./helpers/app";
+import { openSmallChart, saveButton } from "./helpers/app";
 
 /**
  * G-072 M3: Lasso fill draws an outline and paints what it encloses when the pointer comes up.
@@ -11,8 +11,7 @@ import { openSmallChart } from "./helpers/app";
 
 async function exportCells(page: Page): Promise<number[]> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8"));
   await page.getByRole("tab", { name: "Chart" }).click();
   return chart.cellPalette;

@@ -1,16 +1,17 @@
 "use client";
 
-import { Fragment, type RefObject } from "react";
+import { Fragment } from "react";
 import type { QuickMirror } from "@/lib/editor/symmetry";
 import { arrangeTools } from "@/lib/skin/skin";
+import { toolOffered, type Workspace } from "@/lib/editor/workspaces";
 import type { Tool } from "../editor-types";
 import { SkinIcon, ToolIcon, useSkin } from "../skin/skin";
 import { TOOL_DEFINITIONS, toolDefinition } from "../tools/registry";
 import { DISABLED_ICON } from "./ui";
 
 /**
- * The tools, at the left edge (G-095, proposal D): two columns, in groups parted by a line and no headings, then the four
- * quick mirrors as a group of their own beneath.
+ * The tools, at the left edge (G-095, proposal D): the ones the workspace shown offers, in two columns, in groups parted by a
+ * line and no headings; in Edit, the four quick mirrors as a group of their own beneath.
  *
  * Which tools there are is the registry's (G-092); the order and grouping are the skin's where it gives one and the tools'
  * own otherwise (`arrangeTools`), so this component names no tool.
@@ -27,68 +28,24 @@ const MIRROR_ACTIONS: Array<{ kind: QuickMirror; label: string; title: string }>
   },
 ];
 
-const APP_BUTTON = `flex items-center justify-center gap-1.5 rounded-[7px] border border-line px-1 py-1 text-muted transition-colors enabled:hover:bg-raised enabled:hover:text-ink ${DISABLED_ICON}`;
-
 export interface ToolRailProps {
+  /** The workspace shown: it offers its own tools, and only Edit has the quick mirrors (G-095, D297). */
+  workspace: Workspace;
   activeTool: Tool;
   disabled: boolean;
   onSelect: (tool: Tool) => void;
   squareCanvas: boolean;
   onMirror: (kind: QuickMirror) => void;
-  /** Opens the start screen, where the three ways into a chart live (Atelier). */
-  onNewChart: () => void;
-  /** The start screen is what New opens, so New has nothing to do while it is already up. */
-  newChartDisabled: boolean;
-  /** Opens the command list (G-093); Ctrl+K does the same (D288). */
-  onOpenCommands: () => void;
-  commandsDisabled: boolean;
-  /** The workspace puts the focus back here when the list is closed without running anything. */
-  commandsButtonRef: RefObject<HTMLButtonElement | null>;
 }
 
-export function ToolRail({
-  activeTool,
-  disabled,
-  onSelect,
-  squareCanvas,
-  onMirror,
-  onNewChart,
-  newChartDisabled,
-  onOpenCommands,
-  commandsDisabled,
-  commandsButtonRef,
-}: ToolRailProps) {
-  const groups = arrangeTools(TOOL_DEFINITIONS, useSkin().tools);
+export function ToolRail({ workspace, activeTool, disabled, onSelect, squareCanvas, onMirror }: ToolRailProps) {
+  const offered = TOOL_DEFINITIONS.filter((tool) => toolOffered(tool, workspace));
+  const groups = arrangeTools(offered, useSkin().tools);
   return (
-    <aside className="flex w-[116px] shrink-0 flex-col items-stretch gap-0.5 border-r border-line bg-surface py-2.5">
-      {/* Both belong to the application, not to a tool: the list reaches every command there is. */}
-      <div className="flex flex-col gap-1 px-2 pb-2.5">
-        <button
-          type="button"
-          onClick={onNewChart}
-          disabled={newChartDisabled}
-          aria-label="New chart"
-          title="New chart — opens the start screen, where you pick a photo, an empty grid or a saved file"
-          className={APP_BUTTON}
-        >
-          <SkinIcon name="new" />
-          <span className="text-[10px] leading-[13px]">New</span>
-        </button>
-        <button
-          ref={commandsButtonRef}
-          type="button"
-          onClick={onOpenCommands}
-          disabled={commandsDisabled}
-          aria-label="Commands"
-          aria-haspopup="dialog"
-          title="Commands (Ctrl+K) — search everything the editor can do, with its key"
-          className={APP_BUTTON}
-        >
-          <SkinIcon name="commands" />
-          <span className="text-[10px] leading-[13px]">Commands</span>
-        </button>
-      </div>
-
+    <aside
+      className="flex w-[124px] shrink-0 flex-col items-stretch gap-0.5 border-r border-line bg-surface py-2.5"
+      data-testid="tool-rail"
+    >
       {/* Only the tools scroll, so what is above and below keeps its place however long the tool list grows. */}
       <div className="flex min-h-0 flex-1 flex-col items-stretch overflow-y-auto">
         {groups.map((group, groupIndex) => (
@@ -123,33 +80,37 @@ export function ToolRail({
         ))}
       </div>
 
-      {/*
+      {workspace === "edit" && (
+        <>
+          {/*
         The quick mirrors are not tools: each acts on the whole chart at one press, whatever tool is in hand. So they sit
         outside the scroller, as a last group that stays reachable however many tools there are (G-073; kept here and not
         in the bar of tool options, where they would come and go with the tool: Owner, 2026-10-05).
       */}
-      <div className="mx-3.5 my-1 h-px shrink-0 bg-line" aria-hidden="true" />
-      <span className="px-1 text-center text-[10px] font-medium tracking-wide text-faint uppercase" id="mirror-heading">
-        Mirror
-      </span>
-      <div role="group" aria-labelledby="mirror-heading" className="grid grid-cols-4 justify-items-center gap-0.5 px-1.5 pt-1">
-        {MIRROR_ACTIONS.map(({ kind, label, title }) => {
-          const needsSquare = kind === "upper-left-half-corner" && !squareCanvas;
-          return (
-            <button
-              key={kind}
-              type="button"
-              onClick={() => onMirror(kind)}
-              disabled={disabled || needsSquare}
-              title={needsSquare ? `${title}. Needs a square canvas.` : title}
-              aria-label={label}
-              className={`flex h-6 w-6 items-center justify-center rounded-md border border-line text-muted enabled:hover:bg-raised ${DISABLED_ICON}`}
-            >
-              <SkinIcon name={`mirror-${kind}`} />
-            </button>
-          );
-        })}
-      </div>
+          <div className="mx-3.5 my-1 h-px shrink-0 bg-line" aria-hidden="true" />
+          <span className="px-1 text-center text-[10px] font-medium tracking-wide text-faint uppercase" id="mirror-heading">
+            Mirror
+          </span>
+          <div role="group" aria-labelledby="mirror-heading" className="grid grid-cols-4 justify-items-center gap-0.5 px-1.5 pt-1">
+            {MIRROR_ACTIONS.map(({ kind, label, title }) => {
+              const needsSquare = kind === "upper-left-half-corner" && !squareCanvas;
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => onMirror(kind)}
+                  disabled={disabled || needsSquare}
+                  title={needsSquare ? `${title}. Needs a square canvas.` : title}
+                  aria-label={label}
+                  className={`flex h-6 w-6 items-center justify-center rounded-md border border-line text-muted enabled:hover:bg-raised ${DISABLED_ICON}`}
+                >
+                  <SkinIcon name={`mirror-${kind}`} />
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
     </aside>
   );
 }

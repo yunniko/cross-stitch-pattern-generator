@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { openSmallChart } from "./helpers/app";
+import { openSmallChart, saveButton, brushSize } from "./helpers/app";
 
 /**
  * G-064 M2: one press of the brush covers a stamp rather than a stitch (Owner, 2026-09-23). Sizes are odd only, so
@@ -18,8 +18,7 @@ async function generate(page: Page) {
 
 async function exportChart(page: Page): Promise<{ cellPalette: number[]; width: number; height: number }> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8"));
   await page.getByRole("tab", { name: "Chart" }).click();
   return chart;
@@ -58,7 +57,7 @@ test("size 1 covers the one stitch under the pointer, as the brush always has", 
 
 test("a round brush stamps a disc, and a square one the whole block", async ({ page }) => {
   await generate(page);
-  await page.getByLabel("Brush size in stitches").selectOption("5");
+  await brushSize(page, 5).click();
 
   // Round first: the corners of the 5x5 block are outside the disc.
   const beforeRound = await exportChart(page);
@@ -79,12 +78,12 @@ test("a round brush stamps a disc, and a square one the whole block", async ({ p
 
 test("the brush keeps its size across a reload", async ({ page }) => {
   await generate(page);
-  await page.getByLabel("Brush size in stitches").selectOption("7");
+  await brushSize(page, 7).click();
 
   // The controls belong to an open chart, so the reloaded page gets one again; what is being checked is that the
   // setting came back from storage, not that the chart did.
   await page.reload();
   await generate(page);
 
-  await expect(page.getByLabel("Brush size in stitches")).toHaveValue("7");
+  await expect(brushSize(page, 7)).toHaveAttribute("aria-pressed", "true");
 });

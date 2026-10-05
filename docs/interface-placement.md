@@ -109,19 +109,19 @@ not edited by hand.
 |  | Redo | Ctrl+Y, Ctrl+Shift+Z | A step forward exists; no piece in hand |
 |  | Cancel the shape being drawn | Escape | A line, rectangle or oval is being dragged |
 |  | Cancel the lasso fill being drawn | Escape | A lasso fill is being drawn |
-| Tools | Brush tool | B | A chart |
-|  | Fill tool | F | A chart |
-|  | Line tool | L | A chart |
-|  | Rectangle tool | R | A chart |
-|  | Oval tool | O | A chart |
-|  | Lasso fill tool | G | A chart |
-|  | Text tool | — | A chart |
-|  | Backstitch tool | K | A chart |
-|  | BS edit tool | J | A chart |
-|  | Select tool | S | A chart |
-|  | Lasso tool | Q | A chart |
-|  | Crop tool | C | A chart |
-|  | Move tool | V | A chart |
+| Tools | Brush tool | B | A chart, in Edit |
+|  | Fill tool | F | A chart, in Edit |
+|  | Line tool | L | A chart, in Edit |
+|  | Rectangle tool | R | A chart, in Edit |
+|  | Oval tool | O | A chart, in Edit |
+|  | Lasso fill tool | G | A chart, in Edit |
+|  | Text tool | — | A chart, in Edit |
+|  | Backstitch tool | K | A chart, in Edit |
+|  | BS edit tool | J | A chart, in Edit |
+|  | Select tool | S | A chart, in Edit |
+|  | Lasso tool | Q | A chart, in Edit |
+|  | Crop tool | C | A chart, in Edit |
+|  | Move tool | V | A chart, in Edit |
 |  | Pan tool | H | A chart |
 |  | Zoom tool | Z | A chart |
 | Selection | Copy the piece | Ctrl+C | A piece in hand |
@@ -150,20 +150,23 @@ not edited by hand.
 |  | Put the crop frame back over the whole chart | Escape | A crop frame that differs from the chart |
 | Colours | Swap the two drawing colours | X | A chart |
 |  | Isolate the lit threads | — | A chart |
-| Chart | Mirror the left half | — | A chart |
-|  | Mirror the upper half | — | A chart |
-|  | Mirror the upper-left corner | — | A chart |
-|  | Mirror the upper-left half corner | — | A square chart |
-|  | Vertical symmetry on or off | — | A chart |
-|  | Horizontal symmetry on or off | — | A chart |
-|  | Diagonal symmetry ↘ on or off | — | A square chart |
-|  | Diagonal symmetry ↙ on or off | — | A square chart |
-|  | Transparency lock on or off | — | A chart |
+| Chart | Mirror the left half | — | A chart, in Edit |
+|  | Mirror the upper half | — | A chart, in Edit |
+|  | Mirror the upper-left corner | — | A chart, in Edit |
+|  | Mirror the upper-left half corner | — | A square chart, in Edit |
+|  | Vertical symmetry on or off | — | A chart, in Edit |
+|  | Horizontal symmetry on or off | — | A chart, in Edit |
+|  | Diagonal symmetry ↘ on or off | — | A square chart, in Edit |
+|  | Diagonal symmetry ↙ on or off | — | A square chart, in Edit |
+|  | Transparency lock on or off | — | A chart, in Edit |
 | View | Color view | 1 | A chart |
 |  | Black & white view | 2 | A chart |
 |  | Stitched view | 3 | A chart |
 |  | Grid + photo view | 4 | A chart with a photo |
 |  | Original photo view | 5 | A chart with a photo |
+|  | Photo workspace | — | Not already there |
+|  | Edit workspace | — | A chart; not already there |
+|  | Export workspace | — | A chart; not already there |
 |  | Zoom in | — | A chart |
 |  | Zoom out | — | A chart |
 |  | Reset zoom to 100% | — | A chart |

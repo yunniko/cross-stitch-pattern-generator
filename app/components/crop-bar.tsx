@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { formatFinishedSize, type SizeUnit } from "@/lib/export/finished-size";
 import { parseInset, type CropEdge, type CropInsets } from "@/lib/editor/crop-frame";
 import { PillButton } from "./ui";
+import { PINNED_END } from "./panels";
 
 /**
  * The Crop tool's parameters (G-089): the four numbers that used to sit in the Chart tab's Canvas group, now one value with the
@@ -102,10 +103,6 @@ export interface CropBarProps {
   changed: boolean;
   aidaCount: number;
   sizeUnit: SizeUnit;
-  canUndo: boolean;
-  canRedo: boolean;
-  onUndo: () => void;
-  onRedo: () => void;
   onEdgeChange: (edge: CropEdge, value: number) => void;
   onApply: () => void;
   onCancel: () => void;
@@ -120,10 +117,6 @@ export function CropBar({
   changed,
   aidaCount,
   sizeUnit,
-  canUndo,
-  canRedo,
-  onUndo,
-  onRedo,
   onEdgeChange,
   onApply,
   onCancel,
@@ -139,19 +132,9 @@ export function CropBar({
       return next;
     });
   return (
-    <div className="flex h-11 shrink-0 items-center gap-3 border-b border-line bg-surface px-4" data-testid="crop-bar">
-      <div className="flex items-center gap-1.5">
-        <PillButton size="xs" onClick={onUndo} disabled={!canUndo} title="Ctrl+Z">
-          Undo
-        </PillButton>
-        <PillButton size="xs" onClick={onRedo} disabled={!canRedo} title="Ctrl+Y or Ctrl+Shift+Z">
-          Redo
-        </PillButton>
-      </div>
-      <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
-      <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Crop</span>
-      {/* The numbers and the readout scroll inside their own track in a narrow window; Apply and Cancel stay in view (as D213). */}
-      <div className="at-tool-track flex min-w-0 flex-1 items-center gap-3 overflow-x-auto">
+    <div className="flex min-w-max flex-1 items-center gap-3" data-testid="crop-bar">
+      {/* The numbers and the readout scroll with the bar of options in a narrow window; Apply and Cancel stay in view (as D213). */}
+      <div className="flex shrink-0 items-center gap-3">
         <div className="flex shrink-0 items-center gap-2.5" role="group" aria-label="Crop, stitches cut from each edge">
           {FIELDS.map(({ edge, label }) => (
             <InsetField
@@ -177,7 +160,7 @@ export function CropBar({
           )}
         </span>
       </div>
-      <div className="flex shrink-0 items-center gap-1.5">
+      <div className={PINNED_END}>
         <PillButton size="xs" onClick={onCancel} disabled={!changed} title="Put the frame back over the whole chart (Escape)">
           Cancel
         </PillButton>

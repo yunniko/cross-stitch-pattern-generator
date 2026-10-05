@@ -40,17 +40,19 @@ function StitchKindIcon({ kind }: { kind: StitchKind }) {
 /** How many stitches across one press covers (G-064). */
 export const BRUSH_SIZE: ToolOption<BrushSize> = {
   id: "brushSize",
-  group: "Brush",
+  group: "Size",
   label: "Brush size in stitches",
   title: "How many stitches across one press covers",
-  control: "select",
+  // Eight sizes fit as buttons, and a button is one press where a list is two (Owner, 2026-10-05).
+  control: "segments",
   values: BRUSH_SIZES,
   defaultValue: DEFAULT_BRUSH_SIZE,
+  choices: BRUSH_SIZES.map((size) => ({ value: size, label: String(size), title: size === 1 ? "One stitch" : `${size} stitches across` })),
 };
 
 export const BRUSH_SHAPE: ToolOption<BrushShape> = {
   id: "brushShape",
-  group: "Brush",
+  group: "Size",
   label: "Brush shape",
   control: "segments",
   values: ["round", "square"],

@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { showWorkspace, exportChoice, openViewSettings } from "./helpers/app";
 
 /**
  * The Chart pane's texture buttons: each shows its texture as 3 × 4 stitches at one size, and choosing one redraws the
@@ -24,7 +25,7 @@ test("texture buttons show 3 × 4 stitches at one size, and choosing one redraws
   await page.goto("/");
   await page.getByLabel("Open pattern file").setInputFiles(path.join(__dirname, "fixtures", "sample.oxs"));
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("tab", { name: "Chart" }).click();
+  await openViewSettings(page);
 
   const picker = page.getByRole("radiogroup", { name: "Stitch texture" });
   const buttons = picker.getByRole("radio");
@@ -68,7 +69,7 @@ test("texture buttons show 3 × 4 stitches at one size, and choosing one redraws
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("tab", { name: "Chart" }).click();
+  await openViewSettings(page);
   await expect(picker.getByRole("radio", { name: "Pixel" })).toHaveAttribute("aria-checked", "true");
   expect(errors).toEqual([]);
 });
@@ -77,12 +78,10 @@ test("the exported realistic preview is drawn with the chosen texture", async ({
   await page.goto("/");
   await page.getByLabel("Open pattern file").setInputFiles(path.join(__dirname, "fixtures", "sample.oxs"));
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("tab", { name: "Chart" }).click();
 
   async function exportPreview(): Promise<Buffer> {
-    // The export controls sit under the Threads tab.
-    await page.getByRole("tab", { name: "Threads" }).click();
-    await page.getByLabel("Export", { exact: true }).selectOption("png-realistic");
+    await showWorkspace(page, "Export");
+    await exportChoice(page).selectOption("png-realistic");
     const [download] = await Promise.all([
       page.waitForEvent("download"),
       page.getByRole("button", { name: "Export", exact: true }).click(),
@@ -92,7 +91,8 @@ test("the exported realistic preview is drawn with the chosen texture", async ({
   }
 
   const classic = await exportPreview();
-  await page.getByRole("tab", { name: "Chart" }).click();
+  // The texture is a view setting, in reach from the Export workspace too.
+  await openViewSettings(page);
   await page.getByRole("radio", { name: "Pixel" }).click();
   const pixel = await exportPreview();
   expect(classic.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");

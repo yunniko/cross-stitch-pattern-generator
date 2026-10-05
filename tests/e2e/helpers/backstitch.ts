@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { type Page } from "@playwright/test";
-import { pickTool } from "./app";
+import { pickTool, saveButton } from "./app";
 
 /**
  * What every backstitch spec needs (G-073, STANDARDS.md → "One home per shared test affordance").
@@ -33,8 +33,7 @@ export async function atCorner(page: Page, cx: number, cy: number): Promise<{ x:
 /** The backstitch the chart currently holds, in save order. */
 export async function exportLines(page: Page): Promise<SavedLine[]> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8"));
   await page.getByRole("tab", { name: "Chart" }).click();
   return chart.backstitch ?? [];

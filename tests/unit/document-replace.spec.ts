@@ -34,7 +34,7 @@ function recorder() {
     resetPaletteSet: note("resetPaletteSet"),
     restorePaletteSet: note("restorePaletteSet"),
     setPhotoAdjust: (adjust) => calls.push(adjust === NEUTRAL_ADJUST ? "photoAdjust:neutral" : "photoAdjust:file"),
-    showTab: note("showTab"),
+    showWorkspace: note("showWorkspace"),
     clearMessages: note("clearMessages"),
     leaveStart: note("leaveStart"),
     adoptPhoto: async (_chart, name) => void calls.push(`adoptPhoto:${name}`),
@@ -59,7 +59,7 @@ describe("what each way of replacing the chart resets", () => {
       "resetHistory",
       ...FULL_VIEW,
       "setSymmetry:off",
-      "showTab:photo",
+      "showWorkspace:photo",
       "leaveStart",
     ]);
   });
@@ -79,7 +79,7 @@ describe("what each way of replacing the chart resets", () => {
       "resetHistory",
       ...FULL_VIEW,
       "setSymmetry:file",
-      "showTab:threads",
+      "showWorkspace:edit",
       "leaveStart",
       "adoptPhoto:file",
     ]);
@@ -106,7 +106,7 @@ describe("what each way of replacing the chart resets", () => {
         "resetHistory",
         ...FULL_VIEW,
         "setSymmetry:off",
-        "showTab:threads",
+        "showWorkspace:edit",
         "leaveStart",
         "adoptPhoto:c",
       ]);
@@ -116,13 +116,13 @@ describe("what each way of replacing the chart resets", () => {
   it("the first Generate is a new document like any other: the undo baseline, symmetry off, the view reset in full", async () => {
     const { calls, effects } = recorder();
     await replaceDocument("first-generate", chart(), effects);
-    expect(calls).toEqual(["clearMessages", "resetHistory", ...FULL_VIEW, "setSymmetry:off", "showTab:threads"]);
+    expect(calls).toEqual(["clearMessages", "resetHistory", ...FULL_VIEW, "setSymmetry:off", "showWorkspace:photo"]);
   });
 
   it("a later Generate is one undoable step: only the piece in hand goes, and the axes stay", async () => {
     const { calls, effects } = recorder();
     await replaceDocument("regenerate", chart(), effects);
-    expect(calls).toEqual(["pushHistory", "clearSelection", "bumpDocument", "showTab:threads"]);
+    expect(calls).toEqual(["pushHistory", "clearSelection", "bumpDocument", "showWorkspace:photo"]);
   });
 
   it("giving the chart up forgets the autosave and clears everything, but stays on the start screen", async () => {

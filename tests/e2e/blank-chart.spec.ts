@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { MAX_STITCHES } from "../../lib/types";
+import { showWorkspace, saveButton } from "./helpers/app";
 
 /**
  * G-040 M2: starting a chart from an empty canvas. Such a chart has no photo, so Generate and every photo-only setting
@@ -59,6 +60,7 @@ test("every export works on a chart that is still entirely empty", async ({ page
   await createBlankChart(page, 20, 15);
 
   // "Export all" is its own button; the Export dropdown only lists the single-file kinds.
+  await showWorkspace(page, "Export");
   const [bundle] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export all" }).click()]);
   expect(await bundle.path()).toBeTruthy();
   expect(bundle.suggestedFilename()).toMatch(/\.cspzip$/);
@@ -100,7 +102,7 @@ test("a blank chart paints after adding a color, and survives saving and reopeni
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await expect(page.getByText(/30 × 20, 1 stitch, 1 color/)).toBeVisible();
 
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   await page.goto("/");
   await page.getByLabel("Open pattern file").setInputFiles(await download.path());
   await expect(page.getByText(/30 × 20, 1 stitch, 1 color/)).toBeVisible();

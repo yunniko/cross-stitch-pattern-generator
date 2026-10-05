@@ -10,6 +10,9 @@ import { RULER_THICKNESS, Rulers } from "./rulers";
 import { useAutoDismiss } from "../hooks/use-auto-dismiss";
 import { DismissButton, PillButton } from "./ui";
 
+/** The height kept free under the chart for the floating view controls, in CSS pixels. */
+export const VIEW_CONTROLS_ROOM = 64;
+
 const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   color: "Color",
   bw: "Black & white",
@@ -41,6 +44,8 @@ export interface ImageWindowProps {
     activeColorIndex: number | null;
     /** The tool in hand draws its own outline over the chart, so the pointer itself is hidden there (G-078). */
     cursorHidden: boolean;
+    /** The chart is only looked at here, whatever the view: outside the Edit workspace (G-095). */
+    lookingOnly: boolean;
   };
   /** The start screen: the ways into a chart, offered where the chart will be. */
   start: {
@@ -98,12 +103,12 @@ function PreviewError({ message, onRetry, onDismiss }: { message: string; onRetr
   );
 }
 
-function cursorFor(activeTool: Tool, activeColorIndex: number | null, viewMode: ViewMode, cursorHidden: boolean): string {
+function cursorFor(activeTool: Tool, activeColorIndex: number | null, lookingOnly: boolean, cursorHidden: boolean): string {
   if (cursorHidden) return "cursor-none";
   const { cursor } = toolDefinition(activeTool);
   if (cursor === "grab") return "cursor-grab active:cursor-grabbing";
   if (cursor === "zoom") return "cursor-zoom-in";
-  if (isViewOnlyMode(viewMode)) return "";
+  if (lookingOnly) return "";
   return cursor === "cross" || activeColorIndex !== null ? "cursor-crosshair" : "";
 }
 
@@ -115,7 +120,7 @@ function cursorFor(activeTool: Tool, activeColorIndex: number | null, viewMode: 
  */
 export function ImageWindow({ refs, chart, start, preview, adjust, pointer, options, cropOverlay = null }: ImageWindowProps) {
   const { scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef } = refs;
-  const { pattern, cellSize, sourceMeta, viewMode, activeTool, activeColorIndex, cursorHidden } = chart;
+  const { pattern, cellSize, sourceMeta, viewMode, activeTool, activeColorIndex, cursorHidden, lookingOnly } = chart;
   const {
     visible: startScreen,
     startingNew,
@@ -160,7 +165,13 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
       <div
         ref={scrollerRef}
         // While the Crop tool is open there is room around the chart to drag its frame out into (G-089).
-        style={{ gridColumn: 2, gridRow: 2, ...(cropOverlay ? { padding: 120 } : {}) }}
+        // Under a chart the well keeps a strip free for the view controls that float over its foot (G-095): a chart
+        // scrolled to its end clears them.
+        style={{
+          gridColumn: 2,
+          gridRow: 2,
+          ...(cropOverlay ? { padding: 120 } : rulersShown ? { paddingBottom: VIEW_CONTROLS_ROOM } : {}),
+        }}
         // Grid centering, not flex: flex's unsafe centering makes overflow past the top/left edge unreachable by scrolling
         // once zoomed content outgrows the container.
         className="at-well grid min-h-0 min-w-0 place-items-center overflow-auto p-6"
@@ -235,7 +246,7 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
               style={{ width: pattern.width * cellSize, height: pattern.height * cellSize }}
               className={`relative box-content touch-none overflow-hidden border ${
                 clothShown ? "border-transparent" : "border-line shadow-[0_20px_50px_color-mix(in_srgb,var(--at-shadow)_50%,transparent)]"
-              } ${cursorFor(activeTool, activeColorIndex, viewMode, cursorHidden)}`}
+              } ${cursorFor(activeTool, activeColorIndex, lookingOnly || isViewOnlyMode(viewMode), cursorHidden)}`}
             >
               <canvas ref={canvasRef} data-testid="chart-canvas" aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
               {/* The cursor draws here and nowhere else, so moving it never repaints the chart (G-065). */}

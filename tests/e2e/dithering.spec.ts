@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { expectPhotoLoaded } from "./helpers/app";
+import { expectPhotoLoaded, saveButton, generateAndWait } from "./helpers/app";
 
 /**
  * G-052 M4: the Dither control, end to end through the real UI and the processor.
@@ -33,10 +33,8 @@ interface ExportedChart {
 
 /** Generates with the current settings and returns the editable file it exports. */
 async function generateAndExport(page: Page): Promise<ExportedChart> {
-  await page.getByRole("button", { name: /^(Generate pattern|Regenerate)$/ }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
-  await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  await generateAndWait(page);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   return JSON.parse(await readFile((await download.path())!, "utf8")) as ExportedChart;
 }
 

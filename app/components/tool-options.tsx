@@ -37,16 +37,19 @@ function Control({ option, value, onChange }: { option: ToolOption; value: Optio
   }
   if (option.control === "segments") {
     return (
-      <SegmentedControl
-        tone="chip"
-        options={option.values.map((candidate) => ({
-          value: String(candidate),
-          label: shown(candidate)?.label ?? String(candidate),
-          title: shown(candidate)?.title,
-        }))}
-        value={String(value)}
-        onChange={(picked) => onChange(option.values.find((candidate) => String(candidate) === picked) ?? option.defaultValue)}
-      />
+      // The row of buttons carries the option's name, as the list it may replace did.
+      <div role="group" aria-label={option.label} title={option.title}>
+        <SegmentedControl
+          tone="chip"
+          options={option.values.map((candidate) => ({
+            value: String(candidate),
+            label: shown(candidate)?.label ?? String(candidate),
+            title: shown(candidate)?.title,
+          }))}
+          value={String(value)}
+          onChange={(picked) => onChange(option.values.find((candidate) => String(candidate) === picked) ?? option.defaultValue)}
+        />
+      </div>
     );
   }
   return (

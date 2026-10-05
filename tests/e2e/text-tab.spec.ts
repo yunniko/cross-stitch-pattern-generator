@@ -24,7 +24,8 @@ test("the Text tool waits for a chart, and brings its tab only while it is in ha
   await page.goto("/");
   const textTool = page.getByRole("button", { name: "Text", exact: true });
   const textTab = page.getByRole("tab", { name: "Text" });
-  await expect(textTool).toBeDisabled();
+  // With no chart the Photo workspace is shown, which offers no tool that changes a chart.
+  await expect(textTool).toHaveCount(0);
   await expect(textTab).toHaveCount(0);
   await page.getByLabel("Open pattern file").setInputFiles(OXS);
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
@@ -34,7 +35,7 @@ test("the Text tool waits for a chart, and brings its tab only while it is in ha
   await page.getByRole("tab", { name: "Chart" }).click();
   await textTool.click();
   await expect(textTab).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("tab").first()).toHaveText("Text");
+  await expect(page.getByTestId("panel").getByRole("tab").first()).toHaveText("Text");
 
   // Another tab can be chosen with the tool still in hand, and the tool's tab chosen again.
   await page.getByRole("tab", { name: "Threads" }).click();

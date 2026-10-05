@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { openSmallChart } from "./helpers/app";
+import { openSmallChart, brushSize } from "./helpers/app";
 import { readFile } from "node:fs/promises";
 
 /**
@@ -43,7 +43,7 @@ test("the report carries the stack, the tool in hand and the chart, and no photo
   await openSmallChart(page);
 
   // Something to find in the report: a brush and a view that are not the defaults.
-  await page.getByLabel("Brush size in stitches").selectOption("7");
+  await brushSize(page, 7).click();
   await page.getByRole("button", { name: "B&W", exact: true }).click();
   await crashTheRenderer(page);
 

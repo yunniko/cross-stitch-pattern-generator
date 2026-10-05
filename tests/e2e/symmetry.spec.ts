@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openSmallChart, expectPhotoLoaded } from "./helpers/app";
+import { openSmallChart, expectPhotoLoaded, saveButton, showWorkspace, exportChoice } from "./helpers/app";
 import JSZip from "jszip";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -188,7 +188,8 @@ test("rendered exports are unchanged by symmetry and the JSON gains only its sym
   await openSmallChart(page);
 
   async function download(kind: string): Promise<Buffer> {
-    await page.getByLabel("Export").selectOption(kind);
+    await showWorkspace(page, "Export");
+    await exportChoice(page).selectOption(kind);
     const [file] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
     return readFile((await file.path())!);
   }
@@ -215,6 +216,7 @@ test("rendered exports are unchanged by symmetry and the JSON gains only its sym
     oxs: await download("oxs"),
     json: await download("editable"),
   };
+  await showWorkspace(page, "Edit");
   await toggle(page, "Vertical symmetry").click();
   await toggle(page, "Horizontal symmetry").click();
   const on = {
@@ -243,9 +245,7 @@ test("the toggles are saved with the document: restored after a reload and on re
   await toggle(page, "Horizontal symmetry").click();
   await toggle(page, "Diagonal symmetry ↙").click();
   await expect(page.getByText("Autosaved")).toBeVisible({ timeout: 10_000 });
-
-  await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   const saved = testInfo.outputPath("saved-with-symmetry.json");
   await download.saveAs(saved);
 

@@ -13,18 +13,27 @@ mkdirSync(out, { recursive: true });
 const tool = (page, name) => page.getByRole("button", { name, exact: true }).click();
 
 /** Each state: a name for the file, and what to do after the chart is open. */
+const workspace = (page, name) => page.getByRole("tab", { name, exact: true }).click();
 const STATES = [
   ["start", null],
   ["edit-brush", async () => {}],
   ["edit-text", async (page) => tool(page, "Text")],
   ["edit-select", async (page) => tool(page, "Select")],
+  ["edit-select-narrow", async (page) => tool(page, "Select")],
+  ["edit-crop-narrow", async (page) => tool(page, "Crop")],
+  ["edit-backstitch-edit-narrow", async (page) => tool(page, "BS edit")],
+  ["edit-backstitch-edit", async (page) => tool(page, "BS edit")],
   ["edit-crop", async (page) => tool(page, "Crop")],
+  ["edit-chart-tab", async (page) => page.getByRole("tab", { name: "Chart", exact: true }).click()],
+  ["edit-view-settings", async (page) => page.getByRole("button", { name: "Canvas & stitch texture" }).click()],
+  ["photo", async (page) => workspace(page, "Photo")],
+  ["export", async (page) => workspace(page, "Export")],
 ];
 
 const browser = await chromium.launch();
 const problems = [];
 for (const [name, act] of STATES) {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 860 } });
+  const page = await browser.newPage({ viewport: { width: name.endsWith("-narrow") ? 1100 : 1440, height: 860 } });
   page.on("pageerror", (error) => problems.push(`${name}: ${error}`));
   await page.goto(base);
   if (act) {

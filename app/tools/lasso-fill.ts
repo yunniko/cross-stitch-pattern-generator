@@ -150,6 +150,7 @@ export const lassoFillModule = {
       title: "Draw around an area (G); letting go fills everything inside it with the colour in hand, in one step.",
       key: "g",
       group: 0,
+      shares: ["colours", "symmetry", "lock"],
       Icon: LassoFillIcon,
       options: STITCH_OPTIONS,
       laysStitches: true,

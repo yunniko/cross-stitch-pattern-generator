@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { pickTool } from "./helpers/app";
+import { pickTool, saveButton, brushSize } from "./helpers/app";
 
 /**
  * G-065: the outline the cursor carries. It says where a press would land and how big it would be, on a canvas of its
@@ -84,7 +84,7 @@ test("it is the size and shape of the brush", async ({ page }) => {
   const at = await stitchCentre(page, 15, 12);
 
   // The controls are in the bar, so reaching them takes the pointer off the chart; it comes back to the same stitch.
-  await page.getByLabel("Brush size in stitches").selectOption("5");
+  await brushSize(page, 5).click();
   await page.mouse.move(at.x, at.y);
   expect(await outlineBounds(page), "two stitches either side of the one under the pointer").toEqual({ x0: 13, y0: 10, x1: 18, y1: 15 });
 
@@ -92,14 +92,14 @@ test("it is the size and shape of the brush", async ({ page }) => {
   await page.mouse.move(at.x, at.y);
   expect(await outlineBounds(page), "a square brush fills the same box").toEqual({ x0: 13, y0: 10, x1: 18, y1: 15 });
 
-  await page.getByLabel("Brush size in stitches").selectOption("1");
+  await brushSize(page, 1).click();
   await page.mouse.move(at.x, at.y);
   expect(await outlineBounds(page)).toEqual({ x0: 15, y0: 12, x1: 16, y1: 13 });
 });
 
 test("a tool taken by its key changes the outline under a pointer that has not moved", async ({ page }) => {
   await blankChartWithColor(page);
-  await page.getByLabel("Brush size in stitches").selectOption("7");
+  await brushSize(page, 7).click();
   await page.getByRole("button", { name: "Rectangle" }).click();
   await page.getByRole("button", { name: "Filled" }).click();
 
@@ -133,7 +133,7 @@ function drawnAtCorner(page: Page, x: number, y: number) {
 
 test("a round brush is drawn as a disc, not as the block around it", async ({ page }) => {
   await blankChartWithColor(page);
-  await page.getByLabel("Brush size in stitches").selectOption("5");
+  await brushSize(page, 5).click();
   const at = await stitchCentre(page, 15, 12);
   await page.mouse.move(at.x, at.y);
 
@@ -172,7 +172,7 @@ test("it leaves with the pointer, and with a tool that paints nothing", async ({
 
 test("a filled shape outlines the one anchor stitch, since the brush size is not used (D215)", async ({ page }) => {
   await blankChartWithColor(page);
-  await page.getByLabel("Brush size in stitches").selectOption("7");
+  await brushSize(page, 7).click();
   await page.getByRole("button", { name: "Rectangle" }).click();
   const at = await stitchCentre(page, 20, 12);
   await page.mouse.move(at.x, at.y);
@@ -187,7 +187,7 @@ test("nothing it draws reaches the chart, the saved file or the stitch count", a
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await blankChartWithColor(page);
-  await page.getByLabel("Brush size in stitches").selectOption("9");
+  await brushSize(page, 9).click();
 
   // Across the chart without pressing anything.
   for (const x of [5, 15, 25, 35]) {
@@ -195,9 +195,7 @@ test("nothing it draws reaches the chart, the saved file or the stitch count", a
     await page.mouse.move(at.x, at.y);
   }
   await expect(page.getByText(new RegExp(`${WIDTH} × ${HEIGHT}, 0 stitches`))).toBeVisible();
-
-  await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8"));
   expect(
     chart.cellPalette.every((cell: number) => cell === 255),
@@ -208,7 +206,7 @@ test("nothing it draws reaches the chart, the saved file or the stitch count", a
 
 test("moving the pointer does not repaint the chart", async ({ page }) => {
   await blankChartWithColor(page);
-  await page.getByLabel("Brush size in stitches").selectOption("9");
+  await brushSize(page, 9).click();
   const frame = page.getByTestId("chart-frame");
   const revision = () => frame.getAttribute("data-render-revision");
 

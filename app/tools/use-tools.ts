@@ -3,17 +3,21 @@ import { ONE_STITCH_STAMP, stampOutline, type StampEdge } from "@/lib/editor/bru
 import { stampForPress } from "@/lib/editor/shape-raster";
 import type { Command, CommandDefinition } from "@/lib/editor/commands";
 import type { BackstitchLine, FloatingSelection } from "@/lib/types";
-import { DEFAULT_TOOL, moduleIndexOf, TOOL_DEFINITIONS, TOOL_MODULES, toolDefinition, type Tool } from "./registry";
+import { firstTools, toolOffered, type Workspace } from "@/lib/editor/workspaces";
+import { moduleIndexOf, TOOL_DEFINITIONS, TOOL_MODULES, toolDefinition, type Tool } from "./registry";
 import { SHAPE_FILL, type ToolOption } from "./options";
-import type { EditorApi, PieceService, ToolModule, ToolRuntime, ToolShell } from "./types";
+import type { EditorApi, PieceService, SharedOption, ToolModule, ToolRuntime, ToolShell } from "./types";
 
 /**
  * The editor shell's side of the tool registry (G-092, D284): which tool is in hand, and the routing of the pointer and the
  * keys to it. There is no per-tool code here; what a tool does is in its module, and what it is in its definition.
  */
 
-/** What the shell knows before the tools exist: everything in `EditorApi` but the tool in hand, which lives here. */
-export type ToolsInputs = Omit<EditorApi, "activeTool">;
+/**
+ * What the shell knows before the tools exist: everything in `EditorApi` but the tool in hand, which lives here, and the
+ * workspace shown, which decides which tools are offered and has its own tool in hand (G-095, D297).
+ */
+export type ToolsInputs = Omit<EditorApi, "activeTool"> & { workspace: Workspace };
 
 const NO_PIECE: PieceService = {
   selection: null,
@@ -39,8 +43,10 @@ export interface Tools {
   commands: readonly Command[];
   /** Another chart has arrived. */
   documentReplaced: () => void;
-  /** The tool's own controls, when it has any to show in place of the drawing options. */
-  bar: ReactNode;
+  /** A tool's own controls for what it holds, drawn after the options of the tool in hand. */
+  quick: ReactNode;
+  /** The shared drawing options the tool in hand reads. */
+  shares: readonly SharedOption[];
   overlay: ReactNode;
   piece: PieceService;
   /** Takes a ready-made piece in hand, with a tool that can act on it. */
@@ -65,7 +71,11 @@ function commandOf(definition: CommandDefinition, runtime: ToolRuntime): Command
 }
 
 export function useTools(inputs: ToolsInputs): Tools {
-  const [activeTool, setActiveTool] = useState<Tool>(DEFAULT_TOOL);
+  const { workspace } = inputs;
+  // One tool in hand for each workspace: changing workspace neither picks a tool up nor puts one down.
+  const [inHand, setInHand] = useState<Record<Workspace, Tool>>(() => firstTools(TOOL_DEFINITIONS));
+  const activeTool = inHand[workspace];
+  const setActiveTool = (tool: Tool) => setInHand((held) => ({ ...held, [workspace]: tool }));
   const [activation, setActivation] = useState(0);
   const api: EditorApi = { ...inputs, activeTool };
 
@@ -85,6 +95,8 @@ export function useTools(inputs: ToolsInputs): Tools {
 
   function switchTool(tool: Tool) {
     const next = toolDefinition(tool);
+    // A tool the workspace does not offer cannot be picked up there, by whatever road the request came.
+    if (!toolOffered(next, workspace)) return;
     // Looked up afresh, not taken from the render: this function is handed to the tools, which must not hold the definition.
     const previous = toolDefinition(activeTool);
     for (const runtime of runtimes) runtime.onToolChange?.(previous, next);
@@ -136,7 +148,8 @@ export function useTools(inputs: ToolsInputs): Tools {
     },
     commands,
     documentReplaced: () => runtimes.forEach((runtime) => runtime.onDocumentReplaced?.()),
-    bar: runtimes.find((runtime) => runtime.bar)?.bar ?? null,
+    quick: runtimes.find((runtime) => runtime.quick)?.quick ?? null,
+    shares: definition.shares ?? [],
     overlay: runtimes.find((runtime) => runtime.overlay)?.overlay ?? null,
     piece,
     takePiece,

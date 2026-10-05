@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "node:path";
-import { expectPhotoLoaded } from "./helpers/app";
+import { expectPhotoLoaded, saveButton, showWorkspace } from "./helpers/app";
 
 // G-033: the swatch-aware color editor. Opens on the color's own swatch, compares swatches on hover and focus, applies
 // picks while staying open, and closes with Done, Cancel, Escape or a click outside.
@@ -23,6 +23,7 @@ async function generate(page: Page, palette: "Full range" | "DMC") {
   await page.getByRole("button", { name: palette, exact: true }).click();
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+  await showWorkspace(page, "Edit");
 }
 
 const editButtons = (page: Page) => page.getByRole("button", { name: /^Edit / });
@@ -171,10 +172,11 @@ test("a color picked from the DMC tab reopens on DMC with its swatch marked, als
     await panel.getByRole("button", { name: "Done" }).click();
   };
   await reopenAndCheck();
-
-  await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   await page.getByLabel("Open pattern file").setInputFiles((await download.path())!);
+  // The thread's button is on screen before and after, so it is no sign the file has replaced the chart; an editor opened
+  // on the old chart is closed when the new one arrives. Undo having nothing to step back to is the sign.
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: `Edit ${name}`, exact: true })).toBeVisible();
   await reopenAndCheck();
 });

@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { MAX_STITCHES } from "../../lib/types";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
-import { expectPhotoLoaded } from "./helpers/app";
+import { expectPhotoLoaded, showWorkspace, exportChoice } from "./helpers/app";
 
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
 
@@ -25,7 +25,9 @@ test("upload an image, generate a pattern, preview it, and download both variant
   await expect(canvas).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/50 × \d+, [\d,]+ stitches, \d+ colors/)).toBeVisible();
 
-  const exportSelect = page.getByLabel("Export");
+  await showWorkspace(page, "Export");
+
+  const exportSelect = exportChoice(page);
   const exportButton = page.getByRole("button", { name: "Export", exact: true });
 
   await exportSelect.selectOption("png-color");
@@ -68,7 +70,9 @@ test("a small chart's header is never clipped, even at the minimum custom size (
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
 
-  await page.getByLabel("Export").selectOption("png-color");
+  await showWorkspace(page, "Export");
+
+  await exportChoice(page).selectOption("png-color");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   const savedPath = test.info().outputPath("small-chart.png");
   await download.saveAs(savedPath);
@@ -115,6 +119,7 @@ test("a fractional custom size is rounded when the field is left, and never reac
   // field, which rounds it, so the chart is made at a whole size; the size check in `use-generation.ts` remains behind it.
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+  await showWorkspace(page, "Edit");
   await expect(page.getByText(/^11 × \d+, /)).toBeVisible();
   expect(errors).toEqual([]);
 });

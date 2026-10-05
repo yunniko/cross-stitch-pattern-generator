@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { pickTool } from "./helpers/app";
+import { pickTool, saveButton } from "./helpers/app";
 
 /**
  * G-082 M2-M3: the Stitch type dropdown and the tools that follow it. The chart is read from the editable save, which carries
@@ -43,8 +43,7 @@ async function click(page: Page, x: number, y: number) {
 
 async function saved(page: Page): Promise<{ cells: number[]; kinds: number[] }> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByLabel("Export", { exact: true }).selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8")) as { cellPalette: number[]; cellKind?: number[] };
   await page.getByRole("tab", { name: "Chart" }).click();
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());

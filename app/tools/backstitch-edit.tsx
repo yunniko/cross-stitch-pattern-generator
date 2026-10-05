@@ -213,6 +213,7 @@ export const backstitchEditModule = {
       title: "Edit backstitch (J). Drag a line anywhere to move it; once it is in hand, drag either end to re-aim it.",
       key: "j",
       group: 0,
+      shares: ["colours", "symmetry"],
       Icon: BackstitchSelectIcon,
     },
   ],
@@ -285,15 +286,11 @@ export const backstitchEditModule = {
       // Only while the tool is in hand: a thicker line claims "this is selected", which would be a lie once the tool that could
       // act on it has been put down.
       highlightBackstitch: inHand ? edit.isSelected : undefined,
-      bar:
+      quick:
         inHand && api.pattern && !api.startingNew ? (
           <BackstitchBar
             selectedCount={edit.selected.length}
             hasClipboard={edit.hasClipboard}
-            canUndo={api.history.canUndo}
-            canRedo={api.history.canRedo}
-            onUndo={api.history.undo}
-            onRedo={api.history.redo}
             onCopy={edit.copy}
             onPaste={edit.paste}
             onDuplicate={edit.duplicate}

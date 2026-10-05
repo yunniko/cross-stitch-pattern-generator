@@ -32,5 +32,5 @@ export const PAPER: Skin = {
     shadow: "rgb(60 50 30)",
   },
   tools: [["pan", "zoom"]],
-  icons: { "tool:brush": marked("tool:brush"), new: marked("new") },
+  icons: { "tool:brush": marked("tool:brush"), "mirror-left-half": marked("mirror-left-half") },
 };

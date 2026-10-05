@@ -1,5 +1,4 @@
 import type { ProjectLoadFailure } from "@/lib/editor/project-store";
-import type { calculateA4Layout } from "@/lib/export/a4-layout";
 import { NoticeBar, PillButton } from "./ui";
 import { SkinIcon } from "../skin/skin";
 
@@ -14,13 +13,9 @@ export interface WorkspaceNoticesProps {
   onDismissOpenNotice: () => void;
   exportError: string | null;
   onDismissExportError: () => void;
-  /** Shown only while an A4 or PDF export kind is selected. */
-  a4Layout: ReturnType<typeof calculateA4Layout> | null;
-  /** The A4 pages come with a page map, a skein table and a colour key; the Pattern Keeper PDF keeps its simple and extended legend (G-083). */
-  a4HasPageMap?: boolean;
 }
 
-/** The strips under the top bar: a failed auto-restore (D101), open and export errors, and the A4 page count. */
+/** The strips under the bar of tool options: a failed auto-restore (D101), and open and export errors. */
 export function WorkspaceNotices({
   restoreFailure,
   onDownloadRestoreReport,
@@ -31,8 +26,6 @@ export function WorkspaceNotices({
   onDismissOpenNotice,
   exportError,
   onDismissExportError,
-  a4Layout,
-  a4HasPageMap = false,
 }: WorkspaceNoticesProps) {
   return (
     <>
@@ -72,17 +65,12 @@ export function WorkspaceNotices({
           {exportError}
         </NoticeBar>
       )}
-      {a4Layout && (
-        <NoticeBar tone="info">
-          {a4Layout.columns} × {a4Layout.rows} pages —{" "}
-          {a4HasPageMap
-            ? `${a4Layout.pages.length + 3}+ total (incl. page map, skein table + colour key). Overlap and cell size in Options.`
-            : `${a4Layout.pages.length + 2}+ total (incl. simple + extended legend). Overlap in Options.`}
-        </NoticeBar>
-      )}
     </>
   );
 }
+
+/** The end of a tool's own controls that stays in view while the rest scrolls under it in a narrow window (as D213): the pair that commits. */
+export const PINNED_END = "sticky right-0 z-10 flex shrink-0 items-center gap-1.5 bg-surface pl-2";
 
 export interface SelectionBarProps {
   hasSelection: boolean;
@@ -91,11 +79,6 @@ export interface SelectionBarProps {
   hasClipboard: boolean;
   /** The floating piece, for 1b's "12 x 9 at 14, 6" readout; null before one is drawn. */
   selection: { x: number; y: number; width: number; height: number } | null;
-  /** Undo and Redo travel with this bar: it replaces the context bar, which is where they otherwise live. */
-  canUndo: boolean;
-  canRedo: boolean;
-  onUndo: () => void;
-  onRedo: () => void;
   onCopy: () => void;
   onPaste: () => void;
   onDuplicate: () => void;
@@ -116,10 +99,6 @@ export interface BackstitchBarProps {
   /** How many lines are in hand; every action but Paste needs at least one. */
   selectedCount: number;
   hasClipboard: boolean;
-  canUndo: boolean;
-  canRedo: boolean;
-  onUndo: () => void;
-  onRedo: () => void;
   onCopy: () => void;
   onPaste: () => void;
   onDuplicate: () => void;
@@ -137,17 +116,12 @@ export interface BackstitchBarProps {
 /**
  * What can be done to the backstitch in hand (G-073 M3).
  *
- * The same shape as the selection bar, for the same reason: these tools replace the context bar, and Undo and
- * Redo would otherwise vanish while a line is selected. Unlike a floating selection, a backstitch edit is
- * committed as it happens, so history stays usable and Undo is never disabled here.
+ * Drawn after the tool's options, as the selection's actions are. Unlike a floating selection, a backstitch edit is
+ * committed as it happens, so history stays usable and Undo is never disabled by it.
  */
 export function BackstitchBar({
   selectedCount,
   hasClipboard,
-  canUndo,
-  canRedo,
-  onUndo,
-  onRedo,
   onCopy,
   onPaste,
   onDuplicate,
@@ -162,16 +136,9 @@ export function BackstitchBar({
 }: BackstitchBarProps) {
   const none = selectedCount === 0;
   return (
-    <div className="flex h-11 shrink-0 items-center gap-2.5 border-b border-line bg-surface px-4">
-      <div className="flex items-center gap-1.5">
-        <PillButton size="xs" onClick={onUndo} disabled={!canUndo} title="Ctrl+Z">
-          Undo
-        </PillButton>
-        <PillButton size="xs" onClick={onRedo} disabled={!canRedo} title="Ctrl+Y or Ctrl+Shift+Z">
-          Redo
-        </PillButton>
-      </div>
-      <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
+    <div className="flex min-w-max flex-1 items-center gap-2.5" data-testid="backstitch-bar">
+      <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Backstitch</span>
+      <span className="font-mono text-xs whitespace-nowrap text-muted">{none ? "none selected" : `${selectedCount} selected`}</span>
       <div className="flex items-center gap-1.5">
         <PillButton size="xs" onClick={onCopy} disabled={none} title="Copy the selected line">
           Copy
@@ -210,9 +177,7 @@ export function BackstitchBar({
       <PillButton size="xs" onClick={onDelete} disabled={none} title="Delete the selected line (Delete)">
         Delete
       </PillButton>
-      <div className="ml-auto flex items-center gap-2.5">
-        <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Backstitch</span>
-        <span className="font-mono text-xs text-muted">{none ? "none selected" : `${selectedCount} selected`}</span>
+      <div className={`ml-auto ${PINNED_END}`}>
         <PillButton size="xs" onClick={onDeselect} disabled={none} title="Escape">
           Deselect
         </PillButton>
@@ -225,10 +190,6 @@ export function SelectionBar({
   hasSelection,
   hasClipboard,
   selection,
-  canUndo,
-  canRedo,
-  onUndo,
-  onRedo,
   onCopy,
   onPaste,
   onDuplicate,
@@ -246,36 +207,72 @@ export function SelectionBar({
   const fillTitle = canFill
     ? "Paint the whole selected area in the brush's colour"
     : "Pick a thread in the list first \u2014 there is no colour to fill with";
+  const actions = [
+    ["Copy", "Copy the selected piece", <SkinIcon key="i" name="copy" />, onCopy, !hasSelection],
+    ["Paste", "Paste the copied piece as a new floating selection", <SkinIcon key="i" name="paste" />, onPaste, !hasClipboard],
+    [
+      "Duplicate",
+      "Leave this piece where it is and take a copy of it in hand",
+      <SkinIcon key="i" name="duplicate" />,
+      onDuplicate,
+      !hasSelection,
+    ],
+    // "Fill selection", not "Fill": the tool rail has a Fill of its own, and both are on screen at once.
+    ["Fill selection", fillTitle, <SkinIcon key="i" name="fill-piece" />, onFill, !hasSelection || !canFill],
+    ["Flip horizontal", "Mirror the piece left to right", <SkinIcon key="i" name="flip-horizontal" />, onFlipHorizontal, !hasSelection],
+    ["Flip vertical", "Mirror the piece top to bottom", <SkinIcon key="i" name="flip-vertical" />, onFlipVertical, !hasSelection],
+    ["Rotate right", "Turn the piece a quarter turn clockwise", <SkinIcon key="i" name="rotate-right" />, onRotateClockwise, !hasSelection],
+    [
+      "Rotate left",
+      "Turn the piece a quarter turn anticlockwise",
+      <SkinIcon key="i" name="rotate-left" />,
+      onRotateAnticlockwise,
+      !hasSelection,
+    ],
+    [
+      "Crop to selection",
+      "Cut the chart down to this rectangle, discarding everything outside it",
+      <SkinIcon key="i" name="crop-to-piece" />,
+      onCrop,
+      !hasSelection,
+    ],
+    [
+      "Apply here",
+      "Merge the piece into the picture where it sits \u2014 Enter",
+      <SkinIcon key="i" name="apply" />,
+      onDeselect,
+      !hasSelection,
+    ],
+    [
+      "Cancel",
+      "Put the chart back as it was when this selection started, discarding its changes \u2014 Escape",
+      <SkinIcon key="i" name="cancel" />,
+      onCancel,
+      !hasSelection,
+    ],
+  ] as const;
+  const action = ([label, title, icon, onClick, isDisabled]: (typeof actions)[number]) => {
+    // Apply here sits before Cancel, and the committing pair carry their names (Owner, 2026-09-18).
+    const named = label === "Cancel" || label === "Apply here";
+    return (
+      <PillButton
+        key={label}
+        aria-label={label}
+        title={title}
+        onClick={onClick}
+        disabled={isDisabled}
+        className={named ? "flex items-center gap-1.5 px-2.5 whitespace-nowrap" : "px-2"}
+      >
+        {icon}
+        {named && label}
+      </PillButton>
+    );
+  };
+
   return (
-    // 1b gives the select tool its own top panel rather than a strip under one (Owner, 2026-09-18), so this takes the
-    // context bar's shape exactly -- and carries Undo and Redo, which would otherwise vanish for as long as a
-    // selection is in hand.
-    <div className="flex h-11 shrink-0 items-center gap-2.5 border-b border-line bg-surface px-4">
-      {/*
-        History is not the reader's to step through while a piece is in hand: undoing underneath a floating
-        selection is a state nobody asked for (Owner, 2026-09-23). Apply or Cancel first, and the title says so.
-      */}
-      <div className="flex items-center gap-1.5">
-        <PillButton
-          size="xs"
-          onClick={onUndo}
-          disabled={!canUndo || hasSelection}
-          title={hasSelection ? "Apply or cancel the selection first" : "Ctrl+Z"}
-        >
-          Undo
-        </PillButton>
-        <PillButton
-          size="xs"
-          onClick={onRedo}
-          disabled={!canRedo || hasSelection}
-          title={hasSelection ? "Apply or cancel the selection first" : "Ctrl+Y or Ctrl+Shift+Z"}
-        >
-          Redo
-        </PillButton>
-      </div>
-
-      <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
-
+    // The piece in hand, and what can be done to it. It adds to the bar of tool options (G-095): Undo and Redo are the
+    // bar above's, and wait there while a piece is in hand.
+    <div className="flex min-w-max flex-1 items-center gap-2.5" data-testid="selection-bar">
       <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Selection</span>
       {selection ? (
         <span className="font-mono text-xs text-muted">
@@ -287,82 +284,9 @@ export function SelectionBar({
         </span>
       )}
 
-      <div className="ml-auto flex items-center gap-1">
-        {(
-          [
-            ["Copy", "Copy the selected piece", <SkinIcon key="i" name="copy" />, onCopy, !hasSelection],
-            ["Paste", "Paste the copied piece as a new floating selection", <SkinIcon key="i" name="paste" />, onPaste, !hasClipboard],
-            [
-              "Duplicate",
-              "Leave this piece where it is and take a copy of it in hand",
-              <SkinIcon key="i" name="duplicate" />,
-              onDuplicate,
-              !hasSelection,
-            ],
-            // "Fill selection", not "Fill": the tool rail has a Fill of its own, and both are on screen at once.
-            ["Fill selection", fillTitle, <SkinIcon key="i" name="fill-piece" />, onFill, !hasSelection || !canFill],
-            [
-              "Flip horizontal",
-              "Mirror the piece left to right",
-              <SkinIcon key="i" name="flip-horizontal" />,
-              onFlipHorizontal,
-              !hasSelection,
-            ],
-            ["Flip vertical", "Mirror the piece top to bottom", <SkinIcon key="i" name="flip-vertical" />, onFlipVertical, !hasSelection],
-            [
-              "Rotate right",
-              "Turn the piece a quarter turn clockwise",
-              <SkinIcon key="i" name="rotate-right" />,
-              onRotateClockwise,
-              !hasSelection,
-            ],
-            [
-              "Rotate left",
-              "Turn the piece a quarter turn anticlockwise",
-              <SkinIcon key="i" name="rotate-left" />,
-              onRotateAnticlockwise,
-              !hasSelection,
-            ],
-            [
-              "Crop to selection",
-              "Cut the chart down to this rectangle, discarding everything outside it",
-              <SkinIcon key="i" name="crop-to-piece" />,
-              onCrop,
-              !hasSelection,
-            ],
-            [
-              "Apply here",
-              "Merge the piece into the picture where it sits \u2014 Enter",
-              <SkinIcon key="i" name="apply" />,
-              onDeselect,
-              !hasSelection,
-            ],
-            [
-              "Cancel",
-              "Put the chart back as it was when this selection started, discarding its changes \u2014 Escape",
-              <SkinIcon key="i" name="cancel" />,
-              onCancel,
-              !hasSelection,
-            ],
-          ] as const
-        ).map(([label, title, icon, onClick, isDisabled]) => {
-          // Apply here sits before Cancel, and the committing pair carry their names (Owner, 2026-09-18).
-          const named = label === "Cancel" || label === "Apply here";
-          return (
-            <PillButton
-              key={label}
-              aria-label={label}
-              title={title}
-              onClick={onClick}
-              disabled={isDisabled}
-              className={named ? "flex items-center gap-1.5 px-2.5 whitespace-nowrap" : "px-2"}
-            >
-              {icon}
-              {named && label}
-            </PillButton>
-          );
-        })}
-      </div>
+      <div className="ml-auto flex items-center gap-1">{actions.slice(0, -2).map(action)}</div>
+      {/* Apply and Cancel stay in view however narrow the window: the rest scrolls beneath them. */}
+      <div className={PINNED_END}>{actions.slice(-2).map(action)}</div>
     </div>
   );
 }

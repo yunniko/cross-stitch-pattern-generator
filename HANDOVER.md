@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-05 at 8d6ed3c plus G-095 M2 (566 browser cases, 1,125 unit; production runs 3457895)
+Last verified: 2026-10-05 at 001c196 plus G-095 M3 (576 browser cases, 1,141 unit; production runs 3457895)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -32,13 +32,13 @@ Every signed-off goal, with what it produced and how it was verified, is in `doc
 
 **G-083, export fixes — built, deployed and signed off 2026-10-01 (live at ff36e18).** The A4 export has its own cell size (the Chart pane's "A4 cell size, mm", option `exportCellMm`, default 5.5, `lib/export/export-cell-size.ts`), carried to the Rust exporter as `cellMm`; its layout (`calculate_a4_layout`, margin 8 mm, gutter 12 mm) is separate from the Pattern Keeper PDF's (`calculate_layout`, unchanged). The A4 pages carry a map of the pages first, a letter on every page, "overlap X" labels outside the pattern, the centre marked, and a skein table (`rust/cs-export/src/a4.rs`, `centre.rs`); the full-size chart gains the centre marks in Rust and TypeScript and keeps its 24 px stitch. The TypeScript A4 path was not changed (D264).
 
-**G-082, half stitches — signed off 2026-10-01 and archived; built and deployed 2026-10-01 (M1 to M5, 43bdb97; cut 50 % at 3d0ee8a).** A cell holds a whole stitch or a half stitch "/" or "\" (one kind per cell, Owner): `StitchPattern.cellKind` (`lib/editor/stitch-kind.ts`, D258), one byte per cell beside `cellPalette`, absent while every stitch is whole. A **Stitch type** choice (three radio icons) in the top bar (`app/components/context-bar.tsx`, option `stitchKind`) sets what the brush, Fill, the shapes, Lasso fill and Fill selection lay down. Colour and B&W draw the cell with two opposite corners cut away, 50 % of the side (`lib/export/half-stitch-shape.ts`, D259); the Stitched view and the preview picture cut the stitch texture with a supersampled mask of the same shape. The legend, the A4 colour key (a Type column) and the full chart list every stitch type and thread; the Pattern Keeper PDF and the OXS file carry half stitches as whole ones (D260). The Rust exporter (`rust/cs-export/src/halfstitch.rs`, `model.rs`, `render.rs`, `a4.rs`, `preview.rs`, `editable.rs`) and the TypeScript twin agree, checked by `tests/unit/half-stitch-export.spec.ts` and `rust/cs-export/tests/half_stitches.rs`; a chart with no half stitch exports the same bytes as before. Not done: the photo-overlay view shows a half stitch as its symbol only, and an OXS file's part stitches still open as whole stitches (the spec does not say which triangle of the cell a single colour fills).
+**G-082, half stitches — signed off 2026-10-01 and archived; built and deployed 2026-10-01 (M1 to M5, 43bdb97; cut 50 % at 3d0ee8a).** A cell holds a whole stitch or a half stitch "/" or "\" (one kind per cell, Owner): `StitchPattern.cellKind` (`lib/editor/stitch-kind.ts`, D258), one byte per cell beside `cellPalette`, absent while every stitch is whole. A **Stitch type** choice (three radio icons) in the top bar (`app/components/quick-bar.tsx`, option `stitchKind`) sets what the brush, Fill, the shapes, Lasso fill and Fill selection lay down. Colour and B&W draw the cell with two opposite corners cut away, 50 % of the side (`lib/export/half-stitch-shape.ts`, D259); the Stitched view and the preview picture cut the stitch texture with a supersampled mask of the same shape. The legend, the A4 colour key (a Type column) and the full chart list every stitch type and thread; the Pattern Keeper PDF and the OXS file carry half stitches as whole ones (D260). The Rust exporter (`rust/cs-export/src/halfstitch.rs`, `model.rs`, `render.rs`, `a4.rs`, `preview.rs`, `editable.rs`) and the TypeScript twin agree, checked by `tests/unit/half-stitch-export.spec.ts` and `rust/cs-export/tests/half_stitches.rs`; a chart with no half stitch exports the same bytes as before. Not done: the photo-overlay view shows a half stitch as its symbol only, and an OXS file's part stitches still open as whole stitches (the spec does not say which triangle of the cell a single colour fills).
 
-**G-095, the redesign — ACTIVE, M2 of M6 done 2026-10-05; nothing of it is deployed.** The layout is proposal D of `docs/design-mockups/g095-layouts.html`; the plan and the Owner's direction are in `GOALS.md`. Built so far: the interface is drawn from named colours (`app/globals.css`, listed in `lib/skin/skin.ts`), one icon set (`app/skin/icons.tsx`) and an arrangement of tools, held by `npm run check:skin` (D295); the tools sit in two columns with the quick mirrors beneath; a tool may bring a tab of its own to the panel, and Text is a tool that does (`app/tools/text.tsx`, D296). Not yet: the workspaces, the floating view controls, tries, the Export workspace, Preferences (M3 to M5). `node scripts/look.mjs <dir>` takes pictures of the running editor.
+**G-095, the redesign — ACTIVE, M3 of M6 done 2026-10-05; nothing of it is deployed.** The layout is proposal D of `docs/design-mockups/g095-layouts.html`; the plan and the Owner's direction are in `GOALS.md`. Built: three workspaces, Photo, Edit and Export (`lib/editor/workspaces.ts`, D297), each with its own tool in hand and its own panel (`app/components/workspace-panel.tsx`); only Edit changes the chart. The bar above (`app-bar.tsx`) has New, Save, the workspaces, the one Undo and Redo, the commands and the account; the view controls float over the chart (`view-controls.tsx`) with the canvas and stitch texture settings at the end of the readout (`view-settings.tsx`); the bar of tool options (`quick-bar.tsx`) shows what the tool in hand uses and nothing else. `editor-layout.tsx` alone places regions. Under it: colours by name, one icon set and an arrangement of tools, held by `npm run check:skin` (D295); a tool may bring a tab of its own, and Text is a tool that does (D296). Not yet: tries, buttons for the generation settings (M4); the Export workspace's own shape, Preferences (M5); the placement table and the rest of the brief (M6). `node scripts/look.mjs <dir>` takes pictures of the running editor.
 
 **G-080, a predictable cell cursor — signed off and deployed 2026-10-01 (cd6fbdb), archived.** A dot at the pointer (`drawPointerDot` in `app/editor-geometry.ts`, drawn by `app/hooks/use-chart-renderer.ts` with the outline) and a keyboard cursor (`app/hooks/use-keyboard-cursor.ts`, stepping in `lib/editor/keyboard-cursor.ts`): arrows move the stitch (Shift: ten), Enter is the pen, for the brush, Fill and the shape tools; it dispatches the pointer events the mouse would (D254). Record in `docs/goals-archive/G-071-to-G-080.md`.
 
-**G-079, small fixes — signed off and deployed 2026-09-30/10-01 (ee8fa28), archived.** Errors have a cross and clear after 12 s (`app/components/ui.tsx` `NoticeBar`/`InlineError`, `app/hooks/use-auto-dismiss.ts`); the canvas colour is a `react-colorful` swatch on the Chart tab (`app/components/canvas-color-field.tsx`), not in the top panel, which no longer shows "Loaded: name" either (specs wait for Generate through `expectPhotoLoaded`); the transparency lock (`lockTransparency` option, padlock in `app/components/context-bar.tsx`) is one rule in `lib/editor/pattern-edit.ts` applied in `app/tools/` (D253). Record in `docs/goals-archive/G-071-to-G-080.md`.
+**G-079, small fixes — signed off and deployed 2026-09-30/10-01 (ee8fa28), archived.** Errors have a cross and clear after 12 s (`app/components/ui.tsx` `NoticeBar`/`InlineError`, `app/hooks/use-auto-dismiss.ts`); the canvas colour is a `react-colorful` swatch on the Chart tab (`app/components/canvas-color-field.tsx`), not in the top panel, which no longer shows "Loaded: name" either (specs wait for Generate through `expectPhotoLoaded`); the transparency lock (`lockTransparency` option, padlock in `app/components/quick-bar.tsx`) is one rule in `lib/editor/pattern-edit.ts` applied in `app/tools/` (D253). Record in `docs/goals-archive/G-071-to-G-080.md`.
 
 **G-076, stitch textures — signed off and deployed 2026-09-30 (8fc5bf2), archived.** The Chart pane's texture buttons (`app/components/texture-picker.tsx`) set the persisted `stitchTexture` option, which draws the on-screen Stitched view and the exported realistic preview (D248, D249). Textures live in `lib/export/stitch-texture-catalog.ts` and `TEXTURES` in `rust/cs-export/src/preview.rs`. Record in `docs/goals-archive/G-071-to-G-080.md`.
 
@@ -55,7 +55,7 @@ export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-compar
   `latest`/`original`), Full range, DMC, Cosmo or Anchor palettes, and Standard, Crisp or Crisp+ edges — on the
   processor, with progress, a queue position and cancellation. A chart can also start blank: every stitch empty and no
   photo, so Generate and the photo settings stay away for its whole life (G-040, D143).
-- Editing: brush (double-click fills a region as one undo step when the Chart pane's switch is on, D138, D146),
+- Editing: brush (double-click fills a region as one undo step when the Chart tab's switch is on, D138, D146),
 - Drawing tools (G-064): two colours in `lib/editor/color-slots.ts` — two squares in the bar that never move, a left press painting with the front one, a right press with the one behind, a right click on a thread row loading the square behind, `X` swapping them; right clicks are claimed on the chart and the thread rows only. The brush covers a stamp rather than a stitch (`lib/editor/brush-stamp.ts`, odd sizes 1–15, block or disc, size 1 being one stitch as before). Line, Rectangle and Oval (`L`, `R`, `O`) drag from one stitch to another through one gesture (D214) whose rasterisers live in `lib/editor/shape-raster.ts`; an outline is the brush walked along the spine and a filled shape is exactly the shape (D215). Symmetry mirrors every stamped cell, not the stamp's centre; a shape is one undo step, previews without accumulating, and `Escape` or another tool drops it.
 - Lasso tools (G-072): `lib/editor/lasso.ts` turns a freehand path into the cells it encloses by an even-odd
   scanline fill, so crossing the path carves a hole; the path as drawn is always included. **Lasso** (Q) lifts
@@ -65,7 +65,7 @@ export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-compar
 - A throw in the editor lands on a crash screen that names the failure and downloads a report — error, stack, commit, view, tool, brush, zoom and the chart as an editable save, without the photo (G-066, D218). Verified against a reintroduced D217, the class of crash that motivated it.
 - The cursor carries an outline of what a press would cover (G-065): the brush's own shape, one anchor stitch for a filled shape, on a second canvas over the chart's (D216) so a pointer move never repaints the chart. `stampOutline` in `lib/editor/brush-stamp.ts` gives a stamp's boundary edges.
 - With a piece in hand, undo and redo are refused from keyboard and bar alike (G-063): stepping through history underneath a floating selection is a state nobody asked for. Apply or Cancel first.
-- The start screen owns the context bar while it is up: Select's bar yields to it (`activeTool === "select" && pattern && !startingNew`), because Select's bar carries no way back and the tool rail is disabled there (Owner, 2026-09-23). The selection itself survives the trip, so Back returns to the piece still floating.
+- While the start screen is up the bar of tool options shows its own line and the way back (`app/components/quick-bar.tsx`), and the Photo workspace is shown, so no Edit tool is offered (Owner, 2026-09-23; D297). A selection in hand survives the trip, so Back returns to the piece still floating.
   8-connected fill, symmetry on four axes and quick mirror (D137), rectangle select with copy, paste, move, flip,
   rotate, crop, "Apply here" and "Cancel" (D147, D148), pan, zoom; Isolate dims every thread but the lit ones and stays
   on under another tool (D158); merge, recolor, rename, re-symbol, add colour, empty stitches, resize, one undo history.
@@ -74,7 +74,7 @@ export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-compar
 - Exports: editable JSON (format version 7, embeds the source photo and each color's thread swatch), realistic preview
   PNG, Color and B&W full-chart PNG, A4 page ZIPs, Pattern Keeper PDF, an OXS chart, a pixel-art PNG at 1 px per stitch
   (D195), "Export all" `.cspzip`. Open accepts JSON, ZIP, `.cspzip` and `.oxs` by content; OXS lists what it couldn't keep.
-- **The four photo sliders** (G-074 M2): brightness, contrast, saturation and warm/cool in the Photo tab,
+- **The four photo sliders** (G-074 M2): brightness, contrast, saturation and warm/cool in the Photo workspace,
   applied to the photo in the browser as they move, with no request to the server. One definition
   (`lib/pipeline/photo-adjust.ts`) mirrored in Rust (`rust/cs-core/src/photo_adjust.rs`) and compared byte
   for byte by `npm run test:photo-adjust:rust` (D237); it clips out-of-gamut colours rather than
@@ -85,7 +85,7 @@ export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-compar
   are recorded on the pattern and saved with it, and are absent when neutral so a chart made without
   them is the file it always was. A chart carries its sliders wherever it goes (D241): the photo views draw
   the photo *as adjusted*, and opening a chart puts its sliders back, so Regenerate reproduces it. The
-  sliders are provisional until a Generate (D243): on the Photo tab with a photo view up that view follows
+  sliders are provisional until a Generate (D243): in the Photo workspace with a photo view up that view follows
   them live, and leaving without generating gives the change up.
 - **The five photo-enhancement modes are gone** (D240, G-074 M4): the modes, their analysis, the preview
   endpoint, its worker, its cache and its rate-limit allowance — about 2,300 lines. D118 is settled as
@@ -134,9 +134,9 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   @napi-rs/canvas (server decode and preview encoding, D150). Rust 1.96 for G-048's port only (D182).
 - **UI shell** (direction 1b, D157): `app/page.tsx` renders `app/workspace.tsx`, which owns only undo history,
   cross-pane state and pointer dispatch (pan → move → select → brush). Behavior lives in `app/hooks/`: options,
-  restore, source image, generation, pan/zoom, chart renderer, canvas tools, exports, shortcuts. The tool rail, the
-  context and status bars and the inspector's Photo, Chart and Threads panes live in `app/components/`, with shared
-  controls in `ui.tsx`; tool hooks reach the renderer through a ref assigned after render (D108). The chart frame takes
+  restore, source image, generation, pan/zoom, chart renderer, canvas tools, exports, shortcuts. The regions (the bar
+  above, the tools, the bar of tool options, the view controls, the readout, each workspace's panel) live in
+  `app/components/` and are placed by `editor-layout.tsx` alone (D297), with shared controls in `ui.tsx`; tool hooks reach the renderer through a ref assigned after render (D108). The chart frame takes
   layout, input and the zoom anchor; one canvas inside paints the visible part plus overscan (`app/chart-scene.ts`,
   D135, D136). Realistic and Original photo are view-only, where only Pan and Zoom act.
 - **Generation path (G-034, D151)**: `app/hooks/use-generation.ts` → `lib/pipeline/pattern-server.ts` → the Route
@@ -210,9 +210,8 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - **Personal cabinet (G-075 M2)**: `app/account/page.tsx` re-reads the account from Prisma on every request
   rather than trusting the JWT session (D246), and renders `NameForm`, `PasswordForm` and `DeleteAccount`
   (`app/components/account/`) plus its own logout button. All three call `lib/auth/account-actions.ts`, which
-  reads the signed-in id from `auth()` and never trusts a form-carried id. `AccountBadge`
-  (`app/components/auth/account-badge.tsx`) is a `position: fixed` pill, bottom-left past `ToolRail`'s 64px
-  width (moved from top-right, Owner 2026-09-29 -- it overlapped the inspector's Threads tab there).
+  reads the signed-in id from `auth()` and never trusts a form-carried id. The link to the account, or to logging in,
+  is at the end of the bar above (`app/components/app-bar.tsx`, G-095).
 - **Admin (G-075 M3–M4)**: `app/admin/layout.tsx` guards every `/admin/*` page (signed out → `/login`,
   non-admin → `/`); `/admin` redirects to `/admin/users`, which paginates via `lib/admin/pagination.ts`
   (unit-tested; page size overridable like the rate limiter's env vars). Its row actions
@@ -316,14 +315,15 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - Don't strip the embedded photo from saved files without asking (D028).
 - E2E acts on `getByTestId("chart-frame")` and reads pixels from `main canvas` inside
   its `data-painted-rect`; export options are selected by value (D080, D085, D135).
-- The inspector mounts one pane at a time: a Photo, Chart or Threads control is absent from the DOM while another
-  tab is up, and generating or restoring a chart moves the tab to Threads. Anything reaching for such a control
-  selects its tab first — ten of G-045 M5's twenty-eight e2e failures were only this.
+- The panel mounts one pane at a time, and each workspace has its own: a control of the Photo settings, of Chart or
+  Threads, or of Export is absent from the DOM until its workspace (and tab) is shown. A generated chart stays in
+  Photo; an opened or restored one arrives in Edit on Threads (D297). A spec reaching for such a control shows its
+  workspace first, with `showWorkspace` in `tests/e2e/helpers/app.ts`.
 - A legend row prints its stitch count bare, with the skein estimate beneath it. Read the count from the
   `legend-color-count` testid, never by parsing the row's text: the old "123 sts" suffix is gone.
-- The top panel is one strip (D160): symmetry sits in it beside the view controls, and the Select tool replaces the
-  whole bar with the selection bar, which carries Undo and Redo so they do not disappear with it. Nothing else the
-  context bar holds is reachable while a piece is floating.
+- Undo and Redo exist once, in the bar above; the views, Isolate and the zoom float over the chart; a tool's own
+  controls (the piece, the backstitch in hand, the crop frame) add to the bar of tool options and replace nothing
+  in it (D297). A control that belongs to no tool never goes in the bar of tool options.
 - No symmetry control exists before a chart does — 1b's first-run and before-generate panels draw none — so anything
   reaching for one needs an open chart, not merely a loaded photo.
 - The colour editor and the symbol picker both open under the row they edit, one at a time: opening either closes the
@@ -349,8 +349,8 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
   disabled is written `enabled:hover:`, never a bare `hover:`, so a disabled one cannot light under the pointer
   (D164). Three treatments and eight pointer-answering controls had grown up before this rule existed.
 - While the start screen is up, nothing reaches the chart behind it: one `startScreenVisible` in `app/workspace.tsx`
-  disables the rail, the zoom controls and New, locks Chart and Threads (1b draws Photo live and selected), forces 1b's
-  Photo pane, and drops the inspector footer (D164). Undo and Redo belong to the editing bar: no chart, no buttons.
+  disables the tools and New and locks the Edit and Export workspaces (Photo is shown, live and selected); what belongs
+  to a chart being edited is absent, not disabled: Undo, Redo, Save, the view controls (D164, D297).
 - `npm ci --legacy-peer-deps` is required (npm arborist crash).
 - On this Windows host, stopping a background task can leave node running; check the process list (D096).
 - Both photo decode paths must stay byte-identical: `tests/e2e/decode-parity.spec.ts` (D128).

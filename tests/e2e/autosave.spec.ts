@@ -3,7 +3,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { CURRENT_PROJECT_KEY, PROJECT_DB_NAME, PROJECT_DB_VERSION, PROJECT_OBJECT_STORE } from "../../lib/editor/project-store";
 import { LEGACY_PROJECT_KEY } from "../../lib/editor/workspace-storage";
-import { expectPhotoLoaded } from "./helpers/app";
+import { expectPhotoLoaded, saveButton, showWorkspace } from "./helpers/app";
 
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
 
@@ -13,6 +13,7 @@ async function generateSmall(page: Page) {
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
+  await showWorkspace(page, "Edit");
 }
 
 async function waitForAutosave(page: Page) {
@@ -151,8 +152,7 @@ test("a project autosaved by the previous localStorage build is migrated on firs
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await generateSmall(page);
   // Grab a real serialized pattern via the Export dropdown, then plant it in the legacy slot.
-  await page.getByLabel("Export").selectOption({ label: "Editable pattern (.json)" });
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   const savedPath = test.info().outputPath("legacy-pattern.json");
   await download.saveAs(savedPath);
   const json = await readFile(savedPath, "utf8");

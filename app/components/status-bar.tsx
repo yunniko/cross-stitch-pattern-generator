@@ -1,15 +1,15 @@
 "use client";
 
-import { useMemo, type RefObject } from "react";
+import { useMemo, type ReactNode, type RefObject } from "react";
 import type { AutosaveStatus } from "@/app/hooks/use-project-autosave";
 import { formatFinishedSize, type SizeUnit } from "@/lib/export/finished-size";
 import { filledStitchCount, formatColorCount, formatStitchCount, type StitchPattern } from "@/lib/types";
 import { PointerReadout } from "./pointer-readout";
-import { DISABLED_TEXT } from "./ui";
 
 /**
- * The strip under the chart (G-045 M2, direction 1b): what the document is, and where the view is. Everything the
- * reader compares is set in the mono face so the digits line up as they change.
+ * The readout under the chart (G-045 M2; a readout only since G-095): what the document is and where the pointer is, with
+ * the settings of how the cloth and stitches are drawn at its end. The zoom moved to the view controls over the chart and
+ * the name to the bar above. Everything the reader compares is set in the mono face so the digits line up as they change.
  *
  * The summary keeps the exact wording the view bar used ("40 × 30, 1,200 stitches, 9 colors") -- it is what the suite
  * and the live checks read, and nothing about 1b requires a different phrasing.
@@ -22,8 +22,6 @@ const AUTOSAVE_LABELS: Record<AutosaveStatus, string> = {
   idle: "",
 };
 
-const ZOOM_BUTTON = `rounded-md px-2 text-muted enabled:hover:bg-raised enabled:hover:text-ink ${DISABLED_TEXT}`;
-
 export interface StatusBarProps {
   pattern: StitchPattern | null;
   aidaCount: number;
@@ -34,10 +32,8 @@ export interface StatusBarProps {
   scrollerRef: RefObject<HTMLDivElement | null>;
   frameRef: RefObject<HTMLDivElement | null>;
   cellSize: number;
-  zoomLevel: number;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onResetZoom: () => void;
+  /** The settings of how the cloth and stitches are drawn (`view-settings.tsx`), at the end of the readout. */
+  viewSettings: ReactNode;
 }
 
 export function StatusBar({
@@ -49,59 +45,41 @@ export function StatusBar({
   scrollerRef,
   frameRef,
   cellSize,
-  zoomLevel,
-  onZoomIn,
-  onZoomOut,
-  onResetZoom,
+  viewSettings,
 }: StatusBarProps) {
   // Counted once per pattern, not on every zoom or tool change (G-036 M4).
   const stitchCount = useMemo(() => (pattern ? filledStitchCount(pattern) : 0), [pattern]);
 
   return (
-    <div className="flex h-9 shrink-0 items-center gap-4 border-t border-line bg-surface px-4 font-mono text-xs text-muted">
-      {pattern && (
-        <>
-          <span className="max-w-[14rem] truncate font-sans text-ink">{pattern.name ?? "cross-stitch-pattern"}</span>
-          <span>
-            {pattern.width} × {pattern.height}, {formatStitchCount(stitchCount)}, {formatColorCount(pattern.palette.length)}
-          </span>
-          <span title="Finished size on the chosen fabric count">
-            {formatFinishedSize(pattern.width, pattern.height, aidaCount, sizeUnit)} · {aidaCount}-ct
-          </span>
-        </>
-      )}
+    <div className="flex h-9 shrink-0 items-center gap-4 border-t border-line bg-surface px-4 font-mono text-xs whitespace-nowrap text-muted">
+      {/* The measurements give way in a narrow window; the settings at the end are not clipped, since they open upward out of this strip. */}
+      <div className="flex min-w-0 flex-1 items-center gap-4 overflow-hidden">
+        {pattern && (
+          <>
+            <span>
+              {pattern.width} × {pattern.height}, {formatStitchCount(stitchCount)}, {formatColorCount(pattern.palette.length)}
+            </span>
+            <span title="Finished size on the chosen fabric count">
+              {formatFinishedSize(pattern.width, pattern.height, aidaCount, sizeUnit)} · {aidaCount}-ct
+            </span>
+          </>
+        )}
 
-      {pattern && hasPattern && (
-        <PointerReadout scrollerRef={scrollerRef} frameRef={frameRef} width={pattern.width} height={pattern.height} cellSize={cellSize} />
-      )}
+        {pattern && hasPattern && (
+          <PointerReadout scrollerRef={scrollerRef} frameRef={frameRef} width={pattern.width} height={pattern.height} cellSize={cellSize} />
+        )}
+      </div>
 
       <span
         role="status"
         data-testid="autosave-status"
         data-status={autosaveStatus}
-        className={`ml-auto font-sans ${autosaveStatus === "unavailable" ? "font-medium text-danger" : "text-muted"}`}
+        className={`shrink-0 font-sans ${autosaveStatus === "unavailable" ? "font-medium text-danger" : "text-muted"}`}
       >
         {autosaveStatus === "saved" && !hasPattern ? "" : AUTOSAVE_LABELS[autosaveStatus]}
       </span>
 
-      <div className="flex items-center gap-0.5">
-        <button type="button" onClick={onZoomOut} className={`${ZOOM_BUTTON} text-sm`} aria-label="Zoom out" disabled={!hasPattern}>
-          −
-        </button>
-        <button
-          type="button"
-          onClick={onResetZoom}
-          disabled={!hasPattern}
-          className={`${ZOOM_BUTTON} min-w-[3.5rem] text-center text-ink`}
-          aria-label="Reset zoom to 100%"
-          title="Reset zoom to 100%"
-        >
-          {Math.round(zoomLevel * 100)}%
-        </button>
-        <button type="button" onClick={onZoomIn} className={`${ZOOM_BUTTON} text-sm`} aria-label="Zoom in" disabled={!hasPattern}>
-          +
-        </button>
-      </div>
+      {viewSettings}
     </div>
   );
 }

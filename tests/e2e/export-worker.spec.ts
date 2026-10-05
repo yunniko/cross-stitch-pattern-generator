@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { MAX_STITCHES } from "../../lib/types";
 import path from "node:path";
+import { showWorkspace, exportChoice } from "./helpers/app";
 
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
 
@@ -37,7 +38,9 @@ test("exports at 1000 stitches render off the main thread, and A4 export shows p
   await expect(page.getByText(/(1000 × \d+|\d+ × 1000), [\d,]+ stitches, \d+ colors/)).toBeVisible({ timeout: 180_000 });
   await page.waitForTimeout(500); // let the chart's own first draw finish before measuring exports
 
-  const exportSelect = page.getByLabel("Export", { exact: true });
+  await showWorkspace(page, "Export");
+
+  const exportSelect = exportChoice(page);
   const exportButton = page.getByRole("button", { name: "Export", exact: true });
   for (const kind of ["png-color", "png-realistic"] as const) {
     await exportSelect.selectOption(kind);

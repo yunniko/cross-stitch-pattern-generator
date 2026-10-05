@@ -2,6 +2,7 @@ import { test, expect, type Locator, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pixelAt, readPng } from "../unit/helpers/png-read";
+import { showWorkspace, exportChoice, openViewSettings } from "./helpers/app";
 
 /**
  * G-077 M1: the canvas cloth behind the Stitched view. It covers the whole well (not only the chart), is drawn only in
@@ -12,11 +13,12 @@ async function openChart(page: Page) {
   await page.goto("/");
   await page.getByLabel("Open pattern file").setInputFiles(path.join(__dirname, "fixtures", "sample.oxs"));
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("tab", { name: "Chart" }).click();
+  await openViewSettings(page);
 }
 
 /** The canvas colour is a swatch that opens the shared colour picker; the hex field in it takes a typed colour. */
 async function setCanvasColor(page: Page, hex: string) {
+  await openViewSettings(page);
   await page.getByRole("button", { name: "Canvas color", exact: true }).click();
   await page.getByLabel("Canvas color hex").fill(hex);
   await page.keyboard.press("Escape");
@@ -133,7 +135,7 @@ test("the cloth takes the canvas colour, the swatches show it at one cell size, 
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("tab", { name: "Chart" }).click();
+  await openViewSettings(page);
   await expect(picker.getByRole("radio", { name: "Counted canvas", exact: true })).toHaveAttribute("aria-checked", "true");
 });
 
@@ -142,14 +144,14 @@ test("the exported preview carries the canvas only when asked, and the plain col
   const picker = page.getByRole("radiogroup", { name: "Canvas texture" });
   const include = page.getByLabel("Canvas in exported preview");
 
+  // The tick sits with the export it belongs to, in the Export workspace; the canvas itself is a view setting (G-095).
+  await showWorkspace(page, "Export");
   async function exportPreview() {
-    await page.getByRole("tab", { name: "Threads" }).click();
-    await page.getByLabel("Export", { exact: true }).selectOption("png-realistic");
+    await exportChoice(page).selectOption("png-realistic");
     const [download] = await Promise.all([
       page.waitForEvent("download"),
       page.getByRole("button", { name: "Export", exact: true }).click(),
     ]);
-    await page.getByRole("tab", { name: "Chart" }).click();
     return readPng(await readFile((await download.path())!));
   }
   // The heart's top-left stitch is empty, so a pixel just inside it is the ground.
@@ -170,6 +172,7 @@ test("the exported preview carries the canvas only when asked, and the plain col
   expect(transparentAt, "a pixel that is not opaque").toBe(-1);
 
   // Ticked with a cloth: the cloth multiplied with the colour, and still opaque.
+  await openViewSettings(page);
   await picker.getByRole("radio", { name: "Counted canvas", exact: true }).click();
   const cloth = await exportPreview();
   expect(ground(cloth)[3]).toBe(255);
@@ -181,7 +184,7 @@ test("the exported preview carries the canvas only when asked, and the plain col
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("tab", { name: "Chart" }).click();
+  await showWorkspace(page, "Export");
   await expect(include).toBeChecked();
   await include.uncheck();
   expect(ground(await exportPreview())[3]).toBe(0);

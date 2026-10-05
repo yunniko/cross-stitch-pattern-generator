@@ -8,6 +8,7 @@ import type { SizeUnit } from "@/lib/export/finished-size";
 import type { BackstitchLine, FloatingSelection, StitchPattern } from "@/lib/types";
 import type { ChartRenderer } from "../hooks/use-chart-renderer";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
+import type { Workspace } from "@/lib/editor/workspaces";
 import type { ToolOption } from "./options";
 
 /**
@@ -29,6 +30,13 @@ export interface ToolDefinition {
   key?: string;
   /** Where it sits in the list: 0 the tools that lay stitches and lines, 1 the ones that take a piece, 2 the ways of moving about. */
   group: 0 | 1 | 2;
+  /** The workspace that offers it (G-095, D297); Edit when it names none. A tool that only moves the view is offered in all three. */
+  workspace?: Workspace;
+  /**
+   * The drawing options every tool shares that this one reads, shown with it and with no tool that ignores them (G-095):
+   * the two drawing colours, the symmetry axes, the transparency lock.
+   */
+  shares?: readonly SharedOption[];
   Icon: ComponentType;
   /** It lays stitches, so it follows the stitch type choice (G-082). */
   laysStitches?: boolean;
@@ -51,6 +59,9 @@ export interface ToolDefinition {
   tab?: { label: string };
 }
 
+/** A drawing option that belongs to no one tool: each tool says which of them it reads. */
+export type SharedOption = "colours" | "symmetry" | "lock";
+
 /** The settings the Text tool keeps, under the names they have had among the saved settings since G-081. */
 export type TextSettings = Pick<WorkspaceOptions, "textFamily" | "textStyle" | "textSize" | "textWeight">;
 export type ChangeTextSetting = <K extends keyof TextSettings>(key: K, value: WorkspaceOptions[K]) => void;
@@ -63,7 +74,7 @@ export interface EditorApi {
   cellSize: number;
   /** The tool in hand. A module compares it only with its own tools' ids. */
   activeTool: string;
-  /** A looking-only view is up: nothing may change the chart. */
+  /** The chart is only being looked at, in a looking-only view or outside the Edit workspace: nothing may change it. */
   viewOnly: boolean;
   /** The start screen covers the chart. */
   startingNew: boolean;
@@ -138,8 +149,11 @@ export interface ToolRuntime {
   onToolChange?(previous: ToolDefinition, next: ToolDefinition): void;
   /** Another chart has arrived. */
   onDocumentReplaced?(): void;
-  /** Its own controls, shown in place of the drawing options while it has something to act on. */
-  bar?: ReactNode;
+  /**
+   * Its own controls for what it holds (the piece, the lines, the crop frame), drawn after its options. They add to the
+   * bar and replace nothing in it: Undo, the views and the other tools' places stay where they are (G-095, D297).
+   */
+  quick?: ReactNode;
   /** What its tab holds, for a tool whose definition declares one. */
   panel?: (shell: ToolShell) => ReactNode;
   /** Drawn over the chart. */

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { FIXTURE, openSmallChart } from "./helpers/app";
+import { FIXTURE, openSmallChart, saveButton, showWorkspace, exportChoice } from "./helpers/app";
 
 /**
  * G-087: "Set up palette" -- the user chooses the colours a chart is made from, can fill them from the picture's predicted
@@ -131,7 +131,8 @@ test("palettes are saved by name, loaded and deleted", async ({ page }) => {
 
 test("the Export dropdown writes a palette file with the chart's colours, and it loads back as a palette", async ({ page }) => {
   await openSmallChart(page);
-  await page.getByLabel("Export").selectOption("palette");
+  await showWorkspace(page, "Export");
+  await exportChoice(page).selectOption("palette");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   expect(download.suggestedFilename()).toBe("sample_palette.json");
   const file = path.join(test.info().outputDir, "sample_palette.json");
@@ -163,9 +164,7 @@ test("the editable file carries the set and restores it; a file without one rese
   await page.getByRole("button", { name: "Add colour" }).click();
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
-
-  await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   const file = path.join(test.info().outputDir, "sample_editable.json");
   await download.saveAs(file);
   const saved = JSON.parse(await readFile(file, "utf8"));
@@ -285,8 +284,8 @@ test("a chart with no colours has no palette to export, and says so", async ({ p
   await page.getByRole("button", { name: /Start an empty grid/ }).click();
   await page.getByRole("button", { name: "Create" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible();
-  await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByLabel("Export").selectOption("palette");
+  await showWorkspace(page, "Export");
+  await exportChoice(page).selectOption("palette");
   await page.getByRole("button", { name: "Export", exact: true }).click();
   await expect(page.getByText("This chart has no colours yet, so there is no palette to export.")).toBeVisible();
 });

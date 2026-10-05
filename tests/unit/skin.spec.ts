@@ -87,16 +87,12 @@ describe("a skin, drawn", () => {
         SkinProvider,
         { skin },
         createElement(ToolRail, {
+          workspace: "edit",
           activeTool: "brush",
           disabled: false,
           onSelect: () => {},
           squareCanvas: true,
           onMirror: () => {},
-          onNewChart: () => {},
-          newChartDisabled: false,
-          onOpenCommands: () => {},
-          commandsDisabled: false,
-          commandsButtonRef: { current: null },
         })
       )
     );
@@ -117,7 +113,7 @@ describe("a skin, drawn", () => {
   it("draws the skin's icon for a tool and for the interface, and the supplied one otherwise", () => {
     const paper = rail(PAPER);
     expect(paper).toContain('data-paper-icon="tool:brush"');
-    expect(paper).toContain('data-paper-icon="new"');
+    expect(paper).toContain('data-paper-icon="mirror-left-half"');
     expect(rail(ATELIER)).not.toContain("data-paper-icon");
     // A tool the skin has no icon for keeps the one it supplies.
     expect((paper.match(/<svg/g) ?? []).length).toBe((rail(ATELIER).match(/<svg/g) ?? []).length);

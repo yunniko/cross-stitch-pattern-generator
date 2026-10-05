@@ -41,8 +41,11 @@ export interface ReplacePlan {
   paletteSet: "reset" | "from-file" | "keep";
   /** The four photo sliders (G-074). */
   photoAdjust: "neutral" | "from-file" | "keep";
-  /** Which settings are shown afterwards. */
-  tab: "photo" | "threads" | "keep";
+  /**
+   * The workspace shown afterwards (G-095, D297). A photo and every Generate stay in Photo, where generations are tried;
+   * a chart that arrives ready (opened, restored, blank, imported) is shown in Edit.
+   */
+  workspace: "photo" | "edit" | "keep";
   /** Generation, open and notice messages are cleared. */
   clearMessages: boolean;
   /** The start screen gives way to the chart. */
@@ -62,7 +65,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     symmetry: "off",
     paletteSet: "reset",
     photoAdjust: "neutral",
-    tab: "photo",
+    workspace: "photo",
     clearMessages: true,
     leaveStart: true,
     adoptPhoto: false,
@@ -75,7 +78,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     symmetry: "from-file",
     paletteSet: "from-file",
     photoAdjust: "from-file",
-    tab: "threads",
+    workspace: "edit",
     clearMessages: true,
     leaveStart: true,
     adoptPhoto: true,
@@ -88,7 +91,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     symmetry: "off",
     paletteSet: "reset",
     photoAdjust: "neutral",
-    tab: "threads",
+    workspace: "edit",
     clearMessages: true,
     leaveStart: true,
     adoptPhoto: true,
@@ -101,7 +104,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     symmetry: "off",
     paletteSet: "reset",
     photoAdjust: "neutral",
-    tab: "threads",
+    workspace: "edit",
     clearMessages: true,
     leaveStart: true,
     adoptPhoto: true,
@@ -114,7 +117,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     symmetry: "off",
     paletteSet: "keep",
     photoAdjust: "keep",
-    tab: "threads",
+    workspace: "photo",
     clearMessages: true,
     leaveStart: false,
     adoptPhoto: false,
@@ -127,7 +130,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     symmetry: "keep",
     paletteSet: "keep",
     photoAdjust: "keep",
-    tab: "threads",
+    workspace: "photo",
     clearMessages: false,
     leaveStart: false,
     adoptPhoto: false,
@@ -140,7 +143,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     symmetry: "off",
     paletteSet: "keep",
     photoAdjust: "keep",
-    tab: "keep",
+    workspace: "keep",
     clearMessages: true,
     leaveStart: false,
     adoptPhoto: false,

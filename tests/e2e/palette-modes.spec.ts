@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "node:path";
-import { expectPhotoLoaded } from "./helpers/app";
+import { expectPhotoLoaded, showWorkspace } from "./helpers/app";
 
 // Generation in every thread-brand palette and in Crisp edges mode, through the real UI and worker.
 // DMC names are "CODE - Name"; Cosmo and Anchor publish no names, so the legend shows the bare code (D093, D094).
@@ -27,6 +27,7 @@ async function generateWith(page: Page, buttons: string[]): Promise<string[]> {
   }
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+  await showWorkspace(page, "Edit");
 
   const rows = page.getByTestId("legend-color-row");
   await expect(rows.first()).toBeVisible();

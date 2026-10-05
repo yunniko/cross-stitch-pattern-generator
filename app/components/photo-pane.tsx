@@ -242,7 +242,7 @@ export function PhotoPane({
     return (
       <div className="flex flex-col gap-4 p-4">
         <p className="m-0 text-[13px] leading-[19px] text-muted">
-          Nothing loaded yet. Once a photo is here, size and color settings appear on this tab.
+          Nothing loaded yet. Once a photo is here, size and color settings appear here.
         </p>
         <div className="flex flex-col gap-2.5 rounded-[10px] border border-dashed border-line p-3.5 font-mono text-[11px] text-muted">
           <span>01 · photo</span>

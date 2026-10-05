@@ -28,6 +28,46 @@ export async function pickTool(page: Page, label: string): Promise<void> {
 }
 
 /**
+ * Shows one of the three workspaces by its tab in the bar above (G-095): Photo makes the chart, Edit changes it, Export
+ * gets it out. A chart that is opened arrives in Edit; one that is generated stays in Photo.
+ */
+export async function showWorkspace(page: Page, name: "Photo" | "Edit" | "Export"): Promise<void> {
+  await page.getByRole("tab", { name, exact: true }).click();
+}
+
+/**
+ * Presses Generate or Regenerate and waits for the chart it makes. The chart on screen is no sign of that once one exists:
+ * a Regenerate leaves the old chart up until the new one arrives, and Save is in reach the whole time (G-095), so a spec
+ * that saved straight away would save the old chart. The button coming back as an enabled Regenerate is the sign.
+ */
+export async function generateAndWait(page: Page, timeout = 30_000): Promise<void> {
+  await page.getByRole("button", { name: /^(Generate pattern|Regenerate)$/ }).click();
+  await expect(page.getByRole("button", { name: "Regenerate", exact: true })).toBeEnabled({ timeout });
+  await expect(page.getByTestId("chart-canvas")).toBeVisible();
+}
+
+/** One of the brush's sizes, in the bar of tool options: a button each since G-095 (they were a list). */
+export const brushSize = (page: Page, size: number) =>
+  page.getByRole("group", { name: "Brush size in stitches" }).getByRole("button", { name: String(size), exact: true });
+
+/** The choice of what to export, in the Export workspace's panel. */
+export const exportChoice = (page: Page) => page.getByRole("combobox", { name: "Export", exact: true });
+
+/**
+ * Opens the settings of how the cloth and stitches are drawn (canvas colour, canvas texture, stitch texture), at the end
+ * of the readout under the chart. They were in the Chart tab before G-095. Already open, it is left open; it stays open
+ * while the view controls are used and closes on a press anywhere else.
+ */
+export async function openViewSettings(page: Page): Promise<void> {
+  const settings = page.getByRole("dialog", { name: "Canvas and stitch texture" });
+  if (!(await settings.isVisible())) await page.getByRole("button", { name: "Canvas & stitch texture" }).click();
+  await expect(settings).toBeVisible();
+}
+
+/** The Save button in the bar above: it downloads the editable file from any workspace, leaving what is in hand alone. */
+export const saveButton = (page: Page) => page.getByRole("button", { name: "Save", exact: true });
+
+/**
  * The chart `generateSmallPattern` makes, as the editable file it was saved to (G-096): the same photo, the same 50 × 31
  * stitches in 16 colours, its photo inside it. To make it again after generation changes on purpose: generate the small
  * pattern, export the editable file, and replace this one.
@@ -59,6 +99,8 @@ export async function generateSmallPattern(page: Page): Promise<void> {
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+  // A generated chart stays in the Photo workspace, where generations are tried (G-095); these specs go on to edit it.
+  await showWorkspace(page, "Edit");
 }
 
 /**

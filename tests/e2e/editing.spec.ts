@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { openSmallChart } from "./helpers/app";
+import { openSmallChart, saveButton, showWorkspace, exportChoice } from "./helpers/app";
 
 test("generate, merge two colors, undo/redo, download editable, and reopen it", async ({ page }) => {
   await openSmallChart(page);
@@ -22,8 +22,7 @@ test("generate, merge two colors, undo/redo, download editable, and reopen it", 
 
   // Download editable (via the consolidated Export dropdown), then reopen
   // it fresh and confirm the same state comes back.
-  await page.getByLabel("Export").selectOption({ label: "Editable pattern (.json)" });
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   const savedPath = test.info().outputPath("saved-pattern.json");
   await download.saveAs(savedPath);
 
@@ -37,15 +36,15 @@ test("generate, merge two colors, undo/redo, download editable, and reopen it", 
 test("renaming the pattern changes every download's filename", async ({ page }) => {
   await openSmallChart(page);
 
-  // 1b keeps the name in the Chart pane and the exports in the Threads footer, and the inspector shows one at a time.
+  // The name is in Edit, under Chart; the exports are a workspace of their own (G-095).
   await page.getByRole("tab", { name: "Chart" }).click();
   const nameInput = page.getByLabel("Pattern name");
   await expect(nameInput).toHaveValue("sample");
   await nameInput.fill("My Cat");
   await nameInput.blur();
 
-  await page.getByRole("tab", { name: "Threads" }).click();
-  const exportSelect = page.getByLabel("Export");
+  await showWorkspace(page, "Export");
+  const exportSelect = exportChoice(page);
   const exportButton = page.getByRole("button", { name: "Export", exact: true });
 
   await exportSelect.selectOption("png-color");
@@ -61,7 +60,10 @@ test("renaming the pattern changes every download's filename", async ({ page }) 
   expect(editableDownload.suggestedFilename()).toBe("My Cat_editable.json");
 
   // Renaming is a normal, undoable history step, like every other edit.
+  // Undo is in the bar above, in reach from the Export workspace too; the name is back in Edit, under Chart.
   await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByTestId("chart-name")).toHaveText("sample");
+  await showWorkspace(page, "Edit");
   await page.getByRole("tab", { name: "Chart" }).click();
   await expect(nameInput).toHaveValue("sample");
 });

@@ -103,7 +103,7 @@ export const cropModule = {
       },
       // The frame starts again over the new chart; the tool stays in hand if it was.
       onDocumentReplaced: crop.clearFrame,
-      bar:
+      quick:
         shown && crop.size && api.pattern ? (
           <CropBar
             width={api.pattern.width}
@@ -114,10 +114,6 @@ export const cropModule = {
             changed={crop.changed}
             aidaCount={api.options.aidaCount}
             sizeUnit={api.options.sizeUnit}
-            canUndo={api.history.canUndo}
-            canRedo={api.history.canRedo}
-            onUndo={api.history.undo}
-            onRedo={api.history.redo}
             onEdgeChange={crop.setEdge}
             onApply={crop.apply}
             onCancel={crop.reset}

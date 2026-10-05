@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { openSmallChart } from "./helpers/app";
+import { openSmallChart, saveButton } from "./helpers/app";
 
 /**
  * G-064 M1: a chart is drawn with two colours (Owner, 2026-09-23). Left paints with the foreground, right with the
@@ -31,8 +31,7 @@ async function pickThread(page: Page, nth: number, button: "left" | "right") {
 /** The exported chart, which is the only place the cells and the thread names can be read together. */
 async function exportChart(page: Page): Promise<{ cellPalette: number[]; palette: Array<{ name: string }>; width: number }> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8"));
   await page.getByRole("tab", { name: "Chart" }).click();
   return chart;

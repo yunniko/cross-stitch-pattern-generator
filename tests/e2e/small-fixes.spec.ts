@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { expectPhotoLoaded, pickTool } from "./helpers/app";
+import { expectPhotoLoaded, pickTool, saveButton, showWorkspace, openViewSettings } from "./helpers/app";
 
 /**
  * G-079: errors that can be dismissed and go away by themselves, the canvas colour on the shared colour picker (and gone
@@ -33,7 +33,7 @@ test("an error can be dismissed, and goes away by itself", async ({ page }) => {
   await expect(dismiss).toHaveCount(0);
 });
 
-test("the canvas colour is on the Chart tab only, and opens the colour picker the threads use", async ({ page }) => {
+test("the canvas colour is with the view settings only, and opens the colour picker the threads use", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /^Start an empty grid/ }).click();
   await page.getByLabel("Width in stitches").fill("20");
@@ -41,11 +41,13 @@ test("the canvas colour is on the Chart tab only, and opens the colour picker th
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(page.getByTestId("chart-frame")).toBeVisible();
 
-  // Not in the top panel: with the Photo tab up, nothing on the page is labelled Canvas color.
-  await page.getByRole("tab", { name: "Photo" }).click();
+  // Not in any panel: until the view settings are opened, nothing on the page is labelled Canvas color (G-095 moved it
+  // there from the Chart tab; it changes what is seen, not the chart).
+  await expect(page.getByLabel("Canvas color", { exact: true })).toHaveCount(0);
+  await page.getByRole("tab", { name: "Chart" }).click();
   await expect(page.getByLabel("Canvas color", { exact: true })).toHaveCount(0);
 
-  await page.getByRole("tab", { name: "Chart" }).click();
+  await openViewSettings(page);
   const swatch = page.getByRole("button", { name: "Canvas color", exact: true });
   await expect(swatch).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await swatch.click();
@@ -65,8 +67,7 @@ test("the canvas colour is on the Chart tab only, and opens the colour picker th
 /** The chart as the editable save writes it, which is where the cells can actually be read. */
 async function savedCells(page: Page): Promise<number[]> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByLabel("Export", { exact: true }).selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   const saved = JSON.parse(await readFile((await download.path())!, "utf8")) as { cellPalette: number[] };
   await page.getByRole("tab", { name: "Chart" }).click();
   return saved.cellPalette;
@@ -85,6 +86,7 @@ test("with transparency locked, drawing and filling cannot turn empty stitches i
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+  await showWorkspace(page, "Edit");
   await page.getByRole("tab", { name: "Chart" }).click();
 
   const frame = page.getByTestId("chart-frame");
@@ -168,6 +170,7 @@ test("with transparency locked, Fill selection paints only the stitches that are
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+  await showWorkspace(page, "Edit");
   await page.getByRole("tab", { name: "Chart" }).click();
   const box = (await page.getByTestId("chart-frame").boundingBox())!;
   const cell = (box.width - 2) / SIZE;
@@ -223,5 +226,6 @@ test("the top panel does not announce the loaded file's name", async ({ page }) 
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+  await showWorkspace(page, "Edit");
   await expect(page.getByText(/Loaded:/)).toHaveCount(0);
 });

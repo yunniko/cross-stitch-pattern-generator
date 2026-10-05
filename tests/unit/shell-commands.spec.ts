@@ -8,6 +8,7 @@ const EDITING: ShellState = {
   hasChart: true,
   startingNew: false,
   startScreenVisible: false,
+  workspace: "edit",
   squareChart: false,
   hasPiece: false,
   hasPhotoViews: true,
@@ -47,6 +48,7 @@ function actions(): ShellActions & Record<string, ReturnType<typeof vi.fn>> {
     "holdPan",
     "releasePan",
     "chooseTool",
+    "showWorkspace",
   ];
   return Object.fromEntries(names.map((name) => [name, vi.fn()])) as never;
 }
@@ -68,6 +70,7 @@ describe("the editor's own commands", () => {
       "chart.mirror-upper-left-half-corner",
       "chart.symmetry-diagonal",
       "chart.symmetry-antidiagonal",
+      "view.workspace-edit",
       "cursor.move",
       "cursor.move-ten",
       "cursor.pen",
@@ -115,7 +118,7 @@ describe("the editor's own commands", () => {
   });
 
   it("over the start screen: what would change or show the covered chart goes, and so do New and the command list; the keys' own commands stay as they were", () => {
-    const state = { ...EDITING, startingNew: true, startScreenVisible: true, photoShown: false };
+    const state = { ...EDITING, workspace: "photo" as const, startingNew: true, startScreenVisible: true, photoShown: false };
     expect(unavailableIn(state)).toEqual([
       "file.new",
       "file.export",
@@ -130,6 +133,9 @@ describe("the editor's own commands", () => {
       "chart.symmetry-vertical",
       "chart.symmetry-horizontal",
       "chart.lock-transparency",
+      // The start screen shows the Photo workspace, and neither of the others can be entered from it.
+      "view.workspace-photo",
+      "view.workspace-export",
       "view.zoom-in",
       "view.zoom-out",
       "view.zoom-reset",
@@ -141,6 +147,7 @@ describe("the editor's own commands", () => {
     const state: ShellState = {
       ...EDITING,
       hasChart: false,
+      workspace: "photo" as const,
       startScreenVisible: true,
       hasPhotoViews: false,
       photoShown: false,
@@ -180,5 +187,51 @@ describe("the editor's own commands", () => {
   it("a command that ran always takes its key, whatever its action returns", () => {
     const a = { ...actions(), undo: () => false };
     expect(shellCommandStates(EDITING, a)["edit.undo"].run()).toBeUndefined();
+  });
+});
+
+describe("the workspaces (G-095, D297)", () => {
+  it("only Edit may change the chart: outside it the mirrors, the symmetry axes and the lock cannot run", () => {
+    for (const workspace of ["photo", "export"] as const) {
+      expect(
+        unavailableIn({ ...EDITING, workspace }).filter((id) => id.startsWith("chart.")),
+        workspace
+      ).toEqual([
+        "chart.mirror-left-half",
+        "chart.mirror-upper-half",
+        "chart.mirror-upper-left-corner",
+        "chart.symmetry-vertical",
+        "chart.symmetry-horizontal",
+        "chart.lock-transparency",
+      ]);
+    }
+  });
+
+  it("what is not an edit runs in every workspace: the views, the zoom, undo, the exports, Generate", () => {
+    for (const workspace of ["photo", "export"] as const) {
+      const now = available({ ...EDITING, workspace });
+      for (const id of ["view.color", "view.realistic", "view.zoom-in", "edit.undo", "file.export", "file.export-all", "generate.run"]) {
+        expect(now, `${id} in ${workspace}`).toContain(id);
+      }
+    }
+  });
+
+  it("each workspace can be entered from the others, and not from itself", () => {
+    const entering = (state: ShellState) => available(state).filter((id) => id.startsWith("view.workspace-"));
+    expect(entering(EDITING)).toEqual(["view.workspace-photo", "view.workspace-export"]);
+    expect(entering({ ...EDITING, workspace: "photo" })).toEqual(["view.workspace-edit", "view.workspace-export"]);
+    expect(entering({ ...EDITING, workspace: "export" })).toEqual(["view.workspace-photo", "view.workspace-edit"]);
+  });
+
+  it("Edit and Export need a chart, and wait while the start screen covers one", () => {
+    const entering = (state: ShellState) => available(state).filter((id) => id.startsWith("view.workspace-"));
+    expect(entering({ ...EDITING, workspace: "photo", hasChart: false })).toEqual([]);
+    expect(entering({ ...EDITING, workspace: "photo", startingNew: true })).toEqual([]);
+  });
+
+  it("entering one is that action, with the workspace named", () => {
+    const a = actions();
+    shellCommandStates(EDITING, a)["view.workspace-export"].run();
+    expect(a.showWorkspace).toHaveBeenCalledWith("export");
   });
 });

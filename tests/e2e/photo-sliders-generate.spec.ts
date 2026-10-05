@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { expectPhotoLoaded } from "./helpers/app";
+import { expectPhotoLoaded, saveButton, showWorkspace, generateAndWait } from "./helpers/app";
 
 /**
  * G-074 M3: the sliders reach generation, and the chart says what it was made with.
@@ -33,14 +33,12 @@ interface ExportedChart {
 }
 
 async function exportEditable(page: Page): Promise<ExportedChart> {
-  await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   return JSON.parse(await readFile((await download.path())!, "utf8")) as ExportedChart;
 }
 
 async function generateAndExport(page: Page): Promise<ExportedChart> {
-  await page.getByRole("button", { name: /^(Generate pattern|Regenerate)$/ }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 60_000 });
+  await generateAndWait(page, 60_000);
   return exportEditable(page);
 }
 
@@ -66,7 +64,7 @@ function meanChroma(chart: ExportedChart): number {
 
 /**
  * The bare photo. One press shows the grid over it, a second the photo alone, a third returns to the chart
- * (context-bar.tsx), so this presses until it arrives rather than assuming where it started.
+ * (view-controls.tsx), so this presses until it arrives rather than assuming where it started.
  */
 async function showPhotoOnly(page: Page) {
   const button = page.getByRole("button", { name: "Show the photo behind the chart" });
@@ -305,9 +303,9 @@ test("sliders moved but never generated are given up on the way out", async ({ p
   await page.getByRole("slider", { name: "Saturation" }).fill("-100");
   await expect(page.getByRole("slider", { name: "Saturation" })).toHaveValue("-100");
 
-  // Another tab: the chart on screen was not made with that slider, so it goes back to what made it.
-  await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByRole("tab", { name: "Photo" }).click();
+  // Another workspace: the chart on screen was not made with that slider, so it goes back to what made it.
+  await showWorkspace(page, "Edit");
+  await showWorkspace(page, "Photo");
   await expect(page.getByRole("slider", { name: "Saturation" })).toHaveValue("0");
   await expect(page.getByRole("slider", { name: "Brightness" })).toHaveValue("-40");
 

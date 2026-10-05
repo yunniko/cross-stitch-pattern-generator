@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { saveButton, brushSize } from "./helpers/app";
 
 /**
  * G-064 M3 and M4: the shape tools. A drag from one stitch to another draws a line, a rectangle or an oval, as thick
@@ -53,8 +54,7 @@ async function drag(
 
 /** The chart as saved: which thread each cell holds. */
 async function exportChart(page: Page): Promise<{ cellPalette: number[]; palette: { name: string }[] }> {
-  await page.getByLabel("Export").selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   return JSON.parse(await readFile((await download.path())!, "utf8"));
 }
 
@@ -113,7 +113,7 @@ test("a diagonal line steps one stitch at a time, with no gap and nothing beside
 test("the line is as thick as the brush", async ({ page }) => {
   await blankChartWithColors(page, 1);
   await page.getByTestId("legend-color-row").click();
-  await page.getByLabel("Brush size in stitches").selectOption("5");
+  await brushSize(page, 5).click();
   await page.getByRole("button", { name: "Line" }).click();
 
   await drag(page, { x: 8, y: 12 }, { x: 24, y: 12 });
@@ -254,7 +254,7 @@ test("an oval is round, and stays inside the box the drag covered", async ({ pag
 test("a filled shape is exactly the shape, whatever the brush size", async ({ page }) => {
   await blankChartWithColors(page, 1);
   await page.getByTestId("legend-color-row").click();
-  await page.getByLabel("Brush size in stitches").selectOption("7");
+  await brushSize(page, 7).click();
   await page.getByRole("button", { name: "Rectangle" }).click();
   await page.getByRole("button", { name: "Filled" }).click();
 
@@ -276,12 +276,12 @@ test("the outline/filled choice belongs to the shapes that enclose something, an
   await page.getByRole("button", { name: "Filled" }).click();
 
   await page.getByRole("button", { name: "Brush" }).click();
-  await expect(page.getByRole("group", { name: "Shape" }), "a brush stroke has no inside").toHaveCount(0);
+  await expect(page.getByRole("group", { name: "Shape", exact: true }), "a brush stroke has no inside").toHaveCount(0);
   await page.getByRole("button", { name: "Line" }).click();
-  await expect(page.getByRole("group", { name: "Shape" }), "nor does a line").toHaveCount(0);
+  await expect(page.getByRole("group", { name: "Shape", exact: true }), "nor does a line").toHaveCount(0);
 
   await page.getByRole("button", { name: "Rectangle" }).click();
-  await expect(page.getByRole("group", { name: "Shape" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Shape", exact: true })).toBeVisible();
   // A new visit: the chart is a new one, but the setting comes back from storage with it. A reload in this page would
   // bring the autosaved chart back instead of the start screen (or not, depending on whether the autosave had finished),
   // so the second visit is a new browser context that carries the saved settings and nothing else.

@@ -100,21 +100,23 @@ test("the start screen leaves nothing live over the chart it covers, and every d
   await page.getByRole("button", { name: "New chart" }).click();
   await expect(page.getByRole("button", { name: /^Choose a photo/ })).toBeVisible();
 
-  for (const name of ["Brush", "Fill", "Select", "Move", "Pan", "Zoom", "New chart", "Zoom in", "Zoom out"]) {
+  // The start screen is shown in the Photo workspace (G-095): its two tools are there and locked, and so is New.
+  for (const name of ["Pan", "Zoom", "New chart"]) {
     await expect(page.getByRole("button", { name, exact: true }), `${name} still reaches the covered chart`).toBeDisabled();
   }
-  await expect(page.getByRole("button", { name: "Mirror left half" })).toBeDisabled();
-  // 1b draws the Photo tab live and selected here -- it names the pane that is showing -- while the two tabs that
-  // would reach the covered chart are locked.
-  for (const tab of ["Chart", "Threads"]) {
-    await expect(page.getByRole("tab", { name: tab }), `the ${tab} tab is still live`).toBeDisabled();
+  // Photo is live and selected -- it names the workspace that is showing -- while the two that would reach the covered
+  // chart are locked.
+  for (const workspace of ["Edit", "Export"]) {
+    await expect(page.getByRole("tab", { name: workspace, exact: true }), `the ${workspace} workspace is still live`).toBeDisabled();
   }
   await expect(page.getByRole("tab", { name: "Photo" })).toBeEnabled();
   await expect(page.getByRole("tab", { name: "Photo" })).toHaveAttribute("aria-selected", "true");
-  // 1b draws no Undo, no Redo and no exports here, so they are absent rather than disabled.
-  for (const gone of [/^Undo$/, /^Redo$/, /^Export all/]) {
-    await expect(page.getByRole("button", { name: gone })).toHaveCount(0);
+  // What belongs to the chart being edited is absent rather than disabled: Edit's tools and tabs, the quick mirrors,
+  // Undo and Redo, Save, the view controls and the exports.
+  for (const gone of ["Brush", "Fill", "Select", "Move", "Mirror left half", "Undo", "Redo", "Save", "Zoom in", "Zoom out", "Export all"]) {
+    await expect(page.getByRole("button", { name: gone, exact: true }), `${gone} is still offered`).toHaveCount(0);
   }
+  for (const tab of ["Chart", "Threads"]) await expect(page.getByRole("tab", { name: tab })).toHaveCount(0);
 
   // Each disabled control wears one of the two designed looks: an icon faded to 40%, or a label dropped to --at-faint.
   // Settle first: these controls carry `transition-colors`, and a colour read mid-flight is neither look. The
@@ -136,7 +138,7 @@ test("the start screen leaves nothing live over the chart it covers, and every d
     }
     return out;
   });
-  expect(boxes.length, "the start screen disables controls at all").toBeGreaterThan(8);
+  expect(boxes.length, "the start screen disables controls at all").toBeGreaterThan(4);
   for (const { label, look } of boxes) {
     expect(look, `${label} renders at full-strength ink while disabled`).not.toBe(`1|${INK}`);
     expect(look.startsWith("0.4|") || look.endsWith(`|${FAINT}`), `${label} wears an undesigned disabled look: ${look}`).toBe(true);

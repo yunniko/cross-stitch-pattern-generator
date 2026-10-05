@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { pickTool } from "./helpers/app";
+import { pickTool, saveButton } from "./helpers/app";
 
 /**
  * G-080: a dot at the pointer's exact place over the highlighted stitch, and a keyboard cell cursor -- the arrow keys
@@ -31,8 +31,7 @@ async function pickThread(page: Page) {
 
 async function savedCells(page: Page): Promise<number[]> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByLabel("Export", { exact: true }).selectOption("editable");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
   const saved = JSON.parse(await readFile((await download.path())!, "utf8")) as { cellPalette: number[] };
   await page.getByRole("tab", { name: "Chart" }).click();
   // The tab just clicked would keep the arrow keys, as a tab list should; hand the keyboard back to the page.
