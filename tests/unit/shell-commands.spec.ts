@@ -1,0 +1,184 @@
+import { describe, expect, it, vi } from "vitest";
+import { shellCommandStates, type ShellActions, type ShellState } from "../../app/commands/shell-commands";
+
+/** G-098: when each of the editor's own commands can run, and which action each one is, with no editor around it. */
+
+/** A chart open and nothing else going on. */
+const EDITING: ShellState = {
+  hasChart: true,
+  startingNew: false,
+  startScreenVisible: false,
+  squareChart: false,
+  hasPiece: false,
+  hasPhotoViews: true,
+  photoShown: true,
+  photoLoading: false,
+  generating: false,
+  exporting: false,
+  canUndo: true,
+  canRedo: true,
+  slidersNeutral: false,
+};
+
+function actions(): ShellActions & Record<string, ReturnType<typeof vi.fn>> {
+  const names = [
+    "newChart",
+    "choosePhoto",
+    "openFile",
+    "importPixelArt",
+    "exportSelected",
+    "exportAll",
+    "exportEditable",
+    "generate",
+    "cancelGeneration",
+    "resetSliders",
+    "undo",
+    "redo",
+    "swapColours",
+    "toggleIsolate",
+    "mirror",
+    "toggleSymmetry",
+    "toggleLock",
+    "showView",
+    "zoomIn",
+    "zoomOut",
+    "zoomReset",
+    "openCommandList",
+    "holdPan",
+    "releasePan",
+    "chooseTool",
+  ];
+  return Object.fromEntries(names.map((name) => [name, vi.fn()])) as never;
+}
+
+const available = (state: ShellState) =>
+  Object.entries(shellCommandStates(state, actions()))
+    .filter(([, command]) => command.available)
+    .map(([id]) => id);
+const unavailableIn = (state: ShellState) => {
+  const now = new Set(available(state));
+  return available(EDITING).filter((id) => !now.has(id));
+};
+
+describe("the editor's own commands", () => {
+  it("with a chart open and nothing in the way: everything but New's opposites, a square chart's, and the keyboard cursor's", () => {
+    const all = Object.keys(shellCommandStates(EDITING, actions()));
+    expect(all.filter((id) => !available(EDITING).includes(id))).toEqual([
+      "generate.cancel",
+      "chart.mirror-upper-left-half-corner",
+      "chart.symmetry-diagonal",
+      "chart.symmetry-antidiagonal",
+      "cursor.move",
+      "cursor.move-ten",
+      "cursor.pen",
+    ]);
+  });
+
+  it("a square chart adds its three", () => {
+    expect(available({ ...EDITING, squareChart: true })).toEqual(
+      expect.arrayContaining(["chart.mirror-upper-left-half-corner", "chart.symmetry-diagonal", "chart.symmetry-antidiagonal"])
+    );
+  });
+
+  it("with a piece in hand, only undo and redo go, and their keys are still claimed", () => {
+    const state = { ...EDITING, hasPiece: true };
+    expect(unavailableIn(state)).toEqual(["edit.undo", "edit.redo"]);
+    const commands = shellCommandStates(state, actions());
+    expect(commands["edit.undo"].claimsKey).toBe(true);
+    expect(commands["edit.redo"].claimsKey).toBe(true);
+  });
+
+  it("with nothing to step back or forward to, undo and redo go one by one", () => {
+    expect(unavailableIn({ ...EDITING, canUndo: false })).toEqual(["edit.undo"]);
+    expect(unavailableIn({ ...EDITING, canRedo: false })).toEqual(["edit.redo"]);
+  });
+
+  it("while exporting, the three exports go; while generating, a new photo and generate go and cancel comes", () => {
+    expect(unavailableIn({ ...EDITING, exporting: true })).toEqual(["file.export", "file.export-all", "file.export-editable"]);
+    const generating = { ...EDITING, generating: true };
+    expect(unavailableIn(generating)).toEqual(["file.choose-photo", "generate.run"]);
+    expect(available(generating)).toContain("generate.cancel");
+  });
+
+  it("while a photo is being read, a new photo and generate go", () => {
+    expect(unavailableIn({ ...EDITING, photoLoading: true })).toEqual(["file.choose-photo", "generate.run"]);
+  });
+
+  it("a chart with no photo has no generate, no slider reset and no photo views", () => {
+    expect(unavailableIn({ ...EDITING, photoShown: false, hasPhotoViews: false })).toEqual([
+      "generate.run",
+      "generate.reset-adjustment",
+      "view.photo",
+      "view.photo-only",
+    ]);
+    expect(unavailableIn({ ...EDITING, slidersNeutral: true })).toEqual(["generate.reset-adjustment"]);
+  });
+
+  it("over the start screen: what would change or show the covered chart goes, and so do New and the command list; the keys' own commands stay as they were", () => {
+    const state = { ...EDITING, startingNew: true, startScreenVisible: true, photoShown: false };
+    expect(unavailableIn(state)).toEqual([
+      "file.new",
+      "file.export",
+      "file.export-all",
+      "file.export-editable",
+      "generate.run",
+      "generate.reset-adjustment",
+      "colours.isolate",
+      "chart.mirror-left-half",
+      "chart.mirror-upper-half",
+      "chart.mirror-upper-left-corner",
+      "chart.symmetry-vertical",
+      "chart.symmetry-horizontal",
+      "chart.lock-transparency",
+      "view.zoom-in",
+      "view.zoom-out",
+      "view.zoom-reset",
+      "view.command-list",
+    ]);
+  });
+
+  it("with no chart at all: the ways in, and the command list", () => {
+    const state: ShellState = {
+      ...EDITING,
+      hasChart: false,
+      startScreenVisible: true,
+      hasPhotoViews: false,
+      photoShown: false,
+      canUndo: false,
+      canRedo: false,
+    };
+    expect(available(state)).toEqual(["file.choose-photo", "file.open", "file.import-pixel-art", "view.command-list"]);
+  });
+
+  it("each runs the action it names, with what it names", () => {
+    const a = actions();
+    const commands = shellCommandStates({ ...EDITING, squareChart: true }, a);
+    commands["chart.mirror-upper-left-half-corner"].run();
+    expect(a.mirror).toHaveBeenCalledWith("upper-left-half-corner");
+    commands["chart.symmetry-antidiagonal"].run();
+    expect(a.toggleSymmetry).toHaveBeenCalledWith("antidiagonal");
+    commands["view.photo-only"].run();
+    expect(a.showView).toHaveBeenCalledWith("photo-only");
+    commands["view.pan-held"].run();
+    commands["view.pan-held"].release!();
+    expect(a.holdPan).toHaveBeenCalledTimes(1);
+    expect(a.releasePan).toHaveBeenCalledTimes(1);
+    for (const [id, action] of [
+      ["file.new", a.newChart],
+      ["file.export-editable", a.exportEditable],
+      ["generate.run", a.generate],
+      ["edit.undo", a.undo],
+      ["colours.swap", a.swapColours],
+      ["view.zoom-reset", a.zoomReset],
+      ["view.command-list", a.openCommandList],
+    ] as const) {
+      commands[id].run();
+      expect(action, id).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("a command that ran always takes its key, whatever its action returns", () => {
+    const a = { ...actions(), undo: () => false };
+    expect(shellCommandStates(EDITING, a)["edit.undo"].run()).toBeUndefined();
+  });
+});

@@ -7,6 +7,10 @@ import { useDrawingColours } from "./hooks/use-drawing-colours";
 import { useSymmetryAxes } from "./hooks/use-symmetry-axes";
 import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
 import { mergeColors, renamePattern, setFabric } from "@/lib/editor/pattern-edit";
+import { useChartFabric } from "./hooks/use-chart-fabric";
+import { useEditorView } from "./hooks/use-editor-view";
+import { useLitThreads } from "./hooks/use-lit-threads";
+import { DEFAULT_CHART_NAME, useNameDraft } from "./hooks/use-name-draft";
 import { applyQuickMirrorWithSelection, fillSymmetric, NO_SYMMETRY, type QuickMirror, type SymmetryAxes } from "@/lib/editor/symmetry";
 import { oxsImportNotice } from "@/lib/editor/oxs";
 import { loadPatternFromFile } from "@/lib/editor/pattern-import";
@@ -24,7 +28,7 @@ import { ConfirmNewChart } from "./components/confirm-new-chart";
 import { ContextBar } from "./components/context-bar";
 import { ExportControls } from "./components/export-controls";
 import { ImageWindow } from "./components/image-window";
-import { Inspector, type InspectorTab } from "./components/inspector";
+import { Inspector } from "./components/inspector";
 import { isKeyboardCursorTool, isViewOnlyMode, usesStitchKind } from "./editor-types";
 import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
 import { WorkspaceNotices } from "./components/panels";
@@ -35,7 +39,6 @@ import type { LetteringBitmap } from "@/lib/editor/text-raster";
 import { StatusBar } from "./components/status-bar";
 import { ToolRail } from "./components/tool-rail";
 import { PillButton } from "./components/ui";
-import type { ViewMode } from "./editor-types";
 import { cellIndexFromEvent, chartOrigin, computeCellSize } from "./editor-geometry";
 import { useChartRenderer, type ChartRenderer } from "./hooks/use-chart-renderer";
 import { paginatesAsA4, useExports } from "./hooks/use-exports";
@@ -43,7 +46,6 @@ import { longerSideFor, useGeneration } from "./hooks/use-generation";
 import { useKeyboardCursor } from "./hooks/use-keyboard-cursor";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { usePanZoom, ZOOM_STEP } from "./hooks/use-pan-zoom";
-import { slidersToRestore } from "@/lib/editor/photo-adjust-session";
 import { EMPTY_SET } from "@/lib/editor/palette-set";
 import { isNeutralAdjust, NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
 import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
@@ -51,23 +53,13 @@ import { useProjectRestore } from "./hooks/use-project-restore";
 import { useColorPrediction } from "./hooks/use-color-prediction";
 import { readToolOption, writeToolOption } from "@/lib/editor/tool-options";
 import { useTools } from "./tools/use-tools";
-import { act } from "./tools/shared";
-import { TOOL_DEFINITIONS, type Tool } from "./tools/registry";
-import { useCommandTable } from "./commands/registry";
-import type { CommandState } from "@/lib/editor/commands";
+import { useShellCommands } from "./commands/shell-commands";
+import { useHeldPan } from "./hooks/use-held-pan";
 import { CommandList } from "./components/command-list";
 import { replaceDocument, type ReplaceEffects } from "@/lib/editor/document-replace-run";
 import type { ColorPrediction } from "@/lib/pipeline/prediction";
 import { useSourceImage } from "./hooks/use-source-image";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
-
-const DEFAULT_NAME = "cross-stitch-pattern";
-
-/** The tool Space borrows: the first that moves the view by dragging. */
-const PAN_TOOL = TOOL_DEFINITIONS.find((tool) => tool.cursor === "grab")!.id;
-
-/** The keyboard cell cursor's keys are listed in the command table and listened to by its own hook. */
-const LISTENED_ELSEWHERE: CommandState = { available: false, run: () => false };
 
 /** Nothing for the cursor to carry; the renderer reads the outline only when there is a stitch to put it on. */
 const NO_OUTLINE: readonly StampEdge[] = [];
@@ -92,33 +84,31 @@ export default function Workspace({ account }: WorkspaceProps) {
    *  card is actually chosen, which is what replaces the one autosaved chart. */
   const [startingNew, setStartingNew] = useState(false);
   const { options: browserOptions, update: updateOption } = useWorkspaceOptions();
-  // A chart's fabric is the chart's own (G-094, D290): with one, its count and unit stand in for the browser's everywhere a
-  // size is shown or exported. The browser's are what a new chart starts with, and what a chart without a fabric uses.
-  // Not while the start screen is up: what is set there is for the chart about to be made, not the one behind it.
-  const chartFabric = startingNew ? undefined : pattern?.fabric;
-  const options = useMemo(
-    () => (chartFabric ? { ...browserOptions, aidaCount: chartFabric.count, sizeUnit: chartFabric.unit } : browserOptions),
-    [browserOptions, chartFabric]
-  );
+  // The options in force: the browser's, with the open chart's own fabric in place of the browser's (D290).
+  const { options, fabricNow, updateChartOption } = useChartFabric({
+    pattern,
+    startingNew,
+    browserOptions,
+    updateOption,
+    commit: history.set,
+  });
   const source = useSourceImage();
   // The four sliders (G-074), drawn in the browser from the decoded photo -- no request to the server.
   const adjustPreview = usePhotoAdjustPreview(source.pixelBuffer, options.photoAdjust, pattern === null);
 
-  const [viewMode, setViewMode] = useState<ViewMode>("color");
+  // What is being looked at: the view, the settings beside it, and the rule that unused photo sliders are given up.
+  const view = useEditorView({
+    pattern,
+    sliders: options.photoAdjust,
+    restoreSliders: (adjust) => updateOption("photoAdjust", adjust),
+  });
+  const { viewMode, inspectorTab, chooseViewMode, chooseInspectorTab } = view;
   // Two colours since G-064: the squares never move, so the pair is two slots and a flag saying which is in
   // front. `activeColorIndex` stays the name for the foreground, which is what a left press paints with.
   const colours = useDrawingColours(pattern?.palette.length ?? 0);
   const { activeColorIndex, setActiveColorIndex, setBackgroundColorIndex } = colours;
-  /**
-   * Isolate and the threads lit for it (G-045 M4). Isolate is a way of looking at the chart rather than a tool, so it
-   * stays on while you paint, and lighting a thread is independent of choosing one to paint with.
-   */
-  const [isolate, setIsolate] = useState(false);
-  const [litColorIndices, setLitColorIndices] = useState<ReadonlySet<number>>(new Set());
-  // Backstitch lights separately from stitches: lighting an outline should show that outline, not bring
-  // the thread's fill up with it (Owner, 2026-09-25).
-  const [litBackstitchIndices, setLitBackstitchIndices] = useState<ReadonlySet<number>>(new Set());
-  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("photo");
+  // Isolate and the threads lit for it.
+  const lit = useLitThreads();
   // The Text tab's text and thread live here, not in the tab: it leaves the page while another tab is open (G-081).
   const [letteringText, setLetteringText] = useState("");
   const [letteringColor, setLetteringColor] = useState<number | null>(null);
@@ -138,15 +128,7 @@ export default function Workspace({ account }: WorkspaceProps) {
   const [colorPreview, setColorPreview] = useState<{ base: StitchPattern; next: StitchPattern } | null>(null);
   // Bumped whenever the palette is replaced wholesale (a new document or a generation), so open editors close.
   const [documentId, setDocumentId] = useState(0);
-  const [nameDraft, setNameDraft] = useState(pattern?.name ?? DEFAULT_NAME);
-  const [lastCommittedName, setLastCommittedName] = useState(pattern?.name);
-
-  // Re-sync the name draft only when the committed name changes (undo, regenerate, another file), not on every
-  // keystroke; adjusting state during render avoids an extra effect pass.
-  if (pattern?.name !== lastCommittedName) {
-    setLastCommittedName(pattern?.name);
-    setNameDraft(pattern?.name ?? DEFAULT_NAME);
-  }
+  const [nameDraft, setNameDraft] = useNameDraft(pattern?.name);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -158,8 +140,6 @@ export default function Workspace({ account }: WorkspaceProps) {
   const rendererRef = useRef<ChartRenderer | null>(null);
   const commandsButtonRef = useRef<HTMLButtonElement>(null);
   const [commandListOpen, setCommandListOpen] = useState(false);
-  /** The tool put down while Space is held to pan. */
-  const heldToolRef = useRef<Tool | null>(null);
 
   // The hook skips zoom levels that would render the same cell size, so it needs to know what a level renders as.
   const cellSizeAt = useCallback((zoom: number) => computeCellSize(pattern, zoom), [pattern]);
@@ -189,37 +169,6 @@ export default function Workspace({ account }: WorkspaceProps) {
   });
   const { activeTool, switchTool, hoverOutline } = tools;
   const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
-  /**
-   * The sliders are provisional until a Generate acts on them (D243).
-   *
-   * On the Photo tab with a photo view up, those views follow the sliders as they move, so the sliders
-   * still mean something once a chart exists. Anywhere else they show the chart's own, because that is
-   * what the chart was made from (D241).
-   */
-  const photoViewShown = viewMode === "photo" || viewMode === "photo-only";
-  const previewingSliders = inspectorTab === "photo" && photoViewShown;
-  const chartAdjust = pattern?.photoAdjust ?? NEUTRAL_ADJUST;
-  const shownPhotoAdjust = previewingSliders ? options.photoAdjust : chartAdjust;
-
-  /**
-   * Leaving the Photo tab, or the photo view, without regenerating abandons the change: the chart on
-   * screen was not made with those sliders, so it must not look as though it was (Owner, 2026-09-27).
-   */
-  function abandonUnusedSliders() {
-    const restore = slidersToRestore(options.photoAdjust, pattern);
-    if (restore) updateOption("photoAdjust", restore);
-  }
-
-  function chooseInspectorTab(tab: InspectorTab) {
-    if (tab !== "photo") abandonUnusedSliders();
-    setInspectorTab(tab);
-  }
-
-  function chooseViewMode(mode: ViewMode) {
-    if (mode !== "photo" && mode !== "photo-only") abandonUnusedSliders();
-    setViewMode(mode);
-  }
-
   const renderer = useChartRenderer({
     canvasRef,
     frameRef,
@@ -233,14 +182,14 @@ export default function Workspace({ account }: WorkspaceProps) {
     selection: tools.piece.selection,
     isSelectDragging: tools.piece.isDragging,
     highlightBackstitch: tools.highlightBackstitch,
-    isolate,
-    litColorIndices,
-    litBackstitchIndices,
+    isolate: lit.isolate,
+    litColorIndices: lit.colors,
+    litBackstitchIndices: lit.backstitch,
     canvasColor: options.canvasColor,
     stitchTexture: options.stitchTexture,
     clothBehind: viewMode === "realistic" && options.canvasTexture !== "off",
     symmetryAxes: liveSymmetry,
-    photoAdjust: shownPhotoAdjust,
+    photoAdjust: view.shownPhotoAdjust,
     // The renderer applies a zoom's anchor itself, between sizing the frame and measuring the view (D124, D135).
     applyZoomAnchor: panZoom.applyZoomAnchor,
   });
@@ -282,15 +231,11 @@ export default function Workspace({ account }: WorkspaceProps) {
     clearSelection: () => tools.piece.clear(),
     // Each tool puts down what belonged to the old chart; the Crop tool, if in hand, starts a fresh frame over the new one.
     closeCrop: () => tools.documentReplaced(),
-    clearLit: () => {
-      setLitColorIndices(new Set());
-      setLitBackstitchIndices(new Set());
-      setIsolate(false);
-    },
+    clearLit: lit.clear,
     clearTextThread: () => setLetteringColor(null),
     clearColourInHand: () => setActiveColorIndex(null),
     resetZoom: () => panZoom.resetZoom(),
-    showColorView: () => setViewMode("color"),
+    showColorView: () => view.setViewMode("color"),
     setSymmetry: (axes) => symmetryState.reset(axes),
     resetPaletteSet: () => {
       updateOption("paletteSetup", false);
@@ -301,7 +246,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       updateOption("paletteSetup", active);
     },
     setPhotoAdjust: (adjust) => updateOption("photoAdjust", adjust),
-    showTab: setInspectorTab,
+    showTab: view.setInspectorTab,
     clearMessages: () => {
       generation.setError(null);
       setOpenError(null);
@@ -315,22 +260,6 @@ export default function Workspace({ account }: WorkspaceProps) {
     },
   };
 
-  /** The fabric in force now, which a chart made now is given: the open chart's, or the browser's. */
-  const fabricNow = { count: options.aidaCount, unit: options.sizeUnit };
-
-  /**
-   * Fabric count and unit, changed in the chart's settings: with a chart open they are the chart's, as one undo step, and
-   * the browser remembers them for the next new chart. Every other setting is the browser's alone.
-   */
-  const updateChartOption: typeof updateOption = (key, value) => {
-    if (pattern && (key === "aidaCount" || key === "sizeUnit")) {
-      const fabric = key === "aidaCount" ? { ...fabricNow, count: value as number } : { ...fabricNow, unit: value as "in" | "cm" };
-      const next = setFabric(pattern, fabric);
-      if (next !== pattern) history.set(next);
-    }
-    updateOption(key, value);
-  };
-
   /** Lands a restored or opened pattern in every piece of state that depends on it, including its embedded photo. */
   function loadPatternIntoWorkspace(loaded: StitchPattern, fallbackName: string, savedSymmetry: SymmetryAxes = NO_SYMMETRY) {
     return replaceDocument("open", { ...loaded, name: loaded.name ?? fallbackName }, replaceEffects, {
@@ -340,7 +269,7 @@ export default function Workspace({ account }: WorkspaceProps) {
   }
 
   const restore = useProjectRestore(
-    (restored, savedSymmetry) => void loadPatternIntoWorkspace(restored, restored.name ?? "cross-stitch-pattern", savedSymmetry)
+    (restored, savedSymmetry) => void loadPatternIntoWorkspace(restored, restored.name ?? DEFAULT_CHART_NAME, savedSymmetry)
   );
   const autosaveStatus = useProjectAutosave(pattern, restore.restored, getProjectStore(), liveSymmetry);
   const exports = useExports(pattern, options, liveSymmetry);
@@ -491,8 +420,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     // pointing at a different thread than the reader picked.
     colours.forgetColor(sourceIndex);
     // A merge renumbers palette indices, so lit indices could now point at other colors.
-    if (litColorIndices.size > 0) setLitColorIndices(new Set());
-    if (litBackstitchIndices.size > 0) setLitBackstitchIndices(new Set());
+    lit.forget();
   }
 
   /** A quick mirror (G-037): any floating selection is merged and the mirror applied, committed as one undo step. */
@@ -500,39 +428,6 @@ export default function Workspace({ account }: WorkspaceProps) {
     if (!pattern || (kind === "upper-left-half-corner" && pattern.width !== pattern.height)) return;
     history.set(applyQuickMirrorWithSelection(pattern, tools.piece.selection, kind));
     tools.piece.release();
-  }
-
-  /**
-   * Lights or unlights one thread for Isolate. Turning the first one on turns Isolate on, so the eye does something
-   * visible; putting the last one out turns it off again, so the control never claims to be isolating nothing (D158).
-   */
-  function toggleLitBackstitch(index: number) {
-    setLitBackstitchIndices((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-        // Isolate goes out only when nothing at all is lit, in either section.
-        if (next.size === 0 && litColorIndices.size === 0) setIsolate(false);
-      } else {
-        next.add(index);
-        setIsolate(true);
-      }
-      return next;
-    });
-  }
-
-  function toggleLit(index: number) {
-    setLitColorIndices((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-        if (next.size === 0 && litBackstitchIndices.size === 0) setIsolate(false);
-      } else {
-        next.add(index);
-        setIsolate(true);
-      }
-      return next;
-    });
   }
 
   /**
@@ -566,75 +461,52 @@ export default function Workspace({ account }: WorkspaceProps) {
   // because New is what opens it. Computed here so the two cannot drift apart.
   const startScreenVisible = startingNew || (pattern === null && source.meta === null);
 
-  // The editor's own commands (G-093): what each does now. The names, keys and conditions are the table's, in
-  // `app/commands/registry.ts`; the tools add theirs. The keys below the chart, and the command list, read the result.
-  const hasChart = pattern !== null;
-  const chartShown = hasChart && !startingNew;
-  const squareChart = pattern !== null && pattern.width === pattern.height;
-  const noPiece = tools.piece.selection === null;
-  const exportFree = chartShown && !exports.isExporting && !exports.isExportingAll;
-  const photoShown = !startingNew && !photoFree && source.hasPhoto;
-  const hasPhotoViews = pattern?.sourceImage !== undefined;
-  const commands = useCommandTable(
+  // The command table for this render (G-093): what is true of the editor now, and what can be done. Which command each is,
+  // and when it can run, is `app/commands/shell-commands.ts`; the keys and the command list read the result.
+  const heldPan = useHeldPan(activeTool, switchTool, tools.restoreTool);
+  const commands = useShellCommands(
     {
-      "file.new": act(!startScreenVisible, () => setStartingNew(true)),
-      "file.choose-photo": {
-        available: !source.isLoading && !generation.isProcessing,
-        run: () => startNewChart(() => imageInputRef.current?.click()),
-      },
-      "file.open": { available: true, run: () => startNewChart(() => openInputRef.current?.click()) },
-      "file.import-pixel-art": { available: true, run: () => startNewChart(() => pixelArtInputRef.current?.click()) },
-      "file.export": act(exportFree, exports.exportSelected),
-      "file.export-all": act(exportFree, exports.exportAll),
-      "file.export-editable": act(exportFree, exports.exportEditableNow),
-      "generate.run": act(photoShown && !generation.isProcessing && !source.isLoading, generation.generate),
-      "generate.cancel": act(generation.isProcessing, generation.cancel),
-      "generate.reset-adjustment": act(photoShown && !isNeutralAdjust(options.photoAdjust), () =>
-        updateOption("photoAdjust", NEUTRAL_ADJUST)
-      ),
-      // With a piece in hand, history is not the reader's to step through yet (G-063); the key is still kept from the browser.
-      "edit.undo": { ...act(history.canUndo && noPiece, history.undo), claimsKey: true },
-      "edit.redo": { ...act(history.canRedo && noPiece, history.redo), claimsKey: true },
-      "colours.swap": act(hasChart, colours.swap),
-      "colours.isolate": act(chartShown, () => setIsolate((on) => !on)),
-      "chart.mirror-left-half": act(chartShown, () => applyMirror("left-half")),
-      "chart.mirror-upper-half": act(chartShown, () => applyMirror("upper-half")),
-      "chart.mirror-upper-left-corner": act(chartShown, () => applyMirror("upper-left-corner")),
-      "chart.mirror-upper-left-half-corner": act(chartShown && squareChart, () => applyMirror("upper-left-half-corner")),
-      "chart.symmetry-vertical": act(chartShown, () => symmetryState.toggle("vertical")),
-      "chart.symmetry-horizontal": act(chartShown, () => symmetryState.toggle("horizontal")),
-      "chart.symmetry-diagonal": act(chartShown && squareChart, () => symmetryState.toggle("diagonal")),
-      "chart.symmetry-antidiagonal": act(chartShown && squareChart, () => symmetryState.toggle("antidiagonal")),
-      "chart.lock-transparency": act(chartShown, () => updateOption("lockTransparency", !options.lockTransparency)),
-      "view.color": act(hasChart, () => chooseViewMode("color")),
-      "view.bw": act(hasChart, () => chooseViewMode("bw")),
-      "view.realistic": act(hasChart, () => chooseViewMode("realistic")),
-      "view.photo": act(hasPhotoViews, () => chooseViewMode("photo")),
-      "view.photo-only": act(hasPhotoViews, () => chooseViewMode("photo-only")),
-      "view.zoom-in": act(chartShown, () => panZoom.zoomBy(ZOOM_STEP)),
-      "view.zoom-out": act(chartShown, () => panZoom.zoomBy(1 / ZOOM_STEP)),
-      "view.zoom-reset": act(chartShown, panZoom.resetZoom),
-      // Space borrows the tool that drags the view, and gives back the one it took, with none of a tool change's side effects.
-      // Ctrl+K is the browser's own too, so the key is kept from it whenever it is pressed outside a text entry.
-      "view.command-list": { ...act(!startingNew, () => setCommandListOpen(true)), claimsKey: true },
-      "view.pan-held": {
-        available: hasChart,
-        run: () => {
-          if (heldToolRef.current !== null) return;
-          heldToolRef.current = activeTool;
-          switchTool(PAN_TOOL);
-        },
-        release: () => {
-          const back = heldToolRef.current;
-          heldToolRef.current = null;
-          if (back !== null) tools.restoreTool(back);
-        },
-      },
-      "cursor.move": LISTENED_ELSEWHERE,
-      "cursor.move-ten": LISTENED_ELSEWHERE,
-      "cursor.pen": LISTENED_ELSEWHERE,
+      hasChart: pattern !== null,
+      startingNew,
+      startScreenVisible,
+      squareChart: pattern !== null && pattern.width === pattern.height,
+      hasPiece: tools.piece.selection !== null,
+      hasPhotoViews: pattern?.sourceImage !== undefined,
+      photoShown: !startingNew && !photoFree && source.hasPhoto,
+      photoLoading: source.isLoading,
+      generating: generation.isProcessing,
+      exporting: exports.isExporting || exports.isExportingAll,
+      canUndo: history.canUndo,
+      canRedo: history.canRedo,
+      slidersNeutral: isNeutralAdjust(options.photoAdjust),
     },
-    (tool) => act(hasChart, () => switchTool(tool)),
+    {
+      newChart: () => setStartingNew(true),
+      choosePhoto: () => startNewChart(() => imageInputRef.current?.click()),
+      openFile: () => startNewChart(() => openInputRef.current?.click()),
+      importPixelArt: () => startNewChart(() => pixelArtInputRef.current?.click()),
+      exportSelected: exports.exportSelected,
+      exportAll: exports.exportAll,
+      exportEditable: exports.exportEditableNow,
+      generate: generation.generate,
+      cancelGeneration: generation.cancel,
+      resetSliders: () => updateOption("photoAdjust", NEUTRAL_ADJUST),
+      undo: history.undo,
+      redo: history.redo,
+      swapColours: colours.swap,
+      toggleIsolate: lit.toggleIsolate,
+      mirror: applyMirror,
+      toggleSymmetry: symmetryState.toggle,
+      toggleLock: () => updateOption("lockTransparency", !options.lockTransparency),
+      showView: chooseViewMode,
+      zoomIn: () => panZoom.zoomBy(ZOOM_STEP),
+      zoomOut: () => panZoom.zoomBy(1 / ZOOM_STEP),
+      zoomReset: panZoom.resetZoom,
+      openCommandList: () => setCommandListOpen(true),
+      holdPan: heldPan.hold,
+      releasePan: heldPan.release,
+      chooseTool: switchTool,
+    },
     tools.commands
   );
   // While the list is up the keys are the list's: nothing typed there reaches a tool or a view.
@@ -727,9 +599,9 @@ export default function Workspace({ account }: WorkspaceProps) {
             view={{
               mode: viewMode,
               onModeChange: chooseViewMode,
-              isolate,
-              onIsolateChange: setIsolate,
-              litCount: litColorIndices.size + litBackstitchIndices.size,
+              isolate: lit.isolate,
+              onIsolateChange: lit.setIsolate,
+              litCount: lit.count,
             }}
             photo={{ isLoading: source.isLoading, hasSource: source.hasPhoto }}
             colours={{ slots: colours.slots, onActivate: colours.setActiveSlot, onSwap: colours.swap }}
@@ -902,10 +774,10 @@ export default function Workspace({ account }: WorkspaceProps) {
             activeColorIndex={activeColorIndex}
             onActiveColorChange={setActiveColorIndex}
             onBackgroundColorChange={setBackgroundColorIndex}
-            litColorIndices={litColorIndices}
-            onToggleLit={toggleLit}
-            litBackstitchIndices={litBackstitchIndices}
-            onToggleLitBackstitch={toggleLitBackstitch}
+            litColorIndices={lit.colors}
+            onToggleLit={lit.toggleColor}
+            litBackstitchIndices={lit.backstitch}
+            onToggleLitBackstitch={lit.toggleBackstitch}
             aidaCount={options.aidaCount}
             onChange={history.set}
             onPreviewChange={setColorPreview}

@@ -22,11 +22,22 @@ One line per change; deployed in batches, each batch after one full-suite run.
 
 ## Active goals
 
-### G-098 · The editor shell is split by what it does — DRAFT (2026-10-05)
+### G-098 · The editor shell is split by what it does — ACTIVE (2026-10-05)
 - **What:** `app/workspace.tsx` (957 lines) holds four things that grew there one goal at a time: the chart's lifecycle (open, new, generate, autosave), the editor's own command states (G-093), the wiring of the panes, and loose state (isolate and lit threads, lettering, the start screen). Each becomes a module with a narrow input: a document hook, a commands hook, and the shell left to lay out the panes.
 - **Why:** STANDARDS asks that a module over about 500 lines be split or carry a decision saying why not; this one has neither. G-091 took the reset lists out and grouped the props, and G-093 and G-094 then added about 110 lines.
 - **Acceptance criteria:** no behaviour change (full suite, no spec changed); each new module has one job that can be said in a sentence and is unit-tested where it holds logic; the shell names no command and no file operation. Not a line count (G-067's lesson, kept by G-069 and G-091).
 - **Constraints:** best done before G-095, since the redesign rewrites the same file's layout; independent of G-096 and G-097.
+
+**Milestones** (plan accepted in advance by the Owner, 2026-10-05: "start G-098, all milestones"; the deploy in M4 is this project to its existing site):
+- [x] M1 -- **The small owners.** Each piece of loose state gets a module with its rule beside it: the lit threads and Isolate; the chart's fabric and the options in force; what is being looked at (the view, the pane, and the rule that unused photo sliders are given up); the name being typed. The rules are pure functions with unit tests.
+- [x] M2 -- **The editor's own commands.** What each command does now leaves the shell: a pure function from the editor's state and actions to the command states, unit-tested for when each is available, and a hook that holds the one piece of state they need (the tool put down while Space is held).
+- [ ] M3 -- **The chart's lifecycle.** Opening, starting, generating into, restoring and autosaving the chart, with their messages and the new-chart confirmation, become one hook; the three hidden file choosers become a component. The shell then names no file operation.
+- [ ] M4 -- **Decision, docs, QA pass, full suite, deploy** (cross-stitch-pattern-generator to `cross-stitch.craftodejnice.cz`): what stays in the shell and why, written down.
+
+**Progress log** (newest first):
+- 2026-10-05 -- M2 done. `app/commands/shell-commands.ts`: a pure function from what is true of the editor (13 facts) and what can be done (25 actions) to the state of each of the editor's 38 commands, and the hook that assembles the table; `app/hooks/use-held-pan.ts` holds the tool put down while Space is held. The workspace now states the facts and hands over the actions. Verified: 11 new unit tests of when each command can run (a piece in hand, exporting, generating, no photo, over the start screen, no chart) and which action each is; 1,096 unit; full browser suite 563 passed, 0 failed, 1 flaky (`backstitch-draw.spec.ts`, "letting go of Ctrl ends a chain": passed on retry and then 60 of 60 alone, so load, not this change). Workspace 862 to 829 lines. Milestone note: nothing was removed from HANDOVER.
+- 2026-10-05 -- M1 done. Out of the workspace, each with its rule beside it: `lib/editor/lit-threads.ts` and `app/hooks/use-lit-threads.ts` (Isolate and the lit threads, now one value instead of three pieces of state set from inside each other's updaters); `lib/editor/chart-fabric.ts` and `app/hooks/use-chart-fabric.ts` (the options in force and the chart's own two settings); `app/hooks/use-editor-view.ts` (the view, the settings shown, and the rule that unused photo sliders are given up); `app/hooks/use-name-draft.ts`. Verified: 10 new unit tests of the two rules; full browser suite 564 passed, 0 failed, no spec changed. Workspace 957 to 862 lines. Milestone note: nothing was removed from HANDOVER.
+- 2026-10-05 -- started; plan above accepted by the Owner in advance.
 
 ### G-095 · Interface redesign against the placement rules — DRAFT (2026-10-04)
 - **What:** the Owner's redesign, built on `docs/design-brief/` and `docs/interface-placement.md`: every control placed by scope, view and application controls independent of the tool in hand, tool options with the tool, exports and their settings together.
