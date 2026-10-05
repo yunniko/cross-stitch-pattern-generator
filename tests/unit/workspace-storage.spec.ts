@@ -83,6 +83,9 @@ describe("workspace-storage", () => {
       toolOptions: {},
       generationExtras: {},
       doubleClickFill: true,
+      blankWidth: 100,
+      blankHeight: 100,
+      defaultPaletteMode: "full",
     } as const;
 
     it("returns defaults (14-count, cm, no author, Standard edges, overlap 5, white canvas, Medium/16 colors/Latest/Full range) when nothing is stored", () => {
@@ -130,6 +133,9 @@ describe("workspace-storage", () => {
         toolOptions: { "sample.option": "three" },
         generationExtras: {},
         doubleClickFill: false,
+        blankWidth: 60,
+        blankHeight: 45,
+        defaultPaletteMode: "dmc" as const,
       };
       saveWorkspaceOptions(saved);
       expect(loadWorkspaceOptions()).toEqual(saved);
@@ -168,6 +174,13 @@ describe("workspace-storage", () => {
     it("defaults overlapCells to 5 for a workspace saved before G-027 (overlapCells absent entirely)", () => {
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18, sizeUnit: "in", authorName: "Jules", edgeMode: "crisp" }));
       expect(loadWorkspaceOptions().overlapCells).toBe(5);
+    });
+
+    it("a preference that cannot be (an empty grid no chart can be, a brand that is not one) reads as the default (G-095)", () => {
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ blankWidth: 3, blankHeight: 20000, defaultPaletteMode: "nylon" }));
+      expect(loadWorkspaceOptions()).toMatchObject({ blankWidth: 100, blankHeight: 100, defaultPaletteMode: "full" });
+      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ blankWidth: 12.5, blankHeight: "40" }));
+      expect(loadWorkspaceOptions()).toMatchObject({ blankWidth: 100, blankHeight: 100 });
     });
 
     it("defaults doubleClickFill to true for a workspace saved before G-041 (the field absent entirely)", () => {

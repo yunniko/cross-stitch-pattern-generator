@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openSmallChart, expectPhotoLoaded, saveButton, showWorkspace, exportChoice } from "./helpers/app";
+import { openSmallChart, expectPhotoLoaded, saveButton, showWorkspace, chooseExport } from "./helpers/app";
 import JSZip from "jszip";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -189,7 +189,7 @@ test("rendered exports are unchanged by symmetry and the JSON gains only its sym
 
   async function download(kind: string): Promise<Buffer> {
     await showWorkspace(page, "Export");
-    await exportChoice(page).selectOption(kind);
+    await chooseExport(page, kind);
     const [file] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
     return readFile((await file.path())!);
   }

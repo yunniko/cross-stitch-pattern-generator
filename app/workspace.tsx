@@ -29,7 +29,9 @@ import { StatusBar } from "./components/status-bar";
 import { ToolRail } from "./components/tool-rail";
 import { cellIndexFromEvent, chartOrigin, computeCellSize } from "./editor-geometry";
 import { useChartRenderer, type ChartRenderer } from "./hooks/use-chart-renderer";
-import { useExports } from "./hooks/use-exports";
+import { paginatesAsA4, useExports } from "./hooks/use-exports";
+import { PageCuts } from "./components/page-cuts";
+import { Preferences } from "./components/preferences";
 import { longerSideFor, useGeneration } from "./hooks/use-generation";
 import { useKeyboardCursor } from "./hooks/use-keyboard-cursor";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
@@ -136,6 +138,7 @@ export default function Workspace({ account }: WorkspaceProps) {
   const commandsButtonRef = useRef<HTMLButtonElement>(null);
   const viewControlsRef = useRef<HTMLDivElement>(null);
   const [commandListOpen, setCommandListOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
   // A tool's own tab opens each time the tool is picked, and gives way to the tab last chosen once another is chosen
   // or the tool is put down (G-095, D296): closed for this picking of the tool, and for no other.
   const [toolTabClosedAt, setToolTabClosedAt] = useState(-1);
@@ -265,6 +268,8 @@ export default function Workspace({ account }: WorkspaceProps) {
       resetPaletteSet: () => {
         updateOption("paletteSetup", false);
         updateOption("paletteSet", EMPTY_SET);
+        // A chart that starts from nothing starts in the palette mode set in Preferences (G-095, D299).
+        updateOption("paletteMode", browserOptions.defaultPaletteMode);
       },
       restorePaletteSet: ({ active, ...set }) => {
         updateOption("paletteSet", set);
@@ -322,6 +327,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       pattern !== null &&
       !startingNew &&
       !commandListOpen &&
+      !preferencesOpen &&
       !lookingOnly &&
       tools.piece.selection === null &&
       isKeyboardCursorTool(activeTool),
@@ -428,6 +434,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       zoomOut: () => panZoom.zoomBy(1 / ZOOM_STEP),
       zoomReset: panZoom.resetZoom,
       openCommandList: () => setCommandListOpen(true),
+      openPreferences: () => setPreferencesOpen(true),
       holdPan: heldPan.hold,
       releasePan: heldPan.release,
       chooseTool: switchTool,
@@ -436,7 +443,8 @@ export default function Workspace({ account }: WorkspaceProps) {
     tools.commands
   );
   // While the list is up the keys are the list's: nothing typed there reaches a tool or a view.
-  useKeyboardShortcuts(commands, scrollerRef, commandListOpen);
+  // The same while the preferences are up: what is typed there is for them.
+  useKeyboardShortcuts(commands, scrollerRef, commandListOpen || preferencesOpen);
 
   /** Closing without running anything gives the focus back to the button; after a command it is left on the page, so the chart's keys act at once. */
   function closeCommandList(ran: boolean) {
@@ -455,6 +463,8 @@ export default function Workspace({ account }: WorkspaceProps) {
         {/* 1b draws no visible title, but the document still needs one heading: for assistive technology, and as the witness that the app booted. */}
         <h1 className="sr-only">Cross-Stitch Pattern Generator</h1>
         {commandListOpen && <CommandList commands={commands} onClose={closeCommandList} />}
+        {/* The browser's own settings, not the open chart's: a preference is what the next chart starts from. */}
+        {preferencesOpen && <Preferences options={browserOptions} onChange={updateOption} onClose={() => setPreferencesOpen(false)} />}
         <FileInputs
           photoRef={lifecycle.inputs.photo}
           openRef={lifecycle.inputs.open}
@@ -501,6 +511,7 @@ export default function Workspace({ account }: WorkspaceProps) {
               onOpenCommands={() => setCommandListOpen(true)}
               commandsDisabled={startingNew}
               commandsButtonRef={commandsButtonRef}
+              onOpenPreferences={() => setPreferencesOpen(true)}
             />
           }
           tools={
@@ -575,7 +586,6 @@ export default function Workspace({ account }: WorkspaceProps) {
                 onCreateBlank: lifecycle.createBlank,
                 onImportPixelArt: lifecycle.choosePixelArt,
                 onOpenPatternFile: lifecycle.chooseFile,
-                onAidaCountChange: (count) => updateOption("aidaCount", count),
               }}
               preview={renderer}
               adjust={adjustPreview}
@@ -589,6 +599,12 @@ export default function Workspace({ account }: WorkspaceProps) {
               }}
               options={options}
               cropOverlay={startingNew ? null : tools.overlay}
+              marks={
+                // Where the pages of a paged export fall, while that export is the one chosen.
+                workspace === "export" && chartShown && paginatesAsA4(exports.exportKind) && exports.a4LayoutPreview ? (
+                  <PageCuts pages={exports.a4LayoutPreview.pages} cellSize={cellSize} lettered={exports.exportKind.startsWith("a4-")} />
+                ) : null
+              }
             />
           }
           viewControls={

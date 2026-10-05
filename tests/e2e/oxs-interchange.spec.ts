@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { expectPhotoLoaded, showWorkspace, exportChoice } from "./helpers/app";
+import { expectPhotoLoaded, showWorkspace, chooseExport } from "./helpers/app";
 
 // G-028: OXS charts in both directions. Opening one from another program summarises what couldn't
 // be carried over (M2); exporting one and opening it again brings the pattern back (M3). Fixtures are self-authored.
@@ -46,7 +46,7 @@ test("exports a generated pattern as OXS, and that file opens again with nothing
 
   await showWorkspace(page, "Export");
 
-  await exportChoice(page).selectOption("oxs");
+  await chooseExport(page, "oxs");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   expect(download.suggestedFilename()).toBe("sample.oxs");
   const downloadedPath = (await download.path())!;

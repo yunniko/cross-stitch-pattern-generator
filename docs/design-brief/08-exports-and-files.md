@@ -9,7 +9,7 @@ Offered when there is no chart, and reached again by "New chart". Reaching it co
 | Way | What it takes | Result |
 |---|---|---|
 | **Choose a photo** | A JPEG, PNG or WebP file (`02`) | A photo is loaded; generation settings appear; no chart yet. The starting point's own heading reads "A photo in, a stitchable chart out." |
-| **Start an empty grid** | **Width** and **Height**, each a whole number of stitches from 10 to 1500 (stepped one at a time or typed); **Fabric count** (11, 14, 16 or 18; the same setting as in `03`); the finished size is shown. A problem is shown instead and Create is unavailable: "Width must be a whole number of stitches." / "Width must be between 10 and 1500 stitches." (same for Height) | Create gives a chart of empty stitches with no colours and no photo, named "cross-stitch-pattern". The card says "No photo behind it — draw stitch by stitch" |
+| **Start an empty grid** | **Width** and **Height**, each a whole number of stitches from 10 to 1500 (stepped one at a time or typed); **Fabric count** (11, 14, 16 or 18). The three start from the preferences (`01`) each time the card is opened, and what is changed here is for this grid alone; the finished size is shown. A problem is shown instead and Create is unavailable: "Width must be a whole number of stitches." / "Width must be between 10 and 1500 stitches." (same for Height) | Create gives a chart of empty stitches with no colours and no photo, named "cross-stitch-pattern". The card says "No photo behind it — draw stitch by stitch" |
 | **Open a saved pattern** | A file (below) | The chart in the file replaces the open one |
 | **Import pixel art** | An image (below) | One stitch per pixel |
 
@@ -51,27 +51,26 @@ Any new chart, however it arrives (a first generation, an opened or restored fil
 
 ## The Export control
 
-One choice of what to make, one action to make it, and **Export all**. Both actions are unavailable with no chart and while any export is running; while one runs the action shows progress ("Preparing…" at first, then a label such as "page *n* of *m*"), and "Building…" for Export all. A failed export shows an error that can be dismissed (states in `09`).
+The Export workspace: what to make, the settings that export reads beside the choice, one action to make it, and **Export all**. What to make is one press among the kinds, all in view, in three groups: **To print**, **A picture**, **A file**. Both actions stay in reach whatever is chosen; they are unavailable with no chart and while any export is running; while one runs the action shows progress ("Preparing…" at first, then a label such as "page *n* of *m*"), and "Building…" for Export all. A failed export shows an error that can be dismissed (states in `09`).
 
-The choice, in this order, defaulting to the editable file:
+The kinds, in the order shown; the editable file is chosen to begin with, and the choice is not kept between visits. The three printed kinds are each made in **Color** or **Black & white**, one choice of two shown with them and kept from one printed kind to the next:
 
 | Choice | Result | Name | Runs on |
 |---|---|---|---|
-| **Editable pattern (.json)** | The editable file | `<name>_editable.json` | Device |
-| **OXS chart for other programs (.oxs)** | Open Cross Stitch chart: colours, stitches, backstitch, the fabric count and author; a half stitch is written as a whole stitch | `<name>.oxs` | **[server]** |
+| **A4 pages (ZIP)** | The chart cut into printable A4 pages (below) | `<name>_A4_color.zip` / `<name>_A4_bw.zip` | **[server]** |
+| **PDF for Pattern Keeper** | A PDF whose symbols are real text, laid out for the Pattern Keeper app; half stitches as whole; the A4 cell size does not apply to it | `<name>_patternkeeper.pdf` | **[server]** |
+| **Full chart PNG** | The whole chart as one picture with symbols, centre markers, row and column numbers, a size header and a legend | `<name>_color.png` / `<name>_bw.png` | **[server]** |
 | **Realistic preview PNG** | A picture of the finished stitching in the chosen stitch texture, backstitch as solid lines, on a transparent ground, or on the canvas colour and cloth when "Canvas in exported preview" is on | `<name>_preview.png` | **[server]** |
 | **"Pixel art PNG (1 px per stitch)"** | One pixel per stitch, true colours, empty stitches transparent; backstitch not included | `<name>_pixels.png` | Device |
+| **Editable pattern (.json)** | The editable file | `<name>_editable.json` | Device |
+| **OXS chart for other programs (.oxs)** | Open Cross Stitch chart: colours, stitches, backstitch, the fabric count and author; a half stitch is written as a whole stitch | `<name>.oxs` | **[server]** |
 | **Palette file (.json)** | The chart's colours as a palette (`02`: format, mode, and each colour with its thread code and RGB); a chart with no colours is refused: "This chart has no colours yet, so there is no palette to export." | `<name>_palette.json` | Device |
-| *Color* · **Full chart PNG** | The whole chart as one picture with symbols in colour, centre markers, row and column numbers, a size header and a legend | `<name>_color.png` | **[server]** |
-| *Color* · **A4 pages (ZIP)** | The chart cut into printable A4 pages (below) in colour | `<name>_A4_color.zip` | **[server]** |
-| *Color* · **PDF for Pattern Keeper** | A PDF whose symbols are real text, laid out for the Pattern Keeper app; half stitches as whole; the A4 cell size does not apply to it | `<name>_patternkeeper.pdf` | **[server]** |
-| *Black & white* · same three | As above, in black and white | `<name>_bw.png`, `<name>_A4_bw.zip`, `<name>_patternkeeper.pdf` | **[server]** |
 
 `<name>` is the chart's name. A chart too large to draw as one picture is refused with the message in `09`.
 
 **Export all** [server]: one `.cspzip` (`<name>.cspzip`, a plain ZIP) with the editable file, the OXS chart, the colour and black-and-white chart PNGs, the realistic preview, the Pattern Keeper PDF, and folders `A4_color` and `A4_bw` of A4 page pictures. It can be opened again with "Open a saved pattern".
 
-A line under the export controls, for a page-based choice, says how many pages: "*c* × *r* pages — *n*+ total (incl. page map, skein table + colour key)." (A4 pages) or "…(incl. simple + extended legend)." (Pattern Keeper PDF), followed by where its settings are.
+With a paged kind chosen, a line says how many pages: "*c* × *r* pages — *n*+ total (incl. page map, skein table + colour key)." (A4 pages) or "…(incl. simple + extended legend)." (Pattern Keeper PDF). **The chart shows the same pages**: each page's outline is drawn over it, overlaps included, an A4 page's with the letter it carries in print, for as long as a paged kind is chosen in this workspace, and follows the cell size and the overlap as they change. The outlines are never part of an export.
 
 ## A4 pages
 
@@ -79,13 +78,13 @@ Pages carry: a map of the pages first, a letter in each page's top-right corner,
 
 ## Print and export settings
 
-All remembered in the browser; none changes the chart.
+All remembered in the browser; none changes the chart. **Each is shown only with a kind that reads it**, so what is shown is the chosen export's settings and no other's; the author name is shown with every kind. The author name, the cell size and the overlap are preferences (`01`) shown here as well: the same value in both places.
 
 | Control | Kind and values | Default | Applies to |
 |---|---|---|---|
 | **A4 cell size** | Number of millimetres, **2 to 12**, step 0.25; typed freely and brought within the limits on leaving the field (Enter commits); invalid text is ignored | 5.5 | A4 pages only (symbols and lines grow with it); not the full chart PNG, not the Pattern Keeper PDF |
-| **A4/PDF overlap** | Choice of **0, 3, 5, 10** stitches repeated between adjacent pages | 5 | A4 pages and the PDF |
-| **Canvas in exported preview** | Switch | Off | The realistic preview (alone and inside Export all) sits on the canvas colour and cloth instead of a transparent ground |
+| **A4/PDF overlap** | One press among **0, 3, 5, 10** stitches repeated between adjacent pages | 5 | A4 pages and the PDF |
+| **Canvas in exported preview** | Switch, shown with the realistic preview | Off | The realistic preview (alone and inside Export all) sits on the canvas colour and cloth instead of a transparent ground |
 | **Author name** | Text, any length | Empty ("(shown on exported charts)") | Printed on exported charts and written to the OXS file |
 | **Fabric count / Unit** | See `03`: the chart's own | 14 / cm | Physical sizes in every export |
 | **Stitch texture** | See `03` | Classic | The realistic preview |

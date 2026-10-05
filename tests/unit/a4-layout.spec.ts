@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateA4Layout, mmToPx, a4PageSizePx, DEFAULT_CELL_SIZE_MM, DEFAULT_MARGIN_MM } from "@/lib/export/a4-layout";
+import { calculateA4Layout, pageLetter, mmToPx, a4PageSizePx, DEFAULT_CELL_SIZE_MM, DEFAULT_MARGIN_MM } from "@/lib/export/a4-layout";
 
 // dpi=254 makes 1mm exactly 10px -- lets these tests hit clean round numbers
 // instead of fighting floating-point rounding from a realistic 300 DPI.
@@ -165,5 +165,11 @@ describe("calculateA4Layout", () => {
     // The grid plus its trailing margin must never exceed the physical page.
     expect(layout.gridOriginXPx + layout.cellsPerPageX * layout.cellSizePx + layout.marginPx).toBeLessThanOrEqual(layout.pageWidthPx);
     expect(layout.gridOriginYPx + layout.cellsPerPageY * layout.cellSizePx + layout.marginPx).toBeLessThanOrEqual(layout.pageHeightPx);
+  });
+});
+
+describe("pageLetter", () => {
+  it("letters pages as the exported pages are lettered (the cases of rust/cs-export/tests/a4_pages.rs)", () => {
+    expect([0, 1, 25, 26, 27, 51, 52, 701, 702].map(pageLetter)).toEqual(["A", "B", "Z", "AA", "AB", "AZ", "BA", "ZZ", "AAA"]);
   });
 });

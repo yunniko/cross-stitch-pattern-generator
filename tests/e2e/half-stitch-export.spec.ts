@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile, writeFile } from "node:fs/promises";
 import JSZip from "jszip";
-import { pickTool, showWorkspace, exportChoice } from "./helpers/app";
+import { pickTool, showWorkspace, chooseExport } from "./helpers/app";
 
 /**
  * G-082 M4: the exports of a chart with half stitches, through the processor that production runs. Half stitches show in the
@@ -36,7 +36,7 @@ async function chartWithHalves(page: Page) {
 
 async function exported(page: Page, kind: string): Promise<Buffer> {
   await showWorkspace(page, "Export");
-  await exportChoice(page).selectOption(kind);
+  await chooseExport(page, kind);
   const [download] = await Promise.all([
     page.waitForEvent("download", { timeout: 120_000 }),
     page.getByRole("button", { name: "Export", exact: true }).click(),

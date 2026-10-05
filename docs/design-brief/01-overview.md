@@ -74,12 +74,32 @@ Each area has its own file; every control is described there.
 | `08-exports-and-files` | Every file the app writes and reads; saving; restoring; fabric and print settings |
 | `09-limits-and-messages` | Limits, the server-run actions and their states, every message |
 
+## Preferences
+
+What is set once and then left. They are in reach from anywhere, with or without a chart, and are kept in the browser. **A preference never changes a chart that exists**: it is what the next one starts from, or what an export reads when it is made.
+
+| Preference | Kind and values | Default | What reads it |
+|---|---|---|---|
+| **Empty grid size** | Width and height, each a whole number of stitches from 10 to 1500; a number outside is brought to the nearest limit on leaving the field, and text that is no number is ignored | 100 × 100 | The size offered where an empty grid is started (`08`) |
+| **Fabric count** | Choice of **11, 14, 16, 18** | 14 | The fabric a new chart is given (`03`); the count offered where an empty grid is started |
+| **Unit** | Choice of **in**, **cm** | cm | The unit a new chart is given (`03`), and every finished size shown before there is a chart |
+| **Palette for a new photo** | Choice of **Full range** and each thread brand | Full range | The palette mode each newly chosen photo starts in (`02`); changing the mode for the photo in hand does not change the preference |
+| **Author name** | Text | Empty | Exports (`08`) |
+| **A4 cell size** | As in `08` | 5.5 mm | A4 pages (`08`) |
+| **A4/PDF overlap** | As in `08` | 5 | A4 pages and the PDF (`08`) |
+| **Double-click fills a region** | Choice of **On**, **Off** | On | The Brush (`04`) |
+
+The author name, the cell size and the overlap are also shown where an export that reads them is chosen (`08`): one value each, shown in two places.
+
+While the preferences are open nothing behind them takes a key or a press; Escape, Close, or a press outside closes them. There is nothing to confirm: each change is kept as it is made.
+
 ## What is kept between visits
 
 | What | Kept where | For how long | Notes |
 |---|---|---|---|
 | The open chart (with its photo) | The browser's own storage, one chart | Until replaced or the browser clears it | Saved automatically after changes; restored on the next visit; a damaged one is cleared with a notice and a report that can be downloaded |
-| The generation and display settings | The browser | Until cleared | Size, colour count, algorithm, palette mode and set, colour detail, edge mode, dithering and its texture, photo-adjustment values, fabric count, unit, author name, overlap, A4 cell size, canvas colour, canvas cloth, stitch texture, whether exports carry the canvas, text settings, optional behaviours; each validated field by field and replaced by its default if invalid |
+| The generation and display settings | The browser | Until cleared | Size, colour count, algorithm, palette mode and set, colour detail, edge mode, dithering and its texture, photo-adjustment values, canvas colour, canvas cloth, stitch texture, whether exports carry the canvas, text settings; each validated field by field and replaced by its default if invalid |
+| The preferences (below) | The browser | Until cleared | Validated and defaulted the same way |
 | Saved palettes (named sets of colours) | The browser | Until cleared | At most 50, names up to 60 characters |
 | Anything else | The saved chart file | Wherever the person keeps it | The editable file carries the chart, the photo, symmetry axes, the colour set, photo adjustments and generation textures |
 

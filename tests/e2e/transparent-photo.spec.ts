@@ -2,7 +2,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { test, expect } from "@playwright/test";
-import { expectPhotoLoaded, showWorkspace, exportChoice } from "./helpers/app";
+import { expectPhotoLoaded, showWorkspace, chooseExport } from "./helpers/app";
 
 /**
  * G-050 M4: a photo with a transparent background generates a chart whose background is empty stitches, and every
@@ -33,8 +33,7 @@ test("a transparent background generates as empty stitches, and the exports keep
 
   // The realistic preview writes transparent pixels where the chart has no stitch.
   await showWorkspace(page, "Export");
-  const exportSelect = exportChoice(page);
-  await exportSelect.selectOption("png-realistic");
+  await chooseExport(page, "png-realistic");
   const [preview] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   const image = await loadImage(await readFile(await preview.path()));
   const ctx = createCanvas(image.width, image.height).getContext("2d");
@@ -45,7 +44,7 @@ test("a transparent background generates as empty stitches, and the exports keep
   expect(alphaAt(Math.floor(image.width / 2), Math.floor(image.height / 2)), "the middle is stitched").toBeGreaterThan(0);
 
   // The editable save round-trips the empties: reopening shows the same stitch count.
-  await exportSelect.selectOption("editable");
+  await chooseExport(page, "editable");
   const [save] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   const savePath = await save.path();
   await page.getByRole("button", { name: "New chart" }).click();

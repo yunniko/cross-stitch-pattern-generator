@@ -334,3 +334,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D296 — A tool may bring a tab of its own, and Text is a tool — active
 - D297 — Three workspaces, and what belongs to none stays put — active
 - D298 — Every generated chart is kept as a try of its photo — active
+- D299 — Preferences are what a new chart starts from, and never reach a chart that exists — active

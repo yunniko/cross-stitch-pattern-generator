@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { test, expect, type Page } from "@playwright/test";
 import { MAX_COLORS, MAX_STITCHES } from "../../lib/types";
-import { showWorkspace, exportChoice } from "./helpers/app";
+import { showWorkspace, chooseExport } from "./helpers/app";
 
 /**
  * G-049 M2 and M3: opening pixel art as a chart, and writing a chart back out as pixel art. One pixel is one stitch in its own colour, transparent pixels are empty
@@ -135,7 +135,7 @@ test("a chart exports as pixel art and imports back the same, one pixel per stit
 
   await showWorkspace(page, "Export");
 
-  await exportChoice(page).selectOption("pixel-art");
+  await chooseExport(page, "pixel-art");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   expect(download.suggestedFilename()).toBe("sprite_pixels.png");
 

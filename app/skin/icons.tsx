@@ -119,6 +119,17 @@ export const INTERFACE_ICONS = {
       <path d="M12 8.5v7M8.5 12h7" />
     </>
   ),
+  /** Preferences: what is set once. */
+  settings: outline(
+    "h-[18px] w-[18px]",
+    1.7,
+    <>
+      <path d="M4 7h10M18 7h2M4 12h3M11 12h9M4 17h12M20 17h0" />
+      <circle cx="16" cy="7" r="2" />
+      <circle cx="9" cy="12" r="2" />
+      <circle cx="18" cy="17" r="2" />
+    </>
+  ),
   commands: outline(
     "h-[18px] w-[18px]",
     1.7,

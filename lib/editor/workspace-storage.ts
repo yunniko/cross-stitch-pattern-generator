@@ -95,7 +95,29 @@ export interface WorkspaceOptions {
   generationExtras: ExtraSettings;
   /** Whether a Brush double-click floods the region under it as one undo step (D138); off leaves the two clicks as themselves. */
   doubleClickFill: boolean;
+  /** The size an empty grid is offered at (G-095): a preference, changed for one chart where the grid is made. */
+  blankWidth: number;
+  blankHeight: number;
+  /** The palette mode a new photo starts in (G-095): a preference; `paletteMode` is the one in force for the photo in hand. */
+  defaultPaletteMode: PaletteMode;
 }
+
+/**
+ * The preferences (G-095, D299): what is set once and then left, as opposed to what is set for the chart or the photo in
+ * hand. They are the settings a new chart starts from and the ones every export reads. A chart keeps its own fabric once
+ * made, so changing a preference never changes a chart that exists.
+ */
+export const PREFERENCE_KEYS = [
+  "blankWidth",
+  "blankHeight",
+  "aidaCount",
+  "sizeUnit",
+  "defaultPaletteMode",
+  "authorName",
+  "exportCellMm",
+  "overlapCells",
+  "doubleClickFill",
+] as const satisfies readonly (keyof WorkspaceOptions)[];
 
 export const DEFAULT_OPTIONS: WorkspaceOptions = {
   aidaCount: DEFAULT_AIDA_COUNT,
@@ -131,6 +153,9 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   toolOptions: {},
   generationExtras: {},
   doubleClickFill: true,
+  blankWidth: 100,
+  blankHeight: 100,
+  defaultPaletteMode: "full",
   lockTransparency: false,
   textFamily: "sans-serif",
   textStyle: "Regular",
@@ -146,6 +171,11 @@ const VALID_SIZE_PRESETS: readonly SizePresetId[] = ["small", "medium", "large",
 /** A stored name (a font family or face): a short non-empty string, else the default. */
 function shortName(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim() !== "" && value.length <= 100 ? value : fallback;
+}
+
+/** One side of an empty grid, as stored: a whole number of stitches a chart can have, else the default. */
+function blankSide(stored: unknown, fallback: number): number {
+  return typeof stored === "number" && Number.isInteger(stored) && stored >= MIN_STITCHES && stored <= MAX_STITCHES ? stored : fallback;
 }
 
 /** Reads persisted options, falling back to defaults on first visit or any corrupt/missing data, field by field. */
@@ -236,6 +266,13 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       generationExtras: drawnSettingValues(parsed.generationExtras),
       // Absent in options stored before G-041, so anything that is not a boolean falls back to the default.
       doubleClickFill: typeof parsed.doubleClickFill === "boolean" ? parsed.doubleClickFill : DEFAULT_OPTIONS.doubleClickFill,
+      // Absent in options stored before G-095; a size no grid can have reads as the default.
+      blankWidth: blankSide(parsed.blankWidth, DEFAULT_OPTIONS.blankWidth),
+      blankHeight: blankSide(parsed.blankHeight, DEFAULT_OPTIONS.blankHeight),
+      defaultPaletteMode:
+        parsed.defaultPaletteMode === "full" || (THREAD_BRAND_IDS as string[]).includes(parsed.defaultPaletteMode as string)
+          ? (parsed.defaultPaletteMode as PaletteMode)
+          : DEFAULT_OPTIONS.defaultPaletteMode,
       lockTransparency: typeof parsed.lockTransparency === "boolean" ? parsed.lockTransparency : DEFAULT_OPTIONS.lockTransparency,
       textFamily: shortName(parsed.textFamily, DEFAULT_OPTIONS.textFamily),
       textStyle: shortName(parsed.textStyle, DEFAULT_OPTIONS.textStyle),

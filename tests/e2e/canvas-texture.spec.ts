@@ -2,7 +2,7 @@ import { test, expect, type Locator, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pixelAt, readPng } from "../unit/helpers/png-read";
-import { showWorkspace, exportChoice, openViewSettings } from "./helpers/app";
+import { showWorkspace, chooseExport, openViewSettings } from "./helpers/app";
 
 /**
  * G-077 M1: the canvas cloth behind the Stitched view. It covers the whole well (not only the chart), is drawn only in
@@ -147,7 +147,7 @@ test("the exported preview carries the canvas only when asked, and the plain col
   // The tick sits with the export it belongs to, in the Export workspace; the canvas itself is a view setting (G-095).
   await showWorkspace(page, "Export");
   async function exportPreview() {
-    await exportChoice(page).selectOption("png-realistic");
+    await chooseExport(page, "png-realistic");
     const [download] = await Promise.all([
       page.waitForEvent("download"),
       page.getByRole("button", { name: "Export", exact: true }).click(),
@@ -157,7 +157,8 @@ test("the exported preview carries the canvas only when asked, and the plain col
   // The heart's top-left stitch is empty, so a pixel just inside it is the ground.
   const ground = (png: ReturnType<typeof readPng>) => pixelAt(png, 3, 3);
 
-  // As it always was: a transparent ground.
+  // As it always was: a transparent ground. The tick is shown with the one export that reads it.
+  await chooseExport(page, "png-realistic");
   await expect(include).not.toBeChecked();
   expect(ground(await exportPreview())[3]).toBe(0);
 
@@ -185,6 +186,7 @@ test("the exported preview carries the canvas only when asked, and the plain col
   await page.reload();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
   await showWorkspace(page, "Export");
+  await chooseExport(page, "png-realistic");
   await expect(include).toBeChecked();
   await include.uncheck();
   expect(ground(await exportPreview())[3]).toBe(0);

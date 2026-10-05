@@ -61,6 +61,20 @@ export interface PageRange {
   endY: number;
 }
 
+/**
+ * A page's letter, as the exported A4 pages carry it: A to Z in page order, then AA, AB and on. The same rule as
+ * `page_letter` in `rust/cs-export/src/a4.rs`, which draws the pages; this one only labels them on screen.
+ */
+export function pageLetter(index: number): string {
+  let n = index;
+  let out = "";
+  for (;;) {
+    out = String.fromCharCode(65 + (n % 26)) + out;
+    if (n < 26) return out;
+    n = Math.floor(n / 26) - 1;
+  }
+}
+
 export interface A4Layout {
   orientation: PageOrientation;
   rows: number;

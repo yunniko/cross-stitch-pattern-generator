@@ -65,6 +65,7 @@ const SHELL_COMMANDS = [
     when: "The start screen does not cover a chart",
     keys: ["Mod+K"],
   },
+  { id: "view.preferences", name: "Open Preferences", group: "View", when: "Always" },
   { id: "view.pan-held", name: "Pan while the key is held", group: "View", when: "A chart", keys: ["Space"], keyOnly: "held" },
 
   // The keyboard cell cursor listens for its own keys (`use-keyboard-cursor.ts`); they are listed so the table is whole.

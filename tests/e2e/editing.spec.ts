@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { openSmallChart, saveButton, showWorkspace, exportChoice } from "./helpers/app";
+import { openSmallChart, saveButton, showWorkspace, chooseExport } from "./helpers/app";
 
 test("generate, merge two colors, undo/redo, download editable, and reopen it", async ({ page }) => {
   await openSmallChart(page);
@@ -44,18 +44,17 @@ test("renaming the pattern changes every download's filename", async ({ page }) 
   await nameInput.blur();
 
   await showWorkspace(page, "Export");
-  const exportSelect = exportChoice(page);
   const exportButton = page.getByRole("button", { name: "Export", exact: true });
 
-  await exportSelect.selectOption("png-color");
+  await chooseExport(page, "png-color");
   const [colorDownload] = await Promise.all([page.waitForEvent("download"), exportButton.click()]);
   expect(colorDownload.suggestedFilename()).toBe("My Cat_color.png");
 
-  await exportSelect.selectOption({ label: "Realistic preview PNG" });
+  await chooseExport(page, "png-realistic");
   const [realisticDownload] = await Promise.all([page.waitForEvent("download"), exportButton.click()]);
   expect(realisticDownload.suggestedFilename()).toBe("My Cat_preview.png");
 
-  await exportSelect.selectOption({ label: "Editable pattern (.json)" });
+  await chooseExport(page, "editable");
   const [editableDownload] = await Promise.all([page.waitForEvent("download"), exportButton.click()]);
   expect(editableDownload.suggestedFilename()).toBe("My Cat_editable.json");
 

@@ -55,7 +55,7 @@ test("Space on a focused button activates the button and never switches to Pan, 
   // tool to Pan for as long as the key was held.
   await expect(panButton).toHaveAttribute("aria-pressed", "false");
   await page.keyboard.up("Space");
-  await expect(page.getByText("Saved automatically in this browser.")).toBeVisible(); // the Chart pane opened: the control itself fired
+  await expect(page.getByRole("group", { name: "Fabric count" })).toBeVisible(); // the Chart pane opened: the control itself fired
   await expect(panButton).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByRole("button", { name: "Brush" })).toHaveAttribute("aria-pressed", "true");
 

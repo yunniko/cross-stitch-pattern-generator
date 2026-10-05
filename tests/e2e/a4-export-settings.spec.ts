@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile, writeFile } from "node:fs/promises";
 import JSZip from "jszip";
-import { pickTool, showWorkspace, exportChoice } from "./helpers/app";
+import { pickTool, showWorkspace, chooseExport } from "./helpers/app";
 
 /**
  * G-083: the A4 export's cell size setting, and what the A4 pages carry (a page map first, letters, the skein table). The
@@ -33,8 +33,8 @@ test("the A4 cell size is a setting: remembered, within limits, and the page cou
   await chartAndExportPane(page);
   // The setting sits with the choice it belongs to, in the Export workspace (G-095): the page count is beside both.
   await showWorkspace(page, "Export");
+  await chooseExport(page, "a4-color");
   await expect(cellSize(page)).toHaveValue("5.5"); // twice the old 2.75 mm
-  await exportChoice(page).selectOption("a4-color");
   const notice = page.getByTestId("a4-page-count");
   await expect(notice).toContainText("4 × 2 pages — 11+ total (incl. page map, skein table + colour key)");
 
@@ -50,17 +50,18 @@ test("the A4 cell size is a setting: remembered, within limits, and the page cou
   await page.reload();
   await expect(page.getByTestId("chart-frame")).toBeVisible({ timeout: 15_000 });
   await showWorkspace(page, "Export");
+  await chooseExport(page, "a4-color");
   await expect(cellSize(page)).toHaveValue("12");
 
   // The Pattern Keeper PDF's own preview does not read it.
-  await exportChoice(page).selectOption("pdf-color");
+  await chooseExport(page, "pdf-color");
   await expect(page.getByText(/pages —/)).toContainText("incl. simple + extended legend");
 });
 
 test("the exported A4 pages start with the map, follow the cell size, and the skein table is there", async ({ page }) => {
   await chartAndExportPane(page);
   await showWorkspace(page, "Export");
-  await exportChoice(page).selectOption("a4-color");
+  await chooseExport(page, "a4-color");
   const [download] = await Promise.all([
     page.waitForEvent("download", { timeout: 300_000 }),
     page.getByRole("button", { name: "Export", exact: true }).click(),

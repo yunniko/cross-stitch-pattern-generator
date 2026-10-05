@@ -66,9 +66,9 @@ All remembered in the browser.
 |---|---|---|---|---|
 | **Name** | Text | The photo's file name without its extension, or "cross-stitch-pattern" | A chart | Committed on leaving the field or Enter; names every exported file; saved in the chart; one undo step |
 | **Canvas size** | Moved to the Crop tool (`04`) | | | |
-| **Fabric count** | Choice of **11, 14, 16, 18** stitches per inch ("count") | 14 | Always | A new chart starts on the count last chosen in this browser. Changes every finished-size figure and the exports' physical size. **Belongs to the chart:** saved in it and restored with it, whatever the browser's own count; changing it with a chart open is one undo step, and is also remembered by the browser as the start for the next new chart |
-| **Unit** | Choice of **in**, **cm** | cm | Always | A new chart starts on the unit last chosen in this browser. The unit finished sizes are shown in. Belongs to the chart, exactly as the fabric count does |
+| **Fabric count** | Choice of **11, 14, 16, 18** stitches per inch ("count") | The preference (`01`), 14 | A chart | Changes every finished-size figure and the exports' physical size. **Belongs to the chart:** given to it when it is made, saved in it and restored with it; changing it is one undo step and changes this chart alone, never the preference |
+| **Unit** | Choice of **in**, **cm** | The preference (`01`), cm | A chart | The unit finished sizes are shown in. Belongs to the chart, exactly as the fabric count does |
 
-A chart saved before fabric was kept in the file (or never given one) takes the browser's count and unit, and is saved again without them until one of the two is changed. A chart opened from an OXS file that states a fabric count carries that count.
+A chart saved before fabric was kept in the file (or never given one) takes the count and unit set in the preferences, and is saved again without them until one of the two is changed. A chart opened from an OXS file that states a fabric count carries that count.
 
 Finished size is the stitch count divided by the fabric count, in inches, or in centimetres (× 2.54), shown to one decimal.

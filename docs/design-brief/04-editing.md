@@ -71,7 +71,7 @@ Choosing any tool other than Pan or Zoom drops the frame without changing the ch
 | **Brush shape** | **Round** (the disc that fits the size) or **Square** (the whole block) | Round | Browser | With brush size |
 | **Shape fill** | **Outline** or **Filled** | Outline | Browser | Only with Rectangle and Oval |
 | **Stitch type** | **Whole stitch**, **Half stitch "/"**, **Half stitch "\\"** (three exclusive choices, each shown as the shape of the stitch) | Whole | Browser | Only with Brush, Fill, Line, Rectangle, Oval and Lasso fill. Each cell holds one kind. See `06` |
-| **Double-press fills a region** | Switch (a chart setting, `03`) | On | Browser | Off: a double press paints the two stitches pressed |
+| **Double-press fills a region** | A preference (`01`): **On** / **Off** | On | Browser | Off: a double press paints the two stitches pressed |
 
 **Outline of what a press will cover:** under the pointer, the stitches the tool in hand would cover are outlined, in the brush's size and shape (a disc for round, a block for square; one stitch for a filled rectangle or oval, whatever the brush size); it follows the pointer and leaves with it; the system pointer is hidden over the chart for these tools, and a small dot marks the exact place in the outlined stitch.
 

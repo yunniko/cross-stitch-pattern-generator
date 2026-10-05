@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { MAX_STITCHES } from "../../lib/types";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
-import { expectPhotoLoaded, showWorkspace, exportChoice } from "./helpers/app";
+import { expectPhotoLoaded, showWorkspace, chooseExport } from "./helpers/app";
 
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
 
@@ -27,17 +27,16 @@ test("upload an image, generate a pattern, preview it, and download both variant
 
   await showWorkspace(page, "Export");
 
-  const exportSelect = exportChoice(page);
   const exportButton = page.getByRole("button", { name: "Export", exact: true });
 
-  await exportSelect.selectOption("png-color");
+  await chooseExport(page, "png-color");
   const [colorDownload] = await Promise.all([page.waitForEvent("download"), exportButton.click()]);
   expect(colorDownload.suggestedFilename()).toBe("sample_color.png");
 
   await page.getByRole("button", { name: "B&W", exact: true }).click();
   await expect(canvas).toBeVisible();
 
-  await exportSelect.selectOption("png-bw");
+  await chooseExport(page, "png-bw");
   const [bwDownload] = await Promise.all([page.waitForEvent("download"), exportButton.click()]);
   expect(bwDownload.suggestedFilename()).toBe("sample_bw.png");
 });
@@ -72,7 +71,7 @@ test("a small chart's header is never clipped, even at the minimum custom size (
 
   await showWorkspace(page, "Export");
 
-  await exportChoice(page).selectOption("png-color");
+  await chooseExport(page, "png-color");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   const savedPath = test.info().outputPath("small-chart.png");
   await download.saveAs(savedPath);

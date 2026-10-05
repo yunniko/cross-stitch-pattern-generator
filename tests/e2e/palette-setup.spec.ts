@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { FIXTURE, openSmallChart, saveButton, showWorkspace, exportChoice, showPhotoTab } from "./helpers/app";
+import { FIXTURE, openSmallChart, saveButton, showWorkspace, chooseExport, showPhotoTab } from "./helpers/app";
 
 /**
  * G-087: "Set up palette" -- the user chooses the colours a chart is made from, can fill them from the picture's predicted
@@ -132,7 +132,7 @@ test("palettes are saved by name, loaded and deleted", async ({ page }) => {
 test("the Export dropdown writes a palette file with the chart's colours, and it loads back as a palette", async ({ page }) => {
   await openSmallChart(page);
   await showWorkspace(page, "Export");
-  await exportChoice(page).selectOption("palette");
+  await chooseExport(page, "palette");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   expect(download.suggestedFilename()).toBe("sample_palette.json");
   const file = path.join(test.info().outputDir, "sample_palette.json");
@@ -287,7 +287,7 @@ test("a chart with no colours has no palette to export, and says so", async ({ p
   await page.getByRole("button", { name: "Create" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible();
   await showWorkspace(page, "Export");
-  await exportChoice(page).selectOption("palette");
+  await chooseExport(page, "palette");
   await page.getByRole("button", { name: "Export", exact: true }).click();
   await expect(page.getByText("This chart has no colours yet, so there is no palette to export.")).toBeVisible();
 });

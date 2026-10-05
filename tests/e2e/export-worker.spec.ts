@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { MAX_STITCHES } from "../../lib/types";
 import path from "node:path";
-import { showWorkspace, exportChoice } from "./helpers/app";
+import { showWorkspace, chooseExport } from "./helpers/app";
 
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
 
@@ -40,10 +40,9 @@ test("exports at 1000 stitches render off the main thread, and A4 export shows p
 
   await showWorkspace(page, "Export");
 
-  const exportSelect = exportChoice(page);
   const exportButton = page.getByRole("button", { name: "Export", exact: true });
   for (const kind of ["png-color", "png-realistic"] as const) {
-    await exportSelect.selectOption(kind);
+    await chooseExport(page, kind);
     await takeLongTasks(page);
     const [download] = await Promise.all([page.waitForEvent("download", { timeout: 120_000 }), exportButton.click()]);
     expect(download.suggestedFilename()).toMatch(/\.png$/);
@@ -52,7 +51,7 @@ test("exports at 1000 stitches render off the main thread, and A4 export shows p
     expect(longest, `longest main-thread task during ${kind}`).toBeLessThan(MAX_EXPORT_LONG_TASK_MS);
   }
 
-  await exportSelect.selectOption("a4-color");
+  await chooseExport(page, "a4-color");
   const downloadPromise = page.waitForEvent("download", { timeout: 240_000 });
   await exportButton.click();
   await expect(page.getByRole("button", { name: /^Page \d+ of \d+$/ })).toBeVisible({ timeout: 60_000 });

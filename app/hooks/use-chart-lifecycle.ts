@@ -146,8 +146,8 @@ export function useChartLifecycle({
      * A chart from an empty grid (G-040). The new chart has no photo, so the loaded one is cleared, which also cancels any
      * generation or preview still running for it.
      */
-    createBlank: (width: number, height: number) =>
-      startNewChart(() => void replace("blank", setFabric(createBlankPattern(width, height), fabricNow))),
+    createBlank: (width: number, height: number, count: number) =>
+      startNewChart(() => void replace("blank", setFabric(createBlankPattern(width, height), { count, unit: browserOptions.sizeUnit }))),
 
     /** The confirmation before the open chart is replaced, while one is waiting; null otherwise. */
     confirm:

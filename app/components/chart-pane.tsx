@@ -43,20 +43,16 @@ export function ChartPane({ pattern, options, onChange, name, onNameChange, onNa
       </label>
 
       <section className="flex flex-col gap-2.5">
-        <label className="flex items-center justify-between text-[13px]">
+        <div className="flex items-center justify-between text-[13px]">
           Fabric count
-          <select
-            value={options.aidaCount}
-            onChange={(e) => onChange("aidaCount", Number(e.target.value))}
-            className="rounded-md border border-line bg-sunken px-2 py-1 text-xs text-ink"
-          >
-            {STANDARD_AIDA_COUNTS.map((count) => (
-              <option key={count} value={count}>
-                {count}-count
-              </option>
-            ))}
-          </select>
-        </label>
+          <div role="group" aria-label="Fabric count">
+            <SegmentedControl
+              options={STANDARD_AIDA_COUNTS.map((count) => ({ value: String(count), label: `${count}-count` }))}
+              value={String(options.aidaCount)}
+              onChange={(count) => onChange("aidaCount", Number(count))}
+            />
+          </div>
+        </div>
 
         <div className="flex items-center justify-between text-[13px]">
           Unit
@@ -69,22 +65,11 @@ export function ChartPane({ pattern, options, onChange, name, onNameChange, onNa
             onChange={(unit) => onChange("sizeUnit", unit)}
           />
         </div>
-
-        <label
-          className="flex items-center justify-between gap-3 text-[13px]"
-          title="On: double-clicking with the Brush fills the whole region under the pointer, as one undo step. Off: a double-click just paints the two stitches you clicked."
-        >
-          Double-click fills a region
-          <input
-            type="checkbox"
-            checked={options.doubleClickFill}
-            onChange={(e) => onChange("doubleClickFill", e.target.checked)}
-            className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
-          />
-        </label>
       </section>
 
-      <p className="text-[11px] text-muted">Saved automatically in this browser.</p>
+      <p className="text-[11px] leading-4 text-muted">
+        The fabric is this chart&apos;s own and is saved with it. A new chart starts from the fabric in Preferences.
+      </p>
     </div>
   );
 }

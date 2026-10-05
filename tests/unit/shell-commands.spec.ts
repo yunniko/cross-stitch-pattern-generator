@@ -45,6 +45,7 @@ function actions(): ShellActions & Record<string, ReturnType<typeof vi.fn>> {
     "zoomOut",
     "zoomReset",
     "openCommandList",
+    "openPreferences",
     "holdPan",
     "releasePan",
     "chooseTool",
@@ -143,7 +144,7 @@ describe("the editor's own commands", () => {
     ]);
   });
 
-  it("with no chart at all: the ways in, and the command list", () => {
+  it("with no chart at all: the ways in, the command list and the preferences", () => {
     const state: ShellState = {
       ...EDITING,
       hasChart: false,
@@ -154,7 +155,7 @@ describe("the editor's own commands", () => {
       canUndo: false,
       canRedo: false,
     };
-    expect(available(state)).toEqual(["file.choose-photo", "file.open", "file.import-pixel-art", "view.command-list"]);
+    expect(available(state)).toEqual(["file.choose-photo", "file.open", "file.import-pixel-art", "view.command-list", "view.preferences"]);
   });
 
   it("each runs the action it names, with what it names", () => {

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { openSmallChart } from "./helpers/app";
+import { openSmallChart, openPreferences } from "./helpers/app";
 
 test("Ctrl+Z/Ctrl+Y undo and redo a merge, matching the Undo/Redo buttons", async ({ page }) => {
   await openSmallChart(page);
@@ -168,12 +168,12 @@ test("with the Options switch off, a double-click paints only the stitch under i
     return value;
   }
 
-  // Switch the fill off; the checkbox is on by default.
-  await page.getByRole("tab", { name: "Chart" }).click();
-  const fillSwitch = page.getByRole("checkbox", { name: "Double-click fills a region" });
-  await expect(fillSwitch).toBeChecked();
-  await fillSwitch.uncheck();
-  await page.getByRole("tab", { name: "Threads" }).click();
+  // Switch the fill off, in Preferences (G-095); it is on by default.
+  const preferences = await openPreferences(page);
+  const fill = preferences.getByRole("group", { name: "Double-click fills a region" });
+  await expect(fill.getByRole("button", { name: "On", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await fill.getByRole("button", { name: "Off", exact: true }).click();
+  await preferences.getByRole("button", { name: "Close" }).click();
 
   // The same deterministic 3-cell stroke the flood-fill test paints.
   await legendRows.nth(0).click();

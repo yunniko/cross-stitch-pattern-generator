@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { signInAsAdmin } from "./helpers/auth";
-import { generateSmallPattern, showWorkspace, exportChoice } from "./helpers/app";
+import { generateSmallPattern, showWorkspace, chooseExport } from "./helpers/app";
 
 /**
  * G-075 M4: the admin stats page's counts are read after generating and exporting a known number of times,
@@ -33,10 +33,9 @@ test("generating once and exporting twice moves the stats page's counts by exact
 
   // Two server-side exports (png-color survives a repeat generate; the editable-JSON export would not count).
   await showWorkspace(page, "Export");
-  const exportSelect = exportChoice(page);
   const exportButton = page.getByRole("button", { name: "Export", exact: true });
   for (let i = 0; i < 2; i++) {
-    await exportSelect.selectOption("png-color");
+    await chooseExport(page, "png-color");
     const [download] = await Promise.all([page.waitForEvent("download", { timeout: 30_000 }), exportButton.click()]);
     expect(download.suggestedFilename()).toMatch(/\.png$/);
   }
@@ -68,9 +67,8 @@ test("an anonymous generation and export are still counted, with no userId", { t
   await context.clearCookies();
   await generateSmallPattern(page);
   await showWorkspace(page, "Export");
-  const exportSelect = exportChoice(page);
   const exportButton = page.getByRole("button", { name: "Export", exact: true });
-  await exportSelect.selectOption("png-color");
+  await chooseExport(page, "png-color");
   const [download] = await Promise.all([page.waitForEvent("download", { timeout: 30_000 }), exportButton.click()]);
   expect(download.suggestedFilename()).toMatch(/\.png$/);
 

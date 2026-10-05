@@ -29,13 +29,15 @@ export function useChartFabric({
   const fabricNow: ChartFabric = { count: options.aidaCount, unit: options.sizeUnit };
 
   /**
-   * A setting changed in the chart's own settings. Fabric count and unit, with a chart open, are the chart's, as one undo
-   * step, and the browser remembers them for the next new chart. Every other setting is the browser's alone.
+   * A setting changed in the chart's own settings. Fabric count and unit, with a chart open, are the chart's and only the
+   * chart's, as one undo step: what a new chart starts from is a preference (G-095, D299), which a chart's own fabric
+   * does not move. Every other setting is the browser's.
    */
   const updateChartOption: UpdateWorkspaceOption = (key, value) => {
     if (pattern && isFabricOption(key)) {
       const next = setFabric(pattern, fabricWith(fabricNow, key, value));
       if (next !== pattern) commit(next);
+      return;
     }
     updateOption(key, value);
   };

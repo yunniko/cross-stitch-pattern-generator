@@ -50,8 +50,30 @@ export async function generateAndWait(page: Page, timeout = 30_000): Promise<voi
 export const brushSize = (page: Page, size: number) =>
   page.getByRole("group", { name: "Brush size in stitches" }).getByRole("button", { name: String(size), exact: true });
 
-/** The choice of what to export, in the Export workspace's panel. */
-export const exportChoice = (page: Page) => page.getByRole("combobox", { name: "Export", exact: true });
+/**
+ * Chooses what to export, in the Export workspace's panel, by the kind's id (`editable`, `oxs`, `png-realistic`,
+ * `pixel-art`, `palette`, and `a4-`, `pdf-`, `png-` with `color` or `bw`). The kinds are buttons since G-095, and a
+ * printed kind is one button with a switch for colour or black and white; they were one list of eleven.
+ */
+export async function chooseExport(page: Page, kind: string): Promise<void> {
+  const kinds = page.getByRole("radiogroup", { name: "Export" });
+  const printed = /^(a4|pdf|png)-(color|bw)$/.exec(kind);
+  if (!printed) {
+    await kinds.locator(`[data-kind="${kind}"]`).click();
+    return;
+  }
+  await kinds.locator(`[data-format="${printed[1]}"]`).click();
+  const tone = printed[2] === "bw" ? "Black & white" : "Color";
+  await page.getByRole("group", { name: "Print in" }).getByRole("button", { name: tone, exact: true }).click();
+}
+
+/** Opens Preferences from the bar above, and hands back the dialog. */
+export async function openPreferences(page: Page) {
+  await page.getByRole("button", { name: "Preferences", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Preferences" });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
 
 /**
  * Opens the settings of how the cloth and stitches are drawn (canvas colour, canvas texture, stitch texture), at the end

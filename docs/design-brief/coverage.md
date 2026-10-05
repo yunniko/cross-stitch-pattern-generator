@@ -410,3 +410,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D296 | 07-text | |
 | D297 | 01-overview | |
 | D298 | 02-photo-and-generation | |
+| D299 | 01-overview | also 03, 08 |

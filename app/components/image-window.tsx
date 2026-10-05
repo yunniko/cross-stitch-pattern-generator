@@ -55,10 +55,9 @@ export interface ImageWindowProps {
     startingNew: boolean;
     isLoadingImage: boolean;
     onChoosePhoto: () => void;
-    onCreateBlank: (width: number, height: number) => void;
+    onCreateBlank: (width: number, height: number, count: number) => void;
     onImportPixelArt: () => void;
     onOpenPatternFile: () => void;
-    onAidaCountChange: (count: number) => void;
   };
   /** The Stitched view's failure to draw, and the ways out of it. */
   preview: { previewError: string | null; retryPreview: () => void; dismissPreviewError: () => void };
@@ -83,6 +82,8 @@ export interface ImageWindowProps {
   options: WorkspaceOptions;
   /** The Crop tool's frame, drawn over the chart (G-089); null when the tool is not open. It makes room around the chart for growing it. */
   cropOverlay?: ReactNode;
+  /** Drawn over the chart without taking room around it or a press from it: the page cuts of a paged export. */
+  marks?: ReactNode;
 }
 
 /** The Stitched view's failure to draw: what went wrong, a way to try again, and a way to close it (G-079). */
@@ -118,19 +119,10 @@ function cursorFor(activeTool: Tool, activeColorIndex: number | null, lookingOnl
  * renderer measures, and the frame is the chart-sized box it measures against (D135). The `overflow-auto` class is
  * part of that contract too: the suite selects the scroller by it.
  */
-export function ImageWindow({ refs, chart, start, preview, adjust, pointer, options, cropOverlay = null }: ImageWindowProps) {
+export function ImageWindow({ refs, chart, start, preview, adjust, pointer, options, cropOverlay = null, marks = null }: ImageWindowProps) {
   const { scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef } = refs;
   const { pattern, cellSize, sourceMeta, viewMode, activeTool, activeColorIndex, cursorHidden, lookingOnly } = chart;
-  const {
-    visible: startScreen,
-    startingNew,
-    isLoadingImage,
-    onChoosePhoto,
-    onCreateBlank,
-    onImportPixelArt,
-    onOpenPatternFile,
-    onAidaCountChange,
-  } = start;
+  const { visible: startScreen, startingNew, isLoadingImage, onChoosePhoto, onCreateBlank, onImportPixelArt, onOpenPatternFile } = start;
   const { previewError, retryPreview: onRetryPreview, dismissPreviewError: onDismissPreviewError } = preview;
   const { active: adjustActive, ready: adjustReady, size: adjustSize, attach: adjustCanvasRef } = adjust;
   const { onDown: onPointerDown, onMove: onPointerMove, onUp: onPointerUp, onLeave: onPointerLeave, onDoubleClick, onDrop } = pointer;
@@ -212,7 +204,6 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
             onCreateBlank={onCreateBlank}
             onImportPixelArt={onImportPixelArt}
             options={options}
-            onAidaCountChange={onAidaCountChange}
             busy={isLoadingImage}
           />
         )}
@@ -258,6 +249,7 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
               />
             </div>
             {cropOverlay}
+            {marks}
           </div>
         )}
         {pattern && viewMode === "realistic" && previewError && (

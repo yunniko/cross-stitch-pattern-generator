@@ -37,6 +37,8 @@ export interface AppBarProps {
   commandsDisabled: boolean;
   /** The shell puts the focus back here when the list is closed without running anything. */
   commandsButtonRef: RefObject<HTMLButtonElement | null>;
+  /** Opens the preferences: what is set once (G-095, D299). */
+  onOpenPreferences: () => void;
 }
 
 export function AppBar({
@@ -52,6 +54,7 @@ export function AppBar({
   onOpenCommands,
   commandsDisabled,
   commandsButtonRef,
+  onOpenPreferences,
 }: AppBarProps) {
   return (
     <header className="flex h-11 shrink-0 items-stretch gap-3 border-b border-line bg-surface px-3" data-testid="app-bar">
@@ -152,6 +155,17 @@ export function AppBar({
         >
           <SkinIcon name="commands" className="h-[15px] w-[15px]" />
           Commands
+        </button>
+        <button
+          type="button"
+          onClick={onOpenPreferences}
+          aria-label="Preferences"
+          aria-haspopup="dialog"
+          title="Preferences: what a new chart starts with, what the exports read, and how the brush behaves"
+          className={APP_BUTTON}
+        >
+          <SkinIcon name="settings" className="h-[15px] w-[15px]" />
+          Preferences
         </button>
         <Link
           href={account ? "/account" : "/login"}

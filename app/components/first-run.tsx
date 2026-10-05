@@ -4,7 +4,7 @@ import { describeBlankSizeProblem } from "@/lib/editor/blank-pattern";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { STANDARD_AIDA_COUNTS, formatFinishedSize } from "@/lib/export/finished-size";
 import { MAX_STITCHES, MIN_STITCHES } from "@/lib/types";
-import { DISABLED_TEXT, PillButton } from "./ui";
+import { DISABLED_TEXT, PillButton, SegmentedControl } from "./ui";
 import { SkinIcon } from "../skin/skin";
 
 /**
@@ -63,28 +63,60 @@ export interface FirstRunProps {
   onChoosePhoto: () => void;
   onOpenPattern: () => void;
   /** Create the blank chart. The caller decides whether replacing an open chart needs confirming first. */
-  onCreateBlank: (width: number, height: number) => void;
+  /** An empty grid of this size, on fabric of this count. */
+  onCreateBlank: (width: number, height: number, count: number) => void;
   /** Opens an image whose pixels are already stitches (G-049). */
   onImportPixelArt: () => void;
   options: WorkspaceOptions;
-  onAidaCountChange: (count: number) => void;
   /** A photo is still decoding, so choosing another would be ignored. */
   busy: boolean;
 }
 
-export function FirstRun({
-  onChoosePhoto,
-  onOpenPattern,
-  onCreateBlank,
-  onImportPixelArt,
-  options,
-  onAidaCountChange,
-  busy,
-}: FirstRunProps) {
-  const [open, setOpen] = useState(false);
-  const [width, setWidth] = useState(100);
-  const [height, setHeight] = useState(100);
+/**
+ * The size and fabric of an empty grid. It is mounted when it is opened, so its fields start from the preferences as
+ * they are then (G-095, D299); what is changed here is for this grid alone and leaves the preferences as they are.
+ */
+function BlankForm({ options, onCreateBlank }: Pick<FirstRunProps, "options" | "onCreateBlank">) {
+  const [width, setWidth] = useState(options.blankWidth);
+  const [height, setHeight] = useState(options.blankHeight);
+  const [count, setCount] = useState(options.aidaCount);
   const problem = describeBlankSizeProblem(width, height);
+
+  return (
+    <div className="flex flex-wrap items-center gap-3.5 border-t border-line px-[18px] py-3.5">
+      <SizeField label="Width" value={width} onChange={setWidth} down="Narrower" up="Wider" />
+      <SizeField label="Height" value={height} onChange={setHeight} down="Shorter" up="Taller" />
+      <div className="flex items-center gap-2 text-xs text-muted">
+        Fabric
+        <div role="group" aria-label="Fabric count">
+          <SegmentedControl
+            options={STANDARD_AIDA_COUNTS.map((each) => ({ value: String(each), label: `${each}-count` }))}
+            value={String(count)}
+            onChange={(chosen) => setCount(Number(chosen))}
+          />
+        </div>
+      </div>
+      <PillButton
+        variant="primary"
+        size="md"
+        className="ml-auto"
+        onClick={() => onCreateBlank(width, height, count)}
+        disabled={problem !== null}
+      >
+        Create
+      </PillButton>
+      <p className="m-0 w-full font-mono text-[11px] leading-4 text-muted" data-testid="new-chart-size">
+        {problem === null
+          ? `${width} × ${height} stitches · ≈ ${formatFinishedSize(width, height, count, options.sizeUnit)} finished`
+          : "Enter a size to see the finished fabric size"}
+      </p>
+      {problem && <p className="m-0 w-full text-xs text-danger">{problem}</p>}
+    </div>
+  );
+}
+
+export function FirstRun({ onChoosePhoto, onOpenPattern, onCreateBlank, onImportPixelArt, options, busy }: FirstRunProps) {
+  const [open, setOpen] = useState(false);
 
   return (
     <div className="flex w-[620px] max-w-full flex-col gap-[26px]">
@@ -129,42 +161,7 @@ export function FirstRun({
             </span>
           </button>
 
-          {open && (
-            <div className="flex flex-wrap items-center gap-3.5 border-t border-line px-[18px] py-3.5">
-              <SizeField label="Width" value={width} onChange={setWidth} down="Narrower" up="Wider" />
-              <SizeField label="Height" value={height} onChange={setHeight} down="Shorter" up="Taller" />
-              <label className="flex items-center gap-2 text-xs text-muted">
-                Fabric
-                <select
-                  value={options.aidaCount}
-                  onChange={(e) => onAidaCountChange(Number(e.target.value))}
-                  aria-label="Fabric count"
-                  className="rounded-md border border-line bg-sunken px-2 py-[5px] text-xs text-ink"
-                >
-                  {STANDARD_AIDA_COUNTS.map((count) => (
-                    <option key={count} value={count}>
-                      {count}-count
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <PillButton
-                variant="primary"
-                size="md"
-                className="ml-auto"
-                onClick={() => onCreateBlank(width, height)}
-                disabled={problem !== null}
-              >
-                Create
-              </PillButton>
-              <p className="m-0 w-full font-mono text-[11px] leading-4 text-muted" data-testid="new-chart-size">
-                {problem === null
-                  ? `${width} × ${height} stitches · ≈ ${formatFinishedSize(width, height, options.aidaCount, options.sizeUnit)} finished`
-                  : "Enter a size to see the finished fabric size"}
-              </p>
-              {problem && <p className="m-0 w-full text-xs text-danger">{problem}</p>}
-            </div>
-          )}
+          {open && <BlankForm options={options} onCreateBlank={onCreateBlank} />}
         </div>
 
         <button

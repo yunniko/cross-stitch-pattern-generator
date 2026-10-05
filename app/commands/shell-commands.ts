@@ -63,6 +63,7 @@ export interface ShellActions {
   zoomOut: () => void;
   zoomReset: () => void;
   openCommandList: () => void;
+  openPreferences: () => void;
   /** Space went down, and came up: the view is dragged for as long as it is held. */
   holdPan: () => void;
   releasePan: () => void;
@@ -117,6 +118,7 @@ export function shellCommandStates(s: ShellState, a: ShellActions): Record<Shell
     "view.zoom-reset": act(chartShown, a.zoomReset),
     // Ctrl+K is the browser's own too, so the key is kept from it whenever it is pressed outside a text entry.
     "view.command-list": { ...act(!s.startingNew, a.openCommandList), claimsKey: true },
+    "view.preferences": act(true, a.openPreferences),
     "view.pan-held": { available: s.hasChart, run: a.holdPan, release: a.releasePan },
     "cursor.move": LISTENED_ELSEWHERE,
     "cursor.move-ten": LISTENED_ELSEWHERE,

@@ -108,6 +108,7 @@ describe("the command table", () => {
       "view.zoom-out",
       "view.zoom-reset",
       "view.command-list [Ctrl+K]",
+      "view.preferences",
       "view.pan-held [Space (held)]",
       "cursor.move [Arrow keys]",
       "cursor.move-ten [Shift+Arrow keys]",

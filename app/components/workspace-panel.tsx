@@ -15,7 +15,7 @@ import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
 import type { Tools } from "../tools/use-tools";
 import { ChartPane } from "./chart-pane";
 import { ColorsDock } from "./colors-dock";
-import { ExportPane } from "./export-pane";
+import { ExportFooter, ExportPane, type ExportControls } from "./export-pane";
 import { EDIT_TABS, Inspector, type InspectorTab } from "./inspector";
 import { PHOTO_SECTIONS, PhotoPane, type PhotoSection } from "./photo-pane";
 import { PillButton } from "./ui";
@@ -128,28 +128,30 @@ export function WorkspacePanel({
   }
 
   if (workspace === "export") {
+    const controls: ExportControls = {
+      hasPattern: chartShown,
+      exportKind: exports.exportKind,
+      onExportKindChange: exports.setExportKind,
+      onExport: exports.exportSelected,
+      onExportAll: exports.exportAll,
+      isExporting: exports.isExporting,
+      isExportingAll: exports.isExportingAll,
+      exportProgressText: exports.exportProgressText,
+    };
     return (
       <Inspector
         title="Export"
         tabs={null}
         pane={
           <ExportPane
-            controls={{
-              hasPattern: chartShown,
-              exportKind: exports.exportKind,
-              onExportKindChange: exports.setExportKind,
-              onExport: exports.exportSelected,
-              onExportAll: exports.exportAll,
-              isExporting: exports.isExporting,
-              isExportingAll: exports.isExportingAll,
-              exportProgressText: exports.exportProgressText,
-            }}
+            controls={controls}
             options={options}
             onChange={onOptionChange}
             a4Layout={paginatesAsA4(exports.exportKind) ? exports.a4LayoutPreview : null}
             a4HasPageMap={!exports.exportKind.startsWith("pdf-")}
           />
         }
+        footer={<ExportFooter {...controls} />}
       />
     );
   }

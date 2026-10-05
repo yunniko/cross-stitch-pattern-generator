@@ -51,6 +51,14 @@ const STATES = [
   ["photo-picture", async (page) => (await workspace(page, "Photo"), page.getByRole("tab", { name: "Picture" }).click())],
   ["photo-lines", async (page) => (await workspace(page, "Photo"), page.getByRole("tab", { name: "Lines & texture" }).click())],
   ["export", async (page) => workspace(page, "Export")],
+  [
+    "export-a4",
+    async (page) => {
+      await workspace(page, "Export");
+      await page.getByRole("radiogroup", { name: "Export" }).locator('[data-format="a4"]').click();
+    },
+  ],
+  ["preferences", async (page) => page.getByRole("button", { name: "Preferences" }).click()],
 ];
 
 const browser = await chromium.launch();
