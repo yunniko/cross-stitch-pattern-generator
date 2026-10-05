@@ -326,3 +326,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D288 — Keys for every tool, for copy, paste and duplicate, and for the command list; brush options only with the brush — active
 - D289 — Undo keeps what changed between two documents, not a copy — active
 - D290 — Fabric belongs to the chart, and the file has one migration step — active
+- D291 — What stays in the editor shell — active

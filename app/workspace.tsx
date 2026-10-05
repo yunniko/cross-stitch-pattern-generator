@@ -5,20 +5,13 @@ import { brushStamp, type StampEdge } from "@/lib/editor/brush-stamp";
 import { setCrashContext } from "@/lib/editor/crash-report";
 import { useDrawingColours } from "./hooks/use-drawing-colours";
 import { useSymmetryAxes } from "./hooks/use-symmetry-axes";
-import { downloadPatternLoadReport, reportPatternLoadFailure } from "@/lib/editor/error-report";
-import { mergeColors, renamePattern, setFabric } from "@/lib/editor/pattern-edit";
+import { downloadPatternLoadReport } from "@/lib/editor/error-report";
+import { mergeColors, renamePattern } from "@/lib/editor/pattern-edit";
 import { useChartFabric } from "./hooks/use-chart-fabric";
 import { useEditorView } from "./hooks/use-editor-view";
 import { useLitThreads } from "./hooks/use-lit-threads";
-import { DEFAULT_CHART_NAME, useNameDraft } from "./hooks/use-name-draft";
-import { applyQuickMirrorWithSelection, fillSymmetric, NO_SYMMETRY, type QuickMirror, type SymmetryAxes } from "@/lib/editor/symmetry";
-import { oxsImportNotice } from "@/lib/editor/oxs";
-import { loadPatternFromFile } from "@/lib/editor/pattern-import";
-import { openPixelArtFile } from "@/lib/editor/pixel-art-file";
-import { DEFAULT_PIXEL_ART_NAME } from "@/lib/editor/pixel-art-import";
-import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
-import { getProjectStore } from "@/lib/editor/project-store";
-import { useProjectAutosave } from "./hooks/use-project-autosave";
+import { useNameDraft } from "./hooks/use-name-draft";
+import { applyQuickMirrorWithSelection, fillSymmetric, type QuickMirror } from "@/lib/editor/symmetry";
 import { useDocumentHistory } from "./hooks/use-document-history";
 import { AccountBadge } from "./components/auth/account-badge";
 import type { StitchPattern } from "@/lib/types";
@@ -30,7 +23,7 @@ import { ExportControls } from "./components/export-controls";
 import { ImageWindow } from "./components/image-window";
 import { Inspector } from "./components/inspector";
 import { isKeyboardCursorTool, isViewOnlyMode, usesStitchKind } from "./editor-types";
-import { createBlankPattern, isPhotoFree } from "@/lib/editor/blank-pattern";
+import { isPhotoFree } from "@/lib/editor/blank-pattern";
 import { WorkspaceNotices } from "./components/panels";
 import { PhotoPane } from "./components/photo-pane";
 import { TextPane } from "./components/text-pane";
@@ -49,15 +42,15 @@ import { usePanZoom, ZOOM_STEP } from "./hooks/use-pan-zoom";
 import { EMPTY_SET } from "@/lib/editor/palette-set";
 import { isNeutralAdjust, NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
 import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
-import { useProjectRestore } from "./hooks/use-project-restore";
 import { useColorPrediction } from "./hooks/use-color-prediction";
 import { readToolOption, writeToolOption } from "@/lib/editor/tool-options";
 import { useTools } from "./tools/use-tools";
 import { useShellCommands } from "./commands/shell-commands";
 import { useHeldPan } from "./hooks/use-held-pan";
 import { CommandList } from "./components/command-list";
-import { replaceDocument, type ReplaceEffects } from "@/lib/editor/document-replace-run";
-import type { ColorPrediction } from "@/lib/pipeline/prediction";
+import { useChartLifecycle } from "./hooks/use-chart-lifecycle";
+import { useRecommendedCount } from "./hooks/use-recommended-count";
+import { FileInputs } from "./components/file-inputs";
 import { useSourceImage } from "./hooks/use-source-image";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
 
@@ -65,12 +58,19 @@ import { useWorkspaceOptions } from "./hooks/use-workspace-options";
 const NO_OUTLINE: readonly StampEdge[] = [];
 
 /**
- * The editor shell (G-012; restructured to direction 1b in G-045): the pattern's undo history plus the state several
- * panes share, wired to the hooks in app/hooks and the components in app/components (D108). Every edit goes through
- * `history.set` as one undo step.
+ * The editor shell (G-012; 1b's frame since G-045; split by what it does in G-098, D291). It composes: it calls the hooks
+ * that each own one thing, hands each what it needs from the others, and lays out the frame (a tool rail, a context bar
+ * over the chart with a status bar beneath, and one inspector on the right showing a single pane).
  *
- * The frame is 1b's: a tool rail, a context bar over the chart well with a status bar beneath it, and one inspector on
- * the right showing a single pane at a time.
+ * What is **not** here, and where it is:
+ * - what a command does and when it can run: `app/commands/shell-commands.ts`;
+ * - every way a chart arrives or leaves, its autosave and its messages: `app/hooks/use-chart-lifecycle.ts`;
+ * - what a tool does: `app/tools/`;
+ * - the rule behind a piece of state: beside that state's hook (`use-lit-threads`, `use-chart-fabric`, `use-editor-view`).
+ *
+ * What stays is what joins two owners and belongs to neither: dropping a colour on the chart, merging two colours,
+ * a quick mirror with a piece in hand, lettering arriving as a piece, the outline the cursor carries. Every edit goes
+ * through `history.set` as one undo step.
  */
 export interface WorkspaceProps {
   /** Null when signed out (G-075 M2); read once at load, same as every other prop here. */
@@ -114,20 +114,9 @@ export default function Workspace({ account }: WorkspaceProps) {
   const [letteringColor, setLetteringColor] = useState<number | null>(null);
   const symmetryState = useSymmetryAxes(pattern);
   const liveSymmetry = symmetryState.live;
-  // The empty-grid panel (G-040): a new key on every request remounts it with fresh fields.
-  // The rail renders both file inputs; the workspace holds their refs so the first-run cards click the very same
-  // elements rather than carrying a second pair (and the specs keep finding them where they always were).
-  const openInputRef = useRef<HTMLInputElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const pixelArtInputRef = useRef<HTMLInputElement>(null);
-  const [pendingStart, setPendingStart] = useState<null | (() => void)>(null);
-  const [openError, setOpenError] = useState<string | null>(null);
-  const [openNotice, setOpenNotice] = useState<string | null>(null);
   // A color editor's live draft (G-033): shown only while it was derived from the current pattern, so any real edit,
   // undo or new document drops it without an effect.
   const [colorPreview, setColorPreview] = useState<{ base: StitchPattern; next: StitchPattern } | null>(null);
-  // Bumped whenever the palette is replaced wholesale (a new document or a generation), so open editors close.
-  const [documentId, setDocumentId] = useState(0);
   const [nameDraft, setNameDraft] = useNameDraft(pattern?.name);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -220,59 +209,43 @@ export default function Workspace({ account }: WorkspaceProps) {
     });
   });
 
-  /**
-   * The one place the open chart is replaced (G-091): which things are reset for which way in is the table in
-   * `lib/editor/document-replace.ts`; these are the state setters it is carried out with.
-   */
-  const replaceEffects: ReplaceEffects = {
-    resetHistory: history.reset,
-    pushHistory: history.set,
-    bumpDocument: () => setDocumentId((id) => id + 1),
-    clearSelection: () => tools.piece.clear(),
-    // Each tool puts down what belonged to the old chart; the Crop tool, if in hand, starts a fresh frame over the new one.
-    closeCrop: () => tools.documentReplaced(),
-    clearLit: lit.clear,
-    clearTextThread: () => setLetteringColor(null),
-    clearColourInHand: () => setActiveColorIndex(null),
-    resetZoom: () => panZoom.resetZoom(),
-    showColorView: () => view.setViewMode("color"),
-    setSymmetry: (axes) => symmetryState.reset(axes),
-    resetPaletteSet: () => {
-      updateOption("paletteSetup", false);
-      updateOption("paletteSet", EMPTY_SET);
-    },
-    restorePaletteSet: ({ active, ...set }) => {
-      updateOption("paletteSet", set);
-      updateOption("paletteSetup", active);
-    },
-    setPhotoAdjust: (adjust) => updateOption("photoAdjust", adjust),
-    showTab: view.setInspectorTab,
-    clearMessages: () => {
-      generation.setError(null);
-      setOpenError(null);
-      setOpenNotice(null);
-    },
-    leaveStart: () => setStartingNew(false),
-    adoptPhoto: (chart, fallbackName) => source.adoptPatternPhoto(chart, fallbackName),
-    forgetAutosave: () => void getProjectStore().save(null),
-    awaitRecommendedCount: () => {
-      colorResetRef.current = { stale: colorPrediction.prediction };
-    },
-  };
-
-  /** Lands a restored or opened pattern in every piece of state that depends on it, including its embedded photo. */
-  function loadPatternIntoWorkspace(loaded: StitchPattern, fallbackName: string, savedSymmetry: SymmetryAxes = NO_SYMMETRY) {
-    return replaceDocument("open", { ...loaded, name: loaded.name ?? fallbackName }, replaceEffects, {
-      symmetry: savedSymmetry,
-      fallbackName,
-    });
-  }
-
-  const restore = useProjectRestore(
-    (restored, savedSymmetry) => void loadPatternIntoWorkspace(restored, restored.name ?? DEFAULT_CHART_NAME, savedSymmetry)
-  );
-  const autosaveStatus = useProjectAutosave(pattern, restore.restored, getProjectStore(), liveSymmetry);
   const exports = useExports(pattern, options, liveSymmetry);
+  // Every way a chart arrives or leaves (`use-chart-lifecycle.ts`). What it is handed here is the state other owners keep
+  // that a new chart resets; which of them a given way in resets is the table in `lib/editor/document-replace.ts`.
+  const lifecycle = useChartLifecycle({
+    history,
+    source,
+    browserOptions,
+    fabricNow,
+    symmetry: liveSymmetry,
+    startingNew,
+    setStartingNew,
+    setPhotoError: (message) => generation.setError(message),
+    saveEditable: exports.exportEditableNow,
+    resets: {
+      clearSelection: () => tools.piece.clear(),
+      // Each tool puts down what belonged to the old chart; the Crop tool, if in hand, starts a fresh frame over the new one.
+      closeCrop: () => tools.documentReplaced(),
+      clearLit: lit.clear,
+      clearTextThread: () => setLetteringColor(null),
+      clearColourInHand: () => setActiveColorIndex(null),
+      resetZoom: () => panZoom.resetZoom(),
+      showColorView: () => view.setViewMode("color"),
+      setSymmetry: (axes) => symmetryState.reset(axes),
+      resetPaletteSet: () => {
+        updateOption("paletteSetup", false);
+        updateOption("paletteSet", EMPTY_SET);
+      },
+      restorePaletteSet: ({ active, ...set }) => {
+        updateOption("paletteSet", set);
+        updateOption("paletteSetup", active);
+      },
+      setPhotoAdjust: (adjust) => updateOption("photoAdjust", adjust),
+      showTab: view.setInspectorTab,
+      awaitRecommendedCount: () => recommendedCount.awaitNext(),
+    },
+  });
+  const { startScreenVisible } = lifecycle;
   // How many colours the picture reasonably needs, which, and how well the set being set up covers it (G-087).
   const colorPrediction = useColorPrediction({
     photoDataUrl: source.meta?.dataUrl ?? null,
@@ -281,18 +254,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     photoAdjust: options.photoAdjust,
     setColors: options.paletteSetup && options.paletteSet.colors.length ? options.paletteSet.colors.map((c) => c.rgb) : null,
   });
-  // A new picture starts at the colour count its prediction recommends (Owner, 2026-10-02): the first prediction to arrive after the
-  // photo was loaded sets it, and the reader's own changes after that stand. `stale` is the prediction showing at load time, which
-  // belongs to the previous picture.
-  const colorResetRef = useRef<{ stale: ColorPrediction | null } | null>(null);
-  const predicted = colorPrediction.prediction;
-  useEffect(() => {
-    const pending = colorResetRef.current;
-    if (!pending || !predicted || predicted === pending.stale) return;
-    colorResetRef.current = null;
-    // Deferred a microtask: a synchronous setState in an effect body is flagged by react-hooks/set-state-in-effect.
-    void Promise.resolve().then(() => updateOption("colorCount", predicted.suggested));
-  }, [predicted, updateOption]);
+  const recommendedCount = useRecommendedCount(colorPrediction.prediction, (count) => updateOption("colorCount", count));
   const generation = useGeneration({
     colorCeiling: options.paletteSetup ? null : (colorPrediction.prediction?.ceiling ?? null),
     options,
@@ -301,56 +263,8 @@ export default function Workspace({ account }: WorkspaceProps) {
     sourceFileName: source.fileName,
     revisionRef: source.revisionRef,
     currentPattern: pattern,
-    // The first generate is the undo baseline with every symmetry toggle off; a regenerate is an ordinary undoable step
-    // (G-012, G-037). Either way the piece in hand goes and the inspector follows the work to its threads.
-    onGenerated: (next, isFirst) =>
-      void replaceDocument(isFirst ? "first-generate" : "regenerate", setFabric(next, fabricNow), replaceEffects),
+    onGenerated: lifecycle.generated,
   });
-
-  /**
-   * Reaching the start screen costs nothing; choosing a card is what replaces the one autosaved chart, so that is
-   * where the confirm sits (Atelier, B - Confirm new chart). With no chart open there is nothing to lose: act at once.
-   */
-  function startNewChart(action: () => void) {
-    if (!pattern) {
-      action();
-      return;
-    }
-    setPendingStart(() => action); // a function in state needs the updater form, or React would call it
-  }
-
-  function discardForNewChart() {
-    void replaceDocument("discard", null, replaceEffects);
-  }
-
-  function handleImageFile(file: File) {
-    generation.setError(null);
-    setOpenNotice(null);
-    void source.loadFile(file, {
-      // A new photo is a new document: fresh history, neutral photo sliders, no chosen colours, shown as is until Generate.
-      onLoaded: () => void replaceDocument("photo", null, replaceEffects),
-      onFailed: () => generation.setError("Couldn't read that image. Try a different file (JPEG, PNG, or WebP)."),
-    });
-  }
-
-  function handleOpenPattern(file: File) {
-    setOpenError(null);
-    setOpenNotice(null);
-    loadPatternFromFile(file)
-      .then(async ({ pattern: loaded, oxsReport, symmetry: savedSymmetry }) => {
-        // An OXS file states its fabric count; the chart opened from it carries that count, in the browser's unit.
-        const notice = oxsReport ? oxsImportNotice(oxsReport, browserOptions.aidaCount, STANDARD_AIDA_COUNTS) : null;
-        const chart =
-          notice?.aidaCount !== undefined ? setFabric(loaded, { count: notice.aidaCount, unit: browserOptions.sizeUnit }) : loaded;
-        await loadPatternIntoWorkspace(chart, file.name.replace(/\.[^.]+$/, "").replace(/[-_]editable$/, ""), savedSymmetry);
-        if (notice) setOpenNotice(notice.text);
-      })
-      .catch((err) => {
-        // Nothing was replaced, so the current pattern is still the "previous version" (Owner request, 2026-09-12).
-        reportPatternLoadFailure({ source: "open-file", error: err, content: file, originalFileName: file.name });
-        setOpenError(err instanceof Error ? err.message : "Couldn't open that file.");
-      });
-  }
 
   /**
    * The Text tab's Add (G-081): the lettering arrives as a piece in hand, as a Paste does. The Select tool is put in hand so
@@ -430,36 +344,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     tools.piece.release();
   }
 
-  /**
-   * Starts a chart from an empty canvas (G-040). `adoptPatternPhoto` clears the loaded photo, because the new chart has
-   * none, which also cancels any generation or preview still running for the previous photo.
-   */
-  function createBlankChart(width: number, height: number) {
-    return replaceDocument("blank", setFabric(createBlankPattern(width, height), fabricNow), replaceEffects);
-  }
-
-  /**
-   * Starts a chart from pixel art (G-049): one pixel per stitch, no photo, so Generate stays unavailable exactly as it
-   * does for a blank chart. A refused file changes nothing — the message goes to the same place a failed Open does,
-   * and whatever was open is still open.
-   */
-  async function importPixelArt(file: File) {
-    const { error, pattern: imported } = await openPixelArtFile(file);
-    if (error !== null) {
-      setOpenError(error);
-      setStartingNew(true);
-      return;
-    }
-    await replaceDocument("pixel-art", setFabric(imported, fabricNow), replaceEffects, {
-      fallbackName: imported.name ?? DEFAULT_PIXEL_ART_NAME,
-    });
-  }
-
   const photoFree = isPhotoFree(pattern);
-
-  // The one definition of "the start screen is up": the Image window draws it on this, and New goes inert on it,
-  // because New is what opens it. Computed here so the two cannot drift apart.
-  const startScreenVisible = startingNew || (pattern === null && source.meta === null);
 
   // The command table for this render (G-093): what is true of the editor now, and what can be done. Which command each is,
   // and when it can run, is `app/commands/shell-commands.ts`; the keys and the command list read the result.
@@ -482,9 +367,9 @@ export default function Workspace({ account }: WorkspaceProps) {
     },
     {
       newChart: () => setStartingNew(true),
-      choosePhoto: () => startNewChart(() => imageInputRef.current?.click()),
-      openFile: () => startNewChart(() => openInputRef.current?.click()),
-      importPixelArt: () => startNewChart(() => pixelArtInputRef.current?.click()),
+      choosePhoto: lifecycle.choosePhoto,
+      openFile: lifecycle.chooseFile,
+      importPixelArt: lifecycle.choosePixelArt,
       exportSelected: exports.exportSelected,
       exportAll: exports.exportAll,
       exportEditable: exports.exportEditableNow,
@@ -537,51 +422,14 @@ export default function Workspace({ account }: WorkspaceProps) {
       />
       {commandListOpen && <CommandList commands={commands} onClose={closeCommandList} />}
 
-      {/*
-        Both inputs stay mounted and keep their names. They used to live behind the rail's menu; with that gone they
-        belong to the workspace, which owns their refs -- a control that exists only inside a transient screen cannot
-        be reached by assistive technology, by a script, or by anything addressing it by name.
-      */}
-      <label className="hidden" title="Import pixel art as a chart">
-        <span id="pixel-art-input-label">Pixel art</span>
-        <input
-          ref={pixelArtInputRef}
-          id="pixel-art-input"
-          type="file"
-          accept="image/png,image/gif,image/webp,image/bmp"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) void importPixelArt(file);
-          }}
-        />
-      </label>
-      <label className="hidden" title="Choose a photo to generate a chart from">
-        <span id="image-input-label">Image</span>
-        <input
-          ref={imageInputRef}
-          id="image-input"
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) handleImageFile(file);
-          }}
-          disabled={source.isLoading || generation.isProcessing}
-        />
-      </label>
-      <input
-        ref={openInputRef}
-        type="file"
-        aria-label="Open pattern file"
-        accept=".json,.zip,.cspzip,.oxs,application/json,application/zip"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = "";
-          if (file) handleOpenPattern(file);
-        }}
-        className="hidden"
+      <FileInputs
+        photoRef={lifecycle.inputs.photo}
+        openRef={lifecycle.inputs.open}
+        pixelArtRef={lifecycle.inputs.pixelArt}
+        onPhoto={lifecycle.photoChosen}
+        onOpen={lifecycle.fileChosen}
+        onPixelArt={(file) => void lifecycle.pixelArtChosen(file)}
+        photoDisabled={source.isLoading || generation.isProcessing}
       />
 
       <main className="flex flex-1 flex-col overflow-hidden">
@@ -623,38 +471,26 @@ export default function Workspace({ account }: WorkspaceProps) {
           />
         )}
         <WorkspaceNotices
-          restoreFailure={restore.failure}
-          onDownloadRestoreReport={() => restore.failure && downloadPatternLoadReport({ content: restore.failure.payload })}
-          onDismissRestoreFailure={restore.dismissFailure}
-          openError={openError}
-          onDismissOpenError={() => setOpenError(null)}
-          openNotice={openNotice}
-          onDismissOpenNotice={() => setOpenNotice(null)}
+          restoreFailure={lifecycle.restore.failure}
+          onDownloadRestoreReport={() =>
+            lifecycle.restore.failure && downloadPatternLoadReport({ content: lifecycle.restore.failure.payload })
+          }
+          onDismissRestoreFailure={lifecycle.restore.dismissFailure}
+          openError={lifecycle.messages.openError}
+          onDismissOpenError={lifecycle.messages.dismissOpenError}
+          openNotice={lifecycle.messages.openNotice}
+          onDismissOpenNotice={lifecycle.messages.dismissOpenNotice}
           exportError={exports.exportError}
           onDismissExportError={exports.dismissExportError}
           a4Layout={paginatesAsA4(exports.exportKind) ? exports.a4LayoutPreview : null}
           a4HasPageMap={!exports.exportKind.startsWith("pdf-")}
         />
-        {pendingStart !== null && pattern && (
+        {lifecycle.confirm && (
           <ConfirmNewChart
-            pattern={pattern}
-            onExportThenStart={() => {
-              const action = pendingStart;
-              // The chart is given up only once its file has been handed to the browser; a failed save leaves it open, with the message.
-              void exports.exportEditableNow().then((saved) => {
-                setPendingStart(null);
-                if (!saved) return;
-                discardForNewChart();
-                action();
-              });
-            }}
-            onKeepEditing={() => setPendingStart(null)}
-            onStartNew={() => {
-              const action = pendingStart;
-              setPendingStart(null);
-              discardForNewChart();
-              action();
-            }}
+            pattern={lifecycle.confirm.pattern}
+            onExportThenStart={lifecycle.confirm.exportThenStart}
+            onKeepEditing={lifecycle.confirm.keepEditing}
+            onStartNew={lifecycle.confirm.startNew}
           />
         )}
 
@@ -673,10 +509,10 @@ export default function Workspace({ account }: WorkspaceProps) {
             visible: startScreenVisible,
             startingNew,
             isLoadingImage: source.isLoading,
-            onChoosePhoto: () => startNewChart(() => imageInputRef.current?.click()),
-            onCreateBlank: (width, height) => startNewChart(() => void createBlankChart(width, height)),
-            onImportPixelArt: () => startNewChart(() => pixelArtInputRef.current?.click()),
-            onOpenPatternFile: () => startNewChart(() => openInputRef.current?.click()),
+            onChoosePhoto: lifecycle.choosePhoto,
+            onCreateBlank: lifecycle.createBlank,
+            onImportPixelArt: lifecycle.choosePixelArt,
+            onOpenPatternFile: lifecycle.chooseFile,
             onAidaCountChange: (count) => updateOption("aidaCount", count),
           }}
           preview={renderer}
@@ -697,7 +533,7 @@ export default function Workspace({ account }: WorkspaceProps) {
           pattern={startingNew ? null : pattern}
           aidaCount={options.aidaCount}
           sizeUnit={options.sizeUnit}
-          autosaveStatus={autosaveStatus}
+          autosaveStatus={lifecycle.autosaveStatus}
           hasPattern={pattern !== null && !startingNew}
           scrollerRef={scrollerRef}
           frameRef={frameRef}
@@ -781,7 +617,7 @@ export default function Workspace({ account }: WorkspaceProps) {
             aidaCount={options.aidaCount}
             onChange={history.set}
             onPreviewChange={setColorPreview}
-            documentId={documentId}
+            documentId={lifecycle.documentId}
             onMergeColors={handleMergeColors}
           />
         }
