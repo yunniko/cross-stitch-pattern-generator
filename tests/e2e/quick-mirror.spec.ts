@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 import { writeFile } from "node:fs/promises";
 
 // G-037 M3: quick mirror actions, each one undo step, merging a floating selection into that step.
@@ -26,7 +26,7 @@ function isSymmetric(cells: string[], width: number, height: number, copies: (x:
 const mirror = (page: Page, label: string) => page.getByRole("button", { name: label, exact: true });
 
 test("each straight quick mirror makes the chart symmetric in one undo step", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const [w, h] = [50, 31];
   const undo = page.getByRole("button", { name: "Undo" });
   const original = await stitches(page);
@@ -101,7 +101,7 @@ test("the upper-left half corner mirror gives 8-fold symmetry on a square canvas
 });
 
 test("a moved floating selection is merged into the same undo step as the mirror", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const [w, h] = [50, 31];
   const original = await stitches(page);
   const frame = page.getByTestId("chart-frame");

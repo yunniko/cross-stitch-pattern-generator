@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 
 test("zoom controls change the Image window's on-screen size without changing the pattern (G-012)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   const canvas = page.getByTestId("chart-frame");
   const before = await canvas.boundingBox();
@@ -24,7 +24,7 @@ test("zoom controls change the Image window's on-screen size without changing th
 });
 
 test("the Pan tool scrolls the Image window instead of painting (G-012)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   // Zoom in enough that the Image window actually has something to scroll.
   const zoomIn = page.getByRole("button", { name: "Zoom in" });
@@ -59,7 +59,7 @@ test("the Pan tool scrolls the Image window instead of painting (G-012)", async 
 });
 
 test("zoomed-in content can be scrolled all the way to its true top-left corner", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   const zoomIn = page.getByRole("button", { name: "Zoom in" });
   for (let i = 0; i < 4; i++) await zoomIn.click();
@@ -117,7 +117,7 @@ async function zoomedAndScrolled(page: import("@playwright/test").Page) {
 }
 
 test("wheel zoom keeps the stitch under the cursor in place, zooming in and out (D124)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const { x, y } = await zoomedAndScrolled(page);
   const zoomReadout = page.getByRole("button", { name: "Reset zoom to 100%" });
   await page.mouse.move(x, y);
@@ -136,7 +136,7 @@ test("wheel zoom keeps the stitch under the cursor in place, zooming in and out 
 });
 
 test("the Zoom tool zooms in at the clicked stitch (D124)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const { x, y } = await zoomedAndScrolled(page);
   const zoomReadout = page.getByRole("button", { name: "Reset zoom to 100%" });
   await page.getByRole("button", { name: "Zoom", exact: true }).click();
@@ -151,7 +151,7 @@ test("the Zoom tool zooms in at the clicked stitch (D124)", async ({ page }) => 
 });
 
 test("a bar too wide for the window scrolls inside itself rather than sliding the chart sideways (D213)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   // The bar grows with every tool the editing hand gains (G-064). Whatever it holds, the workspace around it may not
   // move: `main` is the chart's own column, and a focused control scrolling it takes the chart with it.
@@ -169,7 +169,7 @@ test("a bar too wide for the window scrolls inside itself rather than sliding th
 test("every view mode shares one zoom and scroll position, and the realistic view is drawn (D121)", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   const zoomIn = page.getByRole("button", { name: "Zoom in" });
   for (let i = 0; i < 4; i++) await zoomIn.click();
@@ -223,7 +223,7 @@ test("every view mode shares one zoom and scroll position, and the realistic vie
 });
 
 test("the Pan tool scrolls in the realistic preview and the original photo without editing (D121)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const zoomIn = page.getByRole("button", { name: "Zoom in" });
   for (let i = 0; i < 4; i++) await zoomIn.click();
   await page.getByRole("button", { name: "Pan" }).click();
@@ -254,7 +254,7 @@ test("Grid + photo mode renders the symbol grid over the source photo without er
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
 
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   const photoRadio = page.getByRole("button", { name: "Show the photo behind the chart" });
   await expect(photoRadio).toBeEnabled(); // a freshly generated pattern always has an embedded sourceImage

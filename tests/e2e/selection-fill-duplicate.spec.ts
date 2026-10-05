@@ -1,8 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import path from "node:path";
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
+import { openSmallChart } from "./helpers/app";
 
 /** G-063: the Fill and Duplicate buttons, through the real UI (Owner, 2026-09-23). */
 
@@ -34,11 +32,7 @@ async function exportChart(page: Page): Promise<{ width: number; height: number;
 }
 
 async function generateAndSelect(page: Page) {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+  await openSmallChart(page);
 
   const box = (await page.getByTestId("chart-frame").boundingBox())!;
   const cell = box.width / 50;

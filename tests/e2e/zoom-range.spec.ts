@@ -1,7 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import path from "node:path";
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
+import { openSmallChart } from "./helpers/app";
 
 /**
  * The zoom range goes to 800% (Owner, 2026-09-23, after asking whether it costs anything; measured, it does not --
@@ -13,11 +11,7 @@ async function cellSize(page: Page): Promise<number> {
 }
 
 test("zoom reaches 800%, and the chart still paints at the top of the range", async ({ page }) => {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+  await openSmallChart(page);
 
   const base = await cellSize(page);
   const zoomIn = page.getByRole("button", { name: "Zoom in" });

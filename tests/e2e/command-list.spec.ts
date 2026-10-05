@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { generateSmallPattern, pickTool } from "./helpers/app";
+import { openSmallChart, pickTool } from "./helpers/app";
 
 /**
  * G-093: the command list. It draws the command table: every command with its key and whether it can be used now, searched
@@ -18,7 +18,7 @@ async function openList(page: Page) {
 }
 
 test("lists every command, and searching narrows it by name, group or key", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await openList(page);
   const all = await list(page).getByRole("option").count();
   expect(all).toBeGreaterThan(60);
@@ -36,7 +36,7 @@ test("lists every command, and searching narrows it by name, group or key", asyn
 });
 
 test("Enter runs the highlighted command and closes the list; the arrow keys move the highlight", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await openList(page);
   await search(page).fill("tool la");
   // Lasso fill, then Lasso, in the table's order; the first is highlighted.
@@ -49,7 +49,7 @@ test("Enter runs the highlighted command and closes the list; the arrow keys mov
 });
 
 test("a press on a row runs it", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const zoom = page.getByRole("button", { name: "Reset zoom to 100%" });
   await expect(zoom).toHaveText("100%");
   await openList(page);
@@ -61,7 +61,7 @@ test("a press on a row runs it", async ({ page }) => {
 test("a command that cannot be used now says why and does not run; one that is only a key press is not run from the list", async ({
   page,
 }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await openList(page);
   const copy = row(page, "selection.copy");
   await expect(copy).toHaveAttribute("aria-disabled", "true");
@@ -87,7 +87,7 @@ test("a command that cannot be used now says why and does not run; one that is o
 });
 
 test("typing in the list never reaches the chart's keys, and Escape closes it with the focus back on its button", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickTool(page, "Fill");
   await openList(page);
   // B is Brush, 3 is the Stitched view, X swaps the colours: here they are only letters in the field.
@@ -101,7 +101,7 @@ test("typing in the list never reaches the chart's keys, and Escape closes it wi
 });
 
 test("after a command is run the chart's keys act at once", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await openList(page);
   await search(page).fill("fill tool");
   await page.keyboard.press("Enter");
@@ -111,7 +111,7 @@ test("after a command is run the chart's keys act at once", async ({ page }) => 
 });
 
 test("the list is not offered while the start screen covers a chart", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.getByRole("button", { name: "New chart" }).click();
   await expect(opener(page)).toBeDisabled();
   await page.getByRole("button", { name: /Back to/ }).click();
@@ -119,7 +119,7 @@ test("the list is not offered while the start screen covers a chart", async ({ p
 });
 
 test("Ctrl+K opens the list and closes it again", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.locator("body").press("Control+k");
   await expect(search(page)).toBeFocused();
   await page.keyboard.press("Control+k");
@@ -127,7 +127,7 @@ test("Ctrl+K opens the list and closes it again", async ({ page }) => {
 });
 
 test("S, V, H and Z choose Select, Move, Pan and Zoom, and Ctrl+Z is still undo, not Zoom", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   for (const [key, label] of [
     ["s", "Select"],
     ["v", "Move"],
@@ -143,7 +143,7 @@ test("S, V, H and Z choose Select, Move, Pan and Zoom, and Ctrl+Z is still undo,
 });
 
 test("Ctrl+C, Ctrl+V and Ctrl+D copy, paste and duplicate the piece in hand", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.locator("body").press("s");
   const box = (await page.getByTestId("chart-frame").boundingBox())!;
   await page.mouse.move(box.x + 30, box.y + 30);
@@ -162,7 +162,7 @@ test("Ctrl+C, Ctrl+V and Ctrl+D copy, paste and duplicate the piece in hand", as
 });
 
 test("the brush's size and shape are offered only with the tools that draw with the brush", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const size = page.getByLabel("Brush size");
   for (const label of ["Brush", "Line", "Rectangle", "Oval"]) {
     await pickTool(page, label);

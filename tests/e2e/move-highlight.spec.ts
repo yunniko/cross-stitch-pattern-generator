@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { generateSmallPattern, pickTool } from "./helpers/app";
+import { openSmallChart, pickTool } from "./helpers/app";
 
 async function cornerPixel(canvas: import("@playwright/test").Locator) {
   return canvas.evaluate((el: HTMLCanvasElement) => {
@@ -10,7 +10,7 @@ async function cornerPixel(canvas: import("@playwright/test").Locator) {
 }
 
 test("the Move tool repositions the whole design as a single undoable step (G-012)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   const canvas = page.getByTestId("chart-frame");
   const box = await canvas.boundingBox();
@@ -34,7 +34,7 @@ test("the Move tool repositions the whole design as a single undoable step (G-01
 });
 
 test("the Move tool does nothing (no undo step) when the drag doesn't cross a stitch cell", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   const canvas = page.getByTestId("chart-frame");
   const box = await canvas.boundingBox();
@@ -50,7 +50,7 @@ test("the Move tool does nothing (no undo step) when the drag doesn't cross a st
 });
 
 test("lighting a thread dims the others as a pure view overlay -- no undo step, no pattern change (G-012, D158)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   // G-045 M4: Highlight stopped being a tool. Isolate is a view mode, and each thread carries its own light.
   const legendRows = page.locator('[data-testid="legend-color-row"]');

@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 
 test("generate, merge two colors, undo/redo, download editable, and reopen it", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   const legendRows = page.locator('[data-testid="legend-color-row"]');
   const canvas = page.getByTestId("chart-frame");
@@ -35,7 +35,7 @@ test("generate, merge two colors, undo/redo, download editable, and reopen it", 
 });
 
 test("renaming the pattern changes every download's filename", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   // 1b keeps the name in the Chart pane and the exports in the Threads footer, and the inspector shows one at a time.
   await page.getByRole("tab", { name: "Chart" }).click();
@@ -73,7 +73,7 @@ test("cluster-fill drag and click-to-paint both change the pattern without error
     if (m.type() === "error") errors.push(m.text());
   });
 
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   const legendRows = page.locator('[data-testid="legend-color-row"]');
   const canvas = page.getByTestId("chart-frame");
@@ -95,7 +95,7 @@ test("cluster-fill drag and click-to-paint both change the pattern without error
 });
 
 test("brush stroke paints multiple stitches as a single undo step", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   const legendRows = page.locator('[data-testid="legend-color-row"]');
   const canvas = page.getByTestId("chart-frame");
@@ -120,7 +120,7 @@ test("brush stroke paints multiple stitches as a single undo step", async ({ pag
 });
 
 test("regenerating (a processing-param change) is undoable like any other edit (G-012)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await expect(page.getByText(/50 × \d+, [\d,]+ stitch/)).toBeVisible();
 
   await page.getByRole("tab", { name: "Photo" }).click();

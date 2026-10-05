@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { generateSmallPattern, pickTool } from "./helpers/app";
+import { openSmallChart, pickTool } from "./helpers/app";
 import { clickCorner, drawChain, exportLines, pickThread, threadName } from "./helpers/backstitch";
 
 /**
@@ -21,7 +21,7 @@ async function lineInThread(page: Page, nth: number, corners: Array<[number, num
 }
 
 test("backstitch gets its own section under the crosses, and only once there is any", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await threads(page);
   await expect(page.getByTestId("backstitch-section")).toHaveCount(0);
 
@@ -46,7 +46,7 @@ test("backstitch gets its own section under the crosses, and only once there is 
 });
 
 test("one thread used for both is one entry with two counts, in both sections", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await lineInThread(page, 0, [
     [4, 4],
     [14, 4],
@@ -65,7 +65,7 @@ test("one thread used for both is one entry with two counts, in both sections", 
 });
 
 test("a thread's backstitch is counted by length, not by how many lines it was drawn as", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   // One ten-cell line, drawn as a chain of two fives: the same thread, the same length.
   await lineInThread(page, 0, [
     [4, 10],
@@ -89,7 +89,7 @@ test("a thread's backstitch is counted by length, not by how many lines it was d
 });
 
 test("picking a thread in the list is what the backstitch tool then draws with", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   // The tool is in hand first, and the thread is chosen after: the cross list is the only thread list there is.
   await pickTool(page, "Backstitch");
@@ -107,7 +107,7 @@ test("picking a thread in the list is what the backstitch tool then draws with",
 });
 
 test("each section lights its own layer: an outline without its fill", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await lineInThread(page, 0, [
     [4, 4],
     [14, 4],
@@ -140,7 +140,7 @@ test("each section lights its own layer: an outline without its fill", async ({ 
 });
 
 test("merging a thread carries its backstitch, and merging into empty deletes it", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await lineInThread(page, 1, [
     [4, 4],
     [14, 4],
@@ -171,7 +171,7 @@ test("merging a thread carries its backstitch, and merging into empty deletes it
 });
 
 test("a chart with no backstitch shows the list exactly as it did", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await threads(page);
   await expect(page.getByTestId("backstitch-section")).toHaveCount(0);
   await expect(page.getByTestId("legend-color-row").first()).toBeVisible();
@@ -179,7 +179,7 @@ test("a chart with no backstitch shows the list exactly as it did", async ({ pag
 });
 
 test("deleting the last line takes the section away with it", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await lineInThread(page, 0, [
     [4, 4],
     [14, 4],
@@ -226,7 +226,7 @@ async function distanceFromThreadColour(page: Page, cx: number, cy: number): Pro
 }
 
 test("Isolate leaves a lit thread's lines alone and dims the rest", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await lineInThread(page, 0, [
     [4, 20],
     [40, 20],

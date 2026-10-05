@@ -1,8 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import path from "node:path";
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
+import { openSmallChart } from "./helpers/app";
 
 /**
  * G-064 M2: one press of the brush covers a stamp rather than a stitch (Owner, 2026-09-23). Sizes are odd only, so
@@ -10,11 +8,7 @@ const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
  */
 
 async function generate(page: Page) {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+  await openSmallChart(page);
   // A thread in the brush's hand, since nothing is held until one is picked.
   await page.getByRole("tab", { name: "Threads" }).click();
   await page.locator('[data-testid="legend-color-row"]').first().click();

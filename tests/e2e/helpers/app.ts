@@ -27,7 +27,32 @@ export async function pickTool(page: Page, label: string): Promise<void> {
   await page.getByRole("button", { name: label, exact: true }).click();
 }
 
-/** Uploads the sample photo and generates the small chart the specs are written against. */
+/**
+ * The chart `generateSmallPattern` makes, as the editable file it was saved to (G-096): the same photo, the same 50 × 31
+ * stitches in 16 colours, its photo inside it. To make it again after generation changes on purpose: generate the small
+ * pattern, export the editable file, and replace this one.
+ */
+export const SAMPLE_CHART = path.join(__dirname, "..", "fixtures", "sample_editable.json");
+
+/**
+ * Opens the saved sample chart: **what a spec uses when it needs a chart and is not about generating one.** Nothing is
+ * asked of the server for the chart itself, so the case is quicker, cannot fail on a busy processor, and runs against the
+ * live site without spending one of its six jobs a minute. The chart arrives as a generated one does: undo has nothing
+ * to step back to, the thread list is shown, the photo is there for the photo views and for Regenerate.
+ *
+ * What differs from generating, for the spec that cares: the size choice on the photo settings is left as it was, and the
+ * colour count is not set by a recommendation.
+ */
+export async function openSmallChart(page: Page): Promise<void> {
+  await page.goto("/");
+  await page.getByLabel("Open pattern file").setInputFiles(SAMPLE_CHART);
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+}
+
+/**
+ * Uploads the sample photo and generates the small chart. **Only for a spec that is about generation** (or about what
+ * generating leaves behind: usage counts, the size choice); every other spec opens the saved chart with `openSmallChart`.
+ */
 export async function generateSmallPattern(page: Page): Promise<void> {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);

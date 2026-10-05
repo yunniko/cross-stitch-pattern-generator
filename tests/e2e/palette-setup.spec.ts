@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { FIXTURE, generateSmallPattern } from "./helpers/app";
+import { FIXTURE, openSmallChart } from "./helpers/app";
 
 /**
  * G-087: "Set up palette" -- the user chooses the colours a chart is made from, can fill them from the picture's predicted
@@ -130,7 +130,7 @@ test("palettes are saved by name, loaded and deleted", async ({ page }) => {
 });
 
 test("the Export dropdown writes a palette file with the chart's colours, and it loads back as a palette", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.getByLabel("Export").selectOption("palette");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);
   expect(download.suggestedFilename()).toBe("sample_palette.json");

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { test, expect, type Page } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 
 /**
  * G-072 M3: Lasso fill draws an outline and paints what it encloses when the pointer comes up.
@@ -50,7 +50,7 @@ async function dragLasso(page: Page, cells: Array<[number, number]>) {
 }
 
 test("a lasso fill paints the area it encloses, as one undo step", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickFirstThread(page);
   const before = await exportCells(page);
 
@@ -72,7 +72,7 @@ test("a lasso fill paints the area it encloses, as one undo step", async ({ page
 });
 
 test("nothing is painted until the pointer comes up, and Escape paints nothing at all", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickFirstThread(page);
   const before = await exportCells(page);
 
@@ -87,7 +87,7 @@ test("nothing is painted until the pointer comes up, and Escape paints nothing a
 });
 
 test("symmetry mirrors every filled cell, as it does a brush stroke", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickFirstThread(page);
 
   await page.getByRole("button", { name: "Lasso fill", exact: true }).click();

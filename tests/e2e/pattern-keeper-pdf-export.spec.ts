@@ -1,8 +1,6 @@
 import { test, expect } from "@playwright/test";
-import path from "node:path";
 import { readFile } from "node:fs/promises";
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
+import { openSmallChart } from "./helpers/app";
 
 async function extractAllText(pdfBytes: Buffer): Promise<string> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -18,11 +16,7 @@ async function extractAllText(pdfBytes: Buffer): Promise<string> {
 }
 
 test("export as PDF (Pattern Keeper) downloads a real PDF with every actually-used symbol extractable as text", async ({ page }) => {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
+  await openSmallChart(page);
 
   // The real symbols this specific generated pattern actually uses -- read
   // from the app's own real DOM legend (lib/symbols.ts's round-robin order
@@ -54,11 +48,7 @@ test("export as PDF (Pattern Keeper) downloads a real PDF with every actually-us
 });
 
 test("export as PDF (Pattern Keeper) works in B&W mode too", async ({ page }) => {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
+  await openSmallChart(page);
 
   await page.getByLabel("Export").selectOption("pdf-bw");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export", exact: true }).click()]);

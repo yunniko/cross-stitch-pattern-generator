@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 
 /**
  * G-072 M2: Lasso Select takes a freehand shape, and everything downstream treats it as any other piece.
@@ -39,7 +39,7 @@ const DIAMOND: Array<[number, number]> = [
 ];
 
 test("a lasso selects a shape, and the piece behaves like any other", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await drawLasso(page, DIAMOND);
 
   await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
@@ -48,7 +48,7 @@ test("a lasso selects a shape, and the piece behaves like any other", async ({ p
 });
 
 test("cropping to a lasso gives its bounding box, as one undo step", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await expect(header(page)).toHaveText(/^50 × \d+, /);
 
   await drawLasso(page, DIAMOND);
@@ -60,7 +60,7 @@ test("cropping to a lasso gives its bounding box, as one undo step", async ({ pa
 });
 
 test("Escape drops a lasso selection, as it drops a shape", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await drawLasso(page, DIAMOND);
   await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
 
@@ -69,7 +69,7 @@ test("Escape drops a lasso selection, as it drops a shape", async ({ page }) => 
 });
 
 test("the corners of the box are not in the piece: pressing one starts a new selection", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const { box, cell } = await drawLasso(page, DIAMOND);
   await expect(page.getByText(/^9 × 9 at 6, 4$/)).toBeVisible();
 
@@ -87,7 +87,7 @@ test("the corners of the box are not in the piece: pressing one starts a new sel
 });
 
 test("a rectangle selection is still a rectangle", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const frame = page.getByTestId("chart-frame");
   const box = (await frame.boundingBox())!;
   const cell = box.width / 50;

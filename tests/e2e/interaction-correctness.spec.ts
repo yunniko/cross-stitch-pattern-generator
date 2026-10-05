@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 
 /** G-031 M2 (review B4, B5, B7, B8): keyboard shortcuts read live state, Space never steals a focused control's activation, drags stay cheap on the largest grid. */
 
@@ -17,7 +17,7 @@ function largePatternJson(width: number, height: number, colors: number): string
 }
 
 test("Space with a floating selection merges it where it currently is, not where the handler last saw it (B4)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const canvas = page.getByTestId("chart-frame");
   const box = await canvas.boundingBox();
   if (!box) throw new Error("canvas not visible");
@@ -47,7 +47,7 @@ test("Space with a floating selection merges it where it currently is, not where
 });
 
 test("Space on a focused button activates the button and never switches to Pan, even while held (B5)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const panButton = page.getByRole("button", { name: "Pan" });
   await page.getByRole("tab", { name: "Chart" }).focus();
   await page.keyboard.down("Space");
@@ -68,7 +68,7 @@ test("Space on a focused button activates the button and never switches to Pan, 
 });
 
 test("Space with focus on the page body still pans, and releasing restores the tool", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.getByRole("button", { name: "Fill", exact: true }).click();
   await page.locator("body").click({ position: { x: 5, y: 5 } }); // focus nothing in particular
   await page.keyboard.down("Space");
@@ -78,7 +78,7 @@ test("Space with focus on the page body still pans, and releasing restores the t
 });
 
 test("Ctrl+Shift+Z redoes, alongside Ctrl+Y (B8)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const legendRows = page.locator('[data-testid="legend-color-row"]');
   const initialCount = await legendRows.count();
 

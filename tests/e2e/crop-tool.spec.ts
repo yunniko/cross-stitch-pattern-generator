@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "node:path";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 
 /**
  * G-089: the Crop tool. Its frame on the chart and the four numbers in its bar are one value, and Apply is the canvas resize
@@ -13,7 +13,7 @@ const field = (page: Page, name: string) => page.getByTestId("crop-bar").getByLa
 const frame = async (page: Page) => (await page.getByTestId("crop-overlay").getAttribute("data-frame"))!;
 
 async function openTool(page: Page) {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.getByRole("button", { name: "Crop", exact: true }).click();
   await expect(page.getByTestId("crop-bar")).toBeVisible();
 }
@@ -135,7 +135,7 @@ test("Escape and Cancel put the frame back; Enter applies; leaving the tool drop
 });
 
 test("the C key chooses the tool, and Space-panning keeps the frame", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.getByTestId("chart-frame").hover();
   await page.keyboard.press("c");
   await expect(page.getByTestId("crop-bar")).toBeVisible();
@@ -148,7 +148,7 @@ test("the C key chooses the tool, and Space-panning keeps the frame", async ({ p
 });
 
 test("the Chart tab no longer holds the canvas numbers", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.getByRole("tab", { name: "Chart" }).click();
   await expect(page.getByLabel("Pattern name")).toBeVisible();
   await expect(page.getByLabel("Left", { exact: true })).toHaveCount(0);

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 
 /**
  * G-045: New opens the start screen, and choosing a card there replaces the one chart this browser autosaves — so the
@@ -9,7 +9,7 @@ import { generateSmallPattern } from "./helpers/app";
  */
 
 test("New opens the start screen without touching the chart, and Back returns to it", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   // The chart's own identity, not Undo: a first Generate is the undo baseline (workspace.tsx, isFirst), so an
   // untouched chart has nothing to undo and Undo's state says nothing about whether this chart came back.
   const before = await page.getByTestId("chart-frame").getAttribute("data-cell-size");
@@ -35,7 +35,7 @@ test("New opens the start screen without touching the chart, and Back returns to
 });
 
 test("Create from the empty-grid card asks first with a chart open, and Keep editing keeps it", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const before = await page.getByTestId("chart-frame").getAttribute("data-cell-size");
 
   await page.getByRole("button", { name: "New chart" }).click();
@@ -58,7 +58,7 @@ test("Create from the empty-grid card asks first with a chart open, and Keep edi
 });
 
 test("Start new chart discards the chart and its autosave, and the discard survives a reload", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
 
   await page.getByRole("button", { name: "New chart" }).click();
@@ -96,7 +96,7 @@ const INK = "rgb(232, 236, 239)"; // --at-ink
 const FAINT = "rgb(125, 134, 141)"; // --at-faint
 
 test("the start screen leaves nothing live over the chart it covers, and every disabled control looks it (D164)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.getByRole("button", { name: "New chart" }).click();
   await expect(page.getByRole("button", { name: /^Choose a photo/ })).toBeVisible();
 
@@ -200,7 +200,7 @@ test("the accent marks one chosen way in, and the 01 badge is gone (D167)", asyn
 });
 
 test("Export, then start new saves the open chart's editable file and goes on in one press", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.getByRole("button", { name: "New chart" }).click();
   await page.getByRole("button", { name: /Start an empty grid/ }).click();
   await page.getByRole("button", { name: "Create" }).click();

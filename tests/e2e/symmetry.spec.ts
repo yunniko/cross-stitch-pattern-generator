@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { generateSmallPattern, expectPhotoLoaded } from "./helpers/app";
+import { openSmallChart, expectPhotoLoaded } from "./helpers/app";
 import JSZip from "jszip";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -76,7 +76,7 @@ async function clickStitch(page: Page, x: number, y: number) {
 }
 
 test("the symmetry toggles press and release, and diagonals need a square canvas", async ({ page }) => {
-  await generateSmallPattern(page); // 50 × 31
+  await openSmallChart(page); // 50 × 31
   for (const label of ["Vertical symmetry", "Horizontal symmetry"]) {
     await expect(toggle(page, label)).toHaveAttribute("aria-pressed", "false");
     await toggle(page, label).click();
@@ -91,7 +91,7 @@ test("the symmetry toggles press and release, and diagonals need a square canvas
 });
 
 test("painting with vertical, then vertical and horizontal symmetry places every mirrored stitch", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const width = 50;
   const height = 31;
   await page.locator('[data-testid="legend-color-row"]').nth(0).click();
@@ -185,7 +185,7 @@ test("on a square canvas the diagonals mirror across both corners, and a red gui
 });
 
 test("rendered exports are unchanged by symmetry and the JSON gains only its symmetry field", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   async function download(kind: string): Promise<Buffer> {
     await page.getByLabel("Export").selectOption(kind);
@@ -316,7 +316,7 @@ test("resizing to a non-square canvas turns the diagonals off, and undoing back 
 
 test("the Symmetry and Mirror groups fit a 768 px tall window", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const labels = ["Vertical symmetry", "Horizontal symmetry", "Diagonal symmetry ↘", "Diagonal symmetry ↙"];
   labels.push("Mirror left half", "Mirror upper half", "Mirror upper-left corner", "Mirror upper-left half corner");
   for (const label of labels) {

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { generateSmallPattern, pickTool } from "./helpers/app";
+import { openSmallChart, pickTool } from "./helpers/app";
 import {
   asEndpoints,
   chartBox,
@@ -21,7 +21,7 @@ import {
 
 /** One line on the chart, from (4,4) to (10,4), in the first thread. */
 async function oneLine(page: Page) {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
   await drawChain(page, [
     [4, 4],
@@ -85,7 +85,7 @@ test("an edit is one undo step", async ({ page }) => {
 });
 
 test("Delete removes the selected line and nothing else", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
   await drawChain(page, [
     [4, 4],
@@ -137,7 +137,7 @@ test("Turn stands a horizontal line up, pivoting on the corner its bounds start 
 });
 
 test("Mirror ↔ flips the selected line about its own middle", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
   await drawChain(page, [
     [4, 4],
@@ -262,7 +262,7 @@ async function strokeWidthAt(page: Page, cx: number, cy: number): Promise<number
 }
 
 test("the selected line is drawn thicker as soon as it is picked up", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
   // Two lines, so the selected one can be compared with an untouched one in the same picture.
   await drawChain(page, [
@@ -343,7 +343,7 @@ async function lineOffsetAt(page: Page, cx: number, cy: number): Promise<number 
 }
 
 test("a line stays on its own corners when the chart is zoomed in and scrolled", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
   await drawChain(page, [
     [20, 24],
@@ -389,7 +389,7 @@ test("a line stays on its own corners when the chart is zoomed in and scrolled",
 });
 
 test("a one-cell line can still be moved once it is in hand", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
   await drawChain(page, [
     [8, 8],
@@ -406,7 +406,7 @@ test("a one-cell line can still be moved once it is in hand", async ({ page }) =
 });
 
 test("Delete removes the line in hand, and Backspace does the same", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
   await drawChain(page, [
     [4, 4],
@@ -466,7 +466,7 @@ test("Delete belongs to the backstitch tool alone, and is left alone by every ot
 
 /** Three segments drawn as one chain: (4,4)–(10,4)–(10,10)–(16,10). */
 async function threeSegmentRun(page: Page) {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
   await drawChain(page, [
     [4, 4],

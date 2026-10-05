@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 import { readFile } from "node:fs/promises";
 
 /**
@@ -29,7 +29,7 @@ async function crashTheRenderer(page: Page) {
 }
 
 test("a throw from the renderer lands on a screen that says what failed and offers the report", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await crashTheRenderer(page);
 
   await expect(page.getByTestId("crash-message")).toContainText("Deliberate renderer failure");
@@ -40,7 +40,7 @@ test("a throw from the renderer lands on a screen that says what failed and offe
 });
 
 test("the report carries the stack, the tool in hand and the chart, and no photo", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   // Something to find in the report: a brush and a view that are not the defaults.
   await page.getByLabel("Brush size in stitches").selectOption("7");
@@ -65,7 +65,7 @@ test("the report carries the stack, the tool in hand and the chart, and no photo
 });
 
 test("the chart is still there after reloading from the crash", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const before = await page
     .getByText(/50 × \d+, [\d,]+ stitch/)
     .first()

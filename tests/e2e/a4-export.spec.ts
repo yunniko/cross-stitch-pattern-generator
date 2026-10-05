@@ -1,8 +1,6 @@
 import { test, expect } from "@playwright/test";
-import path from "node:path";
 import JSZip from "jszip";
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
+import { openSmallChart } from "./helpers/app";
 
 async function readZipEntryNames(downloadPath: string): Promise<string[]> {
   const zip = await JSZip.loadAsync(await import("node:fs/promises").then((fs) => fs.readFile(downloadPath)));
@@ -10,11 +8,7 @@ async function readZipEntryNames(downloadPath: string): Promise<string[]> {
 }
 
 test("export as A4 pages downloads a ZIP with grid page(s) plus a legend page", async ({ page }) => {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
+  await openSmallChart(page);
 
   await page.getByLabel("Export").selectOption("a4-color");
   await expect(page.getByText(/total \(incl\. page map, skein table \+ colour key\)/)).toBeVisible();
@@ -31,11 +25,7 @@ test("export as A4 pages downloads a ZIP with grid page(s) plus a legend page", 
 });
 
 test("export as A4 pages works in B&W mode", async ({ page }) => {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
+  await openSmallChart(page);
 
   await page.getByLabel("Export").selectOption("a4-bw");
 
@@ -50,11 +40,7 @@ test("export as A4 pages works in B&W mode", async ({ page }) => {
 
 test("the A4/PDF overlap setting lives in the Chart pane and persists across a reload", async ({ page }) => {
   // G-045: the overlap left the global Options panel for the Chart pane, which needs an open chart (D157).
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
+  await openSmallChart(page);
   await page.getByRole("tab", { name: "Chart" }).click();
   const overlapSelect = page.getByLabel("A4/PDF overlap");
   await expect(overlapSelect).toHaveValue("5"); // default

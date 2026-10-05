@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 
 /**
  * D217 (Owner report, 2026-09-23): the brush holding the empty stitch, then a merge, then a press took the whole page
@@ -9,7 +9,7 @@ import { generateSmallPattern } from "./helpers/app";
 
 /** The chart, with the Threads pane open: every test here works from the list. */
 async function generateWithThreadsOpen(page: Page) {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.getByRole("tab", { name: "Threads" }).click();
 }
 

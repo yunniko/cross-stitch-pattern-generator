@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { generateSmallPattern, pickTool } from "./helpers/app";
+import { openSmallChart, pickTool } from "./helpers/app";
 import { clickCorner, drawChain, pickThread } from "./helpers/backstitch";
 
 /**
@@ -32,7 +32,7 @@ const meanDifference = (a: number[][], b: number[][]) =>
   a.reduce((sum, p, i) => sum + Math.hypot(p[0] - b[i][0], p[1] - b[i][1], p[2] - b[i][2]), 0) / a.length;
 
 test("a backstitch line shows over the stitches in the Stitched view, as one solid line, and goes when it is deleted", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   // The second thread, so that in the Color view the line is dashed and here it must not be.
   await pickThread(page, 1);
   await drawChain(page, [
@@ -62,7 +62,7 @@ test("a backstitch line shows over the stitches in the Stitched view, as one sol
 });
 
 test("a chart with no backstitch looks as it did in the Stitched view", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.getByRole("button", { name: "Stitched", exact: true }).click();
   await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-mode", "realistic");
   await page.waitForTimeout(600);

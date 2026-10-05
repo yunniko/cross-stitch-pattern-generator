@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import JSZip from "jszip";
-import { generateSmallPattern } from "./helpers/app";
+import { generateSmallPattern, openSmallChart } from "./helpers/app";
 
 /**
  * G-094 (D290): fabric count and unit belong to the chart. They are saved in its file and come back with it, in a browser
@@ -37,7 +37,7 @@ test("a new chart carries the fabric it was made on, and a change of count or un
 });
 
 test("the fabric comes back with the file in a browser whose own count is another", async ({ page, browser }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await chooseFabric(page, "18", "in");
   const { path } = await saveEditable(page);
 
@@ -57,7 +57,7 @@ test("the fabric comes back with the file in a browser whose own count is anothe
 });
 
 test("changing the fabric is one undo step, and undo puts the count back", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const undo = page.getByRole("button", { name: "Undo" });
   await expect(undo).toBeDisabled();
   await chooseFabric(page, "11");
@@ -70,7 +70,7 @@ test("changing the fabric is one undo step, and undo puts the count back", async
 });
 
 test("a file saved before fabric was kept takes the browser's, and is saved again without one", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const { chart } = await saveEditable(page);
   delete chart.fabric;
   const old = JSON.stringify(chart);
@@ -85,7 +85,7 @@ test("a file saved before fabric was kept takes the browser's, and is saved agai
 });
 
 test("the count chosen for an empty grid is the new chart's, not the one of the chart it replaces", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await chooseFabric(page, "18");
   await page.getByRole("button", { name: "New chart" }).click();
   await page.getByRole("button", { name: /^Start an empty grid/ }).click();
@@ -99,7 +99,7 @@ test("the count chosen for an empty grid is the new chart's, not the one of the 
 });
 
 test("the editable file is the same file saved alone, inside Export all, and after a reload", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await chooseFabric(page, "16");
   const alone = await readFile((await saveEditable(page)).path, "utf8");
 

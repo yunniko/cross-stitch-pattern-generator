@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { generateSmallPattern, pickTool } from "./helpers/app";
+import { openSmallChart, pickTool } from "./helpers/app";
 import { asEndpoints, chartBox, drawChain, exportLines, pickThread } from "./helpers/backstitch";
 
 /**
@@ -10,7 +10,7 @@ import { asEndpoints, chartBox, drawChain, exportLines, pickThread } from "./hel
  */
 
 test("a press holding Ctrl starts the next line from this one's end", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
 
   // Four corners, Ctrl held on all but the last: three segments, each joined to the one before.
@@ -27,7 +27,7 @@ test("a press holding Ctrl starts the next line from this one's end", async ({ p
 });
 
 test("a line lands on corners, whatever part of a cell was clicked", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
 
   const { x, y, cell } = await chartBox(page);
@@ -41,7 +41,7 @@ test("a line lands on corners, whatever part of a cell was clicked", async ({ pa
 });
 
 test("Escape ends the run without drawing a pending segment", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
 
   await drawChain(page, [
@@ -58,7 +58,7 @@ test("Escape ends the run without drawing a pending segment", async ({ page }) =
 });
 
 test("each segment is its own undo step", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
 
   await drawChain(page, [
@@ -75,7 +75,7 @@ test("each segment is its own undo step", async ({ page }) => {
 });
 
 test("symmetry mirrors a line as it does a stitch", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
 
   await page.getByRole("button", { name: "Vertical symmetry" }).click();
@@ -91,7 +91,7 @@ test("symmetry mirrors a line as it does a stitch", async ({ page }) => {
 });
 
 test("a chain clicked faster than the chart can re-render still keeps every segment", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
   await page.getByRole("button", { name: "Backstitch", exact: true }).click();
 
@@ -131,7 +131,7 @@ test("a chain clicked faster than the chart can re-render still keeps every segm
 });
 
 test("a plain press ends the line and does not start another", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
 
   const { x, y, cell } = await chartBox(page);
@@ -150,7 +150,7 @@ test("a plain press ends the line and does not start another", async ({ page }) 
 });
 
 test("letting go of Ctrl ends a chain where it is, mid-run", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
 
   const { x, y, cell } = await chartBox(page);
@@ -170,7 +170,7 @@ test("letting go of Ctrl ends a chain where it is, mid-run", async ({ page }) =>
 });
 
 test("a drag places the line where it is let go", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
 
   const { x, y, cell } = await chartBox(page);
@@ -189,7 +189,7 @@ test("a drag places the line where it is let go", async ({ page }) => {
 });
 
 test("a finger drawing by dragging gets its line, not one placed by the next tap", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
   await pickTool(page, "Backstitch");
 
@@ -220,7 +220,7 @@ test("a finger drawing by dragging gets its line, not one placed by the next tap
 });
 
 test("a tap still needs a second tap, so click-click drawing is untouched", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
 
   const { x, y, cell } = await chartBox(page);
@@ -234,7 +234,7 @@ test("a tap still needs a second tap, so click-click drawing is untouched", asyn
 });
 
 test("a drag holding Ctrl carries the run on from where it let go", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickThread(page);
 
   const { x, y, cell } = await chartBox(page);

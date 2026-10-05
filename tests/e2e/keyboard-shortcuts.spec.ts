@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 
 test("Ctrl+Z/Ctrl+Y undo and redo a merge, matching the Undo/Redo buttons", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const legendRows = page.locator('[data-testid="legend-color-row"]');
   const initialCount = await legendRows.count();
 
@@ -17,7 +17,7 @@ test("Ctrl+Z/Ctrl+Y undo and redo a merge, matching the Undo/Redo buttons", asyn
 });
 
 test("B and F switch the active tool, and Escape/typing targets don't hijack them", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const brushButton = page.getByRole("button", { name: "Brush" });
   const fillButton = page.getByRole("button", { name: "Fill", exact: true });
 
@@ -39,7 +39,7 @@ test("B and F switch the active tool, and Escape/typing targets don't hijack the
 });
 
 test("L, R and O take the three shape tools, and typing them does not (G-064)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const tool = (name: string) => page.getByRole("button", { name, exact: true });
 
   for (const [key, name] of [
@@ -57,7 +57,7 @@ test("L, R and O take the three shape tools, and typing them does not (G-064)", 
 });
 
 test("holding Space temporarily switches to Pan and releasing restores the previous tool", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const fillButton = page.getByRole("button", { name: "Fill", exact: true });
   const panButton = page.getByRole("button", { name: "Pan" });
 
@@ -73,7 +73,7 @@ test("holding Space temporarily switches to Pan and releasing restores the previ
 });
 
 test("1-5 switch the Image window's view mode, including the new Original photo mode", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   // 1b replaced the five view radios with three chips and a Photo toggle that cycles; the frame's own
   // data-view-mode is the mode itself, so it outlives whatever shape the control takes.
   const frame = page.getByTestId("chart-frame");
@@ -102,7 +102,7 @@ test("1-5 switch the Image window's view mode, including the new Original photo 
 test("double-clicking with Brush active flood-fills the whole region that was there before the double-click, not just the clicked cell", async ({
   page,
 }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const legendRows = page.locator('[data-testid="legend-color-row"]');
   const canvas = page.getByTestId("chart-frame");
   await canvas.scrollIntoViewIfNeeded();
@@ -152,7 +152,7 @@ test("double-clicking with Brush active flood-fills the whole region that was th
 });
 
 test("with the Options switch off, a double-click paints only the stitch under it, as two ordinary clicks (G-041)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const legendRows = page.locator('[data-testid="legend-color-row"]');
   const canvas = page.getByTestId("chart-frame");
   await canvas.scrollIntoViewIfNeeded();
@@ -201,7 +201,7 @@ test("with the Options switch off, a double-click paints only the stitch under i
 });
 
 test("dragging a color onto Empty merges it away: its stitches become empty and it's removed from the palette", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const legendRows = page.locator('[data-testid="legend-color-row"]');
   const initialCount = await legendRows.count();
   const emptyRow = page.getByTitle(/Drag a color here to merge it into empty/);

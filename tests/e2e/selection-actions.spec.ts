@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 
 /**
  * G-042 M1: a floating selection can be rotated either way, cropped to, or cancelled. Rotation is only visible from
@@ -31,7 +31,7 @@ async function drawSelection(page: Page, x1: number, y1: number, x2: number, y2:
 }
 
 test("Crop reduces the chart to the selection's rectangle, as one undo step", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await expect(header(page)).toHaveText(/^50 × \d+, /);
 
   await drawSelection(page, 2, 2, 7, 5); // 6 × 4 stitches
@@ -45,7 +45,7 @@ test("Crop reduces the chart to the selection's rectangle, as one undo step", as
 });
 
 test("Rotate right turns the piece a quarter turn: cropping to it swaps the chart's sides", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await drawSelection(page, 2, 2, 7, 5); // 6 wide, 4 tall
 
   await page.getByRole("button", { name: "Rotate right" }).click();
@@ -55,7 +55,7 @@ test("Rotate right turns the piece a quarter turn: cropping to it swaps the char
 });
 
 test("Rotate left is the other way round, and four turns return the piece", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await drawSelection(page, 2, 2, 7, 5);
 
   await page.getByRole("button", { name: "Rotate left" }).click();
@@ -68,7 +68,7 @@ test("Rotate left is the other way round, and four turns return the piece", asyn
 });
 
 test("Cancel after drawing and moving a selection leaves the chart exactly as it was", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const before = await stitchCount(page);
   await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
 
@@ -87,7 +87,7 @@ test("Cancel after drawing and moving a selection leaves the chart exactly as it
 });
 
 test("Cancel drops the pasted piece but leaves an earlier merge alone (G-043)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   const { box, cell } = await drawSelection(page, 2, 2, 7, 5);
   await page.getByRole("button", { name: "Copy" }).click();

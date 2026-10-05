@@ -1,10 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 import JSZip from "jszip";
 import { readFile } from "node:fs/promises";
 
 test("Export all downloads a .cspzip with every format, including A4_color/A4_bw subfolders", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export all" }).click()]);
   expect(download.suggestedFilename()).toBe("sample.cspzip");
@@ -35,7 +35,7 @@ test("Export all downloads a .cspzip with every format, including A4_color/A4_bw
 });
 
 test("a .cspzip from Export all round-trips back into the app via Open pattern", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const legendRows = page.locator('[data-testid="legend-color-row"]');
   const initialCount = await legendRows.count();
 

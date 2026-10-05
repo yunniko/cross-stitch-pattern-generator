@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import path from "node:path";
-import { expectPhotoLoaded, FIXTURE, generateSmallPattern } from "./helpers/app";
+import { expectPhotoLoaded, FIXTURE, openSmallChart } from "./helpers/app";
 
 /**
  * G-091 (D283): every new document resets the same things, whichever way it arrives. The table is pinned by unit tests
@@ -8,7 +8,7 @@ import { expectPhotoLoaded, FIXTURE, generateSmallPattern } from "./helpers/app"
  */
 
 test("a new chart starts with Isolate off and nothing lit, although the last one had a thread lit", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page
     .getByRole("button", { name: /^Show only / })
     .first()
@@ -65,7 +65,7 @@ test("opening a file clears a generation error left by the photo before it", asy
 });
 
 test("a new chart opens in the Color view, whatever view the last one was left in", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.getByRole("button", { name: "Stitched", exact: true }).click();
   await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-mode", "realistic");
   await page.getByLabel("Open pattern file").setInputFiles(path.join(__dirname, "fixtures", "sample.oxs"));

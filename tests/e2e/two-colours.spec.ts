@@ -1,8 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import path from "node:path";
-
-const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
+import { openSmallChart } from "./helpers/app";
 
 /**
  * G-064 M1: a chart is drawn with two colours (Owner, 2026-09-23). Left paints with the foreground, right with the
@@ -20,11 +18,7 @@ function collectErrors(page: Page): string[] {
 }
 
 async function generate(page: Page) {
-  await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(FIXTURE);
-  await page.getByRole("radio", { name: /Small/ }).check();
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
+  await openSmallChart(page);
 }
 
 /** Picks the nth thread in the list with the given button; right loads the background square. */

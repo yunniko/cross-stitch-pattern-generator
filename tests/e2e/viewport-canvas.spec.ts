@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { generateSmallPattern, pickTool } from "./helpers/app";
+import { openSmallChart, pickTool } from "./helpers/app";
 
 // G-036 M3 (D135): the chart frame is full chart size; one canvas inside it paints only the visible part plus overscan.
 
@@ -82,7 +82,7 @@ test("a zoomed-in chart keeps a view-sized canvas, and scroll jumps keep the vie
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await zoomIn(page, 4);
 
   const sizes = await page.evaluate(() => {
@@ -137,7 +137,7 @@ test("a zoomed-in chart keeps a view-sized canvas, and scroll jumps keep the vie
 });
 
 test("a brush stroke's preview survives scrolling in the middle of the stroke (D135)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await zoomIn(page, 3);
   await page.locator('[data-testid="legend-color-row"]').nth(0).click();
   await scroller(page).evaluate((el) => {
@@ -174,7 +174,7 @@ test("a brush stroke's preview survives scrolling in the middle of the stroke (D
 test("zooming during a Move drag keeps the gesture working and commits one undo step (D135)", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await pickTool(page, "Move");
   const box = (await frame(page).boundingBox())!;
   const x = box.x + box.width / 2;
@@ -192,7 +192,7 @@ test("zooming during a Move drag keeps the gesture working and commits one undo 
 });
 
 test("a click on the chart frame's 1 px border paints nothing; a click just inside paints (D135)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   await page.locator('[data-testid="legend-color-row"]').nth(1).click();
   const box = (await frame(page).boundingBox())!;
   const undo = page.getByRole("button", { name: "Undo" });
@@ -207,7 +207,7 @@ test("a click on the chart frame's 1 px border paints nothing; a click just insi
 });
 
 test("zoom and view switches report a completed render on the chart frame (D135)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const start = await revision(page);
   expect(start).toBeGreaterThan(0);
 
@@ -225,7 +225,7 @@ test("zoom and view switches report a completed render on the chart frame (D135)
 test("the Realistic view draws its stitches from tiles and settles again after a zoom (D136)", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  await generateSmallPattern(page);
+  await openSmallChart(page);
   const distinctColours = () =>
     page.getByTestId("chart-canvas").evaluate((el: HTMLCanvasElement) => {
       const { data } = el.getContext("2d")!.getImageData(0, 0, el.width, el.height);

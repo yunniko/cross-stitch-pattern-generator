@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { generateSmallPattern } from "./helpers/app";
+import { openSmallChart } from "./helpers/app";
 
 test("painting a stitch empty doesn't add it to the legend or its stitch counts (G-012 M5)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   const legendRows = page.locator('[data-testid="legend-color-row"]'); // real colors only -- the fixed "Empty" row has no testid
   const initialCount = await legendRows.count();
@@ -21,7 +21,7 @@ test("painting a stitch empty doesn't add it to the legend or its stitch counts 
 });
 
 test("an empty-painted stitch renders as blank white on the live canvas, in color and B&W alike (G-012 M5)", async ({ page }) => {
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   // Scoped to the Threads pane: the top panel echoes the brush's thread, so once this row is selected the
   // same text appears twice (G-045, the brush-colour readout).
@@ -51,7 +51,7 @@ test("Grid + photo mode leaves an empty-painted cell showing only the photo unde
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
 
-  await generateSmallPattern(page);
+  await openSmallChart(page);
 
   const photoRadio = page.getByRole("button", { name: "Show the photo behind the chart" });
   await photoRadio.click();
