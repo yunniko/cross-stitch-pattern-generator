@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-05 at 6d7063f (G-098 signed off; production runs 8b9b251)
+Last verified: 2026-10-05 at 2c30b26 plus the G-096 test tooling (production runs 8b9b251)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -11,6 +11,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 **Production** runs 8b9b251 (2026-10-05, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
+
+**G-096, development loop — finished 2026-10-05, awaiting the Owner's sign-off; nothing deployed.** A spec that is not about generation opens the saved chart with `openSmallChart` (`tests/e2e/helpers/app.ts`; D292). `npx playwright test -c scripts/playwright.live-free.config.ts` is the broad check of the live site (199 cases, 3 min). `npm run e2e:dev` is the development server for working on one spec; a production build is what anything is verified on. `docs/development-loop.md` has the lanes, the commands and every measurement.
 
 **G-098, the editor shell split — signed off 2026-10-05, archived.** `app/workspace.tsx` (665 lines, from 957) composes and lays out, and holds no logic of its own (D291). Every way a chart arrives or leaves, with its autosave, confirmation and messages, is `app/hooks/use-chart-lifecycle.ts`; what each of the editor's commands does and when it can run is `app/commands/shell-commands.ts`; each piece of state has a hook with its rule beside it (`use-lit-threads`, `use-chart-fabric`, `use-editor-view`, `use-name-draft`, `use-held-pan`, `use-recommended-count`). Where new state, a new command or a new way in goes is in `docs/architecture.md` section 3.
 
@@ -25,8 +27,6 @@ Every signed-off goal, with what it produced and how it was verified, is in `doc
 **G-090, readiness to grow — signed off 2026-10-04, archived.** `docs/reviews/2026-10-04-growth-readiness.md` answers whether the app is ready for layers, a vector editor and plugins (it is not: closed document model, closed tool list, wide workspace). `docs/architecture.md` is the target (four layers, registries) **and the placement guide for where a new tool, operation, chart field, setting or export goes today**: read it before adding a feature. `docs/interface-placement.md` gives every control's scope and the command list; `docs/development-loop.md` the lanes, the commands (`npm run check:fast`, `npm run e2e:servers`, `npm run test:e2e`) and measured times; `docs/qa-review/` the first exploratory QA report (16 findings; 11 fixed in the first fast-lane batch, 2 awaiting the Owner's choice, 3 left). Follow-up goals G-091 to G-096 are drafted in `GOALS.md` in dependency order: shell, tool registry, command registry, document module, redesign, loop fixes.
 
 **G-088, design brief — written 2026-10-02, awaiting the Owner's sign-off.** `docs/design-brief/` (start at its `README.md`) describes what the app does and every control's range, values, states, defaults, what is kept and which actions run on the server, for a redesign; it names no interface element and leaves out accounts, the admin area and touch. `scripts/design-brief-ranges.ts`, `design-brief-words.mjs` and `design-brief-coverage.mjs --strict` keep it true; `docs/reviews/2026-10-02-design-brief-check.md` says what was checked and what was not. A goal that changes a behaviour or range updates the brief in the same change.
-
-**G-086, backstitch in the Stitched view — signed off 2026-10-05, archived (deployed 2026-10-02, ac7a9cc).** The Stitched view (`drawScene`, `app/chart-scene.ts`) and the realistic preview export (`rust/cs-export/src/preview.rs`, `lib/export/render.ts`) draw the chart's backstitch as plain solid coloured lines over the stitches (D275); a textured thread is to come.
 
 **G-084, backstitch from lines — signed off 2026-10-02 and archived; built and deployed (bb9a210).** An optional generation setting (Photo tab, Lines; `backstitchLines`, `backstitchSensitivity`; off by default) that traces thin lines of a drawing, dark, light or coloured, as backstitch in up to three threads (D269). `rust/cs-core/src/lines.rs` finds them (sub-pixel ridges, linked, fitted to stitches by dynamic programming, D272) and paints them out of the picture before generation reads it; `attach_backstitch` in `pattern.rs` puts them on the chart in their threads (existing ones or new ones at the end of the palette). Only a mostly flat picture is traced (D267); the numbers are read from `docs/reviews/2026-10-02-backstitch-from-lines.md`. The option travels app to processor to `cs-job` like Vivid (`validate-settings.ts`, `rust-jobs.ts`).
 

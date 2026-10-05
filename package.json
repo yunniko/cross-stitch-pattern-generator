@@ -12,6 +12,7 @@
     "test:unit": "vitest run",
     "test:e2e": "playwright test --grep-invert @alone && playwright test --grep @alone --workers=1",
     "e2e:servers": "node scripts/e2e-servers.mjs",
+    "e2e:dev": "node scripts/e2e-servers.mjs --dev",
     "check:fast": "tsc --noEmit && vitest run --changed && eslint --cache",
     "test": "npm run test:unit && npm run test:e2e",
     "generate-test-fixture": "node scripts/generate-test-fixture.mjs",

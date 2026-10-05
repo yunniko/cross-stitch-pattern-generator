@@ -58,10 +58,15 @@ test("lighting a thread dims the others as a pure view overlay -- no undo step, 
   const light = page.getByRole("button", { name: /^Show only / }).first();
   const isolate = page.getByRole("button", { name: "Isolate lit threads" });
 
+  // Every pixel, folded to one number in the page. Handing the pixels themselves across and comparing them one by one
+  // made this the second slowest case of the suite (59 s) for the same answer (G-096).
   const readCanvas = () =>
-    page
-      .getByTestId("chart-canvas")
-      .evaluate((el: HTMLCanvasElement) => Array.from(el.getContext("2d")!.getImageData(0, 0, el.width, el.height).data));
+    page.getByTestId("chart-canvas").evaluate((el: HTMLCanvasElement) => {
+      const { data } = el.getContext("2d")!.getImageData(0, 0, el.width, el.height);
+      let hash = 2166136261;
+      for (let i = 0; i < data.length; i++) hash = Math.imul(hash ^ data[i], 16777619);
+      return `${data.length}:${hash >>> 0}`;
+    });
 
   const plain = await readCanvas();
   await expect(isolate).toHaveAttribute("aria-pressed", "false");

@@ -327,3 +327,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D289 — Undo keeps what changed between two documents, not a copy — active
 - D290 — Fabric belongs to the chart, and the file has one migration step — active
 - D291 — What stays in the editor shell — active
+- D292 — Specs open a saved chart; the development server is for one spec at a time — active

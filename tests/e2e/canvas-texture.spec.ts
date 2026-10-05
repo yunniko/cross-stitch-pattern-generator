@@ -164,7 +164,10 @@ test("the exported preview carries the canvas only when asked, and the plain col
   await include.check();
   const flat = await exportPreview();
   expect(ground(flat)).toEqual([51, 102, 153, 255]);
-  for (let i = 3; i < flat.rgba.length; i += 4) expect(flat.rgba[i]).toBe(255);
+  // One check for the first pixel that is not opaque, instead of one per pixel: the per-pixel form was 43 s (G-096).
+  let transparentAt = -1;
+  for (let i = 3; i < flat.rgba.length && transparentAt < 0; i += 4) if (flat.rgba[i] !== 255) transparentAt = (i - 3) / 4;
+  expect(transparentAt, "a pixel that is not opaque").toBe(-1);
 
   // Ticked with a cloth: the cloth multiplied with the colour, and still opaque.
   await picker.getByRole("radio", { name: "Counted canvas", exact: true }).click();

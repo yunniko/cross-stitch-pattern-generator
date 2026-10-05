@@ -3,6 +3,7 @@
 //
 //   node scripts/e2e-servers.mjs            build the app and the processor, then start both
 //   node scripts/e2e-servers.mjs --no-build start what is already built
+//   node scripts/e2e-servers.mjs --dev      the development server instead of a build (see docs/development-loop.md for when)
 //
 // The environment is the one `scripts/playwright-servers.ts` gives its own servers; a server started any other way must carry
 // the same (HANDOVER, Rules in force). The suite's Postgres must already listen on 54324. Stop with Ctrl+C.
@@ -14,6 +15,8 @@ const root = path.join(import.meta.dirname, "..");
 const PORT = 30200;
 const PROCESSOR_PORT = 8102;
 const build = !process.argv.includes("--no-build");
+// The development server in place of a production build: no build to wait for, each page compiled when first asked for.
+const dev = process.argv.includes("--dev");
 
 // The engine is the Rust sidecar; a build tree's binary is used when the caller names none.
 const builtJob = path.join(root, "rust", "target", "release", process.platform === "win32" ? "cs-job.exe" : "cs-job");
@@ -39,7 +42,7 @@ function run(command) {
 
 if (build) {
   run("npm run build:processor");
-  run("npm run build");
+  if (!dev) run("npm run build");
 }
 
 const children = [
@@ -49,7 +52,7 @@ const children = [
     stdio: "inherit",
     shell: true,
   }),
-  spawn(`npm run start -- -p ${PORT} -H 127.0.0.1`, { cwd: root, env, stdio: "inherit", shell: true }),
+  spawn(`npm run ${dev ? "dev" : "start"} -- -p ${PORT} -H 127.0.0.1`, { cwd: root, env, stdio: "inherit", shell: true }),
 ];
 console.log(`e2e servers: app http://localhost:${PORT}, processor http://127.0.0.1:${PROCESSOR_PORT}`);
 

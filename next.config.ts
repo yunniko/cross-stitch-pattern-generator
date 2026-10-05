@@ -8,6 +8,12 @@ const nextConfig: NextConfig = {
    * chunk names the second build had already overwritten — a corrupted mixture rather than either build.
    */
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
+  /**
+   * The development server's own badge in the corner of the page, off. It sits over the bottom of the tool list and takes
+   * the presses meant for the Mirror actions, for a person and for a browser test alike (G-096). It exists only under
+   * `next dev`; a build never has it.
+   */
+  devIndicators: false,
   async headers() {
     return [
       {

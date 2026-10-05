@@ -70,7 +70,11 @@ test("moving a slider changes the photo on screen, without asking the server", a
   const errors = collectErrors(page);
   const requests: string[] = [];
   page.on("request", (r) => requests.push(r.url()));
+  // The photo's own requests (its upload, and the colour recommendation for it) are over before the count is taken: on a
+  // busy machine they used to arrive after it and be counted against the slider (G-096).
+  const recommended = page.waitForResponse((r) => r.url().includes("/api/predictions"));
   await uploadPhoto(page);
+  await recommended;
   const before = requests.length;
 
   await set(page, "Brightness", 70);
@@ -83,8 +87,11 @@ test("moving a slider changes the photo on screen, without asking the server", a
   const darker = await paintedDigest(page);
   expect(Number(darker.split(":")[0])).toBeLessThan(Number(brighter.split(":")[0]));
 
-  // Nothing went out for any of it: the adjustment is in the page, which is what M2 is (criterion 2).
-  expect(requests.slice(before).filter((url) => !url.startsWith("data:") && !url.includes("_next"))).toEqual([]);
+  // The picture is adjusted in the page, which is what M2 is (criterion 2): nothing is asked of the server for it. What
+  // may go out, a moment after a slider rests, is the colour recommendation for the adjusted picture (G-087); the case
+  // used to end before that request and so claimed there was none.
+  const asked = requests.slice(before).filter((url) => !url.startsWith("data:") && !url.includes("_next"));
+  expect(asked.filter((url) => !url.includes("/api/predictions"))).toEqual([]);
   expect(errors).toEqual([]);
 });
 
@@ -92,6 +99,8 @@ test("each slider moves the thing it names", async ({ page }) => {
   await uploadPhoto(page);
 
   await set(page, "Warm / cool", 100);
+  // Read once it is painted: a read before that found no picture at all, and the comparison below failed on nothing (G-096).
+  await expect.poll(() => paintedDigest(page)).not.toBe("none");
   const warm = (await paintedDigest(page)).split(":").map(Number);
   await set(page, "Warm / cool", -100);
   await expect.poll(async () => (await paintedDigest(page)).split(":").map(Number)[2]).toBeGreaterThan(warm[2]);
