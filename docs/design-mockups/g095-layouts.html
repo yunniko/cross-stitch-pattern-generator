@@ -1067,7 +1067,7 @@
               : `<div class="bar" style="height:40px;border-top:1px solid var(--line);border-bottom:0">${viewControls()}<span class="sp"></span>${status}</div>`;
             let body;
             if (screen === "photo")
-              body = `<div class="bar" style="height:40px">${QUICK.Photo}</div><div style="display:grid;grid-template-columns:${cols};min-height:0">${side(photoPanel(1), photoTools())}<div style="display:grid;grid-template-rows:1fr auto;min-height:0"><div class="stage"><div><div class="cap"><span>Photo</span></div>${pic("photo", 54, 8)}</div><div><div class="cap"><span>Try 3 · 12 colours · 120 × 90</span><span>Compare ⇆</span></div>${pic("color", 54, 8)}</div>${fl}</div>${triesStrip()}</div>${right(photoPanel(1))}</div>`;
+              body = `<div class="bar" style="height:40px">${QUICK.Photo}</div><div style="display:grid;grid-template-columns:${cols};min-height:0">${side(photoPanel(1), photoTools())}<div style="display:grid;grid-template-rows:1fr auto;min-height:0"><div class="stage">${MIX ? `<div><div class="cap"><span>Try 3 · 12 colours · 120 × 90</span></div>${pic("color", 72, 8)}</div>` : `<div><div class="cap"><span>Photo</span></div>${pic("photo", 54, 8)}</div><div><div class="cap"><span>Try 3 · 12 colours · 120 × 90</span><span>Compare ⇆</span></div>${pic("color", 54, 8)}</div>`}${fl}</div>${triesStrip()}</div>${right(photoPanel(1))}</div>`;
             else if (screen === "export") {
               const e = exportBody();
               body = `<div class="bar" style="height:40px"><b>Export</b><span class="lab">Choose what to make. Its settings are on the right and nowhere else.</span></div><div style="display:grid;grid-template-columns:260px 1fr 300px;min-height:0"><div class="panel">${e.list}</div><div class="stage">${e.pages}</div><div class="panel right">${e.settings}</div></div>`;
@@ -1200,6 +1200,10 @@
           [
             "Buttons before dropdowns",
             "Wherever the choices fit they are buttons: palette mode, algorithm, edges, dither patterns as pictures, text colour as the chart's threads, face, fabric count.",
+          ],
+          [
+            "Photo",
+            "One picture, as today: the chosen try. The photo is reached from the view controls (Grid + photo, Photo), not shown beside it.",
           ],
           ["Unchanged", "Export and Preferences are as in A."],
         ],

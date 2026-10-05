@@ -50,6 +50,7 @@ One line per change; deployed in batches, each batch after one full-suite run.
 - Doubt that Text as a plain tool leaves room for all it has now. So a tool may declare a quick option set (on top), an extended set shown as a temporary tab that exists only while the tool is in hand, or both.
 - "Anyways, the system has to allow add tools easily."
 - Mock-ups wanted.
+- Added 2026-10-05: the Photo workspace shows one picture, not the photo and the chart side by side. **What the mock-ups decide:** placement and behaviour only. Colours, icons and wording are taken from the app as it is unless the Owner asks for a change by name; the mock-ups' light colours and glyphs are not the design.
 - Added 2026-10-05: "Double-press fills" is one of the options set once (Preferences), not a Brush option. The Owner asked whether the design can be skinnable (official or user-made skins that rearrange tools and change colours and icons); answered in the conversation, not yet a requirement.
 - Added 2026-10-05, on seeing the mock-ups: tools in two columns, parted by dividers into drawing tools, selection and transformation tools, navigation tools (dividers only, no headings). A tool's extra tab is the first tab, marked by its colour alone (yellow for now) with no explanation; it opens when a tool that has one is picked, and when the tool is put down the panel returns to the tab last used. Text colour is a palette, not a dropdown: "it is almost always better to have a button to press than choose from dropdown".
 
