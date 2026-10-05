@@ -1,5 +1,6 @@
 "use client";
 
+import { DeclaredSettings } from "./declared-settings";
 import { useState } from "react";
 
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
@@ -560,6 +561,12 @@ export function PhotoPane({
           stay as they are, in up to four threads. A smooth area gets none.
         </p>
       </section>
+
+      <DeclaredSettings
+        values={options.generationExtras}
+        onChange={(next) => onChange("generationExtras", next)}
+        headingClass={GROUP_LABEL}
+      />
 
       <section className="flex flex-col gap-2">
         <span className={GROUP_LABEL}>Algorithm</span>

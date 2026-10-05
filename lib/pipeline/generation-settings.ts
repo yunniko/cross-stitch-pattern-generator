@@ -41,7 +41,16 @@ export type GenerationSetting = Check & {
   rustName?: string;
   /** A combination with another setting that is refused, checked once this one has passed its own check. */
   alsoRefuse?: (body: Record<string, unknown>) => string | null;
+  /**
+   * How it is offered when no control was written for it (D294): its label, a hint, and the value it starts at. A setting
+   * declared with this is drawn from the declaration (`app/components/declared-settings.tsx`), kept with the browser's
+   * settings in one bag by id, and sent with every Generate. Only a flag, a number from 0 to 1 or a choice can be drawn.
+   */
+  control?: { label: string; hint?: string; default: boolean | number | string };
 };
+
+/** The values of the settings that are drawn from their declarations, by id. */
+export type ExtraSettings = Record<string, boolean | number | string>;
 
 const PALETTE_MODES = ["full", ...THREAD_BRAND_IDS];
 const isByteTriple = (v: unknown) => Array.isArray(v) && v.length === 3 && v.every((c) => Number.isInteger(c) && c >= 0 && c <= 255);
@@ -120,6 +129,13 @@ export const GENERATION_SETTINGS: readonly GenerationSetting[] = DECLARED;
 
 /** The name of every setting, as a type: a request type that names a setting this list does not have fails to compile. */
 export type GenerationSettingId = (typeof DECLARED)[number]["id"];
+/** The names of the settings drawn from their declarations; the request types do not name these. */
+export type DrawnSettingId = Extract<(typeof DECLARED)[number], { control: unknown }>["id"];
+
+/** The settings drawn from their declarations, in the order declared. */
+export const DRAWN_SETTINGS = GENERATION_SETTINGS.filter(
+  (setting): setting is GenerationSetting & { control: NonNullable<GenerationSetting["control"]> } => setting.control !== undefined
+);
 
 /** What is wrong with one setting's value, in the words the processor answers with; null when nothing is. */
 function valueRefusal(setting: GenerationSetting, value: unknown, body: Record<string, unknown>): string | null {
@@ -168,4 +184,19 @@ export function rustGenerationOptions(settings: object): Record<string, unknown>
     if (picked[setting.id] !== undefined) options[setting.rustName ?? setting.id] = picked[setting.id];
   }
   return options;
+}
+
+/**
+ * The value of every drawn setting: what is kept for it when that is still a value it allows, else what it starts at. A
+ * bag read back from the browser may hold anything, and a setting may have been taken away or changed since.
+ */
+export function drawnSettingValues(kept: unknown, drawn: Readonly<typeof DRAWN_SETTINGS> = DRAWN_SETTINGS): ExtraSettings {
+  const bag = typeof kept === "object" && kept !== null && !Array.isArray(kept) ? (kept as Record<string, unknown>) : {};
+  const values: ExtraSettings = {};
+  for (const setting of drawn) {
+    const stored = bag[setting.id];
+    const usable = stored !== undefined && valueRefusal(setting, stored, bag) === null;
+    values[setting.id] = usable ? (stored as boolean | number | string) : setting.control.default;
+  }
+  return values;
 }

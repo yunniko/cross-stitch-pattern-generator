@@ -1,4 +1,5 @@
 import { DEFAULT_EXPORT_CELL_MM, normalCellMm } from "../export/export-cell-size";
+import { drawnSettingValues, type ExtraSettings } from "../pipeline/generation-settings";
 import { parseToolOptionBag, type ToolOptionBag } from "./tool-options";
 import { EMPTY_SET, parseStoredSet, type PaletteSet } from "./palette-set";
 import { isStitchKind } from "./stitch-kind";
@@ -90,6 +91,8 @@ export interface WorkspaceOptions {
   textWeight: number;
   /** The values of tool options that have no named setting of their own: the ones a new tool brings (G-093). */
   toolOptions: ToolOptionBag;
+  /** The generation settings drawn from their declarations, by id (G-099, D294): the ones a new algorithm brings. */
+  generationExtras: ExtraSettings;
   /** Whether a Brush double-click floods the region under it as one undo step (D138); off leaves the two clicks as themselves. */
   doubleClickFill: boolean;
 }
@@ -126,6 +129,7 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   shapeFill: "outline",
   stitchKind: 0,
   toolOptions: {},
+  generationExtras: {},
   doubleClickFill: true,
   lockTransparency: false,
   textFamily: "sans-serif",
@@ -229,6 +233,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       shapeFill: parsed.shapeFill === "filled" || parsed.shapeFill === "outline" ? parsed.shapeFill : DEFAULT_OPTIONS.shapeFill,
       stitchKind: isStitchKind(parsed.stitchKind) ? parsed.stitchKind : DEFAULT_OPTIONS.stitchKind,
       toolOptions: parseToolOptionBag(parsed.toolOptions),
+      generationExtras: drawnSettingValues(parsed.generationExtras),
       // Absent in options stored before G-041, so anything that is not a boolean falls back to the default.
       doubleClickFill: typeof parsed.doubleClickFill === "boolean" ? parsed.doubleClickFill : DEFAULT_OPTIONS.doubleClickFill,
       lockTransparency: typeof parsed.lockTransparency === "boolean" ? parsed.lockTransparency : DEFAULT_OPTIONS.lockTransparency,

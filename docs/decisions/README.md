@@ -328,3 +328,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D290 — Fabric belongs to the chart, and the file has one migration step — active
 - D291 — What stays in the editor shell — active
 - D292 — Specs open a saved chart; the development server is for one spec at a time — active
+- D293 — Generation settings are declared once, and the pipeline is stages — active
+- D294 — Overlays share one contract, and a new setting can be drawn from its declaration — active

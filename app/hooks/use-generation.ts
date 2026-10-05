@@ -1,4 +1,4 @@
-import { pickGenerationSettings } from "@/lib/pipeline/generation-settings";
+import { drawnSettingValues, pickGenerationSettings } from "@/lib/pipeline/generation-settings";
 import { useState, type RefObject } from "react";
 import { setRequest } from "@/lib/editor/palette-set";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
@@ -89,6 +89,8 @@ export function useGeneration(inputs: GenerationInputs) {
         // Every generation setting the editor keeps under its own name (`lib/pipeline/generation-settings.ts`): the modes,
         // the photo sliders as the reader has been looking at them (G-074 M3), the dither, the lines and the strokes.
         ...pickGenerationSettings(options),
+        // And the ones drawn from their declarations, which are kept together by id (D294).
+        ...drawnSettingValues(options.generationExtras),
         longerSideStitches,
         // The count never goes above the ceiling the prediction allows (G-087); a set has its own count, its size.
         colorCount: Math.min(options.colorCount, colorCeiling ?? MAX_COLORS),

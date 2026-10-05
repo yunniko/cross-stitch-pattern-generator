@@ -402,3 +402,5 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D291 | internal | |
 | D292 | internal | |
 | G-099 | internal | draft: architecture or tooling |
+| D293 | internal | |
+| D294 | internal | |

@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  DRAWN_SETTINGS,
+  drawnSettingValues,
   GENERATION_SETTINGS,
   generationSettingsRefusal,
   pickGenerationSettings,
   rustGenerationOptions,
+  type DrawnSettingId,
   type GenerationSettingId,
 } from "@/lib/pipeline/generation-settings";
 import type { RunServerPatternJobOptions } from "@/lib/pipeline/pattern-server";
@@ -14,11 +17,10 @@ import { openCsBench } from "./helpers/cs-bench";
 
 // The request types name exactly the declared settings: a setting added to one and not the other does not compile.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
-const jobSettingsAreDeclared: Same<Exclude<keyof JobSettings, "photoHash">, GenerationSettingId> = true;
-const requestSettingsAreDeclared: Same<
-  Exclude<keyof RunServerPatternJobOptions, "photoDataUrl" | "onProgress" | "onQueued">,
-  GenerationSettingId
-> = true;
+// The settings drawn from their declarations travel by id and are not named in the request types.
+type Named = Exclude<GenerationSettingId, DrawnSettingId>;
+const jobSettingsAreDeclared: Same<Exclude<keyof JobSettings, "photoHash">, Named> = true;
+const requestSettingsAreDeclared: Same<Exclude<keyof RunServerPatternJobOptions, "photoDataUrl" | "onProgress" | "onQueued">, Named> = true;
 
 const VALID = { longerSideStitches: 100, colorCount: 20 };
 
@@ -99,11 +101,41 @@ describe("what is sent on", () => {
   });
 });
 
+describe("the settings drawn from their declarations", () => {
+  const drawn = [
+    { id: "frame", kind: "flag", control: { label: "Frame", default: false } },
+    { id: "glow", kind: "unit", control: { label: "Glow", default: 0.3 } },
+    { id: "weave", kind: "choice", values: ["plain", "twill"], control: { label: "Weave", default: "plain" } },
+  ] as const;
+
+  it("an undeclared name in what is kept is never sent", () => {
+    expect(drawnSettingValues({ anything: true })).not.toHaveProperty("anything");
+    expect(Object.keys(drawnSettingValues({}))).toEqual(DRAWN_SETTINGS.map((s) => s.id));
+  });
+
+  it("each starts at the value it declares", () => {
+    expect(drawnSettingValues({}, drawn)).toEqual({ frame: false, glow: 0.3, weave: "plain" });
+    for (const nothing of [undefined, null, "x", [1]])
+      expect(drawnSettingValues(nothing, drawn)).toEqual({ frame: false, glow: 0.3, weave: "plain" });
+  });
+
+  it("keeps a stored value it allows, and goes back to its start for one it does not", () => {
+    expect(drawnSettingValues({ frame: true, glow: 0.9, weave: "twill" }, drawn)).toEqual({ frame: true, glow: 0.9, weave: "twill" });
+    expect(drawnSettingValues({ frame: "yes", glow: 4, weave: "satin" }, drawn)).toEqual({ frame: false, glow: 0.3, weave: "plain" });
+  });
+
+  it("forgets what is stored for a setting that is no longer declared", () => {
+    expect(drawnSettingValues({ frame: true, gone: 1 }, drawn)).toEqual({ frame: true, glow: 0.3, weave: "plain" });
+  });
+});
+
 describe("the Rust pipeline", () => {
   // A small picture with something in it; what is generated is not looked at here, only that the request is accepted.
   const source = { width: 40, height: 30, data: new Uint8ClampedArray(40 * 30 * 4).map((_, i) => (i % 4 === 3 ? 255 : (i * 37) % 251)) };
   /** One valid value of every declared setting, in one request. Dithering is left off, since it is refused with Crisp. */
-  const EVERY_SETTING: Record<GenerationSettingId, unknown> = {
+  const EVERY_SETTING: Record<string, unknown> & Record<Named, unknown> = {
+    // A setting drawn from its declaration is sent at the value it starts at, so a new one is covered without an edit here.
+    ...drawnSettingValues({}),
     longerSideStitches: 20,
     colorCount: 6,
     generationMode: "latest",
@@ -137,7 +169,7 @@ describe("the Rust pipeline", () => {
       expect(bench.generate(source, rustGenerationOptions(withTheRest)).palette.length).toBeLessThanOrEqual(2);
       // The two requests between them carry a value for every setting there is.
       for (const { id } of GENERATION_SETTINGS) {
-        expect(EVERY_SETTING[id as GenerationSettingId] ?? (withTheRest as Record<string, unknown>)[id], id).toBeDefined();
+        expect(EVERY_SETTING[id] ?? (withTheRest as Record<string, unknown>)[id], id).toBeDefined();
       }
     } finally {
       bench.dispose();
