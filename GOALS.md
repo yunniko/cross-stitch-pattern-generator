@@ -41,7 +41,23 @@ One line per change; deployed in batches, each batch after one full-suite run.
 - **What:** the Owner's redesign, built on `docs/design-brief/` and `docs/interface-placement.md`: every control placed by scope, view and application controls independent of the tool in hand, tool options with the tool, exports and their settings together.
 - **Why:** 20 of 36 control groups break a placement rule today.
 - **Acceptance criteria:** to be set with the Owner's design; at least: no control in the placement table marked "No", and the brief's checks still pass.
-- **Constraints:** waits for the Owner's design direction; the questions it needs answered were put to the Owner on 2026-10-05 (the layout of the regions, what a phone gets, the look, how exports are reached, whether it lands in steps, and what the Owner dislikes today). Cheapest after G-092 and G-093, since the tool list, options and commands are then generated.
+- **Constraints:** the layout is the Owner's choice; nothing is built before it is chosen. Cheapest after G-092 and G-093, since the tool list, options and commands are generated.
+
+**The Owner's direction (2026-10-05):**
+- Some options are "set up once and forget": the author name, the default canvas size, the default inch or cm.
+- Making the chart from a photo is kept a little apart from editing it: a person first tries different generations and mostly does not edit meanwhile; once editing has started they mostly do not regenerate. "Maybe we should make kind of workspaces each with its own tool set"; more photo work in the browser (painting over, removing the background) may come later and is not a next goal.
+- "I like tabs system."
+- Doubt that Text as a plain tool leaves room for all it has now. So a tool may declare a quick option set (on top), an extended set shown as a temporary tab that exists only while the tool is in hand, or both.
+- "Anyways, the system has to allow add tools easily."
+- Mock-ups wanted.
+
+**Milestones:**
+- [x] M1 -- **Layout mock-ups** (asked for by the Owner; `review before continuing`). Three proposals, five screens each.
+- The rest is planned once a layout is chosen.
+
+**Progress log** (newest first):
+- 2026-10-05 -- M1 done. `docs/design-mockups/g095-layouts.html` (one self-contained page; `node scripts/design-mockup-shots.mjs` writes its 15 screenshots) shows three layouts over the same five screens (making the chart from a photo, editing with Brush, editing with Text, Export, Preferences): **A** workspaces as tabs across the top, **B** workspaces as a rail at the left edge with tools in a row, **C** closest to today with no workspace switch and Export as a dialog. All three have quick tool options above the chart, a temporary tab for a tool's extended options, view controls that never leave, tries kept while generating, and Preferences. They are drawings: nothing is wired, the picture and every figure are placeholders, the present look is kept on purpose, and only a desktop width was drawn. Verified: all 15 screens rendered without a script error and were looked at one by one. **BLOCKED:** which layout (or which parts of which) does the Owner choose; and the questions sent with them.
+- 2026-10-05 -- the Owner gave the direction above and signed off G-088, which this goal builds on.
 
 ### G-097 · A new chart can be undone, and the replaced chart survives a reload — DRAFT (2026-10-04, left for later by the Owner)
 - **What:** (1) starting a new chart is one more step in the undo history instead of a new history, so Undo brings the old chart back with its photo, axes and settings, and the confirmation can go; a notice says so. (2) The browser keeps the one chart that was last replaced, and the start screen offers to reopen it.

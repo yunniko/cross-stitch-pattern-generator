@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>G-095 layout mock-ups</title>
+    <!--
+  G-095 M1: three layout proposals for the Owner to choose from. Static mock-ups: nothing here is wired to the app.
+  The picture, the thread names and every number are placeholders drawn by this file. The look (zinc, pills) is the
+  present one on purpose: these compare layouts, not styles. Open with #A-photo, #B-text and so on, or use the bar.
+  Screenshots: node scripts/design-mockup-shots.mjs
+-->
+    <style>
+      :root {
+        --bg: #f4f4f5;
+        --surface: #fff;
+        --line: #e4e4e7;
+        --line2: #d4d4d8;
+        --ink: #18181b;
+        --ink2: #52525b;
+        --ink3: #a1a1aa;
+        --accent: #0f766e;
+        --accent-bg: #ccfbf1;
+        --temp: #b45309;
+        --temp-bg: #fef3c7;
+        --stage: #e9e9ec;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #d4d4d8;
+        color: var(--ink);
+        font:
+          13px/1.35 system-ui,
+          "Segoe UI",
+          sans-serif;
+      }
+      .chooser {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 22px;
+        align-items: center;
+        padding: 10px 16px;
+        background: #18181b;
+        color: #fafafa;
+      }
+      .chooser b {
+        font-size: 14px;
+      }
+      .chooser .grp {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+      }
+      .chooser button {
+        font: inherit;
+        color: #e4e4e7;
+        background: #3f3f46;
+        border: 0;
+        border-radius: 999px;
+        padding: 5px 12px;
+        cursor: pointer;
+      }
+      .chooser button.on {
+        background: #fafafa;
+        color: #18181b;
+        font-weight: 600;
+      }
+      .wrap {
+        overflow-x: auto;
+        padding: 16px;
+      }
+      .frame {
+        width: 1440px;
+        margin: 0 auto;
+      }
+      .title {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin: 0 0 8px;
+      }
+      .title h1 {
+        font-size: 19px;
+        margin: 0;
+      }
+      .title span {
+        color: var(--ink2);
+      }
+      .app {
+        height: 810px;
+        background: var(--bg);
+        border: 1px solid #a1a1aa;
+        border-radius: 8px;
+        overflow: hidden;
+        display: grid;
+        position: relative;
+      }
+      .notes {
+        margin-top: 10px;
+        background: #fff;
+        border-radius: 8px;
+        padding: 10px 16px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 28px;
+      }
+      .notes h3 {
+        grid-column: 1/-1;
+        margin: 0 0 2px;
+        font-size: 13px;
+      }
+      .notes p {
+        margin: 0;
+        color: #3f3f46;
+      }
+      .notes p b {
+        color: var(--ink);
+      }
+
+      /* pieces */
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 12px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+        min-width: 0;
+      }
+      .brand {
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .sp {
+        flex: 1;
+      }
+      .sep {
+        width: 1px;
+        align-self: stretch;
+        margin: 8px 2px;
+        background: var(--line);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding: 0 12px;
+        border: 1px solid var(--line2);
+        border-radius: 999px;
+        background: var(--surface);
+        white-space: nowrap;
+        color: var(--ink);
+      }
+      .btn.sm {
+        height: 24px;
+        padding: 0 9px;
+        font-size: 12px;
+      }
+      .btn.pri {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+        font-weight: 600;
+      }
+      .btn.ghost {
+        border-color: transparent;
+        color: var(--ink2);
+      }
+      .btn.later {
+        border-style: dashed;
+        color: var(--ink3);
+      }
+      .seg {
+        display: inline-flex;
+        border: 1px solid var(--line2);
+        border-radius: 999px;
+        overflow: hidden;
+        background: var(--surface);
+      }
+      .seg span {
+        padding: 0 11px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        border-right: 1px solid var(--line);
+        white-space: nowrap;
+        color: var(--ink2);
+      }
+      .seg span:last-child {
+        border-right: 0;
+      }
+      .seg span.on {
+        background: var(--ink);
+        color: #fff;
+      }
+      .lab {
+        color: var(--ink2);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .sw {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        border: 1px solid rgba(0, 0, 0, 0.25);
+        display: inline-block;
+        flex: none;
+      }
+      .sw.s {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+      }
+      .num {
+        display: inline-flex;
+        align-items: center;
+        height: 26px;
+        padding: 0 9px;
+        border: 1px solid var(--line2);
+        border-radius: 8px;
+        background: #fff;
+        min-width: 44px;
+      }
+      .sel {
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        height: 28px;
+        padding: 0 10px;
+        border: 1px solid var(--line2);
+        border-radius: 8px;
+        background: #fff;
+      }
+      .sel::after {
+        content: "▾";
+        color: var(--ink3);
+      }
+      .wstabs {
+        display: flex;
+        gap: 2px;
+        align-self: stretch;
+        align-items: flex-end;
+      }
+      .wstabs span {
+        padding: 9px 20px 8px;
+        border-radius: 8px 8px 0 0;
+        color: var(--ink2);
+        font-weight: 600;
+        border: 1px solid transparent;
+        border-bottom: 0;
+      }
+      .wstabs span.on {
+        background: var(--bg);
+        color: var(--ink);
+        border-color: var(--line);
+      }
+      .wstabs small {
+        font-weight: 400;
+        color: var(--ink3);
+        margin-left: 6px;
+      }
+      .panel {
+        background: var(--surface);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        border-right: 1px solid var(--line);
+      }
+      .panel.right {
+        border-right: 0;
+        border-left: 1px solid var(--line);
+      }
+      .tabs {
+        display: flex;
+        border-bottom: 1px solid var(--line);
+        padding: 6px 8px 0;
+        gap: 2px;
+      }
+      .tabs span {
+        padding: 6px 11px 7px;
+        border-radius: 7px 7px 0 0;
+        color: var(--ink2);
+        border: 1px solid transparent;
+        border-bottom: 0;
+        white-space: nowrap;
+      }
+      .tabs span.on {
+        color: var(--ink);
+        font-weight: 600;
+        border-color: var(--line);
+        background: var(--bg);
+      }
+      .tabs span.temp {
+        color: var(--temp);
+        background: var(--temp-bg);
+        border-color: #fcd34d;
+        font-weight: 600;
+      }
+      .pbody {
+        padding: 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 11px;
+        flex: 1;
+        min-height: 0;
+      }
+      .pbody h4 {
+        margin: 4px 0 -3px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--ink3);
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: space-between;
+      }
+      .row > .lab {
+        flex: none;
+        width: 92px;
+      }
+      .sl {
+        flex: 1;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--line2);
+        position: relative;
+      }
+      .sl i {
+        position: absolute;
+        top: -5px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid var(--ink);
+        margin-left: -7px;
+      }
+      .val {
+        width: 34px;
+        text-align: right;
+        color: var(--ink2);
+        font-variant-numeric: tabular-nums;
+      }
+      .hint {
+        color: var(--ink2);
+        font-size: 12px;
+      }
+      .note {
+        background: var(--temp-bg);
+        border: 1px solid #fcd34d;
+        border-radius: 8px;
+        padding: 7px 9px;
+        color: #78350f;
+        font-size: 12px;
+      }
+      .input {
+        border: 1px solid var(--line2);
+        border-radius: 8px;
+        background: #fff;
+        padding: 6px 9px;
+        min-height: 30px;
+      }
+      .rail {
+        background: var(--surface);
+        border-right: 1px solid var(--line);
+        padding: 8px 5px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        align-content: start;
+      }
+      .rail.one {
+        grid-template-columns: 1fr;
+      }
+      .tool {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1px;
+        height: 42px;
+        border-radius: 8px;
+        color: var(--ink2);
+        font-size: 10px;
+        border: 1px solid transparent;
+      }
+      .tool b {
+        font-size: 16px;
+        line-height: 1;
+        font-weight: 400;
+        color: var(--ink);
+      }
+      .tool.on {
+        background: var(--ink);
+        color: #fff;
+      }
+      .tool.on b {
+        color: #fff;
+      }
+      .tool.later {
+        border: 1px dashed var(--line2);
+        color: var(--ink3);
+      }
+      .tool.later b {
+        color: var(--ink3);
+      }
+      .rail hr {
+        grid-column: 1/-1;
+        width: 100%;
+        border: 0;
+        border-top: 1px solid var(--line);
+        margin: 2px 0;
+      }
+      .htools {
+        display: flex;
+        gap: 3px;
+        align-items: center;
+      }
+      .htools .tool {
+        width: 46px;
+        height: 40px;
+      }
+      .wsrail {
+        background: #27272a;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 8px 6px;
+        align-items: stretch;
+      }
+      .wsrail span {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 9px 0;
+        border-radius: 8px;
+        color: #a1a1aa;
+        font-size: 11px;
+      }
+      .wsrail span b {
+        font-size: 19px;
+        font-weight: 400;
+        line-height: 1;
+      }
+      .wsrail span.on {
+        background: #fafafa;
+        color: #18181b;
+        font-weight: 600;
+      }
+      .stage {
+        background: var(--stage);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        min-width: 0;
+        min-height: 0;
+        position: relative;
+        padding: 14px;
+      }
+      canvas {
+        display: block;
+        background: #fff;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.25);
+      }
+      .cap {
+        font-size: 12px;
+        color: var(--ink2);
+        margin-bottom: 5px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .float {
+        position: absolute;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--line2);
+        border-radius: 12px;
+        padding: 6px 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+      }
+      .tries {
+        display: flex;
+        gap: 10px;
+        align-items: stretch;
+        padding: 10px 12px;
+        background: var(--surface);
+        border-top: 1px solid var(--line);
+      }
+      .try {
+        border: 1px solid var(--line2);
+        border-radius: 10px;
+        padding: 6px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        background: #fff;
+      }
+      .try.on {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent-bg);
+      }
+      .try canvas {
+        box-shadow: none;
+        border: 1px solid var(--line);
+      }
+      .try div {
+        font-size: 12px;
+        color: var(--ink2);
+      }
+      .try div b {
+        display: block;
+        color: var(--ink);
+        font-size: 13px;
+      }
+      .thread {
+        display: grid;
+        grid-template-columns: 18px 16px 1fr auto auto;
+        gap: 7px;
+        align-items: center;
+        padding: 3px 4px;
+        border-radius: 6px;
+      }
+      .thread.on {
+        background: var(--bg);
+      }
+      .thread .sym {
+        font-family: ui-monospace, monospace;
+        color: var(--ink2);
+        text-align: center;
+      }
+      .thread small {
+        color: var(--ink3);
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent);
+        display: inline-block;
+      }
+      .dot.off {
+        background: var(--line2);
+      }
+      .fmt {
+        padding: 7px 9px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .fmt.on {
+        background: var(--ink);
+        color: #fff;
+      }
+      .fmt small {
+        color: var(--ink3);
+      }
+      .dialogveil {
+        position: absolute;
+        inset: 0;
+        background: rgba(24, 24, 27, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .dialog {
+        background: var(--surface);
+        border-radius: 14px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .dialog header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line);
+        font-weight: 700;
+        font-size: 15px;
+      }
+      .dialog footer {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        padding: 10px 16px;
+        border-top: 1px solid var(--line);
+      }
+      .prefs {
+        display: grid;
+        grid-template-columns: 170px 1fr;
+        min-height: 0;
+        flex: 1;
+      }
+      .prefs nav {
+        border-right: 1px solid var(--line);
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .prefs nav span {
+        padding: 6px 9px;
+        border-radius: 7px;
+        color: var(--ink2);
+      }
+      .prefs nav span.on {
+        background: var(--bg);
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .prefs section {
+        padding: 14px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 13px;
+      }
+      .prefs .row > .lab {
+        width: 170px;
+      }
+      .callout {
+        position: absolute;
+        background: var(--temp);
+        color: #fff;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        white-space: nowrap;
+      }
+      .rail.one .tool {
+        height: 38px;
+      }
+      .app > * {
+        min-height: 0;
+      }
+      .rail {
+        overflow: hidden;
+      }
+      .pbody .seg span {
+        padding: 0 8px;
+      }
+      .tool {
+        white-space: nowrap;
+      }
+      .tool.later {
+        font-size: 9px;
+      }
+      .prefs .row > .lab:not(:first-child) {
+        width: auto;
+      }
+      .prefs section {
+        min-width: 0;
+      }
+      .row > .lab {
+        width: 84px;
+      }
+      .brand {
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chooser">
+      <b>G-095 layout mock-ups</b>
+      <div class="grp" id="propBtns"></div>
+      <div class="grp" id="screenBtns"></div>
+    </div>
+    <div class="wrap"><div class="frame" id="frame"></div></div>
+    <script>
+      // ---------- placeholder picture ----------
+      const THREADS = [
+        ["#f6efe4", "Cream", "·"],
+        ["#f3c9d2", "Pink, pale", "○"],
+        ["#e58aa2", "Rose", "+"],
+        ["#c2385c", "Rose, dark", "■"],
+        ["#7d1d3a", "Wine", "▲"],
+        ["#f2c94c", "Yellow", "★"],
+        ["#b7791f", "Ochre", "◆"],
+        ["#9ccc8b", "Green, light", "/"],
+        ["#4f8f4a", "Green", "×"],
+        ["#2c5a33", "Green, dark", "●"],
+        ["#b9d7e8", "Sky", "~"],
+        ["#7fa9c9", "Blue, soft", "="],
+      ];
+      const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+      function photoColour(x, y) {
+        const dx = x - 0.5,
+          dy = y - 0.42,
+          r = Math.hypot(dx, dy * 1.15),
+          a = Math.atan2(dy, dx);
+        let c = [185 - 70 * y + 20 * Math.sin(x * 9), 215 - 30 * y, 232 - 60 * y]; // sky to soft blue
+        if (y > 0.8) c = [70 + 60 * (1 - y) * 4, 120 + 40 * Math.sin(x * 30), 70];
+        const leaf = Math.hypot((x - 0.62) * 1.2, (y - 0.72) * 2.6);
+        if (leaf < 0.13) c = [60 + 500 * leaf, 130 + 380 * leaf, 70];
+        if (Math.abs(x - 0.5 - 0.03 * Math.sin(y * 9)) < 0.014 && y > 0.5) c = [45, 95, 52];
+        const petal = 0.3 * (0.72 + 0.28 * Math.cos(6 * a + 0.4));
+        if (r < petal) {
+          const t = r / petal;
+          c = [125 + 120 * t, 30 + 175 * t * t, 60 + 150 * t * t];
+        }
+        if (r < 0.065) c = [242 - 600 * r, 201 - 900 * r, 76];
+        return c;
+      }
+      function nearest(c, n) {
+        let best = 0,
+          bd = 1e9;
+        const idx = n >= 12 ? [...Array(12).keys()] : n >= 7 ? [0, 1, 2, 3, 5, 8, 10] : [1, 3, 5, 8];
+        for (const i of idx) {
+          const p = hex(THREADS[i][0]);
+          const d = (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 + (p[2] - c[2]) ** 2;
+          if (d < bd) {
+            bd = d;
+            best = i;
+          }
+        }
+        return best;
+      }
+      function drawAll() {
+        for (const cv of document.querySelectorAll("canvas[data-pic]")) {
+          const kind = cv.dataset.pic,
+            cols = +cv.dataset.cols || 60,
+            cell = +cv.dataset.cell || 9,
+            n = +cv.dataset.n || 12;
+          const rows = Math.round(cols * 0.75),
+            g = cv.getContext("2d");
+          cv.width = cols * cell;
+          cv.height = rows * cell;
+          if (kind === "photo") {
+            const im = g.createImageData(cv.width, cv.height);
+            for (let y = 0; y < cv.height; y++)
+              for (let x = 0; x < cv.width; x++) {
+                const c = photoColour(x / cv.width, y / cv.height),
+                  o = (y * cv.width + x) * 4;
+                im.data[o] = c[0];
+                im.data[o + 1] = c[1];
+                im.data[o + 2] = c[2];
+                im.data[o + 3] = 255;
+              }
+            g.putImageData(im, 0, 0);
+            continue;
+          }
+          for (let r = 0; r < rows; r++)
+            for (let c = 0; c < cols; c++) {
+              const t = nearest(photoColour((c + 0.5) / cols, (r + 0.5) / rows), n);
+              g.fillStyle = kind === "bw" ? "#fff" : THREADS[t][0];
+              g.fillRect(c * cell, r * cell, cell, cell);
+              if (kind === "bw" && cell >= 6) {
+                g.fillStyle = "#18181b";
+                g.font = `${cell - 2}px ui-monospace,monospace`;
+                g.textAlign = "center";
+                g.textBaseline = "middle";
+                g.fillText(THREADS[t][2], c * cell + cell / 2, r * cell + cell / 2 + 0.5);
+              }
+            }
+          if (cell >= 5)
+            for (let i = 0; i <= cols; i++) {
+              g.fillStyle = i % 10 === 0 ? "rgba(0,0,0,.55)" : "rgba(0,0,0,.13)";
+              g.fillRect(i * cell, 0, 1, cv.height);
+            }
+          if (cell >= 5)
+            for (let i = 0; i <= rows; i++) {
+              g.fillStyle = i % 10 === 0 ? "rgba(0,0,0,.55)" : "rgba(0,0,0,.13)";
+              g.fillRect(0, i * cell, cv.width, 1);
+            }
+          if (cv.dataset.text) {
+            g.fillStyle = "#7d1d3a";
+            g.font = `bold ${cell * 7}px Georgia,serif`;
+            g.textBaseline = "top";
+            g.fillText("Rosa", cell * 4, cell * 34);
+            g.setLineDash([5, 4]);
+            g.strokeStyle = "#b45309";
+            g.lineWidth = 2;
+            g.strokeRect(cell * 3, cell * 33, cell * 22, cell * 9);
+          }
+        }
+      }
+      const pic = (kind, cols, cell, extra = "") => `<canvas data-pic="${kind}" data-cols="${cols}" data-cell="${cell}" ${extra}></canvas>`;
+
+      // ---------- small pieces ----------
+      const seg = (items, on) =>
+        `<span class="seg">${items.map((s, i) => `<span class="${i === on ? "on" : ""}">${s}</span>`).join("")}</span>`;
+      const slider = (label, value, pct) =>
+        `<div class="row"><span class="lab">${label}</span><span class="sl"><i style="left:${pct}%"></i></span><span class="val">${value}</span></div>`;
+      const select = (label, value, w = "") =>
+        `<div class="row"><span class="lab">${label}</span><span class="sel" style="flex:1;${w}">${value}</span></div>`;
+      const tool = (g, name, cls = "") => `<span class="tool ${cls}"><b>${g}</b>${name}</span>`;
+      const EDIT_TOOLS = [
+        ["✎", "Brush"],
+        ["╱", "Line"],
+        ["▭", "Rectangle"],
+        ["◯", "Oval"],
+        ["◪", "Fill"],
+        ["✂", "Lasso fill"],
+        ["⬚", "Select"],
+        ["➰", "Lasso"],
+        ["✥", "Move"],
+        ["T", "Text"],
+        ["⌇", "Backstitch"],
+        ["⌥", "BS edit"],
+        ["⌗", "Crop"],
+        ["✋", "Pan"],
+        ["⌕", "Zoom"],
+      ];
+      const PHOTO_TOOLS = [
+        ["⌗", "Crop photo"],
+        ["✋", "Pan"],
+        ["⌕", "Zoom"],
+      ];
+      const PHOTO_LATER = [
+        ["✎", "Paint over"],
+        ["◌", "Remove bg"],
+      ];
+      const editTools = (on) => EDIT_TOOLS.map(([g, n]) => tool(g, n, n === on ? "on" : "")).join("");
+      const photoTools = () =>
+        PHOTO_TOOLS.map(([g, n], i) => tool(g, n, i === 1 ? "on" : "")).join("") +
+        "<hr>" +
+        PHOTO_LATER.map(([g, n]) => tool(g, n, "later")).join("");
+      const appActions = (exportBtn) =>
+        `<span class="btn ghost sm">↶ Undo</span><span class="btn ghost sm">↷ Redo</span><span class="sep"></span>${exportBtn ? '<span class="btn sm">Export…</span>' : ""}<span class="btn ghost sm">Commands <span class="lab">Ctrl K</span></span><span class="btn ghost sm">⚙ Preferences</span><span class="btn ghost sm">Account</span>`;
+      const fileBits = `<span class="brand">Cross-stitch</span><span class="btn ghost sm">File ▾</span><span class="lab">Rose garden · saved</span>`;
+
+      // quick options, by tool
+      const QUICK = {
+        Brush: `<b>Brush</b><span class="sw" style="background:#c2385c"></span><span class="sw" style="background:#f6efe4;margin-left:-6px"></span><span class="lab">⇄</span><span class="sep"></span><span class="lab">Size</span><span class="num">3</span>${seg(["●", "■"], 0)}<span class="sep"></span><span class="lab">Stitch</span>${seg(["✕ Full", "╱", "╲"], 0)}<span class="sep"></span><span class="lab">Symmetry</span>${seg(["Off", "↔", "↕", "✛"], 0)}<span class="sep"></span><span class="btn sm">Lock transparency</span><span class="btn sm">Double-press fills ✓</span>`,
+        Text: `<b>Text</b><span class="sel" style="width:170px">Georgia</span><span class="sel" style="width:96px">Bold</span><span class="lab">Height</span><span class="num">7</span><span class="lab">stitches</span><span class="sw" style="background:#7d1d3a"></span><span class="sep"></span><span class="btn pri sm">Place on chart</span><span class="btn sm">Cancel</span><span class="sp"></span><span class="lab" style="color:var(--temp)">More in the Text tab ◂</span>`,
+        Photo: `<b>Pan</b><span class="lab">Drag to move the photo. Wheel zooms.</span>`,
+      };
+      const viewControls = (compact) =>
+        `${seg(["Color", "Black &amp; white", "Stitched"], 0)}${seg(["Chart", "Grid + photo", "Photo"], 0)}<span class="btn sm">Isolate</span>${compact ? "" : '<span class="btn sm">Canvas &amp; stitch texture ▾</span>'}<span class="sep"></span><span class="lab">Zoom</span><span class="btn sm">−</span><span class="lab">140 %</span><span class="btn sm">+</span><span class="btn sm">Fit</span>`;
+      const status = `<span class="lab">120 × 90 stitches · 21.8 × 16.3 cm on 14 count · pointer 38, 41</span>`;
+
+      // ---------- panels ----------
+      function photoPanel(tab = 0, tries = false) {
+        const tabs = ["Picture", "Chart settings", "Lines &amp; texture"];
+        return `<div class="tabs">${tabs.map((t, i) => `<span class="${i === tab ? "on" : ""}">${t}</span>`).join("")}</div>
+  <div class="pbody">
+    <h4>Size and colours</h4>
+    ${slider("Width", "120", 38)}${slider("Colours", "12", 30)}
+    <div class="hint">This picture needs about 9 to 14 colours.</div>
+    ${select("Palette", "Full range")}
+    <div class="row"><span class="lab">Colours from</span>${seg(["Automatic", "Set up palette"], 0)}</div>
+    <h4>How colours are picked</h4>
+    ${select("Algorithm", "Refined")}${slider("Colour detail", "60", 60)}${select("Edges", "Standard")}
+    ${select("Dithering", "Off")}
+    ${
+      tries
+        ? `<div class="row"><span class="lab" style="width:auto">Photo adjustment</span><span class="hint">Contrast +12, Saturation +20 ▸</span></div>`
+        : `<h4>Photo adjustment</h4>
+    ${slider("Brightness", "0", 50)}${slider("Contrast", "+12", 56)}${slider("Saturation", "+20", 60)}${slider("Warm / cool", "0", 50)}`
+    }
+    ${tries ? `<h4>Tries</h4>${[1, 2, 3].map((n) => `<div class="fmt ${n === 3 ? "on" : ""}"><span>Try ${n} · ${[7, 4, 12][n - 1]} colours</span><small>${["Classic", "DMC", "Refined"][n - 1]}</small></div>`).join("")}` : ""}
+    <span class="sp"></span>
+    <span class="btn pri" style="justify-content:center;height:34px">Generate a new try</span>
+  </div>`;
+      }
+      function threadsBody() {
+        return `<div class="row"><span class="hint">12 threads · 14 skeins</span><span class="btn sm">+ Add</span></div>
+  ${THREADS.map(([c, n, s], i) => `<div class="thread ${i === 3 ? "on" : ""}"><span class="sw s" style="background:${c}"></span><span class="sym">${s}</span><span>${n}</span><small>${[2100, 760, 890, 1240, 310, 96, 140, 420, 610, 380, 2900, 954][i]}</small><span class="dot ${i === 4 ? "off" : ""}"></span></div>`).join("")}`;
+      }
+      function textBody() {
+        return `<div class="note">This tab belongs to the Text tool. It closes when another tool is picked.</div>
+  <div class="input" style="font:bold 20px Georgia,serif">Rosa</div>
+  ${select("Font", "Georgia")}
+  <div class="row"><span class="lab">Show</span>${seg(["Pixel", "Bundled", "Computer"], 1)}</div>
+  ${select("Face", "Bold")}${slider("Height", "7", 22)}${slider("Letter gap", "1", 12)}
+  <div class="row"><span class="lab">Colour</span><span class="sw" style="background:#7d1d3a"></span><span class="hint" style="flex:1">Wine</span></div>
+  <h4>Preview, 22 × 9 stitches</h4>
+  <div class="input" style="height:92px;display:flex;align-items:center;justify-content:center;font:bold 44px Georgia,serif;color:#7d1d3a;background:repeating-linear-gradient(0deg,#fff 0 7px,#eee 7px 8px),#fff">Rosa</div>
+  <span class="sp"></span><span class="btn pri" style="justify-content:center;height:34px">Place on chart</span>`;
+      }
+      function chartBody() {
+        return `<div class="row"><span class="lab">Name</span><span class="input" style="flex:1">Rose garden</span></div>${select("Fabric count", "14 per inch")}<div class="row"><span class="lab">Unit</span>${seg(["cm", "inch"], 0)}</div><div class="hint">Finished size 21.8 × 16.3 cm. New charts start from your Preferences.</div>`;
+      }
+      function editPanel(tabNames, on, text) {
+        const names = text ? [...tabNames, "T Text"] : tabNames;
+        const active = text ? names.length - 1 : on;
+        return `<div class="tabs">${names.map((t, i) => `<span class="${i === active ? (text ? "temp" : "on") : ""}">${t}</span>`).join("")}</div>
+  <div class="pbody">${text ? textBody() : names[active] === "Chart" ? chartBody() : threadsBody()}</div>`;
+      }
+      function exportBody() {
+        const fm = [
+          ["Print", ["A4 pages (ZIP)", "PDF for Pattern Keeper", "Full chart PNG"]],
+          ["Pictures", ["Realistic preview PNG", "Pixel art PNG"]],
+          ["Files", ["Editable pattern", "OXS chart", "Palette file"]],
+        ];
+        return {
+          list: `<div class="pbody">${fm.map(([h, l], gi) => `<h4>${h}</h4>${l.map((n, i) => `<div class="fmt ${gi === 0 && i === 0 ? "on" : ""}"><span>${n}</span></div>`).join("")}`).join("")}<span class="sp"></span><span class="btn" style="justify-content:center">Export all as one file</span></div>`,
+          settings: `<div class="pbody"><h4>A4 pages</h4><div class="row"><span class="lab">Print in</span>${seg(["Color", "Black &amp; white"], 0)}</div>${slider("Cell size", "3 mm", 45)}${slider("Overlap", "2", 30)}<div class="hint">3 × 2 pages, 9+ in total with the page map, skein table and colour key.</div><h4>On every export</h4><div class="row"><span class="lab">Author</span><span class="input" style="flex:1">J. Example</span></div><div class="hint">From Preferences. Change it here for this chart only.</div><span class="sp"></span><span class="btn pri" style="justify-content:center;height:34px">Export A4 pages</span></div>`,
+          pages: `<div style="display:grid;grid-template-columns:repeat(3,auto);gap:12px">${[0, 1, 2, 3, 4, 5].map((i) => `<div><div class="cap"><span>Page ${"ABCDEF"[i]}</span></div>${pic("bw", 24, 7)}</div>`).join("")}</div>`,
+        };
+      }
+      function prefsDialog() {
+        return `<div class="dialogveil"><div class="dialog" style="width:720px;height:500px"><header>Preferences <span class="lab" style="font-weight:400">Set once. Kept in this browser, or in your account when signed in.</span></header>
+  <div class="prefs"><nav><span class="on">New charts</span><span>Exports</span><span>Editing</span><span>Appearance</span></nav>
+  <section>
+    <h4 style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">A new empty chart starts with</h4>
+    <div class="row" style="justify-content:flex-start"><span class="lab">Size</span><span class="num">100</span><span class="lab">×</span><span class="num">100</span><span class="lab">stitches</span></div>
+    <div class="row" style="justify-content:flex-start"><span class="lab">Fabric count</span><span class="sel" style="width:150px">14 per inch</span></div>
+    <div class="row" style="justify-content:flex-start"><span class="lab">Unit</span>${seg(["cm", "inch"], 0)}</div>
+    <div class="row" style="justify-content:flex-start"><span class="lab">Thread brand</span><span class="sel" style="width:150px">DMC</span><span class="hint">candidate</span></div>
+    <h4 style="margin:6px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">Exports (shown under "Exports")</h4>
+    <div class="row" style="justify-content:flex-start"><span class="lab">Author name</span><span class="input" style="width:240px">J. Example</span></div>
+    <div class="row" style="justify-content:flex-start"><span class="lab">A4 cell size, overlap</span><span class="num">3 mm</span><span class="num">2</span><span class="hint">candidate</span></div>
+    <div class="hint">A chart keeps its own count, unit and author once made. Changing a preference never changes an existing chart.</div>
+  </section></div>
+  <footer><span class="btn">Close</span></footer></div></div>`;
+      }
+      function triesStrip() {
+        return `<div class="tries">${[
+          [1, 7, "Classic, 7 colours, 100 wide"],
+          [2, 4, "DMC, 4 colours, 80 wide"],
+          [3, 12, "Refined, 12 colours, 120 wide"],
+        ]
+          .map(
+            ([n, k, d]) =>
+              `<div class="try ${n === 3 ? "on" : ""}">${pic("color", 40, 2, `data-n="${k}"`)}<div><b>Try ${n}</b>${d}</div></div>`
+          )
+          .join(
+            ""
+          )}<div class="try" style="border-style:dashed;padding:6px 16px"><div><b>+ New try</b>Generate with the settings on the left</div></div><span class="sp"></span><div style="display:flex;flex-direction:column;justify-content:center;gap:4px;align-items:flex-end"><span class="btn pri" style="height:34px">Edit Try 3 →</span><span class="hint">Tries are kept until the chart is replaced</span></div></div>`;
+      }
+
+      // ---------- the three proposals ----------
+      const P = {
+        A: {
+          name: "A · Workspace tabs across the top",
+          sub: "Photo, Edit and Export are three workspaces. Panel on the left, tools beside it, tool options above the chart, view below.",
+          notes: [
+            ["Workspaces", "Three tabs at the very top: Photo, Edit, Export. Each has its own tools and its own left panel."],
+            [
+              "Tools",
+              "A two-column list between the panel and the chart. A new tool is one more button; it scrolls when it outgrows the height.",
+            ],
+            [
+              "Tool options",
+              "Quick options in the bar above the chart, for the tool in hand only. A tool that needs more opens its own amber tab in the left panel (Text here).",
+            ],
+            ["View", "One bar under the chart, the same in every workspace and with every tool."],
+            ["Tries", "A strip under the picture in Photo. Each Generate adds a try; one is taken into Edit."],
+            [
+              "Set once",
+              "Preferences, opened from the top bar: author, default size, count and unit. Dashed tools in Photo are ideas for later, shown only to prove there is room.",
+            ],
+          ],
+          render(screen) {
+            const ws = screen === "photo" ? 0 : screen === "export" ? 2 : 1;
+            const top = `<div class="bar" style="height:44px">${fileBits}<span class="sp"></span><div class="wstabs">${["Photo <small>make the chart</small>", "Edit <small>change it</small>", "Export <small>print, save</small>"].map((t, i) => `<span class="${i === ws ? "on" : ""}">${t}</span>`).join("")}</div><span class="sp"></span>${appActions(false)}</div>`;
+            const viewbar = `<div class="bar" style="height:40px;border-top:1px solid var(--line);border-bottom:0">${viewControls()}<span class="sp"></span>${status}</div>`;
+            let body;
+            if (screen === "photo")
+              body = `<div class="bar" style="height:40px">${QUICK.Photo}</div><div style="display:grid;grid-template-columns:300px 104px 1fr;min-height:0"><div class="panel">${photoPanel(1)}</div><div class="rail">${photoTools()}</div><div style="display:grid;grid-template-rows:1fr auto;min-height:0"><div class="stage"><div><div class="cap"><span>Photo</span></div>${pic("photo", 54, 8)}</div><div><div class="cap"><span>Try 3 · 12 colours · 120 × 90</span><span>Compare ⇆</span></div>${pic("color", 54, 8)}</div></div>${triesStrip()}</div></div>`;
+            else if (screen === "export") {
+              const e = exportBody();
+              body = `<div class="bar" style="height:40px"><b>Export</b><span class="lab">Choose what to make. Its settings are on the right and nowhere else.</span></div><div style="display:grid;grid-template-columns:260px 1fr 300px;min-height:0"><div class="panel">${e.list}</div><div class="stage">${e.pages}</div><div class="panel right">${e.settings}</div></div>`;
+            } else {
+              const text = screen === "text";
+              body = `<div class="bar" style="height:40px">${QUICK[text ? "Text" : "Brush"]}</div><div style="display:grid;grid-template-columns:300px 104px 1fr;min-height:0"><div class="panel">${editPanel(["Threads", "Chart"], 0, text)}</div><div class="rail">${editTools(text ? "Text" : "Brush")}</div><div class="stage">${pic("color", 80, 9, text ? 'data-text="1"' : "")}</div></div>`;
+            }
+            return `<div class="app" style="grid-template-rows:44px 40px 1fr ${screen === "export" ? "" : "40px"}">${top}${body.replace('</div><div style="display:grid', '</div><div style="display:grid')}${screen === "export" ? "" : viewbar}${screen === "prefs" ? prefsDialog() : ""}</div>`;
+          },
+        },
+        B: {
+          name: "B · Workspace rail at the edge, tools across the top",
+          sub: "Workspaces are a dark rail at the far left. Tools run in a row above the chart, with their options in the row beneath.",
+          notes: [
+            [
+              "Workspaces",
+              "A rail at the left edge: Photo, Edit, Export, with Preferences and Account at its foot. Room for more workspaces later.",
+            ],
+            [
+              "Tools",
+              "One horizontal row. The chart gets the full height; a long tool list overflows into a “More” menu instead of scrolling.",
+            ],
+            ["Tool options", "The row under the tools. Extended options open as an amber tab in the left panel, as in A."],
+            ["View", "A floating cluster at the foot of the chart, always there. It covers a little of the chart at small sizes."],
+            [
+              "Tries",
+              "Shown side by side as large pictures, so two or three results can be compared at once. The photo is one of the tiles.",
+            ],
+            ["Set once", "Preferences at the foot of the rail. Same contents as in A."],
+          ],
+          render(screen) {
+            const ws = screen === "photo" ? 0 : screen === "export" ? 2 : 1;
+            const rail = `<div class="wsrail">${[
+              ["▣", "Photo"],
+              ["✎", "Edit"],
+              ["⇩", "Export"],
+            ]
+              .map(([g, n], i) => `<span class="${i === ws ? "on" : ""}"><b>${g}</b>${n}</span>`)
+              .join(
+                ""
+              )}<span class="sp" style="flex:1"></span><span><b>⌘</b>Commands</span><span><b>⚙</b>Preferences</span><span><b>☺</b>Account</span></div>`;
+            const float = `<div class="float" style="bottom:12px;left:50%;transform:translateX(-50%)">${viewControls(true)}</div>`;
+            const head = (inner) =>
+              `<div class="bar" style="height:46px">${fileBits}<span class="sep"></span>${inner}<span class="sp"></span><span class="btn ghost sm">↶ Undo</span><span class="btn ghost sm">↷ Redo</span></div>`;
+            let main;
+            if (screen === "photo")
+              main = `<div class="panel">${photoPanel(1)}</div><div style="display:grid;grid-template-rows:46px 38px 1fr 30px;min-height:0;min-width:0">${head(`<div class="htools">${PHOTO_TOOLS.map(([g, n], i) => tool(g, n, i === 1 ? "on" : "")).join("")}${PHOTO_LATER.map(([g, n]) => tool(g, n, "later")).join("")}</div>`)}<div class="bar">${QUICK.Photo}<span class="sp"></span><span class="btn pri sm">Edit Try 3 →</span></div><div class="stage" style="gap:14px;align-items:flex-start;padding-top:26px">${[
+                ["Photo", "photo", 12],
+                ["Try 1 · Classic · 7 colours", "color", 7],
+                ["Try 2 · DMC · 4 colours", "color", 4],
+                ["Try 3 · Refined · 12 colours ✓", "color", 12],
+              ]
+                .map(
+                  ([c, k, n], i) =>
+                    `<div style="${i === 3 ? "outline:3px solid var(--accent);outline-offset:5px;border-radius:2px" : ""}"><div class="cap"><span>${c}</span></div>${pic(k, 36, 7, `data-n="${n}"`)}</div>`
+                )
+                .join("")}</div><div class="bar" style="border-top:1px solid var(--line);border-bottom:0">${status}</div></div>`;
+            else if (screen === "export") {
+              const e = exportBody();
+              main = `<div class="panel">${e.list}</div><div style="display:grid;grid-template-rows:46px 1fr;min-height:0"><div class="bar">${fileBits}<span class="sep"></span><b>Export</b><span class="lab">A4 pages</span></div><div style="display:grid;grid-template-columns:1fr 300px;min-height:0"><div class="stage">${e.pages}</div><div class="panel right">${e.settings}</div></div></div>`;
+            } else {
+              const text = screen === "text";
+              main = `<div class="panel">${editPanel(["Threads", "Chart"], 0, text)}</div><div style="display:grid;grid-template-rows:46px 38px 1fr 30px;min-height:0;min-width:0">${head(
+                `<div class="htools">${EDIT_TOOLS.slice(0, 11)
+                  .map(([g, n]) => tool(g, n, n === (text ? "Text" : "Brush") ? "on" : ""))
+                  .join("")}${tool("⋯", "More")}</div>`
+              )}<div class="bar">${QUICK[text ? "Text" : "Brush"]}</div><div class="stage">${pic("color", 80, 8, text ? 'data-text="1"' : "")}${float}</div><div class="bar" style="border-top:1px solid var(--line);border-bottom:0">${status}</div></div>`;
+            }
+            return `<div class="app" style="grid-template-columns:74px ${screen === "export" ? "260px" : "300px"} 1fr">${rail}${main}${screen === "prefs" ? prefsDialog() : ""}</div>`;
+          },
+        },
+        C: {
+          name: "C · Closest to today: one window, tabs on the right",
+          sub: "No workspace switch. The Photo tab is where generation lives; choosing it swaps the tools. Export is a dialog.",
+          notes: [
+            [
+              "Workspaces",
+              "None by name. The right-hand tabs stay (Photo, Chart, Threads); opening Photo changes the tool list to photo tools. The least change, and the weakest separation.",
+            ],
+            ["Tools", "One narrow column at the left edge, as now."],
+            [
+              "Tool options",
+              "The bar above the chart. Text becomes a tool whose amber tab appears among the right-hand tabs while it is in hand.",
+            ],
+            ["View", "A bar under the chart, always there."],
+            ["Tries", "A short list at the foot of the Photo tab. One result is shown at a time."],
+            ["Export", "A button in the top bar opens a dialog with the formats and each one’s settings. Preferences is a dialog too."],
+          ],
+          render(screen) {
+            const text = screen === "text",
+              photo = screen === "photo";
+            const top = `<div class="bar" style="height:44px">${fileBits}<span class="sp"></span>${appActions(true)}</div>`;
+            const quick = `<div class="bar" style="height:40px">${photo ? QUICK.Photo : QUICK[text ? "Text" : "Brush"]}</div>`;
+            const rail = `<div class="rail one">${photo ? photoTools() : editTools(text ? "Text" : "Brush")}</div>`;
+            const panel = photo
+              ? `<div class="panel right"><div class="tabs"><span class="on">Photo</span><span>Chart</span><span>Threads</span></div>${photoPanel(1, true).replace(/^<div class="tabs">.*?<\/div>/s, "")}</div>`
+              : `<div class="panel right">${editPanel(["Photo", "Chart", "Threads"], 2, text)}</div>`;
+            const stage = `<div class="stage">${photo ? `<div><div class="cap"><span>Try 3 · 12 colours · 120 × 90</span><span>Hold to compare with the photo</span></div>${pic("color", 72, 9)}</div>` : pic("color", 80, 8, text ? 'data-text="1"' : "")}</div>`;
+            const viewbar = `<div class="bar" style="height:40px;border-top:1px solid var(--line);border-bottom:0;grid-column:1/-1">${viewControls()}<span class="sp"></span>${status}</div>`;
+            let over = "";
+            if (screen === "export") {
+              const e = exportBody();
+              over = `<div class="dialogveil"><div class="dialog" style="width:1060px;height:640px"><header>Export</header><div style="display:grid;grid-template-columns:230px 1fr 290px;flex:1;min-height:0"><div class="panel">${e.list}</div><div class="stage">${e.pages.replaceAll('data-cell="7"', 'data-cell="6"')}</div><div class="panel right">${e.settings}</div></div></div></div>`;
+            }
+            if (screen === "prefs") over = prefsDialog();
+            return `<div class="app" style="grid-template-rows:44px 40px 1fr 40px;grid-template-columns:58px 1fr 310px">${top.replace('class="bar"', 'class="bar" data-span')}${quick.replace('class="bar"', 'class="bar" data-span')}${rail}${stage}${panel}${viewbar}${over}</div>`;
+          },
+        },
+      };
+      const SCREENS = [
+        ["photo", "1 · Making the chart from a photo"],
+        ["brush", "2 · Editing, Brush in hand"],
+        ["text", "3 · Editing, Text in hand"],
+        ["export", "4 · Export"],
+        ["prefs", "5 · Preferences"],
+      ];
+
+      function show() {
+        const [p = "A", s = "photo"] = location.hash.slice(1).split("-");
+        const prop = P[p] || P.A,
+          scr = SCREENS.find((x) => x[0] === s) || SCREENS[0];
+        document.getElementById("propBtns").innerHTML = Object.keys(P)
+          .map(
+            (k) =>
+              `<button class="${P[k] === prop ? "on" : ""}" onclick="location.hash='${k}-${scr[0]}'">${P[k].name.split(" · ")[0]}</button>`
+          )
+          .join("");
+        document.getElementById("screenBtns").innerHTML = SCREENS.map(
+          ([k, n]) => `<button class="${k === scr[0] ? "on" : ""}" onclick="location.hash='${p}-${k}'">${n}</button>`
+        ).join("");
+        document.getElementById("frame").innerHTML =
+          `<div class="title"><h1>${prop.name}</h1><span>${scr[1]} — ${prop.sub}</span></div>${prop.render(scr[0])}<div class="notes"><h3>What proposal ${prop.name.split(" · ")[0]} decides</h3>${prop.notes.map(([h, t]) => `<p><b>${h}.</b> ${t}</p>`).join("")}</div>`;
+        for (const el of document.querySelectorAll("[data-span]")) el.style.gridColumn = "1 / -1";
+        drawAll();
+      }
+      addEventListener("hashchange", show);
+      show();
+    </script>
+  </body>
+</html>

@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-05 at 1bab7aa (G-088 signed off; production runs 3457895)
+Last verified: 2026-10-05 at 88b14ba (G-095 layout mock-ups drawn, awaiting the Owner; production runs 3457895)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -387,7 +387,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-
+- **BLOCKED: G-095 waits on the Owner choosing a layout** from the three mock-ups in `docs/design-mockups/g095-layouts.html` (2026-10-05). G-100 (dithering) is drafted and waits for the go.
 - G-076 (stitch textures) was signed off 2026-09-30 and is archived.
 - G-075 (accounts) was signed off 2026-09-30 and is archived. G-074 (the four photo sliders) was signed
   off on 2026-09-27 and is archived, as is G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner:
