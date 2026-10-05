@@ -674,6 +674,54 @@
       .brand {
         white-space: nowrap;
       }
+      .tiles {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        flex: 1;
+      }
+      .tile {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        font-size: 10px;
+        color: var(--ink2);
+        padding: 3px;
+        border-radius: 7px;
+        border: 1px solid transparent;
+      }
+      .tile i {
+        width: 38px;
+        height: 24px;
+        border-radius: 4px;
+        border: 1px solid var(--line2);
+        display: block;
+      }
+      .tile.on {
+        border-color: var(--ink);
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .fontlist {
+        border: 1px solid var(--line2);
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .fontlist span {
+        padding: 4px 10px;
+        font-size: 15px;
+        border-bottom: 1px solid var(--line);
+      }
+      .fontlist span:last-child {
+        border-bottom: 0;
+      }
+      .fontlist span.on {
+        background: var(--ink);
+        color: #fff;
+      }
     </style>
   </head>
   <body>
@@ -801,6 +849,12 @@
       const select = (label, value, w = "") =>
         `<div class="row"><span class="lab">${label}</span><span class="sel" style="flex:1;${w}">${value}</span></div>`;
       const tool = (g, name, cls = "") => `<span class="tool ${cls}"><b>${g}</b>${name}</span>`;
+      let MIX = false; // true only while proposal D is drawn
+      const TOOL_GROUPS = [
+        ["Brush", "Line", "Rectangle", "Oval", "Fill", "Lasso fill", "Text", "Backstitch"],
+        ["Select", "Lasso", "Move", "BS edit", "Crop"],
+        ["Pan", "Zoom"],
+      ];
       const EDIT_TOOLS = [
         ["✎", "Brush"],
         ["╱", "Line"],
@@ -827,7 +881,12 @@
         ["✎", "Paint over"],
         ["◌", "Cut out"],
       ];
-      const editTools = (on) => EDIT_TOOLS.map(([g, n]) => tool(g, n, n === on ? "on" : "")).join("");
+      const editTools = (on) =>
+        MIX
+          ? TOOL_GROUPS.map((group) =>
+              group.map((n) => tool(EDIT_TOOLS.find((t) => t[1] === n)[0], n, n === on ? "on" : "")).join("")
+            ).join("<hr>")
+          : EDIT_TOOLS.map(([g, n]) => tool(g, n, n === on ? "on" : "")).join("");
       const photoTools = () =>
         PHOTO_TOOLS.map(([g, n], i) => tool(g, n, i === 1 ? "on" : "")).join("") +
         "<hr>" +
@@ -839,6 +898,7 @@
       // quick options, by tool
       const QUICK = {
         Brush: `<b>Brush</b><span class="sw" style="background:#c2385c"></span><span class="sw" style="background:#f6efe4;margin-left:-6px"></span><span class="lab">⇄</span><span class="sep"></span><span class="lab">Size</span><span class="num">3</span>${seg(["●", "■"], 0)}<span class="sep"></span><span class="lab">Stitch</span>${seg(["✕ Full", "╱", "╲"], 0)}<span class="sep"></span><span class="lab">Symmetry</span>${seg(["Off", "↔", "↕", "✛"], 0)}<span class="sep"></span><span class="btn sm">Lock transparency</span><span class="btn sm">Double-press fills ✓</span>`,
+        TextMix: `<b>Text</b><span class="lab">Georgia</span>${seg(["Regular", "Bold", "Italic"], 1)}<span class="lab">Height</span><span class="num">7</span><span class="lab">stitches</span><span class="sep"></span>${["#7d1d3a", "#c2385c", "#2c5a33", "#f2c94c", "#f6efe4"].map((c, i) => `<span class="sw" style="background:${c};${i === 0 ? "outline:2px solid var(--ink);outline-offset:1px" : ""}"></span>`).join("")}<span class="sep"></span><span class="btn pri sm">Place on chart</span><span class="btn sm">Cancel</span>`,
         Text: `<b>Text</b><span class="sel" style="width:170px">Georgia</span><span class="sel" style="width:96px">Bold</span><span class="lab">Height</span><span class="num">7</span><span class="lab">stitches</span><span class="sw" style="background:#7d1d3a"></span><span class="sep"></span><span class="btn pri sm">Place on chart</span><span class="btn sm">Cancel</span><span class="sp"></span><span class="lab" style="color:var(--temp)">More in the Text tab ◂</span>`,
         Photo: `<b>Pan</b><span class="lab">Drag to move the photo. Wheel zooms.</span>`,
       };
@@ -847,6 +907,16 @@
       const status = `<span class="lab">120 × 90 stitches · 21.8 × 16.3 cm on 14 count · pointer 38, 41</span>`;
 
       // ---------- panels ----------
+      const DITHER_TILES = [
+        ["Off", "linear-gradient(90deg,#333 50%,#ddd 50%)"],
+        ["Dots", "radial-gradient(#333 35%,#ddd 36%) 0 0/6px 6px"],
+        ["Fine", "repeating-conic-gradient(#333 0 25%,#ddd 0 50%) 0 0/4px 4px"],
+        ["Lines", "repeating-linear-gradient(45deg,#333 0 2px,#ddd 2px 5px)"],
+        ["Rings", "repeating-radial-gradient(#333 0 2px,#ddd 2px 5px)"],
+        ["Drawn", "repeating-linear-gradient(100deg,#333 0 1px,#ddd 1px 4px,#333 4px 6px,#ddd 6px 7px)"],
+      ]
+        .map(([n, bg], i) => `<span class="tile ${i === 0 ? "on" : ""}"><i style="background:${bg}"></i>${n}</span>`)
+        .join("");
       function photoPanel(tab = 0, tries = false) {
         const tabs = ["Picture", "Chart settings", "Lines &amp; texture"];
         return `<div class="tabs">${tabs.map((t, i) => `<span class="${i === tab ? "on" : ""}">${t}</span>`).join("")}</div>
@@ -854,11 +924,14 @@
     <h4>Size and colours</h4>
     ${slider("Width", "120", 38)}${slider("Colours", "12", 30)}
     <div class="hint">This picture needs about 9 to 14 colours.</div>
-    ${select("Palette", "Full range")}
+    ${MIX ? `<div class="row"><span class="lab" style="width:auto">Palette</span>${seg(["Full range", "DMC", "Cosmo", "Anchor"], 0)}</div>` : select("Palette", "Full range")}
     <div class="row"><span class="lab">Colours from</span>${seg(["Automatic", "Set up palette"], 0)}</div>
     <h4>How colours are picked</h4>
-    ${select("Algorithm", "Refined")}${slider("Colour detail", "60", 60)}${select("Edges", "Standard")}
-    ${select("Dithering", "Off")}
+    ${
+      MIX
+        ? `<div class="row"><span class="lab">Algorithm</span>${seg(["Refined", "Classic"], 0)}</div>${slider("Colour detail", "60", 60)}<div class="row"><span class="lab">Edges</span>${seg(["Standard", "Crisp"], 0)}</div><div class="row" style="align-items:flex-start"><span class="lab">Dithering</span><span class="tiles">${DITHER_TILES}</span></div>`
+        : `${select("Algorithm", "Refined")}${slider("Colour detail", "60", 60)}${select("Edges", "Standard")}${select("Dithering", "Off")}`
+    }
     ${
       tries
         ? `<div class="row"><span class="lab" style="width:auto">Photo adjustment</span><span class="hint">Contrast +12, Saturation +20 ▸</span></div>`
@@ -873,6 +946,24 @@
       function threadsBody() {
         return `<div class="row"><span class="hint">12 threads · 14 skeins</span><span class="btn sm">+ Add</span></div>
   ${THREADS.map(([c, n, s], i) => `<div class="thread ${i === 3 ? "on" : ""}"><span class="sw s" style="background:${c}"></span><span class="sym">${s}</span><span>${n}</span><small>${[2100, 760, 890, 1240, 310, 96, 140, 420, 610, 380, 2900, 954][i]}</small><span class="dot ${i === 4 ? "off" : ""}"></span></div>`).join("")}`;
+      }
+      function textBodyMix() {
+        const fonts = [
+          ["Georgia", "Georgia,serif"],
+          ["Courier", "Courier New,monospace"],
+          ["Trebuchet", "Trebuchet MS,sans-serif"],
+          ["Impact", "Impact,sans-serif"],
+          ["Palatino", "Palatino Linotype,serif"],
+        ];
+        return `<div class="input" style="font:bold 20px Georgia,serif">Rosa</div>
+  <div class="row"><span class="lab">Fonts</span>${seg(["Pixel", "Bundled", "Computer"], 1)}</div>
+  <div class="fontlist">${fonts.map(([n, f], i) => `<span class="${i === 0 ? "on" : ""}" style="font-family:${f}">${n}</span>`).join("")}</div>
+  <div class="row"><span class="lab">Face</span>${seg(["Regular", "Bold", "Italic"], 1)}</div>
+  ${slider("Height", "7", 22)}${slider("Letter gap", "1", 12)}
+  <div class="row" style="align-items:flex-start"><span class="lab">Colour</span><span class="tiles" style="gap:5px">${THREADS.map(([c], i) => `<span class="sw" style="background:${c};${i === 4 ? "outline:2px solid var(--ink);outline-offset:1px" : ""}"></span>`).join("")}</span></div>
+  <h4>Preview, 22 × 9 stitches</h4>
+  <div class="input" style="height:80px;display:flex;align-items:center;justify-content:center;font:bold 40px Georgia,serif;color:#7d1d3a;background:repeating-linear-gradient(0deg,#fff 0 7px,#eee 7px 8px),#fff">Rosa</div>
+  <span class="sp"></span><span class="btn pri" style="justify-content:center;height:34px">Place on chart</span>`;
       }
       function textBody() {
         return `<div class="note">This tab belongs to the Text tool. It closes when another tool is picked.</div>
@@ -889,10 +980,10 @@
         return `<div class="row"><span class="lab">Name</span><span class="input" style="flex:1">Rose garden</span></div>${select("Fabric count", "14 per inch")}<div class="row"><span class="lab">Unit</span>${seg(["cm", "inch"], 0)}</div><div class="hint">Finished size 21.8 × 16.3 cm. New charts start from your Preferences.</div>`;
       }
       function editPanel(tabNames, on, text) {
-        const names = text ? [...tabNames, "T Text"] : tabNames;
-        const active = text ? names.length - 1 : on;
+        const names = text ? (MIX ? ["T Text", ...tabNames] : [...tabNames, "T Text"]) : tabNames;
+        const active = text ? (MIX ? 0 : names.length - 1) : on;
         return `<div class="tabs">${names.map((t, i) => `<span class="${i === active ? (text ? "temp" : "on") : ""}">${t}</span>`).join("")}</div>
-  <div class="pbody">${text ? textBody() : names[active] === "Chart" ? chartBody() : threadsBody()}</div>`;
+  <div class="pbody">${text ? (MIX ? textBodyMix() : textBody()) : names[active] === "Chart" ? chartBody() : threadsBody()}</div>`;
       }
       function exportBody() {
         const fm = [
@@ -912,9 +1003,9 @@
   <section>
     <h4 style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">A new empty chart starts with</h4>
     <div class="row" style="justify-content:flex-start"><span class="lab">Size</span><span class="num">100</span><span class="lab">×</span><span class="num">100</span><span class="lab">stitches</span></div>
-    <div class="row" style="justify-content:flex-start"><span class="lab">Fabric count</span><span class="sel" style="width:150px">14 per inch</span></div>
+    <div class="row" style="justify-content:flex-start"><span class="lab">Fabric count</span>${MIX ? seg(["11", "14", "16", "18", "Other"], 1) : `<span class="sel" style="width:150px">14 per inch</span>`}</div>
     <div class="row" style="justify-content:flex-start"><span class="lab">Unit</span>${seg(["cm", "inch"], 0)}</div>
-    <div class="row" style="justify-content:flex-start"><span class="lab">Thread brand</span><span class="sel" style="width:150px">DMC</span><span class="hint">candidate</span></div>
+    <div class="row" style="justify-content:flex-start"><span class="lab">Thread brand</span>${MIX ? seg(["DMC", "Cosmo", "Anchor"], 0) : `<span class="sel" style="width:150px">DMC</span>`}<span class="hint">candidate</span></div>
     <h4 style="margin:6px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">Exports (shown under "Exports")</h4>
     <div class="row" style="justify-content:flex-start"><span class="lab">Author name</span><span class="input" style="width:240px">J. Example</span></div>
     <div class="row" style="justify-content:flex-start"><span class="lab">A4 cell size, overlap</span><span class="num">3 mm</span><span class="num">2</span><span class="hint">candidate</span></div>
@@ -960,9 +1051,9 @@
             ],
           ],
           render(screen, floating = false, asNow = false) {
-            const cols = asNow ? "58px 1fr 300px" : "300px 104px 1fr";
+            const cols = asNow ? "104px 1fr 300px" : "300px 104px 1fr";
             const side = (panel, rail) =>
-              asNow ? `<div class="rail one">${rail}</div>` : `<div class="panel">${panel}</div><div class="rail">${rail}</div>`;
+              asNow ? `<div class="rail">${rail}</div>` : `<div class="panel">${panel}</div><div class="rail">${rail}</div>`;
             const right = (panel) => (asNow ? `<div class="panel right">${panel}</div>` : "");
             const fl = floating
               ? `<div class="float" style="bottom:12px;left:50%;transform:translateX(-50%)">${viewControls(true)}</div>`
@@ -980,7 +1071,7 @@
               body = `<div class="bar" style="height:40px"><b>Export</b><span class="lab">Choose what to make. Its settings are on the right and nowhere else.</span></div><div style="display:grid;grid-template-columns:260px 1fr 300px;min-height:0"><div class="panel">${e.list}</div><div class="stage">${e.pages}</div><div class="panel right">${e.settings}</div></div>`;
             } else {
               const text = screen === "text";
-              body = `<div class="bar" style="height:40px">${QUICK[text ? "Text" : "Brush"]}</div><div style="display:grid;grid-template-columns:${cols};min-height:0">${side(editPanel(["Threads", "Chart"], 0, text), editTools(text ? "Text" : "Brush"))}<div class="stage">${pic("color", 80, 9, text ? 'data-text="1"' : "")}${fl}</div>${right(editPanel(["Threads", "Chart"], 0, text))}</div>`;
+              body = `<div class="bar" style="height:40px">${QUICK[text ? (MIX ? "TextMix" : "Text") : "Brush"]}</div><div style="display:grid;grid-template-columns:${cols};min-height:0">${side(editPanel(["Threads", "Chart"], 0, text), editTools(text ? "Text" : "Brush"))}<div class="stage">${pic("color", 80, 9, text ? 'data-text="1"' : "")}${fl}</div>${right(editPanel(["Threads", "Chart"], 0, text))}</div>`;
             }
             return `<div class="app" style="grid-template-rows:44px 40px 1fr ${screen === "export" ? "" : floating ? "28px" : "40px"}">${top}${body.replace('</div><div style="display:grid', '</div><div style="display:grid')}${screen === "export" ? "" : viewbar}${screen === "prefs" ? prefsDialog() : ""}</div>`;
           },
@@ -1041,7 +1132,7 @@
                 `<div class="htools">${EDIT_TOOLS.slice(0, 11)
                   .map(([g, n]) => tool(g, n, n === (text ? "Text" : "Brush") ? "on" : ""))
                   .join("")}${tool("⋯", "More")}</div>`
-              )}<div class="bar">${QUICK[text ? "Text" : "Brush"]}</div><div class="stage">${pic("color", 80, 8, text ? 'data-text="1"' : "")}${float}</div><div class="bar" style="border-top:1px solid var(--line);border-bottom:0">${status}</div></div>`;
+              )}<div class="bar">${QUICK[text ? (MIX ? "TextMix" : "Text") : "Brush"]}</div><div class="stage">${pic("color", 80, 8, text ? 'data-text="1"' : "")}${float}</div><div class="bar" style="border-top:1px solid var(--line);border-bottom:0">${status}</div></div>`;
             }
             return `<div class="app" style="grid-template-columns:74px ${screen === "export" ? "260px" : "300px"} 1fr">${rail}${main}${screen === "prefs" ? prefsDialog() : ""}</div>`;
           },
@@ -1067,7 +1158,7 @@
             const text = screen === "text",
               photo = screen === "photo";
             const top = `<div class="bar" style="height:44px">${fileBits}<span class="sp"></span>${appActions(true)}</div>`;
-            const quick = `<div class="bar" style="height:40px">${photo ? QUICK.Photo : QUICK[text ? "Text" : "Brush"]}</div>`;
+            const quick = `<div class="bar" style="height:40px">${photo ? QUICK.Photo : QUICK[text ? (MIX ? "TextMix" : "Text") : "Brush"]}</div>`;
             const rail = `<div class="rail one">${photo ? photoTools() : editTools(text ? "Text" : "Brush")}</div>`;
             const panel = photo
               ? `<div class="panel right"><div class="tabs"><span class="on">Photo</span><span>Chart</span><span>Threads</span></div>${photoPanel(1, true).replace(/^<div class="tabs">.*?<\/div>/s, "")}</div>`
@@ -1086,7 +1177,7 @@
       };
       P.D = {
         name: "D · The mix: A's workspaces and tries, B's view controls, today's tools and panel",
-        sub: "Workspace tabs across the top, tools in one column at the left edge, the tabbed panel on the right, tries under the picture, view controls floating.",
+        sub: "Workspace tabs across the top, grouped tools at the left edge, the tabbed panel on the right, tries under the picture, view controls floating.",
         notes: [
           ["From A", "Photo, Edit and Export as tabs across the top; quick tool options above the chart; a tool's own amber tab."],
           ["From A", "The strip of tries. Going back to an earlier try asks the server for nothing; only “New try” generates."],
@@ -1099,13 +1190,25 @@
             "To check when built",
             "The cluster covers the chart's lowest rows when the chart fills the height; it would need to move aside or fade while drawing under it.",
           ],
+          ["Tools", "Two columns at the left edge, in three groups parted by a line: drawing; selecting and transforming; moving about."],
           [
-            "As now (C)",
-            "Tools in one narrow column at the left edge, and the panel with tabs on the right. A tool's amber tab joins the right-hand tabs. The Photo tab is gone from Edit: it became the Photo workspace.",
+            "Panel",
+            "On the right, as now. A tool's own tab is the first tab, in yellow. It opens when the tool is picked; when the tool is put down the panel returns to the tab that was open before.",
+          ],
+          [
+            "Buttons before dropdowns",
+            "Wherever the choices fit they are buttons: palette mode, algorithm, edges, dither patterns as pictures, text colour as the chart's threads, face, fabric count.",
           ],
           ["Unchanged", "Export and Preferences are as in A."],
         ],
-        render: (screen) => P.A.render(screen, true, true),
+        render(screen) {
+          MIX = true;
+          try {
+            return P.A.render(screen, true, true);
+          } finally {
+            MIX = false;
+          }
+        },
       };
       const SCREENS = [
         ["photo", "1 · Making the chart from a photo"],
