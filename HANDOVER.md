@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-05 at 3457895 (G-099 deployed, awaiting sign-off)
+Last verified: 2026-10-05 at 4bfb309 (G-099 signed off; production runs 3457895)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -12,7 +12,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 **Production** runs 3457895 (2026-10-05, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-099, extensible generation — built and deployed 2026-10-05 (3457895), awaiting the Owner's sign-off.** A generation setting is declared once in `lib/pipeline/generation-settings.ts`; the editor's request, the processor's check and the options handed to Rust read that list, and Rust reads each setting in the module that uses it and refuses one nobody reads (`rust/cs-core/src/settings.rs`, D293). The pipeline is fourteen stages run from a table (`rust/cs-core/src/pipeline/`); traced lines and texture strokes are overlays behind one contract (`overlay.rs`, D294). A setting declared with a `control` is drawn under "More" in the photo settings with nothing else edited; none is today. **The gate for any change to generation:** `npm run test:goldens:rust` and `npx tsx scripts/measure-generation.ts` must show every chart unchanged. How to add a setting or an algorithm: `docs/architecture.md` section 3.
+**G-099, extensible generation — signed off 2026-10-05, archived.** A generation setting is declared once in `lib/pipeline/generation-settings.ts`; the editor's request, the processor's check and the options handed to Rust read that list, and Rust reads each setting in the module that uses it and refuses one nobody reads (`rust/cs-core/src/settings.rs`, D293). The pipeline is fourteen stages run from a table (`rust/cs-core/src/pipeline/`); traced lines and texture strokes are overlays behind one contract (`overlay.rs`, D294). A setting declared with a `control` is drawn under "More" in the photo settings with nothing else edited; none is today. **The gate for any change to generation:** `npm run test:goldens:rust` and `npx tsx scripts/measure-generation.ts` must show every chart unchanged. How to add a setting or an algorithm: `docs/architecture.md` section 3.
 
 **G-096, development loop — signed off 2026-10-05, archived; nothing to deploy.** A spec that is not about generation opens the saved chart with `openSmallChart` (`tests/e2e/helpers/app.ts`; D292). `npx playwright test -c scripts/playwright.live-free.config.ts` is the broad check of the live site (199 cases, 3 min). `npm run e2e:dev` is the development server for working on one spec; a production build is what anything is verified on. `docs/development-loop.md` has the lanes, the commands and every measurement.
 
