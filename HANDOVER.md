@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-05 at 8b9b251 (G-098 deployed, awaiting sign-off)
+Last verified: 2026-10-05 at 6d7063f (G-098 signed off; production runs 8b9b251)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -12,7 +12,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 **Production** runs 8b9b251 (2026-10-05, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221).
 Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-098, the editor shell split — built and deployed 2026-10-05 (8b9b251), awaiting the Owner's sign-off.** `app/workspace.tsx` (665 lines, from 957) composes and lays out, and holds no logic of its own (D291). Every way a chart arrives or leaves, with its autosave, confirmation and messages, is `app/hooks/use-chart-lifecycle.ts`; what each of the editor's commands does and when it can run is `app/commands/shell-commands.ts`; each piece of state has a hook with its rule beside it (`use-lit-threads`, `use-chart-fabric`, `use-editor-view`, `use-name-draft`, `use-held-pan`, `use-recommended-count`). Where new state, a new command or a new way in goes is in `docs/architecture.md` section 3.
+**G-098, the editor shell split — signed off 2026-10-05, archived.** `app/workspace.tsx` (665 lines, from 957) composes and lays out, and holds no logic of its own (D291). Every way a chart arrives or leaves, with its autosave, confirmation and messages, is `app/hooks/use-chart-lifecycle.ts`; what each of the editor's commands does and when it can run is `app/commands/shell-commands.ts`; each piece of state has a hook with its rule beside it (`use-lit-threads`, `use-chart-fabric`, `use-editor-view`, `use-name-draft`, `use-held-pan`, `use-recommended-count`). Where new state, a new command or a new way in goes is in `docs/architecture.md` section 3.
 
 **G-094, document module — signed off 2026-10-05, archived.** The chart is a document of layers (`lib/document/`: `types.ts`, `convert.ts` with `flatten`, `change.ts`, `history.ts`, `migrate.ts`); today it has one layer, the tools read and write its flat view (`StitchPattern`), and the file on disk is still one grid. Undo keeps what changed between two documents, not a copy (D289; measured in `docs/reviews/2026-10-05-undo-and-flatten.md`, repeatable with `scripts/measure-undo.ts`); the editor's history is `app/hooks/use-document-history.ts`. The file's version and the one step that brings an older file up to date are in `lib/document/migrate.ts`; a later version is refused. Fabric count and unit are the chart's own, saved in its file (D290). The server's writer of the editable file (`rust/cs-export/src/editable.rs`) is held to the editor's, byte for byte, by `tests/unit/file-migration.spec.ts`: a new field of the chart goes into both.
 
