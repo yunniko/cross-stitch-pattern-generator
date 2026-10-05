@@ -1,3 +1,4 @@
+import { pickGenerationSettings } from "@/lib/pipeline/generation-settings";
 import { useState, type RefObject } from "react";
 import { setRequest } from "@/lib/editor/palette-set";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
@@ -85,22 +86,14 @@ export function useGeneration(inputs: GenerationInputs) {
     setProgress(0);
     try {
       const settings = {
+        // Every generation setting the editor keeps under its own name (`lib/pipeline/generation-settings.ts`): the modes,
+        // the photo sliders as the reader has been looking at them (G-074 M3), the dither, the lines and the strokes.
+        ...pickGenerationSettings(options),
         longerSideStitches,
         // The count never goes above the ceiling the prediction allows (G-087); a set has its own count, its size.
         colorCount: Math.min(options.colorCount, colorCeiling ?? MAX_COLORS),
-        generationMode: options.generationMode,
-        paletteMode: options.paletteMode,
-        edgeMode: options.edgeMode,
-        // What the reader has been looking at on the photo, applied to it at full resolution (G-074 M3).
-        photoAdjust: options.photoAdjust,
-        ditherMode: options.ditherMode,
-        ditherTexture: options.ditherTexture,
-        vivid: options.vivid,
-        backstitchLines: options.backstitchLines,
-        backstitchSensitivity: options.backstitchSensitivity,
-        backstitchPhotos: options.backstitchPhotos,
-        textureStrokes: options.textureStrokes,
-        textureDensity: options.textureDensity,
+        // The set as it is kept is not the set as it is sent; it goes only when the palette is being set up, below.
+        paletteSet: undefined,
         // Set up palette (G-087): the chart is made from the chosen threads and the count is their number. Crisp edges are not
         // used with a set (D277), so a set always asks for standard ones.
         ...(settingUp

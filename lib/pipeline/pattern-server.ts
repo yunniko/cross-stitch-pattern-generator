@@ -1,3 +1,4 @@
+import { pickGenerationSettings } from "./generation-settings";
 import { deserializePatternData } from "../editor/pattern-serialize";
 import type { RGB, StitchPattern } from "../types";
 import type { DitherMode } from "./dither";
@@ -85,24 +86,8 @@ async function submit(options: RunServerPatternJobOptions, signal: AbortSignal):
     const photoHash = await ensurePhotoUploaded(options.photoDataUrl, signal);
     const res = await post(
       "/api/jobs",
-      JSON.stringify({
-        photoHash,
-        longerSideStitches: options.longerSideStitches,
-        colorCount: options.colorCount,
-        generationMode: options.generationMode,
-        paletteMode: options.paletteMode,
-        edgeMode: options.edgeMode,
-        photoAdjust: options.photoAdjust,
-        ditherMode: options.ditherMode,
-        ditherTexture: options.ditherTexture,
-        vivid: options.vivid,
-        backstitchLines: options.backstitchLines,
-        backstitchSensitivity: options.backstitchSensitivity,
-        backstitchPhotos: options.backstitchPhotos,
-        textureStrokes: options.textureStrokes,
-        textureDensity: options.textureDensity,
-        paletteSet: options.paletteSet,
-      }),
+      // Every declared setting the caller gave, and no other field of `options` (`generation-settings.ts`).
+      JSON.stringify({ photoHash, ...pickGenerationSettings(options) }),
       signal
     );
     if (res.status === 410 && attempt === 0) {

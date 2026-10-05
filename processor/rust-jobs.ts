@@ -1,3 +1,4 @@
+import { rustGenerationOptions } from "@/lib/pipeline/generation-settings";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -100,23 +101,8 @@ export async function generateWithRust(
 ): Promise<StitchPattern> {
   requireRustJobs();
   const { imageData, settings } = job;
-  const options = JSON.stringify({
-    longerSideStitches: settings.longerSideStitches,
-    colorCount: settings.colorCount,
-    quantizer: settings.generationMode === "original" ? "original" : "latest",
-    paletteMode: settings.paletteMode ?? undefined,
-    edgeMode: settings.edgeMode ?? undefined,
-    photoAdjust: settings.photoAdjust ?? undefined,
-    ditherMode: settings.ditherMode ?? undefined,
-    ditherTexture: settings.ditherTexture ?? undefined,
-    vivid: settings.vivid ?? undefined,
-    backstitchLines: settings.backstitchLines ?? undefined,
-    backstitchSensitivity: settings.backstitchSensitivity ?? undefined,
-    backstitchPhotos: settings.backstitchPhotos ?? undefined,
-    textureStrokes: settings.textureStrokes ?? undefined,
-    textureDensity: settings.textureDensity ?? undefined,
-    paletteSet: settings.paletteSet ?? undefined,
-  });
+  // The declared settings under the names the pipeline reads them by; an absent one is left to the pipeline's default.
+  const options = JSON.stringify(rustGenerationOptions(settings));
   const pixels = Buffer.from(imageData.data.buffer, imageData.data.byteOffset, imageData.data.byteLength);
   const result = await run(["generate", String(imageData.width), String(imageData.height), options], pixels, { progress: onProgress });
   if (!result.stdout) failed("generation", result.error);
