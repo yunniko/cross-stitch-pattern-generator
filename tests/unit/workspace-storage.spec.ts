@@ -86,6 +86,7 @@ describe("workspace-storage", () => {
       blankWidth: 100,
       blankHeight: 100,
       defaultPaletteMode: "full",
+      view: { pattern: "color", symbols: true, photo: false, visibility: 100 },
     } as const;
 
     it("returns defaults (14-count, cm, no author, Standard edges, overlap 5, white canvas, Medium/16 colors/Latest/Full range) when nothing is stored", () => {
@@ -136,6 +137,7 @@ describe("workspace-storage", () => {
         blankWidth: 60,
         blankHeight: 45,
         defaultPaletteMode: "dmc" as const,
+        view: { pattern: "bw" as const, symbols: false, photo: true, visibility: 35 },
       };
       saveWorkspaceOptions(saved);
       expect(loadWorkspaceOptions()).toEqual(saved);
@@ -159,6 +161,14 @@ describe("workspace-storage", () => {
         })
       );
       expect(loadWorkspaceOptions()).toEqual(DEFAULTS);
+    });
+
+    it("reads a stored view switch by switch, an unreadable one as its default (G-110)", () => {
+      window.localStorage.setItem(
+        OPTIONS_KEY,
+        JSON.stringify({ view: { pattern: "photo-only", symbols: false, photo: "on", visibility: 250 } })
+      );
+      expect(loadWorkspaceOptions().view).toEqual({ pattern: "color", symbols: false, photo: false, visibility: 100 });
     });
 
     it("keeps edgeMode crisp-plus across a reload (G-038)", () => {

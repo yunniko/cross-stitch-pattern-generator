@@ -16,6 +16,7 @@ import { NEUTRAL_ADJUST, readAdjust, type PhotoAdjust } from "../pipeline/photo-
 import type { EdgeMode, GenerationMode, PaletteMode } from "../pipeline/generation-modes";
 import { THREAD_BRAND_IDS } from "../threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, type SizePresetId } from "../types";
+import { DEFAULT_VIEW, readView, type ChartView } from "./view";
 
 // Workspace-level preferences, persisted to localStorage (G-015). Per-
 // browser and best-effort: every access -- reads included, since some
@@ -89,6 +90,8 @@ export interface WorkspaceOptions {
   textStyle: string;
   textSize: number;
   textWeight: number;
+  /** The chart's view as chosen (G-110, D315), kept apart from what is in force for the chart in hand. */
+  view: ChartView;
   /** The values of tool options that have no named setting of their own: the ones a new tool brings (G-093). */
   toolOptions: ToolOptionBag;
   /** The generation settings drawn from their declarations, by id (G-099, D294): the ones a new algorithm brings. */
@@ -144,6 +147,7 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   textStyle: "Regular",
   textSize: 12,
   textWeight: 50,
+  view: DEFAULT_VIEW,
 };
 
 /** The overlaps the A4 layout can actually paginate with; shared so the processor validates against the same list. */
@@ -267,6 +271,8 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
         typeof parsed.textWeight === "number" && parsed.textWeight >= 0 && parsed.textWeight <= 100
           ? parsed.textWeight
           : DEFAULT_OPTIONS.textWeight,
+      // Absent before G-110, when the view was not kept; each switch is read alone.
+      view: readView(parsed.view),
     };
   } catch {
     return DEFAULT_OPTIONS;

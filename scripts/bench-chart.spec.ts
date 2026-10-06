@@ -2,7 +2,6 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type CDPSession, type Page } from "@playwright/test";
-import { MAX_STITCHES } from "../lib/types";
 
 /**
  * Large-chart interaction benchmark: `npm run bench:chart` (G-036 criterion 1). On a SIZE-stitch (default 1000), 64-colour chart it
@@ -20,12 +19,10 @@ const THROTTLE = Number(process.env.CPU_THROTTLE ?? 1);
 const PROFILE = process.env.PROFILE === "1";
 // G-046: the size is a knob, so one bench measures any cap; the custom-size field's `max` follows the app's own.
 const SIZE = Number(process.env.SIZE ?? 1000);
-const SIZE_FIELD = `input[type="number"][max="${MAX_STITCHES}"]`;
 // A step that can never succeed once sat silent for the whole hour this allowed. Every operation now logs as it
 // lands, and the default cap is twenty minutes.
 const TIMEOUT_MS = Number(process.env.BENCH_TIMEOUT_MS ?? 1_200_000);
 const OUT_DIR = path.join(os.tmpdir(), "cross-stitch-bench-chart");
-const STATS = /\d+ × \d+, [\d,]+ stitches, \d+ colors/;
 
 interface Sample {
   latencyMs: number;
@@ -177,6 +174,25 @@ async function timed(page: Page, client: CDPSession, action: () => Promise<void>
   };
 }
 
+/**
+ * Uploads the synthetic photo and generates a SIZE-stitch, 64-colour chart, waiting until it is drawn. The photo panel
+ * since G-095: Generate is offered once the photo is read, the size is the Custom field, the count the Colors slider;
+ * a chart is done when the button comes back as an enabled Regenerate.
+ */
+async function generateLarge(page: Page, jpeg: string) {
+  await page.getByLabel("Image").setInputFiles(jpeg);
+  await page.getByRole("button", { name: "Generate pattern" }).waitFor({ timeout: 120_000 });
+  await page.getByRole("radio", { name: "Custom" }).check();
+  const size = page.getByLabel("Custom size in stitches");
+  await size.fill(String(SIZE));
+  await size.blur();
+  await page.getByLabel("Number of colors").fill("64");
+  await page.getByRole("button", { name: "Generate pattern" }).click();
+  await page.getByRole("button", { name: "Regenerate", exact: true }).and(page.locator(":enabled")).waitFor({ timeout: 900_000 });
+  await page.getByTestId("chart-canvas").waitFor();
+  await afterPaint(page);
+}
+
 /** The chart frame's cell size and completed render revision (D135): the viewport canvas keeps its size across zooms. */
 async function chartState(page: Page): Promise<{ cellSize: string; revision: number }> {
   return page
@@ -222,20 +238,13 @@ test(`large-chart operations at ${SIZE} stitches`, async ({ page }, testInfo) =>
   if (THROTTLE > 1) await client.send("Emulation.setCPUThrottlingRate", { rate: THROTTLE });
   if (PROFILE) await client.send("Profiler.enable");
 
-  await page.getByLabel("Image").setInputFiles(jpeg);
-  await page.waitForFunction(() => /Loaded: photo\.jpg/.test(document.body.textContent ?? ""), undefined, { timeout: 120_000 });
-  await page.locator(SIZE_FIELD).first().fill(String(SIZE));
-  await page.locator("#color-count").fill("64");
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await page.getByText(STATS).waitFor({ timeout: 900_000 });
-  await afterPaint(page);
+  await generateLarge(page, jpeg);
   console.log(`[${SIZE} st] generated and shown`);
 
   const [download] = await Promise.all([
     page.waitForEvent("download", { timeout: 300_000 }),
     (async () => {
-      await page.getByLabel("Export", { exact: true }).selectOption("editable");
-      await page.getByRole("button", { name: "Export", exact: true }).click();
+      await page.getByRole("button", { name: "Save", exact: true }).click();
     })(),
   ]);
   const saved = testInfo.outputPath(`pattern-${SIZE}.json`);
@@ -253,7 +262,7 @@ test(`large-chart operations at ${SIZE} stitches`, async ({ page }, testInfo) =>
     // Chart shown after (re)generating with the same settings.
     // Regenerate lives in the Photo tab's footer (G-045), and generating moves the inspector to Threads, so the button
     // is gone once it has worked; the chart's next completed render is the signal instead.
-    await page.getByRole("tab", { name: "Photo" }).click();
+    await page.getByRole("tab", { name: "Photo", exact: true }).click();
     const beforeRegen = (await chartState(page)).revision;
     record(
       "chart shown after regenerating",
@@ -463,13 +472,7 @@ test(`undo memory at ${SIZE} stitches`, async ({ page }) => {
   await page.goto("/");
   const jpeg = await syntheticJpeg(page);
   await page.goto("/");
-  await page.getByLabel("Image").setInputFiles(jpeg);
-  await page.waitForFunction(() => /Loaded: photo\.jpg/.test(document.body.textContent ?? ""), undefined, { timeout: 120_000 });
-  await page.locator(SIZE_FIELD).first().fill(String(SIZE));
-  await page.locator("#color-count").fill("64");
-  await page.getByRole("button", { name: "Generate pattern" }).click();
-  await page.getByText(STATS).waitFor({ timeout: 900_000 });
-  await afterPaint(page);
+  await generateLarge(page, jpeg);
 
   const cdp = await page.context().newCDPSession(page);
   const memory = async () => {

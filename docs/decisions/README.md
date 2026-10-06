@@ -350,3 +350,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D312 — A workspace is an ordinary feature; its switch closes the workspace, not each feature inside it — active
 - D313 — A command names its workspace, and the workspace's switch wins over its own — active
 - D314 — The server maps each request to its workspace in one list, checked before the request's own features — active
+- D315 — The view is four switches, kept apart from what is in force — active
