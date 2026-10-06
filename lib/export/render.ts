@@ -433,6 +433,9 @@ function drawStitchPixels(
  * drawn as before. With symbols, or an empty-stitch colour that isn't opaque, it is `drawChart` unchanged. Exports keep
  * `drawChart`. Parity: tests/e2e/chart-render-parity.spec.ts.
  */
+/** The empty-stitch colour that leaves an empty stitch unpainted, for a chart drawn over something (D316). */
+export const CLEAR_EMPTY = "transparent";
+
 export function drawChartOnScreen(
   ctx: CanvasRenderingContext2D,
   pattern: StitchPattern,
@@ -445,7 +448,10 @@ export function drawChartOnScreen(
 ) {
   // The one-pixel-per-stitch fast path cannot draw a cut corner, so a chart with half stitches takes the exact path.
   const solidSquares = (cellSize < LEGIBILITY_FLOOR_PX || !symbols) && !pattern.cellKind;
-  const emptyRgb = solidSquares ? opaqueCanvasRgb(emptyCellColor) : null;
+  // Over the photo an empty stitch is left clear, so the photo shows through it as it did under Grid + photo (D316).
+  const clearEmpty = emptyCellColor === CLEAR_EMPTY;
+  const emptyRgb = solidSquares ? (clearEmpty ? ([0, 0, 0] as RGB) : opaqueCanvasRgb(emptyCellColor)) : null;
+  const emptyAlpha = clearEmpty ? 0 : 255;
   const { width, height, cellPalette, palette } = pattern;
   const r = region ?? { x0: 0, y0: 0, x1: width, y1: height };
   if (!emptyRgb) {
@@ -463,11 +469,12 @@ export function drawChartOnScreen(
     cellSize,
     (cellIndex, out, o) => {
       const paletteIndex = cellPalette[cellIndex];
-      const rgb = paletteIndex === EMPTY_CELL ? emptyRgb : colors[paletteIndex];
+      const empty = paletteIndex === EMPTY_CELL;
+      const rgb = empty ? emptyRgb : colors[paletteIndex];
       out[o] = rgb[0];
       out[o + 1] = rgb[1];
       out[o + 2] = rgb[2];
-      out[o + 3] = 255;
+      out[o + 3] = empty ? emptyAlpha : 255;
     },
     width
   );

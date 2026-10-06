@@ -212,7 +212,7 @@ test("zoom and view switches report a completed render on the chart frame (D135)
   expect(start).toBeGreaterThan(0);
 
   await page.keyboard.press("2");
-  await expect(frame(page)).toHaveAttribute("data-view-mode", "bw");
+  await expect(frame(page)).toHaveAttribute("data-view-pattern", "bw");
   await expect.poll(() => revision(page)).toBeGreaterThan(start);
 
   const afterView = await revision(page);
@@ -235,7 +235,7 @@ test("the Realistic view draws its stitches from tiles and settles again after a
     });
 
   await page.keyboard.press("3");
-  await expect(frame(page)).toHaveAttribute("data-view-mode", "realistic");
+  await expect(frame(page)).toHaveAttribute("data-view-pattern", "realistic");
   await expect(frame(page)).toHaveAttribute("data-scene-pending", "", { timeout: 15_000 });
   // More than the canvas colour: textured stitches in their palette colours.
   expect(await distinctColours()).toBeGreaterThan(20);

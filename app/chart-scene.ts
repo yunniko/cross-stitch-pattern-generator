@@ -6,6 +6,7 @@ import type { BackstitchLine } from "@/lib/types";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
 import {
   chartPaintOverhangPx,
+  CLEAR_EMPTY,
   drawCell,
   drawChartOnScreen,
   drawHighlightOverlayRaster,
@@ -244,15 +245,15 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
       const target = patternLayerFor(rect);
       ctx.globalAlpha = view.visibility / 100;
       if (target) {
-        drawPatternLayer(target.ctx as unknown as CanvasRenderingContext2D, displayPattern, scene, region);
+        drawPatternLayer(target.ctx as unknown as CanvasRenderingContext2D, displayPattern, scene, region, CLEAR_EMPTY);
         ctx.drawImage(target.canvas as CanvasImageSource, rect.x0, rect.y0);
       } else {
-        drawPatternLayer(ctx, displayPattern, scene, region);
+        drawPatternLayer(ctx, displayPattern, scene, region, CLEAR_EMPTY);
       }
       ctx.globalAlpha = 1;
     }
   } else {
-    drawPatternLayer(ctx, displayPattern, scene, region);
+    drawPatternLayer(ctx, displayPattern, scene, region, scene.canvasColor);
   }
 
   if (isSelectTool(activeTool) && selection && !selectDragging) {
@@ -262,10 +263,17 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
 }
 
 /** The pattern in Color or B&W: its stitches, Isolate's dimming and the backstitch, the layer the visibility fades. */
-function drawPatternLayer(ctx: CanvasRenderingContext2D, displayPattern: StitchPattern, scene: ChartScene, region: ChartRegion) {
-  const { view, cellSize, isolate, litColorIndices, litBackstitchIndices, canvasColor } = scene;
+function drawPatternLayer(
+  ctx: CanvasRenderingContext2D,
+  displayPattern: StitchPattern,
+  scene: ChartScene,
+  region: ChartRegion,
+  /** The canvas colour, or `CLEAR_EMPTY` over the photo, where an empty stitch shows the photo. */
+  emptyColor: string
+) {
+  const { view, cellSize, isolate, litColorIndices, litBackstitchIndices } = scene;
   const mode = view.pattern as RenderMode;
-  atRegion(ctx, region, cellSize, () => drawChartOnScreen(ctx, displayPattern, mode, cellSize, region, canvasColor, view.symbols));
+  atRegion(ctx, region, cellSize, () => drawChartOnScreen(ctx, displayPattern, mode, cellSize, region, emptyColor, view.symbols));
 
   // Anything lit, in either section, dims the stitches that are not: lighting only an outline is how a
   // reader sees where that outline runs.

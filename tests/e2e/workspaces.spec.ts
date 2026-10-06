@@ -106,7 +106,7 @@ test("Undo, the views and the zoom stay put whatever tool is in hand, and there 
     await expect(page.getByRole("button", { name: "Undo", exact: true }), `Undo in ${name}`).toHaveCount(1);
   }
   await views.getByRole("button", { name: "Stitched", exact: true }).click();
-  await expect(frame(page)).toHaveAttribute("data-view-mode", "realistic");
+  await expect(frame(page)).toHaveAttribute("data-view-pattern", "realistic");
 });
 
 test("a shared drawing option is shown with the tools that read it, and with no other", async ({ page }) => {

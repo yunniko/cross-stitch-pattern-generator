@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { openSmallChart } from "./helpers/app";
+import { expectView, setVisibility, showOverPhoto, viewControls, type ShownView } from "./helpers/view";
 
 test("zoom controls change the Image window's on-screen size without changing the pattern (G-012)", async ({ page }) => {
   await openSmallChart(page);
@@ -162,7 +163,7 @@ test("a bar too wide for the window scrolls inside itself rather than sliding th
   const frame = page.getByTestId("chart-frame");
   const before = await frame.boundingBox();
   // The last control in the bar, and the one furthest from the tool options that push it right.
-  await page.getByRole("button", { name: "Show the photo behind the chart" }).focus();
+  await viewControls(page).photo.focus();
   expect(await frame.boundingBox()).toEqual(before);
 });
 
@@ -184,29 +185,39 @@ test("every view mode shares one zoom and scroll position, and the realistic vie
   const referenceScroll = await scrollOf();
   expect(referenceScroll).toEqual({ left: 120, top: 90 });
 
-  const chip = (label: string) => page.getByRole("button", { name: label, exact: true });
-  const photoToggle = page.getByRole("button", { name: "Show the photo behind the chart" });
-  /** 1b: three chips select a chart view outright; the Photo toggle cycles photo -> photo-only -> color. */
-  async function showMode(mode: string) {
-    if (mode === "bw") await chip("B&W").click();
-    else if (mode === "realistic") await chip("Stitched").click();
-    else if (mode === "color") await chip("Color").click();
-    else {
-      await chip("Color").click();
-      await photoToggle.click();
-      if (mode === "photo-only") await photoToggle.click();
-    }
-  }
-
-  for (const mode of ["bw", "realistic", "photo", "photo-only", "color"]) {
-    await showMode(mode);
-    await expect(canvas).toHaveAttribute("data-view-mode", mode);
-    expect(await canvas.boundingBox(), mode).toEqual(referenceBox);
-    expect(await scrollOf(), mode).toEqual(referenceScroll);
+  const controls = viewControls(page);
+  /** G-110: the pattern modes, Symbols off, the pattern half over the photo, the photo alone, and back. */
+  const views: { name: string; show: () => Promise<void>; shown: ShownView }[] = [
+    { name: "B&W", show: () => controls.mode("B&W").click(), shown: { pattern: "bw" } },
+    { name: "Stitched", show: () => controls.mode("Stitched").click(), shown: { pattern: "realistic" } },
+    {
+      name: "no symbols",
+      show: async () => {
+        await controls.mode("Color").click();
+        await controls.symbols.click();
+      },
+      shown: { pattern: "color", symbols: false },
+    },
+    { name: "half over the photo", show: () => showOverPhoto(page, 50), shown: { photo: true, visibility: 50 } },
+    { name: "photo alone", show: () => setVisibility(page, 0), shown: { photo: true, visibility: 0 } },
+    {
+      name: "Color",
+      show: async () => {
+        await controls.photo.click();
+        await controls.symbols.click();
+      },
+      shown: { pattern: "color", symbols: true, photo: false },
+    },
+  ];
+  for (const view of views) {
+    await view.show();
+    await expectView(page, view.shown);
+    expect(await canvas.boundingBox(), view.name).toEqual(referenceBox);
+    expect(await scrollOf(), view.name).toEqual(referenceScroll);
   }
 
   // The realistic preview renders asynchronously; once it lands, the canvas holds stitches, not only the backdrop.
-  await showMode("realistic");
+  await controls.mode("Stitched").click();
   await expect
     .poll(() =>
       page.getByTestId("chart-canvas").evaluate((el: HTMLCanvasElement) => {
@@ -233,12 +244,9 @@ test("the Pan tool scrolls in the realistic preview and the original photo witho
   const centerX = scrollerBox.x + scrollerBox.width / 2;
   const centerY = scrollerBox.y + scrollerBox.height / 2;
 
-  for (const label of ["realistic", "photo-only"]) {
-    await page.getByRole("button", { name: label === "realistic" ? "Stitched" : "Color", exact: true }).click();
-    if (label === "photo-only") {
-      await page.getByRole("button", { name: "Show the photo behind the chart" }).click();
-      await page.getByRole("button", { name: "Show the photo behind the chart" }).click();
-    }
+  for (const label of ["Stitched", "photo alone"]) {
+    await page.keyboard.press(label === "Stitched" ? "3" : "5");
+    await expectView(page, label === "Stitched" ? { pattern: "realistic" } : { photo: true, visibility: 0 });
     const before = await scroller.evaluate((el) => ({ left: el.scrollLeft, top: el.scrollTop }));
     await page.mouse.move(centerX, centerY);
     await page.mouse.down();
@@ -250,15 +258,16 @@ test("the Pan tool scrolls in the realistic preview and the original photo witho
   await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
 });
 
-test("Grid + photo mode renders the symbol grid over the source photo without errors (G-012)", async ({ page }) => {
+test("the pattern with its symbols is drawn over the source photo without errors (G-012, G-110)", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
 
   await openSmallChart(page);
 
-  const photoRadio = page.getByRole("button", { name: "Show the photo behind the chart" });
-  await expect(photoRadio).toBeEnabled(); // a freshly generated pattern always has an embedded sourceImage
-  await photoRadio.click();
+  const photo = viewControls(page).photo;
+  await expect(photo).toBeEnabled(); // a freshly generated pattern always has an embedded sourceImage
+  await showOverPhoto(page, 50);
+  await expectView(page, { pattern: "color", symbols: true, photo: true, visibility: 50 });
 
   await expect(page.getByTestId("chart-canvas")).toBeVisible();
   expect(errors).toEqual([]);

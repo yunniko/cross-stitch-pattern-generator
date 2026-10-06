@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { openSmallChart } from "./helpers/app";
+import { showOverPhoto } from "./helpers/view";
 
 test("painting a stitch empty doesn't add it to the legend or its stitch counts (G-012 M5)", async ({ page }) => {
   await openSmallChart(page);
@@ -47,14 +48,14 @@ test("an empty-painted stitch renders as blank white on the live canvas, in colo
   expect(await cellIsWhite()).toBe(true);
 });
 
-test("Grid + photo mode leaves an empty-painted cell showing only the photo underneath, no symbol, no errors", async ({ page }) => {
+test("over the photo, an empty-painted cell shows only the photo underneath, no symbol, no errors", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
 
   await openSmallChart(page);
 
-  const photoRadio = page.getByRole("button", { name: "Show the photo behind the chart" });
-  await photoRadio.click();
+  // Half visible: editing stays on, and an empty stitch is the one place the photo shows at full strength (D316).
+  await showOverPhoto(page, 50);
 
   // Scoped to the Threads pane: the top panel echoes the brush's thread, so once this row is selected the
   // same text appears twice (G-045, the brush-colour readout).

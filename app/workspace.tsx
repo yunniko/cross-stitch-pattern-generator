@@ -119,6 +119,8 @@ export default function Workspace({ account }: WorkspaceProps) {
   const view = useEditorView({
     pattern,
     features,
+    chosenView: browserOptions.view,
+    setChosenView: (next) => updateOption("view", next),
     sliders: options.photoAdjust,
     restoreSliders: (adjust) => updateOption("photoAdjust", adjust),
   });
@@ -281,7 +283,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       clearLit: lit.clear,
       clearColourInHand: () => setActiveColorIndex(null),
       resetZoom: () => panZoom.resetZoom(),
-      showColorView: () => view.resetView(),
+      resetChartView: () => view.resetView(),
       setSymmetry: (axes) => symmetryState.reset(axes),
       resetPaletteSet: () => {
         updateOption("paletteSetup", false);
@@ -648,6 +650,7 @@ export default function Workspace({ account }: WorkspaceProps) {
                   shown={view.shown}
                   onChange={view.chooseView}
                   hasPhoto={pattern.sourceImage !== undefined}
+                  editing={editing}
                   isolate={lit.isolate}
                   onIsolateChange={lit.setIsolate}
                   litCount={lit.count}

@@ -10,6 +10,7 @@ import {
   sliderShown,
   viewEditable,
   viewInForce,
+  viewOnlyNote,
   viewOnlyReason,
   type ChartView,
 } from "../../lib/editor/view";
@@ -76,6 +77,12 @@ describe("editing and the slider", () => {
     const stitched = viewInForce(view({ pattern: "realistic" }), withPhoto);
     expect(viewEditable(stitched)).toBe(false);
     expect(viewOnlyReason(stitched)).toBe("stitched");
+  });
+
+  it("says why editing stops, and says nothing where it does not", () => {
+    expect(viewOnlyNote(viewInForce(view({ photo: true, visibility: 4 }), withPhoto))).toMatch(/too faint.*5 %/i);
+    expect(viewOnlyNote(viewInForce(view({ pattern: "realistic" }), withPhoto))).toMatch(/Stitched/);
+    expect(viewOnlyNote(viewInForce(view({ photo: true, visibility: 5 }), withPhoto))).toBeNull();
   });
 
   it("shows the slider only with the photo under the pattern", () => {

@@ -61,7 +61,7 @@ test("a generated, edited pattern survives a reload via IndexedDB, photo include
   await page.getByRole("tab", { name: "Chart" }).click();
   await expect(page.getByLabel("Pattern name")).toHaveValue("sample");
   // The embedded photo came back too (stored once, keyed by content).
-  await expect(page.getByRole("button", { name: "Show the photo behind the chart" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Photo under the pattern" })).toBeEnabled();
   // And nothing is written to the old localStorage slot any more.
   expect(await page.evaluate((key) => localStorage.getItem(key), LEGACY_PROJECT_KEY)).toBeNull();
 });
@@ -109,7 +109,7 @@ test("a pattern from a >4 MB photo survives a reload (the case the localStorage 
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
   await page.getByRole("tab", { name: "Chart" }).click();
   await expect(page.getByLabel("Pattern name")).toHaveValue("noise");
-  await expect(page.getByRole("button", { name: "Show the photo behind the chart" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Photo under the pattern" })).toBeEnabled();
 });
 
 test("a corrupt autosave starts a fresh session with a banner and an on-demand error report, not an unsolicited download", async ({

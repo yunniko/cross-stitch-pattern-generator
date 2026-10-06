@@ -3,6 +3,7 @@ import { readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { expectPhotoLoaded, saveButton, showWorkspace, generateAndWait, showPhotoTab } from "./helpers/app";
+import { expectView, showOverPhoto, viewControls } from "./helpers/view";
 
 /**
  * G-074 M3: the sliders reach generation, and the chart says what it was made with.
@@ -61,18 +62,10 @@ function meanChroma(chart: ExportedChart): number {
   return spread.reduce((a, b) => a + b, 0) / spread.length;
 }
 
-/**
- * The bare photo. One press shows the grid over it, a second the photo alone, a third returns to the chart
- * (view-controls.tsx), so this presses until it arrives rather than assuming where it started.
- */
+/** The bare photo: the photo switched on, with the pattern at no visibility over it (G-110). */
 async function showPhotoOnly(page: Page) {
-  const button = page.getByRole("button", { name: "Show the photo behind the chart" });
-  const frame = page.getByTestId("chart-frame");
-  for (let press = 0; press < 3; press++) {
-    if ((await frame.getAttribute("data-view-mode")) === "photo-only") break;
-    await button.click();
-  }
-  await expect(frame).toHaveAttribute("data-view-mode", "photo-only");
+  await showOverPhoto(page, 0);
+  await expectView(page, { photo: true, visibility: 0 });
 }
 
 /** Waits for the frame to be showing the photo *as the chart was made from it*, then reads it. */
@@ -173,7 +166,7 @@ test("the photo views show the photo the chart was made from, and reopening rest
   const chart = await generateAndExport(page);
   expect(chart.photoAdjust).toEqual({ brightness: 0, contrast: 0, saturation: -100, temperature: 0 });
 
-  // "Original photo" draws the photo the chart came from. With every bit of colour taken out of it, it is grey.
+  // The photo alone draws the photo the chart came from. With every bit of colour taken out of it, it is grey.
   await showPhotoOnly(page);
   // Waited for, not polled for: a poll would be satisfied by the frame still holding the grey chart
   // from a moment ago, and would pass just as happily with the adjustment never applied.
@@ -314,8 +307,8 @@ test("sliders moved but never generated are given up on the way out", async ({ p
 
   // And the same on leaving the photo view, rather than the tab.
   await page.getByRole("slider", { name: "Saturation" }).fill("-100");
-  await page.getByRole("button", { name: "Show the photo behind the chart" }).click();
-  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-mode", "color");
+  await viewControls(page).photo.click();
+  await expectView(page, { photo: false });
   await expect(page.getByRole("slider", { name: "Saturation" })).toHaveValue("0");
 });
 

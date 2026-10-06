@@ -9,7 +9,8 @@ import type { FeatureStates } from "@/lib/features/features";
 
 /**
  * What is being looked at: the chart's view, the workspace and the tab of the Edit panel (out of the workspace file in
- * G-098), with the one rule that ties the first two to the photo sliders.
+ * G-098), with the one rule that ties the first two to the photo sliders. The view is kept with the browser's settings, so
+ * it survives a reload (Owner, 2026-10-06); this hook only reads and sets it (D315).
  *
  * The sliders are provisional until a Generate acts on them (D243). In the Photo workspace with the photo shown, the view
  * follows the sliders as they move; anywhere else it shows the chart's own, because that is what the chart was made from
@@ -18,18 +19,22 @@ import type { FeatureStates } from "@/lib/features/features";
  */
 export function useEditorView({
   pattern,
+  chosenView,
+  setChosenView,
   sliders,
   restoreSliders,
   features,
 }: {
   pattern: StitchPattern | null;
+  /** The view as the browser keeps it. */
+  chosenView: ChartView;
+  setChosenView: (view: ChartView) => void;
   /** The person's feature states, which decide whether Stitched and the photo can be in force. */
   features: FeatureStates;
   /** The photo sliders as they stand in the settings. */
   sliders: PhotoAdjust;
   restoreSliders: (adjust: PhotoAdjust) => void;
 }) {
-  const [chosenView, setChosenView] = useState<ChartView>(DEFAULT_VIEW);
   const [workspace, setWorkspace] = useState<Workspace>("photo");
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("threads");
 

@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { openSmallChart, openPreferences } from "./helpers/app";
+import { expectView, viewControls } from "./helpers/view";
 
 test("Ctrl+Z/Ctrl+Y undo and redo a merge, matching the Undo/Redo buttons", async ({ page }) => {
   await openSmallChart(page);
@@ -72,31 +73,40 @@ test("holding Space temporarily switches to Pan and releasing restores the previ
   await expect(fillButton).toHaveAttribute("aria-pressed", "true");
 });
 
-test("1-5 switch the Image window's view mode, including the new Original photo mode", async ({ page }) => {
+test("1-3 pick the pattern mode, Y and P switch Symbols and Photo, 4 and 5 put the pattern over the photo (G-110)", async ({ page }) => {
   await openSmallChart(page);
-  // 1b replaced the five view radios with three chips and a Photo toggle that cycles; the frame's own
-  // data-view-mode is the mode itself, so it outlives whatever shape the control takes.
-  const frame = page.getByTestId("chart-frame");
-  const mode = async (expected: string) => expect(frame).toHaveAttribute("data-view-mode", expected);
-
-  await mode("color");
+  const controls = viewControls(page);
+  await expectView(page, { pattern: "color", symbols: true, photo: false, visibility: 100 });
 
   await page.keyboard.press("2");
-  await mode("bw");
-  await expect(page.getByRole("button", { name: "B&W", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expectView(page, { pattern: "bw" });
+  await expect(controls.mode("B&W")).toHaveAttribute("aria-pressed", "true");
 
+  await page.keyboard.press("y");
+  await expectView(page, { pattern: "bw", symbols: false });
+  await expect(controls.symbols).toHaveAttribute("aria-pressed", "false");
+  await page.keyboard.press("y");
+  await expectView(page, { symbols: true });
+
+  await page.keyboard.press("p");
+  await expectView(page, { pattern: "bw", photo: true, visibility: 100 });
+  await expect(controls.photo).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("p");
+  await expectView(page, { photo: false });
+
+  // Stitched draws neither symbols nor the photo, and 4 and 5 leave it for Color.
   await page.keyboard.press("3");
-  await mode("realistic");
-
+  await expectView(page, { pattern: "realistic", symbols: false, photo: false });
   await page.keyboard.press("4");
-  await mode("photo");
-
+  await expectView(page, { pattern: "color", photo: true, visibility: 50 });
   await page.keyboard.press("5");
-  await mode("photo-only");
-  await expect(page.getByRole("button", { name: "Show the photo behind the chart" })).toHaveAttribute("aria-pressed", "true");
+  await expectView(page, { pattern: "color", photo: true, visibility: 0 });
 
+  // A pattern key leaves the photo as it is.
+  await page.keyboard.press("2");
+  await expectView(page, { pattern: "bw", photo: true, visibility: 0 });
   await page.keyboard.press("1");
-  await mode("color");
+  await expectView(page, { pattern: "color", photo: true });
 });
 
 test("double-clicking with Brush active flood-fills the whole region that was there before the double-click, not just the clicked cell", async ({

@@ -29,7 +29,7 @@ function recorder() {
     clearLit: note("clearLit"),
     clearColourInHand: note("clearColourInHand"),
     resetZoom: note("resetZoom"),
-    showColorView: note("showColorView"),
+    resetChartView: note("resetChartView"),
     setSymmetry: (axes) => calls.push(axes ? "setSymmetry:file" : "setSymmetry:off"),
     resetPaletteSet: note("resetPaletteSet"),
     restorePaletteSet: note("restorePaletteSet"),
@@ -44,7 +44,8 @@ function recorder() {
   return { calls, effects };
 }
 
-const FULL_VIEW = ["clearSelection", "bumpDocument", "clearColourInHand", "resetZoom", "showColorView", "clearLit", "closeCrop"];
+// A new document's view in full, the view's switches last (D315).
+const FULL_VIEW = ["clearSelection", "bumpDocument", "clearColourInHand", "resetZoom", "clearLit", "closeCrop", "resetChartView"];
 const AXES = { vertical: true, horizontal: false, diagonal: false, antidiagonal: false };
 
 describe("what each way of replacing the chart resets", () => {
@@ -83,6 +84,16 @@ describe("what each way of replacing the chart resets", () => {
       "leaveStart",
       "adoptPhoto:file",
     ]);
+  });
+
+  it("the autosaved chart brought back on load is opened like a file, but keeps the view the browser kept", async () => {
+    const opened = { symmetry: AXES, fallbackName: "file" };
+    const asOpened = recorder();
+    const asRestored = recorder();
+    await replaceDocument("open", chart(), asOpened.effects, opened);
+    await replaceDocument("restore", chart(), asRestored.effects, opened);
+    expect(asRestored.calls).toEqual(asOpened.calls.filter((call) => call !== "resetChartView"));
+    expect(asOpened.calls).toContain("resetChartView");
   });
 
   it("an opened file with no photo leaves the sliders alone, and one with no set resets the set", async () => {
@@ -155,6 +166,11 @@ describe("rules every row keeps (D283)", () => {
       expect(REPLACE_PLANS[reason].clearMessages, reason).toBe(true);
       expect(REPLACE_PLANS[reason].symmetry, reason).not.toBe("keep");
     }
+  });
+
+  it("every new document resets the view's switches but the reload, which is what keeping them is for (Owner, 2026-10-06)", () => {
+    expect(newDocuments.filter((r) => REPLACE_PLANS[r].chartView === "keep")).toEqual(["restore"]);
+    expect(REPLACE_PLANS.regenerate.chartView).toBe("keep");
   });
 
   it("a chart that arrives with no photo behind it starts with neutral sliders", () => {

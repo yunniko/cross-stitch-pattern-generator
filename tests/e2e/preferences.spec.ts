@@ -133,7 +133,7 @@ test("Double-click fills is a preference and nowhere else; Escape closes Prefere
   await expect(preferences).toHaveCount(0);
   // The focus is back on what opened them.
   await expect(page.getByRole("button", { name: "Preferences" })).toBeFocused();
-  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-mode", "color");
+  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-pattern", "color");
   await expect(page.getByRole("button", { name: "Brush", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 

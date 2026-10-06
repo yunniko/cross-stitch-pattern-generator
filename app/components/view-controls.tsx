@@ -1,7 +1,15 @@
 "use client";
 
 import type { RefObject } from "react";
-import { isFlatMode, PHOTO_FEATURE, sliderShown, STITCHED_FEATURE, type ChartView, type PatternMode } from "@/lib/editor/view";
+import {
+  isFlatMode,
+  PHOTO_FEATURE,
+  sliderShown,
+  STITCHED_FEATURE,
+  viewOnlyNote,
+  type ChartView,
+  type PatternMode,
+} from "@/lib/editor/view";
 import { SkinIcon } from "../skin/skin";
 import { DISABLED_ICON, DISABLED_TEXT, SegmentedControl } from "./ui";
 import { lockedNote } from "@/lib/features/features";
@@ -39,6 +47,8 @@ export interface ViewControlsProps {
   onChange: (view: ChartView) => void;
   /** The chart has the photo it was made from, so the photo can go under it. */
   hasPhoto: boolean;
+  /** The Edit workspace is shown, so a view that cannot be edited says why. */
+  editing: boolean;
   /** Isolate: dim every thread except the ones lit in the Threads list. Not a tool: it stays on while you paint. */
   isolate: boolean;
   onIsolateChange: (on: boolean) => void;
@@ -55,6 +65,7 @@ export function ViewControls({
   shown,
   onChange,
   hasPhoto,
+  editing,
   isolate,
   onIsolateChange,
   litCount,
@@ -64,6 +75,7 @@ export function ViewControls({
   onResetZoom,
 }: ViewControlsProps) {
   const flat = isFlatMode(shown.pattern);
+  const note = editing ? viewOnlyNote(shown) : null;
   // Under the feature switches (G-102): the Stitched mode, the photo under the pattern and Isolate are each a feature.
   const stitched = useFeature(STITCHED_FEATURE);
   const photoFeature = useFeature(PHOTO_FEATURE);
@@ -132,6 +144,11 @@ export function ViewControls({
           />
           <span className="w-9 text-right font-mono text-[11px] text-ink">{shown.visibility}%</span>
         </label>
+      )}
+      {note && (
+        <span role="note" data-testid="view-only-note" className="text-xs text-muted">
+          {note}
+        </span>
       )}
       {isolateFeature.shown && (
         <button

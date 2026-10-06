@@ -21,7 +21,10 @@ export interface PreviewFrame {
 export interface AdjustPreviewRunner {
   /** Prepares a newly decoded photo. Passing null drops the one being held. */
   setPhoto(source: PixelBuffer | null): void;
-  /** Asks for the photo with these sliders: coarse while one is moving, fine once it stops. */
+  /**
+   * Asks for the photo with these sliders: coarse while one is moving, fine once it stops. Every slider centred asks for
+   * no frame and withdraws the ones still coming, since the caller shows the photo itself from then on.
+   */
   request(adjust: PhotoAdjust, quality: Quality): void;
   dispose(): void;
 }
@@ -131,8 +134,13 @@ export function createAdjustPreviewRunner(
     },
     request(adjust, quality) {
       if (!hasPhoto || disposed) return;
-      // Neutral is the photo itself; the caller shows the original rather than asking for a frame of it.
-      if (isNeutralAdjust(adjust)) return;
+      // Neutral is the photo itself; the caller shows the original rather than asking for a frame of it. A frame still
+      // on its way was asked for before that, and would paint the old sliders over the original.
+      if (isNeutralAdjust(adjust)) {
+        pending = null;
+        painted = frameId;
+        return;
+      }
       if (inFlight) {
         pending = { adjust, quality };
         return;
@@ -171,6 +179,8 @@ export class AdjustCadence {
   request(adjust: PhotoAdjust): void {
     this.runner.request(adjust, "coarse");
     this.clear();
+    // Centred sliders have no sharp pass to come: the request above withdrew what was coming instead.
+    if (isNeutralAdjust(adjust)) return;
     this.timer = setTimeout(() => this.runner.request(adjust, "fine"), this.settleMs);
   }
 

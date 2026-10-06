@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AdjustCadence, createAdjustPreviewRunner, type PreviewFrame } from "@/lib/editor/photo-adjust-preview";
-import { isNeutralAdjust, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
+import { isNeutralAdjust, NEUTRAL_ADJUST, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import { previewSizeFor } from "@/lib/pipeline/photo-preview";
 
 /**
@@ -81,6 +81,8 @@ export function useAdjustedPhoto(dataUrl: string | null, adjust: PhotoAdjust | u
     }
 
     const neutral = !adjust || isNeutralAdjust(adjust);
+    // The sliders centred: withdraw any frame of the old ones still being prepared, or it lands over the original.
+    if (neutral) cadenceRef.current?.request(adjust ?? NEUTRAL_ADJUST);
     const decoded = decodedRef.current;
     if (decoded?.dataUrl === dataUrl) {
       if (neutral) setPhoto({ dataUrl, adjusted: false, img: decoded.img });

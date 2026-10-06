@@ -19,8 +19,8 @@ export interface ReplaceEffects {
   clearLit(): void;
   clearColourInHand(): void;
   resetZoom(): void;
-  /** The Color view: a new chart opens where it can be edited (Owner, 2026-10-04). */
-  showColorView(): void;
+  /** The view's switches return to a new chart's: Color, where it can be edited (Owner, 2026-10-04; D315). */
+  resetChartView(): void;
   /** The symmetry axes: all off when none are given. */
   setSymmetry(axes?: SymmetryAxes): void;
   resetPaletteSet(): void;
@@ -75,10 +75,11 @@ export async function replaceDocument(
   if (plan.view === "full") {
     effects.clearColourInHand();
     effects.resetZoom();
-    effects.showColorView();
     effects.clearLit();
     effects.closeCrop();
   }
+
+  if (plan.chartView === "reset") effects.resetChartView();
 
   if (plan.symmetry === "off") effects.setSymmetry();
   else if (plan.symmetry === "from-file") effects.setSymmetry(extras.symmetry);

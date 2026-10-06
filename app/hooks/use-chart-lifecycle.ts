@@ -99,11 +99,18 @@ export function useChartLifecycle({
     replaceDocument(reason, next, effects, extras);
 
   /** Lands a restored or opened chart in every piece of state that depends on it, including its embedded photo. */
-  function open(loaded: StitchPattern, fallbackName: string, savedSymmetry: SymmetryAxes = NO_SYMMETRY) {
-    return replace("open", { ...loaded, name: loaded.name ?? fallbackName }, { symmetry: savedSymmetry, fallbackName });
+  function open(
+    loaded: StitchPattern,
+    fallbackName: string,
+    savedSymmetry: SymmetryAxes = NO_SYMMETRY,
+    reason: "open" | "restore" = "open"
+  ) {
+    return replace(reason, { ...loaded, name: loaded.name ?? fallbackName }, { symmetry: savedSymmetry, fallbackName });
   }
 
-  const restore = useProjectRestore((restored, savedSymmetry) => void open(restored, restored.name ?? DEFAULT_CHART_NAME, savedSymmetry));
+  const restore = useProjectRestore(
+    (restored, savedSymmetry) => void open(restored, restored.name ?? DEFAULT_CHART_NAME, savedSymmetry, "restore")
+  );
   const autosaveStatus = useProjectAutosave(pattern, restore.restored, getProjectStore(), symmetry);
 
   /**

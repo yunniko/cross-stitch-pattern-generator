@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { drawCell, drawChart } from "@/lib/export/render";
+import path from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { CLEAR_EMPTY, drawCell, drawChart, drawChartOnScreen } from "@/lib/export/render";
+import { createCanvas, setExportBackend } from "@/lib/export/canvas-backend";
+import { installServerExportBackend } from "@/processor/export-backend";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
 import { makeRecordingContext } from "./helpers/recording-context";
 
@@ -91,6 +94,26 @@ describe("the Symbols switch", () => {
       drawCell(cell, makePattern(), mode, 24, 1, 1, 1, "#ffffff", "stroke", undefined, false);
       expect(cell.rects).toHaveLength(1);
       expect(cell.texts).toEqual([]);
+    }
+  });
+});
+
+/** D316: over the photo an empty stitch is left unpainted, on the fast path and the exact one alike. */
+describe("an empty stitch drawn over something", () => {
+  beforeAll(() => {
+    process.env.EXPORT_ASSET_ROOT = path.join(__dirname, "..", "..", "public");
+    installServerExportBackend();
+  });
+  afterAll(() => setExportBackend(null));
+
+  it("leaves its cell clear while a stitch beside it is painted", () => {
+    const pattern: StitchPattern = { ...makePattern(), cellPalette: Uint8Array.from([0, EMPTY_CELL, 0, 1]) };
+    for (const symbols of [false, true]) {
+      const canvas = createCanvas(2 * 24, 2 * 24);
+      drawChartOnScreen(canvas.ctx as never, pattern, "color", 24, undefined, CLEAR_EMPTY, symbols);
+      const alphaAt = (x: number, y: number) => canvas.ctx.getImageData(x, y, 1, 1).data[3];
+      expect(alphaAt(24 + 12, 12), `empty, symbols ${symbols}`).toBe(0);
+      expect(alphaAt(12, 12), `stitch, symbols ${symbols}`).toBe(255);
     }
   });
 });

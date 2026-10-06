@@ -160,7 +160,7 @@ export function TextPane({
   const problem = !pattern
     ? "Open a chart first."
     : viewOnly
-      ? "Switch to the Color or B&W view to add text."
+      ? "Text is added in Color or B&W, with the pattern at least 5 % visible."
       : palette.length === 0
         ? "This chart has no threads yet. Add one in the Threads tab."
         : text.trim().length === 0

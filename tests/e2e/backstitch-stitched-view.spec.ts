@@ -40,7 +40,7 @@ test("a backstitch line shows over the stitches in the Stitched view, as one sol
     [38, 20],
   ]);
   await page.getByRole("button", { name: "Stitched", exact: true }).click();
-  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-mode", "realistic");
+  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-pattern", "realistic");
   await page.waitForTimeout(600);
   const withLine = await samples(page, 20);
 
@@ -64,7 +64,7 @@ test("a backstitch line shows over the stitches in the Stitched view, as one sol
 test("a chart with no backstitch looks as it did in the Stitched view", async ({ page }) => {
   await openSmallChart(page);
   await page.getByRole("button", { name: "Stitched", exact: true }).click();
-  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-mode", "realistic");
+  await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-pattern", "realistic");
   await page.waitForTimeout(600);
   // Nothing was drawn over the stitches: two reads of the same row are one picture.
   expect(meanDifference(await samples(page, 20), await samples(page, 20))).toBe(0);

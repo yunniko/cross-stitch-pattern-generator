@@ -97,6 +97,14 @@ export function viewOnlyReason(inForce: ChartView): "stitched" | "faint" | null 
   return inForce.visibility < EDITING_MIN_VISIBILITY ? "faint" : null;
 }
 
+/** The note shown where editing is not offered, in the Edit workspace; null where it is. */
+export function viewOnlyNote(inForce: ChartView): string | null {
+  const reason = viewOnlyReason(inForce);
+  if (reason === "stitched") return "Stitched is for looking: edit in Color or B&W.";
+  if (reason === "faint") return `Too faint to edit: raise the pattern to ${EDITING_MIN_VISIBILITY} % or more.`;
+  return null;
+}
+
 /** Key 4: the photo under the pattern, half visible, in Color unless a flat mode was already chosen. */
 export function photoHalfView(view: ChartView): ChartView {
   return { ...view, pattern: isFlatMode(view.pattern) ? view.pattern : "color", photo: true, visibility: HALF_VISIBLE };

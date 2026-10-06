@@ -154,11 +154,8 @@ describe("the workspace a chart arrives in", () => {
   });
 
   it("a chart that arrives ready is shown in Edit", () => {
-    expect([REPLACE_PLANS.open.workspace, REPLACE_PLANS.blank.workspace, REPLACE_PLANS["pixel-art"].workspace]).toEqual([
-      "edit",
-      "edit",
-      "edit",
-    ]);
+    const ready = [REPLACE_PLANS.open, REPLACE_PLANS.restore, REPLACE_PLANS.blank, REPLACE_PLANS["pixel-art"]];
+    expect(ready.map((plan) => plan.workspace)).toEqual(["edit", "edit", "edit", "edit"]);
   });
 
   it("giving the chart up changes no workspace: the start screen is what is shown", () => {

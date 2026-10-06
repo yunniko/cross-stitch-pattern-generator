@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { createAdjustPreviewRunner, type PreviewFrame, type PreviewWorkerLike } from "@/lib/editor/photo-adjust-preview";
+import { describe, expect, it, vi } from "vitest";
+import { AdjustCadence, createAdjustPreviewRunner, type PreviewFrame, type PreviewWorkerLike } from "@/lib/editor/photo-adjust-preview";
 import { AdjustPreviewState, type AdjustWorkerRequest, type AdjustWorkerResponse } from "@/lib/editor/photo-adjust-frames";
 import { NEUTRAL_ADJUST, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import type { PixelBuffer } from "@/lib/types";
@@ -139,6 +139,24 @@ describe("frames that should not be painted", () => {
     expect(frames).toHaveLength(2);
   });
 
+  it("drops one still on its way once the sliders are centred, so the old sliders never land over the photo", () => {
+    const frames: PreviewFrame[] = [];
+    const { worker, runner: r } = runner((frame) => frames.push(frame));
+    r.setPhoto(photo());
+    r.request(at(10), "coarse");
+    r.request(at(20), "fine");
+    r.request(NEUTRAL_ADJUST, "coarse");
+    worker.flush();
+    worker.flush();
+    expect(frames).toHaveLength(0);
+    expect(worker.adjustRequests).toHaveLength(1);
+
+    // A slider moved off centre again is asked for and painted as before.
+    r.request(at(30), "coarse");
+    worker.flush();
+    expect(frames).toHaveLength(1);
+  });
+
   it("paints nothing once disposed, and stops the worker", () => {
     const frames: PreviewFrame[] = [];
     const { worker, runner: r } = runner((frame) => frames.push(frame));
@@ -190,5 +208,28 @@ describe("with no worker to be had", () => {
     r.request(at(50), "fine");
     expect(frames).toHaveLength(1);
     expect(frames[0].width).toBe(8);
+  });
+});
+
+describe("the sharp pass after a slider stops", () => {
+  it("is drawn once the change stops coming, and not at all once the sliders are centred", () => {
+    vi.useFakeTimers();
+    try {
+      const { worker, runner: r } = runner();
+      const cadence = new AdjustCadence(r, 100);
+      cadence.setPhoto(photo());
+      cadence.request(at(10));
+      worker.flush();
+      vi.advanceTimersByTime(100);
+      expect(worker.adjustRequests.map((m) => m.quality)).toEqual(["coarse", "fine"]);
+
+      worker.flush();
+      cadence.request(at(20));
+      cadence.request(NEUTRAL_ADJUST);
+      vi.advanceTimersByTime(100);
+      expect(worker.adjustRequests.map((m) => m.quality)).toEqual(["coarse", "fine", "coarse"]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
