@@ -44,6 +44,8 @@ export interface ShellState {
   canRedo: boolean;
   /** The photo sliders are all centred. */
   slidersNeutral: boolean;
+  /** The tool in hand lends itself to the picker on Alt (D318), and the chart can be edited here. */
+  picksOnAlt: boolean;
 }
 
 export interface ShellActions {
@@ -77,6 +79,10 @@ export interface ShellActions {
   holdPan: () => void;
   /** True when Space was holding Pan. */
   releasePan: () => boolean;
+  /** Alt went down, and came up: the colour picker is in hand for as long as it is held (G-104). */
+  holdPicker: () => void;
+  /** True when Alt was holding the picker. */
+  releasePicker: () => boolean;
   chooseTool: (tool: Tool) => void;
   showWorkspace: (workspace: Workspace) => void;
 }
@@ -135,6 +141,8 @@ export function shellCommandStates(s: ShellState, a: ShellActions): Record<Shell
     "view.preferences": act(true, a.openPreferences),
     "view.whats-new": act(true, a.openWhatsNew),
     "view.pan-held": { available: s.hasChart, run: a.holdPan, release: a.releasePan },
+    // Given back whether or not it is available now: with the picker in hand the tool no longer lends, and the key still comes up.
+    "tools.pick-held": { available: editing && s.picksOnAlt, run: a.holdPicker, release: a.releasePicker },
     "cursor.move": LISTENED_ELSEWHERE,
     "cursor.move-ten": LISTENED_ELSEWHERE,
     "cursor.pen": LISTENED_ELSEWHERE,

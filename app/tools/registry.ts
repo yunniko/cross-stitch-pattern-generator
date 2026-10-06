@@ -5,6 +5,7 @@ import { cropModule } from "./crop";
 import { lassoFillModule } from "./lasso-fill";
 import { moveModule } from "./move";
 import { panModule, zoomModule } from "./navigate";
+import { pickerModule } from "./picker";
 import { selectModule } from "./select";
 import { shapeModule } from "./shape";
 import { textModule } from "./text";
@@ -21,6 +22,7 @@ export const TOOL_MODULES = [
   brushModule,
   shapeModule,
   lassoFillModule,
+  pickerModule,
   textModule,
   backstitchModule,
   backstitchEditModule,

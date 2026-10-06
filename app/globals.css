@@ -117,6 +117,15 @@ body {
 /* The editing bar's tool options are a track that scrolls inside itself: the view controls after it stay reachable at
    any window width, and a bar too wide for the window no longer pushes the workspace sideways (D213). The bar is
    44px tall, so the scrollbar is hidden rather than drawn into it. */
+/* The colour picker's pointer (G-104): the tool's dropper, its tip on the stitch it takes. Black on a white halo reads on
+   any chart; a browser that cannot draw it shows a cross. */
+.cursor-pick {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg stroke='white' stroke-width='4'%3E%3Cpath d='M3.5 20.5 4.6 16.6 12.4 8.8l2.8 2.8-7.8 7.8z'/%3E%3Cpath d='M13.8 10.2 17.7 6.3a2.1 2.1 0 0 0-3-3l-3.9 3.9'/%3E%3C/g%3E%3Cg stroke='black' stroke-width='1.7'%3E%3Cpath d='M3.5 20.5 4.6 16.6 12.4 8.8l2.8 2.8-7.8 7.8z'/%3E%3Cpath d='M11 7.4 16.6 13'/%3E%3Cpath d='M13.8 10.2 17.7 6.3a2.1 2.1 0 0 0-3-3l-3.9 3.9'/%3E%3C/g%3E%3C/svg%3E")
+      3 21,
+    crosshair;
+}
+
 .at-tool-track {
   scrollbar-width: none;
 }

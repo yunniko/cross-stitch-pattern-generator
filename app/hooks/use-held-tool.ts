@@ -6,6 +6,9 @@ import { useLatest } from "./use-latest";
 /** The tool Space borrows: the first that moves the view by dragging. */
 export const PAN_TOOL = TOOL_DEFINITIONS.find((tool) => tool.cursor === "grab")!.id;
 
+/** The tool Alt borrows from a drawing tool (D318): the one that picks. */
+export const PICKER_TOOL = TOOL_DEFINITIONS.find((tool) => tool.cursor === "pick")!.id;
+
 /**
  * A tool held on a key (G-104, D319; Space's Pan since G-098), by the rules in `lib/editor/held-tool.ts`. The tool that was
  * in hand is given back with none of a tool change's side effects, so what it held stays held.

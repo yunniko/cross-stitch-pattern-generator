@@ -225,6 +225,16 @@ const SHELL_COMMANDS = [
     keys: ["Space"],
     keyOnly: "held",
   },
+  {
+    id: "tools.pick-held",
+    feature: "tool.picker",
+    workspace: "edit",
+    name: "Pick a color while the key is held",
+    group: "Tools",
+    when: "A drawing tool in hand, in an editable view",
+    keys: ["Alt"],
+    keyOnly: "held",
+  },
 
   // The keyboard cell cursor listens for its own keys (`use-keyboard-cursor.ts`); they are listed so the table is whole.
   {

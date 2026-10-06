@@ -107,6 +107,7 @@ function cursorFor(activeTool: Tool, activeColorIndex: number | null, lookingOnl
   if (cursor === "grab") return "cursor-grab active:cursor-grabbing";
   if (cursor === "zoom") return "cursor-zoom-in";
   if (lookingOnly) return "";
+  if (cursor === "pick") return "cursor-pick";
   return cursor === "cross" || activeColorIndex !== null ? "cursor-crosshair" : "";
 }
 

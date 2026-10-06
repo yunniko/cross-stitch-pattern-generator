@@ -23,6 +23,7 @@ const EDITING: ShellState = {
   canUndo: true,
   canRedo: true,
   slidersNeutral: false,
+  picksOnAlt: true,
 };
 
 function actions(): ShellActions & Record<string, ReturnType<typeof vi.fn>> {
@@ -53,6 +54,8 @@ function actions(): ShellActions & Record<string, ReturnType<typeof vi.fn>> {
     "openWhatsNew",
     "holdPan",
     "releasePan",
+    "holdPicker",
+    "releasePicker",
     "chooseTool",
     "showWorkspace",
   ];
@@ -81,6 +84,12 @@ describe("the editor's own commands", () => {
       "cursor.move-ten",
       "cursor.pen",
     ]);
+  });
+
+  it("Alt picks only with a tool that lends itself to it, and only where the chart is edited (G-104, D318)", () => {
+    expect(available(EDITING)).toContain("tools.pick-held");
+    expect(unavailableIn({ ...EDITING, picksOnAlt: false })).toEqual(["tools.pick-held"]);
+    expect(unavailableIn({ ...EDITING, workspace: "export" })).toContain("tools.pick-held");
   });
 
   it("a square chart adds its three", () => {
@@ -163,6 +172,7 @@ describe("the editor's own commands", () => {
       "view.zoom-out",
       "view.zoom-reset",
       "view.command-list",
+      "tools.pick-held",
     ]);
   });
 
@@ -201,6 +211,10 @@ describe("the editor's own commands", () => {
     commands["view.pan-held"].release!();
     expect(a.holdPan).toHaveBeenCalledTimes(1);
     expect(a.releasePan).toHaveBeenCalledTimes(1);
+    commands["tools.pick-held"].run();
+    commands["tools.pick-held"].release!();
+    expect(a.holdPicker).toHaveBeenCalledTimes(1);
+    expect(a.releasePicker).toHaveBeenCalledTimes(1);
     for (const [id, action] of [
       ["file.new", a.newChart],
       ["file.export-editable", a.exportEditable],

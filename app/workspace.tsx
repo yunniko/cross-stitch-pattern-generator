@@ -54,7 +54,7 @@ import { NoWorkspace } from "./components/no-workspace";
 import { toolDefinition } from "./tools/registry";
 import { useTools } from "./tools/use-tools";
 import { useShellCommands } from "./commands/shell-commands";
-import { PAN_TOOL, useHeldTool } from "./hooks/use-held-tool";
+import { PAN_TOOL, PICKER_TOOL, useHeldTool } from "./hooks/use-held-tool";
 import { CommandList } from "./components/command-list";
 import { useChartLifecycle } from "./hooks/use-chart-lifecycle";
 import { useRecommendedCount } from "./hooks/use-recommended-count";
@@ -438,6 +438,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       canUndo: history.canUndo,
       canRedo: history.canRedo,
       slidersNeutral: isNeutralAdjust(options.photoAdjust),
+      picksOnAlt: !lookingOnly && toolDefinition(activeTool).heldPicker === true,
     },
     {
       newChart: () => setStartingNew(true),
@@ -466,6 +467,8 @@ export default function Workspace({ account }: WorkspaceProps) {
       openWhatsNew: () => window.open(WHATS_NEW_PATH, "_blank", "noopener"),
       holdPan: () => heldTool.hold("Space", PAN_TOOL),
       releasePan: () => heldTool.release("Space"),
+      holdPicker: () => heldTool.hold("Alt", PICKER_TOOL),
+      releasePicker: () => heldTool.release("Alt"),
       chooseTool: switchTool,
       showWorkspace: chooseWorkspace,
     },

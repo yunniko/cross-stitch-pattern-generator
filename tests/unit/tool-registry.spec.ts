@@ -10,7 +10,7 @@ import { DEFAULT_TOOL, moduleIndexOf, TOOL_DEFINITIONS, TOOL_KEYS, TOOL_MODULES,
  */
 
 describe("the registry", () => {
-  it("holds the fifteen tools in the order of the tool list", () => {
+  it("holds the sixteen tools in the order of the tool list", () => {
     expect(TOOL_DEFINITIONS.map((tool) => tool.id)).toEqual([
       "brush",
       "fill",
@@ -18,6 +18,7 @@ describe("the registry", () => {
       "rect",
       "oval",
       "lasso-fill",
+      "picker",
       "text",
       "backstitch",
       "backstitch-edit",
@@ -28,7 +29,7 @@ describe("the registry", () => {
       "pan",
       "zoom",
     ]);
-    expect(TOOL_DEFINITIONS.map((tool) => tool.group)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2]);
+    expect(TOOL_DEFINITIONS.map((tool) => tool.group)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2]);
     expect(DEFAULT_TOOL).toBe("brush");
   });
 
@@ -54,6 +55,7 @@ describe("the registry", () => {
       r: "rect",
       o: "oval",
       g: "lasso-fill",
+      i: "picker",
       k: "backstitch",
       j: "backstitch-edit",
       s: "select",
@@ -115,6 +117,7 @@ describe("what the editor reads from a tool's definition", () => {
     });
     expect(Object.fromEntries(TOOL_DEFINITIONS.filter((tool) => tool.cursor).map((tool) => [tool.id, tool.cursor]))).toEqual({
       fill: "cross",
+      picker: "pick",
       text: "cross",
       select: "cross",
       lasso: "cross",
@@ -159,6 +162,7 @@ describe("the options each tool declares (G-093)", () => {
       rect: "brushSize brushShape stitchKind shapeFill",
       oval: "brushSize brushShape stitchKind shapeFill",
       "lasso-fill": "stitchKind",
+      picker: "",
       text: "",
       backstitch: "",
       "backstitch-edit": "",

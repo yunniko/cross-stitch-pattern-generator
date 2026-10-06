@@ -61,8 +61,8 @@ export interface ToolDefinition {
   outline?: "brush" | "one" | "press";
   /** The options it offers, in the order they are drawn (G-093). Declared with the tool, drawn by the options area. */
   options?: readonly ToolOption[];
-  /** The pointer over the chart: a hand, a magnifier, always a cross; without it, a cross once a colour is in hand. */
-  cursor?: "grab" | "zoom" | "cross";
+  /** The pointer over the chart: a hand, a magnifier, a dropper, always a cross; without it, a cross once a colour is in hand. */
+  cursor?: "grab" | "zoom" | "pick" | "cross";
   /**
    * It brings a tab of its own to the panel (G-095, D296): the first tab, there only while the tool is in hand, for what
    * does not fit among the quick options. What the tab holds is the runtime's `panel`.

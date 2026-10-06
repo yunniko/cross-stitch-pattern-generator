@@ -4,6 +4,11 @@ import { commandsForKey, parseChord, type Command } from "@/lib/editor/commands"
 /** Inputs that take no typed characters: a key pressed on one is a shortcut, as on a button (the view's slider, G-110). */
 const KEYLESS_INPUTS = new Set(["range", "checkbox", "radio", "button", "submit", "reset", "color", "file", "image"]);
 
+/** A held command whose key is a modifier on its own: no focused control has a use for it. */
+function heldOnModifier(command: Command): boolean {
+  return command.keys?.some((chord) => parseChord(chord).modifier) ?? false;
+}
+
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target instanceof HTMLInputElement) return !KEYLESS_INPUTS.has(target.type);
@@ -20,7 +25,8 @@ function isTypingTarget(target: EventTarget | null): boolean {
  *   then, so a held command begun before the pause ends when its key does.
  * - A command that says it claims its key keeps it from the browser even while it cannot run (undo with a piece in hand, G-063).
  * - A `held` command (Space, to pan) acts until the key comes up, and is claimed only when focus is on the page body or
- *   inside the canvas scroller: a focused button, select, radio or checkbox keeps its own Space (review B5).
+ *   inside the canvas scroller: a focused button, select, radio or checkbox keeps its own Space (review B5). A modifier
+ *   held alone (Alt, to pick) presses no control, so it is claimed wherever focus is outside a text field (D319).
  *
  * The table is rebuilt every render and read through a ref, so a handler never sees stale state (D103).
  */
@@ -48,7 +54,7 @@ export function useKeyboardShortcuts(commands: readonly Command[], scrollerRef: 
       for (const command of matches) {
         if (!command.available) continue;
         if (command.keyOnly === "held") {
-          if (!isPanTarget(e.target)) return;
+          if (!heldOnModifier(command) && !isPanTarget(e.target)) return;
           e.preventDefault(); // stop the page itself from scrolling on every repeat while held
           command.run();
           return;

@@ -21,6 +21,16 @@ export function BrushIcon() {
   );
 }
 
+export function PickerIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <path d="M3.5 20.5 4.6 16.6 12.4 8.8l2.8 2.8-7.8 7.8z" />
+      <path d="M11 7.4 16.6 13" />
+      <path d="M13.8 10.2 17.7 6.3a2.1 2.1 0 0 0-3-3l-3.9 3.9" />
+    </svg>
+  );
+}
+
 export function FillIcon() {
   return (
     <svg {...TOOL_ICON_PROPS}>
