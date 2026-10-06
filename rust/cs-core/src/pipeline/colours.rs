@@ -3,7 +3,7 @@
 use super::{Clock, Run};
 use crate::color::{rgb_to_oklab, Oklab, Rgb};
 use crate::crisp::stage;
-use crate::dither::dither_to_palette;
+use crate::dither::Cells;
 use crate::hue_reserve::reserve_hue_threads;
 use crate::pattern::PaletteSet;
 use crate::quantize::{quantize, Quantizer};
@@ -107,15 +107,21 @@ pub(super) fn choose_threads(run: &mut Run, clock: &mut Clock) {
     drop(denoised);
     // The quantizer chose the threads; dithering decides which stitch gets which of the two nearest (G-052).
     let quantized = if run.dithered {
-        let mut labels = dither_to_palette(
-            &run.cell_oklab,
-            gw,
-            gh,
-            &raw_palette,
-            options.dither,
-            &options.dither_texture,
-            empty_ref,
-        );
+        let pattern = options
+            .dither
+            .as_ref()
+            .expect("a dithered run has a pattern");
+        let cells = Cells {
+            oklab: &run.cell_oklab,
+            width: gw,
+            height: gh,
+            skip: empty_ref,
+        };
+        let mut labels = if raw_palette.is_empty() {
+            vec![0u8; gw * gh]
+        } else {
+            pattern.dither(&cells, &raw_palette)
+        };
         if let Some(mask) = empty_ref {
             for (label, &empty) in labels.iter_mut().zip(mask.iter()) {
                 if empty != 0 {

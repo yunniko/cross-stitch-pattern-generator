@@ -1,8 +1,6 @@
 //! JSON in and out, shared by the benchmark CLI and the WASM build: options with `BuildPatternOptions`' names, values
 //! and defaults, and the pattern in the editable-save field names the parity harness hashes.
 
-use crate::dither::DitherMode;
-use crate::dither_hand_drawn::{default_dither_texture, DitherStamp, DitherTexture};
 use crate::pattern::{BuildOptions, EdgeMode, PaletteSet, SetColor, StageTimes, StitchPattern};
 use crate::photo_adjust::{PhotoAdjust, NEUTRAL_ADJUST};
 use crate::quantize::Quantizer;
@@ -90,70 +88,6 @@ impl AdjustOptions {
     }
 }
 
-/// What a drawn pattern is made of (G-055). Absent fields take the default texture's value, so a request naming one
-/// knob changes only that knob.
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct TextureOptions {
-    #[serde(default)]
-    spacing: Option<f64>,
-    #[serde(default)]
-    separation: Option<f64>,
-    #[serde(default)]
-    shape_weights: Option<[f64; 5]>,
-    #[serde(default)]
-    stamp: Option<StampOptions>,
-    #[serde(default)]
-    radius_min: Option<f64>,
-    #[serde(default)]
-    radius_span: Option<f64>,
-    #[serde(default)]
-    gap_alignment: Option<f64>,
-    #[serde(default)]
-    wobble: Option<f64>,
-    #[serde(default)]
-    sweep: Option<f64>,
-    #[serde(default)]
-    seed: Option<u32>,
-    #[serde(default)]
-    wobble_every_mark: Option<bool>,
-    #[serde(default)]
-    size_every_mark: Option<bool>,
-    #[serde(default)]
-    sweep_every_mark: Option<bool>,
-}
-
-/// A painted mark as the request carries it (G-056).
-#[derive(Deserialize)]
-struct StampOptions {
-    size: usize,
-    order: Vec<u32>,
-}
-
-impl TextureOptions {
-    fn resolve(&self) -> DitherTexture {
-        let d = default_dither_texture();
-        DitherTexture {
-            spacing: self.spacing.unwrap_or(d.spacing),
-            separation: self.separation.unwrap_or(d.separation),
-            shape_weights: self.shape_weights.unwrap_or(d.shape_weights),
-            radius_min: self.radius_min.unwrap_or(d.radius_min),
-            radius_span: self.radius_span.unwrap_or(d.radius_span),
-            gap_alignment: self.gap_alignment.unwrap_or(d.gap_alignment),
-            wobble: self.wobble.unwrap_or(d.wobble),
-            sweep: self.sweep.unwrap_or(d.sweep),
-            seed: self.seed.unwrap_or(d.seed),
-            stamp: self.stamp.as_ref().map(|s| DitherStamp {
-                size: s.size,
-                order: s.order.clone(),
-            }),
-            wobble_every_mark: self.wobble_every_mark.unwrap_or(d.wobble_every_mark),
-            size_every_mark: self.size_every_mark.unwrap_or(d.size_every_mark),
-            sweep_every_mark: self.sweep_every_mark.unwrap_or(d.sweep_every_mark),
-        }
-    }
-}
-
 /// The request as named values (`settings.rs`). A value that is null is a setting that was not given.
 fn settings_from(text: &str) -> Result<Settings, String> {
     let request: Value = serde_json::from_str(text).map_err(|e| e.to_string())?;
@@ -205,11 +139,7 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
         optimize: settings.flag("optimize")?.unwrap_or(true),
         edge_mode: EdgeMode::from_settings(&mut settings)?,
         brand: Brand::from_mode(settings.text("paletteMode")?.as_deref(), "paletteMode")?,
-        dither: DitherMode::from_settings(&mut settings)?,
-        dither_texture: shaped::<TextureOptions>(&mut settings, "ditherTexture")?
-            .as_ref()
-            .map(TextureOptions::resolve)
-            .unwrap_or_else(default_dither_texture),
+        dither: crate::dither::from_settings(&mut settings)?,
         vivid: settings.flag("vivid")?.unwrap_or(false),
         photo_adjust: shaped::<AdjustOptions>(&mut settings, "photoAdjust")?
             .as_ref()
@@ -260,7 +190,7 @@ fn pattern_json_base(p: &StitchPattern) -> Value {
         "threadBrand": p.thread_brand,
         "edgeMode": p.edge_mode,
         "ditherMode": p.dither_mode,
-        "ditherTexture": p.dither_texture.as_ref().map(texture_json),
+        "ditherTexture": p.dither_settings,
         "vivid": p.vivid,
         "photoAdjust": p.photo_adjust.map(|a| json!({
             "brightness": a.brightness,
@@ -269,38 +199,6 @@ fn pattern_json_base(p: &StitchPattern) -> Value {
             "temperature": a.temperature,
         })),
     })
-}
-
-/// A texture as the editable save format writes it. A texture with no stamp leaves the key out rather than writing
-/// `null`, so the object is the one `pattern-serialize.ts` produces, field for field (G-056).
-fn texture_json(t: &DitherTexture) -> Value {
-    let mut out = Map::new();
-    out.insert("spacing".into(), json!(t.spacing));
-    out.insert("separation".into(), json!(t.separation));
-    out.insert("shapeWeights".into(), json!(t.shape_weights));
-    out.insert("radiusMin".into(), json!(t.radius_min));
-    out.insert("radiusSpan".into(), json!(t.radius_span));
-    out.insert("gapAlignment".into(), json!(t.gap_alignment));
-    out.insert("wobble".into(), json!(t.wobble));
-    out.insert("sweep".into(), json!(t.sweep));
-    out.insert("seed".into(), json!(t.seed));
-    // Written only when on, so a texture that never touched a switch is the object TypeScript writes (G-056's lesson).
-    if t.wobble_every_mark {
-        out.insert("wobbleEveryMark".into(), json!(true));
-    }
-    if t.size_every_mark {
-        out.insert("sizeEveryMark".into(), json!(true));
-    }
-    if t.sweep_every_mark {
-        out.insert("sweepEveryMark".into(), json!(true));
-    }
-    if let Some(stamp) = t.stamp.as_ref() {
-        out.insert(
-            "stamp".into(),
-            json!({ "size": stamp.size, "order": stamp.order }),
-        );
-    }
-    Value::Object(out)
 }
 
 pub fn run_json(total_ms: f64, times: &StageTimes) -> Value {

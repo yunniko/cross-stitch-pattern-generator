@@ -4,8 +4,7 @@
 //! and custom quantizers are not ported, and the five enhancement modes were removed with G-074 M4 (D240).
 
 use crate::color::Rgb;
-use crate::dither::DitherMode;
-use crate::dither_hand_drawn::DitherTexture;
+use crate::dither::Pattern;
 use crate::overlay::Overlay;
 use crate::photo_adjust::PhotoAdjust;
 use crate::quantize::Quantizer;
@@ -50,10 +49,9 @@ pub struct BuildOptions {
     pub edge_mode: EdgeMode,
     /// `None` is the full palette.
     pub brand: Option<Brand>,
-    /// Dithering (G-052); `Off` is the pipeline as it was. Refused with Crisp, whose purpose is the opposite (D199).
-    pub dither: DitherMode,
-    /// What a drawn pattern is made of (G-055); ignored by every other pattern.
-    pub dither_texture: DitherTexture,
+    /// The dither pattern with its own settings (G-052, G-100); `None` is the pipeline as it was. Refused with Crisp,
+    /// whose purpose is the opposite (D199).
+    pub dither: Option<Arc<dyn Pattern>>,
     /// Vivid (G-061): a stitch keeps its area-mean lightness and the chroma of its most colourful part.
     pub vivid: bool,
     /// The four photo sliders (G-074). Neutral leaves the photo exactly as it was decoded.
@@ -112,8 +110,9 @@ pub struct StitchPattern {
     pub edge_mode: Option<&'static str>,
     /// The dither pattern the chart was generated with (G-052); `None` means none.
     pub dither_mode: Option<&'static str>,
-    /// What the drawn marks were made of (G-055); `None` for every other pattern and for the default texture.
-    pub dither_texture: Option<DitherTexture>,
+    /// The pattern's own settings (`Pattern::recorded`), written under `ditherTexture`, the key charts have carried
+    /// since G-055; `None` for a pattern without settings and for the default.
+    pub dither_settings: Option<serde_json::Value>,
     /// Generated with Vivid (G-061); `None` means the stitches are plain area means.
     pub vivid: Option<bool>,
     /// The sliders the chart was generated with (G-074); `None` when they were all centred.

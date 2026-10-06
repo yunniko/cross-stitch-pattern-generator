@@ -3,8 +3,6 @@
 use super::{Clock, Run};
 use crate::color::{luminance, rgb_to_oklab, Rgb};
 use crate::crisp::finalize;
-use crate::dither::DitherMode;
-use crate::dither_hand_drawn::default_dither_texture;
 use crate::downsample::vivid_applies;
 use crate::names::{name_colors, symbol_set};
 use crate::pattern::{BackstitchLine, PaletteColor, StitchPattern, ThreadSource};
@@ -175,11 +173,11 @@ pub(super) fn chart(run: &mut Run, clock: &mut Clock) {
             .and_then(|s| s.brand)
             .map(|b| b.id()),
         edge_mode: run.crisp.then(|| options.edge_mode.id()),
-        dither_mode: run.dithered.then(|| options.dither.id()),
-        // Recorded only when it is not the default, so a chart drawn with the shipped texture stays the file it was.
-        dither_texture: (options.dither == DitherMode::HandDrawn
-            && options.dither_texture != default_dither_texture())
-        .then(|| options.dither_texture.clone()),
+        dither_mode: options.dither.as_ref().map(|pattern| pattern.id()),
+        dither_settings: options
+            .dither
+            .as_ref()
+            .and_then(|pattern| pattern.recorded()),
         // Recorded when it acted, not when it was asked for: below the pixels-a-stitch floor there is no
         // sub-stitch colour to rescue and the cells are plain area means (D211).
         vivid: (options.vivid && vivid_applies(image.width, image.height, run.gw, run.gh))

@@ -86,7 +86,7 @@ pub(crate) struct Run<'a> {
 impl<'a> Run<'a> {
     fn new(image: &'a Image, options: &'a BuildOptions) -> Self {
         let crisp = options.edge_mode != EdgeMode::Standard && options.palette_set.is_none();
-        let dithered = options.dither.is_dithered();
+        let dithered = options.dither.is_some();
         assert!(
             !(dithered && crisp),
             "Crisp preserves hard boundaries, which dithering deliberately blends: choose one (D199)"

@@ -361,3 +361,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D323 — The Brush with no thread chosen sets the stitch type of the stitches it crosses — active
 - D324 — The Zoom tool has a direction, and a right press zooms the other way — active
 - D325 — The half stitch's cut corners are 60 % of the side — active
+- D326 — A dither pattern is one type behind `Pattern` and one line in `PATTERNS` — active

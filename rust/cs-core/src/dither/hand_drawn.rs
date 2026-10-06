@@ -5,7 +5,13 @@
 //! Integer arithmetic, comparisons and one `mulberry32` stream consumed in scan order — no transcendental function,
 //! so this reproduces the TypeScript bit for bit (D183/D184).
 
+use super::{by_thresholds, Cells, Pattern};
+use crate::color::Rgb;
 use crate::prng::Mulberry32;
+use crate::settings::Settings;
+use serde::Deserialize;
+use serde_json::{json, Map, Value};
+use std::sync::Arc;
 
 /// What a drawn pattern is made of (G-055); mirrors `DitherTexture` in `dither-hand-drawn.ts`. `radius_span` is
 /// stored rather than a largest radius because `0.42 - 0.26` is not `0.16` in binary floating point, and the default
@@ -41,19 +47,19 @@ pub struct DitherTexture {
 /// G-054's texture, to the bit. A `const` no longer, because a stamp owns a `Vec`; the value is the same.
 pub fn default_dither_texture() -> DitherTexture {
     DitherTexture {
-    spacing: 6.0,
-    separation: 0.72,
-    shape_weights: [0.42, 0.2, 0.23, 0.15, 0.0],
-    stamp: None,
-    radius_min: 0.26,
-    radius_span: 0.16,
-    gap_alignment: 0.72,
-    wobble: 0.34,
-    sweep: 0.25,
-    seed: 0x1d10_c0de,
-    wobble_every_mark: false,
-    size_every_mark: false,
-    sweep_every_mark: false,
+        spacing: 6.0,
+        separation: 0.72,
+        shape_weights: [0.42, 0.2, 0.23, 0.15, 0.0],
+        stamp: None,
+        radius_min: 0.26,
+        radius_span: 0.16,
+        gap_alignment: 0.72,
+        wobble: 0.34,
+        sweep: 0.25,
+        seed: 0x1d10_c0de,
+        wobble_every_mark: false,
+        size_every_mark: false,
+        sweep_every_mark: false,
     }
 }
 
@@ -429,3 +435,140 @@ pub fn hand_drawn_thresholds(width: usize, height: usize, texture: &DitherTextur
     thresholds
 }
 
+/// The drawn marks as a pattern: the ordered decision over a threshold field covering the whole chart, the field only
+/// saying where each cell sits inside its mark.
+#[derive(Debug)]
+pub struct HandDrawn {
+    id: &'static str,
+    pub texture: DitherTexture,
+}
+
+/// Reads `ditherTexture`, the marks' own settings; absent is the default texture.
+pub fn configure(id: &'static str, settings: &mut Settings) -> Result<Arc<dyn Pattern>, String> {
+    let texture = settings
+        .other("ditherTexture")?
+        .map(|text| {
+            serde_json::from_str::<TextureOptions>(&text).map_err(|e| format!("ditherTexture: {e}"))
+        })
+        .transpose()?
+        .as_ref()
+        .map(TextureOptions::resolve)
+        .unwrap_or_else(default_dither_texture);
+    Ok(Arc::new(HandDrawn { id, texture }))
+}
+
+impl Pattern for HandDrawn {
+    fn id(&self) -> &'static str {
+        self.id
+    }
+
+    fn dither(&self, cells: &Cells, palette: &[Rgb]) -> Vec<u8> {
+        let thresholds = hand_drawn_thresholds(cells.width, cells.height, &self.texture);
+        by_thresholds(cells, palette, |x, y| thresholds[y * cells.width + x])
+    }
+
+    fn has_settings(&self) -> bool {
+        true
+    }
+
+    /// Recorded only when it is not the default, so a chart drawn with the shipped texture stays the file it was.
+    fn recorded(&self) -> Option<Value> {
+        (self.texture != default_dither_texture()).then(|| texture_json(&self.texture))
+    }
+}
+
+/// What a drawn pattern is made of (G-055). Absent fields take the default texture's value, so a request naming one
+/// knob changes only that knob.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TextureOptions {
+    #[serde(default)]
+    spacing: Option<f64>,
+    #[serde(default)]
+    separation: Option<f64>,
+    #[serde(default)]
+    shape_weights: Option<[f64; 5]>,
+    #[serde(default)]
+    stamp: Option<StampOptions>,
+    #[serde(default)]
+    radius_min: Option<f64>,
+    #[serde(default)]
+    radius_span: Option<f64>,
+    #[serde(default)]
+    gap_alignment: Option<f64>,
+    #[serde(default)]
+    wobble: Option<f64>,
+    #[serde(default)]
+    sweep: Option<f64>,
+    #[serde(default)]
+    seed: Option<u32>,
+    #[serde(default)]
+    wobble_every_mark: Option<bool>,
+    #[serde(default)]
+    size_every_mark: Option<bool>,
+    #[serde(default)]
+    sweep_every_mark: Option<bool>,
+}
+
+/// A painted mark as the request carries it (G-056).
+#[derive(Deserialize)]
+struct StampOptions {
+    size: usize,
+    order: Vec<u32>,
+}
+
+impl TextureOptions {
+    fn resolve(&self) -> DitherTexture {
+        let d = default_dither_texture();
+        DitherTexture {
+            spacing: self.spacing.unwrap_or(d.spacing),
+            separation: self.separation.unwrap_or(d.separation),
+            shape_weights: self.shape_weights.unwrap_or(d.shape_weights),
+            radius_min: self.radius_min.unwrap_or(d.radius_min),
+            radius_span: self.radius_span.unwrap_or(d.radius_span),
+            gap_alignment: self.gap_alignment.unwrap_or(d.gap_alignment),
+            wobble: self.wobble.unwrap_or(d.wobble),
+            sweep: self.sweep.unwrap_or(d.sweep),
+            seed: self.seed.unwrap_or(d.seed),
+            stamp: self.stamp.as_ref().map(|s| DitherStamp {
+                size: s.size,
+                order: s.order.clone(),
+            }),
+            wobble_every_mark: self.wobble_every_mark.unwrap_or(d.wobble_every_mark),
+            size_every_mark: self.size_every_mark.unwrap_or(d.size_every_mark),
+            sweep_every_mark: self.sweep_every_mark.unwrap_or(d.sweep_every_mark),
+        }
+    }
+}
+
+/// A texture as the editable save format writes it. A texture with no stamp leaves the key out rather than writing
+/// `null`, so the object is the one `pattern-serialize.ts` produces, field for field (G-056).
+fn texture_json(t: &DitherTexture) -> Value {
+    let mut out = Map::new();
+    out.insert("spacing".into(), json!(t.spacing));
+    out.insert("separation".into(), json!(t.separation));
+    out.insert("shapeWeights".into(), json!(t.shape_weights));
+    out.insert("radiusMin".into(), json!(t.radius_min));
+    out.insert("radiusSpan".into(), json!(t.radius_span));
+    out.insert("gapAlignment".into(), json!(t.gap_alignment));
+    out.insert("wobble".into(), json!(t.wobble));
+    out.insert("sweep".into(), json!(t.sweep));
+    out.insert("seed".into(), json!(t.seed));
+    // Written only when on, so a texture that never touched a switch is the object TypeScript writes (G-056's lesson).
+    if t.wobble_every_mark {
+        out.insert("wobbleEveryMark".into(), json!(true));
+    }
+    if t.size_every_mark {
+        out.insert("sizeEveryMark".into(), json!(true));
+    }
+    if t.sweep_every_mark {
+        out.insert("sweepEveryMark".into(), json!(true));
+    }
+    if let Some(stamp) = t.stamp.as_ref() {
+        out.insert(
+            "stamp".into(),
+            json!({ "size": stamp.size, "order": stamp.order }),
+        );
+    }
+    Value::Object(out)
+}

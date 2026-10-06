@@ -75,10 +75,17 @@ fn an_unknown_mode_is_refused_by_the_family_that_reads_it() {
 
 #[test]
 fn every_dither_pattern_is_found_by_its_own_id() {
-    for mode in cs_core::dither::DitherMode::ALL {
-        let (options, _) = options(&format!(r#","ditherMode":"{}""#, mode.id())).expect("options");
-        assert_eq!(options.dither, mode);
+    for declared in cs_core::dither::PATTERNS {
+        let (options, _) =
+            options(&format!(r#","ditherMode":"{}""#, declared.id)).expect("options");
+        assert_eq!(options.dither.expect("a pattern").id(), declared.id);
     }
+    assert!(options(r#","ditherMode":"off""#)
+        .expect("options")
+        .0
+        .dither
+        .is_none());
+    assert!(options("").expect("options").0.dither.is_none());
 }
 
 #[test]
