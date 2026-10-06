@@ -3,6 +3,7 @@
 import { type DragEvent, type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { brushStamp, type StampEdge } from "@/lib/editor/brush-stamp";
 import { setCrashContext } from "@/lib/editor/crash-report";
+import { WHATS_NEW_PATH } from "@/lib/app-version";
 import { useDrawingColours } from "./hooks/use-drawing-colours";
 import { useSymmetryAxes } from "./hooks/use-symmetry-axes";
 import { downloadPatternLoadReport } from "@/lib/editor/error-report";
@@ -443,6 +444,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       zoomReset: panZoom.resetZoom,
       openCommandList: () => setCommandListOpen(true),
       openPreferences: () => setPreferencesOpen(true),
+      openWhatsNew: () => window.open(WHATS_NEW_PATH, "_blank", "noopener"),
       holdPan: heldPan.hold,
       releasePan: heldPan.release,
       chooseTool: switchTool,

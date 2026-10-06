@@ -36,10 +36,8 @@ jobs:
       # `any` and the type-check fails, as it did on every push from G-102 until G-105 added this step.
       - run: npx prisma generate
       - run: npx tsc --noEmit
-      # The processor's worker bundle is git-ignored, and the unit suite runs the pool and preview specs against it
-      # (G-034 M2, M3), so it must be built before the tests rather than assumed present.
-      - run: npm run build:processor
-      - run: npm run test:unit
+      # The unit suite runs in the `rust` job, not here: some of its specs drive cs-job and cs-bench, which only that
+      # job builds. Hidden until G-105 because this job had stopped at the type-check since G-102.
 
       # No e2e here since G-068 M2: generation and exports need the Rust sidecar, so the whole suite runs in the
       # `rust` job below, which has the binary. Running it twice against two engines was the point before; there is
@@ -96,7 +94,13 @@ jobs:
       - run: npm run test:photo-adjust-pipeline:rust
 
       - run: npx next typegen
+      # The processor's worker bundle is git-ignored, and the unit suite runs the pool and preview specs against it
+      # (G-034 M2, M3), so it must be built before the tests rather than assumed present.
       - run: npm run build:processor
+
+      # Here rather than in `check`: specs such as the Rust half of file-migration and generation-settings run the
+      # binaries built above (G-105).
+      - run: npm run test:unit
 
       # The processor's own job path. It needs the sidecar binary and the worker bundle built just above, and
       # belongs to this job rather than `check`, which has neither.

@@ -142,5 +142,6 @@ test("the foot of Preferences names the release this page is, the number in pack
   await page.goto("/");
   const preferences = await openPreferences(page);
   // The number, then the commit in brackets when the build was given one.
-  await expect(preferences.getByTestId("app-version")).toHaveText(new RegExp(`^${version.replace(/\./g, "\.")}( \([0-9a-f]{7,}\))?$`));
+  const number = version.replaceAll(".", "\\.");
+  await expect(preferences.getByTestId("app-version")).toHaveText(new RegExp(`^${number}( \\([0-9a-f]{7,}\\))?$`));
 });

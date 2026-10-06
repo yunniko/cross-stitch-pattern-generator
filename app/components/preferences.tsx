@@ -14,7 +14,7 @@ import { TexturePicker } from "./texture-picker";
 import { PillButton, SegmentedControl } from "./ui";
 import { useGatedOptions } from "../features/features-context";
 import { brandFeature } from "../features/registry";
-import { APP_COMMIT, APP_VERSION, versionLabel } from "@/lib/app-version";
+import { APP_COMMIT, APP_VERSION, WHATS_NEW_PATH, versionLabel } from "@/lib/app-version";
 
 /**
  * Preferences (G-095, D299): what is set once and then left. What a new chart starts from, how the cloth and the stitches
@@ -241,6 +241,11 @@ export function Preferences({ options, pattern, onChange, onClose }: Preferences
           {/* The release this page is (G-105): application scope, so it sits at the foot of Preferences. */}
           <span className="text-xs text-muted">
             Version <span data-testid="app-version">{versionLabel(APP_VERSION, APP_COMMIT)}</span>
+            {" · "}
+            {/* A tab of its own, so the chart in this one is left as it is. */}
+            <a href={WHATS_NEW_PATH} target="_blank" rel="noopener" className="text-accent underline hover:text-accent-hover">
+              What&apos;s new
+            </a>
           </span>
           <PillButton data-close variant="raised" size="md" onClick={onClose}>
             Close

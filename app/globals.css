@@ -164,3 +164,47 @@ input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
+
+/* A content file drawn as text (G-105: the release notes; G-112: the guide), by `app/components/content-prose.tsx`. */
+.content-prose {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--at-ink);
+}
+
+.content-prose h2 {
+  margin: 1.25em 0 0.4em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--at-muted);
+}
+
+.content-prose h2:first-child {
+  margin-top: 0;
+}
+
+.content-prose p {
+  margin: 0.5em 0;
+}
+
+.content-prose ul {
+  margin: 0.25em 0;
+  padding-left: 1.25em;
+  list-style: disc;
+}
+
+.content-prose li {
+  margin: 0.25em 0;
+}
+
+.content-prose a {
+  color: var(--at-accent);
+  text-decoration: underline;
+}
+
+.content-prose code {
+  font-family: var(--font-atelier-mono), monospace;
+  font-size: 0.9em;
+}

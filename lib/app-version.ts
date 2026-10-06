@@ -11,6 +11,9 @@ export const APP_VERSION: string = process.env.APP_VERSION || "unknown";
 /** The short commit the build was made from; "unknown" when the image was built without `APP_COMMIT`. */
 export const APP_COMMIT: string = process.env.NEXT_PUBLIC_APP_COMMIT || "unknown";
 
+/** Where every release's notes are read (`app/whats-new/page.tsx`), reached from Preferences and the command list. */
+export const WHATS_NEW_PATH = "/whats-new";
+
 /** How the version is written for a person: "0.2.0 (abc1234)", or the number alone when the commit is not known. */
 export function versionLabel(version: string, commit: string): string {
   return commit && commit !== "unknown" ? `${version} (${commit})` : version;

@@ -178,6 +178,7 @@ not edited by hand.
 |  | Reset zoom to 100% | — | A chart |
 |  | Open the command list | Ctrl+K | The start screen does not cover a chart |
 |  | Open Preferences | — | Always |
+|  | What's new in this version | — | Always |
 |  | Pan while the key is held | Space (held) | A chart |
 | Keyboard cursor | Move the outlined stitch by one | Arrow keys | A painting tool, an editable view, no piece in hand |
 |  | Move the outlined stitch by ten | Shift+Arrow keys | A painting tool, an editable view, no piece in hand |

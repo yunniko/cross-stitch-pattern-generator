@@ -124,6 +124,7 @@ const SHELL_COMMANDS = [
     keys: ["Mod+K"],
   },
   { id: "view.preferences", feature: null, name: "Open Preferences", group: "View", when: "Always" },
+  { id: "view.whats-new", feature: null, name: "What's new in this version", group: "View", when: "Always" },
   {
     id: "view.pan-held",
     feature: null,

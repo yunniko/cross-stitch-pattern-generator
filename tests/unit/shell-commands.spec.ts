@@ -46,6 +46,7 @@ function actions(): ShellActions & Record<string, ReturnType<typeof vi.fn>> {
     "zoomReset",
     "openCommandList",
     "openPreferences",
+    "openWhatsNew",
     "holdPan",
     "releasePan",
     "chooseTool",
@@ -155,7 +156,14 @@ describe("the editor's own commands", () => {
       canUndo: false,
       canRedo: false,
     };
-    expect(available(state)).toEqual(["file.choose-photo", "file.open", "file.import-pixel-art", "view.command-list", "view.preferences"]);
+    expect(available(state)).toEqual([
+      "file.choose-photo",
+      "file.open",
+      "file.import-pixel-art",
+      "view.command-list",
+      "view.preferences",
+      "view.whats-new",
+    ]);
   });
 
   it("each runs the action it names, with what it names", () => {
