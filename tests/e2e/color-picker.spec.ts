@@ -62,7 +62,7 @@ test("the picker takes a stitch into the left button's square, and an empty cell
   expect(await heldBy(page, "Foreground")).toBe(third);
 
   await page.keyboard.press("i");
-  await expect(inHand(page)).toHaveText("Color picker");
+  await expect(inHand(page)).toHaveText("Picker");
   await expect(page.getByTestId("chart-frame")).toHaveClass(/cursor-pick/);
 
   await clickCell(page, 3, 3);
@@ -70,7 +70,7 @@ test("the picker takes a stitch into the left button's square, and an empty cell
   await clickCell(page, 6, 3, "right");
   expect(await heldBy(page, "Background")).toBe("Empty (no stitch)");
   expect(await heldBy(page, "Foreground"), "the right button leaves the left's square alone").toBe(first);
-  await expect(inHand(page)).toHaveText("Color picker");
+  await expect(inHand(page)).toHaveText("Picker");
   expect(errors).toEqual([]);
 });
 
@@ -86,7 +86,7 @@ test("holding Alt picks with each drawing tool in hand, paints nothing, and give
     expect(await heldBy(page, "Foreground"), tool).toBe(third);
 
     await page.keyboard.down("Alt");
-    await expect(inHand(page), tool).toHaveText("Color picker");
+    await expect(inHand(page), tool).toHaveText("Picker");
     await expect(page.getByTestId("chart-frame"), tool).toHaveClass(/cursor-pick/);
     await clickCell(page, 3, 3);
     await page.keyboard.up("Alt");
@@ -115,7 +115,7 @@ test("on a backstitch line the line's thread is taken, and beside it the stitch"
   ]);
   await pickThread(page, 2);
 
-  await pickTool(page, "Color picker");
+  await pickTool(page, "Picker");
   const { x, y, cell } = await chartBox(page);
   await page.mouse.click(x + cell * 4, y + cell * 4);
   expect(await heldBy(page, "Foreground"), "on the line").toBe(fifth);
@@ -131,8 +131,8 @@ test.describe("the picker switched off", () => {
       await setSiteFeatures({ "tool.picker": state });
       await openSmallChart(page);
       const rail = page.getByTestId("tool-rail");
-      if (state === "hidden") await expect(rail.getByRole("button", { name: /^Color picker/ })).toHaveCount(0);
-      else await expect(rail.getByRole("button", { name: /^Color picker/ })).toHaveAttribute("aria-disabled", "true");
+      if (state === "hidden") await expect(rail.getByRole("button", { name: /^Picker/ })).toHaveCount(0);
+      else await expect(rail.getByRole("button", { name: /^Picker/ })).toHaveAttribute("aria-disabled", "true");
 
       const third = await threadName(page, 2);
       await paintCell(page, 0, 3, 3);

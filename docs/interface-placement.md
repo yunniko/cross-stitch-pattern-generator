@@ -126,7 +126,7 @@ not edited by hand.
 |  | Rectangle tool | R | A chart, in Edit |
 |  | Oval tool | O | A chart, in Edit |
 |  | Lasso fill tool | G | A chart, in Edit |
-|  | Color picker tool | I | A chart, in Edit |
+|  | Picker tool | I | A chart, in Edit |
 |  | Text tool | — | A chart, in Edit |
 |  | Backstitch tool | K | A chart, in Edit |
 |  | BS edit tool | J | A chart, in Edit |

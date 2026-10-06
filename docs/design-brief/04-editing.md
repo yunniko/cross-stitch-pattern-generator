@@ -20,7 +20,7 @@ Sixteen tools; exactly one is in hand, chosen by its control or its key. Brush i
 | **Rectangle** | R | Drag from one corner stitch to the opposite; outlined (as thick as the brush) or filled (exactly the shape, whatever the brush size) | Outline only | Yes | Yes |
 | **Oval** | O | Drag a box; draws the oval that fits it, outlined or filled as above | Outline only | Yes | Yes |
 | **Lasso fill** | G | Draw freehand around an area; on release everything enclosed is filled with the colour in hand, one undo step | No | Yes | Yes: every filled stitch is mirrored |
-| **Color picker** | I (or Alt held) | A left press takes the colour under the pointer as the foreground, a right press as the background (see The two colours). On a backstitch line it takes the line's thread, elsewhere the stitch's; an empty cell gives the empty stitch. Paints nothing and is no undo step | No | No | **Ignores** |
+| **Picker** (the colour picker) | I (or Alt held) | A left press takes the colour under the pointer as the foreground, a right press as the background (see The two colours). On a backstitch line it takes the line's thread, elsewhere the stitch's; an empty cell gives the empty stitch. Paints nothing and is no undo step | No | No | **Ignores** |
 | **Text** | none | See `07`: a press puts the lettering that is set up on the chart as a piece in hand | No | No | **Ignores** |
 | **Backstitch** | K | See `06` | | | Yes |
 | **Backstitch edit** (labelled "BS edit") | J | See `06` | | | Yes |
@@ -33,7 +33,7 @@ Sixteen tools; exactly one is in hand, chosen by its control or its key. Brush i
 
 Changing tool puts down what the old one held: leaving Select or Lasso for any other tool than the other selection tool applies the piece in hand; a half-drawn shape, Lasso fill path, backstitch run or lines in hand are dropped.
 
-**Alt held** lends the Color picker to the tools that paint (Brush, Fill, Line, Rectangle, Oval, Lasso fill; D318): while Alt is down the picker is in hand and the cursor is a dropper; when it comes up the tool it borrowed from is back, unless another tool was chosen meanwhile, which then stays (D319). Alt works wherever the focus is outside a text entry. With any other tool Alt does what it did before: Zoom keeps it as its own zoom out. Switching to another program while Alt is down gives the tool back.
+**Alt held** lends the Picker to the tools that paint (Brush, Fill, Line, Rectangle, Oval, Lasso fill; D318): while Alt is down the picker is in hand and the cursor is a dropper; when it comes up the tool it borrowed from is back, unless another tool was chosen meanwhile, which then stays (D319). Alt works wherever the focus is outside a text entry. With any other tool Alt does what it did before: Zoom keeps it as its own zoom out. Switching to another program while Alt is down gives the tool back.
 
 Shape tools (Line, Rectangle, Oval) share one gesture: press at the start, the shape follows the pointer, release to make it, **Escape** to drop it. Nothing is smoothed: every stitch a tool touches holds exactly the colour chosen, never a blend.
 
@@ -45,7 +45,7 @@ Lasso and Lasso fill smooth the wobble of a hand-drawn line and close the loop; 
 |---|---|
 | **Drawing colours** | A pair: a foreground and a background, each a palette colour, or the empty stitch, or nothing |
 | **Left press** paints with the foreground; **right press** with the background. A stroke keeps the colour it started with |
-| **Pick** | The Color picker (I, or Alt held with a tool that paints) takes a colour off the chart: a left press as the foreground, a right press as the background |
+| **Pick** | The Picker (I, or Alt held with a tool that paints) takes a colour off the chart: a left press as the foreground, a right press as the background |
 | **Choose** | A press on a thread's entry in the thread list makes it the foreground (a second press on the same entry releases it: no colour in hand); a right press on a entry loads the background and does not change which is in front; a press on the background square makes it the foreground |
 | **Swap** | Action, key **X**: swaps the roles without moving either colour |
 | **Empty stitch as colour** | "Empty (no stitch)" is chosen like a thread and paints stitches away |
@@ -146,14 +146,14 @@ Keys act when no text entry has the focus, and not while the command list is ope
 
 | Key | Does |
 |---|---|
-| B, F, L, R, O, Q, G, I, C, K, J, S, V, H, Z | Brush, Fill, Line, Rectangle, Oval, Lasso, Lasso fill, Color picker, Crop, Backstitch, Backstitch edit, Select, Move, Pan, Zoom |
+| B, F, L, R, O, Q, G, I, C, K, J, S, V, H, Z | Brush, Fill, Line, Rectangle, Oval, Lasso, Lasso fill, Picker, Crop, Backstitch, Backstitch edit, Select, Move, Pan, Zoom |
 | X | Swap the two drawing colours |
 | 1, 2, 3 | Color, Black & white, Stitched pattern |
 | Y | Symbols on or off (Color and Black & white) |
 | P | Photo under the pattern on or off (Color and Black & white, with a photo) |
 | 4, 5 | The photo with the pattern half visible, the photo alone (only with a photo) |
 | Space (held) | Pan temporarily |
-| Alt (held) | The Color picker while held, with a tool that paints in hand |
+| Alt (held) | The Picker while held, with a tool that paints in hand |
 | Escape | Cancels the piece, the shape, the lasso fill or the backstitch run in hand; puts down the backstitch in hand; or puts the crop frame back over the whole chart. Only one of these can be in hand at a time |
 | Enter | Applies the piece in hand (Select and Lasso), or the crop frame (Crop); otherwise the pen of the keyboard cell cursor (above) |
 | Delete, Backspace | Deletes the backstitch in hand (Backstitch edit only) |

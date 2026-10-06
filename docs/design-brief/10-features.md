@@ -21,7 +21,7 @@ The list is derived from what the editor has, so a new tool, export kind, genera
 | Group | Features | Core (never switched) |
 |---|---|---|
 | Workspaces | Photo (with Generate and choosing a photo), Edit, Export (with Save) | |
-| Drawing tools | Brush, Fill, Line, Rectangle, Oval, Lasso fill, Color picker (with Alt held), Text, Backstitch, BS edit | |
+| Drawing tools | Brush, Fill, Line, Rectangle, Oval, Lasso fill, Picker (with Alt held), Text, Backstitch, BS edit | |
 | Selection and transformation | Select, Lasso, Crop, Move | |
 | Navigation | | Pan, Zoom |
 | Colours | Isolate the lit threads | The two drawing colours and their swap |
