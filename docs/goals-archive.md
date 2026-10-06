@@ -9,6 +9,7 @@ their last state in `GOALS.md`; decision references (Dnn) now resolve to
 (STANDARDS.md → Documentation). This page is the index: every completed goal, newest first, and the file
 holding it.
 
+- **G-102** · Feature switches: On, Locked or Hidden for the site, for a person, or as a set for a tier — DONE (2026-10-06, deployed 2026-10-06, Owner sign-off 2026-10-06) — [`G-101-to-G-110.md`](goals-archive/G-101-to-G-110.md)
 - **G-095** · Interface redesign against the placement rules — DONE (2026-10-06, deployed 2026-10-06, Owner sign-off 2026-10-06) — [`G-091-to-G-100.md`](goals-archive/G-091-to-G-100.md)
 - **G-092** · Tool registry: a tool is one module — DONE (2026-10-04, deployed 2026-10-04, Owner sign-off 2026-10-05) — [`G-091-to-G-100.md`](goals-archive/G-091-to-G-100.md)
 - **G-091** · Editor shell: replacing the open chart is decided in one place — DONE (2026-10-04, deployed 2026-10-04, Owner sign-off 2026-10-04) — [`G-091-to-G-100.md`](goals-archive/G-091-to-G-100.md)
