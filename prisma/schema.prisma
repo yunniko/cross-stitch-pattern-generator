@@ -182,3 +182,20 @@ enum UsageKind {
   GENERATE
   EXPORT
 }
+
+/// Every change an admin makes to the switches (G-102 M3): who, when, what. Append-only; the admin's Features page shows
+/// the latest.
+model FeatureChange {
+  id        String   @id @default(cuid())
+  /// SITE, USER, SET or TIER.
+  scope     String
+  /// The user id, the set id or the tier id the change was to; empty for the site.
+  subject   String   @default("")
+  /// What is now true, in words: "tool.text → locked", "set Starter attached".
+  change    String
+  byUserId  String
+  byEmail   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

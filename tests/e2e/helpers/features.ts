@@ -11,6 +11,10 @@ import { Pool } from "pg";
 const E2E_DATABASE_URL = "postgresql://cross_stitch:cross_stitch@127.0.0.1:54324/cross_stitch";
 
 let pool: Pool | null = null;
+/** The suite's database, for a spec that needs to read a table straight. */
+export function featuresDb(): Pool {
+  return db();
+}
 function db(): Pool {
   pool ??= new Pool({ connectionString: process.env.DATABASE_URL ?? E2E_DATABASE_URL, max: 2 });
   return pool;

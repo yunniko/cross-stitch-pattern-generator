@@ -22,6 +22,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <Link href="/admin/stats" className="text-sm text-ink hover:underline">
           Stats
         </Link>
+        <Link href="/admin/features" className="text-sm text-ink hover:underline">
+          Features
+        </Link>
         <Link href="/account" className="ml-auto text-sm text-muted hover:text-ink hover:underline">
           Your account
         </Link>

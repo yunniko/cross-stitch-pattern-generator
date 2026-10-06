@@ -76,7 +76,12 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                 <td className="px-3 py-2 text-muted">{user.role}</td>
                 <td className="px-3 py-2 text-muted">{user.disabled ? "Disabled" : "Active"}</td>
                 <td className="px-3 py-2">
-                  <UserRowActions userId={user.id} role={user.role} disabled={user.disabled} own={user.id === session?.user?.id} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <UserRowActions userId={user.id} role={user.role} disabled={user.disabled} own={user.id === session?.user?.id} />
+                    <Link href={`/admin/users/${user.id}/features`} className="text-xs text-muted hover:text-ink hover:underline">
+                      Features
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}
