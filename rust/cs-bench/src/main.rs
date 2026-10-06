@@ -73,14 +73,7 @@ fn backstitch_style(args: &[String]) {
             let pattern_for = cs_export::backstitch::dash_pattern_for(line.palette_index, &threads);
             let segments: Vec<_> = cs_export::backstitch::dash_segments(line, pattern_for)
                 .into_iter()
-                .map(|s| {
-                    vec![
-                        round6(s.x1),
-                        round6(s.y1),
-                        round6(s.x2),
-                        round6(s.y2),
-                    ]
-                })
+                .map(|s| vec![round6(s.x1), round6(s.y1), round6(s.x2), round6(s.y2)])
                 .collect();
             json!({
                 "paletteIndex": line.palette_index,
@@ -136,7 +129,11 @@ fn main() {
         let data = std::fs::read(&args[2]).expect("read image");
         let (width, height): (usize, usize) = (args[3].parse().unwrap(), args[4].parse().unwrap());
         let (options, _) = cs_core::json::parse_predict_options(&args[5]).expect("options");
-        let image = Image { width, height, data };
+        let image = Image {
+            width,
+            height,
+            data,
+        };
         let started = Instant::now();
         let prediction = cs_core::predict::predict(&image, &options);
         let mut out = cs_core::json::prediction_json(&prediction);

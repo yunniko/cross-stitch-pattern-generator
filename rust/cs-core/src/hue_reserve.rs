@@ -128,7 +128,11 @@ pub fn reserve_hue_threads(
                 }
             }
         }
-        let loser = if counts[pair_i] <= counts[pair_j] { pair_i } else { pair_j };
+        let loser = if counts[pair_i] <= counts[pair_j] {
+            pair_i
+        } else {
+            pair_j
+        };
         let winner = if loser == pair_i { pair_j } else { pair_i };
         counts[winner] += counts[loser];
         let seed = bin_best[bin] as usize;
@@ -148,7 +152,11 @@ pub fn reserve_hue_threads(
             assignment[i] = crate::EMPTY_CELL;
             continue;
         }
-        let cell: Oklab = [cell_oklab[i * 3], cell_oklab[i * 3 + 1], cell_oklab[i * 3 + 2]];
+        let cell: Oklab = [
+            cell_oklab[i * 3],
+            cell_oklab[i * 3 + 1],
+            cell_oklab[i * 3 + 2],
+        ];
         let mut best = 0usize;
         let mut best_dist = f64::INFINITY;
         for (c, centroid) in centroids.iter().enumerate() {

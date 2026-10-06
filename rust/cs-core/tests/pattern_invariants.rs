@@ -195,8 +195,14 @@ fn option_cases() -> Vec<(&'static str, String, usize, f64)> {
         ("dmc", r#","paletteMode":"dmc""#),
         ("cosmo", r#","paletteMode":"cosmo""#),
         ("anchor", r#","paletteMode":"anchor""#),
-        ("sliders", r#","photoAdjust":{"brightness":40,"contrast":-30,"saturation":70,"temperature":-20}"#),
-        ("sliders-at-the-ends", r#","photoAdjust":{"brightness":-100,"contrast":100,"saturation":100,"temperature":100}"#),
+        (
+            "sliders",
+            r#","photoAdjust":{"brightness":40,"contrast":-30,"saturation":70,"temperature":-20}"#,
+        ),
+        (
+            "sliders-at-the-ends",
+            r#","photoAdjust":{"brightness":-100,"contrast":100,"saturation":100,"temperature":100}"#,
+        ),
         ("vivid-sampling", r#","vivid":true"#),
         ("bayer-8", r#","ditherMode":"bayer-8""#),
         ("floyd-steinberg", r#","ditherMode":"floyd-steinberg""#),

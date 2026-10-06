@@ -62,6 +62,8 @@ jobs:
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
 
       # `lto = "fat"` with one codegen unit makes a cold release build slow; the cache makes the usual run cheap.
       - uses: Swatinem/rust-cache@v2
@@ -69,6 +71,9 @@ jobs:
           workspaces: rust
 
       - run: npm ci --legacy-peer-deps
+
+      # rustfmt's defaults, the community standard (COMPANY/STANDARDS.md, Code style).
+      - run: cargo fmt --manifest-path rust/Cargo.toml --all -- --check
 
       - run: cargo build --release --manifest-path rust/Cargo.toml
 

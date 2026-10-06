@@ -1,6 +1,8 @@
 //! Port of `lib/pipeline/downsample.ts`.
 
-use crate::color::{gamut_map_oklab_to_linear, linear_to_srgb, rgb_to_oklab, srgb_to_linear_table, Rgb};
+use crate::color::{
+    gamut_map_oklab_to_linear, linear_to_srgb, rgb_to_oklab, srgb_to_linear_table, Rgb,
+};
 use crate::jsmath;
 use crate::Image;
 use rayon::prelude::*;
