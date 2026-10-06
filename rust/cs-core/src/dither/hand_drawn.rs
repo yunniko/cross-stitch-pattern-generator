@@ -467,10 +467,6 @@ impl Pattern for HandDrawn {
         by_thresholds(cells, palette, |x, y| thresholds[y * cells.width + x])
     }
 
-    fn has_settings(&self) -> bool {
-        true
-    }
-
     /// Recorded only when it is not the default, so a chart drawn with the shipped texture stays the file it was.
     fn recorded(&self) -> Option<Value> {
         (self.texture != default_dither_texture()).then(|| texture_json(&self.texture))

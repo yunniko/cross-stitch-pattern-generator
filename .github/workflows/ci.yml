@@ -88,10 +88,11 @@ jobs:
       # still produce the bytes D107 recorded. This is what survives the TypeScript pipeline being deleted (G-068).
       - run: npm run test:goldens:rust
 
-      # The patterns' pictures built into the app are the Rust's own (D327): rebuilt here, they must be the files
-      # committed, so a pattern changing without its pictures fails rather than shipping a preview that lies.
+      # The patterns' pictures and declarations the app ships are the Rust's own (D327, D328): rebuilt here, they must be
+      # the files committed, so a pattern changing without them fails rather than shipping a preview or a chooser that lies.
       - run: ./rust/target/release/cs-bench dither-previews public/dither-previews
-      - run: test -z "$(git status --porcelain public/dither-previews)" || (git status --porcelain public/dither-previews; echo "Run npm run dither-previews and commit the pictures."; exit 1)
+      - run: ./rust/target/release/cs-bench dither-patterns lib/pipeline/dither-patterns.ts
+      - run: test -z "$(git status --porcelain public/dither-previews lib/pipeline/dither-patterns.ts)" || (git status --porcelain public/dither-previews lib/pipeline/dither-patterns.ts; echo "Run npm run dither-previews and npm run dither-patterns, and commit what they write."; exit 1)
 
       # Backstitch is the one stitch type OXS holds exactly as this app does, so the round trip is asserted
       # against the real exporter rather than a hand-written string (G-073).

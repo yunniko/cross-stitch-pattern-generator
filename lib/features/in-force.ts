@@ -1,7 +1,7 @@
 import { CANVAS_TEXTURE_OFF } from "../export/canvas-texture-catalog";
 import { DEFAULT_STITCH_TEXTURE } from "../export/stitch-texture-catalog";
 import { DEFAULT_OPTIONS, type WorkspaceOptions } from "../editor/workspace-storage";
-import { ditherFeature } from "../pipeline/dither-labels";
+import { ditherFeature } from "../pipeline/dither";
 import { featureUsable, type FeatureStates } from "./features";
 
 /**

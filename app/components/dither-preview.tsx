@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { builtDitherPicture, isDrawnMode, type DitherMode } from "@/lib/pipeline/dither";
+import { builtDitherPicture, ditherOwnSettings, type DitherMode } from "@/lib/pipeline/dither";
 import { type DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
 import { requestDitherPreview } from "@/lib/pipeline/pattern-server";
 
@@ -10,8 +10,8 @@ import { requestDitherPreview } from "@/lib/pipeline/pattern-server";
  * whenever dithering is on, because it is the only place a reader sees what a pattern does before spending a generation.
  *
  * Drawn by the Rust that makes charts (G-100, D327). A pattern without settings of its own always looks the same, so its
- * picture is built into the app. The drawn marks have settings, and their corner depends on the chart's size, so the
- * server draws it once the sliders rest; clicking it reshuffles the marks, which is meaningful only where a seed decides
+ * picture is built into the app. A pattern with settings (the drawn marks, whose corner also depends on the chart's
+ * size) has the server draw it once they rest; clicking it reshuffles the marks, offered only where a seed decides
  * anything.
  */
 
@@ -26,7 +26,7 @@ export interface DitherPreviewProps {
   texture: DitherTexture;
   chartWidth: number;
   chartHeight: number;
-  /** Given a new seed when the preview is clicked; only offered where the seed changes anything. */
+  /** Given a new seed when the preview is clicked; passed only where the seed changes anything. */
   onShuffle?: () => void;
 }
 
@@ -34,7 +34,7 @@ const FRAME = "block h-[112px] w-[112px] shrink-0 overflow-hidden rounded-md bor
 const PICTURE = "h-full w-full [image-rendering:pixelated]";
 
 export function DitherPreview({ mode, texture, chartWidth, chartHeight, onShuffle }: DitherPreviewProps) {
-  const drawn = isDrawnMode(mode);
+  const drawn = ditherOwnSettings(mode) !== null;
   const shuffles = drawn && onShuffle !== undefined;
   const fromServer = useServerPreview(drawn, mode, texture, chartWidth, chartHeight);
   const source = drawn ? fromServer.url : builtDitherPicture(mode, "preview");

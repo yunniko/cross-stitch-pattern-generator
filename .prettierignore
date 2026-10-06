@@ -10,6 +10,8 @@ playwright-report/
 test-results/
 coverage/
 package-lock.json
+# Written by `npm run dither-patterns` and checked current in CI, so the generator owns its layout.
+lib/pipeline/dither-patterns.ts
 
 # Markdown is hand-wrapped on purpose: HANDOVER.md is capped per section and the
 # decision files are capped by word count, so a reflow would rewrite every one of

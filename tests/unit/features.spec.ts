@@ -19,8 +19,7 @@ import {
 } from "../../lib/features/features";
 import { DEFAULT_OPTIONS } from "../../lib/editor/workspace-storage";
 import { optionsInForce } from "../../lib/features/in-force";
-import { DITHER_MODES } from "../../lib/pipeline/dither";
-import { ditherFeature } from "../../lib/pipeline/dither-labels";
+import { DITHER_MODES, ditherFeature } from "../../lib/pipeline/dither";
 import { GENERATION_SETTINGS } from "../../lib/pipeline/generation-settings";
 import { THREAD_BRAND_IDS } from "../../lib/threads/thread-brands";
 

@@ -3,8 +3,7 @@ import { WORKSPACES, workspaceFeature, type Workspace } from "../editor/workspac
 import { CANVAS_TEXTURES } from "../export/canvas-texture-catalog";
 import { EXPORT_KIND_GROUPS, exportChoiceFeature, exportKindFeature } from "../export/export-kinds";
 import { STITCH_TEXTURES } from "../export/stitch-texture-catalog";
-import { DITHER_MODES, type DitherMode } from "../pipeline/dither";
-import { DITHER_LABELS, ditherFeature } from "../pipeline/dither-labels";
+import { DITHER_MODES, ditherFeature, ditherLabel, type DitherMode } from "../pipeline/dither";
 import { GENERATION_SETTINGS } from "../pipeline/generation-settings";
 import { isNeutralAdjust } from "../pipeline/photo-adjust";
 import { THREAD_BRAND_IDS, THREAD_BRANDS } from "../threads/thread-brands";
@@ -26,7 +25,7 @@ const LABELS: Record<string, string> = Object.fromEntries([
     if (id === null || typeof setting.feature === "string") return [];
     return [[id, setting.feature && typeof setting.feature === "object" ? setting.feature.label : (setting.control?.label ?? setting.id)]];
   }),
-  ...DITHER_MODES.flatMap((mode) => (ditherFeature(mode) === null ? [] : [[ditherFeature(mode)!, DITHER_LABELS[mode]]])),
+  ...DITHER_MODES.flatMap((mode) => (ditherFeature(mode) === null ? [] : [[ditherFeature(mode)!, ditherLabel(mode)]])),
   ...STITCH_TEXTURES.map((texture) => [`texture.stitch.${texture.id}`, `${texture.label} stitch texture`]),
   ...CANVAS_TEXTURES.map((texture) => [`texture.canvas.${texture.id}`, `${texture.label} cloth`]),
   ...THREAD_BRAND_IDS.map((brand) => [`brand.${brand}`, THREAD_BRANDS[brand].label]),

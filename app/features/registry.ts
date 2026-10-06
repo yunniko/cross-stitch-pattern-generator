@@ -4,8 +4,7 @@ import { STITCH_TEXTURES } from "@/lib/export/stitch-texture-catalog";
 import { brandFeature, commandFeature, generationSettingFeature, toolFeature } from "@/lib/features/declare";
 import { featureShown, featureUsable, type Feature, type FeatureStates } from "@/lib/features/features";
 import { toolOffered, WORKSPACE_FEATURE_GROUP, WORKSPACES, type Workspace } from "@/lib/editor/workspaces";
-import { DITHER_MODES } from "@/lib/pipeline/dither";
-import { DITHER_LABELS, ditherFeature } from "@/lib/pipeline/dither-labels";
+import { DITHER_MODES, ditherFeature, ditherLabel } from "@/lib/pipeline/dither";
 import { GENERATION_SETTINGS } from "@/lib/pipeline/generation-settings";
 import { THREAD_BRAND_IDS, THREAD_BRANDS } from "@/lib/threads/thread-brands";
 import { COMMAND_DEFINITIONS } from "../commands/registry";
@@ -77,7 +76,7 @@ function build(): Feature[] {
 
   for (const mode of DITHER_MODES) {
     const id = ditherFeature(mode);
-    if (id !== null) add({ id, group: "Dither patterns", label: DITHER_LABELS[mode] });
+    if (id !== null) add({ id, group: "Dither patterns", label: ditherLabel(mode) });
   }
 
   for (const texture of STITCH_TEXTURES)

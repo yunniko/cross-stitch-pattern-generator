@@ -6,7 +6,9 @@
 //! D200); and the drawn marks, which have settings of their own (`hand_drawn.rs`, D201).
 //!
 //! **To add one:** a type that implements `Pattern`, a `configure` that reads its own settings, and one line in
-//! `PATTERNS`. Its id is recorded on every chart made with it, so an id never changes.
+//! `PATTERNS` declaring its id, name, group and settings. Its id is recorded on every chart made with it, so an id never
+//! changes. Then `npm run dither-patterns` writes the declarations out for the interface (`lib/pipeline/dither-patterns.ts`,
+//! D328) and `npm run dither-previews` draws its pictures (D327); CI fails until both are committed.
 
 pub mod diffusion;
 pub mod hand_drawn;
@@ -33,10 +35,6 @@ pub trait Pattern: Debug + Send + Sync {
     fn id(&self) -> &'static str;
     /// One palette entry per cell. The palette is the quantizer's, never empty.
     fn dither(&self, cells: &Cells, palette: &[Rgb]) -> Vec<u8>;
-    /// Whether it has settings of its own, beyond its id.
-    fn has_settings(&self) -> bool {
-        false
-    }
     /// Its own settings as the chart records them (`ditherTexture`); `None` when it has none or they are its default,
     /// so a chart made with the default is the file it always was.
     fn recorded(&self) -> Option<Value> {
@@ -52,27 +50,144 @@ pub type Configure = fn(&'static str, &mut Settings) -> Result<Chosen, String>;
 /// A pattern with its own settings read, ready to run.
 pub type Chosen = Arc<dyn Pattern>;
 
+/// A group of the chooser, with the line it shows under each of its patterns' names (G-095). Three, as the measurement
+/// separates them (`docs/reviews/2026-09-21-dithering-comparison.md`), and the drawn marks as a family of their own.
+pub struct Group {
+    pub id: &'static str,
+    pub label: &'static str,
+}
+
+pub const SCREENS: Group = Group {
+    id: "screens",
+    label: "Screens — fewest single stitches",
+};
+pub const SCATTERED: Group = Group {
+    id: "scattered",
+    label: "Scattered — closer to the photo",
+};
+pub const DIFFUSION: Group = Group {
+    id: "diffusion",
+    label: "Error diffusion — closest, never worse",
+};
+pub const DRAWN: Group = Group {
+    id: "drawn",
+    label: "Drawn — marks, not a pattern",
+};
+
+/// How a pattern is offered: as a choice of its own, or as one variant of a choice it shares with others, chosen beneath
+/// the chooser (the four line screens are one "Lines" with a direction, G-059).
+pub enum Offered {
+    Alone,
+    Variant {
+        choice: &'static Choice,
+        /// The variant's button, and what it says on hover.
+        label: &'static str,
+        title: &'static str,
+    },
+}
+
+/// A choice several patterns share. Its picture in the chooser is one of theirs.
+pub struct Choice {
+    pub id: &'static str,
+    pub label: &'static str,
+    pub pictured_by: &'static str,
+}
+
+pub const LINES: Choice = Choice {
+    id: "lines",
+    label: "Lines",
+    pictured_by: "lines-diagonal",
+};
+
+/// A pattern's own settings, beyond its id: the request key that carries them, and the control the photo pane edits
+/// them with. The control is named, not described: the drawn marks' texture is an editor of its own
+/// (`app/components/texture-editor.tsx`), the one escape the interface knows by name (D328).
+pub struct OwnSettings {
+    pub key: &'static str,
+    pub control: &'static str,
+}
+
+/// One pattern: everything the chart and the interface know about it.
 pub struct Declared {
     pub id: &'static str,
+    /// Its name in the chooser and the feature list.
+    pub label: &'static str,
+    pub group: &'static Group,
+    pub offered: Offered,
+    /// `None` for a pattern whose picture is always the same, so it is built once (D327).
+    pub settings: Option<OwnSettings>,
     pub configure: Configure,
+}
+
+impl Declared {
+    /// What the chooser offers it as, and the feature that switches it: its own id, or the choice it shares.
+    pub fn choice_id(&self) -> &'static str {
+        match self.offered {
+            Offered::Alone => self.id,
+            Offered::Variant { choice, .. } => choice.id,
+        }
+    }
+}
+
+const fn line(id: &'static str, label: &'static str, title: &'static str) -> Declared {
+    Declared {
+        id,
+        label: LINES.label,
+        group: &SCREENS,
+        offered: Offered::Variant {
+            choice: &LINES,
+            label,
+            title,
+        },
+        settings: None,
+        configure: matrix::configure,
+    }
+}
+
+const fn alone(
+    id: &'static str,
+    label: &'static str,
+    group: &'static Group,
+    configure: Configure,
+) -> Declared {
+    Declared {
+        id,
+        label,
+        group,
+        offered: Offered::Alone,
+        settings: None,
+        configure,
+    }
 }
 
 /// Every pattern, in the order the chooser shows them.
 #[rustfmt::skip]
 pub const PATTERNS: &[Declared] = &[
-    Declared { id: "bayer-4", configure: matrix::configure },
-    Declared { id: "bayer-8", configure: matrix::configure },
-    Declared { id: "clustered-8", configure: matrix::configure },
-    Declared { id: "ring-8", configure: matrix::configure },
-    Declared { id: "lines-horizontal", configure: matrix::configure },
-    Declared { id: "lines-vertical", configure: matrix::configure },
-    Declared { id: "lines-diagonal", configure: matrix::configure },
-    Declared { id: "lines-anti-diagonal", configure: matrix::configure },
-    Declared { id: "blue-noise-16", configure: matrix::configure },
-    Declared { id: "floyd-steinberg", configure: diffusion::configure },
-    Declared { id: "atkinson", configure: diffusion::configure },
-    Declared { id: "hand-drawn", configure: hand_drawn::configure },
+    alone("clustered-8", "Clustered dots", &SCREENS, matrix::configure),
+    alone("ring-8", "Rings", &SCREENS, matrix::configure),
+    line("lines-horizontal", "—", "Horizontal lines"),
+    line("lines-vertical", "|", "Vertical lines"),
+    line("lines-diagonal", "/", "Diagonal lines, rising"),
+    line("lines-anti-diagonal", "\\", "Diagonal lines, falling"),
+    alone("bayer-4", "Bayer 4×4", &SCATTERED, matrix::configure),
+    alone("bayer-8", "Bayer 8×8", &SCATTERED, matrix::configure),
+    alone("blue-noise-16", "Blue noise", &SCATTERED, matrix::configure),
+    alone("floyd-steinberg", "Floyd–Steinberg", &DIFFUSION, diffusion::configure),
+    alone("atkinson", "Atkinson", &DIFFUSION, diffusion::configure),
+    Declared {
+        id: "hand-drawn",
+        label: "Hand-drawn",
+        group: &DRAWN,
+        offered: Offered::Alone,
+        settings: Some(OwnSettings { key: "ditherTexture", control: "texture" }),
+        configure: hand_drawn::configure,
+    },
 ];
+
+/// A pattern's declaration by id; `None` for an id no pattern has.
+pub fn declared(id: &str) -> Option<&'static Declared> {
+    PATTERNS.iter().find(|declared| declared.id == id)
+}
 
 /// What `ditherMode` says when nothing is dithered.
 pub const OFF: &str = "off";

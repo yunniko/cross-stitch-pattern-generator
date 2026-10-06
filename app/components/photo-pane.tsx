@@ -1,11 +1,11 @@
 "use client";
 
 import { DeclaredSettings } from "./declared-settings";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { formatFinishedDimension } from "@/lib/export/finished-size";
-import { isDithered, isDrawnMode, isLinesMode, type DitherMode, type LineDitherMode } from "@/lib/pipeline/dither";
+import { ditherOwnSettings, ditherVariants, isDithered, type DitherMode, type DitherPatternDeclaration } from "@/lib/pipeline/dither";
 import { isNeutralAdjust, NEUTRAL_ADJUST, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import type { ColorPrediction } from "@/lib/pipeline/prediction";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
@@ -94,12 +94,23 @@ const EDGE_OPTIONS: SegmentOption<WorkspaceOptions["edgeMode"]>[] = [
   },
 ];
 
-const LINE_DIRECTION_OPTIONS: SegmentOption<LineDitherMode>[] = [
-  { value: "lines-horizontal", label: "—", title: "Horizontal lines" },
-  { value: "lines-vertical", label: "|", title: "Vertical lines" },
-  { value: "lines-diagonal", label: "/", title: "Diagonal lines, rising" },
-  { value: "lines-anti-diagonal", label: "\\", title: "Diagonal lines, falling" },
-];
+/** The variants of the chosen pattern's shared choice (the line screens' directions), from the declarations (D328). */
+function variantOptions(mode: DitherMode): SegmentOption<DitherMode>[] {
+  if (!isDithered(mode)) return [];
+  return ditherVariants(mode).map((pattern) => ({ value: pattern.id, label: pattern.variant!.label, title: pattern.variant!.title }));
+}
+
+type DitherSettingsControl = NonNullable<DitherPatternDeclaration["settings"]>["control"];
+
+/**
+ * The controls a pattern's own settings are edited with, by the name its declaration gives them (D328). The drawn
+ * marks' texture is the one there is; a pattern declaring a control with no entry here does not type-check.
+ */
+const DITHER_SETTINGS_CONTROLS: Record<DitherSettingsControl, (options: WorkspaceOptions, onChange: UpdateWorkspaceOption) => ReactNode> = {
+  texture: (options, onChange) => (
+    <TextureEditor texture={options.ditherTexture} onChange={(texture) => onChange("ditherTexture", texture)} />
+  ),
+};
 
 const PRESETS = ["small", "medium", "large", "xl", "xxl"] as const;
 
@@ -238,6 +249,8 @@ export function PhotoPane({
 
   // Crisp and dithering ask for opposite things and the pipeline refuses the pair (D199), so choosing either one
   // here clears the other rather than leaving a combination Generate would reject.
+  const ditherControl = ditherOwnSettings(options.ditherMode)?.control ?? null;
+
   function chooseDitherMode(mode: DitherMode) {
     onChange("ditherMode", mode);
     if (isDithered(mode)) onChange("edgeMode", "standard");
@@ -635,8 +648,8 @@ export function PhotoPane({
           <section className="flex flex-col gap-2">
             <span className={GROUP_LABEL}>Dither</span>
             <DitherChooser value={options.ditherMode} onChange={chooseDitherMode} />
-            {isLinesMode(options.ditherMode) && (
-              <SegmentedControl fill options={LINE_DIRECTION_OPTIONS} value={options.ditherMode} onChange={chooseDitherMode} />
+            {variantOptions(options.ditherMode).length > 0 && (
+              <SegmentedControl fill options={variantOptions(options.ditherMode)} value={options.ditherMode} onChange={chooseDitherMode} />
             )}
             {dithering && isDithered(options.ditherMode) && (
               <DitherPreview
@@ -644,12 +657,14 @@ export function PhotoPane({
                 texture={options.ditherTexture}
                 chartWidth={chartSize.width}
                 chartHeight={chartSize.height}
-                onShuffle={() => onChange("ditherTexture", { ...options.ditherTexture, seed: (Math.random() * 0xffffffff) >>> 0 })}
+                onShuffle={
+                  ditherOwnSettings(options.ditherMode)?.control === "texture"
+                    ? () => onChange("ditherTexture", { ...options.ditherTexture, seed: (Math.random() * 0xffffffff) >>> 0 })
+                    : undefined
+                }
               />
             )}
-            {dithering && isDrawnMode(options.ditherMode) && (
-              <TextureEditor texture={options.ditherTexture} onChange={(texture) => onChange("ditherTexture", texture)} />
-            )}
+            {dithering && ditherControl !== null && DITHER_SETTINGS_CONTROLS[ditherControl](options, onChange)}
           </section>
         </FeatureGate>
       )}
