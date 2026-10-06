@@ -55,8 +55,8 @@ const CHOICES = choices();
 
 /** A pattern over the ramp, top dark to bottom light: a picture built into the app by the Rust that makes charts (G-100). */
 function TilePicture({ mode }: { mode: DitherMode }) {
-  // eslint-disable-next-line @next/next/no-img-element -- a 24-pixel picture shown pixelated; nothing to optimise.
   return (
+    // eslint-disable-next-line @next/next/no-img-element -- a 24-pixel picture shown pixelated; nothing to optimise.
     <img
       src={builtDitherPicture(mode, "tile")}
       alt=""

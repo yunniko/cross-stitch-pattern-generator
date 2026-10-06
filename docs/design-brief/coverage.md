@@ -453,3 +453,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D325 | 06-backstitch-and-stitch-types | How drawn |
 | D326 | internal | |
 | D327 | internal | |
+| D328 | internal | |
