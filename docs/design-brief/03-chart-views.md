@@ -46,6 +46,7 @@ These are always shown with a chart open:
 | Size and counts | "*w* × *h*, *n* stitches, *c* colors": only stitches that carry a colour are counted; empty stitches and the full grid size are not |
 | Finished size | "*w* × *h* in" or "cm", and the fabric count ("14-ct"), with the hint "Finished size on the chosen fabric count" |
 | Stitch under the pointer | "Stitch *x*, *y*" counted from 1 at the top left, across then down; a dash while the pointer is off the chart |
+| Colour under the pointer | Beside the stitch: a swatch and the name of the colour there, the one the Picker would take (on a backstitch line the line's thread, an empty stitch "Empty (no stitch)" with the empty-stitch checks); it follows edits under a still pointer, and is absent while the pointer is off the chart |
 | Save state | **Autosaved**, **Saving…**, blank (idle), or **Autosave unavailable — edits won't survive a reload** (shown in the warning colour when the browser will not keep data) |
 
 ## Photo before the chart exists

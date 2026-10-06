@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { colorAt } from "@/lib/editor/pick-color";
-import { EMPTY_CELL, type BackstitchLine } from "@/lib/types";
+import { colorAt, describeColor } from "@/lib/editor/pick-color";
+import { EMPTY_CELL, type BackstitchLine, type PaletteColor } from "@/lib/types";
 
 /** G-104: what a picker press takes, at a point given in stitches from the chart's top left. */
 
@@ -34,5 +34,21 @@ describe("the colour a picker press takes", () => {
     const under: BackstitchLine = { x1: 0, y1: 1, x2: 3, y2: 1, paletteIndex: 4 };
     const over: BackstitchLine = { x1: 1, y1: 0, x2: 1, y2: 2, paletteIndex: 5 };
     expect(colorAt(chart([under, over]), 1, 1)).toBe(5);
+  });
+});
+
+describe("the colour the status bar names under the pointer", () => {
+  const palette: PaletteColor[] = [{ index: 0, rgb: [10, 20, 30], symbol: "A", name: "310 - Black", count: 1 }];
+
+  it("is the thread's name and colour", () => {
+    expect(describeColor(palette, 0)).toEqual({ name: "310 - Black", rgb: [10, 20, 30] });
+  });
+
+  it("is the empty stitch, with no colour, on an empty cell", () => {
+    expect(describeColor(palette, EMPTY_CELL)).toEqual({ name: "Empty (no stitch)", rgb: null });
+  });
+
+  it("names a value past the palette as unknown rather than as another thread", () => {
+    expect(describeColor(palette, 7)).toEqual({ name: "Unknown colour 7", rgb: null });
   });
 });

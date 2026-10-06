@@ -53,9 +53,7 @@ export function StatusBar({ pattern, aidaCount, sizeUnit, autosaveStatus, hasPat
           </>
         )}
 
-        {pattern && hasPattern && (
-          <PointerReadout scrollerRef={scrollerRef} frameRef={frameRef} width={pattern.width} height={pattern.height} cellSize={cellSize} />
-        )}
+        {pattern && hasPattern && <PointerReadout scrollerRef={scrollerRef} frameRef={frameRef} pattern={pattern} cellSize={cellSize} />}
       </div>
 
       <span

@@ -149,3 +149,50 @@ test.describe("the picker switched off", () => {
     });
   }
 });
+
+test("the status bar names the colour under the pointer, with its swatch, as the picker would take it", async ({ page }) => {
+  await openSmallChart(page);
+  const first = await threadName(page, 0);
+  const fifth = await threadName(page, 4);
+  await paintCell(page, 0, 3, 3);
+  await page.getByRole("tab", { name: "Threads" }).click();
+  await page.getByRole("tabpanel", { name: "Threads" }).getByText("Empty (no stitch)").click();
+  await page.getByRole("tab", { name: "Chart" }).click();
+  await clickCell(page, 6, 3);
+  await pickThread(page, 4);
+  await drawChain(page, [
+    [2, 5],
+    [6, 5],
+  ]);
+  await pickTool(page, "Picker");
+  const shown = page.getByTestId("pointer-color");
+  const name = page.getByTestId("pointer-color-name");
+  const swatch = page.getByTestId("pointer-color-swatch");
+
+  const stitch = await atCell(page, 3, 3);
+  await page.mouse.move(stitch.x, stitch.y);
+  await expect(page.getByTestId("pointer-stitch")).toHaveText("4, 4");
+  await expect(name).toHaveText(first);
+  expect(await swatch.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
+
+  const empty = await atCell(page, 6, 3);
+  await page.mouse.move(empty.x, empty.y);
+  await expect(name).toHaveText("Empty (no stitch)");
+  await expect(shown).toHaveAttribute("data-color", "empty");
+
+  const { x, y, cell } = await chartBox(page);
+  await page.mouse.move(x + cell * 4, y + cell * 5);
+  await expect(name, "on the backstitch line").toHaveText(fifth);
+
+  // An edit under a still pointer: the empty cell painted, read again without a move.
+  await page.mouse.move(empty.x, empty.y);
+  await expect(name).toHaveText("Empty (no stitch)");
+  await pickTool(page, "Brush");
+  await pickThread(page, 0);
+  await page.mouse.click(empty.x, empty.y);
+  await expect(name).toHaveText(first);
+
+  await page.mouse.move(5, 5);
+  await expect(shown).toBeHidden();
+  await expect(page.getByTestId("pointer-stitch")).toHaveText("–");
+});

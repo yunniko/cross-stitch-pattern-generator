@@ -1,5 +1,5 @@
 import { hitLine } from "./backstitch";
-import type { StitchPattern } from "@/lib/types";
+import { EMPTY_CELL, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
 /**
  * The colour a picker press takes (G-104), at `(x, y)` in stitches from the chart's top left, unrounded. On a backstitch
@@ -15,4 +15,12 @@ export function colorAt(pattern: Pick<StitchPattern, "width" | "height" | "cellP
   const column = Math.min(pattern.width - 1, Math.max(0, Math.floor(x)));
   const row = Math.min(pattern.height - 1, Math.max(0, Math.floor(y)));
   return pattern.cellPalette[row * pattern.width + column];
+}
+
+/** What the status bar names for a colour `colorAt` gave: the thread's name and colour, or the empty stitch (Owner, 2026-10-06). */
+export function describeColor(palette: readonly PaletteColor[], index: number): { name: string; rgb: RGB | null } {
+  if (index === EMPTY_CELL) return { name: "Empty (no stitch)", rgb: null };
+  const color = palette[index];
+  // A cell value past the palette is a broken chart; it is named as such rather than shown as some other thread.
+  return color ? { name: color.name, rgb: color.rgb } : { name: `Unknown colour ${index}`, rgb: null };
 }

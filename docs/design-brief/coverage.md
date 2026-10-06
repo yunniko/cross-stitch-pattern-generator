@@ -445,3 +445,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D318 | 04-editing | written in G-104 M3 |
 | D319 | 04-editing | written in G-104 M3 |
 | D320 | 03-chart-views | the slider row and the looking-only paragraph |
+| D321 | 03-chart-views | the colour under the pointer row |
