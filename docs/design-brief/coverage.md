@@ -415,4 +415,5 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D301 | 01-overview | also 03 |
 | D302 | internal | |
 | D303 | 10-features | |
+| D304 | 10-features | |
 | G-102 | 10-features | the file is written in M4 |

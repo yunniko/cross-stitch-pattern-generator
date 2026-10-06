@@ -3,6 +3,9 @@ import { auth } from "@/auth";
 import { guardMutation, processorUnreachable, processorUrl } from "@/lib/server/request-guard";
 import { recordUsage } from "@/lib/admin/usage";
 import { LIMITS } from "@/processor/job-protocol";
+import { exportRefusal } from "@/lib/features/request-check";
+import { featureStatesFor } from "@/lib/features/server";
+import { parseBody } from "@/lib/server/parse-body";
 
 /**
  * Starts an export on the processor (G-034 M4).
@@ -33,13 +36,19 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ error: "That pattern is too large to export." }, { status: 413 });
   }
 
+  // Under the feature switches (G-102): a kind or a texture this person cannot use is refused by name, before the
+  // processor sees it.
+  const userId = (await auth())?.user?.id ?? null;
+  const refusal = exportRefusal(parseBody(body), await featureStatesFor(userId));
+  if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
+
   try {
     const upstream = await fetch(processorUrl("/exports"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body,
     });
-    if (upstream.ok) recordUsage("EXPORT", (await auth())?.user?.id ?? null);
+    if (upstream.ok) recordUsage("EXPORT", userId);
     const headers: Record<string, string> = { "content-type": "application/json" };
     const retryAfter = upstream.headers.get("retry-after");
     if (retryAfter) headers["retry-after"] = retryAfter;

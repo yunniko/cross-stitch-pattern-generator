@@ -35,6 +35,7 @@ model User {
   accounts     Account[]
   sessions     Session[]
   subscription Subscription?
+  features     UserFeature[]
 
   @@index([role])
 }
@@ -88,10 +89,64 @@ model Tier {
   stripePriceId String?
   /// Whatever a tier unlocks, shaped once the product decision is made.
   limits        Json?
+  /// The feature set a person on this tier gets (G-102); null means the site's states alone.
+  featureSetId  String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   subscriptions Subscription[]
+  featureSet    FeatureSet?    @relation(fields: [featureSetId], references: [id])
+}
+
+/// Feature switches (G-102, D303). A feature's id is the feature list's (`app/features/registry.ts`); a row naming a
+/// feature that no longer exists is ignored, never an error. A feature with no row is on.
+enum FeatureSwitch {
+  ON
+  LOCKED
+  HIDDEN
+}
+
+/// The state of a feature for the whole site.
+model FeatureState {
+  featureId String       @id
+  state     FeatureSwitch
+  updatedAt DateTime     @updatedAt
+  /// Who set it, for the admin's record.
+  updatedBy String?
+}
+
+/// The state of a feature for one person, which wins over the tier's set and the site.
+model UserFeature {
+  userId    String
+  featureId String
+  state     FeatureSwitch
+  updatedAt DateTime     @updatedAt
+  updatedBy String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, featureId])
+}
+
+/// A named set of states, for a tier to point at. A feature not in the set follows the site.
+model FeatureSet {
+  id        String            @id @default(cuid())
+  name      String            @unique
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  entries FeatureSetEntry[]
+  tiers   Tier[]
+}
+
+model FeatureSetEntry {
+  setId     String
+  featureId String
+  state     FeatureSwitch
+
+  set FeatureSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  @@id([setId, featureId])
 }
 
 /// Same scaffolding note as `Tier`. One subscription per user; `status` mirrors Stripe's own

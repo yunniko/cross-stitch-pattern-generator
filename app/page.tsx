@@ -1,14 +1,15 @@
 import { auth } from "@/auth";
-import { EVERYTHING_ON } from "@/lib/features/features";
+import { featureStatesFor } from "@/lib/features/server";
 import { FeaturesProvider } from "./features/features-context";
 import Workspace from "./workspace";
 
 export default async function Home() {
   const session = await auth();
   const account = session?.user ? { name: session.user.name ?? null, email: session.user.email ?? "" } : null;
-  // The feature states of this person (G-102). M1: everything is on; M2 resolves them from the site, the tier and the person.
+  // The feature states of this person (G-102): the site's, the tier's set and their own, resolved on the server.
+  const features = await featureStatesFor(session?.user?.id ?? null);
   return (
-    <FeaturesProvider states={EVERYTHING_ON}>
+    <FeaturesProvider states={features}>
       <Workspace account={account} />
     </FeaturesProvider>
   );

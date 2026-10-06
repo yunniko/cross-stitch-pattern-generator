@@ -339,3 +339,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D301 — The canvas colour, the cloth and the stitch texture are preferences — active
 - D302 — The tool rail is one column where there are few tools — active
 - D303 — The feature list is derived from the registries, and a feature has three states — active
+- D304 — Feature states resolve person > tier > site, and the server refuses by name — active

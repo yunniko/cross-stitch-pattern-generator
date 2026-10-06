@@ -1,7 +1,8 @@
 import { CANVAS_TEXTURES } from "@/lib/export/canvas-texture-catalog";
 import { EXPORT_KIND_GROUPS, exportKindFeature } from "@/lib/export/export-kinds";
 import { STITCH_TEXTURES } from "@/lib/export/stitch-texture-catalog";
-import { declaredFeatureId, featureShown, featureUsable, type Feature, type FeatureStates } from "@/lib/features/features";
+import { brandFeature, commandFeature, generationSettingFeature, toolFeature } from "@/lib/features/declare";
+import { featureShown, featureUsable, type Feature, type FeatureStates } from "@/lib/features/features";
 import { toolOffered, type Workspace } from "@/lib/editor/workspaces";
 import { DITHER_MODES } from "@/lib/pipeline/dither";
 import { DITHER_LABELS, ditherFeature } from "@/lib/pipeline/dither-labels";
@@ -20,21 +21,6 @@ import { TOOL_DEFINITIONS, toolDefinition, type Tool } from "../tools/registry";
  */
 
 const TOOL_GROUPS = ["Drawing tools", "Selection and transformation", "Navigation"] as const;
-
-/** The feature a tool is under, or null for a core tool. */
-export function toolFeature(tool: { id: string; feature?: Parameters<typeof declaredFeatureId>[1] }): string | null {
-  return declaredFeatureId(`tool.${tool.id}`, tool.feature);
-}
-
-/** The feature a command is under, or null for a core one. */
-export function commandFeature(command: { id: string; feature?: Parameters<typeof declaredFeatureId>[1] }): string | null {
-  return declaredFeatureId(`command.${command.id}`, command.feature);
-}
-
-/** The feature a generation setting is under, or null for a core one. */
-export function generationSettingFeature(setting: { id: string; feature?: Parameters<typeof declaredFeatureId>[1] }): string | null {
-  return declaredFeatureId(`generation.${setting.id}`, setting.feature);
-}
 
 /** The features some commands share, named here because no one command owns the name. */
 const SHARED_COMMAND_FEATURES: Record<string, { label: string; group: string }> = {
@@ -133,7 +119,4 @@ export function toolShown(states: FeatureStates, tool: Tool): boolean {
   return feature === null || featureShown(states, feature);
 }
 
-/** The feature a palette mode is: a brand's own, or none for the full range. */
-export function brandFeature(mode: string): string | null {
-  return mode === "full" ? null : `brand.${mode}`;
-}
+export { brandFeature, commandFeature, generationSettingFeature, toolFeature };

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { guardMutation, processorUnreachable, processorUrl } from "@/lib/server/request-guard";
 import { recordUsage } from "@/lib/admin/usage";
+import { generationRefusal } from "@/lib/features/request-check";
+import { featureStatesFor } from "@/lib/features/server";
+import { parseBody } from "@/lib/server/parse-body";
 
 /**
  * Starts a generation (G-034 M2). The settings are forwarded as they arrive and validated by the processor, which is
@@ -26,13 +29,19 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ error: "That request is too large." }, { status: 413 });
   }
 
+  // Under the feature switches (G-102): a request asking for a feature this person cannot use is refused by name, before
+  // the processor sees it. The body is read as JSON only for this; the processor still gets the text as sent.
+  const userId = (await auth())?.user?.id ?? null;
+  const refusal = generationRefusal(parseBody(body), await featureStatesFor(userId));
+  if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
+
   try {
     const upstream = await fetch(processorUrl("/jobs"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body,
     });
-    if (upstream.ok) recordUsage("GENERATE", (await auth())?.user?.id ?? null);
+    if (upstream.ok) recordUsage("GENERATE", userId);
     const headers: Record<string, string> = { "content-type": "application/json" };
     const retryAfter = upstream.headers.get("retry-after");
     if (retryAfter) headers["retry-after"] = retryAfter;
