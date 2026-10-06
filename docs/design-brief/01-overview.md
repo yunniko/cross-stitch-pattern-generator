@@ -45,13 +45,15 @@ The work is done in three places, and a person is in exactly one of them. They a
 
 | Workspace | What it is for | What it offers | Available when |
 |---|---|---|---|
-| **Photo** | Making the chart from a photo | The generation settings and Generate (`02`); the chart only to look at; the two tools that move the view | Always: it is where a chart starts, and where the starting choices are shown |
+| **Photo** | Making the chart from a photo | The generation settings and Generate (`02`); the chart only to look at; the two tools that move the view | Always, unless switched off (`10`): it is where a chart starts, and where the starting choices are shown |
 | **Edit** | Changing the chart | Every tool (`04`, `06`, `07`), the thread list (`05`), the chart's name and fabric (`03`) | A chart is open and the starting choices are not shown over it |
 | **Export** | Getting the chart out | The choice of what to make and every setting an export reads (`08`); the chart only to look at; the two tools that move the view | As Edit |
 
 **Only Edit changes the chart.** In Photo and Export every operation that would change it is unavailable, whatever view is chosen: drawing, the quick mirrors, the symmetry axes, the transparency lock, and every tool but the two that move the view.
 
 **Each workspace keeps its own tool in hand.** Going to another workspace neither takes a tool up nor puts one down: a piece in hand in Edit is still in hand on return, nothing having been applied.
+
+**A workspace can be switched off** for a person, as a feature (`10`), and its switch takes everything offered in it along: the way into it, the commands and keys of its work, and the actions elsewhere that do that work (Save and "Export, then start new" are Export's; "Choose a photo" and "Continue in Edit" are Photo's and Edit's). Undo and redo belong to no workspace and stay. A person is shown the chosen workspace if it can be entered, else the first of Photo, Edit, Export that can. With Photo off and no chart, only the starting choices are shown, without "Choose a photo", under the heading "Start a chart."; with all three off, a message takes the editor's place: "The editor is not available right now", saying that the chart is kept in the browser as it was.
 
 **Where a chart arrives.** A photo, and every chart generated from it, is shown in Photo, where another generation is one action away; the person takes it on to Edit when they choose. A chart that arrives ready (opened, restored on coming back, started blank, imported as pixel art) is shown in Edit, with its threads.
 
@@ -91,6 +93,8 @@ What is set once and then left. They are in reach from anywhere, with or without
 | **Double-click fills a region** | Choice of **On**, **Off** | On | The Brush (`04`) |
 
 The author name, the cell size and the overlap are also shown where an export that reads them is chosen (`08`): one value each, shown in two places.
+
+**The version.** The foot of the preferences names the version of the app in use, with a link, **What's new**, that opens the page of every release's notes separately from the editor, so the chart is left as it is. The page lists the releases newest first, each with what is New, Changed and Fixed in it, and marks the one in use as "this version"; with none yet, it says "No release has notes yet.". The command list reaches the same page ("What's new in this version").
 
 While the preferences are open nothing behind them takes a key or a press; Escape, Close, or a press outside closes them. There is nothing to confirm: each change is kept as it is made.
 

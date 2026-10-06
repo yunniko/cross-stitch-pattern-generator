@@ -20,25 +20,39 @@ The list is derived from what the editor has, so a new tool, export kind, genera
 
 | Group | Features | Core (never switched) |
 |---|---|---|
+| Workspaces | Photo (with Generate and choosing a photo), Edit, Export (with Save) | |
 | Drawing tools | Brush, Fill, Line, Rectangle, Oval, Lasso fill, Text, Backstitch, BS edit | |
 | Selection and transformation | Select, Lasso, Crop, Move | |
 | Navigation | | Pan, Zoom |
 | Colours | Isolate the lit threads | The two drawing colours and their swap |
 | Chart | Quick mirrors (the four as one), Symmetry axes (the four as one), Transparency lock | |
-| Views | Stitched view, Photo behind the chart (the grid over it and the photo alone, as one) | Color, Black & white, the zoom, the workspaces |
+| Views | Stitched view, Photo behind the chart (the grid over it and the photo alone, as one) | Color, Black & white, the zoom |
 | Exports | A4 pages, PDF for Pattern Keeper, Full chart PNG, Realistic preview PNG, Pixel art PNG, Editable pattern, OXS chart, Palette file, Export all | Save in the bar above (the editable file by another road) |
 | Generation | Choice of algorithm, Crisp edges, Dithering (as a whole), Vivid colour detail, Backstitch from lines (with "also in photographs" and the sensitivity), Set up palette, Texture strokes (with the density), Photo adjustment | The size, the colour count, the palette mode itself |
 | Dither patterns | Clustered dots, Rings, Lines (the four directions as one), Bayer 4×4, Bayer 8×8, Blue noise, Floyd–Steinberg, Atkinson, Hand-drawn (with its texture editing) | Off |
 | Textures | Classic, Pixel, Cell outline, Cell outline shaded, Cross 2 stitch textures; Natural linen and Counted canvas cloths | The plain canvas colour |
 | Thread brands | DMC, Cosmo, Anchor | Full range |
 
-Undo and Redo, the file actions, Generate itself, the command list, Preferences and the keyboard cursor are core.
+Undo and Redo, opening a file, starting an empty grid, importing pixel art, the command list, Preferences and the keyboard cursor are core.
 
 ## What a switched-off feature does to what exists
 
 A chart keeps its data whatever the person's states: backstitch lines, text once placed, a texture or a brand its threads came from are shown and saved as they are. Only making more of the feature is withheld. A stored setting that names a feature the person cannot use is read as its default while the state lasts (a hidden stitch texture draws as Classic, a hidden brand generates in the full range, a locked dither pattern generates with no dithering) and is back the moment the feature is.
 
 The tool in hand is never a locked or hidden one: if it becomes one, the first usable tool the workspace offers is in hand instead.
+
+## A workspace switched off
+
+A workspace's switch is not a parent of the features inside it: each keeps its own state, which the admin sees as it is, and the workspace being off wins over it (D312). A control belongs to the workspace it is offered in (Owner, 2026-10-06).
+
+| | Hidden | Locked |
+|---|---|---|
+| The way into it | Absent | Greyed, with its note; it cannot be entered |
+| Its commands and keys | Not in the command list; the keys do nothing | Listed as unavailable with the workspace's note; the keys do nothing |
+| Actions elsewhere that do its work (`01`) | Absent | Greyed, with the workspace's note |
+| The server | Refuses its requests by the workspace's name (403): Photo's are generating, the colour recommendation and the photo upload; Export's are the exports made on the server | The same |
+
+A person lands in the next workspace that is on. A chart already open, and the one the browser keeps, are untouched; with all three off a message says so in place of the editor, and the chart is there again once one is switched back on. The editable file, the palette file and pixel art are made in the browser and send nothing to the server, so for those the interface's refusal is the only one.
 
 ## The admin
 

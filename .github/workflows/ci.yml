@@ -25,6 +25,9 @@ jobs:
       - run: npm run lint
       # G-095: colours by name and icons from the one set, which is what keeps the interface skinnable.
       - run: npm run check:skin
+      # G-088: every goal and decision has a row in the design brief's coverage, and the brief names no interface element.
+      # Not run anywhere until G-103, and 19 rows had gone missing since G-102.
+      - run: npm run check:brief
       # STANDARDS.md -> Code style: the formatter is a check, not a habit.
       - run: npm run format:check
       # G-105, D309: a change that can alter what a user sees carries a note in release-notes/next/ (or an `internal`

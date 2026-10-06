@@ -420,3 +420,22 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D306 | 10-features | |
 | D307 | 10-features | |
 | G-102 | 10-features | |
+| G-103 | 10-features | also 01 |
+| G-104 | not shipped (draft) | a colour picker |
+| G-105 | 01-overview | the version and "What's new"; the notes process internal |
+| G-106 | out of scope | draft: subscriptions |
+| G-107 | out of scope | draft: the admin and account pages |
+| G-108 | not shipped (draft) | saved charts and a gallery |
+| G-109 | not shipped (draft) | limits on server actions |
+| G-110 | not shipped (draft) | the view as switches |
+| G-111 | not shipped (draft) | what users publish, and moderation |
+| G-112 | not shipped (draft) | a user guide |
+| G-113 | out of scope | draft: email for accounts |
+| G-114 | internal | draft: backups |
+| D308 | 01-overview | the version shown |
+| D309 | internal | |
+| D310 | 01-overview | "What's new" |
+| D311 | internal | |
+| D312 | 10-features | |
+| D313 | 10-features | also 01 |
+| D314 | 10-features | |

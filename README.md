@@ -187,7 +187,8 @@ Three **workspaces**, chosen in the bar above: **Photo** makes the chart from a 
 - **Feature switches** (`/admin/features`): every feature of the editor, in groups, is On, Locked (shown greyed with
   a note, refused by the server) or Hidden (absent), for the whole site, for every guest or every signed-in account, for one
   person (from the users list) or as a named feature set a tier gives the people on it. A new tool, export, setting, pattern, texture or brand appears in
-  the list by itself (`docs/design-brief/10-features.md`, D303).
+  the list by itself (`docs/design-brief/10-features.md`, D303). The three workspaces, Photo, Edit and Export, are
+  features too: one switched off takes its way in, its commands and keys, and its server requests with it (D312 to D314).
 
 ## Run locally
 
