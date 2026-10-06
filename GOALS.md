@@ -23,6 +23,48 @@ One line per change; deployed in batches, each batch after one full-suite run.
 
 ## Active goals
 
+### G-103 · The three workspaces are features: Generation, Edit and Export each switched with its tab — DRAFT (2026-10-06)
+- **What:** asked by the Owner, 2026-10-06. Generation, Edit and Export become features in the G-102 list, each one switch covering both the work and the way in: the workspace's tab and everything inside it. Hidden: the tab is absent and the workspace cannot be reached by any road (key, command list, link, a request to the server). Locked: the tab is shown greyed with its note. On, Locked or Hidden for the site, a person, a feature set, guests or accounts, as every other feature.
+- **Why:** G-102 made the workspaces core (`feature: null`), so today a tier can withhold single generation settings or export kinds but not a whole stage; the Owner wants a stage as one switch.
+- **Acceptance criteria (draft):** each of the three appears in `/admin/features` as one entry; Hidden and Locked hold for the tab, the keys and commands that open it, and the server routes behind it (generate, export), refused by name; the features inside a workspace keep their own switches, and a workspace switched off wins over them; with all On, the browser suite passes unchanged.
+- **Constraints:** a chart already open keeps its data whatever is switched off (G-102's rule: never damage a chart). Admin pages are never exercised against the live site (standing rule).
+- **Open questions:** (1) with Generation off, how does a person start a chart: an empty grid of a chosen size, opening a file, or not at all? (2) when the workspace a person would land in is off, which one opens? (3) does Edit off still allow the photo settings and cropping, or are those Edit's?
+
+### G-104 · A colour picker, held on a key without changing tools — DRAFT (2026-10-06)
+- **What:** asked by the Owner, 2026-10-06. A colour picker: pressing on a stitch takes its colour (and a backstitch line's) as the colour in hand. It is a tool of its own in the rail, and it is also reached by holding a modifier key with any drawing tool in hand: while the key is down the pointer picks, and on release the tool in hand is unchanged.
+- **Why:** taking a colour from the chart today means finding it in the palette by eye.
+- **Acceptance criteria (draft):** pick a stitch's colour with the tool and with the held key from Brush, Line, Rectangle, Oval and Fill; the tool in hand never changes; the pointer shows picking while the key is held; an empty cell picks nothing and says so; the picker is a feature in the G-102 list; unit tests on the key table, browser cases for both roads.
+- **Constraints:** the key must not take one the Owner agreed in D288 or that a tool already uses as a modifier (Ctrl ends a backstitch line, D236; Shift takes larger steps for the keyboard cursor and Crop; Alt with Zoom zooms out). A tool is one module (D284).
+- **Open questions:** which key: Alt (as in common image editors; on some systems Alt alone moves focus to the browser menu, which needs handling) or another? Should a half stitch or a backstitch line be pickable, and which wins when a press lands on both?
+
+### G-105 · Release versions, release notes, a user guide, and a process that keeps them current — DRAFT (2026-10-06)
+- **What:** asked by the Owner, 2026-10-06. (1) The app carries a release version (today `package.json` reads 0.1.0 and nothing shows it): each deploy is a numbered release, tagged in git, shown in the app. (2) Release notes per release, written for users (what changed, not commits), shown in the app as "What's new". (3) A user documentation wiki: how to use every workspace, tool and export, with pictures. (4) The development process changed so that a change which alters what a user sees updates the guide and the next release's notes in the same commit, enforced by a check, not a promise.
+- **Why:** users have no record of what changed or how anything works; the design brief (`docs/design-brief/`) describes the app for the developers, not for users.
+- **Acceptance criteria (draft):** the version shows in the app and matches a git tag and a deploy-log row; every release since the scheme starts has notes; the guide covers every feature in the G-102 list (a check fails when a feature has no guide page, as `coverage.md` does for the brief); `docs/development-loop.md` and the fast lane (D280) name the step; a feature Hidden for a person is left out of the guide they see (assumption, to confirm).
+- **Constraints:** nothing published elsewhere without the Owner's approval (VALUES): the guide lives in the app itself unless the Owner chooses an outside host. Screenshots are made from the app by a script, so they can be remade when the interface changes.
+- **Open questions:** (1) version scheme: semantic (1.4.2) or by date (2026.10.06)? (2) the guide: pages inside the app (`/help`), or an outside wiki? (3) language: English only, or also Czech? (4) can users edit or comment on the guide, or is it written by the Company only?
+
+### G-106 · Subscriptions: Stripe, tiers that are sold, and the admin's controls — DRAFT (2026-10-06)
+- **What:** asked by the Owner, 2026-10-06. A person can subscribe to a tier, pay through Stripe (Checkout and the Customer Portal), and gets the tier's feature set (G-102) while the subscription is live; Stripe's webhooks keep `Subscription` current (renewal, failed payment, cancellation, end of period). The admin can make and price tiers, see each person's subscription and its history, give or take a tier by hand (a free month, a refund, a comp), and see revenue and counts.
+- **Why:** `Tier` and `Subscription` (with `stripePriceId`, `stripeCustomerId`) have waited since G-075; G-102 built what a tier unlocks.
+- **Acceptance criteria (draft):** end to end in Stripe's test mode: subscribe, renew, fail a payment, cancel, and each changes what the person can use within the feature list's refresh time; webhooks verified by signature and safe to receive twice; no card data ever touches this app's server; the admin actions logged with who and when, as feature changes are.
+- **Constraints:** **escalation-tier, needs the Owner:** creating the Stripe account, accepting its terms, the business identity it is held under, and switching to live mode (VALUES: no accounts, no money without approval). Built and verified in test mode only until the Owner says otherwise. Selling needs terms of service, a privacy policy, prices with VAT (EU) and invoices, which are the Owner's to decide and may need professional advice. G-030 withdrew a plain paywall-on-exports plan; whether this goal is part of G-030's social ecosystem or stands apart is the Owner's call.
+- **Open questions:** (1) which tiers, at what prices, monthly and/or yearly? (2) a free trial? (3) what happens to saved charts (G-108) when a subscription ends? (4) on whose name and country is the Stripe account (decides VAT handling)?
+
+### G-107 · The admin area and the account pages redesigned — DRAFT (2026-10-06)
+- **What:** asked by the Owner, 2026-10-06. The admin area (`app/admin/`: overview, users, a person's features, features, stats) and the account page (`app/account/`) redesigned as one consistent set, in the app's own look (`app/skin/`) and against the placement rules (`docs/interface-placement.md`), with room for what G-106 and G-108 add: subscription and billing, saved charts, publicity settings.
+- **Why:** these pages grew a goal at a time (G-075, G-102) and were never designed as a whole; G-106 and G-108 would add to them as they are.
+- **Acceptance criteria (draft):** set with the Owner from mock-ups, as G-095's were; the existing admin and account specs pass, rewritten only where the behaviour is meant to change; keyboard and contrast checks as the editor has.
+- **Constraints:** admin pages are never exercised against the live site (standing rule). Best done before G-106 and G-108, so they are built into the new pages.
+- **Open questions:** what the Owner finds wrong or missing today on these pages, before mock-ups are drawn.
+
+### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (2026-10-06)
+- **What:** asked by the Owner, 2026-10-06. A signed-in person saves a chart to their account (the versioned document of G-094, with its photo if they choose) and reopens it from any browser; their charts are listed with previews. Each chart has a visibility: **private** (the default), unlisted (anyone with the link), or public (in a gallery). The gallery shows public charts with previews; the owner can change visibility or delete at any time. Account settings hold the defaults.
+- **Why:** today a chart lives only in one browser or an exported file; G-097 left "a full chart library" for later.
+- **Acceptance criteria (draft):** save, reopen elsewhere, rename, delete; a private chart refused to anyone else by the server, not only hidden by the interface; a new chart is private until its owner changes it; the gallery lists only public charts; storage limits per person (and per tier, through G-102/G-106) enforced and named; saving is a feature in the G-102 list.
+- **Constraints:** **personal data:** saved charts and photos are user content stored on the shared host; this needs a retention rule, deletion on account deletion, a backup plan, and the privacy policy G-106 also needs (flagged to the Owner, VALUES). A public gallery hosts content uploaded by users, so a way to report and take down a chart, and whose photos may be shown, are the Owner's decisions. Overlaps G-030 (the social ecosystem) and G-097 (2: the last replaced chart): the gallery is the first piece of G-030 if the Owner wishes.
+- **Open questions:** (1) is the source photo saved with a chart, and shown publicly? (2) storage limits for accounts without a tier? (3) can others copy a public chart into their own account? (4) moderation: report button, admin takedown, or review before publishing?
+
 ### G-100 · Dithering is extensible: a pattern is one module, written once — DRAFT (2026-10-05)
 - **What:** asked by the Owner, 2026-10-05. Today a dither pattern exists twice: in Rust, which makes the chart (`rust/cs-core/src/dither.rs`, `dither_hand_drawn.rs`), and again in TypeScript (`lib/pipeline/dither.ts`, `dither-hand-drawn.ts`), which draws the preview in the photo settings; its id is in two lists, its label and group in the photo settings, and a pattern with settings of its own (as the drawn marks have) has its editor written by hand. The goal: (1) a pattern is one Rust module behind one contract (its id, its settings, its arithmetic) in a list, as overlays are; (2) the preview is drawn by that same code, so nothing is written twice; (3) a pattern's name, group and settings are declared once and the chooser and its settings are drawn from the declaration.
 - **Why:** a threshold-matrix pattern is already only data (D198), but any other new pattern is two implementations that must agree, three lists and hand-written interface.
@@ -51,17 +93,6 @@ One line per change; deployed in batches, each batch after one full-suite run.
 - **Why:** today a replaced chart is gone unless it was exported; the confirmation is the only guard.
 - **Acceptance criteria:** to be set when taken up. Known work: undo across documents must restore the photo in hand and reset the view as D283 does; history is memory-only and 50 steps deep, which is why (2) exists.
 - **Constraints:** changes undo history and browser storage, so a normal goal. A full chart library belongs with G-094.
-
-### G-069 · The workspace stops being the only thing that knows how everything connects — DRAFT (2026-09-24; absorbed into G-091, 2026-10-04)
-- **What:** the changes `docs/reviews/2026-09-24-workspace-shape.md` recommends: a `useEditorDocument` hook owning
-  what it means to replace the open chart, then grouped props for the panes that take 31 and 30 of them.
-- **Why:** `app/workspace.tsx` is 754 lines of which 465 are logic and 289 are wiring, and not one of its 19
-  functions is longer than 18 lines. It is not complex, it is wide — and the eight functions that replace a chart
-  each have to remember the same list of state to reset. That is the shape of mistake that produced D217.
-- **Acceptance criteria:** replacing the open chart is decided in one place; adding a tool touches one hook and one
-  component; no behaviour change, suites green.
-- **Constraints:** not a line-count exercise. G-067's "under 300 lines" was a bad proxy and is not inherited; a shell
-  component taking 38 props would meet it and improve nothing.
 
 ### G-030 · Public launch: a social ecosystem around the app — DRAFT, far future (2026-09-12)
 - **What:** Eventually make the app public, built around **a social
