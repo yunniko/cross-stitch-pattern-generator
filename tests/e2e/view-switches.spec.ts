@@ -19,16 +19,16 @@ async function paintOneStitch(page: Page) {
   await page.getByTestId("chart-frame").click({ position: { x: 20, y: 20 } });
 }
 
-test("each switch is offered only where it acts, and the slider only with the photo on", async ({ page }) => {
+test("each switch is offered only where it acts, and the slider is disabled, not hidden, without the photo", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await openSmallChart(page);
   const controls = viewControls(page);
 
-  // Color: Symbols and Photo both act; the slider waits for the photo.
+  // Color: Symbols and Photo both act; the slider is there, disabled, until the photo is on.
   await expect(controls.symbols).toBeEnabled();
   await expect(controls.photo).toBeEnabled();
-  await expect(controls.visibility).toHaveCount(0);
+  await expect(controls.visibility).toBeDisabled();
 
   await controls.photo.click();
   await expect(controls.visibility).toBeVisible();
@@ -37,12 +37,12 @@ test("each switch is offered only where it acts, and the slider only with the ph
   await expectView(page, { pattern: "color", photo: true, visibility: 40 });
   await expect(page.getByTestId("chart-frame")).toHaveAttribute("aria-label", "Pattern, Color, 40% over the photo");
 
-  // Stitched draws its own cloth: Symbols and Photo set aside, the slider gone, and the choice remembered.
+  // Stitched draws its own cloth: Symbols, Photo and the slider set aside, and the choice remembered.
   await controls.mode("Stitched").click();
   await expectView(page, { pattern: "realistic", symbols: false, photo: false, visibility: 100 });
   await expect(controls.symbols).toBeDisabled();
   await expect(controls.photo).toBeDisabled();
-  await expect(controls.visibility).toHaveCount(0);
+  await expect(controls.visibility).toBeDisabled();
 
   // Back in a flat mode the photo comes back at the visibility left on it.
   await controls.mode("B&W").click();
@@ -55,13 +55,13 @@ test("each switch is offered only where it acts, and the slider only with the ph
   expect(errors).toEqual([]);
 });
 
-test("over the photo the chart is edited as in Color, and below 5 % a note says why it is not", async ({ page }) => {
+test("over the photo the chart is edited as in Color, not below 5 %, and only Stitched shows a note", async ({ page }) => {
   await openSmallChart(page);
   const controls = viewControls(page);
   await page.getByRole("tabpanel", { name: "Threads" }).getByText("Empty (no stitch)").click();
 
   await showOverPhoto(page, 3);
-  await expect(controls.note).toHaveText("Too faint to edit: raise the pattern to 5 % or more.");
+  await expect(controls.note, "a faint pattern has no note (Owner)").toHaveCount(0);
   await paintOneStitch(page);
   await expect(undo(page), "a click on a pattern too faint to see changes nothing").toBeDisabled();
 

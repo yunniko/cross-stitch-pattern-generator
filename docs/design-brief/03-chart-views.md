@@ -11,13 +11,13 @@ The view is four switches, set in the bar under the chart (G-110):
 | **Pattern mode** | **Color**: each stitch in its thread colour, on a grid, with backstitch lines as solid or dashed lines in their threads. **Black & white**: the chart as it prints, on white. **Stitched** ("realistic preview"): a picture of the finished stitching, each stitch in the chosen stitch texture, backstitch as plain solid coloured lines a fifth of a stitch wide, on the canvas colour (and cloth) | 1, 2, 3 | A chart | Color and Black & white: yes. Stitched: **no** (looking only) |
 | **Symbols** | On or off: the stitch symbols over the pattern | Y | Color or Black & white | Either |
 | **Photo** | On or off: the photo the chart was made from, at full strength, under the pattern | P | Color or Black & white, a chart with a photo | Either |
-| **Pattern visibility** | A slider from 0 to 100 %: how visible the pattern is over the photo; 0 % is the photo alone. Shown only while the photo is on | none | The photo on | At 5 % or more |
+| **Pattern visibility** | A slider from 0 to 100 %: how visible the pattern is over the photo; 0 % is the photo alone. Shown wherever Photo is; disabled, with the reason in its title, while the photo is off (no photo, Stitched, Photo off or locked) | none | The photo on | At 5 % or more |
 
 Two keys set several switches at once: **4** the photo on with the pattern at 50 % (the nearest to the old "Grid + photo"), **5** the photo alone (visibility 0). Both leave Stitched for Color. A switch that does not act is remembered, not obeyed: Stitched sets Symbols and Photo aside, and they come back as they were in Color or Black & white. The Symbols and Photo switches are then unavailable with the reason, as Photo is for a chart without one ("No source photo is associated with this pattern"). Over the photo an empty stitch shows the photo itself.
 
 The view is kept by the browser, so a reload shows the chart as it was left; every other new chart (a generation, an opened file, an empty grid) opens in Color with symbols and no photo. Turning the photo off gives up photo-adjustment values that were moved but never generated with (`02`).
 
-In a looking-only view (Stitched, or the pattern below 5 %) every operation that would change the chart is blocked, and in Edit a note says why ("Stitched is for looking: edit in Color or B&W." or "Too faint to edit: raise the pattern to 5 % or more."); panning, zooming, switching views and exporting work.
+In a looking-only view (Stitched, or the pattern below 5 %) every operation that would change the chart is blocked, and in Edit Stitched says why ("Stitched is for looking: edit in Color or B&W."); below 5 % there is no note, since the pattern is faded on purpose to see the photo; panning, zooming, switching views and exporting work.
 
 ## Zoom and position
 

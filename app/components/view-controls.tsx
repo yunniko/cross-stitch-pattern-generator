@@ -4,7 +4,7 @@ import type { RefObject } from "react";
 import {
   isFlatMode,
   PHOTO_FEATURE,
-  sliderShown,
+  sliderUsable,
   STITCHED_FEATURE,
   viewOnlyNote,
   type ChartView,
@@ -79,6 +79,7 @@ export function ViewControls({
   // Under the feature switches (G-102): the Stitched mode, the photo under the pattern and Isolate are each a feature.
   const stitched = useFeature(STITCHED_FEATURE);
   const photoFeature = useFeature(PHOTO_FEATURE);
+  const sliderOn = photoFeature.usable && sliderUsable(shown);
   const isolateFeature = useFeature("command.colours.isolate");
   const modes = PATTERN_CHOICES.filter((mode) => mode.value !== "realistic" || stitched.shown).map((mode) =>
     mode.value === "realistic" && !stitched.usable ? { ...mode, disabled: true, title: lockedNote("Stitched view") } : mode
@@ -127,10 +128,20 @@ export function ViewControls({
           Photo
         </button>
       )}
-      {sliderShown(shown) && (
+      {photoFeature.shown && (
         <label
-          className="flex items-center gap-1.5 text-xs text-muted"
-          title="How visible the pattern is over the photo; 0% is the photo alone"
+          className={`flex items-center gap-1.5 text-xs text-muted ${sliderOn ? "" : "opacity-40"}`}
+          title={
+            !photoFeature.usable
+              ? lockedNote("Photo under the pattern")
+              : !hasPhoto
+                ? "No source photo is associated with this pattern"
+                : !flat
+                  ? "Stitched is drawn on its own cloth, without the photo"
+                  : !sliderOn
+                    ? "Turn the photo on (P) to fade the pattern over it"
+                    : "How visible the pattern is over the photo; 0% is the photo alone"
+          }
         >
           <span>Pattern</span>
           <input
@@ -138,6 +149,8 @@ export function ViewControls({
             min={0}
             max={100}
             value={shown.visibility}
+            disabled={!sliderOn}
+            data-feature-locked={photoFeature.usable ? undefined : PHOTO_FEATURE}
             aria-label="Pattern visibility over the photo"
             onChange={(e) => onChange({ ...chosen, visibility: Number(e.target.value) })}
             className="w-24 accent-[var(--at-accent)]"

@@ -76,8 +76,8 @@ export function viewInForce(view: ChartView, conditions: ViewConditions): ChartV
   return { pattern, symbols: flat && view.symbols, photo, visibility: photo ? view.visibility : 100 };
 }
 
-/** The slider is shown only where it acts: Color or Black & white, with the photo under the pattern. */
-export function sliderShown(inForce: ChartView): boolean {
+/** The visibility slider acts: the photo is under the pattern. Elsewhere it is shown disabled, never hidden (Owner, 2026-10-06). */
+export function sliderUsable(inForce: ChartView): boolean {
   return inForce.photo;
 }
 
@@ -97,12 +97,12 @@ export function viewOnlyReason(inForce: ChartView): "stitched" | "faint" | null 
   return inForce.visibility < EDITING_MIN_VISIBILITY ? "faint" : null;
 }
 
-/** The note shown where editing is not offered, in the Edit workspace; null where it is. */
+/**
+ * The note shown in the Edit workspace where Stitched stops editing; null otherwise. A pattern too faint to edit has no
+ * note (Owner, 2026-10-06): it is chosen on purpose to see the photo, and the note was in the way.
+ */
 export function viewOnlyNote(inForce: ChartView): string | null {
-  const reason = viewOnlyReason(inForce);
-  if (reason === "stitched") return "Stitched is for looking: edit in Color or B&W.";
-  if (reason === "faint") return `Too faint to edit: raise the pattern to ${EDITING_MIN_VISIBILITY} % or more.`;
-  return null;
+  return viewOnlyReason(inForce) === "stitched" ? "Stitched is for looking: edit in Color or B&W." : null;
 }
 
 /** Key 4: the photo under the pattern, half visible, in Color unless a flat mode was already chosen. */

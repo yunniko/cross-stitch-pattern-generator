@@ -355,3 +355,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D317 — The reload keeps the view; every other new chart resets it — active
 - D318 — Alt borrows the picker from the tools that paint, named by a trait of their own — active
 - D319 — A tool held on a key is one routine, and a modifier held alone is a key — active
+- D320 — The visibility slider is disabled, not hidden, and a faint pattern has no note — active

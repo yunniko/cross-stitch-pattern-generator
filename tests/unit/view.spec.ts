@@ -7,7 +7,7 @@ import {
   photoAloneView,
   photoHalfView,
   readView,
-  sliderShown,
+  sliderUsable,
   viewEditable,
   viewInForce,
   viewOnlyNote,
@@ -80,15 +80,15 @@ describe("editing and the slider", () => {
   });
 
   it("says why editing stops, and says nothing where it does not", () => {
-    expect(viewOnlyNote(viewInForce(view({ photo: true, visibility: 4 }), withPhoto))).toMatch(/too faint.*5 %/i);
+    expect(viewOnlyNote(viewInForce(view({ photo: true, visibility: 4 }), withPhoto)), "too faint: no note").toBeNull();
     expect(viewOnlyNote(viewInForce(view({ pattern: "realistic" }), withPhoto))).toMatch(/Stitched/);
     expect(viewOnlyNote(viewInForce(view({ photo: true, visibility: 5 }), withPhoto))).toBeNull();
   });
 
-  it("shows the slider only with the photo under the pattern", () => {
-    expect(sliderShown(viewInForce(view({ photo: true }), withPhoto))).toBe(true);
-    expect(sliderShown(viewInForce(view({ photo: true }), { hasPhoto: false, features: EVERYTHING_ON }))).toBe(false);
-    expect(sliderShown(viewInForce(view({ pattern: "realistic", photo: true }), withPhoto))).toBe(false);
+  it("lets the slider act only with the photo under the pattern", () => {
+    expect(sliderUsable(viewInForce(view({ photo: true }), withPhoto))).toBe(true);
+    expect(sliderUsable(viewInForce(view({ photo: true }), { hasPhoto: false, features: EVERYTHING_ON }))).toBe(false);
+    expect(sliderUsable(viewInForce(view({ pattern: "realistic", photo: true }), withPhoto))).toBe(false);
   });
 });
 
