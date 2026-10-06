@@ -4,7 +4,6 @@ import type { RefObject } from "react";
 import type { ViewMode } from "../editor-types";
 import { SkinIcon } from "../skin/skin";
 import { DISABLED_ICON, DISABLED_TEXT, SegmentedControl } from "./ui";
-import { KEEPS_VIEW_SETTINGS } from "./view-settings";
 
 /**
  * The view controls, floating over the foot of the chart (G-095, proposal D): how the chart is looked at, and never what
@@ -72,7 +71,6 @@ export function ViewControls({
       role="group"
       aria-label="View"
       data-testid="view-controls"
-      {...KEEPS_VIEW_SETTINGS}
       className="absolute bottom-10 left-1/2 z-20 flex w-max max-w-[calc(100%-16px)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-xl border border-line bg-surface px-2 py-1.5 shadow-[0_12px_32px_color-mix(in_srgb,var(--at-shadow)_45%,transparent)] transition-opacity data-[away=true]:pointer-events-none data-[away=true]:opacity-20"
     >
       <SegmentedControl tone="chip" options={CHART_VIEWS} value={chartView} onChange={(view) => onModeChange(view)} />

@@ -17,7 +17,7 @@ seen to find it".
    | **Layer** *(future)* | A property of one layer | With the layer list |
    | **Selection** | Acts on the piece or lines in hand | The bar of tool options, added to it while something is in hand |
    | **Tool** | An option of the tool in hand | The bar of tool options, and the tool's own tab when it brings one |
-   | **View** | Changes how the chart is shown, never the chart | Over the chart and at the end of the readout, **in every workspace and with every tool** |
+   | **View** | Changes how the chart is shown, never the chart | Over the chart, **in every workspace and with every tool**; a view setting that is set once and left is in Preferences |
    | **Action parameters** | Settings read by one action (Generate, an export) | In that action's workspace, beside the action |
 
 2. **Tool options travel with the tool**; a tool's options never sit in a general settings list.
@@ -54,7 +54,7 @@ tabs while its tool is in hand; **X** the Export workspace's panel; **Pr** Prefe
 | The views; photo behind the chart (`03`) | View | V | Yes |
 | Isolate switch (`05`) | View | V | Yes |
 | Zoom, reset zoom (`03`) | View | V | Yes |
-| Canvas colour, canvas cloth, stitch texture (`03`) | View | S, one popover at its end | Yes |
+| Canvas colour, canvas cloth, stitch texture (`03`) | View, set once | Pr (D301; a popover at the end of S for a day, which the Owner did not find) | Yes |
 | Rulers, pointer readout, size and finished size (`03`) | View | Around the chart, S | Yes |
 | Compare with original (`03`) | View | With the photo, before there is a chart | Yes |
 | Tool choice (`04`) | Application | L: two columns, three groups; each workspace offers its own tools | Yes |

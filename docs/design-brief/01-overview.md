@@ -83,6 +83,7 @@ What is set once and then left. They are in reach from anywhere, with or without
 | **Empty grid size** | Width and height, each a whole number of stitches from 10 to 1500; a number outside is brought to the nearest limit on leaving the field, and text that is no number is ignored | 100 × 100 | The size offered where an empty grid is started (`08`) |
 | **Fabric count** | Choice of **11, 14, 16, 18** | 14 | The fabric a new chart is given (`03`); the count offered where an empty grid is started |
 | **Unit** | Choice of **in**, **cm** | cm | The unit a new chart is given (`03`), and every finished size shown before there is a chart |
+| **Canvas colour**, **Canvas texture**, **Stitch texture** | As in `03` | `#ffffff`, Off, Classic | The chart on screen (`03`); the stitch texture also the exported realistic preview (`08`) |
 | **Palette for a new photo** | Choice of **Full range** and each thread brand | Full range | The palette mode each newly chosen photo starts in (`02`); changing the mode for the photo in hand does not change the preference |
 | **Author name** | Text | Empty | Exports (`08`) |
 | **A4 cell size** | As in `08` | 5.5 mm | A4 pages (`08`) |

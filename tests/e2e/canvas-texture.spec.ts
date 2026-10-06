@@ -2,7 +2,7 @@ import { test, expect, type Locator, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pixelAt, readPng } from "../unit/helpers/png-read";
-import { showWorkspace, chooseExport, openViewSettings } from "./helpers/app";
+import { showWorkspace, chooseExport, openViewSettings, closePreferences } from "./helpers/app";
 
 /**
  * G-077 M1: the canvas cloth behind the Stitched view. It covers the whole well (not only the chart), is drawn only in
@@ -13,7 +13,21 @@ async function openChart(page: Page) {
   await page.goto("/");
   await page.getByLabel("Open pattern file").setInputFiles(path.join(__dirname, "fixtures", "sample.oxs"));
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
+}
+
+/** Chooses a cloth in Preferences (D301) and closes them, so the chart and the view controls can be pressed again. */
+async function chooseCloth(page: Page, name: string) {
   await openViewSettings(page);
+  await page.getByRole("radiogroup", { name: "Canvas texture" }).getByRole("radio", { name, exact: true }).click();
+  await closePreferences(page);
+}
+
+/** The cloth chosen, read from Preferences, which are closed again. */
+async function clothChosen(page: Page): Promise<string> {
+  await openViewSettings(page);
+  const chosen = await page.getByRole("radiogroup", { name: "Canvas texture" }).getByRole("radio", { checked: true }).innerText();
+  await closePreferences(page);
+  return chosen;
 }
 
 /** The canvas colour is a swatch that opens the shared colour picker; the hex field in it takes a typed colour. */
@@ -21,7 +35,8 @@ async function setCanvasColor(page: Page, hex: string) {
   await openViewSettings(page);
   await page.getByRole("button", { name: "Canvas color", exact: true }).click();
   await page.getByLabel("Canvas color hex").fill(hex);
-  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape"); // the picker
+  await closePreferences(page);
 }
 
 const cloth = (scroller: Locator) =>
@@ -41,14 +56,13 @@ test("the cloth covers the well in the Stitched view only, zooms with the cells,
   const scroller = page.locator("div.overflow-auto").first();
   const frame = page.getByTestId("chart-frame");
   const chip = (label: string) => page.getByRole("button", { name: label, exact: true });
-  const picker = page.getByRole("radiogroup", { name: "Canvas texture" });
 
   // Off by default: nothing on the well, in any view.
-  await expect(picker.getByRole("radio", { name: "Off", exact: true })).toHaveAttribute("aria-checked", "true");
+  expect(await clothChosen(page)).toBe("Off");
   await chip("Stitched").click();
   expect((await cloth(scroller)).blend).toBe("");
 
-  await picker.getByRole("radio", { name: "Natural linen", exact: true }).click();
+  await chooseCloth(page, "Natural linen");
   await expect(frame).toHaveAttribute("data-scene-pending", "");
   const first = await cloth(scroller);
   const cellSize = Number(await frame.getAttribute("data-cell-size"));
@@ -98,7 +112,7 @@ test("the cloth covers the well in the Stitched view only, zooms with the cells,
   expect((await cloth(scroller)).blend).toBe("multiply");
 
   // Off puts the plain colour back: no cloth on the well, and the chart's ground filled (nothing clear).
-  await picker.getByRole("radio", { name: "Off", exact: true }).click();
+  await chooseCloth(page, "Off");
   await expect(frame).toHaveAttribute("data-scene-pending", "");
   expect((await cloth(scroller)).blend).toBe("");
   await expect.poll(hasClearStitches).toBe(false);
@@ -108,9 +122,9 @@ test("the cloth covers the well in the Stitched view only, zooms with the cells,
 test("the cloth takes the canvas colour, the swatches show it at one cell size, and the choice is remembered", async ({ page }) => {
   await openChart(page);
   const scroller = page.locator("div.overflow-auto").first();
-  const picker = page.getByRole("radiogroup", { name: "Canvas texture" });
 
   // Swatches: 3 × 4 cells at one size for every texture; Off is the plain colour.
+  await openViewSettings(page);
   const swatch = (id: string) =>
     page.getByTestId(`canvas-swatch-${id}`).evaluate((el) => {
       const s = getComputedStyle(el);
@@ -125,9 +139,10 @@ test("the cloth takes the canvas colour, the swatches show it at one cell size, 
   expect(counted.size).toBe(`${8 * 16}px ${10 * 16}px`);
   expect(off.image).toBe("none");
   expect(off.color).toBe("rgb(255, 255, 255)");
+  await closePreferences(page);
 
   await page.getByRole("button", { name: "Stitched", exact: true }).click();
-  await picker.getByRole("radio", { name: "Counted canvas", exact: true }).click();
+  await chooseCloth(page, "Counted canvas");
   await setCanvasColor(page, "#e8d9b5");
   await expect.poll(async () => (await cloth(scroller)).color).toBe("rgb(232, 217, 181)");
   expect((await cloth(scroller)).image).toContain("canvas-texture-counted.png");
@@ -135,13 +150,11 @@ test("the cloth takes the canvas colour, the swatches show it at one cell size, 
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-  await openViewSettings(page);
-  await expect(picker.getByRole("radio", { name: "Counted canvas", exact: true })).toHaveAttribute("aria-checked", "true");
+  expect(await clothChosen(page)).toBe("Counted canvas");
 });
 
 test("the exported preview carries the canvas only when asked, and the plain colour when the texture is off", async ({ page }) => {
   await openChart(page);
-  const picker = page.getByRole("radiogroup", { name: "Canvas texture" });
   const include = page.getByLabel("Canvas in exported preview");
 
   // The tick sits with the export it belongs to, in the Export workspace; the canvas itself is a view setting (G-095).
@@ -173,8 +186,7 @@ test("the exported preview carries the canvas only when asked, and the plain col
   expect(transparentAt, "a pixel that is not opaque").toBe(-1);
 
   // Ticked with a cloth: the cloth multiplied with the colour, and still opaque.
-  await openViewSettings(page);
-  await picker.getByRole("radio", { name: "Counted canvas", exact: true }).click();
+  await chooseCloth(page, "Counted canvas");
   const cloth = await exportPreview();
   expect(ground(cloth)[3]).toBe(255);
   const seen = new Set<string>();
@@ -197,7 +209,7 @@ test("the counted canvas is shifted back by half a cell so its blocks start at t
   const scroller = page.locator("div.overflow-auto").first();
   const frame = page.getByTestId("chart-frame");
   await page.getByRole("button", { name: "Stitched", exact: true }).click();
-  await page.getByRole("radiogroup", { name: "Canvas texture" }).getByRole("radio", { name: "Counted canvas" }).click();
+  await chooseCloth(page, "Counted canvas");
   await expect(frame).toHaveAttribute("data-scene-pending", "");
   const cell = Number(await frame.getAttribute("data-cell-size"));
   const origin = await page.evaluate(() => {

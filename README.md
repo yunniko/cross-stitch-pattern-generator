@@ -137,7 +137,7 @@ Three **workspaces**, chosen in the bar above: **Photo** makes the chart from a 
 - **Two legends**: the simple one is a thread shopping list — the pattern's name, its designer, and a
   skein count per colour. The extended one is for stitching from: symbol, name, stitch count and, when
   there is backstitch, how much of each thread it needs and the total.
-- **Choose the stitch texture**: the Chart pane holds a button per texture, each showing three by four stitches of it,
+- **Choose the stitch texture**: Preferences hold a button per texture, each showing three by four stitches of it,
   and the Stitched view and the exported realistic preview are drawn with the one chosen (remembered in the browser).
   Every texture is scaled to the same stitch size, so any image works. New textures are an entry in
   `lib/export/stitch-texture-catalog.ts`, a file in `public/` and a row in `rust/cs-export/src/preview.rs` (D249).
@@ -145,7 +145,7 @@ Three **workspaces**, chosen in the bar above: **Photo** makes the chart from a 
 - **Fabric count and unit belong to the chart** (Edit, Chart tab): a new chart is given the ones set in Preferences; they are saved in its file and come back with it in any browser; changing them is an undo step and changes that chart alone. A chart saved before 2026-10-05 has none and uses the preferences until one is changed.
 - **Commands** (in the bar above): a searchable list of every command the editor has, each with its key and whether it can be used now; Enter or a click runs one. Ctrl+K opens and closes it. Every tool has a key (S Select, V Move, H Pan, Z Zoom were added 2026-10-05), and Ctrl+C, Ctrl+V and Ctrl+D copy, paste and duplicate the piece or backstitch in hand. The keys themselves are listed there and in `docs/design-brief/04-editing.md`.
 - **Crop tool** (`C`): a frame over the chart whose four edges are the four numbers in the tool's bar (Top, Right, Bottom, Left). Each number is how many stitches that edge moves **in**: positive cuts, negative adds empty stitches. Typing moves the frame, dragging an edge or corner (or the arrow keys on a focused handle) changes the number, and the cut-away part is dimmed. Enter applies it, as one undo step; Escape puts the frame back. It is the one canvas resize (D109, D278); the selection's "Crop to selection" still crops to a drawn region.
-- **Choose the canvas**: the Chart pane's Canvas texture buttons (Off, Natural linen, Counted canvas) put a cloth behind the
+- **Choose the canvas**: the Canvas texture buttons in Preferences (Off, Natural linen, Counted canvas) put a cloth behind the
   Stitched view -- over the whole viewer, tinted by the canvas colour, a whole number of cells per tile so it zooms with the
   chart, with an offset for a picture whose blocks start part-way in. Both cloths were supplied by the Owner. "Canvas in
   exported preview" puts the canvas (colour and cloth, or the plain colour with the cloth Off) under the exported realistic

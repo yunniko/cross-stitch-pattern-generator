@@ -336,3 +336,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D298 — Every generated chart is kept as a try of its photo — active
 - D299 — Preferences are what a new chart starts from, and never reach a chart that exists — active
 - D300 — The editor shell after the redesign stays one file, at 706 lines — active
+- D301 — The canvas colour, the cloth and the stitch texture are preferences — active

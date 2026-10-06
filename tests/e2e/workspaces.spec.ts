@@ -198,22 +198,6 @@ test("the view controls stand aside while a press is held on the chart, and come
   await expect(views).not.toHaveAttribute("data-away", "true");
 });
 
-test("the view settings are in reach in every workspace, and stay open while the view controls are used", async ({ page }) => {
-  await openSmallChart(page);
-  const settings = page.getByRole("dialog", { name: "Canvas and stitch texture" });
-  for (const name of ["Edit", "Photo", "Export"] as const) {
-    await showWorkspace(page, name);
-    await page.getByRole("button", { name: "Canvas & stitch texture" }).click();
-    await expect(settings, name).toBeVisible();
-    await page.getByTestId("view-controls").getByRole("button", { name: "Stitched", exact: true }).click();
-    await expect(settings, `${name}, after choosing a view`).toBeVisible();
-    await expect(settings.getByRole("radiogroup", { name: "Stitch texture" })).toBeVisible();
-    // A press on the chart puts them away.
-    await pressChart(page);
-    await expect(settings, `${name}, after a press elsewhere`).toHaveCount(0);
-  }
-});
-
 test("in a narrow window the bar above does not overlap itself and the view controls stay over the chart", async ({ page }) => {
   // Found by the G-095 QA pass at 900 px: "Export" lay over Undo, and the view controls ran off both sides of the chart.
   for (const width of [820, 1024, 1100]) {

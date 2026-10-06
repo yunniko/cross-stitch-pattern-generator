@@ -25,7 +25,6 @@ const STATES = [
   ["edit-backstitch-edit", async (page) => tool(page, "BS edit")],
   ["edit-crop", async (page) => tool(page, "Crop")],
   ["edit-chart-tab", async (page) => page.getByRole("tab", { name: "Chart", exact: true }).click()],
-  ["edit-view-settings", async (page) => page.getByRole("button", { name: "Canvas & stitch texture" }).click()],
   ["photo", async (page) => workspace(page, "Photo")],
   [
     "photo-tries",

@@ -20,7 +20,6 @@ import { EditorLayout } from "./components/editor-layout";
 import { QuickBar } from "./components/quick-bar";
 import { WorkspacePanel } from "./components/workspace-panel";
 import { ViewControls } from "./components/view-controls";
-import { ViewSettings } from "./components/view-settings";
 import { ImageWindow } from "./components/image-window";
 import { isKeyboardCursorTool, isViewOnlyMode, usesStitchKind } from "./editor-types";
 import { isPhotoFree } from "@/lib/editor/blank-pattern";
@@ -464,7 +463,9 @@ export default function Workspace({ account }: WorkspaceProps) {
         <h1 className="sr-only">Cross-Stitch Pattern Generator</h1>
         {commandListOpen && <CommandList commands={commands} onClose={closeCommandList} />}
         {/* The browser's own settings, not the open chart's: a preference is what the next chart starts from. */}
-        {preferencesOpen && <Preferences options={browserOptions} onChange={updateOption} onClose={() => setPreferencesOpen(false)} />}
+        {preferencesOpen && (
+          <Preferences options={browserOptions} pattern={pattern} onChange={updateOption} onClose={() => setPreferencesOpen(false)} />
+        )}
         <FileInputs
           photoRef={lifecycle.inputs.photo}
           openRef={lifecycle.inputs.open}
@@ -649,7 +650,6 @@ export default function Workspace({ account }: WorkspaceProps) {
               scrollerRef={scrollerRef}
               frameRef={frameRef}
               cellSize={cellSize}
-              viewSettings={chartShown ? <ViewSettings pattern={pattern} options={options} onChange={updateOption} /> : null}
             />
           }
           panel={

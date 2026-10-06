@@ -41,8 +41,8 @@ test("the canvas colour is with the view settings only, and opens the colour pic
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(page.getByTestId("chart-frame")).toBeVisible();
 
-  // Not in any panel: until the view settings are opened, nothing on the page is labelled Canvas color (G-095 moved it
-  // there from the Chart tab; it changes what is seen, not the chart).
+  // Not in any panel: until Preferences are opened, nothing on the page is labelled Canvas color (G-095 moved it there
+  // from the Chart tab, D301; it changes what is seen, not the chart).
   await expect(page.getByLabel("Canvas color", { exact: true })).toHaveCount(0);
   await page.getByRole("tab", { name: "Chart" }).click();
   await expect(page.getByLabel("Canvas color", { exact: true })).toHaveCount(0);
@@ -62,6 +62,10 @@ test("the canvas colour is with the view settings only, and opens the colour pic
   await expect(swatch).toHaveCSS("background-color", "rgb(51, 102, 153)");
   await page.keyboard.press("Escape");
   await expect(picker).toHaveCount(0);
+  // The first Escape closed the picker alone; Preferences are still up, and the next one closes them.
+  await expect(page.getByRole("dialog", { name: "Preferences" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Preferences" })).toHaveCount(0);
 });
 
 /** The chart as the editable save writes it, which is where the cells can actually be read. */

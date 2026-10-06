@@ -32,21 +32,9 @@ export interface StatusBarProps {
   scrollerRef: RefObject<HTMLDivElement | null>;
   frameRef: RefObject<HTMLDivElement | null>;
   cellSize: number;
-  /** The settings of how the cloth and stitches are drawn (`view-settings.tsx`), at the end of the readout. */
-  viewSettings: ReactNode;
 }
 
-export function StatusBar({
-  pattern,
-  aidaCount,
-  sizeUnit,
-  autosaveStatus,
-  hasPattern,
-  scrollerRef,
-  frameRef,
-  cellSize,
-  viewSettings,
-}: StatusBarProps) {
+export function StatusBar({ pattern, aidaCount, sizeUnit, autosaveStatus, hasPattern, scrollerRef, frameRef, cellSize }: StatusBarProps) {
   // Counted once per pattern, not on every zoom or tool change (G-036 M4).
   const stitchCount = useMemo(() => (pattern ? filledStitchCount(pattern) : 0), [pattern]);
 
@@ -78,8 +66,6 @@ export function StatusBar({
       >
         {autosaveStatus === "saved" && !hasPattern ? "" : AUTOSAVE_LABELS[autosaveStatus]}
       </span>
-
-      {viewSettings}
     </div>
   );
 }

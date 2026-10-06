@@ -8,7 +8,7 @@ import { SegmentedControl, DISABLED_TEXT } from "./ui";
 
 /**
  * The Chart tab (G-045 M3; the document's own settings only since G-095): its name, and the fabric it is measured on.
- * What decided how it is shown moved to the view (`view-settings.tsx`), what decided how it is printed to the Export
+ * What decided how it is shown moved to Preferences (D301), what decided how it is printed to the Export
  * workspace (`export-pane.tsx`), and the four canvas numbers to the Crop tool with the frame they describe (G-089).
  */
 

@@ -4,15 +4,18 @@ import { useRef, useState } from "react";
 import { VALID_OVERLAP_CELLS, type WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
-import { MAX_STITCHES, MIN_STITCHES } from "@/lib/types";
+import { MAX_STITCHES, MIN_STITCHES, type StitchPattern } from "@/lib/types";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
 import { useModalFocus } from "../hooks/use-modal-focus";
+import { CanvasColorField } from "./canvas-color-field";
+import { CanvasPicker } from "./canvas-picker";
 import { CellSizeField } from "./cell-size-field";
+import { TexturePicker } from "./texture-picker";
 import { PillButton, SegmentedControl } from "./ui";
 
 /**
- * Preferences (G-095, D299): what is set once and then left. What a new chart starts from, what every export reads, and
- * how the brush behaves. They are kept in this browser.
+ * Preferences (G-095, D299): what is set once and then left. What a new chart starts from, how the cloth and the stitches
+ * are drawn (D301), what every export reads, and how the brush behaves. They are kept in this browser.
  *
  * None of them reaches a chart that exists: a chart keeps the fabric it was made on, so changing the fabric here changes
  * the next chart and not this one (the Chart tab changes this one).
@@ -48,11 +51,13 @@ function SideField({ label, value, onChange }: { label: string; value: number; o
 export interface PreferencesProps {
   /** The browser's own settings, not the open chart's: the fabric here is the one a new chart is given. */
   options: WorkspaceOptions;
+  /** The open chart, whose colours the stitch texture swatches are drawn with; null draws them in a stand-in palette. */
+  pattern: StitchPattern | null;
   onChange: UpdateWorkspaceOption;
   onClose: () => void;
 }
 
-export function Preferences({ options, onChange, onClose }: PreferencesProps) {
+export function Preferences({ options, pattern, onChange, onClose }: PreferencesProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   // The way out has the focus when it opens; Tab stays inside; Escape closes it.
@@ -127,6 +132,42 @@ export function Preferences({ options, onChange, onClose }: PreferencesProps) {
                   onChange={(mode) => onChange("defaultPaletteMode", mode)}
                 />
               </div>
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-2 border-t border-line pt-4" aria-labelledby="preferences-screen">
+            <span className={GROUP} id="preferences-screen">
+              On screen
+            </span>
+            <div
+              className={ROW}
+              title="Shown behind empty stitches in the Color and B&W views and behind the Stitched view. It goes into an exported preview only with Canvas in exported preview ticked."
+            >
+              Canvas color
+              <CanvasColorField value={options.canvasColor} onChange={(hex) => onChange("canvasColor", hex)} />
+            </div>
+            <div
+              className="flex flex-col gap-1.5 text-[13px]"
+              title="The cloth under the Stitched view, over the whole viewer, tinted by the canvas colour. Off shows the colour alone."
+            >
+              Canvas texture
+              <CanvasPicker
+                value={options.canvasTexture}
+                onChange={(texture) => onChange("canvasTexture", texture)}
+                canvasColor={options.canvasColor}
+              />
+            </div>
+            <div
+              className="flex flex-col gap-1.5 text-[13px]"
+              title="The stitch texture of the Stitched view and of the exported realistic preview"
+            >
+              Stitch texture
+              <TexturePicker
+                pattern={pattern}
+                value={options.stitchTexture}
+                onChange={(texture) => onChange("stitchTexture", texture)}
+                canvasColor={options.canvasColor}
+              />
             </div>
           </section>
 

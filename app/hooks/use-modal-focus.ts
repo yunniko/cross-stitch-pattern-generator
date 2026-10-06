@@ -22,7 +22,8 @@ export function useModalFocus(panelRef: RefObject<HTMLElement | null>, first: st
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        escape.current();
+        // A dialog open inside (a colour picker) takes the press; the next one closes this.
+        if (!panel?.querySelector('[role="dialog"]')) escape.current();
         return;
       }
       if (e.key !== "Tab" || !panel) return;

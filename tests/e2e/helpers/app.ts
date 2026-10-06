@@ -76,14 +76,18 @@ export async function openPreferences(page: Page) {
 }
 
 /**
- * Opens the settings of how the cloth and stitches are drawn (canvas colour, canvas texture, stitch texture), at the end
- * of the readout under the chart. They were in the Chart tab before G-095. Already open, it is left open; it stays open
- * while the view controls are used and closes on a press anywhere else.
+ * The canvas colour, the cloth and the stitch texture are in Preferences (D301; a popover at the end of the readout for a
+ * day, the Chart tab before G-095). Already open, it is left open. Close it (`closePreferences`) before pressing anything
+ * behind it.
  */
 export async function openViewSettings(page: Page): Promise<void> {
-  const settings = page.getByRole("dialog", { name: "Canvas and stitch texture" });
-  if (!(await settings.isVisible())) await page.getByRole("button", { name: "Canvas & stitch texture" }).click();
-  await expect(settings).toBeVisible();
+  await openPreferences(page);
+}
+
+export async function closePreferences(page: Page): Promise<void> {
+  const dialog = page.getByRole("dialog", { name: "Preferences" });
+  if (await dialog.isVisible()) await dialog.getByRole("button", { name: "Close" }).click();
+  await expect(dialog).toHaveCount(0);
 }
 
 /**
