@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { asksForNote, checkChange, parseNote, type ChangedPath } from "@/lib/release-notes/rule";
+import { RELEASES_DIR } from "@/lib/release-notes/release";
+import { asksForNote, checkChange, parseNote, RELEASED_NOTES_DIR, type ChangedPath } from "@/lib/release-notes/rule";
 
 /** G-105 M2, D309: which changes ask for a release note, and what satisfies the ask. */
 
@@ -95,6 +96,18 @@ describe("a change", () => {
   it("whose only note is being deleted (a release being gathered) is not satisfied by it", () => {
     const result = checkChange([...present("app/x.tsx"), { path: "release-notes/next/picker.md", state: "deleted" }], read);
     expect(result.ok).toBe(false);
+  });
+
+  it("that cuts a release is carried by it: the notes moved into the release's file (v0.2.1's push)", () => {
+    const pushed = [
+      ...present("app/whats-new/page.tsx", "release-notes/releases/0.2.1.md"),
+      { path: "release-notes/next/picker.md", state: "deleted" as const },
+    ];
+    expect(checkChange(pushed, read)).toMatchObject({ ok: true, releases: ["release-notes/releases/0.2.1.md"] });
+    // A release's file elsewhere, or a file that is not one, carries nothing.
+    expect(checkChange(present("app/x.tsx", "release-notes/README.md"), read).ok).toBe(false);
+    // The rule names the folder the release step writes to.
+    expect(RELEASED_NOTES_DIR).toBe(RELEASES_DIR);
   });
 
   it("carrying a note that does not parse fails, even with nothing else to ask for", () => {

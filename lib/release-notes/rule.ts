@@ -13,6 +13,9 @@ export type NoteKind = (typeof NOTE_KINDS)[number];
 /** Where the notes of the coming release wait until it is cut. */
 export const NEXT_NOTES_DIR = "release-notes/next/";
 
+/** Where a cut release's notes go, one file per version (`RELEASES_DIR` in `release.ts`, kept here so this imports nothing). */
+export const RELEASED_NOTES_DIR = "release-notes/releases/";
+
 export interface ReleaseNote {
   kind: NoteKind;
   /** What a user reads (or, for `internal`, why there is nothing to read). Markdown, trimmed. */
@@ -73,28 +76,33 @@ export interface NoteCheck {
   asking: string[];
   /** The notes the change adds or edits. */
   notes: string[];
+  /** The releases the change cuts: each holds the notes gathered out of `release-notes/next/`. */
+  releases: string[];
   /** What is wrong, one line each, written for the person who made the change. */
   problems: string[];
 }
 
 /**
  * Whether a change carries what it must. A change touching a watched path needs at least one note added or edited in
- * `release-notes/next/` with it; any note it adds or edits must parse. `readNote` gives a note file's text.
+ * `release-notes/next/` with it, or a release cut in it: a pushed range that ends in "Release vX" has moved its notes
+ * into that release's file, and the release is where they are now (found on v0.2.1's push). Any note it adds or edits
+ * must parse. `readNote` gives a note file's text.
  */
 export function checkChange(changed: ChangedPath[], readNote: (path: string) => string): NoteCheck {
   const present = changed.filter((c) => c.state === "present").map((c) => toSlashes(c.path));
   const asking = changed.map((c) => toSlashes(c.path)).filter(asksForNote);
   const notes = present.filter((p) => p.startsWith(NEXT_NOTES_DIR) && p.endsWith(".md"));
+  const releases = present.filter((p) => p.startsWith(RELEASED_NOTES_DIR) && p.endsWith(".md"));
   const problems: string[] = [];
   for (const note of notes) {
     const parsed = parseNote(readNote(note));
     if ("error" in parsed) problems.push(`${note}: ${parsed.error}`);
   }
-  if (asking.length > 0 && notes.length === 0) {
+  if (asking.length > 0 && notes.length === 0 && releases.length === 0) {
     problems.push(
       `${asking.length} changed file(s) can alter what a user sees (${asking.slice(0, 3).join(", ")}${asking.length > 3 ? ", ..." : ""}), ` +
         `and no note was added to ${NEXT_NOTES_DIR}. Add one (kind new, changed or fixed), or one of kind internal saying why nothing shows.`
     );
   }
-  return { ok: problems.length === 0, asking, notes, problems };
+  return { ok: problems.length === 0, asking, notes, releases, problems };
 }

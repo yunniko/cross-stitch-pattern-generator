@@ -61,8 +61,8 @@ if (rangeAt >= 0) {
 
 const result = checkChange(changed, readNote);
 if (result.ok) {
-  const what =
-    result.asking.length === 0 ? "nothing a user sees changed" : `${result.notes.length} note(s) for ${result.asking.length} file(s)`;
+  const carried = result.notes.length > 0 ? `${result.notes.length} note(s)` : `the release cut in it, ${result.releases.join(", ")},`;
+  const what = result.asking.length === 0 ? "nothing a user sees changed" : `${carried} for ${result.asking.length} file(s)`;
   console.log(`release notes: ok (${what})`);
 } else {
   console.error("release notes: the change is not ready");
