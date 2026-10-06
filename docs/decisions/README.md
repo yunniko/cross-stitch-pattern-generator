@@ -340,5 +340,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D302 — The tool rail is one column where there are few tools — active
 - D303 — The feature list is derived from the registries, and a feature has three states — active
 - D304 — Feature states resolve person > tier > site, and the server refuses by name — active
+- D305 — The admin's actions take a feature id by its shape, and every change is logged — active
 - D306 — The browser asks for its feature states again when they expire — active
 - D307 — Guests and signed-in accounts each get a feature set — active
+- D308 — The version is `package.json`'s, read when the app is built — active

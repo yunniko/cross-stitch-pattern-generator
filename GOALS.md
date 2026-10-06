@@ -109,6 +109,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 **Known before starting:** the releases before 0.2.0 get no notes (the acceptance asks for them "since the scheme starts"). G-103, next in the sequence, is the first goal whose changes carry notes as they are made.
 
 **Progress log** (newest first):
+- 2026-10-06 -- **M1 done** (90d148c): `package.json` the one source, handed to the bundle by `next.config.ts` (D308) and read through `lib/app-version.ts`; "Version 0.1.0 (commit)" at the foot of Preferences; the crash report carries version and commit. Verified: 3 new unit tests; Preferences spec 7 of 7 (1 new) on a production build; the built chunks hold the number and not the rest of `package.json`. Next: M2, the notes and the check.
 - 2026-10-06 -- **accepted by the Owner** ("go with 103 and 105 goals"), with (a), (d) and (e) as planned. Started with M1.
 - 2026-10-06 -- planned: the acceptance restated, six points fixed, four milestones. Waiting for the Owner's acceptance; nothing built.
 
