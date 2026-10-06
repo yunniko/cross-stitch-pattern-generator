@@ -37,8 +37,8 @@ test("lists every release newest first, and marks the one this page is", async (
   await expect(headings).toHaveCount(releases.length);
   for (const [index, release] of releases.entries()) await expect(headings.nth(index)).toContainText(release.version);
   const current = page.getByRole("region", { name: new RegExp(`^${version.replaceAll(".", "\\.")}\\b`) });
-  await expect(current.getByText("this version")).toBeVisible();
-  await expect(page.getByText("this version")).toHaveCount(1);
+  await expect(current.getByText("this version", { exact: true })).toBeVisible();
+  await expect(page.getByText("this version", { exact: true })).toHaveCount(1);
 });
 
 test("the link at the foot of Preferences opens it in a tab of its own", async ({ page, context }) => {

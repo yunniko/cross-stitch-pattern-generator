@@ -59,7 +59,8 @@ export default async function WhatsNewPage() {
               <span className="text-sm font-normal text-muted">{longDate(release.date)}</span>
               {release.version === APP_VERSION ? <span className="text-xs text-accent">this version</span> : null}
             </h2>
-            <ContentProse markdown={release.body} />
+            {/* Under the release's <h2>, so the notes' "## New" is an <h3>. */}
+            <ContentProse markdown={release.body} under={1} />
           </section>
         ))
       )}
