@@ -223,3 +223,22 @@ test("in a narrow window the bar above does not overlap itself and the view cont
     expect(problems, `${width} px wide`).toEqual([]);
   }
 });
+
+test("the tools stand in one column where there are few, in Photo and Export, and in two in Edit", async ({ page }) => {
+  // Owner, 2026-10-06 (D302): a rail two columns wide for two tools wasted the room.
+  await openSmallChart(page);
+  const rail = page.getByTestId("tool-rail");
+  const widthIn = async (name: "Photo" | "Edit" | "Export") => {
+    await showWorkspace(page, name);
+    return (await rail.boundingBox())!.width;
+  };
+  const edit = await widthIn("Edit");
+  await expect(rail).toHaveAttribute("data-columns", "2");
+  for (const name of ["Photo", "Export"] as const) {
+    expect(await widthIn(name), name).toBeLessThan(edit * 0.6);
+    await expect(rail).toHaveAttribute("data-columns", "1");
+    // One under the other.
+    const boxes = await rail.locator("button[aria-pressed]").evaluateAll((els) => els.map((el) => el.getBoundingClientRect().left));
+    expect(new Set(boxes).size).toBe(1);
+  }
+});

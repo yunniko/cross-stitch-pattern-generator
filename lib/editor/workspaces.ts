@@ -61,3 +61,11 @@ export function firstTools<T extends OfferedTool & { id: string }>(tools: readon
   };
   return { photo: first("photo"), edit: first("edit"), export: first("export") };
 }
+
+/** A rail of this many tools or fewer is one column wide; more are two (Owner, 2026-10-06; D302). */
+export const ONE_COLUMN_TOOLS = 4;
+
+/** How many columns the tools of a workspace stand in: one where there are few, as in Photo and Export, else two. */
+export function railColumns(toolsOffered: number): 1 | 2 {
+  return toolsOffered <= ONE_COLUMN_TOOLS ? 1 : 2;
+}

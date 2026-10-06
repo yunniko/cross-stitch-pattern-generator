@@ -3,15 +3,16 @@
 import { Fragment } from "react";
 import type { QuickMirror } from "@/lib/editor/symmetry";
 import { arrangeTools } from "@/lib/skin/skin";
-import { toolOffered, type Workspace } from "@/lib/editor/workspaces";
+import { railColumns, toolOffered, type Workspace } from "@/lib/editor/workspaces";
 import type { Tool } from "../editor-types";
 import { SkinIcon, ToolIcon, useSkin } from "../skin/skin";
 import { TOOL_DEFINITIONS, toolDefinition } from "../tools/registry";
 import { DISABLED_ICON } from "./ui";
 
 /**
- * The tools, at the left edge (G-095, proposal D): the ones the workspace shown offers, in two columns, in groups parted by a
- * line and no headings; in Edit, the four quick mirrors as a group of their own beneath.
+ * The tools, at the left edge (G-095, proposal D): the ones the workspace shown offers, in two columns, or one where there
+ * are few (`railColumns`, D302), in groups parted by a line and no headings; in Edit, the four quick mirrors as a group of
+ * their own beneath.
  *
  * Which tools there are is the registry's (G-092); the order and grouping are the skin's where it gives one and the tools'
  * own otherwise (`arrangeTools`), so this component names no tool.
@@ -41,17 +42,19 @@ export interface ToolRailProps {
 export function ToolRail({ workspace, activeTool, disabled, onSelect, squareCanvas, onMirror }: ToolRailProps) {
   const offered = TOOL_DEFINITIONS.filter((tool) => toolOffered(tool, workspace));
   const groups = arrangeTools(offered, useSkin().tools);
+  const columns = railColumns(offered.length);
   return (
     <aside
-      className="flex w-[124px] shrink-0 flex-col items-stretch gap-0.5 border-r border-line bg-surface py-2.5"
+      className={`flex shrink-0 flex-col items-stretch gap-0.5 border-r border-line bg-surface py-2.5 ${columns === 2 ? "w-[124px]" : "w-[68px]"}`}
       data-testid="tool-rail"
+      data-columns={columns}
     >
       {/* Only the tools scroll, so what is above and below keeps its place however long the tool list grows. */}
       <div className="flex min-h-0 flex-1 flex-col items-stretch overflow-y-auto">
         {groups.map((group, groupIndex) => (
           <Fragment key={groupIndex}>
             {groupIndex > 0 && <div className="mx-3.5 my-1.5 h-px shrink-0 bg-line" aria-hidden="true" />}
-            <div className="grid shrink-0 grid-cols-2 gap-0.5 px-1.5">
+            <div className={`grid shrink-0 gap-0.5 px-1.5 ${columns === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
               {group.map((id) => {
                 const { label, title, Icon } = toolDefinition(id);
                 const active = activeTool === id;

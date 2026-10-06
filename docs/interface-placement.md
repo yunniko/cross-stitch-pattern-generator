@@ -57,7 +57,7 @@ tabs while its tool is in hand; **X** the Export workspace's panel; **Pr** Prefe
 | Canvas colour, canvas cloth, stitch texture (`03`) | View, set once | Pr (D301; a popover at the end of S for a day, which the Owner did not find) | Yes |
 | Rulers, pointer readout, size and finished size (`03`) | View | Around the chart, S | Yes |
 | Compare with original (`03`) | View | With the photo, before there is a chart | Yes |
-| Tool choice (`04`) | Application | L: two columns, three groups; each workspace offers its own tools | Yes |
+| Tool choice (`04`) | Application | L: three groups, two columns in Edit and one where a workspace offers four tools or fewer (D302); each workspace offers its own tools | Yes |
 | The two drawing colours, swap (`04`) | Tool (those that paint) | Q, with the tools that declare them | Yes |
 | Brush size, shape (`04`) | Tool (Brush, Line, outlines) | Q, with those tools | Yes |
 | Shape fill (`04`) | Tool (Rectangle, Oval) | Q, with those tools | Yes |

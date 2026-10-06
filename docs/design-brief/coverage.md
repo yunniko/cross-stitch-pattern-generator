@@ -413,3 +413,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D299 | 01-overview | also 03, 08 |
 | D300 | internal | |
 | D301 | 01-overview | also 03 |
+| D302 | internal | |

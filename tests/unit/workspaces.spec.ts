@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { TOOL_DEFINITIONS } from "../../app/tools/registry";
 import { REPLACE_PLANS } from "../../lib/editor/document-replace";
-import { firstTools, toolOffered, WORKSPACES, workspaceEdits, workspaceOpen, workspaceShown } from "../../lib/editor/workspaces";
+import {
+  firstTools,
+  railColumns,
+  toolOffered,
+  WORKSPACES,
+  workspaceEdits,
+  workspaceOpen,
+  workspaceShown,
+} from "../../lib/editor/workspaces";
 
 /** G-095, D297: the three workspaces, what each offers and when each can be entered. */
 
@@ -79,5 +87,16 @@ describe("the workspace a chart arrives in", () => {
 
   it("giving the chart up changes no workspace: the start screen is what is shown", () => {
     expect(REPLACE_PLANS.discard.workspace).toBe("keep");
+  });
+});
+
+describe("the width of the tool rail", () => {
+  it("is one column where there are few tools, as Photo and Export offer, and two in Edit", () => {
+    for (const { id } of WORKSPACES) {
+      const offered = TOOL_DEFINITIONS.filter((tool) => toolOffered(tool, id)).length;
+      expect(railColumns(offered), id).toBe(id === "edit" ? 2 : 1);
+    }
+    expect(railColumns(4)).toBe(1);
+    expect(railColumns(5)).toBe(2);
   });
 });
