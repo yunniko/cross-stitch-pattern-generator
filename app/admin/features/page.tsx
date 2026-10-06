@@ -12,14 +12,18 @@ export const dynamic = "force-dynamic";
 const STATE: Record<"ON" | "LOCKED" | "HIDDEN", FeatureState> = { ON: "on", LOCKED: "locked", HIDDEN: "hidden" };
 
 export default async function AdminFeaturesPage() {
-  const [siteRows, sets, tiers, changes] = await Promise.all([
+  const [siteRows, sets, tiers, changes, audiences] = await Promise.all([
     prisma.featureState.findMany(),
-    prisma.featureSet.findMany({ orderBy: { name: "asc" }, include: { entries: true, tiers: { select: { id: true, name: true } } } }),
+    prisma.featureSet.findMany({
+      orderBy: { name: "asc" },
+      include: { entries: true, tiers: { select: { id: true, name: true } }, audiences: { select: { audience: true } } },
+    }),
     prisma.tier.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true, featureSetId: true, _count: { select: { subscriptions: true } } },
     }),
     prisma.featureChange.findMany({ orderBy: { createdAt: "desc" }, take: 30 }),
+    prisma.audienceSet.findMany(),
   ]);
   return (
     <FeaturesAdmin
@@ -29,7 +33,9 @@ export default async function AdminFeaturesPage() {
         name: set.name,
         entries: Object.fromEntries(set.entries.map((entry) => [entry.featureId, STATE[entry.state]])),
         tiers: set.tiers.map((tier) => tier.name),
+        audiences: set.audiences.map((entry) => entry.audience),
       }))}
+      audiences={Object.fromEntries(audiences.map((entry) => [entry.audience, entry.featureSetId]))}
       tiers={tiers.map((tier) => ({ id: tier.id, name: tier.name, featureSetId: tier.featureSetId, people: tier._count.subscriptions }))}
       changes={changes.map((change) => ({
         id: change.id,

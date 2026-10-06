@@ -8,6 +8,7 @@ import {
   createTierAction,
   deleteFeatureSetAction,
   setFeatureSetEntriesAction,
+  setAudienceSetAction,
   setSiteFeaturesAction,
 } from "@/lib/admin/feature-actions";
 import type { ActionResult } from "@/lib/admin/feature-actions";
@@ -16,7 +17,9 @@ import { FeatureStatesEditor } from "./feature-states-editor";
 
 export interface FeaturesAdminProps {
   site: Record<string, FeatureState>;
-  sets: Array<{ id: string; name: string; entries: Record<string, FeatureState>; tiers: string[] }>;
+  sets: Array<{ id: string; name: string; entries: Record<string, FeatureState>; tiers: string[]; audiences: string[] }>;
+  /** The set for "guests" and for "accounts", by audience. */
+  audiences: Record<string, string>;
   tiers: Array<{ id: string; name: string; featureSetId: string | null; people: number }>;
   changes: Array<{ id: string; scope: string; change: string; by: string; at: string }>;
 }
@@ -25,8 +28,8 @@ const FIELD = "rounded-md border border-control-line bg-control px-3 py-1.5 text
 const H1 = "m-0 text-lg font-semibold text-ink";
 const H2 = "m-0 text-base font-medium text-ink";
 
-export function FeaturesAdmin({ site, sets, tiers, changes }: FeaturesAdminProps) {
-  const [section, setSection] = useState<"site" | "sets" | "tiers" | "changes">("site");
+export function FeaturesAdmin({ site, sets, tiers, changes, audiences }: FeaturesAdminProps) {
+  const [section, setSection] = useState<"site" | "audiences" | "sets" | "tiers" | "changes">("site");
   const [chosenSet, setChosenSet] = useState<string | null>(sets[0]?.id ?? null);
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -60,10 +63,12 @@ export function FeaturesAdmin({ site, sets, tiers, changes }: FeaturesAdminProps
         Every feature of the editor, in its group. <strong className="font-medium text-ink">On</strong> is offered and usable,{" "}
         <strong className="font-medium text-ink">Locked</strong> is shown greyed with a note and refused,{" "}
         <strong className="font-medium text-ink">Hidden</strong> is absent. A person&apos;s own state wins over their tier&apos;s set, which
-        wins over the site. A new feature appears here by being declared where it lives.
+        wins over the set for guests or for signed-in accounts, which wins over the site. A new feature appears here by being declared where
+        it lives.
       </p>
       <div role="tablist" aria-label="Features admin" className="flex border-b border-line">
         {tab("site", "The site")}
+        {tab("audiences", "Guests and accounts")}
         {tab("sets", `Feature sets (${sets.length})`)}
         {tab("tiers", `Tiers (${tiers.length})`)}
         {tab("changes", "Changes")}
@@ -123,12 +128,14 @@ export function FeaturesAdmin({ site, sets, tiers, changes }: FeaturesAdminProps
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className={H2}>{set.name}</h2>
                 <span className="text-[12px] text-muted">
-                  {set.tiers.length === 0 ? "No tier points at it" : `Given by: ${set.tiers.join(", ")}`}
+                  {[...set.audiences.map((audience) => (audience === "guests" ? "guests" : "accounts")), ...set.tiers].length === 0
+                    ? "Nobody is given it"
+                    : `Given to: ${[...set.audiences.map((audience) => (audience === "guests" ? "guests" : "signed-in accounts")), ...set.tiers.map((tier) => `tier ${tier}`)].join(", ")}`}
                 </span>
                 <PillButton
                   size="xs"
                   variant="outline"
-                  disabled={pending || set.tiers.length > 0}
+                  disabled={pending || set.tiers.length > 0 || set.audiences.length > 0}
                   onClick={() => run(() => deleteFeatureSetAction(set.id))}
                 >
                   Delete the set
@@ -149,6 +156,46 @@ export function FeaturesAdmin({ site, sets, tiers, changes }: FeaturesAdminProps
           ) : (
             <p className="m-0 text-[13px] text-muted">No feature set yet. A set is what a tier gives the people on it.</p>
           )}
+        </div>
+      )}
+
+      {section === "audiences" && (
+        <div className="flex flex-col gap-4">
+          <p className="m-0 text-[13px] text-muted">
+            A feature set for everyone who is not signed in, and one for everyone who is. Each sits between the site and a tier: a
+            person&apos;s own state wins over their tier&apos;s set, which wins over these, which win over the site. Make the sets under
+            Feature sets.
+          </p>
+          <table className="w-full max-w-xl text-left text-sm">
+            <tbody>
+              {(
+                [
+                  ["guests", "Guests (not signed in)"],
+                  ["accounts", "Signed-in accounts"],
+                ] as const
+              ).map(([audience, label]) => (
+                <tr key={audience} className="border-b border-line last:border-0" data-testid="audience-row" data-audience={audience}>
+                  <td className="px-3 py-2 text-ink">{label}</td>
+                  <td className="px-3 py-2">
+                    <select
+                      aria-label={`Feature set for ${label}`}
+                      value={audiences[audience] ?? ""}
+                      disabled={pending}
+                      onChange={(event) => run(() => setAudienceSetAction(audience, event.target.value || null))}
+                      className={FIELD}
+                    >
+                      <option value="">No set: the site&apos;s states</option>
+                      {sets.map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>
+                          {candidate.name}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

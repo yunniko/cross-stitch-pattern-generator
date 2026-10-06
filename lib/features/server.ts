@@ -4,8 +4,8 @@ import { EVERYTHING_ON, type FeatureState, type FeatureStates } from "./features
 import { resolveFeatures } from "./resolve";
 
 /**
- * The feature states of a requester, read from the database (G-102 M2): the site's rows, the set of the person's tier
- * and the person's own rows, resolved person > tier > site. A visitor without an account gets the site's.
+ * The feature states of a requester, read from the database (G-102 M2, D307): the site's rows, the set for guests or for
+ * accounts, the set of the person's tier and the person's own rows, resolved person > tier > guests or accounts > site.
  *
  * Read on every page load and every generate or export request. If the database cannot be read, everything is on: a
  * database fault must not take the editor down for people whose features are all on anyway, and the admin pages will
@@ -19,8 +19,13 @@ const toStates = (rows: ReadonlyArray<{ featureId: string; state: FeatureSwitch 
 
 export async function featureStatesFor(userId: string | null): Promise<FeatureStates> {
   try {
-    const [site, person] = await Promise.all([
+    const [site, audience, person] = await Promise.all([
       prisma.featureState.findMany(),
+      // The set for guests, or for accounts (D307).
+      prisma.audienceSet.findUnique({
+        where: { audience: userId ? "accounts" : "guests" },
+        select: { set: { select: { entries: true } } },
+      }),
       userId
         ? prisma.user.findUnique({
             where: { id: userId },
@@ -36,6 +41,7 @@ export async function featureStatesFor(userId: string | null): Promise<FeatureSt
     return resolveFeatures(
       {
         site: toStates(site),
+        audience: audience ? toStates(audience.set.entries) : undefined,
         tier: live ? toStates(person!.subscription!.tier.featureSet?.entries ?? []) : undefined,
         person: person ? toStates(person.features) : undefined,
       }

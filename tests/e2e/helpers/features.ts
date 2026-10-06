@@ -100,3 +100,32 @@ export async function clearPersonFeatures(email: string, setName?: string): Prom
     await db().query(`DELETE FROM "FeatureSet" WHERE "name" = $1`, [setName]);
   }
 }
+
+/** A set with these states, given to every guest or every signed-in account (D307); returns the set's name. */
+export async function giveAudienceSet(audience: "guests" | "accounts", name: string, states: Record<string, State>): Promise<void> {
+  const { rows: sets } = await db().query<{ id: string }>(
+    `INSERT INTO "FeatureSet" ("id", "name", "createdAt", "updatedAt") VALUES ($1, $2, now(), now())
+     ON CONFLICT ("name") DO UPDATE SET "updatedAt" = now() RETURNING "id"`,
+    [id(), name]
+  );
+  const set = sets[0].id;
+  await db().query(`DELETE FROM "FeatureSetEntry" WHERE "setId" = $1`, [set]);
+  for (const [featureId, state] of Object.entries(states)) {
+    await db().query(`INSERT INTO "FeatureSetEntry" ("setId", "featureId", "state") VALUES ($1, $2, $3::"FeatureSwitch")`, [
+      set,
+      featureId,
+      SWITCH[state],
+    ]);
+  }
+  await db().query(
+    `INSERT INTO "AudienceSet" ("audience", "featureSetId", "updatedAt") VALUES ($1, $2, now())
+     ON CONFLICT ("audience") DO UPDATE SET "featureSetId" = EXCLUDED."featureSetId", "updatedAt" = now()`,
+    [audience, set]
+  );
+}
+
+/** Takes the sets away from guests and accounts, and removes the sets named. */
+export async function clearAudienceSets(names: readonly string[]): Promise<void> {
+  await db().query(`DELETE FROM "AudienceSet"`);
+  await db().query(`DELETE FROM "FeatureSet" WHERE "name" = ANY($1::text[])`, [[...names]]);
+}

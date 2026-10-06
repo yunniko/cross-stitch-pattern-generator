@@ -15,6 +15,16 @@ describe("resolving a person's states", () => {
     expect(states).toEqual({ "tool.text": "hidden", "tool.fill": "hidden", "export.a4": "hidden", "tool.line": "locked" });
   });
 
+  it("puts the set for guests or accounts between the site and the tier", () => {
+    const states = resolveFeatures({
+      site: { "tool.text": "locked", "tool.fill": "hidden" },
+      audience: { "tool.text": "on", "tool.line": "locked", "tool.oval": "locked" },
+      tier: { "tool.line": "on" },
+    });
+    // The audience lifts the site's lock on Text; the tier lifts the audience's lock on Line; Fill keeps the site's state.
+    expect(states).toEqual({ "tool.fill": "hidden", "tool.oval": "locked" });
+  });
+
   it("takes the site's alone for a visitor, and ignores a row for a feature that no longer exists", () => {
     expect(resolveFeatures({ site: { "tool.text": "locked", "tool.gone": "hidden" } }, isFeatureId)).toEqual({ "tool.text": "locked" });
     expect(resolveFeatures({ site: {} })).toEqual({});

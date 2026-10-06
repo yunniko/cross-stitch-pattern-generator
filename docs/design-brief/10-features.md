@@ -10,7 +10,7 @@ What a person may use is decided feature by feature (G-102, D303 to D305). Every
 | **Locked** | The feature is shown in its place, greyed, with the note "*Name* is not available to you."; it takes no press, and its key does nothing | A request for it is refused by name (403) |
 | **Hidden** | The feature is absent, as if it did not exist; its key does nothing; its command is not in the command list | A request for it is refused by name (403) |
 
-A feature with no state set is On. A person's own state wins over their tier's set, which wins over the site's; an explicit On set for a person or in a set lifts a lock the site has put on. A visitor without an account gets the site's states. A tier's set counts while the subscription is live (`active`, `trialing`, `past_due`).
+A feature with no state set is On. A person's own state wins over their tier's set, which wins over the set given to every guest or to every signed-in account (whichever they are), which wins over the site's; an explicit On set for a person or in a set lifts a lock below it. A guest with no set chosen for guests gets the site's states. A tier's set counts while the subscription is live (`active`, `trialing`, `past_due`).
 
 **When a change is seen.** The states are given with the page and asked for again once they are older than the time the site sets (5 minutes unless set otherwise; between 5 seconds and a day): on a timer while the editor is in view, and at once when it comes back into view after that time. A change an admin makes therefore reaches an open editor within that time, with no reload. A feature that becomes locked or hidden while it is in use is put down: a tool in hand gives way to the first usable one.
 
@@ -47,10 +47,11 @@ Every admin page refuses a visitor (to the sign-in) and a signed-in reader (to t
 | Where | What it allows |
 |---|---|
 | The site | The list in its groups; a state per feature, and one for a whole group at once (a group whose features differ reads "Mixed"). Each change is kept as it is made; a refused one is put back with its reason |
-| Feature sets | Make a set by name (up to 60 characters, unique); for each feature, As the site, On, Locked or Hidden, with what the site says shown beside As the site; delete a set no tier points at |
+| Guests and accounts | One feature set for everyone not signed in and one for everyone signed in, or none for either |
+| Feature sets | Make a set by name (up to 60 characters, unique); for each feature, As the site, On, Locked or Hidden, with what the site says shown beside As the site; delete a set no tier, and neither guests nor accounts, is given |
 | Tiers | Make a tier by name; give it one set or none; the number of people on it. Nothing is sold: a subscription is written by a billing goal to come |
 | A person | From the users list: their tier and its set named; for each feature, As the site, On, Locked or Hidden |
-| Changes | The latest thirty changes, newest first: when, the scope (site, user, set, tier), what is now true, who made it |
+| Changes | The latest thirty changes, newest first: when, the scope (site, audience, user, set, tier), what is now true, who made it |
 
 ## Limits and messages
 
@@ -62,4 +63,5 @@ Every admin page refuses a visitor (to the sign-in) and a signed-in reader (to t
 | The note on a locked feature | "*Name* is not available to you." |
 | A refused request | 403, `{ "error": "<Name> is not available to you." }` |
 | A set a tier points at, on delete | "A tier points at this set; detach it first." |
+| A set given to guests or accounts, on delete | "Guests or accounts are given this set; choose another for them first." |
 | The database cannot be read | Everything is on, and the fault is logged on the server |

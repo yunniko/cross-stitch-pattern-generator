@@ -118,9 +118,13 @@ export async function createFeatureSetAction(name: string): Promise<ActionResult
 export async function deleteFeatureSetAction(setId: string): Promise<ActionResult> {
   return attempt(async () => {
     const admin = await requireAdmin();
-    const set = await prisma.featureSet.findUnique({ where: { id: setId }, select: { name: true, tiers: { select: { id: true } } } });
+    const set = await prisma.featureSet.findUnique({
+      where: { id: setId },
+      select: { name: true, tiers: { select: { id: true } }, audiences: { select: { audience: true } } },
+    });
     if (!set) throw new Error("No such set.");
     if (set.tiers.length > 0) throw new Error("A tier points at this set; detach it first.");
+    if (set.audiences.length > 0) throw new Error("Guests or accounts are given this set; choose another for them first.");
     await prisma.featureSet.delete({ where: { id: setId } });
     await log(admin, "SET", setId, `set "${set.name}" deleted`);
     revalidatePath("/admin/features");
@@ -172,6 +176,22 @@ export async function attachSetToTierAction(tierId: string, setId: string | null
     if (setId && !set) throw new Error("No such set.");
     await prisma.tier.update({ where: { id: tierId }, data: { featureSetId: setId } });
     await log(admin, "TIER", tierId, `tier "${tier.name}" → ${set ? `set "${set.name}"` : "no set"}`);
+    revalidatePath("/admin/features");
+    revalidatePath("/");
+  });
+}
+
+/** The set every guest ("guests") or every signed-in account ("accounts") gets; null for none (D307). */
+export async function setAudienceSetAction(audience: string, setId: string | null): Promise<ActionResult> {
+  return attempt(async () => {
+    const admin = await requireAdmin();
+    if (audience !== "guests" && audience !== "accounts") throw new Error("That is not an audience.");
+    const set = setId ? await prisma.featureSet.findUnique({ where: { id: setId }, select: { name: true } }) : null;
+    if (setId && !set) throw new Error("No such set.");
+    if (setId)
+      await prisma.audienceSet.upsert({ where: { audience }, create: { audience, featureSetId: setId }, update: { featureSetId: setId } });
+    else await prisma.audienceSet.deleteMany({ where: { audience } });
+    await log(admin, "AUDIENCE", audience, `${audience} → ${set ? `set "${set.name}"` : "no set"}`);
     revalidatePath("/admin/features");
     revalidatePath("/");
   });

@@ -1,7 +1,14 @@
 import { test, expect, type Page } from "@playwright/test";
 import { openSmallChart } from "./helpers/app";
 import { registerReader, signInAsAdmin, uniqueEmail } from "./helpers/auth";
-import { clearPersonFeatures, clearSiteFeatures, featuresDb, putOnTierWithSet } from "./helpers/features";
+import {
+  clearAudienceSets,
+  clearPersonFeatures,
+  clearSiteFeatures,
+  featuresDb,
+  giveAudienceSet,
+  putOnTierWithSet,
+} from "./helpers/features";
 
 /**
  * G-102 M3: the admin's Features page and a person's page, end to end against the real database. The site's rows are
@@ -139,4 +146,55 @@ test("the pages refuse a reader and a visitor @alone", async ({ page }) => {
   await registerReader(page, email);
   await page.goto("/admin/features");
   await expect(page).not.toHaveURL(/\/admin/);
+});
+
+test("guests and signed-in accounts can each be given a set: a guest loses what an account keeps @alone", async ({ page, browser }) => {
+  const guestsSet = `e2e guests ${Date.now().toString(36)}`;
+  const email = uniqueEmail("account");
+  try {
+    // Made in the admin: a set for guests hiding Text, chosen under Guests and accounts.
+    await signInAsAdmin(page);
+    await page.goto("/admin/features");
+    await page.getByRole("tab", { name: /^Feature sets/ }).click();
+    await page.getByLabel("New set's name").fill(guestsSet);
+    await page.getByRole("button", { name: "Make a set" }).click();
+    const set = page.getByTestId("set-features");
+    await set
+      .locator(`[data-testid="feature-row"][data-feature="tool.text"]`)
+      .getByRole("group")
+      .getByRole("button", { name: "Hidden", exact: true })
+      .click();
+    await expect(set.locator(`[data-testid="feature-row"][data-feature="tool.text"]`)).toHaveAttribute("data-state", "hidden");
+    await page.getByRole("tab", { name: "Guests and accounts" }).click();
+    await page.getByLabel("Feature set for Guests (not signed in)").selectOption({ label: guestsSet });
+    await expect(page.getByLabel("Feature set for Guests (not signed in)")).not.toHaveValue("");
+    // The set given to guests cannot be deleted.
+    await page.getByRole("tab", { name: /^Feature sets/ }).click();
+    await page.getByRole("tab", { name: guestsSet, exact: true }).click();
+    await expect(page.getByText("Given to: guests")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Delete the set" })).toBeDisabled();
+
+    // A guest has no Text; a signed-in account has it.
+    const guest = await browser.newContext();
+    const guestPage = await guest.newPage();
+    await openSmallChart(guestPage);
+    await expect(guestPage.getByTestId("tool-rail").getByRole("button", { name: /^Text/ })).toHaveCount(0);
+    await guest.close();
+    const account = await browser.newContext();
+    const accountPage = await account.newPage();
+    await registerReader(accountPage, email);
+    await openSmallChart(accountPage);
+    await expect(accountPage.getByTestId("tool-rail").getByRole("button", { name: "Text", exact: true })).toBeEnabled();
+
+    // And the other way: a set for accounts locking Line reaches the account and not a guest.
+    await giveAudienceSet("accounts", `${guestsSet} accounts`, { "tool.line": "locked" });
+    await expect(accountPage.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
+    await accountPage.reload();
+    await expect(accountPage.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
+    await expect(accountPage.getByTestId("tool-rail").getByRole("button", { name: /^Line/ })).toHaveAttribute("aria-disabled", "true");
+    await account.close();
+  } finally {
+    await clearAudienceSets([guestsSet, `${guestsSet} accounts`]);
+    await clearPersonFeatures(email);
+  }
 });
