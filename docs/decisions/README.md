@@ -344,3 +344,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D306 — The browser asks for its feature states again when they expire — active
 - D307 — Guests and signed-in accounts each get a feature set — active
 - D308 — The version is `package.json`'s, read when the app is built — active
+- D309 — A release note per change, asked for by path, and the mark is a file — active
