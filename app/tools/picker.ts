@@ -12,7 +12,8 @@ export const pickerModule = {
     {
       id: "picker",
       label: "Picker",
-      title: "Click a stitch or a backstitch line to take its color (I); right-click takes it as the second color. With a drawing tool, hold Alt to pick without changing tools.",
+      title:
+        "Click a stitch or a backstitch line to take its color (I); right-click takes it as the second color. With a drawing tool, hold Alt to pick without changing tools.",
       key: "i",
       group: 0,
       shares: ["colours"],
