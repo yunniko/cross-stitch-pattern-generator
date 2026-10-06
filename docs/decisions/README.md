@@ -346,3 +346,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D308 — The version is `package.json`'s, read when the app is built — active
 - D309 — A release note per change, asked for by path, and the mark is a file — active
 - D310 — A release is numbered by its notes and cut by one step; "What's new" is built from the cut files — active
+- D311 — The development loop carries notes, and every deploy is a release — active

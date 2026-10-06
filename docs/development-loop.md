@@ -13,17 +13,25 @@ measurements in G-096 (2026-10-05, at commit 2c30b26 and after, on the Owner's m
 ## Fast lane, step by step
 
 1. Make the change. Logic goes in `lib/` with a unit test; see `docs/architecture.md` for where.
-2. `npm run check:fast`: type-check, the unit tests related to the changed files, lint with its cache.
+2. `npm run check:fast`: type-check, the unit tests related to the changed files, lint with its cache, and the release
+   note: a change under `app/` (but `app/admin/`), `lib/`, `rust/` or `public/` carries a file in `release-notes/next/`,
+   of kind `new`, `changed` or `fixed`, or `internal` when nothing a user sees changes (D309; how to write one:
+   `release-notes/README.md`). CI checks the same over every push.
 3. If the interface changed, run only the specs the change can affect, against one of two servers:
    - **`npm run e2e:dev`** (the development server): up in 3 s, no build to wait for, and an edit is picked up without
      restarting it. Use it while working on one spec or a few.
    - **`npm run e2e:servers`** (a production build, 25 s to build and start; run it again after a change): what the result
      is taken from before a commit.
    Then, for example, `npx playwright test tests/e2e/crop-tool.spec.ts`.
-4. Commit with one line under "Small changes" in `GOALS.md`.
-5. **Batch deploy**, once per batch or day: `npm run test:e2e` on a production build (the whole suite), deploy, the
-   affected specs against the live site, the broad live check below, one deploy-log row listing what the batch carried,
-   and the design brief and handover updated once.
+4. Commit, the note with it, and one line under "Small changes" in `GOALS.md`.
+5. **Batch deploy**, once per batch or day: `npm run test:e2e` on a production build (the whole suite), then
+   `npm run release` (the notes gathered into the release's file, the number raised, a commit and the tag `v<version>`;
+   D310), deploy with `git push --follow-tags`, the affected specs against the live site, the broad live check below,
+   and the deploy-log row the release printed, its last column filled in. The design brief and handover are updated
+   once.
+
+A **normal goal** carries its notes the same way: each commit that changes what a user sees adds or edits a note, so a
+milestone ends with its notes written, and the goal's deploy is a release cut the same way.
 
 ## Writing a spec: open the saved chart
 
