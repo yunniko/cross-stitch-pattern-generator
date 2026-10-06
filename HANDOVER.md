@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-06 at 02773b2 (1,225 unit; full e2e by CI at 2495b64; production runs 02773b2, v0.3.0)
+Last verified: 2026-10-06 at faf2068 (1,237 unit; full e2e by CI at 2495b64; production runs 02773b2, v0.3.0)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -12,6 +12,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 **Production** runs 02773b2, v0.3.0 (2026-10-06, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
 **G-105, release versions and notes — ACTIVE, all four milestones done, pending the Owner's sign-off; live since v0.2.0, now v0.3.0.** The version is `package.json`'s, handed to the bundle by `next.config.ts` and read through `lib/app-version.ts` (D308); shown at the foot of Preferences and in crash reports. A change under `app/`, `lib/`, `rust/` or `public/` carries a note in `release-notes/next/`, checked by `check:fast` and CI (D309); `npm run release` cuts a numbered, tagged release whose notes `/whats-new` shows (D310); every deploy is a release (D311, `docs/development-loop.md`); a pushed range that cuts a release is carried by the release's file.
+
+**G-110, the view as switches — ACTIVE, M1 of 4 done.** The view is `lib/editor/view.ts`: a pattern mode, Symbols, Photo and the pattern's visibility, kept in the workspace options, with what is in force derived by `viewInForce` (D315). Nothing draws from it yet: the editor still runs the five fixed views until M2. Baseline timings at 1,500 stitches: `docs/reviews/2026-10-06-view-switches.md`. After its deploy the Owner reviews it live before G-104 starts.
 
 **G-103, the three workspaces as features — ACTIVE, all four milestones done, pending the Owner's sign-off; live as v0.3.0.** Photo, Edit and Export are `workspace.photo`, `.edit`, `.export`, the first group in the feature list (D312). The browser obeys: a command names its workspace and `commandGate` in `app/commands/registry.ts` reads that switch first; controls outside the table take a `gatedAction` (D313); with all three off `app/components/no-workspace.tsx` replaces the editor. The server refuses a workspace's requests by its name through `REQUEST_WORKSPACES` in `lib/features/request-check.ts` (D314). A photo dropped on the start screen goes through the photo choice's gate (`dropPhoto`, `app/hooks/use-chart-lifecycle.ts`). Live, every server export kind is set unavailable to guests by the site's own states, so a guest export cannot be checked there.
 
@@ -43,10 +45,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 **G-076, stitch textures — signed off and deployed 2026-09-30 (8fc5bf2), archived.** The Chart pane's texture buttons (`app/components/texture-picker.tsx`) set the persisted `stitchTexture` option, which draws the on-screen Stitched view and the exported realistic preview (D248, D249). Textures live in `lib/export/stitch-texture-catalog.ts` and `TEXTURES` in `rust/cs-export/src/preview.rs`. Record in `docs/goals-archive/G-071-to-G-080.md`.
 
-**G-075, accounts — signed off 2026-09-30, archived.** Optional registration/login/personal cabinet
-(`/account`) and admin tools (`/admin/users`, `/admin/stats`) on NextAuth v5 + Prisma + Postgres + bcryptjs
-(D244–D247); generating and exporting are unaffected signed in or not. The Owner's own account is the real
-admin; bootstrap is closed (`ADMIN_BOOTSTRAP_ENABLED=false`). Full record in `docs/goals-archive/G-071-to-G-080.md`.
+**G-075, accounts — signed off 2026-09-30, archived.** Optional registration/login/personal cabinet (`/account`) and admin tools (`/admin/users`, `/admin/stats`) on NextAuth v5 + Prisma + Postgres + bcryptjs (D244–D247); generating and exporting are unaffected signed in or not. The Owner's own account is the real admin; bootstrap is closed (`ADMIN_BOOTSTRAP_ENABLED=false`). Full record in `docs/goals-archive/G-071-to-G-080.md`.
 
 **G-048, generation and exports in Rust — signed off 2026-09-20, archived.** `rust/` holds all generation and every
 export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-comparison-report.md`). Since G-068 M2 it is the only engine: nothing falls back to TypeScript, and the recorded golden hashes are checked against the binary by `npm run test:goldens:rust` (D221).

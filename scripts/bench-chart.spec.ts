@@ -365,6 +365,8 @@ test(`large-chart operations at ${SIZE} stitches`, async ({ page }, testInfo) =>
 
     // Light one thread, then put the light out. Highlight became Isolate in G-045 (D158): lighting a thread turns
     // Isolate on and putting out the last light turns it off, so this is G-036's view change reached a new way.
+    // Generating stays in Photo (D297); the thread list is Edit's.
+    await page.getByRole("tab", { name: "Edit", exact: true }).click();
     const light = page.getByRole("button", { name: /^Show only / }).first();
     const beforeOn = (await chartState(page)).revision;
     record(
@@ -482,8 +484,9 @@ test(`undo memory at ${SIZE} stitches`, async ({ page }) => {
     return `JS heap ${mbOf(u.usedSize)} MB, ArrayBuffer stores ${mbOf(u.backingStorageSize)} MB`;
   };
 
-  // Generating moves the inspector to Threads; the empty brush lives in its list (and is echoed in the top panel).
-  await page.getByRole("tabpanel").getByText("Empty (no stitch)").click();
+  // Generating stays in Photo (D297); the empty brush lives in Edit's thread list.
+  await page.getByRole("tab", { name: "Edit", exact: true }).click();
+  await page.getByText("Empty (no stitch)", { exact: true }).first().click();
   const frame = page.getByTestId("chart-frame");
   const view = (await frame.locator("xpath=ancestor::div[contains(@class,'overflow-auto')][1]").boundingBox())!;
   const chart = (await frame.boundingBox())!;

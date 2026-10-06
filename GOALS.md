@@ -191,6 +191,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - M4 -- **Docs, QA pass, full suite, release and deploy.** Design brief (`03`, `10`), `docs/interface-placement.md`, the decision files; the QA pass; the full suite by CI; a release with its notes; live check without admin pages.
 
 **Progress log** (newest first):
+- 2026-10-06 -- **M1 done** (faf2068 and the check-in commit). `lib/editor/view.ts` with `tests/unit/view.spec.ts` (11 cases); the view kept in `WorkspaceOptions`, a corrupt stored one read switch by switch; D315. Baseline at 1,500 stitches before any drawing change: Grid + photo 292 ms, longest task 108 ms; Color 100 ms; scrolling over the photo 683 ms against 508 ms (`docs/reviews/2026-10-06-view-switches.md`). The chart benchmark had gone stale with G-095 and was repaired. Verified: 1,237 unit, typecheck, docs-lint. Next: M2, drawing from the view.
 - 2026-10-06 -- **accepted by the Owner** ("go 110 and 104"), reviewed by the Owner on the live site after each goal's deploy: G-110 stops after its deploy, before G-104 starts. Keys confirmed: Y Symbols, P Photo, I the picker, 4 and 5 as shortcuts to states; the picker takes a backstitch line's thread when the pointer is on the line.
 - 2026-10-06 -- planned; presented to the Owner for acceptance.
 

@@ -439,3 +439,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D312 | 10-features | |
 | D313 | 10-features | also 01 |
 | D314 | 10-features | |
+| D315 | 03-chart-views | rewritten in G-110 M4 |
