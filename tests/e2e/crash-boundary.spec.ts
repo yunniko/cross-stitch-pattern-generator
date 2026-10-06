@@ -57,7 +57,7 @@ test("the report carries the stack, the tool in hand and the chart, and no photo
 
   expect(report.error.message).toContain("Deliberate renderer failure");
   expect(report.error.stack, "a report without a stack is the problem this solves").toBeTruthy();
-  expect(report.doing).toMatchObject({ viewMode: "bw", activeTool: "brush", brush: "7 round" });
+  expect(report.doing).toMatchObject({ viewMode: "Black & white", activeTool: "brush", brush: "7 round" });
   expect(report.chart.width).toBe(50);
   expect(report.chart.editable.cellPalette.length).toBe(report.chart.width * report.chart.height);
   expect(report.chart.editable.sourceImage, "the photo is the reader's, not the report's").toBeUndefined();

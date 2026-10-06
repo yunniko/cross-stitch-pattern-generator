@@ -232,7 +232,7 @@ test("Add is blocked in the Stitched view, which is for looking, and comes back 
   await expect(add(page)).toBeEnabled();
   await page.getByRole("button", { name: "Stitched", exact: true }).click();
   await expect(add(page)).toBeDisabled();
-  await expect(page.getByText("Switch to the Color or B&W view to add text.")).toBeVisible();
+  await expect(page.getByText("Text is added in Color or B&W, with the pattern at least 5 % visible.")).toBeVisible();
   await page.getByRole("button", { name: "Color", exact: true }).click();
   await expect(add(page)).toBeEnabled();
 });
