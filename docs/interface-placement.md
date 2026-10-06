@@ -119,12 +119,14 @@ not edited by hand.
 |  | Redo | Ctrl+Y, Ctrl+Shift+Z | A step forward exists; no piece in hand |
 |  | Cancel the shape being drawn | Escape | A line, rectangle or oval is being dragged |
 |  | Cancel the lasso fill being drawn | Escape | A lasso fill is being drawn |
-| Tools | Brush tool | B | A chart, in Edit |
+| Tools | Pick a color while the key is held | Alt (held) | A drawing tool in hand, in an editable view |
+|  | Brush tool | B | A chart, in Edit |
 |  | Fill tool | F | A chart, in Edit |
 |  | Line tool | L | A chart, in Edit |
 |  | Rectangle tool | R | A chart, in Edit |
 |  | Oval tool | O | A chart, in Edit |
 |  | Lasso fill tool | G | A chart, in Edit |
+|  | Color picker tool | I | A chart, in Edit |
 |  | Text tool | — | A chart, in Edit |
 |  | Backstitch tool | K | A chart, in Edit |
 |  | BS edit tool | J | A chart, in Edit |
