@@ -348,3 +348,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D310 — A release is numbered by its notes and cut by one step; "What's new" is built from the cut files — active
 - D311 — The development loop carries notes, and every deploy is a release — active
 - D312 — A workspace is an ordinary feature; its switch closes the workspace, not each feature inside it — active
+- D313 — A command names its workspace, and the workspace's switch wins over its own — active

@@ -46,7 +46,10 @@ import { isTry, trySettingsOf, type Try } from "@/lib/editor/tries";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { useTries } from "./hooks/use-tries";
 import { TriesStrip } from "./components/tries-strip";
-import { workspaceEdits, workspaceOpen, workspaceShown } from "@/lib/editor/workspaces";
+import { noWorkspaceOn, workspaceEdits, workspaceFeature, workspaceOpen, workspaceShown } from "@/lib/editor/workspaces";
+import { featureUsable } from "@/lib/features/features";
+import { gatedAction } from "./commands/registry";
+import { NoWorkspace } from "./components/no-workspace";
 import { toolDefinition } from "./tools/registry";
 import { useTools } from "./tools/use-tools";
 import { useShellCommands } from "./commands/shell-commands";
@@ -118,10 +121,13 @@ export default function Workspace({ account }: WorkspaceProps) {
     restoreSliders: (adjust) => updateOption("photoAdjust", adjust),
   });
   const { viewMode, inspectorTab, chooseViewMode, chooseInspectorTab, chooseWorkspace } = view;
-  // The workspace shown (G-095, D297): the one chosen, or Photo while there is no chart to edit or export. Only Edit
-  // changes the chart; in the other two it is looked at, whatever view is up.
-  // Until the browser obeys the workspace switches (G-103 M2), Photo stands in when none can be shown.
-  const workspace = workspaceShown(view.workspace, { hasChart: pattern !== null, startingNew, features }) ?? "photo";
+  // The workspace shown (G-095, D297): the one chosen, or the first that can be entered (G-103, D312). Only Edit changes
+  // the chart; in the other two it is looked at, whatever view is up. Null when none can be: no chart shown and Photo
+  // off, where the start choices are what is offered, or every workspace off, where a window says so.
+  const workspaceConditions = { hasChart: pattern !== null, startingNew, features };
+  const workspace = workspaceShown(view.workspace, workspaceConditions);
+  const everyWorkspaceOff = noWorkspaceOn(features);
+  const photoOn = featureUsable(features, workspaceFeature("photo"));
   const editing = workspaceEdits(workspace);
   const lookingOnly = isViewOnlyMode(viewMode) || !editing;
   // Two colours since G-064: the squares never move, so the pair is two slots and a flag saying which is in
@@ -290,10 +296,12 @@ export default function Workspace({ account }: WorkspaceProps) {
       awaitRecommendedCount: () => recommendedCount.awaitNext(),
     },
   });
-  const { startScreenVisible } = lifecycle;
+  // With no workspace to show, the start choices are what is offered, even over a photo the browser kept (G-103).
+  const startScreenVisible = lifecycle.startScreenVisible || workspace === null;
   // How many colours the picture reasonably needs, which, and how well the set being set up covers it (G-087).
   const colorPrediction = useColorPrediction({
-    photoDataUrl: source.meta?.dataUrl ?? null,
+    // Nothing is asked of the server for a workspace that is off (G-103).
+    photoDataUrl: photoOn ? (source.meta?.dataUrl ?? null) : null,
     longerSideStitches: longerSideFor(options),
     paletteMode: options.paletteSetup ? options.paletteSet.mode : options.paletteMode,
     photoAdjust: options.photoAdjust,
@@ -456,7 +464,7 @@ export default function Workspace({ account }: WorkspaceProps) {
   );
   // While the list is up the keys are the list's: nothing typed there reaches a tool or a view.
   // The same while the preferences are up: what is typed there is for them.
-  useKeyboardShortcuts(commands, scrollerRef, commandListOpen || preferencesOpen);
+  useKeyboardShortcuts(commands, scrollerRef, commandListOpen || preferencesOpen || everyWorkspaceOff);
 
   /** Closing without running anything gives the focus back to the button; after a command it is left on the page, so the chart's keys act at once. */
   function closeCommandList(ran: boolean) {
@@ -467,6 +475,9 @@ export default function Workspace({ account }: WorkspaceProps) {
   // The skin in force (G-095, D295). One is shipped; choosing between skins is a later goal's.
   const skin = ATELIER;
   const chartShown = pattern !== null && !startingNew;
+  /** Save is the editable export, so it goes with Export's switch (G-103), and there is something to save only with a chart shown. */
+  const saveAction = (action: ReturnType<typeof gatedAction>) =>
+    chartShown && action ? { ...action, busy: exports.isExporting || exports.isExportingAll } : null;
   const toolTabUp = tools.tab !== null && chartShown && toolTabShown(tools.activation, toolTabClosedAt);
 
   return (
@@ -491,216 +502,218 @@ export default function Workspace({ account }: WorkspaceProps) {
         {lifecycle.confirm && (
           <ConfirmNewChart
             pattern={lifecycle.confirm.pattern}
-            onExportThenStart={lifecycle.confirm.exportThenStart}
+            exportThenStart={gatedAction("file.export-editable", features, lifecycle.confirm.exportThenStart)}
             onKeepEditing={lifecycle.confirm.keepEditing}
             onStartNew={lifecycle.confirm.startNew}
             pinnedTries={tries.pinnedCount}
           />
         )}
 
-        <EditorLayout
-          appBar={
-            <AppBar
-              account={account}
-              chartName={chartShown ? (pattern.name ?? "cross-stitch-pattern") : null}
-              workspace={workspace}
-              onWorkspaceChange={chooseWorkspace}
-              workspaceOpen={(candidate) => workspaceOpen(candidate, { hasChart: pattern !== null, startingNew, features })}
-              history={
-                chartShown
-                  ? {
-                      canUndo: history.canUndo,
-                      canRedo: history.canRedo,
-                      undo: history.undo,
-                      redo: history.redo,
-                      pieceInHand: tools.piece.selection !== null,
-                    }
-                  : null
-              }
-              onNewChart={() => setStartingNew(true)}
-              newChartDisabled={startScreenVisible}
-              save={
-                chartShown ? { run: () => void exports.exportEditableNow(), busy: exports.isExporting || exports.isExportingAll } : null
-              }
-              onOpenCommands={() => setCommandListOpen(true)}
-              commandsDisabled={startingNew}
-              commandsButtonRef={commandsButtonRef}
-              onOpenPreferences={() => setPreferencesOpen(true)}
-            />
-          }
-          tools={
-            <ToolRail
-              workspace={workspace}
-              activeTool={activeTool}
-              disabled={!chartShown}
-              onSelect={switchTool}
-              squareCanvas={pattern !== null && pattern.width === pattern.height}
-              onMirror={applyMirror}
-            />
-          }
-          quickBar={
-            <QuickBar
-              pattern={pattern}
-              workspace={workspace}
-              tool={{
-                label: toolDefinition(activeTool).label,
-                shares: tools.shares,
-                options: tools.options,
-                valueOf: (option) => readToolOption(options, option),
-                onChange: (option, value) => {
-                  const written = writeToolOption(options, option, value);
-                  updateOption(written.key, written.value as never);
-                },
-                quick: tools.quick,
-              }}
-              photo={{ isLoading: source.isLoading, hasSource: source.hasPhoto }}
-              colours={{ slots: colours.slots, onActivate: colours.setActiveSlot, onSwap: colours.swap }}
-              symmetry={{
-                axes: liveSymmetry,
-                squareCanvas: pattern !== null && pattern.width === pattern.height,
-                onToggle: symmetryState.toggle,
-              }}
-              lock={{ on: options.lockTransparency, onChange: (on) => updateOption("lockTransparency", on) }}
-              start={{ startingNew, onBackToChart: () => setStartingNew(false) }}
-            />
-          }
-          notices={
-            <WorkspaceNotices
-              restoreFailure={lifecycle.restore.failure}
-              onDownloadRestoreReport={() =>
-                lifecycle.restore.failure && downloadPatternLoadReport({ content: lifecycle.restore.failure.payload })
-              }
-              onDismissRestoreFailure={lifecycle.restore.dismissFailure}
-              openError={lifecycle.messages.openError}
-              onDismissOpenError={lifecycle.messages.dismissOpenError}
-              openNotice={lifecycle.messages.openNotice}
-              onDismissOpenNotice={lifecycle.messages.dismissOpenNotice}
-              exportError={exports.exportError}
-              onDismissExportError={exports.dismissExportError}
-            />
-          }
-          stage={
-            <ImageWindow
-              refs={{ scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef }}
-              chart={{
-                pattern,
-                cellSize,
-                sourceMeta: source.meta,
-                viewMode,
-                activeTool,
-                activeColorIndex,
-                cursorHidden: hoverOutline !== null,
-                lookingOnly: !editing,
-              }}
-              start={{
-                visible: startScreenVisible,
-                startingNew,
-                isLoadingImage: source.isLoading,
-                onChoosePhoto: lifecycle.choosePhoto,
-                onCreateBlank: lifecycle.createBlank,
-                onImportPixelArt: lifecycle.choosePixelArt,
-                onOpenPatternFile: lifecycle.chooseFile,
-              }}
-              preview={renderer}
-              adjust={adjustPreview}
-              pointer={{
-                onDown: handleCanvasPointerDown,
-                onMove: handleCanvasPointerMove,
-                onUp: handleCanvasPointerUp,
-                onLeave: () => updateHoverOutline(null),
-                onDoubleClick: tools.onDoubleClick,
-                onDrop: handleCanvasDrop,
-              }}
-              options={options}
-              cropOverlay={startingNew ? null : tools.overlay}
-              marks={
-                // Where the pages of a paged export fall, while that export is the one chosen.
-                workspace === "export" && chartShown && paginatesAsA4(exports.exportKind) && exports.a4LayoutPreview ? (
-                  <PageCuts pages={exports.a4LayoutPreview.pages} cellSize={cellSize} lettered={exports.exportKind.startsWith("a4-")} />
-                ) : null
-              }
-            />
-          }
-          viewControls={
-            chartShown ? (
-              <ViewControls
-                awayRef={viewControlsRef}
-                mode={viewMode}
-                onModeChange={chooseViewMode}
-                hasPhoto={pattern.sourceImage !== undefined}
-                isolate={lit.isolate}
-                onIsolateChange={lit.setIsolate}
-                litCount={lit.count}
-                zoomLevel={panZoom.zoomLevel}
-                onZoomIn={() => panZoom.zoomBy(ZOOM_STEP)}
-                onZoomOut={() => panZoom.zoomBy(1 / ZOOM_STEP)}
-                onResetZoom={panZoom.resetZoom}
+        {everyWorkspaceOff ? (
+          <NoWorkspace />
+        ) : (
+          <EditorLayout
+            appBar={
+              <AppBar
+                account={account}
+                chartName={chartShown ? (pattern.name ?? "cross-stitch-pattern") : null}
+                workspace={workspace}
+                onWorkspaceChange={chooseWorkspace}
+                workspaceOpen={(candidate) => workspaceOpen(candidate, workspaceConditions)}
+                history={
+                  chartShown
+                    ? {
+                        canUndo: history.canUndo,
+                        canRedo: history.canRedo,
+                        undo: history.undo,
+                        redo: history.redo,
+                        pieceInHand: tools.piece.selection !== null,
+                      }
+                    : null
+                }
+                onNewChart={() => setStartingNew(true)}
+                newChartDisabled={startScreenVisible}
+                save={saveAction(gatedAction("file.export-editable", features, () => void exports.exportEditableNow()))}
+                onOpenCommands={() => setCommandListOpen(true)}
+                commandsDisabled={startingNew}
+                commandsButtonRef={commandsButtonRef}
+                onOpenPreferences={() => setPreferencesOpen(true)}
               />
-            ) : null
-          }
-          strip={
-            workspace === "photo" && chartShown && !photoFree ? (
-              <TriesStrip
-                tries={tries.tries}
-                currentId={currentTryId}
-                busy={generation.isProcessing}
-                refusal={tries.refusal}
-                onChoose={showTry}
-                onPin={tries.pin}
-                onUnpin={tries.unpin}
-                onDelete={tries.remove}
-                onEdit={() => chooseWorkspace("edit")}
+            }
+            tools={
+              <ToolRail
+                workspace={workspace}
+                activeTool={activeTool}
+                disabled={!chartShown}
+                onSelect={switchTool}
+                squareCanvas={pattern !== null && pattern.width === pattern.height}
+                onMirror={applyMirror}
               />
-            ) : null
-          }
-          readout={
-            <StatusBar
-              pattern={startingNew ? null : pattern}
-              aidaCount={options.aidaCount}
-              sizeUnit={options.sizeUnit}
-              autosaveStatus={lifecycle.autosaveStatus}
-              hasPattern={chartShown}
-              scrollerRef={scrollerRef}
-              frameRef={frameRef}
-              cellSize={cellSize}
-            />
-          }
-          panel={
-            <WorkspacePanel
-              workspace={workspace}
-              pattern={pattern}
-              chartShown={chartShown}
-              startingNew={startingNew}
-              photoFree={photoFree}
-              options={options}
-              onOptionChange={updateOption}
-              onChartOptionChange={updateChartOption}
-              edit={{
-                tab: inspectorTab,
-                onTabChange: (tab) => {
-                  setToolTabClosedAt(tools.activation);
-                  chooseInspectorTab(tab);
-                },
-                toolTab: tools.tab && chartShown ? { ...tools.tab, shown: toolTabUp, onChoose: () => setToolTabClosedAt(-1) } : null,
-                name: nameDraft,
-                onNameChange: setNameDraft,
-                onNameCommit: () => pattern && history.set(renamePattern(pattern, nameDraft)),
-                commit: history.set,
-                onPreviewChange: setColorPreview,
-                onMergeColors: handleMergeColors,
-                documentId: lifecycle.documentId,
-              }}
-              colours={colours}
-              lit={lit}
-              piece={tools.piece}
-              source={source}
-              generation={generation}
-              prediction={colorPrediction}
-              adjustPreview={adjustPreview}
-              exports={exports}
-            />
-          }
-        />
+            }
+            quickBar={
+              <QuickBar
+                pattern={pattern}
+                workspace={workspace}
+                tool={{
+                  label: toolDefinition(activeTool).label,
+                  shares: tools.shares,
+                  options: tools.options,
+                  valueOf: (option) => readToolOption(options, option),
+                  onChange: (option, value) => {
+                    const written = writeToolOption(options, option, value);
+                    updateOption(written.key, written.value as never);
+                  },
+                  quick: tools.quick,
+                }}
+                photo={{ isLoading: source.isLoading, hasSource: source.hasPhoto }}
+                colours={{ slots: colours.slots, onActivate: colours.setActiveSlot, onSwap: colours.swap }}
+                symmetry={{
+                  axes: liveSymmetry,
+                  squareCanvas: pattern !== null && pattern.width === pattern.height,
+                  onToggle: symmetryState.toggle,
+                }}
+                lock={{ on: options.lockTransparency, onChange: (on) => updateOption("lockTransparency", on) }}
+                start={{ startingNew, onBackToChart: () => setStartingNew(false) }}
+              />
+            }
+            notices={
+              <WorkspaceNotices
+                restoreFailure={lifecycle.restore.failure}
+                onDownloadRestoreReport={() =>
+                  lifecycle.restore.failure && downloadPatternLoadReport({ content: lifecycle.restore.failure.payload })
+                }
+                onDismissRestoreFailure={lifecycle.restore.dismissFailure}
+                openError={lifecycle.messages.openError}
+                onDismissOpenError={lifecycle.messages.dismissOpenError}
+                openNotice={lifecycle.messages.openNotice}
+                onDismissOpenNotice={lifecycle.messages.dismissOpenNotice}
+                exportError={exports.exportError}
+                onDismissExportError={exports.dismissExportError}
+              />
+            }
+            stage={
+              <ImageWindow
+                refs={{ scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef }}
+                chart={{
+                  pattern,
+                  cellSize,
+                  sourceMeta: source.meta,
+                  viewMode,
+                  activeTool,
+                  activeColorIndex,
+                  cursorHidden: hoverOutline !== null,
+                  lookingOnly: !editing,
+                }}
+                start={{
+                  visible: startScreenVisible,
+                  startingNew,
+                  isLoadingImage: source.isLoading,
+                  choosePhoto: gatedAction("file.choose-photo", features, lifecycle.choosePhoto),
+                  onCreateBlank: lifecycle.createBlank,
+                  onImportPixelArt: lifecycle.choosePixelArt,
+                  onOpenPatternFile: lifecycle.chooseFile,
+                }}
+                preview={renderer}
+                adjust={adjustPreview}
+                pointer={{
+                  onDown: handleCanvasPointerDown,
+                  onMove: handleCanvasPointerMove,
+                  onUp: handleCanvasPointerUp,
+                  onLeave: () => updateHoverOutline(null),
+                  onDoubleClick: tools.onDoubleClick,
+                  onDrop: handleCanvasDrop,
+                }}
+                options={options}
+                cropOverlay={startingNew ? null : tools.overlay}
+                marks={
+                  // Where the pages of a paged export fall, while that export is the one chosen.
+                  workspace === "export" && chartShown && paginatesAsA4(exports.exportKind) && exports.a4LayoutPreview ? (
+                    <PageCuts pages={exports.a4LayoutPreview.pages} cellSize={cellSize} lettered={exports.exportKind.startsWith("a4-")} />
+                  ) : null
+                }
+              />
+            }
+            viewControls={
+              chartShown ? (
+                <ViewControls
+                  awayRef={viewControlsRef}
+                  mode={viewMode}
+                  onModeChange={chooseViewMode}
+                  hasPhoto={pattern.sourceImage !== undefined}
+                  isolate={lit.isolate}
+                  onIsolateChange={lit.setIsolate}
+                  litCount={lit.count}
+                  zoomLevel={panZoom.zoomLevel}
+                  onZoomIn={() => panZoom.zoomBy(ZOOM_STEP)}
+                  onZoomOut={() => panZoom.zoomBy(1 / ZOOM_STEP)}
+                  onResetZoom={panZoom.resetZoom}
+                />
+              ) : null
+            }
+            strip={
+              workspace === "photo" && chartShown && !photoFree ? (
+                <TriesStrip
+                  tries={tries.tries}
+                  currentId={currentTryId}
+                  busy={generation.isProcessing}
+                  refusal={tries.refusal}
+                  onChoose={showTry}
+                  onPin={tries.pin}
+                  onUnpin={tries.unpin}
+                  onDelete={tries.remove}
+                  onEdit={gatedAction("view.workspace-edit", features, () => chooseWorkspace("edit"))}
+                />
+              ) : null
+            }
+            readout={
+              <StatusBar
+                pattern={startingNew ? null : pattern}
+                aidaCount={options.aidaCount}
+                sizeUnit={options.sizeUnit}
+                autosaveStatus={lifecycle.autosaveStatus}
+                hasPattern={chartShown}
+                scrollerRef={scrollerRef}
+                frameRef={frameRef}
+                cellSize={cellSize}
+              />
+            }
+            panel={
+              <WorkspacePanel
+                workspace={workspace}
+                pattern={pattern}
+                chartShown={chartShown}
+                startingNew={startingNew}
+                photoFree={photoFree}
+                options={options}
+                onOptionChange={updateOption}
+                onChartOptionChange={updateChartOption}
+                edit={{
+                  tab: inspectorTab,
+                  onTabChange: (tab) => {
+                    setToolTabClosedAt(tools.activation);
+                    chooseInspectorTab(tab);
+                  },
+                  toolTab: tools.tab && chartShown ? { ...tools.tab, shown: toolTabUp, onChoose: () => setToolTabClosedAt(-1) } : null,
+                  name: nameDraft,
+                  onNameChange: setNameDraft,
+                  onNameCommit: () => pattern && history.set(renamePattern(pattern, nameDraft)),
+                  commit: history.set,
+                  onPreviewChange: setColorPreview,
+                  onMergeColors: handleMergeColors,
+                  documentId: lifecycle.documentId,
+                }}
+                colours={colours}
+                lit={lit}
+                piece={tools.piece}
+                source={source}
+                generation={generation}
+                prediction={colorPrediction}
+                adjustPreview={adjustPreview}
+                exports={exports}
+              />
+            }
+          />
+        )}
 
         {/*
         The navigator is gone from the interface (Owner, 2026-09-18), but three specs read this canvas as their way of

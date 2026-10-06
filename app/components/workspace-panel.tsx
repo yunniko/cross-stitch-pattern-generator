@@ -28,7 +28,8 @@ import { PillButton } from "./ui";
  * picks from each what its panes need, so the shell says which owners there are and not which field goes to which pane.
  */
 export interface WorkspacePanelProps {
-  workspace: Workspace;
+  /** Null when no workspace can be shown (G-103): no chart shown and Photo off, so only the start choices are offered. */
+  workspace: Workspace | null;
   pattern: StitchPattern | null;
   /** A chart is open and the start screen is not over it. */
   chartShown: boolean;
@@ -87,6 +88,16 @@ export function WorkspacePanel({
   // The tabs are for the settings; while there are none to show (no photo yet, a chart with none, a job running) the
   // panel holds one pane under its name.
   const photoSettingsShown = !startingNew && !photoFree && source.hasPhoto && !generation.isProcessing;
+
+  if (workspace === null) {
+    return (
+      <Inspector
+        title="Settings"
+        tabs={null}
+        pane={<p className="p-4 text-[13px] text-muted">Start a chart from the choices in the middle; its settings appear here.</p>}
+      />
+    );
+  }
 
   if (workspace === "edit") {
     return (

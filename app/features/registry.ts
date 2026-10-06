@@ -112,7 +112,7 @@ export function toolUsable(states: FeatureStates, tool: Tool): boolean {
 }
 
 /** The first tool the workspace offers that may be picked up, in the registry's order; null if none. */
-export function firstUsableTool(states: FeatureStates, workspace: Workspace): Tool | null {
+export function firstUsableTool(states: FeatureStates, workspace: Workspace | null): Tool | null {
   return TOOL_DEFINITIONS.find((tool) => toolOffered(tool, workspace) && toolUsable(states, tool.id))?.id ?? null;
 }
 

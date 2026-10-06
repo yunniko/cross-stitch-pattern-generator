@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleCommands, COMMAND_DEFINITIONS } from "../../app/commands/registry";
+import { assembleCommands, COMMAND_DEFINITIONS, commandDefinition, commandGate, gatedAction } from "../../app/commands/registry";
 import { commandFeature, FEATURES, featureById, generationSettingFeature, isFeatureId, toolFeature } from "../../app/features/registry";
 import { TOOL_DEFINITIONS } from "../../app/tools/registry";
 import { CANVAS_TEXTURES } from "../../lib/export/canvas-texture-catalog";
@@ -209,5 +209,74 @@ describe("the command table under the switches", () => {
     // Core commands are never touched.
     expect(gated.find((c) => c.id === "edit.undo")?.available).toBe(true);
     expect(gated).toHaveLength(all.length - 1);
+  });
+});
+
+describe("the commands under their workspace's switch (G-103, D313)", () => {
+  const idle = { available: true, run: () => {} };
+  const shell = Object.fromEntries(COMMAND_DEFINITIONS.filter((c) => !c.id.startsWith("tool.")).map((c) => [c.id, idle])) as Parameters<
+    typeof assembleCommands
+  >[0];
+  const workspaceOf = (id: string) => commandDefinition(id).workspace;
+
+  it("names the workspace whose work each command does", () => {
+    for (const id of ["file.choose-photo", "generate.run", "generate.cancel", "generate.reset-adjustment", "view.workspace-photo"])
+      expect(workspaceOf(id), id).toBe("photo");
+    for (const id of ["file.export", "file.export-all", "file.export-editable", "view.workspace-export"])
+      expect(workspaceOf(id), id).toBe("export");
+    for (const id of [
+      "chart.mirror-left-half",
+      "chart.symmetry-vertical",
+      "chart.lock-transparency",
+      "tool.brush",
+      "tool.select",
+      "view.workspace-edit",
+    ])
+      expect(workspaceOf(id), id).toBe("edit");
+    // Belonging to none: a new chart, opening a file or pixel art (Owner: these stay with Photo off), Undo, the view.
+    for (const id of ["file.new", "file.open", "file.import-pixel-art", "edit.undo", "edit.redo", "view.color", "tool.pan", "tool.zoom"])
+      expect(workspaceOf(id), id).toBeUndefined();
+  });
+
+  it("lets the workspace win: hidden hides, locked locks with the workspace's name", () => {
+    const definition = commandDefinition("chart.mirror-left-half");
+    expect(commandGate(definition, EVERYTHING_ON)).toEqual({ state: "on" });
+    expect(commandGate(definition, { "workspace.edit": "hidden" })).toEqual({ state: "hidden" });
+    expect(commandGate(definition, { "workspace.edit": "locked" })).toEqual({ state: "locked", note: "Edit is not available to you." });
+    // Its own switch still counts, and hidden from either side wins over locked from the other.
+    expect(commandGate(definition, { "chart.mirror": "locked" })).toEqual({
+      state: "locked",
+      note: "Mirror the left half is not available to you.",
+    });
+    expect(commandGate(definition, { "chart.mirror": "hidden", "workspace.edit": "locked" })).toEqual({ state: "hidden" });
+    expect(commandGate(definition, { "chart.mirror": "locked", "workspace.edit": "hidden" })).toEqual({ state: "hidden" });
+  });
+
+  it("takes a workspace's commands out of the table, keys and all, and leaves the rest", () => {
+    const all = assembleCommands(shell, () => idle, []);
+    const noPhoto = assembleCommands(shell, () => idle, [], { "workspace.photo": "hidden" });
+    for (const id of ["file.choose-photo", "generate.run", "view.workspace-photo"])
+      expect(
+        noPhoto.find((c) => c.id === id),
+        id
+      ).toBeUndefined();
+    expect(noPhoto.find((c) => c.id === "file.import-pixel-art")?.available).toBe(true);
+    expect(noPhoto.find((c) => c.id === "edit.undo")?.available).toBe(true);
+    const lockedEdit = assembleCommands(shell, () => idle, [], { "workspace.edit": "locked" });
+    expect(lockedEdit).toHaveLength(all.length);
+    const brush = lockedEdit.find((c) => c.id === "tool.brush")!;
+    expect(brush).toMatchObject({ available: false, when: "Edit is not available to you." });
+    expect(lockedEdit.find((c) => c.id === "tool.pan")?.available).toBe(true);
+  });
+
+  it("gives a control outside the table the same answer", () => {
+    const run = () => {};
+    expect(gatedAction("file.export-editable", EVERYTHING_ON, run)).toEqual({ run });
+    expect(gatedAction("file.export-editable", { "workspace.export": "hidden" }, run)).toBeNull();
+    expect(gatedAction("file.export-editable", { "workspace.export": "locked" }, run)).toMatchObject({
+      locked: "Export is not available to you.",
+    });
+    expect(gatedAction("file.export-editable", { "workspace.export": "locked" }, run)?.run).not.toBe(run);
+    expect(() => gatedAction("file.nothing", EVERYTHING_ON, run)).toThrow(/Unknown command "file.nothing"/);
   });
 });

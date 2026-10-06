@@ -36,7 +36,8 @@ const DIVIDER = <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />
 
 export interface QuickBarProps {
   pattern: StitchPattern | null;
-  workspace: Workspace;
+  /** Null when no workspace can be shown (G-103), which is only ever with no chart shown. */
+  workspace: Workspace | null;
   /** The tool in hand: its name, the shared options it reads, the options it declares and its own controls. */
   tool: {
     label: string;

@@ -26,8 +26,8 @@ export interface ShellState {
   startScreenVisible: boolean;
   /** The person's feature states: a workspace switched off cannot be entered (G-103). */
   features: FeatureStates;
-  /** The workspace shown (G-095, D297): only Edit changes the chart, and each offers its own tools. */
-  workspace: Workspace;
+  /** The workspace shown (G-095, D297): only Edit changes the chart, and each offers its own tools. Null: none can be. */
+  workspace: Workspace | null;
   squareChart: boolean;
   /** A piece is in hand: history is not the reader's to step through yet (G-063). */
   hasPiece: boolean;

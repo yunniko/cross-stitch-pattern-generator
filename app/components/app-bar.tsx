@@ -3,7 +3,10 @@
 import Link from "next/link";
 import type { RefObject } from "react";
 import { WORKSPACES, type Workspace } from "@/lib/editor/workspaces";
+import { featureState } from "@/lib/features/features";
+import { useFeatures } from "../features/features-context";
 import { SkinIcon } from "../skin/skin";
+import { lockedControlProps } from "./feature-gate";
 import { DISABLED_ICON, DISABLED_TEXT, PillButton } from "./ui";
 
 /**
@@ -22,9 +25,10 @@ export interface AppBarProps {
   account: { name: string | null; email: string } | null;
   /** The open chart's name; null with no chart, or with the start screen over it. */
   chartName: string | null;
-  workspace: Workspace;
+  /** The workspace shown; null when none can be (G-103: no chart shown and Photo off). */
+  workspace: Workspace | null;
   onWorkspaceChange: (workspace: Workspace) => void;
-  /** Whether a workspace can be entered now: Edit and Export need a chart. */
+  /** Whether a workspace can be entered now: its switch on, and for Edit and Export a chart. */
   workspaceOpen: (workspace: Workspace) => boolean;
   /** Undo and Redo; absent when there is no chart for them to act on. */
   history: { canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void; pieceInHand: boolean } | null;
@@ -32,8 +36,11 @@ export interface AppBarProps {
   onNewChart: () => void;
   /** The start screen is what New opens, so New has nothing to do while it is already up. */
   newChartDisabled: boolean;
-  /** Downloads the editable file, which is the chart's save file; absent with no chart to save. */
-  save: { run: () => void; busy: boolean } | null;
+  /**
+   * Downloads the editable file, which is the chart's save file; absent with no chart to save, or with Export hidden.
+   * `locked` is the note when Export is locked (G-103): Save is shown greyed with it.
+   */
+  save: { run: () => void; busy: boolean; locked?: string } | null;
   /** Opens the command list (G-093); Ctrl+K does the same (D288). */
   onOpenCommands: () => void;
   commandsDisabled: boolean;
@@ -58,6 +65,8 @@ export function AppBar({
   commandsButtonRef,
   onOpenPreferences,
 }: AppBarProps) {
+  // Each tab is under its workspace's switch (G-103, D312): hidden, the tab is absent; locked, it is greyed with its note.
+  const features = useFeatures();
   return (
     <header className="flex h-11 shrink-0 items-stretch gap-3 border-b border-line bg-surface px-3" data-testid="app-bar">
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -76,9 +85,10 @@ export function AppBar({
           <button
             type="button"
             onClick={save.run}
-            disabled={save.busy}
+            disabled={save.busy || save.locked !== undefined}
             aria-label="Save"
-            title="Save: download the editable pattern (.json), which opens here again with everything in it"
+            data-feature-locked={save.locked !== undefined ? "workspace.export" : undefined}
+            title={save.locked ?? "Save: download the editable pattern (.json), which opens here again with everything in it"}
             className={APP_BUTTON}
           >
             <SkinIcon name="download" />
@@ -97,7 +107,9 @@ export function AppBar({
       </div>
 
       <div role="tablist" aria-label="Workspace" className="flex shrink-0 items-stretch">
-        {WORKSPACES.map(({ id, label, title }) => {
+        {WORKSPACES.map(({ id, label, title, feature }) => {
+          const gate = lockedControlProps(featureState(features, feature), feature);
+          if (gate === null) return null;
           const selected = workspace === id;
           return (
             <button
@@ -106,8 +118,9 @@ export function AppBar({
               role="tab"
               id={`workspace-tab-${id}`}
               aria-selected={selected}
-              disabled={!workspaceOpen(id)}
-              title={title}
+              disabled={gate.disabled || !workspaceOpen(id)}
+              data-feature-locked={gate["data-feature-locked"]}
+              title={gate.title ?? title}
               onClick={() => onWorkspaceChange(id)}
               className={`min-w-[5.5rem] border-b-2 px-4 text-[13px] transition-colors ${DISABLED_TEXT} ${
                 selected ? "border-accent bg-raised font-medium text-ink" : "border-transparent text-muted enabled:hover:text-ink"

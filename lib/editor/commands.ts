@@ -1,4 +1,5 @@
 import type { FeatureDeclaration } from "../features/features";
+import type { Workspace } from "./workspaces";
 /**
  * Commands (G-093, D286): an action the editor has, registered once with its name, its keys and when it is available. The
  * keyboard shortcuts and the command list both read the registered table; nothing else decides what a key does.
@@ -50,6 +51,11 @@ export interface CommandDefinition {
    * itself; `null` is core, never switched; a string names the feature it belongs to (the four mirrors are one).
    */
   feature?: FeatureDeclaration;
+  /**
+   * The workspace whose work it does (G-103, D313). That workspace switched off takes the command with it, whatever the
+   * command's own switch says; left out, the command belongs to none and only its own switch applies.
+   */
+  workspace?: Workspace;
 }
 
 export interface CommandState {

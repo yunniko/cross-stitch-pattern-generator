@@ -66,14 +66,14 @@ export interface OfferedTool {
 /**
  * Whether a workspace offers a tool. The tools that only move the view are offered everywhere; every other tool is offered
  * in its own workspace, which is Edit unless it says otherwise. So Photo and Export, where the chart is only looked at,
- * offer no tool that could change it.
+ * offer no tool that could change it. With no workspace shown (null) only the tools that move the view are offered.
  */
-export function toolOffered(tool: OfferedTool, workspace: Workspace): boolean {
-  return tool.navigation === true || (tool.workspace ?? "edit") === workspace;
+export function toolOffered(tool: OfferedTool, workspace: Workspace | null): boolean {
+  return tool.navigation === true || (workspace !== null && (tool.workspace ?? "edit") === workspace);
 }
 
-/** Only Edit changes the chart: in the other two every tool, key and drop that would is refused. */
-export function workspaceEdits(workspace: Workspace): boolean {
+/** Only Edit changes the chart: in the other two, and with none shown, every tool, key and drop that would is refused. */
+export function workspaceEdits(workspace: Workspace | null): boolean {
   return workspace === "edit";
 }
 

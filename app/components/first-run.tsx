@@ -6,6 +6,7 @@ import { STANDARD_AIDA_COUNTS, formatFinishedSize } from "@/lib/export/finished-
 import { MAX_STITCHES, MIN_STITCHES } from "@/lib/types";
 import { DISABLED_TEXT, PillButton, SegmentedControl } from "./ui";
 import { SkinIcon } from "../skin/skin";
+import type { GatedAction } from "./feature-gate";
 
 /**
  * The first-run screen (direction 1b): the three ways into a chart, offered where the chart will appear rather than
@@ -60,7 +61,8 @@ function SizeField({
 }
 
 export interface FirstRunProps {
-  onChoosePhoto: () => void;
+  /** "Choose a photo", under the Photo workspace's switch (G-103): absent when hidden, greyed with its note when locked. */
+  choosePhoto: GatedAction;
   onOpenPattern: () => void;
   /** Create the blank chart. The caller decides whether replacing an open chart needs confirming first. */
   /** An empty grid of this size, on fabric of this count. */
@@ -115,35 +117,41 @@ function BlankForm({ options, onCreateBlank }: Pick<FirstRunProps, "options" | "
   );
 }
 
-export function FirstRun({ onChoosePhoto, onOpenPattern, onCreateBlank, onImportPixelArt, options, busy }: FirstRunProps) {
+export function FirstRun({ choosePhoto, onOpenPattern, onCreateBlank, onImportPixelArt, options, busy }: FirstRunProps) {
   const [open, setOpen] = useState(false);
 
   return (
     <div className="flex w-[620px] max-w-full flex-col gap-[26px]">
-      <h2 className="m-0 text-[32px] leading-[38px] font-medium tracking-[-0.02em] text-ink">A photo in, a stitchable chart out.</h2>
+      <h2 className="m-0 text-[32px] leading-[38px] font-medium tracking-[-0.02em] text-ink">
+        {choosePhoto ? "A photo in, a stitchable chart out." : "Start a chart."}
+      </h2>
 
       <div className="flex flex-col gap-2.5">
-        <button
-          type="button"
-          onClick={() => {
-            setOpen(false);
-            onChoosePhoto();
-          }}
-          disabled={busy}
-          className={`${CARD} text-ink ${DISABLED_TEXT} ${
-            open ? "border-line bg-raised enabled:hover:bg-sunken" : "border-accent bg-accent/[.08] enabled:hover:bg-accent/[.14]"
-          }`}
-        >
-          <span className={`shrink-0 ${!open ? "text-accent" : "text-muted"}`}>
-            <SkinIcon name="photo" className="h-[22px] w-[22px]" />
-          </span>
-          <span className="flex-1">
-            <span className="block text-[15px] font-medium">Choose a photo</span>
-            <span className="block text-xs leading-[17px] text-muted">
-              JPEG, PNG or WebP · uploaded to this site&apos;s server to be charted
+        {choosePhoto && (
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              choosePhoto.run();
+            }}
+            disabled={busy || choosePhoto.locked !== undefined}
+            title={choosePhoto.locked}
+            data-feature-locked={choosePhoto.locked !== undefined ? "workspace.photo" : undefined}
+            className={`${CARD} text-ink ${DISABLED_TEXT} ${
+              open ? "border-line bg-raised enabled:hover:bg-sunken" : "border-accent bg-accent/[.08] enabled:hover:bg-accent/[.14]"
+            }`}
+          >
+            <span className={`shrink-0 ${!open ? "text-accent" : "text-muted"}`}>
+              <SkinIcon name="photo" className="h-[22px] w-[22px]" />
             </span>
-          </span>
-        </button>
+            <span className="flex-1">
+              <span className="block text-[15px] font-medium">Choose a photo</span>
+              <span className="block text-xs leading-[17px] text-muted">
+                {choosePhoto.locked ?? <>JPEG, PNG or WebP · uploaded to this site&apos;s server to be charted</>}
+              </span>
+            </span>
+          </button>
+        )}
 
         <div className={`flex flex-col rounded-[10px] border ${open ? "border-accent bg-accent/[.06]" : "border-line bg-raised"}`}>
           <button

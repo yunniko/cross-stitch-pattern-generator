@@ -24,6 +24,13 @@ export function FeatureGate({ id, children }: { id: string | null; children: Rea
   );
 }
 
+/**
+ * An action run from a control outside the command table, under the switch of the command it is (G-103, D313): null
+ * when hidden, so the control is absent; `locked` is the note when locked, and the control is greyed with it. Made by
+ * `gatedAction` in `app/commands/registry.ts` from the command's gate, so the refusal is the command table's own.
+ */
+export type GatedAction = { run: () => void; locked?: string } | null;
+
 /** For one control: null when it is hidden, else the attributes a locked control carries (none when it is on). */
 export function lockedControlProps(
   state: "on" | "locked" | "hidden",

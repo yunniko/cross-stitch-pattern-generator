@@ -5,8 +5,10 @@ import {
   featureState,
   lockedNote,
   type FeatureDeclaration,
+  type FeatureState,
   type FeatureStates,
 } from "@/lib/features/features";
+import { workspaceFeature, WORKSPACES, type Workspace } from "@/lib/editor/workspaces";
 import { TOOL_DEFINITIONS, TOOL_MODULES, type Tool } from "../tools/registry";
 import type { ToolModule } from "../tools/types";
 
@@ -24,6 +26,7 @@ const SHELL_COMMANDS = [
   { id: "file.new", feature: null, name: "New chart", group: "File", when: "The start screen is not already up" },
   {
     id: "file.choose-photo",
+    workspace: "photo",
     feature: null,
     name: "Choose a photo",
     group: "File",
@@ -31,14 +34,50 @@ const SHELL_COMMANDS = [
   },
   { id: "file.open", feature: null, name: "Open a pattern file", group: "File", when: "Always" },
   { id: "file.import-pixel-art", feature: null, name: "Import pixel art", group: "File", when: "Always" },
-  { id: "file.export", feature: null, name: "Export in the chosen kind", group: "File", when: "A chart; no export running" },
-  { id: "file.export-all", feature: null, name: "Export all kinds", group: "File", when: "A chart; no export running" },
-  { id: "file.export-editable", feature: null, name: "Export the editable file", group: "File", when: "A chart; no export running" },
+  {
+    id: "file.export",
+    workspace: "export",
+    feature: null,
+    name: "Export in the chosen kind",
+    group: "File",
+    when: "A chart; no export running",
+  },
+  {
+    id: "file.export-all",
+    workspace: "export",
+    feature: null,
+    name: "Export all kinds",
+    group: "File",
+    when: "A chart; no export running",
+  },
+  {
+    id: "file.export-editable",
+    workspace: "export",
+    feature: null,
+    name: "Export the editable file",
+    group: "File",
+    when: "A chart; no export running",
+  },
 
-  { id: "generate.run", feature: null, name: "Generate or regenerate the chart", group: "Generate", when: "A photo; nothing generating" },
-  { id: "generate.cancel", feature: null, name: "Cancel generating", group: "Generate", when: "A chart is being generated" },
+  {
+    id: "generate.run",
+    workspace: "photo",
+    feature: null,
+    name: "Generate or regenerate the chart",
+    group: "Generate",
+    when: "A photo; nothing generating",
+  },
+  {
+    id: "generate.cancel",
+    workspace: "photo",
+    feature: null,
+    name: "Cancel generating",
+    group: "Generate",
+    when: "A chart is being generated",
+  },
   {
     id: "generate.reset-adjustment",
+    workspace: "photo",
     feature: null,
     name: "Reset the photo adjustment",
     group: "Generate",
@@ -58,10 +97,25 @@ const SHELL_COMMANDS = [
   { id: "colours.swap", feature: null, name: "Swap the two drawing colours", group: "Colours", when: "A chart", keys: ["X"] },
   { id: "colours.isolate", name: "Isolate the lit threads", group: "Colours", when: "A chart" },
 
-  { id: "chart.mirror-left-half", feature: "chart.mirror", name: "Mirror the left half", group: "Chart", when: "A chart, in Edit" },
-  { id: "chart.mirror-upper-half", feature: "chart.mirror", name: "Mirror the upper half", group: "Chart", when: "A chart, in Edit" },
+  {
+    id: "chart.mirror-left-half",
+    workspace: "edit",
+    feature: "chart.mirror",
+    name: "Mirror the left half",
+    group: "Chart",
+    when: "A chart, in Edit",
+  },
+  {
+    id: "chart.mirror-upper-half",
+    workspace: "edit",
+    feature: "chart.mirror",
+    name: "Mirror the upper half",
+    group: "Chart",
+    when: "A chart, in Edit",
+  },
   {
     id: "chart.mirror-upper-left-corner",
+    workspace: "edit",
     feature: "chart.mirror",
     name: "Mirror the upper-left corner",
     group: "Chart",
@@ -69,6 +123,7 @@ const SHELL_COMMANDS = [
   },
   {
     id: "chart.mirror-upper-left-half-corner",
+    workspace: "edit",
     feature: "chart.mirror",
     name: "Mirror the upper-left half corner",
     group: "Chart",
@@ -76,6 +131,7 @@ const SHELL_COMMANDS = [
   },
   {
     id: "chart.symmetry-vertical",
+    workspace: "edit",
     feature: "chart.symmetry",
     name: "Vertical symmetry on or off",
     group: "Chart",
@@ -83,6 +139,7 @@ const SHELL_COMMANDS = [
   },
   {
     id: "chart.symmetry-horizontal",
+    workspace: "edit",
     feature: "chart.symmetry",
     name: "Horizontal symmetry on or off",
     group: "Chart",
@@ -90,6 +147,7 @@ const SHELL_COMMANDS = [
   },
   {
     id: "chart.symmetry-diagonal",
+    workspace: "edit",
     feature: "chart.symmetry",
     name: "Diagonal symmetry ↘ on or off",
     group: "Chart",
@@ -97,21 +155,36 @@ const SHELL_COMMANDS = [
   },
   {
     id: "chart.symmetry-antidiagonal",
+    workspace: "edit",
     feature: "chart.symmetry",
     name: "Diagonal symmetry ↙ on or off",
     group: "Chart",
     when: "A square chart, in Edit",
   },
-  { id: "chart.lock-transparency", name: "Transparency lock on or off", group: "Chart", when: "A chart, in Edit" },
+  { id: "chart.lock-transparency", workspace: "edit", name: "Transparency lock on or off", group: "Chart", when: "A chart, in Edit" },
 
   { id: "view.color", feature: null, name: "Color view", group: "View", when: "A chart", keys: ["1"] },
   { id: "view.bw", feature: null, name: "Black & white view", group: "View", when: "A chart", keys: ["2"] },
   { id: "view.realistic", feature: "view.realistic", name: "Stitched view", group: "View", when: "A chart", keys: ["3"] },
   { id: "view.photo", feature: "view.photo", name: "Grid + photo view", group: "View", when: "A chart with a photo", keys: ["4"] },
   { id: "view.photo-only", feature: "view.photo", name: "Original photo view", group: "View", when: "A chart with a photo", keys: ["5"] },
-  { id: "view.workspace-photo", feature: null, name: "Photo workspace", group: "View", when: "Not already there" },
-  { id: "view.workspace-edit", feature: null, name: "Edit workspace", group: "View", when: "A chart; not already there" },
-  { id: "view.workspace-export", feature: null, name: "Export workspace", group: "View", when: "A chart; not already there" },
+  { id: "view.workspace-photo", workspace: "photo", feature: null, name: "Photo workspace", group: "View", when: "Not already there" },
+  {
+    id: "view.workspace-edit",
+    workspace: "edit",
+    feature: null,
+    name: "Edit workspace",
+    group: "View",
+    when: "A chart; not already there",
+  },
+  {
+    id: "view.workspace-export",
+    workspace: "export",
+    feature: null,
+    name: "Export workspace",
+    group: "View",
+    when: "A chart; not already there",
+  },
   { id: "view.zoom-in", feature: null, name: "Zoom in", group: "View", when: "A chart" },
   { id: "view.zoom-out", feature: null, name: "Zoom out", group: "View", when: "A chart" },
   { id: "view.zoom-reset", feature: null, name: "Reset zoom to 100%", group: "View", when: "A chart" },
@@ -179,7 +252,14 @@ const TOOL_COMMANDS: CommandDefinition[] = TOOL_DEFINITIONS.map((tool) => ({
   ...(tool.key ? { keys: [tool.key.toUpperCase()] } : {}),
   // Under the tool's feature switch (G-102): the key and the command go with the tool.
   feature: toolFeatureOf(tool),
+  // And under its workspace's (G-103): a tool that moves the view belongs to none.
+  ...(tool.navigation ? {} : { workspace: toolWorkspaceOf(tool) }),
 }));
+
+/** The workspace that offers a tool that changes the chart: its own, or Edit. */
+function toolWorkspaceOf(tool: { workspace?: Workspace }): Workspace {
+  return tool.workspace ?? "edit";
+}
 
 /** The feature a tool is under: its own, another tool's, or none (core). */
 function toolFeatureOf(tool: { id: string; feature?: FeatureDeclaration }): string | null {
@@ -191,6 +271,9 @@ const MODULE_COMMANDS: CommandDefinition[] = (TOOL_MODULES as readonly ToolModul
   (module.commands ?? []).map((command) => ({
     ...command,
     feature: command.feature === undefined ? toolFeatureOf(module.definitions[0]) : command.feature,
+    ...(command.workspace === undefined && module.definitions[0].navigation
+      ? {}
+      : { workspace: command.workspace ?? toolWorkspaceOf(module.definitions[0]) }),
   }))
 );
 
@@ -198,6 +281,48 @@ const MODULE_COMMANDS: CommandDefinition[] = (TOOL_MODULES as readonly ToolModul
 export const COMMAND_DEFINITIONS: readonly CommandDefinition[] = COMMAND_GROUPS.flatMap((group) =>
   [...SHELL_COMMANDS, ...TOOL_COMMANDS, ...MODULE_COMMANDS].filter((command) => command.group === group)
 );
+
+/** A registered command's definition, by id; an id nobody registered is a mistake and says so. */
+export function commandDefinition(id: string): CommandDefinition {
+  const definition = COMMAND_DEFINITIONS.find((candidate) => candidate.id === id);
+  if (!definition) throw new Error(`Unknown command "${id}".`);
+  return definition;
+}
+
+/** Whether a command is under a switch now, and the note a locked one carries. */
+export interface CommandGate {
+  state: FeatureState;
+  /** Set when locked: names what is not available, the workspace when it is the workspace that is off. */
+  note?: string;
+}
+
+/**
+ * The one rule for a command under the switches (G-102; G-103, D313). Its workspace's switch wins over its own: either
+ * hidden hides it, and either locked locks it, with the workspace named when the workspace is the reason. Read by the
+ * command table and by every control that runs a command from outside it (the start choices, Save, "Export, then start
+ * new"), so a refusal is written once.
+ */
+export function commandGate(definition: CommandDefinition, features: FeatureStates): CommandGate {
+  const feature = declaredFeatureId(`command.${definition.id}`, definition.feature);
+  const own = feature === null ? "on" : featureState(features, feature);
+  const workspace = definition.workspace ? WORKSPACES.find((entry) => entry.id === definition.workspace)! : null;
+  const area = workspace ? featureState(features, workspaceFeature(workspace.id)) : "on";
+  if (own === "hidden" || area === "hidden") return { state: "hidden" };
+  if (area === "locked") return { state: "locked", note: lockedNote(workspace!.label) };
+  if (own === "locked") return { state: "locked", note: lockedNote(definition.name) };
+  return { state: "on" };
+}
+
+/**
+ * A command's action for a control outside the table (the start choices, Save, "Export, then start new"): null when the
+ * command is hidden, the note and nothing to run when it is locked, else the action. The control draws what this says.
+ */
+export function gatedAction(id: string, features: FeatureStates, run: () => void): { run: () => void; locked?: string } | null {
+  const gate = commandGate(commandDefinition(id), features);
+  if (gate.state === "hidden") return null;
+  if (gate.state === "locked") return { run: () => {}, locked: gate.note };
+  return { run };
+}
 
 /**
  * The table with what each command does now. `useCommandTable` is the same thing under a hook's name, for the editor shell:
@@ -228,13 +353,12 @@ export function assembleCommands(
   for (const definition of COMMAND_DEFINITIONS) {
     const state = states.get(definition.id);
     if (!state) throw new Error(`The command "${definition.id}" is registered with nothing to run.`);
-    // Under a feature switch (G-102): hidden leaves the command out, and its key with it; locked lists it, unavailable,
-    // with the note in place of when it could run.
-    const feature = declaredFeatureId(`command.${definition.id}`, definition.feature);
-    const featureStateNow = feature === null ? "on" : featureState(features, feature);
-    if (featureStateNow === "hidden") continue;
-    if (featureStateNow === "locked") {
-      commands.push({ ...definition, when: lockedNote(definition.name), available: false, run: () => false });
+    // Under a feature switch (G-102) or its workspace's (G-103): hidden leaves the command out, and its key with it;
+    // locked lists it, unavailable, with the note in place of when it could run.
+    const gate = commandGate(definition, features);
+    if (gate.state === "hidden") continue;
+    if (gate.state === "locked") {
+      commands.push({ ...definition, when: gate.note!, available: false, run: () => false });
       continue;
     }
     commands.push({ ...definition, available: state.available, claimsKey: state.claimsKey, run: state.run, release: state.release });

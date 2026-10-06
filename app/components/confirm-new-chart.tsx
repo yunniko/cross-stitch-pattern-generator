@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { filledStitchCount, formatStitchCount, type StitchPattern } from "@/lib/types";
 import { useModalFocus } from "../hooks/use-modal-focus";
+import type { GatedAction } from "./feature-gate";
 import { PillButton } from "./ui";
 
 /**
@@ -13,15 +14,18 @@ import { PillButton } from "./ui";
 
 export interface ConfirmNewChartProps {
   pattern: StitchPattern;
-  /** Saves the editable file of the open chart and, only if that worked, goes on to the new one. */
-  onExportThenStart: () => void;
+  /**
+   * Saves the editable file of the open chart and, only if that worked, goes on to the new one. Under the Export
+   * workspace's switch (G-103): absent when hidden, greyed with its note when locked.
+   */
+  exportThenStart: GatedAction;
   onKeepEditing: () => void;
   onStartNew: () => void;
   /** How many tries are pinned for the photo in hand (G-095): said here, since another photo drops them. */
   pinnedTries?: number;
 }
 
-export function ConfirmNewChart({ pattern, onExportThenStart, onKeepEditing, onStartNew, pinnedTries = 0 }: ConfirmNewChartProps) {
+export function ConfirmNewChart({ pattern, exportThenStart, onKeepEditing, onStartNew, pinnedTries = 0 }: ConfirmNewChartProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Escape is the safe way out, and the safe action takes focus: nothing destructive is one stray Enter away.
@@ -52,9 +56,11 @@ export function ConfirmNewChart({ pattern, onExportThenStart, onKeepEditing, onS
           </p>
         )}
 
-        <p className="m-0 text-[12px] leading-[17px] text-muted">
-          Exporting first downloads the editable .json, which keeps this chart on your machine; you can open it again later.
-        </p>
+        {exportThenStart && !exportThenStart.locked && (
+          <p className="m-0 text-[12px] leading-[17px] text-muted">
+            Exporting first downloads the editable .json, which keeps this chart on your machine; you can open it again later.
+          </p>
+        )}
 
         {/* The safe choice is one press and the prominent one (Owner, 2026-10-04); Escape and the focus stay on keeping the chart. */}
         <div className="flex flex-wrap items-center justify-end gap-2 pt-0.5">
@@ -64,14 +70,18 @@ export function ConfirmNewChart({ pattern, onExportThenStart, onKeepEditing, onS
           <PillButton size="md" onClick={onStartNew} title="Replace this chart without saving a copy">
             Start new chart
           </PillButton>
-          <PillButton
-            variant="primary"
-            size="md"
-            onClick={onExportThenStart}
-            title="Download the editable .json of this chart, then start the new one"
-          >
-            Export, then start new
-          </PillButton>
+          {exportThenStart && (
+            <PillButton
+              variant="primary"
+              size="md"
+              onClick={exportThenStart.run}
+              disabled={exportThenStart.locked !== undefined}
+              data-feature-locked={exportThenStart.locked !== undefined ? "workspace.export" : undefined}
+              title={exportThenStart.locked ?? "Download the editable .json of this chart, then start the new one"}
+            >
+              Export, then start new
+            </PillButton>
+          )}
         </div>
       </div>
     </div>

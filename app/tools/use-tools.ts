@@ -19,7 +19,7 @@ import { firstUsableTool, toolUsable } from "../features/registry";
  * What the shell knows before the tools exist: everything in `EditorApi` but the tool in hand, which lives here, and the
  * workspace shown, which decides which tools are offered and has its own tool in hand (G-095, D297).
  */
-export type ToolsInputs = Omit<EditorApi, "activeTool"> & { workspace: Workspace };
+export type ToolsInputs = Omit<EditorApi, "activeTool"> & { workspace: Workspace | null };
 
 const NO_PIECE: PieceService = {
   selection: null,
@@ -79,9 +79,12 @@ export function useTools(inputs: ToolsInputs): Tools {
   // Under the feature switches (G-102): a tool that is not usable is never the one in hand, whatever was held before.
   const features = useFeatures();
   const usable = (tool: Tool) => toolUsable(features, tool);
-  const held = inHand[workspace];
-  const activeTool = usable(held) ? held : (firstUsableTool(features, workspace) ?? held);
-  const setActiveTool = (tool: Tool) => setInHand((held) => ({ ...held, [workspace]: tool }));
+  // With no workspace shown (G-103: no chart shown and Photo off) a tool that moves the view is in hand, and none is kept.
+  const held = workspace === null ? inHand.photo : inHand[workspace];
+  const activeTool = workspace !== null && usable(held) ? held : (firstUsableTool(features, workspace) ?? held);
+  const setActiveTool = (tool: Tool) => {
+    if (workspace !== null) setInHand((held) => ({ ...held, [workspace]: tool }));
+  };
   const [activation, setActivation] = useState(0);
   const api: EditorApi = { ...inputs, activeTool };
 

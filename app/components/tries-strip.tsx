@@ -5,6 +5,7 @@ import { PINNED_TRIES, RECENT_TRIES, trySummary, type Try } from "@/lib/editor/t
 import { EMPTY_CELL, type StitchPattern } from "@/lib/types";
 import { SkinIcon } from "../skin/skin";
 import { DISABLED_ICON, PillButton } from "./ui";
+import type { GatedAction } from "./feature-gate";
 
 /**
  * The tries, under the picture in the Photo workspace (G-095 M4, proposal D, D298): each chart a Generate made, to go
@@ -61,8 +62,8 @@ export interface TriesStripProps {
   onPin: (id: string) => void;
   onUnpin: (id: string) => void;
   onDelete: (id: string) => void;
-  /** Takes the chart on into the Edit workspace. */
-  onEdit: () => void;
+  /** Takes the chart on into the Edit workspace; under Edit's switch (G-103), absent when hidden, greyed when locked. */
+  onEdit: GatedAction;
 }
 
 export function TriesStrip({ tries, currentId, busy, refusal, onChoose, onPin, onUnpin, onDelete, onEdit }: TriesStripProps) {
@@ -135,9 +136,18 @@ export function TriesStrip({ tries, currentId, busy, refusal, onChoose, onPin, o
         })}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <PillButton variant="raised" size="md" onClick={onEdit} disabled={busy} title="Take the chart shown into the Edit workspace">
-          Continue in Edit →
-        </PillButton>
+        {onEdit && (
+          <PillButton
+            variant="raised"
+            size="md"
+            onClick={onEdit.run}
+            disabled={busy || onEdit.locked !== undefined}
+            data-feature-locked={onEdit.locked !== undefined ? "workspace.edit" : undefined}
+            title={onEdit.locked ?? "Take the chart shown into the Edit workspace"}
+          >
+            Continue in Edit →
+          </PillButton>
+        )}
         {refusal ? (
           <span role="alert" className="max-w-[18rem] text-right text-[11px] leading-4 text-warning" data-testid="tries-refusal">
             {refusal}

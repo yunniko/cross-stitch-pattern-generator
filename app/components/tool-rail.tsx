@@ -33,8 +33,8 @@ const MIRROR_ACTIONS: Array<{ kind: QuickMirror; label: string; title: string }>
 ];
 
 export interface ToolRailProps {
-  /** The workspace shown: it offers its own tools, and only Edit has the quick mirrors (G-095, D297). */
-  workspace: Workspace;
+  /** The workspace shown: it offers its own tools, and only Edit has the quick mirrors (G-095, D297). Null: none. */
+  workspace: Workspace | null;
   activeTool: Tool;
   disabled: boolean;
   onSelect: (tool: Tool) => void;

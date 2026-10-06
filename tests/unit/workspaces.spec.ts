@@ -48,6 +48,13 @@ describe("the workspaces", () => {
     expect(toolOffered(cutOut, "export")).toBe(false);
   });
 
+  it("with none shown (G-103), offer only the tools that move the view, and nothing edits", () => {
+    const offered = TOOL_DEFINITIONS.filter((tool) => toolOffered(tool, null));
+    expect(offered.length).toBeGreaterThan(0);
+    for (const tool of offered) expect(tool.navigation, tool.id).toBe(true);
+    expect(workspaceEdits(null)).toBe(false);
+  });
+
   it("each starts with the first tool it offers in hand", () => {
     expect(firstTools(TOOL_DEFINITIONS)).toEqual({ photo: "pan", edit: "brush", export: "pan" });
     expect(() => firstTools([{ id: "only-edit" }])).toThrow(/photo workspace offers no tool/);

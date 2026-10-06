@@ -6,6 +6,7 @@ import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import type { SourceImageMeta } from "../hooks/use-source-image";
 import { useCanvasCloth } from "../hooks/use-canvas-cloth";
 import { FirstRun } from "./first-run";
+import type { GatedAction } from "./feature-gate";
 import { RULER_THICKNESS, Rulers } from "./rulers";
 import { useAutoDismiss } from "../hooks/use-auto-dismiss";
 import { DismissButton, PillButton } from "./ui";
@@ -54,7 +55,7 @@ export interface ImageWindowProps {
     /** New was pressed with a chart open: the start screen covers it until a card is chosen or Back is pressed. */
     startingNew: boolean;
     isLoadingImage: boolean;
-    onChoosePhoto: () => void;
+    choosePhoto: GatedAction;
     onCreateBlank: (width: number, height: number, count: number) => void;
     onImportPixelArt: () => void;
     onOpenPatternFile: () => void;
@@ -122,7 +123,7 @@ function cursorFor(activeTool: Tool, activeColorIndex: number | null, lookingOnl
 export function ImageWindow({ refs, chart, start, preview, adjust, pointer, options, cropOverlay = null, marks = null }: ImageWindowProps) {
   const { scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef } = refs;
   const { pattern, cellSize, sourceMeta, viewMode, activeTool, activeColorIndex, cursorHidden, lookingOnly } = chart;
-  const { visible: startScreen, startingNew, isLoadingImage, onChoosePhoto, onCreateBlank, onImportPixelArt, onOpenPatternFile } = start;
+  const { visible: startScreen, startingNew, isLoadingImage, choosePhoto, onCreateBlank, onImportPixelArt, onOpenPatternFile } = start;
   const { previewError, retryPreview: onRetryPreview, dismissPreviewError: onDismissPreviewError } = preview;
   const { active: adjustActive, ready: adjustReady, size: adjustSize, attach: adjustCanvasRef } = adjust;
   const { onDown: onPointerDown, onMove: onPointerMove, onUp: onPointerUp, onLeave: onPointerLeave, onDoubleClick, onDrop } = pointer;
@@ -199,7 +200,7 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
         )}
         {startScreen && (
           <FirstRun
-            onChoosePhoto={onChoosePhoto}
+            choosePhoto={choosePhoto}
             onOpenPattern={onOpenPatternFile}
             onCreateBlank={onCreateBlank}
             onImportPixelArt={onImportPixelArt}
