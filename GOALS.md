@@ -25,7 +25,30 @@ One line per change; deployed in batches, each batch after one full-suite run.
 
 **Architecture fit (review of every draft, 2026-10-06; Owner: "ensure they will be implemented fitting to that architecture").** Each draft below carries an **Architecture fit** entry. It is a constraint on that goal's plan, compelled by `docs/architecture.md` (sections 1 to 3, enforced as section 5 says) and by that instruction: the plan names the registry, contract or module each part goes through, and a plan that has to depart from the entry says why in a decision file. **To settle** lists what the review found that only the Owner can answer; it is asked when the goal is planned, never guessed. What the entries say about the code was read on 2026-10-06 at a69dcf5.
 
-**Order the review suggests (a judgment, the Owner's to change):** G-103 first (it gives the feature list the parent relation the others lean on); then G-104, G-110 and G-100 in any order; G-105; G-107; G-109; G-114 and G-111 with or before G-108; G-113 before G-106; G-112 last, once the interface these goals change has settled. The prerequisites the review found missing are drafted as G-111, G-113 and G-114 (Owner, 2026-10-06: "draft prerequisites as goals").
+**Sequence the review suggests (2026-10-06, written down at the Owner's word; a judgment, the Owner's to change).** Two tracks, because the drafts fall into two groups that barely touch: the editor, which needs nothing from outside, and accounts, where most steps wait on something of the Owner's. When a step of one track waits, work goes on in the other. The prerequisites the review found missing are drafted as G-111, G-113 and G-114 (Owner, 2026-10-06: "draft prerequisites as goals").
+
+Editor track:
+
+1. **G-105** (versions and notes): first, because it is small and from then on every release has a number and notes; done later, everything below ships without them.
+2. **G-103** (workspaces as features): it gives the feature list the parent relation G-109 needs, and removes the "Photo is always there" assumptions from the code the next two build on.
+3. **G-110** (the view as switches) and **G-104** (colour picker), in either order: neither needs the other. G-110 first only because it works in the file G-103 has just changed.
+4. **G-100** (dithering): independent of the rest, so it can move anywhere. Placed here because it waits for an answer on the larger preview (D206, D208), and its preview request joins G-109's list if that exists by then.
+5. **G-112** (the user guide): once 2 to 4 have changed what it pictures. From then on its check keeps it current, so it need not wait for the account track.
+
+Account track:
+
+1. **G-107** (admin and account pages): first, since every later step adds a page, and adds it as an entry in the lists this goal makes. Waits on: mock-ups with the Owner.
+2. **G-113** (email): before anything makes an account necessary or worth something. Waits on: the sender's domain; built against the stand-in meanwhile.
+3. **G-109** (limits): after G-103 and G-113. It makes generating and exporting need an account, so an account must be recoverable first. Waits on: the values and periods.
+4. **G-114** (backups): before the database holds anything a person cannot make again. The schedule on the host and the proven restore wait on nothing; the copy off the host waits on the Owner.
+5. **G-108** (saved charts), in two parts if the Owner agrees: saving and reopening (private and unlisted) first; the public gallery with **G-111**'s moderation second, since only the gallery waits on the shape of moderation and on advice about hosting other people's content.
+6. **G-106** (subscriptions): last. It prices tiers against limits (G-109), takes money against a confirmed address (G-113), must say what happens to saved charts (G-108), and waits on the most from outside (the Stripe account, terms, VAT).
+
+Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose chart store it uses; G-101 after G-104 and G-110, since it must show a control for every key they add; G-030 stays unplanned.
+
+**Worked one at a time**, the two tracks interleaved so that the Owner's answers are asked for early and the editor work fills the waits: G-105, G-103, G-110, G-104, G-107, G-113, G-109, G-100, G-114, G-108 (saving), G-112, G-108 (gallery) with G-111, G-106; then G-097 and G-101.
+
+**The shortest road to selling**, if that becomes the aim: G-103, G-107, G-113, G-109, G-106. Saved charts, the gallery, the guide and the editor goals can all follow it; tiers would then differ by features and limits only, and G-106's "what happens to saved charts" has nothing to decide until G-108.
 
 ### G-103 · The three workspaces are features: Generation, Edit and Export each switched with its tab — DRAFT (2026-10-06)
 - **What:** asked by the Owner, 2026-10-06. Generation, Edit and Export become features in the G-102 list, each one switch covering both the work and the way in: the workspace's tab and everything inside it. Hidden: the tab is absent and the workspace cannot be reached by any road (key, command list, link, a request to the server). Locked: the tab is shown greyed with its note. On, Locked or Hidden for the site, a person, a feature set, guests or accounts, as every other feature.
