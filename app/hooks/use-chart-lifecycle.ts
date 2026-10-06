@@ -124,6 +124,15 @@ export function useChartLifecycle({
     action();
   }
 
+  function photoChosen(file: File) {
+    setPhotoError(null);
+    setOpenNotice(null);
+    void source.loadFile(file, {
+      onLoaded: () => void replace("photo", null),
+      onFailed: () => setPhotoError("Couldn't read that image. Try a different file (JPEG, PNG, or WebP)."),
+    });
+  }
+
   return {
     pattern,
     documentId,
@@ -140,6 +149,8 @@ export function useChartLifecycle({
     inputs,
     /** The ways in, as the person asks for them: each opens its file chooser, after the confirmation when a chart is open. */
     choosePhoto: () => startNewChart(() => inputs.photo.current?.click()),
+    /** A photo dropped on the start screen: the same way in as choosing one, after the same confirmation (G-103). */
+    dropPhoto: (file: File) => startNewChart(() => photoChosen(file)),
     chooseFile: () => startNewChart(() => inputs.open.current?.click()),
     choosePixelArt: () => startNewChart(() => inputs.pixelArt.current?.click()),
     /**
@@ -168,14 +179,7 @@ export function useChartLifecycle({
         : null,
 
     /** A photo was chosen: a new document with fresh history, neutral sliders and no chosen colours, shown as it is until Generate. */
-    photoChosen(file: File) {
-      setPhotoError(null);
-      setOpenNotice(null);
-      void source.loadFile(file, {
-        onLoaded: () => void replace("photo", null),
-        onFailed: () => setPhotoError("Couldn't read that image. Try a different file (JPEG, PNG, or WebP)."),
-      });
-    },
+    photoChosen,
 
     /** A saved file was chosen. When it cannot be opened nothing is replaced, so the open chart is still the "previous version" (Owner, 2026-09-12). */
     fileChosen(file: File) {

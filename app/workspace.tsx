@@ -296,6 +296,9 @@ export default function Workspace({ account }: WorkspaceProps) {
       awaitRecommendedCount: () => recommendedCount.awaitNext(),
     },
   });
+  // A dropped photo is the photo choice by another road, so it goes under that command's gate (D313); a locked one takes none either.
+  const photoChoice = gatedAction("file.choose-photo", features, () => {});
+  const dropPhoto = photoChoice && photoChoice.locked === undefined ? lifecycle.dropPhoto : null;
   // With no workspace to show, the start choices are what is offered, even over a photo the browser kept (G-103).
   const startScreenVisible = lifecycle.startScreenVisible || workspace === null;
   // How many colours the picture reasonably needs, which, and how well the set being set up covers it (G-087).
@@ -573,7 +576,7 @@ export default function Workspace({ account }: WorkspaceProps) {
                   onToggle: symmetryState.toggle,
                 }}
                 lock={{ on: options.lockTransparency, onChange: (on) => updateOption("lockTransparency", on) }}
-                start={{ startingNew, onBackToChart: () => setStartingNew(false) }}
+                start={{ startingNew, photoDrop: dropPhoto !== null, onBackToChart: () => setStartingNew(false) }}
               />
             }
             notices={
@@ -609,6 +612,7 @@ export default function Workspace({ account }: WorkspaceProps) {
                   startingNew,
                   isLoadingImage: source.isLoading,
                   choosePhoto: gatedAction("file.choose-photo", features, lifecycle.choosePhoto),
+                  dropPhoto,
                   onCreateBlank: lifecycle.createBlank,
                   onImportPixelArt: lifecycle.choosePixelArt,
                   onOpenPatternFile: lifecycle.chooseFile,

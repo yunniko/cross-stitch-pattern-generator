@@ -119,6 +119,8 @@ function BlankForm({ options, onCreateBlank }: Pick<FirstRunProps, "options" | "
 
 export function FirstRun({ choosePhoto, onOpenPattern, onCreateBlank, onImportPixelArt, options, busy }: FirstRunProps) {
   const [open, setOpen] = useState(false);
+  // The photo card is the one offered first, unless the other choices are open or it is locked (G-103): a greyed card is never the accent.
+  const photoLeads = !open && choosePhoto?.locked === undefined;
 
   return (
     <div className="flex w-[620px] max-w-full flex-col gap-[26px]">
@@ -138,10 +140,10 @@ export function FirstRun({ choosePhoto, onOpenPattern, onCreateBlank, onImportPi
             title={choosePhoto.locked}
             data-feature-locked={choosePhoto.locked !== undefined ? "workspace.photo" : undefined}
             className={`${CARD} text-ink ${DISABLED_TEXT} ${
-              open ? "border-line bg-raised enabled:hover:bg-sunken" : "border-accent bg-accent/[.08] enabled:hover:bg-accent/[.14]"
+              photoLeads ? "border-accent bg-accent/[.08] enabled:hover:bg-accent/[.14]" : "border-line bg-raised enabled:hover:bg-sunken"
             }`}
           >
-            <span className={`shrink-0 ${!open ? "text-accent" : "text-muted"}`}>
+            <span className={`shrink-0 ${photoLeads ? "text-accent" : "text-muted"}`}>
               <SkinIcon name="photo" className="h-[22px] w-[22px]" />
             </span>
             <span className="flex-1">

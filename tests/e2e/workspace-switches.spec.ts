@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
-import { FIXTURE, SAMPLE_CHART, openSmallChart, saveButton } from "./helpers/app";
+import { FIXTURE, SAMPLE_CHART, expectPhotoLoaded, openSmallChart, saveButton } from "./helpers/app";
 import { clearSiteFeatures, setSiteFeatures } from "./helpers/features";
 
 /**
@@ -161,10 +161,49 @@ test("all three off: a window says so in place of the editor, and the chart open
   await page.keyboard.press("Control+k");
   await expect(list(page)).toHaveCount(0);
 
+  // It fits a phone's width: nothing to scroll sideways to read it.
+  await page.setViewportSize({ width: 375, height: 740 });
+  const box = await window.boundingBox();
+  expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+  await page.setViewportSize({ width: 1440, height: 900 });
+
   await clearSiteFeatures(WORKSPACE_IDS);
   await page.reload();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
   await expect(window).toHaveCount(0);
+});
+
+/** Drops the fixture photo on the well, as a file dragged from the desktop would arrive. */
+async function dropPhoto(page: Page) {
+  const bytes = [...readFileSync(FIXTURE)];
+  const transfer = await page.evaluateHandle((bytes) => {
+    const data = new DataTransfer();
+    data.items.add(new File([new Uint8Array(bytes)], "photo.png", { type: "image/png" }));
+    return data;
+  }, bytes);
+  const well = page.getByTestId("viewer");
+  await well.dispatchEvent("dragover", { dataTransfer: transfer });
+  await well.dispatchEvent("drop", { dataTransfer: transfer });
+}
+
+test("a photo dropped on the start screen is taken with Photo on, and with it locked or hidden nothing is offered or taken @alone", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByText("Drop a photo anywhere below")).toBeVisible();
+  await dropPhoto(page);
+  await expectPhotoLoaded(page);
+
+  for (const state of ["locked", "hidden"] as const) {
+    await setSiteFeatures({ "workspace.photo": state });
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: /^(Start a chart\.|A photo in, a stitchable chart out\.)$/ })).toBeVisible();
+    await expect(page.getByText("Drop a photo anywhere below")).toHaveCount(0);
+    await dropPhoto(page);
+    // The page is still the editor's start screen: the drop neither loaded the photo nor left the browser to open it.
+    await expect(page.getByRole("button", { name: /^(Generate pattern|Regenerate)$/ })).toHaveCount(0);
+    await expect(page.getByTestId("viewer")).toBeVisible();
+  }
 });
 
 /** Posts to a route from the page, as the interface would, and reads the status and the error. */

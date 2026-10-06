@@ -56,6 +56,8 @@ export interface ImageWindowProps {
     startingNew: boolean;
     isLoadingImage: boolean;
     choosePhoto: GatedAction;
+    /** A photo dropped while the start screen shows (G-103): null when Photo is not on, and then a dropped file is ignored. */
+    dropPhoto: ((file: File) => void) | null;
     onCreateBlank: (width: number, height: number, count: number) => void;
     onImportPixelArt: () => void;
     onOpenPatternFile: () => void;
@@ -123,7 +125,28 @@ function cursorFor(activeTool: Tool, activeColorIndex: number | null, lookingOnl
 export function ImageWindow({ refs, chart, start, preview, adjust, pointer, options, cropOverlay = null, marks = null }: ImageWindowProps) {
   const { scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef } = refs;
   const { pattern, cellSize, sourceMeta, viewMode, activeTool, activeColorIndex, cursorHidden, lookingOnly } = chart;
-  const { visible: startScreen, startingNew, isLoadingImage, choosePhoto, onCreateBlank, onImportPixelArt, onOpenPatternFile } = start;
+  const {
+    visible: startScreen,
+    startingNew,
+    isLoadingImage,
+    choosePhoto,
+    dropPhoto,
+    onCreateBlank,
+    onImportPixelArt,
+    onOpenPatternFile,
+  } = start;
+  // A file dragged over the well is never left to the browser, which would open it in place of the editor; it is taken
+  // as a photo only while the start screen shows and Photo is on.
+  const carriesFiles = (e: DragEvent<HTMLDivElement>) => e.dataTransfer.types.includes("Files");
+  const onFileDragOver = (e: DragEvent<HTMLDivElement>) => {
+    if (carriesFiles(e)) e.preventDefault();
+  };
+  const onFileDrop = (e: DragEvent<HTMLDivElement>) => {
+    if (!carriesFiles(e)) return;
+    e.preventDefault();
+    const photo = [...e.dataTransfer.files].find((file) => file.type.startsWith("image/"));
+    if (photo && startScreen && dropPhoto && !isLoadingImage) dropPhoto(photo);
+  };
   const { previewError, retryPreview: onRetryPreview, dismissPreviewError: onDismissPreviewError } = preview;
   const { active: adjustActive, ready: adjustReady, size: adjustSize, attach: adjustCanvasRef } = adjust;
   const { onDown: onPointerDown, onMove: onPointerMove, onUp: onPointerUp, onLeave: onPointerLeave, onDoubleClick, onDrop } = pointer;
@@ -143,6 +166,8 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
   return (
     <div
       data-testid="viewer"
+      onDragOver={onFileDragOver}
+      onDrop={onFileDrop}
       // The well in the middle, a ruler on each side: the rulers are beside the scroller, never over it (D135).
       className="grid min-h-0 min-w-0 flex-1 bg-surface"
       style={{ gridTemplateColumns: `${ruler}px minmax(0, 1fr) ${ruler}px`, gridTemplateRows: `${ruler}px minmax(0, 1fr) ${ruler}px` }}

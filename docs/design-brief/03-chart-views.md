@@ -47,7 +47,7 @@ These are always shown with a chart open:
 
 ## Photo before the chart exists
 
-While a photo is loaded and there is no chart, the photo is shown in the view area; with photo-adjustment values off neutral it is shown adjusted. A **Compare with original** toggle appears then, switching between the adjusted and the original photo. While no chart is open the area also says "No chart open — Drop a photo anywhere below"; dropping a photo file is **not** supported (a file is chosen through the file choice only, `02`), so a redesign may drop that sentence or implement the capability.
+While a photo is loaded and there is no chart, the photo is shown in the view area; with photo-adjustment values off neutral it is shown adjusted. A **Compare with original** toggle appears then, switching between the adjusted and the original photo. While the start choices are shown the area also says "Drop a photo anywhere below", and an image file dropped anywhere on the view area is taken as a photo, the same way in as choosing one (`02`), after the same question about the open chart. Only while Photo is on (`10`): otherwise the sentence is absent and a dropped file is ignored. A file dropped on the view area is never left to the browser, which would open it in place of the editor.
 
 ## Chart settings that affect how it is shown
 

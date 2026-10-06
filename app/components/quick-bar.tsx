@@ -59,13 +59,14 @@ export interface QuickBarProps {
   /** The transparency lock (G-079): drawing and filling cannot turn empty stitches into colour or the reverse. */
   lock: { on: boolean; onChange: (on: boolean) => void };
   /** The start screen is up over an open chart: the bar says so and offers the way back (Atelier). */
-  start: { startingNew: boolean; onBackToChart: () => void };
+  /** `photoDrop`: a photo dropped on the start screen is taken, so the hint is shown (G-103: not while Photo is off). */
+  start: { startingNew: boolean; photoDrop: boolean; onBackToChart: () => void };
 }
 
 export function QuickBar({ pattern, workspace, tool, photo, colours, symmetry, lock, start }: QuickBarProps) {
   const symmetryFeature = useFeature("chart.symmetry");
   const lockFeature = useFeature("command.chart.lock-transparency");
-  const { startingNew, onBackToChart } = start;
+  const { startingNew, photoDrop, onBackToChart } = start;
   const shares = (option: SharedOption) => tool.shares.includes(option);
 
   return (
@@ -73,7 +74,7 @@ export function QuickBar({ pattern, workspace, tool, photo, colours, symmetry, l
       {startingNew && (
         <>
           <span className={HEADING}>New chart</span>
-          <span className="text-xs text-muted">Drop a photo anywhere below</span>
+          {photoDrop && <span className="text-xs text-muted">Drop a photo anywhere below</span>}
           {pattern && (
             <button
               type="button"
@@ -90,7 +91,7 @@ export function QuickBar({ pattern, workspace, tool, photo, colours, symmetry, l
       {!startingNew && !pattern && !photo.hasSource && (
         <>
           <span className={HEADING}>No chart open</span>
-          <span className="ml-auto text-xs text-muted">Drop a photo anywhere below</span>
+          {photoDrop && <span className="ml-auto text-xs text-muted">Drop a photo anywhere below</span>}
         </>
       )}
 

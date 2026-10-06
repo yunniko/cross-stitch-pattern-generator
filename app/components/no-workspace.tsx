@@ -7,12 +7,12 @@
  */
 export function NoWorkspace() {
   return (
-    <div className="grid flex-1 place-items-center p-6">
+    <div className="grid min-w-0 flex-1 place-items-center p-6">
       <div
         role="alertdialog"
         aria-labelledby="no-workspace-title"
         aria-describedby="no-workspace-text"
-        className="flex w-[460px] max-w-full flex-col gap-3 rounded-xl border border-danger-edge bg-surface p-[22px]"
+        className="flex w-full max-w-[460px] flex-col gap-3 rounded-xl border border-danger-edge bg-surface p-[22px]"
       >
         <h2 id="no-workspace-title" className="m-0 text-lg font-medium text-danger">
           The editor is not available right now
