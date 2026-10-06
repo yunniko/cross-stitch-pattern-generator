@@ -3,7 +3,8 @@
 // `drawSelectionOutline`, `snapshotCanvas` and `PHOTO_UNDERLAY_ALPHA` from app/editor-geometry.ts. The hook's closure
 // values are lifted into a `scene` argument; nothing else is changed. It draws with the frozen renderer and is the
 // parity oracle for the viewport canvas (tests/e2e/chart-render-parity.spec.ts). Never edit it.
-import type { ViewMode } from "@/app/editor-types";
+/** The view modes as they stood, kept here for the reason `Tool` is below: G-110 replaced the app's with switches (D315). */
+type ViewMode = RenderMode | "realistic" | "photo" | "photo-only";
 
 /**
  * The tool union as it stood when this snapshot was taken, kept here rather than imported. A frozen oracle that

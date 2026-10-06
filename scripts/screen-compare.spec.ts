@@ -69,8 +69,8 @@ const STATES: Array<[string, (page: Page) => Promise<void>, number?]> = [
     },
   ],
   ["Black & white", (page) => page.keyboard.press("2")],
-  ["Grid + photo", (page) => page.keyboard.press("4")],
-  ["Original photo", (page) => page.keyboard.press("5")],
+  ["Pattern half over the photo", (page) => page.keyboard.press("4")],
+  ["Photo alone", (page) => page.keyboard.press("5")],
   ["Realistic preview", (page) => page.keyboard.press("3"), 3000],
   [
     "Color, one colour highlighted",

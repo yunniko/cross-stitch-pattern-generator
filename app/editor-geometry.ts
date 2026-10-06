@@ -12,9 +12,6 @@ const IMAGE_WINDOW_TARGET_WIDTH_PX = 720;
 const IMAGE_WINDOW_MAX_CELL_SIZE = 28;
 const IMAGE_WINDOW_MIN_CELL_SIZE = 4;
 
-/** The photo underlay's opacity in Grid + photo mode, so the symbol grid stays the readable layer. */
-export const PHOTO_UNDERLAY_ALPHA = 0.55;
-
 /**
  * On-screen cell size. Zoom re-renders at a higher resolution rather than scaling pixels, so symbols appear when zoomed
  * in. There is no cap on the zoomed chart's size: since D135 only the chart frame is chart-sized, and it is layout, while

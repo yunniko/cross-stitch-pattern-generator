@@ -314,11 +314,13 @@ export function drawChart(
   emptyCellColor: string = "#ffffff",
   gridStyle: GridStyle = "stroke",
   /** Raster exports only: `ctx` must then be a real canvas context (D172). Without it, symbols are drawn as text. */
-  symbolStamps: SymbolStamps | null = null
+  symbolStamps: SymbolStamps | null = null,
+  /** The screen's Symbols switch (G-110); every export draws them. */
+  symbols = true
 ) {
   const { width, height, cellPalette, palette, cellKind } = pattern;
   const { x0, y0, x1, y1 } = region ?? { x0: 0, y0: 0, x1: width, y1: height };
-  const drawSymbols = cellSize >= LEGIBILITY_FLOOR_PX;
+  const drawSymbols = symbols && cellSize >= LEGIBILITY_FLOOR_PX;
 
   if (drawSymbols) {
     ctx.font = `${Math.round(cellSize * 0.6)}px ${FONT_STACK}`;
@@ -437,14 +439,17 @@ export function drawChartOnScreen(
   mode: RenderMode,
   cellSize: number,
   region?: ChartRegion,
-  emptyCellColor: string = "#ffffff"
+  emptyCellColor: string = "#ffffff",
+  /** The Symbols switch (G-110): without symbols every stitch is a solid square at any size, so the fast path serves. */
+  symbols = true
 ) {
   // The one-pixel-per-stitch fast path cannot draw a cut corner, so a chart with half stitches takes the exact path.
-  const emptyRgb = cellSize < LEGIBILITY_FLOOR_PX && !pattern.cellKind ? opaqueCanvasRgb(emptyCellColor) : null;
+  const solidSquares = (cellSize < LEGIBILITY_FLOOR_PX || !symbols) && !pattern.cellKind;
+  const emptyRgb = solidSquares ? opaqueCanvasRgb(emptyCellColor) : null;
   const { width, height, cellPalette, palette } = pattern;
   const r = region ?? { x0: 0, y0: 0, x1: width, y1: height };
   if (!emptyRgb) {
-    drawChart(ctx, pattern, mode, cellSize, region, emptyCellColor, "rects");
+    drawChart(ctx, pattern, mode, cellSize, region, emptyCellColor, "rects", null, symbols);
     return;
   }
   const colors = palette.map((color): RGB => {
@@ -467,7 +472,7 @@ export function drawChartOnScreen(
     width
   );
   if (!drawn) {
-    drawChart(ctx, pattern, mode, cellSize, region, emptyCellColor, "rects");
+    drawChart(ctx, pattern, mode, cellSize, region, emptyCellColor, "rects", null, symbols);
     return;
   }
   drawGridLines(ctx, r.x0, r.y0, r.x1, r.y1, cellSize, 0, 0, "rects");
@@ -493,7 +498,9 @@ export function drawCell(
   emptyCellColor: string = "#ffffff",
   gridStyle: GridStyle = "stroke",
   /** The stitch kind to draw (G-082), given rather than read from `pattern` for the same reason `paletteIndex` is. */
-  kind: number = STITCH_WHOLE
+  kind: number = STITCH_WHOLE,
+  /** The screen's Symbols switch (G-110). */
+  symbols = true
 ) {
   const px = x * cellSize;
   const py = y * cellSize;
@@ -503,7 +510,7 @@ export function drawCell(
   } else {
     const color = colorAt(pattern.palette, paletteIndex);
     fillStitchCell(ctx, px, py, cellSize, fillForCell(mode, color.rgb), kind, emptyCellColor);
-    if (cellSize >= LEGIBILITY_FLOOR_PX) {
+    if (symbols && cellSize >= LEGIBILITY_FLOOR_PX) {
       ctx.font = `${Math.round(cellSize * 0.6)}px ${FONT_STACK}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -515,7 +522,7 @@ export function drawCell(
 }
 
 /**
- * Shared by `drawChart`, `drawChartOutline` and `drawCell` -- gridline
+ * Shared by `drawChart` and `drawCell` -- gridline
  * weight (every 5th/10th heavier) and spacing, independent of what (if
  * anything) is drawn underneath. `originX`/`originY` is where cell
  * (x0, y0) sits on the canvas: 0 for a region drawn at the origin, the
@@ -597,51 +604,6 @@ function drawGridLines(
   }
 }
 
-/**
- * Draws only gridlines and symbols -- no cell fill -- so a photo drawn
- * underneath on the same canvas stays visible (G-012's "Grid + photo"
- * Image window mode, a reference view for checking symbol placement
- * against the real photo detail; not a download/export mode, so this
- * deliberately stays out of `RenderMode`/`renderPatternToCanvas`). Symbols
- * get a white halo (stroke before fill) since the photo underneath can be
- * any color, unlike `drawChart`'s luminance-based text color choice which
- * only has its own flat fill color to contrast against.
- */
-export function drawChartOutline(
-  ctx: CanvasRenderingContext2D,
-  pattern: StitchPattern,
-  cellSize: number,
-  region?: ChartRegion,
-  gridStyle: GridStyle = "stroke"
-) {
-  const { width, height, cellPalette, palette } = pattern;
-  const { x0, y0, x1, y1 } = region ?? { x0: 0, y0: 0, x1: width, y1: height };
-  const drawSymbols = cellSize >= LEGIBILITY_FLOOR_PX;
-
-  if (drawSymbols) {
-    ctx.font = `${Math.round(cellSize * 0.6)}px ${FONT_STACK}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.lineWidth = Math.max(1, Math.round(cellSize * 0.12));
-    ctx.strokeStyle = "#ffffff";
-    ctx.fillStyle = "#111111";
-
-    for (let y = y0; y < y1; y++) {
-      for (let x = x0; x < x1; x++) {
-        const paletteIndex = cellPalette[y * width + x];
-        if (paletteIndex === EMPTY_CELL) continue; // nothing to label -- no palette entry, no stitch
-        const color = colorAt(palette, paletteIndex);
-        const localX = (x - x0) * cellSize + cellSize / 2;
-        const localY = (y - y0) * cellSize + cellSize / 2 + 1;
-        ctx.strokeText(color.symbol, localX, localY);
-        ctx.fillText(color.symbol, localX, localY);
-      }
-    }
-  }
-
-  drawGridLines(ctx, x0, y0, x1, y1, cellSize, 0, 0, gridStyle);
-}
-
 // A dark "spotlight" mask over everything *not* highlighted reads more
 // clearly at a glance than brightening the matches themselves would --
 // works the same regardless of which colors/how many are underneath.
@@ -685,18 +647,17 @@ export function drawHighlightOverlayRaster(
 }
 
 /**
- * The farthest any on-screen chart paint reaches past its own stitch, in pixels: a symbol glyph (and its Grid + photo
- * halo, with miter spikes allowed for) extending beyond the cell, or half the widest gridline. The viewport canvas
+ * The farthest any on-screen chart paint reaches past its own stitch, in pixels: a symbol glyph extending beyond the
+ * cell, or half the widest gridline. The viewport canvas
  * draws this many pixels' worth of extra stitches around its bitmap so every pixel matches a full-chart render (D135).
  */
-export function chartPaintOverhangPx(ctx: CanvasRenderingContext2D, pattern: StitchPattern, cellSize: number, halo: boolean): number {
+export function chartPaintOverhangPx(ctx: CanvasRenderingContext2D, pattern: StitchPattern, cellSize: number): number {
   let overhang = Math.ceil(Math.max(1, Math.round(cellSize * MAJOR_LINE_RATIO)) / 2);
   if (cellSize < LEGIBILITY_FLOOR_PX) return overhang + 1;
   ctx.save();
   ctx.font = `${Math.round(cellSize * 0.6)}px ${FONT_STACK}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const haloReach = halo ? (Math.max(1, Math.round(cellSize * 0.12)) * ctx.miterLimit) / 2 : 0;
   const half = cellSize / 2;
   for (const color of pattern.palette) {
     const m = ctx.measureText(color.symbol);
@@ -707,7 +668,7 @@ export function chartPaintOverhangPx(ctx: CanvasRenderingContext2D, pattern: Sti
       m.actualBoundingBoxAscent - 1 - half,
       m.actualBoundingBoxDescent + 1 - half
     );
-    overhang = Math.max(overhang, Math.ceil(reach + haloReach));
+    overhang = Math.max(overhang, Math.ceil(reach));
   }
   ctx.restore();
   // One more pixel for antialiasing at the edge of any stroke or glyph.

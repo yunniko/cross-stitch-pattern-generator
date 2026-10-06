@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import type { ViewMode } from "../editor-types";
+import { isFlatMode, PHOTO_FEATURE, sliderShown, STITCHED_FEATURE, type ChartView, type PatternMode } from "@/lib/editor/view";
 import { SkinIcon } from "../skin/skin";
 import { DISABLED_ICON, DISABLED_TEXT, SegmentedControl } from "./ui";
 import { lockedNote } from "@/lib/features/features";
@@ -9,30 +9,35 @@ import { useFeature } from "../features/features-context";
 
 /**
  * The view controls, floating over the foot of the chart (G-095, proposal D): how the chart is looked at, and never what
- * it is. The three chart views, the photo behind it, Isolate and the zoom. They are there in every workspace and with
+ * it is. The three pattern modes, Symbols, the photo under the pattern with how visible the pattern is over it (G-110,
+ * D315), Isolate and the zoom. They are there in every workspace and with
  * every tool in hand, which is the point of taking them out of the bar of tool options.
  *
  * The well leaves room beneath the chart for them, so a chart scrolled to its end clears them; while a press is held on
  * the chart they stand aside (`data-away`, set by the shell through `awayRef`) so drawing can pass beneath.
  */
 
-/** 1b offers three chart views plus a photo toggle; the fourth and fifth modes hang off the toggle (Owner, 2026-09-18). */
-type ChartView = "color" | "bw" | "realistic";
-
-const CHART_VIEWS: Array<{ value: ChartView; label: string; title: string }> = [
+const PATTERN_CHOICES: Array<{ value: PatternMode; label: string; title: string }> = [
   { value: "color", label: "Color", title: "The chart in its thread colors" },
   { value: "bw", label: "B&W", title: "The chart in black and white, as it prints" },
   { value: "realistic", label: "Stitched", title: "A realistic preview of the finished stitching" },
 ];
+
+const SWITCH = "flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs whitespace-nowrap transition-colors";
+const SWITCH_ON = "border-accent bg-accent/15 text-ink";
+const SWITCH_OFF = "border-line text-muted enabled:hover:bg-raised enabled:hover:text-ink";
 
 const ZOOM_BUTTON = `rounded-md px-2 text-sm text-muted enabled:hover:bg-raised enabled:hover:text-ink ${DISABLED_TEXT}`;
 
 export interface ViewControlsProps {
   /** The element is the shell's to mark as standing aside while a press is held on the chart. */
   awayRef: RefObject<HTMLDivElement | null>;
-  mode: ViewMode;
-  onModeChange: (mode: ViewMode) => void;
-  /** The chart has the photo it was made from, so the two photo views exist. */
+  /** The view as chosen: a switch that does not apply keeps its setting here, shown but not pressable. */
+  chosen: ChartView;
+  /** The view in force (`viewInForce`): what is drawn, and so what the switches show as on. */
+  shown: ChartView;
+  onChange: (view: ChartView) => void;
+  /** The chart has the photo it was made from, so the photo can go under it. */
   hasPhoto: boolean;
   /** Isolate: dim every thread except the ones lit in the Threads list. Not a tool: it stays on while you paint. */
   isolate: boolean;
@@ -46,8 +51,9 @@ export interface ViewControlsProps {
 
 export function ViewControls({
   awayRef,
-  mode,
-  onModeChange,
+  chosen,
+  shown,
+  onChange,
   hasPhoto,
   isolate,
   onIsolateChange,
@@ -57,22 +63,14 @@ export function ViewControls({
   onZoomOut,
   onResetZoom,
 }: ViewControlsProps) {
-  const photoActive = mode === "photo" || mode === "photo-only";
-  const chartView: ChartView = mode === "bw" ? "bw" : mode === "realistic" ? "realistic" : "color";
-  // Under the feature switches (G-102): the Stitched view, the photo behind the chart and Isolate are each a feature.
-  const stitched = useFeature("view.realistic");
-  const photoFeature = useFeature("view.photo");
+  const flat = isFlatMode(shown.pattern);
+  // Under the feature switches (G-102): the Stitched mode, the photo under the pattern and Isolate are each a feature.
+  const stitched = useFeature(STITCHED_FEATURE);
+  const photoFeature = useFeature(PHOTO_FEATURE);
   const isolateFeature = useFeature("command.colours.isolate");
-  const views = CHART_VIEWS.filter((view) => view.value !== "realistic" || stitched.shown).map((view) =>
-    view.value === "realistic" && !stitched.usable ? { ...view, disabled: true, title: lockedNote("Stitched view") } : view
+  const modes = PATTERN_CHOICES.filter((mode) => mode.value !== "realistic" || stitched.shown).map((mode) =>
+    mode.value === "realistic" && !stitched.usable ? { ...mode, disabled: true, title: lockedNote("Stitched view") } : mode
   );
-
-  /** One press shows the grid over the photo, a second the bare photo, a third returns to the chart. */
-  function togglePhoto() {
-    if (mode === "photo") onModeChange("photo-only");
-    else if (mode === "photo-only") onModeChange("color");
-    else onModeChange("photo");
-  }
 
   return (
     <div
@@ -82,29 +80,58 @@ export function ViewControls({
       data-testid="view-controls"
       className="absolute bottom-10 left-1/2 z-20 flex w-max max-w-[calc(100%-16px)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-xl border border-line bg-surface px-2 py-1.5 shadow-[0_12px_32px_color-mix(in_srgb,var(--at-shadow)_45%,transparent)] transition-opacity data-[away=true]:pointer-events-none data-[away=true]:opacity-20"
     >
-      <SegmentedControl tone="chip" options={views} value={chartView} onChange={(view) => onModeChange(view)} />
+      <SegmentedControl tone="chip" options={modes} value={shown.pattern} onChange={(pattern) => onChange({ ...chosen, pattern })} />
+      <button
+        type="button"
+        onClick={() => onChange({ ...chosen, symbols: !chosen.symbols })}
+        disabled={!flat}
+        aria-pressed={shown.symbols}
+        aria-label="Symbols"
+        title={flat ? "The stitch symbols over the pattern (Y)" : "Stitched shows the stitching itself, without symbols"}
+        className={`${SWITCH} ${DISABLED_ICON} ${shown.symbols ? SWITCH_ON : SWITCH_OFF}`}
+      >
+        Symbols
+      </button>
       {photoFeature.shown && (
         <button
           type="button"
-          onClick={togglePhoto}
-          disabled={!hasPhoto || !photoFeature.usable}
-          data-feature-locked={photoFeature.usable ? undefined : "view.photo"}
-          aria-pressed={photoActive}
-          aria-label="Show the photo behind the chart"
+          onClick={() => onChange({ ...chosen, photo: !chosen.photo })}
+          disabled={!hasPhoto || !photoFeature.usable || !flat}
+          data-feature-locked={photoFeature.usable ? undefined : PHOTO_FEATURE}
+          aria-pressed={shown.photo}
+          aria-label="Photo under the pattern"
           title={
             !photoFeature.usable
-              ? lockedNote("Photo behind the chart")
-              : hasPhoto
-                ? "Photo underlay: once for the grid over the photo, again for the photo alone, again to return to the chart"
-                : "No source photo is associated with this pattern"
+              ? lockedNote("Photo under the pattern")
+              : !hasPhoto
+                ? "No source photo is associated with this pattern"
+                : !flat
+                  ? "Stitched is drawn on its own cloth, without the photo"
+                  : "The photo under the pattern (P)"
           }
-          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs whitespace-nowrap transition-colors ${DISABLED_ICON} ${
-            photoActive ? "border-accent bg-accent/15 text-ink" : "border-line text-muted enabled:hover:bg-raised enabled:hover:text-ink"
-          }`}
+          className={`${SWITCH} ${DISABLED_ICON} ${shown.photo ? SWITCH_ON : SWITCH_OFF}`}
         >
           <SkinIcon name="photo" />
-          {mode === "photo-only" ? "Photo only" : "Photo"}
+          Photo
         </button>
+      )}
+      {sliderShown(shown) && (
+        <label
+          className="flex items-center gap-1.5 text-xs text-muted"
+          title="How visible the pattern is over the photo; 0% is the photo alone"
+        >
+          <span>Pattern</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={shown.visibility}
+            aria-label="Pattern visibility over the photo"
+            onChange={(e) => onChange({ ...chosen, visibility: Number(e.target.value) })}
+            className="w-24 accent-[var(--at-accent)]"
+          />
+          <span className="w-9 text-right font-mono text-[11px] text-ink">{shown.visibility}%</span>
+        </label>
       )}
       {isolateFeature.shown && (
         <button

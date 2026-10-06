@@ -290,14 +290,18 @@ test(`large-chart operations at ${SIZE} stitches`, async ({ page }, testInfo) =>
       record(`zoom in, step ${step}`, sample);
     }
 
-    // Every view mode, at the zoomed-in size (symbols drawn).
+    // Every view switch, at the zoomed-in size (symbols drawn). Each key changes what is drawn from the step before it:
+    // the pattern keys leave the photo as it is (G-110, D315), so the photo comes on last and P takes it off again.
     await main.click({ position: { x: 4, y: 4 } }).catch(() => undefined);
     for (const [key, label] of [
       ["2", "B&W"],
-      ["3", "Realistic"],
-      ["4", "Grid + photo"],
-      ["5", "Original photo"],
+      ["3", "Stitched"],
       ["1", "Color"],
+      ["y", "Color without symbols"],
+      ["y", "Color with symbols"],
+      ["4", "Pattern half over the photo"],
+      ["5", "Photo alone"],
+      ["p", "Photo off"],
     ] as const) {
       const before = (await chartState(page)).revision;
       record(
@@ -334,12 +338,12 @@ test(`large-chart operations at ${SIZE} stitches`, async ({ page }, testInfo) =>
       )
     );
 
-    // The same 20 steps back again in Grid + photo, the view that costs the most per painted pixel (G-036 M5).
+    // The same 20 steps back again with the pattern half over the photo, the view that costs the most per painted pixel (G-036 M5, G-110).
     const beforePhoto = (await chartState(page)).revision;
     await page.keyboard.press("4");
     await waitForScene(page, beforePhoto);
     record(
-      "scroll 20 steps (Grid + photo)",
+      "scroll 20 steps (half over the photo)",
       await timed(
         page,
         client,
@@ -359,8 +363,9 @@ test(`large-chart operations at ${SIZE} stitches`, async ({ page }, testInfo) =>
         () => afterPaint(page)
       )
     );
+    // The photo off again: a pattern key would leave it on (D315).
     const beforeColor = (await chartState(page)).revision;
-    await page.keyboard.press("1");
+    await page.keyboard.press("p");
     await waitForScene(page, beforeColor);
 
     // Light one thread, then put the light out. Highlight became Isolate in G-045 (D158): lighting a thread turns

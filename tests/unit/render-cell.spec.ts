@@ -73,3 +73,24 @@ describe("drawCell", () => {
     expect(ctx.texts).toEqual([]);
   });
 });
+
+/** G-110 (D315): with Symbols off the screen draws the same fills and grid, and no symbol, at any cell size. */
+describe("the Symbols switch", () => {
+  it("leaves out every symbol and nothing else, for the whole chart and for a single stitch", () => {
+    for (const mode of ["color", "bw"] as const) {
+      const on = makeRecordingContext();
+      const off = makeRecordingContext();
+      drawChart(on, makePattern(), mode, 24);
+      drawChart(off, makePattern(), mode, 24, undefined, "#ffffff", "stroke", null, false);
+      expect(on.texts).toHaveLength(4);
+      expect(off.texts).toEqual([]);
+      expect(off.rects).toEqual(on.rects);
+      expect(off.lines).toEqual(on.lines);
+
+      const cell = makeRecordingContext();
+      drawCell(cell, makePattern(), mode, 24, 1, 1, 1, "#ffffff", "stroke", undefined, false);
+      expect(cell.rects).toHaveLength(1);
+      expect(cell.texts).toEqual([]);
+    }
+  });
+});

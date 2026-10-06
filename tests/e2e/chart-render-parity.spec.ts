@@ -7,7 +7,7 @@ import { rolldown } from "rolldown";
  * G-036 (a verbatim copy in tests/unit/reference/render-pre-g036.ts). Both are bundled into a blank page and draw the
  * same synthetic pattern into two canvases of the same size; every case asserts zero differing bytes. Cases cover cell
  * sizes 1–112 px (including the 5 → 6 px switch to symbols), color and B&W, several canvas colours, EMPTY cells,
- * regions, the Grid + photo outline over a background, highlight overlays and sequences of single-cell edits, plus
+ * regions, highlight overlays and sequences of single-cell edits, plus
  * the largest charts (1000 × 750 at 4 px and 1000 × 1000 with 100 colors). Chromium is the gate (plan criterion 2).
  * Exports must match the frozen renderer exactly. The on-screen path draws grid lines as filled rectangles (Owner
  * decision, D135), so it is compared with the frozen renderer drawn through rect-grid-context.ts.
@@ -32,7 +32,7 @@ interface Case {
   height: number;
   colors: number;
   cellSize: number;
-  kind: "chart" | "outline" | "highlight" | "edits";
+  kind: "chart" | "highlight" | "edits";
   mode?: "color" | "bw";
   canvasColor?: string;
   region?: { x0: number; y0: number; x1: number; y1: number };
@@ -76,8 +76,8 @@ async function differingBytes(
     const pattern = { width: c.width, height: c.height, isLandscape: c.width >= c.height, cellPalette, palette };
 
     const region = c.region ?? { x0: 0, y0: 0, x1: c.width, y1: c.height };
-    const w = (region.x1 - region.x0) * c.cellSize + (c.kind === "chart" || c.kind === "outline" ? 1 : 0);
-    const h = (region.y1 - region.y0) * c.cellSize + (c.kind === "chart" || c.kind === "outline" ? 1 : 0);
+    const w = (region.x1 - region.x0) * c.cellSize + (c.kind === "chart" ? 1 : 0);
+    const h = (region.y1 - region.y0) * c.cellSize + (c.kind === "chart" ? 1 : 0);
 
     function drawWith(r: Renderers, target: "reference" | "reference-rects" | "export" | "screen" | "mask"): Uint8ClampedArray {
       const canvas = document.createElement("canvas");
@@ -95,14 +95,6 @@ async function differingBytes(
       const overlay = target === "mask" && live.drawHighlightOverlayRaster ? live.drawHighlightOverlayRaster : r.drawHighlightOverlay;
       if (c.kind === "chart") {
         chart(ctx, pattern as never, mode, c.cellSize, c.region, c.canvasColor);
-      } else if (c.kind === "outline") {
-        // A photo-like background underneath, as Grid + photo draws.
-        const gradient = ctx.createLinearGradient(0, 0, w, h);
-        gradient.addColorStop(0, "#335577");
-        gradient.addColorStop(1, "#ddbb88");
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, w, h);
-        (r.drawChartOutline as (...args: unknown[]) => void)(ctx, pattern, c.cellSize, c.region, ...onScreen);
       } else if (c.kind === "highlight") {
         chart(ctx, pattern as never, mode, c.cellSize, undefined, c.canvasColor);
         overlay(ctx, pattern as never, c.cellSize, new Set(c.highlighted ?? []));
@@ -162,15 +154,6 @@ for (const cellSize of CELL_SIZES) {
     });
   }
   CASES.push({
-    label: `outline ${width}×${height} @${cellSize}px`,
-    width,
-    height,
-    colors: 24,
-    cellSize,
-    kind: "outline",
-    emptyShare: 0.08,
-  });
-  CASES.push({
     label: `highlight two colors @${cellSize}px`,
     width,
     height,
@@ -224,16 +207,6 @@ for (const cellSize of [4, 8, 28]) {
     colors: 20,
     cellSize,
     kind: "chart",
-    region: { x0: 7, y0: 3, x1: 53, y1: 41 },
-    emptyShare: 0.05,
-  });
-  CASES.push({
-    label: `outline region x 7–53, y 3–41 @${cellSize}px`,
-    width: 80,
-    height: 60,
-    colors: 20,
-    cellSize,
-    kind: "outline",
     region: { x0: 7, y0: 3, x1: 53, y1: 41 },
     emptyShare: 0.05,
   });

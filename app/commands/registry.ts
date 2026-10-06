@@ -163,11 +163,29 @@ const SHELL_COMMANDS = [
   },
   { id: "chart.lock-transparency", workspace: "edit", name: "Transparency lock on or off", group: "Chart", when: "A chart, in Edit" },
 
-  { id: "view.color", feature: null, name: "Color view", group: "View", when: "A chart", keys: ["1"] },
-  { id: "view.bw", feature: null, name: "Black & white view", group: "View", when: "A chart", keys: ["2"] },
-  { id: "view.realistic", feature: "view.realistic", name: "Stitched view", group: "View", when: "A chart", keys: ["3"] },
-  { id: "view.photo", feature: "view.photo", name: "Grid + photo view", group: "View", when: "A chart with a photo", keys: ["4"] },
-  { id: "view.photo-only", feature: "view.photo", name: "Original photo view", group: "View", when: "A chart with a photo", keys: ["5"] },
+  // The view's switches (G-110, D315). 4 and 5 are shortcuts to two states of them, the nearest to the old Grid + photo and
+  // Original photo views. The feature ids stay the old views' (G-102 states saved in the database name them).
+  { id: "view.color", feature: null, name: "Color pattern", group: "View", when: "A chart", keys: ["1"] },
+  { id: "view.bw", feature: null, name: "Black & white pattern", group: "View", when: "A chart", keys: ["2"] },
+  { id: "view.realistic", feature: "view.realistic", name: "Stitched pattern", group: "View", when: "A chart", keys: ["3"] },
+  { id: "view.symbols", feature: null, name: "Symbols on or off", group: "View", when: "A chart in Color or Black & white", keys: ["Y"] },
+  {
+    id: "view.photo",
+    feature: "view.photo",
+    name: "Photo under the pattern on or off",
+    group: "View",
+    when: "A chart with a photo, in Color or Black & white",
+    keys: ["P"],
+  },
+  {
+    id: "view.photo-half",
+    feature: "view.photo",
+    name: "Photo with the pattern half visible",
+    group: "View",
+    when: "A chart with a photo",
+    keys: ["4"],
+  },
+  { id: "view.photo-only", feature: "view.photo", name: "Photo alone", group: "View", when: "A chart with a photo", keys: ["5"] },
   { id: "view.workspace-photo", workspace: "photo", feature: null, name: "Photo workspace", group: "View", when: "Not already there" },
   {
     id: "view.workspace-edit",

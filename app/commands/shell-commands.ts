@@ -2,7 +2,7 @@ import type { Command, CommandState } from "@/lib/editor/commands";
 import type { FeatureStates } from "@/lib/features/features";
 import type { QuickMirror } from "@/lib/editor/symmetry";
 import type { SymmetryAxis } from "@/lib/editor/symmetry-axes";
-import type { ViewMode } from "../editor-types";
+import { isFlatMode, photoAloneView, photoHalfView, type ChartView, type PatternMode } from "@/lib/editor/view";
 import { act } from "../tools/shared";
 import { toolOffered, workspaceEdits, workspaceOpen, type Workspace } from "@/lib/editor/workspaces";
 import { toolDefinition, type Tool } from "../tools/registry";
@@ -31,8 +31,10 @@ export interface ShellState {
   squareChart: boolean;
   /** A piece is in hand: history is not the reader's to step through yet (G-063). */
   hasPiece: boolean;
-  /** The chart has the photo it was made from, so the two photo views exist. */
+  /** The chart has the photo it was made from, so the photo can be shown under it. */
   hasPhotoViews: boolean;
+  /** The view in force (D315): Symbols and Photo act only in Color or Black & white. */
+  view: ChartView;
   /** A photo is loaded, the chart (if any) was made from one, and the start screen is not over it. */
   photoShown: boolean;
   photoLoading: boolean;
@@ -62,7 +64,8 @@ export interface ShellActions {
   mirror: (kind: QuickMirror) => void;
   toggleSymmetry: (axis: SymmetryAxis) => void;
   toggleLock: () => void;
-  showView: (mode: ViewMode) => void;
+  /** Changes the chosen view; `change` is handed the choice as it stands. */
+  changeView: (change: (view: ChartView) => ChartView) => void;
   zoomIn: () => void;
   zoomOut: () => void;
   zoomReset: () => void;
@@ -86,6 +89,8 @@ export function shellCommandStates(s: ShellState, a: ShellActions): Record<Shell
   const editing = chartShown && workspaceEdits(s.workspace);
   const enter = (workspace: Workspace) => act(s.workspace !== workspace && workspaceOpen(workspace, s), () => a.showWorkspace(workspace));
   const noPiece = !s.hasPiece;
+  // Symbols and Photo are switches of Color and Black & white only (D315).
+  const flat = isFlatMode(s.view.pattern);
   return {
     "file.new": act(!s.startScreenVisible, a.newChart),
     "file.choose-photo": act(!s.photoLoading && !s.generating, a.choosePhoto),
@@ -111,11 +116,13 @@ export function shellCommandStates(s: ShellState, a: ShellActions): Record<Shell
     "chart.symmetry-diagonal": act(editing && s.squareChart, () => a.toggleSymmetry("diagonal")),
     "chart.symmetry-antidiagonal": act(editing && s.squareChart, () => a.toggleSymmetry("antidiagonal")),
     "chart.lock-transparency": act(editing, a.toggleLock),
-    "view.color": act(s.hasChart, () => a.showView("color")),
-    "view.bw": act(s.hasChart, () => a.showView("bw")),
-    "view.realistic": act(s.hasChart, () => a.showView("realistic")),
-    "view.photo": act(s.hasPhotoViews, () => a.showView("photo")),
-    "view.photo-only": act(s.hasPhotoViews, () => a.showView("photo-only")),
+    "view.color": act(s.hasChart, () => a.changeView((v) => withPattern(v, "color"))),
+    "view.bw": act(s.hasChart, () => a.changeView((v) => withPattern(v, "bw"))),
+    "view.realistic": act(s.hasChart, () => a.changeView((v) => withPattern(v, "realistic"))),
+    "view.symbols": act(s.hasChart && flat, () => a.changeView((v) => ({ ...v, symbols: !s.view.symbols }))),
+    "view.photo": act(s.hasPhotoViews && flat, () => a.changeView((v) => ({ ...v, photo: !s.view.photo }))),
+    "view.photo-half": act(s.hasPhotoViews, () => a.changeView(photoHalfView)),
+    "view.photo-only": act(s.hasPhotoViews, () => a.changeView(photoAloneView)),
     "view.workspace-photo": enter("photo"),
     "view.workspace-edit": enter("edit"),
     "view.workspace-export": enter("export"),
@@ -147,4 +154,9 @@ export function useShellCommands(state: ShellState, actions: ShellActions, fromT
     fromTools,
     features
   );
+}
+
+/** A pattern mode chosen: the other switches are kept, to apply again wherever they can. */
+function withPattern(view: ChartView, pattern: PatternMode): ChartView {
+  return { ...view, pattern };
 }

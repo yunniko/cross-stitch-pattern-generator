@@ -351,3 +351,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D313 — A command names its workspace, and the workspace's switch wins over its own — active
 - D314 — The server maps each request to its workspace in one list, checked before the request's own features — active
 - D315 — The view is four switches, kept apart from what is in force — active
+- D316 — The pattern over the photo is one layer, laid at its visibility — active

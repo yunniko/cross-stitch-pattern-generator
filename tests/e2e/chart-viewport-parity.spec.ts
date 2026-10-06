@@ -10,9 +10,12 @@ import { rolldown } from "rolldown";
  * the live code — the whole chart, the chart edges, arbitrary crops and slivers — and asserts zero differing bytes.
  * Gesture previews (brush strokes with repeated stitches and a mid-stroke colour change, Move with wrap-around,
  * select rectangles and pieces) are replayed on both sides. Owner decisions (D135): the reference draws grid lines as
- * filled rectangles (through rect-grid-context.ts); Grid + photo gesture frames compare with a fresh render, since the
- * pre-G-036 frames there accumulated over an uncleared canvas; pixels of the three photo views may differ by up to 16
+ * filled rectangles (through rect-grid-context.ts); pixels of the photo and Stitched views may differ by up to 16
  * levels (Chromium resamples scaled images differently at some offsets) and selection outlines by 1; all else is exact.
+ *
+ * The views G-110 added have no frozen drawing to compare with: the pattern half visible over the photo, and Color
+ * without symbols (D315). Their reference is the live scene drawn over the whole chart at once, so what they prove is
+ * the property D135 rests on, that any rectangle is painted as the whole chart paints it.
  */
 
 const ROOT = path.resolve(__dirname, "..", "..");
@@ -30,7 +33,8 @@ async function bundle(): Promise<string> {
   return output[0].code;
 }
 
-type ViewMode = "color" | "bw" | "realistic" | "photo" | "photo-only";
+/** The frozen drawing's views, and the two G-110 added: the pattern half visible over the photo, and Color without symbols. */
+type ViewMode = "color" | "bw" | "realistic" | "photo-only" | "photo-half" | "no-symbols";
 type Gesture = "none" | "floating" | "brush" | "move" | "select-rect" | "select-piece";
 
 interface Case {
@@ -157,8 +161,15 @@ async function compare(page: Page, c: Case): Promise<Result> {
       originRect: { x: 4, y: 3, width: 9, height: 6 },
     };
     const dragging = c.gesture === "select-rect" || c.gesture === "select-piece";
+    // What the frozen drawing called a view mode, as the live scene's view in force (D315).
+    const view = {
+      pattern: c.viewMode === "bw" ? "bw" : c.viewMode === "realistic" ? "realistic" : "color",
+      symbols: c.viewMode !== "no-symbols" && c.viewMode !== "realistic",
+      photo: c.viewMode === "photo-only" || c.viewMode === "photo-half",
+      visibility: c.viewMode === "photo-only" ? 0 : c.viewMode === "photo-half" ? 50 : 100,
+    };
+    const frozen = c.viewMode === "color" || c.viewMode === "bw" || c.viewMode === "realistic" || c.viewMode === "photo-only";
     const common = {
-      viewMode: c.viewMode,
       cellSize: cs,
       // Both scenes, the live one and the frozen pre-G036 reference, match a decoded photo to a chart by its
       // data URL; `adjusted` is only what the live one reports in `data-photo`.
@@ -171,6 +182,7 @@ async function compare(page: Page, c: Case): Promise<Result> {
     };
     const referenceScene = {
       ...common,
+      viewMode: c.viewMode,
       realisticPreview: previewCanvas ? { canvas: previewCanvas, width: c.width, height: c.height } : null,
       isSelectDragging: () => dragging,
     };
@@ -178,6 +190,7 @@ async function compare(page: Page, c: Case): Promise<Result> {
     // highlight tool. Same pixels, different vocabulary -- so each scene is told in its own words (D158).
     const liveScene = {
       ...common,
+      view,
       // The oracle's "highlight" is not a tool the live editor has (D158), and the registry refuses a tool it does not hold
       // (G-092): the live scene is drawn with the brush in hand, as it is when Isolate is on.
       activeTool: (activeTool === "highlight" ? "brush" : activeTool) as "brush",
@@ -211,61 +224,6 @@ async function compare(page: Page, c: Case): Promise<Result> {
     const piece = { ...selection, x: selection.x + 5, y: selection.y + 2 };
     const incremental = c.viewMode === "color" || c.viewMode === "bw";
 
-    // Reference: the pre-G-036 full-size canvas after the same sequence of drawing calls.
-    const full = document.createElement("canvas");
-    const fullContext = rectGridContext(full.getContext("2d")!);
-    // The frozen drawing asks its canvas for a context; this one hands it the rectangle-grid wrapper.
-    const fullCanvas = {
-      get width() {
-        return full.width;
-      },
-      set width(v: number) {
-        full.width = v;
-      },
-      get height() {
-        return full.height;
-      },
-      set height(v: number) {
-        full.height = v;
-      },
-      getContext: () => fullContext,
-    } as unknown as HTMLCanvasElement;
-    const fctx = reference.renderFullView(fullCanvas, pattern as never, referenceScene as never);
-    if (c.gesture === "brush") {
-      for (const op of ops) {
-        brushCells[op.cellIndex] = op.paletteIndex;
-        if (incremental) reference.drawWorkingCell(fctx, referenceScene as never, pattern as never, brushCells, op.cellIndex);
-      }
-      if (!incremental) reference.renderFullView(fullCanvas, { ...pattern, cellPalette: brushCells } as never, referenceScene as never);
-    } else if (c.gesture === "move") {
-      const snapshot = reference.snapshotCanvas(full);
-      reference.drawShiftedSnapshot(fctx, referenceScene as never, pattern as never, snapshot, dx, dy);
-    } else if (c.gesture === "select-rect") {
-      // Grid + photo: the fresh base render plus the outline (D135: no second, accumulated copy of the snapshot).
-      if (incremental)
-        reference.drawSelectionDragFrame(fctx, referenceScene as never, {
-          kind: "rect",
-          base: pattern as never,
-          rect: selectRect,
-          snapshot: reference.snapshotCanvas(full),
-        });
-      else reference.drawSelectionOutline(fctx, selectRect, cs);
-    } else if (c.gesture === "select-piece") {
-      if (incremental) {
-        reference.drawSelectionDragFrame(fctx, referenceScene as never, {
-          kind: "piece",
-          base: pattern as never,
-          piece,
-          snapshot: reference.snapshotCanvas(full),
-        });
-      } else {
-        // A fresh render of the composited piece plus its outline (D135: no accumulation over an uncleared canvas).
-        reference.renderFullView(fullCanvas, edit.compositeSelectionPreview(pattern as never, piece) as never, referenceScene as never);
-        reference.drawSelectionOutline(fctx, piece, cs);
-      }
-    }
-    const expected = fctx.getImageData(0, 0, W, H).data;
-
     const liveGesture =
       c.gesture === "brush"
         ? { kind: "brush" as const, base: pattern, cells: brushCells, ops }
@@ -276,6 +234,72 @@ async function compare(page: Page, c: Case): Promise<Result> {
             : c.gesture === "select-piece"
               ? { kind: "select-piece" as const, base: pattern, piece }
               : null;
+    let expected: Uint8ClampedArray;
+    if (frozen) {
+      // Reference: the pre-G-036 full-size canvas after the same sequence of drawing calls.
+      const full = document.createElement("canvas");
+      const fullContext = rectGridContext(full.getContext("2d")!);
+      // The frozen drawing asks its canvas for a context; this one hands it the rectangle-grid wrapper.
+      const fullCanvas = {
+        get width() {
+          return full.width;
+        },
+        set width(v: number) {
+          full.width = v;
+        },
+        get height() {
+          return full.height;
+        },
+        set height(v: number) {
+          full.height = v;
+        },
+        getContext: () => fullContext,
+      } as unknown as HTMLCanvasElement;
+      const fctx = reference.renderFullView(fullCanvas, pattern as never, referenceScene as never);
+      if (c.gesture === "brush") {
+        for (const op of ops) {
+          brushCells[op.cellIndex] = op.paletteIndex;
+          if (incremental) reference.drawWorkingCell(fctx, referenceScene as never, pattern as never, brushCells, op.cellIndex);
+        }
+        if (!incremental) reference.renderFullView(fullCanvas, { ...pattern, cellPalette: brushCells } as never, referenceScene as never);
+      } else if (c.gesture === "move") {
+        const snapshot = reference.snapshotCanvas(full);
+        reference.drawShiftedSnapshot(fctx, referenceScene as never, pattern as never, snapshot, dx, dy);
+      } else if (c.gesture === "select-rect") {
+        // Original photo and Stitched: the fresh base render plus the outline (D135: no second, accumulated copy of the snapshot).
+        if (incremental)
+          reference.drawSelectionDragFrame(fctx, referenceScene as never, {
+            kind: "rect",
+            base: pattern as never,
+            rect: selectRect,
+            snapshot: reference.snapshotCanvas(full),
+          });
+        else reference.drawSelectionOutline(fctx, selectRect, cs);
+      } else if (c.gesture === "select-piece") {
+        if (incremental) {
+          reference.drawSelectionDragFrame(fctx, referenceScene as never, {
+            kind: "piece",
+            base: pattern as never,
+            piece,
+            snapshot: reference.snapshotCanvas(full),
+          });
+        } else {
+          // A fresh render of the composited piece plus its outline (D135: no accumulation over an uncleared canvas).
+          reference.renderFullView(fullCanvas, edit.compositeSelectionPreview(pattern as never, piece) as never, referenceScene as never);
+          reference.drawSelectionOutline(fctx, piece, cs);
+        }
+      }
+      expected = fctx.getImageData(0, 0, W, H).data;
+    } else {
+      // No frozen drawing of this view: the live scene over the whole chart in one pass is the reference.
+      for (const op of ops) brushCells[op.cellIndex] = op.paletteIndex;
+      const whole = document.createElement("canvas");
+      whole.width = W;
+      whole.height = H;
+      const wctx = whole.getContext("2d")!;
+      live.drawSceneWithGesture(wctx, liveScene as never, pattern as never, liveGesture as never, { x0: 0, y0: 0, x1: W, y1: H });
+      expected = wctx.getImageData(0, 0, W, H).data;
+    }
 
     const rects: Array<[number, number, number, number]> = [
       [0, 0, W, H],
@@ -323,7 +347,7 @@ function gridFor(cellSize: number): { width: number; height: number } {
 const CASES: Case[] = [];
 for (const cellSize of [1, 3, 4, 5, 6, 8, 12, 28, 56, 112]) {
   const { width, height } = gridFor(cellSize);
-  for (const viewMode of ["color", "bw", "photo", "realistic", "photo-only"] as const) {
+  for (const viewMode of ["color", "bw", "photo-half", "realistic", "photo-only", "no-symbols"] as const) {
     CASES.push({ label: `${viewMode} @${cellSize}px`, width, height, colors: 24, cellSize, viewMode, gesture: "none", emptyShare: 0.08 });
   }
   CASES.push({
@@ -340,7 +364,7 @@ for (const cellSize of [1, 3, 4, 5, 6, 8, 12, 28, 56, 112]) {
 }
 for (const cellSize of [4, 8, 28]) {
   const { width, height } = gridFor(cellSize);
-  for (const viewMode of ["color", "bw", "photo"] as const) {
+  for (const viewMode of ["color", "bw", "photo-half"] as const) {
     CASES.push({
       label: `long symbols ${viewMode} @${cellSize}px`,
       width,
@@ -401,7 +425,7 @@ CASES.push({
   height: 10,
   colors: 8,
   cellSize: 28,
-  viewMode: "photo",
+  viewMode: "photo-half",
   gesture: "move",
   shift: [9, 13],
 });
@@ -449,7 +473,7 @@ for (const c of CASES) {
     const result = await compare(page, c);
     expect(result.rects.length, `chart ${result.size}`).toBeGreaterThan(0);
     // Owner decision (D135): scaled photo pixels within 16 levels, the dashed selection outline within 1, all else exact.
-    const photoView = c.viewMode === "realistic" || c.viewMode === "photo" || c.viewMode === "photo-only";
+    const photoView = c.viewMode === "realistic" || c.viewMode === "photo-half" || c.viewMode === "photo-only";
     const outlined = c.gesture === "floating" || c.gesture === "select-rect" || c.gesture === "select-piece";
     const tolerance = photoView ? 16 : outlined ? 1 : 0;
     for (const { rect, differing, maxDelta } of result.rects) {

@@ -22,7 +22,8 @@ import { QuickBar } from "./components/quick-bar";
 import { WorkspacePanel } from "./components/workspace-panel";
 import { ViewControls } from "./components/view-controls";
 import { ImageWindow } from "./components/image-window";
-import { isKeyboardCursorTool, isViewOnlyMode, usesStitchKind } from "./editor-types";
+import { isKeyboardCursorTool, usesStitchKind } from "./editor-types";
+import { describeView, viewEditable } from "@/lib/editor/view";
 import { isPhotoFree } from "@/lib/editor/blank-pattern";
 import { WorkspaceNotices } from "./components/panels";
 import { StatusBar } from "./components/status-bar";
@@ -117,10 +118,11 @@ export default function Workspace({ account }: WorkspaceProps) {
   // What is being looked at: the view, the settings beside it, and the rule that unused photo sliders are given up.
   const view = useEditorView({
     pattern,
+    features,
     sliders: options.photoAdjust,
     restoreSliders: (adjust) => updateOption("photoAdjust", adjust),
   });
-  const { viewMode, inspectorTab, chooseViewMode, chooseInspectorTab, chooseWorkspace } = view;
+  const { inspectorTab, chooseInspectorTab, chooseWorkspace } = view;
   // The workspace shown (G-095, D297): the one chosen, or the first that can be entered (G-103, D312). Only Edit changes
   // the chart; in the other two it is looked at, whatever view is up. Null when none can be: no chart shown and Photo
   // off, where the start choices are what is offered, or every workspace off, where a window says so.
@@ -129,7 +131,7 @@ export default function Workspace({ account }: WorkspaceProps) {
   const everyWorkspaceOff = noWorkspaceOn(features);
   const photoOn = featureUsable(features, workspaceFeature("photo"));
   const editing = workspaceEdits(workspace);
-  const lookingOnly = isViewOnlyMode(viewMode) || !editing;
+  const lookingOnly = !viewEditable(view.shown) || !editing;
   // Two colours since G-064: the squares never move, so the pair is two slots and a flag saying which is in
   // front. `activeColorIndex` stays the name for the foreground, which is what a left press paints with.
   const colours = useDrawingColours(pattern?.palette.length ?? 0);
@@ -215,7 +217,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     navigatorCanvasRef,
     hoverCanvasRef,
     pattern: displayedPattern,
-    viewMode,
+    view: view.shown,
     cellSize,
     activeTool,
     selection: tools.piece.selection,
@@ -226,7 +228,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     litBackstitchIndices: lit.backstitch,
     canvasColor: options.canvasColor,
     stitchTexture: options.stitchTexture,
-    clothBehind: viewMode === "realistic" && options.canvasTexture !== "off",
+    clothBehind: view.shown.pattern === "realistic" && options.canvasTexture !== "off",
     symmetryAxes: liveSymmetry,
     photoAdjust: view.shownPhotoAdjust,
     // The renderer applies a zoom's anchor itself, between sizing the frame and measuring the view (D124, D135).
@@ -250,7 +252,7 @@ export default function Workspace({ account }: WorkspaceProps) {
   // can say about the session is only what was written down outside the tree beforehand.
   useEffect(() => {
     setCrashContext({
-      viewMode,
+      viewMode: describeView(view.shown),
       activeTool,
       brush: `${options.brushSize} ${options.brushShape}`,
       zoomPercent: Math.round(panZoom.zoomLevel * 100),
@@ -279,7 +281,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       clearLit: lit.clear,
       clearColourInHand: () => setActiveColorIndex(null),
       resetZoom: () => panZoom.resetZoom(),
-      showColorView: () => view.setViewMode("color"),
+      showColorView: () => view.resetView(),
       setSymmetry: (axes) => symmetryState.reset(axes),
       resetPaletteSet: () => {
         updateOption("paletteSetup", false);
@@ -420,6 +422,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       hasChart: pattern !== null,
       startingNew,
       startScreenVisible,
+      view: view.shown,
       features,
       workspace,
       squareChart: pattern !== null && pattern.width === pattern.height,
@@ -451,7 +454,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       mirror: applyMirror,
       toggleSymmetry: symmetryState.toggle,
       toggleLock: () => updateOption("lockTransparency", !options.lockTransparency),
-      showView: chooseViewMode,
+      changeView: (change) => view.chooseView(change(view.chosenView)),
       zoomIn: () => panZoom.zoomBy(ZOOM_STEP),
       zoomOut: () => panZoom.zoomBy(1 / ZOOM_STEP),
       zoomReset: panZoom.resetZoom,
@@ -601,7 +604,7 @@ export default function Workspace({ account }: WorkspaceProps) {
                   pattern,
                   cellSize,
                   sourceMeta: source.meta,
-                  viewMode,
+                  view: view.shown,
                   activeTool,
                   activeColorIndex,
                   cursorHidden: hoverOutline !== null,
@@ -641,8 +644,9 @@ export default function Workspace({ account }: WorkspaceProps) {
               chartShown ? (
                 <ViewControls
                   awayRef={viewControlsRef}
-                  mode={viewMode}
-                  onModeChange={chooseViewMode}
+                  chosen={view.chosenView}
+                  shown={view.shown}
+                  onChange={view.chooseView}
                   hasPhoto={pattern.sourceImage !== undefined}
                   isolate={lit.isolate}
                   onIsolateChange={lit.setIsolate}

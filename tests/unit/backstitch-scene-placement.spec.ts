@@ -25,7 +25,7 @@ function chart(backstitch: BackstitchLine[]): StitchPattern {
 
 function scene(): ChartScene {
   return {
-    viewMode: "color",
+    view: { pattern: "color", symbols: true, photo: false, visibility: 100 },
     cellSize: CELL,
     photo: null,
     realisticTiles: null,
@@ -80,7 +80,11 @@ describe("a backstitch line is drawn on its own corners", () => {
 });
 
 describe("backstitch in the Stitched view (G-086)", () => {
-  const stitched = (): ChartScene => ({ ...scene(), viewMode: "realistic", activeTool: "brush" });
+  const stitched = (): ChartScene => ({
+    ...scene(),
+    view: { pattern: "realistic", symbols: false, photo: false, visibility: 100 },
+    activeTool: "brush",
+  });
   const solidPair: BackstitchLine[] = [
     // The longer thread (index 0) is solid in the Color view; the shorter one is dashed there.
     { x1: 4, y1: 4, x2: 14, y2: 4, paletteIndex: 0 },

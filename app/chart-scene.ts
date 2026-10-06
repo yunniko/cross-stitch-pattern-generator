@@ -8,14 +8,15 @@ import {
   chartPaintOverhangPx,
   drawCell,
   drawChartOnScreen,
-  drawChartOutline,
   drawHighlightOverlayRaster,
   type ChartRegion,
   type RenderMode,
 } from "@/lib/export/render";
 import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
-import { isSelectTool, type Tool, type ViewMode } from "./editor-types";
-import { drawBackstitch, drawLassoPath, drawSelectionOutline, PHOTO_UNDERLAY_ALPHA } from "./editor-geometry";
+import { createCanvas, type AnyCanvas, type Canvas2D } from "@/lib/export/canvas-backend";
+import { isFlatMode, type ChartView } from "@/lib/editor/view";
+import { isSelectTool, type Tool } from "./editor-types";
+import { drawBackstitch, drawLassoPath, drawSelectionOutline } from "./editor-geometry";
 import type { StitchTiles } from "@/lib/export/stitch-texture";
 import { drawRealisticRegion } from "./realistic-tiles";
 
@@ -26,7 +27,8 @@ import { drawRealisticRegion } from "./realistic-tiles";
  * and scaled photo pixels within 16 levels (tests/e2e/chart-viewport-parity.spec.ts).
  */
 export interface ChartScene {
-  viewMode: ViewMode;
+  /** The view in force (`viewInForce`, D315): what is drawn, never the choice as stored. */
+  view: ChartView;
   cellSize: number;
   photo: { dataUrl: string; adjusted: boolean; img: CanvasImageSource } | null;
   /** Stitch tiles for the Realistic view; tiles of another size are drawn scaled until the right ones exist. */
@@ -119,9 +121,12 @@ export interface BrushOp {
   kind: number;
 }
 
-/** Color and B&W redraw single stitches in place; the other views have no per-stitch fill to restore. */
-export function incrementalModeOf(viewMode: ViewMode): RenderMode | null {
-  return viewMode === "color" || viewMode === "bw" ? viewMode : null;
+/**
+ * Color and B&W redraw single stitches in place while nothing is under them. Stitched has no per-stitch fill to restore,
+ * and over the photo a stitch is part of a translucent layer, so both repaint the scene instead.
+ */
+export function incrementalModeOf(view: ChartView): RenderMode | null {
+  return isFlatMode(view.pattern) && !view.photo ? view.pattern : null;
 }
 
 // The last composited floating selection: scrolling repaints reuse it instead of copying the whole chart again (D136).
@@ -134,7 +139,7 @@ function compositedSelection(pattern: StitchPattern, selection: FloatingSelectio
   return lastComposite.result;
 }
 
-/** The source photo at the pattern's stitch scale and offset: the same placement in Grid + photo and Original photo. */
+/** The source photo at the pattern's stitch scale and offset, under the pattern at any visibility. */
 function drawSourcePhoto(ctx: CanvasRenderingContext2D, img: CanvasImageSource, source: SourceImageRef, cellSize: number, alpha: number) {
   const { naturalWidth, naturalHeight, cellSizePx, offsetX, offsetY } = source;
   const scale = cellSize / cellSizePx;
@@ -152,7 +157,7 @@ function clipTo(ctx: CanvasRenderingContext2D, r: PixelRect) {
 /** The stitches whose paint can reach `rect`: every stitch touching it plus the scene's paint overhang. */
 function regionFor(ctx: CanvasRenderingContext2D, p: StitchPattern, scene: ChartScene, rect: PixelRect): ChartRegion {
   const cs = scene.cellSize;
-  const overhang = chartPaintOverhangPx(ctx, p, cs, scene.viewMode === "photo");
+  const overhang = chartPaintOverhangPx(ctx, p, cs);
   const guard = Math.ceil(overhang / cs);
   return {
     x0: Math.max(0, Math.floor(rect.x0 / cs) - guard),
@@ -170,28 +175,35 @@ function atRegion(ctx: CanvasRenderingContext2D, region: ChartRegion, cellSize: 
   ctx.restore();
 }
 
+// The pattern layer drawn over the photo: one reused canvas the size of the painted rectangle (G-110).
+let layer: { canvas: AnyCanvas; ctx: Canvas2D; w: number; h: number } | null = null;
+
+/** A cleared canvas for `rect`, under a transform that puts chart pixels where `rect` says; null where none can be made. */
+function patternLayerFor(rect: PixelRect): typeof layer {
+  const w = rect.x1 - rect.x0;
+  const h = rect.y1 - rect.y0;
+  if (!layer || layer.w !== w || layer.h !== h) {
+    try {
+      layer = { ...createCanvas(w, h), w, h };
+    } catch {
+      return null;
+    }
+  }
+  layer.ctx.setTransform(1, 0, 0, 1, 0, 0);
+  layer.ctx.clearRect(0, 0, w, h);
+  layer.ctx.setTransform(1, 0, 0, 1, -rect.x0, -rect.y0);
+  return layer;
+}
+
 /** The scene for pattern `p`, painted into `rect` only (chart pixels, integer bounds). */
 export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene: ChartScene, rect: PixelRect) {
   if (isEmptyRect(rect)) return;
-  const {
-    viewMode,
-    cellSize,
-    photo,
-    realisticTiles,
-    activeTool,
-    isolate,
-    litColorIndices,
-    litBackstitchIndices,
-    selection,
-    canvasColor,
-    clothBehind,
-    selectDragging,
-  } = scene;
+  const { view, cellSize, photo, realisticTiles, activeTool, selection, canvasColor, clothBehind, selectDragging } = scene;
   ctx.save();
   clipTo(ctx, rect);
 
-  if (viewMode === "realistic" || viewMode === "photo-only") {
-    if (viewMode === "realistic" && clothBehind) {
+  if (!isFlatMode(view.pattern)) {
+    if (clothBehind) {
       // Cleared, not filled: the cloth is the well's own background and shows through, and a clear keeps a repaint of
       // part of the chart from stacking translucent stitch edges on the previous frame.
       ctx.clearRect(0, 0, p.width * cellSize, p.height * cellSize);
@@ -199,24 +211,20 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
       ctx.fillStyle = canvasColor;
       ctx.fillRect(0, 0, p.width * cellSize, p.height * cellSize);
     }
-    if (viewMode === "realistic") {
-      // Only the stitches under `rect`: a stitch's texture never reaches past its own cell. Scaled tiles sample their
-      // neighbours, so one more stitch on each side keeps the edges of `rect` as a whole-chart stretch drew them (D136).
-      if (realisticTiles) {
-        const guard = realisticTiles.cellSize === cellSize ? 0 : 1;
-        const region = {
-          x0: Math.max(0, Math.floor(rect.x0 / cellSize) - guard),
-          y0: Math.max(0, Math.floor(rect.y0 / cellSize) - guard),
-          x1: Math.min(p.width, Math.ceil(rect.x1 / cellSize) + guard),
-          y1: Math.min(p.height, Math.ceil(rect.y1 / cellSize) + guard),
-        };
-        drawRealisticRegion(ctx, p, realisticTiles, cellSize, region);
-      }
-      // Backstitch over the stitches, a plain coloured line for now (G-086); `clipTo` above keeps it inside the rectangle.
-      if (p.backstitch?.length) drawBackstitch(ctx, p.backstitch, p.palette, cellSize, undefined, undefined, true);
-    } else if (p.sourceImage && photo && photo.dataUrl === p.sourceImage.dataUrl) {
-      drawSourcePhoto(ctx, photo.img, p.sourceImage, cellSize, 1);
+    // Only the stitches under `rect`: a stitch's texture never reaches past its own cell. Scaled tiles sample their
+    // neighbours, so one more stitch on each side keeps the edges of `rect` as a whole-chart stretch drew them (D136).
+    if (realisticTiles) {
+      const guard = realisticTiles.cellSize === cellSize ? 0 : 1;
+      const region = {
+        x0: Math.max(0, Math.floor(rect.x0 / cellSize) - guard),
+        y0: Math.max(0, Math.floor(rect.y0 / cellSize) - guard),
+        x1: Math.min(p.width, Math.ceil(rect.x1 / cellSize) + guard),
+        y1: Math.min(p.height, Math.ceil(rect.y1 / cellSize) + guard),
+      };
+      drawRealisticRegion(ctx, p, realisticTiles, cellSize, region);
     }
+    // Backstitch over the stitches, a plain coloured line for now (G-086); `clipTo` above keeps it inside the rectangle.
+    if (p.backstitch?.length) drawBackstitch(ctx, p.backstitch, p.palette, cellSize, undefined, undefined, true);
     ctx.restore();
     return;
   }
@@ -225,18 +233,44 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
   const displayPattern = isSelectTool(activeTool) && selection && !selectDragging ? compositedSelection(p, selection) : p;
   const region = regionFor(ctx, displayPattern, scene, rect);
 
-  if (viewMode === "photo" && displayPattern.sourceImage) {
-    if (photo && photo.dataUrl === displayPattern.sourceImage.dataUrl) {
-      drawSourcePhoto(ctx, photo.img, displayPattern.sourceImage, cellSize, PHOTO_UNDERLAY_ALPHA);
+  if (view.photo && view.visibility < 100) {
+    // The photo at full strength and the pattern over it at its visibility, 0 being the photo alone (G-110, D315). The
+    // pattern is drawn whole into its own layer first, so a grid line over a stitch is not faded twice.
+    ctx.fillStyle = canvasColor;
+    ctx.fillRect(0, 0, displayPattern.width * cellSize, displayPattern.height * cellSize);
+    const source = displayPattern.sourceImage;
+    if (source && photo && photo.dataUrl === source.dataUrl) drawSourcePhoto(ctx, photo.img, source, cellSize, 1);
+    if (view.visibility > 0) {
+      const target = patternLayerFor(rect);
+      ctx.globalAlpha = view.visibility / 100;
+      if (target) {
+        drawPatternLayer(target.ctx as unknown as CanvasRenderingContext2D, displayPattern, scene, region);
+        ctx.drawImage(target.canvas as CanvasImageSource, rect.x0, rect.y0);
+      } else {
+        drawPatternLayer(ctx, displayPattern, scene, region);
+      }
+      ctx.globalAlpha = 1;
     }
-    atRegion(ctx, region, cellSize, () => drawChartOutline(ctx, displayPattern, cellSize, region, "rects"));
   } else {
-    atRegion(ctx, region, cellSize, () => drawChartOnScreen(ctx, displayPattern, viewMode as RenderMode, cellSize, region, canvasColor));
+    drawPatternLayer(ctx, displayPattern, scene, region);
   }
+
+  if (isSelectTool(activeTool) && selection && !selectDragging) {
+    drawSelectionOutline(ctx, selection, cellSize, selection.mask);
+  }
+  ctx.restore();
+}
+
+/** The pattern in Color or B&W: its stitches, Isolate's dimming and the backstitch, the layer the visibility fades. */
+function drawPatternLayer(ctx: CanvasRenderingContext2D, displayPattern: StitchPattern, scene: ChartScene, region: ChartRegion) {
+  const { view, cellSize, isolate, litColorIndices, litBackstitchIndices, canvasColor } = scene;
+  const mode = view.pattern as RenderMode;
+  atRegion(ctx, region, cellSize, () => drawChartOnScreen(ctx, displayPattern, mode, cellSize, region, canvasColor, view.symbols));
 
   // Anything lit, in either section, dims the stitches that are not: lighting only an outline is how a
   // reader sees where that outline runs.
-  if (isolate && (litColorIndices.size > 0 || litBackstitchIndices.size > 0)) {
+  const anyLit = isolate && (litColorIndices.size > 0 || litBackstitchIndices.size > 0);
+  if (anyLit) {
     atRegion(ctx, region, cellSize, () => drawHighlightOverlayRaster(ctx, displayPattern, cellSize, litColorIndices, region));
   }
   // Over the stitches and the highlight, under the selection outline: backstitch sits on top of the cloth.
@@ -245,21 +279,14 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
   // and place it with that translate, so they count cells from the region's corner; a line already carries its
   // own chart corners, so the same translate displaced every line by the region's origin. That is zero only
   // while the whole chart is on screen, which is why it looked right until the chart was zoomed (Owner,
-  // 2026-09-25). `clipTo(ctx, rect)` above already keeps the drawing inside the painted rectangle.
+  // 2026-09-25). The caller's clip, or the layer's own bounds, keeps the drawing inside the painted rectangle.
   if (displayPattern.backstitch?.length) {
     // Isolate shows what is lit and dims what is not, in both layers: with anything lit, a line is bright
     // only if its own thread is lit in the backstitch section. Lighting a thread's stitches and having its
     // outline come up with them is the behaviour the Owner asked to be rid of (2026-09-25).
-    const dimmed =
-      isolate && (litColorIndices.size > 0 || litBackstitchIndices.size > 0)
-        ? (l: BackstitchLine) => !litBackstitchIndices.has(l.paletteIndex)
-        : undefined;
+    const dimmed = anyLit ? (l: BackstitchLine) => !litBackstitchIndices.has(l.paletteIndex) : undefined;
     drawBackstitch(ctx, displayPattern.backstitch, displayPattern.palette, cellSize, scene.highlightBackstitch, dimmed);
   }
-  if (isSelectTool(activeTool) && selection && !selectDragging) {
-    drawSelectionOutline(ctx, selection, cellSize, selection.mask);
-  }
-  ctx.restore();
 }
 
 /**
@@ -278,7 +305,9 @@ export function drawCellsInto(
   const region = regionFor(ctx, base, scene, rect);
   ctx.save();
   clipTo(ctx, rect);
-  eachCell(region, (x, y, paletteIndex, kind) => drawCell(ctx, base, mode, cs, x, y, paletteIndex, scene.canvasColor, "rects", kind));
+  eachCell(region, (x, y, paletteIndex, kind) =>
+    drawCell(ctx, base, mode, cs, x, y, paletteIndex, scene.canvasColor, "rects", kind, scene.view.symbols)
+  );
   ctx.restore();
 }
 
@@ -345,7 +374,7 @@ function drawGestureContent(
   baseDrawn: boolean
 ) {
   if (isEmptyRect(rect)) return;
-  const mode = incrementalModeOf(scene.viewMode);
+  const mode = incrementalModeOf(scene.view);
   if (!gesture) {
     if (!baseDrawn) drawScene(ctx, pattern, scene, rect);
     return;

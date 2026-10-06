@@ -26,7 +26,8 @@ import {
   type ChartScene,
   type GesturePreview,
 } from "../chart-scene";
-import type { Tool, ViewMode } from "../editor-types";
+import type { Tool } from "../editor-types";
+import type { ChartView } from "@/lib/editor/view";
 import { cellIndexFromEvent, chartOrigin, drawPointerDot, drawStampOutline } from "../editor-geometry";
 import { buildStitchTiles, type StitchTiles } from "@/lib/export/stitch-texture";
 import type { StitchTextureId } from "@/lib/export/stitch-texture-catalog";
@@ -39,7 +40,8 @@ export interface ChartRendererInputs {
   scrollerRef: RefObject<HTMLDivElement | null>;
   navigatorCanvasRef: RefObject<HTMLCanvasElement | null>;
   pattern: StitchPattern | null;
-  viewMode: ViewMode;
+  /** The view in force (D315); only its four fields are read, so a new object with the same values repaints nothing. */
+  view: ChartView;
   cellSize: number;
   activeTool: Tool;
   /** The cursor's own canvas (G-065): the stamp outline is drawn here so a pointer move never repaints the chart. */
@@ -63,8 +65,8 @@ export interface ChartRendererInputs {
   /** The symmetry axes in effect, drawn as red guide lines in every view (G-037). */
   symmetryAxes: SymmetryAxes;
   /**
-   * The sliders the photo views should draw the photo with: the chart's own, or -- while the reader is on
-   * the Photo tab looking at one of those views -- the ones they are moving right now (D241, D243).
+   * The sliders the photo is drawn with: the chart's own, or -- while the reader is on
+   * the Photo tab looking at the photo -- the ones they are moving right now (D241, D243).
    */
   photoAdjust: PhotoAdjust | undefined;
   /** Scrolls a pending zoom's anchor back under the pointer; run once the frame has its new size, before measuring (D124). */
@@ -82,14 +84,15 @@ export type ChartRenderer = ReturnType<typeof useChartRenderer>;
 const EMPTY_RECT: PixelRect = { x0: 0, y0: 0, x1: 0, y1: 0 };
 
 /**
- * How far ahead of the view the canvas is painted on each side, as a share of the view. Grid + photo costs several
- * times more per pixel (haloed symbols over a translucent photo), so it paints less ahead and repaints more often (D136).
+ * How far ahead of the view the canvas is painted on each side, as a share of the view. The photo costs more per pixel
+ * (the photo, then the pattern composed apart and laid over it), so with it the canvas paints less ahead and repaints
+ * more often (D136).
  */
-function overscanFraction(viewMode: ViewMode, movePreview = false): number {
+function overscanFraction(view: ChartView, movePreview = false): number {
   // A Move drag repaints the whole rectangle for every stitch crossed, so its frames paint the view alone; the
   // overscan comes back with the frame that ends the drag (G-039 M2).
   if (movePreview) return 0;
-  return viewMode === "photo" ? 1 / 16 : 1 / 4;
+  return view.photo ? 1 / 16 : 1 / 4;
 }
 
 /** True while a Move drag is previewing, the one gesture whose every frame redraws the whole rectangle. */
@@ -99,7 +102,7 @@ function isMovePreview(gesture: GesturePreview | null): boolean {
 
 /**
  * Everything drawn into the Image window and the navigator (D135). The chart frame is full chart size; the canvas inside
- * it holds only the painted rectangle: the visible part of the chart plus a quarter of the view on each side (a sixteenth in Grid + photo), at whole
+ * it holds only the painted rectangle: the visible part of the chart plus a quarter of the view on each side (a sixteenth over the photo), at whole
  * chart pixels, starting on a whole device pixel. It repaints when what is shown changes, when a scroll or resize
  * brings unpainted chart within half that overscan, and for every gesture frame, replaying the active gesture so
  * scrolling and zooming keep its preview. `canvasColor` is display-only.
@@ -112,7 +115,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     navigatorCanvasRef,
     hoverCanvasRef,
     pattern,
-    viewMode,
+    view: viewIn,
     cellSize,
     activeTool,
     selection,
@@ -132,8 +135,12 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   // Photo tab, as the sliders stand right now (D243). `photoAdjust` is that effective value, decided in
   // workspace.tsx -- the renderer only draws what it is told to.
   const sourceImage = pattern?.sourceImage;
-  const showsPhoto = viewMode === "photo" || viewMode === "photo-only";
-  const photo = useAdjustedPhoto(sourceImage?.dataUrl ?? null, photoAdjust, showsPhoto);
+  const { pattern: patternMode, symbols, photo: photoOn, visibility } = viewIn;
+  const view = useMemo(
+    (): ChartView => ({ pattern: patternMode, symbols, photo: photoOn, visibility }),
+    [patternMode, symbols, photoOn, visibility]
+  );
+  const photo = useAdjustedPhoto(sourceImage?.dataUrl ?? null, photoAdjust, photoOn);
 
   const [realisticTiles, setRealisticTiles] = useState<StitchTiles | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -141,7 +148,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
 
   const scene = useMemo(
     (): Omit<ChartScene, "selectDragging"> => ({
-      viewMode,
+      view,
       cellSize,
       photo,
       realisticTiles,
@@ -156,7 +163,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       symmetryAxes,
     }),
     [
-      viewMode,
+      view,
       cellSize,
       photo,
       realisticTiles,
@@ -247,13 +254,13 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     const { scene: shown, pattern: shownPattern, stitchTexture: shownTexture } = shownRef.current;
     const tiles = shown.realisticTiles;
     const realisticPending =
-      shown.viewMode === "realistic" &&
+      shown.view.pattern === "realistic" &&
       (!tiles ||
         tiles.cellSize !== tileSizeFor(shown.cellSize) ||
         tiles.palette !== shownPattern?.palette ||
         tiles.texture !== shownTexture);
     frame.dataset.scenePending = realisticPending ? "realistic" : "";
-    // Which photo the photo views are showing: the file as uploaded, or that file adjusted by the four
+    // Which photo is showing: the file as uploaded, or that file adjusted by the four
     // sliders (G-074 M5). The adjusted one is prepared in a worker and arrives a moment later, and this
     // is how anything waiting for it -- a test, a person reading the DOM -- can tell which is on screen.
     const shownPhoto = shown.photo;
@@ -267,7 +274,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     const geometry = measure();
     if (!canvas || !p || !geometry) return;
     const align = devicePixelAlignment(window.devicePixelRatio || 1);
-    const fraction = overscanFraction(shownRef.current.scene.viewMode, isMovePreview(gestureRef.current));
+    const fraction = overscanFraction(shownRef.current.scene.view, isMovePreview(gestureRef.current));
     const rect = paintedRectFor(
       geometry.visible,
       geometry.viewWidth * fraction,
@@ -313,7 +320,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     if (!geometry) return;
     const margin =
       (Math.min(geometry.viewWidth, geometry.viewHeight) *
-        overscanFraction(shownRef.current.scene.viewMode, isMovePreview(gestureRef.current))) /
+        overscanFraction(shownRef.current.scene.view, isMovePreview(gestureRef.current))) /
       2;
     const alignmentChanged = devicePixelAlignment(window.devicePixelRatio || 1) !== alignRef.current;
     if (alignmentChanged || needsRepaint(geometry.visible, paintedRef.current, margin, geometry.width, geometry.height)) paint();
@@ -370,7 +377,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   const palette = pattern?.palette;
   const tileSize = tileSizeFor(cellSize);
   useEffect(() => {
-    if (viewMode !== "realistic" || !palette) return;
+    if (patternMode !== "realistic" || !palette) return;
     let cancelled = false;
     buildStitchTiles(palette, tileSize, stitchTexture)
       .then((tiles) => {
@@ -386,7 +393,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     return () => {
       cancelled = true;
     };
-  }, [palette, viewMode, tileSize, stitchTexture, previewRetryToken]);
+  }, [palette, patternMode, tileSize, stitchTexture, previewRetryToken]);
 
   /** The canvas context with chart coordinates for the painted rectangle, or null before the first paint. */
   function chartContext(): CanvasRenderingContext2D | null {
@@ -400,7 +407,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   /**
    * The stitches one brush pointer event painted into the working buffer `cells` (a stitch and its mirror copies under
    * symmetry), each with its colour. They are recorded so a repaint replays them. Color and B&W redraw just those
-   * stitches in one batch and draw the guide lines again over them; Grid + photo draws a clean frame (D104, D135, G-037).
+   * stitches in one batch and draw the guide lines again over them; over the photo a clean frame is drawn (D104, D135, G-037).
    */
   function paintBrushCells(base: StitchPattern, cells: Uint8Array, kinds: Uint8Array, ops: readonly BrushOp[]) {
     let gesture = gestureRef.current;
@@ -410,7 +417,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     }
     gesture.ops.push(...ops);
     const scene = currentScene();
-    const mode = incrementalModeOf(scene.viewMode);
+    const mode = incrementalModeOf(scene.view);
     const ctx = mode ? chartContext() : null;
     if (!mode || !ctx) {
       paint();
@@ -445,7 +452,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     if (!geometry) return false;
     // The view must not have moved: the cached rectangle has to be the one this frame would paint into.
     const align = devicePixelAlignment(window.devicePixelRatio || 1);
-    const fraction = overscanFraction(scene.viewMode, true);
+    const fraction = overscanFraction(scene.view, true);
     const rect = paintedRectFor(
       geometry.visible,
       geometry.viewWidth * fraction,
@@ -538,8 +545,8 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     const scene = currentScene();
     const canvas = canvasRef.current;
     const ctx = chartContext();
-    // Grid + photo has translucent pixels, so every frame is drawn clean rather than over a restored snapshot (D135).
-    if (!incrementalModeOf(scene.viewMode) || !canvas || !ctx) {
+    // Over the photo the pattern is translucent, so every frame is drawn clean rather than over a restored snapshot (D135).
+    if (!incrementalModeOf(scene.view) || !canvas || !ctx) {
       paint();
       return;
     }
@@ -559,7 +566,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     const scene = currentScene();
     const canvas = canvasRef.current;
     const ctx = chartContext();
-    if (!incrementalModeOf(scene.viewMode) || !canvas || !ctx) {
+    if (!incrementalModeOf(scene.view) || !canvas || !ctx) {
       paint();
       return;
     }

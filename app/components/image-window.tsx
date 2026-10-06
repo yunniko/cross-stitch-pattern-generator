@@ -1,6 +1,7 @@
 import { useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import type { StitchPattern } from "@/lib/types";
-import { isViewOnlyMode, type Tool, type ViewMode } from "../editor-types";
+import type { Tool } from "../editor-types";
+import { describeView, viewEditable, type ChartView } from "@/lib/editor/view";
 import { toolDefinition } from "../tools/registry";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import type { SourceImageMeta } from "../hooks/use-source-image";
@@ -13,14 +14,6 @@ import { DismissButton, PillButton } from "./ui";
 
 /** The height kept free under the chart for the floating view controls, in CSS pixels. */
 export const VIEW_CONTROLS_ROOM = 64;
-
-const VIEW_MODE_LABELS: Record<ViewMode, string> = {
-  color: "Color",
-  bw: "Black & white",
-  realistic: "Realistic preview",
-  photo: "Grid + photo",
-  "photo-only": "Original photo",
-};
 
 /**
  * The viewer's inputs, in the groups it uses them in (G-091 M2). They were 37 flat props; the groups are the seams: what is
@@ -40,7 +33,8 @@ export interface ImageWindowProps {
     pattern: StitchPattern | null;
     cellSize: number;
     sourceMeta: SourceImageMeta | null;
-    viewMode: ViewMode;
+    /** The view in force (D315). */
+    view: ChartView;
     activeTool: Tool;
     activeColorIndex: number | null;
     /** The tool in hand draws its own outline over the chart, so the pointer itself is hidden there (G-078). */
@@ -124,7 +118,7 @@ function cursorFor(activeTool: Tool, activeColorIndex: number | null, lookingOnl
  */
 export function ImageWindow({ refs, chart, start, preview, adjust, pointer, options, cropOverlay = null, marks = null }: ImageWindowProps) {
   const { scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef } = refs;
-  const { pattern, cellSize, sourceMeta, viewMode, activeTool, activeColorIndex, cursorHidden, lookingOnly } = chart;
+  const { pattern, cellSize, sourceMeta, view, activeTool, activeColorIndex, cursorHidden, lookingOnly } = chart;
   const {
     visible: startScreen,
     startingNew,
@@ -156,7 +150,7 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
   const showAdjusted = adjustActive && adjustReady && adjustSize !== null && !showOriginal;
   const comparable = adjustActive && (adjustReady || showOriginal);
   // The cloth is the Stitched view's alone, and covers the whole well rather than only the chart (G-077).
-  const clothShown = pattern !== null && !startingNew && viewMode === "realistic" && options.canvasTexture !== "off";
+  const clothShown = pattern !== null && !startingNew && view.pattern === "realistic" && options.canvasTexture !== "off";
   useCanvasCloth(scrollerRef, frameRef, { active: clothShown, texture: options.canvasTexture, color: options.canvasColor, cellSize });
 
   // Rulers take room only while a chart is up (G-078).
@@ -244,9 +238,12 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
               ref={frameRef}
               hidden={startingNew}
               role="img"
-              aria-label={`Pattern, ${VIEW_MODE_LABELS[viewMode]} view`}
+              aria-label={`Pattern, ${describeView(view)}`}
               data-testid="chart-frame"
-              data-view-mode={viewMode}
+              data-view-pattern={view.pattern}
+              data-view-symbols={view.symbols ? "on" : "off"}
+              data-view-photo={view.photo ? "on" : "off"}
+              data-view-visibility={view.visibility}
               data-cell-size={cellSize}
               onPointerDown={onPointerDown}
               // A right press paints with the background colour (G-064), so the browser's menu would sit on top
@@ -263,7 +260,7 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
               style={{ width: pattern.width * cellSize, height: pattern.height * cellSize }}
               className={`relative box-content touch-none overflow-hidden border ${
                 clothShown ? "border-transparent" : "border-line shadow-[0_20px_50px_color-mix(in_srgb,var(--at-shadow)_50%,transparent)]"
-              } ${cursorFor(activeTool, activeColorIndex, lookingOnly || isViewOnlyMode(viewMode), cursorHidden)}`}
+              } ${cursorFor(activeTool, activeColorIndex, lookingOnly || !viewEditable(view), cursorHidden)}`}
             >
               <canvas ref={canvasRef} data-testid="chart-canvas" aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
               {/* The cursor draws here and nowhere else, so moving it never repaints the chart (G-065). */}
@@ -278,7 +275,7 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
             {marks}
           </div>
         )}
-        {pattern && viewMode === "realistic" && previewError && (
+        {pattern && view.pattern === "realistic" && previewError && (
           <PreviewError key={previewError} message={previewError} onRetry={onRetryPreview} onDismiss={onDismissPreviewError} />
         )}
       </div>

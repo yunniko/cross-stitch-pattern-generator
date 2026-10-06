@@ -106,3 +106,13 @@ export function photoHalfView(view: ChartView): ChartView {
 export function photoAloneView(view: ChartView): ChartView {
   return { ...view, pattern: isFlatMode(view.pattern) ? view.pattern : "color", photo: true, visibility: 0 };
 }
+
+const PATTERN_NAMES: Record<PatternMode, string> = { color: "Color", bw: "Black & white", realistic: "Stitched" };
+
+/** The view in force in words, for the chart's label and a crash report: "Color, no symbols, 40% over the photo". */
+export function describeView(inForce: ChartView): string {
+  const parts = [PATTERN_NAMES[inForce.pattern]];
+  if (isFlatMode(inForce.pattern) && !inForce.symbols) parts.push("no symbols");
+  if (inForce.photo) parts.push(inForce.visibility === 0 ? "photo alone" : `${inForce.visibility}% over the photo`);
+  return parts.join(", ");
+}

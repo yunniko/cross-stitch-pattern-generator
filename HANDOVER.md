@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-06 at faf2068 (1,237 unit; full e2e by CI at 2495b64; production runs 02773b2, v0.3.0)
+Last verified: 2026-10-06 at G-110 M2 (1,240 unit; 202 parity cases; full e2e by CI at 2495b64; production runs 02773b2, v0.3.0)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -13,7 +13,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 **G-105, release versions and notes — ACTIVE, all four milestones done, pending the Owner's sign-off; live since v0.2.0, now v0.3.0.** The version is `package.json`'s, handed to the bundle by `next.config.ts` and read through `lib/app-version.ts` (D308); shown at the foot of Preferences and in crash reports. A change under `app/`, `lib/`, `rust/` or `public/` carries a note in `release-notes/next/`, checked by `check:fast` and CI (D309); `npm run release` cuts a numbered, tagged release whose notes `/whats-new` shows (D310); every deploy is a release (D311, `docs/development-loop.md`); a pushed range that cuts a release is carried by the release's file.
 
-**G-110, the view as switches — ACTIVE, M1 of 4 done.** The view is `lib/editor/view.ts`: a pattern mode, Symbols, Photo and the pattern's visibility, kept in the workspace options, with what is in force derived by `viewInForce` (D315). Nothing draws from it yet: the editor still runs the five fixed views until M2. Baseline timings at 1,500 stitches: `docs/reviews/2026-10-06-view-switches.md`. After its deploy the Owner reviews it live before G-104 starts.
+**G-110, the view as switches — ACTIVE, M2 of 4 done.** The view is `lib/editor/view.ts`: a pattern mode, Symbols, Photo and the pattern's visibility, with what is in force derived by `viewInForce` (D315); the five fixed views are gone. `app/chart-scene.ts` draws the photo at full strength and the pattern over it as one layer at its visibility; editing needs a flat mode at 5 % or more. Still to come (M3): the choice kept across a reload (it is stored but not yet read back), a note on why editing stops, and the browser specs that still read `data-view-mode` and the old view names, which fail until then. Timings: `docs/reviews/2026-10-06-view-switches.md`. After its deploy the Owner reviews it live before G-104 starts.
 
 **G-103, the three workspaces as features — ACTIVE, all four milestones done, pending the Owner's sign-off; live as v0.3.0.** Photo, Edit and Export are `workspace.photo`, `.edit`, `.export`, the first group in the feature list (D312). The browser obeys: a command names its workspace and `commandGate` in `app/commands/registry.ts` reads that switch first; controls outside the table take a `gatedAction` (D313); with all three off `app/components/no-workspace.tsx` replaces the editor. The server refuses a workspace's requests by its name through `REQUEST_WORKSPACES` in `lib/features/request-check.ts` (D314). A photo dropped on the start screen goes through the photo choice's gate (`dropPhoto`, `app/hooks/use-chart-lifecycle.ts`). Live, every server export kind is set unavailable to guests by the site's own states, so a guest export cannot be checked there.
 
@@ -120,7 +120,7 @@ the A4 export takes 62.1 s and the PDF 9.4–12.7 s, and host generation at 2000
 
 **Known limitations**: Crisp takes about 2.6× Standard's time on a 12 MP photo (every cell gets the two-mode fit,
 D132) and falls back to Standard for thin lines, junctions and shading (D096). At 1500 stitches chart actions stay
-under 100 ms but Grid + photo (105 ms); 4× CPU throttling reached 480 ms (G-036). Generation and every export but the
+under 100 ms but turning the photo on (about 100 ms); 4× CPU throttling reached 480 ms (G-036). Generation and every export but the
 editable save need the server, so they stop working offline (G-034). The PDF has no bold face; whether µ (which
 extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate does nothing in the realistic preview
 (D028); contour refinement exists but isn't adopted (D055).

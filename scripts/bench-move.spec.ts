@@ -28,12 +28,12 @@ const STEPS = Number(process.env.STEPS ?? 15);
  * caps a chart at 8000 px, so at 1000 stitches the 11 px target lands on 8 px.
  */
 const CELL_TARGETS = [6, 11] as const;
-// Only the editing views: the Realistic preview and Original photo pan and zoom but never edit, so a Move drag
+// Only the editing views: Stitched and the photo alone pan and zoom but never edit, so a Move drag
 // there is a no-op (D121).
 const ALL_VIEWS = [
   { key: "1", label: "Color" },
   { key: "2", label: "B&W" },
-  { key: "4", label: "Grid + photo" },
+  { key: "4", label: "Pattern half over the photo" },
 ] as const;
 /** VIEWS=3,4 and CELLS=6 rerun one case; CELLS accepts "fit" for the 100% zoom case. */
 const VIEWS = process.env.VIEWS ? ALL_VIEWS.filter((v) => process.env.VIEWS!.split(",").includes(v.key)) : ALL_VIEWS;

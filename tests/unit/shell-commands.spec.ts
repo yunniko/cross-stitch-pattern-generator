@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { EVERYTHING_ON } from "../../lib/features/features";
+import { DEFAULT_VIEW, photoAloneView, type ChartView } from "../../lib/editor/view";
 import { shellCommandStates, type ShellActions, type ShellState } from "../../app/commands/shell-commands";
 
 /** G-098: when each of the editor's own commands can run, and which action each one is, with no editor around it. */
@@ -10,6 +11,7 @@ const EDITING: ShellState = {
   hasChart: true,
   startingNew: false,
   startScreenVisible: false,
+  view: DEFAULT_VIEW,
   workspace: "edit",
   squareChart: false,
   hasPiece: false,
@@ -42,7 +44,7 @@ function actions(): ShellActions & Record<string, ReturnType<typeof vi.fn>> {
     "mirror",
     "toggleSymmetry",
     "toggleLock",
-    "showView",
+    "changeView",
     "zoomIn",
     "zoomOut",
     "zoomReset",
@@ -116,9 +118,26 @@ describe("the editor's own commands", () => {
       "generate.run",
       "generate.reset-adjustment",
       "view.photo",
+      "view.photo-half",
       "view.photo-only",
     ]);
     expect(unavailableIn({ ...EDITING, slidersNeutral: true })).toEqual(["generate.reset-adjustment"]);
+  });
+
+  it("in Stitched, the symbols and the photo go: neither is drawn there (D315)", () => {
+    const stitched = { ...EDITING, view: { ...DEFAULT_VIEW, pattern: "realistic" as const, symbols: false } };
+    expect(unavailableIn(stitched)).toEqual(["view.symbols", "view.photo"]);
+  });
+
+  it("the symbols and photo keys turn their switch over, and leave the rest of the view as it is", () => {
+    const a = actions();
+    const commands = shellCommandStates({ ...EDITING, view: { ...DEFAULT_VIEW, pattern: "bw" } }, a);
+    commands["view.symbols"].run();
+    commands["view.photo"].run();
+    const [symbols, photo] = vi.mocked(a.changeView).mock.calls.map((call) => call[0] as (view: ChartView) => ChartView);
+    const chosen: ChartView = { pattern: "bw", symbols: true, photo: false, visibility: 30 };
+    expect(symbols(chosen)).toEqual({ ...chosen, symbols: false });
+    expect(photo(chosen)).toEqual({ ...chosen, photo: true });
   });
 
   it("over the start screen: what would change or show the covered chart goes, and so do New and the command list; the keys' own commands stay as they were", () => {
@@ -176,7 +195,8 @@ describe("the editor's own commands", () => {
     commands["chart.symmetry-antidiagonal"].run();
     expect(a.toggleSymmetry).toHaveBeenCalledWith("antidiagonal");
     commands["view.photo-only"].run();
-    expect(a.showView).toHaveBeenCalledWith("photo-only");
+    const change = vi.mocked(a.changeView).mock.calls[0][0] as (view: ChartView) => ChartView;
+    expect(change(DEFAULT_VIEW)).toEqual(photoAloneView(DEFAULT_VIEW));
     commands["view.pan-held"].run();
     commands["view.pan-held"].release!();
     expect(a.holdPan).toHaveBeenCalledTimes(1);
