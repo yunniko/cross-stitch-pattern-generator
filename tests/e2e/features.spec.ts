@@ -43,9 +43,12 @@ test.describe("the site's states", () => {
   }) => {
     await openSmallChart(page);
     const rail = page.getByTestId("tool-rail");
-    const text = rail.getByRole("button", { name: "Text", exact: true });
-    await expect(text).toBeDisabled();
-    await expect(text).toHaveAttribute("title", "Text is not available to you.");
+    // Locked: greyed, reachable by keyboard, named with its note, and taking no press.
+    const text = rail.getByRole("button", { name: /^Text/ });
+    await expect(text).toHaveAttribute("aria-disabled", "true");
+    await expect(text).toHaveAccessibleName("Text: Text is not available to you.");
+    await text.click({ force: true }); // forced: Playwright reads aria-disabled as not enabled, which is the point
+    await expect(page.getByTestId("tool-in-hand")).toHaveText("Brush");
     await page.keyboard.press("t");
     await expect(page.getByTestId("tool-in-hand")).toHaveText("Brush");
 
@@ -114,7 +117,7 @@ test.describe("a person's own states and their tier's set", () => {
       const rail = page.getByTestId("tool-rail");
       await expect(rail.getByRole("button", { name: "Text", exact: true })).toHaveCount(0);
       await expect(rail.getByRole("button", { name: "Fill", exact: true })).toHaveCount(0);
-      await expect(rail.getByRole("button", { name: "Line", exact: true })).toBeDisabled();
+      await expect(rail.getByRole("button", { name: /^Line/ })).toHaveAttribute("aria-disabled", "true");
       await expect(rail.getByRole("button", { name: "Brush", exact: true })).toBeEnabled();
 
       // Off the tier (the subscription gone), the site's lock on Fill is back, as a lock, not hidden.
@@ -123,7 +126,7 @@ test.describe("a person's own states and their tier's set", () => {
       await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
       await page.reload();
       await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
-      await expect(rail.getByRole("button", { name: "Fill", exact: true })).toBeDisabled();
+      await expect(rail.getByRole("button", { name: /^Fill/ })).toHaveAttribute("aria-disabled", "true");
       await expect(rail.getByRole("button", { name: "Text", exact: true })).toBeEnabled();
     } finally {
       await clearSiteFeatures(["tool.text", "tool.fill"]);

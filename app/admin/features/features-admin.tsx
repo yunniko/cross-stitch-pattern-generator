@@ -10,6 +10,7 @@ import {
   setFeatureSetEntriesAction,
   setSiteFeaturesAction,
 } from "@/lib/admin/feature-actions";
+import type { ActionResult } from "@/lib/admin/feature-actions";
 import type { FeatureState } from "@/lib/features/features";
 import { FeatureStatesEditor } from "./feature-states-editor";
 
@@ -31,14 +32,12 @@ export function FeaturesAdmin({ site, sets, tiers, changes }: FeaturesAdminProps
   const [pending, startTransition] = useTransition();
   const set = sets.find((candidate) => candidate.id === chosenSet) ?? null;
 
-  function run(action: () => Promise<void>) {
+  function run(action: () => Promise<ActionResult>, then?: (result: ActionResult) => void) {
     setProblem(null);
     startTransition(async () => {
-      try {
-        await action();
-      } catch (error) {
-        setProblem(error instanceof Error ? error.message : "The change was refused.");
-      }
+      const result = await action();
+      if (result.error) setProblem(result.error);
+      else then?.(result);
     });
   }
 
@@ -87,10 +86,13 @@ export function FeaturesAdmin({ site, sets, tiers, changes }: FeaturesAdminProps
               event.preventDefault();
               const input = event.currentTarget.elements.namedItem("name") as HTMLInputElement;
               const name = input.value;
-              run(async () => {
-                setChosenSet(await createFeatureSetAction(name));
-                input.value = "";
-              });
+              run(
+                () => createFeatureSetAction(name),
+                (result) => {
+                  if (result.id) setChosenSet(result.id);
+                  input.value = "";
+                }
+              );
             }}
           >
             <input name="name" aria-label="New set's name" placeholder="A name for a new set" className={FIELD} maxLength={60} required />
@@ -158,10 +160,12 @@ export function FeaturesAdmin({ site, sets, tiers, changes }: FeaturesAdminProps
               event.preventDefault();
               const input = event.currentTarget.elements.namedItem("name") as HTMLInputElement;
               const name = input.value;
-              run(async () => {
-                await createTierAction(name);
-                input.value = "";
-              });
+              run(
+                () => createTierAction(name),
+                () => {
+                  input.value = "";
+                }
+              );
             }}
           >
             <input name="name" aria-label="New tier's name" placeholder="A name for a new tier" className={FIELD} maxLength={60} required />

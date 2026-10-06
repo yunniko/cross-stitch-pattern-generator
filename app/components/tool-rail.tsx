@@ -69,13 +69,17 @@ export function ToolRail({ workspace, activeTool, disabled, onSelect, squareCanv
                   <button
                     key={id}
                     type="button"
-                    onClick={() => onSelect(id as Tool)}
-                    disabled={disabled || locked}
+                    onClick={() => (locked ? undefined : onSelect(id as Tool))}
+                    disabled={disabled}
+                    // Reachable by keyboard although it takes no press, so the note reaches a person who cannot hover.
+                    aria-disabled={locked || undefined}
                     data-feature-locked={locked ? toolFeature(toolDefinition(id)) : undefined}
                     title={locked ? lockedNote(label) : title}
-                    aria-label={label}
+                    aria-label={locked ? `${label}: ${lockedNote(label)}` : label}
                     aria-pressed={active}
                     className={`flex min-h-11 flex-col items-center justify-center gap-[3px] rounded-md py-1.5 ${DISABLED_ICON} ${
+                      locked ? "opacity-40" : ""
+                    } ${
                       active
                         ? "bg-raised text-ink shadow-[inset_2px_0_0_var(--at-accent)]"
                         : "text-muted enabled:hover:bg-raised enabled:hover:text-ink"

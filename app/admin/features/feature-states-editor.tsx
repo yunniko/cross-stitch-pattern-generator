@@ -4,7 +4,7 @@ import { useOptimistic, useState, useTransition } from "react";
 import { SegmentedControl } from "@/app/components/ui";
 import { FEATURES } from "@/app/features/registry";
 import { groupFeatures, type Feature, type FeatureState } from "@/lib/features/features";
-import type { StateChoice } from "@/lib/admin/feature-actions";
+import type { ActionResult, StateChoice } from "@/lib/admin/feature-actions";
 
 /**
  * The feature list with a state per group and per feature (G-102 M3), for the site, for a person and for a set. Each
@@ -20,7 +20,7 @@ export interface FeatureStatesEditorProps {
   choices: readonly StateChoice[];
   /** The site's resolved states, shown beside a person's or a set's own so the admin sees what "As the site" means. */
   site?: Record<string, FeatureState>;
-  onChange: (entries: Array<{ featureId: string; state: StateChoice }>) => Promise<void>;
+  onChange: (entries: Array<{ featureId: string; state: StateChoice }>) => Promise<ActionResult>;
   testId?: string;
 }
 
@@ -47,11 +47,8 @@ export function FeatureStatesEditor({ states, choices, site, onChange, testId }:
     setProblem(null);
     startTransition(async () => {
       show(entries);
-      try {
-        await onChange(entries);
-      } catch (error) {
-        setProblem(error instanceof Error ? error.message : "The change was refused.");
-      }
+      const result = await onChange(entries);
+      if (result.error) setProblem(result.error);
     });
   }
 

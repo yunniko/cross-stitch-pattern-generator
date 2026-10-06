@@ -45,7 +45,7 @@ test("an admin sets a whole group and one feature for the site, a visitor sees i
     const visitor = await browser.newContext();
     const other = await visitor.newPage();
     await openSmallChart(other);
-    await expect(other.getByTestId("tool-rail").getByRole("button", { name: "Text", exact: true })).toBeDisabled();
+    await expect(other.getByTestId("tool-rail").getByRole("button", { name: /^Text/ })).toHaveAttribute("aria-disabled", "true");
     await other.getByRole("tab", { name: "Photo", exact: true }).click();
     await other.getByRole("tab", { name: "Chart settings" }).click();
     await expect(other.getByTestId("panel").getByRole("button", { name: "DMC", exact: true })).toHaveCount(0);

@@ -184,6 +184,10 @@ Three **workspaces**, chosen in the bar above: **Photo** makes the chart from a 
 - **Accounts are optional**: generating and exporting work exactly the same signed in or not. A reader who
   registers gets a personal cabinet (`/account`) to rename, change their password or delete their account. An
   admin role (`/admin/users`, `/admin/stats`) manages accounts and sees site-wide generation/export counts.
+- **Feature switches** (`/admin/features`): every feature of the editor, in groups, is On, Locked (shown greyed with
+  a note, refused by the server) or Hidden (absent), for the whole site, for one person (from the users list) or as a
+  named feature set a tier gives the people on it. A new tool, export, setting, pattern, texture or brand appears in
+  the list by itself (`docs/design-brief/10-features.md`, D303).
 
 ## Run locally
 

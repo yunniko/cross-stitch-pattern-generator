@@ -19,6 +19,23 @@ const NAME = /^[^\s][^\n]{0,59}$/;
 
 const SWITCH: Record<FeatureState, FeatureSwitch> = { on: "ON", locked: "LOCKED", hidden: "HIDDEN" };
 
+/**
+ * What an action answers. A refusal travels as `error`, never as a thrown error: in production Next replaces a thrown
+ * error's message with a generic one before it reaches the client (found by the G-102 QA pass).
+ */
+export type ActionResult = { error?: string; id?: string };
+
+async function attempt(work: () => Promise<string | void>): Promise<ActionResult> {
+  try {
+    const id = await work();
+    return id ? { id } : {};
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "P2002") return { error: "That name is taken." };
+    return { error: error instanceof Error ? error.message : "The change was refused." };
+  }
+}
+
 async function requireAdmin(): Promise<{ id: string; email: string }> {
   const session = await auth();
   if (!session?.user?.id || session.user.role !== "ADMIN") throw new Error("Admin access required.");
@@ -43,99 +60,119 @@ async function log(admin: { id: string; email: string }, scope: string, subject:
 }
 
 /** The site's states: "on" removes the row, since a feature with no row is on. */
-export async function setSiteFeaturesAction(entries: Array<{ featureId: string; state: StateChoice }>): Promise<void> {
-  const admin = await requireAdmin();
-  for (const { featureId, state } of checkedEntries(entries)) {
-    if (state === "on" || state === "site") await prisma.featureState.deleteMany({ where: { featureId } });
-    else
-      await prisma.featureState.upsert({
-        where: { featureId },
-        create: { featureId, state: SWITCH[state], updatedBy: admin.email },
-        update: { state: SWITCH[state], updatedBy: admin.email },
-      });
-    await log(admin, "SITE", "", `${featureId} → ${state === "site" ? "on" : state}`);
-  }
-  revalidatePath("/admin/features");
-  revalidatePath("/");
+export async function setSiteFeaturesAction(entries: Array<{ featureId: string; state: StateChoice }>): Promise<ActionResult> {
+  return attempt(async () => {
+    const admin = await requireAdmin();
+    for (const { featureId, state } of checkedEntries(entries)) {
+      if (state === "on" || state === "site") await prisma.featureState.deleteMany({ where: { featureId } });
+      else
+        await prisma.featureState.upsert({
+          where: { featureId },
+          create: { featureId, state: SWITCH[state], updatedBy: admin.email },
+          update: { state: SWITCH[state], updatedBy: admin.email },
+        });
+      await log(admin, "SITE", "", `${featureId} → ${state === "site" ? "on" : state}`);
+    }
+    revalidatePath("/admin/features");
+    revalidatePath("/");
+  });
 }
 
 /** A person's own states: "site" removes the row; "on" is kept as a row, since it lifts a lock the site or the tier has. */
-export async function setUserFeaturesAction(userId: string, entries: Array<{ featureId: string; state: StateChoice }>): Promise<void> {
-  const admin = await requireAdmin();
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true } });
-  if (!user) throw new Error("No such account.");
-  for (const { featureId, state } of checkedEntries(entries)) {
-    if (state === "site") await prisma.userFeature.deleteMany({ where: { userId, featureId } });
-    else
-      await prisma.userFeature.upsert({
-        where: { userId_featureId: { userId, featureId } },
-        create: { userId, featureId, state: SWITCH[state], updatedBy: admin.email },
-        update: { state: SWITCH[state], updatedBy: admin.email },
-      });
-    await log(admin, "USER", userId, `${user.email}: ${featureId} → ${state === "site" ? "as the site" : state}`);
-  }
-  revalidatePath(`/admin/users/${userId}/features`);
-  revalidatePath("/");
+export async function setUserFeaturesAction(
+  userId: string,
+  entries: Array<{ featureId: string; state: StateChoice }>
+): Promise<ActionResult> {
+  return attempt(async () => {
+    const admin = await requireAdmin();
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true } });
+    if (!user) throw new Error("No such account.");
+    for (const { featureId, state } of checkedEntries(entries)) {
+      if (state === "site") await prisma.userFeature.deleteMany({ where: { userId, featureId } });
+      else
+        await prisma.userFeature.upsert({
+          where: { userId_featureId: { userId, featureId } },
+          create: { userId, featureId, state: SWITCH[state], updatedBy: admin.email },
+          update: { state: SWITCH[state], updatedBy: admin.email },
+        });
+      await log(admin, "USER", userId, `${user.email}: ${featureId} → ${state === "site" ? "as the site" : state}`);
+    }
+    revalidatePath(`/admin/users/${userId}/features`);
+    revalidatePath("/");
+  });
 }
 
 /** Makes a set and returns its id, so the page can show it at once. */
-export async function createFeatureSetAction(name: string): Promise<string> {
-  const admin = await requireAdmin();
-  const trimmed = name.trim();
-  if (!NAME.test(trimmed)) throw new Error("A set needs a name of up to 60 characters.");
-  const set = await prisma.featureSet.create({ data: { name: trimmed } });
-  await log(admin, "SET", set.id, `set "${trimmed}" made`);
-  revalidatePath("/admin/features");
-  return set.id;
+export async function createFeatureSetAction(name: string): Promise<ActionResult> {
+  return attempt(async () => {
+    const admin = await requireAdmin();
+    const trimmed = name.trim();
+    if (!NAME.test(trimmed)) throw new Error("A set needs a name of up to 60 characters.");
+    const set = await prisma.featureSet.create({ data: { name: trimmed } });
+    await log(admin, "SET", set.id, `set "${trimmed}" made`);
+    revalidatePath("/admin/features");
+    return set.id;
+  });
 }
 
-export async function deleteFeatureSetAction(setId: string): Promise<void> {
-  const admin = await requireAdmin();
-  const set = await prisma.featureSet.findUnique({ where: { id: setId }, select: { name: true, tiers: { select: { id: true } } } });
-  if (!set) throw new Error("No such set.");
-  if (set.tiers.length > 0) throw new Error("A tier points at this set; detach it first.");
-  await prisma.featureSet.delete({ where: { id: setId } });
-  await log(admin, "SET", setId, `set "${set.name}" deleted`);
-  revalidatePath("/admin/features");
+export async function deleteFeatureSetAction(setId: string): Promise<ActionResult> {
+  return attempt(async () => {
+    const admin = await requireAdmin();
+    const set = await prisma.featureSet.findUnique({ where: { id: setId }, select: { name: true, tiers: { select: { id: true } } } });
+    if (!set) throw new Error("No such set.");
+    if (set.tiers.length > 0) throw new Error("A tier points at this set; detach it first.");
+    await prisma.featureSet.delete({ where: { id: setId } });
+    await log(admin, "SET", setId, `set "${set.name}" deleted`);
+    revalidatePath("/admin/features");
+  });
 }
 
 /** A set's entries: "site" removes the entry; the other three are kept, "on" included. */
-export async function setFeatureSetEntriesAction(setId: string, entries: Array<{ featureId: string; state: StateChoice }>): Promise<void> {
-  const admin = await requireAdmin();
-  const set = await prisma.featureSet.findUnique({ where: { id: setId }, select: { name: true } });
-  if (!set) throw new Error("No such set.");
-  for (const { featureId, state } of checkedEntries(entries)) {
-    if (state === "site") await prisma.featureSetEntry.deleteMany({ where: { setId, featureId } });
-    else
-      await prisma.featureSetEntry.upsert({
-        where: { setId_featureId: { setId, featureId } },
-        create: { setId, featureId, state: SWITCH[state] },
-        update: { state: SWITCH[state] },
-      });
-    await log(admin, "SET", setId, `set "${set.name}": ${featureId} → ${state === "site" ? "as the site" : state}`);
-  }
-  revalidatePath("/admin/features");
-  revalidatePath("/");
+export async function setFeatureSetEntriesAction(
+  setId: string,
+  entries: Array<{ featureId: string; state: StateChoice }>
+): Promise<ActionResult> {
+  return attempt(async () => {
+    const admin = await requireAdmin();
+    const set = await prisma.featureSet.findUnique({ where: { id: setId }, select: { name: true } });
+    if (!set) throw new Error("No such set.");
+    for (const { featureId, state } of checkedEntries(entries)) {
+      if (state === "site") await prisma.featureSetEntry.deleteMany({ where: { setId, featureId } });
+      else
+        await prisma.featureSetEntry.upsert({
+          where: { setId_featureId: { setId, featureId } },
+          create: { setId, featureId, state: SWITCH[state] },
+          update: { state: SWITCH[state] },
+        });
+      await log(admin, "SET", setId, `set "${set.name}": ${featureId} → ${state === "site" ? "as the site" : state}`);
+    }
+    revalidatePath("/admin/features");
+    revalidatePath("/");
+  });
 }
 
-export async function createTierAction(name: string): Promise<void> {
-  const admin = await requireAdmin();
-  const trimmed = name.trim();
-  if (!NAME.test(trimmed)) throw new Error("A tier needs a name of up to 60 characters.");
-  const tier = await prisma.tier.create({ data: { name: trimmed } });
-  await log(admin, "TIER", tier.id, `tier "${trimmed}" made`);
-  revalidatePath("/admin/features");
+export async function createTierAction(name: string): Promise<ActionResult> {
+  return attempt(async () => {
+    const admin = await requireAdmin();
+    const trimmed = name.trim();
+    if (!NAME.test(trimmed)) throw new Error("A tier needs a name of up to 60 characters.");
+    const tier = await prisma.tier.create({ data: { name: trimmed } });
+    await log(admin, "TIER", tier.id, `tier "${trimmed}" made`);
+    revalidatePath("/admin/features");
+  });
 }
 
 /** Which set a tier gives its people; null for none. */
-export async function attachSetToTierAction(tierId: string, setId: string | null): Promise<void> {
-  const admin = await requireAdmin();
-  const tier = await prisma.tier.findUnique({ where: { id: tierId }, select: { name: true } });
-  if (!tier) throw new Error("No such tier.");
-  const set = setId ? await prisma.featureSet.findUnique({ where: { id: setId }, select: { name: true } }) : null;
-  if (setId && !set) throw new Error("No such set.");
-  await prisma.tier.update({ where: { id: tierId }, data: { featureSetId: setId } });
-  await log(admin, "TIER", tierId, `tier "${tier.name}" → ${set ? `set "${set.name}"` : "no set"}`);
-  revalidatePath("/admin/features");
-  revalidatePath("/");
+export async function attachSetToTierAction(tierId: string, setId: string | null): Promise<ActionResult> {
+  return attempt(async () => {
+    const admin = await requireAdmin();
+    const tier = await prisma.tier.findUnique({ where: { id: tierId }, select: { name: true } });
+    if (!tier) throw new Error("No such tier.");
+    const set = setId ? await prisma.featureSet.findUnique({ where: { id: setId }, select: { name: true } }) : null;
+    if (setId && !set) throw new Error("No such set.");
+    await prisma.tier.update({ where: { id: tierId }, data: { featureSetId: setId } });
+    await log(admin, "TIER", tierId, `tier "${tier.name}" → ${set ? `set "${set.name}"` : "no set"}`);
+    revalidatePath("/admin/features");
+    revalidatePath("/");
+  });
 }
