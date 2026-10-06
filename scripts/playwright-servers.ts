@@ -75,6 +75,8 @@ export function appWithProcessor({
         ADMIN_BOOTSTRAP_ENABLED: "true",
         // Small on purpose (G-075 M3): lets a pagination test exercise page 2 without seeding dozens of accounts.
         ADMIN_USERS_PAGE_SIZE: "3",
+        // Short, so a spec can see an admin's change reach an open editor (G-102).
+        FEATURES_REFRESH_SECONDS: "5",
       },
       url: `http://localhost:${port}`,
       reuseExistingServer,

@@ -64,6 +64,8 @@ services:
       AUTH_TRUST_HOST: "true"
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-true}
+      # How long a browser keeps its feature states before asking again (G-102); 300 when unset.
+      FEATURES_REFRESH_SECONDS: ${FEATURES_REFRESH_SECONDS:-300}
     depends_on:
       processor:
         condition: service_started

@@ -12,6 +12,8 @@ What a person may use is decided feature by feature (G-102, D303 to D305). Every
 
 A feature with no state set is On. A person's own state wins over their tier's set, which wins over the site's; an explicit On set for a person or in a set lifts a lock the site has put on. A visitor without an account gets the site's states. A tier's set counts while the subscription is live (`active`, `trialing`, `past_due`).
 
+**When a change is seen.** The states are given with the page and asked for again once they are older than the time the site sets (5 minutes unless set otherwise; between 5 seconds and a day): on a timer while the editor is in view, and at once when it comes back into view after that time. A change an admin makes therefore reaches an open editor within that time, with no reload. A feature that becomes locked or hidden while it is in use is put down: a tool in hand gives way to the first usable one.
+
 ## What is a feature
 
 The list is derived from what the editor has, so a new tool, export kind, generation setting, dither pattern, texture or thread brand appears in it by being added, unless it declares itself core. The groups, and what is in them today:
@@ -56,6 +58,7 @@ Every admin page refuses a visitor (to the sign-in) and a signed-in reader (to t
 |---|---|
 | A set's or a tier's name | 1 to 60 characters, no line break; a set's name is unique |
 | Changes shown | 30 |
+| How long a browser keeps its states | 300 seconds unless set; 5 to 86,400 |
 | The note on a locked feature | "*Name* is not available to you." |
 | A refused request | 403, `{ "error": "<Name> is not available to you." }` |
 | A set a tier points at, on delete | "A tier points at this set; detach it first." |

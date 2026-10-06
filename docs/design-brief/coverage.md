@@ -417,4 +417,5 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D303 | 10-features | |
 | D304 | 10-features | |
 | D305 | internal | |
+| D306 | 10-features | |
 | G-102 | 10-features | |

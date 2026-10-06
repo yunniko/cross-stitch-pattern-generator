@@ -33,6 +33,8 @@ const env = {
   ADMIN_EMAIL: "e2e-admin@example.com",
   ADMIN_BOOTSTRAP_ENABLED: "true",
   ADMIN_USERS_PAGE_SIZE: "3",
+  // Short, so a spec can see an admin's change reach an open editor (G-102).
+  FEATURES_REFRESH_SECONDS: "5",
 };
 
 function run(command) {

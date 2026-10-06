@@ -159,3 +159,18 @@ test("a stored setting naming a feature the person cannot use is read as its def
     await clearSiteFeatures(["brand.dmc"]);
   }
 });
+
+test("an admin's change reaches an open editor once the states held expire, with no reload @alone", async ({ page }) => {
+  // The suite's servers keep states for 5 seconds (FEATURES_REFRESH_SECONDS).
+  await openSmallChart(page);
+  const text = page.getByTestId("tool-rail").getByRole("button", { name: /^Text/ });
+  await expect(text).not.toHaveAttribute("aria-disabled", "true");
+  try {
+    await setSiteFeatures({ "tool.text": "locked" });
+    await expect(text).toHaveAttribute("aria-disabled", "true", { timeout: 15_000 });
+    await clearSiteFeatures(["tool.text"]);
+    await expect(text).not.toHaveAttribute("aria-disabled", "true", { timeout: 15_000 });
+  } finally {
+    await clearSiteFeatures(["tool.text"]);
+  }
+});
