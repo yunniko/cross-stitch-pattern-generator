@@ -140,7 +140,7 @@ The chart is then made only from the colours chosen. Each cell takes the nearest
 | **Purpose** | Mix two neighbouring threads across stitches so a small palette holds a gradient |
 | **Kind of value** | Choice among 13 patterns, each offered as a small picture of the pattern itself over a ramp from dark to light, in groups: **Off**; *Screens* (fewest single stitches): Clustered dots, Rings, **Lines** (with a direction: horizontal, vertical, diagonal rising, diagonal falling); *Scattered* (closer to the photo): Bayer 4×4, Bayer 8×8, Blue noise; *Error diffusion* (closest, never worse than none): Floyd–Steinberg, Atkinson; *Drawn* (marks, not a pattern): Hand-drawn |
 | **Default** | Off |
-| **Preview** | For every pattern except Off: the top-left corner of the chart these settings would make, over a ramp from dark to light, at the chart's own size. For drawn patterns, choosing the preview draws the same marks again in different places (a new random seed, stored with the texture) |
+| **Preview** | For every pattern except Off: the top-left corner of a chart in this pattern over a ramp from dark to light. A pattern without settings of its own shows a fixed picture, the corner of a 56 × 56 chart, made when the app is built. A drawn pattern's corner is drawn by the service at the chart's own size once its settings rest, and choosing the preview draws the same marks again in different places (a new random seed, stored with the texture) |
 | **Effects** | A dithered chart skips the smoothing that removes stray stitches, and has more single stitches. The same settings and seed always give the same chart |
 
 ### Hand-drawn texture

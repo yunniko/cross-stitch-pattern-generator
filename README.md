@@ -51,9 +51,10 @@ Three **workspaces**, chosen in the bar above: **Photo** makes the chart from a 
   directions), scattered matrices (Bayer 4×4 and 8×8, blue noise), two
   error-diffusion kernels (Floyd-Steinberg and Atkinson), and **Hand-drawn**,
   which scatters drawn marks (rings, arcs, dots) across the chart instead of
-  repeating a pattern. Whichever you pick, a preview shows the top-left corner
-  of the chart those settings would make, over a dark-to-light ramp — click it
-  to place the drawn marks differently. They mix neighbouring
+  repeating a pattern. Whichever you pick, a preview shows the pattern's
+  top-left corner over a dark-to-light ramp: a picture built into the app, or
+  for Hand-drawn the corner of your chart drawn by the server — click it to
+  place the drawn marks differently. They mix neighbouring
   stitches between the two threads either side of a colour, so a small palette
   can hold a gradient. It costs single stitches standing alone: the screens and
   the drawn marks cost fewest, and the two kernels fit the photo closest and
@@ -235,6 +236,7 @@ toolchain:
 ```
 node scripts/rust-jsmath-vectors.mjs rust/target/jsmath-vectors.bin   # V8's maths results, once per Node version
 node --experimental-strip-types scripts/rust-tables.mjs              # after changing a name or thread table
+npm run dither-patterns && npm run dither-previews                  # after changing a dither pattern; CI checks both are current
 cd rust && cargo build --release && cargo test --release && cd ..
 # Then the suites above. RUST_THREADS=n runs them at another thread count; output must not change.
 ```
