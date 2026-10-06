@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-06 at e9ac511 (1,222 unit; full e2e by CI at c1e8da4, 604 cases; production runs e667b7a, v0.2.1)
+Last verified: 2026-10-06 at f0ccdc9 (1,225 unit; full e2e by CI at c1e8da4, 604 cases; production runs e667b7a, v0.2.1)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -13,7 +13,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 **G-105, release versions and notes — ACTIVE, all four milestones done, pending the Owner's sign-off; live as v0.2.1.** The version is `package.json`'s, handed to the bundle by `next.config.ts` and read through `lib/app-version.ts` (D308); shown at the foot of Preferences and in crash reports. A change under `app/`, `lib/`, `rust/` or `public/` carries a note in `release-notes/next/`, checked by `check:fast` and CI (D309); `npm run release` cuts a numbered, tagged release whose notes `/whats-new` shows (D310); every deploy is a release (D311, `docs/development-loop.md`); a pushed range that cuts a release is carried by the release's file.
 
-**G-103, the three workspaces as features — ACTIVE, M2 of 4 done.** Photo, Edit and Export are `workspace.photo`, `.edit`, `.export`, the first group in the feature list (D312). The browser obeys: a command names its workspace and `commandGate` in `app/commands/registry.ts` reads that switch first; controls outside the table take a `gatedAction` (D313); with all three off `app/components/no-workspace.tsx` replaces the editor. The server does not refuse yet (M3).
+**G-103, the three workspaces as features — ACTIVE, M3 of 4 done.** Photo, Edit and Export are `workspace.photo`, `.edit`, `.export`, the first group in the feature list (D312). The browser obeys: a command names its workspace and `commandGate` in `app/commands/registry.ts` reads that switch first; controls outside the table take a `gatedAction` (D313); with all three off `app/components/no-workspace.tsx` replaces the editor. The server refuses a workspace's requests by its name through `REQUEST_WORKSPACES` in `lib/features/request-check.ts` (D314).
 
 **G-099, extensible generation — signed off 2026-10-05, archived.** A generation setting is declared once in `lib/pipeline/generation-settings.ts`; the editor's request, the processor's check and the options handed to Rust read that list, and Rust reads each setting in the module that uses it and refuses one nobody reads (`rust/cs-core/src/settings.rs`, D293). The pipeline is fourteen stages run from a table (`rust/cs-core/src/pipeline/`); traced lines and texture strokes are overlays behind one contract (`overlay.rs`, D294). A setting declared with a `control` is drawn under "More" in the photo settings with nothing else edited; none is today. **The gate for any change to generation:** `npm run test:goldens:rust` and `npx tsx scripts/measure-generation.ts` must show every chart unchanged. How to add a setting or an algorithm: `docs/architecture.md` section 3.
 
