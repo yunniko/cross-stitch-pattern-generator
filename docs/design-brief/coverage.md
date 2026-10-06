@@ -421,13 +421,13 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D307 | 10-features | |
 | G-102 | 10-features | |
 | G-103 | 10-features | also 01 |
-| G-104 | not shipped (draft) | a colour picker |
+| G-104 | 04-editing | the Picker and Alt held; also 10 |
 | G-105 | 01-overview | the version and "What's new"; the notes process internal |
 | G-106 | out of scope | draft: subscriptions |
 | G-107 | out of scope | draft: the admin and account pages |
 | G-108 | not shipped (draft) | saved charts and a gallery |
 | G-109 | not shipped (draft) | limits on server actions |
-| G-110 | not shipped (draft) | the view as switches |
+| G-110 | 03-chart-views | the view as switches |
 | G-111 | not shipped (draft) | what users publish, and moderation |
 | G-112 | not shipped (draft) | a user guide |
 | G-113 | out of scope | draft: email for accounts |
