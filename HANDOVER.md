@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-06 at 88d9e2b (production v0.4.0 at 7ee9854; 1,254 unit; CI full e2e green on b3d4605; live checks as in the deploy log)
+Last verified: 2026-10-06 at f7ba927 (production v0.4.0 at 7ee9854; 1,260 unit; CI full e2e green on b3d4605; live checks as in the deploy log)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -11,7 +11,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 **Production** runs 7ee9854, v0.4.0 (2026-10-06, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-104, a colour picker held on a key — ACTIVE, M1 of 3 done (not deployed).** A tool can be held on a key: `lib/editor/held-tool.ts` holds the rules (one tool at a time, given back by its own key, restored only if the borrowed tool is still in hand) and `app/hooks/use-held-tool.ts` runs them for Space's Pan now and Alt's picker in M2 (D319). The key grammar names `Alt` held alone; held keys are released when the window loses focus. A tool marked `heldPicker` on its definition lends itself to Alt (D318); `EditorApi.takeColor(index, button)` puts a colour into the square that button paints with. M2 is the picker tool itself (key I, its own feature); M3 the docs, QA, release and deploy.
+**G-104, a colour picker held on a key — ACTIVE, M2 of 3 done (not deployed).** The Color picker (`app/tools/picker.ts`, key I, feature `tool.picker`) takes the colour under the pointer by `colorAt` in `lib/editor/pick-color.ts`; Alt borrows it through the command `tools.pick-held`. A tool can be held on a key: `lib/editor/held-tool.ts` holds the rules (one tool at a time, given back by its own key, restored only if the borrowed tool is still in hand) and `app/hooks/use-held-tool.ts` runs them for Space's Pan now and Alt's picker in M2 (D319). The key grammar names `Alt` held alone; held keys are released when the window loses focus. A tool marked `heldPicker` on its definition lends itself to Alt (D318); `EditorApi.takeColor(index, button)` puts a colour into the square that button paints with. M3 is the docs, QA, release and deploy.
 
 **G-105, release versions and notes — ACTIVE, all four milestones done, pending the Owner's sign-off; live since v0.2.0, now v0.3.0.** The version is `package.json`'s, handed to the bundle by `next.config.ts` and read through `lib/app-version.ts` (D308); shown at the foot of Preferences and in crash reports. A change under `app/`, `lib/`, `rust/` or `public/` carries a note in `release-notes/next/`, checked by `check:fast` and CI (D309); `npm run release` cuts a numbered, tagged release whose notes `/whats-new` shows (D310); every deploy is a release (D311, `docs/development-loop.md`); a pushed range that cuts a release is carried by the release's file.
 
