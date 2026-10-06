@@ -27,6 +27,10 @@ seen to find it".
 5. **Where it is saved follows the scope**: document scope is saved in the chart; application and view scope in the browser.
 6. **A workspace is a kind of work, not a scope** (D297): Photo makes the chart, Edit changes it, Export gets it out. An
    action's parameters live in its workspace; application and view controls are the same in all three.
+7. **A control belongs to the workspace it is offered in, and goes with that workspace's switch** (G-103, D312, D313): Save
+   and Export-then-start-new are Export's; Choose a photo, a dropped photo and Generate are Photo's; Continue in Edit is
+   Edit's. Undo, Redo and the starting choices other than a photo belong to none and stay. A new control or command names
+   its workspace; `commandGate` and `gatedAction` read that switch before the control's own.
 
 ## Every control, by scope
 
