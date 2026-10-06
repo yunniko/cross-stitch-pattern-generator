@@ -8,7 +8,7 @@
 // Refuses on a tree with uncommitted changes (the release is one commit of its own), with no notes, or with a note that
 // does not parse.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { NEXT_NOTES_DIR, parseNote } from "../lib/release-notes/rule.ts";
 import { RELEASES_DIR, deployLogRow, nextVersion, releaseFile } from "../lib/release-notes/release.ts";
@@ -24,9 +24,8 @@ const fail = (message) => {
 if (!dryRun && git("status", "--porcelain") !== "") fail("commit or put away the changes in hand first; a release is a commit of its own");
 
 const nextDir = path.join(root, NEXT_NOTES_DIR);
-const files = readdirSync(nextDir)
-  .filter((name) => name.endsWith(".md"))
-  .sort();
+// The folder is kept by its .gitkeep; without it there is nothing to release either.
+const files = (existsSync(nextDir) ? readdirSync(nextDir) : []).filter((name) => name.endsWith(".md")).sort();
 if (files.length === 0) fail(`no notes in ${NEXT_NOTES_DIR}: nothing to release`);
 
 const notes = files.map((name) => {
