@@ -1,9 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { commandsForKey, parseChord, type Command } from "@/lib/editor/commands";
 
+/** Inputs that take no typed characters: a key pressed on one is a shortcut, as on a button (the view's slider, G-110). */
+const KEYLESS_INPUTS = new Set(["range", "checkbox", "radio", "button", "submit", "reset", "color", "file", "image"]);
+
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
-  return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+  if (target instanceof HTMLInputElement) return !KEYLESS_INPUTS.has(target.type);
+  return target.tagName === "TEXTAREA" || target.isContentEditable;
 }
 
 /**
@@ -12,7 +16,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
  * `app/commands/registry.ts` and in the tool modules.
  *
  * What stays here is how keys are listened to at all:
- * - Nothing acts while typing in a field, or while `paused` (the command list is open). A key coming up is still heard
+ * - Nothing acts while typing in a field (a slider or a checkbox is not one), or while `paused` (the command list is open). A key coming up is still heard
  *   then, so a held command begun before the pause ends when its key does.
  * - A command that says it claims its key keeps it from the browser even while it cannot run (undo with a piece in hand, G-063).
  * - A `held` command (Space, to pan) acts until the key comes up, and is claimed only when focus is on the page body or

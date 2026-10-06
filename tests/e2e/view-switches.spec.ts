@@ -93,3 +93,22 @@ test("a reload keeps the view; opening another chart resets it to Color", async 
   await expect(page.getByText(/^6 × 4, /)).toBeVisible();
   await expectView(page, { pattern: "color", symbols: true, photo: false, visibility: 100 });
 });
+
+test("the view keys act while the visibility slider has the focus, and typing in a field still takes them", async ({ page }) => {
+  await openSmallChart(page);
+  const controls = viewControls(page);
+  await showOverPhoto(page, 40);
+  await controls.visibility.focus();
+  await page.keyboard.press("5");
+  await expectView(page, { photo: true, visibility: 0 });
+  await page.keyboard.press("y");
+  await expectView(page, { symbols: false });
+
+  // A text field keeps its characters.
+  await page.getByRole("tab", { name: "Chart" }).click();
+  const name = page.getByLabel("Pattern name");
+  await name.fill("");
+  await name.pressSequentially("p4");
+  await expect(name).toHaveValue("p4");
+  await expectView(page, { photo: true, visibility: 0 });
+});
