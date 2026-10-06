@@ -66,7 +66,7 @@ A stitch is **whole**, or a **half stitch slanting "/"**, or a **half stitch sla
 | Aspect | Behaviour |
 |---|---|
 | **Choosing what to lay** | The Stitch type choice (`04`): three exclusive choices, each drawn as the shape of the stitch, shown only with Brush, Fill, Line, Rectangle, Oval and Lasso fill; kept in the browser; default whole |
-| **How drawn** | A half stitch is its cell with two opposite corners cut away (each cut is half the side) |
+| **How drawn** | A half stitch is its cell with two opposite corners cut away (each cut is 60 % of the side, so what is left is a diagonal band) |
 | **Flips, turns, symmetry, quick mirror** | A "/" becomes "\\" where a mirror image needs it |
 | **Counts** | The stitch count counts whole and half stitches together; the legend's details table gives the whole-stitch count and the half-stitch count separately when the chart has half stitches |
 | **Exports** | The Pattern Keeper PDF and the OXS file carry a half stitch as a whole stitch (`08`); the chart images and A4 pages draw them as half stitches and list every stitch type and thread in the colour key |

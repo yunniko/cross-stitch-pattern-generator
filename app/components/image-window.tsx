@@ -41,6 +41,8 @@ export interface ImageWindowProps {
     cursorHidden: boolean;
     /** The chart is only looked at here, whatever the view: outside the Edit workspace (G-095). */
     lookingOnly: boolean;
+    /** The Zoom tool's click zooms out, so its pointer says so (D324). */
+    zoomsOut: boolean;
   };
   /** The start screen: the ways into a chart, offered where the chart will be. */
   start: {
@@ -101,11 +103,17 @@ function PreviewError({ message, onRetry, onDismiss }: { message: string; onRetr
   );
 }
 
-function cursorFor(activeTool: Tool, activeColorIndex: number | null, lookingOnly: boolean, cursorHidden: boolean): string {
+function cursorFor(
+  activeTool: Tool,
+  activeColorIndex: number | null,
+  lookingOnly: boolean,
+  cursorHidden: boolean,
+  zoomsOut: boolean
+): string {
   if (cursorHidden) return "cursor-none";
   const { cursor } = toolDefinition(activeTool);
   if (cursor === "grab") return "cursor-grab active:cursor-grabbing";
-  if (cursor === "zoom") return "cursor-zoom-in";
+  if (cursor === "zoom") return zoomsOut ? "cursor-zoom-out" : "cursor-zoom-in";
   if (lookingOnly) return "";
   if (cursor === "pick") return "cursor-pick";
   return cursor === "cross" || activeColorIndex !== null ? "cursor-crosshair" : "";
@@ -119,7 +127,7 @@ function cursorFor(activeTool: Tool, activeColorIndex: number | null, lookingOnl
  */
 export function ImageWindow({ refs, chart, start, preview, adjust, pointer, options, cropOverlay = null, marks = null }: ImageWindowProps) {
   const { scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef } = refs;
-  const { pattern, cellSize, sourceMeta, view, activeTool, activeColorIndex, cursorHidden, lookingOnly } = chart;
+  const { pattern, cellSize, sourceMeta, view, activeTool, activeColorIndex, cursorHidden, lookingOnly, zoomsOut } = chart;
   const {
     visible: startScreen,
     startingNew,
@@ -261,7 +269,7 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
               style={{ width: pattern.width * cellSize, height: pattern.height * cellSize }}
               className={`relative box-content touch-none overflow-hidden border ${
                 clothShown ? "border-transparent" : "border-line shadow-[0_20px_50px_color-mix(in_srgb,var(--at-shadow)_50%,transparent)]"
-              } ${cursorFor(activeTool, activeColorIndex, lookingOnly || !viewEditable(view), cursorHidden)}`}
+              } ${cursorFor(activeTool, activeColorIndex, lookingOnly || !viewEditable(view), cursorHidden, zoomsOut)}`}
             >
               <canvas ref={canvasRef} data-testid="chart-canvas" aria-hidden="true" className="pointer-events-none absolute top-0 left-0" />
               {/* The cursor draws here and nowhere else, so moving it never repaints the chart (G-065). */}

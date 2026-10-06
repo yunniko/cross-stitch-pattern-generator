@@ -448,3 +448,6 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D320 | 03-chart-views | the slider row and the looking-only paragraph |
 | D321 | 03-chart-views | the colour under the pointer row |
 | D322 | 04-editing | the Fill row and Fill options; also 01 |
+| D323 | 04-editing | the Brush row and the unavailable states |
+| D324 | 04-editing | the Zoom row and Zoom options |
+| D325 | 06-backstitch-and-stitch-types | How drawn |

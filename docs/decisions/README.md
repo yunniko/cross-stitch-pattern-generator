@@ -297,7 +297,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D259 — A half stitch is its cell with two opposite corners cut away, 30 % of the side — active
 - D260 — The Pattern Keeper PDF and the OXS file carry half stitches as whole stitches — active
 - D261 — The half stitch's cut corners are 40 % of the side — active (replaces D259's 30 %)
-- D262 — The half stitch's cut corners are 50 % of the side — active (replaces D261's 40 %)
+- D262 — The half stitch's cut corners are 50 % of the side — superseded (superseded by: D325; it replaced D261's 40 %)
 - D263 — Stitch type is three radio icons, and the outline and dot take the stitch's shape — active
 - D264 — The A4 pages take a cell size in mm and carry the page marks, in Rust only; the Pattern Keeper PDF is pinned — active
 - D265 — The Color # column is printed whenever a thread has a code, not only for a one-brand chart — active
@@ -358,3 +358,6 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D320 — The visibility slider is disabled, not hidden, and a faint pattern has no note — active
 - D321 — The status bar names the colour the Picker would take — active
 - D322 — Fill finds its region by colour and stitch type, with two switches; the double-press fill is gone — active
+- D323 — The Brush with no thread chosen sets the stitch type of the stitches it crosses — active
+- D324 — The Zoom tool has a direction, and a right press zooms the other way — active
+- D325 — The half stitch's cut corners are 60 % of the side — active

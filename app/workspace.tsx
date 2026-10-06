@@ -51,6 +51,7 @@ import { noWorkspaceOn, workspaceEdits, workspaceFeature, workspaceOpen, workspa
 import { featureUsable } from "@/lib/features/features";
 import { gatedAction } from "./commands/registry";
 import { NoWorkspace } from "./components/no-workspace";
+import { ZOOM_DIRECTION } from "./tools/options";
 import { toolDefinition } from "./tools/registry";
 import { useTools } from "./tools/use-tools";
 import { useShellCommands } from "./commands/shell-commands";
@@ -614,6 +615,7 @@ export default function Workspace({ account }: WorkspaceProps) {
                   activeColorIndex,
                   cursorHidden: hoverOutline !== null,
                   lookingOnly: !editing,
+                  zoomsOut: readToolOption(options, ZOOM_DIRECTION) === "out",
                 }}
                 start={{
                   visible: startScreenVisible,

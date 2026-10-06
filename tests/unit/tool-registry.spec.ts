@@ -171,7 +171,7 @@ describe("the options each tool declares (G-093)", () => {
       crop: "",
       move: "",
       pan: "",
-      zoom: "",
+      zoom: "zoomDirection",
     });
   });
 

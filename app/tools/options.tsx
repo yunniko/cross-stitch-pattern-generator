@@ -124,6 +124,21 @@ export const FILL_COLOR_ONLY: ToolOption<"on" | "off"> = {
   ],
 };
 
+/** Which way a left press of the Zoom tool zooms; a right press zooms the other way (G-115, D324). */
+export const ZOOM_DIRECTION: ToolOption<"in" | "out"> = {
+  id: "zoomDirection",
+  group: "Zoom",
+  label: "Zoom direction",
+  title: "Which way a click zooms; a right click, or Shift or Alt with a click, zooms the other way",
+  control: "segments",
+  values: ["in", "out"],
+  defaultValue: "in",
+  choices: [
+    { value: "in", label: "In", title: "A click zooms in; a right click zooms out" },
+    { value: "out", label: "Out", title: "A click zooms out; a right click zooms in" },
+  ],
+};
+
 /** The brush's size and shape: offered by the tools that draw with the brush, and by no other (Owner, 2026-10-05, D288). */
 export const BRUSH_OPTIONS = [BRUSH_SIZE, BRUSH_SHAPE] as const;
 /** For the tools that lay stitches without a brush: Fill and Lasso fill. */

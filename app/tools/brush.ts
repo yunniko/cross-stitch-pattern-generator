@@ -45,7 +45,8 @@ export function useBrushTool({
     kind: number;
     lastCell: number | null;
     axes: SymmetryAxes;
-    color: number;
+    /** Null: no thread in hand, so the stroke sets the stitch type of the stitches it crosses and keeps their colour. */
+    color: number | null;
     stamp: readonly StampOffset[];
   } | null>(null);
 
@@ -57,6 +58,9 @@ export function useBrushTool({
    * Paints everything one press covers -- the stamp around `cellIndex`, and every mirror copy of it -- into the
    * stroke buffer, and hands them to the renderer as one batch. Mirroring the stamped cells rather than the centre
    * keeps a wide brush symmetric about the axis rather than a stamp's width away from it (G-064).
+   *
+   * With no thread in hand (`color` null) the press changes only the stitch type: each stitch keeps its colour, and an
+   * empty one is left alone, since an empty stitch is always whole (G-115, D323).
    */
   function paintOrbit(
     base: StitchPattern,
@@ -64,7 +68,7 @@ export function useBrushTool({
     kinds: Uint8Array,
     cellIndex: number,
     axes: SymmetryAxes,
-    color: number,
+    color: number | null,
     kind: number,
     pressStamp: readonly StampOffset[]
   ) {
@@ -78,17 +82,22 @@ export function useBrushTool({
         orbit.push(copy);
       }
     }
-    // Under the lock a stitch that would turn from empty to colour, or back, is left as it was.
-    const painted = locked ? orbit.filter((cell) => !flipsTransparency(base.cellPalette[cell.index], color)) : orbit;
+    // Under the lock a stitch that would turn from empty to colour, or back, is left as it was. Retyping never does.
+    const painted =
+      color === null
+        ? orbit.filter((cell) => base.cellPalette[cell.index] !== EMPTY_CELL)
+        : locked
+          ? orbit.filter((cell) => !flipsTransparency(base.cellPalette[cell.index], color))
+          : orbit;
     for (const cell of painted) {
-      cells[cell.index] = color;
-      kinds[cell.index] = color === EMPTY_CELL ? STITCH_WHOLE : cell.kind;
+      if (color !== null) cells[cell.index] = color;
+      kinds[cell.index] = cells[cell.index] === EMPTY_CELL ? STITCH_WHOLE : cell.kind;
     }
     rendererRef.current?.paintBrushCells(
       base,
       cells,
       kinds,
-      painted.map((cell) => ({ cellIndex: cell.index, paletteIndex: color, kind: color === EMPTY_CELL ? STITCH_WHOLE : cell.kind }))
+      painted.map((cell) => ({ cellIndex: cell.index, paletteIndex: cells[cell.index], kind: kinds[cell.index] }))
     );
   }
 
@@ -107,8 +116,9 @@ export function useBrushTool({
   }
 
   function onPointerDown(e: PointerLike, frame: HTMLElement) {
+    // No thread in hand is not nothing to do: the stroke sets the stitch type (G-115, D323).
     const activeColorIndex = colorForPointer(e.button ?? 0);
-    if (!pattern || activeColorIndex === null) return;
+    if (!pattern) return;
     const cellIndex = cellAt(e, frame);
     if (cellIndex === null) return;
     const cells = pattern.cellPalette.slice();
@@ -146,8 +156,8 @@ export function useBrushTool({
     // The commit re-renders and repaints from the new pattern.
     rendererRef.current?.endGesture(false);
     releaseCapture(frameRef.current, e.pointerId);
-    // A stroke the lock left with nothing to change costs no undo step.
-    if (locked && unchanged(stroke.base, stroke.cells, stroke.kinds)) return true;
+    // A stroke that changed nothing -- under the lock, or retyping stitches already of that type -- costs no undo step.
+    if (unchanged(stroke.base, stroke.cells, stroke.kinds)) return true;
     commit(withCellPalette(stroke.base, stroke.cells, stroke.kinds));
     return true;
   }
@@ -161,7 +171,7 @@ export const brushModule = {
     {
       id: "brush",
       label: "Brush",
-      title: "Paint the selected color -- click a color in the Threads list first (B)",
+      title: "Paint the selected color; with no thread chosen, set the stitch type of stitches already there (B)",
       key: "b",
       group: 0,
       shares: ["colours", "symmetry", "lock"],

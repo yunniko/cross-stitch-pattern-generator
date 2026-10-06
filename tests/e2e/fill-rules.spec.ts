@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
-import { readFile } from "node:fs/promises";
-import { pickTool, saveButton } from "./helpers/app";
+import { pickTool, waitForAutosave } from "./helpers/app";
+import { at, blankChart, click, EMPTY, saved, SLASH, takeEmpty, takeThread, WHOLE, WIDTH } from "./helpers/blank-chart";
 
 /**
  * G-115 M1: Fill's region is the touching stitches of the pressed one's colour and stitch type; "Color only" fills every
@@ -8,56 +8,6 @@ import { pickTool, saveButton } from "./helpers/app";
  * corner. The chart is read from the editable save, which carries `cellKind`.
  */
 
-const EMPTY = 255;
-const WIDTH = 40;
-const HEIGHT = 20;
-const WHOLE = 0;
-const SLASH = 1;
-
-/** An empty grid with one thread, in hand. */
-async function blankChart(page: Page) {
-  await page.goto("/");
-  await page.getByRole("button", { name: /^Start an empty grid/ }).click();
-  await page.getByLabel("Width in stitches").fill(String(WIDTH));
-  await page.getByLabel("Height in stitches").fill(String(HEIGHT));
-  await page.getByRole("button", { name: "Create", exact: true }).click();
-  await expect(page.getByTestId("chart-frame")).toBeVisible();
-  await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByRole("button", { name: "+ Add" }).click();
-  await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(page.getByTestId("legend-color-row")).toHaveCount(1);
-  await takeThread(page);
-}
-
-async function takeThread(page: Page) {
-  await page.getByRole("tab", { name: "Threads" }).click();
-  const row = page.getByTestId("legend-color-row").first();
-  if ((await row.getAttribute("data-active")) !== "true") await row.click();
-  await page.getByRole("tab", { name: "Chart" }).click();
-}
-
-async function takeEmpty(page: Page) {
-  await page.getByRole("tab", { name: "Threads" }).click();
-  await page.getByRole("tabpanel", { name: "Threads" }).getByText("Empty (no stitch)").click();
-  await page.getByRole("tab", { name: "Chart" }).click();
-}
-
-async function click(page: Page, x: number, y: number) {
-  const box = (await page.getByTestId("chart-frame").boundingBox())!;
-  const cell = box.width / WIDTH;
-  await page.mouse.click(box.x + (x + 0.5) * cell, box.y + (y + 0.5) * cell);
-}
-
-async function saved(page: Page): Promise<{ cells: number[]; kinds: number[] }> {
-  await page.getByRole("tab", { name: "Threads" }).click();
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
-  const chart = JSON.parse(await readFile((await download.path())!, "utf8")) as { cellPalette: number[]; cellKind?: number[] };
-  await page.getByRole("tab", { name: "Chart" }).click();
-  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-  return { cells: chart.cellPalette, kinds: chart.cellKind ?? new Array(WIDTH * HEIGHT).fill(WHOLE) };
-}
-
-const at = (x: number, y: number) => y * WIDTH + x;
 const chooseKind = (page: Page, label: string) => page.getByRole("radio", { name: label, exact: true }).click();
 const fillSwitch = (page: Page, group: "Diagonal neighbours" | "Color only", choice: string) =>
   page.getByRole("group", { name: group }).getByRole("button", { name: choice, exact: true });
@@ -102,6 +52,7 @@ test("Fill keeps to the pressed stitch's type, and its switches are offered and 
 
   await fillSwitch(page, "Diagonal neighbours", "Edges only").click();
   await fillSwitch(page, "Color only", "Color only").click();
+  await waitForAutosave(page);
   await page.reload();
   await expect(page.getByTestId("chart-frame")).toBeVisible();
   await pickTool(page, "Fill");

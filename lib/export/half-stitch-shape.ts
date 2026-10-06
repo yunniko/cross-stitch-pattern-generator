@@ -4,9 +4,9 @@ import { STITCH_BACKSLASH, STITCH_SLASH } from "../editor/stitch-kind";
  * How a half stitch is drawn (G-082): the cell in its colour with two opposite corners cut away, so the canvas or the
  * background shows through. "/" (thread bottom-left to top-right) loses the top-left and bottom-right corners, "\" loses the
  * top-right and bottom-left. Each cut is a right triangle whose legs are `HALF_STITCH_CUT` of the cell's side (Owner,
- * 2026-10-01: first 30 %, then 40 %, then 50 %), and the Rust exporter's constant of the same name must agree with this one (D259, D261, D262).
+ * 2026-10-01: first 30 %, then 40 %, then 50 %; 2026-10-06: 60 %), and the Rust exporter's constant of the same name must agree with this one (D259, D261, D262, D325).
  */
-export const HALF_STITCH_CUT = 0.5;
+export const HALF_STITCH_CUT = 0.6;
 
 export type Point = readonly [number, number];
 

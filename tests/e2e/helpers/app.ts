@@ -148,3 +148,11 @@ export async function generateSmallPattern(page: Page): Promise<void> {
 export async function expectPhotoLoaded(page: Page): Promise<void> {
   await expect(page.getByRole("button", { name: /^(Generate pattern|Regenerate)$/ })).toBeVisible({ timeout: 15_000 });
 }
+
+/**
+ * Waits until the chart on screen is stored, so a reload finds it. The save is debounced and an IndexedDB write is not
+ * guaranteed to finish on `pagehide`, so a reload straight after an edit can come back to the chart before it (D100).
+ */
+export async function waitForAutosave(page: Page): Promise<void> {
+  await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
+}

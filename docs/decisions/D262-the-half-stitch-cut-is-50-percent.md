@@ -1,5 +1,5 @@
 # D262 · The half stitch's cut corners are 50 % of the side
-Date: 2026-10-01 · Goal: G-082 · Status: active (superseded by: —)
+Date: 2026-10-01 · Goal: G-082 · Status: superseded (superseded by: D325)
 Context: D261 set the cut at 40 %; the Owner then asked for 50 % ("let's go 50%").
 Decision: `HALF_STITCH_CUT` is 0.5 in `lib/export/half-stitch-shape.ts` and `rust/cs-export/src/halfstitch.rs`; the rest of D259 stands.
 Force: requirement — Owner, 2026-10-01: 50 %.
