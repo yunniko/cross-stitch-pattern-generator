@@ -1,4 +1,5 @@
 import { DEFAULT_OPTIONS } from "../editor/workspace-storage";
+import { WORKSPACES, workspaceFeature, type Workspace } from "../editor/workspaces";
 import { CANVAS_TEXTURES } from "../export/canvas-texture-catalog";
 import { EXPORT_KIND_GROUPS, exportChoiceFeature, exportKindFeature } from "../export/export-kinds";
 import { STITCH_TEXTURES } from "../export/stitch-texture-catalog";
@@ -48,6 +49,28 @@ const ASKS_NOTHING: Record<string, (value: unknown) => boolean> = {
   photoAdjust: (value) => value === undefined || isNeutralAdjust(value as Parameters<typeof isNeutralAdjust>[0]),
   ditherTexture: () => true, // read only with a drawn pattern, which is checked as the pattern
 };
+
+/**
+ * The requests that are a workspace's work (G-103, D314): generating, the colour recommendation and the photo they read
+ * are Photo's; an export is Export's. A job's later requests (its events, its result) need a job, which this refuses to
+ * start. The editable file, the palette file and pixel art are made in the browser and send nothing, so the browser's gate
+ * is theirs alone.
+ */
+export const REQUEST_WORKSPACES = {
+  "/api/jobs": "photo",
+  "/api/predictions": "photo",
+  "/api/photos": "photo",
+  "/api/exports": "export",
+} as const satisfies Record<string, Workspace>;
+
+export type WorkspaceRequest = keyof typeof REQUEST_WORKSPACES;
+
+/** A request against its workspace's switch: refused by the workspace's name, Hidden or Locked alike, as other features are. */
+export function workspaceRefusal(request: WorkspaceRequest, states: FeatureStates): string | null {
+  const workspace = REQUEST_WORKSPACES[request];
+  if (featureUsable(states, workspaceFeature(workspace))) return null;
+  return lockedNote(WORKSPACES.find(({ id }) => id === workspace)!.label);
+}
 
 /** A generation request's body against the requester's states. */
 export function generationRefusal(body: Record<string, unknown>, states: FeatureStates): string | null {

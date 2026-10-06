@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { workspaceRefusal } from "@/lib/features/request-check";
+import { featureStatesFor } from "@/lib/features/server";
 import { guardMutation, processorUnreachable, processorUrl } from "@/lib/server/request-guard";
 import { LIMITS } from "@/processor/job-protocol";
 
@@ -15,6 +18,10 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request): Promise<Response> {
   const refused = guardMutation(req);
   if (refused) return refused;
+
+  // Photo's work (G-103, D314): refused by the workspace's name when Photo is off for this person.
+  const refusal = workspaceRefusal("/api/photos", await featureStatesFor((await auth())?.user?.id ?? null));
+  if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
   const declared = Number(req.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > LIMITS.uploadBytes) {

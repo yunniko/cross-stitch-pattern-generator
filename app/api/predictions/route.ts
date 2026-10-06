@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { workspaceRefusal } from "@/lib/features/request-check";
+import { featureStatesFor } from "@/lib/features/server";
 import { guardMutation, processorUnreachable, processorUrl } from "@/lib/server/request-guard";
 
 /**
@@ -15,6 +18,10 @@ const MAX_BYTES = 64 * 1024;
 export async function POST(req: Request): Promise<Response> {
   const refused = guardMutation(req, "prediction");
   if (refused) return refused;
+
+  // Photo's work (G-103, D314): refused by the workspace's name when Photo is off for this person.
+  const refusal = workspaceRefusal("/api/predictions", await featureStatesFor((await auth())?.user?.id ?? null));
+  if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
   const body = await req.text();
   if (body.length > MAX_BYTES) {

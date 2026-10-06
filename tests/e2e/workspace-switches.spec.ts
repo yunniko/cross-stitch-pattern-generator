@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
 import { FIXTURE, SAMPLE_CHART, openSmallChart, saveButton } from "./helpers/app";
 import { clearSiteFeatures, setSiteFeatures } from "./helpers/features";
@@ -164,4 +165,44 @@ test("all three off: a window says so in place of the editor, and the chart open
   await page.reload();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
   await expect(window).toHaveCount(0);
+});
+
+/** Posts to a route from the page, as the interface would, and reads the status and the error. */
+async function post(page: Page, address: string, body: string | number[], type: string) {
+  return page.evaluate(
+    async ({ address, body, type }) => {
+      const response = await fetch(address, {
+        method: "POST",
+        headers: { "content-type": type },
+        body: typeof body === "string" ? body : new Uint8Array(body),
+      });
+      return { status: response.status, error: (await response.json().catch(() => ({})))?.error as string | undefined };
+    },
+    { address, body, type }
+  );
+}
+
+test("the server refuses a workspace's requests by its name, Hidden or Locked, and serves them with it on @alone", async ({ page }) => {
+  await page.goto("/");
+  const photo = [...readFileSync(FIXTURE)];
+  const requests = [
+    { address: "/api/jobs", feature: "workspace.photo", name: "Photo", body: JSON.stringify({ photoHash: "0".repeat(64) }) },
+    { address: "/api/predictions", feature: "workspace.photo", name: "Photo", body: JSON.stringify({ photoHash: "0".repeat(64) }) },
+    { address: "/api/photos", feature: "workspace.photo", name: "Photo", body: photo, type: "image/png" },
+    { address: "/api/exports", feature: "workspace.export", name: "Export", body: JSON.stringify({ kind: "oxs" }) },
+  ];
+  for (const state of ["hidden", "locked"] as const) {
+    await setSiteFeatures({ "workspace.photo": state, "workspace.export": state });
+    for (const request of requests) {
+      const answer = await post(page, request.address, request.body, request.type ?? "application/json");
+      expect(answer, `${request.address} ${state}`).toEqual({ status: 403, error: `${request.name} is not available to you.` });
+    }
+  }
+  await clearSiteFeatures(WORKSPACE_IDS);
+  // On: past the switch. What the processor makes of these bodies is its own business; the photo it takes.
+  for (const request of requests) {
+    const answer = await post(page, request.address, request.body, request.type ?? "application/json");
+    expect(answer.error ?? "", request.address).not.toMatch(/is not available to you/);
+  }
+  expect((await post(page, "/api/photos", photo, "image/png")).status).toBe(201);
 });

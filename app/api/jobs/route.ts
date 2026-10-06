@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { guardMutation, processorUnreachable, processorUrl } from "@/lib/server/request-guard";
 import { recordUsage } from "@/lib/admin/usage";
-import { generationRefusal } from "@/lib/features/request-check";
+import { generationRefusal, workspaceRefusal } from "@/lib/features/request-check";
 import { featureStatesFor } from "@/lib/features/server";
 import { parseBody } from "@/lib/server/parse-body";
 
@@ -32,7 +32,9 @@ export async function POST(req: Request): Promise<Response> {
   // Under the feature switches (G-102): a request asking for a feature this person cannot use is refused by name, before
   // the processor sees it. The body is read as JSON only for this; the processor still gets the text as sent.
   const userId = (await auth())?.user?.id ?? null;
-  const refusal = generationRefusal(parseBody(body), await featureStatesFor(userId));
+  // The workspace first (G-103, D314): with Photo off nothing of it is served, whatever the settings ask.
+  const states = await featureStatesFor(userId);
+  const refusal = workspaceRefusal("/api/jobs", states) ?? generationRefusal(parseBody(body), states);
   if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
   try {

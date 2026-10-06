@@ -1,5 +1,7 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { exportRefusal, generationRefusal } from "../../lib/features/request-check";
+import { REQUEST_WORKSPACES, exportRefusal, generationRefusal, workspaceRefusal } from "../../lib/features/request-check";
 import { isFeatureId } from "../../app/features/registry";
 import { resolveFeatures } from "../../lib/features/resolve";
 
@@ -68,5 +70,42 @@ describe("the server's refusal", () => {
     expect(
       exportRefusal({ kind: "png-realistic", canvas: { color: "#ffffff", texture: "natural" } }, { "texture.canvas.natural": "hidden" })
     ).toBe("Natural linen cloth is not available to you.");
+  });
+});
+
+describe("a workspace's requests (G-103, D314)", () => {
+  const API = path.join(__dirname, "..", "..", "app", "api");
+  const routes = (dir: string): string[] =>
+    readdirSync(dir).flatMap((name) => {
+      const full = path.join(dir, name);
+      return statSync(full).isDirectory() ? routes(full) : name === "route.ts" ? [full] : [];
+    });
+  const address = (file: string) => "/" + path.relative(path.join(API, ".."), path.dirname(file)).split(path.sep).join("/");
+
+  it("generating, the recommendation and the photo are Photo's; an export is Export's", () => {
+    expect(REQUEST_WORKSPACES).toEqual({
+      "/api/jobs": "photo",
+      "/api/predictions": "photo",
+      "/api/photos": "photo",
+      "/api/exports": "export",
+    });
+  });
+
+  it("is refused by the workspace's name, Hidden or Locked alike, and served with it On", () => {
+    for (const state of ["hidden", "locked"] as const) {
+      expect(workspaceRefusal("/api/jobs", { "workspace.photo": state })).toBe("Photo is not available to you.");
+      expect(workspaceRefusal("/api/photos", { "workspace.photo": state })).toBe("Photo is not available to you.");
+      expect(workspaceRefusal("/api/predictions", { "workspace.photo": state })).toBe("Photo is not available to you.");
+      expect(workspaceRefusal("/api/exports", { "workspace.export": state })).toBe("Export is not available to you.");
+    }
+    expect(workspaceRefusal("/api/jobs", { "workspace.edit": "hidden", "workspace.export": "hidden" })).toBeNull();
+    expect(workspaceRefusal("/api/exports", { "workspace.photo": "locked" })).toBeNull();
+  });
+
+  it("every route that starts work on the processor is in the list, and each one in it asks under its own address", () => {
+    // A job's own routes (its status, events, result) follow a job and start none; the rest that reach the processor start work.
+    const starting = routes(API).filter((file) => readFileSync(file, "utf8").includes("processorUrl(") && !file.includes("[id]"));
+    expect(starting.map(address).sort()).toEqual(Object.keys(REQUEST_WORKSPACES).sort());
+    for (const file of starting) expect(readFileSync(file, "utf8"), address(file)).toContain(`workspaceRefusal("${address(file)}"`);
   });
 });
