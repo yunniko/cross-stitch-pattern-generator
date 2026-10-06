@@ -51,14 +51,15 @@ const ASKS_NOTHING: Record<string, (value: unknown) => boolean> = {
 };
 
 /**
- * The requests that are a workspace's work (G-103, D314): generating, the colour recommendation and the photo they read
- * are Photo's; an export is Export's. A job's later requests (its events, its result) need a job, which this refuses to
+ * The requests that are a workspace's work (G-103, D314): generating, the colour recommendation, a drawn pattern's
+ * preview and the photo they read are Photo's; an export is Export's. A job's later requests (its events, its result) need a job, which this refuses to
  * start. The editable file, the palette file and pixel art are made in the browser and send nothing, so the browser's gate
  * is theirs alone.
  */
 export const REQUEST_WORKSPACES = {
   "/api/jobs": "photo",
   "/api/predictions": "photo",
+  "/api/dither-previews": "photo",
   "/api/photos": "photo",
   "/api/exports": "export",
 } as const satisfies Record<string, Workspace>;

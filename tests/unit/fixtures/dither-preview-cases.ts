@@ -1,10 +1,11 @@
-import { ditherRampWindow, DITHER_MODES, type DitherMode } from "@/lib/pipeline/dither";
+import { DITHER_MODES, type DitherMode } from "@/lib/pipeline/dither";
 import { DEFAULT_DITHER_TEXTURE, type DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
 import type { RGB } from "@/lib/types";
 
 /**
- * G-100 M1: the dither previews as the app draws them before G-100, pinned as the reference that the previews made
- * by Rust are compared with, pixel for pixel (G-100's acceptance criteria).
+ * G-100 M1: the dither previews as the app drew them before G-100, in the browser, by the TypeScript patterns — pinned
+ * as the reference that the previews Rust draws are compared with, pixel for pixel (G-100's acceptance criteria). The
+ * TypeScript that drew them is gone (G-100 M3); the reference file is frozen and is never rewritten.
  *
  * Two kinds of picture are drawn today. A tile in the chooser (`app/components/dither-chooser.tsx`) is the pattern over
  * a 24 × 24 ramp; the larger preview (`app/components/dither-preview.tsx`) is the 56 × 56 top-left corner of a chart of
@@ -24,7 +25,7 @@ export const PREVIEW_CHARTS: ReadonlyArray<readonly [number, number]> = [
   [300, 200],
 ];
 
-/** Drawn-marks textures beyond the default, from `dither-texture-swatch.spec.ts`'s range of shapes and spacing. */
+/** Drawn-marks textures beyond the default, across the range of shapes and spacing the editor opens. */
 export const DRAWN_TEXTURES: ReadonlyArray<readonly [string, DitherTexture]> = [
   ["seed-7", { ...DEFAULT_DITHER_TEXTURE, seed: 7 }],
   ["rings", { ...DEFAULT_DITHER_TEXTURE, shapeWeights: [0.8, 0.2, 0, 0, 0], sweep: 0.4 }],
@@ -63,20 +64,10 @@ export function previewCases(): PreviewCase[] {
   return cases;
 }
 
-/**
- * A case's picture as today's TypeScript draws it: one label per pixel, 1 the light tone. With dithering off, a tile is
- * the ramp cut where the nearer thread changes, as the chooser draws it.
- */
-export function drawToday(c: PreviewCase): { width: number; height: number; labels: Uint8Array } {
-  const window = c.name.startsWith("tile/") ? TILE : WINDOW;
-  if (c.mode === "off") {
-    return {
-      width: TILE,
-      height: TILE,
-      labels: Uint8Array.from({ length: TILE * TILE }, (_, i) => (Math.floor(i / TILE) >= TILE / 2 ? 1 : 0)),
-    };
-  }
-  return ditherRampWindow(c.chartWidth, c.chartHeight, window, window, [DARK, LIGHT], c.mode, c.texture);
+/** The case as a request to `cs-job dither-preview`, the server's preview (G-100 M3): its window is 56, so a tile's chart of
+ * 24 × 24 comes back whole. */
+export function rustRequest(c: PreviewCase): string {
+  return JSON.stringify({ ditherMode: c.mode, chartWidth: c.chartWidth, chartHeight: c.chartHeight, ditherTexture: c.texture });
 }
 
 /** Labels packed eight to a byte, most significant bit first, as base64; every label must be 0 or 1. */

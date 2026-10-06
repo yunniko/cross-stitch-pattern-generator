@@ -452,3 +452,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D324 | 04-editing | the Zoom row and Zoom options |
 | D325 | 06-backstitch-and-stitch-types | How drawn |
 | D326 | internal | |
+| D327 | internal | |

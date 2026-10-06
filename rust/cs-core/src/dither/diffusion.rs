@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 /// `(dx, dy, weight)` taps, mirrored in `dx` on a right-to-left row. Floyd-Steinberg passes all of the error on;
 /// Atkinson passes six eighths and drops the rest, which keeps near-black and near-white areas flat and makes the
-/// stitches it does place clump (D200). Mirrors `DIFFUSION_KERNELS` in `dither.ts`.
+/// stitches it does place clump (D200).
 type Kernel = &'static [(i64, i64, f64)];
 
 const FLOYD_STEINBERG: Kernel = &[

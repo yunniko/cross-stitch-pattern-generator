@@ -5,4 +5,4 @@ Decision: a chart embeds the texture that drew it, never a name; the default is 
 Force: requirement — a chart must reopen as it was made, which a texture the reader may since have edited would not give. Omitting the default keeps a chart drawn with the shipped texture identical to the file it was before.
 Rejected: a named library charts refer to (one name would mean different things over time); trusting two rendering paths to agree, which they did not.
 Consequence: a texture is compared **by value**: it crosses the wire as JSON, so references wrote a default texture into every drawn chart — caught by the e2e, invisible to the unit test.
-Evidence: tests/unit/dither-texture-swatch.spec.ts; tests/e2e/dithering.spec.ts
+Evidence: tests/unit/dither-preview-reference.spec.ts; tests/e2e/dithering.spec.ts

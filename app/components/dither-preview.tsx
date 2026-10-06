@@ -1,26 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
-import { ditherRampWindow, isDrawnMode, type DitherMode } from "@/lib/pipeline/dither";
+import { useEffect, useMemo, useState } from "react";
+import { builtDitherPicture, isDrawnMode, type DitherMode } from "@/lib/pipeline/dither";
 import { type DitherTexture } from "@/lib/pipeline/dither-hand-drawn";
-import type { RGB } from "@/lib/types";
+import { requestDitherPreview } from "@/lib/pipeline/pattern-server";
 
 /**
- * The dither preview (G-057, widened in G-059): the top-left corner of the chart the current settings would make,
- * over a dark-to-light ramp, for whichever pattern is chosen.
+ * The dither preview (G-057, widened in G-059): the chosen pattern in two threads over a dark-to-light ramp, shown
+ * whenever dithering is on, because it is the only place a reader sees what a pattern does before spending a generation.
  *
- * It is shown whenever dithering is on, not only for the drawn marks and not behind a panel, because it is the only
- * place a reader sees what a pattern does before spending a generation on it. Clicking it reshuffles the marks,
- * which is meaningful only where a seed decides anything — so for the drawn family it is a button and elsewhere a
- * picture.
+ * Drawn by the Rust that makes charts (G-100, D327). A pattern without settings of its own always looks the same, so its
+ * picture is built into the app. The drawn marks have settings, and their corner depends on the chart's size, so the
+ * server draws it once the sliders rest; clicking it reshuffles the marks, which is meaningful only where a seed decides
+ * anything.
  */
 
-const WINDOW = 56;
-const DARK: RGB = [29, 36, 48];
-const LIGHT: RGB = [242, 239, 230];
 /**
- * How long the settings must be still before redrawing. A matrix costs nothing, but the drawn marks have to build
- * the chart's own field — about 190 ms at 1000 stitches (D206) — and a kernel the rows above the window.
+ * How long the settings must be still before asking the server. A slider drag sends one request when it stops, not one
+ * per step; measured in `docs/reviews/2026-10-07-dither-preview-baseline.md`.
  */
 const REDRAW_PAUSE_MS = 120;
 
@@ -33,43 +30,22 @@ export interface DitherPreviewProps {
   onShuffle?: () => void;
 }
 
+const FRAME = "block h-[112px] w-[112px] shrink-0 overflow-hidden rounded-md border border-line";
+const PICTURE = "h-full w-full [image-rendering:pixelated]";
+
 export function DitherPreview({ mode, texture, chartWidth, chartHeight, onShuffle }: DitherPreviewProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  // Keyed on the values themselves, so a slider drag redraws and a re-render alone does not.
-  const key = useMemo(() => JSON.stringify([mode, texture, chartWidth, chartHeight]), [mode, texture, chartWidth, chartHeight]);
-  const shuffles = isDrawnMode(mode) && onShuffle !== undefined;
+  const drawn = isDrawnMode(mode);
+  const shuffles = drawn && onShuffle !== undefined;
+  const fromServer = useServerPreview(drawn, mode, texture, chartWidth, chartHeight);
+  const source = drawn ? fromServer.url : builtDitherPicture(mode, "preview");
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const canvas = canvasRef.current;
-      const context = canvas?.getContext("2d");
-      if (!canvas || !context) return;
-      const window = ditherRampWindow(chartWidth, chartHeight, WINDOW, WINDOW, [DARK, LIGHT], mode, texture);
-      canvas.width = window.width;
-      canvas.height = window.height;
-      const image = context.createImageData(window.width, window.height);
-      for (let i = 0; i < window.width * window.height; i++) {
-        const [r, g, b] = window.labels[i] === 1 ? LIGHT : DARK;
-        image.data[i * 4] = r;
-        image.data[i * 4 + 1] = g;
-        image.data[i * 4 + 2] = b;
-        image.data[i * 4 + 3] = 255;
-      }
-      context.putImageData(image, 0, 0);
-    }, REDRAW_PAUSE_MS);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` is the values themselves; see above.
-  }, [key]);
-
-  const canvas = (
-    <canvas
-      ref={canvasRef}
-      width={WINDOW}
-      height={WINDOW}
-      data-testid="texture-swatch"
-      aria-label="Pattern preview"
-      className="h-[112px] w-[112px] shrink-0 rounded-md border border-line [image-rendering:pixelated]"
-    />
+  const picture = (
+    <span data-testid="texture-swatch" aria-busy={fromServer.drawing} className={FRAME}>
+      {source && (
+        // eslint-disable-next-line @next/next/no-img-element -- a 56-pixel picture shown pixelated; nothing to optimise.
+        <img src={source} alt="Pattern preview" width={56} height={56} className={`${PICTURE} ${fromServer.drawing ? "opacity-70" : ""}`} />
+      )}
+    </span>
   );
 
   return (
@@ -81,16 +57,65 @@ export function DitherPreview({ mode, texture, chartWidth, chartHeight, onShuffl
           title="Draw the same texture again with the marks in different places"
           className="shrink-0 rounded-md"
         >
-          {canvas}
+          {picture}
         </button>
       ) : (
-        canvas
+        picture
       )}
       <span className="text-[11px] leading-4 text-muted">
-        The top-left corner of this chart, dark to light. A chart picks between each stitch&apos;s own two nearest threads; here there are
-        two.
+        {drawn ? "The top-left corner of this chart, dark to light." : "The pattern, dark to light."} A chart picks between each
+        stitch&apos;s own two nearest threads; here there are two.
         {shuffles ? " Click it to place the marks differently." : ""}
+        {fromServer.error && (
+          <span role="status" className="mt-1 block text-danger">
+            {fromServer.error}
+          </span>
+        )}
       </span>
     </div>
   );
+}
+
+/** The server's preview for the settings in hand, asked for once they rest; the last picture stays while the next is drawn. */
+function useServerPreview(active: boolean, mode: DitherMode, texture: DitherTexture, chartWidth: number, chartHeight: number) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [drawing, setDrawing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Keyed on the values themselves, so a slider drag asks again and a re-render alone does not.
+  const key = useMemo(() => JSON.stringify([mode, texture, chartWidth, chartHeight]), [mode, texture, chartWidth, chartHeight]);
+
+  useEffect(() => {
+    if (!active) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      setDrawing(true);
+      const request = {
+        ditherMode: mode,
+        ditherTexture: texture,
+        chartWidth: Math.round(chartWidth),
+        chartHeight: Math.round(chartHeight),
+      };
+      requestDitherPreview(request, controller.signal)
+        .then((png) => {
+          setUrl(URL.createObjectURL(png));
+          setError(null);
+          setDrawing(false);
+        })
+        .catch((reason: unknown) => {
+          if (controller.signal.aborted) return;
+          setError(reason instanceof Error ? reason.message : "The preview could not be drawn.");
+          setDrawing(false);
+        });
+    }, REDRAW_PAUSE_MS);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` is the values themselves; see above.
+  }, [active, key]);
+
+  // Each picture's object URL is let go once it is replaced, or when the preview goes.
+  useEffect(() => () => void (url && URL.revokeObjectURL(url)), [url]);
+
+  return { url, drawing: active && drawing, error: active ? error : null };
 }

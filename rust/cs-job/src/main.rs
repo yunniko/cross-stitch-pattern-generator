@@ -3,6 +3,7 @@
 //!   cs-job generate <width> <height> '<options json>'   # RGBA pixels on stdin, pattern JSON on stdout
 //!   cs-job export '<request json>'                      # an editable save on stdin, the file's bytes on stdout
 //!   cs-job predict <width> <height> '<options json>'    # RGBA pixels on stdin, the predicted colours (and the coverage of a set) on stdout
+//!   cs-job dither-preview '<request json>'              # a dither pattern's preview as a PNG on stdout (G-100)
 //!
 //! stderr carries one JSON object per line, never the payload: `{"progress":0.4}` as `buildPattern`'s `onProgress`
 //! reports it, `{"exportProgress":{"completed":12,"total":180,"label":"Page 12 of 180"}}` as `runExportJob` does,
@@ -146,12 +147,28 @@ fn export(args: &[String]) {
     write_stdout(&file.bytes);
 }
 
+/// A dither pattern's preview for the photo pane (G-100, D327): `ditherMode`, the pattern's own settings and the
+/// chart's size, as `parse_dither_preview` reads them; the 56 × 56 corner as a two-tone PNG.
+fn dither_preview(args: &[String]) {
+    use cs_core::dither::preview::{ramp_window, DARK, LIGHT, WINDOW};
+    let (pattern, width, height) =
+        cs_core::json::parse_dither_preview(&args[2]).unwrap_or_else(|e| fail(&e));
+    let picture = ramp_window(pattern.as_deref(), width, height, WINDOW, WINDOW);
+    write_stdout(&cs_export::png::encode_labels(
+        &picture.labels,
+        picture.width as u32,
+        picture.height as u32,
+        [DARK, LIGHT],
+    ));
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
         Some("generate") if args.len() == 5 => generate(&args),
         Some("predict") if args.len() == 5 => predict(&args),
         Some("export") if args.len() == 3 => export(&args),
+        Some("dither-preview") if args.len() == 3 => dither_preview(&args),
         _ => {
             eprintln!("usage: cs-job generate <width> <height> '<options json>' | cs-job export '<request json>'");
             std::process::exit(2);

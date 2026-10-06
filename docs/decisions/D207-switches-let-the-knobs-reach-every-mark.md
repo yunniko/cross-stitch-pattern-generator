@@ -5,4 +5,4 @@ Decision: three optional booleans — wobble, size and sweep "every mark" — ab
 Force: requirement both ways. The knobs are read inside the scoring function, so widening them without a switch changes every existing texture and breaks D202; and tone fixes how many stitches a mark lights, so a wider circle spreads the thread thinner — a slider named thickness must lower the radius as it rises.
 Rejected: widening the knobs and re-baselining the frozen default (the Owner chose neutral defaults); a dot core spilling by distance — a monotone rewrite of distance, measured as changing nothing.
 Consequence: the size switch packs a mark rather than enlarging it (−45% reach), because the ink is fixed.
-Evidence: tests/unit/dither-every-mark.spec.ts
+Evidence: rust/cs-core/tests/dither_marks.rs

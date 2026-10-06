@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-07 at 48399ce + G-100 M2 (production v0.7.0 at 48399ce; 1,321 unit after G-100 M1 pinned 61 previews; CI full e2e green on cb42113; live checks as in the deploy log)
+Last verified: 2026-10-07 at 48399ce + G-100 M3 (production v0.7.0 at 48399ce; 1,331 unit; CI full e2e green on cb42113; live checks as in the deploy log)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -17,7 +17,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 **G-115, Fill by stitch type, the brush setting type, thinner half stitches, the Zoom direction — ACTIVE, all 3 milestones done, deployed as v0.7.0; awaiting the Owner's sign-off.** `fillSymmetric` in `lib/editor/symmetry.ts` takes a `FillRule`: the Fill tool's region is one colour and one stitch type, or with Color only one colour of any type, each stitch keeping its type; Diagonal neighbours picks 8- or 4-connected (D322). The switches are `FILL_DIAGONAL` and `FILL_COLOR_ONLY` in `app/tools/options.tsx`, kept in the tool-option bag. The Brush's double press, its preference and the history's `replaceSince` are gone. With no thread chosen the Brush sets stitch type only (`paintOrbit` with a null colour, D323); Zoom has `ZOOM_DIRECTION` (D324); `HALF_STITCH_CUT` is 0.6 in both languages (D325). Specs that reload wait on `waitForAutosave` (`tests/e2e/helpers/app.ts`): a reload within the autosave's debounce can lose the last edit (D100).
 
-**G-100, dithering extensible — ACTIVE, M2 of 5 done.** In Rust a pattern is one type behind `Pattern` and one line in `PATTERNS` (`rust/cs-core/src/dither/mod.rs`, D326). The previews as today's TypeScript draws them are pinned in `tests/unit/fixtures/dither-previews.json` (61 pictures, cases in `tests/unit/fixtures/dither-preview-cases.ts`, held by `tests/unit/dither-preview-reference.spec.ts`); the charts by the 74 golden hashes and `scripts/measure-generation.ts`. Timings: `docs/reviews/2026-10-07-dither-preview-baseline.md`. Next: M3, previews drawn by that Rust.
+**G-100, dithering extensible — ACTIVE, M3 of 5 done.** In Rust a pattern is one type behind `Pattern` and one line in `PATTERNS` (`rust/cs-core/src/dither/mod.rs`, D326), and the only copy: the TypeScript keeps ids, families and the texture's ranges. Settings-free previews are pictures built by `npm run dither-previews` into `public/dither-previews/`, which CI checks are current; the drawn marks' preview is `cs-job dither-preview` behind `/api/dither-previews` (D327). Both are held to the 61 reference pictures by `tests/unit/dither-preview-reference.spec.ts`. Timings: `docs/reviews/2026-10-07-dither-preview-server.md`. Next: M4, a pattern's name, group and settings declared once.
 
 **G-103, the three workspaces as features — ACTIVE, all four milestones done, pending the Owner's sign-off; live as v0.3.0.** Photo, Edit and Export are `workspace.photo`, `.edit`, `.export`, the first group in the feature list (D312). The browser obeys: a command names its workspace and `commandGate` in `app/commands/registry.ts` reads that switch first; controls outside the table take a `gatedAction` (D313); with all three off `app/components/no-workspace.tsx` replaces the editor. The server refuses a workspace's requests by its name through `REQUEST_WORKSPACES` in `lib/features/request-check.ts` (D314). A photo dropped on the start screen goes through the photo choice's gate (`dropPhoto`, `app/hooks/use-chart-lifecycle.ts`). Live, every server export kind is set unavailable to guests by the site's own states, so a guest export cannot be checked there.
 
@@ -125,7 +125,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   structure-tensor evidence (D044); one shared `PipelineContext` of cell OKLab (D106); importance-gated medoid
   pre-filter for the quantizer only (D041, D051); OKLab k-means, plain for Classic or merge-and-reinvest for Refined
   (D018, D039); dithering, when asked for, places each stitch between the two nearest threads here and stops
-  (`lib/pipeline/dither.ts`, D198, D199); otherwise coarse then fine ICM on an 8-neighbour stencil, re-evaluating a cell only after a neighbour changes
+  (`rust/cs-core/src/dither/`, D198, D199, D326); otherwise coarse then fine ICM on an 8-neighbour stencil, re-evaluating a cell only after a neighbour changes
   (D043, D045, D133); small-component recolor and diagonal-pinch fixes; palette merge, zero-count compaction and
   OKLab recompute; thread-brand snap with fine ICM re-run (D056), then dark-to-light sort, symbols and names.
 - **The four photo sliders** (`lib/pipeline/photo-adjust.ts`, mirrored in `rust/cs-core/src/photo_adjust.rs`):
@@ -262,7 +262,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - Six rules specific to the drawn dither pattern subsystem (G-052–G-059: seeding, texture validation, shape
   ranking, the field, per-shape knobs, the preview) moved to
   `docs/reviews/2026-09-27-drawn-pattern-rules.md` on 2026-09-27 — this section passed its cap. Read that file
-  before touching `lib/pipeline/dither-hand-drawn.ts`, its Rust port, or the Texture editor.
+  before touching `rust/cs-core/src/dither/hand_drawn.rs`, `lib/pipeline/dither-hand-drawn.ts` (the texture's ranges), or the Texture editor.
 - A pipeline stage that reads `cellPalette` must skip `EMPTY_CELL`: it is a sentinel, not palette index 255, and both
   TypeScript and Rust must skip it in the same places or the two diverge (D196).
 - Rust export references are generated in the processor image, never on a laptop: only DejaVu Sans is installed there, so every raster would differ (D188).
@@ -337,7 +337,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - `MAX_STITCHES` (1500) is measured: raising it means re-running `docs/reviews/2026-09-19-new-cap-measurements.md`, and above ~1550 Export all's chart PNG no longer fits its budget (D026, D181).
 - The PDF releases each page as it is drawn through two private pdf-lib 1.17.1 fields (D169); an upgrade must keep `tests/unit/pdf-page-flush.spec.ts` green, or the flush stops silently and the heap grows back.
 - Small interface-only changes go by the fast lane (Owner, 2026-10-04, D280): affected tests only, one line under "Small changes" in `GOALS.md`, deployed in a batch after one full run. Anything touching chart data, files, exports, generation, the processor, Rust or accounts is a normal goal.
-- Rate-limit capacities default to production values, overridable by `RATE_LIMIT_JOBS_PER_MINUTE`, `RATE_LIMIT_AUTH_PER_15MIN` (G-075) and `RATE_LIMIT_PREDICTIONS_PER_MINUTE` (G-087, 90, so the colour hint never spends a Generate), keyed separately per `kind`; a zero or malformed value falls back to the default.
+- Rate-limit capacities default to production values, overridable by `RATE_LIMIT_JOBS_PER_MINUTE`, `RATE_LIMIT_AUTH_PER_15MIN` (G-075) and `RATE_LIMIT_PREDICTIONS_PER_MINUTE` (G-087, 90, so the colour hint never spends a Generate) and `RATE_LIMIT_DITHER_PREVIEWS_PER_MINUTE` (G-100, 90), keyed separately per `kind`; a zero or malformed value falls back to the default.
 - `ADMIN_BOOTSTRAP_ENABLED` must be set to `"false"` once the real admin account exists (G-075): left `"true"`,
   anyone who registers `ADMIN_EMAIL` becomes an admin, since there is no email verification to stop them.
 - Prisma's own CLI and `@prisma/client` must stay on the same major version by hand: npm's `prisma` `latest`

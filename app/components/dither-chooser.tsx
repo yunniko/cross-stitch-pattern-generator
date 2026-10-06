@@ -2,11 +2,10 @@
 
 import { DITHER_LABELS, ditherFeature } from "@/lib/pipeline/dither-labels";
 import { useGatedOptions } from "../features/features-context";
-import { useEffect, useRef } from "react";
 import {
   DIFFUSION_DITHER_MODES,
+  builtDitherPicture,
   DRAWN_DITHER_MODES,
-  ditherRampWindow,
   isLinesMode,
   LINE_DITHER_MODES,
   ORDERED_DITHER_MODES,
@@ -16,7 +15,7 @@ import {
 /**
  * The choice of dither pattern, as pictures to press (G-095 M4; it was a list). Each picture is the pattern itself over
  * the same small dark-to-light ramp, so the patterns can be told apart before one is chosen; the larger preview under
- * the chooser then shows the chosen one as the chart in hand would have it.
+ * the chooser then shows the chosen one larger.
  *
  * The line screens are one picture: their direction is a setting under the chooser, not four pictures in it (G-059).
  */
@@ -73,32 +72,19 @@ const CHOICES: ReadonlyArray<{
   })),
 ];
 
-/** The side of a picture, in stitches; drawn at twice that. */
-const TILE = 24;
-const DARK = [29, 36, 48] as const;
-const LIGHT = [242, 239, 230] as const;
-
-/** A pattern over the ramp, top dark to bottom light; with dithering off, the ramp cut where the nearer thread changes. */
+/** A pattern over the ramp, top dark to bottom light: a picture built into the app by the Rust that makes charts (G-100). */
 function TilePicture({ mode }: { mode: DitherMode }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const context = ref.current?.getContext("2d");
-    if (!context) return;
-    const labels =
-      mode === "off"
-        ? Uint8Array.from({ length: TILE * TILE }, (_, i) => (Math.floor(i / TILE) >= TILE / 2 ? 1 : 0))
-        : ditherRampWindow(TILE, TILE, TILE, TILE, [[...DARK], [...LIGHT]], mode).labels;
-    const image = context.createImageData(TILE, TILE);
-    for (let i = 0; i < TILE * TILE; i++) {
-      const [r, g, b] = labels[i] === 1 ? LIGHT : DARK;
-      image.data[i * 4] = r;
-      image.data[i * 4 + 1] = g;
-      image.data[i * 4 + 2] = b;
-      image.data[i * 4 + 3] = 255;
-    }
-    context.putImageData(image, 0, 0);
-  }, [mode]);
-  return <canvas ref={ref} width={TILE} height={TILE} aria-hidden="true" className="h-12 w-12 rounded [image-rendering:pixelated]" />;
+  // eslint-disable-next-line @next/next/no-img-element -- a 24-pixel picture shown pixelated; nothing to optimise.
+  return (
+    <img
+      src={builtDitherPicture(mode, "tile")}
+      alt=""
+      width={24}
+      height={24}
+      aria-hidden="true"
+      className="h-12 w-12 rounded [image-rendering:pixelated]"
+    />
+  );
 }
 
 export interface DitherChooserProps {

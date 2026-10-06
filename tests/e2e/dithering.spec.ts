@@ -226,7 +226,7 @@ test("clicking the preview reshuffles the marks, and the chart follows (G-059)",
   expect(before.ditherTexture, "an untouched texture is not written to the file").toBeUndefined();
 
   await page.getByRole("tab", { name: "Photo" }).click();
-  // The preview is the button: its name comes from the canvas inside it.
+  // The preview is the button: its name comes from the picture inside it.
   await page.getByRole("button", { name: "Pattern preview" }).click();
 
   const after = await generateAndExport(page);

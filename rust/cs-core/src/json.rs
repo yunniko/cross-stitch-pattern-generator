@@ -209,6 +209,28 @@ pub fn run_json(total_ms: f64, times: &StageTimes) -> Value {
     json!({ "totalMs": total_ms, "stages": stages })
 }
 
+/// The longest side a preview's chart may have: the longest a chart may have (`MAX_STITCHES` in `lib/types.ts`).
+const PREVIEW_CHART_MAX: usize = 1500;
+
+/// A dither preview request (G-100): `ditherMode` with the pattern's own settings, as a generation names them, and
+/// the size of the chart whose corner is shown (`chartWidth`, `chartHeight`). `None` is no dithering.
+pub fn parse_dither_preview(
+    text: &str,
+) -> Result<(Option<crate::dither::Chosen>, usize, usize), String> {
+    let mut settings = settings_from(text)?;
+    let pattern = crate::dither::from_settings(&mut settings)?;
+    let mut side = |name: &str| -> Result<usize, String> {
+        match settings.count(name)? {
+            Some(n) if (1..=PREVIEW_CHART_MAX).contains(&n) => Ok(n),
+            Some(_) => Err(format!("{name} must be between 1 and {PREVIEW_CHART_MAX}")),
+            None => Err(format!("{name} is missing")),
+        }
+    };
+    let (width, height) = (side("chartWidth")?, side("chartHeight")?);
+    settings.finish()?;
+    Ok((pattern, width, height))
+}
+
 /// Options of a prediction (G-087): the size, the palette mode and the photo sliders; the rest of generation does not matter to it.
 pub fn parse_predict_options(
     text: &str,

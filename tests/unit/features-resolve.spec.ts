@@ -82,10 +82,11 @@ describe("a workspace's requests (G-103, D314)", () => {
     });
   const address = (file: string) => "/" + path.relative(path.join(API, ".."), path.dirname(file)).split(path.sep).join("/");
 
-  it("generating, the recommendation and the photo are Photo's; an export is Export's", () => {
+  it("generating, the recommendation, a drawn pattern's preview and the photo are Photo's; an export is Export's", () => {
     expect(REQUEST_WORKSPACES).toEqual({
       "/api/jobs": "photo",
       "/api/predictions": "photo",
+      "/api/dither-previews": "photo",
       "/api/photos": "photo",
       "/api/exports": "export",
     });
@@ -96,6 +97,7 @@ describe("a workspace's requests (G-103, D314)", () => {
       expect(workspaceRefusal("/api/jobs", { "workspace.photo": state })).toBe("Photo is not available to you.");
       expect(workspaceRefusal("/api/photos", { "workspace.photo": state })).toBe("Photo is not available to you.");
       expect(workspaceRefusal("/api/predictions", { "workspace.photo": state })).toBe("Photo is not available to you.");
+      expect(workspaceRefusal("/api/dither-previews", { "workspace.photo": state })).toBe("Photo is not available to you.");
       expect(workspaceRefusal("/api/exports", { "workspace.export": state })).toBe("Export is not available to you.");
     }
     expect(workspaceRefusal("/api/jobs", { "workspace.edit": "hidden", "workspace.export": "hidden" })).toBeNull();

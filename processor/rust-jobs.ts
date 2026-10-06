@@ -133,6 +133,14 @@ export async function predictWithRust(pixels: PixelBuffer, request: Omit<Predict
   }
 }
 
+/** A dither pattern's preview, a two-tone PNG, by `cs-job dither-preview` (G-100). The request is checked already. */
+export async function ditherPreviewWithRust(request: object): Promise<Uint8Array> {
+  requireRustJobs();
+  const result = await run(["dither-preview", JSON.stringify(request)], "");
+  if (!result.stdout) failed("dither preview", result.error);
+  return new Uint8Array(result.stdout);
+}
+
 export interface RustExportResult {
   bytes: Uint8Array;
   filename: string;

@@ -66,6 +66,7 @@ export function appWithProcessor({
         // tests/unit/request-guard.spec.ts rather than by being refused here. Same reasoning for auth attempts.
         RATE_LIMIT_JOBS_PER_MINUTE: "1000",
         RATE_LIMIT_AUTH_PER_15MIN: "1000",
+        RATE_LIMIT_DITHER_PREVIEWS_PER_MINUTE: "1000",
         // The e2e suite's own Postgres (docker-compose.yml's `db` service; port per that file's own note).
         // Not a secret worth generating fresh -- nothing this database holds needs to survive a suite run.
         DATABASE_URL: "postgresql://cross_stitch:cross_stitch@127.0.0.1:54324/cross_stitch",

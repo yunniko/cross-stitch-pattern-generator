@@ -214,3 +214,18 @@ describe("prediction rate limit (G-087)", () => {
     expect(refusals[0]?.status).toBe(429);
   });
 });
+
+describe("dither preview rate limit (G-100)", () => {
+  it("is a bucket of its own: shaping marks spends neither generations nor predictions", () => {
+    const req = () => request({ origin: SITE, ip: "203.0.113.50" });
+    const previews = Array.from({ length: 20 }, () => rateLimited(req(), "ditherPreview"));
+    expect(previews.every((r) => r === null)).toBe(true);
+    expect(rateLimited(req(), "job")).toBeNull();
+    expect(rateLimited(req(), "prediction")).toBeNull();
+  });
+
+  it("refuses a script that asks without end", () => {
+    const refusals = Array.from({ length: 100 }, () => rateLimited(request({ ip: "203.0.113.51" }), "ditherPreview")).filter(Boolean);
+    expect(refusals[0]?.status).toBe(429);
+  });
+});

@@ -153,7 +153,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D167 — The start screen's accent is a selection, not decoration — active
 - D179 — The editor's zoom has no chart-size cap — active
 - D205 — A painted mark is a fifth shape, and what it leaves unpainted still fills — active
-- D208 — The preview belongs to every pattern, and each family pays only its own cost — active
+- D208 — The preview belongs to every pattern, and each family pays only its own cost — superseded for patterns without settings (by D327)
 - D210 — The colour floor is withdrawn — active
 - D213 — The editing bar's tool options scroll inside their own track — active
 - D214 — One gesture for every shape tool, spine plus stamp — active
@@ -362,3 +362,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D324 — The Zoom tool has a direction, and a right press zooms the other way — active
 - D325 — The half stitch's cut corners are 60 % of the side — active
 - D326 — A dither pattern is one type behind `Pattern` and one line in `PATTERNS` — active
+- D327 — Previews are built pictures, and the drawn marks ask the server — active

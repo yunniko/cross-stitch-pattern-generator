@@ -2,6 +2,11 @@
 //!
 //!   cs-bench generate <image.rgba> <width> <height> '<options json>' [repeat]
 //!   [RUST_EXPORT_THREADS=n] cs-bench export <pattern.json> '<request json>' <out file> [repeat]
+//!   cs-bench dither-previews <directory>
+//!
+//! `dither-previews` draws the pictures the photo pane shows for the dither patterns (G-100, D327): every pattern's
+//! chooser tile, `<id>-tile.png`, and the larger preview of every pattern without settings of its own, `<id>.png`.
+//! `npm run dither-previews` writes them into `public/dither-previews/`, where they are committed.
 //!
 //! `export` reads an editable save and an export request (`kind`, `baseName`, `aidaCount`, `sizeUnit`, `authorName`,
 //! `overlapCells`), writes the file `runExportJob` would, and prints its name, size, each run's time and the peak RSS.
@@ -119,8 +124,54 @@ fn photo_adjust(args: &[String]) {
     std::fs::write(&args[6], &bytes).expect("write output");
 }
 
+/// Every built dither preview, written into `directory` (see the header). A pattern with settings of its own gets only
+/// its tile: its larger preview is drawn by the server as the settings change (`cs-job dither-preview`).
+fn dither_previews(directory: &str) {
+    use cs_core::dither::preview::{ramp_window, Picture, DARK, LIGHT, TILE, WINDOW};
+    use cs_core::dither::{Pattern, OFF, PATTERNS};
+    use cs_core::settings::Settings;
+    let dir = std::path::Path::new(directory);
+    std::fs::create_dir_all(dir).expect("create the directory");
+    let write = |name: String, picture: Picture| {
+        let png = cs_export::png::encode_labels(
+            &picture.labels,
+            picture.width as u32,
+            picture.height as u32,
+            [DARK, LIGHT],
+        );
+        std::fs::write(dir.join(name), png).expect("write a preview");
+    };
+    let mut patterns: Vec<(&str, Option<std::sync::Arc<dyn Pattern>>)> = vec![(OFF, None)];
+    for declared in PATTERNS {
+        let pattern = (declared.configure)(declared.id, &mut Settings::new()).expect("defaults");
+        patterns.push((declared.id, Some(pattern)));
+    }
+    for (id, pattern) in &patterns {
+        write(
+            format!("{id}-tile.png"),
+            ramp_window(pattern.as_deref(), TILE, TILE, TILE, TILE),
+        );
+        if let Some(pattern) = pattern.as_deref().filter(|p| !p.has_settings()) {
+            // At a chart the size of the window: a matrix's corner is the same at any size (D208), a kernel's varies a
+            // little with the chart's width, and one size is what a picture made once can show (D327).
+            write(
+                format!("{id}.png"),
+                ramp_window(Some(pattern), WINDOW, WINDOW, WINDOW, WINDOW),
+            );
+        }
+    }
+    println!(
+        "wrote the previews of {} patterns to {directory}",
+        patterns.len()
+    );
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.len() == 3 && args[1] == "dither-previews" {
+        dither_previews(&args[2]);
+        return;
+    }
     if args.len() >= 5 && args[1] == "export" {
         export(&args);
         return;

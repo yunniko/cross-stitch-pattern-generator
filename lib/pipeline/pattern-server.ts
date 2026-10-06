@@ -176,6 +176,24 @@ export async function runServerPatternJob(options: RunServerPatternJobOptions): 
   }
 }
 
+/** What a dither preview is asked for with (G-100): the pattern, its own settings, and the chart whose corner it shows. */
+export interface DitherPreviewRequest {
+  ditherMode: DitherMode;
+  ditherTexture?: DitherTexture;
+  chartWidth: number;
+  chartHeight: number;
+}
+
+/**
+ * A pattern's preview drawn by the server, for a pattern with settings of its own (G-100, D327): the PNG, whose two tones
+ * are the preview's. A pattern without settings has its preview built into the app instead (`builtDitherPicture`).
+ */
+export async function requestDitherPreview(request: DitherPreviewRequest, signal: AbortSignal): Promise<Blob> {
+  const res = await post("/api/dither-previews", JSON.stringify(request), signal);
+  if (!res.ok) throw await errorFromResponse(res, "The preview could not be drawn.");
+  return await res.blob();
+}
+
 /**
  * The colour count and colours a picture reasonably needs, and the coverage of a set of colours (G-087). Uses the photo the
  * generation does, uploading it only if the server does not hold it, and answers in a fraction of a second.

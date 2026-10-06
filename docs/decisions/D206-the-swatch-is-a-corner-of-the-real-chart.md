@@ -5,4 +5,4 @@ Decision: the swatch builds the field at the chart's own size and shows its top-
 Force: requirement — while shapes come from the stream after placement, no window can be built without the whole grid. Measured: 14 ms at 200 stitches, 30 at 400, 200 at 1000, 494 at 1500; hence the pause.
 Rejected: keeping the cheap swatch (it showed a pattern no chart draws); drawing shapes from a per-mark hash, which would make a window cheap but changes every chart drawn so far.
 Consequence: comparing a tone with a threshold is the pipeline's rule only while the dark thread is nearer; in the light half the marks invert.
-Evidence: tests/unit/dither-texture-swatch.spec.ts
+Evidence: tests/unit/dither-preview-reference.spec.ts

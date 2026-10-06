@@ -11,6 +11,7 @@
 pub mod diffusion;
 pub mod hand_drawn;
 pub mod matrix;
+pub mod preview;
 
 use crate::color::{rgb_to_oklab, Oklab, Rgb};
 use crate::settings::Settings;
@@ -46,7 +47,10 @@ pub trait Pattern: Debug + Send + Sync {
 /// Reads a pattern's own settings and returns it ready to run. It is given its own id, so one family can declare
 /// several patterns. It takes every setting it knows whether or not it is the one chosen, so none of them is refused
 /// as unknown.
-pub type Configure = fn(&'static str, &mut Settings) -> Result<Arc<dyn Pattern>, String>;
+pub type Configure = fn(&'static str, &mut Settings) -> Result<Chosen, String>;
+
+/// A pattern with its own settings read, ready to run.
+pub type Chosen = Arc<dyn Pattern>;
 
 pub struct Declared {
     pub id: &'static str,

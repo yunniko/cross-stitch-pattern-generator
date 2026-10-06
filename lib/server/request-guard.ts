@@ -21,13 +21,16 @@ import { NextResponse } from "next/server";
  * minutes at a much smaller capacity: brute-forcing a password is the threat, not a reader who mistypes it
  * twice, and a fast-refilling bucket does nothing against a script patient enough to stay under it.
  */
-export type RateKind = "job" | "auth" | "prediction";
+export type RateKind = "job" | "auth" | "prediction" | "ditherPreview";
 const CONFIG: Record<RateKind, { capacity: number; windowMs: number; env: string }> = {
   job: { capacity: 6, windowMs: 60_000, env: "RATE_LIMIT_JOBS_PER_MINUTE" },
   auth: { capacity: 8, windowMs: 15 * 60_000, env: "RATE_LIMIT_AUTH_PER_15MIN" },
   // A prediction (G-087) is a few milliseconds of work asked for after each pause in changing a setting, so it has a bucket of its
   // own: sharing `job`'s six a minute would let the hint use up the reader's Generates.
   prediction: { capacity: 90, windowMs: 60_000, env: "RATE_LIMIT_PREDICTIONS_PER_MINUTE" },
+  // A drawn pattern's preview (G-100) is asked for the same way, after each pause on a texture slider, and is as short;
+  // a bucket of its own, so a reader shaping marks does not use up the colour recommendation.
+  ditherPreview: { capacity: 90, windowMs: 60_000, env: "RATE_LIMIT_DITHER_PREVIEWS_PER_MINUTE" },
 };
 
 /**

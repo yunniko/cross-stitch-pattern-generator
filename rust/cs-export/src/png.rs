@@ -116,3 +116,36 @@ pub fn encode(source: &dyn PixelSource, width: u32, height: u32) -> Vec<u8> {
     chunk(&mut out, b"IEND", &[]);
     out
 }
+
+/// One label per pixel drawn in one of two tones: a dither preview (G-100).
+struct Labels<'a> {
+    labels: &'a [u8],
+    width: usize,
+    tones: [[u8; 3]; 2],
+}
+
+impl PixelSource for Labels<'_> {
+    fn rgba_rows(&self, y0: u32, rows: u32, out: &mut Vec<u8>) {
+        out.clear();
+        let start = y0 as usize * self.width;
+        for &label in &self.labels[start..start + rows as usize * self.width] {
+            out.extend_from_slice(&self.tones[usize::from(label != 0)]);
+            out.push(255);
+        }
+    }
+}
+
+/// The PNG of a two-tone picture: label 0 is `tones[0]`, anything else `tones[1]`.
+pub fn encode_labels(labels: &[u8], width: u32, height: u32, tones: [[u8; 3]; 2]) -> Vec<u8> {
+    assert_eq!(
+        labels.len(),
+        width as usize * height as usize,
+        "one label per pixel"
+    );
+    let source = Labels {
+        labels,
+        width: width as usize,
+        tones,
+    };
+    encode(&source, width, height)
+}

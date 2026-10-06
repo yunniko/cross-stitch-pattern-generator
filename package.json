@@ -26,6 +26,7 @@
     "compare:screen": "playwright test --config scripts/playwright.screen-compare.config.ts",
     "compare:exports": "playwright test --config scripts/playwright.export-compare.config.ts",
     "build:processor": "node scripts/build-processor.mjs",
+    "dither-previews": "cargo run --release --manifest-path rust/Cargo.toml -p cs-bench -- dither-previews public/dither-previews",
     "compare:export-parity": "playwright test --config scripts/playwright.export-parity.config.ts",
     "test:goldens:rust": "vitest run --config vitest.rust.config.ts scripts/rust-goldens.ts",
     "test:backstitch:rust": "vitest run --config vitest.rust.config.ts scripts/rust-backstitch-oxs.ts",

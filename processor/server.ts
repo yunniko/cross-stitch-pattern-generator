@@ -2,8 +2,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { serializePattern } from "@/lib/editor/pattern-serialize";
-import { predictionError, settingsError } from "./validate-settings";
-import { predictWithRust } from "./rust-jobs";
+import { ditherPreviewError, predictionError, settingsError } from "./validate-settings";
+import { ditherPreviewWithRust, predictWithRust } from "./rust-jobs";
 import type { PredictionRequest } from "@/lib/pipeline/prediction";
 import { parseExportRequest } from "./validate-export";
 import { GenerationPool, QueueFullError } from "./pool";
@@ -131,6 +131,41 @@ async function handlePrediction(req: IncomingMessage, res: ServerResponse): Prom
   }
 }
 
+/** At most this many dither previews are drawn at once (G-100): like a prediction, a short process of its own. */
+const MAX_PREVIEWS_AT_ONCE = 4;
+let previewing = 0;
+
+/** A dither pattern's preview, as a PNG (G-100): asked for when a pattern with settings of its own has them changed. */
+async function handleDitherPreview(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  let body: unknown;
+  try {
+    body = JSON.parse((await readCapped(req, 16 * 1024)).toString("utf8"));
+  } catch {
+    send(res, 400, { error: "That request body is not valid JSON." });
+    return;
+  }
+  const invalid = ditherPreviewError(body);
+  if (invalid) {
+    send(res, 400, { error: invalid });
+    return;
+  }
+  if (previewing >= MAX_PREVIEWS_AT_ONCE) {
+    send(res, 503, { error: "Busy; try again in a moment." }, { "retry-after": "1" });
+    return;
+  }
+  previewing++;
+  try {
+    const started = Date.now();
+    const png = await ditherPreviewWithRust(body as object);
+    res.writeHead(200, { "content-type": "image/png", "content-length": png.byteLength, "cache-control": "no-store" });
+    res.end(Buffer.from(png));
+    const { chartWidth, chartHeight } = body as { chartWidth: number; chartHeight: number };
+    console.log(`dither preview ${chartWidth}x${chartHeight} in ${Date.now() - started} ms`);
+  } finally {
+    previewing--;
+  }
+}
+
 /** Server-sent events: one message per state or progress change, ending when the job does. */
 async function handleJobEvents(res: ServerResponse, jobId: string): Promise<void> {
   if (!pool.status(jobId)) {
@@ -238,6 +273,8 @@ const server = createServer((req, res) => {
         await handleExportCreate(req, res);
       } else if (req.method === "POST" && url.pathname === "/predictions") {
         await handlePrediction(req, res);
+      } else if (req.method === "POST" && url.pathname === "/dither-previews") {
+        await handleDitherPreview(req, res);
       } else if (req.method === "POST" && url.pathname === "/jobs") {
         await handleJobCreate(req, res);
       } else if (req.method === "GET" && jobMatch?.[2] === "/events") {

@@ -1,9 +1,9 @@
-//! Port of `lib/pipeline/dither-hand-drawn.ts` (G-054): the threshold field a person draws rather than one a screen
+//! The drawn marks (G-054), ported from TypeScript and the only copy since G-100 (D327): the threshold field a person draws rather than one a screen
 //! repeats. Marks are scattered evenly but on no lattice, and each mark's own cells are ranked so the mark grows
 //! outward from its centre; spreading those ranks over 0..1 is what makes the field hold tone exactly.
 //!
 //! Integer arithmetic, comparisons and one `mulberry32` stream consumed in scan order — no transcendental function,
-//! so this reproduces the TypeScript bit for bit (D183/D184).
+//! so this reproduced the TypeScript bit for bit (D183/D184), and every chart drawn before the port still holds.
 
 use super::{by_thresholds, Cells, Pattern};
 use crate::color::Rgb;
@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use std::sync::Arc;
 
-/// What a drawn pattern is made of (G-055); mirrors `DitherTexture` in `dither-hand-drawn.ts`. `radius_span` is
+/// What a drawn pattern is made of (G-055); its shape and ranges are `DitherTexture` in `dither-hand-drawn.ts`. `radius_span` is
 /// stored rather than a largest radius because `0.42 - 0.26` is not `0.16` in binary floating point, and the default
 /// has to reproduce G-054 bit for bit.
 /// A painted mark (G-056): an odd-sided square saying in which step each stitch fills, read from the mark's centre.
@@ -128,7 +128,7 @@ fn place_marks(width: usize, height: usize, texture: &DitherTexture) -> (Vec<f64
     (centres, rng)
 }
 
-/// What each mark is drawn as. Mirrors `SHAPE_WEIGHTS` in `dither-hand-drawn.ts`.
+/// What each mark is drawn as, in the order of a texture's `shapeWeights`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Shape {
     Ring,
@@ -238,7 +238,7 @@ fn shape_score(
         0.0
     };
     // Solid out to the radius, scattered beyond it: ordering the spill by distance would rank the same cells in the
-    // same order and change nothing at all. Mirrors `withCore` in `dither-hand-drawn.ts`.
+    // same order and change nothing at all.
     let with_core = |base: f64| {
         if texture.size_every_mark && base > mark.radius {
             mark.radius + 1.0 + lump_noise(index, x, y)

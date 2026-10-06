@@ -1,5 +1,5 @@
 //! The threshold-matrix patterns (G-052, G-059): screens and scattered matrices. Each is data, a square of ranks from
-//! the generated file the TypeScript reads too (D198); a new matrix is a row there and a line in `PATTERNS`.
+//! the generated file (D198); a new matrix is a row there and a line in `PATTERNS`.
 
 use super::{by_thresholds, Cells, Pattern};
 use crate::color::Rgb;

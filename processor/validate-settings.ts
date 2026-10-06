@@ -1,3 +1,5 @@
+import { DITHER_MODES } from "@/lib/pipeline/dither";
+import { isValidDitherTexture } from "@/lib/pipeline/dither-hand-drawn";
 import { generationSettingsRefusal } from "@/lib/pipeline/generation-settings";
 import { isValidPhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import { THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
@@ -30,6 +32,30 @@ export function predictionError(body: unknown): string | null {
       set.every((c) => Array.isArray(c) && c.length === 3 && c.every((v) => Number.isInteger(v) && v >= 0 && v <= 255));
     if (!ok) return `paletteSet must be between 1 and ${MAX_COLORS} colours of [red, green, blue] whole numbers from 0 to 255.`;
   }
+  return null;
+}
+
+/**
+ * Checking a dither preview request (G-100): a pattern, its own settings, and the size of the chart whose corner is
+ * shown. Rust reads it again and refuses anything it does not take; this is the check that answers 400 rather than
+ * spawning a process for a malformed body.
+ */
+export function ditherPreviewError(body: unknown): string | null {
+  if (typeof body !== "object" || body === null) return "Expected a JSON object.";
+  const b = body as Record<string, unknown>;
+  const known = new Set(["ditherMode", "ditherTexture", "chartWidth", "chartHeight"]);
+  const unknown = Object.keys(b).find((key) => !known.has(key));
+  if (unknown !== undefined) return `${unknown} is not part of a dither preview.`;
+  if (typeof b.ditherMode !== "string" || !(DITHER_MODES as readonly string[]).includes(b.ditherMode)) {
+    return `ditherMode must be one of: ${DITHER_MODES.join(", ")}.`;
+  }
+  for (const side of ["chartWidth", "chartHeight"] as const) {
+    const value = b[side];
+    if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > MAX_STITCHES) {
+      return `${side} must be a whole number between 1 and ${MAX_STITCHES}.`;
+    }
+  }
+  if (b.ditherTexture !== undefined && !isValidDitherTexture(b.ditherTexture)) return "ditherTexture is not a valid texture.";
   return null;
 }
 
