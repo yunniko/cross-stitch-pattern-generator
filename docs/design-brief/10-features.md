@@ -26,7 +26,7 @@ The list is derived from what the editor has, so a new tool, export kind, genera
 | Navigation | | Pan, Zoom |
 | Colours | Isolate the lit threads | The two drawing colours and their swap |
 | Chart | Quick mirrors (the four as one), Symmetry axes (the four as one), Transparency lock | |
-| Views | Stitched view, Photo behind the chart (the grid over it and the photo alone, as one) | Color, Black & white, the zoom |
+| Views | Stitched view, Photo under the pattern (with its slider, and keys 4 and 5) | Color, Black & white, Symbols, the zoom |
 | Exports | A4 pages, PDF for Pattern Keeper, Full chart PNG, Realistic preview PNG, Pixel art PNG, Editable pattern, OXS chart, Palette file, Export all | Save in the bar above (the editable file by another road) |
 | Generation | Choice of algorithm, Crisp edges, Dithering (as a whole), Vivid colour detail, Backstitch from lines (with "also in photographs" and the sensitivity), Set up palette, Texture strokes (with the density), Photo adjustment | The size, the colour count, the palette mode itself |
 | Dither patterns | Clustered dots, Rings, Lines (the four directions as one), Bayer 4×4, Bayer 8×8, Blue noise, Floyd–Steinberg, Atkinson, Hand-drawn (with its texture editing) | Off |

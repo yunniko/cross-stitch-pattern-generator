@@ -4,7 +4,7 @@ Drawing and changing a chart. Sources: `app/tools/*`, `app/commands/registry.ts`
 
 ## When editing is possible
 
-Editing needs a chart, shown in a view that can be edited (Color, Black & white, Grid + photo). It is unavailable with no chart, over the starting point, and in the two looking-only views (Stitched, Original photo), where only panning and zooming act. Every tool control is unavailable (not hidden) while there is no chart.
+Editing needs a chart, shown in a view that can be edited (Color or Black & white, with or without symbols, and over the photo while the pattern is at least 5 % visible; `03`). It is unavailable with no chart, over the starting point, and in a looking-only view (Stitched, or the pattern below 5 % over the photo), where only panning and zooming act. Every tool control is unavailable (not hidden) while there is no chart.
 
 Every change to a chart is **one undo step**, however many stitches it touches: a stroke from press to release, a fill, a shape, an applied selection, a merge, a rename, a colour edit, a resize, a quick mirror.
 
@@ -144,8 +144,10 @@ Keys act when no text entry has the focus, and not while the command list is ope
 |---|---|
 | B, F, L, R, O, Q, G, C, K, J, S, V, H, Z | Brush, Fill, Line, Rectangle, Oval, Lasso, Lasso fill, Crop, Backstitch, Backstitch edit, Select, Move, Pan, Zoom |
 | X | Swap the two drawing colours |
-| 1, 2, 3 | Color, Black & white, Stitched view |
-| 4, 5 | Grid + photo, Original photo (only with a photo) |
+| 1, 2, 3 | Color, Black & white, Stitched pattern |
+| Y | Symbols on or off (Color and Black & white) |
+| P | Photo under the pattern on or off (Color and Black & white, with a photo) |
+| 4, 5 | The photo with the pattern half visible, the photo alone (only with a photo) |
 | Space (held) | Pan temporarily |
 | Escape | Cancels the piece, the shape, the lasso fill or the backstitch run in hand; puts down the backstitch in hand; or puts the crop frame back over the whole chart. Only one of these can be in hand at a time |
 | Enter | Applies the piece in hand (Select and Lasso), or the crop frame (Crop); otherwise the pen of the keyboard cell cursor (above) |

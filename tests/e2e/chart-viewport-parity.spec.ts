@@ -266,7 +266,7 @@ async function compare(page: Page, c: Case): Promise<Result> {
         const snapshot = reference.snapshotCanvas(full);
         reference.drawShiftedSnapshot(fctx, referenceScene as never, pattern as never, snapshot, dx, dy);
       } else if (c.gesture === "select-rect") {
-        // Original photo and Stitched: the fresh base render plus the outline (D135: no second, accumulated copy of the snapshot).
+        // The photo alone and Stitched: the fresh base render plus the outline (D135: no second, accumulated copy of the snapshot).
         if (incremental)
           reference.drawSelectionDragFrame(fctx, referenceScene as never, {
             kind: "rect",

@@ -27,7 +27,7 @@ const SHARED_COMMAND_FEATURES: Record<string, { label: string; group: string }> 
   "chart.mirror": { label: "Quick mirrors", group: "Chart" },
   "chart.symmetry": { label: "Symmetry axes", group: "Chart" },
   "view.realistic": { label: "Stitched view", group: "Views" },
-  "view.photo": { label: "Photo behind the chart", group: "Views" },
+  "view.photo": { label: "Photo under the pattern", group: "Views" },
 };
 
 function build(): Feature[] {

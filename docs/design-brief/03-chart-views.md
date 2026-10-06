@@ -1,20 +1,23 @@
 # 03 · Chart views and measurements
 
-Seeing the chart, moving around it, and the chart's own measurements. Sources: `app/editor-types.ts`, `app/hooks/use-pan-zoom.ts`, `lib/editor/ruler.ts`, `lib/export/finished-size.ts`, the texture catalogues in `lib/export/`, `lib/editor/workspace-storage.ts`; as of 2026-10-02. All of it runs on the device.
+Seeing the chart, moving around it, and the chart's own measurements. Sources: `lib/editor/view.ts`, `app/components/view-controls.tsx`, `app/editor-types.ts`, `app/hooks/use-pan-zoom.ts`, `lib/editor/ruler.ts`, `lib/export/finished-size.ts`, the texture catalogues in `lib/export/`, `lib/editor/workspace-storage.ts`; as of 2026-10-06. All of it runs on the device.
 
-## The five views
+## The view
 
-| View | Shows | Keyboard | Available when | Editing |
+The view is four switches, set in the bar under the chart (G-110):
+
+| Switch | Values | Keyboard | Acts when | Editing |
 |---|---|---|---|---|
-| **Color** | Each stitch in its thread colour with its symbol, on a grid, with backstitch lines as solid or dashed lines in their threads | 1 | A chart | Yes. The default |
-| **Black & white** | The chart as it prints: symbols on white | 2 | A chart | Yes |
-| **Stitched** ("realistic preview") | A picture of the finished stitching: each stitch drawn in the chosen stitch texture, backstitch as plain solid coloured lines a fifth of a stitch wide, on the canvas colour (and cloth) | 3 | A chart | **No** (looking only): only panning and zooming act |
-| **Grid + photo** | The symbol grid laid over the photo the chart was made from | 4 | A chart with a photo | Yes |
-| **Original photo** | The photo alone, for comparing | 5 | A chart with a photo | **No** (looking only) |
+| **Pattern mode** | **Color**: each stitch in its thread colour, on a grid, with backstitch lines as solid or dashed lines in their threads. **Black & white**: the chart as it prints, on white. **Stitched** ("realistic preview"): a picture of the finished stitching, each stitch in the chosen stitch texture, backstitch as plain solid coloured lines a fifth of a stitch wide, on the canvas colour (and cloth) | 1, 2, 3 | A chart | Color and Black & white: yes. Stitched: **no** (looking only) |
+| **Symbols** | On or off: the stitch symbols over the pattern | Y | Color or Black & white | Either |
+| **Photo** | On or off: the photo the chart was made from, at full strength, under the pattern | P | Color or Black & white, a chart with a photo | Either |
+| **Pattern visibility** | A slider from 0 to 100 %: how visible the pattern is over the photo; 0 % is the photo alone. Shown only while the photo is on | none | The photo on | At 5 % or more |
 
-Choosing one is remembered only for this visit, and a new chart always opens in Color. The first three are one group of three choices; the two photo views are reached by one control that steps through three states: first press shows the grid over the photo, second the photo alone, third returns to the chart (the one the chart was in before is not remembered: it returns to Color). That control is unavailable, with the reason "No source photo is associated with this pattern", for a chart without a photo. Leaving the photo views for any other view gives up photo-adjustment values that were moved but never generated with (`02`).
+Two keys set several switches at once: **4** the photo on with the pattern at 50 % (the nearest to the old "Grid + photo"), **5** the photo alone (visibility 0). Both leave Stitched for Color. A switch that does not act is remembered, not obeyed: Stitched sets Symbols and Photo aside, and they come back as they were in Color or Black & white. The Symbols and Photo switches are then unavailable with the reason, as Photo is for a chart without one ("No source photo is associated with this pattern"). Over the photo an empty stitch shows the photo itself.
 
-In a looking-only view every operation that would change the chart is blocked; panning, zooming, switching views and exporting work.
+The view is kept by the browser, so a reload shows the chart as it was left; every other new chart (a generation, an opened file, an empty grid) opens in Color with symbols and no photo. Turning the photo off gives up photo-adjustment values that were moved but never generated with (`02`).
+
+In a looking-only view (Stitched, or the pattern below 5 %) every operation that would change the chart is blocked, and in Edit a note says why ("Stitched is for looking: edit in Color or B&W." or "Too faint to edit: raise the pattern to 5 % or more."); panning, zooming, switching views and exporting work.
 
 ## Zoom and position
 

@@ -169,11 +169,13 @@ not edited by hand.
 |  | Diagonal symmetry ↘ on or off | — | A square chart, in Edit |
 |  | Diagonal symmetry ↙ on or off | — | A square chart, in Edit |
 |  | Transparency lock on or off | — | A chart, in Edit |
-| View | Color view | 1 | A chart |
-|  | Black & white view | 2 | A chart |
-|  | Stitched view | 3 | A chart |
-|  | Grid + photo view | 4 | A chart with a photo |
-|  | Original photo view | 5 | A chart with a photo |
+| View | Color pattern | 1 | A chart |
+|  | Black & white pattern | 2 | A chart |
+|  | Stitched pattern | 3 | A chart |
+|  | Symbols on or off | Y | A chart in Color or Black & white |
+|  | Photo under the pattern on or off | P | A chart with a photo, in Color or Black & white |
+|  | Photo with the pattern half visible | 4 | A chart with a photo |
+|  | Photo alone | 5 | A chart with a photo |
 |  | Photo workspace | — | Not already there |
 |  | Edit workspace | — | A chart; not already there |
 |  | Export workspace | — | A chart; not already there |
