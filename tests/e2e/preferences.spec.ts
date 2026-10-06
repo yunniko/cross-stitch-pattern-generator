@@ -136,3 +136,11 @@ test("Double-click fills is a preference and nowhere else; Escape closes Prefere
   await expect(page.getByTestId("chart-frame")).toHaveAttribute("data-view-mode", "color");
   await expect(page.getByRole("button", { name: "Brush", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
+
+test("the foot of Preferences names the release this page is, the number in package.json (G-105)", async ({ page }) => {
+  const { version } = JSON.parse(await readFile("package.json", "utf8")) as { version: string };
+  await page.goto("/");
+  const preferences = await openPreferences(page);
+  // The number, then the commit in brackets when the build was given one.
+  await expect(preferences.getByTestId("app-version")).toHaveText(new RegExp(`^${version.replace(/\./g, "\.")}( \([0-9a-f]{7,}\))?$`));
+});

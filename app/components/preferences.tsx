@@ -14,6 +14,7 @@ import { TexturePicker } from "./texture-picker";
 import { PillButton, SegmentedControl } from "./ui";
 import { useGatedOptions } from "../features/features-context";
 import { brandFeature } from "../features/registry";
+import { APP_COMMIT, APP_VERSION, versionLabel } from "@/lib/app-version";
 
 /**
  * Preferences (G-095, D299): what is set once and then left. What a new chart starts from, how the cloth and the stitches
@@ -236,7 +237,11 @@ export function Preferences({ options, pattern, onChange, onClose }: Preferences
           </p>
         </div>
 
-        <div className="flex justify-end border-t border-line px-5 py-3">
+        <div className="flex items-center justify-between gap-4 border-t border-line px-5 py-3">
+          {/* The release this page is (G-105): application scope, so it sits at the foot of Preferences. */}
+          <span className="text-xs text-muted">
+            Version <span data-testid="app-version">{versionLabel(APP_VERSION, APP_COMMIT)}</span>
+          </span>
           <PillButton data-close variant="raised" size="md" onClick={onClose}>
             Close
           </PillButton>

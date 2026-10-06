@@ -7,12 +7,10 @@
  * share or not (G-066 constraint); the chart itself goes in whole, so a failure can be reopened and worked on.
  */
 
+import { APP_COMMIT, APP_VERSION } from "../app-version";
 import { serializePattern } from "./pattern-serialize";
 import { NO_SYMMETRY, type SymmetryAxes } from "./symmetry";
 import type { StitchPattern } from "../types";
-
-/** The version the report names, so a stack can be read against the code that produced it. */
-export const APP_VERSION = process.env.NEXT_PUBLIC_APP_COMMIT ?? "unknown";
 
 /** What the editor was doing when it died. Every field is optional: a crash before the first render has none of it. */
 export interface CrashContext {
@@ -67,7 +65,9 @@ export function buildCrashReport(error: unknown, context: CrashContext, environm
     {
       kind: "cross-stitch-pattern-generator crash report",
       when: timestamp,
+      // The release and the commit, so a stack can be read against the code that produced it.
       version: APP_VERSION,
+      commit: APP_COMMIT,
       error: errorFields(error),
       doing: {
         viewMode: context.viewMode ?? null,

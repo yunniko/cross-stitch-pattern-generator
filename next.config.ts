@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import packageJson from "./package.json" with { type: "json" };
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -14,6 +15,11 @@ const nextConfig: NextConfig = {
    * `next dev`; a build never has it.
    */
   devIndicators: false,
+  /**
+   * The release number, read from `package.json` when the app is built, its one source (G-105). Only this string reaches
+   * the bundle, not the rest of the file. Read through `lib/app-version.ts`.
+   */
+  env: { APP_VERSION: packageJson.version },
   async headers() {
     return [
       {
