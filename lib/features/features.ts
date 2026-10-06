@@ -31,6 +31,14 @@ export type FeatureStates = Readonly<Record<string, FeatureState>>;
 
 export const EVERYTHING_ON: FeatureStates = Object.freeze({});
 
+/**
+ * The shape of a feature id, which is all the server can check of one (D305): dotted, letters of either case (a setting's
+ * id is camelCase: `generation.edgeMode`), digits and hyphens. A test holds every id in the list to it.
+ */
+export function isFeatureIdShape(id: unknown): id is string {
+  return typeof id === "string" && /^[a-z0-9][a-zA-Z0-9.-]{0,79}$/.test(id);
+}
+
 /** The state of one feature for the person these states belong to: on unless the states say otherwise. */
 export function featureState(states: FeatureStates, id: string): FeatureState {
   return states[id] ?? "on";

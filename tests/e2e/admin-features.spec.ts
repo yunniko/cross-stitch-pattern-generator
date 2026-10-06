@@ -102,6 +102,17 @@ test("a set is made, filled and attached to a tier; a person on the tier gets it
       .getByRole("button", { name: "Hidden", exact: true })
       .click();
     await expect(set.locator(`[data-testid="feature-row"][data-feature="tool.fill"]`)).toHaveAttribute("data-state", "hidden");
+    // A Generation feature, whose id is camelCase, is kept too (it was refused, 2026-10-06).
+    const edges = set.locator(`[data-testid="feature-row"][data-feature="generation.edgeMode"]`);
+    await edges.getByRole("group").getByRole("button", { name: "Locked", exact: true }).click();
+    await expect(edges).toHaveAttribute("data-state", "locked");
+    await expect(page.getByText("That is not a feature id.")).toHaveCount(0);
+    await page.reload();
+    await page.getByRole("tab", { name: /^Feature sets/ }).click();
+    await page.getByRole("tab", { name, exact: true }).click();
+    await expect(
+      page.getByTestId("set-features").locator(`[data-testid="feature-row"][data-feature="generation.edgeMode"]`)
+    ).toHaveAttribute("data-state", "locked");
     // A feature left "As the site" has no entry.
     await expect(set.locator(`[data-testid="feature-row"][data-feature="tool.brush"]`)).toHaveAttribute("data-state", "site");
 

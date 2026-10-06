@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { FeatureSwitch } from "@/generated/prisma/client";
 import { auth } from "@/auth";
-import { isFeatureState, type FeatureState } from "@/lib/features/features";
+import { isFeatureIdShape, isFeatureState, type FeatureState } from "@/lib/features/features";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -14,7 +14,6 @@ import { prisma } from "@/lib/prisma";
  * modules, which a server module cannot import. A row naming a feature that no longer exists is ignored by the resolver.
  */
 
-const FEATURE_ID = /^[a-z0-9][a-z0-9.-]{0,79}$/;
 const NAME = /^[^\s][^\n]{0,59}$/;
 
 const SWITCH: Record<FeatureState, FeatureSwitch> = { on: "ON", locked: "LOCKED", hidden: "HIDDEN" };
@@ -49,7 +48,7 @@ function checkedEntries(entries: unknown): Array<{ featureId: string; state: Sta
   if (!Array.isArray(entries) || entries.length === 0 || entries.length > 200) throw new Error("Nothing to change.");
   return entries.map((entry) => {
     const { featureId, state } = entry as { featureId?: unknown; state?: unknown };
-    if (typeof featureId !== "string" || !FEATURE_ID.test(featureId)) throw new Error("That is not a feature id.");
+    if (!isFeatureIdShape(featureId)) throw new Error("That is not a feature id.");
     if (state !== "site" && !isFeatureState(state)) throw new Error("That is not a state.");
     return { featureId, state };
   });

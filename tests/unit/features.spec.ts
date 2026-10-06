@@ -12,6 +12,7 @@ import {
   featureUsable,
   groupFeatures,
   groupState,
+  isFeatureIdShape,
   lockedNote,
   withGroupState,
   type FeatureStates,
@@ -83,6 +84,14 @@ describe("the feature list", () => {
     );
     expect(generationSettingFeature(GENERATION_SETTINGS.find((setting) => setting.id === "colorCount")!)).toBeNull();
     expect(featureById("generation.vivid").label).toBe("Vivid colour detail");
+  });
+
+  it("has every id in the shape the admin's server actions accept (a camelCase setting was refused, 2026-10-06)", () => {
+    for (const feature of FEATURES) expect(isFeatureIdShape(feature.id), feature.id).toBe(true);
+    expect(isFeatureIdShape("generation.edgeMode")).toBe(true);
+    expect(isFeatureIdShape("Tool.brush")).toBe(false);
+    expect(isFeatureIdShape("tool brush")).toBe(false);
+    expect(isFeatureIdShape("x".repeat(81))).toBe(false);
   });
 
   it("has no two features with one id, and every feature has a group and a label", () => {
