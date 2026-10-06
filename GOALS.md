@@ -73,6 +73,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 **Known before starting:** with Export off nothing downloads the editable file (noted by the review above). With Photo off and a photo already kept by the browser, the chart stays and the photo is not sent anywhere. While the database cannot be read every feature falls back to On (G-102), the three workspaces with them.
 
 **Progress log** (newest first):
+- 2026-10-06 -- **M1 done** (3b8b6fb). The three workspaces are features (`workspace.photo`, `.edit`, `.export`, group "Workspaces", first); `workspaceOpen`/`workspaceShown` take the states, `workspaceShown` gives null when none is on; `firstTools` unchanged, since Pan and Zoom are offered in every workspace and it cannot throw. D312: the switch closes the workspace, not each feature inside. Verified: 1,217 unit (every state of the three × no chart, chart, start screen over a chart); local `admin-features` case "the three workspaces are the first group" passes on a production build. Not run: the full e2e suite locally (no memory, Owner), so CI carries it. Next: M2, the browser obeys.
 - 2026-10-06 -- **accepted by the Owner** ("go with 103 and 105 goals"), with the points to confirm, (d) and (e), as planned. Worked after G-105, per the sequence.
 - 2026-10-06 -- planned: the acceptance restated, the review's parent relation replaced by a gate at the workspace (Owner's answer on controls), four milestones. Waiting for the Owner's acceptance; nothing built.
 
