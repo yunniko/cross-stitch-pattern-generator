@@ -1,3 +1,4 @@
+import type { FeatureDeclaration } from "../features/features";
 /**
  * Commands (G-093, D286): an action the editor has, registered once with its name, its keys and when it is available. The
  * keyboard shortcuts and the command list both read the registered table; nothing else decides what a key does.
@@ -44,6 +45,11 @@ export interface CommandDefinition {
    * `gesture` ends something the pointer is in the middle of, `elsewhere` is listened to by another part of the editor.
    */
   keyOnly?: "held" | "gesture" | "elsewhere";
+  /**
+   * The feature switch it is under (G-102). Left out, the command is a feature of its own, `command.<id>`, named after
+   * itself; `null` is core, never switched; a string names the feature it belongs to (the four mirrors are one).
+   */
+  feature?: FeatureDeclaration;
 }
 
 export interface CommandState {

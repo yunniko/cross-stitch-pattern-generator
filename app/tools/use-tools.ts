@@ -7,6 +7,8 @@ import { firstTools, toolOffered, type Workspace } from "@/lib/editor/workspaces
 import { moduleIndexOf, TOOL_DEFINITIONS, TOOL_MODULES, toolDefinition, type Tool } from "./registry";
 import { SHAPE_FILL, type ToolOption } from "./options";
 import type { EditorApi, PieceService, SharedOption, ToolModule, ToolRuntime, ToolShell } from "./types";
+import { useFeatures } from "../features/features-context";
+import { firstUsableTool, toolUsable } from "../features/registry";
 
 /**
  * The editor shell's side of the tool registry (G-092, D284): which tool is in hand, and the routing of the pointer and the
@@ -74,7 +76,11 @@ export function useTools(inputs: ToolsInputs): Tools {
   const { workspace } = inputs;
   // One tool in hand for each workspace: changing workspace neither picks a tool up nor puts one down.
   const [inHand, setInHand] = useState<Record<Workspace, Tool>>(() => firstTools(TOOL_DEFINITIONS));
-  const activeTool = inHand[workspace];
+  // Under the feature switches (G-102): a tool that is not usable is never the one in hand, whatever was held before.
+  const features = useFeatures();
+  const usable = (tool: Tool) => toolUsable(features, tool);
+  const held = inHand[workspace];
+  const activeTool = usable(held) ? held : (firstUsableTool(features, workspace) ?? held);
   const setActiveTool = (tool: Tool) => setInHand((held) => ({ ...held, [workspace]: tool }));
   const [activation, setActivation] = useState(0);
   const api: EditorApi = { ...inputs, activeTool };
@@ -95,8 +101,8 @@ export function useTools(inputs: ToolsInputs): Tools {
 
   function switchTool(tool: Tool) {
     const next = toolDefinition(tool);
-    // A tool the workspace does not offer cannot be picked up there, by whatever road the request came.
-    if (!toolOffered(next, workspace)) return;
+    // A tool the workspace does not offer, or that is locked or hidden, cannot be picked up, by whatever road the request came.
+    if (!toolOffered(next, workspace) || !usable(tool)) return;
     // Looked up afresh, not taken from the render: this function is handed to the tools, which must not hold the definition.
     const previous = toolDefinition(activeTool);
     for (const runtime of runtimes) runtime.onToolChange?.(previous, next);

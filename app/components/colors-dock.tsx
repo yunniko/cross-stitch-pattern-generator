@@ -19,6 +19,8 @@ import { useLatest } from "../hooks/use-latest";
 import { ThreadRows, threadsSummary } from "./threads-pane";
 import { PillButton, SegmentedControl } from "./ui";
 import { SkinIcon } from "../skin/skin";
+import { useGatedOptions } from "../features/features-context";
+import { brandFeature } from "../features/registry";
 
 const PANEL = "flex flex-col gap-2 rounded-lg border border-line p-3";
 const COMPARE_HINT = "Hover or focus a swatch to compare it with the current color on screen.";
@@ -218,6 +220,14 @@ export function ColorsDock({
   const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [editingSymbolIndex, setEditingSymbolIndex] = useState<number | null>(null);
+  // Under the feature switches (G-102): each brand is a feature.
+  const modeOptions = useGatedOptions(
+    [
+      { value: "full" as const, label: "Full range" },
+      ...THREAD_BRAND_IDS.map((brand) => ({ value: brand, label: THREAD_BRANDS[brand].label })),
+    ],
+    brandFeature
+  );
   const editorPanelRef = useRef<HTMLDivElement>(null);
   const symbolPanelRef = useRef<HTMLDivElement>(null);
 
@@ -376,15 +386,7 @@ export function ColorsDock({
         {pattern.threadBrand ? (
           <BrandNotice brand={pattern.threadBrand} />
         ) : (
-          <SegmentedControl
-            className="self-start"
-            options={[
-              { value: "full" as const, label: "Full range" },
-              ...THREAD_BRAND_IDS.map((brand) => ({ value: brand, label: THREAD_BRANDS[brand].label })),
-            ]}
-            value={editing.mode}
-            onChange={changeMode}
-          />
+          <SegmentedControl className="self-start" options={modeOptions} value={editing.mode} onChange={changeMode} />
         )}
 
         {brandMode ? (

@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { buildStitchTiles } from "@/lib/export/stitch-texture";
 import { STITCH_TEXTURES, type StitchTextureId } from "@/lib/export/stitch-texture-catalog";
 import type { PaletteColor, StitchPattern } from "@/lib/types";
+import { useGatedOptions } from "../features/features-context";
 
 /**
  * The buttons that choose the realistic view's stitch texture. Each shows its texture as a block of 3 × 4 stitches,
@@ -82,9 +83,14 @@ export interface TexturePickerProps {
 
 export function TexturePicker({ pattern, value, onChange, canvasColor }: TexturePickerProps) {
   const palette = previewPalette(pattern);
+  // Under the feature switches (G-102): each texture is a feature.
+  const textures = useGatedOptions(
+    STITCH_TEXTURES.map((texture) => ({ ...texture, value: texture.id })),
+    (id) => `texture.stitch.${id}`
+  );
   return (
     <div role="radiogroup" aria-label="Stitch texture" className="flex flex-wrap gap-2">
-      {STITCH_TEXTURES.map((texture) => {
+      {textures.map((texture) => {
         const selected = texture.id === value;
         return (
           <button
@@ -92,9 +98,11 @@ export function TexturePicker({ pattern, value, onChange, canvasColor }: Texture
             type="button"
             role="radio"
             aria-checked={selected}
-            title={`${texture.label} stitch texture`}
+            disabled={texture.disabled}
+            data-feature-locked={texture.disabled ? `texture.stitch.${texture.id}` : undefined}
+            title={texture.title ?? `${texture.label} stitch texture`}
             onClick={() => onChange(texture.id)}
-            className={`flex flex-col items-center gap-1 rounded-lg border p-1.5 text-[11px] ${
+            className={`flex flex-col items-center gap-1 rounded-lg border p-1.5 text-[11px] disabled:opacity-45 ${
               selected ? "border-[var(--at-accent)] text-ink" : "border-line text-muted hover:border-ink"
             }`}
           >

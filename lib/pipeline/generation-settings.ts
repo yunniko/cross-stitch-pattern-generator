@@ -1,3 +1,4 @@
+import type { FeatureDeclaration } from "../features/features";
 import { THREAD_BRAND_IDS } from "../threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES } from "../types";
 import { DITHER_MODES, isDithered, type DitherMode } from "./dither";
@@ -47,6 +48,11 @@ export type GenerationSetting = Check & {
    * settings in one bag by id, and sent with every Generate. Only a flag, a number from 0 to 1 or a choice can be drawn.
    */
   control?: { label: string; hint?: string; default: boolean | number | string };
+  /**
+   * The feature switch it is under (G-102). Left out, the setting is a feature of its own, `generation.<id>`, named by its
+   * control's label or its id; `null` is core (the size, the colour count); a string names the setting it belongs to.
+   */
+  feature?: FeatureDeclaration;
 };
 
 /** The values of the settings that are drawn from their declarations, by id. */
@@ -81,16 +87,25 @@ function paletteSetRefusal(set: unknown, body: Record<string, unknown>): string 
  * order is part of what the processor's tests pin.
  */
 const DECLARED = [
-  { id: "longerSideStitches", kind: "integer", min: MIN_STITCHES, max: MAX_STITCHES, required: true },
-  { id: "colorCount", kind: "integer", min: MIN_COLORS, max: MAX_COLORS, required: true },
+  { id: "longerSideStitches", kind: "integer", min: MIN_STITCHES, max: MAX_STITCHES, required: true, feature: null },
+  { id: "colorCount", kind: "integer", min: MIN_COLORS, max: MAX_COLORS, required: true, feature: null },
   // Called the quantizer inside the pipeline: "original" is the algorithm the project shipped with, "latest" its fix (D20).
-  { id: "generationMode", kind: "choice", values: ["original", "latest"], rustName: "quantizer" },
-  { id: "paletteMode", kind: "choice", values: PALETTE_MODES },
-  { id: "edgeMode", kind: "choice", values: ["standard", "crisp", "crisp-plus"] },
+  {
+    id: "generationMode",
+    kind: "choice",
+    values: ["original", "latest"],
+    rustName: "quantizer",
+    feature: { label: "Choice of algorithm" },
+  },
+  // The brands are features of their own (`brand.<id>`), so the mode itself is core.
+  { id: "paletteMode", kind: "choice", values: PALETTE_MODES, feature: null },
+  { id: "edgeMode", kind: "choice", values: ["standard", "crisp", "crisp-plus"], feature: { label: "Crisp edges" } },
   {
     id: "ditherMode",
     kind: "choice",
     values: DITHER_MODES,
+    // Each pattern is a feature of its own (`dither.<mode>`); the choice as a whole is this one.
+    feature: { label: "Dithering" },
     // Refused here rather than inside a worker: the pipeline refuses the combination too (D199), and a failure there
     // would tell the reader their photo was at fault.
     alsoRefuse: (b) =>
@@ -99,19 +114,20 @@ const DECLARED = [
         : null,
   },
   // A plain flag, checked so a stray string cannot reach the pipeline as a truthy value (G-061).
-  { id: "vivid", kind: "flag" },
+  { id: "vivid", kind: "flag", feature: { label: "Vivid colour detail" } },
   // The line tracing (G-084): two flags here, and its sensitivity below.
-  { id: "backstitchLines", kind: "flag" },
-  { id: "backstitchPhotos", kind: "flag" },
-  { id: "paletteSet", kind: "shape", refusal: paletteSetRefusal },
+  { id: "backstitchLines", kind: "flag", feature: { label: "Backstitch from lines" } },
+  { id: "backstitchPhotos", kind: "flag", feature: "generation.backstitchLines" },
+  { id: "paletteSet", kind: "shape", refusal: paletteSetRefusal, feature: { label: "Set up palette" } },
   // The texture strokes (G-085): a flag, and how many.
-  { id: "textureStrokes", kind: "flag" },
-  { id: "textureDensity", kind: "unit" },
-  { id: "backstitchSensitivity", kind: "unit" },
+  { id: "textureStrokes", kind: "flag", feature: { label: "Texture strokes" } },
+  { id: "textureDensity", kind: "unit", feature: "generation.textureStrokes" },
+  { id: "backstitchSensitivity", kind: "unit", feature: "generation.backstitchLines" },
   // Whole numbers in range, or nothing: a slider cannot produce anything else (G-074).
   {
     id: "photoAdjust",
     kind: "shape",
+    feature: { label: "Photo adjustment" },
     refusal: (value) =>
       isValidPhotoAdjust(value)
         ? null
@@ -121,6 +137,7 @@ const DECLARED = [
   {
     id: "ditherTexture",
     kind: "shape",
+    feature: "dither.hand-drawn",
     refusal: (value) => (isValidDitherTexture(value) ? null : "ditherTexture must be an object whose values are all inside their ranges."),
   },
 ] as const satisfies readonly GenerationSetting[];

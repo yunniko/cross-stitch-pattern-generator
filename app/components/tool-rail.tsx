@@ -8,6 +8,9 @@ import type { Tool } from "../editor-types";
 import { SkinIcon, ToolIcon, useSkin } from "../skin/skin";
 import { TOOL_DEFINITIONS, toolDefinition } from "../tools/registry";
 import { DISABLED_ICON } from "./ui";
+import { lockedNote } from "@/lib/features/features";
+import { useFeature, useFeatures } from "../features/features-context";
+import { toolFeature, toolShown, toolUsable } from "../features/registry";
 
 /**
  * The tools, at the left edge (G-095, proposal D): the ones the workspace shown offers, in two columns, or one where there
@@ -40,8 +43,11 @@ export interface ToolRailProps {
 }
 
 export function ToolRail({ workspace, activeTool, disabled, onSelect, squareCanvas, onMirror }: ToolRailProps) {
-  const offered = TOOL_DEFINITIONS.filter((tool) => toolOffered(tool, workspace));
+  const features = useFeatures();
+  // Under the feature switches (G-102): a hidden tool is not here; a locked one is, greyed, with the note.
+  const offered = TOOL_DEFINITIONS.filter((tool) => toolOffered(tool, workspace) && toolShown(features, tool.id));
   const groups = arrangeTools(offered, useSkin().tools);
+  const mirrors = useFeature("chart.mirror");
   const columns = railColumns(offered.length);
   return (
     <aside
@@ -58,13 +64,15 @@ export function ToolRail({ workspace, activeTool, disabled, onSelect, squareCanv
               {group.map((id) => {
                 const { label, title, Icon } = toolDefinition(id);
                 const active = activeTool === id;
+                const locked = !toolUsable(features, id as Tool);
                 return (
                   <button
                     key={id}
                     type="button"
                     onClick={() => onSelect(id as Tool)}
-                    disabled={disabled}
-                    title={title}
+                    disabled={disabled || locked}
+                    data-feature-locked={locked ? toolFeature(toolDefinition(id)) : undefined}
+                    title={locked ? lockedNote(label) : title}
                     aria-label={label}
                     aria-pressed={active}
                     className={`flex min-h-11 flex-col items-center justify-center gap-[3px] rounded-md py-1.5 ${DISABLED_ICON} ${
@@ -83,7 +91,7 @@ export function ToolRail({ workspace, activeTool, disabled, onSelect, squareCanv
         ))}
       </div>
 
-      {workspace === "edit" && (
+      {workspace === "edit" && mirrors.shown && (
         <>
           {/*
         The quick mirrors are not tools: each acts on the whole chart at one press, whatever tool is in hand. So they sit
@@ -102,8 +110,9 @@ export function ToolRail({ workspace, activeTool, disabled, onSelect, squareCanv
                   key={kind}
                   type="button"
                   onClick={() => onMirror(kind)}
-                  disabled={disabled || needsSquare}
-                  title={needsSquare ? `${title}. Needs a square canvas.` : title}
+                  disabled={disabled || needsSquare || !mirrors.usable}
+                  data-feature-locked={mirrors.usable ? undefined : "chart.mirror"}
+                  title={!mirrors.usable ? lockedNote("Quick mirrors") : needsSquare ? `${title}. Needs a square canvas.` : title}
                   aria-label={label}
                   className={`flex h-6 w-6 items-center justify-center rounded-md border border-line text-muted enabled:hover:bg-raised ${DISABLED_ICON}`}
                 >

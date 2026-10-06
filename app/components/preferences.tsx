@@ -12,6 +12,8 @@ import { CanvasPicker } from "./canvas-picker";
 import { CellSizeField } from "./cell-size-field";
 import { TexturePicker } from "./texture-picker";
 import { PillButton, SegmentedControl } from "./ui";
+import { useGatedOptions } from "../features/features-context";
+import { brandFeature } from "../features/registry";
 
 /**
  * Preferences (G-095, D299): what is set once and then left. What a new chart starts from, how the cloth and the stitches
@@ -59,6 +61,14 @@ export interface PreferencesProps {
 
 export function Preferences({ options, pattern, onChange, onClose }: PreferencesProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  // Under the feature switches (G-102): each brand is a feature.
+  const paletteOptions = useGatedOptions(
+    [
+      { value: "full" as const, label: "Full range" },
+      ...THREAD_BRAND_IDS.map((brand) => ({ value: brand, label: THREAD_BRANDS[brand].label })),
+    ],
+    brandFeature
+  );
 
   // The way out has the focus when it opens; Tab stays inside; Escape closes it.
   useModalFocus(panelRef, "[data-close]", onClose);
@@ -124,10 +134,7 @@ export function Preferences({ options, pattern, onChange, onClose }: Preferences
               Palette for a new photo
               <div role="group" aria-label="Palette for a new photo">
                 <SegmentedControl
-                  options={[
-                    { value: "full", label: "Full range" },
-                    ...THREAD_BRAND_IDS.map((brand) => ({ value: brand, label: THREAD_BRANDS[brand].label })),
-                  ]}
+                  options={paletteOptions}
                   value={options.defaultPaletteMode}
                   onChange={(mode) => onChange("defaultPaletteMode", mode)}
                 />

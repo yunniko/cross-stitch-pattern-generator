@@ -6,6 +6,7 @@ import { act } from "../tools/shared";
 import { toolOffered, workspaceEdits, workspaceOpen, type Workspace } from "@/lib/editor/workspaces";
 import { toolDefinition, type Tool } from "../tools/registry";
 import { useCommandTable, type ShellCommandId } from "./registry";
+import { useFeatures } from "../features/features-context";
 
 /**
  * What each of the editor's own commands does now (G-093, D286; out of the workspace in G-098). The names, keys and
@@ -132,10 +133,12 @@ export function shellCommandStates(s: ShellState, a: ShellActions): Record<Shell
  * hook during render and not to a plain function.
  */
 export function useShellCommands(state: ShellState, actions: ShellActions, fromTools: readonly Command[]): Command[] {
+  const features = useFeatures();
   return useCommandTable(
     shellCommandStates(state, actions),
     // A tool can be picked up where the workspace shown offers it.
     (tool) => act(state.hasChart && toolOffered(toolDefinition(tool), state.workspace), () => actions.chooseTool(tool)),
-    fromTools
+    fromTools,
+    features
   );
 }

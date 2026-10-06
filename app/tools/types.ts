@@ -1,3 +1,4 @@
+import type { FeatureDeclaration } from "@/lib/features/features";
 import type { ComponentType, DragEvent, MouseEvent, PointerEvent, ReactNode, RefObject } from "react";
 import type { StampOffset } from "@/lib/editor/brush-stamp";
 import type { CommandDefinition, CommandState } from "@/lib/editor/commands";
@@ -30,6 +31,11 @@ export interface ToolDefinition {
   key?: string;
   /** Where it sits in the list: 0 the tools that lay stitches and lines, 1 the ones that take a piece, 2 the ways of moving about. */
   group: 0 | 1 | 2;
+  /**
+   * The feature switch it is under (G-102). Left out, the tool is a feature of its own, `tool.<id>`; `null` is core, never
+   * switched (Pan, Zoom); a string names another tool's feature it belongs to.
+   */
+  feature?: FeatureDeclaration;
   /** The workspace that offers it (G-095, D297); Edit when it names none. A tool that only moves the view is offered in all three. */
   workspace?: Workspace;
   /**

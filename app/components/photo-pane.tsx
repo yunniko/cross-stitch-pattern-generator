@@ -18,6 +18,9 @@ import { DitherPreview } from "./dither-preview";
 import { PaletteSetup } from "./palette-setup";
 import { TextureEditor } from "./texture-editor";
 import { PillButton, SegmentedControl, Slider, type SegmentOption, InlineError } from "./ui";
+import { useGatedOptions } from "../features/features-context";
+import { brandFeature } from "../features/registry";
+import { FeatureGate } from "./feature-gate";
 
 /**
  * The Photo panel's settings (G-045 M3, direction 1b; in three tabs since G-095): everything the next Generate reads, in
@@ -206,6 +209,9 @@ export function PhotoPane({
   const [sizeDraft, setSizeDraft] = useState<string | null>(null);
   // The palette mode asked for while colours are chosen in another, until the reader confirms that they go.
   const [pendingMode, setPendingMode] = useState<WorkspaceOptions["paletteMode"] | null>(null);
+  // Under the feature switches (G-102): the set-up palette and each brand are features.
+  const setupOptions = useGatedOptions(SETUP_OPTIONS, (choice) => (choice === "setup" ? "generation.paletteSet" : null));
+  const paletteOptions = useGatedOptions(PALETTE_OPTIONS, brandFeature);
   if (isProcessing) return <GeneratingCard progress={progress} queueMessage={queueMessage} hasPattern={hasPattern} onCancel={onCancel} />;
   // First run: nothing to size or colour yet, so 1b shows what the three steps will be instead of dead controls.
   if (!hasPhoto && !hasPattern && !isLoadingImage)
@@ -429,118 +435,124 @@ export function PhotoPane({
       )}
 
       {section === "chart" && (
-        <section className="flex flex-col gap-2">
-          <span className={GROUP_LABEL}>Color detail</span>
-          <SegmentedControl
-            fill
-            options={VIVID_OPTIONS}
-            value={options.vivid ? "vivid" : "averaged"}
-            onChange={(choice) => onChange("vivid", choice === "vivid")}
-          />
-          <p className="text-[11px] leading-4 text-muted">
-            One stitch covers many pixels. Vivid keeps the colour of the strongest part instead of averaging it away, so small bright things
-            stay coloured. It needs a photo large enough for a stitch to cover about 25 pixels.
-          </p>
-        </section>
+        <FeatureGate id="generation.vivid">
+          <section className="flex flex-col gap-2">
+            <span className={GROUP_LABEL}>Color detail</span>
+            <SegmentedControl
+              fill
+              options={VIVID_OPTIONS}
+              value={options.vivid ? "vivid" : "averaged"}
+              onChange={(choice) => onChange("vivid", choice === "vivid")}
+            />
+            <p className="text-[11px] leading-4 text-muted">
+              One stitch covers many pixels. Vivid keeps the colour of the strongest part instead of averaging it away, so small bright
+              things stay coloured. It needs a photo large enough for a stitch to cover about 25 pixels.
+            </p>
+          </section>
+        </FeatureGate>
       )}
 
       {section === "lines" && (
-        <section className="flex flex-col gap-2">
-          <span className={GROUP_LABEL}>Lines</span>
-          <label
-            className="flex items-center justify-between gap-3 text-[13px]"
-            title="Finds thin lines in a drawing (outlines, whiskers, lettering; dark, light or coloured) and stitches them as backstitch instead of a ragged row of stitches"
-          >
-            Backstitch from lines
-            <input
-              type="checkbox"
-              checked={options.backstitchLines}
-              onChange={(e) => onChange("backstitchLines", e.target.checked)}
-              className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
-            />
-          </label>
-          {options.backstitchLines ? (
+        <FeatureGate id="generation.backstitchLines">
+          <section className="flex flex-col gap-2">
+            <span className={GROUP_LABEL}>Lines</span>
             <label
               className="flex items-center justify-between gap-3 text-[13px]"
-              title="A photograph is full of faint fine detail, so only its strongest long thin lines (a branch, a wire, a fence rail) are traced, and few of them. Drawings are traced either way."
+              title="Finds thin lines in a drawing (outlines, whiskers, lettering; dark, light or coloured) and stitches them as backstitch instead of a ragged row of stitches"
             >
-              Also in photographs
+              Backstitch from lines
               <input
                 type="checkbox"
-                checked={options.backstitchPhotos}
-                onChange={(e) => onChange("backstitchPhotos", e.target.checked)}
+                checked={options.backstitchLines}
+                onChange={(e) => onChange("backstitchLines", e.target.checked)}
                 className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
               />
             </label>
-          ) : null}
-          {options.backstitchLines ? (
-            <div className="flex flex-col gap-0.5">
-              <div className="flex items-baseline justify-between">
-                <label className="text-[11px] text-muted" htmlFor="backstitch-sensitivity">
-                  Line sensitivity
-                </label>
-                <span className="font-mono text-[11px] text-ink">{Math.round(options.backstitchSensitivity * 10)}</span>
+            {options.backstitchLines ? (
+              <label
+                className="flex items-center justify-between gap-3 text-[13px]"
+                title="A photograph is full of faint fine detail, so only its strongest long thin lines (a branch, a wire, a fence rail) are traced, and few of them. Drawings are traced either way."
+              >
+                Also in photographs
+                <input
+                  type="checkbox"
+                  checked={options.backstitchPhotos}
+                  onChange={(e) => onChange("backstitchPhotos", e.target.checked)}
+                  className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
+                />
+              </label>
+            ) : null}
+            {options.backstitchLines ? (
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-baseline justify-between">
+                  <label className="text-[11px] text-muted" htmlFor="backstitch-sensitivity">
+                    Line sensitivity
+                  </label>
+                  <span className="font-mono text-[11px] text-ink">{Math.round(options.backstitchSensitivity * 10)}</span>
+                </div>
+                <input
+                  id="backstitch-sensitivity"
+                  type="range"
+                  min={0}
+                  max={10}
+                  value={Math.round(options.backstitchSensitivity * 10)}
+                  aria-label="Line sensitivity"
+                  onChange={(e) => onChange("backstitchSensitivity", Number(e.target.value) / 10)}
+                  className="min-w-0 accent-[var(--at-accent)]"
+                />
               </div>
-              <input
-                id="backstitch-sensitivity"
-                type="range"
-                min={0}
-                max={10}
-                value={Math.round(options.backstitchSensitivity * 10)}
-                aria-label="Line sensitivity"
-                onChange={(e) => onChange("backstitchSensitivity", Number(e.target.value) / 10)}
-                className="min-w-0 accent-[var(--at-accent)]"
-              />
-            </div>
-          ) : null}
-          <p className="text-[11px] leading-4 text-muted">
-            For drawings: thin lines, dark, light or coloured, become backstitch in up to three threads, and the stitches under them take
-            the colour beside them. A photograph with texture everywhere gets none unless the checkbox below is on, and then only a few
-            strong lines.
-          </p>
-        </section>
+            ) : null}
+            <p className="text-[11px] leading-4 text-muted">
+              For drawings: thin lines, dark, light or coloured, become backstitch in up to three threads, and the stitches under them take
+              the colour beside them. A photograph with texture everywhere gets none unless the checkbox below is on, and then only a few
+              strong lines.
+            </p>
+          </section>
+        </FeatureGate>
       )}
 
       {section === "lines" && (
-        <section className="flex flex-col gap-2">
-          <span className={GROUP_LABEL}>Texture</span>
-          <label
-            className="flex items-center justify-between gap-3 text-[13px]"
-            title="Lays short backstitch strokes over the stitches where the picture has fine texture, such as fur, feathers, hair, bark or grass, along the way the texture runs"
-          >
-            Texture strokes
-            <input
-              type="checkbox"
-              checked={options.textureStrokes}
-              onChange={(e) => onChange("textureStrokes", e.target.checked)}
-              className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
-            />
-          </label>
-          {options.textureStrokes ? (
-            <div className="flex flex-col gap-0.5">
-              <div className="flex items-baseline justify-between">
-                <label className="text-[11px] text-muted" htmlFor="texture-density">
-                  Stroke density
-                </label>
-                <span className="font-mono text-[11px] text-ink">{Math.round(options.textureDensity * 10)}</span>
-              </div>
+        <FeatureGate id="generation.textureStrokes">
+          <section className="flex flex-col gap-2">
+            <span className={GROUP_LABEL}>Texture</span>
+            <label
+              className="flex items-center justify-between gap-3 text-[13px]"
+              title="Lays short backstitch strokes over the stitches where the picture has fine texture, such as fur, feathers, hair, bark or grass, along the way the texture runs"
+            >
+              Texture strokes
               <input
-                id="texture-density"
-                type="range"
-                min={0}
-                max={10}
-                value={Math.round(options.textureDensity * 10)}
-                aria-label="Stroke density"
-                onChange={(e) => onChange("textureDensity", Number(e.target.value) / 10)}
-                className="min-w-0 accent-[var(--at-accent)]"
+                type="checkbox"
+                checked={options.textureStrokes}
+                onChange={(e) => onChange("textureStrokes", e.target.checked)}
+                className="h-4 w-4 shrink-0 accent-[var(--at-accent)]"
               />
-            </div>
-          ) : null}
-          <p className="text-[11px] leading-4 text-muted">
-            Strokes are not lines in the picture: they are what a stitcher draws along feathers and fur. They lie over the stitches, which
-            stay as they are, in up to four threads. A smooth area gets none.
-          </p>
-        </section>
+            </label>
+            {options.textureStrokes ? (
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-baseline justify-between">
+                  <label className="text-[11px] text-muted" htmlFor="texture-density">
+                    Stroke density
+                  </label>
+                  <span className="font-mono text-[11px] text-ink">{Math.round(options.textureDensity * 10)}</span>
+                </div>
+                <input
+                  id="texture-density"
+                  type="range"
+                  min={0}
+                  max={10}
+                  value={Math.round(options.textureDensity * 10)}
+                  aria-label="Stroke density"
+                  onChange={(e) => onChange("textureDensity", Number(e.target.value) / 10)}
+                  className="min-w-0 accent-[var(--at-accent)]"
+                />
+              </div>
+            ) : null}
+            <p className="text-[11px] leading-4 text-muted">
+              Strokes are not lines in the picture: they are what a stitcher draws along feathers and fur. They lie over the stitches, which
+              stay as they are, in up to four threads. A smooth area gets none.
+            </p>
+          </section>
+        </FeatureGate>
       )}
 
       {section === "lines" && (
@@ -552,22 +564,26 @@ export function PhotoPane({
       )}
 
       {section === "chart" && (
-        <section className="flex flex-col gap-2">
-          <span className={GROUP_LABEL}>Algorithm</span>
-          <SegmentedControl
-            fill
-            options={ALGORITHM_OPTIONS}
-            value={options.generationMode}
-            onChange={(mode) => onChange("generationMode", mode)}
-          />
-        </section>
+        <FeatureGate id="generation.generationMode">
+          <section className="flex flex-col gap-2">
+            <span className={GROUP_LABEL}>Algorithm</span>
+            <SegmentedControl
+              fill
+              options={ALGORITHM_OPTIONS}
+              value={options.generationMode}
+              onChange={(mode) => onChange("generationMode", mode)}
+            />
+          </section>
+        </FeatureGate>
       )}
 
       {section === "chart" && (
         <section className="flex flex-col gap-2">
           <span className={GROUP_LABEL}>Palette</span>
-          <SegmentedControl fill options={SETUP_OPTIONS} value={settingUp ? "setup" : "auto"} onChange={chooseSetup} />
-          <SegmentedControl fill options={PALETTE_OPTIONS} value={options.paletteMode} onChange={choosePaletteMode} />
+          {setupOptions.length > 1 && (
+            <SegmentedControl fill options={setupOptions} value={settingUp ? "setup" : "auto"} onChange={chooseSetup} />
+          )}
+          <SegmentedControl fill options={paletteOptions} value={options.paletteMode} onChange={choosePaletteMode} />
           {settingUp && pendingMode !== null && pendingMode !== options.paletteMode && (
             <div
               role="alert"
@@ -605,66 +621,72 @@ export function PhotoPane({
       )}
 
       {section === "chart" && (
-        <section className="flex flex-col gap-2">
-          <span className={GROUP_LABEL}>Edges</span>
-          <SegmentedControl fill options={EDGE_OPTIONS} value={options.edgeMode} onChange={chooseEdgeMode} />
-          <p className="text-[11px] leading-4 text-muted">Crisp keeps hard boundaries instead of blending them.</p>
-        </section>
+        <FeatureGate id="generation.edgeMode">
+          <section className="flex flex-col gap-2">
+            <span className={GROUP_LABEL}>Edges</span>
+            <SegmentedControl fill options={EDGE_OPTIONS} value={options.edgeMode} onChange={chooseEdgeMode} />
+            <p className="text-[11px] leading-4 text-muted">Crisp keeps hard boundaries instead of blending them.</p>
+          </section>
+        </FeatureGate>
       )}
 
       {section === "chart" && (
-        <section className="flex flex-col gap-2">
-          <span className={GROUP_LABEL}>Dither</span>
-          <DitherChooser value={options.ditherMode} onChange={chooseDitherMode} />
-          {isLinesMode(options.ditherMode) && (
-            <SegmentedControl fill options={LINE_DIRECTION_OPTIONS} value={options.ditherMode} onChange={chooseDitherMode} />
-          )}
-          {dithering && isDithered(options.ditherMode) && (
-            <DitherPreview
-              mode={options.ditherMode}
-              texture={options.ditherTexture}
-              chartWidth={chartSize.width}
-              chartHeight={chartSize.height}
-              onShuffle={() => onChange("ditherTexture", { ...options.ditherTexture, seed: (Math.random() * 0xffffffff) >>> 0 })}
-            />
-          )}
-          {dithering && isDrawnMode(options.ditherMode) && (
-            <TextureEditor texture={options.ditherTexture} onChange={(texture) => onChange("ditherTexture", texture)} />
-          )}
-        </section>
+        <FeatureGate id="generation.ditherMode">
+          <section className="flex flex-col gap-2">
+            <span className={GROUP_LABEL}>Dither</span>
+            <DitherChooser value={options.ditherMode} onChange={chooseDitherMode} />
+            {isLinesMode(options.ditherMode) && (
+              <SegmentedControl fill options={LINE_DIRECTION_OPTIONS} value={options.ditherMode} onChange={chooseDitherMode} />
+            )}
+            {dithering && isDithered(options.ditherMode) && (
+              <DitherPreview
+                mode={options.ditherMode}
+                texture={options.ditherTexture}
+                chartWidth={chartSize.width}
+                chartHeight={chartSize.height}
+                onShuffle={() => onChange("ditherTexture", { ...options.ditherTexture, seed: (Math.random() * 0xffffffff) >>> 0 })}
+              />
+            )}
+            {dithering && isDrawnMode(options.ditherMode) && (
+              <TextureEditor texture={options.ditherTexture} onChange={(texture) => onChange("ditherTexture", texture)} />
+            )}
+          </section>
+        </FeatureGate>
       )}
 
       {section === "picture" && hasPhoto && (
-        <section className="flex flex-col gap-2">
-          <div className="flex items-baseline justify-between">
-            <span className={GROUP_LABEL}>Photo</span>
-            <button
-              type="button"
-              disabled={isNeutralAdjust(options.photoAdjust)}
-              onClick={() => onChange("photoAdjust", NEUTRAL_ADJUST)}
-              aria-label="Put the photo sliders back to neutral"
-              title="Put all four sliders back in the middle"
-              className="text-[11px] text-muted enabled:hover:text-ink disabled:cursor-not-allowed disabled:text-faint"
-            >
-              Reset
-            </button>
-          </div>
-          <div className="flex flex-col gap-2">
-            {ADJUST_SLIDERS.map(({ key, label, hint }) => (
-              <Slider
-                key={key}
-                label={label}
-                hint={hint}
-                min={-100}
-                max={100}
-                neutral={0}
-                value={options.photoAdjust[key]}
-                onChange={(value) => onChange("photoAdjust", { ...options.photoAdjust, [key]: value })}
-                onSettled={onAdjustSettled}
-              />
-            ))}
-          </div>
-        </section>
+        <FeatureGate id="generation.photoAdjust">
+          <section className="flex flex-col gap-2">
+            <div className="flex items-baseline justify-between">
+              <span className={GROUP_LABEL}>Photo</span>
+              <button
+                type="button"
+                disabled={isNeutralAdjust(options.photoAdjust)}
+                onClick={() => onChange("photoAdjust", NEUTRAL_ADJUST)}
+                aria-label="Put the photo sliders back to neutral"
+                title="Put all four sliders back in the middle"
+                className="text-[11px] text-muted enabled:hover:text-ink disabled:cursor-not-allowed disabled:text-faint"
+              >
+                Reset
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              {ADJUST_SLIDERS.map(({ key, label, hint }) => (
+                <Slider
+                  key={key}
+                  label={label}
+                  hint={hint}
+                  min={-100}
+                  max={100}
+                  neutral={0}
+                  value={options.photoAdjust[key]}
+                  onChange={(value) => onChange("photoAdjust", { ...options.photoAdjust, [key]: value })}
+                  onSettled={onAdjustSettled}
+                />
+              ))}
+            </div>
+          </section>
+        </FeatureGate>
       )}
 
       {error && <InlineError key={error} message={error} onDismiss={onDismissError} className="text-[13px] text-danger" />}

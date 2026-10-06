@@ -11,6 +11,8 @@ import type { SharedOption } from "../tools/types";
 import { ColorPair } from "./color-pair";
 import { ToolOptions } from "./tool-options";
 import { DISABLED_ICON } from "./ui";
+import { lockedNote } from "@/lib/features/features";
+import { useFeature } from "../features/features-context";
 
 /**
  * The bar of tool options, above the chart (G-095, proposal D; it was the context bar of G-045): **what the tool in hand
@@ -60,6 +62,8 @@ export interface QuickBarProps {
 }
 
 export function QuickBar({ pattern, workspace, tool, photo, colours, symmetry, lock, start }: QuickBarProps) {
+  const symmetryFeature = useFeature("chart.symmetry");
+  const lockFeature = useFeature("command.chart.lock-transparency");
   const { startingNew, onBackToChart } = start;
   const shares = (option: SharedOption) => tool.shares.includes(option);
 
@@ -126,7 +130,7 @@ export function QuickBar({ pattern, workspace, tool, photo, colours, symmetry, l
                 </>
               )}
 
-              {shares("symmetry") && (
+              {shares("symmetry") && symmetryFeature.shown && (
                 <>
                   {DIVIDER}
                   <div role="group" aria-label="Symmetry — mirrored drawing" className="flex shrink-0 items-center gap-1.5">
@@ -140,8 +144,11 @@ export function QuickBar({ pattern, workspace, tool, photo, colours, symmetry, l
                           key={axis}
                           type="button"
                           onClick={() => symmetry.onToggle(axis)}
-                          disabled={needsSquare}
-                          title={needsSquare ? `${title}. Needs a square canvas.` : title}
+                          disabled={needsSquare || !symmetryFeature.usable}
+                          data-feature-locked={symmetryFeature.usable ? undefined : "chart.symmetry"}
+                          title={
+                            !symmetryFeature.usable ? lockedNote("Symmetry axes") : needsSquare ? `${title}. Needs a square canvas.` : title
+                          }
                           aria-label={label}
                           aria-pressed={symmetry.axes[axis]}
                           className={`flex h-6 w-6 items-center justify-center rounded-md border transition-colors ${DISABLED_ICON} ${
@@ -156,10 +163,12 @@ export function QuickBar({ pattern, workspace, tool, photo, colours, symmetry, l
                 </>
               )}
 
-              {shares("lock") && (
+              {shares("lock") && lockFeature.shown && (
                 <button
                   type="button"
                   onClick={() => lock.onChange(!lock.on)}
+                  disabled={!lockFeature.usable}
+                  data-feature-locked={lockFeature.usable ? undefined : "command.chart.lock-transparency"}
                   aria-pressed={lock.on}
                   aria-label="Lock transparency"
                   title={

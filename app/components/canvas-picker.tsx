@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { clothStyle } from "@/lib/editor/canvas-cloth";
 import { CANVAS_TEXTURE_OFF, CANVAS_TEXTURES, type CanvasTextureChoice } from "@/lib/export/canvas-texture-catalog";
+import { useGatedOptions } from "../features/features-context";
 
 /**
  * The buttons that choose the cloth under the Stitched view, "Off" first. Each shows its cloth as a block of 3 × 4 cells
@@ -31,9 +32,14 @@ export interface CanvasPickerProps {
 }
 
 export function CanvasPicker({ value, onChange, canvasColor }: CanvasPickerProps) {
+  // Under the feature switches (G-102): each cloth is a feature; Off is none.
+  const choices = useGatedOptions(
+    CHOICES.map((choice) => ({ ...choice, value: choice.id })),
+    (id) => (id === CANVAS_TEXTURE_OFF ? null : `texture.canvas.${id}`)
+  );
   return (
     <div role="radiogroup" aria-label="Canvas texture" className="flex flex-wrap gap-2">
-      {CHOICES.map(({ id, label }) => {
+      {choices.map(({ id, label, disabled, title }) => {
         const selected = id === value;
         return (
           <button
@@ -41,9 +47,11 @@ export function CanvasPicker({ value, onChange, canvasColor }: CanvasPickerProps
             type="button"
             role="radio"
             aria-checked={selected}
-            title={id === CANVAS_TEXTURE_OFF ? "Plain canvas colour, no texture" : `${label} canvas texture`}
+            disabled={disabled}
+            data-feature-locked={disabled ? `texture.canvas.${id}` : undefined}
+            title={title ?? (id === CANVAS_TEXTURE_OFF ? "Plain canvas colour, no texture" : `${label} canvas texture`)}
             onClick={() => onChange(id)}
-            className={`flex flex-col items-center gap-1 rounded-lg border p-1.5 text-[11px] ${
+            className={`flex flex-col items-center gap-1 rounded-lg border p-1.5 text-[11px] disabled:opacity-45 ${
               selected ? "border-[var(--at-accent)] text-ink" : "border-line text-muted hover:border-ink"
             }`}
           >

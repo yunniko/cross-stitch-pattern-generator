@@ -58,6 +58,8 @@ import { useSourceImage } from "./hooks/use-source-image";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
 import { skinStyle } from "@/lib/skin/skin";
 import { ATELIER, SkinProvider } from "./skin/skin";
+import { optionsInForce } from "@/lib/features/in-force";
+import { useFeatures } from "./features/features-context";
 
 /** Nothing for the cursor to carry; the renderer reads the outline only when there is a stitch to put it on. */
 const NO_OUTLINE: readonly StampEdge[] = [];
@@ -90,13 +92,20 @@ export default function Workspace({ account }: WorkspaceProps) {
   const [startingNew, setStartingNew] = useState(false);
   const { options: browserOptions, update: updateOption } = useWorkspaceOptions();
   // The options in force: the browser's, with the open chart's own fabric in place of the browser's (D290).
-  const { options, fabricNow, updateChartOption } = useChartFabric({
+  const {
+    options: storedOptions,
+    fabricNow,
+    updateChartOption,
+  } = useChartFabric({
     pattern,
     startingNew,
     browserOptions,
     updateOption,
     commit: history.set,
   });
+  // Under the feature switches (G-102): a stored setting naming a feature this person cannot use is read as its default.
+  const features = useFeatures();
+  const options = useMemo(() => optionsInForce(storedOptions, features), [storedOptions, features]);
   const source = useSourceImage();
   // The four sliders (G-074), drawn in the browser from the decoded photo -- no request to the server.
   const adjustPreview = usePhotoAdjustPreview(source.pixelBuffer, options.photoAdjust, pattern === null);

@@ -1,5 +1,7 @@
 "use client";
 
+import { DITHER_LABELS, ditherFeature } from "@/lib/pipeline/dither-labels";
+import { useGatedOptions } from "../features/features-context";
 import { useEffect, useRef } from "react";
 import {
   DIFFUSION_DITHER_MODES,
@@ -23,22 +25,6 @@ import {
 export const LINES_CHOICE = "lines";
 export type DitherChoice = DitherMode | typeof LINES_CHOICE;
 
-export const DITHER_LABELS: Record<DitherMode, string> = {
-  off: "Off",
-  "bayer-4": "Bayer 4×4",
-  "bayer-8": "Bayer 8×8",
-  "clustered-8": "Clustered dots",
-  "ring-8": "Rings",
-  "lines-horizontal": "Lines",
-  "lines-vertical": "Lines",
-  "lines-diagonal": "Lines",
-  "lines-anti-diagonal": "Lines",
-  "blue-noise-16": "Blue noise",
-  "floyd-steinberg": "Floyd–Steinberg",
-  atkinson: "Atkinson",
-  "hand-drawn": "Hand-drawn",
-};
-
 // Three groups, as the measurement separates them (`docs/reviews/2026-09-21-dithering-comparison.md`): a screen clusters
 // its stitches and costs a stitcher least, a scattered matrix spreads them and fits the photo closer, and the two kernels
 // adapt to the photo instead of repeating a tile; the drawn marks are a family of their own. The group is each picture's
@@ -46,18 +32,45 @@ export const DITHER_LABELS: Record<DitherMode, string> = {
 const SCREEN_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("clustered-") || mode.startsWith("ring-"));
 const SCATTERED_MODES = ORDERED_DITHER_MODES.filter((mode) => mode.startsWith("bayer-") || mode.startsWith("blue-noise-"));
 
-const CHOICES: ReadonlyArray<{ choice: DitherChoice; label: string; group: string; draws: DitherMode }> = [
-  { choice: "off", label: DITHER_LABELS.off, group: "No dithering: each stitch takes its nearest thread", draws: "off" },
-  ...SCREEN_MODES.map((mode) => ({ choice: mode, label: DITHER_LABELS[mode], group: "Screens — fewest single stitches", draws: mode })),
-  { choice: LINES_CHOICE, label: "Lines", group: "Screens — fewest single stitches", draws: LINE_DITHER_MODES[2] },
-  ...SCATTERED_MODES.map((mode) => ({ choice: mode, label: DITHER_LABELS[mode], group: "Scattered — closer to the photo", draws: mode })),
+const CHOICES: ReadonlyArray<{
+  value: DitherChoice;
+  choice: DitherChoice;
+  label: string;
+  group: string;
+  draws: DitherMode;
+  disabled?: boolean;
+  title?: string;
+}> = [
+  { value: "off", choice: "off", label: DITHER_LABELS.off, group: "No dithering: each stitch takes its nearest thread", draws: "off" },
+  ...SCREEN_MODES.map((mode) => ({
+    value: mode,
+    choice: mode,
+    label: DITHER_LABELS[mode],
+    group: "Screens — fewest single stitches",
+    draws: mode,
+  })),
+  { value: LINES_CHOICE, choice: LINES_CHOICE, label: "Lines", group: "Screens — fewest single stitches", draws: LINE_DITHER_MODES[2] },
+  ...SCATTERED_MODES.map((mode) => ({
+    value: mode,
+    choice: mode,
+    label: DITHER_LABELS[mode],
+    group: "Scattered — closer to the photo",
+    draws: mode,
+  })),
   ...DIFFUSION_DITHER_MODES.map((mode) => ({
+    value: mode,
     choice: mode,
     label: DITHER_LABELS[mode],
     group: "Error diffusion — closest, never worse",
     draws: mode,
   })),
-  ...DRAWN_DITHER_MODES.map((mode) => ({ choice: mode, label: DITHER_LABELS[mode], group: "Drawn — marks, not a pattern", draws: mode })),
+  ...DRAWN_DITHER_MODES.map((mode) => ({
+    value: mode,
+    choice: mode,
+    label: DITHER_LABELS[mode],
+    group: "Drawn — marks, not a pattern",
+    draws: mode,
+  })),
 ];
 
 /** The side of a picture, in stitches; drawn at twice that. */
@@ -95,10 +108,12 @@ export interface DitherChooserProps {
 }
 
 export function DitherChooser({ value, onChange }: DitherChooserProps) {
+  // Under the feature switches (G-102): each pattern is a feature; the four line screens are one.
+  const choices = useGatedOptions(CHOICES, (choice) => ditherFeature(choice === LINES_CHOICE ? LINE_DITHER_MODES[0] : choice));
   const chosen: DitherChoice = isLinesMode(value) ? LINES_CHOICE : value;
   return (
     <div role="radiogroup" aria-label="Dither" className="grid grid-cols-5 gap-1">
-      {CHOICES.map(({ choice, label, group, draws }) => {
+      {choices.map(({ choice, label, group, draws, disabled, title }) => {
         const selected = choice === chosen;
         return (
           <button
@@ -108,9 +123,11 @@ export function DitherChooser({ value, onChange }: DitherChooserProps) {
             aria-checked={selected}
             aria-label={label}
             data-mode={choice}
-            title={`${label}. ${group}`}
+            disabled={disabled}
+            data-feature-locked={disabled ? ditherFeature(draws) : undefined}
+            title={title ?? `${label}. ${group}`}
             onClick={() => onChange(choice === LINES_CHOICE ? LINE_DITHER_MODES[0] : choice)}
-            className={`flex flex-col items-center gap-1 rounded-md border px-0.5 pt-1.5 pb-1 transition-colors ${
+            className={`flex flex-col items-center gap-1 rounded-md border px-0.5 pt-1.5 pb-1 transition-colors disabled:opacity-45 ${
               selected ? "border-accent bg-accent/15 text-ink" : "border-line text-muted hover:bg-raised hover:text-ink"
             }`}
           >
