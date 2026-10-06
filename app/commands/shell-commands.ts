@@ -1,4 +1,5 @@
 import type { Command, CommandState } from "@/lib/editor/commands";
+import type { FeatureStates } from "@/lib/features/features";
 import type { QuickMirror } from "@/lib/editor/symmetry";
 import type { SymmetryAxis } from "@/lib/editor/symmetry-axes";
 import type { ViewMode } from "../editor-types";
@@ -23,6 +24,8 @@ export interface ShellState {
   startingNew: boolean;
   /** The start screen is up, for that reason or because there is nothing to show yet. */
   startScreenVisible: boolean;
+  /** The person's feature states: a workspace switched off cannot be entered (G-103). */
+  features: FeatureStates;
   /** The workspace shown (G-095, D297): only Edit changes the chart, and each offers its own tools. */
   workspace: Workspace;
   squareChart: boolean;

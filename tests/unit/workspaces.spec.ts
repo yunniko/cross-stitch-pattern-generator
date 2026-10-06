@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { TOOL_DEFINITIONS } from "../../app/tools/registry";
 import { REPLACE_PLANS } from "../../lib/editor/document-replace";
+import { EVERYTHING_ON, FEATURE_STATES, type FeatureState, type FeatureStates } from "../../lib/features/features";
 import {
   firstTools,
+  noWorkspaceOn,
   railColumns,
   toolOffered,
   WORKSPACES,
   workspaceEdits,
+  workspaceFeature,
+  workspaceListed,
   workspaceOpen,
   workspaceShown,
 } from "../../lib/editor/workspaces";
@@ -50,21 +54,86 @@ describe("the workspaces", () => {
   });
 });
 
+const ALL_ON = EVERYTHING_ON;
+const none = { hasChart: false, startingNew: false, features: ALL_ON };
+const chart = { hasChart: true, startingNew: false, features: ALL_ON };
+const covered = { hasChart: true, startingNew: true, features: ALL_ON };
+
 describe("entering a workspace", () => {
-  it("Photo is always open; Edit and Export need a chart with no start screen over it", () => {
-    const none = { hasChart: false, startingNew: false };
-    const chart = { hasChart: true, startingNew: false };
-    const covered = { hasChart: true, startingNew: true };
+  it("with every workspace on, Photo is always open; Edit and Export need a chart with no start screen over it", () => {
     expect(WORKSPACES.map((workspace) => workspaceOpen(workspace.id, none))).toEqual([true, false, false]);
     expect(WORKSPACES.map((workspace) => workspaceOpen(workspace.id, chart))).toEqual([true, true, true]);
     expect(WORKSPACES.map((workspace) => workspaceOpen(workspace.id, covered))).toEqual([true, false, false]);
   });
 
   it("the one shown is the one chosen, or Photo while the chosen one cannot be entered", () => {
-    expect(workspaceShown("edit", { hasChart: true, startingNew: false })).toBe("edit");
-    expect(workspaceShown("edit", { hasChart: false, startingNew: false })).toBe("photo");
+    expect(workspaceShown("edit", chart)).toBe("edit");
+    expect(workspaceShown("edit", none)).toBe("photo");
     // The start screen over a chart shows Photo, and the choice is kept for when it is put away.
-    expect(workspaceShown("export", { hasChart: true, startingNew: true })).toBe("photo");
+    expect(workspaceShown("export", covered)).toBe("photo");
+  });
+});
+
+describe("the workspaces as features (G-103)", () => {
+  const states = (photo: FeatureState, edit: FeatureState, exported: FeatureState): FeatureStates => ({
+    "workspace.photo": photo,
+    "workspace.edit": edit,
+    "workspace.export": exported,
+  });
+
+  it("each is switched by a feature of its own", () => {
+    expect(WORKSPACES.map((workspace) => workspaceFeature(workspace.id))).toEqual([
+      "workspace.photo",
+      "workspace.edit",
+      "workspace.export",
+    ]);
+  });
+
+  it("a locked workspace keeps its tab and cannot be entered; a hidden one has no tab", () => {
+    const features = states("on", "locked", "hidden");
+    expect(WORKSPACES.map((workspace) => workspaceListed(workspace.id, features))).toEqual([true, true, false]);
+    expect(WORKSPACES.map((workspace) => workspaceOpen(workspace.id, { ...chart, features }))).toEqual([true, false, false]);
+  });
+
+  it("a person lands in the next workspace that is on", () => {
+    expect(workspaceShown("photo", { ...chart, features: states("hidden", "on", "on") })).toBe("edit");
+    expect(workspaceShown("edit", { ...chart, features: states("on", "locked", "on") })).toBe("photo");
+    expect(workspaceShown("photo", { ...chart, features: states("locked", "hidden", "on") })).toBe("export");
+  });
+
+  it("with Photo off and no chart, none can be shown: only the start choices are left", () => {
+    expect(workspaceShown("photo", { ...none, features: states("hidden", "on", "on") })).toBeNull();
+    expect(noWorkspaceOn(states("hidden", "on", "on"))).toBe(false);
+  });
+
+  it("with all three off, none is shown, chart or not, and that is told apart", () => {
+    const features = states("locked", "hidden", "locked");
+    for (const conditions of [none, chart, covered]) expect(workspaceShown("edit", { ...conditions, features })).toBeNull();
+    expect(noWorkspaceOn(features)).toBe(true);
+    expect(noWorkspaceOn(ALL_ON)).toBe(false);
+  });
+
+  it("over every combination of states and charts: the one shown can be entered, is the chosen one when that can be, and is null only when none can", () => {
+    for (const photo of FEATURE_STATES)
+      for (const edit of FEATURE_STATES)
+        for (const exported of FEATURE_STATES)
+          for (const conditions of [none, chart, covered]) {
+            const state = { ...conditions, features: states(photo, edit, exported) };
+            const open = WORKSPACES.filter((workspace) => workspaceOpen(workspace.id, state)).map((workspace) => workspace.id);
+            const off = [photo, edit, exported].map((value) => value !== "on");
+            // Nothing switched off can be entered, and nothing on is refused but for want of a chart.
+            WORKSPACES.forEach((workspace, index) =>
+              expect(open.includes(workspace.id), `${workspace.id} ${JSON.stringify(state)}`).toBe(
+                !off[index] && (workspace.id === "photo" || (state.hasChart && !state.startingNew))
+              )
+            );
+            for (const chosen of WORKSPACES.map((workspace) => workspace.id)) {
+              const shown = workspaceShown(chosen, state);
+              if (open.includes(chosen)) expect(shown).toBe(chosen);
+              else expect(shown).toBe(open[0] ?? null);
+            }
+            expect(noWorkspaceOn(state.features)).toBe(off.every(Boolean));
+          }
   });
 });
 

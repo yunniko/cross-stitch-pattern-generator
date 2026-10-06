@@ -120,7 +120,8 @@ export default function Workspace({ account }: WorkspaceProps) {
   const { viewMode, inspectorTab, chooseViewMode, chooseInspectorTab, chooseWorkspace } = view;
   // The workspace shown (G-095, D297): the one chosen, or Photo while there is no chart to edit or export. Only Edit
   // changes the chart; in the other two it is looked at, whatever view is up.
-  const workspace = workspaceShown(view.workspace, { hasChart: pattern !== null, startingNew });
+  // Until the browser obeys the workspace switches (G-103 M2), Photo stands in when none can be shown.
+  const workspace = workspaceShown(view.workspace, { hasChart: pattern !== null, startingNew, features }) ?? "photo";
   const editing = workspaceEdits(workspace);
   const lookingOnly = isViewOnlyMode(viewMode) || !editing;
   // Two colours since G-064: the squares never move, so the pair is two slots and a flag saying which is in
@@ -408,6 +409,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       hasChart: pattern !== null,
       startingNew,
       startScreenVisible,
+      features,
       workspace,
       squareChart: pattern !== null && pattern.width === pattern.height,
       hasPiece: tools.piece.selection !== null,
@@ -503,7 +505,7 @@ export default function Workspace({ account }: WorkspaceProps) {
               chartName={chartShown ? (pattern.name ?? "cross-stitch-pattern") : null}
               workspace={workspace}
               onWorkspaceChange={chooseWorkspace}
-              workspaceOpen={(candidate) => workspaceOpen(candidate, { hasChart: pattern !== null, startingNew })}
+              workspaceOpen={(candidate) => workspaceOpen(candidate, { hasChart: pattern !== null, startingNew, features })}
               history={
                 chartShown
                   ? {

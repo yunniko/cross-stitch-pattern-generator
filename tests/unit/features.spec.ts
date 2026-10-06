@@ -105,11 +105,22 @@ describe("the feature list", () => {
 
   it("is listed in groups, in the order registered", () => {
     const groups = groupFeatures(FEATURES).map((group) => group.group);
-    // Pan and Zoom are core, so there is no Navigation group.
-    expect(groups.slice(0, 2)).toEqual(["Drawing tools", "Selection and transformation"]);
+    // The workspaces first, as the widest switches (G-103); Pan and Zoom are core, so there is no Navigation group.
+    expect(groups.slice(0, 3)).toEqual(["Workspaces", "Drawing tools", "Selection and transformation"]);
     expect(groups).not.toContain("Navigation");
     expect(groups).toContain("Exports");
     expect(groups).toContain("Thread brands");
+  });
+});
+
+describe("the workspaces in the list (G-103)", () => {
+  it("are three entries in a group of their own, Photo, Edit and Export", () => {
+    const group = groupFeatures(FEATURES).find((entry) => entry.group === "Workspaces");
+    expect(group?.features.map(({ id, label }) => [id, label])).toEqual([
+      ["workspace.photo", "Photo"],
+      ["workspace.edit", "Edit"],
+      ["workspace.export", "Export"],
+    ]);
   });
 });
 

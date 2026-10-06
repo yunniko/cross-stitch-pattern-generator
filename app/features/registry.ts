@@ -3,7 +3,7 @@ import { EXPORT_KIND_GROUPS, exportKindFeature } from "@/lib/export/export-kinds
 import { STITCH_TEXTURES } from "@/lib/export/stitch-texture-catalog";
 import { brandFeature, commandFeature, generationSettingFeature, toolFeature } from "@/lib/features/declare";
 import { featureShown, featureUsable, type Feature, type FeatureStates } from "@/lib/features/features";
-import { toolOffered, type Workspace } from "@/lib/editor/workspaces";
+import { toolOffered, WORKSPACE_FEATURE_GROUP, WORKSPACES, type Workspace } from "@/lib/editor/workspaces";
 import { DITHER_MODES } from "@/lib/pipeline/dither";
 import { DITHER_LABELS, ditherFeature } from "@/lib/pipeline/dither-labels";
 import { GENERATION_SETTINGS } from "@/lib/pipeline/generation-settings";
@@ -38,6 +38,9 @@ function build(): Feature[] {
     seen.add(feature.id);
     features.push(feature);
   };
+
+  // First, as the widest switches: a workspace off closes everything on its tab (G-103, D312).
+  for (const workspace of WORKSPACES) add({ id: workspace.feature, group: WORKSPACE_FEATURE_GROUP, label: workspace.label });
 
   for (const tool of TOOL_DEFINITIONS) {
     const id = toolFeature(tool);

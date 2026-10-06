@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
+import { EVERYTHING_ON } from "../../lib/features/features";
 import { shellCommandStates, type ShellActions, type ShellState } from "../../app/commands/shell-commands";
 
 /** G-098: when each of the editor's own commands can run, and which action each one is, with no editor around it. */
 
 /** A chart open and nothing else going on. */
 const EDITING: ShellState = {
+  features: EVERYTHING_ON,
   hasChart: true,
   startingNew: false,
   startScreenVisible: false,

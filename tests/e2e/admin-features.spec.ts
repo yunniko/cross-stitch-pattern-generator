@@ -150,6 +150,24 @@ test("a set is made, filled and attached to a tier; a person on the tier gets it
   }
 });
 
+test("the three workspaces are the first group, each one switch with the three states (G-103)", async ({ page }) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/features");
+  await expect(page.getByTestId("feature-group").first()).toHaveAttribute("data-group", "Workspaces");
+  const workspaces = group(page, "Workspaces").getByTestId("feature-row");
+  await expect(workspaces).toHaveCount(3);
+  for (const [index, [id, label]] of [
+    ["workspace.photo", "Photo"],
+    ["workspace.edit", "Edit"],
+    ["workspace.export", "Export"],
+  ].entries()) {
+    await expect(workspaces.nth(index)).toHaveAttribute("data-feature", id);
+    await expect(workspaces.nth(index)).toContainText(label);
+    for (const state of ["On", "Locked", "Hidden"])
+      await expect(row(page, id).getByRole("group").getByRole("button", { name: state, exact: true })).toBeVisible();
+  }
+});
+
 test("the pages refuse a reader and a visitor @alone", async ({ page }) => {
   await page.goto("/admin/features");
   await expect(page).toHaveURL(/\/login/);
