@@ -151,6 +151,7 @@ export const lassoFillModule = {
       key: "g",
       group: 0,
       shares: ["colours", "symmetry", "lock"],
+      heldPicker: true,
       Icon: LassoFillIcon,
       options: STITCH_OPTIONS,
       laysStitches: true,

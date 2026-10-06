@@ -44,6 +44,11 @@ export interface ToolDefinition {
    */
   shares?: readonly SharedOption[];
   Icon: ComponentType;
+  /**
+   * Holding Alt with it in hand borrows the colour picker (G-104, D318): a tool that paints with the colour in hand. Zoom
+   * does not carry it, so Alt with Zoom still zooms out.
+   */
+  heldPicker?: boolean;
   /** It lays stitches, so it follows the stitch type choice (G-082). */
   laysStitches?: boolean;
   /** The keyboard cell cursor can drive it (G-080). */
@@ -91,6 +96,11 @@ export interface EditorApi {
   history: { canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void };
   /** The colour a press paints with: the foreground for the main button, the background for the other. */
   colorForPointer: (button: number) => number | null;
+  /**
+   * Takes a colour into the square a button paints with: the left button's foreground, the right button's background
+   * (G-104). The empty stitch is taken as any colour is. The one way a tool changes the colours in hand.
+   */
+  takeColor: (index: number, button: number) => void;
   activeColorIndex: number | null;
   /** One press's footprint, from the brush size and shape. */
   stamp: readonly StampOffset[];

@@ -8,6 +8,7 @@ import {
   swapped,
   withActive,
   withColor,
+  withColorForButton,
   withColorRemoved,
   type ColorSlots,
 } from "@/lib/editor/color-slots";
@@ -40,6 +41,15 @@ describe("the two colour slots", () => {
     expect(after.b).toBe(7);
     expect(foregroundOf(after)).toBe(7);
     expect(backgroundOf(after)).toBe(3);
+  });
+
+  it("takes a colour into the square a button paints with, and leaves the active square alone (G-104)", () => {
+    expect(withColorForButton(slots(3, 7, "a"), 0, 5)).toEqual(slots(5, 7, "a"));
+    expect(withColorForButton(slots(3, 7, "a"), 2, 5)).toEqual(slots(3, 5, "a"));
+    expect(withColorForButton(slots(3, 7, "b"), 0, EMPTY_CELL), "the empty stitch is taken as any colour is").toEqual(
+      slots(3, EMPTY_CELL, "b")
+    );
+    expect(withColorForButton(slots(3, 7, "b"), 2, 5)).toEqual(slots(5, 7, "b"));
   });
 
   it("picking a background colour leaves the active square alone", () => {

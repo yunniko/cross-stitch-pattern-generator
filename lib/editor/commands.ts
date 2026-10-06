@@ -32,8 +32,8 @@ export interface CommandDefinition {
   /** When it can be used, in words: what the list and the documents show. */
   when: string;
   /**
-   * The keys that run it: `B`, `1`, `Mod+Z`, `Mod+Shift+Z`, `Escape`, `Enter`, `Delete`, `Backspace`, `Space`. `Mod` is Ctrl,
-   * or Cmd on a Mac. For a command listened to `elsewhere` these are words to show, not keys this table matches.
+   * The keys that run it: `B`, `1`, `Mod+Z`, `Mod+Shift+Z`, `Escape`, `Enter`, `Delete`, `Backspace`, `Space`, and `Alt` held on
+   * its own (G-104). `Mod` is Ctrl, or Cmd on a Mac. For a command listened to `elsewhere` these are words to show, not keys this table matches.
    */
   keys?: readonly string[];
   /**
@@ -67,8 +67,11 @@ export interface CommandState {
   claimsKey?: boolean;
   /** Returning false says the press was not this command's after all, and the next command on the same key is tried. */
   run: () => boolean | void;
-  /** For a `held` command: the key came up. */
-  release?: () => void;
+  /**
+   * For a `held` command: the key came up, or the window lost the focus with it down. True when the command was holding,
+   * so the key's release is kept from the browser (Alt alone opens the menu bar in some browsers).
+   */
+  release?: () => boolean | void;
 }
 
 export type Command = CommandDefinition & CommandState;
@@ -87,8 +90,10 @@ export interface Chord {
   shift: boolean;
   /** The event key it matches, lower case. */
   key: string;
-  /** Escape, Enter, Delete, Backspace or Space, which act whatever modifiers are down. */
+  /** Escape, Enter, Delete, Backspace, Space or a modifier held alone, which act whatever modifiers are down. */
   named: boolean;
+  /** A modifier held on its own (`Alt`): named, yet one command's only, as a letter is. */
+  modifier: boolean;
 }
 
 const NAMED_KEYS: Readonly<Record<string, string>> = {
@@ -99,15 +104,30 @@ const NAMED_KEYS: Readonly<Record<string, string>> = {
   space: " ",
 };
 
+/** Modifiers a command may hold on their own (G-104, D319). AltGr reports `AltGraph`, so typing with it matches nothing. */
+const MODIFIERS_ALONE: Readonly<Record<string, string>> = { alt: "alt" };
+
 /** A key as written in the table, parsed. A key the table cannot mean is a registration mistake and fails by name. */
 export function parseChord(text: string): Chord {
   const parts = text.split("+");
   const last = parts[parts.length - 1].toLowerCase();
   const modifiers = parts.slice(0, -1);
+  const fail = () => new Error(`"${text}" is not a key a command can have.`);
+  // A modifier is a key of its own only when nothing is written with it: `Alt`, not `Mod+Alt`.
+  if (last in MODIFIERS_ALONE) {
+    if (modifiers.length > 0) throw fail();
+    return { mod: false, shift: false, key: MODIFIERS_ALONE[last], named: true, modifier: true };
+  }
   const unknown = modifiers.find((part) => part !== "Mod" && part !== "Shift");
   const named = last in NAMED_KEYS;
-  if (unknown !== undefined || (!named && !/^[a-z0-9]$/.test(last))) throw new Error(`"${text}" is not a key a command can have.`);
-  return { mod: modifiers.includes("Mod"), shift: modifiers.includes("Shift"), key: named ? NAMED_KEYS[last] : last, named };
+  if (unknown !== undefined || (!named && !/^[a-z0-9]$/.test(last))) throw fail();
+  return {
+    mod: modifiers.includes("Mod"),
+    shift: modifiers.includes("Shift"),
+    key: named ? NAMED_KEYS[last] : last,
+    named,
+    modifier: false,
+  };
 }
 
 /**
@@ -142,8 +162,9 @@ export function commandsForKey<C extends CommandDefinition>(commands: readonly C
   return found;
 }
 
-/** A key as it is shown: `Ctrl+Z`, `B`, `Space`. */
+/** A key as it is shown: `Ctrl+Z`, `B`, `Space`, `Alt` (Option on a Mac). */
 export function keyLabel(key: string, mac = false): string {
+  if (key === "Alt") return mac ? "Option" : "Alt";
   return key.replace("Mod", mac ? "Cmd" : "Ctrl");
 }
 
@@ -187,7 +208,7 @@ export function commandTableProblems(commands: readonly CommandDefinition[]): st
         problems.push(`${command.id}: ${(error as Error).message}`);
         continue;
       }
-      if (chord.named && !chord.mod) continue;
+      if (chord.named && !chord.mod && !chord.modifier) continue;
       const canonical = `${chord.mod ? "mod+" : ""}${chord.shift ? "shift+" : ""}${chord.key}`;
       const owner = owners.get(canonical);
       if (owner && !(owner.onHeld && command.onHeld)) problems.push(`"${key}" runs both "${owner.id}" and "${command.id}".`);

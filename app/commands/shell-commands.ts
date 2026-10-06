@@ -75,7 +75,8 @@ export interface ShellActions {
   openWhatsNew: () => void;
   /** Space went down, and came up: the view is dragged for as long as it is held. */
   holdPan: () => void;
-  releasePan: () => void;
+  /** True when Space was holding Pan. */
+  releasePan: () => boolean;
   chooseTool: (tool: Tool) => void;
   showWorkspace: (workspace: Workspace) => void;
 }

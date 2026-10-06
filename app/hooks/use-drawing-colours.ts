@@ -7,6 +7,7 @@ import {
   swapped,
   withActive,
   withColor,
+  withColorForButton,
   withColorRemoved,
   type ColorSlots,
 } from "@/lib/editor/color-slots";
@@ -35,6 +36,8 @@ export interface DrawingColours {
    * background. A thread the palette no longer has counts as nothing held (D217).
    */
   colorForPointer: (button: number) => number | null;
+  /** Takes a colour into the square the button paints with (G-104). A thread the palette lacks is taken as nothing (D217). */
+  takeColor: (index: number, button: number) => void;
 }
 
 export function useDrawingColours(paletteLength: number): DrawingColours {
@@ -56,5 +59,6 @@ export function useDrawingColours(paletteLength: number): DrawingColours {
     swap: () => setSlots(swapped),
     forgetColor: (removed) => setSlots((s) => withColorRemoved(s, removed)),
     colorForPointer,
+    takeColor: (index, button) => setSlots((s) => withColorForButton(s, button, paintableIndex(index, paletteLength))),
   };
 }

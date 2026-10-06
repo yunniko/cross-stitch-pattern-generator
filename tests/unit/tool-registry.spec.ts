@@ -96,6 +96,15 @@ describe("what the editor reads from a tool's definition", () => {
     expect(ids(isKeyboardCursorTool)).toEqual(["brush", "fill", "line", "rect", "oval"]);
     expect(ids(isSelectTool)).toEqual(["select", "lasso"]);
     expect(TOOL_DEFINITIONS.filter((tool) => tool.navigation).map((tool) => tool.id)).toEqual(["pan", "zoom"]);
+    // G-104, D318: Alt borrows the picker from the tools that paint with the colour in hand; Zoom keeps its own Alt.
+    expect(TOOL_DEFINITIONS.filter((tool) => tool.heldPicker).map((tool) => tool.id)).toEqual([
+      "brush",
+      "fill",
+      "line",
+      "rect",
+      "oval",
+      "lasso-fill",
+    ]);
     expect(Object.fromEntries(TOOL_DEFINITIONS.filter((tool) => tool.outline).map((tool) => [tool.id, tool.outline]))).toEqual({
       brush: "brush",
       line: "brush",

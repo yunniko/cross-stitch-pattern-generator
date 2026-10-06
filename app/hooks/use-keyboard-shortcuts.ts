@@ -65,15 +65,25 @@ export function useKeyboardShortcuts(commands: readonly Command[], scrollerRef: 
     function onKeyUp(e: KeyboardEvent) {
       const key = e.key.toLowerCase();
       for (const command of commandsRef.current) {
-        if (command.keyOnly === "held" && command.keys?.some((chord) => parseChord(chord).key === key)) command.release?.();
+        if (command.keyOnly !== "held" || !command.keys?.some((chord) => parseChord(chord).key === key)) continue;
+        // Kept from the browser only when it was holding: Alt alone would open the menu bar, and the Space of a focused
+        // button that was never held must still press it.
+        if (command.release?.() === true) e.preventDefault();
       }
+    }
+
+    // A key that goes down here and comes up in another window (Alt+Tab) never reports its release: give everything back.
+    function onBlur() {
+      for (const command of commandsRef.current) if (command.keyOnly === "held") command.release?.();
     }
 
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
     };
   }, [scrollerRef]);
 }

@@ -54,7 +54,7 @@ import { NoWorkspace } from "./components/no-workspace";
 import { toolDefinition } from "./tools/registry";
 import { useTools } from "./tools/use-tools";
 import { useShellCommands } from "./commands/shell-commands";
-import { useHeldPan } from "./hooks/use-held-pan";
+import { PAN_TOOL, useHeldTool } from "./hooks/use-held-tool";
 import { CommandList } from "./components/command-list";
 import { useChartLifecycle } from "./hooks/use-chart-lifecycle";
 import { useRecommendedCount } from "./hooks/use-recommended-count";
@@ -195,6 +195,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     replaceSince: history.replaceSince,
     history,
     colorForPointer: colours.colorForPointer,
+    takeColor: colours.takeColor,
     activeColorIndex,
     stamp,
     symmetry: liveSymmetry,
@@ -418,7 +419,7 @@ export default function Workspace({ account }: WorkspaceProps) {
 
   // The command table for this render (G-093): what is true of the editor now, and what can be done. Which command each is,
   // and when it can run, is `app/commands/shell-commands.ts`; the keys and the command list read the result.
-  const heldPan = useHeldPan(activeTool, switchTool, tools.restoreTool);
+  const heldTool = useHeldTool(activeTool, switchTool, tools.restoreTool);
   const commands = useShellCommands(
     {
       hasChart: pattern !== null,
@@ -463,8 +464,8 @@ export default function Workspace({ account }: WorkspaceProps) {
       openCommandList: () => setCommandListOpen(true),
       openPreferences: () => setPreferencesOpen(true),
       openWhatsNew: () => window.open(WHATS_NEW_PATH, "_blank", "noopener"),
-      holdPan: heldPan.hold,
-      releasePan: heldPan.release,
+      holdPan: () => heldTool.hold("Space", PAN_TOOL),
+      releasePan: () => heldTool.release("Space"),
       chooseTool: switchTool,
       showWorkspace: chooseWorkspace,
     },

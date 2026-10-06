@@ -188,6 +188,22 @@ describe("a key press", () => {
     expect(() => parseChord("Ctrl+Z")).toThrow('"Ctrl+Z" is not a key a command can have.');
     expect(() => parseChord("F5")).toThrow(/not a key/);
   });
+
+  it("takes Alt held on its own, and Alt written with anything else as no key (G-104)", () => {
+    expect(parseChord("Alt")).toEqual({ mod: false, shift: false, key: "alt", named: true, modifier: true });
+    expect(chordMatch(parseChord("Alt"), press("Alt", { altKey: true }))).toBe(2);
+    expect(chordMatch(parseChord("Alt"), press("Alt", { altKey: true, shiftKey: true })), "whatever else is down").toBe(2);
+    expect(chordMatch(parseChord("Alt"), press("AltGraph", { altKey: true, ctrlKey: true })), "AltGr is for typing").toBe(0);
+    expect(chordMatch(parseChord("Alt"), press("a", { altKey: true }))).toBe(0);
+    expect(() => parseChord("Mod+Alt")).toThrow('"Mod+Alt" is not a key a command can have.');
+    expect(() => parseChord("Alt+P")).toThrow(/not a key/);
+  });
+
+  it("shows Alt as Option on a Mac, and a held key as held", () => {
+    const held: CommandDefinition = { id: "tools.pick-held", name: "Pick", group: "Tools", when: "Always", keys: ["Alt"], keyOnly: "held" };
+    expect(keysLabel(held)).toBe("Alt (held)");
+    expect(keysLabel(held, true)).toBe("Option (held)");
+  });
 });
 
 describe("what the table check catches", () => {
@@ -214,6 +230,15 @@ describe("what the table check catches", () => {
     ]);
     expect(idsFor("c", { ctrlKey: true })).toEqual(["selection.copy", "backstitch.copy"]);
     expect(idsFor("k", { metaKey: true })).toEqual(["view.command-list"]);
+  });
+
+  it("lets a modifier held alone belong to one command only, as a letter does", () => {
+    expect(
+      commandTableProblems([
+        { ...base, keys: ["Alt"], keyOnly: "held" },
+        { ...base, id: "edit.two", keys: ["Alt"], keyOnly: "held" },
+      ])
+    ).toEqual(['"Alt" runs both "edit.one" and "edit.two".']);
   });
 
   it("lets Escape and Enter be shared", () => {

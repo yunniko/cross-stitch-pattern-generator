@@ -39,6 +39,11 @@ export function withColor(slots: ColorSlots, role: "foreground" | "background", 
   return { ...slots, [target]: index };
 }
 
+/** Puts a colour in the square a pointer button paints with: the right button's is the background (G-104's picker). */
+export function withColorForButton(slots: ColorSlots, button: number, index: number | null): ColorSlots {
+  return withColor(slots, button === 2 ? "background" : "foreground", index);
+}
+
 /** Makes one square the foreground; the other becomes the background where it stands. */
 export function withActive(slots: ColorSlots, slot: "a" | "b"): ColorSlots {
   return slots.active === slot ? slots : { ...slots, active: slot };
