@@ -92,7 +92,7 @@ export const SHAPE_FILL: ToolOption<ShapeFill> = {
 /** Whether stitches touching only at a corner are one region for Fill (G-115, D322): on, as Fill always was; off, only edges. */
 export const FILL_DIAGONAL: ToolOption<"on" | "off"> = {
   id: "fillDiagonal",
-  group: "Fill",
+  group: "Region",
   label: "Diagonal neighbours",
   title: "On: stitches touching at a corner are filled too. Off: only stitches above, below, left and right",
   control: "segments",
@@ -108,7 +108,7 @@ export const FILL_DIAGONAL: ToolOption<"on" | "off"> = {
 /** Whether Fill changes the colour only, keeping each stitch's type and filling across types (G-115, D322). */
 export const FILL_COLOR_ONLY: ToolOption<"on" | "off"> = {
   id: "fillColorOnly",
-  group: "Fill",
+  group: "Region",
   label: "Color only",
   title: "On: only the colour changes, each stitch keeps its type, and the region is every touching stitch of that colour",
   control: "segments",
@@ -127,7 +127,7 @@ export const FILL_COLOR_ONLY: ToolOption<"on" | "off"> = {
 /** Which way a left press of the Zoom tool zooms; a right press zooms the other way (G-115, D324). */
 export const ZOOM_DIRECTION: ToolOption<"in" | "out"> = {
   id: "zoomDirection",
-  group: "Zoom",
+  group: "Direction",
   label: "Zoom direction",
   title: "Which way a click zooms; a right click, or Shift or Alt with a click, zooms the other way",
   control: "segments",
