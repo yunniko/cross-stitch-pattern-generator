@@ -238,3 +238,43 @@ describe("counts", () => {
     expect(kindCounts(p, 1)).toEqual([0, 0, 1]);
   });
 });
+
+describe("the Fill tool's region by colour and stitch type (G-115, D322)", () => {
+  // 3 x 3 of thread 0: the middle row is half stitches "/", the rest whole.
+  const p = () => chart(3, 3, "0 0 0 / 0 0 0 / 0 0 0", "w w w / s s s / w w w");
+  const colours = (q: StitchPattern) => Array.from(q.cellPalette);
+  const none = NO_SYMMETRY;
+
+  it("keeps to stitches of the pressed one's type: whole stitches do not spread into half ones of that colour", () => {
+    const filled = fillSymmetric(p(), 0, none, 1, 8, W, { sameKind: true });
+    expect(colours(filled)).toEqual([1, 1, 1, 0, 0, 0, 0, 0, 0]);
+    expect(kindsOf(filled, 9)).toEqual([W, W, W, S, S, S, W, W, W]);
+    const halves = fillSymmetric(p(), 4, none, 1, 8, B, { sameKind: true });
+    expect(colours(halves)).toEqual([0, 0, 0, 1, 1, 1, 0, 0, 0]);
+    expect(kindsOf(halves, 9)).toEqual([W, W, W, B, B, B, W, W, W]);
+  });
+
+  it("colour only fills every touching stitch of the colour, of any type, and keeps each stitch's type", () => {
+    const filled = fillSymmetric(p(), 0, none, 1, 8, B, { colorOnly: true });
+    expect(colours(filled)).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    expect(kindsOf(filled, 9)).toEqual([W, W, W, S, S, S, W, W, W]);
+  });
+
+  it("colour only into empty leaves whole stitches, and out of empty lays whole stitches", () => {
+    const erased = fillSymmetric(p(), 4, none, EMPTY_CELL, 8, W, { colorOnly: true });
+    expect(kindsOf(erased, 9)).toEqual([W, W, W, W, W, W, W, W, W]);
+    const blank = chart(2, 1, ". .");
+    expect(kindsOf(fillSymmetric(blank, 0, none, 1, 8, S, { colorOnly: true }), 2)).toEqual([W, W]);
+  });
+
+  it("with diagonal neighbours off, stitches touching only at a corner are another region", () => {
+    const corners = chart(3, 3, "0 1 1 / 1 0 1 / 1 1 0");
+    expect(colours(fillSymmetric(corners, 0, none, 1, 8, W, { sameKind: true }))).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    expect(colours(fillSymmetric(corners, 0, none, 1, 4, W, { sameKind: true }))).toEqual([1, 1, 1, 1, 0, 1, 1, 1, 0]);
+  });
+
+  it("with diagonal neighbours on and colour only, it fills as Fill always did", () => {
+    const q = chart(3, 3, "0 1 1 / 1 0 1 / 1 1 0", "w w w / w s w / w w b");
+    expect(colours(fillSymmetric(q, 0, none, 1, 8, W, { colorOnly: true }))).toEqual(colours(fillSymmetric(q, 0, none, 1, 8, W)));
+  });
+});

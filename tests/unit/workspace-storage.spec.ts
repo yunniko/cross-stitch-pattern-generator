@@ -82,7 +82,6 @@ describe("workspace-storage", () => {
       exportCellMm: 5.5,
       toolOptions: {},
       generationExtras: {},
-      doubleClickFill: true,
       blankWidth: 100,
       blankHeight: 100,
       defaultPaletteMode: "full",
@@ -133,7 +132,6 @@ describe("workspace-storage", () => {
         exportCellMm: 4.25,
         toolOptions: { "sample.option": "three" },
         generationExtras: {},
-        doubleClickFill: false,
         blankWidth: 60,
         blankHeight: 45,
         defaultPaletteMode: "dmc" as const,
@@ -191,21 +189,6 @@ describe("workspace-storage", () => {
       expect(loadWorkspaceOptions()).toMatchObject({ blankWidth: 100, blankHeight: 100, defaultPaletteMode: "full" });
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ blankWidth: 12.5, blankHeight: "40" }));
       expect(loadWorkspaceOptions()).toMatchObject({ blankWidth: 100, blankHeight: 100 });
-    });
-
-    it("defaults doubleClickFill to true for a workspace saved before G-041 (the field absent entirely)", () => {
-      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ aidaCount: 18, sizeUnit: "in", authorName: "Jules", edgeMode: "crisp" }));
-      expect(loadWorkspaceOptions().doubleClickFill).toBe(true);
-    });
-
-    it("keeps doubleClickFill switched off across a reload (G-041)", () => {
-      saveWorkspaceOptions({ ...DEFAULTS, doubleClickFill: false });
-      expect(loadWorkspaceOptions().doubleClickFill).toBe(false);
-    });
-
-    it("falls back to the default when doubleClickFill is not a boolean", () => {
-      window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, doubleClickFill: "no" }));
-      expect(loadWorkspaceOptions().doubleClickFill).toBe(true);
     });
 
     it("keeps the line tracing across a reload, and reads a bad value as its default (G-084)", () => {

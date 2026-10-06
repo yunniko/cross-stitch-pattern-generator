@@ -90,7 +90,6 @@ What is set once and then left. They are in reach from anywhere, with or without
 | **Author name** | Text | Empty | Exports (`08`) |
 | **A4 cell size** | As in `08` | 5.5 mm | A4 pages (`08`) |
 | **A4/PDF overlap** | As in `08` | 5 | A4 pages and the PDF (`08`) |
-| **Double-click fills a region** | Choice of **On**, **Off** | On | The Brush (`04`) |
 
 The author name, the cell size and the overlap are also shown where an export that reads them is chosen (`08`): one value each, shown in two places.
 

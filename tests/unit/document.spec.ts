@@ -7,12 +7,10 @@ import {
   canUndo,
   commitDocument,
   redoHistory,
-  replaceSince,
   startHistory,
   undoHistory,
   type DocumentHistory,
 } from "../../lib/document/history";
-import type { ChartDocument } from "../../lib/document/types";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "../../lib/types";
 
 /**
@@ -269,73 +267,5 @@ describe("the history of changes, against a history of full copies", () => {
     expect(present(history)).toBe(second);
     history = redoHistory(undoHistory(history));
     expect(shape(present(history))).toEqual(shape(second));
-  });
-});
-
-describe("replacing the steps of a gesture with one (D138)", () => {
-  const doc = (name: string) => documentFromPattern(chart(3, 3, 0, { name }));
-  const names = (h: DocumentHistory) => {
-    const list: (string | undefined)[] = [];
-    let walk = h;
-    while (canUndo(walk)) walk = undoHistory(walk);
-    list.push(walk.present ? flatten(walk.present).name : undefined);
-    while (canRedo(walk)) {
-      walk = redoHistory(walk);
-      list.push(walk.present ? flatten(walk.present).name : undefined);
-    }
-    return list;
-  };
-  const build = (...documents: ChartDocument[]) => documents.slice(1).reduce(commitDocument, startHistory(documents[0]));
-
-  it("rewinds to the chart before the first press and adds the fill as one step", () => {
-    const [start, before, click1, click2, fill] = ["start", "before", "click1", "click2", "fill"].map(doc);
-    const next = replaceSince(build(start, before, click1, click2), before, [click1, click2], fill);
-    expect(names(next)).toEqual(["start", "before", "fill"]);
-    expect(next.present).toBe(fill);
-    expect(flatten(undoHistory(next).present!).name).toBe("before");
-  });
-
-  it("tells documents apart by which they are, not by what is in them", () => {
-    const [before, click1, click2, fill, lookalike] = ["before", "click", "click", "fill", "click"].map(doc);
-    expect(names(replaceSince(build(before, click1, click2), before, [click1, lookalike], fill))).toEqual([
-      "before",
-      "click",
-      "click",
-      "fill",
-    ]);
-  });
-
-  it("adds the fill as an ordinary step when the chart before the press was trimmed away, or another edit came between", () => {
-    const [before, click1, other, click2, fill] = ["before", "click1", "other", "click2", "fill"].map(doc);
-    expect(names(replaceSince(build(click1, click2), before, [click1, click2], fill))).toEqual(["click1", "click2", "fill"]);
-    expect(names(replaceSince(build(before, click1, other, click2), before, [click1, click2], fill))).toEqual([
-      "before",
-      "click1",
-      "other",
-      "click2",
-      "fill",
-    ]);
-  });
-
-  it("adds the fill as an ordinary step after an undo past the presses, dropping what could be redone", () => {
-    const [before, click1, click2, fill] = ["before", "click1", "click2", "fill"].map(doc);
-    const undone = undoHistory(build(before, click1, click2));
-    expect(names(replaceSince(undone, before, [click1, click2], fill))).toEqual(["before", "click1", "fill"]);
-  });
-
-  it("still finds the steps of a gesture after an undo and a redo have remade the documents", () => {
-    const [before, click1, click2, fill] = ["before", "click1", "click2", "fill"].map(doc);
-    const remade = redoHistory(undoHistory(build(before, click1, click2)));
-    expect(names(replaceSince(remade, before, [click1, click2], fill))).toEqual(["before", "fill"]);
-  });
-
-  it("works with a single press, and trims to the cap when it falls back", () => {
-    const [before, click, fill] = ["before", "click", "fill"].map(doc);
-    expect(names(replaceSince(build(before, click), before, [click], fill))).toEqual(["before", "fill"]);
-    const many = Array.from({ length: MAX_HISTORY }, (_, i) => doc(`s${i}`));
-    const next = replaceSince(build(...many), doc("gone"), [many[48], many[49]], fill);
-    expect(names(next)).toHaveLength(MAX_HISTORY);
-    expect(names(next)[0]).toBe("s1");
-    expect(names(next)[MAX_HISTORY - 1]).toBe("fill");
   });
 });

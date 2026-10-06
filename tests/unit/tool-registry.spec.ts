@@ -157,7 +157,7 @@ describe("the options each tool declares (G-093)", () => {
     const shown = Object.fromEntries(TOOL_DEFINITIONS.map((tool) => [tool.id, optionIds(tool.id).join(" ")]));
     expect(shown).toEqual({
       brush: "brushSize brushShape stitchKind",
-      fill: "stitchKind",
+      fill: "stitchKind fillDiagonal fillColorOnly",
       line: "brushSize brushShape stitchKind",
       rect: "brushSize brushShape stitchKind shapeFill",
       oval: "brushSize brushShape stitchKind shapeFill",

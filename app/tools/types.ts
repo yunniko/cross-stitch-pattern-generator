@@ -91,8 +91,6 @@ export interface EditorApi {
   startingNew: boolean;
   /** Pushes one undoable step. */
   commit: (next: StitchPattern) => void;
-  /** Replaces the steps since `anchor` with one (the brush's double-press fill, D138). */
-  replaceSince: (anchor: StitchPattern, since: readonly StitchPattern[], next: StitchPattern) => void;
   history: { canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void };
   /** The colour a press paints with: the foreground for the main button, the background for the other. */
   colorForPointer: (button: number) => number | null;
@@ -109,7 +107,6 @@ export interface EditorApi {
     lockTransparency: boolean;
     stitchKind: 0 | 1 | 2;
     shapeFill: ShapeFill;
-    doubleClickFill: boolean;
     aidaCount: number;
     sizeUnit: SizeUnit;
   };

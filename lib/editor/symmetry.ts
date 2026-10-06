@@ -1,4 +1,3 @@
-import { labelRegions } from "../pipeline/regions";
 import { EMPTY_CELL, type FloatingSelection, type StitchPattern } from "../types";
 import { mergeSelection, withCellPalette } from "./pattern-edit";
 import { kindUnderMatrix, STITCH_WHOLE } from "./stitch-kind";
@@ -127,9 +126,20 @@ export function applyQuickMirrorWithSelection(
 }
 
 /**
+ * How a fill finds its region and what it changes (G-115, D322). `sameKind`: a region is the touching stitches of the
+ * seed's colour **and** its stitch type, so whole stitches do not spread into half ones of that colour. `colorOnly`: only the
+ * colour changes, each stitch keeps its type, and the type is not asked when finding the region. The two are never both
+ * on: a colour-only fill ignores type.
+ */
+export interface FillRule {
+  sameKind?: boolean;
+  colorOnly?: boolean;
+}
+
+/**
  * Fills the region of every cell in `cellIndex`'s orbit with `paletteIndex`: each region as it was before the fill,
- * 4-connected (drop-to-fill) or 8-connected (the Fill tool and double-click), painted as one union. On a pattern that
- * isn't already symmetric the regions differ, so the result can be asymmetric (criterion 2).
+ * 4-connected (drop-to-fill, or the Fill tool with Diagonal neighbours off) or 8-connected (the Fill tool), painted as one
+ * union. On a pattern that isn't already symmetric the regions differ, so the result can be asymmetric (criterion 2).
  */
 export function fillSymmetric(
   pattern: StitchPattern,
@@ -137,7 +147,8 @@ export function fillSymmetric(
   axes: SymmetryAxes,
   paletteIndex: number,
   connectivity: 4 | 8,
-  kind: number = STITCH_WHOLE
+  kind: number = STITCH_WHOLE,
+  rule: FillRule = {}
 ): StitchPattern {
   assertPattern(pattern);
   const { width, height, cellPalette, palette } = pattern;
@@ -146,51 +157,42 @@ export function fillSymmetric(
     throw new Error(`${paletteIndex} is neither a palette colour nor EMPTY.`);
   }
   if (connectivity !== 4 && connectivity !== 8) throw new Error(`Connectivity must be 4 or 8 (got ${connectivity}).`);
+  const sameKind = rule.sameKind === true && rule.colorOnly !== true;
 
   const orbit = symmetryOrbitKinds(cellIndex, width, height, axes, kind);
-  const seeds = orbit.map((cell) => cell.index);
-  const seedKind = new Map(orbit.map((cell) => [cell.index, cell.kind]));
   const cells = cellPalette.slice();
-  const kinds = new Uint8Array(cells.length);
-  if (pattern.cellKind) kinds.set(pattern.cellKind);
-  if (connectivity === 4) {
-    // One labelling pass, then every cell whose region holds a seed; a region takes the kind of the first seed in it.
-    const { labels } = labelRegions(cellPalette, width, height);
-    const chosen = new Map<number, number>();
-    for (const seed of seeds) if (!chosen.has(labels[seed])) chosen.set(labels[seed], seedKind.get(seed)!);
-    for (let i = 0; i < cells.length; i++) {
-      const regionKind = chosen.get(labels[i]);
-      if (regionKind === undefined) continue;
-      cells[i] = paletteIndex;
-      kinds[i] = regionKind;
-    }
-  } else {
-    // 8-connected floods over the original buffer sharing one visited mask: two seeds in one region traverse it once,
-    // and a cell reached from one seed can't belong to another seed's differently coloured region.
-    const visited = new Uint8Array(cellPalette.length);
-    const stack: number[] = [];
-    for (const seed of seeds) {
-      if (visited[seed]) continue;
-      const value = cellPalette[seed];
-      visited[seed] = 1;
-      stack.push(seed);
-      while (stack.length > 0) {
-        const cell = stack.pop()!;
-        cells[cell] = paletteIndex;
-        kinds[cell] = seedKind.get(seed)!;
-        const x = cell % width;
-        const y = (cell - x) / width;
-        for (let dy = -1; dy <= 1; dy++) {
-          const ny = y + dy;
-          if (ny < 0 || ny >= height) continue;
-          for (let dx = -1; dx <= 1; dx++) {
-            const nx = x + dx;
-            if ((dx === 0 && dy === 0) || nx < 0 || nx >= width) continue;
-            const neighbour = ny * width + nx;
-            if (visited[neighbour] || cellPalette[neighbour] !== value) continue;
-            visited[neighbour] = 1;
-            stack.push(neighbour);
-          }
+  const original = new Uint8Array(cells.length);
+  if (pattern.cellKind) original.set(pattern.cellKind);
+  const kinds = original.slice();
+  // Floods over the original buffers sharing one visited mask: two seeds in one region traverse it once, and the region
+  // takes the kind of the first seed in it; a cell reached from one seed can't belong to another seed's other region.
+  const visited = new Uint8Array(cellPalette.length);
+  const stack: number[] = [];
+  for (const seed of orbit) {
+    if (visited[seed.index]) continue;
+    const value = cellPalette[seed.index];
+    const seedKind = original[seed.index];
+    visited[seed.index] = 1;
+    stack.push(seed.index);
+    while (stack.length > 0) {
+      const cell = stack.pop()!;
+      cells[cell] = paletteIndex;
+      // An empty stitch is always whole (D258); colour only keeps each stitch's type, and an empty one stays whole.
+      kinds[cell] = paletteIndex === EMPTY_CELL ? STITCH_WHOLE : rule.colorOnly ? original[cell] : seed.kind;
+      const x = cell % width;
+      const y = (cell - x) / width;
+      for (let dy = -1; dy <= 1; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= height) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          if ((dx === 0 && dy === 0) || nx < 0 || nx >= width) continue;
+          if (connectivity === 4 && dx !== 0 && dy !== 0) continue;
+          const neighbour = ny * width + nx;
+          if (visited[neighbour] || cellPalette[neighbour] !== value) continue;
+          if (sameKind && original[neighbour] !== seedKind) continue;
+          visited[neighbour] = 1;
+          stack.push(neighbour);
         }
       }
     }

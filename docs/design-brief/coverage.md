@@ -428,6 +428,7 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-108 | not shipped (draft) | saved charts and a gallery |
 | G-109 | not shipped (draft) | limits on server actions |
 | G-110 | 03-chart-views | the view as switches |
+| G-115 | 04-editing | Fill by stitch type and its switches, the brush without a colour, the Zoom direction; also 03, 06 |
 | G-111 | not shipped (draft) | what users publish, and moderation |
 | G-112 | not shipped (draft) | a user guide |
 | G-113 | out of scope | draft: email for accounts |
@@ -446,3 +447,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D319 | 04-editing | written in G-104 M3 |
 | D320 | 03-chart-views | the slider row and the looking-only paragraph |
 | D321 | 03-chart-views | the colour under the pointer row |
+| D322 | 04-editing | the Fill row and Fill options; also 01 |

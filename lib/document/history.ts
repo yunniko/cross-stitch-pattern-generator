@@ -42,29 +42,5 @@ export function redoHistory(history: DocumentHistory): DocumentHistory {
   return { present: applyChange(history.present, change, "redo"), past: [...history.past, change], future: history.future.slice(0, -1) };
 }
 
-/**
- * Replaces the steps `since` that directly follow `anchor` with `next`, as one step: a gesture that committed intermediate
- * states (a brush double-press's two presses) lands as a single edit. When the history no longer has exactly that shape
- * (the anchor was trimmed away, another edit came between, the gesture was undone past) `next` is committed like any other
- * step, so nothing is lost (D138).
- */
-export function replaceSince(
-  history: DocumentHistory,
-  anchor: ChartDocument | null,
-  since: readonly (ChartDocument | null)[],
-  next: ChartDocument | null
-): DocumentHistory {
-  const revision = (document: ChartDocument | null) => document?.revision ?? 0;
-  const first = history.past.length - since.length;
-  const matches =
-    since.length > 0 &&
-    first >= 0 &&
-    history.past[first].revisions[0] === revision(anchor) &&
-    since.every((document, offset) => history.past[first + offset].revisions[1] === revision(document)) &&
-    revision(history.present) === revision(since[since.length - 1]);
-  if (!matches) return commitDocument(history, next);
-  return { present: next, past: [...history.past.slice(0, first), recordChange(anchor, next)], future: [] };
-}
-
 export const canUndo = (history: DocumentHistory) => history.past.length > 0;
 export const canRedo = (history: DocumentHistory) => history.future.length > 0;

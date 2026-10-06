@@ -136,10 +136,10 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D135 — The Image window paints a viewport canvas inside a chart-sized frame — active
 - D136 — Realistic view from per-colour stitch tiles; Grid + photo paints less overscan — active
 - D137 — Symmetry is the group the active axes generate, computed in doubled centred coordinates — active
-- D138 — A brush double-click fill is one undo step; symmetry is saved as an optional file field — active
+- D138 — A brush double-click fill is one undo step; symmetry is saved as an optional file field — partly superseded (superseded by: D322)
 - D144 — A Move drag paints the visible view only, at most once per animation frame — active
 - D145 — A Move frame shifts the pixels already drawn and patches the exposed strips — active
-- D146 — The Brush double-click fill is a workspace option, on by default — active
+- D146 — The Brush double-click fill is a workspace option, on by default — superseded (superseded by: D322)
 - D147 — Selection actions, icon buttons, and chrome a photo-free chart does not need — partly superseded (D148 for Cancel)
 - D148 — Cancel drops only the floating piece — active
 - D150 — The server decodes photos with @napi-rs/canvas — active
@@ -357,3 +357,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D319 — A tool held on a key is one routine, and a modifier held alone is a key — active
 - D320 — The visibility slider is disabled, not hidden, and a faint pattern has no note — active
 - D321 — The status bar names the colour the Picker would take — active
+- D322 — Fill finds its region by colour and stitch type, with two switches; the double-press fill is gone — active

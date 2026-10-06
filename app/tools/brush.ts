@@ -1,33 +1,16 @@
 import { BrushIcon, FillIcon } from "./icons";
 import { inputsFrom } from "./shared";
-import { LAYING_OPTIONS, STITCH_OPTIONS } from "./options";
+import { FILL_COLOR_ONLY, FILL_DIAGONAL, FILL_OPTIONS, LAYING_OPTIONS } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useRef } from "react";
 import { stampCells, type StampOffset } from "@/lib/editor/brush-stamp";
 import { flipsTransparency, withCellPalette } from "@/lib/editor/pattern-edit";
-import { fillSymmetric, symmetryOrbitKinds, type SymmetryAxes } from "@/lib/editor/symmetry";
+import { fillSymmetric, symmetryOrbitKinds, type FillRule, type SymmetryAxes } from "@/lib/editor/symmetry";
 import { kindBuffer, STITCH_WHOLE } from "@/lib/editor/stitch-kind";
 import { EMPTY_CELL } from "@/lib/types";
 import type { StitchPattern } from "@/lib/types";
 import { cellIndexFromEvent, releaseCapture, type PointerPosition, capturePointer } from "../editor-geometry";
 import { lockedResult, unchanged, type CanvasToolInputs, type PointerLike } from "./shared";
-
-/** How close in time two brush clicks on one cell must be to count as the start of a double-click. */
-const DOUBLE_CLICK_WINDOW_MS = 400;
-
-/** What a click remembers so a following click on the same stitch can turn into a one-step double-click fill (D138). */
-interface ClickRecord {
-  time: number;
-  cellIndex: number;
-  /** The pattern before the first click: the fill floods from it, and undo returns to it. */
-  anchor: StitchPattern;
-  axes: SymmetryAxes;
-  color: number;
-  /** The stitch kind the clicks laid (G-082). */
-  kind: number;
-  /** The patterns the clicks committed, in order: the steps the fill replaces. */
-  commits: StitchPattern[];
-}
 
 export function useBrushTool({
   frameRef,
@@ -40,7 +23,7 @@ export function useBrushTool({
   colorForPointer,
   stamp,
   symmetry,
-  replaceSince,
+  fill,
 }: CanvasToolInputs & {
   /**
    * The colour a press paints with, asked for when the gesture starts: the foreground for a left button and
@@ -51,7 +34,8 @@ export function useBrushTool({
   stamp: readonly StampOffset[];
   /** The symmetry axes in effect; a stroke keeps the axes it started with. */
   symmetry: SymmetryAxes;
-  replaceSince: (anchor: StitchPattern, since: readonly StitchPattern[], next: StitchPattern) => void;
+  /** How the Fill tool finds its region and what it changes (G-115). */
+  fill: { connectivity: 4 | 8; rule: FillRule };
 }) {
   const strokeRef = useRef<{
     base: StitchPattern;
@@ -62,10 +46,8 @@ export function useBrushTool({
     lastCell: number | null;
     axes: SymmetryAxes;
     color: number;
-    click: ClickRecord;
     stamp: readonly StampOffset[];
   } | null>(null);
-  const lastClickRef = useRef<ClickRecord | null>(null);
 
   function cellAt(e: PointerPosition, frame: HTMLElement): number | null {
     return pattern ? cellIndexFromEvent(e, frame, cellSize, pattern.width, pattern.height) : null;
@@ -110,13 +92,17 @@ export function useBrushTool({
     );
   }
 
-  /** The Fill tool's click: floods the clicked cell's 8-connected same-color region, and its mirror copies' regions. */
+  /** The Fill tool's press: floods the pressed stitch's region, and its mirror copies' regions, by the Fill switches (G-115). */
   function fillAt(e: PointerLike, frame: HTMLElement) {
     const color = colorForPointer(e.button ?? 0);
     if (!pattern || color === null) return;
     const cellIndex = cellAt(e, frame);
     if (cellIndex === null) return;
-    const filled = lockedResult(pattern, fillSymmetric(pattern, cellIndex, symmetry, color, 8, stitchKind), locked);
+    const filled = lockedResult(
+      pattern,
+      fillSymmetric(pattern, cellIndex, symmetry, color, fill.connectivity, stitchKind, fill.rule),
+      locked
+    );
     if (filled) commit(filled);
   }
 
@@ -125,25 +111,6 @@ export function useBrushTool({
     if (!pattern || activeColorIndex === null) return;
     const cellIndex = cellAt(e, frame);
     if (cellIndex === null) return;
-    // A second click on the same stitch within the window, on the pattern the first click produced, with the same axes
-    // and colour, keeps the first click's record, so a double-click fill starts from the region as it was before either
-    // click painted. Timing, not `detail`, which isn't reliable for pointers. Anything else starts a new record.
-    const now = Date.now();
-    const last = lastClickRef.current;
-    const isSecondClick =
-      last !== null &&
-      now - last.time < DOUBLE_CLICK_WINDOW_MS &&
-      last.cellIndex === cellIndex &&
-      last.color === activeColorIndex &&
-      last.kind === stitchKind &&
-      last.axes === symmetry &&
-      last.commits.length > 0 &&
-      last.commits[last.commits.length - 1] === pattern;
-    const click: ClickRecord = isSecondClick
-      ? last
-      : { time: now, cellIndex, anchor: pattern, axes: symmetry, color: activeColorIndex, kind: stitchKind, commits: [] };
-    click.time = now;
-    lastClickRef.current = click;
     const cells = pattern.cellPalette.slice();
     const kinds = kindBuffer(pattern);
     strokeRef.current = {
@@ -154,7 +121,6 @@ export function useBrushTool({
       lastCell: cellIndex,
       axes: symmetry,
       color: activeColorIndex,
-      click,
       stamp,
     };
     paintOrbit(pattern, cells, kinds, cellIndex, symmetry, activeColorIndex, stitchKind, stamp);
@@ -182,43 +148,20 @@ export function useBrushTool({
     releaseCapture(frameRef.current, e.pointerId);
     // A stroke the lock left with nothing to change costs no undo step.
     if (locked && unchanged(stroke.base, stroke.cells, stroke.kinds)) return true;
-    const next = withCellPalette(stroke.base, stroke.cells, stroke.kinds);
-    stroke.click.commits.push(next);
-    commit(next);
+    commit(withCellPalette(stroke.base, stroke.cells, stroke.kinds));
     return true;
   }
 
-  /**
-   * Double-click with the brush flood-fills, with symmetry, from the pattern as it was before the double-click's own two
-   * paints (Owner request, 2026-09-12), and replaces those two paints in the history, so it is one undo step (D138).
-   */
-  // A double-click arrives as a mouse event, which carries a button but no pointer id.
-  function onDoubleClick(e: PointerPosition & { button?: number }, frame: HTMLElement) {
-    const color = colorForPointer(e.button ?? 0);
-    if (!pattern || color === null) return;
-    const cellIndex = cellAt(e, frame);
-    if (cellIndex === null) return;
-    const click = lastClickRef.current;
-    lastClickRef.current = null;
-    if (click && click.cellIndex === cellIndex && click.color === color && click.commits.length > 0) {
-      const filled = lockedResult(click.anchor, fillSymmetric(click.anchor, cellIndex, click.axes, click.color, 8, click.kind), locked);
-      if (filled) replaceSince(click.anchor, click.commits, filled);
-    } else {
-      const filled = lockedResult(pattern, fillSymmetric(pattern, cellIndex, symmetry, color, 8, stitchKind), locked);
-      if (filled) commit(filled);
-    }
-  }
-
-  return { fillAt, onPointerDown, onPointerMove, onPointerUp, onDoubleClick };
+  return { fillAt, onPointerDown, onPointerMove, onPointerUp };
 }
 
-/** Brush and Fill: two tools of one module, since a double press of the brush is the fill and both share the colour rules. */
+/** Brush and Fill: two tools of one module, since both lay the colours in hand by the same rules. */
 export const brushModule = {
   definitions: [
     {
       id: "brush",
       label: "Brush",
-      title: "Paint the selected color -- click a color in the Threads list first (B). Double-click to flood-fill instead.",
+      title: "Paint the selected color -- click a color in the Threads list first (B)",
       key: "b",
       group: 0,
       shares: ["colours", "symmetry", "lock"],
@@ -232,13 +175,13 @@ export const brushModule = {
     {
       id: "fill",
       label: "Fill",
-      title: "Click a color, then click a cell to flood-fill its same-colored region (F)",
+      title: "Click a color, then click a stitch to fill its region: the touching stitches of its colour and stitch type (F)",
       key: "f",
       group: 0,
       shares: ["colours", "symmetry", "lock"],
       heldPicker: true,
       Icon: FillIcon,
-      options: STITCH_OPTIONS,
+      options: FILL_OPTIONS,
       laysStitches: true,
       keyboardCursor: true,
       outline: "one",
@@ -251,16 +194,15 @@ export const brushModule = {
       colorForPointer: api.colorForPointer,
       stamp: api.stamp,
       symmetry: api.symmetry,
-      replaceSince: api.replaceSince,
+      fill: {
+        connectivity: api.option(FILL_DIAGONAL) === "on" ? 8 : 4,
+        rule: api.option(FILL_COLOR_ONLY) === "on" ? { colorOnly: true } : { sameKind: true },
+      },
     });
     return {
       onPointerDown: (e, frame) => (api.activeTool === "fill" ? brush.fillAt(e, frame) : brush.onPointerDown(e, frame)),
       onPointerMove: brush.onPointerMove,
       onPointerUp: brush.onPointerUp,
-      // Switched off in the options, a double press stays two ordinary presses (G-041).
-      onDoubleClick: (e, frame) => {
-        if (api.activeTool === "brush" && !api.viewOnly && api.options.doubleClickFill) brush.onDoubleClick(e, frame);
-      },
     };
   },
 } as const satisfies ToolModule;

@@ -209,28 +209,6 @@ export function Preferences({ options, pattern, onChange, onClose }: Preferences
             </div>
           </section>
 
-          <section className="flex flex-col gap-2 border-t border-line pt-4" aria-labelledby="preferences-editing">
-            <span className={GROUP} id="preferences-editing">
-              Editing
-            </span>
-            <div
-              className={ROW}
-              title="On: double-clicking with the Brush fills the whole region under the pointer, as one undo step. Off: a double-click just paints the two stitches you clicked."
-            >
-              Double-click fills a region
-              <div role="group" aria-label="Double-click fills a region">
-                <SegmentedControl
-                  options={[
-                    { value: "on", label: "On" },
-                    { value: "off", label: "Off" },
-                  ]}
-                  value={options.doubleClickFill ? "on" : "off"}
-                  onChange={(choice) => onChange("doubleClickFill", choice === "on")}
-                />
-              </div>
-            </div>
-          </section>
-
           <p className="m-0 text-xs leading-[17px] text-muted">
             A chart keeps the fabric it was made on, so changing a preference never changes a chart that exists. This chart&apos;s own
             fabric is in Edit, under Chart.

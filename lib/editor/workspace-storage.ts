@@ -96,8 +96,6 @@ export interface WorkspaceOptions {
   toolOptions: ToolOptionBag;
   /** The generation settings drawn from their declarations, by id (G-099, D294): the ones a new algorithm brings. */
   generationExtras: ExtraSettings;
-  /** Whether a Brush double-click floods the region under it as one undo step (D138); off leaves the two clicks as themselves. */
-  doubleClickFill: boolean;
   /** The size an empty grid is offered at (G-095): a preference, changed for one chart where the grid is made. */
   blankWidth: number;
   blankHeight: number;
@@ -138,7 +136,6 @@ export const DEFAULT_OPTIONS: WorkspaceOptions = {
   stitchKind: 0,
   toolOptions: {},
   generationExtras: {},
-  doubleClickFill: true,
   blankWidth: 100,
   blankHeight: 100,
   defaultPaletteMode: "full",
@@ -252,7 +249,6 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       toolOptions: parseToolOptionBag(parsed.toolOptions),
       generationExtras: drawnSettingValues(parsed.generationExtras),
       // Absent in options stored before G-041, so anything that is not a boolean falls back to the default.
-      doubleClickFill: typeof parsed.doubleClickFill === "boolean" ? parsed.doubleClickFill : DEFAULT_OPTIONS.doubleClickFill,
       // Absent in options stored before G-095; a size no grid can have reads as the default.
       blankWidth: blankSide(parsed.blankWidth, DEFAULT_OPTIONS.blankWidth),
       blankHeight: blankSide(parsed.blankHeight, DEFAULT_OPTIONS.blankHeight),

@@ -192,7 +192,6 @@ export default function Workspace({ account }: WorkspaceProps) {
     viewOnly: lookingOnly,
     startingNew,
     commit: history.set,
-    replaceSince: history.replaceSince,
     history,
     colorForPointer: colours.colorForPointer,
     takeColor: colours.takeColor,

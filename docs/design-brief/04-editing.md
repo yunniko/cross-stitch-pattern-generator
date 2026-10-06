@@ -14,8 +14,8 @@ Sixteen tools; exactly one is in hand, chosen by its control or its key. Brush i
 
 | Tool | Key | What it does | Uses brush size/shape | Uses stitch type | Uses symmetry |
 |---|---|---|---|---|---|
-| **Brush** | B | Paints stitches under the pointer while it is pressed and moves, one stroke = one undo step. A double press fills the whole region under it instead, as one undo step, when "double-press fills a region" is on | Yes | Yes | Yes |
-| **Fill** | F | One press fills the connected same-coloured region under the pointer (stitches touching at corners count as connected), and the mirrored regions | No | Yes | Yes |
+| **Brush** | B | Paints stitches under the pointer while it is pressed and moves, one stroke = one undo step. A double press is two presses | Yes | Yes | Yes |
+| **Fill** | F | One press fills the region under the pointer, and the mirrored regions: the touching stitches of the pressed one's colour and stitch type, with the colour and the stitch type chosen; with **Color only**, every touching stitch of that colour of any type, which keeps its type. Stitches touching at a corner count as touching while **Diagonal neighbours** is on | No | Yes | Yes |
 | **Line** | L | Drag from one stitch to another to draw a straight line of stitches as thick as the brush; follows the pointer until released; Escape drops it | Thickness | Yes | Yes |
 | **Rectangle** | R | Drag from one corner stitch to the opposite; outlined (as thick as the brush) or filled (exactly the shape, whatever the brush size) | Outline only | Yes | Yes |
 | **Oval** | O | Drag a box; draws the oval that fits it, outlined or filled as above | Outline only | Yes | Yes |
@@ -75,7 +75,8 @@ Choosing any tool other than Pan or Zoom drops the frame without changing the ch
 | **Brush shape** | **Round** (the disc that fits the size) or **Square** (the whole block) | Round | Browser | With brush size |
 | **Shape fill** | **Outline** or **Filled** | Outline | Browser | Only with Rectangle and Oval |
 | **Stitch type** | **Whole stitch**, **Half stitch "/"**, **Half stitch "\\"** (three exclusive choices, each shown as the shape of the stitch) | Whole | Browser | Only with Brush, Fill, Line, Rectangle, Oval and Lasso fill. Each cell holds one kind. See `06` |
-| **Double-press fills a region** | A preference (`01`): **On** / **Off** | On | Browser | Off: a double press paints the two stitches pressed |
+| **Diagonal neighbours** | **Diagonal** (stitches touching at a corner are filled too) or **Edges only** (only above, below, left and right) | Diagonal | Browser | Only with Fill |
+| **Color only** | **Color and type** (the region is one colour and one stitch type, and gets the stitch type chosen) or **Color only** (the region is one colour of any type; each stitch keeps its type; an empty stitch stays whole) | Color and type | Browser | Only with Fill |
 
 **Outline of what a press will cover:** under the pointer, the stitches the tool in hand would cover are outlined, in the brush's size and shape (a disc for round, a block for square; one stitch for a filled rectangle or oval, whatever the brush size); it follows the pointer and leaves with it; the system pointer is hidden over the chart for these tools, and a small dot marks the exact place in the outlined stitch.
 
@@ -124,7 +125,7 @@ While a piece is in hand, **Undo and Redo are unavailable** (with the reason "Ap
 | **Purpose** | Stop drawing from turning empty stitches into colour, or colour into empty |
 | **Kind** | Switch |
 | **Default** | Off. Kept in the browser |
-| **Effects while on** | Brush, shape tools, Fill, double-press fill and Lasso fill cannot change whether a stitch is empty; Fill selection paints only stitches that are not empty. Selecting, moving and dragging act as they do without it |
+| **Effects while on** | Brush, shape tools, Fill and Lasso fill cannot change whether a stitch is empty; Fill selection paints only stitches that are not empty. Selecting, moving and dragging act as they do without it |
 
 ## Dragging a colour from the thread list
 

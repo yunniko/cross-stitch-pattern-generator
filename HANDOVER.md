@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-06 at 53f9e56 (production v0.6.0 at 53f9e56; 1,263 unit; CI full e2e green on 066bfab; live checks as in the deploy log)
+Last verified: 2026-10-06 at 53f9e56 + G-115 M1 (production v0.6.0 at 53f9e56; 1,259 unit after G-115 M1 removed the double-press history tests; CI full e2e green on 066bfab; live checks as in the deploy log)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -11,11 +11,11 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 **Production** runs 24dfc5c, v0.5.0 (2026-10-06, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-104, the colour picker — signed off 2026-10-06, archived; live since v0.5.0.** The Picker (`app/tools/picker.ts`, key I) reads `colorAt` in `lib/editor/pick-color.ts`; Alt lends it to the tools marked `heldPicker` (D318) through `lib/editor/held-tool.ts` and `app/hooks/use-held-tool.ts`, which also run Space's Pan (D319).
-
 **G-105, release versions and notes — ACTIVE, all four milestones done, pending the Owner's sign-off; live since v0.2.0, now v0.3.0.** The version is `package.json`'s, handed to the bundle by `next.config.ts` and read through `lib/app-version.ts` (D308); shown at the foot of Preferences and in crash reports. A change under `app/`, `lib/`, `rust/` or `public/` carries a note in `release-notes/next/`, checked by `check:fast` and CI (D309); `npm run release` cuts a numbered, tagged release whose notes `/whats-new` shows (D310); every deploy is a release (D311, `docs/development-loop.md`); a pushed range that cuts a release is carried by the release's file.
 
 **G-110, the view as switches — ACTIVE, all four milestones done, live since v0.4.0, awaiting the Owner's sign-off (the review stop was released by "go 104").** The view is `lib/editor/view.ts`: a pattern mode, Symbols, Photo and the pattern's visibility, with what is in force derived by `viewInForce` (D315). The choice is kept in the browser's settings, so a reload keeps it and every other new chart resets it (D317). `app/chart-scene.ts` draws the photo at full strength and the pattern over it as one layer at its visibility (D316); editing needs a flat mode at 5 % or more, and the controls say why when it is off. A focused slider or checkbox passes keys to the shortcuts as a button does (`app/hooks/use-keyboard-shortcuts.ts`). Browser specs locate the switches through `tests/e2e/helpers/view.ts`. Timings: `docs/reviews/2026-10-06-view-switches.md`. On the live site a guest cannot reach Stitched (`view.realistic` locked), so the live cases that click it fail there by design.
+
+**G-115, Fill by stitch type, the brush setting type, thinner half stitches, the Zoom direction — ACTIVE, M1 of 3 done (not deployed).** `fillSymmetric` in `lib/editor/symmetry.ts` takes a `FillRule`: the Fill tool's region is one colour and one stitch type, or with Color only one colour of any type, each stitch keeping its type; Diagonal neighbours picks 8- or 4-connected (D322). The switches are `FILL_DIAGONAL` and `FILL_COLOR_ONLY` in `app/tools/options.tsx`, kept in the tool-option bag. The Brush's double press, its preference and the history's `replaceSince` are gone. M2: the brush with no thread sets stitch type, the Zoom choice, 60 % half-stitch corners.
 
 **G-103, the three workspaces as features — ACTIVE, all four milestones done, pending the Owner's sign-off; live as v0.3.0.** Photo, Edit and Export are `workspace.photo`, `.edit`, `.export`, the first group in the feature list (D312). The browser obeys: a command names its workspace and `commandGate` in `app/commands/registry.ts` reads that switch first; controls outside the table take a `gatedAction` (D313); with all three off `app/components/no-workspace.tsx` replaces the editor. The server refuses a workspace's requests by its name through `REQUEST_WORKSPACES` in `lib/features/request-check.ts` (D314). A photo dropped on the start screen goes through the photo choice's gate (`dropPhoto`, `app/hooks/use-chart-lifecycle.ts`). Live, every server export kind is set unavailable to guests by the site's own states, so a guest export cannot be checked there.
 
@@ -225,6 +225,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 Every *export* of it is Rust: `rust/cs-export/src/backstitch.rs` for the dash and bead rules,
 `draw_backstitch` in `render.rs` for the drawing, called by the chart PNG and by `a4::draw_grid_page` —
 which the Pattern Keeper PDF shares and calls with backstitch switched off.)
+- The Picker (`app/tools/picker.ts`) reads `colorAt` in `lib/editor/pick-color.ts`, which the status bar's pointer readout also names (D321); Alt lends it to the tools marked `heldPicker` (D318) through `lib/editor/held-tool.ts` and `app/hooks/use-held-tool.ts`, which also run Space's Pan (D319).
 
 ## Rules in force
 

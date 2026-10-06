@@ -112,15 +112,11 @@ test("the author and the A4 settings are one value each, in Preferences and wher
   await expect(pressed(again.getByRole("group", { name: "A4/PDF overlap in stitches" }), "10")).toHaveAttribute("aria-pressed", "true");
 });
 
-test("Double-click fills is a preference and nowhere else; Escape closes Preferences, and no key reaches the chart behind", async ({
-  page,
-}) => {
+test("Escape closes Preferences, and no key reaches the chart behind", async ({ page }) => {
   await openSmallChart(page);
   await page.getByRole("tab", { name: "Chart" }).click();
-  await expect(page.getByText("Double-click fills a region")).toHaveCount(0);
 
   const preferences = await openPreferences(page);
-  await expect(preferences.getByText("Double-click fills a region")).toBeVisible();
   // "3" is the Stitched view's key and "s" the Select tool's: neither acts while the preferences are up.
   await page.keyboard.press("3");
   await page.keyboard.press("s");

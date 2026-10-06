@@ -89,10 +89,47 @@ export const SHAPE_FILL: ToolOption<ShapeFill> = {
   ],
 };
 
+/** Whether stitches touching only at a corner are one region for Fill (G-115, D322): on, as Fill always was; off, only edges. */
+export const FILL_DIAGONAL: ToolOption<"on" | "off"> = {
+  id: "fillDiagonal",
+  group: "Fill",
+  label: "Diagonal neighbours",
+  title: "On: stitches touching at a corner are filled too. Off: only stitches above, below, left and right",
+  control: "segments",
+  values: ["on", "off"],
+  defaultValue: "on",
+  separated: true,
+  choices: [
+    { value: "on", label: "Diagonal", title: "Stitches touching at a corner are filled too" },
+    { value: "off", label: "Edges only", title: "Only stitches above, below, left and right are filled" },
+  ],
+};
+
+/** Whether Fill changes the colour only, keeping each stitch's type and filling across types (G-115, D322). */
+export const FILL_COLOR_ONLY: ToolOption<"on" | "off"> = {
+  id: "fillColorOnly",
+  group: "Fill",
+  label: "Color only",
+  title: "On: only the colour changes, each stitch keeps its type, and the region is every touching stitch of that colour",
+  control: "segments",
+  values: ["off", "on"],
+  defaultValue: "off",
+  choices: [
+    {
+      value: "off",
+      label: "Color and type",
+      title: "The region is one colour and one stitch type; it gets the colour and the stitch type chosen",
+    },
+    { value: "on", label: "Color only", title: "The region is one colour of any stitch type; each stitch keeps its type" },
+  ],
+};
+
 /** The brush's size and shape: offered by the tools that draw with the brush, and by no other (Owner, 2026-10-05, D288). */
 export const BRUSH_OPTIONS = [BRUSH_SIZE, BRUSH_SHAPE] as const;
 /** For the tools that lay stitches without a brush: Fill and Lasso fill. */
 export const STITCH_OPTIONS = [STITCH_KIND] as const;
+/** Fill's: the stitch type, and how its region is found (G-115). */
+export const FILL_OPTIONS = [STITCH_KIND, FILL_DIAGONAL, FILL_COLOR_ONLY] as const;
 /** For the tools that lay stitches with the brush: Brush and Line. */
 export const LAYING_OPTIONS = [...BRUSH_OPTIONS, STITCH_KIND] as const;
 /** For the shapes that enclose something, whose outline is as thick as the brush. */
