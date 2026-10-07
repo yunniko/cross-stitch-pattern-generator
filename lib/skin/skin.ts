@@ -38,6 +38,7 @@ export const SKIN_COLOURS = [
   "warning-deep",
   "tool",
   "on-tool",
+  "second",
   "scrim",
   "on-scrim",
   "shadow",

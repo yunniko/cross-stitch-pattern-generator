@@ -436,6 +436,11 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-116 | 04-editing | selection modes, Invert, the Magic wand |
 | G-117 | internal | security fixes; the sign-in message is accounts (out of scope) |
 | G-118 | 04-editing | the two colours, the Region switches (where the bar shows them: docs/interface-placement.md); the quick bar fits every tool at every desktop width; M1 takes the names off it |
+| G-119 | not shipped (draft) | stamps |
+| G-120 | out of scope | draft: preferences kept with the account |
+| G-121 | out of scope | draft: Google and Apple sign-in |
+| G-122 | out of scope | draft: jobs and queue in the admin area |
+| G-123 | out of scope | draft: release notes written in the admin area |
 | D308 | 01-overview | the version shown |
 | D309 | internal | |
 | D310 | 01-overview | "What's new" |
@@ -474,3 +479,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D343 | out of scope (accounts and admin) | |
 | D344 | out of scope (accounts and admin) | |
 | D345 | out of scope (accounts and admin) | |
+| D346 | out of scope (accounts and admin) | |

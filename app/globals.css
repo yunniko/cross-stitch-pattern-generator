@@ -51,6 +51,8 @@
   /* The tab a tool brings with it (G-095): marked by its colour alone, so it reads as belonging to the tool in hand. */
   --at-tool: #e5b453;
   --at-on-tool: #101214;
+  /* A second thing beside the accent (G-107): the second series of a chart of figures, and the mark of the admin area. */
+  --at-second: #e5b453;
 
   /* What dims the page behind a dialog, what is written on that, and what a raised thing casts. */
   --at-scrim: #000000;
@@ -93,6 +95,7 @@
   --color-warning-deep: var(--at-warning-deep);
   --color-tool: var(--at-tool);
   --color-on-tool: var(--at-on-tool);
+  --color-second: var(--at-second);
   --color-scrim: var(--at-scrim);
   --color-on-scrim: var(--at-on-scrim);
   --color-shadow: var(--at-shadow);
