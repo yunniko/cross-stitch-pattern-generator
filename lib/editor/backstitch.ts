@@ -133,13 +133,18 @@ export function withColorRemovedFromLines(lines: readonly BackstitchLine[], remo
   return out;
 }
 
+/** A line's identity, whichever end it was drawn from: two lines with the same key are the same stitch. */
+export function lineKey(line: BackstitchLine): string {
+  const n = normalizeLine(line);
+  return `${n.x1},${n.y1},${n.x2},${n.y2},${n.paletteIndex}`;
+}
+
 /** Drops duplicates, so drawing over a line twice does not stack two identical stitches. */
 export function dedupeLines(lines: readonly BackstitchLine[]): BackstitchLine[] {
   const seen = new Set<string>();
   const out: BackstitchLine[] = [];
   for (const line of lines) {
-    const n = normalizeLine(line);
-    const key = `${n.x1},${n.y1},${n.x2},${n.y2},${n.paletteIndex}`;
+    const key = lineKey(line);
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(line);

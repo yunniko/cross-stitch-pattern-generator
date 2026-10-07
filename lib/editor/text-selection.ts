@@ -1,5 +1,5 @@
 import { EMPTY_CELL, type FloatingSelection } from "../types";
-import { DUPLICATE_OFFSET } from "./pattern-edit";
+import { DUPLICATE_OFFSET } from "./floating-selection";
 import type { LetteringBitmap } from "./text-raster";
 
 /**

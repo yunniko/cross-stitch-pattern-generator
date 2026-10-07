@@ -1,7 +1,7 @@
 import * as scene from "../../../app/chart-scene";
 import { buildStitchTiles } from "../../../lib/export/stitch-texture";
 import * as viewport from "../../../lib/editor/chart-viewport";
-import { compositeSelectionPreview } from "../../../lib/editor/pattern-edit";
+import { compositeSelectionPreview } from "../../../lib/editor/floating-selection";
 import * as reference from "../../unit/reference/chart-scene-pre-g036";
 import { renderStitchPreviewToCanvas } from "../../unit/reference/render-pre-g036";
 import { rectGridContext } from "./rect-grid-context";

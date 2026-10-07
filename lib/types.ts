@@ -238,8 +238,14 @@ export interface FloatingSelection {
    * left edge, `width` its right. Kept local so a flip, a turn and a move need no knowledge of where the
    * piece currently sits.
    *
-   * A line is taken only when both its ends are inside the piece (`lineWithinRect`); the rest stay on the
+   * By default a line is taken only when both its ends are inside the piece (`lineWithinRect`); a lift may name the
+   * lines instead, such as every line of one colour (G-116). The rest stay on the
    * chart. Like the cells, these are copied at lift and the originals are cleared at merge, not before.
    */
   backstitch?: readonly BackstitchLine[];
+  /**
+   * The chart's lines this piece took when it was lifted, as they lie on the chart (G-116, D330): exactly these are
+   * cleared at merge. Absent means none were taken; like `originRect`, a duplicate or a paste has none.
+   */
+  originLines?: readonly BackstitchLine[];
 }

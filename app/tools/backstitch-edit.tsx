@@ -17,7 +17,7 @@ import {
   withEndAt,
 } from "@/lib/editor/backstitch";
 import { type CellPoint } from "@/lib/editor/shape-raster";
-import { DUPLICATE_OFFSET } from "@/lib/editor/pattern-edit";
+import { DUPLICATE_OFFSET } from "@/lib/editor/floating-selection";
 import type { BackstitchLine, StitchPattern } from "@/lib/types";
 import { cornerFromEvent, preciseCornerFromEvent, releaseCapture, type PointerPosition, capturePointer } from "../editor-geometry";
 import { type CanvasToolInputs, type PointerLike } from "./shared";

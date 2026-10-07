@@ -24,17 +24,8 @@ import {
   withColorRemovedFromLines,
 } from "@/lib/editor/backstitch";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
-import {
-  compositeSelectionPreview,
-  mergeColors,
-  flipSelectionHorizontal,
-  liftSelection,
-  mergeSelection,
-  moveSelection,
-  resizeCanvas,
-  rotateSelectionClockwise,
-  shiftPattern,
-} from "@/lib/editor/pattern-edit";
+import { mergeColors, resizeCanvas, shiftPattern } from "@/lib/editor/pattern-edit";
+import { compositeSelectionPreview, flipSelectionHorizontal, liftSelection, mergeSelection, moveSelection, rotateSelectionClockwise } from "@/lib/editor/floating-selection";
 import { EMPTY_CELL, type BackstitchLine, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 /** Backstitch as data (G-073 M1): corner coordinates, what survives a resize, and what a file round-trips. */

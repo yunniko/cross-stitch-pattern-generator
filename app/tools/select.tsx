@@ -5,18 +5,7 @@ import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useCallback, useRef, useState } from "react";
 import { lassoRegion, maskedCell } from "@/lib/editor/lasso";
 import { type CellPoint } from "@/lib/editor/shape-raster";
-import {
-  flipSelectionHorizontal,
-  flipSelectionVertical,
-  liftSelection,
-  mergeSelection,
-  moveSelection,
-  duplicateSelection,
-  fillSelection,
-  rotateSelectionClockwise,
-  rotateSelectionAnticlockwise,
-  cropToSelection,
-} from "@/lib/editor/pattern-edit";
+import { flipSelectionHorizontal, flipSelectionVertical, liftSelection, mergeSelection, moveSelection, duplicateSelection, fillSelection, rotateSelectionClockwise, rotateSelectionAnticlockwise, cropToSelection } from "@/lib/editor/floating-selection";
 import { STITCH_WHOLE } from "@/lib/editor/stitch-kind";
 import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
 import { clampedCellFromEvent, pointInRect, rectFromCorners, releaseCapture } from "../editor-geometry";

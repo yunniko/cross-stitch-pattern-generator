@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DUPLICATE_OFFSET, mergeSelection } from "@/lib/editor/pattern-edit";
+import { DUPLICATE_OFFSET, mergeSelection } from "@/lib/editor/floating-selection";
 import { letteringSelection, letteringStart } from "@/lib/editor/text-selection";
 import { EMPTY_CELL, type StitchPattern } from "@/lib/types";
 

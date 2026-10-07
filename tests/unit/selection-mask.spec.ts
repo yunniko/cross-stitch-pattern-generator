@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  duplicateSelection,
-  fillSelection,
-  flipSelectionHorizontal,
-  liftSelection,
-  mergeSelection,
-  moveSelection,
-  rotateSelectionClockwise,
-} from "@/lib/editor/pattern-edit";
+import { duplicateSelection, fillSelection, flipSelectionHorizontal, liftSelection, mergeSelection, moveSelection, rotateSelectionClockwise } from "@/lib/editor/floating-selection";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 /**

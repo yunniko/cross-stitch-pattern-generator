@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-07 at 692b2d4 (production v0.8.0 at 692b2d4; 1,336 unit; CI green on 88966ca and e589e7d; CI full e2e green on cb42113; live checks as in the deploy log)
+Last verified: 2026-10-07 at the G-116 M1 commit (production v0.8.0 at 692b2d4; 1,349 unit; CI green on 88966ca and e589e7d; CI full e2e green on cb42113; live checks as in the deploy log)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -10,6 +10,8 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 ## Current state
 
 **Production** runs 692b2d4, v0.8.0 (2026-10-07, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
+
+**G-116, selection modes, Invert and the Magic wand — ACTIVE, M1 of 4 done.** A selection is a `SelectionArea` (a chart-sized cell mask and a set of lines, `lib/editor/selection-area.ts`), combined by mode and lifted by `liftArea`; a piece records the lines it took (`originLines`) and a merge clears exactly those (D330). The piece code is `lib/editor/floating-selection.ts`. Fill and the wand find a region with `lib/editor/region.ts` (D329). Nothing visible has changed yet; the bar (M2), the wand (M3) and the release (M4) follow.
 
 **G-103, G-105, G-110, G-115 and G-100 — signed off 2026-10-07, archived.** Releases: the version is `package.json`'s, read through `lib/app-version.ts` (D308); a change under `app/`, `lib/`, `rust/` or `public/` carries a note in `release-notes/next/`, checked by `check:fast` and CI (D309); `npm run release` cuts a tagged release shown on `/whats-new` (D310); every deploy is a release (D311). Workspaces: Photo, Edit and Export are features (D312); `commandGate` in `app/commands/registry.ts` reads the workspace's switch first (D313), and the server refuses a workspace's requests through `REQUEST_WORKSPACES` in `lib/features/request-check.ts` (D314). The view as switches is `lib/editor/view.ts`, what is in force derived by `viewInForce` (D315). Fill by stitch type is `fillSymmetric`'s `FillRule` in `lib/editor/symmetry.ts` (D322). A dither pattern is one type behind `Pattern` and one line in `PATTERNS` (`rust/cs-core/src/dither/mod.rs`, D326–D328); the app's list and pictures are generated from it.
 
@@ -133,7 +135,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   PNG and PDF pages (`pdf-canvas-adapter.ts`, D074, D126). `export-jobs.ts` runs every export on the processor, through
   the canvases, assets and PNG writer (`processor/png-encode.ts`, D171) that `canvas-backend.ts` hands it (D125, D153).
   The editable JSON alone is written in the page by `use-exports.ts`, so work can be saved with the server unreachable.
-- **Editor data** (`lib/editor/`): pure mutations in `pattern-edit.ts`, validating (de)serializer in
+- **Editor data** (`lib/editor/`): pure mutations in `pattern-edit.ts`, the piece in hand in `floating-selection.ts`, selection areas in `selection-area.ts`, region finding in `region.ts`, validating (de)serializer in
   `pattern-serialize.ts` (D099), IndexedDB store in `project-store.ts` (D100), options in `workspace-storage.ts`. OXS
   lives in `oxs.ts` on the XML reader `oxs-xml.ts` (D119); `pattern-import.ts` sniffs the format.
 - **Experimental** (`lib/experimental/`): contour refinement, boundary chains, simulated annealing, diagnostics (status table in its README).
@@ -345,7 +347,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-095 (the redesign) and G-102 (feature switches) are signed off and archived** (2026-10-06). Left on the triage list from its QA pass: a Generate pressed before the colour recommendation arrives uses the previous count, and a late recommendation overwrites a typed one (since G-087). G-101 (phone layout: the 390 px window scrolls sideways, and 55 desktop controls are under 24 px) is drafted for later. G-110, G-115 and G-100 were signed off 2026-10-07 and are archived.
+- **G-095 (the redesign) and G-102 (feature switches) are signed off and archived** (2026-10-06). Left on the triage list from its QA pass: a Generate pressed before the colour recommendation arrives uses the previous count, and a late recommendation overwrites a typed one (since G-087). G-101 (phone layout: the 390 px window scrolls sideways, and 55 desktop controls are under 24 px) is drafted for later.
 - G-076 (stitch textures) was signed off 2026-09-30 and is archived.
 - G-075 (accounts) was signed off 2026-09-30 and is archived. G-074 (the four photo sliders) was signed
   off on 2026-09-27 and is archived, as is G-073 (backstitch, 2026-09-26). Two drafts wait on the Owner:

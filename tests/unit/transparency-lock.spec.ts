@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fillSelection, flipsTransparency, lockTransparency, sameCells } from "@/lib/editor/pattern-edit";
+import { flipsTransparency, lockTransparency, sameCells } from "@/lib/editor/pattern-edit";
+import { fillSelection } from "@/lib/editor/floating-selection";
 import { fillSymmetric } from "@/lib/editor/symmetry";
 import { EMPTY_CELL, type FloatingSelection, type StitchPattern } from "@/lib/types";
 

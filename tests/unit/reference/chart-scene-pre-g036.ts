@@ -13,7 +13,7 @@ type ViewMode = RenderMode | "realistic" | "photo" | "photo-only";
  * is that it is never edited. The drawing below is untouched, including its highlight branch.
  */
 type Tool = "brush" | "pan" | "zoom" | "move" | "highlight" | "select" | "fill";
-import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
+import { compositeSelectionPreview } from "@/lib/editor/floating-selection";
 import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
 import { drawCell, drawChart, drawChartOutline, drawHighlightOverlay, type RenderMode } from "./render-pre-g036";
 

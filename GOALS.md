@@ -50,7 +50,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 
 **The shortest road to selling**, if that becomes the aim: G-103, G-107, G-113, G-109, G-106. Saved charts, the gallery, the guide and the editor goals can all follow it; tiers would then differ by features and limits only, and G-106's "what happens to saved charts" has nothing to decide until G-108.
 
-### G-116 · Selection modes (replace, add, subtract), Invert selection, and a Magic wand — DRAFT (2026-10-07, plan awaiting the Owner's acceptance)
+### G-116 · Selection modes (replace, add, subtract), Invert selection, and a Magic wand — ACTIVE (accepted 2026-10-07)
 - **What:** asked by the Owner, 2026-10-07.
   1. The selection bar loses its information: the "Selection" label, the size and place of the piece, and the hint text.
   2. In their place, three radio icons: **Select** (as now: a new area replaces the selection), **Select +** (the new area is added to the selection), **Select −** (the new area is taken out of it). They work the same for Select, Lasso and the Magic wand, and one choice is shared by all three.
@@ -80,12 +80,14 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
   - The wand is a tool module in `app/tools/` beside `select.tsx`, sharing its runtime.
 
 **Milestones** (proposed; the deploy goes to the existing target, cross-stitch.craftodejnice.cz):
-- [ ] M1 -- **The selection as an area, and one region finder.** Region finding moves out of `fillSymmetric` with Fill's charts unchanged. Areas combine as replace, add, subtract and invert. A piece can carry backstitch lines chosen by colour. All unit-tested; no visible change; decision file.
+- [x] M1 -- **The selection as an area, and one region finder.** Region finding moves out of `fillSymmetric` with Fill's charts unchanged. Areas combine as replace, add, subtract and invert. A piece can carry backstitch lines chosen by colour. All unit-tested; no visible change; decision file.
 - [ ] M2 -- **The bar: three modes and Invert.** The information leaves the bar. The radio icons and Invert are added for Select and Lasso, as features and in the command list. Browser cases for every mode.
 - [ ] M3 -- **The Magic wand.** The rail tool with its icon, key, switches and bar. Backstitch clicks select by colour. Browser cases, including the same-cells check against Fill.
 - [ ] M4 -- **Docs, QA pass, full suite, release and deploy.**
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-07 — **M1 done.** `lib/editor/region.ts` (one flood for Fill and the wand, D329); `lib/editor/selection-area.ts` (areas from a box, cells or a colour's lines; combine, invert, lift; D330); the piece code split into `lib/editor/floating-selection.ts`, a piece recording the lines it took (`originLines`). Verified: 1,349 unit (13 new, including the wand's region against Fill's on every cell of a mixed chart, both connectivities, both rules), tsc, eslint, check:fast, docs-lint. Fill's existing tests unedited apart from import paths. Next: M2, the bar.
+- 2026-10-07 — **accepted by the Owner** ("go ahead"), with decisions (a) to (e) as proposed; no milestone marked for review.
 - 2026-10-07 — goal created from the Owner's request; plan drafted with decisions (a) to (e) proposed, awaiting acceptance.
 
 ### G-106 · Subscriptions: Stripe, tiers that are sold, and the admin's controls — DRAFT (2026-10-06)

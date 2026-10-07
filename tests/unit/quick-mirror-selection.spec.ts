@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { liftSelection, mergeSelection, moveSelection } from "@/lib/editor/pattern-edit";
+import { liftSelection, mergeSelection, moveSelection } from "@/lib/editor/floating-selection";
 import { applyQuickMirror, applyQuickMirrorWithSelection } from "@/lib/editor/symmetry";
 import { EMPTY_CELL, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 

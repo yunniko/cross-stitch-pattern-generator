@@ -1,6 +1,6 @@
 import { tidyKinds } from "@/lib/editor/stitch-kind";
 import { intersectRects, isEmptyRect, moveTileOffsets, type PixelRect } from "@/lib/editor/chart-viewport";
-import { compositeSelectionPreview } from "@/lib/editor/pattern-edit";
+import { compositeSelectionPreview } from "@/lib/editor/floating-selection";
 import type { CellPoint } from "@/lib/editor/shape-raster";
 import type { BackstitchLine } from "@/lib/types";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";

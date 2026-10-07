@@ -364,3 +364,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D326 — A dither pattern is one type behind `Pattern` and one line in `PATTERNS` — active
 - D327 — Previews are built pictures, and the drawn marks ask the server — active
 - D328 — A dither pattern is declared once, in Rust, and written out for the app — active
+- D329 — Fill and the Magic wand find a region with one function — active
+- D330 — The selection is an area of the chart, combined by mode — active
