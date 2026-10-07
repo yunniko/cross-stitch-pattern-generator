@@ -17,24 +17,22 @@ export interface PhotoWandBarProps {
  */
 export function PhotoWandBar({ hasSelection, busy, onDelete, onInvert, onDeselect }: PhotoWandBarProps) {
   return (
-    <div className="flex items-center gap-3" data-testid="photo-wand-bar">
-      <PinnedEnd>
-        <PillButton size="xs" onClick={onInvert} disabled={busy} title="Select everything that is not selected, or the whole photo">
-          Invert
-        </PillButton>
-        <PillButton size="xs" onClick={onDeselect} disabled={!hasSelection || busy} title="Let the selection go (Escape)">
-          Deselect
-        </PillButton>
-        <PillButton
-          size="xs"
-          variant="primary"
-          onClick={onDelete}
-          disabled={!hasSelection || busy}
-          title="Take the selected pixels out of the photo (Delete). Undo puts them back"
-        >
-          {busy ? "Working…" : "Delete"}
-        </PillButton>
-      </PinnedEnd>
-    </div>
+    <PinnedEnd>
+      <PillButton size="xs" onClick={onInvert} disabled={busy} title="Select everything that is not selected, or the whole photo">
+        Invert
+      </PillButton>
+      <PillButton size="xs" onClick={onDeselect} disabled={!hasSelection || busy} title="Let the selection go (Escape)">
+        Deselect
+      </PillButton>
+      <PillButton
+        size="xs"
+        variant="primary"
+        onClick={onDelete}
+        disabled={!hasSelection || busy}
+        title="Take the selected pixels out of the photo (Delete). Undo puts them back"
+      >
+        {busy ? "Working…" : "Delete"}
+      </PillButton>
+    </PinnedEnd>
   );
 }

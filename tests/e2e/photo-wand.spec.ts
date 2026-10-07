@@ -22,13 +22,15 @@ function collectErrors(page: Page): string[] {
 }
 
 const selection = (page: Page) => page.getByTestId("photo-selection");
+/** The wand's own option in the bar: what shows that the Photo wand is in hand. */
+const sensitivity = (page: Page) => page.getByRole("slider", { name: "Wand sensitivity" });
 
 async function loadWithWand(page: Page) {
   await page.goto("/");
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expectPhotoLoaded(page);
   await pickTool(page, "Photo wand");
-  await expect(page.getByTestId("photo-wand-bar")).toBeVisible();
+  await expect(sensitivity(page)).toBeVisible();
 }
 
 /** Presses the photo on the stage at a fraction of its width and height. */
@@ -134,8 +136,7 @@ test("W picks the Photo wand in Photo, with its sensitivity in the bar of option
   await showPhotoTab(page, "Picture");
   await page.getByTestId("photo-stage").click();
   await page.keyboard.press("w");
-  await expect(page.getByTestId("photo-wand-bar")).toBeVisible();
-  await expect(page.getByRole("slider", { name: "Wand sensitivity" })).toBeVisible();
+  await expect(sensitivity(page)).toBeVisible();
 });
 
 test("a deleted part of the photo becomes empty stitches in the chart Generate makes", async ({ page }) => {
@@ -143,9 +144,8 @@ test("a deleted part of the photo becomes empty stitches in the chart Generate m
   await loadWithWand(page);
   await page.getByRole("radio", { name: /Small/ }).check();
   // The fixture is four colour fields; one of them, taken whole, is a quarter of the photo.
-  const sensitivity = page.getByRole("slider", { name: "Wand sensitivity" });
-  await sensitivity.fill("30");
-  await sensitivity.dispatchEvent("change");
+  await sensitivity(page).fill("30");
+  await sensitivity(page).dispatchEvent("change");
   await pressPhoto(page, 0.75, 0.75);
   await expect(selection(page)).toHaveAttribute("data-selected", "yes");
   await changingPhoto(page, () => page.keyboard.press("Delete"));
